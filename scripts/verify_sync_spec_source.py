@@ -672,7 +672,7 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                        'uses': 'actions/download-artifact@v4',
                                                        'with': {'name': 'lean-workspace-compiler-build'}},
                                          {'name': 'Run compiler CLI regression module',
-                                          'run': 'stdbuf -oL -eL lake env lean --run Compiler/MainTestRunner.lean'},
+                                          'run': 'chmod +x ./.lake/build/bin/compiler-main-test && stdbuf -oL -eL ./.lake/build/bin/compiler-main-test'},
                                                       {'name': 'Run CompilationModel feature '
                                                                'regression module',
                                                                'run': 'lake build '

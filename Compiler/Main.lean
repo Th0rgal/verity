@@ -184,6 +184,8 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         throw (IO.userError s!"Unknown argument: {unknown}\nUse --help for usage information")
   go args {}
 
+namespace Compiler.Main
+
 unsafe def main (args : List String) : IO Unit := do
   try
     let cfg ← parseArgs args
@@ -234,3 +236,5 @@ unsafe def main (args : List String) : IO Unit := do
       return ()
     else
       throw e
+
+end Compiler.Main
