@@ -756,7 +756,7 @@
       },
       {
         "name": "Run compiler CLI regression module",
-        "run": "chmod +x ./.lake/build/bin/compiler-main-test\nstdbuf -oL -eL ./.lake/build/bin/compiler-main-test"
+        "run": "stdbuf -oL -eL lake env lean --run Compiler/MainTestRunner.lean"
       },
       {
         "name": "Run CompilationModel feature regression module",
