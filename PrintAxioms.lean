@@ -1440,12 +1440,12 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.SupportedBodyHelperSummariesSound_of_proofCatalog
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.SupportedSpecHelperProofs.functionProofs
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.SupportedSpecHelperProofs.functionSummariesSound
-#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed
-#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExprListWithHelpers_eq_evalExprList_of_helperSurfaceClosed
-#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed
-#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
+-- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed  -- sorry'd
+-- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExprListWithHelpers_eq_evalExprList_of_helperSurfaceClosed  -- sorry'd
+-- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed  -- sorry'd
+-- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed  -- sorry'd
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtListWithHelpersConservativeExtensionGoal_of_helperSurfaceClosed
-#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
+-- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed  -- sorry'd
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.mem_of_find?_some_local  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.mem_left_of_mem_zip_local  -- private
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.findFunctionBySelector_mem_selectorDispatchedFunctions
@@ -1716,4 +1716,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1585 theorems/lemmas (1075 public, 411 private, 99 sorry'd)
+-- Total: 1585 theorems/lemmas (1070 public, 411 private, 104 sorry'd)
