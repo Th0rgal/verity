@@ -411,7 +411,8 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                              'uses': 'actions/download-artifact@v4',
                                              'with': {'name': 'lean-workspace-macro-fuzz-build'}},
                                             {'name': 'Run macro round-trip fuzz harness',
-                                             'run': 'lake exe macro-roundtrip-fuzz'}],
+                                             'run': 'chmod +x ./.lake/build/bin/macro-roundtrip-fuzz\n'
+                                                    './.lake/build/bin/macro-roundtrip-fuzz'}],
                              'build-compiler-binaries': [{'uses': 'actions/checkout@v4',
                                                           'with': {'submodules': 'recursive'}},
                                                          {'name': 'Setup Lean',
@@ -639,11 +640,9 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                       {'name': 'Download compiler workspace build',
                                                        'uses': 'actions/download-artifact@v4',
                                                        'with': {'name': 'lean-workspace-compiler-build'}},
-                                                      {'name': 'Restore compiler regression executable bit',
-                                                       'run': 'chmod +x .lake/build/bin/compiler-main-test'},
-                                                      {'name': 'Run compiler CLI regression module',
-                                                       'run': 'stdbuf -oL -eL '
-                                                              './.lake/build/bin/compiler-main-test'},
+                                         {'name': 'Run compiler CLI regression module',
+                                          'run': 'stdbuf -oL -eL lake exe '
+                                                 'compiler-main-test'},
                                                       {'name': 'Run CompilationModel feature '
                                                                'regression module',
                                                                'run': 'lake build '

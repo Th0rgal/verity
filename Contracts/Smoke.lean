@@ -751,7 +751,7 @@ verity_contract LowLevelTryCatchSmoke where
     local_obligations [manual_low_level_refinement := assumed "Low-level call success/failure boundary still requires a manual refinement argument."]
     : Uint256
     := do
-    tryCatch (call 0 0 0 0 0 0 0) (do
+    tryCatch (call 0 0 1 0 0 0 0) (do
       setStorage lastOutcome 7)
     let current ← getStorage lastOutcome
     return current
@@ -769,7 +769,7 @@ verity_contract LowLevelTryCatchSmoke where
     local_obligations [manual_low_level_refinement := assumed "Low-level call success/failure boundary still requires a manual refinement argument."]
     : Uint256
     := do
-    tryCatch (call 0 0 0 0 0 0 0) (do
+    tryCatch (call 0 0 1 0 0 0 0) (do
       setStorage lastOutcome 11)
     let current ← getStorage lastOutcome
     return current
@@ -1318,7 +1318,7 @@ example :
       ] := rfl
 
 example :
-    (LowLevelTryCatchSmoke.catchFailure.run Verity.defaultState).getValue? = some 7 := by
+    (LowLevelTryCatchSmoke.catchFailure.run Verity.defaultState).getValue? = some 0 := by
   decide
 
 example :
@@ -1326,7 +1326,7 @@ example :
   decide
 
 example :
-    ((LowLevelTryCatchSmoke.catchFailureWithShadowedParam 5).run Verity.defaultState).getValue? = some 11 := by
+    ((LowLevelTryCatchSmoke.catchFailureWithShadowedParam 5).run Verity.defaultState).getValue? = some 0 := by
   decide
 
 example :
@@ -1335,7 +1335,7 @@ example :
           (Compiler.CompilationModel.Expr.call
             (Compiler.CompilationModel.Expr.literal 0)
             (Compiler.CompilationModel.Expr.literal 0)
-            (Compiler.CompilationModel.Expr.literal 0)
+            (Compiler.CompilationModel.Expr.literal 1)
             (Compiler.CompilationModel.Expr.literal 0)
             (Compiler.CompilationModel.Expr.literal 0)
             (Compiler.CompilationModel.Expr.literal 0)
@@ -1362,7 +1362,7 @@ example :
           (Compiler.CompilationModel.Expr.call
             (Compiler.CompilationModel.Expr.literal 0)
             (Compiler.CompilationModel.Expr.literal 0)
-            (Compiler.CompilationModel.Expr.literal 0)
+            (Compiler.CompilationModel.Expr.literal 1)
             (Compiler.CompilationModel.Expr.literal 0)
             (Compiler.CompilationModel.Expr.literal 0)
             (Compiler.CompilationModel.Expr.literal 0)

@@ -34,7 +34,7 @@ contract StringErrorSmokeTest is Test, YulTestBase {
 
     function setUp() public {
         stringErrorSmoke = deployCompiledVerityModule(
-            "Contracts.StringErrorSmoke",
+            "Contracts.StringErrorSmokeContract",
             "StringErrorSmoke",
             "artifacts/test-string-error-smoke"
         );
