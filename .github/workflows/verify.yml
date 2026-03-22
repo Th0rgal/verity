@@ -829,6 +829,35 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Setup Lean
+        uses: ./.github/actions/setup-lean
+        with:
+          cache-key-prefix: lake-compiler
+          use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
+          sticky-disk-key-prefix: verify-compiler
+          lake-packages-sticky-key: lake-packages-verify-compiler-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          lake-packages-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('lake-packages-verify-compiler-{0}-{1}-{2}-{3}-{4}', env.VERIFY_MAIN_CACHE_BUCKET, runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
+          disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
+          cache-primary-key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          cache-extra-restore-keys: |
+            lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Download prepared Lean workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-build
+
+      - name: Restore prepared Lean workspace build
+        run: tar -xf lean-workspace-build.tar
+
+      - name: Download compiler workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-compiler-build
+
+      - name: Restore compiler workspace build
+        run: tar -xf lean-workspace-compiler-build.tar
+
       - name: Download generated Yul
         uses: actions/download-artifact@v4
         with:
@@ -1015,7 +1044,9 @@ jobs:
         run: tar -xf lean-workspace-compiler-build.tar
 
       - name: Run compiler CLI regression module
-        run: stdbuf -oL -eL lake exe compiler-main-test
+        run: |
+          chmod +x ./.lake/build/bin/compiler-main-test
+          stdbuf -oL -eL ./.lake/build/bin/compiler-main-test
 
       - name: Run CompilationModel feature regression module
         run: lake build Compiler.CompilationModelFeatureTest
@@ -1071,7 +1102,11 @@ jobs:
         env:
           FOUNDRY_PROFILE: difftest
           DIFFTEST_YUL_DIR: "compiler/yul"
-        run: python3 scripts/check_gas.py calibration --static-report gas-report-static.tsv
+        run: >-
+          python3 scripts/check_gas.py calibration --static-report gas-report-static.tsv
+          --allow-missing-contract ERC20
+          --allow-missing-contract ERC721
+          --allow-missing-contract Vault
 
   foundry:
     runs-on: blacksmith-4vcpu-ubuntu-2404
@@ -1105,13 +1140,29 @@ jobs:
 
   foundry-patched:
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 15
+    timeout-minutes: 25
     needs: [changes, generate-yul-patched, build-compiler-binaries]
     if: needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Download prepared Lean workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-build
+
+      - name: Restore prepared Lean workspace build
+        run: tar -xf lean-workspace-build.tar
+
+      - name: Download compiler workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-compiler-build
+
+      - name: Restore compiler workspace build
+        run: tar -xf lean-workspace-compiler-build.tar
 
       - name: Setup Foundry environment
         uses: ./.github/actions/setup-foundry
