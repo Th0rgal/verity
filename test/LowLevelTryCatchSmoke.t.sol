@@ -8,7 +8,7 @@ contract LowLevelTryCatchSmokeReference {
     uint256 public lastOutcome;
 
     function catchFailure() external returns (uint256 current) {
-        (bool ok,) = address(0).call{gas: 0}("");
+        (bool ok,) = address(0).call{value: 1, gas: 0}("");
         if (!ok) {
             lastOutcome = 7;
         }
@@ -24,7 +24,7 @@ contract LowLevelTryCatchSmokeReference {
     }
 
     function catchFailureWithShadowedParam(uint256 /* verity_try_success */ ) external returns (uint256 current) {
-        (bool ok,) = address(0).call{gas: 0}("");
+        (bool ok,) = address(0).call{value: 1, gas: 0}("");
         if (!ok) {
             lastOutcome = 11;
         }
@@ -38,7 +38,7 @@ contract LowLevelTryCatchSmokeTest is Test, YulTestBase {
 
     function setUp() public {
         lowLevelTryCatchSmoke = deployCompiledVerityModule(
-            "Contracts.Smoke",
+            "Contracts.Smoke.LowLevelTryCatchSmoke",
             "LowLevelTryCatchSmoke",
             "artifacts/test-low-level-trycatch-smoke"
         );

@@ -24,7 +24,7 @@ contract StringEqSmokeTest is Test, YulTestBase {
 
     function setUp() public {
         stringEqSmoke = deployCompiledVerityModule(
-            "Contracts.StringSmoke",
+            "Contracts.StringEqSmoke",
             "StringEqSmoke",
             "artifacts/test-string-eq-smoke"
         );

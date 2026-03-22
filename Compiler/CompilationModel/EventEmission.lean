@@ -304,14 +304,14 @@ def compileEmit (fields : List Field) (events : List EventDef)
             match srcExpr with
             | Expr.param name =>
                 let topicName := s!"__evt_topic{idx + 1}"
-                let tailLenName := s!"__evt_arg{idx}_tail_len"
-                let loopIndexName := s!"__evt_arg{idx}_i"
-                let elemOffsetName := s!"__evt_arg{idx}_elem_offset"
-                let elemLenPosName := s!"__evt_arg{idx}_elem_len_pos"
-                let elemLenName := s!"__evt_arg{idx}_elem_len"
-                let elemDataName := s!"__evt_arg{idx}_elem_data"
-                let elemDstName := s!"__evt_arg{idx}_elem_dst"
-                let elemPaddedName := s!"__evt_arg{idx}_elem_padded"
+                let tailLenName := s!"__evt_topic_arg{idx}_tail_len"
+                let loopIndexName := s!"__evt_topic_arg{idx}_i"
+                let elemOffsetName := s!"__evt_topic_arg{idx}_elem_offset"
+                let elemLenPosName := s!"__evt_topic_arg{idx}_elem_len_pos"
+                let elemLenName := s!"__evt_topic_arg{idx}_elem_len"
+                let elemDataName := s!"__evt_topic_arg{idx}_elem_data"
+                let elemDstName := s!"__evt_topic_arg{idx}_elem_dst"
+                let elemPaddedName := s!"__evt_topic_arg{idx}_elem_padded"
                 let hashStmts := [
                   YulStmt.let_ tailLenName (YulExpr.lit 0),
                   YulStmt.for_

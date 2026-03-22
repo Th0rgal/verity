@@ -12,6 +12,7 @@ optimizer_runs = 200
 fs_permissions = [
   { access = "read", path = "./artifacts/yul" },
   { access = "read", path = "./artifacts/yul-patched" },
+  { access = "read-write", path = "./artifacts" },
   { access = "read-write", path = "./artifacts/test-string-smoke" },
   { access = "read", path = "./compiler/yul" },
   { access = "read", path = "./compiler/yul-patched" }
@@ -25,3 +26,5 @@ ffi = true
 # Differential suites include 10k-transaction randomized runs with vm.ffi() calls.
 # The default Forge gas limit (2^30) can OOG before completion.
 gas_limit = 9223372036854775807
+# Some 10k differential runs also exceed Forge's default 128 MiB memory cap.
+memory_limit = 4294967296

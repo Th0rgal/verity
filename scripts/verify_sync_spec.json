@@ -13,7 +13,6 @@
   ],
   "compiler_paths": [
     ".github/actions/**",
-    ".github/workflows/verify.yml",
     "Verity/**",
     "!Verity/Proofs/**",
     "Compiler/**",
@@ -222,10 +221,10 @@
     "checks": 5,
     "timeout-watchdog": 5,
     "build": "${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '60' || '35') }}",
-    "prepare-macro-fuzz": "${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '180' || '75') }}",
+    "prepare-macro-fuzz": 360,
     "build-audits": 20,
     "macro-fuzz": "${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '150' || '90') }}",
-    "build-compiler-binaries": "${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '180' || '75') }}",
+    "build-compiler-binaries": 360,
     "generate-yul": 45,
     "generate-yul-patched": 45,
     "gas-report": 45,
@@ -234,7 +233,7 @@
     "lean-profile": 45,
     "foundry-gas-calibration": 15,
     "foundry": 15,
-    "foundry-patched": 15,
+    "foundry-patched": 25,
     "foundry-multi-seed": 25
   },
   "expected_job_strategy_fail_fast": {
@@ -476,7 +475,7 @@
       },
       {
         "name": "Run macro round-trip fuzz harness",
-        "run": "lake exe macro-roundtrip-fuzz"
+        "run": "chmod +x ./.lake/build/bin/macro-roundtrip-fuzz\n./.lake/build/bin/macro-roundtrip-fuzz"
       }
     ],
     "build-compiler-binaries": [
@@ -684,6 +683,32 @@
         }
       },
       {
+        "name": "Setup Lean",
+        "uses": "./.github/actions/setup-lean",
+        "with": {
+          "cache-key-prefix": "lake-compiler",
+          "use-sticky-disks": "${{ env.VERIFY_USE_STICKY_DISKS }}",
+          "sticky-disk-key-prefix": "verify-compiler",
+          "disable-lake-cache-restore": "${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}",
+          "cache-primary-key": "lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}",
+          "cache-extra-restore-keys": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+        }
+      },
+      {
+        "name": "Download prepared Lean workspace build",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "lean-workspace-build"
+        }
+      },
+      {
+        "name": "Download compiler workspace build",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "lean-workspace-compiler-build"
+        }
+      },
+      {
         "name": "Setup solc",
         "uses": "./.github/actions/setup-solc"
       },
@@ -731,7 +756,7 @@
       },
       {
         "name": "Run compiler CLI regression module",
-        "run": "stdbuf -oL -eL lake exe compiler-main-test"
+        "run": "chmod +x ./.lake/build/bin/compiler-main-test && stdbuf -oL -eL ./.lake/build/bin/compiler-main-test"
       },
       {
         "name": "Run CompilationModel feature regression module",
@@ -781,6 +806,20 @@
         "uses": "actions/checkout@v4",
         "with": {
           "submodules": "recursive"
+        }
+      },
+      {
+        "name": "Download prepared Lean workspace build",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "lean-workspace-build"
+        }
+      },
+      {
+        "name": "Download compiler workspace build",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "lean-workspace-compiler-build"
         }
       },
       {
@@ -1023,6 +1062,8 @@
       "lean-workspace-compiler-build"
     ],
     "compiler-audits": [
+      "lean-workspace-build",
+      "lean-workspace-compiler-build",
       "generated-yul",
       "generated-yul-patched",
       "static-gas-report",
@@ -1036,6 +1077,10 @@
     ],
     "foundry-gas-calibration": [
       "static-gas-report"
+    ],
+    "foundry-patched": [
+      "lean-workspace-build",
+      "lean-workspace-compiler-build"
     ]
   },
   "expected_downloaded_artifact_paths": {
@@ -1066,6 +1111,8 @@
       null
     ],
     "compiler-audits": [
+      null,
+      null,
       "compiler/yul",
       "compiler/yul-patched",
       null,
@@ -1078,6 +1125,10 @@
       null
     ],
     "foundry-gas-calibration": [
+      null
+    ],
+    "foundry-patched": [
+      null,
       null
     ]
   }

@@ -4,7 +4,7 @@ import Compiler.Hex
 namespace Compiler.Yul
 
 open YulExpr
-open Compiler.Hex (natToHexUnpadded)
+open Compiler.Hex (natToHexUnpadded natToHex)
 
 private def indentStr (n : Nat) : String :=
   String.mk (List.replicate (n * 4) ' ')
@@ -93,7 +93,7 @@ def ppCases (indent : Nat) : List (Nat × List YulStmt) → List String
         if c = 0 then
           "0"
         else
-          "0x" ++ natToHexUnpadded c
+          natToHex c
       let caseHeader := indentStr indent ++ "case " ++ caseValue ++ " {"
       let bodyLines := ppStmts (indent + 1) body
       let footer := s!"{indentStr indent}}"
@@ -122,7 +122,7 @@ def render (obj : YulObject) : String :=
 example : ppCases 0 [(0, [])] = ["case 0 {", "}"] := by
   native_decide
 
-example : ppCases 0 [(1, [])] = ["case 0x1 {", "}"] := by
+example : ppCases 0 [(1, [])] = ["case 0x00000001 {", "}"] := by
   native_decide
 
 end Compiler.Yul
