@@ -1577,9 +1577,10 @@ mutual
       (expr : Expr)
       (hsurface : exprTouchesUnsupportedHelperSurface expr = false) :
       evalExprWithHelpers spec fields fuel state expr = evalExpr fields state expr := by
-    -- TODO(#1645): proof broken by mutual-block termination refactor; tactic scripts
-    -- need per-constructor unfold/rfl for catchall cases and heartbeat budget tuning.
-    sorry
+    cases expr <;>
+      simp [evalExprWithHelpers, evalExpr, exprTouchesUnsupportedHelperSurface,
+        evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed,
+        evalExprListWithHelpers_eq_evalExprList_of_helperSurfaceClosed] at *
 
   theorem evalExprListWithHelpers_eq_evalExprList_of_helperSurfaceClosed
       (spec : CompilationModel)
@@ -1590,8 +1591,16 @@ mutual
       (hsurface : exprs.all (fun expr => exprTouchesUnsupportedHelperSurface expr == false) = true) :
       evalExprListWithHelpers spec fields fuel state exprs =
         exprs.mapM (evalExpr fields state) := by
-    -- TODO(#1645): depends on evalExprWithHelpers_eq_evalExpr fix above
-    sorry
+    cases exprs with
+    | nil =>
+        rfl
+    | cons expr rest =>
+        simp at hsurface
+        simp [evalExprListWithHelpers, evalExprList,
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed
+            spec fields fuel state expr hsurface.1,
+          evalExprListWithHelpers_eq_evalExprList_of_helperSurfaceClosed
+            spec fields fuel state rest hsurface.2]
 
   theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed
       (spec : CompilationModel)
@@ -1601,9 +1610,10 @@ mutual
       (stmt : Stmt)
       (hsurface : stmtTouchesUnsupportedHelperSurface stmt = false) :
       execStmtWithHelpers spec fields fuel state stmt = execStmt fields state stmt := by
-    -- TODO(#1645): proof broken by mutual-block termination refactor; needs per-constructor
-    -- proofs with targeted unfold instead of blanket simp.
-    sorry
+    cases stmt <;>
+      simp [execStmtWithHelpers, execStmt, stmtTouchesUnsupportedHelperSurface,
+        evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed,
+        evalExprListWithHelpers_eq_evalExprList_of_helperSurfaceClosed] at *
 
 theorem execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
       (spec : CompilationModel)
@@ -1613,8 +1623,15 @@ theorem execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
       (stmts : List Stmt)
       (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
       execStmtListWithHelpers spec fields fuel state stmts = execStmtList fields state stmts := by
-    -- TODO(#1645): depends on execStmtWithHelpers_eq_execStmt fix above
-    sorry
+    cases stmts with
+    | nil =>
+        rfl
+    | cons stmt rest =>
+        simp [stmtListTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+        rw [execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed spec fields fuel state stmt hsurface.1]
+        cases hstmt : execStmt fields state stmt <;> simp [execStmtListWithHelpers, execStmtList, hstmt]
+        exact execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
+          spec fields fuel _ rest hsurface.2
 end
 
 /-- Exact source-side helper-composition target for a statement list: the
@@ -1656,9 +1673,8 @@ theorem interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
     (hsurface : stmtListTouchesUnsupportedHelperSurface fn.body = false) :
     interpretFunctionWithHelpers spec fuel fn tx initialWorld =
       interpretFunction spec fn tx initialWorld := by
-  -- TODO(#1645): simp [interpretFunctionWithHelpers, interpretFunction] no longer makes progress
-  -- after mutual-block termination refactor; needs unfold or simp_only approach.
-  sorry
+  unfold interpretFunctionWithHelpers interpretFunction
+  simp [execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed, hsurface]
 
 private theorem mem_of_find?_some_local
     {α : Type} (p : α → Bool) :
