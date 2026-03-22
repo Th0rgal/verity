@@ -125,7 +125,6 @@ jobs:
               - 'foundry.toml'
             build:
               - '.github/actions/**'
-              - '.github/workflows/verify.yml'
               - 'Verity/**'
               - 'Verity.lean'
               - 'Compiler/**'
@@ -139,7 +138,6 @@ jobs:
               - 'lean-toolchain'
             compiler:
               - '.github/actions/**'
-              - '.github/workflows/verify.yml'
               - 'Verity/**'
               - '!Verity/Proofs/**'
               - 'Compiler/**'
@@ -166,7 +164,6 @@ jobs:
               - 'foundry.toml'
             macro_fuzz:
               - '.github/actions/setup-lean/action.yml'
-              - '.github/workflows/verify.yml'
               - 'Verity/Macro/**'
               - 'Compiler/**'
               - '!Compiler/Proofs/**'

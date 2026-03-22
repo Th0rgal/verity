@@ -13,7 +13,6 @@
   ],
   "compiler_paths": [
     ".github/actions/**",
-    ".github/workflows/verify.yml",
     "Verity/**",
     "!Verity/Proofs/**",
     "Compiler/**",
