@@ -250,6 +250,9 @@
     }
   },
   "expected_job_permissions": {
+    "checks": {
+      "contents": "write"
+    },
     "timeout-watchdog": {
       "actions": "read",
       "contents": "read"

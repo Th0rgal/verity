@@ -11,6 +11,7 @@ python3 scripts/generate_verify_sync_spec.py
 python3 scripts/generate_evmyullean_capability_report.py
 python3 scripts/generate_evmyullean_adapter_report.py
 python3 scripts/generate_print_axioms.py
+python3 scripts/sync_verification_status_doc.py
 
 echo "[refresh] Validating refreshed artifacts"
 python3 scripts/generate_verification_status.py --check
