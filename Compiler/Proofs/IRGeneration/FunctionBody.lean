@@ -1687,32 +1687,45 @@ theorem eval_compileExpr_logicalAnd_of_compiled
     evalIRExpr state
       (CompilationModel.compileExpr fields .calldata (.logicalAnd lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
         some (SourceSemantics.evalExpr fields runtime (.logicalAnd lhs rhs)) := by
-  -- Temporary stabilization point for the `Option` migration.
-  -- Clean fix: derive both `yulToBool` operands from successful source
-  -- evaluation via `evalIRExpr_yulToBool_of_lt`, use `evalIRExpr_and_of_eval`
-  -- for the compiled call, then finish with `boolWord_and`.
-  sorry
--- SORRY'D:   have hcompile := compileExpr_logicalAnd_ok hlhsCompile hrhsCompile
--- SORRY'D:   have hlhsBool :
--- SORRY'D:       evalIRExpr state (CompilationModel.yulToBool lhsIR) =
--- SORRY'D:         some (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime lhs ≠ 0)) := by
--- SORRY'D:     simpa using evalIRExpr_yulToBool_of_lt hlhsEval hlhsLt
--- SORRY'D:   have hrhsBool :
--- SORRY'D:       evalIRExpr state (CompilationModel.yulToBool rhsIR) =
--- SORRY'D:         some (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime rhs ≠ 0)) := by
--- SORRY'D:     simpa using evalIRExpr_yulToBool_of_lt hrhsEval hrhsLt
--- SORRY'D:   have hcall :
--- SORRY'D:       evalIRExpr state
--- SORRY'D:         (YulExpr.call "and" [CompilationModel.yulToBool lhsIR, CompilationModel.yulToBool rhsIR]) =
--- SORRY'D:           some ((SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime lhs ≠ 0)) &&&
--- SORRY'D:             (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime rhs ≠ 0))) := by
--- SORRY'D:     simpa only
--- SORRY'D:       [Nat.mod_eq_of_lt (boolWord_lt_evmModulus (decide (SourceSemantics.evalExpr fields runtime lhs ≠ 0))),
--- SORRY'D:       Nat.mod_eq_of_lt (boolWord_lt_evmModulus (decide (SourceSemantics.evalExpr fields runtime rhs ≠ 0)))] using
--- SORRY'D:       evalIRExpr_and_of_eval hlhsBool hrhsBool
--- SORRY'D:   have heval :
--- SORRY'D:       evalIRExpr state
--- SORRY'D:         (CompilationModel.compileExpr fields .calldata (.logicalAnd lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
+  have hcompile := compileExpr_logicalAnd_ok hlhsCompile hrhsCompile
+  have hlhsBool :
+      evalIRExpr state (CompilationModel.yulToBool lhsIR) =
+        some (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime lhs ≠ 0)) := by
+    simpa using evalIRExpr_yulToBool_of_lt hlhsEval hlhsLt
+  have hrhsBool :
+      evalIRExpr state (CompilationModel.yulToBool rhsIR) =
+        some (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime rhs ≠ 0)) := by
+    simpa using evalIRExpr_yulToBool_of_lt hrhsEval hrhsLt
+  have hcall :
+      evalIRExpr state
+        (YulExpr.call "and" [CompilationModel.yulToBool lhsIR, CompilationModel.yulToBool rhsIR]) =
+          some ((SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime lhs ≠ 0)) &&&
+            (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime rhs ≠ 0))) := by
+    simpa only
+      [Nat.mod_eq_of_lt (boolWord_lt_evmModulus (SourceSemantics.evalExpr fields runtime lhs ≠ 0)),
+      Nat.mod_eq_of_lt (boolWord_lt_evmModulus (SourceSemantics.evalExpr fields runtime rhs ≠ 0))] using
+      evalIRExpr_and_of_eval hlhsBool hrhsBool
+  have heval :
+      evalIRExpr state
+        (CompilationModel.compileExpr fields .calldata (.logicalAnd lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
+          some ((SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime lhs ≠ 0)) &&&
+            (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime rhs ≠ 0))) := by
+    simpa [hcompile] using hcall
+  rw [heval]
+  congr
+  rw [boolWord_and]
+  rw [show SourceSemantics.evalExpr fields runtime (.logicalAnd lhs rhs) =
+      SourceSemantics.boolWord
+        (decide (SourceSemantics.evalExpr fields runtime lhs != 0) &&
+          decide (SourceSemantics.evalExpr fields runtime rhs != 0)) by
+      rfl]
+  by_cases hlhsZero : SourceSemantics.evalExpr fields runtime lhs = 0
+  · by_cases hrhsZero : SourceSemantics.evalExpr fields runtime rhs = 0
+    · simp [hlhsZero, hrhsZero, SourceSemantics.boolWord]
+    · simp [hlhsZero, hrhsZero, SourceSemantics.boolWord]
+  · by_cases hrhsZero : SourceSemantics.evalExpr fields runtime rhs = 0
+    · simp [hlhsZero, hrhsZero, SourceSemantics.boolWord]
+    · simp [hlhsZero, hrhsZero, SourceSemantics.boolWord]
 -- SORRY'D:           some ((SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime lhs ≠ 0)) &&&
 -- SORRY'D:             (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime rhs ≠ 0))) := by
 -- SORRY'D:     simpa [hcompile] using hcall
