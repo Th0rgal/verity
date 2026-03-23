@@ -1442,10 +1442,21 @@ theorem eval_compileExpr_eq_of_compiled
     evalIRExpr state
       (CompilationModel.compileExpr fields .calldata (.eq lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
         some (SourceSemantics.evalExpr fields runtime (.eq lhs rhs)) := by
-  -- Temporary stabilization point for the `Option` migration.
-  -- Clean fix: restate the theorem over `some`-wrapped source values and
-  -- discharge the word equality after extracting the successful branch.
-  sorry
+  have hcompile := compileExpr_eq_ok hlhsCompile hrhsCompile
+  have heval :
+      evalIRExpr state
+        (CompilationModel.compileExpr fields .calldata (.eq lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
+          some (SourceSemantics.boolWord
+            (SourceSemantics.evalExpr fields runtime lhs % Compiler.Constants.evmModulus =
+              SourceSemantics.evalExpr fields runtime rhs % Compiler.Constants.evmModulus)) := by
+    simpa [hcompile] using evalIRExpr_eq_of_eval hlhsEval hrhsEval
+  rw [heval]
+  rw [show SourceSemantics.evalExpr fields runtime (.eq lhs rhs) =
+      SourceSemantics.boolWord
+        (decide (SourceSemantics.evalExpr fields runtime lhs =
+          SourceSemantics.evalExpr fields runtime rhs)) by
+    rfl]
+  simp [Nat.mod_eq_of_lt hlhsLt, Nat.mod_eq_of_lt hrhsLt, boolWord_eq_if]
 -- SORRY'D:   have hcompile := compileExpr_eq_ok hlhsCompile hrhsCompile
 -- SORRY'D:   have heval :
 -- SORRY'D:       evalIRExpr state
