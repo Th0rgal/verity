@@ -725,12 +725,19 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_mstore
         fields [] [] .calldata [] false inScopeNames (.mstore offset value) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-  -- Temporary stabilization point for the `mstore` compile proof.
-  -- Clean fix: unfold `CompilationModel.compileStmt`, split on the two
-  -- `compileExpr` calls for `offset` and `value`, discharge the impossible
-  -- `Except.error = Except.ok _` branches explicitly, and finish the success
-  -- branch with `LegacyCompatibleExternalStmtList.expr ... .nil`.
-  sorry
+  unfold CompilationModel.compileStmt at hcompile
+  rcases hoffset : CompilationModel.compileExpr fields .calldata offset with _ | offsetIR
+  · simp [hoffset] at hcompile
+    cases hcompile
+  · rcases hvalue : CompilationModel.compileExpr fields .calldata value with _ | valueIR
+    · simp [hoffset, hvalue] at hcompile
+      cases hcompile
+    · simp [hoffset, hvalue] at hcompile
+      cases hcompile
+      exact LegacyCompatibleExternalStmtList.expr
+        (YulExpr.call "mstore" [offsetIR, valueIR])
+        []
+        LegacyCompatibleExternalStmtList.nil
 
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_tstore
     {fields : List Field}
@@ -742,10 +749,19 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_tstore
         fields [] [] .calldata [] false inScopeNames (.tstore offset value) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-  -- Temporary stabilization point for the `tstore` compile proof.
-  -- Clean fix: identical to `mstore`, but the success branch emits the single
-  -- `tstore(offsetIR, valueIR)` expression statement.
-  sorry
+  unfold CompilationModel.compileStmt at hcompile
+  rcases hoffset : CompilationModel.compileExpr fields .calldata offset with _ | offsetIR
+  · simp [hoffset] at hcompile
+    cases hcompile
+  · rcases hvalue : CompilationModel.compileExpr fields .calldata value with _ | valueIR
+    · simp [hoffset, hvalue] at hcompile
+      cases hcompile
+    · simp [hoffset, hvalue] at hcompile
+      cases hcompile
+      exact LegacyCompatibleExternalStmtList.expr
+        (YulExpr.call "tstore" [offsetIR, valueIR])
+        []
+        LegacyCompatibleExternalStmtList.nil
 
 /-- On the current supported contract surface, successful single-statement
 compilation stays inside the legacy helper-free external Yul subset. This is
