@@ -3276,6 +3276,34 @@ private theorem collectExprNames_mem_exprBoundNames_of_core
       simp [collectExprNames] at hmem
       simpa [FunctionBody.exprBoundNames] using ih _ hmem
 
+private theorem mem_foldl_stmtNextScope_of_mem_scope
+    {scope : List String}
+    {stmts : List Stmt}
+    {name : String}
+    (hmem : name ∈ scope) :
+    name ∈ List.foldl stmtNextScope scope stmts := by
+  induction stmts generalizing scope with
+  | nil => simpa
+  | cons stmt rest ih =>
+      simp only [List.foldl]
+      exact ih (by simp [stmtNextScope]; right; exact hmem)
+
+private theorem stmtListNames_subset_foldl_stmtNextScope
+    {scope : List String}
+    {stmts : List Stmt}
+    {name : String}
+    (hmem : name ∈ collectStmtListNames stmts) :
+    name ∈ List.foldl stmtNextScope scope stmts := by
+  induction stmts generalizing scope with
+  | nil => simp [collectStmtListNames] at hmem
+  | cons stmt rest ih =>
+      simp [collectStmtListNames] at hmem
+      simp only [List.foldl]
+      rcases hmem with hstmt | hrest
+      · exact mem_foldl_stmtNextScope_of_mem_scope (by
+          simp [stmtNextScope]; left; exact hstmt)
+      · exact ih hrest
+
 private theorem stmtListScopeDiscipline_scope_names
     {fieldNames : List String}
     {scope : List String}
@@ -3284,89 +3312,130 @@ private theorem stmtListScopeDiscipline_scope_names
     ∀ name, name ∈ List.foldl stmtNextScope scope stmts →
       name ∈
         (scope ++ collectStmtListBindNames stmts ++
-          collectStmtListAssignedNames stmts ++ fieldNames) := by sorry
--- SORRY'D:   induction hdisc with
--- SORRY'D:   | nil =>
--- SORRY'D:       intro name hmem
--- SORRY'D:       simpa using hmem
--- SORRY'D:   | letVar hcore hinScope hrest ih =>
--- SORRY'D:       intro other hmem
--- SORRY'D:       have htail := ih other hmem
--- SORRY'D:       simp [stmtNextScope, collectStmtNames, collectStmtListBindNames,
--- SORRY'D:         collectStmtListAssignedNames] at htail ⊢
--- SORRY'D:       rcases htail with hname | htail
--- SORRY'D:       · exact Or.inr <| Or.inl hname
--- SORRY'D:       rcases htail with hvalue | htail
--- SORRY'D:       · exact Or.inl <| hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hvalue)
--- SORRY'D:       · exact Or.inr <| Or.inr htail
--- SORRY'D:   | assignVar hcore hinScope hrest ih =>
--- SORRY'D:       intro other hmem
--- SORRY'D:       have htail := ih other hmem
--- SORRY'D:       simp [stmtNextScope, collectStmtNames, collectStmtListBindNames,
--- SORRY'D:         collectStmtListAssignedNames] at htail ⊢
--- SORRY'D:       rcases htail with hname | htail
--- SORRY'D:       · exact Or.inr <| Or.inr <| Or.inl hname
--- SORRY'D:       rcases htail with hvalue | htail
--- SORRY'D:       · exact Or.inl <| hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hvalue)
--- SORRY'D:       · exact Or.inr <| Or.inr <| Or.inr htail
--- SORRY'D:   | require hcore hinScope hrest ih =>
--- SORRY'D:       intro other hmem
--- SORRY'D:       have htail := ih other hmem
--- SORRY'D:       simp [stmtNextScope, collectStmtNames, collectStmtListBindNames,
--- SORRY'D:         collectStmtListAssignedNames] at htail ⊢
--- SORRY'D:       rcases htail with hcond | htail
--- SORRY'D:       · exact Or.inl <| hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hcond)
--- SORRY'D:       · exact Or.inr htail
--- SORRY'D:   | return_ hcore hinScope hrest ih =>
--- SORRY'D:       intro other hmem
--- SORRY'D:       have htail := ih other hmem
--- SORRY'D:       simp [stmtNextScope, collectStmtNames, collectStmtListBindNames,
--- SORRY'D:         collectStmtListAssignedNames] at htail ⊢
--- SORRY'D:       rcases htail with hvalue | htail
--- SORRY'D:       · exact Or.inl <| hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hvalue)
--- SORRY'D:       · exact Or.inr htail
--- SORRY'D:   | stop hrest ih =>
--- SORRY'D:       intro other hmem
--- SORRY'D:       simpa [stmtNextScope, collectStmtNames, collectStmtListBindNames,
--- SORRY'D:         collectStmtListAssignedNames] using ih other hmem
--- SORRY'D:   | setStorage hfield hcore hinScope hrest ih =>
--- SORRY'D:       intro other hmem
--- SORRY'D:       have htail := ih other hmem
--- SORRY'D:       simp [stmtNextScope, collectStmtNames, collectStmtListBindNames,
--- SORRY'D:         collectStmtListAssignedNames] at htail ⊢
--- SORRY'D:       rcases htail with hfieldMem | htail
--- SORRY'D:       · exact Or.inr <| Or.inr <| Or.inr <| by simpa using hfieldMem
--- SORRY'D:       rcases htail with hvalue | htail
--- SORRY'D:       · exact Or.inl <| hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hvalue)
--- SORRY'D:       · exact Or.inr htail
--- SORRY'D:   | setStorageAddr hfield hcore hinScope hrest ih =>
--- SORRY'D:       intro other hmem
--- SORRY'D:       have htail := ih other hmem
--- SORRY'D:       simp [stmtNextScope, collectStmtNames, collectStmtListBindNames,
--- SORRY'D:         collectStmtListAssignedNames] at htail ⊢
--- SORRY'D:       rcases htail with hfieldMem | htail
--- SORRY'D:       · exact Or.inr <| Or.inr <| Or.inr <| by simpa using hfieldMem
--- SORRY'D:       rcases htail with hvalue | htail
--- SORRY'D:       · exact Or.inl <| hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hvalue)
--- SORRY'D:       · exact Or.inr htail
--- SORRY'D:   | ite hcore hinScope hthen helse hrest ihThen ihElse ihRest =>
--- SORRY'D:       intro other hmem
--- SORRY'D:       have htail := ihRest other hmem
--- SORRY'D:       simp [stmtNextScope, collectStmtNames, collectStmtListBindNames,
--- SORRY'D:         collectStmtListAssignedNames] at htail ⊢
--- SORRY'D:       rcases htail with hcond | htail
--- SORRY'D:       · exact Or.inl <| hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hcond)
--- SORRY'D:       rcases htail with hthenMem | htail
--- SORRY'D:       · have hthenNames :=
--- SORRY'D:           ihThen other (by
--- SORRY'D:             simpa using (List.mem_append.mpr (Or.inl hthenMem)))
--- SORRY'D:         simpa [collectStmtListBindNames, collectStmtListAssignedNames] using hthenNames
--- SORRY'D:       rcases htail with helseMem | htail
--- SORRY'D:       · have helseNames :=
--- SORRY'D:           ihElse other (by
--- SORRY'D:             simpa using (List.mem_append.mpr (Or.inl helseMem)))
--- SORRY'D:         simpa [collectStmtListBindNames, collectStmtListAssignedNames] using helseNames
--- SORRY'D:       · exact Or.inr htail
+          collectStmtListAssignedNames stmts ++ fieldNames) := by
+  induction hdisc with
+  | nil =>
+      intro name hmem
+      simp only [List.foldl] at hmem
+      simp [collectStmtListBindNames, collectStmtListAssignedNames]
+      exact Or.inl hmem
+  | letVar hcore hinScope _ ih =>
+      intro other hmem
+      simp only [List.foldl] at hmem
+      have htail := ih other hmem
+      simp [stmtNextScope, collectStmtNames, collectStmtListBindNames, collectStmtBindNames,
+        collectStmtListAssignedNames, collectStmtAssignedNames] at htail ⊢
+      rcases htail with hname | hvalue | hscope | hbind | hassign | hfield
+      · right; left; exact hname
+      · left; exact hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hvalue)
+      · left; exact hscope
+      · right; right; left; exact hbind
+      · right; right; right; left; exact hassign
+      · right; right; right; right; exact hfield
+  | assignVar hcore hinScope _ ih =>
+      intro other hmem
+      simp only [List.foldl] at hmem
+      have htail := ih other hmem
+      simp [stmtNextScope, collectStmtNames, collectStmtListBindNames, collectStmtBindNames,
+        collectStmtListAssignedNames, collectStmtAssignedNames] at htail ⊢
+      rcases htail with hname | hvalue | hscope | hbind | hassign | hfield
+      · right; right; left; exact hname
+      · left; exact hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hvalue)
+      · left; exact hscope
+      · right; left; exact hbind
+      · right; right; right; left; exact hassign
+      · right; right; right; right; exact hfield
+  | require hcore hinScope _ ih =>
+      intro other hmem
+      simp only [List.foldl] at hmem
+      have htail := ih other hmem
+      simp [stmtNextScope, collectStmtNames, collectStmtListBindNames, collectStmtBindNames,
+        collectStmtListAssignedNames, collectStmtAssignedNames] at htail ⊢
+      rcases htail with hcond | hscope | hbind | hassign | hfield
+      · left; exact hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hcond)
+      · left; exact hscope
+      · right; left; exact hbind
+      · right; right; left; exact hassign
+      · right; right; right; exact hfield
+  | return_ hcore hinScope _ ih =>
+      intro other hmem
+      simp only [List.foldl] at hmem
+      have htail := ih other hmem
+      simp [stmtNextScope, collectStmtNames, collectStmtListBindNames, collectStmtBindNames,
+        collectStmtListAssignedNames, collectStmtAssignedNames] at htail ⊢
+      rcases htail with hvalue | hscope | hbind | hassign | hfield
+      · left; exact hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hvalue)
+      · left; exact hscope
+      · right; left; exact hbind
+      · right; right; left; exact hassign
+      · right; right; right; exact hfield
+  | stop _ ih =>
+      intro other hmem
+      simp only [List.foldl, stmtNextScope, collectStmtNames, List.nil_append] at hmem
+      have htail := ih other hmem
+      simp [collectStmtListBindNames, collectStmtBindNames,
+        collectStmtListAssignedNames, collectStmtAssignedNames] at htail ⊢
+      exact htail
+  | setStorage hfield hcore hinScope _ ih =>
+      intro other hmem
+      simp only [List.foldl] at hmem
+      have htail := ih other hmem
+      simp [stmtNextScope, collectStmtNames, collectStmtListBindNames, collectStmtBindNames,
+        collectStmtListAssignedNames, collectStmtAssignedNames] at htail ⊢
+      rcases htail with hfname | hvalue | hscope | hbind | hassign | hfld
+      · right; right; right; subst hfname; exact hfield
+      · left; exact hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hvalue)
+      · left; exact hscope
+      · right; left; exact hbind
+      · right; right; left; exact hassign
+      · right; right; right; exact hfld
+  | setStorageAddr hfield hcore hinScope _ ih =>
+      intro other hmem
+      simp only [List.foldl] at hmem
+      have htail := ih other hmem
+      simp [stmtNextScope, collectStmtNames, collectStmtListBindNames, collectStmtBindNames,
+        collectStmtListAssignedNames, collectStmtAssignedNames] at htail ⊢
+      rcases htail with hfname | hvalue | hscope | hbind | hassign | hfld
+      · right; right; right; subst hfname; exact hfield
+      · left; exact hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hvalue)
+      · left; exact hscope
+      · right; left; exact hbind
+      · right; right; left; exact hassign
+      · right; right; right; exact hfld
+  | @ite scope cond thenBranch elseBranch rest hcore hinScope _ _ _ ihThen ihElse ihRest =>
+      intro other hmem
+      simp only [List.foldl] at hmem
+      have htail := ihRest other hmem
+      simp only [List.mem_append, stmtNextScope, collectStmtNames,
+        collectStmtListBindNames, collectStmtBindNames,
+        collectStmtListAssignedNames, collectStmtAssignedNames] at htail ⊢
+      rcases htail with ((((( hcond | hthenNames ) | helseNames ) | hscope ) | hbind ) | hassign ) | hfield
+      · left; left; left
+        exact hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hcond)
+      · have hmemFoldl := stmtListNames_subset_foldl_stmtNextScope (scope := scope) hthenNames
+        have hthenResult := ihThen other hmemFoldl
+        simp only [List.mem_append,
+          collectStmtListBindNames, collectStmtBindNames,
+          collectStmtListAssignedNames, collectStmtAssignedNames] at hthenResult
+        rcases hthenResult with (( hscope | hbind ) | hassign ) | hfield
+        · left; left; left; exact hscope
+        · left; left; right; left; left; exact hbind
+        · left; right; left; left; exact hassign
+        · right; exact hfield
+      · have hmemFoldl := stmtListNames_subset_foldl_stmtNextScope (scope := scope) helseNames
+        have helseResult := ihElse other hmemFoldl
+        simp only [List.mem_append,
+          collectStmtListBindNames, collectStmtBindNames,
+          collectStmtListAssignedNames, collectStmtAssignedNames] at helseResult
+        rcases helseResult with (( hscope | hbind ) | hassign ) | hfield
+        · left; left; left; exact hscope
+        · left; left; right; left; right; exact hbind
+        · left; right; left; right; exact hassign
+        · right; exact hfield
+      · left; left; left; exact hscope
+      · left; left; right; right; exact hbind
+      · left; right; right; exact hassign
+      · right; exact hfield
 
 -- TYPESIG_SORRY: theorem compiledStmtStep_letVar
 -- TYPESIG_SORRY:     {fields : List Field}
