@@ -496,6 +496,53 @@ def findFieldSlot (fields : List Field) (name : String) : Option Nat :=
 def findFieldWithResolvedSlot (fields : List Field) (name : String) : Option (Field × Nat) :=
   findFieldByName fields name fun f slot => (f, slot)
 
+theorem field_mem_of_findFieldWithResolvedSlot_eq_some
+    {fields : List Field}
+    {name : String}
+    {f : Field}
+    {slot : Nat}
+    (h : findFieldWithResolvedSlot fields name = some (f, slot)) :
+    f ∈ fields := by
+  unfold findFieldWithResolvedSlot at h
+  unfold findFieldByName at h
+  -- h now involves findFieldByName.go. We generalise the index.
+  suffices ∀ (flds : List Field) (idx : Nat),
+      findFieldByName.go name (fun f slot => (f, slot)) flds idx = some (f, slot) →
+      f ∈ flds by
+    exact this fields 0 h
+  intro flds idx hgo
+  induction flds generalizing idx with
+  | nil => simp [findFieldByName.go] at hgo
+  | cons hd tl ih =>
+      simp only [findFieldByName.go] at hgo
+      split at hgo
+      · simp at hgo; exact hgo.1 ▸ List.Mem.head tl
+      · exact List.Mem.tail hd (ih (idx + 1) hgo)
+
+theorem fieldName_eq_of_findFieldWithResolvedSlot_eq_some
+    {fields : List Field}
+    {name : String}
+    {f : Field}
+    {slot : Nat}
+    (h : findFieldWithResolvedSlot fields name = some (f, slot)) :
+    f.name = name := by
+  unfold findFieldWithResolvedSlot at h
+  unfold findFieldByName at h
+  suffices ∀ (flds : List Field) (idx : Nat),
+      findFieldByName.go name (fun f slot => (f, slot)) flds idx = some (f, slot) →
+      f.name = name by
+    exact this fields 0 h
+  intro flds idx hgo
+  induction flds generalizing idx with
+  | nil => simp [findFieldByName.go] at hgo
+  | cons hd tl ih =>
+      simp only [findFieldByName.go] at hgo
+      split at hgo
+      case isTrue hname =>
+        simp at hgo; rw [← hgo.1]; exact beq_iff_eq.mp hname
+      case isFalse =>
+        exact ih (idx + 1) hgo
+
 def findFieldWriteSlots (fields : List Field) (name : String) : Option (List Nat) :=
   findFieldByName fields name fun f slot => slot :: f.aliasSlots
 

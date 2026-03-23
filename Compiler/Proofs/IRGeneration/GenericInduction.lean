@@ -551,13 +551,8 @@ private theorem field_mem_of_findFieldWithResolvedSlot_some
     {f : Field}
     {slot : Nat}
     (hfind : findFieldWithResolvedSlot fields fieldName = some (f, slot)) :
-    f ∈ fields := by
-  -- Temporary stabilization point for the resolved-slot lookup seam.
-  -- Clean fix: prove this by induction over the `findFieldByName` traversal
-  -- used inside `findFieldWithResolvedSlot`, so successful lookup returns a
-  -- field drawn from the original `fields` list without relying on brittle
-  -- definitional reduction of the private helper.
-  sorry
+    f ∈ fields :=
+  field_mem_of_findFieldWithResolvedSlot_eq_some hfind
 
 private theorem legacyCompatibleExternalStmtList_of_unpackedStorageWrite
     (slot : Nat)
@@ -2469,11 +2464,10 @@ private theorem fieldName_mem_fields_of_findFieldWithResolvedSlot_some
     {slot : Nat}
     (hfind : findFieldWithResolvedSlot fields fieldName = some (f, slot)) :
     fieldName ∈ fields.map (·.name) := by
-  -- Temporary stabilization point for the accumulator-based resolved-slot lookup.
-  -- Clean fix: prove that a successful `findFieldWithResolvedSlot` result carries
-  -- `f.name = fieldName`, then combine that with the already-proved field-membership
-  -- theorem instead of relying on brittle definitional reduction of the private helper.
-  sorry
+  have hmem := field_mem_of_findFieldWithResolvedSlot_eq_some hfind
+  have hname := fieldName_eq_of_findFieldWithResolvedSlot_eq_some hfind
+  rw [List.mem_map]
+  exact ⟨f, hmem, hname⟩
 
 private theorem fieldName_mem_fields_of_compileSetStorage_ok
     {fields : List Field}
