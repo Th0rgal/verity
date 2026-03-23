@@ -1636,19 +1636,17 @@ theorem eval_compileExpr_logicalNot_of_compiled
     evalIRExpr state
       (CompilationModel.compileExpr fields .calldata (.logicalNot expr) |>.toOption.getD (YulExpr.lit 0)) =
         some (SourceSemantics.evalExpr fields runtime (.logicalNot expr)) := by
-  -- Temporary stabilization point for the `Option` migration.
-  -- Clean fix: prove `logicalNot` from the successful evaluation branch and
-  -- avoid the old implicit coercion from source values to raw words.
-  sorry
--- SORRY'D:   have hcompile := compileExpr_logicalNot_ok hexprCompile
--- SORRY'D:   have heval :
--- SORRY'D:       evalIRExpr state
--- SORRY'D:         (CompilationModel.compileExpr fields .calldata (.logicalNot expr) |>.toOption.getD (YulExpr.lit 0)) =
--- SORRY'D:           some (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime expr = 0)) := by
--- SORRY'D:     simpa [hcompile] using evalIRExpr_iszero_of_lt hexprEval hexprLt
--- SORRY'D:   rw [heval]
--- SORRY'D:   rw [show SourceSemantics.evalExpr fields runtime (.logicalNot expr) =
--- SORRY'D:       SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime expr = 0)) by rfl]
+  have hcompile := compileExpr_logicalNot_ok hexprCompile
+  have heval :
+      evalIRExpr state
+        (CompilationModel.compileExpr fields .calldata (.logicalNot expr) |>.toOption.getD (YulExpr.lit 0)) =
+          some (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime expr = 0)) := by
+    simpa [hcompile] using evalIRExpr_iszero_of_lt hexprEval hexprLt
+  rw [heval]
+  rw [show SourceSemantics.evalExpr fields runtime (.logicalNot expr) =
+      SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime expr = 0)) by rfl]
+  by_cases h : SourceSemantics.evalExpr fields runtime expr = 0 <;>
+    simp [SourceSemantics.boolWord, h]
 
 theorem eval_compileExpr_logicalAnd_of_compiled
     {fields : List Field}
