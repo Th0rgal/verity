@@ -860,6 +860,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_add_of_values  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_mul_of_values  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_div_of_values  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_sub_of_values  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_mod_of_values  -- private
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_eq_of_compiled
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_lt_of_compiled
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_gt_of_compiled
@@ -875,7 +877,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.uint256_sub_val_eq
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.uint256_mod_val_eq
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_div_of_compiled
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_sub_of_compiled  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_sub_of_compiled
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_mod_of_compiled  -- sorry'd
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_literal_lt_evmModulus
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_param_lt_evmModulus_of_bindingsBounded
@@ -1857,4 +1859,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1726 theorems/lemmas (1137 public, 548 private, 41 sorry'd)
+-- Total: 1728 theorems/lemmas (1138 public, 550 private, 40 sorry'd)
