@@ -1637,16 +1637,40 @@ theorem eval_compileExpr_logicalNot_of_compiled
       (CompilationModel.compileExpr fields .calldata (.logicalNot expr) |>.toOption.getD (YulExpr.lit 0)) =
         some (SourceSemantics.evalExpr fields runtime (.logicalNot expr)) := by
   have hcompile := compileExpr_logicalNot_ok hexprCompile
-  have heval :
-      evalIRExpr state
-        (CompilationModel.compileExpr fields .calldata (.logicalNot expr) |>.toOption.getD (YulExpr.lit 0)) =
-          some (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime expr = 0)) := by
-    simpa [hcompile] using evalIRExpr_iszero_of_lt hexprEval hexprLt
-  rw [heval]
-  rw [show SourceSemantics.evalExpr fields runtime (.logicalNot expr) =
-      SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime expr = 0)) by rfl]
-  by_cases h : SourceSemantics.evalExpr fields runtime expr = 0 <;>
-    simp [SourceSemantics.boolWord, h]
+  rcases hexprSrc : SourceSemantics.evalExpr fields runtime expr with _ | exprVal
+  · cases hEval : evalIRExpr state exprIR <;> simp [hEval, hexprSrc] at hexprEval
+  · have hexprEval' : evalIRExpr state exprIR = some exprVal := by
+      cases hEval : evalIRExpr state exprIR with
+      | none =>
+          simp [hEval, hexprSrc] at hexprEval
+      | some val =>
+          simp [hEval, hexprSrc] at hexprEval
+          simpa [hexprEval] using hEval
+    have hexprLt' : exprVal < Compiler.Constants.evmModulus := by
+      simpa [hexprSrc] using hexprLt
+    rw [hcompile]
+    have hiszero :=
+      evalIRExpr_iszero_of_lt (heval := hexprEval') (hvalueLt := hexprLt')
+    have hsrcNot :
+        SourceSemantics.evalExpr fields runtime (.logicalNot expr) =
+          some (if exprVal = 0 then 1 else 0) := by
+      calc
+        SourceSemantics.evalExpr fields runtime (.logicalNot expr)
+          = (do
+              let value ← SourceSemantics.evalExpr fields runtime expr
+              pure (SourceSemantics.boolWord (decide (value = 0)))) := by
+                rfl
+        _ = some (SourceSemantics.boolWord (decide (exprVal = 0))) := by
+              simp [hexprSrc]
+        _ = some (if exprVal = 0 then 1 else 0) := by
+              simp [boolWord_eq_if]
+    calc
+      (evalIRExpr state (YulExpr.call "iszero" [exprIR])).bind (fun a => some (some a))
+        = some (some (SourceSemantics.boolWord (decide (exprVal = 0)))) := by
+            simp [hiszero]
+      _ = some (SourceSemantics.evalExpr fields runtime (.logicalNot expr)) := by
+            rw [hsrcNot]
+            simp [boolWord_eq_if]
 
 theorem eval_compileExpr_logicalAnd_of_compiled
     {fields : List Field}
@@ -1665,7 +1689,8 @@ theorem eval_compileExpr_logicalAnd_of_compiled
         some (SourceSemantics.evalExpr fields runtime (.logicalAnd lhs rhs)) := by
   -- Temporary stabilization point for the `Option` migration.
   -- Clean fix: derive both `yulToBool` operands from successful source
-  -- evaluation and reassemble the boolean word result explicitly.
+  -- evaluation via `evalIRExpr_yulToBool_of_lt`, use `evalIRExpr_and_of_eval`
+  -- for the compiled call, then finish with `boolWord_and`.
   sorry
 -- SORRY'D:   have hcompile := compileExpr_logicalAnd_ok hlhsCompile hrhsCompile
 -- SORRY'D:   have hlhsBool :
@@ -1724,7 +1749,8 @@ theorem eval_compileExpr_logicalOr_of_compiled
         some (SourceSemantics.evalExpr fields runtime (.logicalOr lhs rhs)) := by
   -- Temporary stabilization point for the `Option` migration.
   -- Clean fix: mirror the repaired `logicalAnd` proof with explicit transport
-  -- through successful source evaluations and `yulToBool`.
+  -- through `evalIRExpr_yulToBool_of_lt`, `evalIRExpr_or_of_eval`, and
+  -- the source-side boolean-word normalization.
   sorry
 -- SORRY'D:   have hcompile := compileExpr_logicalOr_ok hlhsCompile hrhsCompile
 -- SORRY'D:   have hlhsBool :
