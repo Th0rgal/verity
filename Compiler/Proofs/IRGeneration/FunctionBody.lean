@@ -8627,6 +8627,11 @@ theorem execIRStmts_compiled_return_core_append_wholeFuel_of_scope
          , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
           tailIR) =
         .return retVal state' := by
+  -- Temporary stabilization point for the `Option` migration.
+  -- Clean fix: split on `SourceSemantics.evalExpr fields runtime value`; in the
+  -- `some valueNat` branch, transport through `evalIRExpr_of_sourceEval_some`
+  -- before the `mstore`/`return` steps, and discharge the impossible `none`
+  -- branch from the lifted `eval_compileExpr_core_of_scope` equality.
   sorry
 -- SORRY'D:   rcases compileExpr_core_ok (fields := fields) hcore with ⟨valueIR, hvalueIR⟩
 -- SORRY'D:   let retVal := SourceSemantics.evalExpr fields runtime value
