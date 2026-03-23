@@ -540,12 +540,30 @@ private theorem legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_scala
     LegacyCompatibleExternalStmtList
       (CompilationModel.genParamLoadBodyFrom
         loadWord sizeExpr headSize baseOffset (param :: rest) headOffset) := by
-  -- TEMPORARY SORRY: the scalar-parameter load induction needs to be updated
-  -- for the widened supported external parameter set. The clean fix should
-  -- dispatch explicitly on each supported scalar constructor and align the
-  -- recursive `headOffset + paramHeadSize ...` argument without relying on the
-  -- old `simpa [hty]` chain.
-  sorry
+  cases param with
+  | mk name ty =>
+      cases ty <;> simp [SupportedExternalParamType] at hparam
+      case uint256 =>
+        exact legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_uint256
+          loadWord sizeExpr headSize baseOffset name rest headOffset hrest
+      case int256 =>
+        simpa [CompilationModel.genParamLoadBodyFrom, CompilationModel.genScalarLoad] using
+          LegacyCompatibleExternalStmtList.let_
+            name
+            (loadWord (YulExpr.lit headOffset))
+            (CompilationModel.genParamLoadBodyFrom
+              loadWord sizeExpr headSize baseOffset rest
+                (headOffset + paramHeadSize ParamType.int256))
+            hrest
+      case uint8 =>
+        exact legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_uint8
+          loadWord sizeExpr headSize baseOffset name rest headOffset hrest
+      case address =>
+        exact legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_address
+          loadWord sizeExpr headSize baseOffset name rest headOffset hrest
+      case bytes32 =>
+        exact legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_bytes32
+          loadWord sizeExpr headSize baseOffset name rest headOffset hrest
 -- TYPESIG_SORRY: private theorem legacyCompatibleExternalStmtList_genParamLoadBodyFrom_of_supported
 -- TYPESIG_SORRY:     (loadWord : YulExpr → YulExpr)
 -- TYPESIG_SORRY:     (sizeExpr : YulExpr)
