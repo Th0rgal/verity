@@ -1551,6 +1551,31 @@ private theorem evalExpr_mul_of_values
           Verity.Core.Uint256).val) := by
           simp [hlhs, hrhs]
 
+private theorem evalExpr_div_of_values
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {lhs rhs : Expr}
+    {lhsVal rhsVal : Nat}
+    (hlhs : SourceSemantics.evalExpr fields runtime lhs = some lhsVal)
+    (hrhs : SourceSemantics.evalExpr fields runtime rhs = some rhsVal) :
+    SourceSemantics.evalExpr fields runtime (.div lhs rhs) =
+      some ((((lhsVal : Verity.Core.Uint256) / (rhsVal : Verity.Core.Uint256)) :
+        Verity.Core.Uint256).val) := by
+  calc
+    SourceSemantics.evalExpr fields runtime (.div lhs rhs)
+        = (do
+            let lhs ← do
+              let a ← SourceSemantics.evalExpr fields runtime lhs
+              pure (Verity.Core.Uint256.ofNat a)
+            let rhs ← do
+              let a ← SourceSemantics.evalExpr fields runtime rhs
+              pure (Verity.Core.Uint256.ofNat a)
+            pure (lhs / rhs).val) := by
+              rfl
+    _ = some ((((lhsVal : Verity.Core.Uint256) / (rhsVal : Verity.Core.Uint256)) :
+          Verity.Core.Uint256).val) := by
+          simp [hlhs, hrhs]
+
 theorem eval_compileExpr_eq_of_compiled
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
@@ -2275,10 +2300,28 @@ theorem eval_compileExpr_div_of_compiled
     evalIRExpr state
       (CompilationModel.compileExpr fields .calldata (.div lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
         some (SourceSemantics.evalExpr fields runtime (.div lhs rhs)) := by
-  -- Temporary stabilization point for the `Option` migration.
-  -- Clean fix: separate the `none`/`some` source cases first, then prove the
-  -- in-range `Uint256` division bridge only on the successful branch.
-  sorry
+  have hcompile := compileExpr_div_ok hlhsCompile hrhsCompile
+  rcases hlhsSrc : SourceSemantics.evalExpr fields runtime lhs with _ | lhsVal
+  · cases hEval : evalIRExpr state lhsIR <;> simp [hEval, hlhsSrc] at hlhsEval
+  · rcases hrhsSrc : SourceSemantics.evalExpr fields runtime rhs with _ | rhsVal
+    · cases hEval : evalIRExpr state rhsIR <;> simp [hEval, hrhsSrc] at hrhsEval
+    · have hlhsEval' := evalIRExpr_of_sourceEval_some hlhsEval hlhsSrc
+      have hrhsEval' := evalIRExpr_of_sourceEval_some hrhsEval hrhsSrc
+      have hlhsLt' : lhsVal < Compiler.Constants.evmModulus := by
+        simpa [hlhsSrc] using hlhsLt
+      have hrhsLt' : rhsVal < Compiler.Constants.evmModulus := by
+        simpa [hrhsSrc] using hrhsLt
+      have heval :
+          evalIRExpr state
+            (CompilationModel.compileExpr fields .calldata (.div lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
+              some (if rhsVal % Compiler.Constants.evmModulus = 0 then 0 else
+                (lhsVal % Compiler.Constants.evmModulus) / (rhsVal % Compiler.Constants.evmModulus)) := by
+        simpa [hcompile] using evalIRExpr_div_of_eval hlhsEval' hrhsEval'
+      have hsrc := evalExpr_div_of_values hlhsSrc hrhsSrc
+      rw [heval]
+      rw [hsrc]
+      rw [uint256_div_val_eq hlhsLt' hrhsLt']
+      simp [Nat.mod_eq_of_lt hlhsLt', Nat.mod_eq_of_lt hrhsLt']
 -- SORRY'D:   have hcompile := compileExpr_div_ok hlhsCompile hrhsCompile
 -- SORRY'D:   have heval :
 -- SORRY'D:       evalIRExpr state
