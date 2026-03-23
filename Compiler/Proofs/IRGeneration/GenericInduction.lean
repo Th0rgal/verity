@@ -981,6 +981,39 @@ private theorem legacyCompatibleExternalStmtList_of_mappingWriteCompatBlock
       (compatExprs.map YulStmt.expr)
       hcompatExprs)
 
+private theorem legacyCompatibleExternalStmtList_of_mapping2CompatBlock
+    (slot slot' : Nat)
+    (rest' : List Nat)
+    (key1Expr key2Expr valueExpr : YulExpr) :
+    LegacyCompatibleExternalStmtList
+      [YulStmt.block (
+        ([ ("__compat_key1", key1Expr)
+         , ("__compat_key2", key2Expr)
+         , ("__compat_value", valueExpr)
+         ].map (fun binding => YulStmt.let_ binding.1 binding.2)) ++
+          (slot :: slot' :: rest').map (fun writeSlot =>
+            let innerSlot :=
+              YulExpr.call "mappingSlot" [YulExpr.lit writeSlot, YulExpr.ident "__compat_key1"]
+            YulStmt.expr (YulExpr.call "sstore"
+              [YulExpr.call "mappingSlot" [innerSlot, YulExpr.ident "__compat_key2"],
+               YulExpr.ident "__compat_value"])))] := by
+  let compatExprs :=
+    (slot :: slot' :: rest').map (fun writeSlot =>
+      let innerSlot :=
+        YulExpr.call "mappingSlot" [YulExpr.lit writeSlot, YulExpr.ident "__compat_key1"]
+      YulExpr.call "sstore"
+        [YulExpr.call "mappingSlot" [innerSlot, YulExpr.ident "__compat_key2"],
+         YulExpr.ident "__compat_value"])
+  have hcompatExprs :
+      LegacyCompatibleExternalStmtList (compatExprs.map YulStmt.expr) :=
+    legacyCompatibleExternalStmtList_of_exprStmtExprs compatExprs
+  refine LegacyCompatibleExternalStmtList.block _ [] ?_ .nil
+  simpa [compatExprs] using
+    (legacyCompatibleExternalStmtList_of_letBindings
+      [("__compat_key1", key1Expr), ("__compat_key2", key2Expr), ("__compat_value", valueExpr)]
+      (compatExprs.map YulStmt.expr)
+      hcompatExprs)
+
 private theorem legacyCompatibleExternalStmtList_of_compileMappingSlotWrite_ok
     {fields : List Field}
     {field : String}
@@ -1027,10 +1060,41 @@ private theorem legacyCompatibleExternalStmtList_of_compileSetMapping2_ok
       CompilationModel.compileSetMapping2 fields dynamicSource field key1 key2 value =
         Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-  -- Temporary stabilization point for the mapping2 compat-block proof.
-  -- Clean fix: rebuild the compile-shape case split for the current
-  -- `compileSetMapping2` definition and replay the legacy-compat constructor.
-  sorry
+  unfold CompilationModel.compileSetMapping2 at hcompile
+  by_cases hmapping : isMapping2 fields field
+  · simp [hmapping] at hcompile
+    cases hslots : findFieldWriteSlots fields field with
+    | none =>
+        simp [hslots] at hcompile
+    | some slots =>
+        simp [hslots] at hcompile
+        rcases hkey1 : CompilationModel.compileExpr fields dynamicSource key1 with _ | key1Expr
+        · simp [hkey1] at hcompile
+          cases hcompile
+        · rcases hkey2 : CompilationModel.compileExpr fields dynamicSource key2 with _ | key2Expr
+          · simp [hkey1, hkey2] at hcompile
+            cases hcompile
+          · rcases hvalue : CompilationModel.compileExpr fields dynamicSource value with _ | valueExpr
+            · simp [hkey1, hkey2, hvalue] at hcompile
+              cases hcompile
+            · simp [hkey1, hkey2, hvalue] at hcompile
+              cases slots with
+              | nil =>
+                simp at hcompile
+                cases hcompile
+              | cons slot rest =>
+                  cases rest with
+                  | nil =>
+                      injection hcompile with hbody
+                      subst hbody
+                      exact LegacyCompatibleExternalStmtList.expr _ [] .nil
+                  | cons slot' rest' =>
+                      injection hcompile with hbody
+                      subst hbody
+                      simpa using
+                        legacyCompatibleExternalStmtList_of_mapping2CompatBlock
+                          slot slot' rest' key1Expr key2Expr valueExpr
+  · simp [hmapping] at hcompile
 
 private theorem stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites_cons_inv
     {stmt : Stmt}
