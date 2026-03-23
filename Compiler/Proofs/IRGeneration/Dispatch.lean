@@ -43,32 +43,8 @@ theorem runtimeContractOfFunctions_disjoint
 
 private theorem decodeSupportedParamWord_some_of_supported
     (ty : ParamType) (word : Nat) (hsupported : SupportedExternalParamType ty) :
-    ∃ value, SourceSemantics.decodeSupportedParamWord ty word = some value := by sorry
--- SORRY'D:   cases ty with
--- SORRY'D:   | uint256 =>
--- SORRY'D:       exact ⟨SourceSemantics.wordNormalize word, by
--- SORRY'D:         simp [SourceSemantics.decodeSupportedParamWord]⟩
--- SORRY'D:   | uint8 =>
--- SORRY'D:       exact ⟨SourceSemantics.wordNormalize word &&& (SourceSemantics.uint8Modulus - 1), by
--- SORRY'D:         simp [SourceSemantics.decodeSupportedParamWord]⟩
--- SORRY'D:   | address =>
--- SORRY'D:       exact ⟨SourceSemantics.wordNormalize word &&& Compiler.Constants.addressMask, by
--- SORRY'D:         simp [SourceSemantics.decodeSupportedParamWord]⟩
--- SORRY'D:   | bool =>
--- SORRY'D:       cases hsupported
--- SORRY'D:   | bytes32 =>
--- SORRY'D:       exact ⟨SourceSemantics.wordNormalize word, by
--- SORRY'D:         simp [SourceSemantics.decodeSupportedParamWord]⟩
--- SORRY'D:   | string =>
--- SORRY'D:       cases hsupported
--- SORRY'D:   | tuple _ =>
--- SORRY'D:       cases hsupported
--- SORRY'D:   | array _ =>
--- SORRY'D:       cases hsupported
--- SORRY'D:   | fixedArray _ _ =>
--- SORRY'D:       cases hsupported
--- SORRY'D:   | bytes =>
--- SORRY'D:       cases hsupported
+    ∃ value, SourceSemantics.decodeSupportedParamWord ty word = some value := by
+  cases ty <;> simp [SupportedExternalParamType, SourceSemantics.decodeSupportedParamWord] at hsupported ⊢
 
 private theorem bindSupportedParams_some_of_supported
     (params : List Param) (args : List Nat)
@@ -432,7 +408,20 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_h
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by sorry
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  have hlegacy :=
+    interpretContract_correct_of_compiled_functions_with_helper_proofs
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      hHelperProofs
+      (irFns := irFns)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (hcompiled := hcompiled)
+      (hparamsSupported := hparamsSupported)
+      (hfunction := hfunction)
+  simpa [hhelperIR] using hlegacy
 -- SORRY'D:   have hlegacy :=
 -- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs
 -- SORRY'D:       (model := model)
@@ -536,7 +525,24 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_h
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by sorry
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  exact interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir
+    (model := model)
+    (selectors := selectors)
+    (hSupported := hSupported)
+    (hHelperProofs := hHelperProofs)
+    (irFns := irFns)
+    (tx := tx)
+    (initialWorld := initialWorld)
+    (hcompiled := hcompiled)
+    (hparamsSupported := hparamsSupported)
+    (hfunction := hfunction)
+    (hhelperIR :=
+      interpretIRWithInternalsZeroConservativeExtensionGoalOfDisjoint_closed
+        (runtimeContractOfFunctions model.name irFns)
+        hdisjointIR
+        tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld))
 -- SORRY'D:   exact interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir
 -- SORRY'D:     (model := model)
 -- SORRY'D:     (selectors := selectors)

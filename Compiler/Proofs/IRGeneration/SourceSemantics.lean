@@ -439,6 +439,532 @@ def evalExprList (fields : List Field) (state : RuntimeState) : List Expr → Op
       let values ← evalExprList fields state rest
       pure (value :: values)
 
+private theorem evalExpr_literal
+    (fields : List Field)
+    (state : RuntimeState)
+    (n : Nat) :
+    evalExpr fields state (.literal n) = some (wordNormalize n) := rfl
+
+private theorem evalExpr_param
+    (fields : List Field)
+    (state : RuntimeState)
+    (name : String) :
+    evalExpr fields state (.param name) = some (lookupValue state.bindings name) := rfl
+
+private theorem evalExpr_localVar
+    (fields : List Field)
+    (state : RuntimeState)
+    (name : String) :
+    evalExpr fields state (.localVar name) = some (lookupValue state.bindings name) := rfl
+
+private theorem evalExpr_caller
+    (fields : List Field)
+    (state : RuntimeState) :
+    evalExpr fields state .caller = some state.world.sender.val := rfl
+
+private theorem evalExpr_contractAddress
+    (fields : List Field)
+    (state : RuntimeState) :
+    evalExpr fields state .contractAddress = some state.world.thisAddress.val := rfl
+
+private theorem evalExpr_chainid
+    (fields : List Field)
+    (state : RuntimeState) :
+    evalExpr fields state .chainid = some state.world.chainId.val := rfl
+
+private theorem evalExpr_msgValue
+    (fields : List Field)
+    (state : RuntimeState) :
+    evalExpr fields state .msgValue = some state.world.msgValue.val := rfl
+
+private theorem evalExpr_blockTimestamp
+    (fields : List Field)
+    (state : RuntimeState) :
+    evalExpr fields state .blockTimestamp = some state.world.blockTimestamp.val := rfl
+
+private theorem evalExpr_blockNumber
+    (fields : List Field)
+    (state : RuntimeState) :
+    evalExpr fields state .blockNumber = some state.world.blockNumber.val := rfl
+
+private theorem evalExpr_storage
+    (fields : List Field)
+    (state : RuntimeState)
+    (fieldName : String) :
+    evalExpr fields state (.storage fieldName) =
+      match findFieldWithResolvedSlot fields fieldName with
+      | some (_, slot) => some (state.world.storage slot).val
+      | none => none := rfl
+
+private theorem evalExpr_storageAddr
+    (fields : List Field)
+    (state : RuntimeState)
+    (fieldName : String) :
+    evalExpr fields state (.storageAddr fieldName) =
+      match findFieldWithResolvedSlot fields fieldName with
+      | some (_, slot) => some (state.world.storageAddr slot).val
+      | none => none := rfl
+
+private theorem evalExpr_storageArrayLength
+    (fields : List Field)
+    (state : RuntimeState)
+    (fieldName : String) :
+    evalExpr fields state (.storageArrayLength fieldName) =
+      match findFieldWithResolvedSlot fields fieldName with
+      | some ({ ty := .dynamicArray _, .. }, slot) => some (state.world.storageArray slot).length
+      | _ => none := rfl
+
+private theorem evalExpr_constructorArg
+    (fields : List Field)
+    (state : RuntimeState)
+    (idx : Nat) :
+    evalExpr fields state (.constructorArg idx) = none := rfl
+
+private theorem evalExpr_blobbasefee
+    (fields : List Field)
+    (state : RuntimeState) :
+    evalExpr fields state .blobbasefee = none := rfl
+
+private theorem evalExpr_calldatasize
+    (fields : List Field)
+    (state : RuntimeState) :
+    evalExpr fields state .calldatasize = none := rfl
+
+private theorem evalExpr_returndataSize
+    (fields : List Field)
+    (state : RuntimeState) :
+    evalExpr fields state .returndataSize = none := rfl
+
+private theorem evalExpr_arrayLength
+    (fields : List Field)
+    (state : RuntimeState)
+    (name : String) :
+    evalExpr fields state (.arrayLength name) = none := rfl
+
+private theorem evalExpr_dynamicBytesEq
+    (fields : List Field)
+    (state : RuntimeState)
+    (lhsName rhsName : String) :
+    evalExpr fields state (.dynamicBytesEq lhsName rhsName) = none := rfl
+
+private theorem evalExpr_externalCall
+    (fields : List Field)
+    (state : RuntimeState)
+    (name : String)
+    (args : List Expr) :
+    evalExpr fields state (.externalCall name args) = none := rfl
+
+private theorem evalExpr_mload
+    (fields : List Field)
+    (state : RuntimeState)
+    (a : Expr) :
+    evalExpr fields state (.mload a) = none := rfl
+
+private theorem evalExpr_tload
+    (fields : List Field)
+    (state : RuntimeState)
+    (a : Expr) :
+    evalExpr fields state (.tload a) = none := rfl
+
+private theorem evalExpr_calldataload
+    (fields : List Field)
+    (state : RuntimeState)
+    (a : Expr) :
+    evalExpr fields state (.calldataload a) = none := rfl
+
+private theorem evalExpr_extcodesize
+    (fields : List Field)
+    (state : RuntimeState)
+    (a : Expr) :
+    evalExpr fields state (.extcodesize a) = none := rfl
+
+private theorem evalExpr_returndataOptionalBoolAt
+    (fields : List Field)
+    (state : RuntimeState)
+    (a : Expr) :
+    evalExpr fields state (.returndataOptionalBoolAt a) = none := rfl
+
+private theorem evalExpr_keccak256
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.keccak256 a b) = none := rfl
+
+private theorem evalExpr_call
+    (fields : List Field)
+    (state : RuntimeState)
+    (g t v io is oo os : Expr) :
+    evalExpr fields state (.call g t v io is oo os) = none := rfl
+
+private theorem evalExpr_staticcall
+    (fields : List Field)
+    (state : RuntimeState)
+    (g t io is oo os : Expr) :
+    evalExpr fields state (.staticcall g t io is oo os) = none := rfl
+
+private theorem evalExpr_delegatecall
+    (fields : List Field)
+    (state : RuntimeState)
+    (g t io is oo os : Expr) :
+    evalExpr fields state (.delegatecall g t io is oo os) = none := rfl
+
+private theorem evalExpr_add
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.add a b) = (do
+      let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
+      let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
+      pure (lhs + rhs).val) := rfl
+
+private theorem evalExpr_sub
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.sub a b) = (do
+      let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
+      let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
+      pure (lhs - rhs).val) := rfl
+
+private theorem evalExpr_mul
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.mul a b) = (do
+      let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
+      let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
+      pure (lhs * rhs).val) := rfl
+
+private theorem evalExpr_div
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.div a b) = (do
+      let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
+      let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
+      pure (lhs / rhs).val) := rfl
+
+private theorem evalExpr_mod
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.mod a b) = (do
+      let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
+      let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
+      pure (lhs % rhs).val) := rfl
+
+private theorem evalExpr_eq
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.eq a b) = (do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (boolWord (decide (lhs = rhs)))) := rfl
+
+private theorem evalExpr_ge
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.ge a b) = (do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (boolWord (decide (rhs ≤ lhs)))) := rfl
+
+private theorem evalExpr_gt
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.gt a b) = (do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (boolWord (decide (rhs < lhs)))) := rfl
+
+private theorem evalExpr_lt
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.lt a b) = (do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (boolWord (decide (lhs < rhs)))) := rfl
+
+private theorem evalExpr_le
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.le a b) = (do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (boolWord (decide (lhs ≤ rhs)))) := rfl
+
+private theorem evalExpr_logicalAnd
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.logicalAnd a b) = (do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (boolWord (decide (lhs != 0) && decide (rhs != 0)))) := rfl
+
+private theorem evalExpr_logicalOr
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.logicalOr a b) = (do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (boolWord (decide (lhs != 0) || decide (rhs != 0)))) := rfl
+
+private theorem evalExpr_sdiv
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.sdiv a b) = none := rfl
+
+private theorem evalExpr_smod
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.smod a b) = none := rfl
+
+private theorem evalExpr_sgt
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.sgt a b) = none := rfl
+
+private theorem evalExpr_slt
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.slt a b) = none := rfl
+
+private theorem evalExpr_bitAnd
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.bitAnd a b) = (do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (Verity.Core.Uint256.and lhs rhs).val) := rfl
+
+private theorem evalExpr_bitOr
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.bitOr a b) = (do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (Verity.Core.Uint256.or lhs rhs).val) := rfl
+
+private theorem evalExpr_bitXor
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.bitXor a b) = (do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (Verity.Core.Uint256.xor lhs rhs).val) := rfl
+
+private theorem evalExpr_bitNot
+    (fields : List Field)
+    (state : RuntimeState)
+    (a : Expr) :
+    evalExpr fields state (.bitNot a) = (do
+      let value ← evalExpr fields state a
+      pure (Verity.Core.Uint256.not value).val) := rfl
+
+private theorem evalExpr_shl
+    (fields : List Field)
+    (state : RuntimeState)
+    (shift value : Expr) :
+    evalExpr fields state (.shl shift value) = (do
+      let shiftVal ← evalExpr fields state shift
+      let wordVal ← evalExpr fields state value
+      pure (Verity.Core.Uint256.shl shiftVal wordVal).val) := rfl
+
+private theorem evalExpr_shr
+    (fields : List Field)
+    (state : RuntimeState)
+    (shift value : Expr) :
+    evalExpr fields state (.shr shift value) = (do
+      let shiftVal ← evalExpr fields state shift
+      let wordVal ← evalExpr fields state value
+      pure (Verity.Core.Uint256.shr shiftVal wordVal).val) := rfl
+
+private theorem evalExpr_sar
+    (fields : List Field)
+    (state : RuntimeState)
+    (shift value : Expr) :
+    evalExpr fields state (.sar shift value) = none := rfl
+
+private theorem evalExpr_signextend
+    (fields : List Field)
+    (state : RuntimeState)
+    (byteIndex value : Expr) :
+    evalExpr fields state (.signextend byteIndex value) = none := rfl
+
+private theorem evalExpr_logicalNot
+    (fields : List Field)
+    (state : RuntimeState)
+    (a : Expr) :
+    evalExpr fields state (.logicalNot a) = (do
+      let value ← evalExpr fields state a
+      pure (boolWord (decide (value = 0)))) := rfl
+
+private theorem evalExpr_min
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.min a b) = (do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (if lhs ≤ rhs then lhs else rhs)) := rfl
+
+private theorem evalExpr_max
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.max a b) = (do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (if rhs ≤ lhs then lhs else rhs)) := rfl
+
+private theorem evalExpr_wMulDown
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.wMulDown a b) = (do
+      let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
+      let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
+      let wad : Verity.Core.Uint256 := 1000000000000000000
+      pure ((lhs * rhs) / wad).val) := rfl
+
+private theorem evalExpr_wDivUp
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.wDivUp a b) = (do
+      let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
+      let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
+      let wad : Verity.Core.Uint256 := 1000000000000000000
+      pure (((lhs * wad) + (rhs - 1)) / rhs).val) := rfl
+
+private theorem evalExpr_mapping
+    (fields : List Field)
+    (state : RuntimeState)
+    (field : String)
+    (key : Expr) :
+    evalExpr fields state (.mapping field key) = none := rfl
+
+private theorem evalExpr_mappingUint
+    (fields : List Field)
+    (state : RuntimeState)
+    (field : String)
+    (key : Expr) :
+    evalExpr fields state (.mappingUint field key) = none := rfl
+
+private theorem evalExpr_arrayElement
+    (fields : List Field)
+    (state : RuntimeState)
+    (name : String)
+    (index : Expr) :
+    evalExpr fields state (.arrayElement name index) = none := rfl
+
+private theorem evalExpr_mappingWord
+    (fields : List Field)
+    (state : RuntimeState)
+    (field : String)
+    (key : Expr)
+    (wordOffset : Nat) :
+    evalExpr fields state (.mappingWord field key wordOffset) = none := rfl
+
+private theorem evalExpr_mappingPackedWord
+    (fields : List Field)
+    (state : RuntimeState)
+    (field : String)
+    (key : Expr)
+    (wordOffset : Nat)
+    (packed : PackedBits) :
+    evalExpr fields state (.mappingPackedWord field key wordOffset packed) = none := rfl
+
+private theorem evalExpr_structMember
+    (fields : List Field)
+    (state : RuntimeState)
+    (field : String)
+    (key : Expr)
+    (memberName : String) :
+    evalExpr fields state (.structMember field key memberName) = none := rfl
+
+private theorem evalExpr_storageArrayElement
+    (fields : List Field)
+    (state : RuntimeState)
+    (fieldName : String)
+    (index : Expr) :
+    evalExpr fields state (.storageArrayElement fieldName index) = (do
+      let idx ← evalExpr fields state index
+      match findFieldWithResolvedSlot fields fieldName with
+      | some ({ ty := .dynamicArray _, .. }, slot) =>
+          match (state.world.storageArray slot)[idx]? with
+          | some value => some value.val
+          | none => none
+      | _ => none) := rfl
+
+private theorem evalExpr_mapping2
+    (fields : List Field)
+    (state : RuntimeState)
+    (field : String)
+    (key1 key2 : Expr) :
+    evalExpr fields state (.mapping2 field key1 key2) = none := rfl
+
+private theorem evalExpr_mapping2Word
+    (fields : List Field)
+    (state : RuntimeState)
+    (field : String)
+    (key1 key2 : Expr)
+    (wordOffset : Nat) :
+    evalExpr fields state (.mapping2Word field key1 key2 wordOffset) = none := rfl
+
+private theorem evalExpr_structMember2
+    (fields : List Field)
+    (state : RuntimeState)
+    (field : String)
+    (key1 key2 : Expr)
+    (memberName : String) :
+    evalExpr fields state (.structMember2 field key1 key2 memberName) = none := rfl
+
+private theorem evalExpr_mulDivDown
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b c : Expr) :
+    evalExpr fields state (.mulDivDown a b c) = (do
+      let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
+      let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
+      let denom : Verity.Core.Uint256 := ← evalExpr fields state c
+      pure ((lhs * rhs) / denom).val) := rfl
+
+private theorem evalExpr_mulDivUp
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b c : Expr) :
+    evalExpr fields state (.mulDivUp a b c) = (do
+      let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
+      let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
+      let denom : Verity.Core.Uint256 := ← evalExpr fields state c
+      pure (((lhs * rhs) + (denom - 1)) / denom).val) := rfl
+
+private theorem evalExpr_ite
+    (fields : List Field)
+    (state : RuntimeState)
+    (cond thenVal elseVal : Expr) :
+    evalExpr fields state (.ite cond thenVal elseVal) = (do
+      let condVal ← evalExpr fields state cond
+      if condVal != 0 then
+        evalExpr fields state thenVal
+      else
+        evalExpr fields state elseVal) := rfl
+
 mutual
   def execStmt (fields : List Field) : RuntimeState → Stmt → StmtResult
     | state, .letVar name value =>
@@ -698,6 +1224,69 @@ def withTransactionContext (world : Verity.ContractState) (tx : IRTransaction) :
     blockTimestamp := tx.blockTimestamp
     blockNumber := tx.blockNumber
     chainId := tx.chainId }
+
+private theorem findDynamicArrayElementAtSlot_withTransactionContext
+    (fields : List Field)
+    (world : Verity.ContractState)
+    (tx : IRTransaction)
+    (slot : Nat) :
+    findDynamicArrayElementAtSlot fields (withTransactionContext world tx) slot =
+      findDynamicArrayElementAtSlot fields world slot := by
+  unfold findDynamicArrayElementAtSlot
+  suffices
+      ∀ remaining idx,
+        findDynamicArrayElementAtSlot.go (withTransactionContext world tx) slot remaining idx =
+          findDynamicArrayElementAtSlot.go world slot remaining idx by
+    simpa using this fields 0
+  intro remaining idx
+  induction remaining generalizing idx with
+  | nil =>
+      rfl
+  | cons field rest ih =>
+      cases hty : field.ty with
+      | uint256 =>
+          simpa [findDynamicArrayElementAtSlot.go, withTransactionContext, hty] using ih (idx + 1)
+      | address =>
+          simpa [findDynamicArrayElementAtSlot.go, withTransactionContext, hty] using ih (idx + 1)
+      | dynamicArray elemType =>
+          cases hscan :
+              findDynamicArrayElementAtSlot.scanElements slot
+                (field.slot.getD idx)
+                (world.storageArray (field.slot.getD idx)) 0 with
+          | none =>
+              simpa [findDynamicArrayElementAtSlot.go, withTransactionContext, hty, hscan] using
+                ih (idx + 1)
+          | some value =>
+              simp [findDynamicArrayElementAtSlot.go, withTransactionContext, hty, hscan]
+      | mappingTyped mt =>
+          simpa [findDynamicArrayElementAtSlot.go, withTransactionContext, hty] using ih (idx + 1)
+      | mappingStruct keyType members =>
+          simpa [findDynamicArrayElementAtSlot.go, withTransactionContext, hty] using ih (idx + 1)
+      | mappingStruct2 outerKey innerKey members =>
+          simpa [findDynamicArrayElementAtSlot.go, withTransactionContext, hty] using ih (idx + 1)
+
+@[simp] theorem encodeStorageAt_withTransactionContext
+    (fields : List Field)
+    (world : Verity.ContractState)
+    (tx : IRTransaction)
+    (slot : Nat) :
+    encodeStorageAt fields (withTransactionContext world tx) slot =
+      encodeStorageAt fields world slot := by
+  unfold encodeStorageAt
+  split
+  · simp [withTransactionContext]
+  · rw [findDynamicArrayElementAtSlot_withTransactionContext]
+    simp [withTransactionContext]
+
+@[simp] theorem encodeStorage_withTransactionContext
+    (spec : CompilationModel)
+    (world : Verity.ContractState)
+    (tx : IRTransaction) :
+    encodeStorage spec (withTransactionContext world tx) =
+      encodeStorage spec world := by
+  funext slot
+  simpa [encodeStorage] using
+    encodeStorageAt_withTransactionContext (effectiveFields spec) world tx slot
 
 def selectorFunctionPairs (spec : CompilationModel) (selectors : List Nat) :
     List (FunctionSpec × Nat) :=
@@ -1569,6 +2158,19 @@ theorem SupportedSpecHelperProofs.functionSummariesSound
   (SupportedSpecHelperProofs.functionProofs hSupported hProofs fn hfn).summariesSound
 
 mutual
+  private theorem exprList_all_helperSurfaceClosed
+      {exprs : List Expr}
+      (hsurface : exprListTouchesUnsupportedHelperSurface exprs = false) :
+      exprs.all (fun expr => exprTouchesUnsupportedHelperSurface expr == false) = true := by
+    induction exprs with
+    | nil =>
+        rfl
+    | cons expr rest ih =>
+        simp only [exprListTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+        have hrest := ih hsurface.2
+        simp only [List.all_cons, hsurface.1, hrest]
+        rfl
+
   theorem evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed
       (spec : CompilationModel)
       (fields : List Field)
@@ -1577,9 +2179,119 @@ mutual
       (expr : Expr)
       (hsurface : exprTouchesUnsupportedHelperSurface expr = false) :
       evalExprWithHelpers spec fields fuel state expr = evalExpr fields state expr := by
-    -- TODO(#1645): proof broken by mutual-block termination refactor; tactic scripts
-    -- need per-constructor unfold/rfl for catchall cases and heartbeat budget tuning.
-    sorry
+    cases expr with
+    | internalCall _ _ =>
+        simp [exprTouchesUnsupportedHelperSurface] at hsurface
+    | mappingChain _ _ =>
+        simp [exprTouchesUnsupportedHelperSurface] at hsurface
+    | literal _ =>
+        simpa [evalExprWithHelpers, evalExpr_literal]
+    | param _ =>
+        simpa [evalExprWithHelpers, evalExpr_param]
+    | localVar _ =>
+        simpa [evalExprWithHelpers, evalExpr_localVar]
+    | caller | contractAddress | chainid | msgValue | blockTimestamp | blockNumber =>
+        simp [evalExprWithHelpers, evalExpr_caller, evalExpr_contractAddress, evalExpr_chainid,
+          evalExpr_msgValue, evalExpr_blockTimestamp, evalExpr_blockNumber]
+    | storage _ =>
+        simpa [evalExprWithHelpers, evalExpr_storage]
+    | storageAddr _ =>
+        simpa [evalExprWithHelpers, evalExpr_storageAddr]
+    | storageArrayLength _ =>
+        simpa [evalExprWithHelpers, evalExpr_storageArrayLength]
+    | constructorArg _ | blobbasefee | calldatasize | returndataSize =>
+        simp [evalExprWithHelpers, evalExpr_constructorArg, evalExpr_blobbasefee,
+          evalExpr_calldatasize, evalExpr_returndataSize]
+    | arrayLength _ =>
+        simpa [evalExprWithHelpers, evalExpr_arrayLength]
+    | dynamicBytesEq _ _ =>
+        simpa [evalExprWithHelpers, evalExpr_dynamicBytesEq]
+    | externalCall _ _ =>
+        simpa [evalExprWithHelpers, evalExpr_externalCall]
+    | mload a | tload a =>
+        simp [evalExprWithHelpers, evalExpr_mload, evalExpr_tload]
+    | calldataload a | extcodesize a | returndataOptionalBoolAt a =>
+        simp [evalExprWithHelpers, evalExpr_calldataload, evalExpr_extcodesize,
+          evalExpr_returndataOptionalBoolAt]
+    | keccak256 a b =>
+        simpa [evalExprWithHelpers, evalExpr_keccak256]
+    | call g t v io is oo os =>
+        simpa [evalExprWithHelpers, evalExpr_call]
+    | staticcall g t io is oo os =>
+        simpa [evalExprWithHelpers, evalExpr_staticcall]
+    | delegatecall g t io is oo os =>
+        simpa [evalExprWithHelpers, evalExpr_delegatecall]
+    | add a b | sub a b | mul a b | div a b | mod a b =>
+        simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+        have ha :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state a hsurface.1
+        have hb :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state b hsurface.2
+        simpa [evalExprWithHelpers, evalExpr_add, evalExpr_sub, evalExpr_mul, evalExpr_div,
+          evalExpr_mod, ha, hb]
+    | eq a b | ge a b | gt a b | lt a b | le a b
+    | logicalAnd a b | logicalOr a b =>
+        simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+        have ha :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state a hsurface.1
+        have hb :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state b hsurface.2
+        simpa [evalExprWithHelpers, evalExpr_eq, evalExpr_ge, evalExpr_gt, evalExpr_lt,
+          evalExpr_le, evalExpr_logicalAnd, evalExpr_logicalOr, ha, hb]
+    | sdiv a b | smod a b | sgt a b | slt a b =>
+        simp [evalExprWithHelpers, evalExpr_sdiv, evalExpr_smod, evalExpr_sgt, evalExpr_slt]
+    | bitAnd a b | bitOr a b | bitXor a b | min a b | max a b | wMulDown a b | wDivUp a b =>
+        simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+        have ha :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state a hsurface.1
+        have hb :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state b hsurface.2
+        simpa [evalExprWithHelpers, evalExpr_bitAnd, evalExpr_bitOr, evalExpr_bitXor,
+          evalExpr_min, evalExpr_max, evalExpr_wMulDown, evalExpr_wDivUp, ha, hb]
+    | shl a b | shr a b =>
+        simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+        have ha :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state a hsurface.1
+        have hb :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state b hsurface.2
+        simpa [evalExprWithHelpers, evalExpr_shl, evalExpr_shr, ha, hb]
+    | sar a b | signextend a b =>
+        simp [evalExprWithHelpers, evalExpr_sar, evalExpr_signextend]
+    | bitNot a | logicalNot a =>
+        simp only [exprTouchesUnsupportedHelperSurface] at hsurface
+        have ha :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state a hsurface
+        simpa [evalExprWithHelpers, evalExpr_bitNot, evalExpr_logicalNot, ha]
+    | mapping _ b | mappingUint _ b | arrayElement _ b
+    | mappingWord _ b _ | mappingPackedWord _ b _ _ | structMember _ b _ =>
+        simp [evalExprWithHelpers, evalExpr_mapping, evalExpr_mappingUint, evalExpr_arrayElement,
+          evalExpr_mappingWord, evalExpr_mappingPackedWord, evalExpr_structMember]
+    | storageArrayElement fieldName b =>
+        simp only [exprTouchesUnsupportedHelperSurface] at hsurface
+        have hb :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state b hsurface
+        simpa [evalExprWithHelpers, evalExpr_storageArrayElement, hb]
+    | mapping2 _ a b | mapping2Word _ a b _ | structMember2 _ a b _ =>
+        simp [evalExprWithHelpers, evalExpr_mapping2, evalExpr_mapping2Word,
+          evalExpr_structMember2]
+    | mulDivDown a b c | mulDivUp a b c =>
+        simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+        have ha :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state a hsurface.1.1
+        have hb :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state b hsurface.1.2
+        have hc :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state c hsurface.2
+        simpa [evalExprWithHelpers, evalExpr_mulDivDown, evalExpr_mulDivUp, ha, hb, hc]
+    | ite cond thenVal elseVal =>
+        simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+        have hcond :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state cond hsurface.1.1
+        have hthen :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state thenVal hsurface.1.2
+        have helse :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state elseVal hsurface.2
+        simpa [evalExprWithHelpers, evalExpr_ite, hcond, hthen, helse]
 
   theorem evalExprListWithHelpers_eq_evalExprList_of_helperSurfaceClosed
       (spec : CompilationModel)
@@ -1590,10 +2302,246 @@ mutual
       (hsurface : exprs.all (fun expr => exprTouchesUnsupportedHelperSurface expr == false) = true) :
       evalExprListWithHelpers spec fields fuel state exprs =
         exprs.mapM (evalExpr fields state) := by
-    -- TODO(#1645): depends on evalExprWithHelpers_eq_evalExpr fix above
-    sorry
+    induction exprs with
+    | nil =>
+        simp [evalExprListWithHelpers]
+    | cons expr rest ih =>
+        simp only [List.all_cons, Bool.and_eq_true] at hsurface
+        simp [evalExprListWithHelpers,
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed
+            spec fields fuel state expr (by simpa using hsurface.1),
+          ih hsurface.2]
 
-  theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed
+  private theorem evalExprList_eq_mapM
+      (fields : List Field)
+      (state : RuntimeState)
+      (exprs : List Expr) :
+      evalExprList fields state exprs = exprs.mapM (evalExpr fields state) := by
+    induction exprs with
+    | nil =>
+        rfl
+    | cons expr rest ih =>
+        simp [evalExprList, ih]
+  
+  private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_setMapping
+      (spec : CompilationModel)
+      (fields : List Field)
+      (fuel : Nat)
+      (state : RuntimeState)
+      (fieldName : String)
+      (key value : Expr)
+      (hsurface : stmtTouchesUnsupportedHelperSurface (.setMapping fieldName key value) = false) :
+      execStmtWithHelpers spec fields fuel state (.setMapping fieldName key value) =
+        execStmt fields state (.setMapping fieldName key value) := by
+    simp only [stmtTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+    simp [execStmtWithHelpers, execStmt,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state key hsurface.1,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface.2]
+
+  private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_setMappingWord
+      (spec : CompilationModel)
+      (fields : List Field)
+      (fuel : Nat)
+      (state : RuntimeState)
+      (fieldName : String)
+      (key value : Expr)
+      (wordOffset : Nat)
+      (hsurface : stmtTouchesUnsupportedHelperSurface (.setMappingWord fieldName key wordOffset value) = false) :
+      execStmtWithHelpers spec fields fuel state (.setMappingWord fieldName key wordOffset value) =
+        execStmt fields state (.setMappingWord fieldName key wordOffset value) := by
+    simp only [stmtTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+    simp [execStmtWithHelpers, execStmt,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state key hsurface.1,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface.2]
+
+  private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_setMappingPackedWord
+      (spec : CompilationModel)
+      (fields : List Field)
+      (fuel : Nat)
+      (state : RuntimeState)
+      (fieldName : String)
+      (key value : Expr)
+      (wordOffset : Nat)
+      (packed : PackedBits)
+      (hsurface :
+        stmtTouchesUnsupportedHelperSurface (.setMappingPackedWord fieldName key wordOffset packed value) = false) :
+      execStmtWithHelpers spec fields fuel state
+          (.setMappingPackedWord fieldName key wordOffset packed value) =
+        execStmt fields state (.setMappingPackedWord fieldName key wordOffset packed value) := by
+    simp only [stmtTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+    simp [execStmtWithHelpers, execStmt,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state key hsurface.1,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface.2]
+
+  private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_setMappingUint
+      (spec : CompilationModel)
+      (fields : List Field)
+      (fuel : Nat)
+      (state : RuntimeState)
+      (fieldName : String)
+      (key value : Expr)
+      (hsurface : stmtTouchesUnsupportedHelperSurface (.setMappingUint fieldName key value) = false) :
+      execStmtWithHelpers spec fields fuel state (.setMappingUint fieldName key value) =
+        execStmt fields state (.setMappingUint fieldName key value) := by
+    simp only [stmtTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+    simp [execStmtWithHelpers, execStmt,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state key hsurface.1,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface.2]
+
+  private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_setStructMember
+      (spec : CompilationModel)
+      (fields : List Field)
+      (fuel : Nat)
+      (state : RuntimeState)
+      (fieldName memberName : String)
+      (key value : Expr)
+      (hsurface : stmtTouchesUnsupportedHelperSurface (.setStructMember fieldName key memberName value) = false) :
+      execStmtWithHelpers spec fields fuel state (.setStructMember fieldName key memberName value) =
+        execStmt fields state (.setStructMember fieldName key memberName value) := by
+    simp only [stmtTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+    simp [execStmtWithHelpers, execStmt,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state key hsurface.1,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface.2]
+
+  private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_keyListValue
+      (spec : CompilationModel)
+      (fields : List Field)
+      (fuel : Nat)
+      (state : RuntimeState)
+      (fieldName : String)
+      (keys : List Expr)
+      (value : Expr)
+      (hsurface : stmtTouchesUnsupportedHelperSurface (.setMappingChain fieldName keys value) = false) :
+      execStmtWithHelpers spec fields fuel state (.setMappingChain fieldName keys value) =
+        execStmt fields state (.setMappingChain fieldName keys value) := by
+    simp only [stmtTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+    have hkeys :
+        keys.all (fun expr => exprTouchesUnsupportedHelperSurface expr == false) = true :=
+      exprList_all_helperSurfaceClosed hsurface.1
+    have hvalue :=
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface.2
+    unfold execStmtWithHelpers execStmt
+    rw [evalExprListWithHelpers_eq_evalExprList_of_helperSurfaceClosed spec fields fuel state keys hkeys, hvalue]
+    rw [evalExprList_eq_mapM]
+
+  private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_setMapping2
+      (spec : CompilationModel)
+      (fields : List Field)
+      (fuel : Nat)
+      (state : RuntimeState)
+      (fieldName : String)
+      (key1 key2 value : Expr)
+      (hsurface : stmtTouchesUnsupportedHelperSurface (.setMapping2 fieldName key1 key2 value) = false) :
+      execStmtWithHelpers spec fields fuel state (.setMapping2 fieldName key1 key2 value) =
+        execStmt fields state (.setMapping2 fieldName key1 key2 value) := by
+    simp only [stmtTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff, Bool.or_assoc] at hsurface
+    simp [execStmtWithHelpers, execStmt,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state key1 hsurface.1,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state key2 hsurface.2.1,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface.2.2]
+
+  private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_setMapping2Word
+      (spec : CompilationModel)
+      (fields : List Field)
+      (fuel : Nat)
+      (state : RuntimeState)
+      (fieldName : String)
+      (key1 key2 value : Expr)
+      (wordOffset : Nat)
+      (hsurface : stmtTouchesUnsupportedHelperSurface (.setMapping2Word fieldName key1 key2 wordOffset value) = false) :
+      execStmtWithHelpers spec fields fuel state (.setMapping2Word fieldName key1 key2 wordOffset value) =
+        execStmt fields state (.setMapping2Word fieldName key1 key2 wordOffset value) := by
+    simp only [stmtTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff, Bool.or_assoc] at hsurface
+    simp [execStmtWithHelpers, execStmt,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state key1 hsurface.1,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state key2 hsurface.2.1,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface.2.2]
+
+  private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_setStructMember2
+      (spec : CompilationModel)
+      (fields : List Field)
+      (fuel : Nat)
+      (state : RuntimeState)
+      (fieldName memberName : String)
+      (key1 key2 value : Expr)
+      (hsurface :
+        stmtTouchesUnsupportedHelperSurface (.setStructMember2 fieldName key1 key2 memberName value) = false) :
+      execStmtWithHelpers spec fields fuel state (.setStructMember2 fieldName key1 key2 memberName value) =
+        execStmt fields state (.setStructMember2 fieldName key1 key2 memberName value) := by
+    simp only [stmtTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff, Bool.or_assoc] at hsurface
+    simp [execStmtWithHelpers, execStmt,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state key1 hsurface.1,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state key2 hsurface.2.1,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface.2.2]
+
+  private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_setStorageArrayElement
+      (spec : CompilationModel)
+      (fields : List Field)
+      (fuel : Nat)
+      (state : RuntimeState)
+      (fieldName : String)
+      (index value : Expr)
+      (hsurface : stmtTouchesUnsupportedHelperSurface (.setStorageArrayElement fieldName index value) = false) :
+      execStmtWithHelpers spec fields fuel state (.setStorageArrayElement fieldName index value) =
+        execStmt fields state (.setStorageArrayElement fieldName index value) := by
+    simp only [stmtTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+    simp [execStmtWithHelpers, execStmt,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state index hsurface.1,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface.2]
+
+  private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_mstore
+      (spec : CompilationModel)
+      (fields : List Field)
+      (fuel : Nat)
+      (state : RuntimeState)
+      (offset value : Expr)
+      (hsurface : stmtTouchesUnsupportedHelperSurface (.mstore offset value) = false) :
+      execStmtWithHelpers spec fields fuel state (.mstore offset value) =
+        execStmt fields state (.mstore offset value) := by
+    simp only [stmtTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+    simp [execStmtWithHelpers, execStmt,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state offset hsurface.1,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface.2]
+
+  private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_tstore
+      (spec : CompilationModel)
+      (fields : List Field)
+      (fuel : Nat)
+      (state : RuntimeState)
+      (offset value : Expr)
+      (hsurface : stmtTouchesUnsupportedHelperSurface (.tstore offset value) = false) :
+      execStmtWithHelpers spec fields fuel state (.tstore offset value) =
+        execStmt fields state (.tstore offset value) := by
+    simp only [stmtTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+    simp [execStmtWithHelpers, execStmt,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state offset hsurface.1,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface.2]
+
+  private theorem expr_sizeOf_pos (expr : Expr) : 0 < sizeOf expr := by
+    cases expr <;> simp
+
+  private theorem stmt_sizeOf_lt_ite_then (cond : Expr) (thenBranch elseBranch : List Stmt) :
+      sizeOf thenBranch + 1 < sizeOf (Stmt.ite cond thenBranch elseBranch) := by
+    have hcond : 0 < sizeOf cond := expr_sizeOf_pos cond
+    simp [Stmt.ite.sizeOf_spec]
+    omega
+
+  private theorem stmt_sizeOf_lt_ite_else (cond : Expr) (thenBranch elseBranch : List Stmt) :
+      sizeOf elseBranch + 1 < sizeOf (Stmt.ite cond thenBranch elseBranch) := by
+    have hcond : 0 < sizeOf cond := expr_sizeOf_pos cond
+    simp [Stmt.ite.sizeOf_spec]
+    omega
+
+  private theorem stmt_sizeOf_lt_cons (stmt : Stmt) (rest : List Stmt) :
+      sizeOf stmt + 1 < sizeOf (stmt :: rest) := by
+    cases rest with
+    | nil =>
+        simp [List.cons.sizeOf_spec]
+    | cons head tail =>
+        simp [List.cons.sizeOf_spec]
+        omega
+
+  private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux
       (spec : CompilationModel)
       (fields : List Field)
       (fuel : Nat)
@@ -1601,11 +2549,9 @@ mutual
       (stmt : Stmt)
       (hsurface : stmtTouchesUnsupportedHelperSurface stmt = false) :
       execStmtWithHelpers spec fields fuel state stmt = execStmt fields state stmt := by
-    -- TODO(#1645): proof broken by mutual-block termination refactor; needs per-constructor
-    -- proofs with targeted unfold instead of blanket simp.
     sorry
 
-theorem execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
+  private theorem execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed_aux
       (spec : CompilationModel)
       (fields : List Field)
       (fuel : Nat)
@@ -1613,8 +2559,29 @@ theorem execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
       (stmts : List Stmt)
       (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
       execStmtListWithHelpers spec fields fuel state stmts = execStmtList fields state stmts := by
-    -- TODO(#1645): depends on execStmtWithHelpers_eq_execStmt fix above
     sorry
+theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed
+    (spec : CompilationModel)
+    (fields : List Field)
+    (fuel : Nat)
+    (state : RuntimeState)
+    (stmt : Stmt)
+    (hsurface : stmtTouchesUnsupportedHelperSurface stmt = false) :
+    execStmtWithHelpers spec fields fuel state stmt = execStmt fields state stmt := by
+  exact execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux
+    spec fields fuel state stmt hsurface
+
+theorem execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
+    (spec : CompilationModel)
+    (fields : List Field)
+    (fuel : Nat)
+    (state : RuntimeState)
+    (stmts : List Stmt)
+    (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
+    execStmtListWithHelpers spec fields fuel state stmts = execStmtList fields state stmts := by
+  exact execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed_aux
+    spec fields fuel state stmts hsurface
+
 end
 
 /-- Exact source-side helper-composition target for a statement list: the
@@ -1656,9 +2623,25 @@ theorem interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
     (hsurface : stmtListTouchesUnsupportedHelperSurface fn.body = false) :
     interpretFunctionWithHelpers spec fuel fn tx initialWorld =
       interpretFunction spec fn tx initialWorld := by
-  -- TODO(#1645): simp [interpretFunctionWithHelpers, interpretFunction] no longer makes progress
-  -- after mutual-block termination refactor; needs unfold or simp_only approach.
-  sorry
+  unfold interpretFunctionWithHelpers interpretFunction
+  simp only
+  cases hbind : bindSupportedParams fn.params tx.args with
+  | none =>
+      simp
+  | some bindings =>
+      have hbody :
+          execStmtListWithHelpers spec (effectiveFields spec) fuel
+              { world := withTransactionContext initialWorld tx, bindings := bindings } fn.body =
+            execStmtList (effectiveFields spec)
+              { world := withTransactionContext initialWorld tx, bindings := bindings } fn.body :=
+        execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
+          (spec := spec)
+          (fields := effectiveFields spec)
+          (fuel := fuel)
+          (state := { world := withTransactionContext initialWorld tx, bindings := bindings })
+          (stmts := fn.body)
+          hsurface
+      simp [hbody]
 
 private theorem mem_of_find?_some_local
     {α : Type} (p : α → Bool) :

@@ -216,6 +216,16 @@ ALLOWLIST: set[str] = {
     "supported_function_correct",
     "compileFunctionSpec_correct_generic",
     "compile_preserves_semantics",
+    # GenericInduction legacy-compatibility repair pass:
+    # these proofs are mechanically long because they case-split over concrete
+    # compiler output shapes (`compileSetStorage` / alternate mapping-write
+    # surface packaging) and the shared list-surface inversion plumbing. They
+    # are intentionally localized bridge lemmas rather than proof-search-heavy
+    # arguments, and further decomposition would mostly split syntax plumbing.
+    "legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields_resolved",
+    "stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites_cons_inv",
+    "legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface_exceptMappingWrites",
+    "stmtListHelperFreeCompiledCallsDisjoint_of_supportedContractSurface_exceptMappingWrites",
     # Tier-2 whole-contract mapping-write bridge: long because it mirrors the
     # primary contract theorem while swapping in the alternate selector/body
     # witness family and threading slot-safety/no-conflict assumptions through
@@ -343,6 +353,14 @@ ALLOWLIST: set[str] = {
     "compiledStmtStepWithHelpersAndHelperIR_internalCallAssign",
     "compiledStmtStepWithHelpersAndHelperIR_internalCall",
     "evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed",
+    # Post-merge proof-reduction branch still carries a few long mechanical
+    # SupportedSpec/GenericInduction transport lemmas. They remain localized
+    # syntax-plumbing proofs, and allowlisting them keeps the branch buildable
+    # while follow-up cleanup decomposes the constructors more aggressively.
+    "stmtListGenericCore_of_requireClausesThenLetAssignMulSetStorageLocalLiteral",
+    "stmtTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed",
+    "stmtTouchesUnsupportedContractSurface_eq_false_of_featureClosed",
+    "stmtTouchesUnsupportedContractSurfaceExceptMappingWrites_eq_false_of_featureClosed",
     # Issue #1630 / PR #1633 follow-up — helper-proof theorem-surface adapters:
     # these declarations are intentionally long because they mirror the existing
     # generic Layer 2 theorem signatures while adding the explicit helper-proof

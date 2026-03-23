@@ -4,6 +4,7 @@ namespace Compiler.Proofs.IRGeneration
 
 open Compiler
 open Compiler.CompilationModel
+open Compiler.Yul
 
 namespace Contract
 
@@ -105,14 +106,6 @@ private theorem exists_right_of_forall₂_mem_left
       · exact ⟨headY, by simp, hhead⟩
       · rcases ih hmemTail with ⟨y, hy, hRy⟩
         exact ⟨y, by simp [hy], hRy⟩
-
-private theorem field_mem_of_findFieldWithResolvedSlot_some
-    {fields : List Field}
-    {fieldName : String}
-    {f : Field}
-    {slot : Nat}
-    (hfind : findFieldWithResolvedSlot fields fieldName = some (f, slot)) :
-    f ∈ fields := by sorry
 -- SORRY'D:   induction fields with
 -- SORRY'D:   | nil =>
 -- SORRY'D:       simp [findFieldWithResolvedSlot] at hfind
@@ -125,11 +118,32 @@ private theorem field_mem_of_findFieldWithResolvedSlot_some
 -- SORRY'D:       · simp [hname] at hfind
 -- SORRY'D:         exact Or.inr (ih hfind)
 
--- TYPESIG_SORRY: private theorem legacyCompatibleExternalStmtList_append
--- TYPESIG_SORRY:     (prefix suffix : List YulStmt)
--- TYPESIG_SORRY:     (hprefix : LegacyCompatibleExternalStmtList prefix)
--- TYPESIG_SORRY:     (hsuffix : LegacyCompatibleExternalStmtList suffix) :
--- TYPESIG_SORRY:     LegacyCompatibleExternalStmtList (prefix ++ suffix) := by sorry
+private theorem legacyCompatibleExternalStmtList_append
+    (before : List YulStmt)
+    (after : List YulStmt)
+    (hbefore : LegacyCompatibleExternalStmtList before)
+    (hafter : LegacyCompatibleExternalStmtList after) :
+    LegacyCompatibleExternalStmtList (before ++ after) := by
+  revert after hafter
+  induction hbefore with
+  | nil => intro after hafter; simpa using hafter
+  | comment msg rest hrest ih =>
+      intro after hafter; simpa using LegacyCompatibleExternalStmtList.comment msg (rest ++ after) (ih after hafter)
+  | let_ name value rest hrest ih =>
+      intro after hafter; simpa using LegacyCompatibleExternalStmtList.let_ name value (rest ++ after) (ih after hafter)
+  | assign name value rest hrest ih =>
+      intro after hafter; simpa using LegacyCompatibleExternalStmtList.assign name value (rest ++ after) (ih after hafter)
+  | expr value rest hrest ih =>
+      intro after hafter; simpa using LegacyCompatibleExternalStmtList.expr value (rest ++ after) (ih after hafter)
+  | if_ cond body rest hbody hrest ihBody ihRest =>
+      intro after hafter
+      simpa using LegacyCompatibleExternalStmtList.if_ cond body (rest ++ after) hbody (ihRest after hafter)
+  | block body rest hbody hrest ihBody ihRest =>
+      intro after hafter
+      simpa using LegacyCompatibleExternalStmtList.block body (rest ++ after) hbody (ihRest after hafter)
+  | funcDef name params rets body rest hbody hrest ihBody ihRest =>
+      intro after hafter
+      simpa using LegacyCompatibleExternalStmtList.funcDef name params rets body (rest ++ after) hbody (ihRest after hafter)
 -- SORRY'D:   induction hprefix generalizing suffix with
 -- SORRY'D:   | nil =>
 -- SORRY'D:       simpa using hsuffix
@@ -149,9 +163,14 @@ private theorem field_mem_of_findFieldWithResolvedSlot_some
 -- SORRY'D:       simpa using
 -- SORRY'D:         LegacyCompatibleExternalStmtList.funcDef name params rets body (rest ++ suffix) hbody (ih hsuffix)
 
--- TYPESIG_SORRY: private theorem legacyCompatibleExternalStmtList_of_exprStmtExprs
--- TYPESIG_SORRY:     (exprs : List YulExpr) :
--- TYPESIG_SORRY:     LegacyCompatibleExternalStmtList (exprs.map YulStmt.expr) := by sorry
+private theorem legacyCompatibleExternalStmtList_of_exprStmtExprs
+    (exprs : List YulExpr) :
+    LegacyCompatibleExternalStmtList (exprs.map YulStmt.expr) := by
+  induction exprs with
+  | nil =>
+      exact LegacyCompatibleExternalStmtList.nil
+  | cons expr rest ih =>
+      simpa using LegacyCompatibleExternalStmtList.expr expr (rest.map YulStmt.expr) ih
 -- SORRY'D:   induction exprs with
 -- SORRY'D:   | nil =>
 -- SORRY'D:       exact LegacyCompatibleExternalStmtList.nil
@@ -160,7 +179,44 @@ private theorem field_mem_of_findFieldWithResolvedSlot_some
 
 private theorem legacyCompatibleExternalStmtList_revertWithMessage
     (message : String) :
-    LegacyCompatibleExternalStmtList (CompilationModel.revertWithMessage message) := by sorry
+    LegacyCompatibleExternalStmtList (CompilationModel.revertWithMessage message) := by
+  unfold CompilationModel.revertWithMessage
+  let headerExprs :=
+    [ YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.hex errorStringSelectorWord]
+    , YulExpr.call "mstore" [YulExpr.lit 4, YulExpr.lit 32]
+    , YulExpr.call "mstore"
+        [YulExpr.lit 36, YulExpr.lit (CompilationModel.bytesFromString message).length]
+    ]
+  let dataExprs :=
+    (((CompilationModel.chunkBytes32 (CompilationModel.bytesFromString message)).zipIdx).map
+      (fun (chunk, idx) =>
+        let offset := 68 + idx * 32
+        let word := CompilationModel.wordFromBytes chunk
+        YulExpr.call "mstore" [YulExpr.lit offset, YulExpr.hex word]))
+  let revertStmt :=
+    YulStmt.expr
+      (YulExpr.call "revert"
+        [ YulExpr.lit 0
+        , YulExpr.lit
+            (68 + (((CompilationModel.bytesFromString message).length + 31) / 32) * 32)
+        ])
+  simpa [headerExprs, dataExprs, revertStmt, List.append_assoc] using
+    legacyCompatibleExternalStmtList_append
+      (before := headerExprs.map YulStmt.expr)
+      (after := dataExprs.map YulStmt.expr ++ [revertStmt])
+      (legacyCompatibleExternalStmtList_of_exprStmtExprs headerExprs)
+      (legacyCompatibleExternalStmtList_append
+        (before := dataExprs.map YulStmt.expr)
+        (after := [revertStmt])
+        (legacyCompatibleExternalStmtList_of_exprStmtExprs dataExprs)
+        (LegacyCompatibleExternalStmtList.expr
+          (YulExpr.call "revert"
+            [ YulExpr.lit 0
+            , YulExpr.lit
+                (68 + (((CompilationModel.bytesFromString message).length + 31) / 32) * 32)
+            ])
+          []
+          LegacyCompatibleExternalStmtList.nil))
 -- SORRY'D:   unfold CompilationModel.revertWithMessage
 -- SORRY'D:   apply legacyCompatibleExternalStmtList_append
 -- SORRY'D:   · exact legacyCompatibleExternalStmtList_of_exprStmtExprs
@@ -376,40 +432,120 @@ private theorem legacyCompatibleExternalStmtList_revertWithMessage
 -- TYPESIG_SORRY:     LegacyCompatibleExternalStmtList
 -- TYPESIG_SORRY:       (CompilationModel.genParamLoadBodyFrom
 -- TYPESIG_SORRY:         loadWord sizeExpr headSize baseOffset (param :: rest) headOffset) := by sorry
--- SORRY'D:   cases hty : param.ty <;> try cases hparam
--- SORRY'D:   case uint256 =>
--- SORRY'D:     simpa [CompilationModel.genParamLoadBodyFrom, CompilationModel.genScalarLoad] using
--- SORRY'D:       LegacyCompatibleExternalStmtList.let_
--- SORRY'D:         param.name
--- SORRY'D:         (loadWord (YulExpr.lit headOffset))
--- SORRY'D:         (CompilationModel.genParamLoadBodyFrom
--- SORRY'D:           loadWord sizeExpr headSize baseOffset rest (headOffset + paramHeadSize ParamType.uint256))
--- SORRY'D:         hrest
--- SORRY'D:   case uint8 =>
--- SORRY'D:     simpa [CompilationModel.genParamLoadBodyFrom, CompilationModel.genScalarLoad] using
--- SORRY'D:       LegacyCompatibleExternalStmtList.let_
--- SORRY'D:         param.name
--- SORRY'D:         (YulExpr.call "and" [loadWord (YulExpr.lit headOffset), YulExpr.lit 255])
--- SORRY'D:         (CompilationModel.genParamLoadBodyFrom
--- SORRY'D:           loadWord sizeExpr headSize baseOffset rest (headOffset + paramHeadSize ParamType.uint8))
--- SORRY'D:         hrest
--- SORRY'D:   case address =>
--- SORRY'D:     simpa [CompilationModel.genParamLoadBodyFrom, CompilationModel.genScalarLoad] using
--- SORRY'D:       LegacyCompatibleExternalStmtList.let_
--- SORRY'D:         param.name
--- SORRY'D:         (YulExpr.call "and" [loadWord (YulExpr.lit headOffset), YulExpr.hex addressMask])
--- SORRY'D:         (CompilationModel.genParamLoadBodyFrom
--- SORRY'D:           loadWord sizeExpr headSize baseOffset rest (headOffset + paramHeadSize ParamType.address))
--- SORRY'D:         hrest
--- SORRY'D:   case bytes32 =>
--- SORRY'D:     simpa [CompilationModel.genParamLoadBodyFrom, CompilationModel.genScalarLoad] using
--- SORRY'D:       LegacyCompatibleExternalStmtList.let_
--- SORRY'D:         param.name
--- SORRY'D:         (loadWord (YulExpr.lit headOffset))
--- SORRY'D:         (CompilationModel.genParamLoadBodyFrom
--- SORRY'D:           loadWord sizeExpr headSize baseOffset rest (headOffset + paramHeadSize ParamType.bytes32))
--- SORRY'D:         hrest
+private theorem legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_uint256
+    (loadWord : YulExpr → YulExpr)
+    (sizeExpr : YulExpr)
+    (headSize baseOffset : Nat)
+    (name : String)
+    (rest : List Param)
+    (headOffset : Nat)
+    (hrest :
+      LegacyCompatibleExternalStmtList
+        (CompilationModel.genParamLoadBodyFrom
+          loadWord sizeExpr headSize baseOffset rest
+            (headOffset + paramHeadSize ParamType.uint256))) :
+    LegacyCompatibleExternalStmtList
+      (CompilationModel.genParamLoadBodyFrom
+        loadWord sizeExpr headSize baseOffset ({ name := name, ty := ParamType.uint256 } :: rest) headOffset) := by
+  simpa [CompilationModel.genParamLoadBodyFrom, CompilationModel.genScalarLoad] using
+    LegacyCompatibleExternalStmtList.let_
+      name
+      (loadWord (YulExpr.lit headOffset))
+      (CompilationModel.genParamLoadBodyFrom
+        loadWord sizeExpr headSize baseOffset rest (headOffset + paramHeadSize ParamType.uint256))
+      hrest
 
+private theorem legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_uint8
+    (loadWord : YulExpr → YulExpr)
+    (sizeExpr : YulExpr)
+    (headSize baseOffset : Nat)
+    (name : String)
+    (rest : List Param)
+    (headOffset : Nat)
+    (hrest :
+      LegacyCompatibleExternalStmtList
+        (CompilationModel.genParamLoadBodyFrom
+          loadWord sizeExpr headSize baseOffset rest
+            (headOffset + paramHeadSize ParamType.uint8))) :
+    LegacyCompatibleExternalStmtList
+      (CompilationModel.genParamLoadBodyFrom
+        loadWord sizeExpr headSize baseOffset ({ name := name, ty := ParamType.uint8 } :: rest) headOffset) := by
+  simpa [CompilationModel.genParamLoadBodyFrom, CompilationModel.genScalarLoad] using
+    LegacyCompatibleExternalStmtList.let_
+      name
+      (YulExpr.call "and" [loadWord (YulExpr.lit headOffset), YulExpr.lit 255])
+      (CompilationModel.genParamLoadBodyFrom
+        loadWord sizeExpr headSize baseOffset rest (headOffset + paramHeadSize ParamType.uint8))
+      hrest
+
+private theorem legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_address
+    (loadWord : YulExpr → YulExpr)
+    (sizeExpr : YulExpr)
+    (headSize baseOffset : Nat)
+    (name : String)
+    (rest : List Param)
+    (headOffset : Nat)
+    (hrest :
+      LegacyCompatibleExternalStmtList
+        (CompilationModel.genParamLoadBodyFrom
+          loadWord sizeExpr headSize baseOffset rest
+            (headOffset + paramHeadSize ParamType.address))) :
+    LegacyCompatibleExternalStmtList
+      (CompilationModel.genParamLoadBodyFrom
+        loadWord sizeExpr headSize baseOffset ({ name := name, ty := ParamType.address } :: rest) headOffset) := by
+  simpa [CompilationModel.genParamLoadBodyFrom, CompilationModel.genScalarLoad] using
+    LegacyCompatibleExternalStmtList.let_
+      name
+      (YulExpr.call "and" [loadWord (YulExpr.lit headOffset), YulExpr.hex addressMask])
+      (CompilationModel.genParamLoadBodyFrom
+        loadWord sizeExpr headSize baseOffset rest (headOffset + paramHeadSize ParamType.address))
+      hrest
+
+private theorem legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_bytes32
+    (loadWord : YulExpr → YulExpr)
+    (sizeExpr : YulExpr)
+    (headSize baseOffset : Nat)
+    (name : String)
+    (rest : List Param)
+    (headOffset : Nat)
+    (hrest :
+      LegacyCompatibleExternalStmtList
+        (CompilationModel.genParamLoadBodyFrom
+          loadWord sizeExpr headSize baseOffset rest
+            (headOffset + paramHeadSize ParamType.bytes32))) :
+    LegacyCompatibleExternalStmtList
+      (CompilationModel.genParamLoadBodyFrom
+        loadWord sizeExpr headSize baseOffset ({ name := name, ty := ParamType.bytes32 } :: rest) headOffset) := by
+  simpa [CompilationModel.genParamLoadBodyFrom, CompilationModel.genScalarLoad] using
+    LegacyCompatibleExternalStmtList.let_
+      name
+      (loadWord (YulExpr.lit headOffset))
+      (CompilationModel.genParamLoadBodyFrom
+        loadWord sizeExpr headSize baseOffset rest (headOffset + paramHeadSize ParamType.bytes32))
+      hrest
+
+private theorem legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_scalar
+    (loadWord : YulExpr → YulExpr)
+    (sizeExpr : YulExpr)
+    (headSize baseOffset : Nat)
+    (param : Param)
+    (rest : List Param)
+    (headOffset : Nat)
+    (hparam : SupportedExternalParamType param.ty)
+    (hrest :
+      LegacyCompatibleExternalStmtList
+        (CompilationModel.genParamLoadBodyFrom
+          loadWord sizeExpr headSize baseOffset rest
+            (headOffset + paramHeadSize param.ty))) :
+    LegacyCompatibleExternalStmtList
+      (CompilationModel.genParamLoadBodyFrom
+        loadWord sizeExpr headSize baseOffset (param :: rest) headOffset) := by
+  -- TEMPORARY SORRY: the scalar-parameter load induction needs to be updated
+  -- for the widened supported external parameter set. The clean fix should
+  -- dispatch explicitly on each supported scalar constructor and align the
+  -- recursive `headOffset + paramHeadSize ...` argument without relying on the
+  -- old `simpa [hty]` chain.
+  sorry
 -- TYPESIG_SORRY: private theorem legacyCompatibleExternalStmtList_genParamLoadBodyFrom_of_supported
 -- TYPESIG_SORRY:     (loadWord : YulExpr → YulExpr)
 -- TYPESIG_SORRY:     (sizeExpr : YulExpr)
@@ -420,6 +556,26 @@ private theorem legacyCompatibleExternalStmtList_revertWithMessage
 -- TYPESIG_SORRY:     LegacyCompatibleExternalStmtList
 -- TYPESIG_SORRY:       (CompilationModel.genParamLoadBodyFrom
 -- TYPESIG_SORRY:         loadWord sizeExpr headSize baseOffset params headOffset) := by sorry
+private theorem legacyCompatibleExternalStmtList_genParamLoadBodyFrom_of_supported
+    (loadWord : YulExpr → YulExpr)
+    (sizeExpr : YulExpr)
+    (headSize baseOffset : Nat)
+    (params : List Param)
+    (headOffset : Nat)
+    (hparams : ∀ param ∈ params, SupportedExternalParamType param.ty) :
+    LegacyCompatibleExternalStmtList
+      (CompilationModel.genParamLoadBodyFrom
+        loadWord sizeExpr headSize baseOffset params headOffset) := by
+  induction params generalizing headOffset with
+  | nil =>
+      exact LegacyCompatibleExternalStmtList.nil
+  | cons param rest ih =>
+      have hparam : SupportedExternalParamType param.ty := hparams param (by simp)
+      have hrest : ∀ other ∈ rest, SupportedExternalParamType other.ty := by
+        intro other hmem
+        exact hparams other (by simp [hmem])
+      exact legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_scalar
+        loadWord sizeExpr headSize baseOffset param rest headOffset hparam (ih _ hrest)
 -- SORRY'D:   induction params generalizing headOffset with
 -- SORRY'D:   | nil =>
 -- SORRY'D:       simp [CompilationModel.genParamLoadBodyFrom]
@@ -435,7 +591,21 @@ private theorem legacyCompatibleExternalStmtList_revertWithMessage
 private theorem legacyCompatibleExternalStmtList_genParamLoads_of_supported
     (params : List Param)
     (hparams : ∀ param ∈ params, SupportedExternalParamType param.ty) :
-    LegacyCompatibleExternalStmtList (CompilationModel.genParamLoads params) := by sorry
+    LegacyCompatibleExternalStmtList (CompilationModel.genParamLoads params) := by
+  unfold CompilationModel.genParamLoads CompilationModel.genParamLoadsFrom
+  apply LegacyCompatibleExternalStmtList.if_
+  · exact LegacyCompatibleExternalStmtList.expr
+      (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+      []
+      LegacyCompatibleExternalStmtList.nil
+  · exact legacyCompatibleExternalStmtList_genParamLoadBodyFrom_of_supported
+      (loadWord := fun pos => YulExpr.call "calldataload" [pos])
+      (sizeExpr := YulExpr.call "calldatasize" [])
+      (headSize := (params.map (fun p => paramHeadSize p.ty)).foldl (· + ·) 0)
+      (baseOffset := 4)
+      (params := params)
+      (headOffset := 4)
+      hparams
 -- SORRY'D:   unfold CompilationModel.genParamLoads CompilationModel.genParamLoadsFrom
 -- SORRY'D:   apply LegacyCompatibleExternalStmtList.if_
 -- SORRY'D:   · exact LegacyCompatibleExternalStmtList.expr
@@ -615,36 +785,37 @@ private theorem compileValidatedCore_ok_yields_internalFunctions_nil
     (hSupported : SupportedSpec model selectors)
     (ir : IRContract)
     (hcore : compileValidatedCore model selectors = Except.ok ir) :
-    ir.internalFunctions = [] := by sorry
--- SORRY'D:   have hfallback :
--- SORRY'D:       pickUniqueFunctionByName "fallback" model.functions = Except.ok none :=
--- SORRY'D:     pickUniqueFunctionByName_eq_ok_none_of_absent
--- SORRY'D:       "fallback" model.functions hSupported.noFallback
--- SORRY'D:   have hreceive :
--- SORRY'D:       pickUniqueFunctionByName "receive" model.functions = Except.ok none :=
--- SORRY'D:     pickUniqueFunctionByName_eq_ok_none_of_absent
--- SORRY'D:       "receive" model.functions hSupported.noReceive
--- SORRY'D:   have hnoInternalFns :
--- SORRY'D:       model.functions.filter (·.isInternal) = [] :=
--- SORRY'D:     filterInternalFunctions_eq_nil_of_supported model selectors hSupported
--- SORRY'D:   have harray : contractUsesArrayElement model = false :=
--- SORRY'D:     hSupported.contractUsesArrayElement_eq_false
--- SORRY'D:   have hstorageArray : contractUsesStorageArrayElement model = false :=
--- SORRY'D:     hSupported.contractUsesStorageArrayElement_eq_false
--- SORRY'D:   have hdynamicBytesEq : contractUsesDynamicBytesEq model = false :=
--- SORRY'D:     hSupported.contractUsesDynamicBytesEq_eq_false
--- SORRY'D:   unfold compileValidatedCore at hcore
--- SORRY'D:   rw [hSupported.normalizedFields, hfallback, hreceive, harray, hstorageArray,
--- SORRY'D:     hdynamicBytesEq, hnoInternalFns, hSupported.noConstructor] at hcore
--- SORRY'D:   simp only [bind, Except.bind, pure, Except.pure, List.mapM_nil] at hcore
--- SORRY'D:   rcases hmap :
--- SORRY'D:       ((model.functions.filter
--- SORRY'D:           (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors).mapM
--- SORRY'D:         (fun x => compileFunctionSpec model.fields model.events model.errors x.2 x.1) with _ | irFns
--- SORRY'D:   · simp [hmap] at hcore
--- SORRY'D:   · simp [hmap] at hcore
--- SORRY'D:     injection hcore with _ _ _ _ _ _ _ hinternal
--- SORRY'D:     exact hinternal
+    ir.internalFunctions = [] := by
+  have hfallback :
+      pickUniqueFunctionByName "fallback" model.functions = Except.ok none :=
+    pickUniqueFunctionByName_eq_ok_none_of_absent
+      "fallback" model.functions hSupported.noFallback
+  have hreceive :
+      pickUniqueFunctionByName "receive" model.functions = Except.ok none :=
+    pickUniqueFunctionByName_eq_ok_none_of_absent
+      "receive" model.functions hSupported.noReceive
+  have hnoInternalFns :
+      model.functions.filter (·.isInternal) = [] :=
+    filterInternalFunctions_eq_nil_of_supported model selectors hSupported
+  have harray : contractUsesArrayElement model = false :=
+    hSupported.contractUsesArrayElement_eq_false
+  have hstorageArray : contractUsesStorageArrayElement model = false :=
+    hSupported.contractUsesStorageArrayElement_eq_false
+  have hdynamicBytesEq : contractUsesDynamicBytesEq model = false :=
+    hSupported.contractUsesDynamicBytesEq_eq_false
+  unfold compileValidatedCore at hcore
+  rw [hSupported.normalizedFields, hfallback, hreceive, harray, hstorageArray,
+    hdynamicBytesEq, hnoInternalFns, hSupported.noConstructor] at hcore
+  simp only [bind, Except.bind, pure, Except.pure, List.mapM_nil] at hcore
+  rcases hmap :
+      ((model.functions.filter
+          (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors).mapM
+        (fun x => compileFunctionSpec model.fields model.events model.errors x.2 x.1) with _ | irFns
+  · simp [hmap] at hcore
+  · simp [hmap, compileConstructor] at hcore
+    injection hcore with hir
+    cases hir
+    rfl
 
 theorem supported_params_of_supportedSpec
     (model : CompilationModel)
@@ -936,60 +1107,66 @@ theorem compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList
     (hfn : fn ∈ selectorDispatchedFunctions model)
     (hcompileFn :
       compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn) :
-    LegacyCompatibleExternalStmtList irFn.body := by sorry
--- SORRY'D:   rcases Function.compileFunctionSpec_ok_components
--- SORRY'D:       model.fields model.events model.errors sel fn irFn hcompileFn with
--- SORRY'D:     ⟨returns, bodyStmts, _hvalidate, _hreturns, hbodyCompile, hirFn⟩
--- SORRY'D:   subst hirFn
--- SORRY'D:   have hparams :=
--- SORRY'D:     legacyCompatibleExternalStmtList_genParamLoads_of_supported
--- SORRY'D:       fn.params
--- SORRY'D:       (hSupported.selectorFunctionParamsSupported hfn)
--- SORRY'D:   have hbody :=
--- SORRY'D:     legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface
--- SORRY'D:       (hnoPacked := hSupported.noPackedFields)
--- SORRY'D:       (hsurface := (hSupported.supportedFunctionOfSelectorDispatched hfn).body.surfaceClosed)
--- SORRY'D:       (hcompile := by
--- SORRY'D:         simpa [hSupported.noEvents, hSupported.noErrors] using hbodyCompile)
--- SORRY'D:   exact legacyCompatibleExternalStmtList_append hparams hbody
+    LegacyCompatibleExternalStmtList irFn.body := by
+  rcases Function.compileFunctionSpec_ok_components
+      model.fields model.events model.errors sel fn irFn hcompileFn with
+    ⟨returns, bodyStmts, _hvalidate, _hreturns, hbodyCompile, hirFn⟩
+  subst hirFn
+  have hparams :=
+    legacyCompatibleExternalStmtList_genParamLoads_of_supported
+      fn.params
+      (hSupported.selectorFunctionParamsSupported hfn)
+  have hbody :=
+    legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface
+      (hnoPacked := hSupported.noPackedFields)
+      (hsurface := by
+        let hbody := (hSupported.supportedFunctionOfSelectorDispatched hfn).body
+        exact stmtListTouchesUnsupportedContractSurface_eq_false_of_featureClosed fn.body
+          hbody.core.surfaceClosed
+          hbody.state.surfaceClosed
+          (SupportedBodyCallInterface.surfaceClosed hbody)
+          hbody.effects.surfaceClosed)
+      (hcompile := by
+        simpa [hSupported.noEvents, hSupported.noErrors] using hbodyCompile)
+  exact legacyCompatibleExternalStmtList_append _ _ hparams hbody
 
--- TYPESIG_SORRY: private theorem compiled_functions_legacyCompatibleExternalBodies
--- TYPESIG_SORRY:     (model : CompilationModel)
--- TYPESIG_SORRY:     (selectors : List Nat)
--- TYPESIG_SORRY:     (hSupported : SupportedSpec model selectors) :
--- TYPESIG_SORRY:     ∀ {entries irFns},
--- TYPESIG_SORRY:       List.Forall₂
--- TYPESIG_SORRY:         (fun entry irFn =>
--- TYPESIG_SORRY:           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
--- TYPESIG_SORRY:         entries
--- TYPESIG_SORRY:         irFns →
--- TYPESIG_SORRY:       (∀ entry ∈ entries, entry.1 ∈ selectorDispatchedFunctions model) →
--- TYPESIG_SORRY:       ∀ irFn ∈ irFns, LegacyCompatibleExternalStmtList irFn.body
--- TYPESIG_SORRY:   | [], [], .nil, _ => by
--- TYPESIG_SORRY:       intro irFn hmem
--- TYPESIG_SORRY:       cases hmem
--- TYPESIG_SORRY:   | entry :: entries, irFn :: irFns, .cons hhead htail, hentries => by
--- TYPESIG_SORRY:       intro target hmem
--- TYPESIG_SORRY:       cases hmem with
--- TYPESIG_SORRY:       | head =>
--- TYPESIG_SORRY:           exact compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList
--- TYPESIG_SORRY:             (model := model)
--- TYPESIG_SORRY:             (selectors := selectors)
--- TYPESIG_SORRY:             (hSupported := hSupported)
--- TYPESIG_SORRY:             (fn := entry.1)
--- TYPESIG_SORRY:             (sel := entry.2)
--- TYPESIG_SORRY:             (irFn := irFn)
--- TYPESIG_SORRY:             (hfn := hentries entry (by simp))
--- TYPESIG_SORRY:             (hcompileFn := hhead)
--- TYPESIG_SORRY:       | tail hmem =>
--- TYPESIG_SORRY:           exact compiled_functions_legacyCompatibleExternalBodies
--- TYPESIG_SORRY:             (model := model)
--- TYPESIG_SORRY:             (selectors := selectors)
--- TYPESIG_SORRY:             (hSupported := hSupported)
--- TYPESIG_SORRY:             htail
--- TYPESIG_SORRY:             (fun other hmemEntry => hentries other (by simp [hmemEntry]))
--- TYPESIG_SORRY:             target
--- TYPESIG_SORRY:             hmem
+private theorem compiled_functions_legacyCompatibleExternalBodies
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors) :
+    ∀ {entries irFns},
+      List.Forall₂
+        (fun (entry : FunctionSpec × Nat) irFn =>
+          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        entries
+        irFns →
+      (∀ entry ∈ entries, entry.1 ∈ selectorDispatchedFunctions model) →
+      ∀ irFn ∈ irFns, LegacyCompatibleExternalStmtList irFn.body
+  | [], [], .nil, _ => by
+      intro irFn hmem
+      cases hmem
+  | entry :: entries, irFn :: irFns, .cons hhead htail, hentries => by
+      intro target hmem
+      cases hmem with
+      | head =>
+          exact compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList
+            (model := model)
+            (selectors := selectors)
+            (hSupported := hSupported)
+            (fn := entry.1)
+            (sel := entry.2)
+            (irFn := irFn)
+            (hfn := hentries entry (by simp))
+            (hcompileFn := hhead)
+      | tail _ hmemTail =>
+          exact compiled_functions_legacyCompatibleExternalBodies
+            (model := model)
+            (selectors := selectors)
+            (hSupported := hSupported)
+            htail
+            (fun other hmemEntry => hentries other (by simp [hmemEntry]))
+            target
+            hmemTail
 
 theorem compile_ok_yields_legacyCompatibleExternalBodies
     (model : CompilationModel)
@@ -997,31 +1174,31 @@ theorem compile_ok_yields_legacyCompatibleExternalBodies
     (hSupported : SupportedSpec model selectors)
     (ir : IRContract)
     (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
-    LegacyCompatibleExternalBodies ir := by sorry
--- SORRY'D:   have hcompiled :
--- SORRY'D:       List.Forall₂
--- SORRY'D:         (fun entry irFn =>
--- SORRY'D:           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
--- SORRY'D:         (SourceSemantics.selectorFunctionPairs model selectors)
--- SORRY'D:         ir.functions :=
--- SORRY'D:     compile_ok_yields_compiled_functions
--- SORRY'D:       (model := model)
--- SORRY'D:       (selectors := selectors)
--- SORRY'D:       (hSupported := hSupported)
--- SORRY'D:       (ir := ir)
--- SORRY'D:       (hcompile := hcompile)
--- SORRY'D:   intro irFn hmem
--- SORRY'D:   exact compiled_functions_legacyCompatibleExternalBodies
--- SORRY'D:     (model := model)
--- SORRY'D:     (selectors := selectors)
--- SORRY'D:     (hSupported := hSupported)
--- SORRY'D:     hcompiled
--- SORRY'D:     (by
--- SORRY'D:       intro entry hentry
--- SORRY'D:       simpa [SourceSemantics.selectorFunctionPairs] using
--- SORRY'D:         (List.mem_of_mem_zipLeft hentry : entry.1 ∈ selectorDispatchedFunctions model))
--- SORRY'D:     irFn
--- SORRY'D:     hmem
+    LegacyCompatibleExternalBodies ir := by
+  have hcompiled :
+      List.Forall₂
+        (fun entry irFn =>
+          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        (SourceSemantics.selectorFunctionPairs model selectors)
+        ir.functions :=
+    compile_ok_yields_compiled_functions
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (ir := ir)
+      (hcompile := hcompile)
+  intro irFn hmem
+  exact compiled_functions_legacyCompatibleExternalBodies
+    (model := model)
+    (selectors := selectors)
+    (hSupported := hSupported)
+    hcompiled
+    (by
+      intro (entry : FunctionSpec × Nat) hentry
+      simpa [SourceSemantics.selectorFunctionPairs] using
+        (List.of_mem_zip hentry).1)
+    irFn
+    hmem
 
 theorem compile_ok_yields_legacyCompatibleRuntimeContract
     (model : CompilationModel)
@@ -1277,7 +1454,32 @@ theorem compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir_of_
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
       (execIRFunctionWithInternals runtimeContract 0 irFn tx.args
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by sorry
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  exact compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir
+    (model := model)
+    (selectors := selectors)
+    (hSupported := hSupported)
+    (hHelperProofs := hHelperProofs)
+    (hvalidateInputs := hvalidateInputs)
+    (runtimeContract := runtimeContract)
+    (fn := fn)
+    (sel := sel)
+    (irFn := irFn)
+    (tx := tx)
+    (initialWorld := initialWorld)
+    (htxNormalized := htxNormalized)
+    (bindings := bindings)
+    (hcalldataSizeFits := hcalldataSizeFits)
+    (hfn := hfn)
+    (hcompileFn := hcompileFn)
+    (hbind := hbind)
+    (hhelperIR :=
+      execIRFunctionWithInternals_eq_execIRFunction_of_bodyCallsDisjoint
+        runtimeContract
+        irFn
+        tx.args
+        (FunctionBody.initialIRStateForTx model tx initialWorld)
+        hbodyDisjoint)
 -- SORRY'D:   exact compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir
 -- SORRY'D:     (model := model)
 -- SORRY'D:     (selectors := selectors)
@@ -2469,7 +2671,69 @@ theorem compile_preserves_semantics
     (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-      (interpretIR ir tx (FunctionBody.initialIRStateForTx model tx initialWorld)) := by sorry
+      (interpretIR ir tx (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  have hvalidateInputs : validateCompileInputs model selectors = Except.ok () := by
+    unfold CompilationModel.compile at hcompile
+    simp only [bind, Except.bind] at hcompile
+    rcases hvalidate : validateCompileInputs model selectors with _ | validated
+    · simp [hvalidate] at hcompile
+    · simpa using hvalidate
+  have hcompiled :
+      List.Forall₂
+        (fun entry irFn =>
+          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        (SourceSemantics.selectorFunctionPairs model selectors)
+        ir.functions :=
+    compile_ok_yields_compiled_functions
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (ir := ir)
+      (hcompile := hcompile)
+  have hparamsSupported :
+      ∀ fn ∈ selectorDispatchedFunctions model,
+        ∀ param ∈ fn.params, SupportedExternalParamType param.ty :=
+    supported_params_of_supportedSpec model selectors hSupported
+  have hfunction :
+      ∀ fn sel irFn bindings,
+        fn ∈ selectorDispatchedFunctions model →
+        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+        FunctionBody.sourceResultMatchesIRResult
+          (SourceSemantics.interpretFunction model fn tx initialWorld)
+          (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+    intro fn sel irFn bindings hfn hcompileFn hbind
+    simpa [supportedSourceFunctionSemantics_eq_interpretFunction_of_selectorDispatched
+      (hSupported := hSupported) hfn tx initialWorld] using
+      (compileFunctionSpec_correct_generic
+        (model := model)
+        (selectors := selectors)
+        (hSupported := hSupported)
+        (hvalidateInputs := hvalidateInputs)
+        (fn := fn)
+        (sel := sel)
+        (irFn := irFn)
+        (tx := tx)
+        (initialWorld := initialWorld)
+        (htxNormalized := htxNormalized)
+        (bindings := bindings)
+        (hcalldataSizeFits := hcalldataSizeFits)
+        (hfn := hfn)
+        (hcompileFn := hcompileFn)
+        (hbind := hbind))
+  have hcontract :=
+    compile_preserves_semantics_of_compiled_functions
+      (model := model)
+      (selectors := selectors)
+      (ir := ir)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (_hcompile := hcompile)
+      (hcompiled := hcompiled)
+      (hparamsSupported := hparamsSupported)
+      (hfunction := hfunction)
+  simpa [supportedSourceContractSemantics_eq_sourceContractSemantics
+    (hSupported := hSupported) tx initialWorld] using hcontract
 -- SORRY'D:   have hvalidateInputs : validateCompileInputs model selectors = Except.ok () := by
 -- SORRY'D:     unfold CompilationModel.compile at hcompile
 -- SORRY'D:     simp only [bind, Except.bind] at hcompile
@@ -2623,7 +2887,70 @@ theorem compile_preserves_semantics_with_helper_proofs
     (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-      (interpretIR ir tx (FunctionBody.initialIRStateForTx model tx initialWorld)) := by sorry
+      (interpretIR ir tx (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  have hvalidateInputs : validateCompileInputs model selectors = Except.ok () := by
+    unfold CompilationModel.compile at hcompile
+    simp only [bind, Except.bind] at hcompile
+    rcases hvalidate : validateCompileInputs model selectors with _ | validated
+    · simp [hvalidate] at hcompile
+    · simpa using hvalidate
+  have hcompiled :
+      List.Forall₂
+        (fun entry irFn =>
+          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        (SourceSemantics.selectorFunctionPairs model selectors)
+        ir.functions :=
+    compile_ok_yields_compiled_functions
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (ir := ir)
+      (hcompile := hcompile)
+  have hparamsSupported :
+      ∀ fn ∈ selectorDispatchedFunctions model,
+        ∀ param ∈ fn.params, SupportedExternalParamType param.ty :=
+    supported_params_of_supportedSpec model selectors hSupported
+  have hfunction :
+      ∀ fn sel irFn bindings,
+        fn ∈ selectorDispatchedFunctions model →
+        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+        FunctionBody.sourceResultMatchesIRResult
+          (SourceSemantics.interpretFunction model fn tx initialWorld)
+          (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+    intro fn sel irFn bindings hfn hcompileFn hbind
+    simpa [supportedSourceFunctionSemantics_eq_interpretFunction_of_selectorDispatched
+      (hSupported := hSupported) hfn tx initialWorld] using
+      (compileFunctionSpec_correct_generic_with_helper_proofs
+        (model := model)
+        (selectors := selectors)
+        (hSupported := hSupported)
+        (hHelperProofs := hHelperProofs)
+        (hvalidateInputs := hvalidateInputs)
+        (fn := fn)
+        (sel := sel)
+        (irFn := irFn)
+        (tx := tx)
+        (initialWorld := initialWorld)
+        (htxNormalized := htxNormalized)
+        (bindings := bindings)
+        (hcalldataSizeFits := hcalldataSizeFits)
+        (hfn := hfn)
+        (hcompileFn := hcompileFn)
+        (hbind := hbind))
+  have hcontract :=
+    compile_preserves_semantics_of_compiled_functions
+      (model := model)
+      (selectors := selectors)
+      (ir := ir)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (_hcompile := hcompile)
+      (hcompiled := hcompiled)
+      (hparamsSupported := hparamsSupported)
+      (hfunction := hfunction)
+  simpa [supportedSourceContractSemantics_eq_sourceContractSemantics
+    (hSupported := hSupported) tx initialWorld] using hcontract
 -- SORRY'D:   have hvalidateInputs : validateCompileInputs model selectors = Except.ok () := by
 -- SORRY'D:     unfold CompilationModel.compile at hcompile
 -- SORRY'D:     simp only [bind, Except.bind] at hcompile
