@@ -1733,10 +1733,35 @@ theorem eval_compileExpr_le_of_compiled {fields : List Field} {runtime : SourceS
     evalIRExpr state
       (CompilationModel.compileExpr fields .calldata (.le lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
         some (SourceSemantics.evalExpr fields runtime (.le lhs rhs)) := by
-  -- Temporary stabilization point for the `Option` migration.
-  -- Clean fix: consume the repaired `eval_compileExpr_le_raw` theorem and
-  -- finish with the explicit successful-evaluation `≤` comparison.
-  sorry
+  rcases hlhsSrc : SourceSemantics.evalExpr fields runtime lhs with _ | lhsVal
+  · cases hEval : evalIRExpr state lhsIR <;> simp [hEval, hlhsSrc] at hlhsEval
+  · rcases hrhsSrc : SourceSemantics.evalExpr fields runtime rhs with _ | rhsVal
+    · cases hEval : evalIRExpr state rhsIR <;> simp [hEval, hrhsSrc] at hrhsEval
+    · have hlhsLt' : lhsVal < Compiler.Constants.evmModulus := by
+        simpa [hlhsSrc] using hlhsLt
+      have hrhsLt' : rhsVal < Compiler.Constants.evmModulus := by
+        simpa [hrhsSrc] using hrhsLt
+      have heval :=
+        eval_compileExpr_le_raw
+          (hlhsCompile := hlhsCompile)
+          (hrhsCompile := hrhsCompile)
+          (hlhsEval := hlhsEval)
+          (hrhsEval := hrhsEval)
+      have hsrc :
+          SourceSemantics.evalExpr fields runtime (.le lhs rhs) =
+            some (SourceSemantics.boolWord (decide (lhsVal ≤ rhsVal))) := by
+        calc
+          SourceSemantics.evalExpr fields runtime (.le lhs rhs)
+              = (do
+                  let lhs ← SourceSemantics.evalExpr fields runtime lhs
+                  let rhs ← SourceSemantics.evalExpr fields runtime rhs
+                  pure (SourceSemantics.boolWord (decide (lhs ≤ rhs)))) := by
+                    rfl
+          _ = some (SourceSemantics.boolWord (decide (lhsVal ≤ rhsVal))) := by
+                simp [hlhsSrc, hrhsSrc]
+      rw [heval, hsrc]
+      rw [hlhsSrc, hrhsSrc]
+      simpa using congrArg some (boolWord_iszero_gt_eq_le lhsVal rhsVal hlhsLt' hrhsLt')
 -- SORRY'D:   have hcompile := compileExpr_le_ok hlhsCompile hrhsCompile
 -- SORRY'D:   have hgtEval :
 -- SORRY'D:       evalIRExpr state (YulExpr.call "gt" [lhsIR, rhsIR]) =
