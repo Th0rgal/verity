@@ -3939,7 +3939,59 @@ private theorem firstFieldWriteSlotConflictCopyFrom_some_of_seen_slot_member
       findFieldWriteSlotsCopyFrom fields idx fieldName = some writeSlots)
     (hslot : targetSlot ∈ writeSlots)
     (hunpacked : f.packedBits = none) :
-    firstFieldWriteSlotConflictCopyFrom seen idx fields ≠ none := by sorry
+    firstFieldWriteSlotConflictCopyFrom seen idx fields ≠ none := by
+  induction fields generalizing seen idx with
+  | nil => simp [findFieldWithResolvedSlotCopyFrom] at hfind
+  | cons field rest ih =>
+      simp only [findFieldWithResolvedSlotCopyFrom] at hfind
+      simp only [findFieldWriteSlotsCopyFrom] at hwrite
+      simp only [firstFieldWriteSlotConflictCopyFrom]
+      by_cases hname : field.name == fieldName
+      · -- field.name matches: hfind and hwrite resolve here
+        simp [hname] at hfind hwrite
+        obtain ⟨rfl, rfl⟩ := hfind
+        subst hwrite
+        -- Need: firstInFieldConflictCopy seen (fieldWriteEntriesAt idx field) ≠ none
+        -- targetSlot ∈ writeSlots = (field.slot.getD idx :: field.aliasSlots)
+        -- fieldWriteEntriesAt produces entries with first components matching writeSlots
+        -- and all packed bits = field.packedBits = none
+        -- The first components of fieldWriteEntriesAt entries are exactly the write slots
+        have hwriteEntrySlots :
+            (fieldWriteEntriesAt idx field).map (fun entry => entry.1) =
+              field.slot.getD idx :: field.aliasSlots := by
+          simp only [fieldWriteEntriesAt, List.map_cons, List.map_map]
+          congr 1
+          show List.map (fun x : Nat × Nat => x.1)
+            field.aliasSlots.zipIdx = field.aliasSlots
+          exact List.zipIdx_map_fst 0 field.aliasSlots
+        have htarget_in_entries :
+            targetSlot ∈ (fieldWriteEntriesAt idx field).map (fun entry => entry.1) := by
+          rw [hwriteEntrySlots]; exact hslot
+        have hunpacked_entries :
+            ∀ packed ∈ (fieldWriteEntriesAt idx field).map (fun entry => entry.2.2),
+              packed = none := by
+          unfold fieldWriteEntriesAt
+          simp only [List.map_cons, List.map_map, List.mem_cons]
+          rintro packed (rfl | hmem)
+          · exact hunpacked
+          · rw [List.mem_map] at hmem
+            obtain ⟨_, _, rfl⟩ := hmem
+            exact hunpacked
+        have hconflict := firstInFieldConflictCopy_ne_none_of_seen_slot_unpacked
+          hseen htarget_in_entries hunpacked_entries
+        cases hc : firstInFieldConflictCopy seen (fieldWriteEntriesAt idx field) with
+        | none => exact absurd hc hconflict
+        | some _ => simp
+      · -- field.name doesn't match: recurse
+        simp [hname] at hfind hwrite
+        have hseen' :
+            targetSlot ∈ ((fieldWriteEntriesAt idx field).reverse ++ seen).map
+              (fun entry => entry.1) := by
+          rw [List.map_append, List.mem_append]
+          exact Or.inr hseen
+        cases hc : firstInFieldConflictCopy seen (fieldWriteEntriesAt idx field) with
+        | some _ => simp
+        | none => exact ih hseen' hfind hwrite
 
 private theorem firstFieldWriteSlotConflictCopyFrom_some_of_seen_slot_singleton
     {seen : List (Nat × String × Option PackedBits)}
