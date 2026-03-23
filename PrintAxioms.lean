@@ -1044,7 +1044,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compiled_terminal_ite_temp_not_mem_scope
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVarsOnScope_setCompiledTerminalIteTemp_irrelevant
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmtList_terminal_core_sizeOf_extraFuel  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultToSourceResult_matches_irExecResult  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultToSourceResult_matches_irExecResult
 
 -- Compiler/Proofs/IRGeneration/GenericInduction.lean
 -- #print axioms Compiler.Proofs.IRGeneration.stmtStepMatchesIRExecWithInternals_of_stmtStepMatchesIRExec  -- private
@@ -1859,4 +1859,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1728 theorems/lemmas (1139 public, 550 private, 39 sorry'd)
+-- Total: 1728 theorems/lemmas (1140 public, 550 private, 38 sorry'd)
