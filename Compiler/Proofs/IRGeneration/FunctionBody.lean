@@ -2459,10 +2459,28 @@ theorem eval_compileExpr_mod_of_compiled
     evalIRExpr state
       (CompilationModel.compileExpr fields .calldata (.mod lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
         some (SourceSemantics.evalExpr fields runtime (.mod lhs rhs)) := by
-  -- Temporary stabilization point for the `Option` migration.
-  -- Clean fix: same as `div`, but with the modulo bridge on successful
-  -- source evaluations.
-  sorry
+  have hcompile := compileExpr_mod_ok hlhsCompile hrhsCompile
+  rcases hlhsSrc : SourceSemantics.evalExpr fields runtime lhs with _ | lhsVal
+  · cases hEval : evalIRExpr state lhsIR <;> simp [hEval, hlhsSrc] at hlhsEval
+  · rcases hrhsSrc : SourceSemantics.evalExpr fields runtime rhs with _ | rhsVal
+    · cases hEval : evalIRExpr state rhsIR <;> simp [hEval, hrhsSrc] at hrhsEval
+    · have hlhsEval' := evalIRExpr_of_sourceEval_some hlhsEval hlhsSrc
+      have hrhsEval' := evalIRExpr_of_sourceEval_some hrhsEval hrhsSrc
+      have hlhsLt' : lhsVal < Compiler.Constants.evmModulus := by
+        simpa [hlhsSrc] using hlhsLt
+      have hrhsLt' : rhsVal < Compiler.Constants.evmModulus := by
+        simpa [hrhsSrc] using hrhsLt
+      have heval :
+          evalIRExpr state
+            (CompilationModel.compileExpr fields .calldata (.mod lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
+              some (if rhsVal % Compiler.Constants.evmModulus = 0 then 0 else
+                (lhsVal % Compiler.Constants.evmModulus) % (rhsVal % Compiler.Constants.evmModulus)) := by
+        simpa [hcompile] using evalIRExpr_mod_of_eval hlhsEval' hrhsEval'
+      have hsrc := evalExpr_mod_of_values hlhsSrc hrhsSrc
+      rw [heval]
+      rw [hsrc]
+      rw [uint256_mod_val_eq hlhsLt' hrhsLt']
+      simp [Nat.mod_eq_of_lt hlhsLt', Nat.mod_eq_of_lt hrhsLt']
 -- SORRY'D:   have hcompile := compileExpr_mod_ok hlhsCompile hrhsCompile
 -- SORRY'D:   have heval :
 -- SORRY'D:       evalIRExpr state
