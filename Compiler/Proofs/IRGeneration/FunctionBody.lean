@@ -3064,10 +3064,148 @@ theorem evalExpr_lt_evmModulus_core_onExpr
     (hpresent : exprBoundNamesPresent expr runtime.bindings)
     (hruntime : runtimeStateMatchesIR fields runtime state) :
     SourceSemantics.evalExpr fields runtime expr < Compiler.Constants.evmModulus := by
-  -- Temporary stabilization point for the `Option` migration.
-  -- Clean fix: reprove the range theorem on successful evaluations only, then
-  -- lift it to the `Option`-ordered statement currently used by callers.
-  sorry
+  induction hcore generalizing runtime state with
+  | literal value =>
+      change SourceSemantics.wordNormalize value < Compiler.Constants.evmModulus
+      exact wordNormalize_lt_evmModulus value
+  | param name =>
+      change SourceSemantics.lookupValue runtime.bindings name < Compiler.Constants.evmModulus
+      exact hbounded name
+  | localVar name =>
+      change SourceSemantics.lookupValue runtime.bindings name < Compiler.Constants.evmModulus
+      exact hbounded name
+  | caller =>
+      change runtime.world.sender.val < Compiler.Constants.evmModulus
+      exact Nat.lt_trans runtime.world.sender.isLt (by decide)
+  | contractAddress =>
+      change runtime.world.thisAddress.val < Compiler.Constants.evmModulus
+      exact Nat.lt_trans runtime.world.thisAddress.isLt (by decide)
+  | msgValue =>
+      change runtime.world.msgValue.val < Compiler.Constants.evmModulus
+      exact runtime.world.msgValue.isLt
+  | blockTimestamp =>
+      change runtime.world.blockTimestamp.val < Compiler.Constants.evmModulus
+      exact runtime.world.blockTimestamp.isLt
+  | blockNumber =>
+      change runtime.world.blockNumber.val < Compiler.Constants.evmModulus
+      exact runtime.world.blockNumber.isLt
+  | chainid =>
+      change runtime.world.chainId.val < Compiler.Constants.evmModulus
+      exact runtime.world.chainId.isLt
+  | @add lhs rhs _ _ _ _ =>
+      show (do let l : Verity.Core.Uint256 := ← SourceSemantics.evalExpr fields runtime lhs
+               let r : Verity.Core.Uint256 := ← SourceSemantics.evalExpr fields runtime rhs
+               pure (l + r).val) < _
+      rcases SourceSemantics.evalExpr fields runtime lhs with _ | lVal
+      · trivial
+      · rcases SourceSemantics.evalExpr fields runtime rhs with _ | rVal
+        · trivial
+        · exact (Verity.Core.Uint256.ofNat lVal + Verity.Core.Uint256.ofNat rVal).isLt
+  | @sub lhs rhs _ _ _ _ =>
+      show (do let l : Verity.Core.Uint256 := ← SourceSemantics.evalExpr fields runtime lhs
+               let r : Verity.Core.Uint256 := ← SourceSemantics.evalExpr fields runtime rhs
+               pure (l - r).val) < _
+      rcases SourceSemantics.evalExpr fields runtime lhs with _ | lVal
+      · trivial
+      · rcases SourceSemantics.evalExpr fields runtime rhs with _ | rVal
+        · trivial
+        · exact (Verity.Core.Uint256.ofNat lVal - Verity.Core.Uint256.ofNat rVal).isLt
+  | @mul lhs rhs _ _ _ _ =>
+      show (do let l : Verity.Core.Uint256 := ← SourceSemantics.evalExpr fields runtime lhs
+               let r : Verity.Core.Uint256 := ← SourceSemantics.evalExpr fields runtime rhs
+               pure (l * r).val) < _
+      rcases SourceSemantics.evalExpr fields runtime lhs with _ | lVal
+      · trivial
+      · rcases SourceSemantics.evalExpr fields runtime rhs with _ | rVal
+        · trivial
+        · exact (Verity.Core.Uint256.ofNat lVal * Verity.Core.Uint256.ofNat rVal).isLt
+  | @div lhs rhs _ _ _ _ =>
+      show (do let l : Verity.Core.Uint256 := ← SourceSemantics.evalExpr fields runtime lhs
+               let r : Verity.Core.Uint256 := ← SourceSemantics.evalExpr fields runtime rhs
+               pure (l / r).val) < _
+      rcases SourceSemantics.evalExpr fields runtime lhs with _ | lVal
+      · trivial
+      · rcases SourceSemantics.evalExpr fields runtime rhs with _ | rVal
+        · trivial
+        · exact (Verity.Core.Uint256.ofNat lVal / Verity.Core.Uint256.ofNat rVal).isLt
+  | @mod lhs rhs _ _ _ _ =>
+      show (do let l : Verity.Core.Uint256 := ← SourceSemantics.evalExpr fields runtime lhs
+               let r : Verity.Core.Uint256 := ← SourceSemantics.evalExpr fields runtime rhs
+               pure (l % r).val) < _
+      rcases SourceSemantics.evalExpr fields runtime lhs with _ | lVal
+      · trivial
+      · rcases SourceSemantics.evalExpr fields runtime rhs with _ | rVal
+        · trivial
+        · exact (Verity.Core.Uint256.ofNat lVal % Verity.Core.Uint256.ofNat rVal).isLt
+  | @eq lhs rhs _ _ _ _ =>
+      show (do let lv ← SourceSemantics.evalExpr fields runtime lhs
+               let rv ← SourceSemantics.evalExpr fields runtime rhs
+               pure (SourceSemantics.boolWord (decide (lv = rv)))) < _
+      rcases SourceSemantics.evalExpr fields runtime lhs with _ | lVal
+      · trivial
+      · rcases SourceSemantics.evalExpr fields runtime rhs with _ | rVal
+        · trivial
+        · exact boolWord_lt_evmModulus _
+  | @lt lhs rhs _ _ _ _ =>
+      show (do let lv ← SourceSemantics.evalExpr fields runtime lhs
+               let rv ← SourceSemantics.evalExpr fields runtime rhs
+               pure (SourceSemantics.boolWord (decide (lv < rv)))) < _
+      rcases SourceSemantics.evalExpr fields runtime lhs with _ | lVal
+      · trivial
+      · rcases SourceSemantics.evalExpr fields runtime rhs with _ | rVal
+        · trivial
+        · exact boolWord_lt_evmModulus _
+  | @gt lhs rhs _ _ _ _ =>
+      show (do let lv ← SourceSemantics.evalExpr fields runtime lhs
+               let rv ← SourceSemantics.evalExpr fields runtime rhs
+               pure (SourceSemantics.boolWord (decide (rv < lv)))) < _
+      rcases SourceSemantics.evalExpr fields runtime lhs with _ | lVal
+      · trivial
+      · rcases SourceSemantics.evalExpr fields runtime rhs with _ | rVal
+        · trivial
+        · exact boolWord_lt_evmModulus _
+  | @ge lhs rhs _ _ _ _ =>
+      show (do let lv ← SourceSemantics.evalExpr fields runtime lhs
+               let rv ← SourceSemantics.evalExpr fields runtime rhs
+               pure (SourceSemantics.boolWord (decide (rv ≤ lv)))) < _
+      rcases SourceSemantics.evalExpr fields runtime lhs with _ | lVal
+      · trivial
+      · rcases SourceSemantics.evalExpr fields runtime rhs with _ | rVal
+        · trivial
+        · exact boolWord_lt_evmModulus _
+  | @le lhs rhs _ _ _ _ =>
+      show (do let lv ← SourceSemantics.evalExpr fields runtime lhs
+               let rv ← SourceSemantics.evalExpr fields runtime rhs
+               pure (SourceSemantics.boolWord (decide (lv ≤ rv)))) < _
+      rcases SourceSemantics.evalExpr fields runtime lhs with _ | lVal
+      · trivial
+      · rcases SourceSemantics.evalExpr fields runtime rhs with _ | rVal
+        · trivial
+        · exact boolWord_lt_evmModulus _
+  | @logicalNot subexpr _ _ =>
+      show (do let value ← SourceSemantics.evalExpr fields runtime subexpr
+               pure (SourceSemantics.boolWord (decide (value = 0)))) < _
+      rcases SourceSemantics.evalExpr fields runtime subexpr with _ | val
+      · trivial
+      · exact boolWord_lt_evmModulus _
+  | @logicalAnd lhs rhs _ _ _ _ =>
+      show (do let lv ← SourceSemantics.evalExpr fields runtime lhs
+               let rv ← SourceSemantics.evalExpr fields runtime rhs
+               pure (SourceSemantics.boolWord (decide (lv != 0) && decide (rv != 0)))) < _
+      rcases SourceSemantics.evalExpr fields runtime lhs with _ | lVal
+      · trivial
+      · rcases SourceSemantics.evalExpr fields runtime rhs with _ | rVal
+        · trivial
+        · exact boolWord_lt_evmModulus _
+  | @logicalOr lhs rhs _ _ _ _ =>
+      show (do let lv ← SourceSemantics.evalExpr fields runtime lhs
+               let rv ← SourceSemantics.evalExpr fields runtime rhs
+               pure (SourceSemantics.boolWord (decide (lv != 0) || decide (rv != 0)))) < _
+      rcases SourceSemantics.evalExpr fields runtime lhs with _ | lVal
+      · trivial
+      · rcases SourceSemantics.evalExpr fields runtime rhs with _ | rVal
+        · trivial
+        · exact boolWord_lt_evmModulus _
 end
 
 theorem evalExpr_lt_evmModulus_core
