@@ -726,8 +726,10 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_mstore
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   -- Temporary stabilization point for the `mstore` compile proof.
-  -- Clean fix: replay the compileExpr case split under the current
-  -- `compileStmt` elaboration surface.
+  -- Clean fix: unfold `CompilationModel.compileStmt`, split on the two
+  -- `compileExpr` calls for `offset` and `value`, discharge the impossible
+  -- `Except.error = Except.ok _` branches explicitly, and finish the success
+  -- branch with `LegacyCompatibleExternalStmtList.expr ... .nil`.
   sorry
 
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_tstore
@@ -741,7 +743,8 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_tstore
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   -- Temporary stabilization point for the `tstore` compile proof.
-  -- Clean fix: same as `mstore`, but over the transient-store constructor.
+  -- Clean fix: identical to `mstore`, but the success branch emits the single
+  -- `tstore(offsetIR, valueIR)` expression statement.
   sorry
 
 /-- On the current supported contract surface, successful single-statement
