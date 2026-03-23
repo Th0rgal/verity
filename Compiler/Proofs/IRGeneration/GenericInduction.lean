@@ -3596,10 +3596,10 @@ private theorem encodeStorageAt_writeUintSlots_singleton_other
       (SourceSemantics.writeUintSlots world [slot] value)
       query =
       SourceSemantics.encodeStorageAt fields world query := by
-  -- TEMPORARY SORRY: this non-written-slot transport now needs an explicit
-  -- copy-level rewrite through `encodeStorageAtCopy` after the storage model
-  -- update, rather than relying on a direct `simp`.
-  sorry
+  apply SourceSemantics.encodeStorageAt_congr
+  · simp [SourceSemantics.writeUintSlots, hneq]
+  · simp [SourceSemantics.writeUintSlots]
+  · simp [SourceSemantics.writeUintSlots]
 
 private theorem encodeStorageAt_writeUintSlots_other
     {fields : List Field}
@@ -3611,11 +3611,14 @@ private theorem encodeStorageAt_writeUintSlots_other
       (SourceSemantics.writeUintSlots world slots value)
       query =
       SourceSemantics.encodeStorageAt fields world query := by
-  -- TEMPORARY SORRY: the list-membership rewrite for untouched slots should be
-  -- reproved against the current storage copy helper instead of the old
-  -- `List.contains_eq_false.mpr` simp path.
-  sorry
+  apply SourceSemantics.encodeStorageAt_congr
+  · simp only [SourceSemantics.writeUintSlots]
+    rw [show slots.contains query = false from by simpa using hnotMem]
+    simp
+  · simp [SourceSemantics.writeUintSlots]
+  · simp [SourceSemantics.writeUintSlots]
 
+set_option maxHeartbeats 800000 in
 private theorem encodeStorageAt_writeUintKeyedMappingSlots_singleton_other
     {fields : List Field}
     {world : Verity.ContractState}
@@ -3625,10 +3628,13 @@ private theorem encodeStorageAt_writeUintKeyedMappingSlots_singleton_other
       (SourceSemantics.writeUintKeyedMappingSlots world [slot] key value)
       query =
       SourceSemantics.encodeStorageAt fields world query := by
-  -- TEMPORARY SORRY: restore this by pushing the mapping-slot inequality
-  -- through `encodeStorageAt_eq_copy` and the updated keyed-mapping write
-  -- encoding.
-  sorry
+  apply SourceSemantics.encodeStorageAt_congr
+  · simp only [SourceSemantics.writeUintKeyedMappingSlots, List.foldl_cons, List.foldl_nil]
+    simp [Compiler.Proofs.abstractStoreMappingEntry, Compiler.Proofs.abstractMappingSlot] at hneq ⊢
+    simp [hneq]
+    exact Verity.Core.Uint256.ext (Nat.mod_eq_of_lt (world.storage query).isLt)
+  · simp [SourceSemantics.writeUintKeyedMappingSlots]
+  · simp [SourceSemantics.writeUintKeyedMappingSlots]
 
 private theorem encodeStorageAt_writeAddressKeyedMappingChainSlots_singleton_other
     {fields : List Field}
@@ -3641,9 +3647,10 @@ private theorem encodeStorageAt_writeAddressKeyedMappingChainSlots_singleton_oth
       (SourceSemantics.writeAddressKeyedMappingChainSlots world [slot] keys value)
       query =
       SourceSemantics.encodeStorageAt fields world query := by
-  -- TEMPORARY SORRY: the untouched-chain-slot proof needs the same explicit
-  -- copy-level transport as the scalar and keyed-mapping cases.
-  sorry
+  apply SourceSemantics.encodeStorageAt_congr
+  · simp [SourceSemantics.writeAddressKeyedMappingChainSlots, hneq]
+  · simp [SourceSemantics.writeAddressKeyedMappingChainSlots]
+  · simp [SourceSemantics.writeAddressKeyedMappingChainSlots]
 
 private theorem encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_other
     {fields : List Field}
@@ -3654,10 +3661,12 @@ private theorem encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_othe
       (SourceSemantics.writeAddressKeyedMappingWordSlots world [slot] key wordOffset value)
       query =
       SourceSemantics.encodeStorageAt fields world query := by
-  -- TEMPORARY SORRY: the word-offset singleton write now requires explicit
-  -- normalization of the updated storage branch instead of the stale
-  -- `List.contains_eq_true` simp shortcut.
-  sorry
+  apply SourceSemantics.encodeStorageAt_congr
+  · simp only [SourceSemantics.writeAddressKeyedMappingWordSlots]
+    unfold Compiler.Proofs.abstractMappingSlot at hneq
+    simp [hneq]
+  · simp [SourceSemantics.writeAddressKeyedMappingWordSlots]
+  · simp [SourceSemantics.writeAddressKeyedMappingWordSlots]
 
 private theorem encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleton_other
     {fields : List Field}
@@ -3670,9 +3679,12 @@ private theorem encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleto
         world [slot] key wordOffset packed value)
       query =
       SourceSemantics.encodeStorageAt fields world query := by
-  -- TEMPORARY SORRY: this packed-word untouched-slot transport still needs the
-  -- final packed write normalization after the storage copy rewrite.
-  sorry
+  apply SourceSemantics.encodeStorageAt_congr
+  · simp only [SourceSemantics.writeAddressKeyedMappingPackedWordSlots]
+    unfold Compiler.Proofs.abstractMappingSlot at hneq
+    simp [hneq]
+  · simp [SourceSemantics.writeAddressKeyedMappingPackedWordSlots]
+  · simp [SourceSemantics.writeAddressKeyedMappingPackedWordSlots]
 
 private def findResolvedFieldAtSlotCopy (fields : List Field) (slot : Nat) : Option Field :=
   let rec go (remaining : List Field) (idx : Nat) : Option Field :=
@@ -4120,7 +4132,13 @@ private theorem encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_other
       (SourceSemantics.writeAddressKeyedMapping2Slots world [slot] key1 key2 value)
       query =
       SourceSemantics.encodeStorageAt fields world query := by
-  sorry
+  apply SourceSemantics.encodeStorageAt_congr
+  · simp only [SourceSemantics.writeAddressKeyedMapping2Slots, List.foldl_cons, List.foldl_nil]
+    simp [Compiler.Proofs.abstractStoreMappingEntry, Compiler.Proofs.abstractMappingSlot] at hneq ⊢
+    simp [hneq]
+    exact Verity.Core.Uint256.ext (Nat.mod_eq_of_lt (world.storage query).isLt)
+  · simp [SourceSemantics.writeAddressKeyedMapping2Slots]
+  · simp [SourceSemantics.writeAddressKeyedMapping2Slots]
 
 private theorem encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_eq_written
     {fields : List Field}
@@ -4155,7 +4173,12 @@ private theorem encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_oth
       (SourceSemantics.writeAddressKeyedMapping2WordSlots world [slot] key1 key2 wordOffset value)
       query =
       SourceSemantics.encodeStorageAt fields world query := by
-  sorry
+  apply SourceSemantics.encodeStorageAt_congr
+  · simp only [SourceSemantics.writeAddressKeyedMapping2WordSlots]
+    unfold Compiler.Proofs.abstractMappingSlot at hneq
+    simp [hneq]
+  · simp [SourceSemantics.writeAddressKeyedMapping2WordSlots]
+  · simp [SourceSemantics.writeAddressKeyedMapping2WordSlots]
 
 private theorem encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_eq_written
     {fields : List Field}

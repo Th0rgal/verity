@@ -1265,6 +1265,60 @@ private theorem findDynamicArrayElementAtSlot_withTransactionContext
       | mappingStruct2 outerKey innerKey members =>
           simpa [findDynamicArrayElementAtSlot.go, withTransactionContext, hty] using ih (idx + 1)
 
+private theorem findDynamicArrayElementAtSlot_congr_storageArray
+    (fields : List Field)
+    (world1 world2 : Verity.ContractState)
+    (slot : Nat)
+    (h_storageArray : world1.storageArray = world2.storageArray) :
+    findDynamicArrayElementAtSlot fields world1 slot =
+      findDynamicArrayElementAtSlot fields world2 slot := by
+  unfold findDynamicArrayElementAtSlot
+  suffices
+      ∀ remaining idx,
+        findDynamicArrayElementAtSlot.go world1 slot remaining idx =
+          findDynamicArrayElementAtSlot.go world2 slot remaining idx by
+    simpa using this fields 0
+  intro remaining idx
+  induction remaining generalizing idx with
+  | nil =>
+      rfl
+  | cons field rest ih =>
+      cases hty : field.ty with
+      | uint256 =>
+          simpa [findDynamicArrayElementAtSlot.go, hty] using ih (idx + 1)
+      | address =>
+          simpa [findDynamicArrayElementAtSlot.go, hty] using ih (idx + 1)
+      | dynamicArray elemType =>
+          cases hscan :
+              findDynamicArrayElementAtSlot.scanElements slot
+                (field.slot.getD idx)
+                (world2.storageArray (field.slot.getD idx)) 0 with
+          | none =>
+              simp only [findDynamicArrayElementAtSlot.go, hty, h_storageArray, hscan]
+              exact ih (idx + 1)
+          | some value =>
+              simp [findDynamicArrayElementAtSlot.go, hty, h_storageArray, hscan]
+      | mappingTyped mt =>
+          simpa [findDynamicArrayElementAtSlot.go, hty] using ih (idx + 1)
+      | mappingStruct keyType members =>
+          simpa [findDynamicArrayElementAtSlot.go, hty] using ih (idx + 1)
+      | mappingStruct2 outerKey innerKey members =>
+          simpa [findDynamicArrayElementAtSlot.go, hty] using ih (idx + 1)
+
+theorem encodeStorageAt_congr
+    {fields : List Field}
+    {world1 world2 : Verity.ContractState}
+    {slot : Nat}
+    (h_storage : world1.storage slot = world2.storage slot)
+    (h_storageAddr : world1.storageAddr slot = world2.storageAddr slot)
+    (h_storageArray : world1.storageArray = world2.storageArray) :
+    encodeStorageAt fields world1 slot = encodeStorageAt fields world2 slot := by
+  unfold encodeStorageAt
+  split
+  · simp [h_storage, h_storageAddr, h_storageArray]
+  · rw [findDynamicArrayElementAtSlot_congr_storageArray fields world1 world2 slot h_storageArray]
+    simp [h_storage]
+
 @[simp] theorem encodeStorageAt_withTransactionContext
     (fields : List Field)
     (world : Verity.ContractState)
