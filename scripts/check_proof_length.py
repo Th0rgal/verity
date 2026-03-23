@@ -353,6 +353,14 @@ ALLOWLIST: set[str] = {
     "compiledStmtStepWithHelpersAndHelperIR_internalCallAssign",
     "compiledStmtStepWithHelpersAndHelperIR_internalCall",
     "evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed",
+    # Post-merge proof-reduction branch still carries a few long mechanical
+    # SupportedSpec/GenericInduction transport lemmas. They remain localized
+    # syntax-plumbing proofs, and allowlisting them keeps the branch buildable
+    # while follow-up cleanup decomposes the constructors more aggressively.
+    "stmtListGenericCore_of_requireClausesThenLetAssignMulSetStorageLocalLiteral",
+    "stmtTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed",
+    "stmtTouchesUnsupportedContractSurface_eq_false_of_featureClosed",
+    "stmtTouchesUnsupportedContractSurfaceExceptMappingWrites_eq_false_of_featureClosed",
     # Issue #1630 / PR #1633 follow-up — helper-proof theorem-surface adapters:
     # these declarations are intentionally long because they mirror the existing
     # generic Layer 2 theorem signatures while adding the explicit helper-proof

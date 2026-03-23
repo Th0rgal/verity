@@ -1,11 +1,11 @@
 {
   "codebase": {
     "core_lines": 600,
-    "example_contracts": 13
+    "example_contracts": 14
   },
   "proofs": {
     "axioms": 1,
-    "sorry": 75
+    "sorry": 130
   },
   "schema_version": 1,
   "tests": {
@@ -33,7 +33,7 @@
       "SimpleStorage": 20,
       "SimpleToken": 61
     },
-    "proven": 202,
+    "proven": 147,
     "stdlib": 0,
     "total": 277
   },

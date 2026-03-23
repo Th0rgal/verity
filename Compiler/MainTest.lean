@@ -17,7 +17,7 @@ private def contains (haystack needle : String) : Bool :=
 
 private unsafe def expectErrorContains (label : String) (args : List String) (needle : String) : IO Unit := do
   try
-    main args
+    Compiler.Main.main args
     throw (IO.userError s!"✗ {label}: expected failure, command succeeded")
   catch e =>
     let msg := e.toString
@@ -72,29 +72,29 @@ unsafe def runTests : IO Unit := do
   let nonce ← IO.monoMsNow
   let allOutDir := s!"/tmp/verity-main-test-{nonce}-all-out"
   IO.FS.createDirAll allOutDir
-  main (moduleArgs canonicalModules ++ ["--output", allOutDir])
+  Compiler.Main.main (moduleArgs canonicalModules ++ ["--output", allOutDir])
   let allArtifactsPresent ←
     canonicalModules.allM (fun moduleName => fileExists (contractArtifactPath allOutDir moduleName))
   expectTrue "module input mode compiles every requested artifact" allArtifactsPresent
 
   let singleOutDir := s!"/tmp/verity-main-test-{nonce}-single-out"
   IO.FS.createDirAll singleOutDir
-  main (["--module", "Contracts.Counter.Counter", "--output", singleOutDir])
+  Compiler.Main.main (["--module", "Contracts.Counter.Counter", "--output", singleOutDir])
   let selectedCounterArtifact ← fileExists s!"{singleOutDir}/Counter.yul"
   expectTrue "module input mode compiles explicitly selected contract" selectedCounterArtifact
   let strictOutDir := s!"/tmp/verity-main-test-{nonce}-strict-out"
   IO.FS.createDirAll strictOutDir
-  main (["--module", "Contracts.Counter.Counter", "--deny-unchecked-dependencies", "--output", strictOutDir])
+  Compiler.Main.main (["--module", "Contracts.Counter.Counter", "--deny-unchecked-dependencies", "--output", strictOutDir])
   let strictCounterArtifact ← fileExists s!"{strictOutDir}/Counter.yul"
   expectTrue "strict unchecked-dependency gate accepts proved local modules" strictCounterArtifact
   let proofStrictOutDir := s!"/tmp/verity-main-test-{nonce}-proof-strict-out"
   IO.FS.createDirAll proofStrictOutDir
-  main (["--module", "Contracts.Counter.Counter", "--deny-assumed-dependencies", "--output", proofStrictOutDir])
+  Compiler.Main.main (["--module", "Contracts.Counter.Counter", "--deny-assumed-dependencies", "--output", proofStrictOutDir])
   let proofStrictCounterArtifact ← fileExists s!"{proofStrictOutDir}/Counter.yul"
   expectTrue "strict assumed-dependency gate accepts proved local modules" proofStrictCounterArtifact
   let primitiveStrictOutDir := s!"/tmp/verity-main-test-{nonce}-primitive-strict-out"
   IO.FS.createDirAll primitiveStrictOutDir
-  main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-axiomatized-primitives", "--output", primitiveStrictOutDir])
+  Compiler.Main.main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-axiomatized-primitives", "--output", primitiveStrictOutDir])
   let primitiveStrictArtifact ← fileExists s!"{primitiveStrictOutDir}/SimpleStorage.yul"
   expectTrue "strict axiomatized-primitive gate accepts contracts without axiomatized primitives" primitiveStrictArtifact
   expectErrorContains
@@ -103,7 +103,7 @@ unsafe def runTests : IO Unit := do
     "Counter [function:previewEnvOps]: keccak256"
   let localObligationStrictOutDir := s!"/tmp/verity-main-test-{nonce}-local-obligation-strict-out"
   IO.FS.createDirAll localObligationStrictOutDir
-  main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-local-obligations", "--output", localObligationStrictOutDir])
+  Compiler.Main.main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-local-obligations", "--output", localObligationStrictOutDir])
   let localObligationStrictArtifact ← fileExists s!"{localObligationStrictOutDir}/SimpleStorage.yul"
   expectTrue "strict local-obligation gate accepts contracts without local obligations" localObligationStrictArtifact
   expectErrorContains
@@ -118,7 +118,7 @@ unsafe def runTests : IO Unit := do
   let macroLocalObligationAssumptionReportPath := s!"/tmp/verity-main-test-{nonce}-macro-local-obligation-assumption-report.json"
   let macroLocalObligationOutDir := s!"/tmp/verity-main-test-{nonce}-macro-local-obligation-out"
   IO.FS.createDirAll macroLocalObligationOutDir
-  main
+  Compiler.Main.main
     [ "--module", "Contracts.LocalObligationMacroSmoke.LocalObligationMacroSmoke"
     , "--trust-report", macroLocalObligationTrustReportPath
     , "--assumption-report", macroLocalObligationAssumptionReportPath
@@ -148,7 +148,7 @@ unsafe def runTests : IO Unit := do
     "LocalObligationMacroSmoke [constructor:constructor]: unchecked local obligations: constructor_storage_layout"
   let memoryStrictOutDir := s!"/tmp/verity-main-test-{nonce}-memory-strict-out"
   IO.FS.createDirAll memoryStrictOutDir
-  main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-linear-memory-mechanics", "--output", memoryStrictOutDir])
+  Compiler.Main.main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-linear-memory-mechanics", "--output", memoryStrictOutDir])
   let memoryStrictArtifact ← fileExists s!"{memoryStrictOutDir}/SimpleStorage.yul"
   expectTrue "strict linear-memory gate accepts contracts without partially modeled memory mechanics" memoryStrictArtifact
   expectErrorContains
@@ -157,7 +157,7 @@ unsafe def runTests : IO Unit := do
     "Counter [function:previewEnvOps]: mload"
   let eventStrictOutDir := s!"/tmp/verity-main-test-{nonce}-event-strict-out"
   IO.FS.createDirAll eventStrictOutDir
-  main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-event-emission", "--output", eventStrictOutDir])
+  Compiler.Main.main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-event-emission", "--output", eventStrictOutDir])
   let eventStrictArtifact ← fileExists s!"{eventStrictOutDir}/SimpleStorage.yul"
   expectTrue "strict event-emission gate accepts contracts without raw event emission" eventStrictArtifact
   expectErrorContains
@@ -166,7 +166,7 @@ unsafe def runTests : IO Unit := do
     "RawLogTrustSurface [function:emitTrace]: rawLog"
   let lowLevelStrictOutDir := s!"/tmp/verity-main-test-{nonce}-low-level-strict-out"
   IO.FS.createDirAll lowLevelStrictOutDir
-  main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-low-level-mechanics", "--output", lowLevelStrictOutDir])
+  Compiler.Main.main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-low-level-mechanics", "--output", lowLevelStrictOutDir])
   let lowLevelStrictArtifact ← fileExists s!"{lowLevelStrictOutDir}/SimpleStorage.yul"
   expectTrue "strict low-level gate accepts contracts without low-level mechanics" lowLevelStrictArtifact
   expectErrorContains
@@ -175,7 +175,7 @@ unsafe def runTests : IO Unit := do
     "Counter [function:previewLowLevel]: call, staticcall, delegatecall, revertReturndata, returndataCopy, returndataSize"
   let runtimeStrictOutDir := s!"/tmp/verity-main-test-{nonce}-runtime-strict-out"
   IO.FS.createDirAll runtimeStrictOutDir
-  main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-runtime-introspection", "--output", runtimeStrictOutDir])
+  Compiler.Main.main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-runtime-introspection", "--output", runtimeStrictOutDir])
   let runtimeStrictArtifact ← fileExists s!"{runtimeStrictOutDir}/SimpleStorage.yul"
   expectTrue "strict runtime-introspection gate accepts contracts without partially modeled runtime introspection" runtimeStrictArtifact
   expectErrorContains
@@ -184,7 +184,7 @@ unsafe def runTests : IO Unit := do
     "Counter [function:previewEnvOps]: blockNumber, contractAddress, chainid"
   let proxyStrictOutDir := s!"/tmp/verity-main-test-{nonce}-proxy-strict-out"
   IO.FS.createDirAll proxyStrictOutDir
-  main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-proxy-upgradeability", "--output", proxyStrictOutDir])
+  Compiler.Main.main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-proxy-upgradeability", "--output", proxyStrictOutDir])
   let proxyStrictArtifact ← fileExists s!"{proxyStrictOutDir}/SimpleStorage.yul"
   expectTrue "strict proxy-upgradeability gate accepts contracts without delegatecall" proxyStrictArtifact
   expectErrorContains
@@ -194,7 +194,7 @@ unsafe def runTests : IO Unit := do
   let proxyMacroTrustReportPath := s!"/tmp/verity-main-test-{nonce}-proxy-macro-trust-report.json"
   let proxyMacroOutDir := s!"/tmp/verity-main-test-{nonce}-proxy-macro-out"
   IO.FS.createDirAll proxyMacroOutDir
-  main
+  Compiler.Main.main
     [ "--module", "Contracts.ProxyUpgradeabilityMacroSmoke"
     , "--trust-report", proxyMacroTrustReportPath
     , "--output", proxyMacroOutDir
@@ -220,7 +220,7 @@ unsafe def runTests : IO Unit := do
   let proxyMacroLayoutReportPath := s!"/tmp/verity-main-test-{nonce}-proxy-macro-layout-report.json"
   let proxyMacroLayoutOutDir := s!"/tmp/verity-main-test-{nonce}-proxy-macro-layout-out"
   IO.FS.createDirAll proxyMacroLayoutOutDir
-  main
+  Compiler.Main.main
     [ "--module", "Contracts.ProxyUpgradeabilityMacroSmoke"
     , "--layout-report", proxyMacroLayoutReportPath
     , "--output", proxyMacroLayoutOutDir
@@ -236,7 +236,7 @@ unsafe def runTests : IO Unit := do
   let proxyLayoutCompatReportPath := s!"/tmp/verity-main-test-{nonce}-proxy-layout-compat-report.json"
   let proxyLayoutCompatOutDir := s!"/tmp/verity-main-test-{nonce}-proxy-layout-compat-out"
   IO.FS.createDirAll proxyLayoutCompatOutDir
-  main
+  Compiler.Main.main
     [ "--module", "Contracts.ProxyUpgradeabilityMacroSmoke"
     , "--module", "Contracts.ProxyUpgradeabilityLayoutCompatibleSmoke"
     , "--layout-compat-report", proxyLayoutCompatReportPath

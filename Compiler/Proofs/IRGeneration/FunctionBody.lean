@@ -1205,7 +1205,10 @@ private theorem eval_compileExpr_ge_raw
     (hrhsEval : evalIRExpr state rhsIR = some (SourceSemantics.evalExpr fields runtime rhs)) :
     evalIRExpr state
       (CompilationModel.compileExpr fields .calldata (.ge lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
-        some 0 := by
+        some (SourceSemantics.boolWord
+          (SourceSemantics.boolWord
+            (((SourceSemantics.evalExpr fields runtime lhs).getD 0) % Compiler.Constants.evmModulus <
+              ((SourceSemantics.evalExpr fields runtime rhs).getD 0) % Compiler.Constants.evmModulus) = 0)) := by
   -- Temporary stabilization point for the `Option` migration.
   -- Clean fix: reprove the raw `ge` transport against `Option`-valued
   -- `SourceSemantics.evalExpr`, then recover the final word-level statement
@@ -1224,7 +1227,10 @@ private theorem eval_compileExpr_le_raw
     (hrhsEval : evalIRExpr state rhsIR = some (SourceSemantics.evalExpr fields runtime rhs)) :
     evalIRExpr state
       (CompilationModel.compileExpr fields .calldata (.le lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
-        some 0 := by
+        some (SourceSemantics.boolWord
+          (SourceSemantics.boolWord
+            (((SourceSemantics.evalExpr fields runtime rhs).getD 0) % Compiler.Constants.evmModulus <
+              ((SourceSemantics.evalExpr fields runtime lhs).getD 0) % Compiler.Constants.evmModulus) = 0)) := by
   -- Temporary stabilization point for the `Option` migration.
   -- Clean fix: mirror the future `ge` repair here, with explicit transport
   -- from `Option` expression semantics to the raw `iszero (gt ...)` IR shape.

@@ -879,8 +879,26 @@ contract DifferentialERC721 is YulTestBase, DiffTestConfig, DifferentialTestBase
 
         (uint256 startIndex, uint256 count) = _diffRandomLargeRange();
         uint256 seed = _diffRandomSeed("ERC721");
+        uint256 batchSize = 250;
 
         vm.pauseGasMetering();
+        for (uint256 offset = 0; offset < count; offset += batchSize) {
+            uint256 batchCount = count - offset;
+            if (batchCount > batchSize) {
+                batchCount = batchSize;
+            }
+            this.runRandomDifferentialBatch(startIndex + offset, batchCount, seed);
+        }
+        vm.resumeGasMetering();
+
+        if (_diffVerbose()) console2.log("Random tests passed:", testsPassed);
+        if (_diffVerbose()) console2.log("Random tests failed:", testsFailed);
+        assertEq(testsFailed, 0, "Some random tests failed");
+    }
+
+    function runRandomDifferentialBatch(uint256 startIndex, uint256 count, uint256 seed) external {
+        require(msg.sender == address(this), "self-call only");
+
         for (uint256 i = 0; i < count; i++) {
             (
                 string memory funcName,
@@ -893,10 +911,5 @@ contract DifferentialERC721 is YulTestBase, DiffTestConfig, DifferentialTestBase
             bool success = _executeRandomDifferentialTest(funcName, sender, arg0, arg1, arg2);
             _assertRandomSuccess(success, startIndex + i);
         }
-        vm.resumeGasMetering();
-
-        if (_diffVerbose()) console2.log("Random tests passed:", testsPassed);
-        if (_diffVerbose()) console2.log("Random tests failed:", testsFailed);
-        assertEq(testsFailed, 0, "Some random tests failed");
     }
 }

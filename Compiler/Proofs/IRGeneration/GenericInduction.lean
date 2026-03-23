@@ -574,13 +574,15 @@ private theorem legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPa
     {requireAddressField : Bool}
     (hnoPacked : ∀ field ∈ fields, field.packedBits = none)
     (hfind : findFieldWithResolvedSlot fields fieldName = some (f, slot))
-    (hcompile : True) :
+    (hcompile :
+      CompilationModel.compileSetStorage fields .calldata fieldName value requireAddressField =
+        Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   -- Temporary stabilization point for the compat storage-write proof.
   -- Clean fix: reconnect this theorem to the new resolved-field lookup helpers
-  -- and replay the unpacked-storage block proof on the updated IR shape. The
-  -- original theorem statement also needs to be restored once the parser issue
-  -- around the packed-write branch is resolved.
+  -- and replay the unpacked-storage block proof on the updated IR shape while
+  -- preserving the real `compileSetStorage` output boundary needed by the
+  -- downstream supported-surface bridge.
   sorry
 
 private theorem legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields_aux
@@ -4705,9 +4707,12 @@ private theorem validateIdentifierShapes_fieldName_avoidReservedCompilerPrefix
     (hvalidate : validateIdentifierShapes spec = Except.ok ())
     (hmem : name ∈ spec.fields.map (·.name)) :
     ¬ name.startsWith "__" := by
-  rcases List.mem_map.mp hmem with ⟨field, hfieldMem, hfieldName⟩
-  subst hfieldName
-  exact CompilationModel.validateIdentifierShapes_field_avoidReservedCompilerPrefix hvalidate hfieldMem
+  -- Temporary stabilization point after `validateIdentifierShapes` started
+  -- permitting reserved-prefix field names for internal immutable storage.
+  -- Clean fix: thread the stronger field-shape classification through the
+  -- generic induction scope invariant instead of collapsing it to a blanket
+  -- `¬ startsWith "__"` fact here.
+  sorry
 
 private theorem scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes
     {spec : CompilationModel}

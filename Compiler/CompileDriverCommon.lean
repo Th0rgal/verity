@@ -2,6 +2,8 @@ import Std
 import Compiler.Selector
 import Compiler.ABI
 import Compiler.ModuleInput
+import Compiler.CompilationModel.Compile
+import Compiler.CompilationModel.EventEmission
 import Compiler.Yul.PrettyPrint
 import Compiler.Linker
 import Compiler.CompilationModel.LayoutCompatibilityReport

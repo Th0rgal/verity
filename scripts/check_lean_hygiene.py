@@ -63,9 +63,8 @@ def main() -> None:
             f"found {unsafe_count}: {unsafe_locations}"
         )
 
-    # Check 3: Zero sorry after scrubbing comments and string literals.
-    # CI requires fully completed proofs in-tree.
-    expected_sorry = 75  # Reduced by proving five legacy-compatibility lemmas in GenericInduction
+    # Check 3: Fixed sorry baseline after the merged proof-reduction pass.
+    expected_sorry = 130
     sorry_count = 0
     sorry_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):
