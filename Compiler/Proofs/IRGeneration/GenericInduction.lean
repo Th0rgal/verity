@@ -3766,16 +3766,66 @@ private def encodeStorageAtCopy
       | some value => value
       | none => (world.storage slot).val
 
+private theorem findResolvedFieldAtSlot_go_eq_copy
+    (remaining : List Field) (idx : Nat) (slot : Nat) :
+    SourceSemantics.findResolvedFieldAtSlot.go slot remaining idx =
+      findResolvedFieldAtSlotCopy.go slot remaining idx := by
+  induction remaining generalizing idx with
+  | nil => rfl
+  | cons field rest ih =>
+    simp only [SourceSemantics.findResolvedFieldAtSlot.go, findResolvedFieldAtSlotCopy.go]
+    split <;> simp_all
+
+private theorem findResolvedFieldAtSlotCopy_eq
+    (fields : List Field) (slot : Nat) :
+    SourceSemantics.findResolvedFieldAtSlot fields slot =
+      findResolvedFieldAtSlotCopy fields slot := by
+  simp only [SourceSemantics.findResolvedFieldAtSlot, findResolvedFieldAtSlotCopy]
+  exact findResolvedFieldAtSlot_go_eq_copy fields 0 slot
+
+private theorem findDynamicArrayElementAtSlot_scanElements_eq_copy
+    (baseSlot : Nat) (elems : List Verity.Core.Uint256) (idx : Nat) (targetSlot : Nat) :
+    SourceSemantics.findDynamicArrayElementAtSlot.scanElements targetSlot baseSlot elems idx =
+      findDynamicArrayElementAtSlotCopy.scanElements targetSlot baseSlot elems idx := by
+  induction elems generalizing idx with
+  | nil => rfl
+  | cons v rest ih =>
+    simp only [SourceSemantics.findDynamicArrayElementAtSlot.scanElements,
+               findDynamicArrayElementAtSlotCopy.scanElements]
+    split <;> simp_all
+
+private theorem findDynamicArrayElementAtSlot_go_eq_copy
+    (remaining : List Field) (world : Verity.ContractState)
+    (idx : Nat) (targetSlot : Nat) :
+    SourceSemantics.findDynamicArrayElementAtSlot.go world targetSlot remaining idx =
+      findDynamicArrayElementAtSlotCopy.go world targetSlot remaining idx := by
+  induction remaining generalizing idx with
+  | nil => rfl
+  | cons field rest ih =>
+    simp only [SourceSemantics.findDynamicArrayElementAtSlot.go,
+               findDynamicArrayElementAtSlotCopy.go]
+    simp only [findDynamicArrayElementAtSlot_scanElements_eq_copy]
+    split
+    · split <;> simp_all
+    · simp_all
+
+private theorem findDynamicArrayElementAtSlotCopy_eq
+    (fields : List Field) (world : Verity.ContractState) (targetSlot : Nat) :
+    SourceSemantics.findDynamicArrayElementAtSlot fields world targetSlot =
+      findDynamicArrayElementAtSlotCopy fields world targetSlot := by
+  simp only [SourceSemantics.findDynamicArrayElementAtSlot, findDynamicArrayElementAtSlotCopy]
+  exact findDynamicArrayElementAtSlot_go_eq_copy fields world 0 targetSlot
+
 private theorem encodeStorageAt_eq_copy
     {fields : List Field}
     {world : Verity.ContractState}
     {slot : Nat} :
     SourceSemantics.encodeStorageAt fields world slot =
       encodeStorageAtCopy fields world slot := by
-  -- TEMPORARY SORRY: the copy model is still the right bridge, but the proof
-  -- now needs explicit alignment between the main lookup helpers and their
-  -- copy-level counterparts.
-  sorry
+  simp only [SourceSemantics.encodeStorageAt, encodeStorageAtCopy,
+             findResolvedFieldAtSlotCopy_eq, findDynamicArrayElementAtSlotCopy_eq]
+  split <;> simp_all
+  split <;> simp_all
 
 private def fieldWriteEntriesAt
     (idx : Nat) (field : Field) : List (Nat × String × Option PackedBits) :=
@@ -3809,16 +3859,27 @@ private theorem list_findSlotPackedNone_ne_none
     {seen : List (Nat × String × Option PackedBits)}
     {slot : Nat}
     (hmem : slot ∈ seen.map (fun entry => entry.1)) :
-    (seen.find? (fun entry => entry.1 == slot && packedSlotsConflict entry.2.2 none)) ≠ none := by sorry
--- SORRY'D:   induction seen with
--- SORRY'D:   | nil =>
--- SORRY'D:       cases hmem
--- SORRY'D:   | cons entry rest ih =>
--- SORRY'D:       simp at hmem ⊢
--- SORRY'D:       by_cases hEq : entry.1 = slot
--- SORRY'D:       · subst hEq
--- SORRY'D:         simp [packedSlotsConflict]
--- SORRY'D:       · simp [hEq, ih hmem]
+    (seen.find? (fun entry => entry.1 == slot && packedSlotsConflict entry.2.2 none)) ≠ none := by
+  induction seen with
+  | nil => simp at hmem
+  | cons entry rest ih =>
+      simp at hmem
+      by_cases hEq : entry.1 = slot
+      · subst hEq
+        simp only [List.find?]
+        cases entry.2.2 with
+        | none => simp [packedSlotsConflict]
+        | some _ => simp [packedSlotsConflict]
+      · have hrest : slot ∈ List.map (fun entry => entry.1) rest := by
+          rcases hmem with ⟨rfl, _⟩ | ⟨_, _, hmem'⟩
+          · exact absurd rfl hEq
+          · exact List.mem_map.mpr ⟨(slot, _, _), hmem', rfl⟩
+        have hih := ih hrest
+        change List.find? _ (entry :: rest) ≠ none
+        rw [List.find?_cons]
+        split
+        · simp
+        · exact hih
 
 private theorem firstInFieldConflictCopy_ne_none_of_seen_slot_unpacked
     {seen current : List (Nat × String × Option PackedBits)}
@@ -3826,36 +3887,41 @@ private theorem firstInFieldConflictCopy_ne_none_of_seen_slot_unpacked
     (hseen : slot ∈ seen.map (fun entry => entry.1))
     (hcurrent : slot ∈ current.map (fun entry => entry.1))
     (hunpacked : ∀ packed ∈ current.map (fun entry => entry.2.2), packed = none) :
-    firstInFieldConflictCopy seen current ≠ none := by sorry
--- SORRY'D:   induction current generalizing seen with
--- SORRY'D:   | nil =>
--- SORRY'D:       cases hcurrent
--- SORRY'D:   | cons entry rest ih =>
--- SORRY'D:       simp at hcurrent
--- SORRY'D:       have hpnone : entry.2.2 = none := hunpacked entry.2.2 (by simp)
--- SORRY'D:       rcases hcurrent with hEq | hrest
--- SORRY'D:       · subst hEq
--- SORRY'D:         have hfindSeen :
--- SORRY'D:             (seen.find? (fun seenEntry => seenEntry.1 == entry.1 &&
--- SORRY'D:               packedSlotsConflict seenEntry.2.2 entry.2.2)) ≠ none := by
--- SORRY'D:           simpa [hpnone] using list_findSlotPackedNone_ne_none hseen
--- SORRY'D:         intro hnone
--- SORRY'D:         simp [firstInFieldConflictCopy, hpnone, hfindSeen] at hnone
--- SORRY'D:       · have hunpackedRest :
--- SORRY'D:             ∀ packed ∈ rest.map (fun restEntry => restEntry.2.2), packed = none := by
--- SORRY'D:           intro packed hmem
--- SORRY'D:           exact hunpacked packed (by simp [hmem])
--- SORRY'D:         intro hnone
--- SORRY'D:         cases hfind : seen.find? (fun seenEntry => seenEntry.1 == entry.1 &&
--- SORRY'D:             packedSlotsConflict seenEntry.2.2 entry.2.2)
--- SORRY'D:         · have htailNone :
--- SORRY'D:               firstInFieldConflictCopy ((entry.1, entry.2.1, entry.2.2) :: seen) rest = none := by
--- SORRY'D:             simpa [firstInFieldConflictCopy, hfind] using hnone
--- SORRY'D:           have hseen' :
--- SORRY'D:               slot ∈ (((entry.1, entry.2.1, entry.2.2) :: seen).map (fun seenEntry => seenEntry.1)) := by
--- SORRY'D:             simp [hseen]
--- SORRY'D:           exact (ih hseen' hrest hunpackedRest) htailNone
--- SORRY'D:         · simp [firstInFieldConflictCopy, hfind] at hnone
+    firstInFieldConflictCopy seen current ≠ none := by
+  induction current generalizing seen with
+  | nil =>
+      simp at hcurrent
+  | cons entry rest ih =>
+      simp at hcurrent
+      have hpnone : entry.2.2 = none := hunpacked entry.2.2 (by simp)
+      have hunpackedRest :
+          ∀ packed ∈ rest.map (fun restEntry => restEntry.2.2), packed = none := by
+        intro packed hmem
+        exact hunpacked packed (by simp [hmem])
+      -- entry = (entry.1, entry.2.1, entry.2.2) and entry.2.2 = none
+      obtain ⟨e1, e21, e22⟩ := entry
+      simp at hpnone
+      subst hpnone
+      -- Now entry = (e1, e21, none)
+      rcases hcurrent with ⟨rfl, _⟩ | ⟨_, _, hrest⟩
+      · -- slot = e1
+        have hfindSeen := list_findSlotPackedNone_ne_none hseen
+        simp only [firstInFieldConflictCopy]
+        cases hf : seen.find? (fun seenEntry => seenEntry.1 == e1 && packedSlotsConflict seenEntry.2.2 none)
+        · exact absurd hf hfindSeen
+        · simp
+      · have hrest' : slot ∈ rest.map (fun entry => entry.1) :=
+          List.mem_map.mpr ⟨(slot, _, _), hrest, rfl⟩
+        intro hnone
+        simp only [firstInFieldConflictCopy] at hnone
+        cases hfind : seen.find? (fun seenEntry => seenEntry.1 == e1 && packedSlotsConflict seenEntry.2.2 none)
+        · rw [hfind] at hnone
+          simp at hnone
+          have hseen' :
+              slot ∈ (((e1, e21, none) :: seen).map (fun seenEntry => seenEntry.1)) := by
+            simp [hseen]
+          exact (ih hseen' hrest' hunpackedRest) hnone
+        · rw [hfind] at hnone; simp at hnone
 
 private theorem firstFieldWriteSlotConflictCopyFrom_some_of_seen_slot_member
     {seen : List (Nat × String × Option PackedBits)}
@@ -3874,42 +3940,6 @@ private theorem firstFieldWriteSlotConflictCopyFrom_some_of_seen_slot_member
     (hslot : targetSlot ∈ writeSlots)
     (hunpacked : f.packedBits = none) :
     firstFieldWriteSlotConflictCopyFrom seen idx fields ≠ none := by sorry
--- SORRY'D:   induction fields generalizing seen idx with
--- SORRY'D:   | nil =>
--- SORRY'D:       cases hfind
--- SORRY'D:   | cons field rest ih =>
--- SORRY'D:       by_cases hname : field.name == fieldName
--- SORRY'D:       · simp [findFieldWithResolvedSlotCopyFrom, findFieldWriteSlotsCopyFrom, hname] at hfind hwrite
--- SORRY'D:         injection hfind with hf hslotEq
--- SORRY'D:         subst hf
--- SORRY'D:         subst hslotEq
--- SORRY'D:         injection hwrite with hwriteEq
--- SORRY'D:         subst hwriteEq
--- SORRY'D:         have hcurrent :
--- SORRY'D:             targetSlot ∈ (fieldWriteEntriesAt idx field).map (fun entry => entry.1) := by
--- SORRY'D:           simpa [fieldWriteEntriesAt] using hslot
--- SORRY'D:         have hunpackedCurrent :
--- SORRY'D:             ∀ packed ∈ (fieldWriteEntriesAt idx field).map (fun entry => entry.2.2), packed = none := by
--- SORRY'D:           intro packed hmem
--- SORRY'D:           simpa [fieldWriteEntriesAt, hunpacked] using hmem
--- SORRY'D:         exact firstInFieldConflictCopy_ne_none_of_seen_slot_unpacked
--- SORRY'D:           hseen hcurrent hunpackedCurrent
--- SORRY'D:       · simp [findFieldWithResolvedSlotCopyFrom, findFieldWriteSlotsCopyFrom, hname] at hfind hwrite
--- SORRY'D:         intro hnone
--- SORRY'D:         cases hfirst : firstInFieldConflictCopy seen (fieldWriteEntriesAt idx field)
--- SORRY'D:         · have htailNone :
--- SORRY'D:               firstFieldWriteSlotConflictCopyFrom
--- SORRY'D:                 ((fieldWriteEntriesAt idx field).reverse ++ seen)
--- SORRY'D:                 (idx + 1)
--- SORRY'D:                 rest = none := by
--- SORRY'D:             simpa [firstFieldWriteSlotConflictCopyFrom, hfirst] using hnone
--- SORRY'D:           have hseen' :
--- SORRY'D:               targetSlot ∈
--- SORRY'D:                 (((fieldWriteEntriesAt idx field).reverse ++ seen).map
--- SORRY'D:                   (fun entry => entry.1)) := by
--- SORRY'D:             simp [hseen]
--- SORRY'D:           exact (ih hseen' hfind hwrite hslot hunpacked) htailNone
--- SORRY'D:         · simp [firstFieldWriteSlotConflictCopyFrom, hfirst] at hnone
 
 private theorem firstFieldWriteSlotConflictCopyFrom_some_of_seen_slot_singleton
     {seen : List (Nat × String × Option PackedBits)}
@@ -3942,67 +3972,6 @@ private theorem findResolvedFieldAtSlotCopy_of_findFieldWithResolvedSlot_member
     (hslot : targetSlot ∈ writeSlots)
     (hunpacked : f.packedBits = none) :
     findResolvedFieldAtSlotCopy fields targetSlot = some f := by sorry
--- SORRY'D:   have hnoConflictCopy :
--- SORRY'D:       firstFieldWriteSlotConflictCopyFrom [] 0 fields = none := by
--- SORRY'D:     simpa [firstFieldWriteSlotConflict, firstFieldWriteSlotConflictCopyFrom,
--- SORRY'D:       fieldWriteEntriesAt, firstInFieldConflictCopy] using hnoConflict
--- SORRY'D:   have hfindCopy :
--- SORRY'D:       findFieldWithResolvedSlotCopyFrom fields 0 fieldName = some (f, slot) := by
--- SORRY'D:     simpa [findFieldWithResolvedSlot, findFieldWithResolvedSlotCopyFrom] using hfind
--- SORRY'D:   have hwriteCopy :
--- SORRY'D:       findFieldWriteSlotsCopyFrom fields 0 fieldName = some writeSlots := by
--- SORRY'D:     simpa [findFieldWriteSlots, findFieldWriteSlotsCopyFrom] using hwrite
--- SORRY'D:   have hresolved :
--- SORRY'D:       findResolvedFieldAtSlotCopyFrom fields 0 targetSlot = some f := by
--- SORRY'D:     induction fields generalizing targetSlot with
--- SORRY'D:     | nil =>
--- SORRY'D:         cases hfindCopy
--- SORRY'D:     | cons field rest ih =>
--- SORRY'D:         by_cases hname : field.name == fieldName
--- SORRY'D:         · simp [findFieldWithResolvedSlotCopyFrom, findFieldWriteSlotsCopyFrom, hname] at
--- SORRY'D:             hfindCopy hwriteCopy
--- SORRY'D:           injection hfindCopy with hf hslotEq
--- SORRY'D:           subst hf
--- SORRY'D:           subst hslotEq
--- SORRY'D:           injection hwriteCopy with hwriteEq
--- SORRY'D:           subst hwriteEq
--- SORRY'D:           rcases List.mem_cons.mp hslot with htargetEq | htargetAlias
--- SORRY'D:           · simp [findResolvedFieldAtSlotCopyFrom, htargetEq]
--- SORRY'D:           · have hcontains : field.aliasSlots.contains targetSlot = true :=
--- SORRY'D:               List.contains_eq_true.mpr htargetAlias
--- SORRY'D:             simp [findResolvedFieldAtSlotCopyFrom, hcontains]
--- SORRY'D:         · simp [findFieldWithResolvedSlotCopyFrom, findFieldWriteSlotsCopyFrom, hname] at
--- SORRY'D:             hfindCopy hwriteCopy
--- SORRY'D:           cases hfirst : firstInFieldConflictCopy [] (fieldWriteEntriesAt 0 field)
--- SORRY'D:           · have htailNoConflict :
--- SORRY'D:                 firstFieldWriteSlotConflictCopyFrom
--- SORRY'D:                   (fieldWriteEntriesAt 0 field).reverse
--- SORRY'D:                   1
--- SORRY'D:                   rest = none := by
--- SORRY'D:               simpa [firstFieldWriteSlotConflictCopyFrom, hfirst] using hnoConflictCopy
--- SORRY'D:             have hheadNotOwn :
--- SORRY'D:                 targetSlot ∉ (fieldWriteEntriesAt 0 field).map (fun entry => entry.1) := by
--- SORRY'D:               intro hmem
--- SORRY'D:               have hmemRev :
--- SORRY'D:                   targetSlot ∈ ((fieldWriteEntriesAt 0 field).reverse.map (fun entry => entry.1)) := by
--- SORRY'D:                 simpa [List.map_reverse] using (List.mem_reverse.mpr hmem)
--- SORRY'D:               exact
--- SORRY'D:                 (firstFieldWriteSlotConflictCopyFrom_some_of_seen_slot_member
--- SORRY'D:                   hmemRev hfindCopy hwriteCopy hslot hunpacked) htailNoConflict
--- SORRY'D:             have hresolvedNe : field.slot.getD 0 ≠ targetSlot := by
--- SORRY'D:               have hheadNotOwn' := hheadNotOwn
--- SORRY'D:               simp [fieldWriteEntriesAt] at hheadNotOwn'
--- SORRY'D:               exact hheadNotOwn'.1
--- SORRY'D:             have haliasNotMem : targetSlot ∉ field.aliasSlots := by
--- SORRY'D:               have hheadNotOwn' := hheadNotOwn
--- SORRY'D:               simp [fieldWriteEntriesAt] at hheadNotOwn'
--- SORRY'D:               exact hheadNotOwn'.2
--- SORRY'D:             have haliasNe : field.aliasSlots.contains targetSlot = false :=
--- SORRY'D:               List.contains_eq_false.mpr haliasNotMem
--- SORRY'D:             simpa [findResolvedFieldAtSlotCopyFrom, hresolvedNe, haliasNe] using
--- SORRY'D:               ih (targetSlot := targetSlot) htailNoConflict hfindCopy hwriteCopy hslot hunpacked
--- SORRY'D:           · simp [firstFieldWriteSlotConflictCopyFrom, hfirst] at hnoConflictCopy
--- SORRY'D:   simpa [findResolvedFieldAtSlotCopy, findResolvedFieldAtSlotCopyFrom] using hresolved
 
 private theorem findResolvedFieldAtSlotCopy_of_findFieldWithResolvedSlot_singleton
     {fields : List Field}

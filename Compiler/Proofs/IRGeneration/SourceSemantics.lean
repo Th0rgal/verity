@@ -41,7 +41,7 @@ def fieldUsesDynamicArrayStorage (field : Field) : Bool :=
   | .dynamicArray _ => true
   | _ => false
 
-private def findResolvedFieldAtSlot (fields : List Field) (slot : Nat) : Option Field :=
+def findResolvedFieldAtSlot (fields : List Field) (slot : Nat) : Option Field :=
   let rec go (remaining : List Field) (idx : Nat) : Option Field :=
     match remaining with
     | [] => none
@@ -53,7 +53,7 @@ private def findResolvedFieldAtSlot (fields : List Field) (slot : Nat) : Option 
           go rest (idx + 1)
   go fields 0
 
-private def findDynamicArrayElementAtSlot
+def findDynamicArrayElementAtSlot
     (fields : List Field) (world : Verity.ContractState) (targetSlot : Nat) : Option Nat :=
   let rec scanElements (baseSlot : Nat) : List Verity.Core.Uint256 → Nat → Option Nat
     | [], _ => none
@@ -1225,7 +1225,7 @@ def withTransactionContext (world : Verity.ContractState) (tx : IRTransaction) :
     blockNumber := tx.blockNumber
     chainId := tx.chainId }
 
-private theorem findDynamicArrayElementAtSlot_withTransactionContext
+theorem findDynamicArrayElementAtSlot_withTransactionContext
     (fields : List Field)
     (world : Verity.ContractState)
     (tx : IRTransaction)
@@ -1265,7 +1265,7 @@ private theorem findDynamicArrayElementAtSlot_withTransactionContext
       | mappingStruct2 outerKey innerKey members =>
           simpa [findDynamicArrayElementAtSlot.go, withTransactionContext, hty] using ih (idx + 1)
 
-private theorem findDynamicArrayElementAtSlot_congr_storageArray
+theorem findDynamicArrayElementAtSlot_congr_storageArray
     (fields : List Field)
     (world1 world2 : Verity.ContractState)
     (slot : Nat)
