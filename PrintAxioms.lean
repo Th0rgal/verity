@@ -1122,6 +1122,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListScopeDiscipline_of_validateScopedStmtListIdentifiers  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.scopeNamesPresent_foldl_stmtNextScope_of_validateScopedStmtListIdentifiers  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.collectExprNames_mem_exprBoundNames_of_core  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.mem_foldl_stmtNextScope_of_mem_scope  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListNames_subset_foldl_stmtNextScope  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListScopeDiscipline_scope_names  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_writeUintSlots_singleton_other  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_writeUintSlots_other  -- private
@@ -1586,8 +1588,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.stmt_sizeOf_lt_ite_then  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.stmt_sizeOf_lt_ite_else  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.stmt_sizeOf_lt_cons  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed_inner  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux  -- private
--- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed_aux  -- private
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtListWithHelpersConservativeExtensionGoal_of_helperSurfaceClosed
@@ -1866,4 +1868,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1735 theorems/lemmas (1145 public, 554 private, 36 sorry'd)
+-- Total: 1737 theorems/lemmas (1145 public, 556 private, 36 sorry'd)
