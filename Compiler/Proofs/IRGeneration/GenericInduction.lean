@@ -4220,17 +4220,8 @@ private theorem runtimeStateMatchesIR_writeUintSlot
       { runtime with world := SourceSemantics.writeUintSlots runtime.world [slot] value }
       { state with
           storage := Compiler.Proofs.abstractStoreStorageOrMapping state.storage slot value } := by sorry
--- SORRY'D:   rcases hruntime with
--- SORRY'D:     ⟨hstorage, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
--- SORRY'D:   refine ⟨?_, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
--- SORRY'D:   funext query
--- SORRY'D:   by_cases hEq : query = slot
--- SORRY'D:   · subst hEq
--- SORRY'D:     rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq, hstorage,
--- SORRY'D:       encodeStorageAt_eq_storage_of_resolvedSlot hresolved hnotAddr hnotDyn]
--- SORRY'D:     simp [SourceSemantics.writeUintSlots]
--- SORRY'D:   · rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq, hstorage]
--- SORRY'D:     simp [hEq, encodeStorageAt_writeUintSlots_singleton_other]
+-- SORRY'D (needs value < Constants.evmModulus hypothesis):
+-- The proof works except for the pos case where we need value = value % evmModulus
 
 private theorem runtimeStateMatchesIR_writeAddressSlot
     {fields : List Field}
@@ -4246,17 +4237,7 @@ private theorem runtimeStateMatchesIR_writeAddressSlot
       { runtime with world := SourceSemantics.writeAddressSlots runtime.world [slot] value }
       { state with
           storage := Compiler.Proofs.abstractStoreStorageOrMapping state.storage slot value } := by sorry
--- SORRY'D:   rcases hruntime with
--- SORRY'D:     ⟨hstorage, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
--- SORRY'D:   refine ⟨?_, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
--- SORRY'D:   funext query
--- SORRY'D:   by_cases hEq : query = slot
--- SORRY'D:   · subst hEq
--- SORRY'D:     rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq, hstorage,
--- SORRY'D:       encodeStorageAt_eq_storageAddr_of_resolvedSlot hresolved haddr hnotDyn]
--- SORRY'D:     simp [SourceSemantics.writeAddressSlots]
--- SORRY'D:   · rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq, hstorage]
--- SORRY'D:     simp [hEq, SourceSemantics.writeAddressSlots]
+-- SORRY'D (needs value < Constants.evmModulus hypothesis)
 
 private theorem runtimeStateMatchesIR_writeUintSlots
     {fields : List Field}
@@ -4273,16 +4254,7 @@ private theorem runtimeStateMatchesIR_writeUintSlots
       { runtime with world := SourceSemantics.writeUintSlots runtime.world slots value }
       { state with
           storage := abstractStoreStorageOrMappingMany state.storage slots value } := by sorry
--- SORRY'D:   rcases hruntime with
--- SORRY'D:     ⟨hstorage, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
--- SORRY'D:   refine ⟨?_, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
--- SORRY'D:   funext query
--- SORRY'D:   by_cases hmem : query ∈ slots
--- SORRY'D:   · rw [abstractStoreStorageOrMappingMany_eq, hstorage,
--- SORRY'D:       encodeStorageAt_eq_storage_of_resolvedSlot (hresolved query hmem) hnotAddr hnotDyn]
--- SORRY'D:     simp [SourceSemantics.writeUintSlots, List.contains_eq_true.mpr hmem]
--- SORRY'D:   · rw [abstractStoreStorageOrMappingMany_eq, hstorage]
--- SORRY'D:     simp [List.contains_eq_false.mpr hmem, encodeStorageAt_writeUintSlots_other hmem]
+-- SORRY'D (needs value < Constants.evmModulus hypothesis)
 
 private theorem runtimeStateMatchesIR_writeUintKeyedMappingSlot
     {fields : List Field}

@@ -8324,7 +8324,48 @@ theorem execStmtList_terminal_core_not_continue
     {stmts : List Stmt}
     (hterminal : StmtListTerminalCore scope stmts) :
     ∀ next, SourceSemantics.execStmtList fields runtime stmts ≠ .continue next := by
-  sorry
+  induction hterminal generalizing runtime with
+  | letVar hvalue hinScope hrest ih =>
+      intro next
+      simp only [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+      cases SourceSemantics.evalExpr fields runtime _ <;> simp_all
+  | assignVar hvalue hinScope hrest ih =>
+      intro next
+      simp only [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+      cases SourceSemantics.evalExpr fields runtime _ <;> simp_all
+  | require_ hcond hinScope hrest ih =>
+      intro next
+      simp only [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+      cases heval : SourceSemantics.evalExpr fields runtime _ with
+      | none => simp
+      | some resolved =>
+          simp only [heval]
+          by_cases hne : resolved != 0 <;> simp_all
+  | return_ hvalue hinScope hrest =>
+      intro next
+      simp only [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+      cases SourceSemantics.evalExpr fields runtime _ <;> simp
+  | stop hrest =>
+      intro next
+      simp [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+  | ite hcond hinScope hthen helse hrest ih_then ih_else =>
+      intro next
+      simp only [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+      cases heval : SourceSemantics.evalExpr fields runtime _ with
+      | none => simp
+      | some resolved =>
+          simp only [heval]
+          by_cases hne : resolved != 0
+          · simp only [hne, ↓reduceIte, bne_self_eq_false, Bool.false_eq_true]
+            have hbranch := ih_then (runtime := runtime)
+            cases hexec : SourceSemantics.execStmtList fields runtime _ with
+            | «continue» next' => exact absurd hexec (hbranch next')
+            | stop _ | «return» _ _ | revert => simp [hexec]
+          · simp only [hne, ↓reduceIte, bne_self_eq_false, Bool.false_eq_true]
+            have hbranch := ih_else (runtime := runtime)
+            cases hexec : SourceSemantics.execStmtList fields runtime _ with
+            | «continue» next' => exact absurd hexec (hbranch next')
+            | stop _ | «return» _ _ | revert => simp [hexec]
 
 theorem stmtResultMatchesIRExec_ir_not_continue_of_source_not_continue
     {fields : List Field}
