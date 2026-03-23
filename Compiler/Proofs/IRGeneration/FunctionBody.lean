@@ -1661,12 +1661,34 @@ theorem eval_compileExpr_ge_of_compiled {fields : List Field} {runtime : SourceS
     evalIRExpr state
       (CompilationModel.compileExpr fields .calldata (.ge lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
         some (SourceSemantics.evalExpr fields runtime (.ge lhs rhs)) := by
-  -- Temporary stabilization point for the `Option` migration.
-  -- Clean fix: first normalize the `Option`-valued `SourceSemantics.evalExpr`
-  -- equalities into the exact hypotheses expected by `evalIRExpr_lt_of_eval`
-  -- / `evalIRExpr_iszero_of_lt`, then replay the old successful-evaluation
-  -- comparison proof on the normalized branch.
-  sorry
+  rcases hlhsSrc : SourceSemantics.evalExpr fields runtime lhs with _ | lhsVal
+  · cases hEval : evalIRExpr state lhsIR <;> simp [hEval, hlhsSrc] at hlhsEval
+  · rcases hrhsSrc : SourceSemantics.evalExpr fields runtime rhs with _ | rhsVal
+    · cases hEval : evalIRExpr state rhsIR <;> simp [hEval, hrhsSrc] at hrhsEval
+    · have hlhsLt' : lhsVal < Compiler.Constants.evmModulus := by
+        simpa [hlhsSrc] using hlhsLt
+      have hrhsLt' : rhsVal < Compiler.Constants.evmModulus := by
+        simpa [hrhsSrc] using hrhsLt
+      have heval :=
+        eval_compileExpr_ge_raw
+          (hlhsCompile := hlhsCompile)
+          (hrhsCompile := hrhsCompile)
+          (hlhsEval := hlhsEval)
+          (hrhsEval := hrhsEval)
+      have hsrc :
+          SourceSemantics.evalExpr fields runtime (.ge lhs rhs) =
+            some (SourceSemantics.boolWord (decide (rhsVal ≤ lhsVal))) := by
+        calc
+          SourceSemantics.evalExpr fields runtime (.ge lhs rhs)
+              = (do
+                  let lhs ← SourceSemantics.evalExpr fields runtime lhs
+                  let rhs ← SourceSemantics.evalExpr fields runtime rhs
+                  pure (SourceSemantics.boolWord (decide (rhs ≤ lhs)))) := by
+                    rfl
+          _ = some (SourceSemantics.boolWord (decide (rhsVal ≤ lhsVal))) := by
+                simp [hlhsSrc, hrhsSrc]
+      rw [heval, hsrc]
+      simp [hlhsSrc, hrhsSrc, Nat.mod_eq_of_lt hlhsLt', Nat.mod_eq_of_lt hrhsLt']
 -- SORRY'D:   have hcompile := compileExpr_ge_ok hlhsCompile hrhsCompile
 -- SORRY'D:   have hltEval :
 -- SORRY'D:       evalIRExpr state (YulExpr.call "lt" [lhsIR, rhsIR]) =
