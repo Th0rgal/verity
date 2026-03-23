@@ -9784,12 +9784,27 @@ theorem stmtResultToSourceResult_matches_irExecResult
     sourceResultMatchesIRResult
       (stmtResultToSourceResult spec initialWorld sourceResult)
       (irResultOfExecResult rollback irResult) := by
-  -- Temporary stabilization point for the result-conversion bridge.
-  -- Clean fix: split the four aligned `(sourceResult, irResult)` cases and
-  -- reorder the `runtimeStateMatchesIR` conjuncts into the exact
-  -- `sourceResultMatchesIRResult` shape, using `encodeStorage = encodeStorageAt`
-  -- after `subst hfields`.
-  sorry
+  subst hfields
+  cases sourceResult <;> cases irResult <;>
+    simp [stmtResultMatchesIRExec] at hmatch
+  · rcases hmatch with
+      ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+    simp [stmtResultToSourceResult, sourceResultMatchesIRResult, irResultOfExecResult,
+      SourceSemantics.successResult, SourceSemantics.encodeStorage,
+      hstorage, hevents, hret]
+  · rcases hmatch with
+      ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+    simp [stmtResultToSourceResult, sourceResultMatchesIRResult, irResultOfExecResult,
+      SourceSemantics.successResult, SourceSemantics.encodeStorage,
+      hstorage, hevents]
+  · rcases hmatch with
+      ⟨hvalue, hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret,
+        hevents⟩
+    simp [stmtResultToSourceResult, sourceResultMatchesIRResult, irResultOfExecResult,
+      SourceSemantics.successResult, SourceSemantics.encodeStorage,
+      hvalue, hstorage, hevents]
+  · simp [stmtResultToSourceResult, sourceResultMatchesIRResult, irResultOfExecResult,
+      SourceSemantics.revertedResult, hrollbackStorage, hrollbackEvents]
 
 end FunctionBody
 
