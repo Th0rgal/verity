@@ -1020,10 +1020,8 @@ private theorem stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites_con
       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites (stmt :: rest) = false) :
     stmtTouchesUnsupportedContractSurfaceExceptMappingWrites stmt = false ∧
       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites rest = false := by
-  -- Temporary stabilization point after the supported-surface refactor.
-  -- Clean fix: rederive the head/tail split from the current boolean surface
-  -- definition without relying on the old `simp` normal form.
-  sorry
+  simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites] using
+    (Bool.or_eq_false_iff.mp hsurface)
 
 -- SORRY'D: /-- On the Tier 2 alternate contract surface, successful single-statement
 -- SORRY'D: compilation still stays inside the legacy helper-free external Yul subset. This
