@@ -1491,8 +1491,10 @@ theorem eval_compileExpr_ge_of_compiled {fields : List Field} {runtime : SourceS
       (CompilationModel.compileExpr fields .calldata (.ge lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
         some (SourceSemantics.evalExpr fields runtime (.ge lhs rhs)) := by
   -- Temporary stabilization point for the `Option` migration.
-  -- Clean fix: consume the repaired `eval_compileExpr_ge_raw` theorem and
-  -- finish with an explicit successful-evaluation comparison proof.
+  -- Clean fix: first normalize the `Option`-valued `SourceSemantics.evalExpr`
+  -- equalities into the exact hypotheses expected by `evalIRExpr_lt_of_eval`
+  -- / `evalIRExpr_iszero_of_lt`, then replay the old successful-evaluation
+  -- comparison proof on the normalized branch.
   sorry
 -- SORRY'D:   have hcompile := compileExpr_ge_ok hlhsCompile hrhsCompile
 -- SORRY'D:   have hltEval :
