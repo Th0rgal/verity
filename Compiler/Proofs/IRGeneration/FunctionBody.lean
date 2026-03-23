@@ -1576,6 +1576,56 @@ private theorem evalExpr_div_of_values
           Verity.Core.Uint256).val) := by
           simp [hlhs, hrhs]
 
+private theorem evalExpr_sub_of_values
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {lhs rhs : Expr}
+    {lhsVal rhsVal : Nat}
+    (hlhs : SourceSemantics.evalExpr fields runtime lhs = some lhsVal)
+    (hrhs : SourceSemantics.evalExpr fields runtime rhs = some rhsVal) :
+    SourceSemantics.evalExpr fields runtime (.sub lhs rhs) =
+      some ((((lhsVal : Verity.Core.Uint256) - (rhsVal : Verity.Core.Uint256)) :
+        Verity.Core.Uint256).val) := by
+  calc
+    SourceSemantics.evalExpr fields runtime (.sub lhs rhs)
+        = (do
+            let lhs ← do
+              let a ← SourceSemantics.evalExpr fields runtime lhs
+              pure (Verity.Core.Uint256.ofNat a)
+            let rhs ← do
+              let a ← SourceSemantics.evalExpr fields runtime rhs
+              pure (Verity.Core.Uint256.ofNat a)
+            pure (lhs - rhs).val) := by
+              rfl
+    _ = some ((((lhsVal : Verity.Core.Uint256) - (rhsVal : Verity.Core.Uint256)) :
+          Verity.Core.Uint256).val) := by
+          simp [hlhs, hrhs]
+
+private theorem evalExpr_mod_of_values
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {lhs rhs : Expr}
+    {lhsVal rhsVal : Nat}
+    (hlhs : SourceSemantics.evalExpr fields runtime lhs = some lhsVal)
+    (hrhs : SourceSemantics.evalExpr fields runtime rhs = some rhsVal) :
+    SourceSemantics.evalExpr fields runtime (.mod lhs rhs) =
+      some ((((lhsVal : Verity.Core.Uint256) % (rhsVal : Verity.Core.Uint256)) :
+        Verity.Core.Uint256).val) := by
+  calc
+    SourceSemantics.evalExpr fields runtime (.mod lhs rhs)
+        = (do
+            let lhs ← do
+              let a ← SourceSemantics.evalExpr fields runtime lhs
+              pure (Verity.Core.Uint256.ofNat a)
+            let rhs ← do
+              let a ← SourceSemantics.evalExpr fields runtime rhs
+              pure (Verity.Core.Uint256.ofNat a)
+            pure (lhs % rhs).val) := by
+              rfl
+    _ = some ((((lhsVal : Verity.Core.Uint256) % (rhsVal : Verity.Core.Uint256)) :
+          Verity.Core.Uint256).val) := by
+          simp [hlhs, hrhs]
+
 theorem eval_compileExpr_eq_of_compiled
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
@@ -2354,10 +2404,29 @@ theorem eval_compileExpr_sub_of_compiled
     evalIRExpr state
       (CompilationModel.compileExpr fields .calldata (.sub lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
         some (SourceSemantics.evalExpr fields runtime (.sub lhs rhs)) := by
-  -- Temporary stabilization point for the `Option` migration.
-  -- Clean fix: handle the successful branch explicitly and then reuse the
-  -- existing `Uint256.sub` arithmetic bridge.
-  sorry
+  have hcompile := compileExpr_sub_ok hlhsCompile hrhsCompile
+  rcases hlhsSrc : SourceSemantics.evalExpr fields runtime lhs with _ | lhsVal
+  · cases hEval : evalIRExpr state lhsIR <;> simp [hEval, hlhsSrc] at hlhsEval
+  · rcases hrhsSrc : SourceSemantics.evalExpr fields runtime rhs with _ | rhsVal
+    · cases hEval : evalIRExpr state rhsIR <;> simp [hEval, hrhsSrc] at hrhsEval
+    · have hlhsEval' := evalIRExpr_of_sourceEval_some hlhsEval hlhsSrc
+      have hrhsEval' := evalIRExpr_of_sourceEval_some hrhsEval hrhsSrc
+      have hlhsLt' : lhsVal < Compiler.Constants.evmModulus := by
+        simpa [hlhsSrc] using hlhsLt
+      have hrhsLt' : rhsVal < Compiler.Constants.evmModulus := by
+        simpa [hrhsSrc] using hrhsLt
+      have heval :
+          evalIRExpr state
+            (CompilationModel.compileExpr fields .calldata (.sub lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
+              some ((Compiler.Constants.evmModulus +
+                (lhsVal % Compiler.Constants.evmModulus) -
+                (rhsVal % Compiler.Constants.evmModulus)) % Compiler.Constants.evmModulus) := by
+        simpa [hcompile] using evalIRExpr_sub_of_eval hlhsEval' hrhsEval'
+      have hsrc := evalExpr_sub_of_values hlhsSrc hrhsSrc
+      rw [heval]
+      rw [hsrc]
+      rw [uint256_sub_val_eq hlhsLt' hrhsLt']
+      simp [Nat.mod_eq_of_lt hlhsLt', Nat.mod_eq_of_lt hrhsLt']
 -- SORRY'D:   have hcompile := compileExpr_sub_ok hlhsCompile hrhsCompile
 -- SORRY'D:   have heval :
 -- SORRY'D:       evalIRExpr state
