@@ -1587,10 +1587,50 @@ theorem eval_compileExpr_gt_of_compiled
     evalIRExpr state
       (CompilationModel.compileExpr fields .calldata (.gt lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
         some (SourceSemantics.evalExpr fields runtime (.gt lhs rhs)) := by
-  -- Temporary stabilization point for the `Option` migration.
-  -- Clean fix: same shape as `lt`, with the operand order reversed after
-  -- extracting successful source evaluations.
-  sorry
+  have hcompile := compileExpr_gt_ok hlhsCompile hrhsCompile
+  rcases hlhsSrc : SourceSemantics.evalExpr fields runtime lhs with _ | lhsVal
+  · cases hEval : evalIRExpr state lhsIR <;> simp [hEval, hlhsSrc] at hlhsEval
+  · rcases hrhsSrc : SourceSemantics.evalExpr fields runtime rhs with _ | rhsVal
+    · cases hEval : evalIRExpr state rhsIR <;> simp [hEval, hrhsSrc] at hrhsEval
+    · have hlhsEval' : evalIRExpr state lhsIR = some lhsVal := by
+        cases hEval : evalIRExpr state lhsIR with
+        | none =>
+            simp [hEval, hlhsSrc] at hlhsEval
+        | some val =>
+            simp [hEval, hlhsSrc] at hlhsEval
+            simpa [hlhsEval] using hEval
+      have hrhsEval' : evalIRExpr state rhsIR = some rhsVal := by
+        cases hEval : evalIRExpr state rhsIR with
+        | none =>
+            simp [hEval, hrhsSrc] at hrhsEval
+        | some val =>
+            simp [hEval, hrhsSrc] at hrhsEval
+            simpa [hrhsEval] using hEval
+      have hlhsLt' : lhsVal < Compiler.Constants.evmModulus := by
+        simpa [hlhsSrc] using hlhsLt
+      have hrhsLt' : rhsVal < Compiler.Constants.evmModulus := by
+        simpa [hrhsSrc] using hrhsLt
+      have heval :
+          evalIRExpr state
+            (CompilationModel.compileExpr fields .calldata (.gt lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
+              some (SourceSemantics.boolWord
+                (rhsVal % Compiler.Constants.evmModulus <
+                  lhsVal % Compiler.Constants.evmModulus)) := by
+        simpa [hcompile] using evalIRExpr_gt_of_eval hlhsEval' hrhsEval'
+      have hsrc :
+          SourceSemantics.evalExpr fields runtime (.gt lhs rhs) =
+            some (SourceSemantics.boolWord (decide (rhsVal < lhsVal))) := by
+        calc
+          SourceSemantics.evalExpr fields runtime (.gt lhs rhs)
+              = (do
+                  let lhs ← SourceSemantics.evalExpr fields runtime lhs
+                  let rhs ← SourceSemantics.evalExpr fields runtime rhs
+                  pure (SourceSemantics.boolWord (decide (rhs < lhs)))) := by
+                    rfl
+          _ = some (SourceSemantics.boolWord (decide (rhsVal < lhsVal))) := by
+                simp [hlhsSrc, hrhsSrc]
+      rw [heval, hsrc]
+      simp [Nat.mod_eq_of_lt hlhsLt', Nat.mod_eq_of_lt hrhsLt']
 -- SORRY'D:   have hcompile := compileExpr_gt_ok hlhsCompile hrhsCompile
 -- SORRY'D:   have heval :
 -- SORRY'D:       evalIRExpr state
