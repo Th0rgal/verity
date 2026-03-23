@@ -858,6 +858,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_lt_of_values  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_gt_of_values  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_add_of_values  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_mul_of_values  -- private
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_eq_of_compiled
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_lt_of_compiled
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_gt_of_compiled
@@ -867,7 +868,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_logicalAnd_of_compiled
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_logicalOr_of_compiled
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_add_of_compiled
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_mul_of_compiled  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_mul_of_compiled
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.uint256_val_ofNat_eq
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.uint256_div_val_eq
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.uint256_sub_val_eq
@@ -1855,4 +1856,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1724 theorems/lemmas (1135 public, 546 private, 43 sorry'd)
+-- Total: 1725 theorems/lemmas (1136 public, 547 private, 42 sorry'd)
