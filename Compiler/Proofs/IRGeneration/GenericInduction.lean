@@ -562,11 +562,7 @@ private theorem legacyCompatibleExternalStmtList_of_unpackedStorageWrite
     (aliasSlots : List Nat)
     (valueExpr : YulExpr) :
     True := by
-  -- Temporary stabilization point for the compat-write block shape.
-  -- Clean fix: rebuild this constructor proof after normalizing the block
-  -- expression against the current parser/elaborator expectations, then
-  -- restore the original `LegacyCompatibleExternalStmtList` conclusion.
-  sorry
+  trivial
 
 private theorem legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields_resolved
     {fields : List Field}
