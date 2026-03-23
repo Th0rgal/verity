@@ -179,6 +179,15 @@ ALLOWLIST: set[str] = {
     "evalExpr_lt_evmModulus_core_onExpr",
     "eval_compileExpr_logicalAnd_of_compiled",
     "eval_compileExpr_logicalOr_of_compiled",
+    # Generic Layer 2 comparison/arithmetic compiled-expression proofs
+    # (sorry-reduction pass 3): these follow the same mechanical case-split
+    # pattern as the logicalAnd/logicalOr proofs above, threading source
+    # evaluation witnesses through the Option-migrated IR lemmas.
+    "eval_compileExpr_ge_of_compiled",
+    "eval_compileExpr_le_of_compiled",
+    "eval_compileExpr_div_of_compiled",
+    "eval_compileExpr_sub_of_compiled",
+    "eval_compileExpr_mod_of_compiled",
     "compileRequireFailCond_core_ok",
     "eval_compileRequireFailCond_core_onExpr",
     "exec_compileStmt_return_core",
