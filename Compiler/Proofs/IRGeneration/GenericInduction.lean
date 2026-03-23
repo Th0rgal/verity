@@ -2495,7 +2495,27 @@ private theorem compileStmt_ite_ok_inv
         fields [] [] .calldata [] false scope thenBranch = Except.ok thenIR ∧
       CompilationModel.compileStmtList
         fields [] [] .calldata [] false scope elseBranch = Except.ok elseIR := by
-  sorry
+  unfold CompilationModel.compileStmt at hcompile
+  rcases hcond : CompilationModel.compileExpr fields .calldata cond with _ | condIR
+  · simp [hcond] at hcompile
+    cases hcompile
+  · simp [hcond] at hcompile
+    rcases hthen : CompilationModel.compileStmtList
+        fields [] [] .calldata [] false scope thenBranch with _ | thenIR
+    · simp [hthen] at hcompile
+      cases hcompile
+    · simp [hthen] at hcompile
+      rcases helse : CompilationModel.compileStmtList
+          fields [] [] .calldata [] false scope elseBranch with _ | elseIR
+      · simp [helse] at hcompile
+        cases hcompile
+      ·
+        simpa [hcond, hthen, helse] using
+          (show ∃ condIR thenIR elseIR,
+              Except.ok condIR = Except.ok condIR ∧
+              Except.ok thenIR = Except.ok thenIR ∧
+              Except.ok elseIR = Except.ok elseIR from
+            ⟨condIR, thenIR, elseIR, rfl, rfl, rfl⟩)
 
 -- TYPESIG_SORRY: theorem stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsupportedContractSurface
 -- TYPESIG_SORRY:     {fields : List Field}
