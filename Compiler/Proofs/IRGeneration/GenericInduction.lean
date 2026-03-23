@@ -1840,7 +1840,11 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_int
       StmtListResidualHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
     (hlegacy : StmtListHelperFreeCompiledLegacyCompatible fields scope stmts)
     (hnoInternalFunctions : runtimeContract.internalFunctions = []) :
-    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by sorry
+    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
+  -- Temporary stabilization point: the clean fix is to reconstruct this wrapper
+  -- through the helper-surface aggregate bridge after that aggregate theorem is
+  -- restored above, instead of trying to route through later split-helper lemmas.
+  sorry
 -- SORRY'D:   exact
 -- SORRY'D:     stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
 -- SORRY'D:       (runtimeContract := runtimeContract)
@@ -2462,8 +2466,7 @@ private theorem fieldName_mem_fields_of_findFieldWithResolvedSlot_some
     {f : Field}
     {slot : Nat}
     (hfind : findFieldWithResolvedSlot fields fieldName = some (f, slot)) :
-    fieldName ∈ fields.map (·.name) := by
-  sorry
+    fieldName ∈ fields.map (·.name) := by sorry
 
 private theorem fieldName_mem_fields_of_compileSetStorage_ok
     {fields : List Field}

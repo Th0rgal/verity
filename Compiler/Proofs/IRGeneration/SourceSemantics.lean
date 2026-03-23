@@ -2549,6 +2549,13 @@ mutual
       (stmt : Stmt)
       (hsurface : stmtTouchesUnsupportedHelperSurface stmt = false) :
       execStmtWithHelpers spec fields fuel state stmt = execStmt fields state stmt := by
+    -- Temporary stabilization point for the helper-surface frontier.
+    -- Clean fix: prove this and the list theorem below by a local mutual recursion
+    -- over `Stmt` / `List Stmt`, reusing the per-constructor helper-surface
+    -- lemmas above and only recursing through `.ite` and list `.cons`.
+    -- The remaining technical blocker is the mutual `termination_by`: Lean needs
+    -- explicit branch-specific decreases for the `.ite` then/else calls and the
+    -- list-head call from `stmt :: rest`.
     sorry
 
   private theorem execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed_aux
@@ -2559,6 +2566,10 @@ mutual
       (stmts : List Stmt)
       (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
       execStmtListWithHelpers spec fields fuel state stmts = execStmtList fields state stmts := by
+    -- Temporary stabilization point paired with the stmt theorem above.
+    -- Clean fix: recurse on the list spine, dispatching the head via the stmt
+    -- theorem and using the recursive hypothesis only in the `.continue` branch,
+    -- with the same explicit termination witnesses noted in the stmt theorem.
     sorry
 theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed
     (spec : CompilationModel)
