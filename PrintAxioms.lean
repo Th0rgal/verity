@@ -859,7 +859,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_ge_of_compiled  -- sorry'd
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_le_of_compiled  -- sorry'd
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_logicalNot_of_compiled
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_logicalAnd_of_compiled  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_logicalAnd_of_compiled
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_logicalOr_of_compiled  -- sorry'd
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_add_of_compiled  -- sorry'd
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_mul_of_compiled  -- sorry'd
@@ -1850,4 +1850,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1719 theorems/lemmas (1127 public, 541 private, 51 sorry'd)
+-- Total: 1719 theorems/lemmas (1128 public, 541 private, 50 sorry'd)
