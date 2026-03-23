@@ -552,10 +552,17 @@ private theorem field_mem_of_findFieldWithResolvedSlot_some
     {slot : Nat}
     (hfind : findFieldWithResolvedSlot fields fieldName = some (f, slot)) :
     f ∈ fields := by
-  -- Temporary stabilization point for the current `findFieldWithResolvedSlot`
-  -- refactor. Clean fix: restate this helper against the new field lookup
-  -- API and eliminate the stale `findFieldByName` references.
-  sorry
+  induction fields with
+  | nil =>
+      simp [findFieldWithResolvedSlot] at hfind
+  | cons field rest ih =>
+      simp [findFieldWithResolvedSlot] at hfind ⊢
+      by_cases hname : field.name == fieldName
+      · simp [hname] at hfind
+        injection hfind with hf hslot
+        simp [hf]
+      · simp [hname] at hfind
+        exact Or.inr (ih hfind)
 
 private theorem legacyCompatibleExternalStmtList_of_unpackedStorageWrite
     (slot : Nat)
