@@ -2001,8 +2001,9 @@ theorem eval_compileExpr_add_of_compiled
       (CompilationModel.compileExpr fields .calldata (.add lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
         some (SourceSemantics.evalExpr fields runtime (.add lhs rhs)) := by
   -- Temporary stabilization point for the `Option` migration.
-  -- Clean fix: prove arithmetic preservation after extracting successful
-  -- operand evaluations, then bridge to the `Uint256` view.
+  -- Clean fix: after extracting concrete `lhsVal`/`rhsVal`, unfold the
+  -- `.add` source branch into the elaborated `Uint256.ofNat` coercion form and
+  -- close the result with `Nat.add_mod`.
   sorry
 -- SORRY'D:   have hcompile := compileExpr_add_ok hlhsCompile hrhsCompile
 -- SORRY'D:   have heval :
@@ -3393,8 +3394,8 @@ theorem runtimeStateMatchesIR_setTransientStorage
       { state with
           transientStorage := fun o => if o = offset then value else state.transientStorage o } := by
   -- Temporary stabilization point for the `Option` migration.
-  -- Clean fix: reconcile the transient-storage world update with the encoded
-  -- IR view after the recent runtime representation changes.
+  -- Clean fix: update the IR side with the same `% evmModulus` normalization as
+  -- the `Uint256.ofNat` world write, or add the missing in-range hypothesis.
   sorry
 
 theorem bindingsExactlyMatchIRVars_setMemory
@@ -9523,6 +9524,11 @@ theorem stmtResultToSourceResult_matches_irExecResult
     sourceResultMatchesIRResult
       (stmtResultToSourceResult spec initialWorld sourceResult)
       (irResultOfExecResult rollback irResult) := by
+  -- Temporary stabilization point for the result-conversion bridge.
+  -- Clean fix: split the four aligned `(sourceResult, irResult)` cases and
+  -- reorder the `runtimeStateMatchesIR` conjuncts into the exact
+  -- `sourceResultMatchesIRResult` shape, using `encodeStorage = encodeStorageAt`
+  -- after `subst hfields`.
   sorry
 
 end FunctionBody
