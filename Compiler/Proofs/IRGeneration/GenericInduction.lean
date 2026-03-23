@@ -7745,12 +7745,6 @@ private theorem stmtListGenericCore_of_requireClausesThenLetAssignMulSetStorageL
 -- SORRY'D:               simp [stmtNextScope, collectStmtNames, FunctionBody.exprBoundNames] at hmem ⊢
 -- SORRY'D:               simpa using hmem))))
 
-private theorem stmtListGenericCore_singleton_requireLiteralGuardFamilyClause
-    {fields : List Field}
-    {scope : List String}
-    (clause : Verity.Core.Free.RequireLiteralGuardFamilyClause) :
-    StmtListGenericCore fields scope [clause.toStmt] := by sorry
-
 -- TYPESIG_SORRY: private theorem stmtListGenericCore_of_supportedStmtList_append_of_surface
 -- TYPESIG_SORRY:     {fields : List Field}
 -- TYPESIG_SORRY:     {scope prefix suffix : List Stmt}
@@ -9508,6 +9502,117 @@ theorem stmtListGenericCore_of_stmtListTerminalCore
   stmtListGenericCore_of_stmtListTerminalCore_of_scopeNamesIncluded
     hterminal
     FunctionBody.scopeNamesIncluded_refl
+
+private theorem stmtListGenericCore_singleton_requireLiteralGuardFamilyClause
+    {fields : List Field}
+    {scope : List String}
+    (clause : Verity.Core.Free.RequireLiteralGuardFamilyClause) :
+    StmtListGenericCore fields scope [clause.toStmt] := by
+  cases clause with
+  | mk family n m p q message =>
+      cases family with
+      | binary op =>
+          cases op
+          case eq =>
+            simpa [Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt] using
+              (show StmtListGenericCore fields scope
+                [Stmt.require (Expr.eq (Expr.literal n) (Expr.literal m)) message] from by
+                  have hcore : FunctionBody.StmtListCompileCore scope
+                      [Stmt.require (Expr.eq (Expr.literal n) (Expr.literal m)) message] := by
+                    refine FunctionBody.StmtListCompileCore.require_ ?_ ?_ FunctionBody.StmtListCompileCore.nil
+                    · repeat constructor
+                    · intro name hmem
+                      simp [FunctionBody.exprBoundNames] at hmem
+                  exact stmtListGenericCore_of_stmtListCompileCore hcore)
+          case notEq =>
+            simpa [Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt] using
+              (show StmtListGenericCore fields scope
+                [Stmt.require (Expr.logicalNot (Expr.eq (Expr.literal n) (Expr.literal m))) message] from by
+                  have hcore : FunctionBody.StmtListCompileCore scope
+                      [Stmt.require (Expr.logicalNot (Expr.eq (Expr.literal n) (Expr.literal m))) message] := by
+                    refine FunctionBody.StmtListCompileCore.require_ ?_ ?_ FunctionBody.StmtListCompileCore.nil
+                    · repeat constructor
+                    · intro name hmem
+                      simp [FunctionBody.exprBoundNames] at hmem
+                  exact stmtListGenericCore_of_stmtListCompileCore hcore)
+          case lt =>
+            simpa [Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt] using
+              (show StmtListGenericCore fields scope
+                [Stmt.require (Expr.lt (Expr.literal n) (Expr.literal m)) message] from by
+                  have hcore : FunctionBody.StmtListCompileCore scope
+                      [Stmt.require (Expr.lt (Expr.literal n) (Expr.literal m)) message] := by
+                    refine FunctionBody.StmtListCompileCore.require_ ?_ ?_ FunctionBody.StmtListCompileCore.nil
+                    · repeat constructor
+                    · intro name hmem
+                      simp [FunctionBody.exprBoundNames] at hmem
+                  exact stmtListGenericCore_of_stmtListCompileCore hcore)
+          case gt =>
+            simpa [Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt] using
+              (show StmtListGenericCore fields scope
+                [Stmt.require (Expr.gt (Expr.literal n) (Expr.literal m)) message] from by
+                  have hcore : FunctionBody.StmtListCompileCore scope
+                      [Stmt.require (Expr.gt (Expr.literal n) (Expr.literal m)) message] := by
+                    refine FunctionBody.StmtListCompileCore.require_ ?_ ?_ FunctionBody.StmtListCompileCore.nil
+                    · repeat constructor
+                    · intro name hmem
+                      simp [FunctionBody.exprBoundNames] at hmem
+                  exact stmtListGenericCore_of_stmtListCompileCore hcore)
+          case ge =>
+            simpa [Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt] using
+              (show StmtListGenericCore fields scope
+                [Stmt.require (Expr.ge (Expr.literal n) (Expr.literal m)) message] from by
+                  have hcore : FunctionBody.StmtListCompileCore scope
+                      [Stmt.require (Expr.ge (Expr.literal n) (Expr.literal m)) message] := by
+                    refine FunctionBody.StmtListCompileCore.require_ ?_ ?_ FunctionBody.StmtListCompileCore.nil
+                    · repeat constructor
+                    · intro name hmem
+                      simp [FunctionBody.exprBoundNames] at hmem
+                  exact stmtListGenericCore_of_stmtListCompileCore hcore)
+          case le =>
+            simpa [Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt] using
+              (show StmtListGenericCore fields scope
+                [Stmt.require (Expr.le (Expr.literal n) (Expr.literal m)) message] from by
+                  have hcore : FunctionBody.StmtListCompileCore scope
+                      [Stmt.require (Expr.le (Expr.literal n) (Expr.literal m)) message] := by
+                    refine FunctionBody.StmtListCompileCore.require_ ?_ ?_ FunctionBody.StmtListCompileCore.nil
+                    · repeat constructor
+                    · intro name hmem
+                      simp [FunctionBody.exprBoundNames] at hmem
+                  exact stmtListGenericCore_of_stmtListCompileCore hcore)
+      | andEqLt =>
+          simpa [Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt] using
+            (show StmtListGenericCore fields scope
+              [Stmt.require
+                (Expr.logicalAnd (Expr.eq (Expr.literal n) (Expr.literal m))
+                  (Expr.lt (Expr.literal p) (Expr.literal q)))
+                message] from by
+                  have hcore : FunctionBody.StmtListCompileCore scope
+                      [Stmt.require
+                        (Expr.logicalAnd (Expr.eq (Expr.literal n) (Expr.literal m))
+                          (Expr.lt (Expr.literal p) (Expr.literal q)))
+                        message] := by
+                    refine FunctionBody.StmtListCompileCore.require_ ?_ ?_ FunctionBody.StmtListCompileCore.nil
+                    · repeat constructor
+                    · intro name hmem
+                      simp [FunctionBody.exprBoundNames] at hmem
+                  exact stmtListGenericCore_of_stmtListCompileCore hcore)
+      | orEqLt =>
+          simpa [Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt] using
+            (show StmtListGenericCore fields scope
+              [Stmt.require
+                (Expr.logicalOr (Expr.eq (Expr.literal n) (Expr.literal m))
+                  (Expr.lt (Expr.literal p) (Expr.literal q)))
+                message] from by
+                  have hcore : FunctionBody.StmtListCompileCore scope
+                      [Stmt.require
+                        (Expr.logicalOr (Expr.eq (Expr.literal n) (Expr.literal m))
+                          (Expr.lt (Expr.literal p) (Expr.literal q)))
+                        message] := by
+                    refine FunctionBody.StmtListCompileCore.require_ ?_ ?_ FunctionBody.StmtListCompileCore.nil
+                    · repeat constructor
+                    · intro name hmem
+                      simp [FunctionBody.exprBoundNames] at hmem
+                  exact stmtListGenericCore_of_stmtListCompileCore hcore)
 
 -- TYPESIG_SORRY: theorem stmtListGenericCore_append
 -- TYPESIG_SORRY:     {fields : List Field}
