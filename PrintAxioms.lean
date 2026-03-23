@@ -1025,7 +1025,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmt_compiled_terminal_ite_else_branch_entry_tailFuel
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_terminal_ite_then_of_irExec  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_terminal_ite_else_of_irExec  -- private
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execStmtList_terminal_core_not_continue  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.execStmtList_terminal_core_not_continue
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_ir_not_continue_of_source_not_continue
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_ir_not_continue_of_terminal_core
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_return_core_append_wholeFuel_of_scope  -- sorry'd
@@ -1866,4 +1866,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1735 theorems/lemmas (1144 public, 554 private, 37 sorry'd)
+-- Total: 1735 theorems/lemmas (1145 public, 554 private, 36 sorry'd)
