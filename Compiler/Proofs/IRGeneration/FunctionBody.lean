@@ -1501,6 +1501,31 @@ private theorem evalExpr_gt_of_values
     _ = some (SourceSemantics.boolWord (decide (rhsVal < lhsVal))) := by
           simp [hlhs, hrhs]
 
+private theorem evalExpr_add_of_values
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {lhs rhs : Expr}
+    {lhsVal rhsVal : Nat}
+    (hlhs : SourceSemantics.evalExpr fields runtime lhs = some lhsVal)
+    (hrhs : SourceSemantics.evalExpr fields runtime rhs = some rhsVal) :
+    SourceSemantics.evalExpr fields runtime (.add lhs rhs) =
+      some ((((lhsVal : Verity.Core.Uint256) + (rhsVal : Verity.Core.Uint256)) :
+        Verity.Core.Uint256).val) := by
+  calc
+    SourceSemantics.evalExpr fields runtime (.add lhs rhs)
+        = (do
+            let lhs ← do
+              let a ← SourceSemantics.evalExpr fields runtime lhs
+              pure (Verity.Core.Uint256.ofNat a)
+            let rhs ← do
+              let a ← SourceSemantics.evalExpr fields runtime rhs
+              pure (Verity.Core.Uint256.ofNat a)
+            pure (lhs + rhs).val) := by
+              rfl
+    _ = some ((((lhsVal : Verity.Core.Uint256) + (rhsVal : Verity.Core.Uint256)) :
+          Verity.Core.Uint256).val) := by
+          simp [hlhs, hrhs]
+
 theorem eval_compileExpr_eq_of_compiled
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
@@ -2047,11 +2072,24 @@ theorem eval_compileExpr_add_of_compiled
     evalIRExpr state
       (CompilationModel.compileExpr fields .calldata (.add lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
         some (SourceSemantics.evalExpr fields runtime (.add lhs rhs)) := by
-  -- Temporary stabilization point for the `Option` migration.
-  -- Clean fix: after extracting concrete `lhsVal`/`rhsVal`, unfold the
-  -- `.add` source branch into the elaborated `Uint256.ofNat` coercion form and
-  -- close the result with `Nat.add_mod`.
-  sorry
+  have hcompile := compileExpr_add_ok hlhsCompile hrhsCompile
+  rcases hlhsSrc : SourceSemantics.evalExpr fields runtime lhs with _ | lhsVal
+  · cases hEval : evalIRExpr state lhsIR <;> simp [hEval, hlhsSrc] at hlhsEval
+  · rcases hrhsSrc : SourceSemantics.evalExpr fields runtime rhs with _ | rhsVal
+    · cases hEval : evalIRExpr state rhsIR <;> simp [hEval, hrhsSrc] at hrhsEval
+    · have hlhsEval' := evalIRExpr_of_sourceEval_some hlhsEval hlhsSrc
+      have hrhsEval' := evalIRExpr_of_sourceEval_some hrhsEval hrhsSrc
+      have heval :
+          evalIRExpr state
+            (CompilationModel.compileExpr fields .calldata (.add lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
+              some ((lhsVal + rhsVal) % Compiler.Constants.evmModulus) := by
+        simpa [hcompile] using evalIRExpr_add_of_eval hlhsEval' hrhsEval'
+      have hsrc := evalExpr_add_of_values hlhsSrc hrhsSrc
+      rw [heval, hsrc]
+      simp [HAdd.hAdd, Verity.Core.Uint256.add, Verity.Core.Uint256.ofNat,
+        Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus,
+        Verity.Core.UINT256_MODULUS]
+      simpa [Add.add] using (Nat.add_mod lhsVal rhsVal Compiler.Constants.evmModulus).symm
 -- SORRY'D:   have hcompile := compileExpr_add_ok hlhsCompile hrhsCompile
 -- SORRY'D:   have heval :
 -- SORRY'D:       evalIRExpr state
