@@ -56,6 +56,11 @@
     "prepare-macro-fuzz",
     "build-audits",
     "macro-fuzz",
+    "build-compiler-verity",
+    "build-compiler-patched",
+    "build-compiler-difftest",
+    "build-compiler-gas-report",
+    "build-compiler-examples",
     "build-compiler-binaries",
     "generate-yul",
     "generate-yul-patched",
@@ -94,10 +99,40 @@
       "checks",
       "prepare-macro-fuzz"
     ],
-    "build-compiler-binaries": [
+    "build-compiler-verity": [
       "changes",
       "checks",
       "build"
+    ],
+    "build-compiler-patched": [
+      "changes",
+      "checks",
+      "build",
+      "build-compiler-verity"
+    ],
+    "build-compiler-difftest": [
+      "changes",
+      "checks",
+      "build",
+      "build-compiler-patched"
+    ],
+    "build-compiler-gas-report": [
+      "changes",
+      "checks",
+      "build",
+      "build-compiler-difftest"
+    ],
+    "build-compiler-examples": [
+      "changes",
+      "checks",
+      "build",
+      "build-compiler-gas-report"
+    ],
+    "build-compiler-binaries": [
+      "changes",
+      "checks",
+      "build",
+      "build-compiler-examples"
     ],
     "generate-yul": [
       "changes",
@@ -162,6 +197,11 @@
       "prepare-macro-fuzz",
       "build-audits",
       "macro-fuzz",
+      "build-compiler-verity",
+      "build-compiler-patched",
+      "build-compiler-difftest",
+      "build-compiler-gas-report",
+      "build-compiler-examples",
       "build-compiler-binaries",
       "generate-yul",
       "generate-yul-patched",
@@ -182,7 +222,7 @@
     "prepare-macro-fuzz": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'",
     "build-audits": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.build == 'true'",
     "macro-fuzz": "needs.checks.result == 'success' && needs.prepare-macro-fuzz.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'",
-    "build-compiler-binaries": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.compiler == 'true'",
+    "build-compiler-binaries": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-examples.result == 'success' && needs.changes.outputs.compiler == 'true'",
     "generate-yul": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'",
     "generate-yul-patched": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'",
     "gas-report": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'",
@@ -193,7 +233,12 @@
     "foundry": "needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)",
     "foundry-patched": "needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)",
     "foundry-multi-seed": "needs.changes.outputs.compiler == 'true' && github.event_name != 'pull_request'",
-    "failure-hints": "always() && github.event_name == 'pull_request' && contains(join(needs.*.result, ','), 'failure')"
+    "failure-hints": "always() && github.event_name == 'pull_request' && contains(join(needs.*.result, ','), 'failure')",
+    "build-compiler-verity": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.compiler == 'true'",
+    "build-compiler-patched": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-verity.result == 'success' && needs.changes.outputs.compiler == 'true'",
+    "build-compiler-difftest": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-patched.result == 'success' && needs.changes.outputs.compiler == 'true'",
+    "build-compiler-gas-report": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-difftest.result == 'success' && needs.changes.outputs.compiler == 'true'",
+    "build-compiler-examples": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-gas-report.result == 'success' && needs.changes.outputs.compiler == 'true'"
   },
   "expected_job_runs_on": {
     "changes": "blacksmith-2vcpu-ubuntu-2404",
@@ -203,7 +248,7 @@
     "prepare-macro-fuzz": "blacksmith-16vcpu-ubuntu-2404",
     "build-audits": "blacksmith-4vcpu-ubuntu-2404",
     "macro-fuzz": "blacksmith-8vcpu-ubuntu-2404",
-    "build-compiler-binaries": "blacksmith-16vcpu-ubuntu-2404",
+    "build-compiler-binaries": "blacksmith-8vcpu-ubuntu-2404",
     "generate-yul": "blacksmith-8vcpu-ubuntu-2404",
     "generate-yul-patched": "blacksmith-8vcpu-ubuntu-2404",
     "gas-report": "blacksmith-8vcpu-ubuntu-2404",
@@ -214,7 +259,12 @@
     "foundry": "blacksmith-4vcpu-ubuntu-2404",
     "foundry-patched": "blacksmith-4vcpu-ubuntu-2404",
     "foundry-multi-seed": "blacksmith-4vcpu-ubuntu-2404",
-    "failure-hints": "blacksmith-2vcpu-ubuntu-2404"
+    "failure-hints": "blacksmith-2vcpu-ubuntu-2404",
+    "build-compiler-verity": "blacksmith-16vcpu-ubuntu-2404",
+    "build-compiler-patched": "blacksmith-16vcpu-ubuntu-2404",
+    "build-compiler-difftest": "blacksmith-16vcpu-ubuntu-2404",
+    "build-compiler-gas-report": "blacksmith-16vcpu-ubuntu-2404",
+    "build-compiler-examples": "blacksmith-16vcpu-ubuntu-2404"
   },
   "expected_job_timeouts": {
     "changes": 5,
@@ -224,7 +274,7 @@
     "prepare-macro-fuzz": 360,
     "build-audits": 20,
     "macro-fuzz": "${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '150' || '90') }}",
-    "build-compiler-binaries": 360,
+    "build-compiler-binaries": 45,
     "generate-yul": 45,
     "generate-yul-patched": 45,
     "gas-report": 45,
@@ -234,7 +284,12 @@
     "foundry-gas-calibration": 15,
     "foundry": 15,
     "foundry-patched": 25,
-    "foundry-multi-seed": 25
+    "foundry-multi-seed": 25,
+    "build-compiler-verity": 360,
+    "build-compiler-patched": 360,
+    "build-compiler-difftest": 360,
+    "build-compiler-gas-report": 360,
+    "build-compiler-examples": 360
   },
   "expected_job_strategy_fail_fast": {
     "macro-fuzz": false,
@@ -281,6 +336,11 @@
     "VERIFY_MAIN_CACHE_BUCKET": "ref-main"
   },
   "build_compiler_job_names": [
+    "build-compiler-verity",
+    "build-compiler-patched",
+    "build-compiler-difftest",
+    "build-compiler-gas-report",
+    "build-compiler-examples",
     "build-compiler-binaries",
     "generate-yul",
     "generate-yul-patched",
@@ -489,32 +549,27 @@
         }
       },
       {
-        "name": "Setup Lean",
-        "uses": "./.github/actions/setup-lean",
-        "with": {
-          "cache-key-prefix": "lake-compiler",
-          "use-sticky-disks": "${{ env.VERIFY_USE_STICKY_DISKS }}",
-          "sticky-disk-key-prefix": "verify-compiler",
-          "use-build-sticky-disk": "${{ env.VERIFY_USE_STICKY_DISKS }}",
-          "build-sticky-disk-key": "verify-build-compiler-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}",
-          "disable-lake-cache-restore": "${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}",
-          "cache-primary-key": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}",
-          "cache-extra-restore-keys": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
-        }
-      },
-      {
-        "name": "Download prepared Lean workspace build",
+        "name": "Download compiler workspace build",
         "uses": "actions/download-artifact@v7",
         "with": {
-          "name": "lean-workspace-build"
+          "name": "lean-workspace-compiler-build-examples"
         }
       },
       {
-        "name": "Restore compiler ccache fallback cache",
-        "uses": "actions/cache/restore@v5",
+        "name": "Upload difftest interpreter",
+        "uses": "actions/upload-artifact@v7",
         "with": {
-          "path": "${{ runner.temp }}/compiler-ccache-cache",
-          "key": "compiler-ccache-cache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+          "name": "difftest-interpreter",
+          "path": ".lake/build/bin/difftest-interpreter"
+        }
+      },
+      {
+        "name": "Upload compiler binaries",
+        "uses": "actions/upload-artifact@v7",
+        "with": {
+          "name": "verity-compiler-binaries",
+          "path": "compiler/bin",
+          "compression-level": "0"
         }
       },
       {
@@ -522,25 +577,8 @@
         "uses": "actions/upload-artifact@v7",
         "with": {
           "name": "lean-workspace-compiler-build",
-          "path": "lean-workspace-compiler-build.tar"
-        }
-      },
-      {
-        "name": "Save compiler ccache fallback cache",
-        "uses": "actions/cache/save@v5",
-        "if": "always() && (failure() || steps.setup-lean.outputs.using-sticky-disks != 'true')",
-        "with": {
-          "path": "${{ github.workspace }}/.cache/ccache",
-          "key": "compiler-ccache-cache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
-        }
-      },
-      {
-        "name": "Save Lake compiler cache",
-        "uses": "actions/cache/save@v5",
-        "if": "always() && steps.setup-lean.outputs.using-sticky-disks != 'true'",
-        "with": {
-          "path": ".lake",
-          "key": "lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+          "path": "lean-workspace-compiler-build.tar",
+          "compression-level": "0"
         }
       }
     ],
@@ -1000,6 +1038,21 @@
     "build-audits": [
       "axiom-dependency-report"
     ],
+    "build-compiler-verity": [
+      "lean-workspace-compiler-build-verity"
+    ],
+    "build-compiler-patched": [
+      "lean-workspace-compiler-build-patched"
+    ],
+    "build-compiler-difftest": [
+      "lean-workspace-compiler-build-difftest"
+    ],
+    "build-compiler-gas-report": [
+      "lean-workspace-compiler-build-gas-report"
+    ],
+    "build-compiler-examples": [
+      "lean-workspace-compiler-build-examples"
+    ],
     "build-compiler-binaries": [
       "difftest-interpreter",
       "verity-compiler-binaries",
@@ -1032,6 +1085,21 @@
     ],
     "build-audits": [
       "axiom-report.md\naxiom-report-raw.log"
+    ],
+    "build-compiler-verity": [
+      "lean-workspace-compiler-build-verity.tar"
+    ],
+    "build-compiler-patched": [
+      "lean-workspace-compiler-build-patched.tar"
+    ],
+    "build-compiler-difftest": [
+      "lean-workspace-compiler-build-difftest.tar"
+    ],
+    "build-compiler-gas-report": [
+      "lean-workspace-compiler-build-gas-report.tar"
+    ],
+    "build-compiler-examples": [
+      "lean-workspace-compiler-build-examples.tar"
     ],
     "build-compiler-binaries": [
       ".lake/build/bin/difftest-interpreter",
@@ -1066,8 +1134,27 @@
     "macro-fuzz": [
       "lean-workspace-macro-fuzz-build"
     ],
-    "build-compiler-binaries": [
+    "build-compiler-verity": [
       "lean-workspace-build"
+    ],
+    "build-compiler-patched": [
+      "lean-workspace-build",
+      "lean-workspace-compiler-build-verity"
+    ],
+    "build-compiler-difftest": [
+      "lean-workspace-build",
+      "lean-workspace-compiler-build-patched"
+    ],
+    "build-compiler-gas-report": [
+      "lean-workspace-build",
+      "lean-workspace-compiler-build-difftest"
+    ],
+    "build-compiler-examples": [
+      "lean-workspace-build",
+      "lean-workspace-compiler-build-gas-report"
+    ],
+    "build-compiler-binaries": [
+      "lean-workspace-compiler-build-examples"
     ],
     "generate-yul": [
       "lean-workspace-build",
@@ -1113,6 +1200,25 @@
       null
     ],
     "macro-fuzz": [
+      null
+    ],
+    "build-compiler-verity": [
+      null
+    ],
+    "build-compiler-patched": [
+      null,
+      null
+    ],
+    "build-compiler-difftest": [
+      null,
+      null
+    ],
+    "build-compiler-gas-report": [
+      null,
+      null
+    ],
+    "build-compiler-examples": [
+      null,
       null
     ],
     "build-compiler-binaries": [
