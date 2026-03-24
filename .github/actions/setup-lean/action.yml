@@ -85,7 +85,7 @@ runs:
     - name: Cache elan + Lean toolchain
       id: cache-elan
       if: steps.persistence.outputs.use_sticky_disks != 'true'
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ~/.elan
         key: elan-${{ hashFiles('lean-toolchain') }}
@@ -136,7 +136,7 @@ runs:
     - name: Restore Lake packages cache
       id: cache-lake
       if: steps.persistence.outputs.use_sticky_disks != 'true' && inputs.disable-lake-cache-restore != 'true'
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       with:
         path: .lake
         key: ${{ steps.resolve-cache-keys.outputs.primary }}
@@ -250,6 +250,28 @@ runs:
           fi
         done
         echo "::warning::Unable to download Lean compiled cache after retries; continuing with source builds."
+
+    - name: Resolve Lake dependencies
+      id: lake-resolve
+      if: steps.hydration.outputs.required == 'true'
+      shell: bash
+      run: lake resolve
+      continue-on-error: true
+
+    - name: Retry Lake dependency resolution on transient failures
+      if: steps.hydration.outputs.required == 'true' && steps.lake-resolve.outcome != 'success'
+      shell: bash
+      run: |
+        set -u
+        for delay in 5 15; do
+          echo "::warning::lake resolve failed; retrying in ${delay}s"
+          sleep "${delay}"
+          if lake resolve; then
+            exit 0
+          fi
+        done
+        echo "::error::Unable to resolve Lake dependencies after retries"
+        exit 1
 
 outputs:
   cache-hit:

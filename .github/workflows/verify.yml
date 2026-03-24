@@ -101,8 +101,8 @@ jobs:
       compiler: ${{ steps.effective.outputs.compiler }}
       macro_fuzz: ${{ steps.effective.outputs.macro_fuzz }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -208,7 +208,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.event_name == 'pull_request' && github.head_ref || '' }}
           token: ${{ github.token }}
@@ -246,7 +246,7 @@ jobs:
       actions: read
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Warn on timeout-risk trend
         env:
@@ -265,7 +265,7 @@ jobs:
     env:
       LEAN_NUM_THREADS: 8
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -301,21 +301,21 @@ jobs:
         run: tar -cf lean-workspace-build.tar .lake/build .lake/lakefile.olean .lake/lakefile.olean.trace
 
       - name: Upload prepared Lean workspace build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lean-workspace-build
           path: lean-workspace-build.tar
 
       - name: Save current run Lake cache
         if: success() && needs.changes.outputs.build == 'true' && steps.setup-lean.outputs.using-sticky-disks != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: .lake
           key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Save Lake packages cache
         if: success() && needs.changes.outputs.build == 'true' && steps.setup-lean.outputs.using-sticky-disks != 'true' && steps.setup-lean.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: .lake
           key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
@@ -328,7 +328,7 @@ jobs:
     env:
       LEAN_NUM_THREADS: 12
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -347,7 +347,7 @@ jobs:
           cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Download prepared Lean workspace build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: lean-workspace-build
 
@@ -355,13 +355,22 @@ jobs:
         run: tar -xf lean-workspace-build.tar
 
       - name: Build macro round-trip fuzz executable
-        run: stdbuf -oL -eL lake build macro-roundtrip-fuzz
+        run: |
+          for attempt in 1 2 3; do
+            if stdbuf -oL -eL lake build macro-roundtrip-fuzz; then
+              exit 0
+            fi
+            echo "::warning::lake build attempt $attempt failed; retrying in 10s"
+            sleep 10
+          done
+          echo "::error::lake build failed after 3 attempts"
+          exit 1
 
       - name: Package macro-fuzz Lean workspace build
         run: tar -cf lean-workspace-macro-fuzz-build.tar .lake/build .lake/lakefile.olean .lake/lakefile.olean.trace
 
       - name: Upload macro-fuzz Lean workspace build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lean-workspace-macro-fuzz-build
           path: lean-workspace-macro-fuzz-build.tar
@@ -374,7 +383,7 @@ jobs:
     env:
       LEAN_NUM_THREADS: 4
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -390,7 +399,7 @@ jobs:
           cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Download prepared Lean workspace build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: lean-workspace-build
 
@@ -453,7 +462,7 @@ jobs:
         run: python3 scripts/check_storage_layout.py --format=markdown >> $GITHUB_STEP_SUMMARY
 
       - name: Upload axiom dependency report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: axiom-dependency-report
           path: |
@@ -474,7 +483,7 @@ jobs:
       MACRO_FUZZ_SHARD_INDEX: ${{ matrix.shard_index }}
       MACRO_FUZZ_SHARD_COUNT: 4
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -491,7 +500,7 @@ jobs:
           cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Download prepared Lean workspace build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: lean-workspace-macro-fuzz-build
 
@@ -516,7 +525,7 @@ jobs:
       CCACHE_COMPILERCHECK: content
       CCACHE_MAXSIZE: 2G
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -595,7 +604,7 @@ jobs:
           cp -a "$RUNNER_TEMP/compiler-ccache-main/." "$CCACHE_DIR/"
 
       - name: Download prepared Lean workspace build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: lean-workspace-build
 
@@ -634,25 +643,25 @@ jobs:
 
       - name: Save Lake compiler cache
         if: always() && steps.setup-lean.outputs.using-sticky-disks != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: .lake
           key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Upload difftest interpreter
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: difftest-interpreter
           path: .lake/build/bin/difftest-interpreter
 
       - name: Upload compiler binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: verity-compiler-binaries
           path: compiler/bin
 
       - name: Upload compiler workspace build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lean-workspace-compiler-build
           path: lean-workspace-compiler-build.tar
@@ -663,7 +672,7 @@ jobs:
     needs: [changes, checks, build, build-compiler-binaries]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -681,7 +690,7 @@ jobs:
             lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Download prepared Lean workspace build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: lean-workspace-build
 
@@ -689,7 +698,7 @@ jobs:
         run: tar -xf lean-workspace-build.tar
 
       - name: Download compiler workspace build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: lean-workspace-compiler-build
 
@@ -697,7 +706,7 @@ jobs:
         run: tar -xf lean-workspace-compiler-build.tar
 
       - name: Download compiler binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: verity-compiler-binaries
           path: compiler/bin
@@ -714,7 +723,7 @@ jobs:
             --link examples/external-libs/PoseidonT4.yul
 
       - name: Upload generated Yul
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: generated-yul
           path: compiler/yul
@@ -725,7 +734,7 @@ jobs:
     needs: [changes, checks, build, build-compiler-binaries]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -743,7 +752,7 @@ jobs:
             lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Download prepared Lean workspace build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: lean-workspace-build
 
@@ -751,7 +760,7 @@ jobs:
         run: tar -xf lean-workspace-build.tar
 
       - name: Download compiler workspace build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: lean-workspace-compiler-build
 
@@ -759,7 +768,7 @@ jobs:
         run: tar -xf lean-workspace-compiler-build.tar
 
       - name: Download compiler binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: verity-compiler-binaries
           path: compiler/bin
@@ -778,13 +787,13 @@ jobs:
             --link examples/external-libs/PoseidonT4.yul
 
       - name: Upload patched Yul
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: generated-yul-patched
           path: compiler/yul-patched
 
       - name: Upload patch coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: patch-coverage-report
           path: compiler/patch-report.tsv
@@ -795,7 +804,7 @@ jobs:
     needs: [changes, checks, build, build-compiler-binaries]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -813,7 +822,7 @@ jobs:
             lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Download prepared Lean workspace build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: lean-workspace-build
 
@@ -821,7 +830,7 @@ jobs:
         run: tar -xf lean-workspace-build.tar
 
       - name: Download compiler workspace build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: lean-workspace-compiler-build
 
@@ -835,13 +844,13 @@ jobs:
         run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv
 
       - name: Upload static gas report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: static-gas-report
           path: gas-report-static.tsv
 
       - name: Upload patched static gas report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: static-gas-report-patched
           path: gas-report-static-patched.tsv
@@ -852,7 +861,7 @@ jobs:
     needs: [changes, checks, build, generate-yul, generate-yul-patched, gas-report, build-compiler-binaries]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.generate-yul.result == 'success' && needs.generate-yul-patched.result == 'success' && needs.gas-report.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -870,7 +879,7 @@ jobs:
             lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Download prepared Lean workspace build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: lean-workspace-build
 
@@ -878,7 +887,7 @@ jobs:
         run: tar -xf lean-workspace-build.tar
 
       - name: Download compiler workspace build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: lean-workspace-compiler-build
 
@@ -886,35 +895,35 @@ jobs:
         run: tar -xf lean-workspace-compiler-build.tar
 
       - name: Download generated Yul
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: generated-yul
           path: compiler/yul
 
       - name: Download patched Yul
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: generated-yul-patched
           path: compiler/yul-patched
 
       - name: Download static gas report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: static-gas-report
 
       - name: Download patched static gas report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: static-gas-report-patched
 
       - name: Download patch coverage report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: patch-coverage-report
           path: compiler
 
       - name: Download compiler binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: verity-compiler-binaries
           path: compiler/bin
@@ -1024,7 +1033,7 @@ jobs:
 
       - name: Upload parity-pack identity report
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: parity-pack-identity-report
           path: compiler/parity-pack-identity-report.json
@@ -1037,7 +1046,7 @@ jobs:
     env:
       LEAN_NUM_THREADS: 12
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -1055,7 +1064,7 @@ jobs:
             lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Download prepared Lean workspace build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: lean-workspace-build
 
@@ -1063,7 +1072,7 @@ jobs:
         run: tar -xf lean-workspace-build.tar
 
       - name: Download compiler workspace build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: lean-workspace-compiler-build
 
@@ -1082,7 +1091,7 @@ jobs:
     needs: changes
     if: github.event_name == 'workflow_dispatch' && needs.changes.outputs.build == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Lean
         uses: ./.github/actions/setup-lean
@@ -1100,7 +1109,7 @@ jobs:
         run: cat lean-perf-queue.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Lean perf queue
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lean-perf-queue
           path: lean-perf-queue.md
@@ -1111,12 +1120,12 @@ jobs:
     needs: [changes, generate-yul, gas-report, build-compiler-binaries]
     if: needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
       - name: Download static gas report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: static-gas-report
 
@@ -1143,7 +1152,7 @@ jobs:
       matrix:
         shard_index: [0, 1, 2, 3, 4, 5, 6, 7]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -1169,12 +1178,12 @@ jobs:
     needs: [changes, generate-yul-patched, build-compiler-binaries]
     if: needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
       - name: Download prepared Lean workspace build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: lean-workspace-build
 
@@ -1182,7 +1191,7 @@ jobs:
         run: tar -xf lean-workspace-build.tar
 
       - name: Download compiler workspace build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: lean-workspace-compiler-build
 
@@ -1218,7 +1227,7 @@ jobs:
       matrix:
         seed: [0, 1, 42, 123, 999, 12345, 67890]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 

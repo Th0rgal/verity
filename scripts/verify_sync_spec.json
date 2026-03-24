@@ -289,11 +289,11 @@
   "expected_step_contracts": {
     "changes": [
       {
-        "uses": "actions/checkout@v4"
+        "uses": "actions/checkout@v6"
       },
       {
         "id": "filter",
-        "uses": "dorny/paths-filter@v3"
+        "uses": "dorny/paths-filter@v4"
       },
       {
         "id": "effective",
@@ -310,7 +310,7 @@
     ],
     "checks": [
       {
-        "uses": "actions/checkout@v4"
+        "uses": "actions/checkout@v6"
       },
       {
         "name": "Run all checks",
@@ -328,7 +328,7 @@
     ],
     "build": [
       {
-        "uses": "actions/checkout@v4",
+        "uses": "actions/checkout@v6",
         "with": {
           "submodules": "recursive"
         }
@@ -352,7 +352,7 @@
       },
       {
         "name": "Upload prepared Lean workspace build",
-        "uses": "actions/upload-artifact@v4",
+        "uses": "actions/upload-artifact@v7",
         "with": {
           "name": "lean-workspace-build",
           "path": "lean-workspace-build.tar"
@@ -360,7 +360,7 @@
       },
       {
         "name": "Save current run Lake cache",
-        "uses": "actions/cache/save@v4",
+        "uses": "actions/cache/save@v5",
         "if": "success() && needs.changes.outputs.build == 'true' && steps.setup-lean.outputs.using-sticky-disks != 'true'",
         "with": {
           "path": ".lake",
@@ -369,7 +369,7 @@
       },
       {
         "name": "Save Lake packages cache",
-        "uses": "actions/cache/save@v4",
+        "uses": "actions/cache/save@v5",
         "if": "success() && needs.changes.outputs.build == 'true' && steps.setup-lean.outputs.using-sticky-disks != 'true' && steps.setup-lean.outputs.cache-hit != 'true'",
         "with": {
           "path": ".lake",
@@ -379,7 +379,7 @@
     ],
     "prepare-macro-fuzz": [
       {
-        "uses": "actions/checkout@v4",
+        "uses": "actions/checkout@v6",
         "with": {
           "submodules": "recursive"
         }
@@ -399,18 +399,18 @@
       },
       {
         "name": "Download prepared Lean workspace build",
-        "uses": "actions/download-artifact@v4",
+        "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-build"
         }
       },
       {
         "name": "Build macro round-trip fuzz executable",
-        "run": "stdbuf -oL -eL lake build macro-roundtrip-fuzz"
+        "run": "for attempt in 1 2 3; do\n  if stdbuf -oL -eL lake build macro-roundtrip-fuzz; then\n    exit 0\n  fi\n  echo \"::warning::lake build attempt $attempt failed; retrying in 10s\"\n  sleep 10\ndone\necho \"::error::lake build failed after 3 attempts\"\nexit 1"
       },
       {
         "name": "Upload macro-fuzz Lean workspace build",
-        "uses": "actions/upload-artifact@v4",
+        "uses": "actions/upload-artifact@v7",
         "with": {
           "name": "lean-workspace-macro-fuzz-build",
           "path": "lean-workspace-macro-fuzz-build.tar"
@@ -419,7 +419,7 @@
     ],
     "build-audits": [
       {
-        "uses": "actions/checkout@v4",
+        "uses": "actions/checkout@v6",
         "with": {
           "submodules": "recursive"
         }
@@ -437,14 +437,14 @@
       },
       {
         "name": "Download prepared Lean workspace build",
-        "uses": "actions/download-artifact@v4",
+        "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-build"
         }
       },
       {
         "name": "Upload axiom dependency report",
-        "uses": "actions/upload-artifact@v4",
+        "uses": "actions/upload-artifact@v7",
         "with": {
           "name": "axiom-dependency-report",
           "path": "axiom-report.md\naxiom-report-raw.log"
@@ -453,7 +453,7 @@
     ],
     "macro-fuzz": [
       {
-        "uses": "actions/checkout@v4",
+        "uses": "actions/checkout@v6",
         "with": {
           "submodules": "recursive"
         }
@@ -471,7 +471,7 @@
       },
       {
         "name": "Download prepared Lean workspace build",
-        "uses": "actions/download-artifact@v4",
+        "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-macro-fuzz-build"
         }
@@ -483,7 +483,7 @@
     ],
     "build-compiler-binaries": [
       {
-        "uses": "actions/checkout@v4",
+        "uses": "actions/checkout@v6",
         "with": {
           "submodules": "recursive"
         }
@@ -504,14 +504,14 @@
       },
       {
         "name": "Download prepared Lean workspace build",
-        "uses": "actions/download-artifact@v4",
+        "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-build"
         }
       },
       {
         "name": "Upload compiler workspace build",
-        "uses": "actions/upload-artifact@v4",
+        "uses": "actions/upload-artifact@v7",
         "with": {
           "name": "lean-workspace-compiler-build",
           "path": "lean-workspace-compiler-build.tar"
@@ -519,7 +519,7 @@
       },
       {
         "name": "Save Lake compiler cache",
-        "uses": "actions/cache/save@v4",
+        "uses": "actions/cache/save@v5",
         "if": "always() && steps.setup-lean.outputs.using-sticky-disks != 'true'",
         "with": {
           "path": ".lake",
@@ -529,7 +529,7 @@
     ],
     "generate-yul": [
       {
-        "uses": "actions/checkout@v4",
+        "uses": "actions/checkout@v6",
         "with": {
           "submodules": "recursive"
         }
@@ -548,21 +548,21 @@
       },
       {
         "name": "Download prepared Lean workspace build",
-        "uses": "actions/download-artifact@v4",
+        "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-build"
         }
       },
       {
         "name": "Download compiler workspace build",
-        "uses": "actions/download-artifact@v4",
+        "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-compiler-build"
         }
       },
       {
         "name": "Download compiler binaries",
-        "uses": "actions/download-artifact@v4",
+        "uses": "actions/download-artifact@v7",
         "with": {
           "name": "verity-compiler-binaries",
           "path": "compiler/bin"
@@ -570,7 +570,7 @@
       },
       {
         "name": "Upload generated Yul",
-        "uses": "actions/upload-artifact@v4",
+        "uses": "actions/upload-artifact@v7",
         "with": {
           "name": "generated-yul",
           "path": "compiler/yul"
@@ -579,7 +579,7 @@
     ],
     "generate-yul-patched": [
       {
-        "uses": "actions/checkout@v4",
+        "uses": "actions/checkout@v6",
         "with": {
           "submodules": "recursive"
         }
@@ -598,21 +598,21 @@
       },
       {
         "name": "Download prepared Lean workspace build",
-        "uses": "actions/download-artifact@v4",
+        "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-build"
         }
       },
       {
         "name": "Download compiler workspace build",
-        "uses": "actions/download-artifact@v4",
+        "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-compiler-build"
         }
       },
       {
         "name": "Download compiler binaries",
-        "uses": "actions/download-artifact@v4",
+        "uses": "actions/download-artifact@v7",
         "with": {
           "name": "verity-compiler-binaries",
           "path": "compiler/bin"
@@ -620,7 +620,7 @@
       },
       {
         "name": "Upload patched Yul",
-        "uses": "actions/upload-artifact@v4",
+        "uses": "actions/upload-artifact@v7",
         "with": {
           "name": "generated-yul-patched",
           "path": "compiler/yul-patched"
@@ -628,7 +628,7 @@
       },
       {
         "name": "Upload patch coverage report",
-        "uses": "actions/upload-artifact@v4",
+        "uses": "actions/upload-artifact@v7",
         "with": {
           "name": "patch-coverage-report",
           "path": "compiler/patch-report.tsv"
@@ -637,7 +637,7 @@
     ],
     "gas-report": [
       {
-        "uses": "actions/checkout@v4",
+        "uses": "actions/checkout@v6",
         "with": {
           "submodules": "recursive"
         }
@@ -656,14 +656,14 @@
       },
       {
         "name": "Download compiler workspace build",
-        "uses": "actions/download-artifact@v4",
+        "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-compiler-build"
         }
       },
       {
         "name": "Upload static gas report",
-        "uses": "actions/upload-artifact@v4",
+        "uses": "actions/upload-artifact@v7",
         "with": {
           "name": "static-gas-report",
           "path": "gas-report-static.tsv"
@@ -671,7 +671,7 @@
       },
       {
         "name": "Upload patched static gas report",
-        "uses": "actions/upload-artifact@v4",
+        "uses": "actions/upload-artifact@v7",
         "with": {
           "name": "static-gas-report-patched",
           "path": "gas-report-static-patched.tsv"
@@ -680,7 +680,7 @@
     ],
     "compiler-audits": [
       {
-        "uses": "actions/checkout@v4",
+        "uses": "actions/checkout@v6",
         "with": {
           "submodules": "recursive"
         }
@@ -699,14 +699,14 @@
       },
       {
         "name": "Download prepared Lean workspace build",
-        "uses": "actions/download-artifact@v4",
+        "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-build"
         }
       },
       {
         "name": "Download compiler workspace build",
-        "uses": "actions/download-artifact@v4",
+        "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-compiler-build"
         }
@@ -717,7 +717,7 @@
       },
       {
         "name": "Upload parity-pack identity report",
-        "uses": "actions/upload-artifact@v4",
+        "uses": "actions/upload-artifact@v7",
         "with": {
           "name": "parity-pack-identity-report",
           "path": "compiler/parity-pack-identity-report.json"
@@ -726,7 +726,7 @@
     ],
     "compiler-regressions": [
       {
-        "uses": "actions/checkout@v4",
+        "uses": "actions/checkout@v6",
         "with": {
           "submodules": "recursive"
         }
@@ -745,14 +745,14 @@
       },
       {
         "name": "Download prepared Lean workspace build",
-        "uses": "actions/download-artifact@v4",
+        "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-build"
         }
       },
       {
         "name": "Download compiler workspace build",
-        "uses": "actions/download-artifact@v4",
+        "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-compiler-build"
         }
@@ -768,7 +768,7 @@
     ],
     "lean-profile": [
       {
-        "uses": "actions/checkout@v4"
+        "uses": "actions/checkout@v6"
       },
       {
         "name": "Setup Lean",
@@ -782,7 +782,7 @@
     ],
     "foundry-gas-calibration": [
       {
-        "uses": "actions/checkout@v4",
+        "uses": "actions/checkout@v6",
         "with": {
           "submodules": "recursive"
         }
@@ -794,7 +794,7 @@
     ],
     "foundry": [
       {
-        "uses": "actions/checkout@v4",
+        "uses": "actions/checkout@v6",
         "with": {
           "submodules": "recursive"
         }
@@ -806,21 +806,21 @@
     ],
     "foundry-patched": [
       {
-        "uses": "actions/checkout@v4",
+        "uses": "actions/checkout@v6",
         "with": {
           "submodules": "recursive"
         }
       },
       {
         "name": "Download prepared Lean workspace build",
-        "uses": "actions/download-artifact@v4",
+        "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-build"
         }
       },
       {
         "name": "Download compiler workspace build",
-        "uses": "actions/download-artifact@v4",
+        "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-compiler-build"
         }
@@ -836,7 +836,7 @@
     ],
     "foundry-multi-seed": [
       {
-        "uses": "actions/checkout@v4",
+        "uses": "actions/checkout@v6",
         "with": {
           "submodules": "recursive"
         }
