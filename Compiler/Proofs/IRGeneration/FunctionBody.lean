@@ -9982,7 +9982,30 @@ theorem stmtResultMatchesIRExec_compiled_return_core_append_wholeFuel_of_scope
         ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
          , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
           tailIR)) := by
-  sorry
+  -- Use the execution theorem to rewrite the IR side
+  rcases execIRStmts_compiled_return_core_append_wholeFuel_of_scope
+    hcore hexact hinScope hbounded (exprBoundNamesPresent_of_scope hscope hinScope) hruntime
+    (tailIR := tailIR) (extraFuel := extraFuel) with ⟨valueIR', hvalueIR', hexec⟩
+  -- valueIR' must equal valueIR
+  rw [hvalueIR] at hvalueIR'
+  cases hvalueIR'
+  rw [hexec]
+  -- Now reduce the source side
+  simp only [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+  -- Get the evaluation bridge
+  have heval := eval_compileExpr_core_of_scope hcore hexact hinScope hbounded
+    (exprBoundNamesPresent_of_scope hscope hinScope) hruntime
+  rw [hvalueIR] at heval
+  simp [Except.toOption] at heval
+  rcases hIR : evalIRExpr state valueIR with _ | v
+  · simp [hIR, Option.bind] at heval
+  · simp [hIR, Option.bind] at heval
+    rw [show SourceSemantics.evalExpr fields runtime value = some v from heval.symm]
+    -- Source = .return v runtime, IR = .return retVal state'
+    -- retVal = (some v).getD 0 = v
+    have hRetVal : (some v).getD 0 = v := rfl
+    simp only [hRetVal, stmtResultMatchesIRExec]
+    exact ⟨trivial, runtimeStateMatchesIR_setMemory hruntime 0 v⟩
 
 theorem stmtResultMatchesIRExec_compiled_stop_core_append_wholeFuel
     {fields : List Field}
