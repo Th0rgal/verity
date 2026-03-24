@@ -218,7 +218,7 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                            'generate-yul-patched': 45,
                            'gas-report': 45,
                            'compiler-audits': 45,
-                           'compiler-regressions': "${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '120' || '60') }}",
+                           'compiler-regressions': "${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '150' || '90') }}",
                            'lean-profile': 45,
                            'foundry-gas-calibration': 15,
                            'foundry': 15,
@@ -454,10 +454,38 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                          {'name': 'Download prepared Lean workspace build',
                                                           'uses': 'actions/download-artifact@v7',
                                                           'with': {'name': 'lean-workspace-build'}},
+                                                         {'name': 'Restore compiler ccache fallback cache',
+                                                          'uses': 'actions/cache/restore@v5',
+                                                          'with': {'path': '${{ runner.temp }}/compiler-ccache-cache',
+                                                                   'key': 'compiler-ccache-cache-${{ '
+                                                                          'env.VERIFY_CACHE_BUCKET '
+                                                                          '}}-${{ runner.os '
+                                                                          '}}-${{ '
+                                                                          "hashFiles('lean-toolchain') "
+                                                                          '}}-${{ '
+                                                                          "hashFiles('lakefile.lean') "
+                                                                          '}}-${{ '
+                                                                          "hashFiles('lake-manifest.json') "
+                                                                          '}}-${{ github.run_id }}'}},
                                                          {'name': 'Upload compiler workspace build',
                                                           'uses': 'actions/upload-artifact@v7',
                                                           'with': {'name': 'lean-workspace-compiler-build',
                                                                    'path': 'lean-workspace-compiler-build.tar'}},
+                                                         {'name': 'Save compiler ccache fallback cache',
+                                                          'uses': 'actions/cache/save@v5',
+                                                          'if': 'always() && (failure() || '
+                                                                "steps.setup-lean.outputs.using-sticky-disks != 'true')",
+                                                          'with': {'path': '${{ github.workspace }}/.cache/ccache',
+                                                                   'key': 'compiler-ccache-cache-${{ '
+                                                                          'env.VERIFY_CACHE_BUCKET '
+                                                                          '}}-${{ runner.os '
+                                                                          '}}-${{ '
+                                                                          "hashFiles('lean-toolchain') "
+                                                                          '}}-${{ '
+                                                                          "hashFiles('lakefile.lean') "
+                                                                          '}}-${{ '
+                                                                          "hashFiles('lake-manifest.json') "
+                                                                          '}}-${{ github.run_id }}'}},
                                                          {'name': 'Save Lake compiler cache',
                                                           'uses': 'actions/cache/save@v5',
                                                           'if': 'always() && '
@@ -679,11 +707,13 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                       {'name': 'Download compiler workspace build',
                                                        'uses': 'actions/download-artifact@v7',
                                                        'with': {'name': 'lean-workspace-compiler-build'}},
+                                                      {'name': 'Build compiler CLI regression executable',
+                                                       'run': 'stdbuf -oL -eL lake build compiler-main-test'},
                                          {'name': 'Run compiler CLI regression module',
                                           'run': 'chmod +x ./.lake/build/bin/compiler-main-test && stdbuf -oL -eL ./.lake/build/bin/compiler-main-test'},
-                                                      {'name': 'Run CompilationModel feature '
+                                                      {'name': 'Build CompilationModel feature '
                                                                'regression module',
-                                                               'run': 'lake build '
+                                                               'run': 'stdbuf -oL -eL lake build '
                                                                'Compiler.CompilationModelFeatureTest'}],
                              'lean-profile': [{'uses': 'actions/checkout@v6'},
                                              {'name': 'Setup Lean',
@@ -850,8 +880,6 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                           'verity-compiler-patched',
                                           'difftest-interpreter',
                                           'gas-report',
-                                          'compiler-main-test',
-                                          'Compiler.CompilationModelFeatureTest',
                                           '--output compiler/yul',
                                           '--output compiler/yul-patched',
                                           'lake exe gas-report --manifest '

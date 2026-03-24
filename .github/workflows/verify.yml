@@ -574,6 +574,15 @@ jobs:
       - name: Prepare ccache directory
         run: mkdir -p "$CCACHE_DIR"
 
+      - name: Restore compiler ccache fallback cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ runner.temp }}/compiler-ccache-cache
+          key: compiler-ccache-cache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          restore-keys: |
+            compiler-ccache-cache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-
+            compiler-ccache-cache-${{ env.VERIFY_MAIN_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-
+
       - name: Mount compiler ccache sticky disk
         if: env.VERIFY_USE_STICKY_DISKS == 'true'
         uses: useblacksmith/stickydisk@v1
@@ -603,6 +612,16 @@ jobs:
           fi
           cp -a "$RUNNER_TEMP/compiler-ccache-main/." "$CCACHE_DIR/"
 
+      - name: Seed compiler ccache from GitHub cache fallback
+        run: |
+          if find "$CCACHE_DIR" -mindepth 1 -print -quit | grep -q .; then
+            exit 0
+          fi
+          if ! find "$RUNNER_TEMP/compiler-ccache-cache" -mindepth 1 -print -quit | grep -q .; then
+            exit 0
+          fi
+          cp -a "$RUNNER_TEMP/compiler-ccache-cache/." "$CCACHE_DIR/"
+
       - name: Download prepared Lean workspace build
         uses: actions/download-artifact@v7
         with:
@@ -614,7 +633,7 @@ jobs:
       - name: Reset ccache statistics
         run: ccache -z
 
-      - name: Build compiler binaries and regression targets
+      - name: Build compiler binaries and example contracts
         env:
           LEAN_CC: ${{ github.workspace }}/scripts/lean_cc_ccache_clang.sh
         run: |
@@ -623,13 +642,18 @@ jobs:
             verity-compiler-patched \
             difftest-interpreter \
             gas-report \
-            compiler-main-test \
-            Compiler.CompilationModelFeatureTest \
             $(grep -v '^[[:space:]]*#' packages/verity-examples/contracts.manifest | sed '/^[[:space:]]*$/d')
 
       - name: Show compiler ccache statistics
         if: always()
         run: ccache -s
+
+      - name: Save compiler ccache fallback cache
+        if: always() && (failure() || steps.setup-lean.outputs.using-sticky-disks != 'true')
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ github.workspace }}/.cache/ccache
+          key: compiler-ccache-cache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Package compiler binaries
         run: |
@@ -1040,7 +1064,7 @@ jobs:
 
   compiler-regressions:
     runs-on: blacksmith-16vcpu-ubuntu-2404
-    timeout-minutes: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '120' || '60') }}
+    timeout-minutes: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '150' || '90') }}
     needs: [changes, checks, build, build-compiler-binaries]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
     env:
@@ -1079,11 +1103,14 @@ jobs:
       - name: Restore compiler workspace build
         run: tar -xf lean-workspace-compiler-build.tar
 
+      - name: Build compiler CLI regression executable
+        run: stdbuf -oL -eL lake build compiler-main-test
+
       - name: Run compiler CLI regression module
         run: chmod +x ./.lake/build/bin/compiler-main-test && stdbuf -oL -eL ./.lake/build/bin/compiler-main-test
 
-      - name: Run CompilationModel feature regression module
-        run: lake build Compiler.CompilationModelFeatureTest
+      - name: Build CompilationModel feature regression module
+        run: stdbuf -oL -eL lake build Compiler.CompilationModelFeatureTest
 
   lean-profile:
     runs-on: blacksmith-8vcpu-ubuntu-2404
