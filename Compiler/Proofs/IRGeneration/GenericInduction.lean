@@ -561,6 +561,11 @@ private theorem legacyCompatibleExternalStmtList_of_unpackedStorageWrite
     True := by
   trivial
 
+-- TODO: prove by case analysis on compileSetStorage output
+-- The proof needs to handle: rcases on compileExpr (error propagates as Except.error,
+-- contradiction with Except.ok), then split on slot :: aliasSlots pattern, rewrite
+-- packedBits = none, and construct LegacyCompatibleExternalStmtList for the resulting IR.
+-- Key difficulty: the block case produces non-trivial statement lists.
 private theorem legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields_resolved
     {fields : List Field}
     {fieldName : String}
@@ -575,11 +580,6 @@ private theorem legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPa
       CompilationModel.compileSetStorage fields .calldata fieldName value requireAddressField =
         Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-  -- Temporary stabilization point for the compat storage-write proof.
-  -- Clean fix: reconnect this theorem to the new resolved-field lookup helpers
-  -- and replay the unpacked-storage block proof on the updated IR shape while
-  -- preserving the real `compileSetStorage` output boundary needed by the
-  -- downstream supported-surface bridge.
   sorry
 
 private theorem legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields_aux
@@ -593,9 +593,6 @@ private theorem legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPa
       CompilationModel.compileSetStorage fields .calldata fieldName value requireAddressField =
         Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-  -- Temporary stabilization point for the helper above.
-  -- Clean fix: recover the case split on `compileSetStorage` once the resolved
-  -- field helper theorem is re-established.
   sorry
 
 /-- The current helper-free compiled theorem target already accepts the scalar
@@ -611,8 +608,6 @@ theorem legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFiel
       CompilationModel.compileSetStorage fields .calldata fieldName value =
         Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-  -- Temporary stabilization point for the no-packed-fields wrapper.
-  -- Clean fix: reduce directly to the repaired auxiliary theorem.
   sorry
 
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_letVar
@@ -2483,10 +2478,14 @@ private theorem fieldName_mem_fields_of_compileSetStorage_ok
         value
         requireAddressField = Except.ok compiledIR) :
     fieldName ∈ fields.map (·.name) := by
-  -- Temporary stabilization point for the storage-write lookup seam.
-  -- Clean fix: unfold `compileSetStorage` just far enough to extract the successful
-  -- `findFieldWithResolvedSlot` witness, then discharge the goal via the theorem above.
-  sorry
+  simp only [CompilationModel.compileSetStorage] at hcompile
+  split at hcompile
+  · simp at hcompile
+  · rename_i hnotMapping
+    split at hcompile
+    · rename_i f slot hfind
+      exact fieldName_mem_fields_of_findFieldWithResolvedSlot_some hfind
+    · simp at hcompile
 
 private theorem compileStmt_ite_ok_inv
     {fields : List Field}
@@ -10949,21 +10948,31 @@ theorem supported_function_body_with_helpers_and_helper_ir_goal_of_legacy_ir_goa
     (hdisjoint : YulStmtListCallsDisjointFromInternalTable runtimeContract bodyStmts) :
     SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
       runtimeContract
-      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by sorry
--- SORRY'D:   rcases hbody with ⟨sourceResult, irExec, hsource, hbodyExec, hmatch⟩
--- SORRY'D:   refine ⟨sourceResult, match irExec with
--- SORRY'D:       | .continue next => .continue next
--- SORRY'D:       | .return value next => .return value next
--- SORRY'D:       | .stop next => .stop next
--- SORRY'D:       | .revert next => .revert next, hsource, ?_, ?_⟩
--- SORRY'D:   · have hcompat :=
--- SORRY'D:       execIRStmtsWithInternals_eq_execIRStmts_of_callsDisjoint runtimeContract
--- SORRY'D:         (bodyStmts.length + extraFuel + 1)
--- SORRY'D:         state
--- SORRY'D:         bodyStmts
--- SORRY'D:         hdisjoint
--- SORRY'D:     simpa [hbodyExec] using hcompat
--- SORRY'D:   · cases irExec <;> simpa [stmtResultMatchesIRExecWithInternals] using hmatch
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
+  rcases hbody with ⟨sourceResult, irExec, hsource, hbodyExec, hmatch⟩
+  have hcompat :=
+    execIRStmtsWithInternals_eq_execIRStmts_of_callsDisjoint runtimeContract
+      (bodyStmts.length + extraFuel + 1)
+      state
+      bodyStmts
+      hdisjoint
+  cases irExec with
+  | «continue» next =>
+      refine ⟨sourceResult, .continue next, hsource, ?_, ?_⟩
+      · rw [hcompat]; simp [hbodyExec]
+      · simpa [stmtResultMatchesIRExecWithInternals] using hmatch
+  | «return» value next =>
+      refine ⟨sourceResult, .return value next, hsource, ?_, ?_⟩
+      · rw [hcompat]; simp [hbodyExec]
+      · simpa [stmtResultMatchesIRExecWithInternals] using hmatch
+  | stop next =>
+      refine ⟨sourceResult, .stop next, hsource, ?_, ?_⟩
+      · rw [hcompat]; simp [hbodyExec]
+      · simpa [stmtResultMatchesIRExecWithInternals] using hmatch
+  | revert next =>
+      refine ⟨sourceResult, .revert next, hsource, ?_, ?_⟩
+      · rw [hcompat]; simp [hbodyExec]
+      · simpa [stmtResultMatchesIRExecWithInternals] using hmatch
 
 -- SORRY'D: /-- Under compiled-body disjointness, the exact helper-aware body goal can also
 -- SORRY'D: be collapsed back to the legacy compiled-body goal. This keeps the new exact
@@ -10986,59 +10995,35 @@ theorem supported_function_body_with_helpers_ir_goal_of_helper_ir_goal_callsDisj
         model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel)
     (hdisjoint : YulStmtListCallsDisjointFromInternalTable runtimeContract bodyStmts) :
     SupportedFunctionBodyWithHelpersIRPreservationGoal
-      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by sorry
--- SORRY'D:   rcases hbody with ⟨sourceResult, irExec, hsource, hbodyExec, hmatch⟩
--- SORRY'D:   cases irExec with
--- SORRY'D:   | continue next =>
--- SORRY'D:       refine ⟨sourceResult, .continue next, hsource, ?_, ?_⟩
--- SORRY'D:       · have hcompat :=
--- SORRY'D:           execIRStmtsWithInternals_eq_execIRStmts_of_callsDisjoint runtimeContract
--- SORRY'D:             (bodyStmts.length + extraFuel + 1)
--- SORRY'D:             state
--- SORRY'D:             bodyStmts
--- SORRY'D:             hdisjoint
--- SORRY'D:         rw [← hcompat]
--- SORRY'D:         simpa using hbodyExec
--- SORRY'D:       · simpa [stmtResultMatchesIRExecWithInternals, FunctionBody.stmtResultMatchesIRExec] using
--- SORRY'D:           hmatch
--- SORRY'D:   | return value next =>
--- SORRY'D:       refine ⟨sourceResult, .return value next, hsource, ?_, ?_⟩
--- SORRY'D:       · have hcompat :=
--- SORRY'D:           execIRStmtsWithInternals_eq_execIRStmts_of_callsDisjoint runtimeContract
--- SORRY'D:             (bodyStmts.length + extraFuel + 1)
--- SORRY'D:             state
--- SORRY'D:             bodyStmts
--- SORRY'D:             hdisjoint
--- SORRY'D:         rw [← hcompat]
--- SORRY'D:         simpa using hbodyExec
--- SORRY'D:       · simpa [stmtResultMatchesIRExecWithInternals, FunctionBody.stmtResultMatchesIRExec] using
--- SORRY'D:           hmatch
--- SORRY'D:   | stop next =>
--- SORRY'D:       refine ⟨sourceResult, .stop next, hsource, ?_, ?_⟩
--- SORRY'D:       · have hcompat :=
--- SORRY'D:           execIRStmtsWithInternals_eq_execIRStmts_of_callsDisjoint runtimeContract
--- SORRY'D:             (bodyStmts.length + extraFuel + 1)
--- SORRY'D:             state
--- SORRY'D:             bodyStmts
--- SORRY'D:             hdisjoint
--- SORRY'D:         rw [← hcompat]
--- SORRY'D:         simpa using hbodyExec
--- SORRY'D:       · simpa [stmtResultMatchesIRExecWithInternals, FunctionBody.stmtResultMatchesIRExec] using
--- SORRY'D:           hmatch
--- SORRY'D:   | revert next =>
--- SORRY'D:       refine ⟨sourceResult, .revert next, hsource, ?_, ?_⟩
--- SORRY'D:       · have hcompat :=
--- SORRY'D:           execIRStmtsWithInternals_eq_execIRStmts_of_callsDisjoint runtimeContract
--- SORRY'D:             (bodyStmts.length + extraFuel + 1)
--- SORRY'D:             state
--- SORRY'D:             bodyStmts
--- SORRY'D:             hdisjoint
--- SORRY'D:         rw [← hcompat]
--- SORRY'D:         simpa using hbodyExec
--- SORRY'D:       · simpa [stmtResultMatchesIRExecWithInternals, FunctionBody.stmtResultMatchesIRExec] using
--- SORRY'D:           hmatch
--- SORRY'D:   | leave _ =>
--- SORRY'D:       cases hmatch
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
+  rcases hbody with ⟨sourceResult, irExec, hsource, hbodyExec, hmatch⟩
+  have hcompat :=
+    execIRStmtsWithInternals_eq_execIRStmts_of_callsDisjoint runtimeContract
+      (bodyStmts.length + extraFuel + 1)
+      state
+      bodyStmts
+      hdisjoint
+  rw [hcompat] at hbodyExec
+  -- hbodyExec : (match execIRStmts ... with ...) = irExec
+  -- case-split on `execIRStmts` to reduce the match in hbodyExec
+  generalize hexec : execIRStmts (bodyStmts.length + extraFuel + 1) state bodyStmts = irPlain at hbodyExec
+  cases irPlain with
+  | «continue» next =>
+      simp only [] at hbodyExec; subst hbodyExec
+      exact ⟨sourceResult, .continue next, hsource, hexec,
+        by simpa [stmtResultMatchesIRExecWithInternals] using hmatch⟩
+  | «return» value next =>
+      simp only [] at hbodyExec; subst hbodyExec
+      exact ⟨sourceResult, .return value next, hsource, hexec,
+        by simpa [stmtResultMatchesIRExecWithInternals] using hmatch⟩
+  | stop next =>
+      simp only [] at hbodyExec; subst hbodyExec
+      exact ⟨sourceResult, .stop next, hsource, hexec,
+        by simpa [stmtResultMatchesIRExecWithInternals] using hmatch⟩
+  | revert next =>
+      simp only [] at hbodyExec; subst hbodyExec
+      exact ⟨sourceResult, .revert next, hsource, hexec,
+        by simpa [stmtResultMatchesIRExecWithInternals] using hmatch⟩
 
 -- SORRY'D: /-- Exact helper-aware body theorem for a helper-aware generic statement
 -- SORRY'D: induction witness. This is the induction-level target needed to replace the
