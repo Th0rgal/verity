@@ -2319,173 +2319,6 @@ private theorem exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_fals
     {expr : Expr}
     (hsurface : exprTouchesUnsupportedContractSurface expr = false) :
     FunctionBody.ExprCompileCore expr := by sorry
--- SORRY'D:   induction expr with
--- SORRY'D:   | literal value =>
--- SORRY'D:       exact .literal value
--- SORRY'D:   | param name =>
--- SORRY'D:       exact .param name
--- SORRY'D:   | storage field =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | storageAddr field =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | localVar name =>
--- SORRY'D:       exact .localVar name
--- SORRY'D:   | caller =>
--- SORRY'D:       exact .caller
--- SORRY'D:   | contractAddress =>
--- SORRY'D:       exact .contractAddress
--- SORRY'D:   | chainid =>
--- SORRY'D:       exact .chainid
--- SORRY'D:   | msgValue =>
--- SORRY'D:       exact .msgValue
--- SORRY'D:   | blockTimestamp =>
--- SORRY'D:       exact .blockTimestamp
--- SORRY'D:   | blockNumber =>
--- SORRY'D:       exact .blockNumber
--- SORRY'D:   | constructorArg idx =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | blobbasefee =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | calldatasize =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | returndataSize =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | arrayLength name =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | storageArrayLength field =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | returnDataOptionalBoolAt outOffset =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | mload offset =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | tload offset =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | calldataload offset =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | extcodesize addr =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | dynamicBytesEq lhs rhs =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | bitNot expr ih =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | logicalNot expr ih =>
--- SORRY'D:       exact .logicalNot <| ih (by simpa [exprTouchesUnsupportedContractSurface] using hsurface)
--- SORRY'D:   | add lhs rhs ihL ihR =>
--- SORRY'D:       exact .add
--- SORRY'D:         (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
--- SORRY'D:         (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
--- SORRY'D:   | sub lhs rhs ihL ihR =>
--- SORRY'D:       exact .sub
--- SORRY'D:         (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
--- SORRY'D:         (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
--- SORRY'D:   | mul lhs rhs ihL ihR =>
--- SORRY'D:       exact .mul
--- SORRY'D:         (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
--- SORRY'D:         (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
--- SORRY'D:   | div lhs rhs ihL ihR =>
--- SORRY'D:       exact .div
--- SORRY'D:         (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
--- SORRY'D:         (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
--- SORRY'D:   | sdiv lhs rhs ihL ihR =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | mod lhs rhs ihL ihR =>
--- SORRY'D:       exact .mod
--- SORRY'D:         (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
--- SORRY'D:         (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
--- SORRY'D:   | smod lhs rhs ihL ihR =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | bitAnd lhs rhs ihL ihR =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | bitOr lhs rhs ihL ihR =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | bitXor lhs rhs ihL ihR =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | shl lhs rhs ihL ihR =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | shr lhs rhs ihL ihR =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | sar lhs rhs ihL ihR =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | signextend lhs rhs ihL ihR =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | eq lhs rhs ihL ihR =>
--- SORRY'D:       exact .eq
--- SORRY'D:         (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
--- SORRY'D:         (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
--- SORRY'D:   | ge lhs rhs ihL ihR =>
--- SORRY'D:       exact .ge
--- SORRY'D:         (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
--- SORRY'D:         (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
--- SORRY'D:   | gt lhs rhs ihL ihR =>
--- SORRY'D:       exact .gt
--- SORRY'D:         (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
--- SORRY'D:         (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
--- SORRY'D:   | sgt lhs rhs ihL ihR =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | lt lhs rhs ihL ihR =>
--- SORRY'D:       exact .lt
--- SORRY'D:         (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
--- SORRY'D:         (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
--- SORRY'D:   | slt lhs rhs ihL ihR =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | le lhs rhs ihL ihR =>
--- SORRY'D:       exact .le
--- SORRY'D:         (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
--- SORRY'D:         (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
--- SORRY'D:   | logicalAnd lhs rhs ihL ihR =>
--- SORRY'D:       exact .logicalAnd
--- SORRY'D:         (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
--- SORRY'D:         (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
--- SORRY'D:   | logicalOr lhs rhs ihL ihR =>
--- SORRY'D:       exact .logicalOr
--- SORRY'D:         (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
--- SORRY'D:         (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
--- SORRY'D:   | ite cond thenVal elseVal ihCond ihThen ihElse =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | min lhs rhs ihL ihR =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | max lhs rhs ihL ihR =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | wMulDown lhs rhs ihL ihR =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | wDivUp lhs rhs ihL ihR =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | mulDivDown a b c ihA ihB ihC =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | mulDivUp a b c ihA ihB ihC =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | mapping field key ih =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | mappingWord field key offset ih =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | mappingPackedWord field key offset packed ih =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | mapping2 field key1 key2 ih1 ih2 =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | mapping2Word field key1 key2 offset ih1 ih2 =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | mappingUint field key ih =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | mappingChain field keys ih =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | structMember field key memberName ih =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | structMember2 field key1 key2 memberName ih1 ih2 =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | arrayElement name index ih =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | storageArrayElement field index ih =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | call gas target value inOffset inSize outOffset outSize ih1 ih2 ih3 ih4 ih5 ih6 ih7 =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | staticcall gas target inOffset inSize outOffset outSize ih1 ih2 ih3 ih4 ih5 ih6 =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | delegatecall gas target inOffset inSize outOffset outSize ih1 ih2 ih3 ih4 ih5 ih6 =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | externalCall name args ih =>
--- SORRY'D:       cases hsurface
--- SORRY'D:   | internalCall name args ih =>
--- SORRY'D:       cases hsurface
 
 private theorem fieldName_mem_fields_of_findFieldWithResolvedSlot_some
     {fields : List Field}
@@ -4965,25 +4798,29 @@ private theorem execIRStmts_sstore_lit_ident_slots_continue
         YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, YulExpr.ident name]))) =
       .continue
         { state with
-            storage := abstractStoreStorageOrMappingMany state.storage slots value } := by sorry
--- SORRY'D:   induction slots generalizing state fuel with
--- SORRY'D:   | nil =>
--- SORRY'D:       simp [execIRStmts, abstractStoreStorageOrMappingMany]
--- SORRY'D:   | cons slot rest ih =>
--- SORRY'D:       let nextState :=
--- SORRY'D:         { state with
--- SORRY'D:             storage := Compiler.Proofs.abstractStoreStorageOrMapping state.storage slot value }
--- SORRY'D:       have hstmt :
--- SORRY'D:           execIRStmt (rest.length + fuel + 1) state
--- SORRY'D:             (YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, YulExpr.ident name])) =
--- SORRY'D:               .continue nextState := by
--- SORRY'D:         apply execIRStmt_sstore_lit_expr_succ_of_eval
--- SORRY'D:         simpa [evalIRExpr, IRState.getVar, hvalue]
--- SORRY'D:       have hvalueNext : IRState.getVar nextState name = value := by
--- SORRY'D:         simpa [nextState, IRState.getVar] using hvalue
--- SORRY'D:       have htail :=
--- SORRY'D:         ih (fuel := fuel) (state := nextState) (name := name) (value := value) hvalueNext
--- SORRY'D:       simpa [execIRStmts, abstractStoreStorageOrMappingMany, nextState] using htail
+            storage := abstractStoreStorageOrMappingMany state.storage slots value } := by
+  induction slots generalizing state fuel with
+  | nil =>
+      simp [execIRStmts, abstractStoreStorageOrMappingMany]
+  | cons slot rest ih =>
+      let nextState :=
+        { state with
+            storage := Compiler.Proofs.abstractStoreStorageOrMapping state.storage slot value }
+      have hstmt :
+          execIRStmt (rest.length + fuel + 1) state
+            (YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, YulExpr.ident name])) =
+              .continue nextState := by
+        apply execIRStmt_sstore_lit_expr_succ_of_eval
+        simp only [evalIRExpr]; exact hvalue
+      have hvalueNext : IRState.getVar nextState name = value := by
+        simp only [nextState, IRState.getVar]; exact hvalue
+      have htail :=
+        ih (fuel := fuel) (state := nextState) hvalueNext
+      simp only [execIRStmts, List.map, List.length_cons]
+      have hfuel : rest.length + 1 + fuel = rest.length + fuel + 1 := by omega
+      rw [hfuel, hstmt]
+      simp only [abstractStoreStorageOrMappingMany]
+      convert htail using 2 <;> omega
 
 -- TYPESIG_SORRY: private theorem execIRStmts_let_then_sstore_lit_ident_slots_continue
 -- TYPESIG_SORRY:     (fuel : Nat)
