@@ -12407,6 +12407,8 @@ theorem
     (hnoPacked : ∀ field ∈ model.fields, field.packedBits = none)
     (hcontractSurface :
       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites fn.body = false)
+    (hhelperSurface :
+      stmtListTouchesUnsupportedHelperSurface fn.body = false)
     (hhelperFree :
       StmtListHelperFreeStepInterface
         (SourceSemantics.effectiveFields model)
@@ -12435,9 +12437,6 @@ theorem
     SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
-  have hhelperSurface : stmtListTouchesUnsupportedHelperSurface fn.body = false :=
-    stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed_exceptMappingWrites
-      hcontractSurface
   exact
     supported_function_body_correct_from_exact_state_generic_finer_split_internal_helper_surface_steps_and_helper_ir_callsDisjoint
       runtimeContract
@@ -12504,6 +12503,8 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers_an
     (hnoPacked : ∀ field ∈ model.fields, field.packedBits = none)
     (hcontractSurface :
       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites fn.body = false)
+    (hhelperSurface :
+      stmtListTouchesUnsupportedHelperSurface fn.body = false)
     (hhelperFree :
       StmtListHelperFreeStepInterface
         (SourceSemantics.effectiveFields model)
@@ -12546,7 +12547,7 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers_an
     supported_function_body_correct_from_exact_state_generic_with_helpers_and_helper_ir_except_mapping_writes_callsDisjoint
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
-      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hnoPacked hcontractSurface
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hnoPacked hcontractSurface hhelperSurface
       hhelperFree hbodyCompile hscope hbounded hstateRuntime hstateBindings hdisjoint
 
 /-- Goal-based helper-aware wrapper around the generic body/IR preservation
