@@ -4542,25 +4542,27 @@ private theorem runtimeStateMatchesIR_writeUintKeyedMappingSlot
         (Compiler.Proofs.abstractMappingSlot slot key) = none)
     (hdyn :
       findDynamicArrayElementAtSlotCopy fields runtime.world
-        (Compiler.Proofs.abstractMappingSlot slot key) = none) :
+        (Compiler.Proofs.abstractMappingSlot slot key) = none)
+    (hvalue : value < Verity.Core.Uint256.modulus) :
     FunctionBody.runtimeStateMatchesIR fields
       { runtime with world := SourceSemantics.writeUintKeyedMappingSlots runtime.world [slot] key value }
       { state with
-          storage := Compiler.Proofs.abstractStoreMappingEntry state.storage slot key value } := by sorry
--- SORRY'D:   rcases hruntime with
--- SORRY'D:     ⟨hstorage, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
--- SORRY'D:   refine ⟨?_, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
--- SORRY'D:   funext query
--- SORRY'D:   by_cases hEq : query = Compiler.Proofs.abstractMappingSlot slot key
--- SORRY'D:   · subst hEq
--- SORRY'D:     rw [Compiler.Proofs.abstractStoreMappingEntry_eq]
--- SORRY'D:     simp
--- SORRY'D:     exact encodeStorageAt_writeUintKeyedMappingSlots_singleton_eq_written
--- SORRY'D:       (fields := fields) (world := runtime.world) (slot := slot) (key := key) (value := value)
--- SORRY'D:       hresolved hdyn
--- SORRY'D:   · rw [Compiler.Proofs.abstractStoreMappingEntry_eq, hstorage]
--- SORRY'D:     simp [hEq, encodeStorageAt_writeUintKeyedMappingSlots_singleton_other (fields := fields)
--- SORRY'D:       (world := runtime.world) (slot := slot) (key := key) (query := query) (value := value) hEq]
+          storage := Compiler.Proofs.abstractStoreMappingEntry state.storage slot key value } := by
+  rcases hruntime with
+    ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+  refine ⟨?_, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+  funext query
+  simp only [Compiler.Proofs.abstractStoreMappingEntry, Compiler.Proofs.abstractMappingSlot]
+  by_cases hEq : query = Compiler.Proofs.solidityMappingSlot slot key
+  · subst hEq
+    simp only [↓reduceIte]
+    exact (encodeStorageAt_writeUintKeyedMappingSlots_singleton_eq_written
+      (fields := fields) (world := runtime.world) (slot := slot) (key := key) (value := value)
+      hresolved hdyn hvalue).symm
+  · simp only [hEq, ↓reduceIte]
+    rw [hstorage]
+    exact (encodeStorageAt_writeUintKeyedMappingSlots_singleton_other (fields := fields)
+      (world := runtime.world) (slot := slot) (key := key) (query := query) (value := value) hEq).symm
 
 private theorem runtimeStateMatchesIR_writeAddressKeyedMappingChainSlot
     {fields : List Field}
@@ -4575,7 +4577,8 @@ private theorem runtimeStateMatchesIR_writeAddressKeyedMappingChainSlot
         (SourceSemantics.mappingSlotChain slot keys) = none)
     (hdyn :
       findDynamicArrayElementAtSlotCopy fields runtime.world
-        (SourceSemantics.mappingSlotChain slot keys) = none) :
+        (SourceSemantics.mappingSlotChain slot keys) = none)
+    (hvalue : value < Verity.Core.Uint256.modulus) :
     FunctionBody.runtimeStateMatchesIR fields
       { runtime with
           world := SourceSemantics.writeAddressKeyedMappingChainSlots
@@ -4584,22 +4587,29 @@ private theorem runtimeStateMatchesIR_writeAddressKeyedMappingChainSlot
           storage := Compiler.Proofs.abstractStoreStorageOrMapping
             state.storage
             (SourceSemantics.mappingSlotChain slot keys)
-            value } := by sorry
--- SORRY'D:   rcases hruntime with
--- SORRY'D:     ⟨hstorage, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
--- SORRY'D:   refine ⟨?_, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
--- SORRY'D:   funext query
--- SORRY'D:   by_cases hEq : query = SourceSemantics.mappingSlotChain slot keys
--- SORRY'D:   · subst hEq
--- SORRY'D:     rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
--- SORRY'D:     simp
--- SORRY'D:     exact encodeStorageAt_writeAddressKeyedMappingChainSlots_singleton_eq_written
--- SORRY'D:       (fields := fields) (world := runtime.world) (slot := slot) (keys := keys) (value := value)
--- SORRY'D:       hresolved hdyn
--- SORRY'D:   · rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq, hstorage]
--- SORRY'D:     simp [hEq, encodeStorageAt_writeAddressKeyedMappingChainSlots_singleton_other
--- SORRY'D:       (fields := fields) (world := runtime.world) (slot := slot) (keys := keys)
--- SORRY'D:       (query := query) (value := value) hEq]
+            value } := by
+  rcases hruntime with
+    ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+  refine ⟨?_, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+  funext query
+  by_cases hEq : query = SourceSemantics.mappingSlotChain slot keys
+  · subst hEq
+    rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
+    have henc : SourceSemantics.encodeStorageAt fields runtime.world
+        (SourceSemantics.mappingSlotChain slot keys) =
+        (runtime.world.storage (SourceSemantics.mappingSlotChain slot keys)).val := by
+      rw [encodeStorageAt_eq_copy]
+      simp only [encodeStorageAtCopy, hresolved, hdyn]
+    simp only [hstorage, henc]
+    exact (encodeStorageAt_writeAddressKeyedMappingChainSlots_singleton_eq_written
+      (fields := fields) (world := runtime.world) (slot := slot) (keys := keys) (value := value)
+      hresolved hdyn hvalue).symm
+  · rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
+    simp only [hEq, ↓reduceIte]
+    rw [hstorage]
+    exact (encodeStorageAt_writeAddressKeyedMappingChainSlots_singleton_other
+      (fields := fields) (world := runtime.world) (slot := slot) (keys := keys)
+      (query := query) (value := value) hEq).symm
 
 private theorem runtimeStateMatchesIR_writeAddressKeyedMappingSlot
     {fields : List Field}
@@ -4612,26 +4622,39 @@ private theorem runtimeStateMatchesIR_writeAddressKeyedMappingSlot
         (Compiler.Proofs.abstractMappingSlot slot key) = none)
     (hdyn :
       findDynamicArrayElementAtSlotCopy fields runtime.world
-        (Compiler.Proofs.abstractMappingSlot slot key) = none) :
+        (Compiler.Proofs.abstractMappingSlot slot key) = none)
+    (hvalue : value < Verity.Core.Uint256.modulus) :
     FunctionBody.runtimeStateMatchesIR fields
       { runtime with world := SourceSemantics.writeAddressKeyedMappingSlots runtime.world [slot] key value }
       { state with
-          storage := Compiler.Proofs.abstractStoreMappingEntry state.storage slot key value } := by sorry
--- SORRY'D:   rcases hruntime with
--- SORRY'D:     ⟨hstorage, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
--- SORRY'D:   refine ⟨?_, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
--- SORRY'D:   funext query
--- SORRY'D:   by_cases hEq : query = Compiler.Proofs.abstractMappingSlot slot key
--- SORRY'D:   · subst hEq
--- SORRY'D:     rw [Compiler.Proofs.abstractStoreMappingEntry_eq]
--- SORRY'D:     simp
--- SORRY'D:     exact encodeStorageAt_writeUintKeyedMappingSlots_singleton_eq_written
--- SORRY'D:       (fields := fields) (world := runtime.world) (slot := slot) (key := key) (value := value)
--- SORRY'D:       hresolved hdyn
--- SORRY'D:   · rw [Compiler.Proofs.abstractStoreMappingEntry_eq, hstorage]
--- SORRY'D:     simp [hEq, SourceSemantics.writeAddressKeyedMappingSlots,
--- SORRY'D:       encodeStorageAt_writeUintKeyedMappingSlots_singleton_other (fields := fields)
--- SORRY'D:         (world := runtime.world) (slot := slot) (key := key) (query := query) (value := value) hEq]
+          storage := Compiler.Proofs.abstractStoreMappingEntry state.storage slot key value } := by
+  -- writeAddressKeyedMappingSlots has the same storage/storageAddr/storageArray as writeUintKeyedMappingSlots
+  -- so encodeStorageAt produces identical results; we bridge via encodeStorageAt_congr
+  have hbridge : ∀ q, SourceSemantics.encodeStorageAt fields
+      (SourceSemantics.writeAddressKeyedMappingSlots runtime.world [slot] key value) q =
+      SourceSemantics.encodeStorageAt fields
+      (SourceSemantics.writeUintKeyedMappingSlots runtime.world [slot] key value) q := by
+    intro q
+    apply SourceSemantics.encodeStorageAt_congr
+    · simp [SourceSemantics.writeAddressKeyedMappingSlots, SourceSemantics.writeUintKeyedMappingSlots]
+    · simp [SourceSemantics.writeAddressKeyedMappingSlots, SourceSemantics.writeUintKeyedMappingSlots]
+    · simp [SourceSemantics.writeAddressKeyedMappingSlots, SourceSemantics.writeUintKeyedMappingSlots]
+  rcases hruntime with
+    ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+  refine ⟨?_, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+  funext query
+  rw [hbridge]
+  simp only [Compiler.Proofs.abstractStoreMappingEntry, Compiler.Proofs.abstractMappingSlot]
+  by_cases hEq : query = Compiler.Proofs.solidityMappingSlot slot key
+  · subst hEq
+    simp only [↓reduceIte]
+    exact (encodeStorageAt_writeUintKeyedMappingSlots_singleton_eq_written
+      (fields := fields) (world := runtime.world) (slot := slot) (key := key) (value := value)
+      hresolved hdyn hvalue).symm
+  · simp only [hEq, ↓reduceIte]
+    rw [hstorage]
+    exact (encodeStorageAt_writeUintKeyedMappingSlots_singleton_other (fields := fields)
+      (world := runtime.world) (slot := slot) (key := key) (query := query) (value := value) hEq).symm
 
 private theorem runtimeStateMatchesIR_writeAddressKeyedMappingWordSlot
     {fields : List Field}
@@ -4644,7 +4667,8 @@ private theorem runtimeStateMatchesIR_writeAddressKeyedMappingWordSlot
         (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = none)
     (hdyn :
       findDynamicArrayElementAtSlotCopy fields runtime.world
-        (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = none) :
+        (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = none)
+    (hvalue : value < Verity.Core.Uint256.modulus) :
     FunctionBody.runtimeStateMatchesIR fields
       { runtime with
           world := SourceSemantics.writeAddressKeyedMappingWordSlots
@@ -4653,22 +4677,29 @@ private theorem runtimeStateMatchesIR_writeAddressKeyedMappingWordSlot
           storage := Compiler.Proofs.abstractStoreStorageOrMapping
             state.storage
             (Compiler.Proofs.abstractMappingSlot slot key + wordOffset)
-            value } := by sorry
--- SORRY'D:   rcases hruntime with
--- SORRY'D:     ⟨hstorage, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
--- SORRY'D:   refine ⟨?_, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
--- SORRY'D:   funext query
--- SORRY'D:   by_cases hEq : query = Compiler.Proofs.abstractMappingSlot slot key + wordOffset
--- SORRY'D:   · subst hEq
--- SORRY'D:     rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
--- SORRY'D:     simp
--- SORRY'D:     exact encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_eq_written
--- SORRY'D:       (fields := fields) (world := runtime.world) (slot := slot) (key := key)
--- SORRY'D:       (wordOffset := wordOffset) (value := value) hresolved hdyn
--- SORRY'D:   · rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq, hstorage]
--- SORRY'D:     simp [hEq, encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_other
--- SORRY'D:       (fields := fields) (world := runtime.world) (slot := slot) (key := key)
--- SORRY'D:       (wordOffset := wordOffset) (query := query) (value := value) hEq]
+            value } := by
+  rcases hruntime with
+    ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+  refine ⟨?_, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+  funext query
+  by_cases hEq : query = Compiler.Proofs.abstractMappingSlot slot key + wordOffset
+  · subst hEq
+    rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
+    have henc : SourceSemantics.encodeStorageAt fields runtime.world
+        (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) =
+        (runtime.world.storage (Compiler.Proofs.abstractMappingSlot slot key + wordOffset)).val := by
+      rw [encodeStorageAt_eq_copy]
+      simp only [encodeStorageAtCopy, hresolved, hdyn]
+    simp only [hstorage, henc]
+    exact (encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_eq_written
+      (fields := fields) (world := runtime.world) (slot := slot) (key := key)
+      (wordOffset := wordOffset) (value := value) hresolved hdyn hvalue).symm
+  · rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
+    simp only [hEq, ↓reduceIte]
+    rw [hstorage]
+    exact (encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_other
+      (fields := fields) (world := runtime.world) (slot := slot) (key := key)
+      (wordOffset := wordOffset) (query := query) (value := value) hEq).symm
 
 private theorem runtimeStateMatchesIR_writeAddressKeyedMappingPackedWordSlot
     {fields : List Field}
@@ -4694,22 +4725,31 @@ private theorem runtimeStateMatchesIR_writeAddressKeyedMappingPackedWordSlot
             (SourceSemantics.packedWordWrite
               (state.storage (Compiler.Proofs.abstractMappingSlot slot key + wordOffset))
               value
-              packed) } := by sorry
--- SORRY'D:   rcases hruntime with
--- SORRY'D:     ⟨hstorage, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
--- SORRY'D:   refine ⟨?_, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
--- SORRY'D:   funext query
--- SORRY'D:   by_cases hEq : query = Compiler.Proofs.abstractMappingSlot slot key + wordOffset
--- SORRY'D:   · subst hEq
--- SORRY'D:     rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
--- SORRY'D:     simp [hstorage]
--- SORRY'D:     exact encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleton_eq_written
--- SORRY'D:       (fields := fields) (world := runtime.world) (slot := slot) (key := key)
--- SORRY'D:       (wordOffset := wordOffset) (packed := packed) (value := value) hresolved hdyn
--- SORRY'D:   · rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq, hstorage]
--- SORRY'D:     simp [hEq, encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleton_other
--- SORRY'D:       (fields := fields) (world := runtime.world) (slot := slot) (key := key)
--- SORRY'D:       (wordOffset := wordOffset) (packed := packed) (query := query) (value := value) hEq]
+              packed) } := by
+  rcases hruntime with
+    ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+  refine ⟨?_, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+  funext query
+  by_cases hEq : query = Compiler.Proofs.abstractMappingSlot slot key + wordOffset
+  · subst hEq
+    rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
+    -- After simp [hstorage], the packedWordWrite arg becomes encodeStorageAt fields runtime.world slot
+    -- but _eq_written expects (runtime.world.storage slot).val. Show they're equal.
+    have henc : SourceSemantics.encodeStorageAt fields runtime.world
+        (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) =
+        (runtime.world.storage (Compiler.Proofs.abstractMappingSlot slot key + wordOffset)).val := by
+      rw [encodeStorageAt_eq_copy]
+      simp only [encodeStorageAtCopy, hresolved, hdyn]
+    simp only [hstorage, henc]
+    exact (encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleton_eq_written
+      (fields := fields) (world := runtime.world) (slot := slot) (key := key)
+      (wordOffset := wordOffset) (packed := packed) (value := value) hresolved hdyn).symm
+  · rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
+    simp only [hEq, ↓reduceIte]
+    rw [hstorage]
+    exact (encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleton_other
+      (fields := fields) (world := runtime.world) (slot := slot) (key := key)
+      (wordOffset := wordOffset) (packed := packed) (query := query) (value := value) hEq).symm
 
 -- TYPESIG_SORRY: private theorem runtimeStateMatchesIR_writeAddressKeyedMapping2Slot
 -- TYPESIG_SORRY:     {fields : List Field}
@@ -4773,7 +4813,8 @@ private theorem runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot
       findDynamicArrayElementAtSlotCopy fields runtime.world
         (Compiler.Proofs.abstractMappingSlot
           (Compiler.Proofs.abstractMappingSlot slot key1)
-          key2 + wordOffset) = none) :
+          key2 + wordOffset) = none)
+    (hvalue : value < Verity.Core.Uint256.modulus) :
     FunctionBody.runtimeStateMatchesIR fields
       { runtime with
           world := SourceSemantics.writeAddressKeyedMapping2WordSlots
@@ -4784,26 +4825,38 @@ private theorem runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot
             (Compiler.Proofs.abstractMappingSlot
               (Compiler.Proofs.abstractMappingSlot slot key1)
               key2 + wordOffset)
-            value } := by sorry
--- SORRY'D:   rcases hruntime with
--- SORRY'D:     ⟨hstorage, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
--- SORRY'D:   refine ⟨?_, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
--- SORRY'D:   funext query
--- SORRY'D:   by_cases hEq : query =
--- SORRY'D:       Compiler.Proofs.abstractMappingSlot
--- SORRY'D:         (Compiler.Proofs.abstractMappingSlot slot key1)
--- SORRY'D:         key2 + wordOffset
--- SORRY'D:   · subst hEq
--- SORRY'D:     rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
--- SORRY'D:     simp
--- SORRY'D:     exact encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_eq_written
--- SORRY'D:       (fields := fields) (world := runtime.world)
--- SORRY'D:       (slot := slot) (key1 := key1) (key2 := key2) (wordOffset := wordOffset)
--- SORRY'D:       (value := value) hresolved hdyn
--- SORRY'D:   · rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq, hstorage]
--- SORRY'D:     simp [hEq, encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_other
--- SORRY'D:       (fields := fields) (world := runtime.world) (slot := slot) (key1 := key1)
--- SORRY'D:       (key2 := key2) (wordOffset := wordOffset) (query := query) (value := value) hEq]
+            value } := by
+  rcases hruntime with
+    ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+  refine ⟨?_, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+  funext query
+  by_cases hEq : query =
+      Compiler.Proofs.abstractMappingSlot
+        (Compiler.Proofs.abstractMappingSlot slot key1)
+        key2 + wordOffset
+  · subst hEq
+    rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
+    have henc : SourceSemantics.encodeStorageAt fields runtime.world
+        (Compiler.Proofs.abstractMappingSlot
+          (Compiler.Proofs.abstractMappingSlot slot key1)
+          key2 + wordOffset) =
+        (runtime.world.storage
+          (Compiler.Proofs.abstractMappingSlot
+            (Compiler.Proofs.abstractMappingSlot slot key1)
+            key2 + wordOffset)).val := by
+      rw [encodeStorageAt_eq_copy]
+      simp only [encodeStorageAtCopy, hresolved, hdyn]
+    simp only [hstorage, henc]
+    exact (encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_eq_written
+      (fields := fields) (world := runtime.world)
+      (slot := slot) (key1 := key1) (key2 := key2) (wordOffset := wordOffset)
+      (value := value) hresolved hdyn hvalue).symm
+  · rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
+    simp only [hEq, ↓reduceIte]
+    rw [hstorage]
+    exact (encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_other
+      (fields := fields) (world := runtime.world) (slot := slot) (key1 := key1)
+      (key2 := key2) (wordOffset := wordOffset) (query := query) (value := value) hEq).symm
 
 private theorem bindingsExactlyMatchIRVarsOnScope_writeUintSlot
     {scope : List String}

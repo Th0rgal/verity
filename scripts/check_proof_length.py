@@ -35,6 +35,7 @@ HARD_LIMIT = 50
 # before the check was introduced. New proofs must not be added here without a
 # justification comment in the PR explaining why decomposition is not feasible.
 ALLOWLIST: set[str] = {
+    "runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot",
     "ledger_transfer_correct_sufficient",
     "token_transfer_correct_sufficient",
     "token_mint_correct_as_owner",

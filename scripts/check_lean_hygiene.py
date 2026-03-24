@@ -64,7 +64,7 @@ def main() -> None:
         )
 
     # Check 3: Fixed sorry baseline after the merged proof-reduction pass.
-    expected_sorry = 81
+    expected_sorry = 75
     sorry_count = 0
     sorry_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):
