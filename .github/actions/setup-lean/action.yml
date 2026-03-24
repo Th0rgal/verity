@@ -251,6 +251,28 @@ runs:
         done
         echo "::warning::Unable to download Lean compiled cache after retries; continuing with source builds."
 
+    - name: Resolve Lake dependencies
+      id: lake-resolve
+      if: steps.hydration.outputs.required == 'true'
+      shell: bash
+      run: lake resolve
+      continue-on-error: true
+
+    - name: Retry Lake dependency resolution on transient failures
+      if: steps.hydration.outputs.required == 'true' && steps.lake-resolve.outcome != 'success'
+      shell: bash
+      run: |
+        set -u
+        for delay in 5 15; do
+          echo "::warning::lake resolve failed; retrying in ${delay}s"
+          sleep "${delay}"
+          if lake resolve; then
+            exit 0
+          fi
+        done
+        echo "::error::Unable to resolve Lake dependencies after retries"
+        exit 1
+
 outputs:
   cache-hit:
     description: Whether the Lake cache was a full hit

@@ -355,7 +355,16 @@ jobs:
         run: tar -xf lean-workspace-build.tar
 
       - name: Build macro round-trip fuzz executable
-        run: stdbuf -oL -eL lake build macro-roundtrip-fuzz
+        run: |
+          for attempt in 1 2 3; do
+            if stdbuf -oL -eL lake build macro-roundtrip-fuzz; then
+              exit 0
+            fi
+            echo "::warning::lake build attempt $attempt failed; retrying in 10s"
+            sleep 10
+          done
+          echo "::error::lake build failed after 3 attempts"
+          exit 1
 
       - name: Package macro-fuzz Lean workspace build
         run: tar -cf lean-workspace-macro-fuzz-build.tar .lake/build .lake/lakefile.olean .lake/lakefile.olean.trace

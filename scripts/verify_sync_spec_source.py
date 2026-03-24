@@ -358,8 +358,15 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                      'uses': 'actions/download-artifact@v7',
                                                      'with': {'name': 'lean-workspace-build'}},
                                                     {'name': 'Build macro round-trip fuzz executable',
-                                                     'run': 'stdbuf -oL -eL lake build '
-                                                            'macro-roundtrip-fuzz'},
+                                                     'run': 'for attempt in 1 2 3; do\n'
+                                                            '  if stdbuf -oL -eL lake build macro-roundtrip-fuzz; then\n'
+                                                            '    exit 0\n'
+                                                            '  fi\n'
+                                                            '  echo "::warning::lake build attempt $attempt failed; retrying in 10s"\n'
+                                                            '  sleep 10\n'
+                                                            'done\n'
+                                                            'echo "::error::lake build failed after 3 attempts"\n'
+                                                            'exit 1'},
                                                     {'name': 'Upload macro-fuzz Lean workspace '
                                                              'build',
                                                      'uses': 'actions/upload-artifact@v7',
