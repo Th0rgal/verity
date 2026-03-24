@@ -1141,6 +1141,10 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.firstInFieldConflictCopy_ne_none_of_seen_slot_unpacked  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.firstFieldWriteSlotConflictCopyFrom_some_of_seen_slot_member  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.firstFieldWriteSlotConflictCopyFrom_some_of_seen_slot_singleton  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.findResolvedFieldAtSlotCopyFrom_of_member  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.findResolvedFieldAtSlotCopy_go_eq_CopyFrom  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.firstInFieldConflict_eq_Copy  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.firstFieldWriteSlotConflict_go_eq_CopyFrom  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.findResolvedFieldAtSlotCopy_of_findFieldWithResolvedSlot_member  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.findResolvedFieldAtSlotCopy_of_findFieldWithResolvedSlot_singleton  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_eq_storage_of_resolvedSlot  -- private
@@ -1868,4 +1872,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1737 theorems/lemmas (1151 public, 556 private, 30 sorry'd)
+-- Total: 1741 theorems/lemmas (1151 public, 560 private, 30 sorry'd)
