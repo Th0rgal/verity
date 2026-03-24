@@ -4490,13 +4490,26 @@ private theorem runtimeStateMatchesIR_writeUintSlot
     {f : Field}
     (hresolved : findResolvedFieldAtSlotCopy fields slot = some f)
     (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
-    (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false) :
+    (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
+    (hvalue : value < Verity.Core.Uint256.modulus) :
     FunctionBody.runtimeStateMatchesIR fields
       { runtime with world := SourceSemantics.writeUintSlots runtime.world [slot] value }
       { state with
-          storage := Compiler.Proofs.abstractStoreStorageOrMapping state.storage slot value } := by sorry
--- SORRY'D (needs value < Constants.evmModulus hypothesis):
--- The proof works except for the pos case where we need value = value % evmModulus
+          storage := Compiler.Proofs.abstractStoreStorageOrMapping state.storage slot value } := by
+  rcases hruntime with
+    ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+  refine ⟨?_, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+  funext query
+  by_cases hEq : query = slot
+  · subst hEq
+    rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
+    rw [encodeStorageAt_eq_storage_of_resolvedSlot hresolved hnotAddr hnotDyn]
+    simp [SourceSemantics.writeUintSlots, Verity.Core.Uint256.val_ofNat]
+    exact (Nat.mod_eq_of_lt hvalue).symm
+  · rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
+    simp only [hEq, ↓reduceIte]
+    rw [hstorage]
+    exact (encodeStorageAt_writeUintSlots_singleton_other hEq).symm
 
 private theorem runtimeStateMatchesIR_writeAddressSlot
     {fields : List Field}
@@ -4507,12 +4520,39 @@ private theorem runtimeStateMatchesIR_writeAddressSlot
     {f : Field}
     (hresolved : findResolvedFieldAtSlotCopy fields slot = some f)
     (haddr : SourceSemantics.fieldUsesAddressStorage f = true)
-    (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false) :
+    (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
+    (hvalue : value < Verity.Core.Address.modulus) :
     FunctionBody.runtimeStateMatchesIR fields
       { runtime with world := SourceSemantics.writeAddressSlots runtime.world [slot] value }
       { state with
-          storage := Compiler.Proofs.abstractStoreStorageOrMapping state.storage slot value } := by sorry
--- SORRY'D (needs value < Constants.evmModulus hypothesis)
+          storage := Compiler.Proofs.abstractStoreStorageOrMapping state.storage slot value } := by
+  rcases hruntime with
+    ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+  refine ⟨?_, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+  funext query
+  by_cases hEq : query = slot
+  · subst hEq
+    rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
+    rw [encodeStorageAt_eq_storageAddr_of_resolvedSlot hresolved haddr hnotDyn]
+    simp [SourceSemantics.writeAddressSlots, Verity.wordToAddress, Verity.Core.Address.ofNat,
+          Verity.Core.Uint256.val_ofNat, Verity.Core.Address.modulus]
+    -- Goal: value = value % Constants.evmModulus % ADDRESS_MODULUS
+    have h256 : value < Constants.evmModulus := by
+      have := hvalue
+      unfold Verity.Core.Address.modulus Verity.Core.ADDRESS_MODULUS at this
+      unfold Constants.evmModulus
+      omega
+    have haddr' : value < Verity.Core.ADDRESS_MODULUS := by
+      unfold Verity.Core.Address.modulus at hvalue; exact hvalue
+    rw [Nat.mod_eq_of_lt h256, Nat.mod_eq_of_lt haddr']
+  · rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
+    simp only [hEq, ↓reduceIte]
+    rw [hstorage]
+    symm
+    apply SourceSemantics.encodeStorageAt_congr
+    · simp [SourceSemantics.writeAddressSlots]
+    · simp [SourceSemantics.writeAddressSlots, hEq]
+    · simp [SourceSemantics.writeAddressSlots]
 
 private theorem runtimeStateMatchesIR_writeUintSlots
     {fields : List Field}
@@ -4524,12 +4564,27 @@ private theorem runtimeStateMatchesIR_writeUintSlots
     {f : Field}
     (hresolved : ∀ slot ∈ slots, findResolvedFieldAtSlotCopy fields slot = some f)
     (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
-    (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false) :
+    (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
+    (hvalue : value < Verity.Core.Uint256.modulus) :
     FunctionBody.runtimeStateMatchesIR fields
       { runtime with world := SourceSemantics.writeUintSlots runtime.world slots value }
       { state with
-          storage := abstractStoreStorageOrMappingMany state.storage slots value } := by sorry
--- SORRY'D (needs value < Constants.evmModulus hypothesis)
+          storage := abstractStoreStorageOrMappingMany state.storage slots value } := by
+  rcases hruntime with
+    ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+  refine ⟨?_, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+  funext query
+  simp only [abstractStoreStorageOrMappingMany_eq]
+  by_cases hmem : slots.contains query = true
+  · simp only [hmem, ↓reduceIte]
+    have hq : query ∈ slots := by simpa using hmem
+    rw [encodeStorageAt_eq_storage_of_resolvedSlot (hresolved query hq) hnotAddr hnotDyn]
+    simp only [SourceSemantics.writeUintSlots, hmem, ↓reduceIte, Verity.Core.Uint256.val_ofNat]
+    exact (Nat.mod_eq_of_lt hvalue).symm
+  · simp only [hmem, ↓reduceIte]
+    rw [hstorage]
+    have hnotMem : query ∉ slots := by simpa using hmem
+    exact (encodeStorageAt_writeUintSlots_other hnotMem).symm
 
 private theorem runtimeStateMatchesIR_writeUintKeyedMappingSlot
     {fields : List Field}
@@ -4552,7 +4607,7 @@ private theorem runtimeStateMatchesIR_writeUintKeyedMappingSlot
     ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
   refine ⟨?_, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
   funext query
-  simp only [Compiler.Proofs.abstractStoreMappingEntry, Compiler.Proofs.abstractMappingSlot]
+  simp only [Compiler.Proofs.abstractStoreMappingEntry]
   by_cases hEq : query = Compiler.Proofs.solidityMappingSlot slot key
   · subst hEq
     simp only [↓reduceIte]
@@ -4644,7 +4699,7 @@ private theorem runtimeStateMatchesIR_writeAddressKeyedMappingSlot
   refine ⟨?_, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
   funext query
   rw [hbridge]
-  simp only [Compiler.Proofs.abstractStoreMappingEntry, Compiler.Proofs.abstractMappingSlot]
+  simp only [Compiler.Proofs.abstractStoreMappingEntry]
   by_cases hEq : query = Compiler.Proofs.solidityMappingSlot slot key
   · subst hEq
     simp only [↓reduceIte]
