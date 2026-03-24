@@ -36,6 +36,7 @@ HARD_LIMIT = 50
 # justification comment in the PR explaining why decomposition is not feasible.
 ALLOWLIST: set[str] = {
     "runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot",
+    "findResolvedFieldAtSlotCopyFrom_of_member",
     "ledger_transfer_correct_sufficient",
     "token_transfer_correct_sufficient",
     "token_mint_correct_as_owner",

@@ -3907,10 +3907,30 @@ theorem exec_compileStmt_letVar_core
       let irExec := execIRStmts (bodyIR.length + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec ∧
       stmtResultMatchesIRExecExact sourceResult irExec := by
-  -- Temporary stabilization point for the `Option` migration.
-  -- Clean fix: split on `SourceSemantics.evalExpr`; on `some v`, transport to
-  -- `bindValue`/`setVar`, and on `none`, show both source and IR sides revert.
-  sorry
+  rcases compileExpr_core_ok hcore with ⟨valueIR, hvalueIR⟩
+  refine ⟨[YulStmt.let_ name valueIR], ?_, ?_⟩
+  · simp [CompilationModel.compileStmt, hvalueIR]
+  · -- Get the bridge: both evaluations succeed with same value
+    have heval := eval_compileExpr_core hcore hexact hbounded hpresent hruntime
+    rw [hvalueIR] at heval
+    simp [Except.toOption] at heval
+    -- heval now relates evalIRExpr and evalExpr via Option bind
+    -- Source: execStmt letVar does match evalExpr ... with some v => continue | none => revert
+    -- IR: execIRStmts on [let_ name valueIR] does match evalIRExpr state valueIR with some v => continue (setVar) | none => revert
+    simp only [SourceSemantics.execStmt, execIRStmts, List.length, execIRStmt]
+    -- Now we need to case-split on evalIRExpr state valueIR
+    rcases hIR : evalIRExpr state valueIR with _ | v
+    · -- evalIRExpr returns none → but eval_compileExpr_core says it returns some
+      simp [hIR, Option.bind] at heval
+    · -- evalIRExpr returns some v
+      simp [hIR, Option.bind] at heval
+      -- heval : some v = evalExpr fields runtime value (up to wrapping)
+      -- Now source side: evalExpr returns some v too
+      rw [show SourceSemantics.evalExpr fields runtime value = some v from heval.symm]
+      simp [stmtResultMatchesIRExec, stmtResultMatchesIRExecExact]
+      exact ⟨hruntime, bindingsExactlyMatchIRVars_setVar_bindValue hexact name v,
+             bindingsBounded_bindValue hbounded name v
+               (evalExpr_lt_evmModulus_core hcore hexact hbounded hpresent hruntime)⟩
 
 theorem exec_compileStmt_assignVar_core
     {fields : List Field}
@@ -3929,10 +3949,21 @@ theorem exec_compileStmt_assignVar_core
       let irExec := execIRStmts (bodyIR.length + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec ∧
       stmtResultMatchesIRExecExact sourceResult irExec := by
-  -- Temporary stabilization point for the `Option` migration.
-  -- Clean fix: same proof pattern as `letVar`, with explicit success/failure
-  -- transport from `Option` source evaluation into the IR assignment step.
-  sorry
+  rcases compileExpr_core_ok hcore with ⟨valueIR, hvalueIR⟩
+  refine ⟨[YulStmt.assign name valueIR], ?_, ?_⟩
+  · simp [CompilationModel.compileStmt, hvalueIR]
+  · have heval := eval_compileExpr_core hcore hexact hbounded hpresent hruntime
+    rw [hvalueIR] at heval
+    simp [Except.toOption] at heval
+    simp only [SourceSemantics.execStmt, execIRStmts, List.length, execIRStmt]
+    rcases hIR : evalIRExpr state valueIR with _ | v
+    · simp [hIR, Option.bind] at heval
+    · simp [hIR, Option.bind] at heval
+      rw [show SourceSemantics.evalExpr fields runtime value = some v from heval.symm]
+      simp [stmtResultMatchesIRExec, stmtResultMatchesIRExecExact]
+      exact ⟨hruntime, bindingsExactlyMatchIRVars_setVar_bindValue hexact name v,
+             bindingsBounded_bindValue hbounded name v
+               (evalExpr_lt_evmModulus_core hcore hexact hbounded hpresent hruntime)⟩
 
 theorem exec_compileStmt_return_core
     {fields : List Field}
@@ -3950,10 +3981,21 @@ theorem exec_compileStmt_return_core
       let irExec := execIRStmts (bodyIR.length + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec ∧
       stmtResultMatchesIRExecExact sourceResult irExec := by
-  -- Temporary stabilization point for the `Option` migration.
-  -- Clean fix: prove the source `return`/`revert` split first, then transport
-  -- the IR `mstore`/`return` path using `.getD 0` only on the successful branch.
-  sorry
+  rcases compileExpr_core_ok hcore with ⟨valueIR, hvalueIR⟩
+  refine ⟨[ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+          , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ], ?_, ?_⟩
+  · simp [CompilationModel.compileStmt, hvalueIR]
+  · have heval := eval_compileExpr_core hcore hexact hbounded hpresent hruntime
+    rw [hvalueIR] at heval
+    simp [Except.toOption] at heval
+    simp only [SourceSemantics.execStmt, execIRStmts, List.length, execIRStmt, evalIRExpr,
+               evalIRExprs]
+    rcases hIR : evalIRExpr state valueIR with _ | v
+    · simp [hIR, Option.bind] at heval
+    · simp [hIR, Option.bind] at heval
+      rw [show SourceSemantics.evalExpr fields runtime value = some v from heval.symm]
+      simp [stmtResultMatchesIRExec, stmtResultMatchesIRExecExact]
+      exact ⟨hruntime, hexact, hbounded⟩
 
 theorem exec_compileStmt_return_core_extraFuel
     {fields : List Field}
@@ -3972,10 +4014,21 @@ theorem exec_compileStmt_return_core_extraFuel
       let irExec := execIRStmts (bodyIR.length + extraFuel + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec ∧
       stmtResultMatchesIRExecExact sourceResult irExec := by
-  -- Temporary stabilization point for the `Option` migration.
-  -- Clean fix: lift the repaired `return_core` proof to arbitrary extra fuel,
-  -- preserving the same successful-return vs revert split.
-  sorry
+  rcases compileExpr_core_ok hcore with ⟨valueIR, hvalueIR⟩
+  refine ⟨[ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+          , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ], ?_, ?_⟩
+  · simp [CompilationModel.compileStmt, hvalueIR]
+  · have heval := eval_compileExpr_core hcore hexact hbounded hpresent hruntime
+    rw [hvalueIR] at heval
+    simp [Except.toOption] at heval
+    simp only [SourceSemantics.execStmt, execIRStmts, List.length, execIRStmt, evalIRExpr,
+               evalIRExprs]
+    rcases hIR : evalIRExpr state valueIR with _ | v
+    · simp [hIR, Option.bind] at heval
+    · simp [hIR, Option.bind] at heval
+      rw [show SourceSemantics.evalExpr fields runtime value = some v from heval.symm]
+      simp [stmtResultMatchesIRExec, stmtResultMatchesIRExecExact]
+      exact ⟨hruntime, hexact, hbounded⟩
 
 theorem exec_compileStmt_stop_core
     {fields : List Field}
