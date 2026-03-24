@@ -2778,7 +2778,188 @@ private theorem stmtListScopeDiscipline_of_validateScopedStmtListIdentifiers
           Except.ok finalScope)
     (hparamsInScope : ∀ name, name ∈ paramScope → name ∈ scope)
     (hlocalsInScope : ∀ name, name ∈ localScope → name ∈ scope) :
-    StmtListScopeDiscipline fieldNames scope stmts := by sorry
+    StmtListScopeDiscipline fieldNames scope stmts := by
+  induction hcore generalizing localScope scope finalScope with
+  | nil =>
+      simp only [validateScopedStmtListIdentifiers, pure, Except.pure] at hvalidate
+      cases hvalidate
+      exact StmtListScopeDiscipline.nil
+  | letVar hvalueCore hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      have hstmt' := hstmt
+      unfold validateScopedStmtIdentifiers at hstmt'
+      revert hstmt'
+      rcases hExprVal : validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount _ with _ | _
+      · intro h; simp [hExprVal, bind, Except.bind] at h
+      · simp only [hExprVal, bind, Except.bind, pure, Except.pure]
+        intro h
+        split at h <;> try (simp at h)
+        split at h <;> try (simp at h)
+        cases h
+        exact StmtListScopeDiscipline.letVar
+          hvalueCore
+          (exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
+            hvalueCore hExprVal hparamsInScope hlocalsInScope)
+          (ih hrestValidate
+            (by
+              intro other hmem
+              exact mem_stmtNextScope_of_mem_scope (hparamsInScope other hmem))
+            (by
+              intro other hmem
+              simp at hmem
+              rcases hmem with rfl | hmem
+              · exact List.mem_append.mpr <| Or.inl <| by simp [stmtNextScope, collectStmtNames]
+              · exact mem_stmtNextScope_of_mem_scope (hlocalsInScope other hmem)))
+  | assignVar hvalueCore hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      have hstmt' := hstmt
+      unfold validateScopedStmtIdentifiers at hstmt'
+      -- assignVar: if !localScope.contains name then throw ...; validateExpr ...; pure localScope
+      revert hstmt'
+      split
+      · intro h; simp [bind, Except.bind] at h
+      · intro hstmt'
+        simp only [bind, Except.bind, pure, Except.pure] at hstmt'
+        rcases hExprVal : validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount _ with _ | _
+        · rw [hExprVal] at hstmt'; exact absurd hstmt' (by simp)
+        · rw [hExprVal] at hstmt'; simp at hstmt'; cases hstmt'
+          exact StmtListScopeDiscipline.assignVar
+            hvalueCore
+            (exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
+              hvalueCore hExprVal hparamsInScope hlocalsInScope)
+            (ih hrestValidate
+              (by
+                intro other hmem
+                exact mem_stmtNextScope_of_mem_scope (hparamsInScope other hmem))
+              (by
+                intro other hmem
+                exact mem_stmtNextScope_of_mem_scope (hlocalsInScope other hmem)))
+  | require hcondCore hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      have hstmt' := hstmt
+      unfold validateScopedStmtIdentifiers at hstmt'
+      revert hstmt'
+      rcases hExprVal : validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount _ with _ | _
+      · intro h; simp [bind, Except.bind] at h
+      · simp only [bind, Except.bind, pure, Except.pure]
+        intro h; cases h
+        exact StmtListScopeDiscipline.require
+          hcondCore
+          (exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
+            hcondCore hExprVal hparamsInScope hlocalsInScope)
+          (ih hrestValidate
+            (by
+              intro other hmem
+              exact mem_stmtNextScope_of_mem_scope (hparamsInScope other hmem))
+            (by
+              intro other hmem
+              exact mem_stmtNextScope_of_mem_scope (hlocalsInScope other hmem)))
+  | return_ hvalueCore hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      have hstmt' := hstmt
+      unfold validateScopedStmtIdentifiers at hstmt'
+      revert hstmt'
+      rcases hExprVal : validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount _ with _ | _
+      · intro h; simp [bind, Except.bind] at h
+      · simp only [bind, Except.bind, pure, Except.pure]
+        intro h; cases h
+        exact StmtListScopeDiscipline.return_
+          hvalueCore
+          (exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
+            hvalueCore hExprVal hparamsInScope hlocalsInScope)
+          (ih hrestValidate
+            (by
+              intro other hmem
+              exact mem_stmtNextScope_of_mem_scope (hparamsInScope other hmem))
+            (by
+              intro other hmem
+              exact mem_stmtNextScope_of_mem_scope (hlocalsInScope other hmem)))
+  | stop hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      have hstmt' := hstmt
+      unfold validateScopedStmtIdentifiers at hstmt'
+      simp only [pure, Except.pure] at hstmt'
+      cases hstmt'
+      refine StmtListScopeDiscipline.stop ?_
+      exact ih hrestValidate hparamsInScope hlocalsInScope
+  | setStorage hfield hvalueCore hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      have hstmt' := hstmt
+      unfold validateScopedStmtIdentifiers at hstmt'
+      revert hstmt'
+      rcases hExprVal : validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount _ with _ | _
+      · intro h; simp [bind, Except.bind] at h
+      · simp only [bind, Except.bind, pure, Except.pure]
+        intro h; cases h
+        exact StmtListScopeDiscipline.setStorage
+          hfield
+          hvalueCore
+          (exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
+            hvalueCore hExprVal hparamsInScope hlocalsInScope)
+          (ih hrestValidate
+            (by
+              intro other hmem
+              exact mem_stmtNextScope_of_mem_scope (hparamsInScope other hmem))
+            (by
+              intro other hmem
+              exact mem_stmtNextScope_of_mem_scope (hlocalsInScope other hmem)))
+  | setStorageAddr hfield hvalueCore hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      have hstmt' := hstmt
+      unfold validateScopedStmtIdentifiers at hstmt'
+      revert hstmt'
+      rcases hExprVal : validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount _ with _ | _
+      · intro h; simp [bind, Except.bind] at h
+      · simp only [bind, Except.bind, pure, Except.pure]
+        intro h; cases h
+        exact StmtListScopeDiscipline.setStorageAddr
+          hfield
+          hvalueCore
+          (exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
+            hvalueCore hExprVal hparamsInScope hlocalsInScope)
+          (ih hrestValidate
+            (by
+              intro other hmem
+              exact mem_stmtNextScope_of_mem_scope (hparamsInScope other hmem))
+            (by
+              intro other hmem
+              exact mem_stmtNextScope_of_mem_scope (hlocalsInScope other hmem)))
+  | ite hcondCore hthenCore helseCore hrest ihThen ihElse ihRest =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      have hstmt' := hstmt
+      unfold validateScopedStmtIdentifiers at hstmt'
+      revert hstmt'
+      rcases hCondVal : validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount _ with _ | _
+      · intro h; simp [bind, Except.bind] at h
+      · simp only [bind, Except.bind, pure, Except.pure]
+        rcases hThenVal : validateScopedStmtListIdentifiers context params paramScope dynamicParams localScope constructorArgCount _ with _ | _
+        · intro h; simp [hThenVal, bind, Except.bind] at h
+        · simp only [hThenVal, bind, Except.bind]
+          rcases hElseVal : validateScopedStmtListIdentifiers context params paramScope dynamicParams localScope constructorArgCount _ with _ | _
+          · intro h; simp [hElseVal, bind, Except.bind] at h
+          · simp only [hElseVal, bind, Except.bind, pure, Except.pure]
+            intro h; cases h
+            exact StmtListScopeDiscipline.ite
+              hcondCore
+              (exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
+                hcondCore hCondVal hparamsInScope hlocalsInScope)
+              (ihThen hThenVal hparamsInScope hlocalsInScope)
+              (ihElse hElseVal hparamsInScope hlocalsInScope)
+              (ihRest hrestValidate
+                (by
+                  intro other hmem
+                  exact mem_stmtNextScope_of_mem_scope (hparamsInScope other hmem))
+                (by
+                  intro other hmem
+                  exact mem_stmtNextScope_of_mem_scope (hlocalsInScope other hmem)))
 -- SORRY'D:   induction hcore generalizing localScope scope finalScope with
 -- SORRY'D:   | nil =>
 -- SORRY'D:       cases hvalidate
@@ -2949,7 +3130,171 @@ private theorem scopeNamesPresent_foldl_stmtNextScope_of_validateScopedStmtListI
           Except.ok finalScope)
     (hparamsInScope : ∀ name, name ∈ paramScope → name ∈ scope)
     (hlocalsInScope : ∀ name, name ∈ localScope → name ∈ scope) :
-    ∀ name, name ∈ finalScope → name ∈ List.foldl stmtNextScope scope stmts := by sorry
+    ∀ name, name ∈ finalScope → name ∈ List.foldl stmtNextScope scope stmts := by
+  induction hcore generalizing localScope scope finalScope with
+  | nil =>
+      simp only [validateScopedStmtListIdentifiers, pure, Except.pure] at hvalidate
+      cases hvalidate
+      intro name hmem
+      exact hlocalsInScope name hmem
+  | letVar hvalueCore hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      have hstmt' := hstmt
+      unfold validateScopedStmtIdentifiers at hstmt'
+      revert hstmt'
+      rcases hExprVal : validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount _ with _ | _
+      · intro h; simp [bind, Except.bind] at h
+      · simp only [hExprVal, bind, Except.bind, pure, Except.pure]
+        intro h
+        split at h <;> try (simp at h)
+        split at h <;> try (simp at h)
+        cases h
+        intro other hmem
+        exact ih hrestValidate
+          (by
+            intro name hname
+            exact mem_stmtNextScope_of_mem_scope (hparamsInScope name hname))
+          (by
+            intro name hname
+            simp at hname
+            rcases hname with rfl | hname
+            · simp [stmtNextScope, collectStmtNames]
+            · exact mem_stmtNextScope_of_mem_scope (hlocalsInScope name hname))
+          other hmem
+  | assignVar hvalueCore hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      have hstmt' := hstmt
+      unfold validateScopedStmtIdentifiers at hstmt'
+      revert hstmt'
+      split
+      · intro h; simp [bind, Except.bind] at h
+      · intro hstmt'
+        simp only [bind, Except.bind, pure, Except.pure] at hstmt'
+        rcases hExprVal : validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount _ with _ | _
+        · rw [hExprVal] at hstmt'; exact absurd hstmt' (by simp)
+        · rw [hExprVal] at hstmt'; simp at hstmt'; cases hstmt'
+          intro other hmem
+          exact ih hrestValidate
+            (by
+              intro name hname
+              exact mem_stmtNextScope_of_mem_scope (hparamsInScope name hname))
+            (by
+              intro name hname
+              exact mem_stmtNextScope_of_mem_scope (hlocalsInScope name hname))
+            other hmem
+  | require hcondCore hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      have hstmt' := hstmt
+      unfold validateScopedStmtIdentifiers at hstmt'
+      revert hstmt'
+      rcases hExprVal : validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount _ with _ | _
+      · intro h; simp [bind, Except.bind] at h
+      · simp only [bind, Except.bind, pure, Except.pure]
+        intro h; cases h
+        intro other hmem
+        exact ih hrestValidate
+          (by
+            intro name hname
+            exact mem_stmtNextScope_of_mem_scope (hparamsInScope name hname))
+          (by
+            intro name hname
+            exact mem_stmtNextScope_of_mem_scope (hlocalsInScope name hname))
+          other hmem
+  | return_ hvalueCore hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      have hstmt' := hstmt
+      unfold validateScopedStmtIdentifiers at hstmt'
+      revert hstmt'
+      rcases hExprVal : validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount _ with _ | _
+      · intro h; simp [bind, Except.bind] at h
+      · simp only [bind, Except.bind, pure, Except.pure]
+        intro h; cases h
+        intro other hmem
+        exact ih hrestValidate
+          (by
+            intro name hname
+            exact mem_stmtNextScope_of_mem_scope (hparamsInScope name hname))
+          (by
+            intro name hname
+            exact mem_stmtNextScope_of_mem_scope (hlocalsInScope name hname))
+          other hmem
+  | stop hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      have hstmt' := hstmt
+      unfold validateScopedStmtIdentifiers at hstmt'
+      simp only [pure, Except.pure] at hstmt'
+      cases hstmt'
+      intro other hmem
+      simp only [List.foldl, stmtNextScope, collectStmtNames] at hmem ⊢
+      exact ih hrestValidate hparamsInScope hlocalsInScope other hmem
+  | setStorage hfield hvalueCore hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      have hstmt' := hstmt
+      unfold validateScopedStmtIdentifiers at hstmt'
+      revert hstmt'
+      rcases hExprVal : validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount _ with _ | _
+      · intro h; simp [bind, Except.bind] at h
+      · simp only [bind, Except.bind, pure, Except.pure]
+        intro h; cases h
+        intro other hmem
+        exact ih hrestValidate
+          (by
+            intro name hname
+            exact mem_stmtNextScope_of_mem_scope (hparamsInScope name hname))
+          (by
+            intro name hname
+            exact mem_stmtNextScope_of_mem_scope (hlocalsInScope name hname))
+          other hmem
+  | setStorageAddr hfield hvalueCore hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      have hstmt' := hstmt
+      unfold validateScopedStmtIdentifiers at hstmt'
+      revert hstmt'
+      rcases hExprVal : validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount _ with _ | _
+      · intro h; simp [bind, Except.bind] at h
+      · simp only [bind, Except.bind, pure, Except.pure]
+        intro h; cases h
+        intro other hmem
+        exact ih hrestValidate
+          (by
+            intro name hname
+            exact mem_stmtNextScope_of_mem_scope (hparamsInScope name hname))
+          (by
+            intro name hname
+            exact mem_stmtNextScope_of_mem_scope (hlocalsInScope name hname))
+          other hmem
+  | ite hcondCore hthenCore helseCore hrest ihThen ihElse ihRest =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      have hstmt' := hstmt
+      unfold validateScopedStmtIdentifiers at hstmt'
+      revert hstmt'
+      rcases hCondVal : validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount _ with _ | _
+      · intro h; simp [bind, Except.bind] at h
+      · simp only [bind, Except.bind, pure, Except.pure]
+        rcases hThenVal : validateScopedStmtListIdentifiers context params paramScope dynamicParams localScope constructorArgCount _ with _ | _
+        · intro h; simp [hThenVal, bind, Except.bind] at h
+        · simp only [hThenVal, bind, Except.bind]
+          rcases hElseVal : validateScopedStmtListIdentifiers context params paramScope dynamicParams localScope constructorArgCount _ with _ | _
+          · intro h; simp [hElseVal, bind, Except.bind] at h
+          · simp only [hElseVal, bind, Except.bind, pure, Except.pure]
+            intro h; cases h
+            intro other hmem
+            exact ihRest hrestValidate
+              (by
+                intro name hname
+                exact mem_stmtNextScope_of_mem_scope (hparamsInScope name hname))
+              (by
+                intro name hname
+                exact mem_stmtNextScope_of_mem_scope (hlocalsInScope name hname))
+              other hmem
 -- SORRY'D:   induction hcore generalizing localScope scope finalScope with
 -- SORRY'D:   | nil =>
 -- SORRY'D:       cases hvalidate
