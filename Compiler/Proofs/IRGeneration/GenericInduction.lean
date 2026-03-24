@@ -4167,13 +4167,31 @@ private theorem encodeStorageAt_writeUintKeyedMappingSlots_singleton_eq_written
         (Compiler.Proofs.abstractMappingSlot slot key) = none)
     (hdyn :
       findDynamicArrayElementAtSlotCopy fields world
-        (Compiler.Proofs.abstractMappingSlot slot key) = none) :
+        (Compiler.Proofs.abstractMappingSlot slot key) = none)
+    (hvalue : value < Verity.Core.Uint256.modulus) :
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeUintKeyedMappingSlots world [slot] key value)
       (Compiler.Proofs.abstractMappingSlot slot key) = value := by
-  -- TEMPORARY SORRY: finish by replaying the keyed-mapping write at the copy
-  -- level and discharging the `% Constants.evmModulus` normalization explicitly.
-  sorry
+  rw [encodeStorageAt_eq_copy]
+  simp only [encodeStorageAtCopy, hresolved]
+  have harray : (SourceSemantics.writeUintKeyedMappingSlots
+      world [slot] key value).storageArray = world.storageArray := by
+    simp [SourceSemantics.writeUintKeyedMappingSlots]
+  have hdyn' : findDynamicArrayElementAtSlotCopy fields
+      (SourceSemantics.writeUintKeyedMappingSlots world [slot] key value)
+      (Compiler.Proofs.abstractMappingSlot slot key) = none := by
+    have h1 := findDynamicArrayElementAtSlotCopy_eq fields
+      (SourceSemantics.writeUintKeyedMappingSlots world [slot] key value)
+      (Compiler.Proofs.abstractMappingSlot slot key)
+    have h2 := findDynamicArrayElementAtSlotCopy_eq fields world
+      (Compiler.Proofs.abstractMappingSlot slot key)
+    rw [← h1, SourceSemantics.findDynamicArrayElementAtSlot_congr_storageArray _ _ _ _ harray,
+        h2, hdyn]
+  simp only [hdyn']
+  simp only [SourceSemantics.writeUintKeyedMappingSlots, List.foldl_cons, List.foldl_nil]
+  simp only [Compiler.Proofs.abstractStoreMappingEntry, Compiler.Proofs.abstractMappingSlot]
+  simp only [ite_true, Verity.Core.Uint256.val_ofNat]
+  exact Nat.mod_eq_of_lt hvalue
 
 private theorem encodeStorageAt_writeAddressKeyedMappingChainSlots_singleton_eq_written
     {fields : List Field}
@@ -4186,14 +4204,31 @@ private theorem encodeStorageAt_writeAddressKeyedMappingChainSlots_singleton_eq_
         (SourceSemantics.mappingSlotChain slot keys) = none)
     (hdyn :
       findDynamicArrayElementAtSlotCopy fields world
-        (SourceSemantics.mappingSlotChain slot keys) = none) :
+        (SourceSemantics.mappingSlotChain slot keys) = none)
+    (hvalue : value < Verity.Core.Uint256.modulus) :
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeAddressKeyedMappingChainSlots world [slot] keys value)
       (SourceSemantics.mappingSlotChain slot keys) = value := by
-  -- TEMPORARY SORRY: reprove against the copy encoding and the current
-  -- `mappingSlotChain` normalization once the storage transport helpers are
-  -- restored.
-  sorry
+  rw [encodeStorageAt_eq_copy]
+  simp only [encodeStorageAtCopy, hresolved]
+  have harray : (SourceSemantics.writeAddressKeyedMappingChainSlots
+      world [slot] keys value).storageArray = world.storageArray := by
+    simp [SourceSemantics.writeAddressKeyedMappingChainSlots]
+  have hdyn' : findDynamicArrayElementAtSlotCopy fields
+      (SourceSemantics.writeAddressKeyedMappingChainSlots world [slot] keys value)
+      (SourceSemantics.mappingSlotChain slot keys) = none := by
+    have h1 := findDynamicArrayElementAtSlotCopy_eq fields
+      (SourceSemantics.writeAddressKeyedMappingChainSlots world [slot] keys value)
+      (SourceSemantics.mappingSlotChain slot keys)
+    have h2 := findDynamicArrayElementAtSlotCopy_eq fields world
+      (SourceSemantics.mappingSlotChain slot keys)
+    rw [← h1, SourceSemantics.findDynamicArrayElementAtSlot_congr_storageArray _ _ _ _ harray,
+        h2, hdyn]
+  simp only [hdyn']
+  simp only [SourceSemantics.writeAddressKeyedMappingChainSlots, List.map_cons, List.map_nil,
+    List.contains_cons, List.contains_nil, Bool.or_false, beq_iff_eq, ite_true]
+  simp only [Verity.Core.Uint256.val_ofNat]
+  exact Nat.mod_eq_of_lt hvalue
 
 private theorem encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_eq_written
     {fields : List Field}
@@ -4204,13 +4239,31 @@ private theorem encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_eq_w
         (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = none)
     (hdyn :
       findDynamicArrayElementAtSlotCopy fields world
-        (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = none) :
+        (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = none)
+    (hvalue : value < Verity.Core.Uint256.modulus) :
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeAddressKeyedMappingWordSlots world [slot] key wordOffset value)
       (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = value := by
-  -- TEMPORARY SORRY: same remaining issue as the scalar keyed-mapping write,
-  -- but with the extra word offset carried through the copy-level rewrite.
-  sorry
+  rw [encodeStorageAt_eq_copy]
+  simp only [encodeStorageAtCopy, hresolved]
+  have harray : (SourceSemantics.writeAddressKeyedMappingWordSlots
+      world [slot] key wordOffset value).storageArray = world.storageArray := by
+    simp [SourceSemantics.writeAddressKeyedMappingWordSlots]
+  have hdyn' : findDynamicArrayElementAtSlotCopy fields
+      (SourceSemantics.writeAddressKeyedMappingWordSlots world [slot] key wordOffset value)
+      (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = none := by
+    have h1 := findDynamicArrayElementAtSlotCopy_eq fields
+      (SourceSemantics.writeAddressKeyedMappingWordSlots world [slot] key wordOffset value)
+      (Compiler.Proofs.abstractMappingSlot slot key + wordOffset)
+    have h2 := findDynamicArrayElementAtSlotCopy_eq fields world
+      (Compiler.Proofs.abstractMappingSlot slot key + wordOffset)
+    rw [← h1, SourceSemantics.findDynamicArrayElementAtSlot_congr_storageArray _ _ _ _ harray,
+        h2, hdyn]
+  simp only [hdyn']
+  simp only [SourceSemantics.writeAddressKeyedMappingWordSlots, List.map_cons, List.map_nil,
+    List.contains_cons, List.contains_nil, Bool.or_false, beq_iff_eq, ite_true]
+  simp only [Verity.Core.Uint256.val_ofNat]
+  exact Nat.mod_eq_of_lt hvalue
 
 private theorem encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleton_eq_written
     {fields : List Field}
@@ -4231,12 +4284,36 @@ private theorem encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleto
         (world.storage (Compiler.Proofs.abstractMappingSlot slot key + wordOffset)).val
         value
         packed := by
-  -- TEMPORARY SORRY: the packed-word singleton write proof still needs the
-  -- final `% Constants.evmModulus` transport made explicit after the storage
-  -- copy rewrite. The clean fix should normalize the rewritten `Uint256` term
-  -- and then close with the packed-word write definition instead of relying on
-  -- `assumption` through the copy-level match.
-  sorry
+  rw [encodeStorageAt_eq_copy]
+  simp only [encodeStorageAtCopy, hresolved]
+  have harray : (SourceSemantics.writeAddressKeyedMappingPackedWordSlots
+      world [slot] key wordOffset packed value).storageArray = world.storageArray := by
+    simp [SourceSemantics.writeAddressKeyedMappingPackedWordSlots]
+  have hdyn' : findDynamicArrayElementAtSlotCopy fields
+      (SourceSemantics.writeAddressKeyedMappingPackedWordSlots
+        world [slot] key wordOffset packed value)
+      (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = none := by
+    have h1 := findDynamicArrayElementAtSlotCopy_eq fields
+      (SourceSemantics.writeAddressKeyedMappingPackedWordSlots
+        world [slot] key wordOffset packed value)
+      (Compiler.Proofs.abstractMappingSlot slot key + wordOffset)
+    have h2 := findDynamicArrayElementAtSlotCopy_eq fields world
+      (Compiler.Proofs.abstractMappingSlot slot key + wordOffset)
+    rw [← h1, SourceSemantics.findDynamicArrayElementAtSlot_congr_storageArray _ _ _ _ harray,
+        h2, hdyn]
+  simp only [hdyn']
+  simp only [SourceSemantics.writeAddressKeyedMappingPackedWordSlots, List.map_cons, List.map_nil,
+    List.contains_cons, List.contains_nil, Bool.or_false, beq_iff_eq, ite_true]
+  -- packedWordWrite returns (Uint256.or ...).val which is already < modulus
+  -- so (ofNat (packedWordWrite ...)).val = packedWordWrite ...
+  show (Verity.Core.Uint256.ofNat
+    (SourceSemantics.packedWordWrite
+      (world.storage (Compiler.Proofs.abstractMappingSlot slot key + wordOffset)).val
+      value packed)).val = _
+  rw [Verity.Core.Uint256.val_ofNat]
+  unfold SourceSemantics.packedWordWrite
+  simp only [Verity.Core.Uint256.or, Verity.Core.Uint256.val_ofNat]
+  exact Nat.mod_mod _ _
 
 private theorem encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_other
     {fields : List Field}
@@ -4271,13 +4348,36 @@ private theorem encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_eq_writ
       findDynamicArrayElementAtSlotCopy fields world
         (Compiler.Proofs.abstractMappingSlot
           (Compiler.Proofs.abstractMappingSlot slot key1)
-          key2) = none) :
+          key2) = none)
+    (hvalue : value < Verity.Core.Uint256.modulus) :
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeAddressKeyedMapping2Slots world [slot] key1 key2 value)
       (Compiler.Proofs.abstractMappingSlot
         (Compiler.Proofs.abstractMappingSlot slot key1)
         key2) = value := by
-  sorry
+  rw [encodeStorageAt_eq_copy]
+  simp only [encodeStorageAtCopy, hresolved]
+  have harray : (SourceSemantics.writeAddressKeyedMapping2Slots
+      world [slot] key1 key2 value).storageArray = world.storageArray := by
+    simp [SourceSemantics.writeAddressKeyedMapping2Slots]
+  have hdyn' : findDynamicArrayElementAtSlotCopy fields
+      (SourceSemantics.writeAddressKeyedMapping2Slots world [slot] key1 key2 value)
+      (Compiler.Proofs.abstractMappingSlot
+        (Compiler.Proofs.abstractMappingSlot slot key1) key2) = none := by
+    have h1 := findDynamicArrayElementAtSlotCopy_eq fields
+      (SourceSemantics.writeAddressKeyedMapping2Slots world [slot] key1 key2 value)
+      (Compiler.Proofs.abstractMappingSlot
+        (Compiler.Proofs.abstractMappingSlot slot key1) key2)
+    have h2 := findDynamicArrayElementAtSlotCopy_eq fields world
+      (Compiler.Proofs.abstractMappingSlot
+        (Compiler.Proofs.abstractMappingSlot slot key1) key2)
+    rw [← h1, SourceSemantics.findDynamicArrayElementAtSlot_congr_storageArray _ _ _ _ harray,
+        h2, hdyn]
+  simp only [hdyn']
+  simp only [SourceSemantics.writeAddressKeyedMapping2Slots, List.foldl_cons, List.foldl_nil]
+  simp only [Compiler.Proofs.abstractStoreMappingEntry, Compiler.Proofs.abstractMappingSlot]
+  simp only [ite_true, Verity.Core.Uint256.val_ofNat]
+  exact Nat.mod_eq_of_lt hvalue
 
 private theorem encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_other
     {fields : List Field}
@@ -4311,13 +4411,39 @@ private theorem encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_eq_
       findDynamicArrayElementAtSlotCopy fields world
         (Compiler.Proofs.abstractMappingSlot
           (Compiler.Proofs.abstractMappingSlot slot key1)
-          key2 + wordOffset) = none) :
+          key2 + wordOffset) = none)
+    (hvalue : value < Verity.Core.Uint256.modulus) :
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeAddressKeyedMapping2WordSlots world [slot] key1 key2 wordOffset value)
       (Compiler.Proofs.abstractMappingSlot
         (Compiler.Proofs.abstractMappingSlot slot key1)
         key2 + wordOffset) = value := by
-  sorry
+  rw [encodeStorageAt_eq_copy]
+  simp only [encodeStorageAtCopy, hresolved]
+  have harray : (SourceSemantics.writeAddressKeyedMapping2WordSlots
+      world [slot] key1 key2 wordOffset value).storageArray = world.storageArray := by
+    simp [SourceSemantics.writeAddressKeyedMapping2WordSlots]
+  have hdyn' : findDynamicArrayElementAtSlotCopy fields
+      (SourceSemantics.writeAddressKeyedMapping2WordSlots world [slot] key1 key2 wordOffset value)
+      (Compiler.Proofs.abstractMappingSlot
+        (Compiler.Proofs.abstractMappingSlot slot key1)
+        key2 + wordOffset) = none := by
+    have h1 := findDynamicArrayElementAtSlotCopy_eq fields
+      (SourceSemantics.writeAddressKeyedMapping2WordSlots world [slot] key1 key2 wordOffset value)
+      (Compiler.Proofs.abstractMappingSlot
+        (Compiler.Proofs.abstractMappingSlot slot key1)
+        key2 + wordOffset)
+    have h2 := findDynamicArrayElementAtSlotCopy_eq fields world
+      (Compiler.Proofs.abstractMappingSlot
+        (Compiler.Proofs.abstractMappingSlot slot key1)
+        key2 + wordOffset)
+    rw [← h1, SourceSemantics.findDynamicArrayElementAtSlot_congr_storageArray _ _ _ _ harray,
+        h2, hdyn]
+  simp only [hdyn']
+  simp only [SourceSemantics.writeAddressKeyedMapping2WordSlots, List.map_cons, List.map_nil,
+    List.contains_cons, List.contains_nil, Bool.or_false, beq_iff_eq, ite_true]
+  simp only [Verity.Core.Uint256.val_ofNat]
+  exact Nat.mod_eq_of_lt hvalue
 
 private def abstractStoreStorageOrMappingMany
     (storage : Nat → Nat) (slots : List Nat) (value : Nat) : Nat → Nat :=

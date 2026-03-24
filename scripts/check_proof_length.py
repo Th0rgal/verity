@@ -509,6 +509,13 @@ ALLOWLIST: set[str] = {
     "compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList",
     "field_mem_of_findFieldWithResolvedSlot_some",
     "legacyCompatibleExternalStmtList_genParamLoads_of_supported",
+    # SourceSemantics helper-aware execution compatibility proof: long due to
+    # exhaustive constructor case-split over the mutual exec/evalExpr pair.
+    "execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux",
+    # Helper-aware bridge theorem combining internal+residual helper interfaces:
+    # long due to explicit case-split on helper-surface touching and threading
+    # of legacy-compatibility through the list induction.
+    "stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible",
 }
 
 # Directories containing proof files to scan.
