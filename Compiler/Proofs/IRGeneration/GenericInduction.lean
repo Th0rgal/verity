@@ -580,7 +580,43 @@ private theorem legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPa
       CompilationModel.compileSetStorage fields .calldata fieldName value requireAddressField =
         Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-  sorry
+  have hmem := field_mem_of_findFieldWithResolvedSlot_some hfind
+  have hunpacked := hnoPacked f hmem
+  unfold CompilationModel.compileSetStorage at hcompile
+  simp only [hfind] at hcompile
+  by_cases hmap : isMapping fields fieldName
+  · simp [hmap] at hcompile
+  · simp only [hmap, ite_false] at hcompile
+    cases requireAddressField with
+    | false =>
+        simp only [ite_false, Bind.bind, Except.bind, pure, Except.pure] at hcompile
+        rcases hve : CompilationModel.compileExpr fields .calldata value with err | valueExpr
+        · simp [hve, Bind.bind, Except.bind] at hcompile
+        · simp only [hve, Except.ok.injEq] at hcompile
+          cases hslots : f.aliasSlots with
+          | nil =>
+              simp [hslots, hunpacked] at hcompile; subst hcompile
+              exact .expr _ [] .nil
+          | cons s rest =>
+              simp [hslots, hunpacked] at hcompile; subst hcompile
+              refine .block _ [] (.let_ _ _ _ ?_) .nil
+              simp only [← List.map_cons, ← List.map_map, ← Function.comp_def]
+              exact legacyCompatibleExternalStmtList_of_exprStmtExprs _
+    | true =>
+        simp only [ite_true, Bind.bind, Except.bind, pure, Except.pure] at hcompile
+        cases hty : f.ty <;> simp [hty, Bind.bind, Except.bind, pure, Except.pure] at hcompile
+        rcases hve : CompilationModel.compileExpr fields .calldata value with err | valueExpr
+        · simp [hve, Bind.bind, Except.bind] at hcompile
+        · simp only [hve, Except.ok.injEq] at hcompile
+          cases hslots : f.aliasSlots with
+          | nil =>
+              simp [hslots, hunpacked] at hcompile; subst hcompile
+              exact .expr _ [] .nil
+          | cons s rest =>
+              simp [hslots, hunpacked] at hcompile; subst hcompile
+              refine .block _ [] (.let_ _ _ _ ?_) .nil
+              simp only [← List.map_cons, ← List.map_map, ← Function.comp_def]
+              exact legacyCompatibleExternalStmtList_of_exprStmtExprs _
 
 private theorem legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields_aux
     {fields : List Field}
@@ -593,7 +629,15 @@ private theorem legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPa
       CompilationModel.compileSetStorage fields .calldata fieldName value requireAddressField =
         Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-  sorry
+  unfold CompilationModel.compileSetStorage at hcompile
+  by_cases hmap : isMapping fields fieldName
+  · simp [hmap] at hcompile
+  · simp only [hmap, ite_false] at hcompile
+    rcases hfind : findFieldWithResolvedSlot fields fieldName with _ | ⟨f, slot⟩
+    · simp [hfind] at hcompile
+    · simp only [hfind] at hcompile
+      exact legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields_resolved
+        hnoPacked hfind (by rwa [CompilationModel.compileSetStorage, if_neg hmap, hfind])
 
 /-- The current helper-free compiled theorem target already accepts the scalar
 storage write emitted by `compileSetStorage` when packed-field writes are
@@ -608,7 +652,8 @@ theorem legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFiel
       CompilationModel.compileSetStorage fields .calldata fieldName value =
         Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-  sorry
+  exact legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields_aux
+    hnoPacked hcompile
 
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_letVar
     {fields : List Field}
