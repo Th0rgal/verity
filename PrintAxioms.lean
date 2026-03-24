@@ -1029,7 +1029,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execStmtList_terminal_core_not_continue
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_ir_not_continue_of_source_not_continue
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_ir_not_continue_of_terminal_core
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_return_core_append_wholeFuel_of_scope  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_return_core_append_wholeFuel_of_scope
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_stop_core_append_wholeFuel
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.sizeOf_singleton_append_extraFuel_ne_zero  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_compiled_return_core_append_wholeFuel_of_scope  -- sorry'd
@@ -1057,7 +1057,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_unpackedStorageWrite  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields_resolved  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields_aux  -- private
-#print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields
+-- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields  -- sorry'd
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_letVar  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_assignVar  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_require  -- private
