@@ -16,7 +16,7 @@ from pathlib import Path
 
 from property_utils import ROOT, report_errors, strip_lean_comments
 
-PATCH_RULES_PATH = ROOT / "Compiler" / "Yul" / "PatchRulesCatalog.lean"
+PATCH_RULES_DIR = ROOT / "Compiler" / "Yul" / "PatchRulesCatalog"
 PARITY_PACKS_PATH = ROOT / "Compiler" / "ParityPacks.lean"
 BUNDLES_TO_CHECK = ["foundationRewriteBundle", "solcCompatRewriteBundle"]
 _DEF_STRING_RE = re.compile(r'^\s*def\s+([A-Za-z_][A-Za-z0-9_\']*)\s*:\s*String\s*:=\s*"([^"]*)"', re.MULTILINE)
@@ -354,11 +354,23 @@ def _collect_decl_names(root: Path) -> set[str]:
     return decl_names
 
 
+def _read_lean_sources(path: Path) -> str:
+    """Read a single .lean file or concatenate all .lean files in a directory."""
+    if path.is_file():
+        return path.read_text(encoding="utf-8")
+    if path.is_dir():
+        parts = []
+        for p in sorted(path.rglob("*.lean")):
+            parts.append(p.read_text(encoding="utf-8"))
+        return "\n".join(parts)
+    raise ValueError(f"Path does not exist: {path}")
+
+
 def _check_active_bundle_rule_proofs(path: Path, decl_root: Path) -> list[str]:
     if not path.exists():
-        raise ValueError(f"Missing PatchRules file: {path}")
+        raise ValueError(f"Missing PatchRules path: {path}")
 
-    text = strip_lean_comments(path.read_text(encoding="utf-8"))
+    text = strip_lean_comments(_read_lean_sources(path))
     ref_defs = _extract_ref_defs(text)
     decl_names = _collect_decl_names(decl_root)
     rule_tokens_by_kind = {
@@ -445,7 +457,7 @@ def check_active_object_rule_proofs(path: Path, decl_root: Path = ROOT) -> list[
 def main() -> int:
     try:
         decl_root = ROOT / "Compiler"
-        errors = _check_active_bundle_rule_proofs(PATCH_RULES_PATH, decl_root)
+        errors = _check_active_bundle_rule_proofs(PATCH_RULES_DIR, decl_root)
         errors.extend(_check_parity_pack_proof_refs(PARITY_PACKS_PATH, decl_root))
     except ValueError as exc:
         print(f"Rewrite proof metadata check failed: {exc}", file=sys.stderr)
