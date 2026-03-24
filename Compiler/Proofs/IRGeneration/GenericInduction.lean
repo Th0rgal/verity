@@ -1161,34 +1161,29 @@ theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractS
       CompilationModel.compileStmt
         fields [] [] .calldata [] false inScopeNames stmt = Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-  -- Temporary stabilization point for the mapping-write surface bridge.
-  -- Clean fix: restore the constructor-local proof and update each branch to
-  -- the widened `stmtTouchesUnsupportedContractSurfaceExceptMappingWrites`
-  -- decomposition rather than the old direct `simpa` shape.
-  sorry
--- SORRY'D:   cases stmt with
--- SORRY'D:   | setMapping field key value =>
--- SORRY'D:       unfold CompilationModel.compileStmt at hcompile
--- SORRY'D:       rcases hkey : CompilationModel.compileExpr fields .calldata key with _ | keyExpr <;>
--- SORRY'D:         simp [hkey] at hcompile
--- SORRY'D:       rcases hvalue : CompilationModel.compileExpr fields .calldata value with _ | valueExpr <;>
--- SORRY'D:         simp [hvalue] at hcompile
--- SORRY'D:       exact legacyCompatibleExternalStmtList_of_compileMappingSlotWrite_ok hcompile
--- SORRY'D:   | setMappingUint field key value =>
--- SORRY'D:       unfold CompilationModel.compileStmt at hcompile
--- SORRY'D:       rcases hkey : CompilationModel.compileExpr fields .calldata key with _ | keyExpr <;>
--- SORRY'D:         simp [hkey] at hcompile
--- SORRY'D:       rcases hvalue : CompilationModel.compileExpr fields .calldata value with _ | valueExpr <;>
--- SORRY'D:         simp [hvalue] at hcompile
--- SORRY'D:       exact legacyCompatibleExternalStmtList_of_compileMappingSlotWrite_ok hcompile
--- SORRY'D:   | setMapping2 field key1 key2 value =>
--- SORRY'D:       unfold CompilationModel.compileStmt at hcompile
--- SORRY'D:       exact legacyCompatibleExternalStmtList_of_compileSetMapping2_ok hcompile
--- SORRY'D:   | stmt =>
--- SORRY'D:       exact legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface
--- SORRY'D:         hnoPacked
--- SORRY'D:         (by simpa [stmtTouchesUnsupportedContractSurfaceExceptMappingWrites] using hsurface)
--- SORRY'D:         hcompile
+  cases stmt with
+  | setMapping field key value =>
+      unfold CompilationModel.compileStmt at hcompile
+      rcases hkey : CompilationModel.compileExpr fields .calldata key with _ | keyExpr <;>
+        simp [hkey] at hcompile
+      rcases hvalue : CompilationModel.compileExpr fields .calldata value with _ | valueExpr <;>
+        simp [hvalue] at hcompile
+      exact legacyCompatibleExternalStmtList_of_compileMappingSlotWrite_ok hcompile
+  | setMappingUint field key value =>
+      unfold CompilationModel.compileStmt at hcompile
+      rcases hkey : CompilationModel.compileExpr fields .calldata key with _ | keyExpr <;>
+        simp [hkey] at hcompile
+      rcases hvalue : CompilationModel.compileExpr fields .calldata value with _ | valueExpr <;>
+        simp [hvalue] at hcompile
+      exact legacyCompatibleExternalStmtList_of_compileMappingSlotWrite_ok hcompile
+  | setMapping2 field key1 key2 value =>
+      unfold CompilationModel.compileStmt at hcompile
+      exact legacyCompatibleExternalStmtList_of_compileSetMapping2_ok hcompile
+  | stmt =>
+      exact legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface
+        hnoPacked
+        (by simpa [stmtTouchesUnsupportedContractSurfaceExceptMappingWrites] using hsurface)
+        hcompile
 
 -- SORRY'D: /-- Tier 2 list-level legacy-compatibility witness for the alternate singleton
 -- SORRY'D: mapping-write surface. -/
@@ -10072,51 +10067,6 @@ private theorem stmtListGenericCore_of_stmtListCompileCore_of_scopeNamesIncluded
     (hcore : FunctionBody.StmtListCompileCore scope stmts)
     (hincluded : FunctionBody.scopeNamesIncluded scope largerScope) :
     StmtListGenericCore fields largerScope stmts := by sorry
--- SORRY'D:   induction hcore generalizing largerScope with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact StmtListGenericCore.nil
--- SORRY'D:   | letVar hvalue hinScope hrest ih =>
--- SORRY'D:       rcases FunctionBody.compileExpr_core_ok (fields := fields) hvalue with
--- SORRY'D:         ⟨valueIR, hvalueIR⟩
--- SORRY'D:       exact StmtListGenericCore.cons
--- SORRY'D:         (compiledStmtStep_letVar
--- SORRY'D:           (hcore := hvalue)
--- SORRY'D:           (hinScope := exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
--- SORRY'D:           (hvalueIR := hvalueIR))
--- SORRY'D:         (ih <| FunctionBody.scopeNamesIncluded_collectStmtNames_letVar hincluded)
--- SORRY'D:   | assignVar hvalue hinScope hrest ih =>
--- SORRY'D:       rcases FunctionBody.compileExpr_core_ok (fields := fields) hvalue with
--- SORRY'D:         ⟨valueIR, hvalueIR⟩
--- SORRY'D:       exact StmtListGenericCore.cons
--- SORRY'D:         (compiledStmtStep_assignVar
--- SORRY'D:           (hcore := hvalue)
--- SORRY'D:           (hinScope := exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
--- SORRY'D:           (hvalueIR := hvalueIR))
--- SORRY'D:         (ih <| FunctionBody.scopeNamesIncluded_collectStmtNames_assignVar hincluded)
--- SORRY'D:   | require_ hcond hinScope hrest ih =>
--- SORRY'D:       rcases FunctionBody.compileRequireFailCond_core_ok (fields := fields) hcond with
--- SORRY'D:         ⟨failCond, hfailCond⟩
--- SORRY'D:       exact StmtListGenericCore.cons
--- SORRY'D:         (compiledStmtStep_require
--- SORRY'D:           (hcore := hcond)
--- SORRY'D:           (hinScope := exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
--- SORRY'D:           (hfailCompile := hfailCond))
--- SORRY'D:         (ih <| FunctionBody.scopeNamesIncluded_collectStmtNames_tail
--- SORRY'D:           (stmt := .require _ _) hincluded)
--- SORRY'D:   | return_ hvalue hinScope hrest ih =>
--- SORRY'D:       rcases FunctionBody.compileExpr_core_ok (fields := fields) hvalue with
--- SORRY'D:         ⟨valueIR, hvalueIR⟩
--- SORRY'D:       exact StmtListGenericCore.cons
--- SORRY'D:         (compiledStmtStep_return
--- SORRY'D:           (hcore := hvalue)
--- SORRY'D:           (hinScope := exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
--- SORRY'D:           (hvalueIR := hvalueIR))
--- SORRY'D:         (ih <| FunctionBody.scopeNamesIncluded_collectStmtNames_tail
--- SORRY'D:           (stmt := .return _) hincluded)
--- SORRY'D:   | stop hrest ih =>
--- SORRY'D:       exact StmtListGenericCore.cons compiledStmtStep_stop
--- SORRY'D:         (ih <| FunctionBody.scopeNamesIncluded_collectStmtNames_tail
--- SORRY'D:           (stmt := .stop) hincluded)
 
 private theorem stmtListGenericCore_of_stmtListTerminalCore_of_scopeNamesIncluded
     {fields : List Field}
