@@ -1057,7 +1057,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_unpackedStorageWrite  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields_resolved  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields_aux  -- private
--- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_letVar  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_assignVar  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_require  -- private
@@ -1873,4 +1873,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1742 theorems/lemmas (1157 public, 560 private, 25 sorry'd)
+-- Total: 1742 theorems/lemmas (1158 public, 560 private, 24 sorry'd)
