@@ -186,7 +186,7 @@ private def parseArgs (args : List String) : IO CLIArgs := do
 
 namespace Compiler.Main
 
-unsafe def main (args : List String) : IO Unit := do
+unsafe def run (args : List String) : IO Unit := do
   try
     let cfg ← parseArgs args
     let rawModules ←
@@ -240,4 +240,4 @@ unsafe def main (args : List String) : IO Unit := do
 end Compiler.Main
 
 unsafe def main (args : List String) : IO Unit :=
-  Compiler.Main.main args
+  Compiler.Main.run args
