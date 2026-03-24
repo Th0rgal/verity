@@ -3777,7 +3777,8 @@ theorem runtimeStateMatchesIR_setTransientStorage
     {runtime : SourceSemantics.RuntimeState}
     {state : IRState}
     (hmatch : runtimeStateMatchesIR fields runtime state)
-    (offset value : Nat) :
+    (offset : Nat) (value : Nat)
+    (hvalue : value < Verity.Core.Uint256.modulus) :
     runtimeStateMatchesIR fields
       { runtime with
           world := {
@@ -3786,10 +3787,17 @@ theorem runtimeStateMatchesIR_setTransientStorage
           } }
       { state with
           transientStorage := fun o => if o = offset then value else state.transientStorage o } := by
-  -- Temporary stabilization point for the `Option` migration.
-  -- Clean fix: update the IR side with the same `% evmModulus` normalization as
-  -- the `Uint256.ofNat` world write, or add the missing in-range hypothesis.
-  sorry
+  cases runtime
+  cases state
+  simp only [runtimeStateMatchesIR] at hmatch ⊢
+  refine ⟨hmatch.1, ?_, hmatch.2.2⟩
+  funext o
+  by_cases ho : o = offset
+  · subst ho
+    simp [Verity.Core.Uint256.ofNat, Nat.mod_eq_of_lt hvalue]
+  · simp [ho]
+    have htrans := hmatch.2.1
+    exact congrFun htrans o
 
 theorem bindingsExactlyMatchIRVars_setMemory
     {bindings : List (String × Nat)}
@@ -3889,6 +3897,38 @@ def sourceResultMatchesIRResult
   source.returnValue = ir.returnValue ∧
   source.finalStorage = ir.finalStorage ∧
   source.events = ir.events
+
+/-- Helper: `eval_compileExpr_core` implies both `evalIRExpr` and source `evalExpr`
+succeed with the same `Nat` value. This factored lemma avoids repeating the
+monadic-bind unfold in every statement proof. -/
+theorem eval_compileExpr_core_split
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {expr : Expr}
+    {exprIR : YulExpr}
+    (hcore : ExprCompileCore expr)
+    (hexact : bindingsExactlyMatchIRVars runtime.bindings state)
+    (hbounded : bindingsBounded runtime.bindings)
+    (hpresent : exprBoundNamesPresent expr runtime.bindings)
+    (hruntime : runtimeStateMatchesIR fields runtime state)
+    (hcompile : CompilationModel.compileExpr fields .calldata expr = Except.ok exprIR) :
+    ∃ v, evalIRExpr state exprIR = some v ∧
+         SourceSemantics.evalExpr fields runtime expr = some v ∧
+         v < Compiler.Constants.evmModulus := by
+  have heval := eval_compileExpr_core hcore hexact hbounded hpresent hruntime
+  rw [hcompile] at heval
+  simp [Except.toOption] at heval
+  rcases hIR : evalIRExpr state exprIR with _ | v
+  · simp [hIR, Option.bind] at heval
+  · refine ⟨v, rfl, ?_, ?_⟩
+    · simp [hIR, Option.bind] at heval
+      exact heval.symm
+    · have hlt := evalExpr_lt_evmModulus_core hcore hexact hbounded hpresent hruntime
+      simp [hIR, Option.bind] at heval
+      rw [heval.symm] at hlt
+      -- hlt : some v < evmModulus, which Lean elaborates as v < evmModulus
+      exact hlt
 
 theorem exec_compileStmt_letVar_core
     {fields : List Field}
