@@ -1833,21 +1833,40 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_int
     (hlegacy : StmtListHelperFreeCompiledLegacyCompatible fields scope stmts)
     (hnoInternalFunctions : runtimeContract.internalFunctions = []) :
     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
-  -- Temporary stabilization point: the clean fix is to reconstruct this wrapper
-  -- through the helper-surface aggregate bridge after that aggregate theorem is
-  -- restored above, instead of trying to route through later split-helper lemmas.
-  sorry
--- SORRY'D:   exact
--- SORRY'D:     stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
--- SORRY'D:       (runtimeContract := runtimeContract)
--- SORRY'D:       (spec := spec)
--- SORRY'D:       (hhelperFree := hhelperFree)
--- SORRY'D:       (hsteps :=
--- SORRY'D:         stmtListHelperSurfaceStepInterface_of_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface
--- SORRY'D:           hinternal
--- SORRY'D:           hresidual)
--- SORRY'D:       (hlegacy := hlegacy)
--- SORRY'D:       hnoInternalFunctions
+  induction hhelperFree with
+  | nil =>
+      exact .nil
+  | @cons scope stmt rest hheadFree htailFree ih =>
+      cases hinternal with
+      | cons hheadInternal htailInternal =>
+          cases hresidual with
+          | cons hheadResidual htailResidual =>
+              cases hlegacy with
+              | cons hheadLegacy htailLegacy =>
+                  by_cases hsurface : stmtTouchesUnsupportedHelperSurface stmt = false
+                  · rcases hheadFree hsurface with ⟨compiledIR, hcore⟩
+                    exact .cons
+                      ((hcore.withHelpers_of_helperSurfaceClosed hsurface).withHelperIR_of_legacyCompatible
+                        (hheadLegacy hsurface compiledIR hcore.compileOk)
+                        hnoInternalFunctions)
+                      (ih htailInternal htailResidual htailLegacy)
+                  · have hsurfaceTrue : stmtTouchesUnsupportedHelperSurface stmt = true := by
+                      cases hstmt : stmtTouchesUnsupportedHelperSurface stmt <;>
+                        simp [hstmt] at hsurface ⊢
+                    -- Combine the internal and residual interfaces for this head
+                    have hheadStep : stmtTouchesUnsupportedHelperSurface stmt = true →
+                        ∃ compiledIR,
+                          CompiledStmtStepWithHelpersAndHelperIR
+                            runtimeContract spec fields scope stmt compiledIR := by
+                      intro _
+                      by_cases hactual : stmtTouchesInternalHelperSurface stmt = true
+                      · exact hheadInternal hactual
+                      · have hactualFalse : stmtTouchesInternalHelperSurface stmt = false := by
+                          cases hactual' : stmtTouchesInternalHelperSurface stmt <;>
+                            simp [hactual'] at hactual ⊢
+                        exact hheadResidual hsurfaceTrue hactualFalse
+                    rcases hheadStep hsurfaceTrue with ⟨compiledIR, hcompiled⟩
+                    exact .cons hcompiled (ih htailInternal htailResidual htailLegacy)
 
 -- SORRY'D: /-- Exact helper-aware list bridge over the fully split helper-positive
 -- SORRY'D: interfaces: direct helper statements, expression-position helper heads, and
@@ -1872,21 +1891,21 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_dir
       StmtListResidualHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
     (hlegacy : StmtListHelperFreeCompiledLegacyCompatible fields scope stmts)
     (hnoInternalFunctions : runtimeContract.internalFunctions = []) :
-    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by sorry
--- SORRY'D:   exact
--- SORRY'D:     stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_directInternalHelperStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
--- SORRY'D:       (runtimeContract := runtimeContract)
--- SORRY'D:       (spec := spec)
--- SORRY'D:       (hhelperFree := hhelperFree)
--- SORRY'D:       (hdirect :=
--- SORRY'D:         stmtListDirectInternalHelperStepInterface_of_callStepInterface_and_assignStepInterface
--- SORRY'D:           hcall
--- SORRY'D:           hassign)
--- SORRY'D:       (hexpr := hexpr)
--- SORRY'D:       (hstruct := hstruct)
--- SORRY'D:       (hresidual := hresidual)
--- SORRY'D:       (hlegacy := hlegacy)
--- SORRY'D:       hnoInternalFunctions
+    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
+  exact
+    stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
+      (runtimeContract := runtimeContract)
+      (spec := spec)
+      (hhelperFree := hhelperFree)
+      (hinternal :=
+        stmtListInternalHelperSurfaceStepInterface_of_directInternalHelperStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface
+          (stmtListDirectInternalHelperStepInterface_of_callStepInterface_and_assignStepInterface
+            hcall hassign)
+          hexpr
+          hstruct)
+      (hresidual := hresidual)
+      (hlegacy := hlegacy)
+      hnoInternalFunctions
 
 -- SORRY'D: /-- Exact helper-aware list bridge over the fully split helper-positive
 -- SORRY'D: interfaces: direct helper statements, expression-position helper heads, and
@@ -1938,19 +1957,25 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceStepInterface
     (hsteps : StmtListHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
     (hlegacy : StmtListHelperFreeCompiledLegacyCompatible fields scope stmts)
     (hinternal : runtimeContract.internalFunctions = []) :
-    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by sorry
--- SORRY'D:   exact
--- SORRY'D:     stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
--- SORRY'D:       (runtimeContract := runtimeContract)
--- SORRY'D:       (spec := spec)
--- SORRY'D:       (hhelperFree := stmtListHelperFreeStepInterface_of_core hgeneric)
--- SORRY'D:       (hsteps := hsteps)
--- SORRY'D:       (hlegacy := hlegacy)
--- SORRY'D:       hinternal
+    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
+  induction hgeneric with
+  | nil => exact .nil
+  | @cons scope stmt compiledIR rest hstep hrest ih =>
+      cases hsteps with
+      | cons hheadStep htailSteps =>
+          cases hlegacy with
+          | cons hheadLegacy htailLegacy =>
+              by_cases hsurface : stmtTouchesUnsupportedHelperSurface stmt = false
+              · exact .cons
+                  ((hstep.withHelpers_of_helperSurfaceClosed hsurface).withHelperIR_of_legacyCompatible
+                    (hheadLegacy hsurface compiledIR hstep.compileOk) hinternal)
+                  (ih htailSteps htailLegacy)
+              · have hsurfaceTrue : stmtTouchesUnsupportedHelperSurface stmt = true := by
+                  cases hstmt : stmtTouchesUnsupportedHelperSurface stmt <;>
+                    simp [hstmt] at hsurface ⊢
+                rcases hheadStep hsurfaceTrue with ⟨compiledIR', hcompiled⟩
+                exact .cons hcompiled (ih htailSteps htailLegacy)
 
--- SORRY'D: /-- Disjoint-based exact helper-aware list bridge with `StmtListGenericCore`.
--- SORRY'D: The legacy `StmtListGenericCore` witness is reused for helper-free heads, with
--- SORRY'D: compiled-side disjointness replacing `internalFunctions = []`. -/
 theorem stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceStepInterface_and_helperFreeCompiledCallsDisjoint
     {runtimeContract : IRContract}
     {spec : CompilationModel}
@@ -1960,14 +1985,24 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceStepInterface
     (hgeneric : StmtListGenericCore fields scope stmts)
     (hsteps : StmtListHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
     (hdisjoint : StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields scope stmts) :
-    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by sorry
--- SORRY'D:   exact
--- SORRY'D:     stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledCallsDisjoint
--- SORRY'D:       (runtimeContract := runtimeContract)
--- SORRY'D:       (spec := spec)
--- SORRY'D:       (hhelperFree := stmtListHelperFreeStepInterface_of_core hgeneric)
--- SORRY'D:       (hsteps := hsteps)
--- SORRY'D:       (hdisjoint := hdisjoint)
+    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
+  induction hgeneric with
+  | nil => exact .nil
+  | @cons scope stmt compiledIR rest hstep hrest ih =>
+      cases hsteps with
+      | cons hheadStep htailSteps =>
+          cases hdisjoint with
+          | cons hheadDisjoint htailDisjoint =>
+              by_cases hsurface : stmtTouchesUnsupportedHelperSurface stmt = false
+              · exact .cons
+                  ((hstep.withHelpers_of_helperSurfaceClosed hsurface).withHelperIR_of_callsDisjoint
+                    (hheadDisjoint hsurface compiledIR hstep.compileOk))
+                  (ih htailSteps htailDisjoint)
+              · have hsurfaceTrue : stmtTouchesUnsupportedHelperSurface stmt = true := by
+                  cases hstmt : stmtTouchesUnsupportedHelperSurface stmt <;>
+                    simp [hstmt] at hsurface ⊢
+                rcases hheadStep hsurfaceTrue with ⟨compiledIR', hcompiled⟩
+                exact .cons hcompiled (ih htailSteps htailDisjoint)
 
 -- SORRY'D: /-- Exact helper-aware list bridge over the split helper-positive interfaces:
 -- SORRY'D: the legacy `StmtListGenericCore` witness is still reused for helper-free heads,
