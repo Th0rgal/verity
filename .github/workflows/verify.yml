@@ -512,7 +512,7 @@ jobs:
           chmod +x ./.lake/build/bin/macro-roundtrip-fuzz
           ./.lake/build/bin/macro-roundtrip-fuzz
 
-  build-compiler-binaries:
+  build-compiler-verity:
     runs-on: blacksmith-16vcpu-ubuntu-2404
     timeout-minutes: 360
     needs: [changes, checks, build]
@@ -633,16 +633,15 @@ jobs:
       - name: Reset ccache statistics
         run: ccache -z
 
-      - name: Build compiler binaries and example contracts
-        env:
-          LEAN_CC: ${{ github.workspace }}/scripts/lean_cc_ccache_clang.sh
-        run: |
-          stdbuf -oL -eL lake build \
-            verity-compiler \
-            verity-compiler-patched \
-            difftest-interpreter \
-            gas-report \
-            $(grep -v '^[[:space:]]*#' packages/verity-examples/contracts.manifest | sed '/^[[:space:]]*$/d')
+      - name: Build verity-compiler
+        uses: ./.github/actions/build-compiler-target
+        with:
+          checkpoint-key: verity-compiler
+          lake-targets: |
+            verity-compiler
+          use-lean-cc: "true"
+          expected-paths: |
+            .lake/build/bin/verity-compiler
 
       - name: Show compiler ccache statistics
         if: always()
@@ -650,10 +649,708 @@ jobs:
 
       - name: Save compiler ccache fallback cache
         if: always() && (failure() || steps.setup-lean.outputs.using-sticky-disks != 'true')
+        continue-on-error: true
         uses: actions/cache/save@v5
         with:
           path: ${{ github.workspace }}/.cache/ccache
           key: compiler-ccache-cache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Package compiler workspace build
+        if: success()
+        run: tar -cf lean-workspace-compiler-build-verity.tar .lake/build
+
+      - name: Upload compiler workspace build
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lean-workspace-compiler-build-verity
+          path: lean-workspace-compiler-build-verity.tar
+          compression-level: 0
+
+  build-compiler-patched:
+    runs-on: blacksmith-16vcpu-ubuntu-2404
+    timeout-minutes: 360
+    needs: [changes, checks, build, build-compiler-verity]
+    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-verity.result == 'success' && needs.changes.outputs.compiler == 'true'
+    env:
+      LEAN_NUM_THREADS: 12
+      CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_NOHASHDIR: "true"
+      CCACHE_COMPILERCHECK: content
+      CCACHE_MAXSIZE: 2G
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Setup Lean
+        id: setup-lean
+        uses: ./.github/actions/setup-lean
+        with:
+          cache-key-prefix: lake-compiler
+          use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
+          sticky-disk-key-prefix: verify-compiler
+          lake-packages-sticky-key: lake-packages-verify-compiler-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          lake-packages-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('lake-packages-verify-compiler-{0}-{1}-{2}-{3}-{4}', env.VERIFY_MAIN_CACHE_BUCKET, runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
+          use-build-sticky-disk: ${{ env.VERIFY_USE_STICKY_DISKS }}
+          build-sticky-disk-key: verify-build-compiler-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          build-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('verify-build-compiler-{0}-{1}-{2}-{3}-{4}', env.VERIFY_MAIN_CACHE_BUCKET, runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
+          disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
+          cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          cache-extra-restore-keys: |
+            lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Ensure compiler acceleration toolchain
+        run: |
+          if \
+            command -v clang >/dev/null && \
+            command -v clang++ >/dev/null && \
+            command -v ld.lld >/dev/null && \
+            command -v ccache >/dev/null && \
+            printf 'int main() { return 0; }\n' | clang++ -x c++ - -fuse-ld=lld -stdlib=libc++ -lc++abi -o /tmp/verity-clang-smoke >/dev/null 2>&1 && \
+            printf 'int main() { return 0; }\n' | clang -x c - -fuse-ld=lld -luv -o /tmp/verity-libuv-smoke >/dev/null 2>&1
+          then
+            clang --version
+            ld.lld --version
+            ccache --version
+            exit 0
+          fi
+          sudo apt-get update
+          sudo apt-get install -y clang lld ccache libc++-dev libc++abi-dev libuv1-dev
+
+          printf 'int main() { return 0; }\n' | clang++ -x c++ - -fuse-ld=lld -stdlib=libc++ -lc++abi -o /tmp/verity-clang-smoke
+          printf 'int main() { return 0; }\n' | clang -x c - -fuse-ld=lld -luv -o /tmp/verity-libuv-smoke
+
+          clang --version
+          ld.lld --version
+          ccache --version
+
+      - name: Prepare ccache directory
+        run: mkdir -p "$CCACHE_DIR"
+
+      - name: Restore compiler ccache fallback cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ runner.temp }}/compiler-ccache-cache
+          key: compiler-ccache-cache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          restore-keys: |
+            compiler-ccache-cache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-
+            compiler-ccache-cache-${{ env.VERIFY_MAIN_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-
+
+      - name: Mount compiler ccache sticky disk
+        if: env.VERIFY_USE_STICKY_DISKS == 'true'
+        uses: useblacksmith/stickydisk@v1
+        with:
+          key: compiler-ccache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          path: ${{ github.workspace }}/.cache/ccache
+
+      - name: Prepare compiler ccache fallback mount
+        if: env.VERIFY_USE_STICKY_DISKS == 'true' && github.event_name == 'pull_request'
+        run: mkdir -p "$RUNNER_TEMP/compiler-ccache-main"
+
+      - name: Mount main compiler ccache fallback sticky disk
+        if: env.VERIFY_USE_STICKY_DISKS == 'true' && github.event_name == 'pull_request'
+        uses: useblacksmith/stickydisk@v1
+        with:
+          key: compiler-ccache-${{ env.VERIFY_MAIN_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          path: ${{ runner.temp }}/compiler-ccache-main
+
+      - name: Seed compiler ccache sticky disk from main fallback
+        if: env.VERIFY_USE_STICKY_DISKS == 'true' && github.event_name == 'pull_request'
+        run: |
+          if find "$CCACHE_DIR" -mindepth 1 -print -quit | grep -q .; then
+            exit 0
+          fi
+          if ! find "$RUNNER_TEMP/compiler-ccache-main" -mindepth 1 -print -quit | grep -q .; then
+            exit 0
+          fi
+          cp -a "$RUNNER_TEMP/compiler-ccache-main/." "$CCACHE_DIR/"
+
+      - name: Seed compiler ccache from GitHub cache fallback
+        run: |
+          if find "$CCACHE_DIR" -mindepth 1 -print -quit | grep -q .; then
+            exit 0
+          fi
+          if ! find "$RUNNER_TEMP/compiler-ccache-cache" -mindepth 1 -print -quit | grep -q .; then
+            exit 0
+          fi
+          cp -a "$RUNNER_TEMP/compiler-ccache-cache/." "$CCACHE_DIR/"
+
+      - name: Download prepared Lean workspace build
+        uses: actions/download-artifact@v7
+        with:
+          name: lean-workspace-build
+
+      - name: Restore prepared Lean workspace build
+        run: tar -xf lean-workspace-build.tar
+
+      - name: Download compiler workspace build
+        uses: actions/download-artifact@v7
+        with:
+          name: lean-workspace-compiler-build-verity
+
+      - name: Restore compiler workspace build
+        run: tar -xf lean-workspace-compiler-build-verity.tar
+
+      - name: Reset ccache statistics
+        run: ccache -z
+
+      - name: Build verity-compiler-patched
+        uses: ./.github/actions/build-compiler-target
+        with:
+          checkpoint-key: verity-compiler-patched
+          lake-targets: |
+            verity-compiler-patched
+          use-lean-cc: "true"
+          expected-paths: |
+            .lake/build/bin/verity-compiler-patched
+
+      - name: Show compiler ccache statistics
+        if: always()
+        run: ccache -s
+
+      - name: Save compiler ccache fallback cache
+        if: always() && (failure() || steps.setup-lean.outputs.using-sticky-disks != 'true')
+        continue-on-error: true
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ github.workspace }}/.cache/ccache
+          key: compiler-ccache-cache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Package compiler workspace build
+        if: success()
+        run: tar -cf lean-workspace-compiler-build-patched.tar .lake/build
+
+      - name: Upload compiler workspace build
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lean-workspace-compiler-build-patched
+          path: lean-workspace-compiler-build-patched.tar
+          compression-level: 0
+
+  build-compiler-difftest:
+    runs-on: blacksmith-16vcpu-ubuntu-2404
+    timeout-minutes: 360
+    needs: [changes, checks, build, build-compiler-patched]
+    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-patched.result == 'success' && needs.changes.outputs.compiler == 'true'
+    env:
+      LEAN_NUM_THREADS: 12
+      CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_NOHASHDIR: "true"
+      CCACHE_COMPILERCHECK: content
+      CCACHE_MAXSIZE: 2G
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Setup Lean
+        id: setup-lean
+        uses: ./.github/actions/setup-lean
+        with:
+          cache-key-prefix: lake-compiler
+          use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
+          sticky-disk-key-prefix: verify-compiler
+          lake-packages-sticky-key: lake-packages-verify-compiler-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          lake-packages-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('lake-packages-verify-compiler-{0}-{1}-{2}-{3}-{4}', env.VERIFY_MAIN_CACHE_BUCKET, runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
+          use-build-sticky-disk: ${{ env.VERIFY_USE_STICKY_DISKS }}
+          build-sticky-disk-key: verify-build-compiler-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          build-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('verify-build-compiler-{0}-{1}-{2}-{3}-{4}', env.VERIFY_MAIN_CACHE_BUCKET, runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
+          disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
+          cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          cache-extra-restore-keys: |
+            lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Ensure compiler acceleration toolchain
+        run: |
+          if \
+            command -v clang >/dev/null && \
+            command -v clang++ >/dev/null && \
+            command -v ld.lld >/dev/null && \
+            command -v ccache >/dev/null && \
+            printf 'int main() { return 0; }\n' | clang++ -x c++ - -fuse-ld=lld -stdlib=libc++ -lc++abi -o /tmp/verity-clang-smoke >/dev/null 2>&1 && \
+            printf 'int main() { return 0; }\n' | clang -x c - -fuse-ld=lld -luv -o /tmp/verity-libuv-smoke >/dev/null 2>&1
+          then
+            clang --version
+            ld.lld --version
+            ccache --version
+            exit 0
+          fi
+          sudo apt-get update
+          sudo apt-get install -y clang lld ccache libc++-dev libc++abi-dev libuv1-dev
+
+          printf 'int main() { return 0; }\n' | clang++ -x c++ - -fuse-ld=lld -stdlib=libc++ -lc++abi -o /tmp/verity-clang-smoke
+          printf 'int main() { return 0; }\n' | clang -x c - -fuse-ld=lld -luv -o /tmp/verity-libuv-smoke
+
+          clang --version
+          ld.lld --version
+          ccache --version
+
+      - name: Prepare ccache directory
+        run: mkdir -p "$CCACHE_DIR"
+
+      - name: Restore compiler ccache fallback cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ runner.temp }}/compiler-ccache-cache
+          key: compiler-ccache-cache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          restore-keys: |
+            compiler-ccache-cache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-
+            compiler-ccache-cache-${{ env.VERIFY_MAIN_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-
+
+      - name: Mount compiler ccache sticky disk
+        if: env.VERIFY_USE_STICKY_DISKS == 'true'
+        uses: useblacksmith/stickydisk@v1
+        with:
+          key: compiler-ccache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          path: ${{ github.workspace }}/.cache/ccache
+
+      - name: Prepare compiler ccache fallback mount
+        if: env.VERIFY_USE_STICKY_DISKS == 'true' && github.event_name == 'pull_request'
+        run: mkdir -p "$RUNNER_TEMP/compiler-ccache-main"
+
+      - name: Mount main compiler ccache fallback sticky disk
+        if: env.VERIFY_USE_STICKY_DISKS == 'true' && github.event_name == 'pull_request'
+        uses: useblacksmith/stickydisk@v1
+        with:
+          key: compiler-ccache-${{ env.VERIFY_MAIN_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          path: ${{ runner.temp }}/compiler-ccache-main
+
+      - name: Seed compiler ccache sticky disk from main fallback
+        if: env.VERIFY_USE_STICKY_DISKS == 'true' && github.event_name == 'pull_request'
+        run: |
+          if find "$CCACHE_DIR" -mindepth 1 -print -quit | grep -q .; then
+            exit 0
+          fi
+          if ! find "$RUNNER_TEMP/compiler-ccache-main" -mindepth 1 -print -quit | grep -q .; then
+            exit 0
+          fi
+          cp -a "$RUNNER_TEMP/compiler-ccache-main/." "$CCACHE_DIR/"
+
+      - name: Seed compiler ccache from GitHub cache fallback
+        run: |
+          if find "$CCACHE_DIR" -mindepth 1 -print -quit | grep -q .; then
+            exit 0
+          fi
+          if ! find "$RUNNER_TEMP/compiler-ccache-cache" -mindepth 1 -print -quit | grep -q .; then
+            exit 0
+          fi
+          cp -a "$RUNNER_TEMP/compiler-ccache-cache/." "$CCACHE_DIR/"
+
+      - name: Download prepared Lean workspace build
+        uses: actions/download-artifact@v7
+        with:
+          name: lean-workspace-build
+
+      - name: Restore prepared Lean workspace build
+        run: tar -xf lean-workspace-build.tar
+
+      - name: Download compiler workspace build
+        uses: actions/download-artifact@v7
+        with:
+          name: lean-workspace-compiler-build-patched
+
+      - name: Restore compiler workspace build
+        run: tar -xf lean-workspace-compiler-build-patched.tar
+
+      - name: Reset ccache statistics
+        run: ccache -z
+
+      - name: Build difftest-interpreter
+        uses: ./.github/actions/build-compiler-target
+        with:
+          checkpoint-key: difftest-interpreter
+          lake-targets: |
+            difftest-interpreter
+          use-lean-cc: "true"
+          expected-paths: |
+            .lake/build/bin/difftest-interpreter
+
+      - name: Show compiler ccache statistics
+        if: always()
+        run: ccache -s
+
+      - name: Save compiler ccache fallback cache
+        if: always() && (failure() || steps.setup-lean.outputs.using-sticky-disks != 'true')
+        continue-on-error: true
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ github.workspace }}/.cache/ccache
+          key: compiler-ccache-cache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Package compiler workspace build
+        if: success()
+        run: tar -cf lean-workspace-compiler-build-difftest.tar .lake/build
+
+      - name: Upload compiler workspace build
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lean-workspace-compiler-build-difftest
+          path: lean-workspace-compiler-build-difftest.tar
+          compression-level: 0
+
+  build-compiler-gas-report:
+    runs-on: blacksmith-16vcpu-ubuntu-2404
+    timeout-minutes: 360
+    needs: [changes, checks, build, build-compiler-difftest]
+    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-difftest.result == 'success' && needs.changes.outputs.compiler == 'true'
+    env:
+      LEAN_NUM_THREADS: 12
+      CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_NOHASHDIR: "true"
+      CCACHE_COMPILERCHECK: content
+      CCACHE_MAXSIZE: 2G
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Setup Lean
+        id: setup-lean
+        uses: ./.github/actions/setup-lean
+        with:
+          cache-key-prefix: lake-compiler
+          use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
+          sticky-disk-key-prefix: verify-compiler
+          lake-packages-sticky-key: lake-packages-verify-compiler-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          lake-packages-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('lake-packages-verify-compiler-{0}-{1}-{2}-{3}-{4}', env.VERIFY_MAIN_CACHE_BUCKET, runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
+          use-build-sticky-disk: ${{ env.VERIFY_USE_STICKY_DISKS }}
+          build-sticky-disk-key: verify-build-compiler-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          build-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('verify-build-compiler-{0}-{1}-{2}-{3}-{4}', env.VERIFY_MAIN_CACHE_BUCKET, runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
+          disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
+          cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          cache-extra-restore-keys: |
+            lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Ensure compiler acceleration toolchain
+        run: |
+          if \
+            command -v clang >/dev/null && \
+            command -v clang++ >/dev/null && \
+            command -v ld.lld >/dev/null && \
+            command -v ccache >/dev/null && \
+            printf 'int main() { return 0; }\n' | clang++ -x c++ - -fuse-ld=lld -stdlib=libc++ -lc++abi -o /tmp/verity-clang-smoke >/dev/null 2>&1 && \
+            printf 'int main() { return 0; }\n' | clang -x c - -fuse-ld=lld -luv -o /tmp/verity-libuv-smoke >/dev/null 2>&1
+          then
+            clang --version
+            ld.lld --version
+            ccache --version
+            exit 0
+          fi
+          sudo apt-get update
+          sudo apt-get install -y clang lld ccache libc++-dev libc++abi-dev libuv1-dev
+
+          printf 'int main() { return 0; }\n' | clang++ -x c++ - -fuse-ld=lld -stdlib=libc++ -lc++abi -o /tmp/verity-clang-smoke
+          printf 'int main() { return 0; }\n' | clang -x c - -fuse-ld=lld -luv -o /tmp/verity-libuv-smoke
+
+          clang --version
+          ld.lld --version
+          ccache --version
+
+      - name: Prepare ccache directory
+        run: mkdir -p "$CCACHE_DIR"
+
+      - name: Restore compiler ccache fallback cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ runner.temp }}/compiler-ccache-cache
+          key: compiler-ccache-cache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          restore-keys: |
+            compiler-ccache-cache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-
+            compiler-ccache-cache-${{ env.VERIFY_MAIN_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-
+
+      - name: Mount compiler ccache sticky disk
+        if: env.VERIFY_USE_STICKY_DISKS == 'true'
+        uses: useblacksmith/stickydisk@v1
+        with:
+          key: compiler-ccache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          path: ${{ github.workspace }}/.cache/ccache
+
+      - name: Prepare compiler ccache fallback mount
+        if: env.VERIFY_USE_STICKY_DISKS == 'true' && github.event_name == 'pull_request'
+        run: mkdir -p "$RUNNER_TEMP/compiler-ccache-main"
+
+      - name: Mount main compiler ccache fallback sticky disk
+        if: env.VERIFY_USE_STICKY_DISKS == 'true' && github.event_name == 'pull_request'
+        uses: useblacksmith/stickydisk@v1
+        with:
+          key: compiler-ccache-${{ env.VERIFY_MAIN_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          path: ${{ runner.temp }}/compiler-ccache-main
+
+      - name: Seed compiler ccache sticky disk from main fallback
+        if: env.VERIFY_USE_STICKY_DISKS == 'true' && github.event_name == 'pull_request'
+        run: |
+          if find "$CCACHE_DIR" -mindepth 1 -print -quit | grep -q .; then
+            exit 0
+          fi
+          if ! find "$RUNNER_TEMP/compiler-ccache-main" -mindepth 1 -print -quit | grep -q .; then
+            exit 0
+          fi
+          cp -a "$RUNNER_TEMP/compiler-ccache-main/." "$CCACHE_DIR/"
+
+      - name: Seed compiler ccache from GitHub cache fallback
+        run: |
+          if find "$CCACHE_DIR" -mindepth 1 -print -quit | grep -q .; then
+            exit 0
+          fi
+          if ! find "$RUNNER_TEMP/compiler-ccache-cache" -mindepth 1 -print -quit | grep -q .; then
+            exit 0
+          fi
+          cp -a "$RUNNER_TEMP/compiler-ccache-cache/." "$CCACHE_DIR/"
+
+      - name: Download prepared Lean workspace build
+        uses: actions/download-artifact@v7
+        with:
+          name: lean-workspace-build
+
+      - name: Restore prepared Lean workspace build
+        run: tar -xf lean-workspace-build.tar
+
+      - name: Download compiler workspace build
+        uses: actions/download-artifact@v7
+        with:
+          name: lean-workspace-compiler-build-difftest
+
+      - name: Restore compiler workspace build
+        run: tar -xf lean-workspace-compiler-build-difftest.tar
+
+      - name: Reset ccache statistics
+        run: ccache -z
+
+      - name: Build gas-report
+        uses: ./.github/actions/build-compiler-target
+        with:
+          checkpoint-key: gas-report
+          lake-targets: |
+            gas-report
+          use-lean-cc: "true"
+          expected-paths: |
+            .lake/build/bin/gas-report
+
+      - name: Show compiler ccache statistics
+        if: always()
+        run: ccache -s
+
+      - name: Save compiler ccache fallback cache
+        if: always() && (failure() || steps.setup-lean.outputs.using-sticky-disks != 'true')
+        continue-on-error: true
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ github.workspace }}/.cache/ccache
+          key: compiler-ccache-cache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Package compiler workspace build
+        if: success()
+        run: tar -cf lean-workspace-compiler-build-gas-report.tar .lake/build
+
+      - name: Upload compiler workspace build
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lean-workspace-compiler-build-gas-report
+          path: lean-workspace-compiler-build-gas-report.tar
+          compression-level: 0
+
+  build-compiler-examples:
+    runs-on: blacksmith-16vcpu-ubuntu-2404
+    timeout-minutes: 360
+    needs: [changes, checks, build, build-compiler-gas-report]
+    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-gas-report.result == 'success' && needs.changes.outputs.compiler == 'true'
+    env:
+      LEAN_NUM_THREADS: 12
+      CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_NOHASHDIR: "true"
+      CCACHE_COMPILERCHECK: content
+      CCACHE_MAXSIZE: 2G
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Setup Lean
+        id: setup-lean
+        uses: ./.github/actions/setup-lean
+        with:
+          cache-key-prefix: lake-compiler
+          use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
+          sticky-disk-key-prefix: verify-compiler
+          lake-packages-sticky-key: lake-packages-verify-compiler-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          lake-packages-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('lake-packages-verify-compiler-{0}-{1}-{2}-{3}-{4}', env.VERIFY_MAIN_CACHE_BUCKET, runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
+          use-build-sticky-disk: ${{ env.VERIFY_USE_STICKY_DISKS }}
+          build-sticky-disk-key: verify-build-compiler-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          build-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('verify-build-compiler-{0}-{1}-{2}-{3}-{4}', env.VERIFY_MAIN_CACHE_BUCKET, runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
+          disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
+          cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          cache-extra-restore-keys: |
+            lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Ensure compiler acceleration toolchain
+        run: |
+          if \
+            command -v clang >/dev/null && \
+            command -v clang++ >/dev/null && \
+            command -v ld.lld >/dev/null && \
+            command -v ccache >/dev/null && \
+            printf 'int main() { return 0; }\n' | clang++ -x c++ - -fuse-ld=lld -stdlib=libc++ -lc++abi -o /tmp/verity-clang-smoke >/dev/null 2>&1 && \
+            printf 'int main() { return 0; }\n' | clang -x c - -fuse-ld=lld -luv -o /tmp/verity-libuv-smoke >/dev/null 2>&1
+          then
+            clang --version
+            ld.lld --version
+            ccache --version
+            exit 0
+          fi
+          sudo apt-get update
+          sudo apt-get install -y clang lld ccache libc++-dev libc++abi-dev libuv1-dev
+
+          printf 'int main() { return 0; }\n' | clang++ -x c++ - -fuse-ld=lld -stdlib=libc++ -lc++abi -o /tmp/verity-clang-smoke
+          printf 'int main() { return 0; }\n' | clang -x c - -fuse-ld=lld -luv -o /tmp/verity-libuv-smoke
+
+          clang --version
+          ld.lld --version
+          ccache --version
+
+      - name: Prepare ccache directory
+        run: mkdir -p "$CCACHE_DIR"
+
+      - name: Restore compiler ccache fallback cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ runner.temp }}/compiler-ccache-cache
+          key: compiler-ccache-cache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          restore-keys: |
+            compiler-ccache-cache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-
+            compiler-ccache-cache-${{ env.VERIFY_MAIN_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-
+
+      - name: Mount compiler ccache sticky disk
+        if: env.VERIFY_USE_STICKY_DISKS == 'true'
+        uses: useblacksmith/stickydisk@v1
+        with:
+          key: compiler-ccache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          path: ${{ github.workspace }}/.cache/ccache
+
+      - name: Prepare compiler ccache fallback mount
+        if: env.VERIFY_USE_STICKY_DISKS == 'true' && github.event_name == 'pull_request'
+        run: mkdir -p "$RUNNER_TEMP/compiler-ccache-main"
+
+      - name: Mount main compiler ccache fallback sticky disk
+        if: env.VERIFY_USE_STICKY_DISKS == 'true' && github.event_name == 'pull_request'
+        uses: useblacksmith/stickydisk@v1
+        with:
+          key: compiler-ccache-${{ env.VERIFY_MAIN_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          path: ${{ runner.temp }}/compiler-ccache-main
+
+      - name: Seed compiler ccache sticky disk from main fallback
+        if: env.VERIFY_USE_STICKY_DISKS == 'true' && github.event_name == 'pull_request'
+        run: |
+          if find "$CCACHE_DIR" -mindepth 1 -print -quit | grep -q .; then
+            exit 0
+          fi
+          if ! find "$RUNNER_TEMP/compiler-ccache-main" -mindepth 1 -print -quit | grep -q .; then
+            exit 0
+          fi
+          cp -a "$RUNNER_TEMP/compiler-ccache-main/." "$CCACHE_DIR/"
+
+      - name: Seed compiler ccache from GitHub cache fallback
+        run: |
+          if find "$CCACHE_DIR" -mindepth 1 -print -quit | grep -q .; then
+            exit 0
+          fi
+          if ! find "$RUNNER_TEMP/compiler-ccache-cache" -mindepth 1 -print -quit | grep -q .; then
+            exit 0
+          fi
+          cp -a "$RUNNER_TEMP/compiler-ccache-cache/." "$CCACHE_DIR/"
+
+      - name: Download prepared Lean workspace build
+        uses: actions/download-artifact@v7
+        with:
+          name: lean-workspace-build
+
+      - name: Restore prepared Lean workspace build
+        run: tar -xf lean-workspace-build.tar
+
+      - name: Download compiler workspace build
+        uses: actions/download-artifact@v7
+        with:
+          name: lean-workspace-compiler-build-gas-report
+
+      - name: Restore compiler workspace build
+        run: tar -xf lean-workspace-compiler-build-gas-report.tar
+
+      - name: Reset ccache statistics
+        run: ccache -z
+
+      - name: Build example contracts manifest
+        id: build-examples
+        shell: bash
+        env:
+          LEAN_CC: ${{ github.workspace }}/scripts/lean_cc_ccache_clang.sh
+        run: |
+          set -euo pipefail
+          checkpoint_dir=".lake/build/ci-checkpoints"
+          marker="${checkpoint_dir}/verity-example-contracts.done"
+          mkdir -p "${checkpoint_dir}"
+
+          if [ -f "${marker}" ]; then
+            echo "Example contract checkpoint already satisfied; skipping build."
+            exit 0
+          fi
+
+          mapfile -t manifest_targets < <(grep -v '^[[:space:]]*#' packages/verity-examples/contracts.manifest | sed '/^[[:space:]]*$/d')
+          if [ "${#manifest_targets[@]}" -eq 0 ]; then
+            echo "::error::Example contracts manifest is empty."
+            exit 1
+          fi
+
+          stdbuf -oL -eL lake build "${manifest_targets[@]}"
+          touch "${marker}"
+
+      - name: Show compiler ccache statistics
+        if: always()
+        run: ccache -s
+
+      - name: Save compiler ccache fallback cache
+        if: always() && (failure() || steps.setup-lean.outputs.using-sticky-disks != 'true')
+        continue-on-error: true
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ github.workspace }}/.cache/ccache
+          key: compiler-ccache-cache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Package compiler workspace build
+        if: success()
+        run: tar -cf lean-workspace-compiler-build-examples.tar .lake/build
+
+      - name: Upload compiler workspace build
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lean-workspace-compiler-build-examples
+          path: lean-workspace-compiler-build-examples.tar
+          compression-level: 0
+
+  build-compiler-binaries:
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    timeout-minutes: 45
+    needs: [changes, checks, build, build-compiler-examples]
+    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-examples.result == 'success' && needs.changes.outputs.compiler == 'true'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Download compiler workspace build
+        uses: actions/download-artifact@v7
+        with:
+          name: lean-workspace-compiler-build-examples
+
+      - name: Restore compiler workspace build
+        run: tar -xf lean-workspace-compiler-build-examples.tar
 
       - name: Package compiler binaries
         run: |
@@ -664,13 +1361,6 @@ jobs:
 
       - name: Package compiler workspace build
         run: tar -cf lean-workspace-compiler-build.tar .lake/build
-
-      - name: Save Lake compiler cache
-        if: always() && steps.setup-lean.outputs.using-sticky-disks != 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: .lake
-          key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Upload difftest interpreter
         uses: actions/upload-artifact@v7
@@ -683,12 +1373,14 @@ jobs:
         with:
           name: verity-compiler-binaries
           path: compiler/bin
+          compression-level: 0
 
       - name: Upload compiler workspace build
         uses: actions/upload-artifact@v7
         with:
           name: lean-workspace-compiler-build
           path: lean-workspace-compiler-build.tar
+          compression-level: 0
 
   generate-yul:
     runs-on: blacksmith-8vcpu-ubuntu-2404
@@ -1284,7 +1976,7 @@ jobs:
 
   failure-hints:
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    needs: [checks, build, prepare-macro-fuzz, build-audits, macro-fuzz, build-compiler-binaries, generate-yul, generate-yul-patched, gas-report, compiler-audits, compiler-regressions, foundry-gas-calibration, foundry, foundry-patched, foundry-multi-seed]
+    needs: [checks, build, prepare-macro-fuzz, build-audits, macro-fuzz, build-compiler-verity, build-compiler-patched, build-compiler-difftest, build-compiler-gas-report, build-compiler-examples, build-compiler-binaries, generate-yul, generate-yul-patched, gas-report, compiler-audits, compiler-regressions, foundry-gas-calibration, foundry, foundry-patched, foundry-multi-seed]
     if: always() && github.event_name == 'pull_request' && contains(join(needs.*.result, ','), 'failure')
     permissions:
       contents: read
