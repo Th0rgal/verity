@@ -10007,7 +10007,21 @@ theorem SupportedBodyInterface.helperFreeStepInterface
     {fn : FunctionSpec}
     (hBody : SupportedBodyInterface spec fn)
     (hnoConflict : firstFieldWriteSlotConflict spec.fields = none) :
-    StmtListHelperFreeStepInterface spec.fields (fn.params.map (·.name)) fn.body := by sorry
+    StmtListHelperFreeStepInterface spec.fields (fn.params.map (·.name)) fn.body := by
+  have hsurface :
+      stmtListTouchesUnsupportedContractSurface fn.body = false :=
+    stmtListTouchesUnsupportedContractSurface_eq_false_of_featureClosed fn.body
+      hBody.core.surfaceClosed
+      hBody.state.surfaceClosed
+      (SupportedBodyCallInterface.surfaceClosed (hBody := hBody))
+      hBody.effects.surfaceClosed
+  exact stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface
+    (fields := spec.fields)
+    (scope := fn.params.map (·.name))
+    (stmts := fn.body)
+    hnoConflict
+    hBody.stmtList
+    hsurface
 -- SORRY'D:   have hsurface :
 -- SORRY'D:       stmtListTouchesUnsupportedContractSurface fn.body = false :=
 -- SORRY'D:     stmtListTouchesUnsupportedContractSurface_eq_false_of_featureClosed fn.body
