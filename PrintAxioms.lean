@@ -893,13 +893,14 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.runtimeStateMatchesIR_setVar_irrelevant
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmt_core_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.runtimeStateMatchesIR_setMemory
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.runtimeStateMatchesIR_setTransientStorage  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.runtimeStateMatchesIR_setTransientStorage
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVars_setMemory
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVarsOnScope_setMemory
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_bindValue
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.encodeEvents_withTransactionContext
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.encodeStorage_withTransactionContext
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_core_split
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmt_letVar_core
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmt_assignVar_core
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmt_return_core
@@ -1872,4 +1873,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1741 theorems/lemmas (1155 public, 560 private, 26 sorry'd)
+-- Total: 1742 theorems/lemmas (1157 public, 560 private, 25 sorry'd)
