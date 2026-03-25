@@ -41,7 +41,7 @@ def fieldUsesDynamicArrayStorage (field : Field) : Bool :=
   | .dynamicArray _ => true
   | _ => false
 
-private def findResolvedFieldAtSlot (fields : List Field) (slot : Nat) : Option Field :=
+def findResolvedFieldAtSlot (fields : List Field) (slot : Nat) : Option Field :=
   let rec go (remaining : List Field) (idx : Nat) : Option Field :=
     match remaining with
     | [] => none
@@ -53,7 +53,7 @@ private def findResolvedFieldAtSlot (fields : List Field) (slot : Nat) : Option 
           go rest (idx + 1)
   go fields 0
 
-private def findDynamicArrayElementAtSlot
+def findDynamicArrayElementAtSlot
     (fields : List Field) (world : Verity.ContractState) (targetSlot : Nat) : Option Nat :=
   let rec scanElements (baseSlot : Nat) : List Verity.Core.Uint256 → Nat → Option Nat
     | [], _ => none
@@ -1225,7 +1225,7 @@ def withTransactionContext (world : Verity.ContractState) (tx : IRTransaction) :
     blockNumber := tx.blockNumber
     chainId := tx.chainId }
 
-private theorem findDynamicArrayElementAtSlot_withTransactionContext
+theorem findDynamicArrayElementAtSlot_withTransactionContext
     (fields : List Field)
     (world : Verity.ContractState)
     (tx : IRTransaction)
@@ -1264,6 +1264,60 @@ private theorem findDynamicArrayElementAtSlot_withTransactionContext
           simpa [findDynamicArrayElementAtSlot.go, withTransactionContext, hty] using ih (idx + 1)
       | mappingStruct2 outerKey innerKey members =>
           simpa [findDynamicArrayElementAtSlot.go, withTransactionContext, hty] using ih (idx + 1)
+
+theorem findDynamicArrayElementAtSlot_congr_storageArray
+    (fields : List Field)
+    (world1 world2 : Verity.ContractState)
+    (slot : Nat)
+    (h_storageArray : world1.storageArray = world2.storageArray) :
+    findDynamicArrayElementAtSlot fields world1 slot =
+      findDynamicArrayElementAtSlot fields world2 slot := by
+  unfold findDynamicArrayElementAtSlot
+  suffices
+      ∀ remaining idx,
+        findDynamicArrayElementAtSlot.go world1 slot remaining idx =
+          findDynamicArrayElementAtSlot.go world2 slot remaining idx by
+    simpa using this fields 0
+  intro remaining idx
+  induction remaining generalizing idx with
+  | nil =>
+      rfl
+  | cons field rest ih =>
+      cases hty : field.ty with
+      | uint256 =>
+          simpa [findDynamicArrayElementAtSlot.go, hty] using ih (idx + 1)
+      | address =>
+          simpa [findDynamicArrayElementAtSlot.go, hty] using ih (idx + 1)
+      | dynamicArray elemType =>
+          cases hscan :
+              findDynamicArrayElementAtSlot.scanElements slot
+                (field.slot.getD idx)
+                (world2.storageArray (field.slot.getD idx)) 0 with
+          | none =>
+              simp only [findDynamicArrayElementAtSlot.go, hty, h_storageArray, hscan]
+              exact ih (idx + 1)
+          | some value =>
+              simp [findDynamicArrayElementAtSlot.go, hty, h_storageArray, hscan]
+      | mappingTyped mt =>
+          simpa [findDynamicArrayElementAtSlot.go, hty] using ih (idx + 1)
+      | mappingStruct keyType members =>
+          simpa [findDynamicArrayElementAtSlot.go, hty] using ih (idx + 1)
+      | mappingStruct2 outerKey innerKey members =>
+          simpa [findDynamicArrayElementAtSlot.go, hty] using ih (idx + 1)
+
+theorem encodeStorageAt_congr
+    {fields : List Field}
+    {world1 world2 : Verity.ContractState}
+    {slot : Nat}
+    (h_storage : world1.storage slot = world2.storage slot)
+    (h_storageAddr : world1.storageAddr slot = world2.storageAddr slot)
+    (h_storageArray : world1.storageArray = world2.storageArray) :
+    encodeStorageAt fields world1 slot = encodeStorageAt fields world2 slot := by
+  unfold encodeStorageAt
+  split
+  · simp [h_storage, h_storageAddr, h_storageArray]
+  · rw [findDynamicArrayElementAtSlot_congr_storageArray fields world1 world2 slot h_storageArray]
+    simp [h_storage]
 
 @[simp] theorem encodeStorageAt_withTransactionContext
     (fields : List Field)
@@ -2541,36 +2595,164 @@ mutual
         simp [List.cons.sizeOf_spec]
         omega
 
-  private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux
-      (spec : CompilationModel)
-      (fields : List Field)
-      (fuel : Nat)
-      (state : RuntimeState)
-      (stmt : Stmt)
-      (hsurface : stmtTouchesUnsupportedHelperSurface stmt = false) :
-      execStmtWithHelpers spec fields fuel state stmt = execStmt fields state stmt := by
-    -- Temporary stabilization point for the helper-surface frontier.
-    -- Clean fix: prove this and the list theorem below by a local mutual recursion
-    -- over `Stmt` / `List Stmt`, reusing the per-constructor helper-surface
-    -- lemmas above and only recursing through `.ite` and list `.cons`.
-    -- The remaining technical blocker is the mutual `termination_by`: Lean needs
-    -- explicit branch-specific decreases for the `.ite` then/else calls and the
-    -- list-head call from `stmt :: rest`.
-    sorry
+end -- close the mutual block that started at line 2214
 
-  private theorem execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed_aux
-      (spec : CompilationModel)
-      (fields : List Field)
-      (fuel : Nat)
-      (state : RuntimeState)
-      (stmts : List Stmt)
-      (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
-      execStmtListWithHelpers spec fields fuel state stmts = execStmtList fields state stmts := by
-    -- Temporary stabilization point paired with the stmt theorem above.
-    -- Clean fix: recurse on the list spine, dispatching the head via the stmt
-    -- theorem and using the recursive hypothesis only in the `.continue` branch,
-    -- with the same explicit termination witnesses noted in the stmt theorem.
-    sorry
+private theorem execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed_inner
+    (spec : CompilationModel)
+    (fields : List Field)
+    (fuel : Nat)
+    (state : RuntimeState)
+    (stmts : List Stmt)
+    (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false)
+    (hstmt : ∀ (st : RuntimeState) (s : Stmt),
+      sizeOf s < sizeOf stmts →
+      stmtTouchesUnsupportedHelperSurface s = false →
+      execStmtWithHelpers spec fields fuel st s =
+        execStmt fields st s) :
+    execStmtListWithHelpers spec fields fuel state stmts =
+      execStmtList fields state stmts := by
+  match stmts with
+  | [] => simp [execStmtListWithHelpers, execStmtList]
+  | stmt :: rest =>
+      simp only [stmtListTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+      have hlt : sizeOf stmt < sizeOf (stmt :: rest) := by
+        have := stmt_sizeOf_lt_cons stmt rest; omega
+      rw [execStmtListWithHelpers,
+        hstmt state stmt hlt hsurface.1]
+      rw [execStmtList]
+      cases hexec : execStmt fields state stmt with
+      | «continue» next =>
+          have hrest_lt : sizeOf rest < sizeOf (stmt :: rest) := by
+            simp [List.cons.sizeOf_spec]
+          exact execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed_inner
+            spec fields fuel next rest hsurface.2
+            (fun st s hs hsf => hstmt st s (Nat.lt_trans hs hrest_lt) hsf)
+      | stop next => rfl
+      | «return» value next => rfl
+      | revert => rfl
+termination_by sizeOf stmts
+
+private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux
+    (spec : CompilationModel)
+    (fields : List Field)
+    (fuel : Nat)
+    (state : RuntimeState)
+    (stmt : Stmt)
+    (hsurface : stmtTouchesUnsupportedHelperSurface stmt = false) :
+    execStmtWithHelpers spec fields fuel state stmt = execStmt fields state stmt := by
+  match stmt with
+  | .letVar _ value =>
+      simp only [stmtTouchesUnsupportedHelperSurface] at hsurface
+      simp [execStmtWithHelpers, execStmt,
+        evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface]
+  | .assignVar _ value =>
+      simp only [stmtTouchesUnsupportedHelperSurface] at hsurface
+      simp [execStmtWithHelpers, execStmt,
+        evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface]
+  | .setStorage _ value =>
+      simp only [stmtTouchesUnsupportedHelperSurface] at hsurface
+      simp [execStmtWithHelpers, execStmt,
+        evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface]
+  | .setStorageAddr _ value =>
+      simp only [stmtTouchesUnsupportedHelperSurface] at hsurface
+      simp [execStmtWithHelpers, execStmt,
+        evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface]
+  | .storageArrayPush _ value =>
+      simp only [stmtTouchesUnsupportedHelperSurface] at hsurface
+      simp [execStmtWithHelpers, execStmt,
+        evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface]
+  | .require cond _ =>
+      simp only [stmtTouchesUnsupportedHelperSurface] at hsurface
+      simp [execStmtWithHelpers, execStmt,
+        evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state cond hsurface]
+  | .return value =>
+      simp only [stmtTouchesUnsupportedHelperSurface] at hsurface
+      simp [execStmtWithHelpers, execStmt,
+        evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface]
+  | .stop =>
+      simp [execStmtWithHelpers, execStmt]
+  | .setMapping fieldName key value =>
+      exact execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_setMapping
+        spec fields fuel state fieldName key value hsurface
+  | .setMappingWord fieldName key wordOffset value =>
+      exact execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_setMappingWord
+        spec fields fuel state fieldName key value wordOffset hsurface
+  | .setMappingPackedWord fieldName key wordOffset packed value =>
+      exact execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_setMappingPackedWord
+        spec fields fuel state fieldName key value wordOffset packed hsurface
+  | .setMappingUint fieldName key value =>
+      exact execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_setMappingUint
+        spec fields fuel state fieldName key value hsurface
+  | .setStructMember fieldName key memberName value =>
+      exact execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_setStructMember
+        spec fields fuel state fieldName memberName key value hsurface
+  | .setMapping2 fieldName key1 key2 value =>
+      exact execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_setMapping2
+        spec fields fuel state fieldName key1 key2 value hsurface
+  | .setMapping2Word fieldName key1 key2 wordOffset value =>
+      exact execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_setMapping2Word
+        spec fields fuel state fieldName key1 key2 value wordOffset hsurface
+  | .setStructMember2 fieldName key1 key2 memberName value =>
+      exact execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_setStructMember2
+        spec fields fuel state fieldName memberName key1 key2 value hsurface
+  | .setStorageArrayElement fieldName index value =>
+      exact execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_setStorageArrayElement
+        spec fields fuel state fieldName index value hsurface
+  | .mstore offset value =>
+      exact execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_mstore
+        spec fields fuel state offset value hsurface
+  | .tstore offset value =>
+      exact execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_tstore
+        spec fields fuel state offset value hsurface
+  | .ite cond thenBranch elseBranch =>
+      simp only [stmtTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+      rcases hsurface with ⟨⟨hcondSurface, hthenSurface⟩, helseSurface⟩
+      simp only [execStmtWithHelpers, execStmt,
+        evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state cond hcondSurface]
+      cases evalExpr fields state cond with
+      | none => rfl
+      | some resolved =>
+          by_cases hcond : resolved != 0
+          · simp [hcond]
+            exact execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed_inner
+              spec fields fuel state thenBranch hthenSurface
+              (fun st s hs hsf =>
+                have : sizeOf s < sizeOf (Stmt.ite cond thenBranch elseBranch) := by
+                  have := stmt_sizeOf_lt_ite_then cond thenBranch elseBranch; omega
+                execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux
+                  spec fields fuel st s hsf)
+          · simp [hcond]
+            exact execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed_inner
+              spec fields fuel state elseBranch helseSurface
+              (fun st s hs hsf =>
+                have : sizeOf s < sizeOf (Stmt.ite cond thenBranch elseBranch) := by
+                  have := stmt_sizeOf_lt_ite_else cond thenBranch elseBranch; omega
+                execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux
+                  spec fields fuel st s hsf)
+  | .setMappingChain fieldName keys value =>
+      exact execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_keyListValue
+        spec fields fuel state fieldName keys value hsurface
+  | .internalCall _ _ => cases hsurface
+  | .internalCallAssign _ _ _ => cases hsurface
+  | .storageArrayPop _ => simp [execStmtWithHelpers, execStmt]
+  | .requireError _ _ _ => simp [execStmtWithHelpers, execStmt]
+  | .revertError _ _ => simp [execStmtWithHelpers, execStmt]
+  | .returnValues _ => simp [execStmtWithHelpers, execStmt]
+  | .returnArray _ => simp [execStmtWithHelpers, execStmt]
+  | .returnBytes _ => simp [execStmtWithHelpers, execStmt]
+  | .returnStorageWords _ => simp [execStmtWithHelpers, execStmt]
+  | .calldatacopy _ _ _ => simp [execStmtWithHelpers, execStmt]
+  | .returndataCopy _ _ _ => simp [execStmtWithHelpers, execStmt]
+  | .revertReturndata => simp [execStmtWithHelpers, execStmt]
+  | .emit _ _ => simp [execStmtWithHelpers, execStmt]
+  | .rawLog _ _ _ => simp [execStmtWithHelpers, execStmt]
+  | .externalCallBind _ _ _ => simp [execStmtWithHelpers, execStmt]
+  | .ecm _ _ => simp [execStmtWithHelpers, execStmt]
+  | .forEach _ _ _ =>
+      simp only [stmtTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+      simp [execStmtWithHelpers, execStmt]
+termination_by sizeOf stmt
+
 theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed
     (spec : CompilationModel)
     (fields : List Field)
@@ -2590,10 +2772,10 @@ theorem execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
     (stmts : List Stmt)
     (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
     execStmtListWithHelpers spec fields fuel state stmts = execStmtList fields state stmts := by
-  exact execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed_aux
+  exact execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed_inner
     spec fields fuel state stmts hsurface
-
-end
+    (fun st s _ hsf => execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux
+      spec fields fuel st s hsf)
 
 /-- Exact source-side helper-composition target for a statement list: the
 helper-aware source semantics should conservatively extend the legacy

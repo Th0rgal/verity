@@ -496,8 +496,161 @@ def findFieldSlot (fields : List Field) (name : String) : Option Nat :=
 def findFieldWithResolvedSlot (fields : List Field) (name : String) : Option (Field × Nat) :=
   findFieldByName fields name fun f slot => (f, slot)
 
+theorem field_mem_of_findFieldWithResolvedSlot_eq_some
+    {fields : List Field}
+    {name : String}
+    {f : Field}
+    {slot : Nat}
+    (h : findFieldWithResolvedSlot fields name = some (f, slot)) :
+    f ∈ fields := by
+  unfold findFieldWithResolvedSlot at h
+  unfold findFieldByName at h
+  -- h now involves findFieldByName.go. We generalise the index.
+  suffices ∀ (flds : List Field) (idx : Nat),
+      findFieldByName.go name (fun f slot => (f, slot)) flds idx = some (f, slot) →
+      f ∈ flds by
+    exact this fields 0 h
+  intro flds idx hgo
+  induction flds generalizing idx with
+  | nil => simp [findFieldByName.go] at hgo
+  | cons hd tl ih =>
+      simp only [findFieldByName.go] at hgo
+      split at hgo
+      · simp at hgo; exact hgo.1 ▸ List.Mem.head tl
+      · exact List.Mem.tail hd (ih (idx + 1) hgo)
+
+theorem fieldName_eq_of_findFieldWithResolvedSlot_eq_some
+    {fields : List Field}
+    {name : String}
+    {f : Field}
+    {slot : Nat}
+    (h : findFieldWithResolvedSlot fields name = some (f, slot)) :
+    f.name = name := by
+  unfold findFieldWithResolvedSlot at h
+  unfold findFieldByName at h
+  suffices ∀ (flds : List Field) (idx : Nat),
+      findFieldByName.go name (fun f slot => (f, slot)) flds idx = some (f, slot) →
+      f.name = name by
+    exact this fields 0 h
+  intro flds idx hgo
+  induction flds generalizing idx with
+  | nil => simp [findFieldByName.go] at hgo
+  | cons hd tl ih =>
+      simp only [findFieldByName.go] at hgo
+      split at hgo
+      case isTrue hname =>
+        simp at hgo; rw [← hgo.1]; exact beq_iff_eq.mp hname
+      case isFalse =>
+        exact ih (idx + 1) hgo
+
 def findFieldWriteSlots (fields : List Field) (name : String) : Option (List Nat) :=
   findFieldByName fields name fun f slot => slot :: f.aliasSlots
+
+/-- `findFieldWithResolvedSlot` iterates from `idx` onward; this exposes the recursive step. -/
+theorem findFieldWithResolvedSlot_nil (name : String) :
+    findFieldWithResolvedSlot [] name = none := rfl
+
+theorem findFieldWithResolvedSlot_cons (f : Field) (rest : List Field) (name : String) :
+    findFieldWithResolvedSlot (f :: rest) name =
+      if f.name == name then some (f, f.slot.getD 0)
+      else findFieldByName.go name (fun f slot => (f, slot)) rest 1 := rfl
+
+/-- Stepping lemma for the internal go. -/
+theorem findFieldWithResolvedSlot_go_nil (name : String) (idx : Nat) :
+    findFieldByName.go name (fun f slot => (f, slot)) ([] : List Field) idx = none := rfl
+
+theorem findFieldWithResolvedSlot_go_cons (f : Field) (rest : List Field)
+    (name : String) (idx : Nat) :
+    findFieldByName.go name (fun f slot => (f, slot)) (f :: rest) idx =
+      if f.name == name then some (f, f.slot.getD idx)
+      else findFieldByName.go name (fun f slot => (f, slot)) rest (idx + 1) := rfl
+
+/-- Stepping lemmas for findFieldWriteSlots. -/
+theorem findFieldWriteSlots_nil (name : String) :
+    findFieldWriteSlots [] name = none := rfl
+
+theorem findFieldWriteSlots_cons (f : Field) (rest : List Field) (name : String) :
+    findFieldWriteSlots (f :: rest) name =
+      if f.name == name then some (f.slot.getD 0 :: f.aliasSlots)
+      else findFieldByName.go name (fun f slot => slot :: f.aliasSlots) rest 1 := rfl
+
+theorem findFieldWriteSlots_go_nil (name : String) (idx : Nat) :
+    findFieldByName.go name (fun f slot => slot :: f.aliasSlots) ([] : List Field) idx =
+      none := rfl
+
+theorem findFieldWriteSlots_go_cons (f : Field) (rest : List Field)
+    (name : String) (idx : Nat) :
+    findFieldByName.go name (fun f slot => slot :: f.aliasSlots) (f :: rest) idx =
+      if f.name == name then some (f.slot.getD idx :: f.aliasSlots)
+      else findFieldByName.go name (fun f slot => slot :: f.aliasSlots) rest (idx + 1) := rfl
+
+/-- Bridge: findFieldWithResolvedSlot matches any function with the same recursive structure. -/
+theorem findFieldWithResolvedSlot_go_eq_rec
+    (flds : List Field) (idx : Nat) (name : String)
+    {rec : List Field → Nat → Option (Field × Nat)}
+    (hnil : ∀ i, rec [] i = none)
+    (hcons : ∀ (hd : Field) (tl : List Field) (i : Nat),
+        rec (hd :: tl) i = if hd.name == name then some (hd, hd.slot.getD i) else rec tl (i + 1)) :
+    findFieldByName.go name (fun f slot => (f, slot)) flds idx = rec flds idx := by
+  induction flds generalizing idx with
+  | nil => simp [findFieldByName.go, hnil]
+  | cons hd tl ih => simp [findFieldByName.go, hcons]; split <;> simp_all
+
+/-- Bridge: findFieldWriteSlots matches any function with the same recursive structure. -/
+theorem findFieldWriteSlots_go_eq_rec
+    (flds : List Field) (idx : Nat) (name : String)
+    {rec : List Field → Nat → Option (List Nat)}
+    (hnil : ∀ i, rec [] i = none)
+    (hcons : ∀ (hd : Field) (tl : List Field) (i : Nat),
+        rec (hd :: tl) i = if hd.name == name then some (hd.slot.getD i :: hd.aliasSlots) else rec tl (i + 1)) :
+    findFieldByName.go name (fun f slot => slot :: f.aliasSlots) flds idx = rec flds idx := by
+  induction flds generalizing idx with
+  | nil => simp [findFieldByName.go, hnil]
+  | cons hd tl ih => simp [findFieldByName.go, hcons]; split <;> simp_all
+
+/-- Standalone copy of `findFieldByName.go` for resolved slot, usable in proofs from other modules. -/
+def findFieldWithResolvedSlotCopyFrom
+    (fields : List Field) (idx : Nat) (name : String) : Option (Field × Nat) :=
+  match fields with
+  | [] => none
+  | field :: rest =>
+    if field.name == name then some (field, field.slot.getD idx)
+    else findFieldWithResolvedSlotCopyFrom rest (idx + 1) name
+
+/-- Standalone copy of `findFieldByName.go` for write slots, usable in proofs from other modules. -/
+def findFieldWriteSlotsCopyFrom
+    (fields : List Field) (idx : Nat) (name : String) : Option (List Nat) :=
+  match fields with
+  | [] => none
+  | field :: rest =>
+    if field.name == name then some (field.slot.getD idx :: field.aliasSlots)
+    else findFieldWriteSlotsCopyFrom rest (idx + 1) name
+
+theorem findFieldWithResolvedSlot_eq_CopyFrom
+    (flds : List Field) (nm : String) :
+    findFieldWithResolvedSlot flds nm =
+      findFieldWithResolvedSlotCopyFrom flds 0 nm := by
+  suffices ∀ idx, findFieldByName.go nm (fun f slot => (f, slot)) flds idx =
+      findFieldWithResolvedSlotCopyFrom flds idx nm from this 0
+  intro idx
+  induction flds generalizing idx with
+  | nil => rfl
+  | cons hd tl ih =>
+    simp [findFieldByName.go, findFieldWithResolvedSlotCopyFrom]
+    split <;> simp_all
+
+theorem findFieldWriteSlots_eq_CopyFrom
+    (flds : List Field) (nm : String) :
+    findFieldWriteSlots flds nm =
+      findFieldWriteSlotsCopyFrom flds 0 nm := by
+  suffices ∀ idx, findFieldByName.go nm (fun f slot => slot :: f.aliasSlots) flds idx =
+      findFieldWriteSlotsCopyFrom flds idx nm from this 0
+  intro idx
+  induction flds generalizing idx with
+  | nil => rfl
+  | cons hd tl ih =>
+    simp [findFieldByName.go, findFieldWriteSlotsCopyFrom]
+    split <;> simp_all
 
 def mappingTypeKeyTypes : MappingType → List MappingKeyType
   | .simple keyType => [keyType]
