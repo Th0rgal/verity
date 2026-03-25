@@ -5,7 +5,7 @@ import Contracts.ProxyUpgradeabilityLayoutCompatibleSmoke
 import Contracts.ProxyUpgradeabilityLayoutIncompatibleSmoke
 import Contracts.ProxyUpgradeabilityMacroSmoke
 import Contracts.RawLogTrustSurface
-import Compiler.Main
+import Compiler.MainDriver
 import Compiler.ParityPacks
 import Compiler.Linker
 import Compiler.TestModules

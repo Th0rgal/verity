@@ -1,0 +1,66 @@
+name: Build compiler target
+description: Build one or more Lake targets and stamp a checkpoint marker when they succeed
+
+inputs:
+  checkpoint-key:
+    description: Stable checkpoint marker name written under .lake/build/ci-checkpoints
+    required: true
+  lake-targets:
+    description: Newline-delimited Lake targets to build
+    required: true
+  use-lean-cc:
+    description: Whether to route Lean C compilation through the ccache-backed clang wrapper
+    default: "false"
+  expected-paths:
+    description: Newline-delimited paths that must exist before an existing checkpoint can be reused
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Build target with checkpointing
+      shell: bash
+      env:
+        CHECKPOINT_KEY: ${{ inputs.checkpoint-key }}
+        LAKE_TARGETS: ${{ inputs.lake-targets }}
+        USE_LEAN_CC: ${{ inputs.use-lean-cc }}
+        EXPECTED_PATHS: ${{ inputs.expected-paths }}
+      run: |
+        set -euo pipefail
+
+        checkpoint_dir=".lake/build/ci-checkpoints"
+        marker="${checkpoint_dir}/${CHECKPOINT_KEY}.done"
+        mkdir -p "${checkpoint_dir}"
+
+        should_build=true
+        if [ -f "${marker}" ]; then
+          should_build=false
+          while IFS= read -r path; do
+            [ -n "${path}" ] || continue
+            if [ ! -e "${path}" ]; then
+              should_build=true
+              break
+            fi
+          done <<< "${EXPECTED_PATHS}"
+        fi
+
+        if [ "${should_build}" = "false" ]; then
+          echo "Checkpoint ${CHECKPOINT_KEY} already satisfied; skipping build."
+          exit 0
+        fi
+
+        if [ "${USE_LEAN_CC}" = "true" ]; then
+          export LEAN_CC="${GITHUB_WORKSPACE}/scripts/lean_cc_ccache_clang.sh"
+        fi
+
+        mapfile -t targets < <(printf '%s\n' "${LAKE_TARGETS}" | sed '/^[[:space:]]*$/d')
+        if [ "${#targets[@]}" -eq 0 ]; then
+          echo "::error::No Lake targets were provided."
+          exit 1
+        fi
+
+        printf 'Building checkpoint %s with targets:\n' "${CHECKPOINT_KEY}"
+        printf '  %s\n' "${targets[@]}"
+
+        stdbuf -oL -eL lake build "${targets[@]}"
+        touch "${marker}"

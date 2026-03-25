@@ -633,16 +633,70 @@ jobs:
       - name: Reset ccache statistics
         run: ccache -z
 
-      - name: Build compiler binaries and example contracts
+      - name: Build verity-compiler
+        uses: ./.github/actions/build-compiler-target
+        with:
+          checkpoint-key: verity-compiler
+          lake-targets: |
+            verity-compiler
+          use-lean-cc: "true"
+          expected-paths: |
+            .lake/build/bin/verity-compiler
+
+      - name: Build verity-compiler-patched
+        uses: ./.github/actions/build-compiler-target
+        with:
+          checkpoint-key: verity-compiler-patched
+          lake-targets: |
+            verity-compiler-patched
+          use-lean-cc: "true"
+          expected-paths: |
+            .lake/build/bin/verity-compiler-patched
+
+      - name: Build difftest-interpreter
+        uses: ./.github/actions/build-compiler-target
+        with:
+          checkpoint-key: difftest-interpreter
+          lake-targets: |
+            difftest-interpreter
+          use-lean-cc: "true"
+          expected-paths: |
+            .lake/build/bin/difftest-interpreter
+
+      - name: Build gas-report
+        uses: ./.github/actions/build-compiler-target
+        with:
+          checkpoint-key: gas-report
+          lake-targets: |
+            gas-report
+          use-lean-cc: "true"
+          expected-paths: |
+            .lake/build/bin/gas-report
+
+      - name: Build example contracts manifest
+        id: build-examples
+        shell: bash
         env:
           LEAN_CC: ${{ github.workspace }}/scripts/lean_cc_ccache_clang.sh
         run: |
-          stdbuf -oL -eL lake build \
-            verity-compiler \
-            verity-compiler-patched \
-            difftest-interpreter \
-            gas-report \
-            $(grep -v '^[[:space:]]*#' packages/verity-examples/contracts.manifest | sed '/^[[:space:]]*$/d')
+          set -euo pipefail
+          checkpoint_dir=".lake/build/ci-checkpoints"
+          marker="${checkpoint_dir}/verity-example-contracts.done"
+          mkdir -p "${checkpoint_dir}"
+
+          if [ -f "${marker}" ]; then
+            echo "Example contract checkpoint already satisfied; skipping build."
+            exit 0
+          fi
+
+          mapfile -t manifest_targets < <(grep -v '^[[:space:]]*#' packages/verity-examples/contracts.manifest | sed '/^[[:space:]]*$/d')
+          if [ "${#manifest_targets[@]}" -eq 0 ]; then
+            echo "::error::Example contracts manifest is empty."
+            exit 1
+          fi
+
+          stdbuf -oL -eL lake build "${manifest_targets[@]}"
+          touch "${marker}"
 
       - name: Show compiler ccache statistics
         if: always()
@@ -650,6 +704,7 @@ jobs:
 
       - name: Save compiler ccache fallback cache
         if: always() && (failure() || steps.setup-lean.outputs.using-sticky-disks != 'true')
+        continue-on-error: true
         uses: actions/cache/save@v5
         with:
           path: ${{ github.workspace }}/.cache/ccache
@@ -665,13 +720,6 @@ jobs:
       - name: Package compiler workspace build
         run: tar -cf lean-workspace-compiler-build.tar .lake/build
 
-      - name: Save Lake compiler cache
-        if: always() && steps.setup-lean.outputs.using-sticky-disks != 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: .lake
-          key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
-
       - name: Upload difftest interpreter
         uses: actions/upload-artifact@v7
         with:
@@ -683,12 +731,14 @@ jobs:
         with:
           name: verity-compiler-binaries
           path: compiler/bin
+          compression-level: 0
 
       - name: Upload compiler workspace build
         uses: actions/upload-artifact@v7
         with:
           name: lean-workspace-compiler-build
           path: lean-workspace-compiler-build.tar
+          compression-level: 0
 
   generate-yul:
     runs-on: blacksmith-8vcpu-ubuntu-2404

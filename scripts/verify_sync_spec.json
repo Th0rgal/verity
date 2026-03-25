@@ -489,20 +489,6 @@
         }
       },
       {
-        "name": "Setup Lean",
-        "uses": "./.github/actions/setup-lean",
-        "with": {
-          "cache-key-prefix": "lake-compiler",
-          "use-sticky-disks": "${{ env.VERIFY_USE_STICKY_DISKS }}",
-          "sticky-disk-key-prefix": "verify-compiler",
-          "use-build-sticky-disk": "${{ env.VERIFY_USE_STICKY_DISKS }}",
-          "build-sticky-disk-key": "verify-build-compiler-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}",
-          "disable-lake-cache-restore": "${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}",
-          "cache-primary-key": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}",
-          "cache-extra-restore-keys": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
-        }
-      },
-      {
         "name": "Download prepared Lean workspace build",
         "uses": "actions/download-artifact@v7",
         "with": {
@@ -510,11 +496,36 @@
         }
       },
       {
-        "name": "Restore compiler ccache fallback cache",
-        "uses": "actions/cache/restore@v5",
+        "name": "Build verity-compiler",
+        "uses": "./.github/actions/build-compiler-target"
+      },
+      {
+        "name": "Build verity-compiler-patched",
+        "uses": "./.github/actions/build-compiler-target"
+      },
+      {
+        "name": "Build difftest-interpreter",
+        "uses": "./.github/actions/build-compiler-target"
+      },
+      {
+        "name": "Build gas-report",
+        "uses": "./.github/actions/build-compiler-target"
+      },
+      {
+        "name": "Upload difftest interpreter",
+        "uses": "actions/upload-artifact@v7",
         "with": {
-          "path": "${{ runner.temp }}/compiler-ccache-cache",
-          "key": "compiler-ccache-cache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+          "name": "difftest-interpreter",
+          "path": ".lake/build/bin/difftest-interpreter"
+        }
+      },
+      {
+        "name": "Upload compiler binaries",
+        "uses": "actions/upload-artifact@v7",
+        "with": {
+          "name": "verity-compiler-binaries",
+          "path": "compiler/bin",
+          "compression-level": "0"
         }
       },
       {
@@ -522,25 +533,8 @@
         "uses": "actions/upload-artifact@v7",
         "with": {
           "name": "lean-workspace-compiler-build",
-          "path": "lean-workspace-compiler-build.tar"
-        }
-      },
-      {
-        "name": "Save compiler ccache fallback cache",
-        "uses": "actions/cache/save@v5",
-        "if": "always() && (failure() || steps.setup-lean.outputs.using-sticky-disks != 'true')",
-        "with": {
-          "path": "${{ github.workspace }}/.cache/ccache",
-          "key": "compiler-ccache-cache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
-        }
-      },
-      {
-        "name": "Save Lake compiler cache",
-        "uses": "actions/cache/save@v5",
-        "if": "always() && steps.setup-lean.outputs.using-sticky-disks != 'true'",
-        "with": {
-          "path": ".lake",
-          "key": "lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+          "path": "lean-workspace-compiler-build.tar",
+          "compression-level": "0"
         }
       }
     ],
