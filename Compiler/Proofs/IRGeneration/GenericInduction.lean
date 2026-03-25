@@ -1164,6 +1164,7 @@ theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractS
   cases stmt with
   | setMapping field key value =>
       unfold CompilationModel.compileStmt at hcompile
+      simp only [bind, Except.bind] at hcompile
       rcases hkey : CompilationModel.compileExpr fields .calldata key with _ | keyExpr <;>
         simp [hkey] at hcompile
       rcases hvalue : CompilationModel.compileExpr fields .calldata value with _ | valueExpr <;>
@@ -1171,6 +1172,7 @@ theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractS
       exact legacyCompatibleExternalStmtList_of_compileMappingSlotWrite_ok hcompile
   | setMappingUint field key value =>
       unfold CompilationModel.compileStmt at hcompile
+      simp only [bind, Except.bind] at hcompile
       rcases hkey : CompilationModel.compileExpr fields .calldata key with _ | keyExpr <;>
         simp [hkey] at hcompile
       rcases hvalue : CompilationModel.compileExpr fields .calldata value with _ | valueExpr <;>
@@ -1179,7 +1181,19 @@ theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractS
   | setMapping2 field key1 key2 value =>
       unfold CompilationModel.compileStmt at hcompile
       exact legacyCompatibleExternalStmtList_of_compileSetMapping2_ok hcompile
-  | stmt =>
+  | setMappingWord _ _ _ _ | setMappingPackedWord _ _ _ _ _
+  | setMapping2Word _ _ _ _ _ | setMappingChain _ _ _
+  | setStructMember _ _ _ _ | setStructMember2 _ _ _ _ _ =>
+      sorry
+  | letVar _ _ | assignVar _ _ | setStorage _ _ | setStorageAddr _ _
+  | storageArrayPush _ _ | storageArrayPop _ | setStorageArrayElement _ _ _
+  | require _ | requireError _ _ | revertError _ _
+  | «return» _ | returnValues _ | returnArray _ | returnBytes _
+  | returnStorageWords _ | mstore _ _ | tstore _ _ | calldatacopy _ _ _
+  | returndataCopy _ _ _ | revertReturndata | stop
+  | ite _ _ _ | forEach _ _ _ | emit _ _
+  | internalCall _ _ | internalCallAssign _ _ _ | rawLog _ _ _
+  | externalCallBind _ _ _ | ecm _ _ =>
       exact legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface
         hnoPacked
         (by simpa [stmtTouchesUnsupportedContractSurfaceExceptMappingWrites] using hsurface)

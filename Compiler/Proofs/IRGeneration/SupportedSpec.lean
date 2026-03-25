@@ -3124,7 +3124,7 @@ theorem stmtTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed_ex
   have hlist : stmtListTouchesUnsupportedHelperSurface [stmt] = false := by
     simpa using hsupported.helperSurfaceClosed
   simp [stmtListTouchesUnsupportedHelperSurface] at hlist
-  duper [hlist]
+  exact hlist
 
 theorem stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed_exceptMappingWrites
     {fields : List Field}
