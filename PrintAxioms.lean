@@ -1077,6 +1077,10 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileMappingSlotWrite_ok  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_mapping2WordCompatBlock  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileSetMapping2Word_ok  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_mapLetStmts  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileSetMappingChain_ok  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileMappingPackedSlotWrite_ok  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileSetStructMember_ok  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileSetMapping2_ok  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites_cons_inv  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface_exceptMappingWrites  -- sorry'd
@@ -1875,4 +1879,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1744 theorems/lemmas (1163 public, 562 private, 19 sorry'd)
+-- Total: 1748 theorems/lemmas (1163 public, 566 private, 19 sorry'd)
