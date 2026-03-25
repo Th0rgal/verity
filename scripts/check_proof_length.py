@@ -35,6 +35,8 @@ HARD_LIMIT = 50
 # before the check was introduced. New proofs must not be added here without a
 # justification comment in the PR explaining why decomposition is not feasible.
 ALLOWLIST: set[str] = {
+    "runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot",
+    "findResolvedFieldAtSlotCopyFrom_of_member",
     "ledger_transfer_correct_sufficient",
     "token_transfer_correct_sufficient",
     "token_mint_correct_as_owner",
@@ -179,6 +181,15 @@ ALLOWLIST: set[str] = {
     "evalExpr_lt_evmModulus_core_onExpr",
     "eval_compileExpr_logicalAnd_of_compiled",
     "eval_compileExpr_logicalOr_of_compiled",
+    # Generic Layer 2 comparison/arithmetic compiled-expression proofs
+    # (sorry-reduction pass 3): these follow the same mechanical case-split
+    # pattern as the logicalAnd/logicalOr proofs above, threading source
+    # evaluation witnesses through the Option-migrated IR lemmas.
+    "eval_compileExpr_ge_of_compiled",
+    "eval_compileExpr_le_of_compiled",
+    "eval_compileExpr_div_of_compiled",
+    "eval_compileExpr_sub_of_compiled",
+    "eval_compileExpr_mod_of_compiled",
     "compileRequireFailCond_core_ok",
     "eval_compileRequireFailCond_core_onExpr",
     "exec_compileStmt_return_core",
@@ -500,6 +511,13 @@ ALLOWLIST: set[str] = {
     "compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList",
     "field_mem_of_findFieldWithResolvedSlot_some",
     "legacyCompatibleExternalStmtList_genParamLoads_of_supported",
+    # SourceSemantics helper-aware execution compatibility proof: long due to
+    # exhaustive constructor case-split over the mutual exec/evalExpr pair.
+    "execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux",
+    # Helper-aware bridge theorem combining internal+residual helper interfaces:
+    # long due to explicit case-split on helper-surface touching and threading
+    # of legacy-compatibility through the list induction.
+    "stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible",
 }
 
 # Directories containing proof files to scan.

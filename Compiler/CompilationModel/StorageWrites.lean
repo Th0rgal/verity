@@ -21,7 +21,7 @@ private def validateDynamicArrayField (fields : List Field) (field : String) :
   | none =>
       throw s!"Compilation error: unknown storage field '{field}'"
 
-private def compilePackedStorageWrite (writeSlot valueExpr : YulExpr) (packed : PackedBits) :
+def compilePackedStorageWrite (writeSlot valueExpr : YulExpr) (packed : PackedBits) :
     List YulStmt :=
   let maskNat := packedMaskNat packed
   let shiftedMaskNat := packedShiftedMaskNat packed
@@ -44,7 +44,7 @@ private def compilePackedStorageWrite (writeSlot valueExpr : YulExpr) (packed : 
     ]
   ]
 
-private def compileCompatPackedStorageWrites (writeSlots : List YulExpr) (valueExpr : YulExpr)
+def compileCompatPackedStorageWrites (writeSlots : List YulExpr) (valueExpr : YulExpr)
     (packed : PackedBits) : List YulStmt :=
   let maskNat := packedMaskNat packed
   let shiftedMaskNat := packedShiftedMaskNat packed

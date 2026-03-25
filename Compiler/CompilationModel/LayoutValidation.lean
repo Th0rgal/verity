@@ -328,4 +328,39 @@ def firstFieldWriteSlotConflict (fields : List Field) : Option (Nat × String ×
       | none => go (writeSlots.reverse ++ seen) (idx + 1) rest
   go [] 0 fields
 
+/-- Stepping lemma: firstInFieldConflict on nil. -/
+theorem firstFieldWriteSlotConflict_firstInFieldConflict_nil
+    (seen : List (Nat × String × Option PackedBits)) :
+    firstFieldWriteSlotConflict.go.firstInFieldConflict seen [] = none := rfl
+
+/-- Stepping lemma: firstInFieldConflict on cons. -/
+theorem firstFieldWriteSlotConflict_firstInFieldConflict_cons
+    (seen : List (Nat × String × Option PackedBits))
+    (slot : Nat) (ownerName : String) (packed : Option PackedBits)
+    (tail : List (Nat × String × Option PackedBits)) :
+    firstFieldWriteSlotConflict.go.firstInFieldConflict seen ((slot, ownerName, packed) :: tail) =
+      match seen.find? (fun entry => entry.1 == slot && packedSlotsConflict entry.2.2 packed) with
+      | some (_, prevName, _) => some (slot, prevName, ownerName)
+      | none =>
+        firstFieldWriteSlotConflict.go.firstInFieldConflict
+          ((slot, ownerName, packed) :: seen) tail := rfl
+
+/-- Stepping lemma: go on nil. -/
+theorem firstFieldWriteSlotConflict_go_nil
+    (seen : List (Nat × String × Option PackedBits)) (idx : Nat) :
+    firstFieldWriteSlotConflict.go seen idx [] = none := rfl
+
+/-- Stepping lemma: go on cons. -/
+theorem firstFieldWriteSlotConflict_go_cons
+    (seen : List (Nat × String × Option PackedBits)) (idx : Nat)
+    (f : Field) (rest : List Field) :
+    firstFieldWriteSlotConflict.go seen idx (f :: rest) =
+      let writeSlots :=
+        (f.slot.getD idx, f.name, f.packedBits) ::
+          (f.aliasSlots.zipIdx.map (fun (slot, aliasIdx) =>
+            (slot, s!"{f.name}.aliasSlots[{aliasIdx}]", f.packedBits)))
+      match firstFieldWriteSlotConflict.go.firstInFieldConflict seen writeSlots with
+      | some conflict => some conflict
+      | none => firstFieldWriteSlotConflict.go (writeSlots.reverse ++ seen) (idx + 1) rest := rfl
+
 end Compiler.CompilationModel

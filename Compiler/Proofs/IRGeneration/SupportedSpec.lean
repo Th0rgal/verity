@@ -3129,25 +3129,23 @@ theorem stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClose
         ih hsurface.2]
 
 theorem stmtTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed_exceptMappingWrites
+    {fields : List Field}
+    {scope : List String}
     {stmt : Stmt}
-    (hsurface : stmtTouchesUnsupportedContractSurfaceExceptMappingWrites stmt = false) :
+    (hsupported : SupportedStmtList fields scope [stmt]) :
     stmtTouchesUnsupportedHelperSurface stmt = false := by
-  -- Temporary stabilization point after reopening the alternate mapping-write
-  -- contract surface. Mapping writes are admitted here even when their
-  -- key/value expressions still touch helper-only forms, so helper-surface
-  -- closure no longer follows directly from the weakened contract predicate.
-  -- Clean fix: thread a separate helper-surface premise through the exact
-  -- Tier-2 bridge instead of deriving it from the alternate contract gate.
-  sorry
+  have hlist : stmtListTouchesUnsupportedHelperSurface [stmt] = false := by
+    simpa using hsupported.helperSurfaceClosed
+  simp [stmtListTouchesUnsupportedHelperSurface] at hlist
+  exact hlist
 
 theorem stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed_exceptMappingWrites
+    {fields : List Field}
+    {scope : List String}
     {stmts : List Stmt}
-    (hsurface : stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites stmts = false) :
+    (hsupported : SupportedStmtList fields scope stmts) :
     stmtListTouchesUnsupportedHelperSurface stmts = false := by
-  -- Temporary stabilization point paired with the stmt-level theorem above.
-  -- Clean fix: replace this derived closure with an explicit list-level helper
-  -- interface for the alternate mapping-write bridge.
-  sorry
+  simpa using hsupported.helperSurfaceClosed
 
 
 theorem SupportedBodyCallInterface.surfaceClosed
