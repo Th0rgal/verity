@@ -246,7 +246,8 @@ ALLOWLIST: set[str] = {
     # because it enumerates the currently admitted singleton heads plus the
     # compositional constructors in one place; splitting it would not reduce
     # maintenance or proof complexity.
-    "SupportedStmtList",
+    "SupportedStmtList.helperSurfaceClosed",
+    "SupportedStmtList.internalHelperCallNames_nil",
     # Tier-2 exact helper-aware singleton mapping-write bridge pieces: one
     # theorem exhaustively unfolds the double-mapping compile shape to recover a
     # legacy-compatible Yul witness, and the other packages the alternate
@@ -527,7 +528,7 @@ ALLOWLIST: set[str] = {
     "compiledStmtStep_assignVar",
     "compiledStmtStep_return",
     "execStmtList_terminal_core_ite_else_eq",
-    "SupportedBodyInterface",
+    "SupportedBodyInterface.helperFreeStepInterface",
     "legacyCompatibleExternalStmtList_of_compileSetStructMember2_ok",
 }
 
