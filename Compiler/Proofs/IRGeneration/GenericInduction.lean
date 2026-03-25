@@ -1181,9 +1181,16 @@ theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractS
   | setMapping2 field key1 key2 value =>
       unfold CompilationModel.compileStmt at hcompile
       exact legacyCompatibleExternalStmtList_of_compileSetMapping2_ok hcompile
-  | setMappingWord _ _ _ _ | setMappingPackedWord _ _ _ _ _
-  | setMapping2Word _ _ _ _ _ | setMappingChain _ _ _
-  | setStructMember _ _ _ _ | setStructMember2 _ _ _ _ _ =>
+  | setMappingWord field key wordOffset value =>
+      unfold CompilationModel.compileStmt at hcompile
+      simp only [bind, Except.bind] at hcompile
+      rcases hkey : CompilationModel.compileExpr fields .calldata key with _ | keyExpr <;>
+        simp [hkey] at hcompile
+      rcases hvalue : CompilationModel.compileExpr fields .calldata value with _ | valueExpr <;>
+        simp [hvalue] at hcompile
+      exact legacyCompatibleExternalStmtList_of_compileMappingSlotWrite_ok hcompile
+  | setMappingPackedWord _ _ _ _ _ | setMapping2Word _ _ _ _ _
+  | setMappingChain _ _ _ | setStructMember _ _ _ _ | setStructMember2 _ _ _ _ _ =>
       sorry
   | letVar _ _ | assignVar _ _ | setStorage _ _ | setStorageAddr _ _
   | storageArrayPush _ _ | storageArrayPop _ | setStorageArrayElement _ _ _
