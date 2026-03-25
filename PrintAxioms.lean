@@ -1124,12 +1124,14 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.fieldName_mem_fields_of_findFieldWithResolvedSlot_some  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.fieldName_mem_fields_of_compileSetStorage_ok  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compileStmt_ite_ok_inv  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurface_of_stmtListTouchesUnsupportedContractSurface_append_cons  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.mem_stmtNextScope_of_mem_scope  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.mem_stmtNextScopeList_of_mem_scope  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.validateScopedExprIdentifiers_pair_ok_left  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.validateScopedExprIdentifiers_pair_ok_right  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.exprBoundNamesInScope_of_validateScopedExprIdentifiers_core  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListScopeDiscipline_of_validateScopedStmtListIdentifiers  -- private
+#print axioms Compiler.Proofs.IRGeneration.stmtListScopeDiscipline_of_validateFunctionIdentifierReferences_prefix
 -- #print axioms Compiler.Proofs.IRGeneration.scopeNamesPresent_foldl_stmtNextScope_of_validateScopedStmtListIdentifiers  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.collectExprNames_mem_exprBoundNames_of_core  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.mem_foldl_stmtNextScope_of_mem_scope  -- private
@@ -1197,6 +1199,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes  -- sorry'd
 -- #print axioms Compiler.Proofs.IRGeneration.terminal_stmtResultMatchesIRExec_implies_stmtStepMatchesIRExec  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_ite  -- sorry'd
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedContractSurface_append  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListCompileCore_of_requireLiteralGuardFamilyClauses  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.foldl_stmtNextScope_requireLiteralGuardFamilyClauses  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_setStorage_singleSlot  -- private
@@ -1258,6 +1261,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_stmtListCompileCore
 #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_stmtListTerminalCore
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_requireLiteralGuardFamilyClause  -- private
+#print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_append
 -- #print axioms Compiler.Proofs.IRGeneration.scopeNamesIncluded_foldl_stmtNextScope  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compileStmtList_ok_of_stmtListGenericCore  -- sorry'd
 -- #print axioms Compiler.Proofs.IRGeneration.compileStmtList_ok_of_stmtListGenericWithHelpers  -- sorry'd
@@ -1882,4 +1886,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1751 theorems/lemmas (1166 public, 569 private, 16 sorry'd)
+-- Total: 1755 theorems/lemmas (1168 public, 571 private, 16 sorry'd)
