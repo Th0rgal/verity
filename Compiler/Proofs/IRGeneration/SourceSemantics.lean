@@ -406,6 +406,10 @@ def evalExpr (fields : List Field) (state : RuntimeState) : Expr → Option Nat
       let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
       let wad : Verity.Core.Uint256 := 1000000000000000000
       pure (((lhs * wad) + (rhs - 1)) / rhs).val
+  | .ceilDiv a b => do
+      let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
+      let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
+      pure (if lhs == 0 then 0 else ((lhs - 1) / rhs + 1).val)
   | .mulDivDown a b c => do
       let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
       let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
@@ -934,6 +938,15 @@ private theorem evalExpr_structMember2
     (memberName : String) :
     evalExpr fields state (.structMember2 field key1 key2 memberName) = none := rfl
 
+private theorem evalExpr_ceilDiv
+    (fields : List Field)
+    (state : RuntimeState)
+    (a b : Expr) :
+    evalExpr fields state (.ceilDiv a b) = (do
+      let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
+      let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
+      pure (if lhs == 0 then 0 else ((lhs - 1) / rhs + 1).val)) := rfl
+
 private theorem evalExpr_mulDivDown
     (fields : List Field)
     (state : RuntimeState)
@@ -1437,6 +1450,10 @@ mutual
         let rhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state b
         let wad : Verity.Core.Uint256 := 1000000000000000000
         pure (((lhs * wad) + (rhs - 1)) / rhs).val
+    | .ceilDiv a b => do
+        let lhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state a
+        let rhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state b
+        pure (if lhs == 0 then 0 else ((lhs - 1) / rhs + 1).val)
     | .mulDivDown a b c => do
         let lhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state a
         let rhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state b
@@ -2274,6 +2291,13 @@ mutual
     | mapping2 _ a b | mapping2Word _ a b _ | structMember2 _ a b _ =>
         simp [evalExprWithHelpers, evalExpr_mapping2, evalExpr_mapping2Word,
           evalExpr_structMember2]
+    | ceilDiv a b =>
+        simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+        have ha :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state a hsurface.1
+        have hb :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state b hsurface.2
+        simpa [evalExprWithHelpers, evalExpr_ceilDiv, ha, hb]
     | mulDivDown a b c | mulDivUp a b c =>
         simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
         have ha :=

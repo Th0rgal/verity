@@ -2423,6 +2423,8 @@ private theorem exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_fals
 -- SORRY'D:       cases hsurface
 -- SORRY'D:   | wDivUp lhs rhs ihL ihR =>
 -- SORRY'D:       cases hsurface
+-- SORRY'D:   | ceilDiv a b ihA ihB =>
+-- SORRY'D:       cases hsurface
 -- SORRY'D:   | mulDivDown a b c ihA ihB ihC =>
 -- SORRY'D:       cases hsurface
 -- SORRY'D:   | mulDivUp a b c ihA ihB ihC =>

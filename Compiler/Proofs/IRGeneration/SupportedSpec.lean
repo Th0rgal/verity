@@ -55,14 +55,15 @@ def exprTouchesUnsupportedCoreSurface : Expr → Bool
       exprTouchesUnsupportedCoreSurface a || exprTouchesUnsupportedCoreSurface b
   | .logicalNot a => exprTouchesUnsupportedCoreSurface a
   | .sdiv a b | .smod a b | .bitAnd a b | .bitOr a b | .bitXor a b
-  | .sgt a b | .slt a b | .min a b | .max a b | .wMulDown a b | .wDivUp a b =>
+  | .sgt a b | .slt a b | .min a b | .max a b | .wMulDown a b | .wDivUp a b
+  | .ceilDiv a b =>
       true
   | .bitNot _ => true
   | .ite cond thenVal elseVal =>
       exprTouchesUnsupportedCoreSurface cond ||
         exprTouchesUnsupportedCoreSurface thenVal ||
         exprTouchesUnsupportedCoreSurface elseVal
-  | .mulDivDown _ _ _ | .mulDivUp _ _ _ | .shl _ _
+  | .ceilDiv _ _ | .mulDivDown _ _ _ | .mulDivUp _ _ _ | .shl _ _
   | .shr _ _ | .sar _ _ | .signextend _ _ => true
   | .mapping _ _ | .mappingWord _ _ _ | .mappingPackedWord _ _ _ _
   | .mapping2 _ _ _ | .mapping2Word _ _ _ _ | .mappingUint _ _ | .mappingChain _ _
@@ -90,7 +91,7 @@ def exprTouchesUnsupportedStateSurface : Expr → Bool
   | .ge a b | .gt a b | .sgt a b | .lt a b | .slt a b | .le a b
   | .logicalAnd a b | .logicalOr a b =>
       exprTouchesUnsupportedStateSurface a || exprTouchesUnsupportedStateSurface b
-  | .min a b | .max a b | .wMulDown a b | .wDivUp a b =>
+  | .min a b | .max a b | .wMulDown a b | .wDivUp a b | .ceilDiv a b =>
       exprTouchesUnsupportedStateSurface a || exprTouchesUnsupportedStateSurface b
   | .bitNot a | .logicalNot a => exprTouchesUnsupportedStateSurface a
   | .ite cond thenVal elseVal =>
@@ -101,7 +102,7 @@ def exprTouchesUnsupportedStateSurface : Expr → Bool
   | .call _ _ _ _ _ _ _ | .staticcall _ _ _ _ _ _ | .delegatecall _ _ _ _ _ _
   | .calldatasize | .calldataload _ | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
-  | .arrayLength _ | .arrayElement _ _ | .mulDivDown _ _ _ | .mulDivUp _ _ _
+  | .arrayLength _ | .arrayElement _ _ | .ceilDiv _ _ | .mulDivDown _ _ _ | .mulDivUp _ _ _
   | .shl _ _ | .shr _ _ | .sar _ _ | .signextend _ _
   | .dynamicBytesEq _ _ => false
 
@@ -122,7 +123,7 @@ def exprTouchesUnsupportedCallSurface : Expr → Bool
   | .ge a b | .gt a b | .sgt a b | .lt a b | .slt a b | .le a b
   | .logicalAnd a b | .logicalOr a b =>
       exprTouchesUnsupportedCallSurface a || exprTouchesUnsupportedCallSurface b
-  | .min a b | .max a b | .wMulDown a b | .wDivUp a b =>
+  | .min a b | .max a b | .wMulDown a b | .wDivUp a b | .ceilDiv a b =>
       exprTouchesUnsupportedCallSurface a || exprTouchesUnsupportedCallSurface b
   | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .storageArrayElement _ b =>
       exprTouchesUnsupportedCallSurface b
@@ -160,7 +161,7 @@ def exprTouchesUnsupportedHelperSurface : Expr → Bool
   | .ge a b | .gt a b | .sgt a b | .lt a b | .slt a b | .le a b
   | .logicalAnd a b | .logicalOr a b =>
       exprTouchesUnsupportedHelperSurface a || exprTouchesUnsupportedHelperSurface b
-  | .min a b | .max a b | .wMulDown a b | .wDivUp a b =>
+  | .min a b | .max a b | .wMulDown a b | .wDivUp a b | .ceilDiv a b =>
       exprTouchesUnsupportedHelperSurface a || exprTouchesUnsupportedHelperSurface b
   | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .storageArrayElement _ b =>
       exprTouchesUnsupportedHelperSurface b
@@ -206,7 +207,7 @@ def exprTouchesInternalHelperSurface : Expr → Bool
   | .ge a b | .gt a b | .sgt a b | .lt a b | .slt a b | .le a b
   | .logicalAnd a b | .logicalOr a b =>
       exprTouchesInternalHelperSurface a || exprTouchesInternalHelperSurface b
-  | .min a b | .max a b | .wMulDown a b | .wDivUp a b =>
+  | .min a b | .max a b | .wMulDown a b | .wDivUp a b | .ceilDiv a b =>
       exprTouchesInternalHelperSurface a || exprTouchesInternalHelperSurface b
   | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .storageArrayElement _ b =>
       exprTouchesInternalHelperSurface b
@@ -246,7 +247,7 @@ def exprTouchesUnsupportedForeignSurface : Expr → Bool
   | .ge a b | .gt a b | .sgt a b | .lt a b | .slt a b | .le a b
   | .logicalAnd a b | .logicalOr a b =>
       exprTouchesUnsupportedForeignSurface a || exprTouchesUnsupportedForeignSurface b
-  | .min a b | .max a b | .wMulDown a b | .wDivUp a b =>
+  | .min a b | .max a b | .wMulDown a b | .wDivUp a b | .ceilDiv a b =>
       exprTouchesUnsupportedForeignSurface a || exprTouchesUnsupportedForeignSurface b
   | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .storageArrayElement _ b =>
       exprTouchesUnsupportedForeignSurface b
@@ -283,7 +284,7 @@ def exprTouchesUnsupportedLowLevelSurface : Expr → Bool
   | .ge a b | .gt a b | .sgt a b | .lt a b | .slt a b | .le a b
   | .logicalAnd a b | .logicalOr a b =>
       exprTouchesUnsupportedLowLevelSurface a || exprTouchesUnsupportedLowLevelSurface b
-  | .min a b | .max a b | .wMulDown a b | .wDivUp a b =>
+  | .min a b | .max a b | .wMulDown a b | .wDivUp a b | .ceilDiv a b =>
       exprTouchesUnsupportedLowLevelSurface a || exprTouchesUnsupportedLowLevelSurface b
   | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .storageArrayElement _ b =>
       exprTouchesUnsupportedLowLevelSurface b
@@ -318,7 +319,7 @@ def exprTouchesUnsupportedContractSurface (expr : Expr) : Bool :=
   | .bitAnd a b | .bitOr a b | .bitXor a b | .eq a b
   | .ge a b | .gt a b | .sgt a b | .lt a b | .slt a b | .le a b
   | .logicalAnd a b | .logicalOr a b
-  | .min a b | .max a b | .wMulDown a b | .wDivUp a b =>
+  | .min a b | .max a b | .wMulDown a b | .wDivUp a b | .ceilDiv a b =>
       exprTouchesUnsupportedContractSurface a || exprTouchesUnsupportedContractSurface b
   | .bitNot a | .logicalNot a => exprTouchesUnsupportedContractSurface a
   | .ite cond thenVal elseVal =>
@@ -333,7 +334,7 @@ def exprTouchesUnsupportedContractSurface (expr : Expr) : Bool :=
   | .calldatasize | .calldataload _ | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
   | .arrayLength _ | .arrayElement _ _ | .storageArrayLength _ | .storageArrayElement _ _
-  | .mulDivDown _ _ _ | .mulDivUp _ _ _ | .shl _ _
+  | .ceilDiv _ _ | .mulDivDown _ _ _ | .mulDivUp _ _ _ | .shl _ _
   | .shr _ _ | .sar _ _ | .signextend _ _
   | .dynamicBytesEq _ _ => true
 
@@ -886,7 +887,7 @@ mutual
     | .bitAnd a b | .bitOr a b | .bitXor a b | .shl a b | .shr a b | .sar a b
     | .signextend a b | .eq a b | .ge a b | .gt a b | .sgt a b | .lt a b
     | .slt a b | .le a b | .logicalAnd a b | .logicalOr a b | .wMulDown a b
-    | .wDivUp a b | .min a b | .max a b =>
+    | .wDivUp a b | .min a b | .max a b | .ceilDiv a b =>
         exprInternalHelperCallNames a ++ exprInternalHelperCallNames b
     | .mulDivDown a b c | .mulDivUp a b c =>
         exprInternalHelperCallNames a ++ exprInternalHelperCallNames b ++
@@ -2253,6 +2254,12 @@ mutual
         simp [exprTouchesInternalHelperSurface,
           exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed ha,
           exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed hb]
+    | ceilDiv a b =>
+        simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+        have ⟨ha, hb⟩ := hsurface
+        simp [exprTouchesInternalHelperSurface,
+          exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed ha,
+          exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed hb]
     | mulDivDown a b c | mulDivUp a b c =>
         simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
         simp [exprTouchesInternalHelperSurface,
@@ -2641,6 +2648,12 @@ private theorem exprTouchesUnsupportedCallSurface_eq_featureOr
       rw [exprTouchesUnsupportedCallSurface_eq_featureOr a,
           exprTouchesUnsupportedCallSurface_eq_featureOr b]
       simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
+  | ceilDiv a b =>
+      simp only [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,
+        exprTouchesUnsupportedForeignSurface, exprTouchesUnsupportedLowLevelSurface]
+      rw [exprTouchesUnsupportedCallSurface_eq_featureOr a,
+          exprTouchesUnsupportedCallSurface_eq_featureOr b]
+      simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
   | mulDivDown a b c | mulDivUp a b c =>
       simp only [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedForeignSurface, exprTouchesUnsupportedLowLevelSurface]
@@ -2749,7 +2762,7 @@ private theorem exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed
         exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed rhs hcore.2 hstate.2 hcalls.2]
   | sdiv _ _ | smod _ _ | bitAnd _ _ | bitOr _ _
   | bitXor _ _ | sgt _ _ | slt _ _ | min _ _
-  | max _ _ | wMulDown _ _ | wDivUp _ _ | bitNot _
+  | max _ _ | wMulDown _ _ | wDivUp _ _ | ceilDiv _ _ | bitNot _
   | shl _ _ | shr _ _ | sar _ _ | signextend _ _
   | mulDivDown _ _ _ | mulDivUp _ _ _ =>
       cases hcore
@@ -3043,6 +3056,8 @@ theorem exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
         exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.1,
         exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.2]
   | shl a b | shr a b | sar a b | signextend a b =>
+      simp [exprTouchesUnsupportedContractSurface] at hsurface
+  | ceilDiv a b =>
       simp [exprTouchesUnsupportedContractSurface] at hsurface
   | mulDivDown a b c | mulDivUp a b c =>
       simp [exprTouchesUnsupportedContractSurface] at hsurface
