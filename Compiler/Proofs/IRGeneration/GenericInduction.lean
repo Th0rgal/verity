@@ -1089,6 +1089,94 @@ private theorem legacyCompatibleExternalStmtList_of_compileMappingSlotWrite_ok
                     slot slot' rest' keyExpr valueExpr wordOffset
   · simp [hmapping] at hcompile
 
+private theorem legacyCompatibleExternalStmtList_of_mapping2WordCompatBlock
+    (slot slot' : Nat)
+    (rest' : List Nat)
+    (key1Expr key2Expr valueExpr : YulExpr)
+    (wordOffset : Nat) :
+    LegacyCompatibleExternalStmtList
+      [YulStmt.block (
+        ([ ("__compat_key1", key1Expr)
+         , ("__compat_key2", key2Expr)
+         , ("__compat_value", valueExpr)
+         ].map (fun binding => YulStmt.let_ binding.1 binding.2)) ++
+          (slot :: slot' :: rest').map (fun writeSlot =>
+            let innerSlot :=
+              YulExpr.call "mappingSlot" [YulExpr.lit writeSlot, YulExpr.ident "__compat_key1"]
+            let outerSlot :=
+              YulExpr.call "mappingSlot" [innerSlot, YulExpr.ident "__compat_key2"]
+            let finalSlot :=
+              if wordOffset == 0 then outerSlot
+              else YulExpr.call "add" [outerSlot, YulExpr.lit wordOffset]
+            YulStmt.expr (YulExpr.call "sstore"
+              [finalSlot, YulExpr.ident "__compat_value"])))] := by
+  let compatExprs :=
+    (slot :: slot' :: rest').map (fun writeSlot =>
+      let innerSlot :=
+        YulExpr.call "mappingSlot" [YulExpr.lit writeSlot, YulExpr.ident "__compat_key1"]
+      let outerSlot :=
+        YulExpr.call "mappingSlot" [innerSlot, YulExpr.ident "__compat_key2"]
+      let finalSlot :=
+        if wordOffset == 0 then outerSlot
+        else YulExpr.call "add" [outerSlot, YulExpr.lit wordOffset]
+      YulExpr.call "sstore"
+        [finalSlot, YulExpr.ident "__compat_value"])
+  have hcompatExprs :
+      LegacyCompatibleExternalStmtList (compatExprs.map YulStmt.expr) :=
+    legacyCompatibleExternalStmtList_of_exprStmtExprs compatExprs
+  refine LegacyCompatibleExternalStmtList.block _ [] ?_ .nil
+  simpa [compatExprs] using
+    (legacyCompatibleExternalStmtList_of_letBindings
+      [("__compat_key1", key1Expr), ("__compat_key2", key2Expr), ("__compat_value", valueExpr)]
+      (compatExprs.map YulStmt.expr)
+      hcompatExprs)
+
+private theorem legacyCompatibleExternalStmtList_of_compileSetMapping2Word_ok
+    {fields : List Field}
+    {dynamicSource : DynamicDataSource}
+    {field : String}
+    {key1 key2 : Expr}
+    {wordOffset : Nat}
+    {value : Expr}
+    {bodyIR : List YulStmt}
+    (hcompile :
+      CompilationModel.compileSetMapping2Word fields dynamicSource field key1 key2 wordOffset value =
+        Except.ok bodyIR) :
+    LegacyCompatibleExternalStmtList bodyIR := by
+  unfold CompilationModel.compileSetMapping2Word at hcompile
+  by_cases hmapping : isMapping2 fields field
+  · simp [hmapping] at hcompile
+    cases hslots : findFieldWriteSlots fields field with
+    | none =>
+        simp [hslots] at hcompile
+    | some slots =>
+        simp [hslots, bind, Except.bind] at hcompile
+        rcases hkey1 : CompilationModel.compileExpr fields dynamicSource key1 with _ | key1Expr
+        · simp [hkey1] at hcompile
+        · simp [hkey1] at hcompile
+          rcases hkey2 : CompilationModel.compileExpr fields dynamicSource key2 with _ | key2Expr
+          · simp [hkey2] at hcompile
+          · simp [hkey2] at hcompile
+            rcases hvalue : CompilationModel.compileExpr fields dynamicSource value with _ | valueExpr
+            · simp [hvalue] at hcompile
+            · simp [hvalue] at hcompile
+              cases slots with
+              | nil =>
+                  simp at hcompile
+              | cons slot rest =>
+                  cases rest with
+                  | nil =>
+                      injection hcompile with hbody
+                      subst hbody
+                      exact LegacyCompatibleExternalStmtList.expr _ [] .nil
+                  | cons slot' rest' =>
+                      injection hcompile with hbody
+                      subst hbody
+                      simpa using
+                        legacyCompatibleExternalStmtList_of_mapping2WordCompatBlock
+                          slot slot' rest' key1Expr key2Expr valueExpr wordOffset
+  · simp [hmapping] at hcompile
+
 private theorem legacyCompatibleExternalStmtList_of_compileSetMapping2_ok
     {fields : List Field}
     {dynamicSource : DynamicDataSource}
@@ -1189,7 +1277,10 @@ theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractS
       rcases hvalue : CompilationModel.compileExpr fields .calldata value with _ | valueExpr <;>
         simp [hvalue] at hcompile
       exact legacyCompatibleExternalStmtList_of_compileMappingSlotWrite_ok hcompile
-  | setMappingPackedWord _ _ _ _ _ | setMapping2Word _ _ _ _ _
+  | setMapping2Word field key1 key2 wordOffset value =>
+      unfold CompilationModel.compileStmt at hcompile
+      exact legacyCompatibleExternalStmtList_of_compileSetMapping2Word_ok hcompile
+  | setMappingPackedWord _ _ _ _ _
   | setMappingChain _ _ _ | setStructMember _ _ _ _ | setStructMember2 _ _ _ _ _ =>
       sorry
   | letVar _ _ | assignVar _ _ | setStorage _ _ | setStorageAddr _ _
