@@ -689,31 +689,33 @@ theorem ceilDiv_nat_eq (a b : Uint256) (hB : b ≠ 0) :
     have hAZ : a = 0 := Verity.Core.Uint256.ext (by simpa using hA)
     simp [ceilDiv, hAZ]
     have hSubLt : (b : Nat) - 1 < (b : Nat) := Nat.sub_lt hBPos (by decide)
-    exact Nat.div_eq_of_lt hSubLt
+    exact (Nat.div_eq_of_lt hSubLt).symm
   · -- a > 0 case
     have hAPos : 0 < (a : Nat) := Nat.pos_of_ne_zero hA
     have hANe : (a == 0) = false := by
-      simp [BEq.beq, DecidableEq]
+      simp [BEq.beq]
       intro h
       exact hA (congrArg (fun x : Uint256 => x.val) h)
     have hOneLe : (1 : Nat) ≤ (a : Nat) := hAPos
     have hSub : ((a - 1 : Uint256) : Nat) = (a : Nat) - 1 :=
       Verity.Core.Uint256.sub_eq_of_le hOneLe
-    have hDivVal : ((a - 1 : Uint256) / b : Nat) = ((a : Nat) - 1) / (b : Nat) := by
-      simp [HDiv.hDiv, Verity.Core.Uint256.div, hBVal]
-      exact Nat.mod_eq_of_lt (Nat.lt_of_le_of_lt (Nat.div_le_self _ _)
-        (Nat.lt_of_le_of_lt (Nat.sub_le _ _) a.isLt))
-    have hDivLt : ((a : Nat) - 1) / (b : Nat) + 1 < Verity.Core.Uint256.modulus := by
-      have h1 : ((a : Nat) - 1) / (b : Nat) ≤ (a : Nat) - 1 := Nat.div_le_self _ _
-      have h2 : (a : Nat) - 1 + 1 ≤ Verity.Core.Uint256.modulus := by omega
-      omega
-    have hAddVal : (((a - 1 : Uint256) / b + 1 : Uint256) : Nat) =
-        ((a : Nat) - 1) / (b : Nat) + 1 := by
-      rw [show (1 : Uint256) = Verity.Core.Uint256.ofNat 1 from rfl]
-      rw [Verity.Core.Uint256.add_eq_of_lt (by rw [hDivVal]; exact hDivLt)]
-      exact hDivVal
-    simp only [ceilDiv, hANe]
-    rw [hAddVal]
+    have hDivLtMod : ((a : Nat) - 1) / (b : Nat) < Verity.Core.Uint256.modulus :=
+      Nat.lt_of_le_of_lt (Nat.div_le_self _ _) (Nat.lt_of_le_of_lt (Nat.sub_le _ _) a.isLt)
+    have hDivLt : ((a : Nat) - 1) / (b : Nat) + 1 < Verity.Core.Uint256.modulus :=
+      Nat.lt_of_le_of_lt (Nat.succ_le_of_lt (Nat.lt_of_le_of_lt (Nat.div_le_self _ _) (Nat.sub_lt hAPos (by decide)))) a.isLt
+    -- Prove ((a-1)/b : Uint256).val = (a.val-1)/b.val (Uint256 div matches Nat div here)
+    have hDivEq : ((a - 1 : Uint256) / b : Uint256).val = ((a : Nat) - 1) / (b : Nat) := by
+      -- Uint256.div is: if b.val = 0 then 0 else ofNat (a.val / b.val)
+      -- After unfolding, since b ≠ 0, we get ofNat ((a-1).val / b.val) = ofNat ((a.val-1) / b.val)
+      simp only [HDiv.hDiv, Verity.Core.Uint256.div]
+      simp only [hBVal, ↓reduceIte, Verity.Core.Uint256.ofNat, hSub]
+      exact Nat.mod_eq_of_lt hDivLtMod
+    -- Prove ((a-1)/b + 1 : Uint256).val = (a.val-1)/b.val + 1
+    have hAddLt : ((a - 1 : Uint256) / b).val + (1 : Uint256).val < Verity.Core.Uint256.modulus := by
+      rw [hDivEq, Verity.Core.Uint256.val_one]; exact hDivLt
+    have hCeilEq : ceilDiv a b = (a - 1) / b + 1 := by
+      unfold ceilDiv; rw [hANe]; rfl
+    rw [hCeilEq, Verity.Core.Uint256.add_eq_of_lt hAddLt, hDivEq, Verity.Core.Uint256.val_one]
     -- Now prove the Nat identity: (a - 1) / b + 1 = (a + b - 1) / b for a > 0, b > 0
     have hIdentity : ((a : Nat) - 1) / (b : Nat) + 1 = ((a : Nat) + (b : Nat) - 1) / (b : Nat) := by
       have key : (a : Nat) + (b : Nat) - 1 = ((a : Nat) - 1) + (b : Nat) := by omega
@@ -738,8 +740,9 @@ theorem ceilDiv_mul_ge (a b : Uint256) (hB : b ≠ 0)
   -- Goal: a.val ≤ ((a.val + b.val - 1) / b.val) * b.val
   -- From division: (a+b-1) = ((a+b-1)/b)*b + (a+b-1) mod b
   -- So ((a+b-1)/b)*b = (a+b-1) - (a+b-1) mod b ≥ a+b-1 - (b-1) = a
-  have := Nat.div_add_mod ((a : Nat) + (b : Nat) - 1) (b : Nat)
-  have := Nat.mod_lt ((a : Nat) + (b : Nat) - 1) hBPos
+  have h1 := Nat.div_add_mod ((a : Nat) + (b : Nat) - 1) (b : Nat)
+  rw [Nat.mul_comm] at h1
+  have h2 := Nat.mod_lt ((a : Nat) + (b : Nat) - 1) hBPos
   omega
 
 /-- ceilDiv is monotone: a >= b → ceilDiv a c >= ceilDiv b c -/
