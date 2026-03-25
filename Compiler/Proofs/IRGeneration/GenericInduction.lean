@@ -1177,6 +1177,151 @@ private theorem legacyCompatibleExternalStmtList_of_compileSetMapping2Word_ok
                           slot slot' rest' key1Expr key2Expr valueExpr wordOffset
   · simp [hmapping] at hcompile
 
+private theorem legacyCompatibleExternalStmtList_of_mapLetStmts
+    {α : Type} (xs : List α) (f : α → String) (g : α → YulExpr) :
+    LegacyCompatibleExternalStmtList (xs.map (fun x => YulStmt.let_ (f x) (g x))) := by
+  induction xs with
+  | nil => exact .nil
+  | cons x rest ih => exact .let_ (f x) (g x) _ ih
+
+private theorem legacyCompatibleExternalStmtList_of_compileSetMappingChain_ok
+    {fields : List Field}
+    {dynamicSource : DynamicDataSource}
+    {field : String}
+    {keys : List Expr}
+    {value : Expr}
+    {bodyIR : List YulStmt}
+    (hcompile :
+      CompilationModel.compileSetMappingChain fields dynamicSource field keys value =
+        Except.ok bodyIR) :
+    LegacyCompatibleExternalStmtList bodyIR := by
+  unfold CompilationModel.compileSetMappingChain at hcompile
+  by_cases hmapping : isMapping fields field
+  · simp [hmapping] at hcompile
+    cases hslots : findFieldWriteSlots fields field with
+    | none =>
+        simp [hslots] at hcompile
+    | some slots =>
+        simp [hslots, bind, Except.bind] at hcompile
+        rcases hkeys : CompilationModel.compileExprList fields dynamicSource keys with _ | keyExprs
+        · simp [hkeys] at hcompile
+        · simp [hkeys] at hcompile
+          rcases hvalue : CompilationModel.compileExpr fields dynamicSource value with _ | valueExpr
+          · simp [hvalue] at hcompile
+          · simp [hvalue] at hcompile
+            cases slots with
+            | nil =>
+                simp at hcompile
+            | cons slot rest =>
+                cases rest with
+                | nil =>
+                    injection hcompile with hbody
+                    subst hbody
+                    exact LegacyCompatibleExternalStmtList.expr _ [] .nil
+                | cons slot' rest' =>
+                    injection hcompile with hbody
+                    subst hbody
+                    refine LegacyCompatibleExternalStmtList.block _ [] ?_ .nil
+                    apply LegacyCompatibleExternalStmtList.let_ "__compat_value" valueExpr
+                    apply legacyCompatibleExternalStmtList_append
+                    · exact legacyCompatibleExternalStmtList_of_mapLetStmts
+                        keyExprs.zipIdx
+                        (fun p => s!"__compat_key{p.2}")
+                        (fun p => p.1)
+                    · -- Each slot produces an expr stmt
+                      induction (slot :: slot' :: rest') with
+                      | nil => exact .nil
+                      | cons s rs ih => exact .expr _ _ ih
+  · simp [hmapping] at hcompile
+
+private theorem legacyCompatibleExternalStmtList_of_compileMappingPackedSlotWrite_ok
+    {fields : List Field}
+    {field : String}
+    {keyExpr valueExpr : YulExpr}
+    {wordOffset : Nat}
+    {packed : PackedBits}
+    {label : String}
+    {bodyIR : List YulStmt}
+    (hcompile :
+      CompilationModel.compileMappingPackedSlotWrite fields field keyExpr valueExpr wordOffset packed label =
+        Except.ok bodyIR) :
+    LegacyCompatibleExternalStmtList bodyIR := by
+  unfold CompilationModel.compileMappingPackedSlotWrite at hcompile
+  by_cases hmapping : isMapping fields field
+  · by_cases hvalid : packedBitsValid packed
+    · simp [hmapping, hvalid] at hcompile
+      cases hslots : findFieldWriteSlots fields field with
+      | none =>
+          simp [hslots] at hcompile
+      | some slots =>
+          simp [hslots] at hcompile
+          cases slots with
+          | nil =>
+              simp at hcompile
+          | cons slot rest =>
+              cases rest with
+              | nil =>
+                  injection hcompile with hbody
+                  subst hbody
+                  exact .block _ []
+                    (.let_ _ _ _ (.let_ _ _ _ (.let_ _ _ _ (.let_ _ _ _ (.expr _ [] .nil))))) .nil
+              | cons slot' rest' =>
+                  injection hcompile with hbody
+                  subst hbody
+                  refine .block _ [] ?_ .nil
+                  apply LegacyCompatibleExternalStmtList.let_ _ _ _
+                  apply LegacyCompatibleExternalStmtList.let_ _ _ _
+                  apply LegacyCompatibleExternalStmtList.let_ _ _ _
+                  induction (slot :: slot' :: rest') with
+                  | nil => exact .nil
+                  | cons s rs ih =>
+                      exact .block _ _ (.let_ _ _ _ (.let_ _ _ _ (.expr _ [] .nil))) ih
+    · simp [hmapping, hvalid] at hcompile
+  · simp [hmapping] at hcompile
+
+private theorem legacyCompatibleExternalStmtList_of_compileSetStructMember_ok
+    {fields : List Field}
+    {dynamicSource : DynamicDataSource}
+    {field : String}
+    {key : Expr}
+    {memberName : String}
+    {value : Expr}
+    {bodyIR : List YulStmt}
+    (hcompile :
+      CompilationModel.compileSetStructMember fields dynamicSource field key memberName value =
+        Except.ok bodyIR) :
+    LegacyCompatibleExternalStmtList bodyIR := by
+  unfold CompilationModel.compileSetStructMember at hcompile
+  simp only [bind, Except.bind, pure, Except.pure] at hcompile
+  by_cases hm2 : isMapping2 fields field
+  · simp [hm2] at hcompile
+  · simp [hm2] at hcompile
+    cases hstruct : findStructMembers fields field with
+    | none => simp [hstruct] at hcompile
+    | some members =>
+        simp [hstruct] at hcompile
+        cases hmem : findStructMember members memberName with
+        | none => simp [hmem] at hcompile
+        | some member =>
+            simp [hmem] at hcompile
+            cases hpacked : member.packed with
+            | none =>
+                simp [hpacked, bind, Except.bind] at hcompile
+                rcases hkey : CompilationModel.compileExpr fields dynamicSource key with _ | keyExpr
+                · simp [hkey] at hcompile
+                · rcases hvalue : CompilationModel.compileExpr fields dynamicSource value with _ | valueExpr
+                  · simp [hkey, hvalue] at hcompile
+                  · simp [hkey, hvalue] at hcompile
+                    exact legacyCompatibleExternalStmtList_of_compileMappingSlotWrite_ok hcompile
+            | some packed =>
+                simp [hpacked, bind, Except.bind] at hcompile
+                rcases hkey : CompilationModel.compileExpr fields dynamicSource key with _ | keyExpr
+                · simp [hkey] at hcompile
+                · rcases hvalue : CompilationModel.compileExpr fields dynamicSource value with _ | valueExpr
+                  · simp [hkey, hvalue] at hcompile
+                  · simp [hkey, hvalue] at hcompile
+                    exact legacyCompatibleExternalStmtList_of_compileMappingPackedSlotWrite_ok hcompile
+
 private theorem legacyCompatibleExternalStmtList_of_compileSetMapping2_ok
     {fields : List Field}
     {dynamicSource : DynamicDataSource}
@@ -1280,8 +1425,21 @@ theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractS
   | setMapping2Word field key1 key2 wordOffset value =>
       unfold CompilationModel.compileStmt at hcompile
       exact legacyCompatibleExternalStmtList_of_compileSetMapping2Word_ok hcompile
-  | setMappingPackedWord _ _ _ _ _
-  | setMappingChain _ _ _ | setStructMember _ _ _ _ | setStructMember2 _ _ _ _ _ =>
+  | setMappingPackedWord field key wordOffset packed value =>
+      unfold CompilationModel.compileStmt at hcompile
+      simp only [bind, Except.bind] at hcompile
+      rcases hkey : CompilationModel.compileExpr fields .calldata key with _ | keyExpr <;>
+        simp [hkey] at hcompile
+      rcases hvalue : CompilationModel.compileExpr fields .calldata value with _ | valueExpr <;>
+        simp [hvalue] at hcompile
+      exact legacyCompatibleExternalStmtList_of_compileMappingPackedSlotWrite_ok hcompile
+  | setMappingChain field keys value =>
+      unfold CompilationModel.compileStmt at hcompile
+      exact legacyCompatibleExternalStmtList_of_compileSetMappingChain_ok hcompile
+  | setStructMember field key memberName value =>
+      unfold CompilationModel.compileStmt at hcompile
+      exact legacyCompatibleExternalStmtList_of_compileSetStructMember_ok hcompile
+  | setStructMember2 _ _ _ _ _ =>
       sorry
   | letVar _ _ | assignVar _ _ | setStorage _ _ | setStorageAddr _ _
   | storageArrayPush _ _ | storageArrayPop _ | setStorageArrayElement _ _ _
