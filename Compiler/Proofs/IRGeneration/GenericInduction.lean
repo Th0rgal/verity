@@ -2953,19 +2953,19 @@ private theorem compileStmt_ite_ok_inv
 -- SORRY'D:       | ecm mod args =>
 -- SORRY'D:           cases hstmtSurface
 
--- TYPESIG_SORRY: private theorem stmtTouchesUnsupportedContractSurface_of_stmtListTouchesUnsupportedContractSurface_append_cons
--- TYPESIG_SORRY:     {prefix suffix : List Stmt}
--- TYPESIG_SORRY:     {stmt : Stmt}
--- TYPESIG_SORRY:     (hsurface :
--- TYPESIG_SORRY:       stmtListTouchesUnsupportedContractSurface (prefix ++ stmt :: suffix) = false) :
--- TYPESIG_SORRY:     stmtTouchesUnsupportedContractSurface stmt = false := by sorry
--- SORRY'D:   induction prefix with
--- SORRY'D:   | nil =>
--- SORRY'D:       simpa [stmtListTouchesUnsupportedContractSurface] using
--- SORRY'D:         (Bool.or_eq_false.mp hsurface).1
--- SORRY'D:   | cons head rest ih =>
--- SORRY'D:       simp [stmtListTouchesUnsupportedContractSurface] at hsurface
--- SORRY'D:       exact ih hsurface.2
+private theorem stmtTouchesUnsupportedContractSurface_of_stmtListTouchesUnsupportedContractSurface_append_cons
+    {«prefix» «suffix» : List Stmt}
+    {stmt : Stmt}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface («prefix» ++ stmt :: «suffix») = false) :
+    stmtTouchesUnsupportedContractSurface stmt = false := by
+  induction «prefix» with
+  | nil =>
+      simpa [stmtListTouchesUnsupportedContractSurface] using
+        (Bool.or_eq_false_iff.mp hsurface).1
+  | cons head rest ih =>
+      simp [stmtListTouchesUnsupportedContractSurface] at hsurface
+      exact ih hsurface.2
 
 private theorem mem_stmtNextScope_of_mem_scope
     {scope : List String}
@@ -3503,29 +3503,29 @@ private theorem stmtListScopeDiscipline_of_validateScopedStmtListIdentifiers
 -- SORRY'D:             intro other hmem
 -- SORRY'D:             exact mem_stmtNextScope_of_mem_scope (hlocalsInScope other hmem)))
 
--- TYPESIG_SORRY: theorem stmtListScopeDiscipline_of_validateFunctionIdentifierReferences_prefix
--- TYPESIG_SORRY:     {spec : FunctionSpec}
--- TYPESIG_SORRY:     {fieldNames : List String}
--- TYPESIG_SORRY:     {prefix suffix : List Stmt}
--- TYPESIG_SORRY:     (hcore : StmtListScopeCore fieldNames prefix)
--- TYPESIG_SORRY:     (hvalidate : validateFunctionIdentifierReferences spec = Except.ok ())
--- TYPESIG_SORRY:     (hparamScope : paramScopeNames spec.params = spec.params.map (·.name))
--- TYPESIG_SORRY:     (hbody : spec.body = prefix ++ suffix) :
--- TYPESIG_SORRY:     StmtListScopeDiscipline fieldNames (spec.params.map (·.name)) prefix := by sorry
--- SORRY'D:   rcases validateFunctionIdentifierReferences_prefix_ok hvalidate hbody with
--- SORRY'D:     ⟨finalLocalScope, hprefixValidate⟩
--- SORRY'D:   apply stmtListScopeDiscipline_of_validateScopedStmtListIdentifiers
--- SORRY'D:     (paramScope := paramScopeNames spec.params)
--- SORRY'D:     (dynamicParams := dynamicParamBases spec.params)
--- SORRY'D:     (localScope := [])
--- SORRY'D:     (finalScope := finalLocalScope)
--- SORRY'D:     hcore
--- SORRY'D:     hprefixValidate
--- SORRY'D:   · intro name hmem
--- SORRY'D:     rw [hparamScope] at hmem
--- SORRY'D:     simpa using hmem
--- SORRY'D:   · intro name hmem
--- SORRY'D:     simp at hmem
+theorem stmtListScopeDiscipline_of_validateFunctionIdentifierReferences_prefix
+    {spec : FunctionSpec}
+    {fieldNames : List String}
+    {«prefix» «suffix» : List Stmt}
+    (hcore : StmtListScopeCore fieldNames «prefix»)
+    (hvalidate : validateFunctionIdentifierReferences spec = Except.ok ())
+    (hparamScope : paramScopeNames spec.params = spec.params.map (·.name))
+    (hbody : spec.body = «prefix» ++ «suffix») :
+    StmtListScopeDiscipline fieldNames (spec.params.map (·.name)) «prefix» := by
+  rcases validateFunctionIdentifierReferences_prefix_ok hvalidate hbody with
+    ⟨finalLocalScope, hprefixValidate⟩
+  apply stmtListScopeDiscipline_of_validateScopedStmtListIdentifiers
+    (paramScope := paramScopeNames spec.params)
+    (dynamicParams := dynamicParamBases spec.params)
+    (localScope := [])
+    (finalScope := finalLocalScope)
+    hcore
+    hprefixValidate
+  · intro name hmem
+    rw [hparamScope] at hmem
+    simpa using hmem
+  · intro name hmem
+    simp at hmem
 
 private theorem scopeNamesPresent_foldl_stmtNextScope_of_validateScopedStmtListIdentifiers
     {fieldNames : List String}
@@ -8347,16 +8347,16 @@ theorem compiledStmtStep_ite
 -- SORRY'D:             (stmts := thenBranch)
 -- SORRY'D:             hthen)
 
--- TYPESIG_SORRY: private theorem stmtListTouchesUnsupportedContractSurface_append
--- TYPESIG_SORRY:     {prefix suffix : List Stmt} :
--- TYPESIG_SORRY:     stmtListTouchesUnsupportedContractSurface (prefix ++ suffix) =
--- TYPESIG_SORRY:       (stmtListTouchesUnsupportedContractSurface prefix ||
--- TYPESIG_SORRY:         stmtListTouchesUnsupportedContractSurface suffix) := by sorry
--- SORRY'D:   induction prefix with
--- SORRY'D:   | nil =>
--- SORRY'D:       simp [stmtListTouchesUnsupportedContractSurface]
--- SORRY'D:   | cons stmt rest ih =>
--- SORRY'D:       simp [stmtListTouchesUnsupportedContractSurface, ih, Bool.or_assoc]
+private theorem stmtListTouchesUnsupportedContractSurface_append
+    {«prefix» «suffix» : List Stmt} :
+    stmtListTouchesUnsupportedContractSurface («prefix» ++ «suffix») =
+      (stmtListTouchesUnsupportedContractSurface «prefix» ||
+        stmtListTouchesUnsupportedContractSurface «suffix») := by
+  induction «prefix» with
+  | nil =>
+      simp [stmtListTouchesUnsupportedContractSurface]
+  | cons stmt rest ih =>
+      simp [stmtListTouchesUnsupportedContractSurface, ih, Bool.or_assoc]
 
 private theorem stmtListCompileCore_of_requireLiteralGuardFamilyClauses
     {scope : List String}
@@ -10636,23 +10636,23 @@ private theorem stmtListGenericCore_singleton_requireLiteralGuardFamilyClause
                       simp [FunctionBody.exprBoundNames] at hmem
                   exact stmtListGenericCore_of_stmtListCompileCore hcore)
 
--- TYPESIG_SORRY: theorem stmtListGenericCore_append
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {prefix suffix : List Stmt}
--- TYPESIG_SORRY:     (hprefix : StmtListGenericCore fields scope prefix)
--- TYPESIG_SORRY:     (hsuffix :
--- TYPESIG_SORRY:       StmtListGenericCore
--- TYPESIG_SORRY:         fields
--- TYPESIG_SORRY:         (List.foldl stmtNextScope scope prefix)
--- TYPESIG_SORRY:         suffix) :
--- TYPESIG_SORRY:     StmtListGenericCore fields scope (prefix ++ suffix) := by sorry
--- SORRY'D:   induction hprefix generalizing suffix with
--- SORRY'D:   | nil =>
--- SORRY'D:       simpa using hsuffix
--- SORRY'D:   | @cons scope stmt compiledIR rest hstep hrest ih =>
--- SORRY'D:       simp
--- SORRY'D:       exact StmtListGenericCore.cons hstep (ih hsuffix)
+theorem stmtListGenericCore_append
+    {fields : List Field}
+    {scope : List String}
+    {«prefix» «suffix» : List Stmt}
+    (hprefix : StmtListGenericCore fields scope «prefix»)
+    (hsuffix :
+      StmtListGenericCore
+        fields
+        (List.foldl stmtNextScope scope «prefix»)
+        «suffix») :
+    StmtListGenericCore fields scope («prefix» ++ «suffix») := by
+  induction hprefix generalizing «suffix» with
+  | nil =>
+      simpa using hsuffix
+  | @cons scope stmt compiledIR rest hstep hrest ih =>
+      simp
+      exact StmtListGenericCore.cons hstep (ih hsuffix)
 
 private theorem scopeNamesIncluded_foldl_stmtNextScope
     {scope : List String}
