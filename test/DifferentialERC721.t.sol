@@ -879,27 +879,16 @@ contract DifferentialERC721 is YulTestBase, DiffTestConfig, DifferentialTestBase
 
         (uint256 startIndex, uint256 count) = _diffRandomLargeRange();
         uint256 seed = _diffRandomSeed("ERC721");
-        uint256 batchSize = 250;
 
         vm.pauseGasMetering();
-        for (uint256 offset = 0; offset < count; offset += batchSize) {
-            uint256 batchCount = count - offset;
-            if (batchCount > batchSize) {
-                batchCount = batchSize;
-            }
-            this.runRandomDifferentialBatch(startIndex + offset, batchCount, seed);
-        }
-        vm.resumeGasMetering();
-
-        if (_diffVerbose()) console2.log("Random tests passed:", testsPassed);
-        if (_diffVerbose()) console2.log("Random tests failed:", testsFailed);
-        assertEq(testsFailed, 0, "Some random tests failed");
-    }
-
-    function runRandomDifferentialBatch(uint256 startIndex, uint256 count, uint256 seed) external {
-        require(msg.sender == address(this), "self-call only");
-
         for (uint256 i = 0; i < count; i++) {
+            // Snapshot the free-memory pointer so we can reclaim temporary string
+            // allocations after each iteration.  Without this, the O(N^2) intermediate
+            // copies produced by _buildMapUintStateAll's string.concat loop accumulate
+            // across all 10 000 iterations and exhaust Foundry's memory_limit (4 GB).
+            uint256 freeMemBefore;
+            assembly ("memory-safe") { freeMemBefore := mload(0x40) }
+
             (
                 string memory funcName,
                 address sender,
@@ -910,6 +899,15 @@ contract DifferentialERC721 is YulTestBase, DiffTestConfig, DifferentialTestBase
 
             bool success = _executeRandomDifferentialTest(funcName, sender, arg0, arg1, arg2);
             _assertRandomSuccess(success, startIndex + i);
+
+            // Reclaim iteration-local memory.  All persistent state lives in storage
+            // (edslOwners, edslBalances, …), so nothing reachable is lost.
+            assembly ("memory-safe") { mstore(0x40, freeMemBefore) }
         }
+        vm.resumeGasMetering();
+
+        if (_diffVerbose()) console2.log("Random tests passed:", testsPassed);
+        if (_diffVerbose()) console2.log("Random tests failed:", testsFailed);
+        assertEq(testsFailed, 0, "Some random tests failed");
     }
 }
