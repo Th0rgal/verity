@@ -518,6 +518,17 @@ ALLOWLIST: set[str] = {
     # long due to explicit case-split on helper-surface touching and threading
     # of legacy-compatibility through the list induction.
     "stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible",
+    # PR #1659 sorry-reduction pass 3 — newly proven step theorems and their
+    # supporting lemmas. These are mechanical Option-migration-adapted proofs
+    # that thread source/IR evaluation witnesses through the compiled step
+    # boundary; decomposition would mostly split bookkeeping away from the
+    # theorem boundary consumed by the generic induction.
+    "compiledStmtStep_letVar",
+    "compiledStmtStep_assignVar",
+    "compiledStmtStep_return",
+    "execStmtList_terminal_core_ite_else_eq",
+    "SupportedBodyInterface",
+    "legacyCompatibleExternalStmtList_of_compileSetStructMember2_ok",
 }
 
 # Directories containing proof files to scan.
