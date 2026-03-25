@@ -4516,6 +4516,26 @@ theorem evalExpr_lt_evmModulus_core_of_scope
     (bindingsExactlyMatchIRVarsOnScope_implies_onExpr hexact hinScope)
     hbounded hpresent hruntime
 
+theorem eval_compileRequireFailCond_core_of_scope
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {scope : List String}
+    {cond : Expr}
+    (hcore : ExprCompileCore cond)
+    (hexact : bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
+    (hinScope : exprBoundNamesInScope cond scope)
+    (hbounded : bindingsBounded runtime.bindings)
+    (hpresent : exprBoundNamesPresent cond runtime.bindings)
+    (hruntime : runtimeStateMatchesIR fields runtime state) :
+    ∃ failCond,
+      CompilationModel.compileRequireFailCond fields .calldata cond = Except.ok failCond ∧
+      evalIRExpr state failCond =
+        some (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime cond = some 0)) :=
+  eval_compileRequireFailCond_core_onExpr hcore
+    (bindingsExactlyMatchIRVarsOnScope_implies_onExpr hexact hinScope)
+    hbounded hpresent hruntime
+
 -- TYPESIG_SORRY: theorem eval_compileRequireFailCond_core_of_scope
 -- TYPESIG_SORRY:     {fields : List Field}
 -- TYPESIG_SORRY:     {runtime : SourceSemantics.RuntimeState}
