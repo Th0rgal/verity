@@ -1292,8 +1292,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.supported_function_body_correct_from_exact_state_generic_with_helpers_and_helper_ir_except_mapping_writes
 #print axioms Compiler.Proofs.IRGeneration.supported_function_body_correct_from_exact_state_generic_with_helpers_goal
 #print axioms Compiler.Proofs.IRGeneration.supported_function_body_correct_from_exact_state_generic_with_helpers
--- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStepWithHelpersAndHelperIR_internalCallAssign  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStepWithHelpersAndHelperIR_internalCall  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStepWithHelpersAndHelperIR_internalCallAssign
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStepWithHelpersAndHelperIR_internalCall
 #print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperAssignStepInterface_cons_internalCallAssign
 #print axioms Compiler.Proofs.IRGeneration.directInternalHelperPerCalleeBridgeCatalog_of_supportedBody_and_assignBridgeCatalog
 #print axioms Compiler.Proofs.IRGeneration.directInternalHelperPerCalleeCallCompileCatalog_of_supportedBody
@@ -1882,4 +1882,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1751 theorems/lemmas (1164 public, 569 private, 18 sorry'd)
+-- Total: 1751 theorems/lemmas (1166 public, 569 private, 16 sorry'd)
