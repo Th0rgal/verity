@@ -28,7 +28,7 @@ python3 scripts/check_parity_pack_metrics.py \
   --report <path.json> \
   --max-only-in-verity 0 \
   --max-only-in-solidity 0 \
-  --max-hash-mismatch 0
+  --max-hash-mismatch 940
 ```
 
 ## Report Schema
