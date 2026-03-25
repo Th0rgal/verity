@@ -1184,6 +1184,21 @@ private theorem legacyCompatibleExternalStmtList_of_mapLetStmts
   | nil => exact .nil
   | cons x rest ih => exact .let_ (f x) (g x) _ ih
 
+private theorem legacyCompatibleExternalStmtList_of_mapExprStmts
+    {α : Type} (xs : List α) (f : α → YulExpr) :
+    LegacyCompatibleExternalStmtList (xs.map (fun x => YulStmt.expr (f x))) := by
+  induction xs with
+  | nil => exact .nil
+  | cons x rest ih => exact .expr (f x) _ ih
+
+private theorem legacyCompatibleExternalStmtList_of_mapBlockStmts
+    {α : Type} (xs : List α) (f : α → List YulStmt)
+    (hf : ∀ x, LegacyCompatibleExternalStmtList (f x)) :
+    LegacyCompatibleExternalStmtList (xs.map (fun x => YulStmt.block (f x))) := by
+  induction xs with
+  | nil => exact .nil
+  | cons x rest ih => exact .block _ _ (hf x) ih
+
 private theorem legacyCompatibleExternalStmtList_of_compileSetMappingChain_ok
     {fields : List Field}
     {dynamicSource : DynamicDataSource}
@@ -1228,10 +1243,7 @@ private theorem legacyCompatibleExternalStmtList_of_compileSetMappingChain_ok
                         keyExprs.zipIdx
                         (fun p => s!"__compat_key{p.2}")
                         (fun p => p.1)
-                    · -- Each slot produces an expr stmt
-                      induction (slot :: slot' :: rest') with
-                      | nil => exact .nil
-                      | cons s rs ih => exact .expr _ _ ih
+                    · exact legacyCompatibleExternalStmtList_of_mapExprStmts _ _
   · simp [hmapping] at hcompile
 
 private theorem legacyCompatibleExternalStmtList_of_compileMappingPackedSlotWrite_ok
@@ -1321,6 +1333,95 @@ private theorem legacyCompatibleExternalStmtList_of_compileSetStructMember_ok
                   · simp [hkey, hvalue] at hcompile
                   · simp [hkey, hvalue] at hcompile
                     exact legacyCompatibleExternalStmtList_of_compileMappingPackedSlotWrite_ok hcompile
+
+private theorem legacyCompatibleExternalStmtList_of_compileSetStructMember2_ok
+    {fields : List Field}
+    {dynamicSource : DynamicDataSource}
+    {field : String}
+    {key1 key2 : Expr}
+    {memberName : String}
+    {value : Expr}
+    {bodyIR : List YulStmt}
+    (hcompile :
+      CompilationModel.compileSetStructMember2 fields dynamicSource field key1 key2 memberName value =
+        Except.ok bodyIR) :
+    LegacyCompatibleExternalStmtList bodyIR := by
+  unfold CompilationModel.compileSetStructMember2 at hcompile
+  simp only [bind, Except.bind, pure, Except.pure] at hcompile
+  by_cases hm2 : isMapping2 fields field
+  · simp [hm2] at hcompile
+    cases hstruct : findStructMembers fields field with
+    | none => simp [hstruct] at hcompile
+    | some members =>
+        simp [hstruct] at hcompile
+        cases hmem : findStructMember members memberName with
+        | none => simp [hmem] at hcompile
+        | some member =>
+            simp [hmem] at hcompile
+            cases hslots : findFieldWriteSlots fields field with
+            | none => simp [hslots] at hcompile
+            | some slots =>
+                simp [hslots, bind, Except.bind] at hcompile
+                rcases hkey1 : CompilationModel.compileExpr fields dynamicSource key1 with _ | key1Expr
+                · simp [hkey1] at hcompile
+                · simp [hkey1] at hcompile
+                  rcases hkey2 : CompilationModel.compileExpr fields dynamicSource key2 with _ | key2Expr
+                  · simp [hkey2] at hcompile
+                  · simp [hkey2] at hcompile
+                    rcases hvalue : CompilationModel.compileExpr fields dynamicSource value with _ | valueExpr
+                    · simp [hvalue] at hcompile
+                    · simp [hvalue] at hcompile
+                      cases hpacked : member.packed with
+                      | none =>
+                          simp [hpacked] at hcompile
+                          cases slots with
+                          | nil => simp at hcompile
+                          | cons slot rest =>
+                              cases rest with
+                              | nil =>
+                                  -- Single slot, unpacked: [expr (sstore [...])]
+                                  simp [pure, Except.pure] at hcompile
+                                  subst hcompile
+                                  exact .expr _ [] .nil
+                              | cons slot' rest' =>
+                                  -- Multi slot, unpacked: [block (lets ++ expr_stmts)]
+                                  injection hcompile with hbody
+                                  subst hbody
+                                  apply LegacyCompatibleExternalStmtList.block _ []
+                                  · apply LegacyCompatibleExternalStmtList.let_ _ _ _
+                                    apply LegacyCompatibleExternalStmtList.let_ _ _ _
+                                    apply LegacyCompatibleExternalStmtList.let_ _ _ _
+                                    exact legacyCompatibleExternalStmtList_of_mapExprStmts _ _
+                                  · exact .nil
+                      | some packed =>
+                          simp [hpacked] at hcompile
+                          cases slots with
+                          | nil => simp at hcompile
+                          | cons slot rest =>
+                              cases rest with
+                              | nil =>
+                                  -- Single slot, packed: [block [let_, let_, let_, let_, expr]]
+                                  simp [pure, Except.pure] at hcompile
+                                  subst hcompile
+                                  exact .block _ []
+                                    (.let_ _ _ _ (.let_ _ _ _ (.let_ _ _ _ (.let_ _ _ _ (.expr _ [] .nil))))) .nil
+                              | cons slot' rest' =>
+                                  -- Multi slot, packed
+                                  simp only [pure, Except.pure] at hcompile
+                                  injection hcompile with hbody
+                                  subst hbody
+                                  unfold CompilationModel.compileCompatPackedStorageWrites
+                                  simp only [List.append_eq, List.cons_append, List.nil_append]
+                                  refine .block _ [] ?_ .nil
+                                  apply LegacyCompatibleExternalStmtList.let_ _ _ _
+                                  apply LegacyCompatibleExternalStmtList.let_ _ _ _
+                                  refine .block _ _ ?_ .nil
+                                  apply LegacyCompatibleExternalStmtList.let_ _ _ _
+                                  apply LegacyCompatibleExternalStmtList.let_ _ _ _
+                                  simp only [List.map_map]
+                                  exact legacyCompatibleExternalStmtList_of_mapBlockStmts _ _
+                                    (fun _ => .let_ _ _ _ (.let_ _ _ _ (.expr _ [] .nil)))
+  · simp [hm2] at hcompile
 
 private theorem legacyCompatibleExternalStmtList_of_compileSetMapping2_ok
     {fields : List Field}
@@ -1439,8 +1540,9 @@ theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractS
   | setStructMember field key memberName value =>
       unfold CompilationModel.compileStmt at hcompile
       exact legacyCompatibleExternalStmtList_of_compileSetStructMember_ok hcompile
-  | setStructMember2 _ _ _ _ _ =>
-      sorry
+  | setStructMember2 field key1 key2 memberName value =>
+      unfold CompilationModel.compileStmt at hcompile
+      exact legacyCompatibleExternalStmtList_of_compileSetStructMember2_ok hcompile
   | letVar _ _ | assignVar _ _ | setStorage _ _ | setStorageAddr _ _
   | storageArrayPush _ _ | storageArrayPop _ | setStorageArrayElement _ _ _
   | require _ | requireError _ _ | revertError _ _
