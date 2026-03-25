@@ -710,9 +710,9 @@ theorem ceilDiv_nat_eq (a b : Uint256) (hB : b ≠ 0) :
     have hAddVal : (((a - 1 : Uint256) / b + 1 : Uint256) : Nat) =
         ((a : Nat) - 1) / (b : Nat) + 1 := by
       rw [show (1 : Uint256) = Verity.Core.Uint256.ofNat 1 from rfl]
-      rw [Verity.Core.Uint256.add_eq_of_lt (by simp [hDivVal]; exact hDivLt)]
-      simp [hDivVal]
-    simp only [ceilDiv, hANe, ↓reduceIte]
+      rw [Verity.Core.Uint256.add_eq_of_lt (by rw [hDivVal]; exact hDivLt)]
+      exact hDivVal
+    simp only [ceilDiv, hANe]
     rw [hAddVal]
     -- Now prove the Nat identity: (a - 1) / b + 1 = (a + b - 1) / b for a > 0, b > 0
     have hIdentity : ((a : Nat) - 1) / (b : Nat) + 1 = ((a : Nat) + (b : Nat) - 1) / (b : Nat) := by
@@ -735,11 +735,12 @@ theorem ceilDiv_mul_ge (a b : Uint256) (hB : b ≠ 0)
     Verity.Core.Uint256.mul_eq_of_lt hNoOverflow
   rw [hMulExact]
   rw [ceilDiv_nat_eq a b hB]
-  have hLift : (a : Nat) ≤ (((a : Nat) + (b : Nat) - 1) / (b : Nat)) * (b : Nat) := by
-    have := Nat.le_div_iff_mul_le hBPos
-    rw [Nat.mul_comm]
-    exact (this.mp (by omega))
-  exact hLift
+  -- Goal: a.val ≤ ((a.val + b.val - 1) / b.val) * b.val
+  -- From division: (a+b-1) = ((a+b-1)/b)*b + (a+b-1) mod b
+  -- So ((a+b-1)/b)*b = (a+b-1) - (a+b-1) mod b ≥ a+b-1 - (b-1) = a
+  have := Nat.div_add_mod ((a : Nat) + (b : Nat) - 1) (b : Nat)
+  have := Nat.mod_lt ((a : Nat) + (b : Nat) - 1) hBPos
+  omega
 
 /-- ceilDiv is monotone: a >= b → ceilDiv a c >= ceilDiv b c -/
 theorem ceilDiv_monotone (a b c : Uint256) (hAB : (a : Nat) ≥ (b : Nat)) (hC : c ≠ 0) :
@@ -761,8 +762,8 @@ theorem ceilDiv_le (a b : Uint256) (hB : b ≠ 0) :
   -- But we need a tighter bound. Key: (a + b - 1) / b = (a - 1) / b + 1 ≤ a - 1 + 1 = a (for a > 0)
   -- And for a = 0: (0 + b - 1) / b = (b - 1) / b = 0 ≤ 0
   by_cases hA : (a : Nat) = 0
-  · simp [hA]
-    exact Nat.div_eq_of_lt (Nat.sub_lt hBPos (by decide))
+  · rw [hA, Nat.zero_add]
+    exact Nat.le_of_eq (Nat.div_eq_of_lt (by omega))
   · have hAPos : 0 < (a : Nat) := Nat.pos_of_ne_zero hA
     have key : (a : Nat) + (b : Nat) - 1 = ((a : Nat) - 1) + (b : Nat) := by omega
     rw [key, Nat.add_div_right _ hBPos]
