@@ -8517,47 +8517,51 @@ theorem stmtResultMatchesIRExec_ir_not_continue_of_terminal_core
       hterminal)
     hmatch
 
--- TYPESIG_SORRY: theorem execStmtList_terminal_core_ite_then_eq
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {runtime : SourceSemantics.RuntimeState}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {cond : Expr}
--- TYPESIG_SORRY:     {thenBranch elseBranch rest : List Stmt}
--- TYPESIG_SORRY:     (hthen : StmtListTerminalCore scope thenBranch)
--- TYPESIG_SORRY:     (hcondTrue : (SourceSemantics.evalExpr fields runtime cond != 0) = true) :
--- TYPESIG_SORRY:     SourceSemantics.execStmtList fields runtime (.ite cond thenBranch elseBranch :: rest) =
--- TYPESIG_SORRY:       SourceSemantics.execStmtList fields runtime thenBranch := by sorry
--- SORRY'D:   rw [SourceSemantics.execStmtList, SourceSemantics.execStmt, hcondTrue]
--- SORRY'D:   cases hthenExec : SourceSemantics.execStmtList fields runtime thenBranch <;> simp [hthenExec]
--- SORRY'D:   rename_i next
--- SORRY'D:   exact False.elim <|
--- SORRY'D:     execStmtList_terminal_core_not_continue
--- SORRY'D:       (fields := fields)
--- SORRY'D:       (runtime := runtime)
--- SORRY'D:       (scope := scope)
--- SORRY'D:       (stmts := thenBranch)
--- SORRY'D:       hthen next hthenExec
+theorem execStmtList_terminal_core_ite_then_eq
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {scope : List String}
+    {cond : Expr}
+    {thenBranch elseBranch rest : List Stmt}
+    {condValue : Nat}
+    (hthen : StmtListTerminalCore scope thenBranch)
+    (hcondEval : SourceSemantics.evalExpr fields runtime cond = some condValue)
+    (hcondTrue : condValue != 0) :
+    SourceSemantics.execStmtList fields runtime (.ite cond thenBranch elseBranch :: rest) =
+      SourceSemantics.execStmtList fields runtime thenBranch := by
+  simp only [SourceSemantics.execStmtList, SourceSemantics.execStmt, hcondEval, hcondTrue, ↓reduceIte]
+  cases hthenExec : SourceSemantics.execStmtList fields runtime thenBranch <;> simp [hthenExec]
+  rename_i next
+  exact False.elim <|
+    execStmtList_terminal_core_not_continue
+      (fields := fields)
+      (runtime := runtime)
+      (scope := scope)
+      (stmts := thenBranch)
+      hthen next hthenExec
 
--- TYPESIG_SORRY: theorem execStmtList_terminal_core_ite_else_eq
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {runtime : SourceSemantics.RuntimeState}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {cond : Expr}
--- TYPESIG_SORRY:     {thenBranch elseBranch rest : List Stmt}
--- TYPESIG_SORRY:     (helse : StmtListTerminalCore scope elseBranch)
--- TYPESIG_SORRY:     (hcondFalse : (SourceSemantics.evalExpr fields runtime cond != 0) = false) :
--- TYPESIG_SORRY:     SourceSemantics.execStmtList fields runtime (.ite cond thenBranch elseBranch :: rest) =
--- TYPESIG_SORRY:       SourceSemantics.execStmtList fields runtime elseBranch := by sorry
--- SORRY'D:   rw [SourceSemantics.execStmtList, SourceSemantics.execStmt, hcondFalse]
--- SORRY'D:   cases helseExec : SourceSemantics.execStmtList fields runtime elseBranch <;> simp [helseExec]
--- SORRY'D:   rename_i next
--- SORRY'D:   exact False.elim <|
--- SORRY'D:     execStmtList_terminal_core_not_continue
--- SORRY'D:       (fields := fields)
--- SORRY'D:       (runtime := runtime)
--- SORRY'D:       (scope := scope)
--- SORRY'D:       (stmts := elseBranch)
--- SORRY'D:       helse next helseExec
+theorem execStmtList_terminal_core_ite_else_eq
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {scope : List String}
+    {cond : Expr}
+    {thenBranch elseBranch rest : List Stmt}
+    {condValue : Nat}
+    (helse : StmtListTerminalCore scope elseBranch)
+    (hcondEval : SourceSemantics.evalExpr fields runtime cond = some condValue)
+    (hcondFalse : (condValue != 0) = false) :
+    SourceSemantics.execStmtList fields runtime (.ite cond thenBranch elseBranch :: rest) =
+      SourceSemantics.execStmtList fields runtime elseBranch := by
+  simp only [SourceSemantics.execStmtList, SourceSemantics.execStmt, hcondEval, hcondFalse, ↓reduceIte]
+  cases helseExec : SourceSemantics.execStmtList fields runtime elseBranch <;> simp [helseExec]
+  rename_i next
+  exact False.elim <|
+    execStmtList_terminal_core_not_continue
+      (fields := fields)
+      (runtime := runtime)
+      (scope := scope)
+      (stmts := elseBranch)
+      helse next helseExec
 
 -- TYPESIG_SORRY: theorem stmtResultMatchesIRExec_compiled_terminal_ite_then
 -- TYPESIG_SORRY:     {fields : List Field}
