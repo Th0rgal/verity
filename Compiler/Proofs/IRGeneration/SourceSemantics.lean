@@ -292,6 +292,11 @@ private def writeStorageArray (world : Verity.ContractState) (slot : Nat)
   { world with
     storageArray := fun s => if s == slot then values else world.storageArray s }
 
+/-- Ceiling-division helper matching Solidity's `Math256.ceilDiv`.
+    Factored out so the mutual block's equation-lemma derivation stays simple. -/
+private def ceilDivVal (lhs rhs : Verity.Core.Uint256) : Nat :=
+  if lhs == 0 then 0 else ((lhs - 1) / rhs + 1).val
+
 def evalExpr (fields : List Field) (state : RuntimeState) : Expr → Option Nat
   | .literal n => some (wordNormalize n)
   | .param name => some (lookupValue state.bindings name)
@@ -409,7 +414,7 @@ def evalExpr (fields : List Field) (state : RuntimeState) : Expr → Option Nat
   | .ceilDiv a b => do
       let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
       let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
-      pure (if lhs == 0 then 0 else ((lhs - 1) / rhs + 1).val)
+      pure (ceilDivVal lhs rhs)
   | .mulDivDown a b c => do
       let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
       let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
@@ -945,7 +950,7 @@ private theorem evalExpr_ceilDiv
     evalExpr fields state (.ceilDiv a b) = (do
       let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
       let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
-      pure (if lhs == 0 then 0 else ((lhs - 1) / rhs + 1).val)) := rfl
+      pure (ceilDivVal lhs rhs)) := rfl
 
 private theorem evalExpr_mulDivDown
     (fields : List Field)
@@ -1328,6 +1333,8 @@ def interpretContract (spec : CompilationModel) (selectors : List Nat)
   | some fn => interpretFunction spec fn tx initialWorld
   | none => revertedResult spec (withTransactionContext initialWorld tx)
 
+-- The ceilDiv case pushes the equation-compiler's `simp` past 200 000 heartbeats.
+set_option maxHeartbeats 400000 in
 mutual
   /-- Spec-aware source semantics for the next helper-proof step.
   This is additive: the current generic theorem still reasons about the
@@ -1453,7 +1460,7 @@ mutual
     | .ceilDiv a b => do
         let lhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state a
         let rhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state b
-        pure (if lhs == 0 then 0 else ((lhs - 1) / rhs + 1).val)
+        pure (ceilDivVal lhs rhs)
     | .mulDivDown a b c => do
         let lhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state a
         let rhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state b
