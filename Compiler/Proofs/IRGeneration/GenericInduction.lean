@@ -4055,89 +4055,183 @@ private theorem stmtListScopeDiscipline_scope_names
       · left; right; right; exact hassign
       · right; exact hfield
 
--- TYPESIG_SORRY: theorem compiledStmtStep_letVar
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {name : String}
--- TYPESIG_SORRY:     {value : Expr}
--- TYPESIG_SORRY:     {valueIR : YulExpr}
--- TYPESIG_SORRY:     (hcore : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScope : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.letVar name value) [YulStmt.let_ name valueIR] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, hvalueIR]
--- SORRY'D:   preserves runtime state extraFuel hexact hscope hbounded hruntime hslack := by
--- SORRY'D:     let slack := sizeOf [YulStmt.let_ name valueIR] - [YulStmt.let_ name valueIR].length
--- SORRY'D:     let wholeExtraFuel := extraFuel - slack
--- SORRY'D:     have hwholeFuel :
--- SORRY'D:         sizeOf [YulStmt.let_ name valueIR] + wholeExtraFuel + 1 =
--- SORRY'D:           [YulStmt.let_ name valueIR].length + extraFuel + 1 := by
--- SORRY'D:       dsimp [wholeExtraFuel, slack]
--- SORRY'D:       have : slack ≤ extraFuel := by
--- SORRY'D:         simpa [slack] using hslack
--- SORRY'D:       omega
--- SORRY'D:     rcases FunctionBody.execIRStmts_compiled_let_core_append_wholeFuel_of_scope
--- SORRY'D:         (fields := fields)
--- SORRY'D:         (runtime := runtime)
--- SORRY'D:         (state := state)
--- SORRY'D:         (scope := scope)
--- SORRY'D:         (name := name)
--- SORRY'D:         (value := value)
--- SORRY'D:         (tailIR := [])
--- SORRY'D:         (extraFuel := wholeExtraFuel)
--- SORRY'D:         hcore hexact hinScope hscope hbounded hruntime with
--- SORRY'D:       ⟨valueIR', hvalueIR', hwhole, hruntime', hexact', hbounded', hscope'⟩
--- SORRY'D:     rw [hvalueIR] at hvalueIR'
--- SORRY'D:     injection hvalueIR' with hEq
--- SORRY'D:     subst hEq
--- SORRY'D:     refine ⟨_, _, ?_⟩
--- SORRY'D:     · simp [SourceSemantics.execStmt]
--- SORRY'D:     · simpa [hwholeFuel] using hwhole
--- SORRY'D:     · simpa [stmtStepMatchesIRExec, stmtNextScope, collectStmtNames] using
--- SORRY'D:         And.intro hruntime' <| And.intro hexact' <| And.intro hbounded' hscope'
+theorem compiledStmtStep_letVar
+    {fields : List Field}
+    {scope : List String}
+    {name : String}
+    {value : Expr}
+    {valueIR : YulExpr}
+    (hcore : FunctionBody.ExprCompileCore value)
+    (hinScope : FunctionBody.exprBoundNamesInScope value scope)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.letVar name value) [YulStmt.let_ name valueIR] where
+  compileOk := by
+    simp [CompilationModel.compileStmt, hvalueIR]
+  preserves runtime state extraFuel hexact hscope hbounded hruntime hslack := by
+    -- Establish that evalExpr succeeds (returns some) via the compile-eval theorem
+    have heval := FunctionBody.eval_compileExpr_core_of_scope hcore hexact hinScope
+        hbounded (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope) hruntime
+    rw [hvalueIR] at heval
+    simp [Except.toOption] at heval
+    -- Case split on evalIRExpr to extract the Nat value
+    rcases hIR : evalIRExpr state valueIR with _ | v
+    · -- none case: contradiction (eval_compileExpr_core_of_scope guarantees some)
+      simp [hIR, Option.bind] at heval
+    · -- some v case: both source and IR succeed
+      simp [hIR, Option.bind] at heval
+      have hEvalSrc : SourceSemantics.evalExpr fields runtime value = some v := heval.symm
+      -- Value is bounded
+      have hvalueLt := FunctionBody.evalExpr_lt_evmModulus_core_of_scope hcore hexact
+          hinScope hbounded (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope) hruntime
+      rw [hEvalSrc] at hvalueLt
+      simp at hvalueLt
+      -- Define the post-states
+      set state' := state.setVar name v
+      set runtime' := { runtime with
+        bindings := SourceSemantics.bindValue runtime.bindings name v }
+      -- IR execution: execIRStmts for a singleton [let_ name valueIR]
+      -- Fuel = 1 + extraFuel + 1; execIRStmts strips one level, execIRStmt uses extraFuel
+      have hIRExec : execIRStmts (1 + extraFuel + 1) state [YulStmt.let_ name valueIR] =
+          .continue state' := by
+        -- 1 + extraFuel + 1 = (extraFuel + 1) + 1 = Nat.succ (extraFuel + 1)
+        -- execIRStmts strips the outer succ: execIRStmt (extraFuel + 1) state (let_ ...)
+        -- extraFuel + 1 = Nat.succ extraFuel; execIRStmt unfolds to match on evalIRExpr
+        show (match execIRStmt (1 + extraFuel) state (YulStmt.let_ name valueIR) with
+              | .continue s' => execIRStmts (1 + extraFuel) s' []
+              | .return v s => .return v s
+              | .stop s => .stop s
+              | .revert s => .revert s) = .continue state'
+        have hfuel_eq : 1 + extraFuel = Nat.succ extraFuel := by omega
+        rw [hfuel_eq]
+        simp only [execIRStmt, hIR, state']
+        simp [execIRStmts]
+      -- Source execution
+      have hSrcExec : SourceSemantics.execStmt fields runtime (.letVar name value) =
+          .continue runtime' := by
+        simp [SourceSemantics.execStmt, hEvalSrc, runtime']
+      -- Fuel equality
+      have hfuelEq : [YulStmt.let_ name valueIR].length + extraFuel + 1 =
+          1 + extraFuel + 1 := by simp
+      -- Post-state invariants
+      have hruntime' : FunctionBody.runtimeStateMatchesIR fields runtime' state' :=
+        FunctionBody.runtimeStateMatchesIR_setVar_bindValue hruntime name v
+      have hexact_base : FunctionBody.bindingsExactlyMatchIRVarsOnScope
+          (name :: scope) runtime'.bindings state' :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_bindValue hexact
+      -- Extend to the full stmtNextScope = collectStmtNames (.letVar name value) ++ scope
+      -- = (name :: collectExprNames value) ++ scope
+      -- Since collectExprNames value ⊆ exprBoundNames value ⊆ scope (by hcore and hinScope),
+      -- the full nextScope ⊆ name :: scope.
+      have hNextScopeIncl : FunctionBody.scopeNamesIncluded
+          (stmtNextScope scope (.letVar name value)) (name :: scope) := by
+        intro n hn
+        simp [stmtNextScope, collectStmtNames] at hn
+        rcases hn with rfl | hn | hn
+        · simp
+        · simp [hinScope n (collectExprNames_mem_exprBoundNames_of_core hcore n hn)]
+        · exact List.mem_cons_of_mem _ hn
+      have hexact' : FunctionBody.bindingsExactlyMatchIRVarsOnScope
+          (stmtNextScope scope (.letVar name value)) runtime'.bindings state' :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included hexact_base hNextScopeIncl
+      have hbounded' : FunctionBody.bindingsBounded runtime'.bindings :=
+        FunctionBody.bindingsBounded_bindValue hbounded name v hvalueLt
+      have hscope_base : FunctionBody.scopeNamesPresent
+          (name :: scope) runtime'.bindings :=
+        FunctionBody.scopeNamesPresent_cons_bindValue hscope
+      have hscope' : FunctionBody.scopeNamesPresent
+          (stmtNextScope scope (.letVar name value)) runtime'.bindings :=
+        FunctionBody.scopeNamesPresent_of_included hscope_base hNextScopeIncl
+      -- Provide witnesses
+      refine ⟨.continue runtime', .continue state', ?_, ?_, ?_⟩
+      · exact hSrcExec
+      · rw [hfuelEq]; exact hIRExec
+      · simp [stmtStepMatchesIRExec]
+        exact ⟨hruntime', hexact', hbounded', hscope'⟩
 
--- TYPESIG_SORRY: theorem compiledStmtStep_assignVar
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {name : String}
--- TYPESIG_SORRY:     {value : Expr}
--- TYPESIG_SORRY:     {valueIR : YulExpr}
--- TYPESIG_SORRY:     (hcore : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScope : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.assignVar name value) [YulStmt.assign name valueIR] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, hvalueIR]
--- SORRY'D:   preserves runtime state extraFuel hexact hscope hbounded hruntime hslack := by
--- SORRY'D:     let slack := sizeOf [YulStmt.assign name valueIR] - [YulStmt.assign name valueIR].length
--- SORRY'D:     let wholeExtraFuel := extraFuel - slack
--- SORRY'D:     have hwholeFuel :
--- SORRY'D:         sizeOf [YulStmt.assign name valueIR] + wholeExtraFuel + 1 =
--- SORRY'D:           [YulStmt.assign name valueIR].length + extraFuel + 1 := by
--- SORRY'D:       dsimp [wholeExtraFuel, slack]
--- SORRY'D:       have : slack ≤ extraFuel := by
--- SORRY'D:         simpa [slack] using hslack
--- SORRY'D:       omega
--- SORRY'D:     rcases FunctionBody.execIRStmts_compiled_assign_core_append_wholeFuel_of_scope
--- SORRY'D:         (fields := fields)
--- SORRY'D:         (runtime := runtime)
--- SORRY'D:         (state := state)
--- SORRY'D:         (scope := scope)
--- SORRY'D:         (name := name)
--- SORRY'D:         (value := value)
--- SORRY'D:         (tailIR := [])
--- SORRY'D:         (extraFuel := wholeExtraFuel)
--- SORRY'D:         hcore hexact hinScope hscope hbounded hruntime with
--- SORRY'D:       ⟨valueIR', hvalueIR', hwhole, hruntime', hexact', hbounded', hscope'⟩
--- SORRY'D:     rw [hvalueIR] at hvalueIR'
--- SORRY'D:     injection hvalueIR' with hEq
--- SORRY'D:     subst hEq
--- SORRY'D:     refine ⟨_, _, ?_⟩
--- SORRY'D:     · simp [SourceSemantics.execStmt]
--- SORRY'D:     · simpa [hwholeFuel] using hwhole
--- SORRY'D:     · simpa [stmtStepMatchesIRExec, stmtNextScope, collectStmtNames] using
--- SORRY'D:         And.intro hruntime' <| And.intro hexact' <| And.intro hbounded' hscope'
+theorem compiledStmtStep_assignVar
+    {fields : List Field}
+    {scope : List String}
+    {name : String}
+    {value : Expr}
+    {valueIR : YulExpr}
+    (hcore : FunctionBody.ExprCompileCore value)
+    (hinScope : FunctionBody.exprBoundNamesInScope value scope)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.assignVar name value) [YulStmt.assign name valueIR] where
+  compileOk := by
+    simp [CompilationModel.compileStmt, hvalueIR]
+  preserves runtime state extraFuel hexact hscope hbounded hruntime hslack := by
+    -- Establish that evalExpr succeeds (returns some) via the compile-eval theorem
+    have heval := FunctionBody.eval_compileExpr_core_of_scope hcore hexact hinScope
+        hbounded (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope) hruntime
+    rw [hvalueIR] at heval
+    simp [Except.toOption] at heval
+    -- Case split on evalIRExpr to extract the Nat value
+    rcases hIR : evalIRExpr state valueIR with _ | v
+    · -- none case: contradiction
+      simp [hIR, Option.bind] at heval
+    · -- some v case: both source and IR succeed
+      simp [hIR, Option.bind] at heval
+      have hEvalSrc : SourceSemantics.evalExpr fields runtime value = some v := heval.symm
+      -- Value is bounded
+      have hvalueLt := FunctionBody.evalExpr_lt_evmModulus_core_of_scope hcore hexact
+          hinScope hbounded (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope) hruntime
+      rw [hEvalSrc] at hvalueLt
+      simp at hvalueLt
+      -- Define the post-states
+      set state' := state.setVar name v
+      set runtime' := { runtime with
+        bindings := SourceSemantics.bindValue runtime.bindings name v }
+      -- IR execution
+      have hIRExec : execIRStmts (1 + extraFuel + 1) state [YulStmt.assign name valueIR] =
+          .continue state' := by
+        show (match execIRStmt (1 + extraFuel) state (YulStmt.assign name valueIR) with
+              | .continue s' => execIRStmts (1 + extraFuel) s' []
+              | .return v s => .return v s
+              | .stop s => .stop s
+              | .revert s => .revert s) = .continue state'
+        have hfuel_eq : 1 + extraFuel = Nat.succ extraFuel := by omega
+        rw [hfuel_eq]
+        simp only [execIRStmt, hIR, state']
+        simp [execIRStmts]
+      -- Source execution
+      have hSrcExec : SourceSemantics.execStmt fields runtime (.assignVar name value) =
+          .continue runtime' := by
+        simp [SourceSemantics.execStmt, hEvalSrc, runtime']
+      -- Fuel equality
+      have hfuelEq : [YulStmt.assign name valueIR].length + extraFuel + 1 =
+          1 + extraFuel + 1 := by simp
+      -- Post-state invariants
+      have hruntime' : FunctionBody.runtimeStateMatchesIR fields runtime' state' :=
+        FunctionBody.runtimeStateMatchesIR_setVar_bindValue hruntime name v
+      have hexact_base : FunctionBody.bindingsExactlyMatchIRVarsOnScope
+          (name :: scope) runtime'.bindings state' :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_bindValue hexact
+      have hNextScopeIncl : FunctionBody.scopeNamesIncluded
+          (stmtNextScope scope (.assignVar name value)) (name :: scope) := by
+        intro n hn
+        simp [stmtNextScope, collectStmtNames] at hn
+        rcases hn with rfl | hn | hn
+        · simp
+        · simp [hinScope n (collectExprNames_mem_exprBoundNames_of_core hcore n hn)]
+        · exact List.mem_cons_of_mem _ hn
+      have hexact' : FunctionBody.bindingsExactlyMatchIRVarsOnScope
+          (stmtNextScope scope (.assignVar name value)) runtime'.bindings state' :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included hexact_base hNextScopeIncl
+      have hbounded' : FunctionBody.bindingsBounded runtime'.bindings :=
+        FunctionBody.bindingsBounded_bindValue hbounded name v hvalueLt
+      have hscope_base : FunctionBody.scopeNamesPresent
+          (name :: scope) runtime'.bindings :=
+        FunctionBody.scopeNamesPresent_cons_bindValue hscope
+      have hscope' : FunctionBody.scopeNamesPresent
+          (stmtNextScope scope (.assignVar name value)) runtime'.bindings :=
+        FunctionBody.scopeNamesPresent_of_included hscope_base hNextScopeIncl
+      -- Provide witnesses
+      refine ⟨.continue runtime', .continue state', ?_, ?_, ?_⟩
+      · exact hSrcExec
+      · rw [hfuelEq]; exact hIRExec
+      · simp [stmtStepMatchesIRExec]
+        exact ⟨hruntime', hexact', hbounded', hscope'⟩
 
 -- TYPESIG_SORRY: theorem compiledStmtStep_require
 -- TYPESIG_SORRY:     {fields : List Field}
