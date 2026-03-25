@@ -995,14 +995,6 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                          'foundry-patched': [None,
                                                              None]}}
 
-COMPILER_STAGE_JOBS = [
-    'build-compiler-verity',
-    'build-compiler-patched',
-    'build-compiler-difftest',
-    'build-compiler-gas-report',
-    'build-compiler-examples',
-]
-
 SPEC['expected_jobs'] = [
     'changes',
     'checks',
@@ -1011,7 +1003,6 @@ SPEC['expected_jobs'] = [
     'prepare-macro-fuzz',
     'build-audits',
     'macro-fuzz',
-    *COMPILER_STAGE_JOBS,
     'build-compiler-binaries',
     'generate-yul',
     'generate-yul-patched',
@@ -1034,12 +1025,7 @@ SPEC['expected_job_needs'] = {
     'prepare-macro-fuzz': ['changes', 'checks', 'build'],
     'build-audits': ['changes', 'checks', 'build'],
     'macro-fuzz': ['changes', 'checks', 'prepare-macro-fuzz'],
-    'build-compiler-verity': ['changes', 'checks', 'build'],
-    'build-compiler-patched': ['changes', 'checks', 'build', 'build-compiler-verity'],
-    'build-compiler-difftest': ['changes', 'checks', 'build', 'build-compiler-patched'],
-    'build-compiler-gas-report': ['changes', 'checks', 'build', 'build-compiler-difftest'],
-    'build-compiler-examples': ['changes', 'checks', 'build', 'build-compiler-gas-report'],
-    'build-compiler-binaries': ['changes', 'checks', 'build', 'build-compiler-examples'],
+    'build-compiler-binaries': ['changes', 'checks', 'build'],
     'generate-yul': ['changes', 'checks', 'build', 'build-compiler-binaries'],
     'generate-yul-patched': ['changes', 'checks', 'build', 'build-compiler-binaries'],
     'gas-report': ['changes', 'checks', 'build', 'build-compiler-binaries'],
@@ -1050,38 +1036,22 @@ SPEC['expected_job_needs'] = {
     'foundry': ['changes', 'generate-yul', 'build-compiler-binaries'],
     'foundry-patched': ['changes', 'generate-yul-patched', 'build-compiler-binaries'],
     'foundry-multi-seed': ['changes', 'generate-yul', 'build-compiler-binaries'],
-    'failure-hints': ['checks', 'build', 'prepare-macro-fuzz', 'build-audits', 'macro-fuzz', *COMPILER_STAGE_JOBS, 'build-compiler-binaries', 'generate-yul', 'generate-yul-patched', 'gas-report', 'compiler-audits', 'compiler-regressions', 'foundry-gas-calibration', 'foundry', 'foundry-patched', 'foundry-multi-seed'],
+    'failure-hints': ['checks', 'build', 'prepare-macro-fuzz', 'build-audits', 'macro-fuzz', 'build-compiler-binaries', 'generate-yul', 'generate-yul-patched', 'gas-report', 'compiler-audits', 'compiler-regressions', 'foundry-gas-calibration', 'foundry', 'foundry-patched', 'foundry-multi-seed'],
 }
 
 SPEC['expected_job_if_conditions'].update({
-    'build-compiler-verity': "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.compiler == 'true'",
-    'build-compiler-patched': "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-verity.result == 'success' && needs.changes.outputs.compiler == 'true'",
-    'build-compiler-difftest': "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-patched.result == 'success' && needs.changes.outputs.compiler == 'true'",
-    'build-compiler-gas-report': "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-difftest.result == 'success' && needs.changes.outputs.compiler == 'true'",
-    'build-compiler-examples': "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-gas-report.result == 'success' && needs.changes.outputs.compiler == 'true'",
-    'build-compiler-binaries': "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-examples.result == 'success' && needs.changes.outputs.compiler == 'true'",
+    'build-compiler-binaries': "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.compiler == 'true'",
 })
 
 SPEC['expected_job_runs_on'].update({
-    'build-compiler-verity': 'blacksmith-16vcpu-ubuntu-2404',
-    'build-compiler-patched': 'blacksmith-16vcpu-ubuntu-2404',
-    'build-compiler-difftest': 'blacksmith-16vcpu-ubuntu-2404',
-    'build-compiler-gas-report': 'blacksmith-16vcpu-ubuntu-2404',
-    'build-compiler-examples': 'blacksmith-16vcpu-ubuntu-2404',
-    'build-compiler-binaries': 'blacksmith-8vcpu-ubuntu-2404',
+    'build-compiler-binaries': 'blacksmith-16vcpu-ubuntu-2404',
 })
 
 SPEC['expected_job_timeouts'].update({
-    'build-compiler-verity': 360,
-    'build-compiler-patched': 360,
-    'build-compiler-difftest': 360,
-    'build-compiler-gas-report': 360,
-    'build-compiler-examples': 360,
-    'build-compiler-binaries': 45,
+    'build-compiler-binaries': 360,
 })
 
 SPEC['build_compiler_job_names'] = [
-    *COMPILER_STAGE_JOBS,
     'build-compiler-binaries',
     'generate-yul',
     'generate-yul-patched',
@@ -1090,7 +1060,11 @@ SPEC['build_compiler_job_names'] = [
 
 SPEC['expected_step_contracts']['build-compiler-binaries'] = [
     {'uses': 'actions/checkout@v6', 'with': {'submodules': 'recursive'}},
-    {'name': 'Download compiler workspace build', 'uses': 'actions/download-artifact@v7', 'with': {'name': 'lean-workspace-compiler-build-examples'}},
+    {'name': 'Download prepared Lean workspace build', 'uses': 'actions/download-artifact@v7', 'with': {'name': 'lean-workspace-build'}},
+    {'name': 'Build verity-compiler', 'uses': './.github/actions/build-compiler-target'},
+    {'name': 'Build verity-compiler-patched', 'uses': './.github/actions/build-compiler-target'},
+    {'name': 'Build difftest-interpreter', 'uses': './.github/actions/build-compiler-target'},
+    {'name': 'Build gas-report', 'uses': './.github/actions/build-compiler-target'},
     {'name': 'Upload difftest interpreter', 'uses': 'actions/upload-artifact@v7', 'with': {'name': 'difftest-interpreter', 'path': '.lake/build/bin/difftest-interpreter'}},
     {'name': 'Upload compiler binaries', 'uses': 'actions/upload-artifact@v7', 'with': {'name': 'verity-compiler-binaries', 'path': 'compiler/bin', 'compression-level': '0'}},
     {'name': 'Upload compiler workspace build', 'uses': 'actions/upload-artifact@v7', 'with': {'name': 'lean-workspace-compiler-build', 'path': 'lean-workspace-compiler-build.tar', 'compression-level': '0'}},
@@ -1100,11 +1074,6 @@ SPEC['expected_uploaded_artifacts'] = {
     'build': ['lean-workspace-build'],
     'prepare-macro-fuzz': ['lean-workspace-macro-fuzz-build'],
     'build-audits': ['axiom-dependency-report'],
-    'build-compiler-verity': ['lean-workspace-compiler-build-verity'],
-    'build-compiler-patched': ['lean-workspace-compiler-build-patched'],
-    'build-compiler-difftest': ['lean-workspace-compiler-build-difftest'],
-    'build-compiler-gas-report': ['lean-workspace-compiler-build-gas-report'],
-    'build-compiler-examples': ['lean-workspace-compiler-build-examples'],
     'build-compiler-binaries': ['difftest-interpreter', 'verity-compiler-binaries', 'lean-workspace-compiler-build'],
     'generate-yul': ['generated-yul'],
     'generate-yul-patched': ['generated-yul-patched', 'patch-coverage-report'],
@@ -1117,11 +1086,6 @@ SPEC['expected_uploaded_artifact_paths'] = {
     'build': ['lean-workspace-build.tar'],
     'prepare-macro-fuzz': ['lean-workspace-macro-fuzz-build.tar'],
     'build-audits': ['axiom-report.md\naxiom-report-raw.log'],
-    'build-compiler-verity': ['lean-workspace-compiler-build-verity.tar'],
-    'build-compiler-patched': ['lean-workspace-compiler-build-patched.tar'],
-    'build-compiler-difftest': ['lean-workspace-compiler-build-difftest.tar'],
-    'build-compiler-gas-report': ['lean-workspace-compiler-build-gas-report.tar'],
-    'build-compiler-examples': ['lean-workspace-compiler-build-examples.tar'],
     'build-compiler-binaries': ['.lake/build/bin/difftest-interpreter', 'compiler/bin', 'lean-workspace-compiler-build.tar'],
     'generate-yul': ['compiler/yul'],
     'generate-yul-patched': ['compiler/yul-patched', 'compiler/patch-report.tsv'],
@@ -1134,12 +1098,7 @@ SPEC['expected_downloaded_artifacts'] = {
     'prepare-macro-fuzz': ['lean-workspace-build'],
     'build-audits': ['lean-workspace-build'],
     'macro-fuzz': ['lean-workspace-macro-fuzz-build'],
-    'build-compiler-verity': ['lean-workspace-build'],
-    'build-compiler-patched': ['lean-workspace-build', 'lean-workspace-compiler-build-verity'],
-    'build-compiler-difftest': ['lean-workspace-build', 'lean-workspace-compiler-build-patched'],
-    'build-compiler-gas-report': ['lean-workspace-build', 'lean-workspace-compiler-build-difftest'],
-    'build-compiler-examples': ['lean-workspace-build', 'lean-workspace-compiler-build-gas-report'],
-    'build-compiler-binaries': ['lean-workspace-compiler-build-examples'],
+    'build-compiler-binaries': ['lean-workspace-build'],
     'generate-yul': ['lean-workspace-build', 'lean-workspace-compiler-build', 'verity-compiler-binaries'],
     'generate-yul-patched': ['lean-workspace-build', 'lean-workspace-compiler-build', 'verity-compiler-binaries'],
     'gas-report': ['lean-workspace-build', 'lean-workspace-compiler-build'],
@@ -1153,11 +1112,6 @@ SPEC['expected_downloaded_artifact_paths'] = {
     'prepare-macro-fuzz': [None],
     'build-audits': [None],
     'macro-fuzz': [None],
-    'build-compiler-verity': [None],
-    'build-compiler-patched': [None, None],
-    'build-compiler-difftest': [None, None],
-    'build-compiler-gas-report': [None, None],
-    'build-compiler-examples': [None, None],
     'build-compiler-binaries': [None],
     'generate-yul': [None, None, 'compiler/bin'],
     'generate-yul-patched': [None, None, 'compiler/bin'],
