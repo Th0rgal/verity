@@ -13077,42 +13077,33 @@ theorem compiledStmtStepWithHelpersAndHelperIR_internalCallAssign
     CompiledStmtStepWithHelpersAndHelperIR
       runtimeContract spec fields scope
       (Stmt.internalCallAssign names calleeName args)
-      compiledIR := by sorry
--- SORRY'D:   refine {
--- SORRY'D:     compileOk := hcompile
--- SORRY'D:     preserves := ?_ }
--- SORRY'D:   intro runtime state helperFuel extraFuel hfuelPos hexact hscope hbounded hruntime hslack
--- SORRY'D:   obtain ⟨argExprs', hargOk, hshape⟩ := compileStmt_internalCallAssign_shape hcompile
--- SORRY'D:   have hArgEq : argExprs' = argExprs := by
--- SORRY'D:     simp [hargCompile] at hargOk
--- SORRY'D:     exact hargOk.symm
--- SORRY'D:   subst hArgEq
--- SORRY'D:   set singletonIR :=
--- SORRY'D:     [YulStmt.letMany names
--- SORRY'D:       (YulExpr.call (CompilationModel.internalFunctionYulName calleeName) argExprs)]
--- SORRY'D:   have hshape' : compiledIR = singletonIR := by
--- SORRY'D:     simpa [singletonIR] using hshape
--- SORRY'D:   have hlenOne : singletonIR.length = 1 := by
--- SORRY'D:     simp [singletonIR]
--- SORRY'D:   have hExtraPos : 1 ≤ extraFuel := by
--- SORRY'D:     have hsz : sizeOf singletonIR ≥ 2 := by
--- SORRY'D:       simp [singletonIR]
--- SORRY'D:       omega
--- SORRY'D:     rw [hshape'] at hslack
--- SORRY'D:     rw [hlenOne] at hslack
--- SORRY'D:     omega
--- SORRY'D:   set irFuel := extraFuel - 1 with hirFuel
--- SORRY'D:   have hMatch := bridge runtime state helperFuel irFuel hfuelPos hexact hscope hbounded hruntime
--- SORRY'D:   have hFuelEq : singletonIR.length + extraFuel + 1 = irFuel + 3 := by
--- SORRY'D:     rw [hlenOne, hirFuel]
--- SORRY'D:     omega
--- SORRY'D:   refine ⟨_, _, ?_, ?_, ?_⟩
--- SORRY'D:   · exact SourceSemantics.execStmtWithHelpers spec fields helperFuel runtime
--- SORRY'D:       (Stmt.internalCallAssign names calleeName args)
--- SORRY'D:   · exact execIRStmtsWithInternals runtimeContract (compiledIR.length + extraFuel + 1) state compiledIR
--- SORRY'D:   · rfl
--- SORRY'D:   · rw [hshape', hFuelEq]
--- SORRY'D:   · simpa [singletonIR] using hMatch
+      compiledIR := by
+  refine {
+    compileOk := hcompile
+    preserves := ?_ }
+  intro runtime state helperFuel extraFuel hfuelPos hexact hscope hbounded hruntime hslack
+  obtain ⟨argExprs', hargOk, hshape⟩ := compileStmt_internalCallAssign_shape hcompile
+  have hArgEq : argExprs' = argExprs := by
+    simp [hargCompile] at hargOk
+    exact hargOk.symm
+  subst hArgEq
+  set singletonIR :=
+    [YulStmt.letMany names
+      (YulExpr.call (CompilationModel.internalFunctionYulName calleeName) argExprs')]
+  have hshape' : compiledIR = singletonIR := by
+    simpa [singletonIR] using hshape
+  have hlenOne : singletonIR.length = 1 := by simp [singletonIR]
+  have hExtraPos : 1 ≤ extraFuel := by
+    have hsz : sizeOf singletonIR ≥ 2 := by simp [singletonIR]
+    rw [hshape'] at hslack; rw [hlenOne] at hslack; omega
+  set irFuel := extraFuel - 1 with hirFuel
+  have hMatch := bridge runtime state helperFuel irFuel hfuelPos hexact hscope hbounded hruntime
+  have hFuelEq : singletonIR.length + extraFuel + 1 = irFuel + 3 := by
+    rw [hlenOne, hirFuel]; omega
+  rw [hshape'] at hslack ⊢
+  rw [hlenOne] at hslack
+  rw [hFuelEq]
+  exact ⟨_, _, rfl, rfl, hMatch⟩
 
 -- SORRY'D: /-- Generic `CompiledStmtStepWithHelpersAndHelperIR` constructor for
 -- SORRY'D: `Stmt.internalCall` (void internal helper calls).  Analogous to
@@ -13154,42 +13145,36 @@ theorem compiledStmtStepWithHelpersAndHelperIR_internalCall
     CompiledStmtStepWithHelpersAndHelperIR
       runtimeContract spec fields scope
       (Stmt.internalCall calleeName args)
-      compiledIR := by sorry
--- SORRY'D:   refine {
--- SORRY'D:     compileOk := hcompile
--- SORRY'D:     preserves := ?_ }
--- SORRY'D:   intro runtime state helperFuel extraFuel hfuelPos hexact hscope hbounded hruntime hslack
--- SORRY'D:   obtain ⟨argExprs', hargOk, hshape⟩ := compileStmt_internalCall_shape hcompile
--- SORRY'D:   have hArgEq : argExprs' = argExprs := by
--- SORRY'D:     simp [hargCompile] at hargOk
--- SORRY'D:     exact hargOk.symm
--- SORRY'D:   subst hArgEq
--- SORRY'D:   set singletonIR :=
--- SORRY'D:     [YulStmt.expr
--- SORRY'D:       (YulExpr.call (CompilationModel.internalFunctionYulName calleeName) argExprs)]
--- SORRY'D:   have hshape' : compiledIR = singletonIR := by
--- SORRY'D:     simpa [singletonIR] using hshape
--- SORRY'D:   have hlenOne : singletonIR.length = 1 := by
--- SORRY'D:     simp [singletonIR]
--- SORRY'D:   have hExtraPos : 1 ≤ extraFuel := by
--- SORRY'D:     have hsz : sizeOf singletonIR ≥ 2 := by
--- SORRY'D:       simp [singletonIR]
--- SORRY'D:       omega
--- SORRY'D:     rw [hshape'] at hslack
--- SORRY'D:     rw [hlenOne] at hslack
--- SORRY'D:     omega
--- SORRY'D:   set irFuel := extraFuel - 1 with hirFuel
--- SORRY'D:   have hMatch := bridge runtime state helperFuel irFuel hfuelPos hexact hscope hbounded hruntime
--- SORRY'D:   have hFuelEq : singletonIR.length + extraFuel + 1 = irFuel + 3 := by
--- SORRY'D:     rw [hlenOne, hirFuel]
--- SORRY'D:     omega
--- SORRY'D:   refine ⟨_, _, ?_, ?_, ?_⟩
--- SORRY'D:   · exact SourceSemantics.execStmtWithHelpers spec fields helperFuel runtime
--- SORRY'D:       (Stmt.internalCall calleeName args)
--- SORRY'D:   · exact execIRStmtsWithInternals runtimeContract (compiledIR.length + extraFuel + 1) state compiledIR
--- SORRY'D:   · rfl
--- SORRY'D:   · rw [hshape', hFuelEq]
--- SORRY'D:   · simpa [singletonIR] using hMatch
+      compiledIR := by
+  refine {
+    compileOk := hcompile
+    preserves := ?_ }
+  intro runtime state helperFuel extraFuel hfuelPos hexact hscope hbounded hruntime hslack
+  obtain ⟨argExprs', hargOk, hshape⟩ := compileStmt_internalCall_shape hcompile
+  have hArgEq : argExprs' = argExprs := by
+    simp [hargCompile] at hargOk
+    exact hargOk.symm
+  subst hArgEq
+  set singletonIR :=
+    [YulStmt.expr
+      (YulExpr.call (CompilationModel.internalFunctionYulName calleeName) argExprs')]
+  have hshape' : compiledIR = singletonIR := by
+    simpa [singletonIR] using hshape
+  have hlenOne : singletonIR.length = 1 := by
+    simp [singletonIR]
+  have hExtraPos : 1 ≤ extraFuel := by
+    have hsz : sizeOf singletonIR ≥ 2 := by simp [singletonIR]
+    rw [hshape'] at hslack
+    rw [hlenOne] at hslack
+    omega
+  set irFuel := extraFuel - 1 with hirFuel
+  have hMatch := bridge runtime state helperFuel irFuel hfuelPos hexact hscope hbounded hruntime
+  have hFuelEq : singletonIR.length + extraFuel + 1 = irFuel + 3 := by
+    rw [hlenOne, hirFuel]; omega
+  rw [hshape'] at hslack ⊢
+  rw [hlenOne] at hslack
+  rw [hFuelEq]
+  exact ⟨_, _, rfl, rfl, hMatch⟩
 
 -- SORRY'D: /-- Non-vacuous list-level constructor for a direct helper-return-binding head.
 -- SORRY'D: This packages `compiledStmtStepWithHelpersAndHelperIR_internalCallAssign` into
