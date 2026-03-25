@@ -4201,78 +4201,94 @@ private theorem stmtListScopeDiscipline_scope_names
 -- SORRY'D:       · simpa [stmtStepMatchesIRExec, stmtNextScope, collectStmtNames] using
 -- SORRY'D:           And.intro hruntime <| And.intro hexact <| And.intro hbounded hscope
 
--- TYPESIG_SORRY: theorem compiledStmtStep_return
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {value : Expr}
--- TYPESIG_SORRY:     {valueIR : YulExpr}
--- TYPESIG_SORRY:     (hcore : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScope : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.return value)
--- TYPESIG_SORRY:       [ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
--- TYPESIG_SORRY:       , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, hvalueIR]
--- SORRY'D:   preserves runtime state extraFuel hexact hscope hbounded hruntime hslack := by
--- SORRY'D:     let compiledIR :=
--- SORRY'D:       [ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
--- SORRY'D:       , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ]
--- SORRY'D:     let slack := sizeOf compiledIR - compiledIR.length
--- SORRY'D:     let wholeExtraFuel := extraFuel - slack
--- SORRY'D:     have hwholeFuel :
--- SORRY'D:         sizeOf compiledIR + wholeExtraFuel + 1 =
--- SORRY'D:           compiledIR.length + extraFuel + 1 := by
--- SORRY'D:       dsimp [wholeExtraFuel, slack, compiledIR]
--- SORRY'D:       have : slack ≤ extraFuel := by
--- SORRY'D:         simpa [slack, compiledIR] using hslack
--- SORRY'D:       omega
--- SORRY'D:     rcases FunctionBody.execIRStmts_compiled_return_core_append_wholeFuel_of_scope
--- SORRY'D:         (fields := fields)
--- SORRY'D:         (runtime := runtime)
--- SORRY'D:         (state := state)
--- SORRY'D:         (scope := scope)
--- SORRY'D:         (value := value)
--- SORRY'D:         (tailIR := [])
--- SORRY'D:         (extraFuel := wholeExtraFuel)
--- SORRY'D:         hcore hexact hinScope hbounded
--- SORRY'D:         (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope)
--- SORRY'D:         hruntime with
--- SORRY'D:       ⟨valueIR', hvalueIR', hwhole⟩
--- SORRY'D:     rw [hvalueIR] at hvalueIR'
--- SORRY'D:     injection hvalueIR' with hEq
--- SORRY'D:     subst hEq
--- SORRY'D:     let retVal := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:     let retState := { state with memory := fun o => if o = 0 then retVal else state.memory o }
--- SORRY'D:     refine ⟨_, _, ?_⟩
--- SORRY'D:     · simp [SourceSemantics.execStmt]
--- SORRY'D:     · simpa [hwholeFuel, compiledIR, retVal, retState] using hwhole
--- SORRY'D:     · refine ⟨rfl, ?_⟩
--- SORRY'D:       exact FunctionBody.runtimeStateMatchesIR_setMemory hruntime 0 retVal
+theorem compiledStmtStep_return
+    {fields : List Field}
+    {scope : List String}
+    {value : Expr}
+    {valueIR : YulExpr}
+    (hcore : FunctionBody.ExprCompileCore value)
+    (hinScope : FunctionBody.exprBoundNamesInScope value scope)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.return value)
+      [ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+      , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] where
+  compileOk := by
+    simp [CompilationModel.compileStmt, hvalueIR, pure, Except.pure, bind, Except.bind]
+  preserves runtime state extraFuel hexact hscope hbounded hruntime hslack := by
+    set compiledIR :=
+      [ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+      , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ]
+    set wholeExtraFuel := extraFuel - (sizeOf compiledIR - compiledIR.length) with hWF
+    have hwhole := FunctionBody.execIRStmts_compiled_return_core_append_wholeFuel_of_scope
+        (fields := fields) (runtime := runtime) (state := state) (scope := scope)
+        (value := value) (tailIR := []) (extraFuel := wholeExtraFuel)
+        hcore hexact hinScope hbounded
+        (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope) hruntime
+    simp only [List.append_nil] at hwhole
+    rcases hwhole with ⟨valueIR', hvalueIR', hwhole⟩
+    rw [hvalueIR] at hvalueIR'
+    injection hvalueIR' with hEq
+    subst hEq
+    -- Establish that evalExpr succeeds (returns some) via the compile-eval theorem
+    have heval := FunctionBody.eval_compileExpr_core_of_scope hcore hexact hinScope
+        hbounded (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope) hruntime
+    rw [hvalueIR] at heval
+    simp [Except.toOption] at heval
+    -- heval now relates evalIRExpr to evalExpr; extract that evalExpr = some v
+    rcases hIR : evalIRExpr state valueIR with _ | v
+    · simp [hIR, Option.bind] at heval
+    · simp [hIR, Option.bind] at heval
+      have hEvalSrc : SourceSemantics.evalExpr fields runtime value = some v := heval.symm
+      have hRetVal : (SourceSemantics.evalExpr fields runtime value).getD 0 = v := by
+        rw [hEvalSrc]; rfl
+      -- Fuel equality
+      have hfuelEq : compiledIR.length + extraFuel + 1 =
+          sizeOf compiledIR + wholeExtraFuel + 1 := by
+        rw [hWF]
+        have : compiledIR.length ≤ sizeOf compiledIR := by
+          show 2 ≤ sizeOf compiledIR
+          have : 0 ≤ sizeOf (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])) :=
+            Nat.zero_le _
+          have : 0 ≤ sizeOf (YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32])) :=
+            Nat.zero_le _
+          show 2 ≤ 1 + sizeOf (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])) +
+                       (1 + sizeOf (YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32])) + 1)
+          omega
+        omega
+      -- Provide explicit witnesses
+      set state' := { state with memory := fun o => if o = 0 then v else state.memory o }
+      refine ⟨.return v runtime, .return v state', ?_, ?_, ?_⟩
+      · simp [SourceSemantics.execStmt, hEvalSrc]
+      · rw [hRetVal] at hwhole; rw [hfuelEq]; exact hwhole
+      · simp [stmtStepMatchesIRExec, stmtNextScope, collectStmtNames]
+        exact FunctionBody.runtimeStateMatchesIR_setMemory hruntime 0 v
 
--- TYPESIG_SORRY: theorem compiledStmtStep_stop
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String} :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope .stop [YulStmt.expr (YulExpr.call "stop" [])] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt]
--- SORRY'D:   preserves runtime state extraFuel hexact hscope hbounded hruntime hslack := by
--- SORRY'D:     let compiledIR := [YulStmt.expr (YulExpr.call "stop" [])]
--- SORRY'D:     let slack := sizeOf compiledIR - compiledIR.length
--- SORRY'D:     let wholeExtraFuel := extraFuel - slack
--- SORRY'D:     have hwholeFuel :
--- SORRY'D:         sizeOf compiledIR + wholeExtraFuel + 1 =
--- SORRY'D:           compiledIR.length + extraFuel + 1 := by
--- SORRY'D:       dsimp [wholeExtraFuel, slack, compiledIR]
--- SORRY'D:       have : slack ≤ extraFuel := by
--- SORRY'D:         simpa [slack, compiledIR] using hslack
--- SORRY'D:       omega
--- SORRY'D:     refine ⟨_, _, ?_⟩
--- SORRY'D:     · simp [SourceSemantics.execStmt]
--- SORRY'D:     · simpa [compiledIR, hwholeFuel] using
--- SORRY'D:         (FunctionBody.execIRStmts_compiled_stop_core_append_wholeFuel
--- SORRY'D:           (state := state) (tailIR := []) (extraFuel := wholeExtraFuel))
--- SORRY'D:     · simpa [stmtStepMatchesIRExec, stmtNextScope, collectStmtNames] using hruntime
+theorem compiledStmtStep_stop
+    {fields : List Field}
+    {scope : List String} :
+    CompiledStmtStep fields scope .stop [YulStmt.expr (YulExpr.call "stop" [])] where
+  compileOk := by
+    simp [CompilationModel.compileStmt, pure, Except.pure]
+  preserves runtime state extraFuel hexact hscope hbounded hruntime hslack := by
+    -- Use the helper with wholeFuel aligned to the fuel budget
+    set compiledIR := [YulStmt.expr (YulExpr.call "stop" [])]
+    set wholeExtraFuel := extraFuel - (sizeOf compiledIR - compiledIR.length) with hWF
+    have hwhole := FunctionBody.execIRStmts_compiled_stop_core_append_wholeFuel
+      (state := state) (tailIR := []) (extraFuel := wholeExtraFuel)
+    simp only [List.append_nil] at hwhole
+    -- Show the fuel values match
+    have hfuelEq : compiledIR.length + extraFuel + 1 =
+        sizeOf compiledIR + wholeExtraFuel + 1 := by
+      rw [hWF]
+      have : compiledIR.length ≤ sizeOf compiledIR := by
+        show 1 ≤ sizeOf compiledIR
+        change 1 ≤ sizeOf ([YulStmt.expr (YulExpr.call "stop" [])] : List YulStmt)
+        decide
+      omega
+    refine ⟨.stop runtime, .stop state, ?_, ?_, ?_⟩
+    · simp [SourceSemantics.execStmt]
+    · rw [hfuelEq]; exact hwhole
+    · simpa [stmtStepMatchesIRExec, stmtNextScope, collectStmtNames] using hruntime
 
 private theorem encodeStorageAt_writeUintSlots_singleton_other
     {fields : List Field}
