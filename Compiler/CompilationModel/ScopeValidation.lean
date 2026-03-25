@@ -194,6 +194,10 @@ def validateScopedExprIdentifiers
       validateArithDuplicatedOperandPurity context [a, b]
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount a
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount b
+  | Expr.ceilDiv a b => do
+      validateArithDuplicatedOperandPurity context [a]
+      validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount a
+      validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount b
   | Expr.mulDivDown a b c => do
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount a
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount b

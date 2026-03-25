@@ -313,6 +313,19 @@ def compileExpr (fields : List Field)
   | Expr.logicalAnd a b => return yulBinOp "and" (yulToBool (← compileExpr fields dynamicSource a)) (yulToBool (← compileExpr fields dynamicSource b))
   | Expr.logicalOr a b  => return yulBinOp "or"  (yulToBool (← compileExpr fields dynamicSource a)) (yulToBool (← compileExpr fields dynamicSource b))
   | Expr.logicalNot a   => return YulExpr.call "iszero" [← compileExpr fields dynamicSource a]
+  | Expr.ceilDiv a b => do
+      let ca ← compileExpr fields dynamicSource a
+      let cb ← compileExpr fields dynamicSource b
+      -- mul(iszero(iszero(a)), add(div(sub(a, 1), b), 1))
+      -- When a == 0: iszero(iszero(0)) = 0, so result = 0
+      -- When a > 0: iszero(iszero(a)) = 1, so result = (a-1)/b + 1
+      pure (YulExpr.call "mul" [
+        YulExpr.call "iszero" [YulExpr.call "iszero" [ca]],
+        YulExpr.call "add" [
+          YulExpr.call "div" [YulExpr.call "sub" [ca, YulExpr.lit 1], cb],
+          YulExpr.lit 1
+        ]
+      ])
   | Expr.mulDivDown a b c => do
       let ca ← compileExpr fields dynamicSource a
       let cb ← compileExpr fields dynamicSource b

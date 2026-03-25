@@ -60,6 +60,18 @@ def mulDivDown (a b c : Uint256) : Uint256 :=
 def mulDivUp (a b c : Uint256) : Uint256 :=
   ((a * b) + (c - 1)) / c
 
+/-- `ceilDiv(a, b)` = `ceil(a / b)`, matching Solidity's Math256.ceilDiv / OpenZeppelin.
+    Uses the overflow-safe formula: `a == 0 ? 0 : (a - 1) / b + 1`.
+    Note: When `b = 0` and `a > 0`, EVM `DIV` returns 0, so this yields 1.
+    Solidity ≥0.8 reverts on `/0` at the compiler level; that revert is modeled
+    at the contract level, not here. -/
+def ceilDiv (a b : Uint256) : Uint256 :=
+  if a == 0 then 0
+  else (a - 1) / b + 1
+
+@[simp] theorem ceilDiv_def (a b : Uint256) :
+  ceilDiv a b = if a == 0 then 0 else (a - 1) / b + 1 := rfl
+
 /-- Multiply two wad-scaled values and round down. -/
 def wMulDown (a b : Uint256) : Uint256 :=
   mulDivDown a b WAD

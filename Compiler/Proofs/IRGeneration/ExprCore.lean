@@ -43,7 +43,7 @@ def exprBoundNames : Expr → List String
   | .bitAnd a b | .bitOr a b | .bitXor a b | .eq a b
   | .ge a b | .gt a b | .sgt a b | .lt a b | .slt a b | .le a b
   | .logicalAnd a b | .logicalOr a b | .wMulDown a b
-  | .wDivUp a b | .min a b | .max a b
+  | .wDivUp a b | .min a b | .max a b | .ceilDiv a b
   | .shl a b | .shr a b | .sar a b | .signextend a b =>
       exprBoundNames a ++ exprBoundNames b
   | .mulDivDown a b c | .mulDivUp a b c =>

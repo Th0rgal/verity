@@ -106,6 +106,7 @@ def collectExprNames : Expr → List String
   | Expr.logicalAnd a b => collectExprNames a ++ collectExprNames b
   | Expr.logicalOr a b => collectExprNames a ++ collectExprNames b
   | Expr.logicalNot a => collectExprNames a
+  | Expr.ceilDiv a b => collectExprNames a ++ collectExprNames b
   | Expr.mulDivDown a b c => collectExprNames a ++ collectExprNames b ++ collectExprNames c
   | Expr.mulDivUp a b c => collectExprNames a ++ collectExprNames b ++ collectExprNames c
   | Expr.wMulDown a b => collectExprNames a ++ collectExprNames b

@@ -339,6 +339,10 @@ inductive Expr
   | logicalAnd (a b : Expr)  -- Logical AND (both operands always evaluated)
   | logicalOr (a b : Expr)   -- Logical OR  (both operands always evaluated)
   | logicalNot (a : Expr)    -- Logical NOT
+  /-- `ceilDiv(a, b)` = `a == 0 ? 0 : (a - 1) / b + 1` (overflow-safe ceiling division).
+      Matches Solidity's Math256.ceilDiv / OpenZeppelin.
+      Compiles to `mul(iszero(iszero(a)), add(div(sub(a, 1), b), 1))`. -/
+  | ceilDiv (a b : Expr)
   /-- `mulDivDown(a, b, c)` = `a * b / c` (round toward zero).
       Compiles to `div(mul(a, b), c)`. (#928) -/
   | mulDivDown (a b c : Expr)

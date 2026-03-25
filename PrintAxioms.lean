@@ -608,6 +608,11 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Verity.Proofs.Stdlib.Math.wDivUp_pos
 #print axioms Verity.Proofs.Stdlib.Math.wDivUp_zero
 #print axioms Verity.Proofs.Stdlib.Math.wDivUp_by_wad
+#print axioms Verity.Proofs.Stdlib.Math.ceilDiv_zero_left
+#print axioms Verity.Proofs.Stdlib.Math.ceilDiv_nat_eq
+#print axioms Verity.Proofs.Stdlib.Math.ceilDiv_mul_ge
+#print axioms Verity.Proofs.Stdlib.Math.ceilDiv_monotone
+#print axioms Verity.Proofs.Stdlib.Math.ceilDiv_le
 #print axioms Verity.Proofs.Stdlib.Math.safeAdd_some
 #print axioms Verity.Proofs.Stdlib.Math.safeAdd_none
 #print axioms Verity.Proofs.Stdlib.Math.safeAdd_zero_left
@@ -1567,6 +1572,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mapping2  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mapping2Word  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_structMember2  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_ceilDiv  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mulDivDown  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mulDivUp  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_ite  -- private
