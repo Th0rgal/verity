@@ -1137,6 +1137,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.mem_foldl_stmtNextScope_of_mem_scope  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListNames_subset_foldl_stmtNextScope  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListScopeDiscipline_scope_names  -- private
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_letVar
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_assignVar
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_return
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_stop
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_writeUintSlots_singleton_other  -- private
@@ -1888,4 +1890,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1757 theorems/lemmas (1170 public, 571 private, 16 sorry'd)
+-- Total: 1759 theorems/lemmas (1172 public, 571 private, 16 sorry'd)
