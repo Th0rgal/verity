@@ -6120,131 +6120,255 @@ private theorem scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes
 -- SORRY'D:   preserves := compiledStmtStep_setStorageAddr_singleSlot_preserves
 -- SORRY'D:     hcore hinScope hfind hwriteSlots hnoConflict hvalueIR
 
--- TYPESIG_SORRY: private theorem compiledStmtStep_mstore_single_preserves
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {offset value : Expr}
--- TYPESIG_SORRY:     {offsetIR valueIR : YulExpr}
--- TYPESIG_SORRY:     (hcoreOffset : FunctionBody.ExprCompileCore offset)
--- TYPESIG_SORRY:     (hinScopeOffset : FunctionBody.exprBoundNamesInScope offset scope)
--- TYPESIG_SORRY:     (hcoreValue : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hoffsetIR : CompilationModel.compileExpr fields .calldata offset = Except.ok offsetIR)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep.Preserves fields scope
--- TYPESIG_SORRY:       (.mstore offset value)
--- TYPESIG_SORRY:       [YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])] := by sorry
--- SORRY'D:   intro runtime state extraFuel hexact hscope hbounded hruntime hslack
--- SORRY'D:   let compiledIR := [YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])]
--- SORRY'D:   let offsetNat := SourceSemantics.evalExpr fields runtime offset
--- SORRY'D:   let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:   have hOffsetEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreOffset hexact hinScopeOffset hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeOffset)
--- SORRY'D:       hruntime
--- SORRY'D:   have hValueEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreValue hexact hinScopeValue hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
--- SORRY'D:       hruntime
--- SORRY'D:   rw [hoffsetIR] at hOffsetEval
--- SORRY'D:   rw [hvalueIR] at hValueEval
--- SORRY'D:   have hExecStmt :
--- SORRY'D:       execIRStmt (extraFuel + 1) state
--- SORRY'D:         (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])) =
--- SORRY'D:           .continue
--- SORRY'D:             { state with
--- SORRY'D:                 memory := fun o =>
--- SORRY'D:                   if o = offsetNat then valueNat else state.memory o } := by
--- SORRY'D:     simpa [offsetNat, valueNat, execIRStmt, evalIRExprs, hOffsetEval, hValueEval]
--- SORRY'D:   refine ⟨_, _, ?_⟩
--- SORRY'D:   · simp [SourceSemantics.execStmt, offsetNat, valueNat]
--- SORRY'D:   · simpa [compiledIR, execIRStmts, hExecStmt]
--- SORRY'D:   · refine And.intro ?_ <| And.intro ?_ <| And.intro hbounded hscope
--- SORRY'D:     · simpa [FunctionBody.runtimeStateMatchesIR] using hruntime
--- SORRY'D:     · simpa [FunctionBody.bindingsExactlyMatchIRVarsOnScope] using hexact
+private theorem compiledStmtStep_mstore_single_preserves
+    {fields : List Field}
+    {scope : List String}
+    {offset value : Expr}
+    {offsetIR valueIR : YulExpr}
+    (hcoreOffset : FunctionBody.ExprCompileCore offset)
+    (hinScopeOffset : FunctionBody.exprBoundNamesInScope offset scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hoffsetIR : CompilationModel.compileExpr fields .calldata offset = Except.ok offsetIR)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    ∀ (runtime : SourceSemantics.RuntimeState)
+      (state : IRState)
+      (extraFuel : Nat),
+      FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state →
+      FunctionBody.scopeNamesPresent scope runtime.bindings →
+      FunctionBody.bindingsBounded runtime.bindings →
+      FunctionBody.runtimeStateMatchesIR fields runtime state →
+      sizeOf [YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])] -
+        [YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])].length ≤ extraFuel →
+      ∃ sourceResult irExec,
+        SourceSemantics.execStmt fields runtime (.mstore offset value) = sourceResult ∧
+        execIRStmts
+            ([YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])].length +
+              extraFuel + 1)
+            state
+            [YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])] = irExec ∧
+        stmtStepMatchesIRExec fields
+          (stmtNextScope scope (.mstore offset value))
+          sourceResult
+          irExec := by
+  intro runtime state extraFuel hexact hscope hbounded hruntime hslack
+  let compiledIR := [YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])]
+  have hOffsetEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreOffset hexact hinScopeOffset hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeOffset)
+      hruntime
+  have hValueEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreValue hexact hinScopeValue hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+      hruntime
+  rw [hoffsetIR] at hOffsetEval
+  rw [hvalueIR] at hValueEval
+  simp [Except.toOption] at hOffsetEval hValueEval
+  rcases hIROffset : evalIRExpr state offsetIR with _ | offsetNat
+  · simp [hIROffset, Option.bind] at hOffsetEval
+  · simp [hIROffset, Option.bind] at hOffsetEval
+    rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+    · simp [hIRValue, Option.bind] at hValueEval
+    · simp [hIRValue, Option.bind] at hValueEval
+      have hOffsetSrc : SourceSemantics.evalExpr fields runtime offset = some offsetNat :=
+        hOffsetEval.symm
+      have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+        hValueEval.symm
+      -- Source execution: mstore just checks both exprs evaluate and returns state unchanged
+      have hSrcExec : SourceSemantics.execStmt fields runtime
+          (.mstore offset value) = .continue runtime := by
+        simp [SourceSemantics.execStmt, hOffsetSrc, hValueSrc]
+      -- IR execution
+      set state' := { state with
+          memory := fun o => if o = offsetNat then valueNat else state.memory o }
+      have hExecStmt :
+          execIRStmt (extraFuel + 1) state
+            (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])) =
+              .continue state' := by
+        simp [execIRStmt, evalIRExprs, hIROffset, hIRValue, state']
+      have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
+      have hIRExec : execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
+          .continue state' := by
+        simp [compiledIR, execIRStmts, hfuelEq, hExecStmt]
+      -- Scope inclusion
+      have hincl : FunctionBody.scopeNamesIncluded
+          (stmtNextScope scope (.mstore offset value)) scope := by
+        intro n hn
+        simp [stmtNextScope, collectStmtNames] at hn
+        rcases hn with ho | hv | hs
+        · exact hinScopeOffset n (collectExprNames_mem_exprBoundNames_of_core hcoreOffset n ho)
+        · exact hinScopeValue n (collectExprNames_mem_exprBoundNames_of_core hcoreValue n hv)
+        · exact hs
+      -- Post-state invariants: memory update doesn't affect runtimeStateMatchesIR
+      have hexact' : FunctionBody.bindingsExactlyMatchIRVarsOnScope
+          (stmtNextScope scope (.mstore offset value))
+          runtime.bindings state' :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
+          (by simpa [FunctionBody.bindingsExactlyMatchIRVarsOnScope, state'] using hexact)
+          hincl
+      have hscope' : FunctionBody.scopeNamesPresent
+          (stmtNextScope scope (.mstore offset value))
+          runtime.bindings :=
+        FunctionBody.scopeNamesPresent_of_included hscope hincl
+      have hruntime' : FunctionBody.runtimeStateMatchesIR fields runtime state' := by
+        simpa [FunctionBody.runtimeStateMatchesIR, state'] using hruntime
+      exact ⟨_, _, hSrcExec, hIRExec,
+        hruntime', hexact', hbounded, hscope'⟩
 
--- TYPESIG_SORRY: theorem compiledStmtStep_mstore_single
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {offset value : Expr}
--- TYPESIG_SORRY:     {offsetIR valueIR : YulExpr}
--- TYPESIG_SORRY:     (hcoreOffset : FunctionBody.ExprCompileCore offset)
--- TYPESIG_SORRY:     (hinScopeOffset : FunctionBody.exprBoundNamesInScope offset scope)
--- TYPESIG_SORRY:     (hcoreValue : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hoffsetIR : CompilationModel.compileExpr fields .calldata offset = Except.ok offsetIR)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.mstore offset value)
--- TYPESIG_SORRY:       [YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, hoffsetIR, hvalueIR]
--- SORRY'D:   preserves := compiledStmtStep_mstore_single_preserves
--- SORRY'D:     hcoreOffset hinScopeOffset hcoreValue hinScopeValue hoffsetIR hvalueIR
+theorem compiledStmtStep_mstore_single
+    {fields : List Field}
+    {scope : List String}
+    {offset value : Expr}
+    {offsetIR valueIR : YulExpr}
+    (hcoreOffset : FunctionBody.ExprCompileCore offset)
+    (hinScopeOffset : FunctionBody.exprBoundNamesInScope offset scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hoffsetIR : CompilationModel.compileExpr fields .calldata offset = Except.ok offsetIR)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.mstore offset value)
+      [YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])] where
+  compileOk := by
+    simp only [CompilationModel.compileStmt, hoffsetIR, hvalueIR]
+    rfl
+  preserves := compiledStmtStep_mstore_single_preserves
+    hcoreOffset hinScopeOffset hcoreValue hinScopeValue hoffsetIR hvalueIR
 
--- TYPESIG_SORRY: private theorem compiledStmtStep_tstore_single_preserves
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {offset value : Expr}
--- TYPESIG_SORRY:     {offsetIR valueIR : YulExpr}
--- TYPESIG_SORRY:     (hcoreOffset : FunctionBody.ExprCompileCore offset)
--- TYPESIG_SORRY:     (hinScopeOffset : FunctionBody.exprBoundNamesInScope offset scope)
--- TYPESIG_SORRY:     (hcoreValue : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hoffsetIR : CompilationModel.compileExpr fields .calldata offset = Except.ok offsetIR)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep.Preserves fields scope
--- TYPESIG_SORRY:       (.tstore offset value)
--- TYPESIG_SORRY:       [YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])] := by sorry
--- SORRY'D:   intro runtime state extraFuel hexact hscope hbounded hruntime hslack
--- SORRY'D:   let compiledIR := [YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])]
--- SORRY'D:   let offsetNat := SourceSemantics.evalExpr fields runtime offset
--- SORRY'D:   let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:   have hOffsetEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreOffset hexact hinScopeOffset hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeOffset)
--- SORRY'D:       hruntime
--- SORRY'D:   have hValueEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreValue hexact hinScopeValue hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
--- SORRY'D:       hruntime
--- SORRY'D:   rw [hoffsetIR] at hOffsetEval
--- SORRY'D:   rw [hvalueIR] at hValueEval
--- SORRY'D:   have hExecStmt :
--- SORRY'D:       execIRStmt (extraFuel + 1) state
--- SORRY'D:         (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])) =
--- SORRY'D:           .continue
--- SORRY'D:             { state with
--- SORRY'D:                 transientStorage := fun o =>
--- SORRY'D:                   if o = offsetNat then valueNat else state.transientStorage o } := by
--- SORRY'D:     simpa [offsetNat, valueNat, execIRStmt, evalIRExprs, hOffsetEval, hValueEval]
--- SORRY'D:   refine ⟨_, _, ?_⟩
--- SORRY'D:   · simp [SourceSemantics.execStmt, offsetNat, valueNat]
--- SORRY'D:   · simpa [compiledIR, execIRStmts, hExecStmt]
--- SORRY'D:   · refine And.intro ?_ <| And.intro ?_ <| And.intro hbounded hscope
--- SORRY'D:     · exact FunctionBody.runtimeStateMatchesIR_setTransientStorage hruntime offsetNat valueNat
--- SORRY'D:     · simpa [FunctionBody.bindingsExactlyMatchIRVarsOnScope] using hexact
+private theorem compiledStmtStep_tstore_single_preserves
+    {fields : List Field}
+    {scope : List String}
+    {offset value : Expr}
+    {offsetIR valueIR : YulExpr}
+    (hcoreOffset : FunctionBody.ExprCompileCore offset)
+    (hinScopeOffset : FunctionBody.exprBoundNamesInScope offset scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hoffsetIR : CompilationModel.compileExpr fields .calldata offset = Except.ok offsetIR)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    ∀ (runtime : SourceSemantics.RuntimeState)
+      (state : IRState)
+      (extraFuel : Nat),
+      FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state →
+      FunctionBody.scopeNamesPresent scope runtime.bindings →
+      FunctionBody.bindingsBounded runtime.bindings →
+      FunctionBody.runtimeStateMatchesIR fields runtime state →
+      sizeOf [YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])] -
+        [YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])].length ≤ extraFuel →
+      ∃ sourceResult irExec,
+        SourceSemantics.execStmt fields runtime (.tstore offset value) = sourceResult ∧
+        execIRStmts
+            ([YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])].length +
+              extraFuel + 1)
+            state
+            [YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])] = irExec ∧
+        stmtStepMatchesIRExec fields
+          (stmtNextScope scope (.tstore offset value))
+          sourceResult
+          irExec := by
+  intro runtime state extraFuel hexact hscope hbounded hruntime hslack
+  let compiledIR := [YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])]
+  have hOffsetEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreOffset hexact hinScopeOffset hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeOffset)
+      hruntime
+  have hValueEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreValue hexact hinScopeValue hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+      hruntime
+  rw [hoffsetIR] at hOffsetEval
+  rw [hvalueIR] at hValueEval
+  simp [Except.toOption] at hOffsetEval hValueEval
+  rcases hIROffset : evalIRExpr state offsetIR with _ | offsetNat
+  · simp [hIROffset, Option.bind] at hOffsetEval
+  · simp [hIROffset, Option.bind] at hOffsetEval
+    rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+    · simp [hIRValue, Option.bind] at hValueEval
+    · simp [hIRValue, Option.bind] at hValueEval
+      have hOffsetSrc : SourceSemantics.evalExpr fields runtime offset = some offsetNat :=
+        hOffsetEval.symm
+      have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+        hValueEval.symm
+      -- Get the modulus bound on valueNat for runtimeStateMatchesIR_setTransientStorage
+      have hValueLt : SourceSemantics.evalExpr fields runtime value < Compiler.Constants.evmModulus :=
+        FunctionBody.evalExpr_lt_evmModulus_core_of_scope
+          hcoreValue hexact hinScopeValue hbounded
+          (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+          hruntime
+      rw [hValueSrc] at hValueLt
+      simp at hValueLt
+      -- Source execution: tstore updates transientStorage
+      set runtime' := {
+        runtime with
+        world := {
+          runtime.world with
+          transientStorage := fun o =>
+            if o = offsetNat then valueNat else runtime.world.transientStorage o
+        }
+      }
+      have hSrcExec : SourceSemantics.execStmt fields runtime
+          (.tstore offset value) = .continue runtime' := by
+        simp [SourceSemantics.execStmt, hOffsetSrc, hValueSrc, runtime']
+      -- IR execution: tstore updates transientStorage
+      set state' := { state with
+          transientStorage := fun o => if o = offsetNat then valueNat else state.transientStorage o }
+      have hExecStmt :
+          execIRStmt (extraFuel + 1) state
+            (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])) =
+              .continue state' := by
+        simp [execIRStmt, evalIRExprs, hIROffset, hIRValue, state']
+      have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
+      have hIRExec : execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
+          .continue state' := by
+        simp [compiledIR, execIRStmts, hfuelEq, hExecStmt]
+      -- Scope inclusion for tstore (same structure as mstore)
+      have hincl : FunctionBody.scopeNamesIncluded
+          (stmtNextScope scope (.tstore offset value)) scope := by
+        intro n hn
+        simp [stmtNextScope, collectStmtNames] at hn
+        rcases hn with ho | hv | hs
+        · exact hinScopeOffset n (collectExprNames_mem_exprBoundNames_of_core hcoreOffset n ho)
+        · exact hinScopeValue n (collectExprNames_mem_exprBoundNames_of_core hcoreValue n hv)
+        · exact hs
+      -- Bindings: getVar only depends on vars, not transientStorage
+      have hexact' : FunctionBody.bindingsExactlyMatchIRVarsOnScope
+          (stmtNextScope scope (.tstore offset value))
+          runtime'.bindings state' :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
+          (by simpa [FunctionBody.bindingsExactlyMatchIRVarsOnScope, state', runtime'] using hexact)
+          hincl
+      have hscope' : FunctionBody.scopeNamesPresent
+          (stmtNextScope scope (.tstore offset value))
+          runtime'.bindings :=
+        FunctionBody.scopeNamesPresent_of_included hscope hincl
+      have hbounded' : FunctionBody.bindingsBounded runtime'.bindings := by
+        simpa [runtime'] using hbounded
+      have hruntime' : FunctionBody.runtimeStateMatchesIR fields runtime' state' :=
+        FunctionBody.runtimeStateMatchesIR_setTransientStorage hruntime offsetNat valueNat hValueLt
+      exact ⟨_, _, hSrcExec, hIRExec,
+        hruntime', hexact', hbounded', hscope'⟩
 
--- TYPESIG_SORRY: theorem compiledStmtStep_tstore_single
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {offset value : Expr}
--- TYPESIG_SORRY:     {offsetIR valueIR : YulExpr}
--- TYPESIG_SORRY:     (hcoreOffset : FunctionBody.ExprCompileCore offset)
--- TYPESIG_SORRY:     (hinScopeOffset : FunctionBody.exprBoundNamesInScope offset scope)
--- TYPESIG_SORRY:     (hcoreValue : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hoffsetIR : CompilationModel.compileExpr fields .calldata offset = Except.ok offsetIR)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.tstore offset value)
--- TYPESIG_SORRY:       [YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, hoffsetIR, hvalueIR]
--- SORRY'D:   preserves := compiledStmtStep_tstore_single_preserves
--- SORRY'D:     hcoreOffset hinScopeOffset hcoreValue hinScopeValue hoffsetIR hvalueIR
+theorem compiledStmtStep_tstore_single
+    {fields : List Field}
+    {scope : List String}
+    {offset value : Expr}
+    {offsetIR valueIR : YulExpr}
+    (hcoreOffset : FunctionBody.ExprCompileCore offset)
+    (hinScopeOffset : FunctionBody.exprBoundNamesInScope offset scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hoffsetIR : CompilationModel.compileExpr fields .calldata offset = Except.ok offsetIR)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.tstore offset value)
+      [YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])] where
+  compileOk := by
+    simp only [CompilationModel.compileStmt, hoffsetIR, hvalueIR]
+    rfl
+  preserves := compiledStmtStep_tstore_single_preserves
+    hcoreOffset hinScopeOffset hcoreValue hinScopeValue hoffsetIR hvalueIR
 
 private theorem compiledStmtStep_setMappingUint_singleSlot_of_slotSafety_preserves
     {fields : List Field}
@@ -8990,19 +9114,20 @@ private theorem stmtListGenericCore_singleton_mstore_single
     (hinScopeOffset : FunctionBody.exprBoundNamesInScope offset scope)
     (hcoreValue : FunctionBody.ExprCompileCore value)
     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope) :
-    StmtListGenericCore fields scope [Stmt.mstore offset value] := by sorry
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreOffset with
--- SORRY'D:     ⟨offsetIR, hoffsetIR⟩
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
--- SORRY'D:     ⟨valueIR, hvalueIR⟩
--- SORRY'D:   refine StmtListGenericCore.cons ?_ StmtListGenericCore.nil
--- SORRY'D:   exact compiledStmtStep_mstore_single
--- SORRY'D:     (hcoreOffset := hcoreOffset)
--- SORRY'D:     (hinScopeOffset := hinScopeOffset)
--- SORRY'D:     (hcoreValue := hcoreValue)
--- SORRY'D:     (hinScopeValue := hinScopeValue)
--- SORRY'D:     (hoffsetIR := hoffsetIR)
--- SORRY'D:     (hvalueIR := hvalueIR)
+    StmtListGenericCore fields scope [Stmt.mstore offset value] := by
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreOffset with
+    ⟨offsetIR, hoffsetIR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+    ⟨valueIR, hvalueIR⟩
+  exact StmtListGenericCore.cons
+    (compiledStmtStep_mstore_single
+      (hcoreOffset := hcoreOffset)
+      (hinScopeOffset := hinScopeOffset)
+      (hcoreValue := hcoreValue)
+      (hinScopeValue := hinScopeValue)
+      (hoffsetIR := hoffsetIR)
+      (hvalueIR := hvalueIR))
+    StmtListGenericCore.nil
 
 private theorem stmtListGenericCore_singleton_tstore_single
     {fields : List Field}
@@ -9012,19 +9137,20 @@ private theorem stmtListGenericCore_singleton_tstore_single
     (hinScopeOffset : FunctionBody.exprBoundNamesInScope offset scope)
     (hcoreValue : FunctionBody.ExprCompileCore value)
     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope) :
-    StmtListGenericCore fields scope [Stmt.tstore offset value] := by sorry
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreOffset with
--- SORRY'D:     ⟨offsetIR, hoffsetIR⟩
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
--- SORRY'D:     ⟨valueIR, hvalueIR⟩
--- SORRY'D:   refine StmtListGenericCore.cons ?_ StmtListGenericCore.nil
--- SORRY'D:   exact compiledStmtStep_tstore_single
--- SORRY'D:     (hcoreOffset := hcoreOffset)
--- SORRY'D:     (hinScopeOffset := hinScopeOffset)
--- SORRY'D:     (hcoreValue := hcoreValue)
--- SORRY'D:     (hinScopeValue := hinScopeValue)
--- SORRY'D:     (hoffsetIR := hoffsetIR)
--- SORRY'D:     (hvalueIR := hvalueIR)
+    StmtListGenericCore fields scope [Stmt.tstore offset value] := by
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreOffset with
+    ⟨offsetIR, hoffsetIR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+    ⟨valueIR, hvalueIR⟩
+  exact StmtListGenericCore.cons
+    (compiledStmtStep_tstore_single
+      (hcoreOffset := hcoreOffset)
+      (hinScopeOffset := hinScopeOffset)
+      (hcoreValue := hcoreValue)
+      (hinScopeValue := hinScopeValue)
+      (hoffsetIR := hoffsetIR)
+      (hvalueIR := hvalueIR))
+    StmtListGenericCore.nil
 
 private theorem stmtListGenericCore_of_requireClausesThenSetStorageLiteral
     {fields : List Field}
