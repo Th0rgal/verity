@@ -11,11 +11,6 @@ open Compiler
 open Compiler.CompilationModel
 open Compiler.Yul
 
-/-- Scope seen by the tail after compiling a single statement. This matches the
-statement-list compiler's `collectStmtNames` update. -/
-def stmtNextScope (scope : List String) (stmt : Stmt) : List String :=
-  collectStmtNames stmt ++ scope
-
 /-- Source names visible to generic statement proofs must stay out of the
 compiler-reserved `__` namespace used by scratch temporaries. -/
 def scopeAvoidsReservedCompilerPrefix (scope : List String) : Prop :=
@@ -10943,6 +10938,27 @@ theorem stmtListGenericCore_append
       simp
       exact StmtListGenericCore.cons hstep (ih hsuffix)
 
+private theorem stmtNextScope_requireLiteralGuardFamilyClause
+    {scope : List String}
+    (clause : Verity.Core.Free.RequireLiteralGuardFamilyClause) :
+    stmtNextScope scope clause.toStmt = scope := by
+  cases clause with
+  | mk family n m p q message =>
+      cases family with
+      | binary guard =>
+          cases guard <;>
+            simp [stmtNextScope,
+              Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt,
+              collectStmtNames, collectExprNames]
+      | andEqLt =>
+          simp [stmtNextScope,
+            Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt,
+            collectStmtNames, collectExprNames]
+      | orEqLt =>
+          simp [stmtNextScope,
+            Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt,
+            collectStmtNames, collectExprNames]
+
 theorem stmtListGenericCore_of_supportedStmtList_of_surface
     {fields : List Field}
     {scope : List String}
@@ -10950,7 +10966,75 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface
     (hnoConflict : firstFieldWriteSlotConflict fields = none)
     (hSupported : SupportedStmtList fields scope stmts)
     (hsurface : stmtListTouchesUnsupportedContractSurface stmts = false) :
-    StmtListGenericCore fields scope stmts := by sorry
+    StmtListGenericCore fields scope stmts := by
+  induction hSupported with
+  | compileCore hcore =>
+      exact stmtListGenericCore_of_stmtListCompileCore hcore
+  | terminalCore hterminal =>
+      exact stmtListGenericCore_of_stmtListTerminalCore hterminal
+  | setStorageSingleSlot hcore hinScope hfind =>
+      exact stmtListGenericCore_of_supportedStmtList_setStorageSingleSlot_of_surface
+        (fields := fields) hnoConflict hfind hcore hinScope
+  | setStorageAddrSingleSlot hcore hinScope hfind =>
+      exact stmtListGenericCore_of_supportedStmtList_setStorageAddrSingleSlot_of_surface
+        (fields := fields) hnoConflict hfind hcore hinScope
+  | mstoreSingle hcoreOffset hinScopeOffset hcoreValue hinScopeValue =>
+      exact stmtListGenericCore_of_supportedStmtList_mstoreSingle_of_surface
+        (fields := fields) hcoreOffset hinScopeOffset hcoreValue hinScopeValue
+  | tstoreSingle hcoreOffset hinScopeOffset hcoreValue hinScopeValue =>
+      exact stmtListGenericCore_of_supportedStmtList_tstoreSingle_of_surface
+        (fields := fields) hcoreOffset hinScopeOffset hcoreValue hinScopeValue
+  | letStorageField hfind =>
+      exact False.elim (false_of_supportedStmtList_letStorageField_surface hsurface)
+  | returnMapping hkey hscope hslot =>
+      exact False.elim (false_of_supportedStmtList_returnMapping_surface hsurface)
+  | letMapping hkey hscope hslot =>
+      exact False.elim (false_of_supportedStmtList_letMapping_surface hsurface)
+  | letMapping2 hkey1 hscope1 hkey2 hscope2 hslot =>
+      exact False.elim (false_of_supportedStmtList_letMapping2_surface hsurface)
+  | letMappingUint hkey hscope hslot =>
+      exact False.elim (false_of_supportedStmtList_letMappingUint_surface hsurface)
+  | setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot =>
+      exact False.elim (false_of_supportedStmtList_setMappingUintSingle_surface hsurface)
+  | setMappingChainSingle hkeys hscopeKeys hvalue hscopeValue hslot =>
+      exact False.elim (false_of_supportedStmtList_setMappingChainSingle_surface hsurface)
+  | setMappingSingle hkey hscopeKey hvalue hscopeValue hslot =>
+      exact False.elim (false_of_supportedStmtList_setMappingSingle_surface hsurface)
+  | setMappingWordSingle hkey hscopeKey hvalue hscopeValue hslot =>
+      exact False.elim (false_of_supportedStmtList_setMappingWordSingle_surface hsurface)
+  | setMappingPackedWordSingle hkey hscopeKey hvalue hscopeValue
+      hcompatValue hcompatPacked hcompatSlotWord hcompatSlotCleared hpacked hslot =>
+      exact False.elim (false_of_supportedStmtList_setMappingPackedWordSingle_surface hsurface)
+  | setStructMemberSingle hkey hscopeKey hvalue hscopeValue hslot hmembers hmember =>
+      exact False.elim (false_of_supportedStmtList_setStructMemberSingle_surface hsurface)
+  | setMapping2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot =>
+      exact False.elim (false_of_supportedStmtList_setMapping2Single_surface hsurface)
+  | setMapping2WordSingle hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot =>
+      exact False.elim (false_of_supportedStmtList_setMapping2WordSingle_surface hsurface)
+  | setStructMember2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot hmembers hmember =>
+      exact False.elim (false_of_supportedStmtList_setStructMember2Single_surface hsurface)
+  | rawLogLiterals htopics =>
+      exact False.elim (false_of_supportedStmtList_rawLogLiterals_surface hsurface)
+  | letCallerLetStorageReqEqReqNeqSetStorageParamStop hOwner hne_sv_p hne_ov_p hne_ov_sv =>
+      exact False.elim
+        (false_of_supportedStmtList_letCallerLetStorageReqEqReqNeqSetStorageParamStop_surface
+          hsurface)
+  | letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop
+      hOwner hTarget hne_sv_p hne_ov_p hne_ov_sv hne_tv_p hne_tv_sv hne_tv_ov =>
+      exact False.elim
+        (false_of_supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop_surface
+          hsurface)
+  | requireClause clause _ ih =>
+      simp [stmtListTouchesUnsupportedContractSurface] at hsurface
+      apply stmtListGenericCore_append
+        (stmtListGenericCore_singleton_requireLiteralGuardFamilyClause clause)
+      simp only [List.foldl, stmtNextScope_requireLiteralGuardFamilyClause clause]
+      exact ih hsurface.2
+  | ite _ _ _ _ _ _ =>
+      exact False.elim (false_of_supportedStmtList_ite_list_surface hsurface)
+  | append _ _ ihPrefix ihSuffix =>
+      simp only [stmtListTouchesUnsupportedContractSurface_append, Bool.or_eq_false_iff] at hsurface
+      exact stmtListGenericCore_append (ihPrefix hsurface.1) (ihSuffix hsurface.2)
 
 -- TYPESIG_SORRY: theorem stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites
 -- TYPESIG_SORRY:     {fields : List Field}

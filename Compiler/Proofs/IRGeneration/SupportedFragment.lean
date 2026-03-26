@@ -17,6 +17,11 @@ open Compiler
 open Compiler.CompilationModel
 open Verity.Core.Free
 
+/-- Scope seen by the tail after compiling a single statement. This matches the
+statement-list compiler's `collectStmtNames` update. -/
+def stmtNextScope (scope : List String) (stmt : Stmt) : List String :=
+  collectStmtNames stmt ++ scope
+
 /-- Proof-layer compositional witness for supported statement lists.
 
 The witness is scoped because the generic compile-core grammars track local name

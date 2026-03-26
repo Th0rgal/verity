@@ -1993,7 +1993,7 @@ theorem SupportedStmtList.helperSurfaceClosed
         exprCompileCore_helperSurfaceClosed hcond,
         ihThen, ihElse,
         Bool.or_false, Bool.false_or]
-  | @append _ _ pfx sfx _ _ ihPfx ihSfx =>
+  | @append _ pfx sfx _ _ ihPfx ihSfx =>
       suffices h : ∀ (xs ys : List Stmt),
           stmtListTouchesUnsupportedHelperSurface xs = false →
           stmtListTouchesUnsupportedHelperSurface ys = false →
@@ -2171,7 +2171,7 @@ theorem SupportedStmtList.internalHelperCallNames_nil
         stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hcond,
         ihThen, ihElse, List.nil_append, List.append_nil]
-  | @append _ _ pfx sfx _ _ ihPfx ihSfx =>
+  | @append _ pfx sfx _ _ ihPfx ihSfx =>
       suffices h : ∀ (xs ys : List Stmt),
           stmtListInternalHelperCallNames xs = [] →
           stmtListInternalHelperCallNames ys = [] →
@@ -3618,7 +3618,7 @@ private theorem supportedStmtList_usesArrayElement_false
   | ite hcond _ _ _ ihThen ihElse =>
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
         exprCompileCore_usesArrayElement_false hcond, ihThen, ihElse, Bool.false_or]
-  | @append _ _ pfx sfx _ _ ihPfx ihSfx =>
+  | @append _ pfx sfx _ _ ihPfx ihSfx =>
       rw [stmtListUsesArrayElement_append, ihPfx, ihSfx]
       simp
 
@@ -3732,7 +3732,7 @@ private theorem supportedStmtList_usesStorageArrayElement_false
   | ite hcond _ _ _ ihThen ihElse =>
       simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false hcond, ihThen, ihElse, Bool.false_or]
-  | @append _ _ pfx sfx _ _ ihPfx ihSfx =>
+  | @append _ pfx sfx _ _ ihPfx ihSfx =>
       rw [stmtListUsesStorageArrayElement_append, ihPfx, ihSfx]
       simp
 
@@ -3845,7 +3845,7 @@ private theorem supportedStmtList_usesDynamicBytesEq_false
   | ite hcond _ _ _ ihThen ihElse =>
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hcond, ihThen, ihElse, Bool.false_or]
-  | @append _ _ pfx sfx _ _ ihPfx ihSfx =>
+  | @append _ pfx sfx _ _ ihPfx ihSfx =>
       rw [stmtListUsesDynamicBytesEq_append, ihPfx, ihSfx]
       simp
 
