@@ -11276,7 +11276,431 @@ theorem exec_compileStmtList_terminal_core_sizeOf_extraFuel
       let sourceResult := SourceSemantics.execStmtList fields runtime stmts
       let irExec := execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec := by
-  sorry
+  induction hterminal generalizing extraFuel runtime state inScopeNames with
+  | letVar hvalue hinScope hrest ih =>
+      rename_i scope name value rest
+      have hpresent : exprBoundNamesPresent value runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScope
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      have heval := eval_compileExpr_core_of_scope hvalue hexact hinScope hbounded hpresent hruntime
+      rw [hvalueIR] at heval; simp [Except.toOption] at heval
+      rcases hIR : evalIRExpr state valueIR with _ | valueNat
+      · simp [hIR, Option.bind] at heval
+      · simp [hIR, Option.bind] at heval
+        have hEvalSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+          heval.symm
+        let runtime' :=
+          { runtime with bindings := SourceSemantics.bindValue runtime.bindings name valueNat }
+        let state' := state.setVar name valueNat
+        have hvalueLt := evalExpr_lt_evmModulus_core_of_scope hvalue hexact hinScope hbounded hpresent hruntime
+        rw [hEvalSrc] at hvalueLt; simp at hvalueLt
+        have hruntime' : runtimeStateMatchesIR fields runtime' state' :=
+          runtimeStateMatchesIR_setVar_bindValue hruntime name valueNat
+        have hexact' : bindingsExactlyMatchIRVarsOnScope (name :: scope) runtime'.bindings state' :=
+          bindingsExactlyMatchIRVarsOnScope_setVar_bindValue hexact
+        have hbounded' : bindingsBounded runtime'.bindings :=
+          bindingsBounded_bindValue hbounded name valueNat hvalueLt
+        have hscope' : scopeNamesPresent (name :: scope) runtime'.bindings :=
+          scopeNamesPresent_cons_bindValue hscope
+        have hincluded' : scopeNamesIncluded (name :: scope)
+            (collectStmtNames (.letVar name value) ++ inScopeNames) :=
+          scopeNamesIncluded_collectStmtNames_letVar hincluded
+        rcases ih (extraFuel + sizeOf (YulStmt.let_ name valueIR))
+            (runtime := runtime') (state := state')
+            (inScopeNames := collectStmtNames (.letVar name value) ++ inScopeNames)
+            hincluded' hscope' hexact' hbounded' hruntime' with
+          ⟨tailIR, htailCompile, htailSem⟩
+        refine ⟨[YulStmt.let_ name valueIR] ++ tailIR, ?_, ?_⟩
+        · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+          rw [hvalueIR]
+          simp [htailCompile]
+          exact rfl
+        · have hstmt :
+              execIRStmt (sizeOf ([YulStmt.let_ name valueIR] ++ tailIR) + extraFuel) state
+                (YulStmt.let_ name valueIR) = .continue state' :=
+            execIRStmt_let_of_eval_nonzeroFuel
+              (sizeOf ([YulStmt.let_ name valueIR] ++ tailIR) + extraFuel) state name valueIR valueNat
+              (sizeOf_singleton_append_extraFuel_ne_zero _ _ _)
+              hIR
+          have hirExec :=
+            execIRStmts_singleton_append_of_execIRStmt_continue_wholeFuel
+              extraFuel state state' (YulStmt.let_ name valueIR) tailIR hstmt
+          -- hirExec : execIRStmts (sizeOf ([let_ ...] ++ tailIR) + extraFuel + 1) state ([let_ ...] ++ tailIR) =
+          --   execIRStmts (sizeOf ([let_ ...] ++ tailIR) + extraFuel) state' tailIR
+          -- htailSem has fuel sizeOf tailIR + (extraFuel + sizeOf (let_ ...)) + 1
+          -- which equals sizeOf ([let_ ...] ++ tailIR) + extraFuel by List sizeOf arithmetic
+          simp only [SourceSemantics.execStmtList, SourceSemantics.execStmt, hEvalSrc, hirExec]
+          dsimp [runtime', state']
+          convert htailSem using 2
+          simp
+          omega
+  | assignVar hvalue hinScope hrest ih =>
+      rename_i scope name value rest
+      have hpresent : exprBoundNamesPresent value runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScope
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      have heval := eval_compileExpr_core_of_scope hvalue hexact hinScope hbounded hpresent hruntime
+      rw [hvalueIR] at heval; simp [Except.toOption] at heval
+      rcases hIR : evalIRExpr state valueIR with _ | valueNat
+      · simp [hIR, Option.bind] at heval
+      · simp [hIR, Option.bind] at heval
+        have hEvalSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+          heval.symm
+        let runtime' :=
+          { runtime with bindings := SourceSemantics.bindValue runtime.bindings name valueNat }
+        let state' := state.setVar name valueNat
+        have hvalueLt := evalExpr_lt_evmModulus_core_of_scope hvalue hexact hinScope hbounded hpresent hruntime
+        rw [hEvalSrc] at hvalueLt; simp at hvalueLt
+        have hruntime' : runtimeStateMatchesIR fields runtime' state' :=
+          runtimeStateMatchesIR_setVar_bindValue hruntime name valueNat
+        have hexact' : bindingsExactlyMatchIRVarsOnScope (name :: scope) runtime'.bindings state' :=
+          bindingsExactlyMatchIRVarsOnScope_setVar_bindValue hexact
+        have hbounded' : bindingsBounded runtime'.bindings :=
+          bindingsBounded_bindValue hbounded name valueNat hvalueLt
+        have hscope' : scopeNamesPresent (name :: scope) runtime'.bindings :=
+          scopeNamesPresent_cons_bindValue hscope
+        have hincluded' : scopeNamesIncluded (name :: scope)
+            (collectStmtNames (.assignVar name value) ++ inScopeNames) :=
+          scopeNamesIncluded_collectStmtNames_assignVar hincluded
+        rcases ih (extraFuel + sizeOf (YulStmt.assign name valueIR))
+            (runtime := runtime') (state := state')
+            (inScopeNames := collectStmtNames (.assignVar name value) ++ inScopeNames)
+            hincluded' hscope' hexact' hbounded' hruntime' with
+          ⟨tailIR, htailCompile, htailSem⟩
+        refine ⟨[YulStmt.assign name valueIR] ++ tailIR, ?_, ?_⟩
+        · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+          rw [hvalueIR]
+          simp [htailCompile]
+          exact rfl
+        · have hstmt :
+              execIRStmt (sizeOf ([YulStmt.assign name valueIR] ++ tailIR) + extraFuel) state
+                (YulStmt.assign name valueIR) = .continue state' :=
+            execIRStmt_assign_of_eval_nonzeroFuel
+              (sizeOf ([YulStmt.assign name valueIR] ++ tailIR) + extraFuel) state name valueIR valueNat
+              (sizeOf_singleton_append_extraFuel_ne_zero _ _ _)
+              hIR
+          have hirExec :=
+            execIRStmts_singleton_append_of_execIRStmt_continue_wholeFuel
+              extraFuel state state' (YulStmt.assign name valueIR) tailIR hstmt
+          simp only [SourceSemantics.execStmtList, SourceSemantics.execStmt, hEvalSrc, hirExec]
+          dsimp [runtime', state']
+          convert htailSem using 2
+          simp
+          omega
+  | require_ hcond hinScope hrest ih =>
+      rename_i scope cond message rest
+      have hpresent : exprBoundNamesPresent cond runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScope
+      rcases compileExpr_core_ok hcond with ⟨condIR, hcondIR⟩
+      have hCondEval := eval_compileExpr_core_of_scope hcond hexact hinScope hbounded hpresent hruntime
+      rw [hcondIR] at hCondEval; simp [Except.toOption] at hCondEval
+      rcases hCondIRVal : evalIRExpr state condIR with _ | condVal
+      · simp [hCondIRVal, Option.bind] at hCondEval
+      · simp [hCondIRVal, Option.bind] at hCondEval
+        have hCondSrc : SourceSemantics.evalExpr fields runtime cond = some condVal :=
+          hCondEval.symm
+        rcases eval_compileRequireFailCond_core_of_scope hcond hexact hinScope
+            hbounded hpresent hruntime with
+          ⟨failCond, hfailCompile, hfailEval⟩
+        have hincluded' : scopeNamesIncluded scope
+            (collectStmtNames (.require cond message) ++ inScopeNames) :=
+          scopeNamesIncluded_collectStmtNames_tail hincluded
+        rcases ih (extraFuel + sizeOf (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)))
+            (runtime := runtime) (state := state)
+            (inScopeNames := collectStmtNames (.require cond message) ++ inScopeNames)
+            hincluded' hscope hexact hbounded hruntime with
+          ⟨tailIR, htailCompile, htailSem⟩
+        refine ⟨[YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR,
+          ?_, ?_⟩
+        · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+          rw [hfailCompile]
+          simp [htailCompile]
+          exact rfl
+        · by_cases hzero : condVal = 0
+          · -- condVal = 0 → require fails → revert
+            have hfailEval' : evalIRExpr state failCond = some 1 := by
+              rw [hCondSrc, hzero] at hfailEval
+              simpa [SourceSemantics.boolWord] using hfailEval
+            have hfuelNe : sizeOf ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR) + extraFuel ≠ 0 :=
+              sizeOf_singleton_append_extraFuel_ne_zero _ _ _
+            -- if_ with true cond steps into the body
+            have hIfStep :=
+              execIRStmt_if_true_of_eval_nonzeroFuel
+                (sizeOf ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR) + extraFuel)
+                state failCond (CompilationModel.revertWithMessage message) 1
+                hfuelNe hfailEval' (by omega)
+            rcases execIRStmts_revertWithMessage_revert
+                (fuel :=
+                  sizeOf ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR) + extraFuel - 1)
+                (state := state) message with
+              ⟨revState, hrev⟩
+            have hstmt :
+                execIRStmt
+                  (sizeOf ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR) + extraFuel)
+                  state
+                  (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) =
+                    .revert revState := by
+              rw [hIfStep, hrev]
+            have hirExec :=
+              execIRStmts_singleton_append_of_execIRStmt_revert_wholeFuel
+                extraFuel state revState
+                (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) tailIR
+                hstmt
+            simp only [SourceSemantics.execStmtList, SourceSemantics.execStmt, hCondSrc,
+              show condVal = 0 from hzero, ite_true]
+            rw [hirExec]
+            simp [stmtResultMatchesIRExec]
+          · -- condVal ≠ 0 → require passes → continue
+            have hfailEval' : evalIRExpr state failCond = some 0 := by
+              have : SourceSemantics.evalExpr fields runtime cond ≠ some 0 := by
+                rw [hCondSrc]; simp [hzero]
+              simpa [this, SourceSemantics.boolWord] using hfailEval
+            have hfuelNe : sizeOf ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR) + extraFuel ≠ 0 :=
+              sizeOf_singleton_append_extraFuel_ne_zero _ _ _
+            have hstmt :
+                execIRStmt
+                  (sizeOf ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR) + extraFuel)
+                  state
+                  (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) =
+                    .continue state :=
+              execIRStmt_if_false_of_eval_nonzeroFuel
+                (sizeOf ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR) + extraFuel)
+                state failCond (CompilationModel.revertWithMessage message) 0
+                hfuelNe hfailEval' rfl
+            have hirExec :=
+              execIRStmts_singleton_append_of_execIRStmt_continue_wholeFuel
+                extraFuel state state
+                (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) tailIR
+                hstmt
+            simp only [SourceSemantics.execStmtList, SourceSemantics.execStmt, hCondSrc, hirExec]
+            simp [hzero]
+            convert htailSem using 2
+            simp
+            omega
+  | return_ hvalue hinScope hrest =>
+      rename_i scope value rest
+      have hpresent : exprBoundNamesPresent value runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScope
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      rcases compileStmtList_core_ok (fields := fields) (inScopeNames := collectStmtNames (.return value) ++ inScopeNames) hrest with
+        ⟨tailIR, htailCompile⟩
+      refine ⟨[ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+              , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++ tailIR,
+        ?_, ?_⟩
+      · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+        rw [hvalueIR]
+        simp [htailCompile]
+        exact rfl
+      · exact stmtResultMatchesIRExec_compiled_return_core_append_wholeFuel_of_scope
+          hvalue hvalueIR hexact hinScope hscope hbounded hruntime
+  | stop hrest =>
+      rename_i scope rest
+      rcases compileStmtList_core_ok (fields := fields) (inScopeNames := collectStmtNames (.stop) ++ inScopeNames) hrest with
+        ⟨tailIR, htailCompile⟩
+      refine ⟨[YulStmt.expr (YulExpr.call "stop" [])] ++ tailIR, ?_, ?_⟩
+      · simpa [CompilationModel.compileStmtList, CompilationModel.compileStmt, htailCompile]
+      · exact stmtResultMatchesIRExec_compiled_stop_core_append_wholeFuel hruntime
+  | ite hcond hinScope hthen helse hrest ih_then ih_else =>
+      rename_i scope cond thenBranch elseBranch rest
+      have hpresent : exprBoundNamesPresent cond runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScope
+      rcases compileExpr_core_ok hcond with ⟨condIR, hcondIR⟩
+      rcases compileStmtList_terminal_core_ok (fields := fields)
+          (inScopeNames := inScopeNames) hthen with
+        ⟨thenIR, hthenIR⟩
+      rcases compileStmtList_terminal_core_ok (fields := fields)
+          (inScopeNames := inScopeNames) helse with
+        ⟨elseIR, helseIR⟩
+      rcases compileStmtList_core_ok (fields := fields)
+          (inScopeNames := collectStmtNames (.ite cond thenBranch elseBranch) ++ inScopeNames) hrest with
+        ⟨tailIR, htailIR⟩
+      have helseNonempty : elseBranch.isEmpty = false := by
+        cases elseBranch with
+        | nil => exfalso; exact stmtListTerminalCore_ne_nil helse rfl
+        | cons => simp
+      let tempName :=
+        CompilationModel.pickFreshName "__ite_cond"
+          (inScopeNames ++ collectExprNames cond ++
+            collectStmtListNames thenBranch ++ collectStmtListNames elseBranch)
+      refine ⟨[YulStmt.block
+        [ YulStmt.let_ tempName condIR
+        , YulStmt.if_ (YulExpr.ident tempName) thenIR
+        , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR ]] ++ tailIR,
+        ?_, ?_⟩
+      · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+        rw [hcondIR, hthenIR, helseIR]
+        simp [helseNonempty, htailIR, tempName]
+        exact rfl
+      · -- Evaluate the condition
+        have hCondEval := eval_compileExpr_core_of_scope hcond hexact hinScope hbounded hpresent hruntime
+        rw [hcondIR] at hCondEval; simp [Except.toOption] at hCondEval
+        rcases hCondIRVal : evalIRExpr state condIR with _ | condVal
+        · simp [hCondIRVal, Option.bind] at hCondEval
+        · simp [hCondIRVal, Option.bind] at hCondEval
+          have hCondSrc : SourceSemantics.evalExpr fields runtime cond = some condVal :=
+            hCondEval.symm
+          have hexact' : bindingsExactlyMatchIRVarsOnScope scope runtime.bindings
+              (state.setVar tempName condVal) :=
+            bindingsExactlyMatchIRVarsOnScope_setCompiledTerminalIteTemp_irrelevant hexact hincluded
+          by_cases hcondZero : condVal = 0
+          · -- Condition is false → take else branch
+            rcases ih_else (extraFuel +
+                sizeOf (YulStmt.let_ tempName condIR) +
+                sizeOf (YulStmt.if_ (YulExpr.ident tempName) thenIR) +
+                sizeOf (YulExpr.call "iszero" [YulExpr.ident tempName]) +
+                sizeOf tailIR + 1)
+                (runtime := runtime) (state := state.setVar tempName condVal)
+                (inScopeNames := inScopeNames)
+                hincluded hscope hexact' hbounded hruntime with
+              ⟨elseIR', helseCompile', helseSem⟩
+            have helseEq : elseIR' = elseIR := by
+              have := helseCompile'; rw [helseIR] at this; exact (Except.ok.inj this).symm
+            rw [helseEq] at helseSem
+            -- Prove fuel equality to convert IH fuel into helper's expected fuel
+            have hfuelEq : sizeOf elseIR +
+                  (extraFuel +
+                    sizeOf (YulStmt.let_ tempName condIR) +
+                    sizeOf (YulStmt.if_ (YulExpr.ident tempName) thenIR) +
+                    sizeOf (YulExpr.call "iszero" [YulExpr.ident tempName]) +
+                    sizeOf tailIR + 1) + 1 =
+                sizeOf elseIR +
+                  (sizeOf
+                    ([YulStmt.block
+                        [ YulStmt.let_ tempName condIR
+                        , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                        , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR
+                        ]] ++ tailIR) -
+                    (sizeOf elseIR + 5) + extraFuel) := by
+              simp only [List.singleton_append]
+              have hinner : sizeOf (YulStmt.block
+                      [ YulStmt.let_ tempName condIR
+                      , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                      , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR
+                      ] :: tailIR) -
+                    (sizeOf elseIR + 5) =
+                  sizeOf (YulStmt.let_ tempName condIR) +
+                  sizeOf (YulStmt.if_ (YulExpr.ident tempName) thenIR) +
+                  sizeOf (YulExpr.call "iszero" [YulExpr.ident tempName]) +
+                  sizeOf tailIR + 2 := by
+                simp only [List.cons.sizeOf_spec, List.nil.sizeOf_spec,
+                  YulStmt.block.sizeOf_spec, YulStmt.if_.sizeOf_spec,
+                  YulStmt.let_.sizeOf_spec,
+                  YulExpr.call.sizeOf_spec, YulExpr.ident.sizeOf_spec]
+                omega
+              rw [hinner]
+              omega
+            rw [show execIRStmts
+                  (sizeOf elseIR +
+                    (extraFuel +
+                      sizeOf (YulStmt.let_ tempName condIR) +
+                      sizeOf (YulStmt.if_ (YulExpr.ident tempName) thenIR) +
+                      sizeOf (YulExpr.call "iszero" [YulExpr.ident tempName]) +
+                      sizeOf tailIR + 1) + 1)
+                  (state.setVar tempName condVal) elseIR =
+                execIRStmts
+                  (sizeOf elseIR +
+                    (sizeOf
+                      ([YulStmt.block
+                          [ YulStmt.let_ tempName condIR
+                          , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                          , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR
+                          ]] ++ tailIR) -
+                      (sizeOf elseIR + 5) + extraFuel))
+                  (state.setVar tempName condVal) elseIR from by
+              rw [hfuelEq]] at helseSem
+            exact stmtResultMatchesIRExec_compiled_terminal_ite_else
+              (scope := scope)
+              (rest := rest)
+              (tempName := tempName)
+              (condIR := condIR)
+              (thenIR := thenIR)
+              (tailIR := tailIR)
+              helse helseSem hCondSrc
+              (by simp [hcondZero])
+              hCondIRVal hcondZero rfl
+          · -- Condition is true → take then branch
+            rcases ih_then (extraFuel +
+                sizeOf (YulStmt.let_ tempName condIR) +
+                sizeOf (YulExpr.ident tempName) +
+                sizeOf (YulStmt.if_
+                    (YulExpr.call "iszero" [YulExpr.ident tempName])
+                    elseIR) +
+                sizeOf tailIR + 2)
+                (runtime := runtime) (state := state.setVar tempName condVal)
+                (inScopeNames := inScopeNames)
+                hincluded hscope hexact' hbounded hruntime with
+              ⟨thenIR', hthenCompile', hthenSem⟩
+            have hthenEq : thenIR' = thenIR := by
+              have := hthenCompile'; rw [hthenIR] at this; exact (Except.ok.inj this).symm
+            rw [hthenEq] at hthenSem
+            -- Prove fuel equality to convert IH fuel into helper's expected fuel
+            have hfuelEq : sizeOf thenIR +
+                  (extraFuel +
+                    sizeOf (YulStmt.let_ tempName condIR) +
+                    sizeOf (YulExpr.ident tempName) +
+                    sizeOf (YulStmt.if_
+                        (YulExpr.call "iszero" [YulExpr.ident tempName])
+                        elseIR) +
+                    sizeOf tailIR + 2) + 1 =
+                sizeOf thenIR +
+                  (sizeOf
+                    ([YulStmt.block
+                        [ YulStmt.let_ tempName condIR
+                        , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                        , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR
+                        ]] ++ tailIR) -
+                    (sizeOf thenIR + 5) + extraFuel) + 1 := by
+              simp only [List.singleton_append]
+              have hinner : sizeOf (YulStmt.block
+                      [ YulStmt.let_ tempName condIR
+                      , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                      , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR
+                      ] :: tailIR) -
+                    (sizeOf thenIR + 5) =
+                  sizeOf (YulStmt.let_ tempName condIR) +
+                  sizeOf (YulExpr.ident tempName) +
+                  sizeOf (YulStmt.if_
+                      (YulExpr.call "iszero" [YulExpr.ident tempName])
+                      elseIR) +
+                  sizeOf tailIR + 2 := by
+                simp only [List.cons.sizeOf_spec, List.nil.sizeOf_spec,
+                  YulStmt.block.sizeOf_spec, YulStmt.if_.sizeOf_spec,
+                  YulStmt.let_.sizeOf_spec,
+                  YulExpr.call.sizeOf_spec, YulExpr.ident.sizeOf_spec]
+                omega
+              rw [hinner]
+              omega
+            rw [show execIRStmts
+                  (sizeOf thenIR +
+                    (extraFuel +
+                      sizeOf (YulStmt.let_ tempName condIR) +
+                      sizeOf (YulExpr.ident tempName) +
+                      sizeOf (YulStmt.if_
+                          (YulExpr.call "iszero" [YulExpr.ident tempName])
+                          elseIR) +
+                      sizeOf tailIR + 2) + 1)
+                  (state.setVar tempName condVal) thenIR =
+                execIRStmts
+                  (sizeOf thenIR +
+                    (sizeOf
+                      ([YulStmt.block
+                          [ YulStmt.let_ tempName condIR
+                          , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                          , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR
+                          ]] ++ tailIR) -
+                      (sizeOf thenIR + 5) + extraFuel) + 1)
+                  (state.setVar tempName condVal) thenIR from by
+              rw [hfuelEq]] at hthenSem
+            exact stmtResultMatchesIRExec_compiled_terminal_ite_then
+              (scope := scope)
+              (rest := rest)
+              (tempName := tempName)
+              (condIR := condIR)
+              (elseIR := elseIR)
+              (tailIR := tailIR)
+              hthen hthenSem hCondSrc
+              (by simp [hcondZero])
+              hCondIRVal hcondZero rfl
 
 def irResultOfExecResult (rollback : IRState) : IRExecResult → IRResult
   | .continue s =>
