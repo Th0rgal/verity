@@ -100,7 +100,7 @@ runs:
         if [ -x "$HOME/.elan/bin/elan" ]; then
           exit 0
         fi
-        curl -sSfL "https://raw.githubusercontent.com/leanprover/elan/${ELAN_VERSION}/elan-init.sh" -o elan-init.sh
+        curl -sSfL --retry 3 --retry-delay 5 "https://raw.githubusercontent.com/leanprover/elan/${ELAN_VERSION}/elan-init.sh" -o elan-init.sh
         echo "${ELAN_INIT_SHA256}  elan-init.sh" | sha256sum -c -
         bash elan-init.sh -y --default-toolchain none
         rm elan-init.sh

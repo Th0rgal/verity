@@ -530,6 +530,23 @@ ALLOWLIST: set[str] = {
     "execStmtList_terminal_core_ite_else_eq",
     "SupportedBodyInterface.helperFreeStepInterface",
     "legacyCompatibleExternalStmtList_of_compileSetStructMember2_ok",
+    # PR #1670 sorry-reduction pass 5 — transient-storage and memory-write
+    # singleton bridges: mechanical compiled-step proofs that thread the
+    # tstore/mstore IR evaluation witnesses through the generic induction
+    # interface; line count comes from spelling out the concrete compiled
+    # block shape, not from proof complexity.
+    "compiledStmtStep_tstore_single_preserves",
+    "compiledStmtStep_mstore_single_preserves",
+    "stmtListGenericCore_singleton_tstore_single",
+    "stmtListGenericCore_of_supportedStmtList_tstoreSingle_of_surface",
+    # PR #1670 — struct-member-2 singleton slot-safety bridge without the
+    # `_preserves` suffix: mirrors the existing `_preserves` variant but
+    # packages the slot-safety witness into the generic body interface.
+    "compiledStmtStep_setStructMember2_singleSlot_of_slotSafety",
+    # PR #1670 — FunctionBody aux lemma for compileStmt_ok under any scope:
+    # long due to explicit scope-discipline threading through the full
+    # compiled statement list; decomposition is follow-up cleanup.
+    "compileStmt_ok_any_scope_aux",
 }
 
 # Directories containing proof files to scan.
