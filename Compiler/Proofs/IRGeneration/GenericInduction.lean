@@ -9562,19 +9562,20 @@ private theorem stmtListGenericCore_singleton_tstore_single
 
 -- TYPESIG_SORRY: private theorem stmtListGenericCore_of_supportedStmtList_append_of_surface
 -- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope prefix suffix : List Stmt}
--- TYPESIG_SORRY:     (hprefix : SupportedStmtList fields scope prefix)
--- TYPESIG_SORRY:     (hsuffix : SupportedStmtList fields (List.foldl stmtNextScope scope prefix) suffix)
--- TYPESIG_SORRY:     (ihPrefix : stmtListTouchesUnsupportedContractSurface prefix = false →
--- TYPESIG_SORRY:       StmtListGenericCore fields scope prefix)
--- TYPESIG_SORRY:     (ihSuffix : stmtListTouchesUnsupportedContractSurface suffix = false →
--- TYPESIG_SORRY:       StmtListGenericCore fields (List.foldl stmtNextScope scope prefix) suffix)
+-- TYPESIG_SORRY:     {scope : List String}
+-- TYPESIG_SORRY:     {«prefix» «suffix» : List Stmt}
+-- TYPESIG_SORRY:     (_hprefix : SupportedStmtList fields scope «prefix»)
+-- TYPESIG_SORRY:     (_hsuffix : SupportedStmtList fields (List.foldl stmtNextScope scope «prefix») «suffix»)
+-- TYPESIG_SORRY:     (ihPrefix : stmtListTouchesUnsupportedContractSurface «prefix» = false →
+-- TYPESIG_SORRY:       StmtListGenericCore fields scope «prefix»)
+-- TYPESIG_SORRY:     (ihSuffix : stmtListTouchesUnsupportedContractSurface «suffix» = false →
+-- TYPESIG_SORRY:       StmtListGenericCore fields (List.foldl stmtNextScope scope «prefix») «suffix»)
 -- TYPESIG_SORRY:     (hsurface :
--- TYPESIG_SORRY:       stmtListTouchesUnsupportedContractSurface (prefix ++ suffix) = false) :
--- TYPESIG_SORRY:     StmtListGenericCore fields scope (prefix ++ suffix) := by sorry
+-- TYPESIG_SORRY:       stmtListTouchesUnsupportedContractSurface («prefix» ++ «suffix») = false) :
+-- TYPESIG_SORRY:     StmtListGenericCore fields scope («prefix» ++ «suffix») := by sorry
 -- SORRY'D:   have hsplit :
--- SORRY'D:       stmtListTouchesUnsupportedContractSurface prefix ||
--- SORRY'D:         stmtListTouchesUnsupportedContractSurface suffix = false := by
+-- SORRY'D:       stmtListTouchesUnsupportedContractSurface «prefix» ||
+-- SORRY'D:         stmtListTouchesUnsupportedContractSurface «suffix» = false := by
 -- SORRY'D:     simpa [stmtListTouchesUnsupportedContractSurface_append] using hsurface
 -- SORRY'D:   exact stmtListGenericCore_append
 -- SORRY'D:     (ihPrefix (Bool.or_eq_false.mp hsplit).1)
@@ -9584,7 +9585,7 @@ private theorem stmtListGenericCore_singleton_tstore_single
 -- TYPESIG_SORRY:     {fields : List Field}
 -- TYPESIG_SORRY:     {scope : List String}
 -- TYPESIG_SORRY:     {rest : List Stmt}
--- TYPESIG_SORRY:     (clause : RequireLiteralGuardFamilyClause)
+-- TYPESIG_SORRY:     (clause : Verity.Core.Free.RequireLiteralGuardFamilyClause)
 -- TYPESIG_SORRY:     (ihRest : stmtListTouchesUnsupportedContractSurface rest = false →
 -- TYPESIG_SORRY:       StmtListGenericCore fields scope rest)
 -- TYPESIG_SORRY:     (hsurface :
@@ -11753,7 +11754,21 @@ theorem compileStmtList_ok_of_stmtListGenericCore
     (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by sorry
+        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by
+  induction hgeneric generalizing inScopeNames with
+  | nil => exact ⟨[], rfl⟩
+  | cons hstep _hrest ih =>
+      rcases FunctionBody.compileStmt_ok_any_scope
+        (scope2 := inScopeNames) ⟨_, hstep.compileOk⟩ with ⟨headIR, hhead⟩
+      rcases ih (inScopeNames := collectStmtNames _ ++ inScopeNames)
+          (by intro name hmem
+              simp [stmtNextScope] at hmem
+              rcases hmem with h | h
+              · exact List.mem_append_left _ h
+              · exact List.mem_append_right _ (hincluded name h))
+        with ⟨tailIR, htail⟩
+      exact ⟨headIR ++ tailIR,
+        FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok hhead htail⟩
 
 theorem compileStmtList_ok_of_stmtListGenericWithHelpers
     {spec : CompilationModel}
@@ -11764,7 +11779,21 @@ theorem compileStmtList_ok_of_stmtListGenericWithHelpers
     (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by sorry
+        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by
+  induction hgeneric generalizing inScopeNames with
+  | nil => exact ⟨[], rfl⟩
+  | cons hstep _hrest ih =>
+      rcases FunctionBody.compileStmt_ok_any_scope
+        (scope2 := inScopeNames) ⟨_, hstep.compileOk⟩ with ⟨headIR, hhead⟩
+      rcases ih (inScopeNames := collectStmtNames _ ++ inScopeNames)
+          (by intro name hmem
+              simp [stmtNextScope] at hmem
+              rcases hmem with h | h
+              · exact List.mem_append_left _ h
+              · exact List.mem_append_right _ (hincluded name h))
+        with ⟨tailIR, htail⟩
+      exact ⟨headIR ++ tailIR,
+        FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok hhead htail⟩
 
 theorem compileStmtList_ok_of_stmtListGenericWithHelpersAndHelperIR
     {runtimeContract : IRContract}
@@ -11777,7 +11806,21 @@ theorem compileStmtList_ok_of_stmtListGenericWithHelpersAndHelperIR
     (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by sorry
+        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by
+  induction hgeneric generalizing inScopeNames with
+  | nil => exact ⟨[], rfl⟩
+  | cons hstep _hrest ih =>
+      rcases FunctionBody.compileStmt_ok_any_scope
+        (scope2 := inScopeNames) ⟨_, hstep.compileOk⟩ with ⟨headIR, hhead⟩
+      rcases ih (inScopeNames := collectStmtNames _ ++ inScopeNames)
+          (by intro name hmem
+              simp [stmtNextScope] at hmem
+              rcases hmem with h | h
+              · exact List.mem_append_left _ h
+              · exact List.mem_append_right _ (hincluded name h))
+        with ⟨tailIR, htail⟩
+      exact ⟨headIR ++ tailIR,
+        FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok hhead htail⟩
 
 theorem stmtStepMatchesIRExec_of_included
     {fields : List Field}

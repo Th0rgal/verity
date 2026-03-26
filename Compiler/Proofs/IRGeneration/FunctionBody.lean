@@ -4686,6 +4686,133 @@ theorem compileStmt_core_ok_any_scope
         rw [CompilationModel.compileStmt]
         rfl⟩
 
+/-! ### Scope-independence of compileStmt / compileStmtList success
+
+`compileStmt` uses `inScopeNames` only in `ite` (for `pickFreshName` + recursive
+`compileStmtList` on branches) and `forEach` (for recursive `compileStmtList` on body).
+Since `pickFreshName` is total and `compileExpr` / all other helpers ignore `inScopeNames`,
+compilation success is scope-independent: if it succeeds with one scope, it succeeds
+with any other. -/
+
+private theorem compileStmt_ok_any_scope_aux
+    (n : Nat)
+    (fields : List Field) :
+    (∀ (stmt : Stmt) (scope1 scope2 : List String),
+      sizeOf stmt < n →
+      (∃ ir, CompilationModel.compileStmt fields [] [] .calldata [] false scope1 stmt =
+        Except.ok ir) →
+      ∃ ir', CompilationModel.compileStmt fields [] [] .calldata [] false scope2 stmt =
+        Except.ok ir') ∧
+    (∀ (stmts : List Stmt) (scope1 scope2 : List String),
+      sizeOf stmts < n →
+      (∃ ir, CompilationModel.compileStmtList fields [] [] .calldata [] false scope1 stmts =
+        Except.ok ir) →
+      ∃ ir', CompilationModel.compileStmtList fields [] [] .calldata [] false scope2 stmts =
+        Except.ok ir') := by
+  induction n with
+  | zero => exact ⟨fun _ _ _ h => absurd h (Nat.not_lt_zero _),
+                    fun _ _ _ h => absurd h (Nat.not_lt_zero _)⟩
+  | succ n ih =>
+    constructor
+    · -- compileStmt part
+      intro stmt scope1 scope2 hlt hok
+      cases stmt with
+      | ite cond thenBranch elseBranch =>
+          rcases hok with ⟨ir, hir⟩
+          simp only [CompilationModel.compileStmt, bind, Except.bind] at hir ⊢
+          cases hcond : CompilationModel.compileExpr fields .calldata cond with
+          | error e => simp [hcond] at hir
+          | ok condIR =>
+            simp only [hcond] at hir ⊢
+            cases hthen1 : CompilationModel.compileStmtList
+                fields [] [] .calldata [] false scope1 thenBranch with
+            | error e => simp [hthen1] at hir
+            | ok thenIR1 =>
+              simp only [hthen1] at hir
+              cases helse1 : CompilationModel.compileStmtList
+                  fields [] [] .calldata [] false scope1 elseBranch with
+              | error e => simp [helse1] at hir
+              | ok elseIR1 =>
+                rcases ih.2 thenBranch scope1 scope2
+                    (by simp [Stmt.ite.sizeOf_spec] at hlt; omega) ⟨thenIR1, hthen1⟩
+                  with ⟨thenIR2, hthen2⟩
+                rcases ih.2 elseBranch scope1 scope2
+                    (by simp [Stmt.ite.sizeOf_spec] at hlt; omega) ⟨elseIR1, helse1⟩
+                  with ⟨elseIR2, helse2⟩
+                simp only [hthen2, helse2]
+                cases elseBranch.isEmpty <;> exact ⟨_, rfl⟩
+      | forEach varName count body =>
+          rcases hok with ⟨ir, hir⟩
+          simp only [CompilationModel.compileStmt, bind, Except.bind] at hir ⊢
+          cases hcount : CompilationModel.compileExpr fields .calldata count with
+          | error e => simp [hcount] at hir
+          | ok countIR =>
+            simp only [hcount] at hir ⊢
+            cases hbody1 : CompilationModel.compileStmtList
+                fields [] [] .calldata [] false (varName :: scope1) body with
+            | error e => simp [hbody1] at hir
+            | ok bodyIR1 =>
+              rcases ih.2 body (varName :: scope1) (varName :: scope2)
+                  (by simp [Stmt.forEach.sizeOf_spec] at hlt; omega) ⟨bodyIR1, hbody1⟩
+                with ⟨bodyIR2, hbody2⟩
+              simp only [hbody2]
+              exact ⟨_, rfl⟩
+      -- All remaining cases: inScopeNames is unused, so the result is identical
+      | letVar | assignVar | setStorage | setStorageAddr | storageArrayPush
+      | storageArrayPop | setStorageArrayElement | setMapping | setMappingWord
+      | setMappingPackedWord | setMapping2 | setMapping2Word | setMappingUint
+      | setMappingChain | setStructMember | setStructMember2 | require
+      | requireError | revertError | «return» | returnValues | returnArray
+      | returnBytes | returnStorageWords | mstore | tstore | calldatacopy
+      | returndataCopy | revertReturndata | stop | emit | internalCall
+      | internalCallAssign | externalCallBind | ecm | rawLog =>
+          simp only [CompilationModel.compileStmt] at hok ⊢; exact hok
+    · -- compileStmtList part
+      intro stmts scope1 scope2 hlt hok
+      cases stmts with
+      | nil => exact ⟨[], rfl⟩
+      | cons s ss =>
+          rcases hok with ⟨ir, hir⟩
+          simp only [CompilationModel.compileStmtList, bind, Except.bind] at hir ⊢
+          cases hs1 : CompilationModel.compileStmt
+              fields [] [] .calldata [] false scope1 s with
+          | error e => simp [hs1] at hir
+          | ok headIR1 =>
+            simp only [hs1] at hir
+            cases hss1 : CompilationModel.compileStmtList
+                fields [] [] .calldata [] false (collectStmtNames s ++ scope1) ss with
+            | error e => simp [hss1] at hir
+            | ok tailIR1 =>
+              rcases ih.1 s scope1 scope2 (by simp [List.cons.sizeOf_spec] at hlt; omega)
+                  ⟨headIR1, hs1⟩ with ⟨headIR2, hs2⟩
+              rcases ih.2 ss (collectStmtNames s ++ scope1) (collectStmtNames s ++ scope2)
+                  (by simp [List.cons.sizeOf_spec] at hlt; omega) ⟨tailIR1, hss1⟩
+                with ⟨tailIR2, hss2⟩
+              simp only [hs2, hss2]
+              exact ⟨_, rfl⟩
+
+theorem compileStmt_ok_any_scope
+    {fields : List Field}
+    {scope1 scope2 : List String}
+    {stmt : Stmt}
+    (hok : ∃ ir, CompilationModel.compileStmt
+      fields [] [] .calldata [] false scope1 stmt = Except.ok ir) :
+    ∃ ir', CompilationModel.compileStmt
+      fields [] [] .calldata [] false scope2 stmt = Except.ok ir' :=
+  (compileStmt_ok_any_scope_aux (sizeOf stmt + 1) fields).1 stmt scope1 scope2
+    (Nat.lt_succ_of_le (Nat.le_refl _)) hok
+
+theorem compileStmtList_ok_any_scope
+    {fields : List Field}
+    {scope1 scope2 : List String}
+    {stmts : List Stmt}
+    (hok : ∃ ir, CompilationModel.compileStmtList
+      fields [] [] .calldata [] false scope1 stmts = Except.ok ir) :
+    ∃ ir', CompilationModel.compileStmtList
+      fields [] [] .calldata [] false scope2 stmts = Except.ok ir' :=
+  (compileStmt_ok_any_scope_aux (sizeOf stmts + 1) fields).2 stmts scope1 scope2
+    (Nat.lt_succ_of_le (Nat.le_refl _)) hok
+
 theorem compileStmtList_cons_ok_of_compileStmt_ok
     {fields : List Field}
     {inScopeNames : List String}
