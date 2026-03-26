@@ -5871,39 +5871,39 @@ private theorem execIRStmts_sstore_lit_ident_slots_continue
       simp only [abstractStoreStorageOrMappingMany]
       convert htail using 2 <;> omega
 
--- TYPESIG_SORRY: private theorem execIRStmts_let_then_sstore_lit_ident_slots_continue
--- TYPESIG_SORRY:     (fuel : Nat)
--- TYPESIG_SORRY:     (state : IRState)
--- TYPESIG_SORRY:     (slots : List Nat)
--- TYPESIG_SORRY:     (tempName : String)
--- TYPESIG_SORRY:     (valueIR : YulExpr)
--- TYPESIG_SORRY:     (value : Nat)
--- TYPESIG_SORRY:     (hvalue : evalIRExpr state valueIR = some value) :
--- TYPESIG_SORRY:     execIRStmts (slots.length + fuel + 2) state
--- TYPESIG_SORRY:       (YulStmt.let_ tempName valueIR ::
--- TYPESIG_SORRY:         slots.map (fun slot =>
--- TYPESIG_SORRY:           YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, YulExpr.ident tempName]))) =
--- TYPESIG_SORRY:       .continue
--- TYPESIG_SORRY:         { state.setVar tempName value with
--- TYPESIG_SORRY:             storage := by sorry
--- SORRY'D:               abstractStoreStorageOrMappingMany
--- SORRY'D:                 (state.setVar tempName value).storage
--- SORRY'D:                 slots
--- SORRY'D:                 value } := by
--- SORRY'D:   have hlet :
--- SORRY'D:       execIRStmt (slots.length + fuel + 1) state
--- SORRY'D:         (YulStmt.let_ tempName valueIR) =
--- SORRY'D:           .continue (state.setVar tempName value) := by
--- SORRY'D:     simp [execIRStmt, hvalue]
--- SORRY'D:   have hslots :=
--- SORRY'D:     execIRStmts_sstore_lit_ident_slots_continue
--- SORRY'D:       fuel
--- SORRY'D:       (state.setVar tempName value)
--- SORRY'D:       slots
--- SORRY'D:       tempName
--- SORRY'D:       value
--- SORRY'D:       (by simp [IRState.getVar])
--- SORRY'D:   simpa [execIRStmts, hlet] using hslots
+private theorem execIRStmts_let_then_sstore_lit_ident_slots_continue
+    (fuel : Nat)
+    (state : IRState)
+    (slots : List Nat)
+    (tempName : String)
+    (valueIR : YulExpr)
+    (value : Nat)
+    (hvalue : evalIRExpr state valueIR = some value) :
+    execIRStmts (slots.length + fuel + 2) state
+      (YulStmt.let_ tempName valueIR ::
+        slots.map (fun slot =>
+          YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, YulExpr.ident tempName]))) =
+      .continue
+        { state.setVar tempName value with
+            storage :=
+              abstractStoreStorageOrMappingMany
+                (state.setVar tempName value).storage
+                slots
+                value } := by
+  have hlet :
+      execIRStmt (slots.length + fuel + 1) state
+        (YulStmt.let_ tempName valueIR) =
+          .continue (state.setVar tempName value) := by
+    simp [execIRStmt, hvalue]
+  have hslots :=
+    execIRStmts_sstore_lit_ident_slots_continue
+      fuel
+      (state.setVar tempName value)
+      slots
+      tempName
+      value
+      (by simp [IRState.getVar, IRState.setVar])
+  simpa [execIRStmts, hlet] using hslots
 
 private theorem execIRStmts_single_block_of_continue
     (fuel : Nat)
@@ -8701,114 +8701,171 @@ theorem compiledStmtStep_setStructMember2_singleSlot_of_slotSafety
     hcoreKey1 hinScopeKey1 hcoreKey2 hinScopeKey2 hcoreValue hinScopeValue
     hmembers hmember hwriteSlots hslotSafety hkey1IR hkey2IR hvalueIR
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setStorage_aliasSlots
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {fieldName : String}
--- TYPESIG_SORRY:     {value : Expr}
--- TYPESIG_SORRY:     {valueIR : YulExpr}
--- TYPESIG_SORRY:     {f : Field}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hcore : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScope : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hfind : findFieldWithResolvedSlot fields fieldName = some (f, slot))
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots fields fieldName = some (slot :: f.aliasSlots))
--- TYPESIG_SORRY:     (halias : f.aliasSlots ≠ [])
--- TYPESIG_SORRY:     (hscopeReserved : scopeAvoidsReservedCompilerPrefix scope)
--- TYPESIG_SORRY:     (hunpacked : f.packedBits = none)
--- TYPESIG_SORRY:     (hnoConflict : firstFieldWriteSlotConflict fields = none)
--- TYPESIG_SORRY:     (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
--- TYPESIG_SORRY:     (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.setStorage fieldName value)
--- TYPESIG_SORRY:       [YulStmt.block
--- TYPESIG_SORRY:         ([YulStmt.let_ "__compat_value" valueIR] ++
--- TYPESIG_SORRY:           (slot :: f.aliasSlots).map (fun writeSlot =>
--- TYPESIG_SORRY:             YulStmt.expr
--- TYPESIG_SORRY:               (YulExpr.call "sstore" [YulExpr.lit writeSlot, YulExpr.ident "__compat_value"])))] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, CompilationModel.compileSetStorage,
--- SORRY'D:       hfind, hwriteSlots, halias, hunpacked, hvalueIR]
--- SORRY'D:   preserves runtime state extraFuel hexact hscope hbounded hruntime hslack := by
--- SORRY'D:     let slots := slot :: f.aliasSlots
--- SORRY'D:     let blockBody :=
--- SORRY'D:       [YulStmt.let_ "__compat_value" valueIR] ++
--- SORRY'D:         slots.map (fun writeSlot =>
--- SORRY'D:           YulStmt.expr
--- SORRY'D:             (YulExpr.call "sstore" [YulExpr.lit writeSlot, YulExpr.ident "__compat_value"]))
--- SORRY'D:     let compiledIR := [YulStmt.block blockBody]
--- SORRY'D:     let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:     have heval :=
--- SORRY'D:       FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:         hcore hexact hinScope hbounded
--- SORRY'D:         (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope)
--- SORRY'D:         hruntime
--- SORRY'D:     rw [hvalueIR] at heval
--- SORRY'D:     have hvalueEval : evalIRExpr state valueIR = some valueNat := by
--- SORRY'D:       simpa [valueNat] using heval
--- SORRY'D:     have hbodyFuelLe : slots.length + 2 ≤ extraFuel := by
--- SORRY'D:       have hslack' : sizeOf compiledIR - compiledIR.length ≤ extraFuel := by
--- SORRY'D:         simpa [compiledIR] using hslack
--- SORRY'D:       simp [compiledIR, blockBody, slots] at hslack'
--- SORRY'D:       omega
--- SORRY'D:     let bodyExtraFuel := extraFuel - (slots.length + 2)
--- SORRY'D:     have hbodyFuelEq : slots.length + bodyExtraFuel + 2 = extraFuel := by
--- SORRY'D:       dsimp [bodyExtraFuel]
--- SORRY'D:       omega
--- SORRY'D:     have hresolvedSlots :
--- SORRY'D:         ∀ writeSlot ∈ slots, findResolvedFieldAtSlotCopy fields writeSlot = some f := by
--- SORRY'D:       intro writeSlot hmem
--- SORRY'D:       exact
--- SORRY'D:         findResolvedFieldAtSlotCopy_of_findFieldWithResolvedSlot_member
--- SORRY'D:           hnoConflict hfind hwriteSlots hmem hunpacked
--- SORRY'D:     refine ⟨_, _, ?_⟩
--- SORRY'D:     · simp [SourceSemantics.execStmt, hwriteSlots, valueNat, slots]
--- SORRY'D:     · have hbody :
--- SORRY'D:           execIRStmts extraFuel state blockBody =
--- SORRY'D:             .continue
--- SORRY'D:               { state.setVar "__compat_value" valueNat with
--- SORRY'D:                   storage :=
--- SORRY'D:                     abstractStoreStorageOrMappingMany
--- SORRY'D:                       (state.setVar "__compat_value" valueNat).storage
--- SORRY'D:                       slots
--- SORRY'D:                       valueNat } := by
--- SORRY'D:         simpa [hbodyFuelEq, blockBody, slots, bodyExtraFuel] using
--- SORRY'D:           execIRStmts_let_then_sstore_lit_ident_slots_continue
--- SORRY'D:             bodyExtraFuel state slots "__compat_value" valueIR valueNat hvalueEval
--- SORRY'D:       have hwhole :
--- SORRY'D:           execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
--- SORRY'D:             .continue
--- SORRY'D:               { state.setVar "__compat_value" valueNat with
--- SORRY'D:                   storage :=
--- SORRY'D:                     abstractStoreStorageOrMappingMany
--- SORRY'D:                     (state.setVar "__compat_value" valueNat).storage
--- SORRY'D:                     slots
--- SORRY'D:                     valueNat } := by
--- SORRY'D:         simpa [compiledIR] using
--- SORRY'D:           execIRStmts_single_block_of_continue
--- SORRY'D:             extraFuel state
--- SORRY'D:             { state.setVar "__compat_value" valueNat with
--- SORRY'D:                 storage :=
--- SORRY'D:                   abstractStoreStorageOrMappingMany
--- SORRY'D:                     (state.setVar "__compat_value" valueNat).storage
--- SORRY'D:                     slots
--- SORRY'D:                     valueNat }
--- SORRY'D:             blockBody
--- SORRY'D:             hbody
--- SORRY'D:       simpa using hwhole
--- SORRY'D:     · refine And.intro ?_ <| And.intro ?_ <| And.intro hbounded hscope
--- SORRY'D:       · have hruntimeSet :
--- SORRY'D:             FunctionBody.runtimeStateMatchesIR fields runtime (state.setVar "__compat_value" valueNat) :=
--- SORRY'D:           FunctionBody.runtimeStateMatchesIR_setVar_irrelevant hruntime
--- SORRY'D:         simpa [slots, IRState.setVar] using
--- SORRY'D:           runtimeStateMatchesIR_writeUintSlots hruntimeSet hresolvedSlots hnotAddr hnotDyn
--- SORRY'D:       · have hexactSet :
--- SORRY'D:             FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings
--- SORRY'D:               (state.setVar "__compat_value" valueNat) :=
--- SORRY'D:           FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant
--- SORRY'D:             hexact (compatValue_not_mem_scope_of_reservedPrefix hscopeReserved)
--- SORRY'D:         simpa [slots, IRState.setVar] using
--- SORRY'D:           bindingsExactlyMatchIRVarsOnScope_writeUintSlots hexactSet
+theorem compiledStmtStep_setStorage_aliasSlots
+    {fields : List Field}
+    {scope : List String}
+    {fieldName : String}
+    {value : Expr}
+    {valueIR : YulExpr}
+    {f : Field}
+    {slot : Nat}
+    (hcore : FunctionBody.ExprCompileCore value)
+    (hinScope : FunctionBody.exprBoundNamesInScope value scope)
+    (hfind : findFieldWithResolvedSlot fields fieldName = some (f, slot))
+    (hwriteSlots : findFieldWriteSlots fields fieldName = some (slot :: f.aliasSlots))
+    (halias : f.aliasSlots ≠ [])
+    (hscopeReserved : scopeAvoidsReservedCompilerPrefix scope)
+    (hunpacked : f.packedBits = none)
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
+    (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
+    (hNotMapping : isMapping fields fieldName = false)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.setStorage fieldName value)
+      [YulStmt.block
+        ([YulStmt.let_ "__compat_value" valueIR] ++
+          (slot :: f.aliasSlots).map (fun writeSlot =>
+            YulStmt.expr
+              (YulExpr.call "sstore" [YulExpr.lit writeSlot, YulExpr.ident "__compat_value"])))] where
+  compileOk := by
+    simp [CompilationModel.compileStmt, CompilationModel.compileSetStorage,
+      hNotMapping, hfind, hwriteSlots, halias, hunpacked, hvalueIR]
+  preserves runtime state extraFuel hexact hscope hbounded hruntime hslack := by
+    let slots := slot :: f.aliasSlots
+    let blockBody :=
+      [YulStmt.let_ "__compat_value" valueIR] ++
+        slots.map (fun writeSlot =>
+          YulStmt.expr
+            (YulExpr.call "sstore" [YulExpr.lit writeSlot, YulExpr.ident "__compat_value"]))
+    let compiledIR := [YulStmt.block blockBody]
+    have heval :=
+      FunctionBody.eval_compileExpr_core_of_scope
+        hcore hexact hinScope hbounded
+        (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope)
+        hruntime
+    rw [hvalueIR] at heval
+    simp [Except.toOption] at heval
+    rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+    · simp [hIRValue, Option.bind] at heval
+    · simp [hIRValue, Option.bind] at heval
+      have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+        heval.symm
+      have hvalueEval : evalIRExpr state valueIR = some valueNat := hIRValue
+      -- Prove sizeOf of any YulStmt list ≥ length + 1
+      have hSizeOfListBound : ∀ (l : List YulStmt), l.length + 1 ≤ sizeOf l := by
+        intro l
+        induction l with
+        | nil => simp
+        | cons h t ih =>
+          show t.length + 1 + 1 ≤ 1 + sizeOf h + sizeOf t
+          omega
+      have hbodyFuelLe : slots.length + 2 ≤ extraFuel := by
+        have hslack' : sizeOf compiledIR - compiledIR.length ≤ extraFuel := by
+          simpa [compiledIR] using hslack
+        have hlen : compiledIR.length = 1 := by simp [compiledIR]
+        -- blockBody.length = 1 + slots.length (let_ + map)
+        have hBodyLen : blockBody.length = 1 + slots.length := by
+          simp [blockBody, slots]; omega
+        have hBodyBound := hSizeOfListBound blockBody
+        -- sizeOf compiledIR = 1 + sizeOf (YulStmt.block blockBody) + 1
+        have hCompSizeOf : sizeOf compiledIR = 1 + sizeOf (YulStmt.block blockBody) + 1 := by
+          dsimp only [compiledIR]; rfl
+        -- sizeOf (YulStmt.block body) ≥ 1 + sizeOf body
+        have hBlockSizeOf : 1 + sizeOf blockBody ≤ sizeOf (YulStmt.block blockBody) := by
+          simp [YulStmt.block.sizeOf_spec]
+        omega
+      let bodyExtraFuel := extraFuel - (slots.length + 2)
+      have hbodyFuelEq : slots.length + bodyExtraFuel + 2 = extraFuel := by
+        dsimp [bodyExtraFuel]
+        omega
+      have hresolvedSlots :
+          ∀ writeSlot ∈ slots, findResolvedFieldAtSlotCopy fields writeSlot = some f := by
+        intro writeSlot hmem
+        exact
+          findResolvedFieldAtSlotCopy_of_findFieldWithResolvedSlot_member
+            hnoConflict hfind hwriteSlots hmem hunpacked
+      have hbody :
+          execIRStmts extraFuel state blockBody =
+            .continue
+              { state.setVar "__compat_value" valueNat with
+                  storage :=
+                    abstractStoreStorageOrMappingMany
+                      (state.setVar "__compat_value" valueNat).storage
+                      slots
+                      valueNat } := by
+        have := execIRStmts_let_then_sstore_lit_ident_slots_continue
+          bodyExtraFuel state slots "__compat_value" valueIR valueNat hvalueEval
+        rw [hbodyFuelEq] at this
+        simpa [blockBody, slots] using this
+      have hwhole :
+          execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
+            .continue
+              { state.setVar "__compat_value" valueNat with
+                  storage :=
+                    abstractStoreStorageOrMappingMany
+                    (state.setVar "__compat_value" valueNat).storage
+                    slots
+                    valueNat } := by
+        have hblock := execIRStmts_single_block_of_continue
+          extraFuel state
+          { state.setVar "__compat_value" valueNat with
+              storage :=
+                abstractStoreStorageOrMappingMany
+                  (state.setVar "__compat_value" valueNat).storage
+                  slots
+                  valueNat }
+          blockBody
+          hbody
+        convert hblock using 2
+        simp [compiledIR]; omega
+      -- Prove value bound
+      have hvalueLt := FunctionBody.evalExpr_lt_evmModulus_core_of_scope
+          hcore hexact hinScope hbounded
+          (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope)
+          hruntime
+      rw [hValueSrc] at hvalueLt
+      simp at hvalueLt
+      -- Source execution
+      have hSrcExec : SourceSemantics.execStmt fields runtime
+          (.setStorage fieldName value) = .continue
+            { runtime with
+                world := SourceSemantics.writeUintSlots runtime.world (slot :: f.aliasSlots) valueNat } := by
+        simp [SourceSemantics.execStmt, hwriteSlots, hValueSrc, slots]
+      -- Scope inclusion
+      have hincl : FunctionBody.scopeNamesIncluded
+          (stmtNextScope scope (.setStorage fieldName value)) scope := by
+        intro n hn
+        simp [stmtNextScope, collectStmtNames] at hn
+        rcases hn with hv | hs
+        · exact hinScope n (collectExprNames_mem_exprBoundNames_of_core hcore n hv)
+        · exact hs
+      have hscope' := FunctionBody.scopeNamesPresent_of_included hscope hincl
+      -- Runtime state match
+      have hruntimeSet :
+          FunctionBody.runtimeStateMatchesIR fields runtime (state.setVar "__compat_value" valueNat) :=
+        FunctionBody.runtimeStateMatchesIR_setVar_irrelevant hruntime
+      have hruntime' : FunctionBody.runtimeStateMatchesIR fields
+          { runtime with world := SourceSemantics.writeUintSlots runtime.world slots valueNat }
+          { (state.setVar "__compat_value" valueNat) with
+              storage := abstractStoreStorageOrMappingMany
+                (state.setVar "__compat_value" valueNat).storage slots valueNat } :=
+        runtimeStateMatchesIR_writeUintSlots hruntimeSet hresolvedSlots hnotAddr hnotDyn hvalueLt
+      -- Bindings match
+      have hexactSet :
+          FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings
+            (state.setVar "__compat_value" valueNat) :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant
+          hexact (compatValue_not_mem_scope_of_reservedPrefix hscopeReserved)
+      have hexact' : FunctionBody.bindingsExactlyMatchIRVarsOnScope
+          (stmtNextScope scope (.setStorage fieldName value)) runtime.bindings
+          { (state.setVar "__compat_value" valueNat) with
+              storage := abstractStoreStorageOrMappingMany
+                (state.setVar "__compat_value" valueNat).storage slots valueNat } :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
+          (bindingsExactlyMatchIRVarsOnScope_writeUintSlots hexactSet) hincl
+      refine ⟨_, _, hSrcExec, hwhole, ?_⟩
+      simp [stmtStepMatchesIRExec, slots]
+      exact ⟨hruntime', hexact', hbounded, hscope'⟩
 
 theorem compiledStmtStep_setStorage_of_validateIdentifierShapes
     {spec : CompilationModel}
@@ -8836,42 +8893,45 @@ theorem compiledStmtStep_setStorage_of_validateIdentifierShapes
     (hnoConflict : firstFieldWriteSlotConflict spec.fields = none)
     (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
     (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
+    (hNotMapping : isMapping spec.fields fieldName = false)
     (hvalueIR : CompilationModel.compileExpr spec.fields .calldata value = Except.ok valueIR) :
-    ∃ compiledIR, CompiledStmtStep spec.fields scope (.setStorage fieldName value) compiledIR := by sorry
--- SORRY'D:   by_cases halias : f.aliasSlots = []
--- SORRY'D:   · refine ⟨[YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, valueIR])], ?_⟩
--- SORRY'D:     apply compiledStmtStep_setStorage_singleSlot
--- SORRY'D:       (hcore := hcore)
--- SORRY'D:       (hinScope := hinScope)
--- SORRY'D:       (hfind := hfind)
--- SORRY'D:       (hwriteSlots := ?_)
--- SORRY'D:       (halias := halias)
--- SORRY'D:       (hunpacked := hunpacked)
--- SORRY'D:       (hnoConflict := hnoConflict)
--- SORRY'D:       (hnotAddr := hnotAddr)
--- SORRY'D:       (hnotDyn := hnotDyn)
--- SORRY'D:       (hvalueIR := hvalueIR)
--- SORRY'D:     simpa [halias] using hwriteSlots
--- SORRY'D:   · refine
--- SORRY'D:       ⟨[YulStmt.block
--- SORRY'D:           ([YulStmt.let_ "__compat_value" valueIR] ++
--- SORRY'D:             (slot :: f.aliasSlots).map (fun writeSlot =>
--- SORRY'D:               YulStmt.expr
--- SORRY'D:                 (YulExpr.call "sstore" [YulExpr.lit writeSlot, YulExpr.ident "__compat_value"])))],
--- SORRY'D:         ?_⟩
--- SORRY'D:     apply compiledStmtStep_setStorage_aliasSlots
--- SORRY'D:       (hcore := hcore)
--- SORRY'D:       (hinScope := hinScope)
--- SORRY'D:       (hfind := hfind)
--- SORRY'D:       (hwriteSlots := hwriteSlots)
--- SORRY'D:       (halias := halias)
--- SORRY'D:       (hscopeReserved := scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes
--- SORRY'D:         hvalidate hfn hscopeNames)
--- SORRY'D:       (hunpacked := hunpacked)
--- SORRY'D:       (hnoConflict := hnoConflict)
--- SORRY'D:       (hnotAddr := hnotAddr)
--- SORRY'D:       (hnotDyn := hnotDyn)
--- SORRY'D:       (hvalueIR := hvalueIR)
+    ∃ compiledIR, CompiledStmtStep spec.fields scope (.setStorage fieldName value) compiledIR := by
+  by_cases halias : f.aliasSlots = []
+  · refine ⟨[YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, valueIR])], ?_⟩
+    apply compiledStmtStep_setStorage_singleSlot
+      (hcore := hcore)
+      (hinScope := hinScope)
+      (hfind := hfind)
+      (hwriteSlots := ?_)
+      (halias := halias)
+      (hunpacked := hunpacked)
+      (hnoConflict := hnoConflict)
+      (hnotAddr := hnotAddr)
+      (hnotDyn := hnotDyn)
+      (hNotMapping := hNotMapping)
+      (hvalueIR := hvalueIR)
+    simpa [halias] using hwriteSlots
+  · refine
+      ⟨[YulStmt.block
+          ([YulStmt.let_ "__compat_value" valueIR] ++
+            (slot :: f.aliasSlots).map (fun writeSlot =>
+              YulStmt.expr
+                (YulExpr.call "sstore" [YulExpr.lit writeSlot, YulExpr.ident "__compat_value"])))],
+        ?_⟩
+    apply compiledStmtStep_setStorage_aliasSlots
+      (hcore := hcore)
+      (hinScope := hinScope)
+      (hfind := hfind)
+      (hwriteSlots := hwriteSlots)
+      (halias := halias)
+      (hscopeReserved := scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes
+        hvalidate hfn hscopeNames)
+      (hunpacked := hunpacked)
+      (hnoConflict := hnoConflict)
+      (hnotAddr := hnotAddr)
+      (hnotDyn := hnotDyn)
+      (hNotMapping := hNotMapping)
+      (hvalueIR := hvalueIR)
 
 -- TYPESIG_SORRY: theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_scopeDiscipline
 -- TYPESIG_SORRY:     {spec : CompilationModel}
