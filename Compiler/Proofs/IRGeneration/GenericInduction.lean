@@ -2149,78 +2149,78 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_withHelpers_and_compiledLegacyC
             (hstep.withHelperIR_of_legacyCompatible (hhead compiledIR hstep.compileOk) hinternal)
             (ih htail)
 
--- SORRY'D: /-- Exact helper-aware list bridge that splits the remaining work cleanly:
--- SORRY'D: helper-free heads still reuse the legacy generic step library plus the weaker
--- SORRY'D: helper-free compiled compatibility witness, while helper-positive heads are
--- SORRY'D: discharged only through a dedicated exact helper-aware step interface. -/
--- SORRY'D: theorem
--- SORRY'D:     stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
--- SORRY'D:     {runtimeContract : IRContract}
--- SORRY'D:     {spec : CompilationModel}
--- SORRY'D:     {fields : List Field}
--- SORRY'D:     {scope : List String}
--- SORRY'D:     {stmts : List Stmt}
--- SORRY'D:     (hhelperFree : StmtListHelperFreeStepInterface fields scope stmts)
--- SORRY'D:     (hsteps : StmtListHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
--- SORRY'D:     (hlegacy : StmtListHelperFreeCompiledLegacyCompatible fields scope stmts)
--- SORRY'D:     (hinternal : runtimeContract.internalFunctions = []) :
--- SORRY'D:     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
--- SORRY'D:   induction hsteps generalizing hhelperFree hlegacy with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact .nil
--- SORRY'D:   | @cons scope stmt rest hheadStep htailSteps ih =>
--- SORRY'D:       cases hhelperFree with
--- SORRY'D:       | cons hheadFree htailFree =>
--- SORRY'D:           cases hlegacy with
--- SORRY'D:           | cons hheadLegacy htailLegacy =>
--- SORRY'D:               by_cases hsurface : stmtTouchesUnsupportedHelperSurface stmt = false
--- SORRY'D:               · rcases hheadFree hsurface with ⟨compiledIR, hcore⟩
--- SORRY'D:                 exact .cons
--- SORRY'D:                   ((hcore.withHelpers_of_helperSurfaceClosed hsurface)
--- SORRY'D:                     .withHelperIR_of_legacyCompatible
--- SORRY'D:                       (hheadLegacy hsurface compiledIR hcore.compileOk)
--- SORRY'D:                       hinternal)
--- SORRY'D:                   (ih htailFree htailLegacy)
--- SORRY'D:               · have hsurfaceTrue : stmtTouchesUnsupportedHelperSurface stmt = true := by
--- SORRY'D:                   cases hstmt : stmtTouchesUnsupportedHelperSurface stmt <;> simp [hstmt] at hsurface ⊢
--- SORRY'D:                 rcases hheadStep hsurfaceTrue with ⟨compiledIR, hcompiled⟩
--- SORRY'D:                 exact .cons hcompiled (ih htailFree htailLegacy)
+/-- Exact helper-aware list bridge that splits the remaining work cleanly:
+helper-free heads still reuse the legacy generic step library plus the weaker
+helper-free compiled compatibility witness, while helper-positive heads are
+discharged only through a dedicated exact helper-aware step interface. -/
+theorem
+    stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hhelperFree : StmtListHelperFreeStepInterface fields scope stmts)
+    (hsteps : StmtListHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
+    (hlegacy : StmtListHelperFreeCompiledLegacyCompatible fields scope stmts)
+    (hinternal : runtimeContract.internalFunctions = []) :
+    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
+  induction hsteps with
+  | nil =>
+      exact .nil
+  | @cons scope stmt rest hheadStep htailSteps ih =>
+      cases hhelperFree with
+      | cons hheadFree htailFree =>
+          cases hlegacy with
+          | cons hheadLegacy htailLegacy =>
+              by_cases hsurface : stmtTouchesUnsupportedHelperSurface stmt = false
+              · obtain ⟨compiledIR, hcore⟩ := hheadFree hsurface
+                exact .cons
+                  (CompiledStmtStepWithHelpers.withHelperIR_of_legacyCompatible
+                    (hcore.withHelpers_of_helperSurfaceClosed hsurface)
+                    (hheadLegacy hsurface compiledIR hcore.compileOk)
+                    hinternal)
+                  (ih htailFree htailLegacy)
+              · have hsurfaceTrue : stmtTouchesUnsupportedHelperSurface stmt = true := by
+                  cases hstmt : stmtTouchesUnsupportedHelperSurface stmt <;> simp [hstmt] at hsurface ⊢
+                rcases hheadStep hsurfaceTrue with ⟨compiledIR, hcompiled⟩
+                exact .cons hcompiled (ih htailFree htailLegacy)
 
--- SORRY'D: /-- Disjoint-based exact helper-aware list bridge: helper-free heads reuse the
--- SORRY'D: legacy generic step library plus the new disjointness witness, while
--- SORRY'D: helper-positive heads are discharged through the dedicated step interface.
--- SORRY'D: Unlike the `_helperFreeCompiledLegacyCompatible` variant, this does **not**
--- SORRY'D: require `runtimeContract.internalFunctions = []`. -/
--- SORRY'D: theorem
--- SORRY'D:     stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledCallsDisjoint
--- SORRY'D:     {runtimeContract : IRContract}
--- SORRY'D:     {spec : CompilationModel}
--- SORRY'D:     {fields : List Field}
--- SORRY'D:     {scope : List String}
--- SORRY'D:     {stmts : List Stmt}
--- SORRY'D:     (hhelperFree : StmtListHelperFreeStepInterface fields scope stmts)
--- SORRY'D:     (hsteps : StmtListHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
--- SORRY'D:     (hdisjoint : StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields scope stmts) :
--- SORRY'D:     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
--- SORRY'D:   induction hsteps generalizing hhelperFree hdisjoint with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact .nil
--- SORRY'D:   | @cons scope stmt rest hheadStep htailSteps ih =>
--- SORRY'D:       cases hhelperFree with
--- SORRY'D:       | cons hheadFree htailFree =>
--- SORRY'D:           cases hdisjoint with
--- SORRY'D:           | cons hheadDisjoint htailDisjoint =>
--- SORRY'D:               by_cases hsurface : stmtTouchesUnsupportedHelperSurface stmt = false
--- SORRY'D:               · rcases hheadFree hsurface with ⟨compiledIR, hcore⟩
--- SORRY'D:                 exact .cons
--- SORRY'D:                   ((hcore.withHelpers_of_helperSurfaceClosed hsurface)
--- SORRY'D:                     .withHelperIR_of_callsDisjoint
--- SORRY'D:                       (hheadDisjoint hsurface compiledIR hcore.compileOk))
--- SORRY'D:                   (ih htailFree htailDisjoint)
--- SORRY'D:               · have hsurfaceTrue : stmtTouchesUnsupportedHelperSurface stmt = true := by
--- SORRY'D:                   cases hstmt : stmtTouchesUnsupportedHelperSurface stmt <;> simp [hstmt] at hsurface ⊢
--- SORRY'D:                 rcases hheadStep hsurfaceTrue with ⟨compiledIR, hcompiled⟩
--- SORRY'D:                 exact .cons hcompiled (ih htailFree htailDisjoint)
+/-- Disjoint-based exact helper-aware list bridge: helper-free heads reuse the
+legacy generic step library plus the new disjointness witness, while
+helper-positive heads are discharged through the dedicated step interface.
+Unlike the `_helperFreeCompiledLegacyCompatible` variant, this does **not**
+require `runtimeContract.internalFunctions = []`. -/
+theorem
+    stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledCallsDisjoint
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hhelperFree : StmtListHelperFreeStepInterface fields scope stmts)
+    (hsteps : StmtListHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
+    (hdisjoint : StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields scope stmts) :
+    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
+  induction hsteps with
+  | nil =>
+      exact .nil
+  | @cons scope stmt rest hheadStep htailSteps ih =>
+      cases hhelperFree with
+      | cons hheadFree htailFree =>
+          cases hdisjoint with
+          | cons hheadDisjoint htailDisjoint =>
+              by_cases hsurface : stmtTouchesUnsupportedHelperSurface stmt = false
+              · obtain ⟨compiledIR, hcore⟩ := hheadFree hsurface
+                exact .cons
+                  (CompiledStmtStepWithHelpers.withHelperIR_of_callsDisjoint
+                    (hcore.withHelpers_of_helperSurfaceClosed hsurface)
+                    (hheadDisjoint hsurface compiledIR hcore.compileOk))
+                  (ih htailFree htailDisjoint)
+              · have hsurfaceTrue : stmtTouchesUnsupportedHelperSurface stmt = true := by
+                  cases hstmt : stmtTouchesUnsupportedHelperSurface stmt <;> simp [hstmt] at hsurface ⊢
+                rcases hheadStep hsurfaceTrue with ⟨compiledIR, hcompiled⟩
+                exact .cons hcompiled (ih htailFree htailDisjoint)
 
 -- SORRY'D: /-- Exact helper-aware list bridge with the helper-positive work split cleanly:
 -- SORRY'D: genuine internal-helper heads are supplied through a narrow helper-specific
@@ -13496,27 +13496,27 @@ theorem supported_function_body_correct_from_exact_state_generic_helper_surface_
     (hinternal : runtimeContract.internalFunctions = []) :
     SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
       runtimeContract
-      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by sorry
--- SORRY'D:   have hgeneric :
--- SORRY'D:       StmtListGenericWithHelpersAndHelperIR
--- SORRY'D:         runtimeContract
--- SORRY'D:         model
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         (fn.params.map (·.name))
--- SORRY'D:         fn.body :=
--- SORRY'D:     stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
--- SORRY'D:       (runtimeContract := runtimeContract)
--- SORRY'D:       (spec := model)
--- SORRY'D:       (hhelperFree := hhelperFree)
--- SORRY'D:       (hsteps := hsteps)
--- SORRY'D:       (hlegacy := hlegacy)
--- SORRY'D:       hinternal
--- SORRY'D:   exact
--- SORRY'D:     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
--- SORRY'D:       runtimeContract
--- SORRY'D:       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
--- SORRY'D:       hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
--- SORRY'D:       hbounded hstateRuntime hstateBindings
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
+  have hgeneric :
+      StmtListGenericWithHelpersAndHelperIR
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body :=
+    stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
+      (runtimeContract := runtimeContract)
+      (spec := model)
+      (hhelperFree := hhelperFree)
+      (hsteps := hsteps)
+      (hlegacy := hlegacy)
+      hinternal
+  exact
+    supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
+      runtimeContract
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+      hbounded hstateRuntime hstateBindings
 
 -- SORRY'D: /-- Body-level exact helper-aware bridge over the split helper-positive
 -- SORRY'D: interfaces: genuine internal-helper heads are discharged separately from the
@@ -13785,105 +13785,105 @@ theorem supported_function_body_correct_from_exact_state_generic_split_internal_
     (hnoInternalFunctions : runtimeContract.internalFunctions = []) :
     SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
       runtimeContract
-      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by sorry
--- SORRY'D:   have hgeneric :
--- SORRY'D:       StmtListGenericWithHelpersAndHelperIR
--- SORRY'D:         runtimeContract
--- SORRY'D:         model
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         (fn.params.map (·.name))
--- SORRY'D:         fn.body :=
--- SORRY'D:     stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_directInternalHelperStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
--- SORRY'D:       (runtimeContract := runtimeContract)
--- SORRY'D:       (spec := model)
--- SORRY'D:       (hhelperFree := hhelperFree)
--- SORRY'D:       (hdirect := hdirect)
--- SORRY'D:       (hexpr := hexpr)
--- SORRY'D:       (hstruct := hstruct)
--- SORRY'D:       (hresidual := hresidual)
--- SORRY'D:       (hlegacy := hlegacy)
--- SORRY'D:       hnoInternalFunctions
--- SORRY'D:   exact
--- SORRY'D:     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
--- SORRY'D:       runtimeContract
--- SORRY'D:       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
--- SORRY'D:       hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
--- SORRY'D:       hbounded hstateRuntime hstateBindings
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
+  have hgeneric :
+      StmtListGenericWithHelpersAndHelperIR
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body :=
+    stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_directInternalHelperStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
+      (runtimeContract := runtimeContract)
+      (spec := model)
+      (hhelperFree := hhelperFree)
+      (hdirect := hdirect)
+      (hexpr := hexpr)
+      (hstruct := hstruct)
+      (hresidual := hresidual)
+      (hlegacy := hlegacy)
+      hnoInternalFunctions
+  exact
+    supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
+      runtimeContract
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+      hbounded hstateRuntime hstateBindings
 
--- SORRY'D: private theorem
--- SORRY'D:     generic_with_helpers_and_helper_ir_of_split_internal_helper_surface_callsDisjoint
--- SORRY'D:     (runtimeContract : IRContract)
--- SORRY'D:     (model : CompilationModel)
--- SORRY'D:     (fn : FunctionSpec)
--- SORRY'D:     (hhelperFree :
--- SORRY'D:       StmtListHelperFreeStepInterface
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         (fn.params.map (·.name))
--- SORRY'D:         fn.body)
--- SORRY'D:     (hcall :
--- SORRY'D:       StmtListDirectInternalHelperCallStepInterface
--- SORRY'D:         runtimeContract
--- SORRY'D:         model
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         (fn.params.map (·.name))
--- SORRY'D:         fn.body)
--- SORRY'D:     (hassign :
--- SORRY'D:       StmtListDirectInternalHelperAssignStepInterface
--- SORRY'D:         runtimeContract
--- SORRY'D:         model
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         (fn.params.map (·.name))
--- SORRY'D:         fn.body)
--- SORRY'D:     (hexpr :
--- SORRY'D:       StmtListExprInternalHelperStepInterface
--- SORRY'D:         runtimeContract
--- SORRY'D:         model
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         (fn.params.map (·.name))
--- SORRY'D:         fn.body)
--- SORRY'D:     (hstruct :
--- SORRY'D:       StmtListStructuralInternalHelperStepInterface
--- SORRY'D:         runtimeContract
--- SORRY'D:         model
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         (fn.params.map (·.name))
--- SORRY'D:         fn.body)
--- SORRY'D:     (hresidual :
--- SORRY'D:       StmtListResidualHelperSurfaceStepInterface
--- SORRY'D:         runtimeContract
--- SORRY'D:         model
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         (fn.params.map (·.name))
--- SORRY'D:         fn.body)
--- SORRY'D:     (hdisjoint :
--- SORRY'D:       StmtListHelperFreeCompiledCallsDisjoint
--- SORRY'D:         runtimeContract
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         (fn.params.map (·.name))
--- SORRY'D:         fn.body) :
--- SORRY'D:     StmtListGenericWithHelpersAndHelperIR
--- SORRY'D:       runtimeContract
--- SORRY'D:       model
--- SORRY'D:       (SourceSemantics.effectiveFields model)
--- SORRY'D:       (fn.params.map (·.name))
--- SORRY'D:       fn.body :=
--- SORRY'D:   stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledCallsDisjoint
--- SORRY'D:     (runtimeContract := runtimeContract)
--- SORRY'D:     (spec := model)
--- SORRY'D:     (hhelperFree := hhelperFree)
--- SORRY'D:     (hsteps :=
--- SORRY'D:       stmtListHelperSurfaceStepInterface_of_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface
--- SORRY'D:         (stmtListInternalHelperSurfaceStepInterface_of_directInternalHelperStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface
--- SORRY'D:           (stmtListDirectInternalHelperStepInterface_of_callStepInterface_and_assignStepInterface
--- SORRY'D:             hcall
--- SORRY'D:             hassign)
--- SORRY'D:           hexpr
--- SORRY'D:           hstruct)
--- SORRY'D:         hresidual)
--- SORRY'D:     (hdisjoint := hdisjoint)
+private theorem
+    generic_with_helpers_and_helper_ir_of_split_internal_helper_surface_callsDisjoint
+    (runtimeContract : IRContract)
+    (model : CompilationModel)
+    (fn : FunctionSpec)
+    (hhelperFree :
+      StmtListHelperFreeStepInterface
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hcall :
+      StmtListDirectInternalHelperCallStepInterface
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hassign :
+      StmtListDirectInternalHelperAssignStepInterface
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hexpr :
+      StmtListExprInternalHelperStepInterface
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hstruct :
+      StmtListStructuralInternalHelperStepInterface
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hresidual :
+      StmtListResidualHelperSurfaceStepInterface
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hdisjoint :
+      StmtListHelperFreeCompiledCallsDisjoint
+        runtimeContract
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body) :
+    StmtListGenericWithHelpersAndHelperIR
+      runtimeContract
+      model
+      (SourceSemantics.effectiveFields model)
+      (fn.params.map (·.name))
+      fn.body :=
+  stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledCallsDisjoint
+    (runtimeContract := runtimeContract)
+    (spec := model)
+    (hhelperFree := hhelperFree)
+    (hsteps :=
+      stmtListHelperSurfaceStepInterface_of_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface
+        (stmtListInternalHelperSurfaceStepInterface_of_directInternalHelperStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface
+          (stmtListDirectInternalHelperStepInterface_of_callStepInterface_and_assignStepInterface
+            hcall
+            hassign)
+          hexpr
+          hstruct)
+        hresidual)
+    (hdisjoint := hdisjoint)
 
--- SORRY'D: /-- Disjoint-based body-level exact helper-aware bridge over the fully split
--- SORRY'D: genuine-helper interfaces.  Replaces `StmtListHelperFreeCompiledLegacyCompatible`
+/-- Disjoint-based body-level exact helper-aware bridge over the fully split
+genuine-helper interfaces.  Replaces `StmtListHelperFreeCompiledLegacyCompatible`
 -- SORRY'D: + `runtimeContract.internalFunctions = []` with the weaker
 -- SORRY'D: `StmtListHelperFreeCompiledCallsDisjoint`.  This is the entry point for
 -- SORRY'D: function bodies that live in a contract with an internal helper table. -/
@@ -13965,28 +13965,28 @@ theorem supported_function_body_correct_from_exact_state_generic_finer_split_int
       FunctionBody.bindingsExactlyMatchIRVars bindings state) :
     SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
       runtimeContract
-      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by sorry
--- SORRY'D:   have hgeneric :
--- SORRY'D:       StmtListGenericWithHelpersAndHelperIR
--- SORRY'D:         runtimeContract
--- SORRY'D:         model
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         (fn.params.map (·.name))
--- SORRY'D:         fn.body :=
--- SORRY'D:     generic_with_helpers_and_helper_ir_of_split_internal_helper_surface_callsDisjoint
--- SORRY'D:       runtimeContract model fn hhelperFree hcall hassign hexpr hstruct hresidual
--- SORRY'D:       hdisjoint
--- SORRY'D:   exact
--- SORRY'D:     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
--- SORRY'D:       runtimeContract
--- SORRY'D:       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
--- SORRY'D:       hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
--- SORRY'D:       hbounded hstateRuntime hstateBindings
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
+  have hgeneric :
+      StmtListGenericWithHelpersAndHelperIR
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body :=
+    generic_with_helpers_and_helper_ir_of_split_internal_helper_surface_callsDisjoint
+      runtimeContract model fn hhelperFree hcall hassign hexpr hstruct hresidual
+      hdisjoint
+  exact
+    supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
+      runtimeContract
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+      hbounded hstateRuntime hstateBindings
 
--- SORRY'D: /-- Current-fragment disjointness-based wrapper that lands directly in the exact
--- SORRY'D: helper-aware compiled body goal. This keeps the existing helper-free step
--- SORRY'D: library reusable while exposing the weaker compiled-side condition that later
--- SORRY'D: helper-table work actually needs. -/
+/-- Current-fragment disjointness-based wrapper that lands directly in the exact
+helper-aware compiled body goal. This keeps the existing helper-free step
+library reusable while exposing the weaker compiled-side condition that later
+helper-table work actually needs. -/
 theorem supported_function_body_correct_from_exact_state_generic_with_helpers_and_helper_ir_callsDisjoint
     (runtimeContract : IRContract)
     (model : CompilationModel)
