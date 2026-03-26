@@ -26,14 +26,14 @@ PROPERTY_SIMPLE_RE = re.compile(
 )
 FILE_RE = re.compile(r"^Property(.+)\.t\.sol$")
 CONTRACT_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-THEOREM_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_']*$")
+THEOREM_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.']*$")
 LEAN_IMPORT_RE = re.compile(r"^\s*import\b(?P<body>.*)$")
 LEAN_MODULE_NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_.']*$")
 
 # Regex pattern for theorem/lemma declarations with optional Lean prefixes.
 THEOREM_RE = re.compile(
     r"^\s*(?P<attrs>(?:@\[[^\]]*\]\s*)*)(?P<visibility>(?:(?:private|protected)\s+)*)"
-    r"(?P<kind>theorem|lemma)\s+(?P<name>[A-Za-z_][A-Za-z0-9_']*)\b"
+    r"(?P<kind>theorem|lemma)\s+(?P<name>[A-Za-z_][A-Za-z0-9_.']*)\b"
 )
 
 
