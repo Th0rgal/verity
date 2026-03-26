@@ -6202,7 +6202,7 @@ private theorem execIRStmts_revertPrefix_then_revert
               refine ⟨next, ?_⟩
               simp [execIRStmts, hstmt, hrestExec]
 
-private theorem execIRStmts_revertWithMessage_revert
+theorem execIRStmts_revertWithMessage_revert
     (fuel : Nat) (state : IRState) (message : String) :
     ∃ next,
       execIRStmts fuel state (CompilationModel.revertWithMessage message) = .revert next := by

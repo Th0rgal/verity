@@ -4233,18 +4233,110 @@ theorem compiledStmtStep_assignVar
       · simp [stmtStepMatchesIRExec]
         exact ⟨hruntime', hexact', hbounded', hscope'⟩
 
--- TYPESIG_SORRY: theorem compiledStmtStep_require
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {cond : Expr}
--- TYPESIG_SORRY:     {message : String}
--- TYPESIG_SORRY:     {failCond : YulExpr}
--- TYPESIG_SORRY:     (hcore : FunctionBody.ExprCompileCore cond)
--- TYPESIG_SORRY:     (hinScope : FunctionBody.exprBoundNamesInScope cond scope)
--- TYPESIG_SORRY:     (hfailCompile : CompilationModel.compileRequireFailCond fields .calldata cond = Except.ok failCond) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.require cond message)
--- TYPESIG_SORRY:       [YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] where
--- TYPESIG_SORRY:   compileOk := by sorry
+theorem compiledStmtStep_require
+    {fields : List Field}
+    {scope : List String}
+    {cond : Expr}
+    {message : String}
+    {failCond : YulExpr}
+    (hcore : FunctionBody.ExprCompileCore cond)
+    (hinScope : FunctionBody.exprBoundNamesInScope cond scope)
+    (hfailCompile : CompilationModel.compileRequireFailCond fields .calldata cond = Except.ok failCond) :
+    CompiledStmtStep fields scope (.require cond message)
+      [YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] where
+  compileOk := by
+    simp [CompilationModel.compileStmt, hfailCompile]
+  preserves runtime state extraFuel hexact hscope hbounded hruntime hslack := by
+    have hpresent : FunctionBody.exprBoundNamesPresent cond runtime.bindings :=
+      FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope
+    -- Get the fail condition evaluation
+    rcases FunctionBody.eval_compileRequireFailCond_core_of_scope
+        hcore hexact hinScope hbounded hpresent hruntime with
+      ⟨failCond', hfailCompile', hfailEval⟩
+    rw [hfailCompile] at hfailCompile'
+    injection hfailCompile' with hfailEq
+    subst hfailEq
+    -- Get the source condition evaluation
+    have hCondEval := FunctionBody.eval_compileExpr_core_of_scope hcore hexact hinScope
+        hbounded hpresent hruntime
+    rcases FunctionBody.compileExpr_core_ok (fields := fields) hcore with ⟨condIR, hcondIR⟩
+    rw [hcondIR] at hCondEval
+    simp [Except.toOption] at hCondEval
+    rcases hCondIRVal : evalIRExpr state condIR with _ | condVal
+    · simp [hCondIRVal, Option.bind] at hCondEval
+    · simp [hCondIRVal, Option.bind] at hCondEval
+      have hCondSrc : SourceSemantics.evalExpr fields runtime cond = some condVal :=
+        hCondEval.symm
+      by_cases hzero : condVal = 0
+      · -- condVal = 0 → require fails → revert
+        have hfailEval' : evalIRExpr state failCond = some 1 := by
+          rw [hCondSrc, hzero] at hfailEval
+          simpa [SourceSemantics.boolWord] using hfailEval
+        -- Execute the if_ statement: failCond = 1 → enters revert block
+        rcases FunctionBody.execIRStmts_revertWithMessage_revert
+            (fuel := extraFuel) (state := state) message with
+          ⟨revState, hrev⟩
+        have hstmt :
+            execIRStmt (extraFuel + 1) state
+              (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) =
+                .revert revState := by
+          simp [execIRStmt, hfailEval', hrev]
+        have hIRExec :
+            execIRStmts (1 + extraFuel + 1) state
+              [YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] =
+                .revert revState := by
+          have : 1 + extraFuel + 1 = Nat.succ (extraFuel + 1) := by omega
+          rw [this]; simp [execIRStmts, hstmt]
+        have hSrcExec :
+            SourceSemantics.execStmt fields runtime (.require cond message) = .revert := by
+          simp [SourceSemantics.execStmt, hCondSrc, hzero]
+        have hfuelEq :
+            [YulStmt.if_ failCond (CompilationModel.revertWithMessage message)].length +
+              extraFuel + 1 = 1 + extraFuel + 1 := by simp
+        refine ⟨.revert, .revert revState, hSrcExec, ?_, ?_⟩
+        · rw [hfuelEq]; exact hIRExec
+        · simp [stmtStepMatchesIRExec]
+      · -- condVal ≠ 0 → require passes → continue
+        have hfailEval' : evalIRExpr state failCond = some 0 := by
+          have : SourceSemantics.evalExpr fields runtime cond ≠ some 0 := by
+            rw [hCondSrc]; simp [hzero]
+          simpa [this, SourceSemantics.boolWord] using hfailEval
+        have hstmt' :
+            execIRStmt (extraFuel + 1) state
+              (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) =
+                .continue state := by
+          simp [execIRStmt, hfailEval']
+        have hIRExec :
+            execIRStmts (1 + extraFuel + 1) state
+              [YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] =
+                .continue state := by
+          have : 1 + extraFuel + 1 = Nat.succ (extraFuel + 1) := by omega
+          rw [this]; simp [execIRStmts, hstmt']
+        have hSrcExec :
+            SourceSemantics.execStmt fields runtime (.require cond message) =
+              .continue runtime := by
+          simp [SourceSemantics.execStmt, hCondSrc, hzero]
+        have hfuelEq :
+            [YulStmt.if_ failCond (CompilationModel.revertWithMessage message)].length +
+              extraFuel + 1 = 1 + extraFuel + 1 := by simp
+        -- Prove stmtNextScope inclusion: collectExprNames cond ++ scope ⊆ scope
+        have hNextScopeIncl : FunctionBody.scopeNamesIncluded
+            (stmtNextScope scope (.require cond message)) scope := by
+          intro n hn
+          simp [stmtNextScope, collectStmtNames] at hn
+          rcases hn with hn | hn
+          · exact hinScope n (collectExprNames_mem_exprBoundNames_of_core hcore n hn)
+          · exact hn
+        have hexact' : FunctionBody.bindingsExactlyMatchIRVarsOnScope
+            (stmtNextScope scope (.require cond message)) runtime.bindings state :=
+          FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included hexact hNextScopeIncl
+        have hscope' : FunctionBody.scopeNamesPresent
+            (stmtNextScope scope (.require cond message)) runtime.bindings :=
+          FunctionBody.scopeNamesPresent_of_included hscope hNextScopeIncl
+        refine ⟨.continue runtime, .continue state, hSrcExec, ?_, ?_⟩
+        · rw [hfuelEq]; exact hIRExec
+        · simp [stmtStepMatchesIRExec]
+          exact ⟨hruntime, hexact', hbounded, hscope'⟩
 -- SORRY'D:     simp [CompilationModel.compileStmt, hfailCompile]
 -- SORRY'D:   preserves runtime state extraFuel hexact hscope hbounded hruntime hslack := by
 -- SORRY'D:     let slack :=
