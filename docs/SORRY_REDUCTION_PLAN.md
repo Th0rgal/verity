@@ -1,16 +1,44 @@
 # Sorry Reduction Plan — Pass 5
 
-## Current State (post PR #1668)
+## Current State
 
-**Active `by sorry`**: 44 (all in `GenericInduction.lean`)
-**TYPESIG_SORRY blocks**: 76 commented-out theorems with broken type signatures
-  - `GenericInduction.lean`: 44 blocks
+**Active `by sorry`**: 32 (all in `GenericInduction.lean`)
+**TYPESIG_SORRY blocks**: ~60 commented-out theorems with broken type signatures
+  - `GenericInduction.lean`: ~30 blocks
   - `FunctionBody.lean`: 15 blocks
   - `Contract.lean`: 15 blocks
   - `Function.lean`: 2 blocks
 
 **FunctionBody.lean**: Fully proven (0 active sorries)
 **All contract proofs** (SimpleToken, Counter, Ledger, etc.): Fully proven
+
+## Progress (Pass 5)
+
+| Commit | Sorries | What was proved |
+|--------|---------|-----------------|
+| Start | 44 | — |
+| `5cefbc49` | 39 | `compiledStmtStep` + cascade for mstore and tstore (−5) |
+| `2adf22f7` | 33 | setMappingChain + setMapping2 preserves + cascades (−6) |
+| `a4d79b2b` | 32 | `compiledStmtStep_setStorage_singleSlot` + singleton cascade (−1) |
+
+### Key changes in pass 5
+- Added `findFieldWriteSlots_of_findFieldWithResolvedSlot` bridge lemma
+- Added `isMapping_false_of_findFieldWithResolvedSlot_uint256` in Types.lean
+- Proved `compiledStmtStep_setStorage_singleSlot` with `hNotMapping` parameter
+- Proved `stmtListGenericCore_singleton_setStorage_singleSlot`
+- Proved mstore/tstore compiled step + cascade theorems
+- Proved setMappingChain/setMapping2 preserves theorems + cascades
+
+### Remaining 32 sorries — blocked categories
+1. **Genuinely false** (line 2730): `ExprCompileCore` lacks constructors for `sdiv`, `smod`, etc.
+2. **`__immutable_` architecture** (line 5955): `validateIdentifierShapes` permits `__immutable_*`
+3. **Forward reference blocked** (6 at lines 9563–9756): cascade theorems reference helpers defined later in file
+4. **Mapping slot modulus** (5 at lines 7209–8298, 5 at lines 10299–10522): keccak output opaque
+5. **Address modulus** (via setStorageAddr): needs `value < 2^160` but only have `< 2^256`
+6. **Scope-irrelevance** (3 at lines 11748–11769): `compileStmtList` uses `inScopeNames` vs `scope`
+7. **Deep dependency chain** (9 at lines 10833–13577): exec/effectiveFields/function depend on upstream
+8. **Commented-out structures**: several structures needed for TYPESIG_SORRY theorems are `-- SORRY'D:`
+9. **setStorage existence** (line 8604): `compiledStmtStep_setStorage_of_validateIdentifierShapes` needs upstream
 
 ---
 
