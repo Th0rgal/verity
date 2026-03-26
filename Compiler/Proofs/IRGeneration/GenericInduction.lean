@@ -9560,245 +9560,6 @@ private theorem stmtListGenericCore_singleton_tstore_single
       (hvalueIR := hvalueIR))
     StmtListGenericCore.nil
 
-private theorem stmtListGenericCore_of_requireClausesThenSetStorageLiteral
-    {fields : List Field}
-    {scope : List String}
-    (hnoConflict : firstFieldWriteSlotConflict fields = none)
-    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
-    (fieldName : String)
-    (slot writeVal : Nat)
-    (hfind : findFieldWithResolvedSlot fields fieldName =
-      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
-    StmtListGenericCore fields scope
-      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
-        [Stmt.setStorage fieldName (Expr.literal writeVal)]) := by sorry
--- SORRY'D:   exact stmtListGenericCore_append
--- SORRY'D:     (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
--- SORRY'D:     (by
--- SORRY'D:       simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
--- SORRY'D:         (stmtListGenericCore_singleton_setStorage_singleSlot
--- SORRY'D:           (fields := fields)
--- SORRY'D:           (scope := scope)
--- SORRY'D:           (hnoConflict := hnoConflict)
--- SORRY'D:           (hfind := hfind)
--- SORRY'D:           (hcore := .literal writeVal)
--- SORRY'D:           (hinScope := by intro name hmem; simp [FunctionBody.exprBoundNames] at hmem)))
-
-private theorem stmtListGenericCore_of_requireClausesThenLetSetStorageLocalLiteral
-    {fields : List Field}
-    {scope : List String}
-    (hnoConflict : firstFieldWriteSlotConflict fields = none)
-    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
-    (fieldName tmp : String)
-    (slot n : Nat)
-    (hfind : findFieldWithResolvedSlot fields fieldName =
-      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
-    StmtListGenericCore fields scope
-      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
-        [Stmt.letVar tmp (Expr.literal n), Stmt.setStorage fieldName (Expr.localVar tmp)]) := by sorry
--- SORRY'D:   have hprefix :
--- SORRY'D:       FunctionBody.StmtListCompileCore scope [Stmt.letVar tmp (Expr.literal n)] := by
--- SORRY'D:     refine FunctionBody.StmtListCompileCore.letVar (.literal n) ?_ ?_
--- SORRY'D:     · intro name hmem
--- SORRY'D:       simp [FunctionBody.exprBoundNames] at hmem
--- SORRY'D:     · exact FunctionBody.StmtListCompileCore.nil
--- SORRY'D:   exact stmtListGenericCore_append
--- SORRY'D:     (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
--- SORRY'D:     (by
--- SORRY'D:       simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
--- SORRY'D:         (stmtListGenericCore_append
--- SORRY'D:           (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) hprefix)
--- SORRY'D:           (stmtListGenericCore_singleton_setStorage_singleSlot
--- SORRY'D:             (fields := fields)
--- SORRY'D:             (scope := List.foldl stmtNextScope scope [Stmt.letVar tmp (Expr.literal n)])
--- SORRY'D:             (hnoConflict := hnoConflict)
--- SORRY'D:             (hfind := hfind)
--- SORRY'D:             (hcore := .localVar tmp)
--- SORRY'D:             (hinScope := by
--- SORRY'D:               intro name hmem
--- SORRY'D:               simp [stmtNextScope, collectStmtNames, FunctionBody.exprBoundNames] at hmem ⊢
--- SORRY'D:               simpa using hmem))))
-
-private theorem stmtListGenericCore_of_requireClausesThenLetAssignSetStorageLocalLiteral
-    {fields : List Field}
-    {scope : List String}
-    (hnoConflict : firstFieldWriteSlotConflict fields = none)
-    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
-    (fieldName tmp : String)
-    (slot n m : Nat)
-    (hfind : findFieldWithResolvedSlot fields fieldName =
-      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
-    StmtListGenericCore fields scope
-      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
-        [Stmt.letVar tmp (Expr.literal n),
-         Stmt.assignVar tmp (Expr.literal m),
-         Stmt.setStorage fieldName (Expr.localVar tmp)]) := by sorry
--- SORRY'D:   have hprefix :
--- SORRY'D:       FunctionBody.StmtListCompileCore scope
--- SORRY'D:         [Stmt.letVar tmp (Expr.literal n), Stmt.assignVar tmp (Expr.literal m)] := by
--- SORRY'D:     refine FunctionBody.StmtListCompileCore.letVar (.literal n) ?_ ?_
--- SORRY'D:     · intro name hmem
--- SORRY'D:       simp [FunctionBody.exprBoundNames] at hmem
--- SORRY'D:     · refine FunctionBody.StmtListCompileCore.assignVar (.literal m) ?_ ?_
--- SORRY'D:       · intro name hmem
--- SORRY'D:         simp [FunctionBody.exprBoundNames] at hmem
--- SORRY'D:       · exact FunctionBody.StmtListCompileCore.nil
--- SORRY'D:   exact stmtListGenericCore_append
--- SORRY'D:     (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
--- SORRY'D:     (by
--- SORRY'D:       simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
--- SORRY'D:         (stmtListGenericCore_append
--- SORRY'D:           (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) hprefix)
--- SORRY'D:           (stmtListGenericCore_singleton_setStorage_singleSlot
--- SORRY'D:             (fields := fields)
--- SORRY'D:             (scope := List.foldl stmtNextScope scope
--- SORRY'D:               [Stmt.letVar tmp (Expr.literal n), Stmt.assignVar tmp (Expr.literal m)])
--- SORRY'D:             (hnoConflict := hnoConflict)
--- SORRY'D:             (hfind := hfind)
--- SORRY'D:             (hcore := .localVar tmp)
--- SORRY'D:             (hinScope := by
--- SORRY'D:               intro name hmem
--- SORRY'D:               simp [stmtNextScope, collectStmtNames, FunctionBody.exprBoundNames] at hmem ⊢
--- SORRY'D:               simpa using hmem))))
-
-private theorem stmtListGenericCore_of_requireClausesThenLetAssignAddSetStorageLocalLiteral
-    {fields : List Field}
-    {scope : List String}
-    (hnoConflict : firstFieldWriteSlotConflict fields = none)
-    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
-    (fieldName tmp : String)
-    (slot n m : Nat)
-    (hfind : findFieldWithResolvedSlot fields fieldName =
-      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
-    StmtListGenericCore fields scope
-      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
-        [Stmt.letVar tmp (Expr.literal n),
-         Stmt.assignVar tmp (Expr.add (Expr.localVar tmp) (Expr.literal m)),
-         Stmt.setStorage fieldName (Expr.localVar tmp)]) := by sorry
--- SORRY'D:   have hprefix :
--- SORRY'D:       FunctionBody.StmtListCompileCore scope
--- SORRY'D:         [Stmt.letVar tmp (Expr.literal n),
--- SORRY'D:          Stmt.assignVar tmp (Expr.add (Expr.localVar tmp) (Expr.literal m))] := by
--- SORRY'D:     refine FunctionBody.StmtListCompileCore.letVar (.literal n) ?_ ?_
--- SORRY'D:     · intro name hmem
--- SORRY'D:       simp [FunctionBody.exprBoundNames] at hmem
--- SORRY'D:     · refine FunctionBody.StmtListCompileCore.assignVar (.add (Expr.localVar tmp) (Expr.literal m)) ?_ ?_
--- SORRY'D:       · exact .add (.localVar tmp) (.literal m)
--- SORRY'D:       · intro name hmem
--- SORRY'D:         simp [FunctionBody.exprBoundNames] at hmem ⊢
--- SORRY'D:         simpa using hmem
--- SORRY'D:       · exact FunctionBody.StmtListCompileCore.nil
--- SORRY'D:   exact stmtListGenericCore_append
--- SORRY'D:     (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
--- SORRY'D:     (by
--- SORRY'D:       simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
--- SORRY'D:         (stmtListGenericCore_append
--- SORRY'D:           (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) hprefix)
--- SORRY'D:           (stmtListGenericCore_singleton_setStorage_singleSlot
--- SORRY'D:             (fields := fields)
--- SORRY'D:             (scope := List.foldl stmtNextScope scope
--- SORRY'D:               [Stmt.letVar tmp (Expr.literal n),
--- SORRY'D:                Stmt.assignVar tmp (Expr.add (Expr.localVar tmp) (Expr.literal m))])
--- SORRY'D:             (hnoConflict := hnoConflict)
--- SORRY'D:             (hfind := hfind)
--- SORRY'D:             (hcore := .localVar tmp)
--- SORRY'D:             (hinScope := by
--- SORRY'D:               intro name hmem
--- SORRY'D:               simp [stmtNextScope, collectStmtNames, FunctionBody.exprBoundNames] at hmem ⊢
--- SORRY'D:               simpa using hmem))))
-
-private theorem stmtListGenericCore_of_requireClausesThenLetAssignSubSetStorageLocalLiteral
-    {fields : List Field}
-    {scope : List String}
-    (hnoConflict : firstFieldWriteSlotConflict fields = none)
-    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
-    (fieldName tmp : String)
-    (slot n m : Nat)
-    (hfind : findFieldWithResolvedSlot fields fieldName =
-      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
-    StmtListGenericCore fields scope
-      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
-        [Stmt.letVar tmp (Expr.literal n),
-         Stmt.assignVar tmp (Expr.sub (Expr.localVar tmp) (Expr.literal m)),
-         Stmt.setStorage fieldName (Expr.localVar tmp)]) := by sorry
--- SORRY'D:   have hprefix :
--- SORRY'D:       FunctionBody.StmtListCompileCore scope
--- SORRY'D:         [Stmt.letVar tmp (Expr.literal n),
--- SORRY'D:          Stmt.assignVar tmp (Expr.sub (Expr.localVar tmp) (Expr.literal m))] := by
--- SORRY'D:     refine FunctionBody.StmtListCompileCore.letVar (.literal n) ?_ ?_
--- SORRY'D:     · intro name hmem
--- SORRY'D:       simp [FunctionBody.exprBoundNames] at hmem
--- SORRY'D:     · refine FunctionBody.StmtListCompileCore.assignVar (.sub (Expr.localVar tmp) (Expr.literal m)) ?_ ?_
--- SORRY'D:       · exact .sub (.localVar tmp) (.literal m)
--- SORRY'D:       · intro name hmem
--- SORRY'D:         simp [FunctionBody.exprBoundNames] at hmem ⊢
--- SORRY'D:         simpa using hmem
--- SORRY'D:       · exact FunctionBody.StmtListCompileCore.nil
--- SORRY'D:   exact stmtListGenericCore_append
--- SORRY'D:     (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
--- SORRY'D:     (by
--- SORRY'D:       simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
--- SORRY'D:         (stmtListGenericCore_append
--- SORRY'D:           (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) hprefix)
--- SORRY'D:           (stmtListGenericCore_singleton_setStorage_singleSlot
--- SORRY'D:             (fields := fields)
--- SORRY'D:             (scope := List.foldl stmtNextScope scope
--- SORRY'D:               [Stmt.letVar tmp (Expr.literal n),
--- SORRY'D:                Stmt.assignVar tmp (Expr.sub (Expr.localVar tmp) (Expr.literal m))])
--- SORRY'D:             (hnoConflict := hnoConflict)
--- SORRY'D:             (hfind := hfind)
--- SORRY'D:             (hcore := .localVar tmp)
--- SORRY'D:             (hinScope := by
--- SORRY'D:               intro name hmem
--- SORRY'D:               simp [stmtNextScope, collectStmtNames, FunctionBody.exprBoundNames] at hmem ⊢
--- SORRY'D:               simpa using hmem))))
-
-private theorem stmtListGenericCore_of_requireClausesThenLetAssignMulSetStorageLocalLiteral
-    {fields : List Field}
-    {scope : List String}
-    (hnoConflict : firstFieldWriteSlotConflict fields = none)
-    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
-    (fieldName tmp : String)
-    (slot n m : Nat)
-    (hfind : findFieldWithResolvedSlot fields fieldName =
-      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
-    StmtListGenericCore fields scope
-      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
-        [Stmt.letVar tmp (Expr.literal n),
-         Stmt.assignVar tmp (Expr.mul (Expr.localVar tmp) (Expr.literal m)),
-         Stmt.setStorage fieldName (Expr.localVar tmp)]) := by sorry
--- SORRY'D:   have hprefix :
--- SORRY'D:       FunctionBody.StmtListCompileCore scope
--- SORRY'D:         [Stmt.letVar tmp (Expr.literal n),
--- SORRY'D:          Stmt.assignVar tmp (Expr.mul (Expr.localVar tmp) (Expr.literal m))] := by
--- SORRY'D:     refine FunctionBody.StmtListCompileCore.letVar (.literal n) ?_ ?_
--- SORRY'D:     · intro name hmem
--- SORRY'D:       simp [FunctionBody.exprBoundNames] at hmem
--- SORRY'D:     · refine FunctionBody.StmtListCompileCore.assignVar (.mul (Expr.localVar tmp) (Expr.literal m)) ?_ ?_
--- SORRY'D:       · exact .mul (.localVar tmp) (.literal m)
--- SORRY'D:       · intro name hmem
--- SORRY'D:         simp [FunctionBody.exprBoundNames] at hmem ⊢
--- SORRY'D:         simpa using hmem
--- SORRY'D:       · exact FunctionBody.StmtListCompileCore.nil
--- SORRY'D:   exact stmtListGenericCore_append
--- SORRY'D:     (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
--- SORRY'D:     (by
--- SORRY'D:       simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
--- SORRY'D:         (stmtListGenericCore_append
--- SORRY'D:           (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) hprefix)
--- SORRY'D:           (stmtListGenericCore_singleton_setStorage_singleSlot
--- SORRY'D:             (fields := fields)
--- SORRY'D:             (scope := List.foldl stmtNextScope scope
--- SORRY'D:               [Stmt.letVar tmp (Expr.literal n),
--- SORRY'D:                Stmt.assignVar tmp (Expr.mul (Expr.localVar tmp) (Expr.literal m))])
--- SORRY'D:             (hnoConflict := hnoConflict)
--- SORRY'D:             (hfind := hfind)
--- SORRY'D:             (hcore := .localVar tmp)
--- SORRY'D:             (hinScope := by
--- SORRY'D:               intro name hmem
--- SORRY'D:               simp [stmtNextScope, collectStmtNames, FunctionBody.exprBoundNames] at hmem ⊢
--- SORRY'D:               simpa using hmem))))
-
 -- TYPESIG_SORRY: private theorem stmtListGenericCore_of_supportedStmtList_append_of_surface
 -- TYPESIG_SORRY:     {fields : List Field}
 -- TYPESIG_SORRY:     {scope prefix suffix : List Stmt}
@@ -11744,6 +11505,245 @@ private theorem stmtListGenericCore_of_requireClausesThenLetReturnLocalLiteral
     (by
       simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
         (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) htail))
+
+private theorem stmtListGenericCore_of_requireClausesThenSetStorageLiteral
+    {fields : List Field}
+    {scope : List String}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
+    (fieldName : String)
+    (slot writeVal : Nat)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    StmtListGenericCore fields scope
+      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
+        [Stmt.setStorage fieldName (Expr.literal writeVal)]) :=
+  stmtListGenericCore_append
+    (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
+    (by
+      simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
+        (stmtListGenericCore_singleton_setStorage_singleSlot
+          (fields := fields)
+          (scope := scope)
+          (hnoConflict := hnoConflict)
+          (hfind := hfind)
+          (hcore := .literal writeVal)
+          (hinScope := by intro name hmem; simp [FunctionBody.exprBoundNames] at hmem)))
+
+private theorem stmtListGenericCore_of_requireClausesThenLetSetStorageLocalLiteral
+    {fields : List Field}
+    {scope : List String}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
+    (fieldName tmp : String)
+    (slot n : Nat)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    StmtListGenericCore fields scope
+      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
+        [Stmt.letVar tmp (Expr.literal n), Stmt.setStorage fieldName (Expr.localVar tmp)]) := by
+  have hprefix :
+      FunctionBody.StmtListCompileCore scope [Stmt.letVar tmp (Expr.literal n)] := by
+    refine FunctionBody.StmtListCompileCore.letVar (.literal n) ?_ ?_
+    · intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+    · exact FunctionBody.StmtListCompileCore.nil
+  exact stmtListGenericCore_append
+    (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
+    (by
+      simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
+        (stmtListGenericCore_append
+          (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) hprefix)
+          (stmtListGenericCore_singleton_setStorage_singleSlot
+            (fields := fields)
+            (scope := List.foldl stmtNextScope scope [Stmt.letVar tmp (Expr.literal n)])
+            (hnoConflict := hnoConflict)
+            (hfind := hfind)
+            (hcore := .localVar tmp)
+            (hinScope := by
+              intro name hmem
+              simp [stmtNextScope, collectStmtNames, FunctionBody.exprBoundNames] at hmem ⊢
+              exact Or.inl hmem))))
+
+private theorem stmtListGenericCore_of_requireClausesThenLetAssignSetStorageLocalLiteral
+    {fields : List Field}
+    {scope : List String}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
+    (fieldName tmp : String)
+    (slot n m : Nat)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    StmtListGenericCore fields scope
+      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
+        [Stmt.letVar tmp (Expr.literal n),
+         Stmt.assignVar tmp (Expr.literal m),
+         Stmt.setStorage fieldName (Expr.localVar tmp)]) := by
+  have hprefix :
+      FunctionBody.StmtListCompileCore scope
+        [Stmt.letVar tmp (Expr.literal n), Stmt.assignVar tmp (Expr.literal m)] := by
+    refine FunctionBody.StmtListCompileCore.letVar (.literal n) ?_ ?_
+    · intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+    · refine FunctionBody.StmtListCompileCore.assignVar (.literal m) ?_ ?_
+      · intro name hmem
+        simp [FunctionBody.exprBoundNames] at hmem
+      · exact FunctionBody.StmtListCompileCore.nil
+  exact stmtListGenericCore_append
+    (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
+    (by
+      simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
+        (stmtListGenericCore_append
+          (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) hprefix)
+          (stmtListGenericCore_singleton_setStorage_singleSlot
+            (fields := fields)
+            (scope := List.foldl stmtNextScope scope
+              [Stmt.letVar tmp (Expr.literal n), Stmt.assignVar tmp (Expr.literal m)])
+            (hnoConflict := hnoConflict)
+            (hfind := hfind)
+            (hcore := .localVar tmp)
+            (hinScope := by
+              intro name hmem
+              simp [stmtNextScope, collectStmtNames, FunctionBody.exprBoundNames] at hmem ⊢
+              exact Or.inl hmem))))
+
+private theorem stmtListGenericCore_of_requireClausesThenLetAssignAddSetStorageLocalLiteral
+    {fields : List Field}
+    {scope : List String}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
+    (fieldName tmp : String)
+    (slot n m : Nat)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    StmtListGenericCore fields scope
+      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
+        [Stmt.letVar tmp (Expr.literal n),
+         Stmt.assignVar tmp (Expr.add (Expr.localVar tmp) (Expr.literal m)),
+         Stmt.setStorage fieldName (Expr.localVar tmp)]) := by
+  have hprefix :
+      FunctionBody.StmtListCompileCore scope
+        [Stmt.letVar tmp (Expr.literal n),
+         Stmt.assignVar tmp (Expr.add (Expr.localVar tmp) (Expr.literal m))] := by
+    refine FunctionBody.StmtListCompileCore.letVar (.literal n) ?_ ?_
+    · intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+    · exact FunctionBody.StmtListCompileCore.assignVar
+        (FunctionBody.ExprCompileCore.add (.localVar tmp) (.literal m))
+        (by intro name hmem
+            simp [FunctionBody.exprBoundNames] at hmem ⊢
+            exact Or.inl hmem)
+        FunctionBody.StmtListCompileCore.nil
+  exact stmtListGenericCore_append
+    (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
+    (by
+      simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
+        (stmtListGenericCore_append
+          (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) hprefix)
+          (stmtListGenericCore_singleton_setStorage_singleSlot
+            (fields := fields)
+            (scope := List.foldl stmtNextScope scope
+              [Stmt.letVar tmp (Expr.literal n),
+               Stmt.assignVar tmp (Expr.add (Expr.localVar tmp) (Expr.literal m))])
+            (hnoConflict := hnoConflict)
+            (hfind := hfind)
+            (hcore := .localVar tmp)
+            (hinScope := by
+              intro name hmem
+              simp [stmtNextScope, collectStmtNames, FunctionBody.exprBoundNames] at hmem ⊢
+              exact Or.inl hmem))))
+
+private theorem stmtListGenericCore_of_requireClausesThenLetAssignSubSetStorageLocalLiteral
+    {fields : List Field}
+    {scope : List String}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
+    (fieldName tmp : String)
+    (slot n m : Nat)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    StmtListGenericCore fields scope
+      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
+        [Stmt.letVar tmp (Expr.literal n),
+         Stmt.assignVar tmp (Expr.sub (Expr.localVar tmp) (Expr.literal m)),
+         Stmt.setStorage fieldName (Expr.localVar tmp)]) := by
+  have hprefix :
+      FunctionBody.StmtListCompileCore scope
+        [Stmt.letVar tmp (Expr.literal n),
+         Stmt.assignVar tmp (Expr.sub (Expr.localVar tmp) (Expr.literal m))] := by
+    refine FunctionBody.StmtListCompileCore.letVar (.literal n) ?_ ?_
+    · intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+    · exact FunctionBody.StmtListCompileCore.assignVar
+        (FunctionBody.ExprCompileCore.sub (.localVar tmp) (.literal m))
+        (by intro name hmem
+            simp [FunctionBody.exprBoundNames] at hmem ⊢
+            exact Or.inl hmem)
+        FunctionBody.StmtListCompileCore.nil
+  exact stmtListGenericCore_append
+    (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
+    (by
+      simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
+        (stmtListGenericCore_append
+          (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) hprefix)
+          (stmtListGenericCore_singleton_setStorage_singleSlot
+            (fields := fields)
+            (scope := List.foldl stmtNextScope scope
+              [Stmt.letVar tmp (Expr.literal n),
+               Stmt.assignVar tmp (Expr.sub (Expr.localVar tmp) (Expr.literal m))])
+            (hnoConflict := hnoConflict)
+            (hfind := hfind)
+            (hcore := .localVar tmp)
+            (hinScope := by
+              intro name hmem
+              simp [stmtNextScope, collectStmtNames, FunctionBody.exprBoundNames] at hmem ⊢
+              exact Or.inl hmem))))
+
+private theorem stmtListGenericCore_of_requireClausesThenLetAssignMulSetStorageLocalLiteral
+    {fields : List Field}
+    {scope : List String}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
+    (fieldName tmp : String)
+    (slot n m : Nat)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    StmtListGenericCore fields scope
+      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
+        [Stmt.letVar tmp (Expr.literal n),
+         Stmt.assignVar tmp (Expr.mul (Expr.localVar tmp) (Expr.literal m)),
+         Stmt.setStorage fieldName (Expr.localVar tmp)]) := by
+  have hprefix :
+      FunctionBody.StmtListCompileCore scope
+        [Stmt.letVar tmp (Expr.literal n),
+         Stmt.assignVar tmp (Expr.mul (Expr.localVar tmp) (Expr.literal m))] := by
+    refine FunctionBody.StmtListCompileCore.letVar (.literal n) ?_ ?_
+    · intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+    · exact FunctionBody.StmtListCompileCore.assignVar
+        (FunctionBody.ExprCompileCore.mul (.localVar tmp) (.literal m))
+        (by intro name hmem
+            simp [FunctionBody.exprBoundNames] at hmem ⊢
+            exact Or.inl hmem)
+        FunctionBody.StmtListCompileCore.nil
+  exact stmtListGenericCore_append
+    (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
+    (by
+      simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
+        (stmtListGenericCore_append
+          (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) hprefix)
+          (stmtListGenericCore_singleton_setStorage_singleSlot
+            (fields := fields)
+            (scope := List.foldl stmtNextScope scope
+              [Stmt.letVar tmp (Expr.literal n),
+               Stmt.assignVar tmp (Expr.mul (Expr.localVar tmp) (Expr.literal m))])
+            (hnoConflict := hnoConflict)
+            (hfind := hfind)
+            (hcore := .localVar tmp)
+            (hinScope := by
+              intro name hmem
+              simp [stmtNextScope, collectStmtNames, FunctionBody.exprBoundNames] at hmem ⊢
+              exact Or.inl hmem))))
 
 theorem compileStmtList_ok_of_stmtListGenericCore
     {fields : List Field}
