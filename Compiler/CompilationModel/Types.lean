@@ -709,6 +709,22 @@ theorem isMapping_false_of_findFieldWithResolvedSlot_address
   rw [hfound]
   rfl
 
+theorem isMapping_false_of_findFieldWithResolvedSlot_uint256
+    {fields : List Field}
+    {name : String}
+    {slot : Nat}
+    (hfind : findFieldWithResolvedSlot fields name =
+      some ({ name := name, ty := FieldType.uint256 }, slot)) :
+    isMapping fields name = false := by
+  unfold isMapping
+  have hfound : fields.find? (·.name == name) =
+      some { name := name, ty := FieldType.uint256 } := by
+    unfold findFieldWithResolvedSlot at hfind
+    unfold findFieldByName at hfind
+    exact find_eq_of_findFieldByName_go hfind
+  rw [hfound]
+  rfl
+
 -- Helper: Is field a double mapping?
 def isMapping2 (fields : List Field) (name : String) : Bool :=
   fields.find? (·.name == name) |>.any fun f =>
