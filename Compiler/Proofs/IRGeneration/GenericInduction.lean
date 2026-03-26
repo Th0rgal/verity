@@ -8940,13 +8940,6 @@ private theorem stmtListGenericCore_singleton_tstore_single
 -- SORRY'D:     (hoffsetIR := hoffsetIR)
 -- SORRY'D:     (hvalueIR := hvalueIR)
 
-private theorem stmtListGenericCore_of_requireClausesOnly
-    {fields : List Field}
-    {scope : List String}
-    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause) :
-    StmtListGenericCore fields scope
-      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt) := by sorry
-
 private theorem stmtListGenericCore_of_requireClausesThenSetStorageLiteral
     {fields : List Field}
     {scope : List String}
@@ -8970,53 +8963,6 @@ private theorem stmtListGenericCore_of_requireClausesThenSetStorageLiteral
 -- SORRY'D:           (hfind := hfind)
 -- SORRY'D:           (hcore := .literal writeVal)
 -- SORRY'D:           (hinScope := by intro name hmem; simp [FunctionBody.exprBoundNames] at hmem)))
-
-private theorem stmtListGenericCore_of_requireClausesThenReturnLiteral
-    {fields : List Field}
-    {scope : List String}
-    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
-    (retVal : Nat) :
-    StmtListGenericCore fields scope
-      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
-        [Stmt.return (Expr.literal retVal)]) := by sorry
--- SORRY'D:   have htail :
--- SORRY'D:       FunctionBody.StmtListCompileCore scope [Stmt.return (Expr.literal retVal)] := by
--- SORRY'D:     refine FunctionBody.StmtListCompileCore.return_ (.literal retVal) ?_ ?_
--- SORRY'D:     · intro name hmem
--- SORRY'D:       simp [FunctionBody.exprBoundNames] at hmem
--- SORRY'D:     · exact FunctionBody.StmtListCompileCore.nil
--- SORRY'D:   exact stmtListGenericCore_append
--- SORRY'D:     (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
--- SORRY'D:     (by
--- SORRY'D:       simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
--- SORRY'D:         (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) htail))
-
-private theorem stmtListGenericCore_of_requireClausesThenLetReturnLocalLiteral
-    {fields : List Field}
-    {scope : List String}
-    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
-    (tmp : String)
-    (retVal : Nat) :
-    StmtListGenericCore fields scope
-      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
-        [Stmt.letVar tmp (Expr.literal retVal), Stmt.return (Expr.localVar tmp)]) := by sorry
--- SORRY'D:   have htail :
--- SORRY'D:       FunctionBody.StmtListCompileCore scope
--- SORRY'D:         [Stmt.letVar tmp (Expr.literal retVal), Stmt.return (Expr.localVar tmp)] := by
--- SORRY'D:     refine FunctionBody.StmtListCompileCore.letVar (.literal retVal) ?_ ?_
--- SORRY'D:     · intro name hmem
--- SORRY'D:       simp [FunctionBody.exprBoundNames] at hmem
--- SORRY'D:     · refine FunctionBody.StmtListCompileCore.return_ (.localVar tmp) ?_ ?_
--- SORRY'D:       · exact .localVar tmp
--- SORRY'D:       · intro name hmem
--- SORRY'D:         simp [FunctionBody.exprBoundNames] at hmem
--- SORRY'D:         simpa [hmem]
--- SORRY'D:       · exact FunctionBody.StmtListCompileCore.nil
--- SORRY'D:   exact stmtListGenericCore_append
--- SORRY'D:     (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
--- SORRY'D:     (by
--- SORRY'D:       simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
--- SORRY'D:         (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) htail))
 
 private theorem stmtListGenericCore_of_requireClausesThenLetSetStorageLocalLiteral
     {fields : List Field}
@@ -11270,6 +11216,61 @@ private theorem scopeNamesIncluded_foldl_stmtNextScope
   | cons stmt rest ih =>
       intro name hname
       exact ih (scope := stmtNextScope scope stmt) name (mem_stmtNextScope_of_mem_scope hname)
+
+private theorem stmtListGenericCore_of_requireClausesOnly
+    {fields : List Field}
+    {scope : List String}
+    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause) :
+    StmtListGenericCore fields scope
+      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt) :=
+  stmtListGenericCore_of_stmtListCompileCore
+    (stmtListCompileCore_of_requireLiteralGuardFamilyClauses clauses)
+
+private theorem stmtListGenericCore_of_requireClausesThenReturnLiteral
+    {fields : List Field}
+    {scope : List String}
+    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
+    (retVal : Nat) :
+    StmtListGenericCore fields scope
+      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
+        [Stmt.return (Expr.literal retVal)]) := by
+  have htail :
+      FunctionBody.StmtListCompileCore scope [Stmt.return (Expr.literal retVal)] := by
+    refine FunctionBody.StmtListCompileCore.return_ (.literal retVal) ?_ ?_
+    · intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+    · exact FunctionBody.StmtListCompileCore.nil
+  exact stmtListGenericCore_append
+    (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
+    (by
+      simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
+        (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) htail))
+
+private theorem stmtListGenericCore_of_requireClausesThenLetReturnLocalLiteral
+    {fields : List Field}
+    {scope : List String}
+    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
+    (tmp : String)
+    (retVal : Nat) :
+    StmtListGenericCore fields scope
+      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
+        [Stmt.letVar tmp (Expr.literal retVal), Stmt.return (Expr.localVar tmp)]) := by
+  have htail :
+      FunctionBody.StmtListCompileCore scope
+        [Stmt.letVar tmp (Expr.literal retVal), Stmt.return (Expr.localVar tmp)] := by
+    refine FunctionBody.StmtListCompileCore.letVar (.literal retVal) ?_ ?_
+    · intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+    · refine FunctionBody.StmtListCompileCore.return_ (.localVar tmp) ?_ ?_
+      · intro name hmem
+        simp [FunctionBody.exprBoundNames] at hmem
+        simpa [hmem]
+      · exact FunctionBody.StmtListCompileCore.nil
+  exact stmtListGenericCore_append
+    (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
+    (by
+      simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
+        (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) htail))
 
 theorem compileStmtList_ok_of_stmtListGenericCore
     {fields : List Field}
