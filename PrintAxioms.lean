@@ -1203,6 +1203,10 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.compatValue_not_mem_scope_of_reservedPrefix  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.validateIdentifierShapes_fieldName_avoidReservedCompilerPrefix  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_mstore_single_preserves  -- private
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_mstore_single
+-- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_tstore_single_preserves  -- private
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_tstore_single
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingUint_singleSlot_of_slotSafety_preserves  -- private
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingUint_singleSlot_of_slotSafety
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingChain_singleSlot_of_slotSafety_preserves  -- private
@@ -1908,4 +1912,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1777 theorems/lemmas (1191 public, 574 private, 12 sorry'd)
+-- Total: 1781 theorems/lemmas (1193 public, 576 private, 12 sorry'd)
