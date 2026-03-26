@@ -7841,101 +7841,140 @@ private theorem compiledStmtStep_setStructMember_singleSlot_of_slotSafety_preser
         stmtStepMatchesIRExec fields
           (stmtNextScope scope (.setStructMember fieldName key memberName value))
           sourceResult
-          irExec := by sorry
--- SORRY'D:   intro runtime state extraFuel hexact hscope hbounded hruntime hslack
--- SORRY'D:   let writeSlotExpr :=
--- SORRY'D:     let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]
--- SORRY'D:     if wordOffset == 0 then mappingBase else YulExpr.call "add" [mappingBase, YulExpr.lit wordOffset]
--- SORRY'D:   let compiledIR := [YulStmt.expr (YulExpr.call "sstore" [writeSlotExpr, valueIR])]
--- SORRY'D:   let keyNat := SourceSemantics.evalExpr fields runtime key
--- SORRY'D:   let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:   have hkeySourceEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreKey hexact hinScopeKey hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey)
--- SORRY'D:       hruntime
--- SORRY'D:   have hvalueSourceEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreValue hexact hinScopeValue hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
--- SORRY'D:       hruntime
--- SORRY'D:   rw [hkeyIR] at hkeySourceEval
--- SORRY'D:   rw [hvalueIR] at hvalueSourceEval
--- SORRY'D:   have hkeyEval : evalIRExpr state keyIR = some keyNat := by
--- SORRY'D:     simpa [keyNat] using hkeySourceEval
--- SORRY'D:   have hvalueEval : evalIRExpr state valueIR = some valueNat := by
--- SORRY'D:     simpa [valueNat] using hvalueSourceEval
--- SORRY'D:   rcases hslotSafety runtime keyNat (by simpa [keyNat] using hkeySourceEval) with
--- SORRY'D:     ⟨hresolvedNone, hdynNone⟩
--- SORRY'D:   refine ⟨_, _, ?_⟩
--- SORRY'D:   · simp [SourceSemantics.execStmt, hwriteSlots, hmembers, hmember, keyNat, valueNat]
--- SORRY'D:   · have hWriteSlotEval :
--- SORRY'D:         evalIRExpr state writeSlotExpr =
--- SORRY'D:           some (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) := by
--- SORRY'D:       dsimp [writeSlotExpr]
--- SORRY'D:       by_cases hzero : wordOffset = 0
--- SORRY'D:       · subst hzero
--- SORRY'D:         simp [evalIRExpr, hkeyEval]
--- SORRY'D:       · simp [evalIRExpr, hkeyEval, hzero]
--- SORRY'D:     have hExecStmt :
--- SORRY'D:         execIRStmt (extraFuel + 1) state
--- SORRY'D:           (YulStmt.expr (YulExpr.call "sstore" [writeSlotExpr, valueIR])) =
--- SORRY'D:             .continue
--- SORRY'D:               { state with
--- SORRY'D:                   storage :=
--- SORRY'D:                     Compiler.Proofs.abstractStoreStorageOrMapping
--- SORRY'D:                       state.storage
--- SORRY'D:                       (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset)
--- SORRY'D:                       valueNat } := by
--- SORRY'D:       simp [execIRStmt, evalIRExpr, hWriteSlotEval, hvalueEval,
--- SORRY'D:         Compiler.Proofs.abstractStoreStorageOrMapping_eq]
--- SORRY'D:     simpa [compiledIR, execIRStmts] using hExecStmt
--- SORRY'D:   · refine And.intro ?_ <| And.intro ?_ <| And.intro hbounded hscope
--- SORRY'D:     · exact runtimeStateMatchesIR_writeAddressKeyedMappingWordSlot
--- SORRY'D:         hruntime hresolvedNone hdynNone
--- SORRY'D:     · exact bindingsExactlyMatchIRVarsOnScope_writeMappingSlot hexact
+          irExec := by
+  intro runtime state extraFuel hexact hscope hbounded hruntime hslack
+  have hkeySourceEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreKey hexact hinScopeKey hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey)
+      hruntime
+  have hvalueSourceEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreValue hexact hinScopeValue hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+      hruntime
+  rw [hkeyIR] at hkeySourceEval
+  rw [hvalueIR] at hvalueSourceEval
+  simp [Except.toOption] at hkeySourceEval hvalueSourceEval
+  rcases hIRKey : evalIRExpr state keyIR with _ | keyNat
+  · simp [hIRKey, Option.bind] at hkeySourceEval
+  · simp [hIRKey, Option.bind] at hkeySourceEval
+    rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+    · simp [hIRValue, Option.bind] at hvalueSourceEval
+    · simp [hIRValue, Option.bind] at hvalueSourceEval
+      have hKeySrc : SourceSemantics.evalExpr fields runtime key = some keyNat :=
+        hkeySourceEval.symm
+      have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+        hvalueSourceEval.symm
+      rcases hslotSafety runtime keyNat hKeySrc with ⟨hresolvedNone, hdynNone⟩
+      have hvalueLt := FunctionBody.evalExpr_lt_evmModulus_core_of_scope
+          hcoreValue hexact hinScopeValue hbounded
+          (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+          hruntime
+      rw [hValueSrc] at hvalueLt
+      simp at hvalueLt
+      set targetSlot := Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset
+      set state' := { state with
+          storage :=
+            Compiler.Proofs.abstractStoreStorageOrMapping
+              state.storage targetSlot valueNat }
+      set runtime' := { runtime with
+          world := SourceSemantics.writeAddressKeyedMappingWordSlots
+            runtime.world [slot] keyNat wordOffset valueNat }
+      have hSrcExec : SourceSemantics.execStmt fields runtime
+          (.setStructMember fieldName key memberName value) = .continue runtime' := by
+        simp [SourceSemantics.execStmt, hwriteSlots, hmembers, hmember, hKeySrc, hValueSrc, runtime']
+      have hincl : FunctionBody.scopeNamesIncluded
+          (stmtNextScope scope (.setStructMember fieldName key memberName value)) scope := by
+        intro n hn
+        simp [stmtNextScope, collectStmtNames] at hn
+        rcases hn with hk | hv | hs
+        · exact hinScopeKey n (collectExprNames_mem_exprBoundNames_of_core hcoreKey n hk)
+        · exact hinScopeValue n (collectExprNames_mem_exprBoundNames_of_core hcoreValue n hv)
+        · exact hs
+      have hexact' : FunctionBody.bindingsExactlyMatchIRVarsOnScope
+          (stmtNextScope scope (.setStructMember fieldName key memberName value))
+          runtime'.bindings state' :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
+          (bindingsExactlyMatchIRVarsOnScope_writeUintSlot hexact)
+          hincl
+      have hscope' : FunctionBody.scopeNamesPresent
+          (stmtNextScope scope (.setStructMember fieldName key memberName value))
+          runtime'.bindings :=
+        FunctionBody.scopeNamesPresent_of_included hscope hincl
+      have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
+      by_cases hzero : wordOffset = 0
+      · subst hzero
+        have hStoreEq : Compiler.Proofs.abstractStoreMappingEntry state.storage slot keyNat valueNat =
+            Compiler.Proofs.abstractStoreStorageOrMapping state.storage
+              (Compiler.Proofs.abstractMappingSlot slot keyNat + 0) valueNat := by
+          simp [Compiler.Proofs.abstractStoreStorageOrMapping,
+            Compiler.Proofs.abstractStoreMappingEntry,
+            Compiler.Proofs.abstractMappingSlot]
+        have hExecStmt :
+            execIRStmt (extraFuel + 1) state
+              (YulStmt.expr (YulExpr.call "sstore"
+                [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])) =
+                .continue state' := by
+          simp only [execIRStmt, evalIRExpr, hIRKey, hIRValue,
+            Compiler.Proofs.abstractStoreMappingEntry_eq]
+          congr 1
+        have hIRExec : execIRStmts (1 + extraFuel + 1) state
+            [YulStmt.expr (YulExpr.call "sstore"
+              [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])] =
+            .continue state' := by
+          simp [execIRStmts, hfuelEq, hExecStmt]
+        refine ⟨.continue runtime', .continue state', hSrcExec, hIRExec, ?_⟩
+        simp [stmtStepMatchesIRExec]
+        exact ⟨runtimeStateMatchesIR_writeAddressKeyedMappingWordSlot
+            hruntime hresolvedNone hdynNone hvalueLt,
+          hexact', hbounded, hscope'⟩
+      · -- wordOffset ≠ 0: blocked by mapping slot modulus
+        sorry
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setStructMember_singleSlot_of_slotSafety
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {fieldName memberName : String}
--- TYPESIG_SORRY:     {key value : Expr}
--- TYPESIG_SORRY:     {wordOffset : Nat}
--- TYPESIG_SORRY:     {members : List StructMember}
--- TYPESIG_SORRY:     {keyIR valueIR : YulExpr}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hmapping : isMapping fields fieldName = true)
--- TYPESIG_SORRY:     (hcoreKey : FunctionBody.ExprCompileCore key)
--- TYPESIG_SORRY:     (hinScopeKey : FunctionBody.exprBoundNamesInScope key scope)
--- TYPESIG_SORRY:     (hcoreValue : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hmembers : findStructMembers fields fieldName = some members)
--- TYPESIG_SORRY:     (hmember :
--- TYPESIG_SORRY:       findStructMember members memberName =
--- TYPESIG_SORRY:         some { name := memberName, wordOffset := wordOffset, packed := none })
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
--- TYPESIG_SORRY:     (hslotSafety :
--- TYPESIG_SORRY:       ∀ runtime keyNat,
--- TYPESIG_SORRY:         SourceSemantics.evalExpr fields runtime key = some keyNat →
--- TYPESIG_SORRY:           findResolvedFieldAtSlotCopy fields
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none ∧
--- TYPESIG_SORRY:           findDynamicArrayElementAtSlotCopy fields runtime.world
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none)
--- TYPESIG_SORRY:     (hkeyIR : CompilationModel.compileExpr fields .calldata key = Except.ok keyIR)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.setStructMember fieldName key memberName value)
--- TYPESIG_SORRY:       [YulStmt.expr
--- TYPESIG_SORRY:         (YulExpr.call "sstore"
--- TYPESIG_SORRY:           [let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]
--- TYPESIG_SORRY:            if wordOffset == 0 then mappingBase
--- TYPESIG_SORRY:            else YulExpr.call "add" [mappingBase, YulExpr.lit wordOffset], valueIR])] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, CompilationModel.compileSetStructMember,
--- SORRY'D:       CompilationModel.compileMappingSlotWrite, hmapping, hmembers, hmember,
--- SORRY'D:       hwriteSlots, hkeyIR, hvalueIR]
--- SORRY'D:   preserves := compiledStmtStep_setStructMember_singleSlot_of_slotSafety_preserves
--- SORRY'D:     hcoreKey hinScopeKey hcoreValue hinScopeValue hmembers hmember hwriteSlots
--- SORRY'D:     hslotSafety hkeyIR hvalueIR
+theorem compiledStmtStep_setStructMember_singleSlot_of_slotSafety
+    {fields : List Field}
+    {scope : List String}
+    {fieldName memberName : String}
+    {key value : Expr}
+    {wordOffset : Nat}
+    {members : List StructMember}
+    {keyIR valueIR : YulExpr}
+    {slot : Nat}
+    (hmapping : isMapping fields fieldName = true)
+    (hnotMapping2 : isMapping2 fields fieldName = false)
+    (hcoreKey : FunctionBody.ExprCompileCore key)
+    (hinScopeKey : FunctionBody.exprBoundNamesInScope key scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hmembers : findStructMembers fields fieldName = some members)
+    (hmember :
+      findStructMember members memberName =
+        some { name := memberName, wordOffset := wordOffset, packed := none })
+    (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
+    (hslotSafety :
+      ∀ runtime keyNat,
+        SourceSemantics.evalExpr fields runtime key = some keyNat →
+          findResolvedFieldAtSlotCopy fields
+            (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none ∧
+          findDynamicArrayElementAtSlotCopy fields runtime.world
+            (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none)
+    (hkeyIR : CompilationModel.compileExpr fields .calldata key = Except.ok keyIR)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.setStructMember fieldName key memberName value)
+      [YulStmt.expr
+        (YulExpr.call "sstore"
+          [let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]
+           if wordOffset == 0 then mappingBase
+           else YulExpr.call "add" [mappingBase, YulExpr.lit wordOffset], valueIR])] where
+  compileOk := by
+    simp only [CompilationModel.compileStmt, CompilationModel.compileSetStructMember,
+      CompilationModel.compileMappingSlotWrite, hmapping, hnotMapping2, hmembers, hmember,
+      hwriteSlots, hkeyIR, hvalueIR]
+    rfl
+  preserves := compiledStmtStep_setStructMember_singleSlot_of_slotSafety_preserves
+    hcoreKey hinScopeKey hcoreValue hinScopeValue hmembers hmember hwriteSlots
+    hslotSafety hkeyIR hvalueIR
 
 private theorem compiledStmtStep_setMapping2_singleSlot_of_slotSafety_preserves
     {fields : List Field}
@@ -10197,6 +10236,7 @@ private theorem stmtListGenericCore_singleton_setStructMemberSingle_of_slotSafet
     (hcoreValue : FunctionBody.ExprCompileCore value)
     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
     (hmapping : isMapping fields fieldName = true)
+    (hnotMapping2 : isMapping2 fields fieldName = false)
     (hmembers : findStructMembers fields fieldName = some members)
     (hmember :
       findStructMember members memberName =
@@ -10209,24 +10249,26 @@ private theorem stmtListGenericCore_singleton_setStructMemberSingle_of_slotSafet
             (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none ∧
           findDynamicArrayElementAtSlotCopy fields runtime.world
             (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none) :
-    StmtListGenericCore fields scope [Stmt.setStructMember fieldName key memberName value] := by sorry
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey with
--- SORRY'D:     ⟨keyIR, hkeyIR⟩
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
--- SORRY'D:     ⟨valueIR, hvalueIR⟩
--- SORRY'D:   refine StmtListGenericCore.cons ?_ StmtListGenericCore.nil
--- SORRY'D:   exact compiledStmtStep_setStructMember_singleSlot_of_slotSafety
--- SORRY'D:     (hmapping := hmapping)
--- SORRY'D:     (hcoreKey := hcoreKey)
--- SORRY'D:     (hinScopeKey := hinScopeKey)
--- SORRY'D:     (hcoreValue := hcoreValue)
--- SORRY'D:     (hinScopeValue := hinScopeValue)
--- SORRY'D:     (hmembers := hmembers)
--- SORRY'D:     (hmember := hmember)
--- SORRY'D:     (hwriteSlots := hwriteSlots)
--- SORRY'D:     (hslotSafety := hslotSafety)
--- SORRY'D:     (hkeyIR := hkeyIR)
--- SORRY'D:     (hvalueIR := hvalueIR)
+    StmtListGenericCore fields scope [Stmt.setStructMember fieldName key memberName value] := by
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey with
+    ⟨keyIR, hkeyIR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+    ⟨valueIR, hvalueIR⟩
+  exact StmtListGenericCore.cons
+    (compiledStmtStep_setStructMember_singleSlot_of_slotSafety
+      (hmapping := hmapping)
+      (hnotMapping2 := hnotMapping2)
+      (hcoreKey := hcoreKey)
+      (hinScopeKey := hinScopeKey)
+      (hcoreValue := hcoreValue)
+      (hinScopeValue := hinScopeValue)
+      (hmembers := hmembers)
+      (hmember := hmember)
+      (hwriteSlots := hwriteSlots)
+      (hslotSafety := hslotSafety)
+      (hkeyIR := hkeyIR)
+      (hvalueIR := hvalueIR))
+    StmtListGenericCore.nil
 
 private theorem stmtListGenericCore_singleton_setMapping2Single_of_slotSafety
     {fields : List Field}
