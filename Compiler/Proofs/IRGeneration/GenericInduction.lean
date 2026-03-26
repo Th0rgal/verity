@@ -7354,10 +7354,47 @@ private theorem compiledStmtStep_setMappingWord_singleSlot_of_slotSafety_preserv
             hruntime hresolvedNone hdynNone hvalueLt,
           hexact', hbounded, hscope'⟩
       · -- wordOffset ≠ 0: slot expr is add [mappingSlot [...], lit wordOffset]
-        -- BLOCKED: IR "add" produces (a + b) % evmModulus but target is a + b.
-        -- Requires abstractMappingSlot slot keyNat + wordOffset < evmModulus,
-        -- which depends on keccak output bounds (FFI-opaque).
-        sorry
+        -- Use keccak axiom: mappingSlot + wordOffset < evmModulus
+        have hSlotAddLt : Compiler.Proofs.solidityMappingSlot slot keyNat + wordOffset <
+            Compiler.Constants.evmModulus :=
+          Compiler.Proofs.solidityMappingSlot_add_wordOffset_lt_evmModulus slot keyNat wordOffset
+        have hModEq : (Compiler.Proofs.solidityMappingSlot slot keyNat + wordOffset) %
+            Compiler.Constants.evmModulus =
+            Compiler.Proofs.solidityMappingSlot slot keyNat + wordOffset :=
+          Nat.mod_eq_of_lt hSlotAddLt
+        -- Reduce the if-then-else: wordOffset ≠ 0 means we take the else branch
+        have hbeq : (wordOffset == 0) = false := by
+          simp [beq_iff_eq, hzero]
+        -- The compiled IR with the if-else reduced
+        have hExecStmt :
+            execIRStmt (extraFuel + 1) state
+              (YulStmt.expr (YulExpr.call "sstore"
+                [YulExpr.call "add"
+                  [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR],
+                   YulExpr.lit wordOffset], valueIR])) =
+                .continue state' := by
+          simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
+            hIRKey, hIRValue,
+            Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+            Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+            Compiler.Proofs.abstractMappingSlot_eq_solidity,
+            state', targetSlot, hModEq]
+        have hIRExec : execIRStmts (1 + extraFuel + 1) state
+            [YulStmt.expr (YulExpr.call "sstore"
+              [YulExpr.call "add"
+                [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR],
+                 YulExpr.lit wordOffset], valueIR])] =
+            .continue state' := by
+          simp [execIRStmts, hfuelEq, hExecStmt]
+        -- Now show the goal with the if-else reduced matches
+        refine ⟨.continue runtime', .continue state', hSrcExec, ?_, ?_⟩
+        · -- IR execution: reduce the if-then-else, then use hIRExec
+          simp only [List.length_singleton, hbeq, ite_false]
+          exact hIRExec
+        · simp [stmtStepMatchesIRExec]
+          exact ⟨runtimeStateMatchesIR_writeAddressKeyedMappingWordSlot
+              hruntime hresolvedNone hdynNone hvalueLt,
+            hexact', hbounded, hscope'⟩
 
 theorem compiledStmtStep_setMappingWord_singleSlot_of_slotSafety
     {fields : List Field}
@@ -7929,8 +7966,44 @@ private theorem compiledStmtStep_setStructMember_singleSlot_of_slotSafety_preser
         exact ⟨runtimeStateMatchesIR_writeAddressKeyedMappingWordSlot
             hruntime hresolvedNone hdynNone hvalueLt,
           hexact', hbounded, hscope'⟩
-      · -- wordOffset ≠ 0: blocked by mapping slot modulus
-        sorry
+      · -- wordOffset ≠ 0: slot expr is add [mappingSlot [...], lit wordOffset]
+        -- Use keccak axiom: mappingSlot + wordOffset < evmModulus
+        have hSlotAddLt : Compiler.Proofs.solidityMappingSlot slot keyNat + wordOffset <
+            Compiler.Constants.evmModulus :=
+          Compiler.Proofs.solidityMappingSlot_add_wordOffset_lt_evmModulus slot keyNat wordOffset
+        have hModEq : (Compiler.Proofs.solidityMappingSlot slot keyNat + wordOffset) %
+            Compiler.Constants.evmModulus =
+            Compiler.Proofs.solidityMappingSlot slot keyNat + wordOffset :=
+          Nat.mod_eq_of_lt hSlotAddLt
+        have hbeq : (wordOffset == 0) = false := by
+          simp [beq_iff_eq, hzero]
+        have hExecStmt :
+            execIRStmt (extraFuel + 1) state
+              (YulStmt.expr (YulExpr.call "sstore"
+                [YulExpr.call "add"
+                  [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR],
+                   YulExpr.lit wordOffset], valueIR])) =
+                .continue state' := by
+          simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
+            hIRKey, hIRValue,
+            Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+            Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+            Compiler.Proofs.abstractMappingSlot_eq_solidity,
+            state', targetSlot, hModEq]
+        have hIRExec : execIRStmts (1 + extraFuel + 1) state
+            [YulStmt.expr (YulExpr.call "sstore"
+              [YulExpr.call "add"
+                [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR],
+                 YulExpr.lit wordOffset], valueIR])] =
+            .continue state' := by
+          simp [execIRStmts, hfuelEq, hExecStmt]
+        refine ⟨.continue runtime', .continue state', hSrcExec, ?_, ?_⟩
+        · simp only [List.length_singleton, hbeq, ite_false]
+          exact hIRExec
+        · simp [stmtStepMatchesIRExec]
+          exact ⟨runtimeStateMatchesIR_writeAddressKeyedMappingWordSlot
+              hruntime hresolvedNone hdynNone hvalueLt,
+            hexact', hbounded, hscope'⟩
 
 theorem compiledStmtStep_setStructMember_singleSlot_of_slotSafety
     {fields : List Field}
@@ -8391,8 +8464,46 @@ private theorem compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety_preser
           exact ⟨runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot
               hruntime hresolvedNone hdynNone hvalueLt,
             hexact', hbounded, hscope'⟩
-        · -- wordOffset ≠ 0: blocked by mapping slot modulus
-          sorry
+        · -- wordOffset ≠ 0: slot expr is add [mappingSlot [mappingSlot [...], ...], lit wordOffset]
+          -- Use keccak axiom: nested mappingSlot + wordOffset < evmModulus
+          have hSlotAddLt : Compiler.Proofs.solidityMappingSlot
+              (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat + wordOffset <
+              Compiler.Constants.evmModulus :=
+            Compiler.Proofs.solidityMappingSlot_add_wordOffset_lt_evmModulus
+              (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat wordOffset
+          have hModEq : (Compiler.Proofs.solidityMappingSlot
+              (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat + wordOffset) %
+              Compiler.Constants.evmModulus =
+              Compiler.Proofs.solidityMappingSlot
+                (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat + wordOffset :=
+            Nat.mod_eq_of_lt hSlotAddLt
+          have hbeq : (wordOffset == 0) = false := by
+            simp [beq_iff_eq, hzero]
+          have hExecStmt :
+              execIRStmt (extraFuel + 1) state
+                (YulStmt.expr
+                  (YulExpr.call "sstore"
+                    [YulExpr.call "add"
+                      [YulExpr.call "mappingSlot"
+                        [YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR], key2IR],
+                       YulExpr.lit wordOffset], valueIR])) =
+                .continue state' := by
+            simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
+              hIRKey1, hIRKey2, hIRValue,
+              Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+              Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+              Compiler.Proofs.abstractMappingSlot_eq_solidity,
+              state', targetSlot, hModEq]
+          have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
+          have hIRExec : execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
+              .continue state' := by
+            simp only [compiledIR, hbeq, ite_false]
+            simp [execIRStmts, hfuelEq, hExecStmt]
+          refine ⟨.continue runtime', .continue state', hSrcExec, hIRExec, ?_⟩
+          simp [stmtStepMatchesIRExec]
+          exact ⟨runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot
+              hruntime hresolvedNone hdynNone hvalueLt,
+            hexact', hbounded, hscope'⟩
 
 theorem compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety
     {fields : List Field}
@@ -8647,8 +8758,46 @@ private theorem compiledStmtStep_setStructMember2_singleSlot_of_slotSafety_prese
           exact ⟨runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot
               hruntime hresolvedNone hdynNone hvalueLt,
             hexact', hbounded, hscope'⟩
-        · -- wordOffset ≠ 0: blocked by mapping slot modulus
-          sorry
+        · -- wordOffset ≠ 0: slot expr is add [mappingSlot [mappingSlot [...], ...], lit wordOffset]
+          -- Use keccak axiom: nested mappingSlot + wordOffset < evmModulus
+          have hSlotAddLt : Compiler.Proofs.solidityMappingSlot
+              (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat + wordOffset <
+              Compiler.Constants.evmModulus :=
+            Compiler.Proofs.solidityMappingSlot_add_wordOffset_lt_evmModulus
+              (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat wordOffset
+          have hModEq : (Compiler.Proofs.solidityMappingSlot
+              (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat + wordOffset) %
+              Compiler.Constants.evmModulus =
+              Compiler.Proofs.solidityMappingSlot
+                (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat + wordOffset :=
+            Nat.mod_eq_of_lt hSlotAddLt
+          have hbeq : (wordOffset == 0) = false := by
+            simp [beq_iff_eq, hzero]
+          have hExecStmt :
+              execIRStmt (extraFuel + 1) state
+                (YulStmt.expr
+                  (YulExpr.call "sstore"
+                    [YulExpr.call "add"
+                      [YulExpr.call "mappingSlot"
+                        [YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR], key2IR],
+                       YulExpr.lit wordOffset], valueIR])) =
+                .continue state' := by
+            simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
+              hIRKey1, hIRKey2, hIRValue,
+              Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+              Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+              Compiler.Proofs.abstractMappingSlot_eq_solidity,
+              state', targetSlot, hModEq]
+          have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
+          have hIRExec : execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
+              .continue state' := by
+            simp only [compiledIR, hbeq, ite_false]
+            simp [execIRStmts, hfuelEq, hExecStmt]
+          refine ⟨.continue runtime', .continue state', hSrcExec, hIRExec, ?_⟩
+          simp [stmtStepMatchesIRExec]
+          exact ⟨runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot
+              hruntime hresolvedNone hdynNone hvalueLt,
+            hexact', hbounded, hscope'⟩
 
 theorem compiledStmtStep_setStructMember2_singleSlot_of_slotSafety
     {fields : List Field}
