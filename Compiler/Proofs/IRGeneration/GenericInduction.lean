@@ -6382,37 +6382,38 @@ private theorem compiledStmtStep_setMappingUint_singleSlot_of_slotSafety_preserv
           hruntime hresolvedNone hdynNone hvalueLt,
         hexact', hbounded, hscope'⟩
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setMappingUint_singleSlot_of_slotSafety
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {fieldName : String}
--- TYPESIG_SORRY:     {key value : Expr}
--- TYPESIG_SORRY:     {keyIR valueIR : YulExpr}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hmapping : isMapping fields fieldName = true)
--- TYPESIG_SORRY:     (hcoreKey : FunctionBody.ExprCompileCore key)
--- TYPESIG_SORRY:     (hinScopeKey : FunctionBody.exprBoundNamesInScope key scope)
--- TYPESIG_SORRY:     (hcoreValue : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
--- TYPESIG_SORRY:     (hslotSafety :
--- TYPESIG_SORRY:       ∀ runtime keyNat,
--- TYPESIG_SORRY:         SourceSemantics.evalExpr fields runtime key = some keyNat →
--- TYPESIG_SORRY:           findResolvedFieldAtSlotCopy fields
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot slot keyNat) = none ∧
--- TYPESIG_SORRY:           findDynamicArrayElementAtSlotCopy fields runtime.world
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot slot keyNat) = none)
--- TYPESIG_SORRY:     (hkeyIR : CompilationModel.compileExpr fields .calldata key = Except.ok keyIR)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.setMappingUint fieldName key value)
--- TYPESIG_SORRY:       [YulStmt.expr
--- TYPESIG_SORRY:         (YulExpr.call "sstore"
--- TYPESIG_SORRY:           [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, CompilationModel.compileMappingSlotWrite,
--- SORRY'D:       hmapping, hwriteSlots, hkeyIR, hvalueIR]
--- SORRY'D:   preserves := compiledStmtStep_setMappingUint_singleSlot_of_slotSafety_preserves
--- SORRY'D:     hcoreKey hinScopeKey hcoreValue hinScopeValue hwriteSlots hslotSafety hkeyIR hvalueIR
+theorem compiledStmtStep_setMappingUint_singleSlot_of_slotSafety
+    {fields : List Field}
+    {scope : List String}
+    {fieldName : String}
+    {key value : Expr}
+    {keyIR valueIR : YulExpr}
+    {slot : Nat}
+    (hmapping : isMapping fields fieldName = true)
+    (hcoreKey : FunctionBody.ExprCompileCore key)
+    (hinScopeKey : FunctionBody.exprBoundNamesInScope key scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
+    (hslotSafety :
+      ∀ runtime keyNat,
+        SourceSemantics.evalExpr fields runtime key = some keyNat →
+          findResolvedFieldAtSlotCopy fields
+            (Compiler.Proofs.abstractMappingSlot slot keyNat) = none ∧
+          findDynamicArrayElementAtSlotCopy fields runtime.world
+            (Compiler.Proofs.abstractMappingSlot slot keyNat) = none)
+    (hkeyIR : CompilationModel.compileExpr fields .calldata key = Except.ok keyIR)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.setMappingUint fieldName key value)
+      [YulStmt.expr
+        (YulExpr.call "sstore"
+          [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])] where
+  compileOk := by
+    simp only [CompilationModel.compileStmt, CompilationModel.compileMappingSlotWrite,
+      hmapping, hwriteSlots, hkeyIR, hvalueIR]
+    rfl
+  preserves := compiledStmtStep_setMappingUint_singleSlot_of_slotSafety_preserves
+    hcoreKey hinScopeKey hcoreValue hinScopeValue hwriteSlots hslotSafety hkeyIR hvalueIR
 
 private theorem compiledStmtStep_setMappingChain_singleSlot_of_slotSafety_preserves
     {fields : List Field}
@@ -6692,37 +6693,38 @@ private theorem compiledStmtStep_setMapping_singleSlot_of_slotSafety_preserves
           hruntime hresolvedNone hdynNone hvalueLt,
         hexact', hbounded, hscope'⟩
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setMapping_singleSlot_of_slotSafety
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {fieldName : String}
--- TYPESIG_SORRY:     {key value : Expr}
--- TYPESIG_SORRY:     {keyIR valueIR : YulExpr}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hmapping : isMapping fields fieldName = true)
--- TYPESIG_SORRY:     (hcoreKey : FunctionBody.ExprCompileCore key)
--- TYPESIG_SORRY:     (hinScopeKey : FunctionBody.exprBoundNamesInScope key scope)
--- TYPESIG_SORRY:     (hcoreValue : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
--- TYPESIG_SORRY:     (hslotSafety :
--- TYPESIG_SORRY:       ∀ runtime keyNat,
--- TYPESIG_SORRY:         SourceSemantics.evalExpr fields runtime key = some keyNat →
--- TYPESIG_SORRY:           findResolvedFieldAtSlotCopy fields
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot slot keyNat) = none ∧
--- TYPESIG_SORRY:           findDynamicArrayElementAtSlotCopy fields runtime.world
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot slot keyNat) = none)
--- TYPESIG_SORRY:     (hkeyIR : CompilationModel.compileExpr fields .calldata key = Except.ok keyIR)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.setMapping fieldName key value)
--- TYPESIG_SORRY:       [YulStmt.expr
--- TYPESIG_SORRY:         (YulExpr.call "sstore"
--- TYPESIG_SORRY:           [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, CompilationModel.compileMappingSlotWrite,
--- SORRY'D:       hmapping, hwriteSlots, hkeyIR, hvalueIR]
--- SORRY'D:   preserves := compiledStmtStep_setMapping_singleSlot_of_slotSafety_preserves
--- SORRY'D:     hcoreKey hinScopeKey hcoreValue hinScopeValue hwriteSlots hslotSafety hkeyIR hvalueIR
+theorem compiledStmtStep_setMapping_singleSlot_of_slotSafety
+    {fields : List Field}
+    {scope : List String}
+    {fieldName : String}
+    {key value : Expr}
+    {keyIR valueIR : YulExpr}
+    {slot : Nat}
+    (hmapping : isMapping fields fieldName = true)
+    (hcoreKey : FunctionBody.ExprCompileCore key)
+    (hinScopeKey : FunctionBody.exprBoundNamesInScope key scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
+    (hslotSafety :
+      ∀ runtime keyNat,
+        SourceSemantics.evalExpr fields runtime key = some keyNat →
+          findResolvedFieldAtSlotCopy fields
+            (Compiler.Proofs.abstractMappingSlot slot keyNat) = none ∧
+          findDynamicArrayElementAtSlotCopy fields runtime.world
+            (Compiler.Proofs.abstractMappingSlot slot keyNat) = none)
+    (hkeyIR : CompilationModel.compileExpr fields .calldata key = Except.ok keyIR)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.setMapping fieldName key value)
+      [YulStmt.expr
+        (YulExpr.call "sstore"
+          [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])] where
+  compileOk := by
+    simp only [CompilationModel.compileStmt, CompilationModel.compileMappingSlotWrite,
+      hmapping, hwriteSlots, hkeyIR, hvalueIR]
+    rfl
+  preserves := compiledStmtStep_setMapping_singleSlot_of_slotSafety_preserves
+    hcoreKey hinScopeKey hcoreValue hinScopeValue hwriteSlots hslotSafety hkeyIR hvalueIR
 
 private theorem compiledStmtStep_setMappingWord_singleSlot_of_slotSafety_preserves
     {fields : List Field}
@@ -9819,22 +9821,23 @@ private theorem stmtListGenericCore_singleton_setMappingUintSingle_of_slotSafety
             (Compiler.Proofs.abstractMappingSlot slot keyNat) = none ∧
           findDynamicArrayElementAtSlotCopy fields runtime.world
             (Compiler.Proofs.abstractMappingSlot slot keyNat) = none) :
-    StmtListGenericCore fields scope [Stmt.setMappingUint fieldName key value] := by sorry
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey with
--- SORRY'D:     ⟨keyIR, hkeyIR⟩
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
--- SORRY'D:     ⟨valueIR, hvalueIR⟩
--- SORRY'D:   refine StmtListGenericCore.cons ?_ StmtListGenericCore.nil
--- SORRY'D:   exact compiledStmtStep_setMappingUint_singleSlot_of_slotSafety
--- SORRY'D:     (hmapping := hmapping)
--- SORRY'D:     (hcoreKey := hcoreKey)
--- SORRY'D:     (hinScopeKey := hinScopeKey)
--- SORRY'D:     (hcoreValue := hcoreValue)
--- SORRY'D:     (hinScopeValue := hinScopeValue)
--- SORRY'D:     (hwriteSlots := hwriteSlots)
--- SORRY'D:     (hslotSafety := hslotSafety)
--- SORRY'D:     (hkeyIR := hkeyIR)
--- SORRY'D:     (hvalueIR := hvalueIR)
+    StmtListGenericCore fields scope [Stmt.setMappingUint fieldName key value] := by
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey with
+    ⟨keyIR, hkeyIR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+    ⟨valueIR, hvalueIR⟩
+  exact StmtListGenericCore.cons
+    (compiledStmtStep_setMappingUint_singleSlot_of_slotSafety
+      (hmapping := hmapping)
+      (hcoreKey := hcoreKey)
+      (hinScopeKey := hinScopeKey)
+      (hcoreValue := hcoreValue)
+      (hinScopeValue := hinScopeValue)
+      (hwriteSlots := hwriteSlots)
+      (hslotSafety := hslotSafety)
+      (hkeyIR := hkeyIR)
+      (hvalueIR := hvalueIR))
+    StmtListGenericCore.nil
 
 private theorem stmtListGenericCore_singleton_setMappingChainSingle_of_slotSafety
     {fields : List Field}
@@ -9891,22 +9894,23 @@ private theorem stmtListGenericCore_singleton_setMappingSingle_of_slotSafety
             (Compiler.Proofs.abstractMappingSlot slot keyNat) = none ∧
           findDynamicArrayElementAtSlotCopy fields runtime.world
             (Compiler.Proofs.abstractMappingSlot slot keyNat) = none) :
-    StmtListGenericCore fields scope [Stmt.setMapping fieldName key value] := by sorry
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey with
--- SORRY'D:     ⟨keyIR, hkeyIR⟩
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
--- SORRY'D:     ⟨valueIR, hvalueIR⟩
--- SORRY'D:   refine StmtListGenericCore.cons ?_ StmtListGenericCore.nil
--- SORRY'D:   exact compiledStmtStep_setMapping_singleSlot_of_slotSafety
--- SORRY'D:     (hmapping := hmapping)
--- SORRY'D:     (hcoreKey := hcoreKey)
--- SORRY'D:     (hinScopeKey := hinScopeKey)
--- SORRY'D:     (hcoreValue := hcoreValue)
--- SORRY'D:     (hinScopeValue := hinScopeValue)
--- SORRY'D:     (hwriteSlots := hwriteSlots)
--- SORRY'D:     (hslotSafety := hslotSafety)
--- SORRY'D:     (hkeyIR := hkeyIR)
--- SORRY'D:     (hvalueIR := hvalueIR)
+    StmtListGenericCore fields scope [Stmt.setMapping fieldName key value] := by
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey with
+    ⟨keyIR, hkeyIR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+    ⟨valueIR, hvalueIR⟩
+  exact StmtListGenericCore.cons
+    (compiledStmtStep_setMapping_singleSlot_of_slotSafety
+      (hmapping := hmapping)
+      (hcoreKey := hcoreKey)
+      (hinScopeKey := hinScopeKey)
+      (hcoreValue := hcoreValue)
+      (hinScopeValue := hinScopeValue)
+      (hwriteSlots := hwriteSlots)
+      (hslotSafety := hslotSafety)
+      (hkeyIR := hkeyIR)
+      (hvalueIR := hvalueIR))
+    StmtListGenericCore.nil
 
 private theorem stmtListGenericCore_singleton_setMappingWordSingle_of_slotSafety
     {fields : List Field}
