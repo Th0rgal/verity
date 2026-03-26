@@ -668,6 +668,113 @@ theorem wDivUp_by_wad (a : Uint256)
     (wDivUp a WAD : Nat) = (a : Nat) := by
   simpa [WAD_val] using mulDivUp_cancel_right a WAD WAD_ne_zero hNum
 
+/-! ## ceilDiv Correctness -/
+
+/-- ceilDiv of zero is zero. -/
+theorem ceilDiv_zero_left (b : Uint256) :
+    (ceilDiv 0 b : Nat) = 0 := by
+  simp [ceilDiv]
+
+/-- ceilDiv agrees with Nat ceiling division when there is no overflow.
+    Key identity: for a > 0, b > 0: (a - 1) / b + 1 = (a + b - 1) / b. -/
+theorem ceilDiv_nat_eq (a b : Uint256) (hB : b ≠ 0) :
+    (ceilDiv a b : Nat) = ((a : Nat) + (b : Nat) - 1) / (b : Nat) := by
+  have hBVal : (b : Nat) ≠ 0 := by
+    intro h
+    apply hB
+    exact Verity.Core.Uint256.ext (by simpa using h)
+  have hBPos : 0 < (b : Nat) := Nat.pos_of_ne_zero hBVal
+  by_cases hA : (a : Nat) = 0
+  · -- a = 0 case: ceilDiv 0 b = 0 and (0 + b - 1) / b = (b - 1) / b = 0
+    have hAZ : a = 0 := Verity.Core.Uint256.ext (by simpa using hA)
+    simp [ceilDiv, hAZ]
+    have hSubLt : (b : Nat) - 1 < (b : Nat) := Nat.sub_lt hBPos (by decide)
+    exact (Nat.div_eq_of_lt hSubLt).symm
+  · -- a > 0 case
+    have hAPos : 0 < (a : Nat) := Nat.pos_of_ne_zero hA
+    have hANe : (a == 0) = false := by
+      simp [BEq.beq]
+      intro h
+      exact hA (congrArg (fun x : Uint256 => x.val) h)
+    have hOneLe : (1 : Nat) ≤ (a : Nat) := hAPos
+    have hSub : ((a - 1 : Uint256) : Nat) = (a : Nat) - 1 :=
+      Verity.Core.Uint256.sub_eq_of_le hOneLe
+    have hDivLtMod : ((a : Nat) - 1) / (b : Nat) < Verity.Core.Uint256.modulus :=
+      Nat.lt_of_le_of_lt (Nat.div_le_self _ _) (Nat.lt_of_le_of_lt (Nat.sub_le _ _) a.isLt)
+    have hDivLt : ((a : Nat) - 1) / (b : Nat) + 1 < Verity.Core.Uint256.modulus :=
+      Nat.lt_of_le_of_lt (Nat.succ_le_of_lt (Nat.lt_of_le_of_lt (Nat.div_le_self _ _) (Nat.sub_lt hAPos (by decide)))) a.isLt
+    -- Prove ((a-1)/b : Uint256).val = (a.val-1)/b.val (Uint256 div matches Nat div here)
+    have hDivEq : ((a - 1 : Uint256) / b : Uint256).val = ((a : Nat) - 1) / (b : Nat) := by
+      -- Uint256.div is: if b.val = 0 then 0 else ofNat (a.val / b.val)
+      -- After unfolding, since b ≠ 0, we get ofNat ((a-1).val / b.val) = ofNat ((a.val-1) / b.val)
+      simp only [HDiv.hDiv, Verity.Core.Uint256.div]
+      simp only [hBVal, ↓reduceIte, Verity.Core.Uint256.ofNat, hSub]
+      exact Nat.mod_eq_of_lt hDivLtMod
+    -- Prove ((a-1)/b + 1 : Uint256).val = (a.val-1)/b.val + 1
+    have hAddLt : ((a - 1 : Uint256) / b).val + (1 : Uint256).val < Verity.Core.Uint256.modulus := by
+      rw [hDivEq, Verity.Core.Uint256.val_one]; exact hDivLt
+    have hCeilEq : ceilDiv a b = (a - 1) / b + 1 := by
+      unfold ceilDiv; rw [hANe]; rfl
+    rw [hCeilEq, Verity.Core.Uint256.add_eq_of_lt hAddLt, hDivEq, Verity.Core.Uint256.val_one]
+    -- Now prove the Nat identity: (a - 1) / b + 1 = (a + b - 1) / b for a > 0, b > 0
+    have hIdentity : ((a : Nat) - 1) / (b : Nat) + 1 = ((a : Nat) + (b : Nat) - 1) / (b : Nat) := by
+      have key : (a : Nat) + (b : Nat) - 1 = ((a : Nat) - 1) + (b : Nat) := by omega
+      rw [key, Nat.add_div_right _ hBPos]
+    exact hIdentity
+
+/-- Ceiling division times divisor is at least the dividend: ceilDiv(a,b) * b >= a.
+    This is the key property for solvency proofs. -/
+theorem ceilDiv_mul_ge (a b : Uint256) (hB : b ≠ 0)
+    (hNoOverflow : (ceilDiv a b).val * b.val < Verity.Core.Uint256.modulus) :
+    (a : Nat) ≤ (Verity.Core.Uint256.mul (ceilDiv a b) b : Nat) := by
+  have hBVal : (b : Nat) ≠ 0 := by
+    intro h
+    apply hB
+    exact Verity.Core.Uint256.ext (by simpa using h)
+  have hBPos : 0 < (b : Nat) := Nat.pos_of_ne_zero hBVal
+  have hMulExact : ((Verity.Core.Uint256.mul (ceilDiv a b) b : Uint256) : Nat) =
+      (ceilDiv a b).val * b.val :=
+    Verity.Core.Uint256.mul_eq_of_lt hNoOverflow
+  rw [hMulExact]
+  rw [ceilDiv_nat_eq a b hB]
+  -- Goal: a.val ≤ ((a.val + b.val - 1) / b.val) * b.val
+  -- From division: (a+b-1) = ((a+b-1)/b)*b + (a+b-1) mod b
+  -- So ((a+b-1)/b)*b = (a+b-1) - (a+b-1) mod b ≥ a+b-1 - (b-1) = a
+  have h1 := Nat.div_add_mod ((a : Nat) + (b : Nat) - 1) (b : Nat)
+  rw [Nat.mul_comm] at h1
+  have h2 := Nat.mod_lt ((a : Nat) + (b : Nat) - 1) hBPos
+  omega
+
+/-- ceilDiv is monotone: a >= b → ceilDiv a c >= ceilDiv b c -/
+theorem ceilDiv_monotone (a b c : Uint256) (hAB : (a : Nat) ≥ (b : Nat)) (hC : c ≠ 0) :
+    (ceilDiv a c : Nat) ≥ (ceilDiv b c : Nat) := by
+  rw [ceilDiv_nat_eq a c hC, ceilDiv_nat_eq b c hC]
+  exact Nat.div_le_div_right (by omega)
+
+/-- ceilDiv result never exceeds the dividend when divisor >= 1 -/
+theorem ceilDiv_le (a b : Uint256) (hB : b ≠ 0) :
+    (ceilDiv a b : Nat) ≤ (a : Nat) := by
+  have hBVal : (b : Nat) ≠ 0 := by
+    intro h
+    apply hB
+    exact Verity.Core.Uint256.ext (by simpa using h)
+  have hBPos : 0 < (b : Nat) := Nat.pos_of_ne_zero hBVal
+  rw [ceilDiv_nat_eq a b hB]
+  -- Goal: (a.val + b.val - 1) / b.val ≤ a.val
+  -- Since b ≥ 1: (a + b - 1) / b ≤ (a + b - 1) / 1 = a + b - 1
+  -- But we need a tighter bound. Key: (a + b - 1) / b = (a - 1) / b + 1 ≤ a - 1 + 1 = a (for a > 0)
+  -- And for a = 0: (0 + b - 1) / b = (b - 1) / b = 0 ≤ 0
+  by_cases hA : (a : Nat) = 0
+  · rw [hA, Nat.zero_add]
+    exact Nat.le_of_eq (Nat.div_eq_of_lt (by omega))
+  · have hAPos : 0 < (a : Nat) := Nat.pos_of_ne_zero hA
+    have key : (a : Nat) + (b : Nat) - 1 = ((a : Nat) - 1) + (b : Nat) := by omega
+    rw [key, Nat.add_div_right _ hBPos]
+    calc
+      ((a : Nat) - 1) / (b : Nat) + 1
+          ≤ ((a : Nat) - 1) + 1 := Nat.add_le_add_right (Nat.div_le_self _ _) _
+      _ = (a : Nat) := by omega
+
 /-! ## safeAdd Correctness -/
 
 /-- safeAdd returns the sum when no overflow occurs. -/

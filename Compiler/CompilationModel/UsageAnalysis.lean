@@ -112,7 +112,8 @@ def exprUsesArrayElement : Expr → Bool
   | Expr.sar a b | Expr.signextend a b |
     Expr.eq a b | Expr.ge a b | Expr.gt a b | Expr.sgt a b | Expr.lt a b | Expr.slt a b | Expr.le a b |
     Expr.logicalAnd a b | Expr.logicalOr a b |
-    Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b =>
+    Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b |
+    Expr.ceilDiv a b =>
       exprUsesArrayElement a || exprUsesArrayElement b
   | Expr.mulDivDown a b c | Expr.mulDivUp a b c =>
       exprUsesArrayElement a || exprUsesArrayElement b || exprUsesArrayElement c
@@ -239,7 +240,8 @@ def exprUsesStorageArrayElement : Expr → Bool
   | Expr.sar a b | Expr.signextend a b |
     Expr.eq a b | Expr.ge a b | Expr.gt a b | Expr.sgt a b | Expr.lt a b | Expr.slt a b | Expr.le a b |
     Expr.logicalAnd a b | Expr.logicalOr a b |
-    Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b =>
+    Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b |
+    Expr.ceilDiv a b =>
       exprUsesStorageArrayElement a || exprUsesStorageArrayElement b
   | Expr.mulDivDown a b c | Expr.mulDivUp a b c =>
       exprUsesStorageArrayElement a || exprUsesStorageArrayElement b || exprUsesStorageArrayElement c
@@ -362,7 +364,8 @@ def exprUsesDynamicBytesEq : Expr → Bool
   | Expr.sar a b | Expr.signextend a b
   | Expr.eq a b | Expr.ge a b | Expr.gt a b | Expr.sgt a b | Expr.lt a b | Expr.slt a b | Expr.le a b
   | Expr.logicalAnd a b | Expr.logicalOr a b
-  | Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b =>
+  | Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b
+  | Expr.ceilDiv a b =>
       exprUsesDynamicBytesEq a || exprUsesDynamicBytesEq b
   | Expr.mulDivDown a b c | Expr.mulDivUp a b c =>
       exprUsesDynamicBytesEq a || exprUsesDynamicBytesEq b || exprUsesDynamicBytesEq c

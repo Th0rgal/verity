@@ -1230,7 +1230,8 @@ private partial def inferPureExprType
       let lhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants
       let rhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals b visitingConstants
       classifyUnsignedWordArithmeticResultType stx "bitwise word arithmetic" lhsTy rhsTy
-  | `(term| min $a $b) | `(term| max $a $b) | `(term| wMulDown $a $b) | `(term| wDivUp $a $b) => do
+  | `(term| min $a $b) | `(term| max $a $b) | `(term| wMulDown $a $b) | `(term| wDivUp $a $b)
+  | `(term| ceilDiv $a $b) => do
       let lhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants
       let rhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals b visitingConstants
       classifyUnsignedWordArithmeticResultType stx "unsigned word arithmetic" lhsTy rhsTy
@@ -1662,6 +1663,7 @@ private partial def validateConstantBody
   | `(term| sgt $a $b) => validateConstantBody constDecls a visiting *> validateConstantBody constDecls b visiting
   | `(term| min $a $b) => validateConstantBody constDecls a visiting *> validateConstantBody constDecls b visiting
   | `(term| max $a $b) => validateConstantBody constDecls a visiting *> validateConstantBody constDecls b visiting
+  | `(term| ceilDiv $a $b) => validateConstantBody constDecls a visiting *> validateConstantBody constDecls b visiting
   | `(term| ite $cond $thenVal $elseVal) =>
       validateConstantBody constDecls cond visiting *>
       validateConstantBody constDecls thenVal visiting *>
@@ -1882,6 +1884,10 @@ partial def translatePureExprWithTypes
       `(Compiler.CompilationModel.Expr.arrayElement
           $(strTerm (← expectStringOrIdent name))
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals index visitingConstants))
+  | `(term| ceilDiv $a $b) =>
+      `(Compiler.CompilationModel.Expr.ceilDiv
+          $(← translatePureExprWithTypes fields constDecls immutableDecls params locals a visitingConstants)
+          $(← translatePureExprWithTypes fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| mulDivDown $a $b $c) =>
       `(Compiler.CompilationModel.Expr.mulDivDown
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals a visitingConstants)

@@ -130,7 +130,8 @@ def validateInternalCallShapesInExpr
     Expr.sar a b | Expr.signextend a b |
     Expr.eq a b | Expr.ge a b | Expr.gt a b | Expr.sgt a b | Expr.lt a b | Expr.slt a b | Expr.le a b |
     Expr.logicalAnd a b | Expr.logicalOr a b |
-    Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b => do
+    Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b |
+    Expr.ceilDiv a b => do
       validateInternalCallShapesInExpr functions callerName a
       validateInternalCallShapesInExpr functions callerName b
   | Expr.mulDivDown a b c | Expr.mulDivUp a b c => do
@@ -342,7 +343,8 @@ def validateExternalCallTargetsInExpr
     Expr.sar a b | Expr.signextend a b |
     Expr.eq a b | Expr.ge a b | Expr.gt a b | Expr.sgt a b | Expr.lt a b | Expr.slt a b | Expr.le a b |
     Expr.logicalAnd a b | Expr.logicalOr a b |
-    Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b => do
+    Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b |
+    Expr.ceilDiv a b => do
       validateExternalCallTargetsInExpr externals context a
       validateExternalCallTargetsInExpr externals context b
   | Expr.mulDivDown a b c | Expr.mulDivUp a b c => do
