@@ -3994,27 +3994,25 @@ private theorem stmtListScopeDiscipline_scope_names
       simp [collectStmtListBindNames, collectStmtBindNames,
         collectStmtListAssignedNames, collectStmtAssignedNames] at htail ⊢
       exact htail
-  | setStorage hfield hcore hinScope _ ih =>
+  | setStorage _hfield hcore hinScope _ ih =>
       intro other hmem
       simp only [List.foldl] at hmem
       have htail := ih other hmem
       simp [stmtNextScope, collectStmtNames, collectStmtListBindNames, collectStmtBindNames,
         collectStmtListAssignedNames, collectStmtAssignedNames] at htail ⊢
-      rcases htail with hfname | hvalue | hscope | hbind | hassign | hfld
-      · right; right; right; subst hfname; exact hfield
+      rcases htail with hvalue | hscope | hbind | hassign | hfld
       · left; exact hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hvalue)
       · left; exact hscope
       · right; left; exact hbind
       · right; right; left; exact hassign
       · right; right; right; exact hfld
-  | setStorageAddr hfield hcore hinScope _ ih =>
+  | setStorageAddr _hfield hcore hinScope _ ih =>
       intro other hmem
       simp only [List.foldl] at hmem
       have htail := ih other hmem
       simp [stmtNextScope, collectStmtNames, collectStmtListBindNames, collectStmtBindNames,
         collectStmtListAssignedNames, collectStmtAssignedNames] at htail ⊢
-      rcases htail with hfname | hvalue | hscope | hbind | hassign | hfld
-      · right; right; right; subst hfname; exact hfield
+      rcases htail with hvalue | hscope | hbind | hassign | hfld
       · left; exact hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hvalue)
       · left; exact hscope
       · right; left; exact hbind

@@ -132,24 +132,24 @@ mutual
 def collectStmtNames : Stmt → List String
   | Stmt.letVar name value => name :: collectExprNames value
   | Stmt.assignVar name value => name :: collectExprNames value
-  | Stmt.setStorage field value | Stmt.setStorageAddr field value => field :: collectExprNames value
-  | Stmt.storageArrayPush field value => field :: collectExprNames value
-  | Stmt.storageArrayPop field => [field]
-  | Stmt.setStorageArrayElement field index value =>
-      field :: collectExprNames index ++ collectExprNames value
-  | Stmt.setMapping field key value => field :: collectExprNames key ++ collectExprNames value
-  | Stmt.setMappingWord field key _ value => field :: collectExprNames key ++ collectExprNames value
-  | Stmt.setMappingPackedWord field key _ _ value => field :: collectExprNames key ++ collectExprNames value
-  | Stmt.setMapping2 field key1 key2 value =>
-    field :: collectExprNames key1 ++ collectExprNames key2 ++ collectExprNames value
-  | Stmt.setMapping2Word field key1 key2 _ value =>
-    field :: collectExprNames key1 ++ collectExprNames key2 ++ collectExprNames value
-  | Stmt.setMappingUint field key value => field :: collectExprNames key ++ collectExprNames value
-  | Stmt.setMappingChain field keys value =>
-    field :: collectExprListNames keys ++ collectExprNames value
-  | Stmt.setStructMember field key _ value => field :: collectExprNames key ++ collectExprNames value
-  | Stmt.setStructMember2 field key1 key2 _ value =>
-    field :: collectExprNames key1 ++ collectExprNames key2 ++ collectExprNames value
+  | Stmt.setStorage _ value | Stmt.setStorageAddr _ value => collectExprNames value
+  | Stmt.storageArrayPush _ value => collectExprNames value
+  | Stmt.storageArrayPop _ => []
+  | Stmt.setStorageArrayElement _ index value =>
+      collectExprNames index ++ collectExprNames value
+  | Stmt.setMapping _ key value => collectExprNames key ++ collectExprNames value
+  | Stmt.setMappingWord _ key _ value => collectExprNames key ++ collectExprNames value
+  | Stmt.setMappingPackedWord _ key _ _ value => collectExprNames key ++ collectExprNames value
+  | Stmt.setMapping2 _ key1 key2 value =>
+    collectExprNames key1 ++ collectExprNames key2 ++ collectExprNames value
+  | Stmt.setMapping2Word _ key1 key2 _ value =>
+    collectExprNames key1 ++ collectExprNames key2 ++ collectExprNames value
+  | Stmt.setMappingUint _ key value => collectExprNames key ++ collectExprNames value
+  | Stmt.setMappingChain _ keys value =>
+    collectExprListNames keys ++ collectExprNames value
+  | Stmt.setStructMember _ key _ value => collectExprNames key ++ collectExprNames value
+  | Stmt.setStructMember2 _ key1 key2 _ value =>
+    collectExprNames key1 ++ collectExprNames key2 ++ collectExprNames value
   | Stmt.require cond _ => collectExprNames cond
   | Stmt.requireError cond errorName args => errorName :: collectExprNames cond ++ collectExprListNames args
   | Stmt.revertError errorName args => errorName :: collectExprListNames args
