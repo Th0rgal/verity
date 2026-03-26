@@ -10867,13 +10867,126 @@ private theorem exprBoundNamesInScope_of_scopeNamesIncluded
   intro name hname
   exact hincluded name (hinScope name hname)
 
+private theorem scopeNamesIncluded_cons
+    {name : String} {scope largerScope : List String}
+    (hincluded : FunctionBody.scopeNamesIncluded scope largerScope) :
+    FunctionBody.scopeNamesIncluded (name :: scope) (name :: largerScope) := by
+  intro n hn
+  simp at hn ⊢
+  rcases hn with rfl | hn
+  · exact Or.inl rfl
+  · exact Or.inr (hincluded n hn)
+
+private theorem stmtListCompileCore_of_scopeNamesIncluded
+    {scope largerScope : List String}
+    {stmts : List Stmt}
+    (hcore : FunctionBody.StmtListCompileCore scope stmts)
+    (hincluded : FunctionBody.scopeNamesIncluded scope largerScope) :
+    FunctionBody.StmtListCompileCore largerScope stmts := by
+  induction hcore generalizing largerScope with
+  | nil => exact .nil
+  | letVar hvalue hinScope hrest ih =>
+      exact .letVar hvalue
+        (exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
+        (ih <| scopeNamesIncluded_cons hincluded)
+  | assignVar hvalue hinScope hrest ih =>
+      exact .assignVar hvalue
+        (exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
+        (ih <| scopeNamesIncluded_cons hincluded)
+  | require_ hcond hinScope hrest ih =>
+      exact .require_ hcond
+        (exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
+        (ih hincluded)
+  | return_ hvalue hinScope hrest ih =>
+      exact .return_ hvalue
+        (exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
+        (ih hincluded)
+  | stop hrest ih =>
+      exact .stop (ih hincluded)
+
+private theorem stmtListTerminalCore_of_scopeNamesIncluded
+    {scope largerScope : List String}
+    {stmts : List Stmt}
+    (hterminal : FunctionBody.StmtListTerminalCore scope stmts)
+    (hincluded : FunctionBody.scopeNamesIncluded scope largerScope) :
+    FunctionBody.StmtListTerminalCore largerScope stmts := by
+  induction hterminal generalizing largerScope with
+  | letVar hvalue hinScope hrest ih =>
+      exact .letVar hvalue
+        (exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
+        (ih <| scopeNamesIncluded_cons hincluded)
+  | assignVar hvalue hinScope hrest ih =>
+      exact .assignVar hvalue
+        (exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
+        (ih <| scopeNamesIncluded_cons hincluded)
+  | require_ hcond hinScope hrest ih =>
+      exact .require_ hcond
+        (exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
+        (ih hincluded)
+  | return_ hvalue hinScope hrest =>
+      exact .return_ hvalue
+        (exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
+        (stmtListCompileCore_of_scopeNamesIncluded hrest hincluded)
+  | stop hrest =>
+      exact .stop (stmtListCompileCore_of_scopeNamesIncluded hrest hincluded)
+  | ite hcond hinScope hthen helse hrest ihThen ihElse =>
+      exact .ite hcond
+        (exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
+        (ihThen hincluded)
+        (ihElse hincluded)
+        (stmtListCompileCore_of_scopeNamesIncluded hrest hincluded)
+
 private theorem stmtListGenericCore_of_stmtListCompileCore_of_scopeNamesIncluded
     {fields : List Field}
     {scope largerScope : List String}
     {stmts : List Stmt}
     (hcore : FunctionBody.StmtListCompileCore scope stmts)
     (hincluded : FunctionBody.scopeNamesIncluded scope largerScope) :
-    StmtListGenericCore fields largerScope stmts := by sorry
+    StmtListGenericCore fields largerScope stmts := by
+  induction hcore generalizing largerScope with
+  | nil => exact StmtListGenericCore.nil
+  | letVar hvalue hinScope hrest ih =>
+      rcases FunctionBody.compileExpr_core_ok (fields := fields) hvalue with
+        ⟨valueIR, hvalueIR⟩
+      exact StmtListGenericCore.cons
+        (compiledStmtStep_letVar
+          (hcore := hvalue)
+          (hinScope := exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
+          (hvalueIR := hvalueIR))
+        (ih <| FunctionBody.scopeNamesIncluded_collectStmtNames_letVar hincluded)
+  | assignVar hvalue hinScope hrest ih =>
+      rcases FunctionBody.compileExpr_core_ok (fields := fields) hvalue with
+        ⟨valueIR, hvalueIR⟩
+      exact StmtListGenericCore.cons
+        (compiledStmtStep_assignVar
+          (hcore := hvalue)
+          (hinScope := exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
+          (hvalueIR := hvalueIR))
+        (ih <| FunctionBody.scopeNamesIncluded_collectStmtNames_assignVar hincluded)
+  | require_ hcond hinScope hrest ih =>
+      rcases FunctionBody.compileRequireFailCond_core_ok (fields := fields) hcond with
+        ⟨failCond, hfailCond⟩
+      exact StmtListGenericCore.cons
+        (compiledStmtStep_require
+          (hcore := hcond)
+          (hinScope := exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
+          (hfailCompile := hfailCond))
+        (ih <| FunctionBody.scopeNamesIncluded_collectStmtNames_tail
+          (stmt := .require _ _) hincluded)
+  | return_ hvalue hinScope hrest ih =>
+      rcases FunctionBody.compileExpr_core_ok (fields := fields) hvalue with
+        ⟨valueIR, hvalueIR⟩
+      exact StmtListGenericCore.cons
+        (compiledStmtStep_return
+          (hcore := hvalue)
+          (hinScope := exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
+          (hvalueIR := hvalueIR))
+        (ih <| FunctionBody.scopeNamesIncluded_collectStmtNames_tail
+            (stmt := .return _) hincluded)
+  | stop hrest ih =>
+      exact StmtListGenericCore.cons compiledStmtStep_stop
+        (ih <| FunctionBody.scopeNamesIncluded_collectStmtNames_tail
+            (stmt := .stop) hincluded)
 
 private theorem stmtListGenericCore_of_stmtListTerminalCore_of_scopeNamesIncluded
     {fields : List Field}
@@ -10881,7 +10994,65 @@ private theorem stmtListGenericCore_of_stmtListTerminalCore_of_scopeNamesInclude
     {stmts : List Stmt}
     (hterminal : FunctionBody.StmtListTerminalCore scope stmts)
     (hincluded : FunctionBody.scopeNamesIncluded scope largerScope) :
-    StmtListGenericCore fields largerScope stmts := by sorry
+    StmtListGenericCore fields largerScope stmts := by
+  induction hterminal generalizing largerScope with
+  | letVar hvalue hinScope hrest ih =>
+      rcases FunctionBody.compileExpr_core_ok (fields := fields) hvalue with
+        ⟨valueIR, hvalueIR⟩
+      exact StmtListGenericCore.cons
+        (compiledStmtStep_letVar
+          (hcore := hvalue)
+          (hinScope := exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
+          (hvalueIR := hvalueIR))
+        (ih <| FunctionBody.scopeNamesIncluded_collectStmtNames_letVar hincluded)
+  | assignVar hvalue hinScope hrest ih =>
+      rcases FunctionBody.compileExpr_core_ok (fields := fields) hvalue with
+        ⟨valueIR, hvalueIR⟩
+      exact StmtListGenericCore.cons
+        (compiledStmtStep_assignVar
+          (hcore := hvalue)
+          (hinScope := exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
+          (hvalueIR := hvalueIR))
+        (ih <| FunctionBody.scopeNamesIncluded_collectStmtNames_assignVar hincluded)
+  | require_ hcond hinScope hrest ih =>
+      rcases FunctionBody.compileRequireFailCond_core_ok (fields := fields) hcond with
+        ⟨failCond, hfailCond⟩
+      exact StmtListGenericCore.cons
+        (compiledStmtStep_require
+          (hcore := hcond)
+          (hinScope := exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
+          (hfailCompile := hfailCond))
+        (ih <| FunctionBody.scopeNamesIncluded_collectStmtNames_tail
+          (stmt := .require _ _) hincluded)
+  | return_ hvalue hinScope hrest =>
+      rcases FunctionBody.compileExpr_core_ok (fields := fields) hvalue with
+        ⟨valueIR, hvalueIR⟩
+      exact StmtListGenericCore.cons
+        (compiledStmtStep_return
+          (hcore := hvalue)
+          (hinScope := exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
+          (hvalueIR := hvalueIR))
+        (stmtListGenericCore_of_stmtListCompileCore_of_scopeNamesIncluded
+          hrest
+          (FunctionBody.scopeNamesIncluded_collectStmtNames_tail
+            (stmt := .return _) hincluded))
+  | stop hrest =>
+      exact StmtListGenericCore.cons compiledStmtStep_stop
+        (stmtListGenericCore_of_stmtListCompileCore_of_scopeNamesIncluded
+          hrest
+          (FunctionBody.scopeNamesIncluded_collectStmtNames_tail
+            (stmt := .stop) hincluded))
+  | ite hcond hinScope hthen helse hrest ihThen ihElse =>
+      rcases compiledStmtStep_ite (fields := fields) hcond
+          (exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
+          (stmtListTerminalCore_of_scopeNamesIncluded hthen hincluded)
+          (stmtListTerminalCore_of_scopeNamesIncluded helse hincluded) with
+        ⟨compiledIR, hstep⟩
+      exact StmtListGenericCore.cons hstep
+        (stmtListGenericCore_of_stmtListCompileCore_of_scopeNamesIncluded
+          hrest
+          (FunctionBody.scopeNamesIncluded_collectStmtNames_tail
+            (stmt := .ite _ _ _) hincluded))
 -- SORRY'D:   induction hterminal generalizing largerScope with
 -- SORRY'D:   | letVar hvalue hinScope hrest ih =>
 -- SORRY'D:       rcases FunctionBody.compileExpr_core_ok (fields := fields) hvalue with
