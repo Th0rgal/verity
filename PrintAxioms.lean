@@ -889,6 +889,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_lt_evmModulus_core_onExpr
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_lt_evmModulus_core
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileRequireFailCond_core_ok
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileRequireFailCond_core_onExpr
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.runtimeStateMatchesIR_setVar_bindValue
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.runtimeStateMatchesIR_setVar_irrelevant
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmt_core_ok
@@ -910,6 +911,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVarsOnScope_implies_onExpr
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_core_of_scope
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_lt_evmModulus_core_of_scope
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileRequireFailCond_core_of_scope
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exprBoundNamesPresent_of_scope
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.scopeNamesPresent_of_included
@@ -1003,9 +1005,9 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_iszero_of_eval  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmt_revertPrefix_continue  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_revertPrefix_then_revert  -- private
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_revertWithMessage_revert  -- private
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmtList_core  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmtList_core_extraFuel  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_revertWithMessage_revert
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmtList_core
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmtList_core_extraFuel
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compiled_terminal_ite_body_block_extraFuel_eq  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compiled_terminal_ite_body_thenBranch_extraFuel_eq  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compiled_terminal_ite_body_elseBranch_extraFuel_eq  -- private
@@ -1048,7 +1050,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVarsOnScope_setFreshTemp_irrelevant
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compiled_terminal_ite_temp_not_mem_scope
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVarsOnScope_setCompiledTerminalIteTemp_irrelevant
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmtList_terminal_core_sizeOf_extraFuel  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmtList_terminal_core_sizeOf_extraFuel
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultToSourceResult_matches_irExecResult
 
 -- Compiler/Proofs/IRGeneration/GenericInduction.lean
@@ -1143,6 +1145,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListScopeDiscipline_scope_names  -- private
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_letVar
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_assignVar
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_require
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_return
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_stop
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_writeUintSlots_singleton_other  -- private
@@ -1206,7 +1209,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStructMember2_singleSlot_of_slotSafety_preserves  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes  -- sorry'd
 -- #print axioms Compiler.Proofs.IRGeneration.terminal_stmtResultMatchesIRExec_implies_stmtStepMatchesIRExec  -- private
--- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_ite  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_ite
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedContractSurface_append  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListCompileCore_of_requireLiteralGuardFamilyClauses  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.foldl_stmtNextScope_requireLiteralGuardFamilyClauses  -- private
@@ -1264,6 +1267,9 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyInterface.helperFreeStepInterface
 -- #print axioms Compiler.Proofs.IRGeneration.exprBoundNamesInScope_of_scopeNamesIncluded  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.scopeNamesIncluded_cons  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListCompileCore_of_scopeNamesIncluded  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListTerminalCore_of_scopeNamesIncluded  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_stmtListCompileCore_of_scopeNamesIncluded  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_stmtListTerminalCore_of_scopeNamesIncluded  -- private
 #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_stmtListCompileCore
@@ -1894,4 +1900,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1763 theorems/lemmas (1176 public, 571 private, 16 sorry'd)
+-- Total: 1769 theorems/lemmas (1184 public, 573 private, 12 sorry'd)
