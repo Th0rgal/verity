@@ -1204,8 +1204,10 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.validateIdentifierShapes_fieldName_avoidReservedCompilerPrefix  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingUint_singleSlot_of_slotSafety_preserves  -- private
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingUint_singleSlot_of_slotSafety
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingChain_singleSlot_of_slotSafety_preserves  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMapping_singleSlot_of_slotSafety_preserves  -- private
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMapping_singleSlot_of_slotSafety
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingWord_singleSlot_of_slotSafety_preserves  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_preserves  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStructMember_singleSlot_of_slotSafety_preserves  -- private
@@ -1906,4 +1908,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1775 theorems/lemmas (1189 public, 574 private, 12 sorry'd)
+-- Total: 1777 theorems/lemmas (1191 public, 574 private, 12 sorry'd)
