@@ -1064,6 +1064,16 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_return_core_append_wholeFuel_of_scope
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_stop_core_append_wholeFuel
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.sizeOf_singleton_append_extraFuel_ne_zero  -- private
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_let_core_append_wholeFuel_of_scope
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_let_core_tailExtraFuel_of_scope
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_assign_core_append_wholeFuel_of_scope
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_assign_core_tailExtraFuel_of_scope
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_require_core_pass_append_wholeFuel_of_scope
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_require_core_pass_tailExtraFuel_of_scope
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_require_core_fail_append_wholeFuel_of_scope
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_compiled_let_core_tailExtraFuel_of_scope
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_compiled_assign_core_tailExtraFuel_of_scope
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_compiled_require_core_pass_tailExtraFuel_of_scope
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_compiled_return_core_append_wholeFuel_of_scope
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_compiled_stop_core_append_wholeFuel
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.scopeNamesIncluded_refl
@@ -1952,4 +1962,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1821 theorems/lemmas (1233 public, 588 private, 0 sorry'd)
+-- Total: 1831 theorems/lemmas (1243 public, 588 private, 0 sorry'd)
