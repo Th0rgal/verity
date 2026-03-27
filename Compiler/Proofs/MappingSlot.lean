@@ -136,9 +136,11 @@ theorem solidityMappingSlot_add_lt_evmModulus (baseSlot key wordOffset : Nat)
 
 /-- The sum of a mapping slot and a word offset fits in 256 bits.
     This holds because keccak256 output < 2^256 and word offsets are
-    bounded by struct layout (typically < 32). -/
-axiom solidityMappingSlot_add_wordOffset_lt_evmModulus
-    (baseSlot key wordOffset : Nat) :
-    solidityMappingSlot baseSlot key + wordOffset < Compiler.Constants.evmModulus
+    bounded explicitly by the available headroom under `2^256`. -/
+theorem solidityMappingSlot_add_wordOffset_lt_evmModulus
+    (baseSlot key wordOffset : Nat)
+    (h : wordOffset < Compiler.Constants.evmModulus - solidityMappingSlot baseSlot key) :
+    solidityMappingSlot baseSlot key + wordOffset < Compiler.Constants.evmModulus := by
+  exact solidityMappingSlot_add_lt_evmModulus baseSlot key wordOffset h
 
 end Compiler.Proofs

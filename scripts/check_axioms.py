@@ -28,7 +28,6 @@ LEAN_BUILTIN_AXIOMS = frozenset([
 DOCUMENTED_AXIOMS = frozenset([
     "keccak256_first_4_bytes",
     "solidityMappingSlot_lt_evmModulus",
-    "solidityMappingSlot_add_wordOffset_lt_evmModulus",
 ])
 
 FORBIDDEN_AXIOMS = frozenset([

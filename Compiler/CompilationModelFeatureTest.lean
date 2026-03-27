@@ -1047,6 +1047,21 @@ def initializeExecutableRunsOnce : Bool :=
 
 example : initializeExecutableRunsOnce = true := by native_decide
 
+def compileSetStorageAddrMasksAddressWrites : Bool :=
+  let fields : List Compiler.CompilationModel.Field :=
+    [{ name := "owner", ty := Compiler.CompilationModel.FieldType.address }]
+  match Compiler.CompilationModel.compileSetStorage fields .calldata "owner" (Expr.literal 42) true with
+  | .ok [Compiler.Yul.YulStmt.expr
+      (Compiler.Yul.YulExpr.call "sstore"
+        [Compiler.Yul.YulExpr.lit 0,
+         Compiler.Yul.YulExpr.call "and"
+           [Compiler.Yul.YulExpr.lit 42,
+            Compiler.Yul.YulExpr.hex mask]])] =>
+      mask == Compiler.Constants.addressMask
+  | _ => false
+
+example : compileSetStorageAddrMasksAddressWrites = true := by native_decide
+
 def initializeExecutableSecondCallReverts : Bool :=
   let seedOwner := wordToAddress 77
   match MacroInitializer.initOwner seedOwner Verity.defaultState with
@@ -2622,6 +2637,9 @@ set_option maxRecDepth 4096 in
   expectTrue
     "macro initializer executable path seeds storage on the first call"
     MacroInitializerSmoke.initializeExecutableRunsOnce
+  expectTrue
+    "setStorageAddr compilation masks stored address words"
+    MacroInitializerSmoke.compileSetStorageAddrMasksAddressWrites
   expectTrue
     "macro initializer executable path rejects a second call"
     MacroInitializerSmoke.initializeExecutableSecondCallReverts

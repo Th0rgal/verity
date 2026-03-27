@@ -30,7 +30,7 @@ class CheckAxiomsLocationTests(unittest.TestCase):
         )
 
     def test_parse_active_axiom_count(self) -> None:
-        self.assertEqual(check_axioms.parse_active_axiom_count("- Active axioms: 3\n"), 3)
+        self.assertEqual(check_axioms.parse_active_axiom_count("- Active axioms: 2\n"), 2)
         self.assertIsNone(check_axioms.parse_active_axiom_count("no summary line"))
 
     def test_discover_repo_axioms_ignores_comments_and_strings(self) -> None:

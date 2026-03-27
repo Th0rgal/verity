@@ -85,13 +85,18 @@ def compileSetStorage (fields : List Field) (dynamicSource : DynamicDataSource)
               throw s!"Compilation error: field '{field}' is not address-typed; use Stmt.setStorage instead"
         let slots := slot :: f.aliasSlots
         let valueExpr ← compileExpr fields dynamicSource value
+        let storedValueExpr :=
+          if requireAddressField then
+            YulExpr.call "and" [valueExpr, YulExpr.hex Compiler.Constants.addressMask]
+          else
+            valueExpr
         match slots with
         | [] =>
             throw s!"Compilation error: internal invariant failure: no write slots for field '{field}' in setStorage"
         | [singleSlot] =>
             match f.packedBits with
             | none =>
-                pure [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit singleSlot, valueExpr])]
+                pure [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit singleSlot, storedValueExpr])]
             | some packed =>
                 pure (compilePackedStorageWrite (YulExpr.lit singleSlot) valueExpr packed)
         | _ =>
@@ -100,7 +105,7 @@ def compileSetStorage (fields : List Field) (dynamicSource : DynamicDataSource)
             | none =>
                 pure [
                   YulStmt.block (
-                    [YulStmt.let_ "__compat_value" valueExpr] ++
+                    [YulStmt.let_ "__compat_value" storedValueExpr] ++
                     writeSlots.map (fun writeSlot =>
                       YulStmt.expr (YulExpr.call "sstore" [writeSlot, YulExpr.ident "__compat_value"]))
                   )

@@ -19,7 +19,7 @@
 | `d47c51fd` | 18 | stmtListGenericCore_of_supportedStmtList_of_surface by induction (−1) |
 | Various | 13 | helper-free/surface/legacy bridge chain, exec with helpers and helper-IR (−5) |
 | `a4c29009` | 10 | bridge theorems (LegacyCompatible + CallsDisjoint) + 3 downstream (−3) |
-| `66236a18` | 6 | Add keccak axiom `solidityMappingSlot_add_wordOffset_lt_evmModulus` + prove 4 mapping slot wordOffset≠0 sorries (−4) |
+| `66236a18` | 6 | Add provisional mapping-slot overflow axiom and prove 4 wordOffset≠0 sorries (−4) |
 | `7dee40c3` | 5 | Prove aliasSlots TYPESIG_SORRY chain: 3 theorems uncommented (−1) |
 | `08b717e3` | 4 | Add ExprCompileCore bitwise constructors, prove exprCompileCore_of_exprTouchesUnsupportedContractSurface (−1) |
 | `faaf81e5` | 4 | Remove 7 dead-code TYPESIG_SORRY blocks, uncomment 2 setStorage blocks, uncomment 2 exceptMappingWrites blocks (TYPESIG reduction only) |
