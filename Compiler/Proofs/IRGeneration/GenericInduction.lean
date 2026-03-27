@@ -6138,6 +6138,122 @@ private theorem compatScratch_startsWith_reserved
             left
             decide
 
+private theorem compatScratch_not_internalImmutable
+    {name : String}
+    (h :
+      name = "__compat_value" ∨
+      name = "__compat_packed" ∨
+      name = "__compat_slot_word" ∨
+      name = "__compat_slot_cleared") :
+    name.startsWith "__immutable_" = false := by
+  rcases h with h | h
+  · subst h
+    unfold String.startsWith
+    change Substring.beq ("__compat_value".toSubstring.take "__immutable_".length)
+      "__immutable_".toSubstring = false
+    simp [Substring.beq, String.toSubstring, Substring.take]
+    intro hlen
+    unfold String.substrEq
+    simp
+    intro h1
+    intro h2
+    unfold String.substrEq.loop
+    simp
+    constructor
+    · decide
+    · intro hchar
+      unfold String.substrEq.loop
+      simp
+      constructor
+      · decide
+      · intro hchar2
+        unfold String.substrEq.loop
+        simp
+        constructor
+        · decide
+        · intro hchar3
+          cases hchar3
+  rcases h with h | h
+  · subst h
+    unfold String.startsWith
+    change Substring.beq ("__compat_packed".toSubstring.take "__immutable_".length)
+      "__immutable_".toSubstring = false
+    simp [Substring.beq, String.toSubstring, Substring.take]
+    intro hlen
+    unfold String.substrEq
+    simp
+    intro h1
+    intro h2
+    unfold String.substrEq.loop
+    simp
+    constructor
+    · decide
+    · intro hchar
+      unfold String.substrEq.loop
+      simp
+      constructor
+      · decide
+      · intro hchar2
+        unfold String.substrEq.loop
+        simp
+        constructor
+        · decide
+        · intro hchar3
+          cases hchar3
+  rcases h with h | h
+  · subst h
+    unfold String.startsWith
+    change Substring.beq ("__compat_slot_word".toSubstring.take "__immutable_".length)
+      "__immutable_".toSubstring = false
+    simp [Substring.beq, String.toSubstring, Substring.take]
+    intro hlen
+    unfold String.substrEq
+    simp
+    intro h1
+    intro h2
+    unfold String.substrEq.loop
+    simp
+    constructor
+    · decide
+    · intro hchar
+      unfold String.substrEq.loop
+      simp
+      constructor
+      · decide
+      · intro hchar2
+        unfold String.substrEq.loop
+        simp
+        constructor
+        · decide
+        · intro hchar3
+          cases hchar3
+  · subst h
+    unfold String.startsWith
+    change Substring.beq ("__compat_slot_cleared".toSubstring.take "__immutable_".length)
+      "__immutable_".toSubstring = false
+    simp [Substring.beq, String.toSubstring, Substring.take]
+    intro hlen
+    unfold String.substrEq
+    simp
+    intro h1
+    intro h2
+    unfold String.substrEq.loop
+    simp
+    constructor
+    · decide
+    · intro hchar
+      unfold String.substrEq.loop
+      simp
+      constructor
+      · decide
+      · intro hchar2
+        unfold String.substrEq.loop
+        simp
+        constructor
+        · decide
+        · intro hchar3
+          cases hchar3
+
 private theorem validateIdentifierShapes_fieldName_ne_reservedScratch
     {spec : CompilationModel}
     {name : String}
@@ -6153,24 +6269,32 @@ private theorem validateIdentifierShapes_fieldName_ne_reservedScratch
   refine ⟨?_, ?_, ?_, ?_⟩
   · intro hEq
     exact hreserved (by
-      simpa [hEq] using
-        (show ("__compat_value".startsWith "__" &&
-            !("__compat_value".startsWith "__immutable_")) = true by native_decide))
+      have hprefix : "__compat_value".startsWith "__" = true := by
+        exact compatScratch_startsWith_reserved (Or.inl rfl)
+      have himm : "__compat_value".startsWith "__immutable_" = false := by
+        exact compatScratch_not_internalImmutable (Or.inl rfl)
+      simpa [hEq, hprefix, himm])
   · intro hEq
     exact hreserved (by
-      simpa [hEq] using
-        (show ("__compat_packed".startsWith "__" &&
-            !("__compat_packed".startsWith "__immutable_")) = true by native_decide))
+      have hprefix : "__compat_packed".startsWith "__" = true := by
+        exact compatScratch_startsWith_reserved (Or.inr <| Or.inl rfl)
+      have himm : "__compat_packed".startsWith "__immutable_" = false := by
+        exact compatScratch_not_internalImmutable (Or.inr <| Or.inl rfl)
+      simpa [hEq, hprefix, himm])
   · intro hEq
     exact hreserved (by
-      simpa [hEq] using
-        (show ("__compat_slot_word".startsWith "__" &&
-            !("__compat_slot_word".startsWith "__immutable_")) = true by native_decide))
+      have hprefix : "__compat_slot_word".startsWith "__" = true := by
+        exact compatScratch_startsWith_reserved (Or.inr <| Or.inr <| Or.inl rfl)
+      have himm : "__compat_slot_word".startsWith "__immutable_" = false := by
+        exact compatScratch_not_internalImmutable (Or.inr <| Or.inr <| Or.inl rfl)
+      simpa [hEq, hprefix, himm])
   · intro hEq
     exact hreserved (by
-      simpa [hEq] using
-        (show ("__compat_slot_cleared".startsWith "__" &&
-            !("__compat_slot_cleared".startsWith "__immutable_")) = true by native_decide))
+      have hprefix : "__compat_slot_cleared".startsWith "__" = true := by
+        exact compatScratch_startsWith_reserved (Or.inr <| Or.inr <| Or.inr rfl)
+      have himm : "__compat_slot_cleared".startsWith "__immutable_" = false := by
+        exact compatScratch_not_internalImmutable (Or.inr <| Or.inr <| Or.inr rfl)
+      simpa [hEq, hprefix, himm])
 
 private theorem scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes
     {spec : CompilationModel}
@@ -7741,6 +7865,17 @@ private theorem compiledStmtStep_setMappingWord_singleSlot_of_slotSafety_preserv
         -- Reduce the if-then-else: wordOffset ≠ 0 means we take the else branch
         have hbeq : (wordOffset == 0) = false := by
           simp [beq_iff_eq, hzero]
+        have hTargetMod :
+            (Compiler.Proofs.solidityMappingSlot slot keyNat + wordOffset) %
+              Compiler.Constants.evmModulus = targetSlot := by
+          rw [show targetSlot =
+            (Verity.Core.Uint256.ofNat wordOffset +
+              Verity.Core.Uint256.ofNat
+                (Compiler.Proofs.solidityMappingSlot slot keyNat)).val by
+              simpa [targetSlot] using mappingWordTargetSlot_eq_uint256_add slot keyNat wordOffset]
+          simpa [Nat.add_comm] using
+            (uint256_add_val_eq_mod wordOffset
+              (Compiler.Proofs.solidityMappingSlot slot keyNat)).symm
         have hTargetAdd :
             targetSlot =
               (Verity.Core.Uint256.ofNat wordOffset +
@@ -7750,14 +7885,13 @@ private theorem compiledStmtStep_setMappingWord_singleSlot_of_slotSafety_preserv
             Compiler.Proofs.abstractStoreStorageOrMapping state.storage targetSlot valueNat =
               fun s =>
                 if s =
-                    (Verity.Core.Uint256.ofNat wordOffset +
-                      Verity.Core.Uint256.ofNat
-                        (Compiler.Proofs.solidityMappingSlot slot keyNat)).val then
+                    (Compiler.Proofs.solidityMappingSlot slot keyNat + wordOffset) %
+                      Compiler.Constants.evmModulus then
                   valueNat
                 else
                   state.storage s := by
           funext s
-          rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq, hTargetAdd]
+          rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq, ← hTargetMod]
         -- The compiled IR with the if-else reduced
         have hExecStmt :
             execIRStmt (extraFuel + 1) state
@@ -7771,7 +7905,7 @@ private theorem compiledStmtStep_setMappingWord_singleSlot_of_slotSafety_preserv
             Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
             Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
             Compiler.Proofs.abstractMappingSlot_eq_solidity,
-            state', hStoreEq]
+            state', hTargetMod, hStoreEq]
         have hIRExec : execIRStmts (1 + extraFuel + 1) state
             [YulStmt.expr (YulExpr.call "sstore"
               [YulExpr.call "add"
@@ -8128,7 +8262,8 @@ private theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_p
                 some ((Verity.Core.Uint256.ofNat wordOffset +
                   Verity.Core.Uint256.ofNat (Compiler.Proofs.solidityMappingSlot slot keyNat)).val) := by
             rw [uint256_add_val_eq_mod]
-            simpa [Compiler.Proofs.abstractMappingSlot_eq_solidity, Nat.add_comm] using hAddEval
+            simpa [Compiler.Proofs.abstractMappingSlot_eq_solidity, Nat.add_assoc, Nat.add_comm,
+              Nat.add_left_comm] using hAddEval
           simpa [hzero, targetSlot, mappingWordTargetSlot_eq_uint256_add] using hAddEval'
       set state1 := state.setVar "__compat_value" valueNat
       have hCompatValue :
@@ -8155,18 +8290,32 @@ private theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_p
               (YulExpr.call "and" [YulExpr.ident "__compat_value", YulExpr.lit (packedMaskNat packed)])) =
             .continue state2 := by
         simp [state2, execIRStmt, hPackedEval]
-      have hexact_state1 :=
-        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant hexact hcompatValue
-      have hexact_state2 :=
-        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant hexact_state1 hcompatPacked
-      have hkeySourceEval2 :=
-        FunctionBody.eval_compileExpr_core_of_scope
-          hcoreKey hexact_state2 hinScopeKey hbounded
-          (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey)
-          hruntime
-      rw [hkeyIR] at hkeySourceEval2
-      simp [Except.toOption, hKeySrc] at hkeySourceEval2
-      have hIRKeyState2 : evalIRExpr state2 keyIR = some keyNat := hkeySourceEval2
+      have hexact_state1 :
+          FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state1 :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant
+          (value := valueNat) hexact hcompatValue
+      have hexact_state2 :
+          FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state2 :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant
+          (value := (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val)
+          hexact_state1 hcompatPacked
+      have hruntimeCompat1 : FunctionBody.runtimeStateMatchesIR fields runtime state1 :=
+        FunctionBody.runtimeStateMatchesIR_setVar_irrelevant
+          (name := "__compat_value") (value := valueNat) hruntime
+      have hruntimeCompat2 : FunctionBody.runtimeStateMatchesIR fields runtime state2 :=
+        FunctionBody.runtimeStateMatchesIR_setVar_irrelevant
+          (name := "__compat_packed")
+          (value := (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val)
+          hruntimeCompat1
+      have hIRKeyState2 : evalIRExpr state2 keyIR = some keyNat := by
+        have h := FunctionBody.eval_compileExpr_core_of_scope
+            hcoreKey hexact_state2 hinScopeKey hbounded
+            (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey)
+            hruntimeCompat2
+        rw [hkeyIR] at h
+        simp [Except.toOption, hKeySrc] at h
+        cases h' : evalIRExpr state2 keyIR <;> simp [h'] at h
+        simpa using congrArg some h
       have hMappingBaseEval2 :
           evalIRExpr state2 (YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]) =
             some (Compiler.Proofs.abstractMappingSlot slot keyNat) := by
@@ -8213,9 +8362,14 @@ private theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_p
           simpa [hzero, targetSlot, mappingWordTargetSlot_eq_uint256_add] using hAddEval'
       have hSlotWordEval :
           evalIRExpr state2 (YulExpr.call "sload" [writeSlotExpr]) = some oldWordNat := by
-        simpa [state2, state1, evalIRExpr, evalIRCall, evalIRExprs, IRState.setVar, oldWordNat] using
-          hWriteSlotEval2
+        simp [evalIRExpr, evalIRCall, evalIRExprs, hWriteSlotEval2,
+          Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+          Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, oldWordNat, state2, state1]
       set state3 := state2.setVar "__compat_slot_word" oldWordNat
+      have hexact_state3 : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state3 :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant hexact_state2 hcompatSlotWord
+      have hruntimeCompat3 : FunctionBody.runtimeStateMatchesIR fields runtime state3 :=
+        FunctionBody.runtimeStateMatchesIR_setVar_irrelevant hruntimeCompat2
       have hCompatSlotWord :
           execIRStmt (extraFuel + 1) state2
             (YulStmt.let_ "__compat_slot_word" (YulExpr.call "sload" [writeSlotExpr])) =
@@ -8228,21 +8382,51 @@ private theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_p
                 YulExpr.call "not" [YulExpr.lit (packedShiftedMaskNat packed)]]) =
               some (Verity.Core.Uint256.and oldWordNat
                 (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val := by
-        have htmp :
-            evalIRExpr
-              (((state.setVar "__compat_value" valueNat).setVar "__compat_packed"
-                (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val).setVar
-                "__compat_slot_word" oldWordNat)
-              (YulExpr.call "and"
-                [YulExpr.ident "__compat_slot_word",
-                  YulExpr.call "not" [YulExpr.lit (packedShiftedMaskNat packed)]]) =
-              some (Verity.Core.Uint256.and oldWordNat
+        have hNotEval :
+            evalIRExpr state3
+              (YulExpr.call "not" [YulExpr.lit (packedShiftedMaskNat packed)]) =
+                some (Verity.Core.Uint256.not (packedShiftedMaskNat packed)).val := by
+          simpa [uint256_not_val_eq_xor_allOnes_mod] using
+            (FunctionBody.evalIRExpr_not_of_eval
+              (state := state3)
+              (expr := YulExpr.lit (packedShiftedMaskNat packed))
+              (value := packedShiftedMaskNat packed)
+              (by simp [evalIRExpr]))
+        have hAndEval :=
+          FunctionBody.evalIRExpr_and_of_eval
+            (state := state3)
+            (lhs := YulExpr.ident "__compat_slot_word")
+            (rhs := YulExpr.call "not" [YulExpr.lit (packedShiftedMaskNat packed)])
+            (a := oldWordNat)
+            (b := (Verity.Core.Uint256.not (packedShiftedMaskNat packed)).val)
+            (by simp [evalIRExpr, state3, state2, state1, IRState.getVar, IRState.setVar])
+            hNotEval
+        have hAndBridge :
+            ((oldWordNat % Compiler.Constants.evmModulus) &&&
+                ((Verity.Core.Uint256.not (packedShiftedMaskNat packed)).val %
+                  Compiler.Constants.evmModulus)) =
+              (Verity.Core.Uint256.and oldWordNat
                 (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val := by
-          simp [evalIRExpr, IRState.getVar]
-        simpa [state3, state2, state1] using htmp
+          have hNotLt :
+              (Verity.Core.Uint256.not (packedShiftedMaskNat packed)).val <
+                Compiler.Constants.evmModulus :=
+            (Verity.Core.Uint256.not (packedShiftedMaskNat packed)).isLt
+          have hNotOfNat :
+              Verity.Core.Uint256.ofNat ((Verity.Core.Uint256.not (packedShiftedMaskNat packed)).val) =
+                Verity.Core.Uint256.not (packedShiftedMaskNat packed) := by
+            ext
+            simp [Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt hNotLt]
+          simpa [Nat.mod_eq_of_lt hNotLt, hNotOfNat] using
+            (uint256_and_val_eq_land_mod oldWordNat
+              ((Verity.Core.Uint256.ofNat (packedShiftedMaskNat packed)).not.val)).symm
+        simpa [hAndBridge] using hAndEval
       set state4 := state3.setVar "__compat_slot_cleared"
         (Verity.Core.Uint256.and oldWordNat
           (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val
+      have hexact_state4 : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state4 :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant hexact_state3 hcompatSlotCleared
+      have hruntimeCompat4 : FunctionBody.runtimeStateMatchesIR fields runtime state4 :=
+        FunctionBody.runtimeStateMatchesIR_setVar_irrelevant hruntimeCompat3
       have hCompatSlotCleared :
           execIRStmt (extraFuel + 1) state3
             (YulStmt.let_ "__compat_slot_cleared"
@@ -8258,8 +8442,9 @@ private theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_p
                 YulExpr.call "shl" [YulExpr.lit packed.offset, YulExpr.ident "__compat_packed"]]) =
               some storedWordNat := by
         have hpackedOffsetLtMod : packed.offset < Compiler.Constants.evmModulus := by
-          rw [show Compiler.Constants.evmModulus = 2 ^ 256 by rfl]
-          omega
+          have hevmmodGt256 : 256 < Compiler.Constants.evmModulus := by
+            decide
+          exact lt_trans hpackedOffsetLt hevmmodGt256
         have hShlEval :
             evalIRExpr state4
               (YulExpr.call "shl" [YulExpr.lit packed.offset, YulExpr.ident "__compat_packed"]) =
@@ -8273,9 +8458,9 @@ private theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_p
               (shift := packed.offset)
               (value := (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val)
               (by simp [evalIRExpr])
-              (by simp [evalIRExpr, state4, IRState.getVar, IRState.setVar]))
-        simpa [storedWordNat, SourceSemantics.packedWordWrite, uint256_or_val_eq_lor_mod] using
-          (FunctionBody.evalIRExpr_or_of_eval
+              (by simp [evalIRExpr, state4, state3, state2, state1, IRState.getVar, IRState.setVar]))
+        have hOrEval :=
+          FunctionBody.evalIRExpr_or_of_eval
             (state := state4)
             (lhs := YulExpr.ident "__compat_slot_cleared")
             (rhs := YulExpr.call "shl" [YulExpr.lit packed.offset, YulExpr.ident "__compat_packed"])
@@ -8283,15 +8468,204 @@ private theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_p
               (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val)
             (b := (Verity.Core.Uint256.shl packed.offset
               (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val).val)
-            (by simp [evalIRExpr, state4, IRState.getVar, IRState.setVar])
-            hShlEval)
+            (by simp [evalIRExpr, state4, state3, state2, state1, IRState.getVar, IRState.setVar])
+            hShlEval
+        have hClearedOfNat :
+            Verity.Core.Uint256.ofNat
+                ((Verity.Core.Uint256.and oldWordNat
+                  (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val) =
+              (Verity.Core.Uint256.and oldWordNat
+                (Verity.Core.Uint256.not (packedShiftedMaskNat packed))) := by
+          have hClearedLt :
+              (Verity.Core.Uint256.and oldWordNat
+                (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val <
+                Compiler.Constants.evmModulus :=
+            (Verity.Core.Uint256.and oldWordNat
+              (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).isLt
+          ext
+          simp [Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt hClearedLt]
+        have hShiftedOfNat :
+            Verity.Core.Uint256.ofNat
+                ((Verity.Core.Uint256.shl packed.offset
+                  (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val).val) =
+              (Verity.Core.Uint256.shl packed.offset
+                (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val) := by
+          have hShiftedLt :
+              (Verity.Core.Uint256.shl packed.offset
+                (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val).val <
+                Compiler.Constants.evmModulus :=
+            (Verity.Core.Uint256.shl packed.offset
+              (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val).isLt
+          ext
+          simp [Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt hShiftedLt]
+        have hPackedOfNat :
+            Verity.Core.Uint256.ofNat
+                ((Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val) =
+              (Verity.Core.Uint256.and valueNat (packedMaskNat packed)) := by
+          have hPackedLt :
+              (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val <
+                Compiler.Constants.evmModulus :=
+            (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).isLt
+          ext
+          simp [Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt hPackedLt]
+        have hClearedLt :
+            (Verity.Core.Uint256.and oldWordNat
+              (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val <
+              Compiler.Constants.evmModulus :=
+          (Verity.Core.Uint256.and oldWordNat
+            (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).isLt
+        have hShiftedLt :
+            (Verity.Core.Uint256.shl packed.offset
+              (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val).val <
+              Compiler.Constants.evmModulus :=
+          (Verity.Core.Uint256.shl packed.offset
+            (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val).isLt
+        have hOrBridge :
+            ((((Verity.Core.Uint256.and oldWordNat
+                    (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val %
+                  Compiler.Constants.evmModulus) |||
+                ((Verity.Core.Uint256.shl packed.offset
+                      (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val).val %
+                  Compiler.Constants.evmModulus))) =
+              (((Verity.Core.Uint256.ofNat
+                      ((Verity.Core.Uint256.and oldWordNat
+                        (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val)).or
+                  (Verity.Core.Uint256.ofNat
+                    ((Verity.Core.Uint256.shl packed.offset
+                      (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val).val))).val) := by
+          simpa [uint256_or_val_eq_lor_mod, Nat.mod_eq_of_lt hClearedLt, Nat.mod_eq_of_lt hShiftedLt]
+            using
+              (uint256_or_val_eq_lor_mod
+                ((Verity.Core.Uint256.and oldWordNat
+                  (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val)
+                ((Verity.Core.Uint256.shl packed.offset
+                  (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val).val)).symm
+        rw [hOrBridge] at hOrEval
+        rw [hShiftedOfNat] at hOrEval
+        simpa [storedWordNat, SourceSemantics.packedWordWrite, hClearedOfNat, hPackedOfNat]
+          using hOrEval
       set state' := { state4 with
         storage := Compiler.Proofs.abstractStoreStorageOrMapping state.storage targetSlot storedWordNat }
+      have hIRKeyState4 : evalIRExpr state4 keyIR = some keyNat := by
+        have h :=
+          FunctionBody.eval_compileExpr_core_of_scope
+            hcoreKey hexact_state4 hinScopeKey hbounded
+            (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey)
+            hruntimeCompat4
+        rw [hkeyIR] at h
+        simp [Except.toOption, hKeySrc] at h
+        cases h' : evalIRExpr state4 keyIR <;> simp [h'] at h
+        simpa using congrArg some h
+      have hMappingBaseEval4 :
+          evalIRExpr state4 (YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]) =
+            some (Compiler.Proofs.abstractMappingSlot slot keyNat) := by
+        simpa using
+          (evalIRExpr_mappingSlotChain
+            (state := state4)
+            (baseSlot := slot)
+            (keyIRs := [keyIR])
+            (keyVals := [keyNat])
+            (by simp [hIRKeyState4] : List.Forall₂
+              (fun exprIR value => evalIRExpr state4 exprIR = some value)
+              [keyIR] [keyNat]))
+      have hWriteSlotEval4 : evalIRExpr state4 writeSlotExpr = some targetSlot := by
+        dsimp [writeSlotExpr, targetSlot]
+        by_cases hzero : wordOffset = 0
+        · subst hzero
+          have hlt :
+              Compiler.Proofs.solidityMappingSlot slot keyNat < Compiler.Constants.evmModulus := by
+            simpa [Compiler.Proofs.abstractMappingSlot_eq_solidity] using
+              (Compiler.Proofs.abstractMappingSlot_lt_evmModulus slot keyNat)
+          simpa [Verity.Core.Uint256.val_ofNat, mappingWordTargetSlot, SourceSemantics.wordNormalize,
+            Compiler.Proofs.abstractMappingSlot_eq_solidity] using
+            (show evalIRExpr state4 (YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]) =
+              some (Compiler.Proofs.solidityMappingSlot slot keyNat % Compiler.Constants.evmModulus) by
+                simpa [Nat.mod_eq_of_lt hlt, Compiler.Proofs.abstractMappingSlot_eq_solidity] using
+                  hMappingBaseEval4)
+        · have hAddEval :=
+            FunctionBody.evalIRExpr_add_of_eval
+              (state := state4)
+              (lhs := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR])
+              (rhs := YulExpr.lit wordOffset)
+              (a := Compiler.Proofs.abstractMappingSlot slot keyNat)
+              (b := wordOffset)
+              hMappingBaseEval4
+              (by simp [evalIRExpr])
+          have hAddEval' :
+              evalIRExpr state4
+                (YulExpr.call "add"
+                  [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], YulExpr.lit wordOffset]) =
+                some ((Verity.Core.Uint256.ofNat wordOffset +
+                  Verity.Core.Uint256.ofNat (Compiler.Proofs.solidityMappingSlot slot keyNat)).val) := by
+            rw [uint256_add_val_eq_mod]
+            simpa [Compiler.Proofs.abstractMappingSlot_eq_solidity, Nat.add_assoc, Nat.add_comm,
+              Nat.add_left_comm] using hAddEval
+          simpa [hzero, targetSlot, mappingWordTargetSlot_eq_uint256_add] using hAddEval'
+      have hSstore :
+          execIRStmt (extraFuel + 1) state4
+            (YulStmt.expr
+              (YulExpr.call "sstore"
+                [writeSlotExpr,
+                  YulExpr.call "or"
+                    [YulExpr.ident "__compat_slot_cleared",
+                      YulExpr.call "shl" [YulExpr.lit packed.offset, YulExpr.ident "__compat_packed"]]])) =
+            .continue state' := by
+        dsimp [writeSlotExpr]
+        by_cases hzero : wordOffset = 0
+        · subst hzero
+          have hTargetZero :
+              targetSlot = Compiler.Proofs.abstractMappingSlot slot keyNat := by
+            have hlt :
+                Compiler.Proofs.solidityMappingSlot slot keyNat < Compiler.Constants.evmModulus := by
+              simpa [Compiler.Proofs.abstractMappingSlot_eq_solidity] using
+                (Compiler.Proofs.abstractMappingSlot_lt_evmModulus slot keyNat)
+            simpa [targetSlot, mappingWordTargetSlot, SourceSemantics.wordNormalize,
+              Compiler.Proofs.abstractMappingSlot_eq_solidity, Nat.mod_eq_of_lt hlt]
+          have hTargetZero' : targetSlot = Compiler.Proofs.solidityMappingSlot slot keyNat := by
+            simpa [Compiler.Proofs.abstractMappingSlot_eq_solidity] using hTargetZero
+          have hStoreEq :
+              Compiler.Proofs.abstractStoreMappingEntry state.storage slot keyNat storedWordNat =
+                Compiler.Proofs.abstractStoreStorageOrMapping state.storage targetSlot storedWordNat := by
+            simp [Compiler.Proofs.abstractStoreStorageOrMapping,
+              Compiler.Proofs.abstractStoreMappingEntry, hTargetZero]
+          simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs, hIRKeyState4, hStoredEval,
+            state', state4, state3, state2, state1, IRState.setVar, hTargetZero',
+            Compiler.Proofs.abstractStoreMappingEntry_eq,
+            Compiler.Proofs.abstractStoreStorageOrMapping_eq, hStoreEq]
+        · have hbeq : (wordOffset == 0) = false := by
+            simp [beq_iff_eq, hzero]
+          have hTargetMod :
+              (Compiler.Proofs.solidityMappingSlot slot keyNat + wordOffset) %
+                Compiler.Constants.evmModulus = targetSlot := by
+            rw [show targetSlot =
+              (Verity.Core.Uint256.ofNat wordOffset +
+                Verity.Core.Uint256.ofNat
+                  (Compiler.Proofs.solidityMappingSlot slot keyNat)).val by
+                simpa [targetSlot] using mappingWordTargetSlot_eq_uint256_add slot keyNat wordOffset]
+            simpa [Nat.add_comm] using
+              (uint256_add_val_eq_mod wordOffset
+                (Compiler.Proofs.solidityMappingSlot slot keyNat)).symm
+          have hStoreEq :
+              Compiler.Proofs.abstractStoreStorageOrMapping state.storage targetSlot storedWordNat =
+                fun s =>
+                  if s =
+                      (Compiler.Proofs.solidityMappingSlot slot keyNat + wordOffset) %
+                        Compiler.Constants.evmModulus then
+                    storedWordNat
+                  else
+                    state.storage s := by
+            funext s
+            rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq, ← hTargetMod]
+          simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs, hIRKeyState4, hStoredEval,
+            Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+            Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+            Compiler.Proofs.abstractMappingSlot_eq_solidity,
+            state', state4, state3, state2, state1, IRState.setVar,
+            hbeq, hTargetMod, hStoreEq]
       have hBody :
           execIRStmts extraFuel state blockBody = .continue state' := by
         simp [execIRStmts, blockBody, hCompatValue, hCompatPacked, hCompatSlotWord,
-          hCompatSlotCleared, execIRStmt, hWriteSlotEval, hStoredEval, state',
-          Compiler.Proofs.abstractStoreStorageOrMapping_eq]
+          hCompatSlotCleared, hSstore]
       have hWhole :
           execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR = .continue state' := by
         have hblock := execIRStmts_single_block_of_continue
@@ -8739,16 +9113,11 @@ private theorem compiledStmtStep_setStructMember_singleSlot_of_slotSafety_preser
               (YulStmt.expr (YulExpr.call "sstore"
                 [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])) =
                 .continue state' := by
-          simpa [state', hStoreEq] using
-            (show
-              execIRStmt (extraFuel + 1) state
-                (YulStmt.expr (YulExpr.call "sstore"
-                  [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])) =
-                .continue
-                  { state with
-                    storage := Compiler.Proofs.abstractStoreMappingEntry state.storage slot keyNat valueNat } by
-              simp only [execIRStmt, evalIRExpr, hIRKey, hIRValue,
-                Compiler.Proofs.abstractStoreMappingEntry_eq])
+          have hTargetZero' : targetSlot = Compiler.Proofs.solidityMappingSlot slot keyNat := by
+            simpa [targetSlot, Compiler.Proofs.abstractMappingSlot_eq_solidity] using hTargetZero
+          simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs, hIRKey, hIRValue,
+            state', hTargetZero', Compiler.Proofs.abstractStoreMappingEntry_eq,
+            Compiler.Proofs.abstractStoreStorageOrMapping_eq]
         have hIRExec : execIRStmts (1 + extraFuel + 1) state
             [YulStmt.expr (YulExpr.call "sstore"
               [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])] =
@@ -8763,6 +9132,30 @@ private theorem compiledStmtStep_setStructMember_singleSlot_of_slotSafety_preser
         -- Use keccak axiom: mappingSlot + wordOffset < evmModulus
         have hbeq : (wordOffset == 0) = false := by
           simp [beq_iff_eq, hzero]
+        have hTargetAdd :
+            targetSlot =
+              (Verity.Core.Uint256.ofNat wordOffset +
+                Verity.Core.Uint256.ofNat
+                  (Compiler.Proofs.solidityMappingSlot slot keyNat)).val := by
+          simpa [targetSlot] using mappingWordTargetSlot_eq_uint256_add slot keyNat wordOffset
+        have hTargetMod :
+            (Compiler.Proofs.solidityMappingSlot slot keyNat + wordOffset) %
+              Compiler.Constants.evmModulus = targetSlot := by
+          rw [hTargetAdd]
+          simpa [Nat.add_comm] using
+            (uint256_add_val_eq_mod wordOffset
+              (Compiler.Proofs.solidityMappingSlot slot keyNat)).symm
+        have hStoreEq :
+            Compiler.Proofs.abstractStoreStorageOrMapping state.storage targetSlot valueNat =
+              fun s =>
+                if s =
+                    (Compiler.Proofs.solidityMappingSlot slot keyNat + wordOffset) %
+                      Compiler.Constants.evmModulus then
+                  valueNat
+                else
+                  state.storage s := by
+          funext s
+          rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq, ← hTargetMod]
         have hExecStmt :
             execIRStmt (extraFuel + 1) state
               (YulStmt.expr (YulExpr.call "sstore"
@@ -8775,7 +9168,7 @@ private theorem compiledStmtStep_setStructMember_singleSlot_of_slotSafety_preser
             Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
             Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
             Compiler.Proofs.abstractMappingSlot_eq_solidity,
-            state', targetSlot, mappingWordTargetSlot, SourceSemantics.wordNormalize]
+            state', hTargetMod, hStoreEq]
         have hIRExec : execIRStmts (1 + extraFuel + 1) state
             [YulStmt.expr (YulExpr.call "sstore"
               [YulExpr.call "add"
@@ -9287,10 +9680,11 @@ private theorem compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety_preser
               (Compiler.Proofs.solidityMappingSlot
                 (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat + wordOffset) %
                 Compiler.Constants.evmModulus = targetSlot := by
-            rw [hTargetAdd, Nat.add_comm]
-            exact (uint256_add_val_eq_mod wordOffset
-              (Compiler.Proofs.solidityMappingSlot
-                (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat)).symm
+            rw [hTargetAdd]
+            simpa [Nat.add_comm] using
+              (uint256_add_val_eq_mod wordOffset
+                (Compiler.Proofs.solidityMappingSlot
+                  (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat)).symm
           have hStoreEq :
               Compiler.Proofs.abstractStoreStorageOrMapping state.storage targetSlot valueNat =
                 fun s =>
@@ -9313,12 +9707,12 @@ private theorem compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety_preser
                         [YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR], key2IR],
                        YulExpr.lit wordOffset], valueIR])) =
                 .continue state' := by
-            simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
-              hIRKey1, hIRKey2, hIRValue,
-              Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-              Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
-              Compiler.Proofs.abstractMappingSlot_eq_solidity,
-              state', hTargetMod, hStoreEq]
+              simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
+                hIRKey1, hIRKey2, hIRValue,
+                Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+                Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+                Compiler.Proofs.abstractMappingSlot_eq_solidity,
+                state', hTargetMod, hStoreEq]
           have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
           have hIRExec : execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
               .continue state' := by
@@ -9616,10 +10010,11 @@ private theorem compiledStmtStep_setStructMember2_singleSlot_of_slotSafety_prese
               (Compiler.Proofs.solidityMappingSlot
                 (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat + wordOffset) %
                 Compiler.Constants.evmModulus = targetSlot := by
-            rw [hTargetAdd, Nat.add_comm]
-            exact (uint256_add_val_eq_mod wordOffset
-              (Compiler.Proofs.solidityMappingSlot
-                (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat)).symm
+            rw [hTargetAdd]
+            simpa [Nat.add_comm] using
+              (uint256_add_val_eq_mod wordOffset
+                (Compiler.Proofs.solidityMappingSlot
+                  (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat)).symm
           have hStoreEq :
               Compiler.Proofs.abstractStoreStorageOrMapping state.storage targetSlot valueNat =
                 fun s =>
@@ -9642,12 +10037,12 @@ private theorem compiledStmtStep_setStructMember2_singleSlot_of_slotSafety_prese
                         [YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR], key2IR],
                        YulExpr.lit wordOffset], valueIR])) =
                 .continue state' := by
-            simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
-              hIRKey1, hIRKey2, hIRValue,
-              Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-              Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
-              Compiler.Proofs.abstractMappingSlot_eq_solidity,
-              state', hTargetMod, hStoreEq]
+              simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
+                hIRKey1, hIRKey2, hIRValue,
+                Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+                Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+                Compiler.Proofs.abstractMappingSlot_eq_solidity,
+                state', hTargetMod, hStoreEq]
           have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
           have hIRExec : execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
               .continue state' := by

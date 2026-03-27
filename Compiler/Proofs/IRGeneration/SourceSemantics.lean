@@ -144,7 +144,9 @@ def writeAddressKeyedMappingWordSlots
     (world : Verity.ContractState) (slots : List Nat) (key wordOffset value : Nat) :
     Verity.ContractState :=
   let word : Verity.Core.Uint256 := value
-  let targets := slots.map (fun slot => Compiler.Proofs.abstractMappingSlot slot key + wordOffset)
+  let targets :=
+    slots.map (fun slot =>
+      wordNormalize (Compiler.Proofs.abstractMappingSlot slot key + wordOffset))
   { world with
     storage := fun slot =>
       if targets.contains slot then word else world.storage slot }
@@ -160,7 +162,9 @@ def writeAddressKeyedMappingPackedWordSlots
     (world : Verity.ContractState) (slots : List Nat) (key wordOffset : Nat)
     (packed : PackedBits) (value : Nat) :
     Verity.ContractState :=
-  let targets := slots.map (fun slot => Compiler.Proofs.abstractMappingSlot slot key + wordOffset)
+  let targets :=
+    slots.map (fun slot =>
+      wordNormalize (Compiler.Proofs.abstractMappingSlot slot key + wordOffset))
   { world with
     storage := fun slot =>
       if targets.contains slot then
@@ -222,9 +226,10 @@ def writeAddressKeyedMapping2WordSlots
     Verity.ContractState :=
   let word : Verity.Core.Uint256 := value
   let targets := slots.map (fun slot =>
-    Compiler.Proofs.abstractMappingSlot
-      (Compiler.Proofs.abstractMappingSlot slot key1)
-      key2 + wordOffset)
+    wordNormalize
+      (Compiler.Proofs.abstractMappingSlot
+        (Compiler.Proofs.abstractMappingSlot slot key1)
+        key2 + wordOffset))
   { world with
     storage := fun slot =>
       if targets.contains slot then word else world.storage slot }
