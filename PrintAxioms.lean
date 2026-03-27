@@ -1188,6 +1188,9 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_writeUintSlots_other  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_writeUintKeyedMappingSlots_singleton_other  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_writeAddressKeyedMappingChainSlots_singleton_other  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.uint256_add_val_eq_mod  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.mappingWordTargetSlot_eq_uint256_add  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.mapping2WordTargetSlot_eq_uint256_add  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_other  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleton_other  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.findResolvedFieldAtSlot_go_eq_copy  -- private
@@ -1234,10 +1237,14 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.execIRStmts_let_then_sstore_lit_ident_slots_continue  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.execIRStmts_single_block_of_continue  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compatValue_not_mem_scope_of_reservedPrefix  -- private
--- #print axioms Compiler.Proofs.IRGeneration.validateIdentifierShapes_fieldName_avoidReservedCompilerPrefix  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.compatScratch_startsWith_reserved  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.compatScratch_not_internalImmutable  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.validateIdentifierShapes_fieldName_ne_reservedScratch  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.findFieldWriteSlots_of_findFieldWithResolvedSlot  -- private
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_singleSlot
+-- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorageAddr_singleSlot_preserves  -- private
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorageAddr_singleSlot
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_mstore_single_preserves  -- private
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_mstore_single
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_tstore_single_preserves  -- private
@@ -1256,6 +1263,10 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMapping_singleSlot_of_slotSafety
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingWord_singleSlot_of_slotSafety_preserves  -- private
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingWord_singleSlot_of_slotSafety
+-- #print axioms Compiler.Proofs.IRGeneration.uint256_and_val_eq_land_mod  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.uint256_or_val_eq_lor_mod  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.uint256_not_val_eq_xor_allOnes_mod  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.uint256_shl_val_eq_mul_pow_mod  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_preserves  -- private
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStructMember_singleSlot_of_slotSafety_preserves  -- private
@@ -1969,4 +1980,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1838 theorems/lemmas (1247 public, 591 private, 0 sorry'd)
+-- Total: 1849 theorems/lemmas (1248 public, 601 private, 0 sorry'd)
