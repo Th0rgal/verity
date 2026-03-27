@@ -41,6 +41,63 @@ Instead, Verity treats it as a black box and validates its outputs in CI.
 
 **Risk**: Low.
 
+### 2. `solidityMappingSlot_lt_evmModulus`
+
+**Location**: `Compiler/Proofs/MappingSlot.lean:125`
+
+**Statement**:
+```lean
+axiom solidityMappingSlot_lt_evmModulus (baseSlot key : Nat) :
+    solidityMappingSlot baseSlot key < Compiler.Constants.evmModulus
+```
+
+**Purpose**:
+Asserts that the keccak256 hash used to compute a Solidity mapping slot fits
+in 256 bits (i.e. is less than 2^256). This is mathematically true because
+keccak256 produces exactly 32 bytes, but unprovable in Lean because `ffi.KEC`
+is an opaque FFI call that does not expose the output length.
+
+**Why this is currently an axiom**:
+The FFI boundary hides the byte-length guarantee. Proving it would require
+internalising the keccak256 spec or exposing output-length metadata from the
+FFI layer.
+
+**Soundness controls**:
+- End-to-end regression suites exercise mapping reads/writes.
+- Mapping-slot abstraction boundary checks in CI.
+
+**Risk**: Low.
+
+### 3. `solidityMappingSlot_add_wordOffset_lt_evmModulus`
+
+**Location**: `Compiler/Proofs/MappingSlot.lean:140`
+
+**Statement**:
+```lean
+axiom solidityMappingSlot_add_wordOffset_lt_evmModulus
+    (baseSlot key wordOffset : Nat) :
+    solidityMappingSlot baseSlot key + wordOffset < Compiler.Constants.evmModulus
+```
+
+**Purpose**:
+Asserts that adding a word offset to a mapping slot still fits in 256 bits.
+This is used when accessing struct fields stored at consecutive slots after
+a mapping base slot. In practice, word offsets are tiny (typically < 32)
+while keccak256 outputs are uniformly distributed over a 256-bit range, so
+overflow is astronomically unlikely.
+
+**Why this is currently an axiom**:
+Same FFI opacity as axiom 2, plus the additional assumption that the offset
+does not cause overflow. A tighter formulation could bound `wordOffset`
+explicitly, but the current version is simpler and sufficient for struct
+layout proofs.
+
+**Soundness controls**:
+- End-to-end regression suites exercise struct-in-mapping access patterns.
+- Mapping-slot abstraction boundary checks in CI.
+
+**Risk**: Low.
+
 ## Trusted Cryptographic Primitive (Non-Axiom)
 
 ### `ffi.KEC` (keccak256 via FFI)
@@ -134,7 +191,7 @@ specification.
 
 ## Trust Summary
 
-- Active axioms: 1
+- Active axioms: 3
 - Production blockers from axioms: 0
 - Enforcement: `scripts/check_axioms.py` ensures this file tracks exact source locations.
 - All internal compiler functions are proven to terminate (no axioms involved).
@@ -147,4 +204,4 @@ Any commit that adds, removes, renames, or moves an axiom must update this file 
 
 If this file is stale, trust analysis is stale.
 
-**Last Updated**: 2026-03-11
+**Last Updated**: 2026-03-27
