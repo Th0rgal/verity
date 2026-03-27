@@ -16,7 +16,7 @@ Yul
 EVM Bytecode
 ```
 
-The repository currently has `sorry` placeholders in the Layer 2 proof scripts (Source → IR), which are being repaired after a definition refactor (PR #1639 added `transientStorage` to `WorldState` and expanded interpreter definitions); the theorem statements are unchanged but their tactic proofs need updating. Layer 3 (IR → Yul) proofs remain fully discharged, and it now has 1 documented Lean axiom. See [AXIOMS.md](AXIOMS.md) for the exact list and current elimination plan.
+The repository currently has `sorry` placeholders in the Layer 2 proof scripts (Source → IR), which are being repaired after a definition refactor (PR #1639 added `transientStorage` to `WorldState` and expanded interpreter definitions); the theorem statements are unchanged but their tactic proofs need updating. Layer 3 (IR → Yul) proofs remain fully discharged, and it now has 3 documented Lean axioms. See [AXIOMS.md](AXIOMS.md) for the exact list and current elimination plan.
 
 ## What's Verified
 
@@ -38,7 +38,7 @@ Current theorem totals, property-test coverage, and proof status live in [docs/V
 
 ### 2. Lean Axioms
 - **Role**: Bridge remaining proof obligations not yet fully discharged.
-- **Status**: 1 documented axiom in [AXIOMS.md](AXIOMS.md): the selector axiom. The Layer 2 generic body-simulation axiom has been eliminated, and the Layer 3 dispatch bridge remains an explicit theorem hypothesis rather than a Lean axiom.
+- **Status**: 3 documented axioms in [AXIOMS.md](AXIOMS.md): the selector axiom and 2 mapping-slot range axioms. The Layer 2 generic body-simulation axiom has been eliminated, and the Layer 3 dispatch bridge remains an explicit theorem hypothesis rather than a Lean axiom.
 - **Mitigation**: CI axiom reporting and location checks enforce explicit tracking.
 
 ### 3. Keccak-based Selector Computation
