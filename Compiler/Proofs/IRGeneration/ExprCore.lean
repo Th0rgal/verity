@@ -111,6 +111,14 @@ inductive ExprCompileCore : Expr → Prop where
       ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.logicalAnd lhs rhs)
   | logicalOr {lhs rhs : Expr} :
       ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.logicalOr lhs rhs)
+  | bitAnd {lhs rhs : Expr} :
+      ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.bitAnd lhs rhs)
+  | bitOr {lhs rhs : Expr} :
+      ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.bitOr lhs rhs)
+  | bitXor {lhs rhs : Expr} :
+      ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.bitXor lhs rhs)
+  | bitNot {expr : Expr} :
+      ExprCompileCore expr → ExprCompileCore (.bitNot expr)
 
 /-! ## Scope analysis -/
 

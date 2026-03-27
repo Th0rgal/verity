@@ -2725,7 +2725,31 @@ inductive StmtListScopeCore (fieldNames : List String) : List Stmt → Prop wher
 private theorem exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
     {expr : Expr}
     (hsurface : exprTouchesUnsupportedContractSurface expr = false) :
-    FunctionBody.ExprCompileCore expr := by sorry
+    FunctionBody.ExprCompileCore expr := by
+  match expr, hsurface with
+  | .literal _, _ => exact .literal _
+  | .param _, _ => exact .param _
+  | .localVar _, _ => exact .localVar _
+  | .caller, _ => exact .caller
+  | .contractAddress, _ => exact .contractAddress
+  | .msgValue, _ => exact .msgValue
+  | .blockTimestamp, _ => exact .blockTimestamp
+  | .blockNumber, _ => exact .blockNumber
+  | .chainid, _ => exact .chainid
+  | .add a b, hsurface | .sub a b, hsurface | .mul a b, hsurface
+  | .div a b, hsurface | .mod a b, hsurface
+  | .bitAnd a b, hsurface | .bitOr a b, hsurface | .bitXor a b, hsurface
+  | .eq a b, hsurface | .ge a b, hsurface | .gt a b, hsurface
+  | .lt a b, hsurface | .le a b, hsurface
+  | .logicalAnd a b, hsurface | .logicalOr a b, hsurface =>
+      simp only [exprTouchesUnsupportedContractSurface, Bool.or_eq_false_iff] at hsurface
+      constructor
+      · exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1
+      · exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.2
+  | .logicalNot a, hsurface | .bitNot a, hsurface =>
+      simp only [exprTouchesUnsupportedContractSurface] at hsurface
+      constructor
+      exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface
 
 private theorem fieldName_mem_fields_of_findFieldWithResolvedSlot_some
     {fields : List Field}
@@ -3082,7 +3106,10 @@ private theorem exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
   | lt hL hR ihL ihR
   | gt hL hR ihL ihR
   | ge hL hR ihL ihR
-  | le hL hR ihL ihR =>
+  | le hL hR ihL ihR
+  | bitAnd hL hR ihL ihR
+  | bitOr hL hR ihL ihR
+  | bitXor hL hR ihL ihR =>
       rename_i lhs rhs
       have hpair :
           (do
@@ -3097,7 +3124,8 @@ private theorem exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
       rcases hmem with hmem | hmem
       · exact ihL (validateScopedExprIdentifiers_pair_ok_left hpair) name hmem
       · exact ihR (validateScopedExprIdentifiers_pair_ok_right hpair) name hmem
-  | logicalNot h ih =>
+  | logicalNot h ih
+  | bitNot h ih =>
       intro name hmem
       simpa [FunctionBody.exprBoundNames] using
         ih
@@ -3877,6 +3905,9 @@ private theorem collectExprNames_mem_exprBoundNames_of_core
   | gt hL hR ihL ihR
   | ge hL hR ihL ihR
   | le hL hR ihL ihR
+  | bitAnd hL hR ihL ihR
+  | bitOr hL hR ihL ihR
+  | bitXor hL hR ihL ihR
   | logicalAnd hL hR ihL ihR
   | logicalOr hL hR ihL ihR =>
       intro name hmem
@@ -3884,7 +3915,8 @@ private theorem collectExprNames_mem_exprBoundNames_of_core
       rcases hmem with hmem | hmem
       · exact Or.inl (ihL _ hmem)
       · exact Or.inr (ihR _ hmem)
-  | logicalNot h ih =>
+  | logicalNot h ih
+  | bitNot h ih =>
       intro name hmem
       simp [collectExprNames] at hmem
       simpa [FunctionBody.exprBoundNames] using ih _ hmem
