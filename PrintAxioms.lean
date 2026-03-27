@@ -1257,6 +1257,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingWord_singleSlot_of_slotSafety_preserves  -- private
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingWord_singleSlot_of_slotSafety
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_preserves  -- private
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStructMember_singleSlot_of_slotSafety_preserves  -- private
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStructMember_singleSlot_of_slotSafety
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMapping2_singleSlot_of_slotSafety_preserves  -- private
@@ -1272,6 +1273,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.terminal_stmtResultMatchesIRExec_implies_stmtStepMatchesIRExec  -- private
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_ite
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedContractSurface_append  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites_append  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListCompileCore_of_requireLiteralGuardFamilyClauses  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.foldl_stmtNextScope_requireLiteralGuardFamilyClauses  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_setStorage_singleSlot  -- private
@@ -1322,6 +1324,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_requireLiteralGuardFamilyClause  -- private
 #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_append
 -- #print axioms Compiler.Proofs.IRGeneration.stmtNextScope_requireLiteralGuardFamilyClause  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_append_of_surface_exceptMappingWrites  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_requireClause_of_surface_exceptMappingWrites  -- private
 #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_of_surface
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyInterface.helperFreeStepInterface
@@ -1964,4 +1968,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1833 theorems/lemmas (1245 public, 588 private, 0 sorry'd)
+-- Total: 1837 theorems/lemmas (1246 public, 591 private, 0 sorry'd)
