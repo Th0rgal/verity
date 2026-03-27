@@ -547,6 +547,10 @@ ALLOWLIST: set[str] = {
     # long due to explicit scope-discipline threading through the full
     # compiled statement list; decomposition is follow-up cleanup.
     "compileStmt_ok_any_scope_aux",
+    # PR #1670 — GenericInduction setStorage bridge: long because it threads
+    # identifier-shape and function-reference validation through the full
+    # compiled storage-write step; mechanical plumbing, not proof complexity.
+    "compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences",
 }
 
 # Directories containing proof files to scan.
