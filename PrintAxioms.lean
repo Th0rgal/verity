@@ -1236,6 +1236,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.execIRStmts_sstore_lit_ident_slots_continue  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.execIRStmts_let_then_sstore_lit_ident_slots_continue  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.execIRStmts_single_block_of_continue  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.singletonBlock_sizeOf_slack  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compatValue_not_mem_scope_of_reservedPrefix  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compatScratch_startsWith_reserved  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compatScratch_not_internalImmutable  -- private
@@ -1980,4 +1981,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1849 theorems/lemmas (1248 public, 601 private, 0 sorry'd)
+-- Total: 1850 theorems/lemmas (1248 public, 602 private, 0 sorry'd)
