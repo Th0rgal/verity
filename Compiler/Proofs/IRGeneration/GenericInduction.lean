@@ -7786,66 +7786,68 @@ private theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_p
 -- SORRY'D:           FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant hexact3 hcompatSlotCleared
 -- SORRY'D:       exact hexact4
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {fieldName : String}
--- TYPESIG_SORRY:     {key value : Expr}
--- TYPESIG_SORRY:     {wordOffset : Nat}
--- TYPESIG_SORRY:     {packed : PackedBits}
--- TYPESIG_SORRY:     {keyIR valueIR : YulExpr}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hmapping : isMapping fields fieldName = true)
--- TYPESIG_SORRY:     (hcoreKey : FunctionBody.ExprCompileCore key)
--- TYPESIG_SORRY:     (hinScopeKey : FunctionBody.exprBoundNamesInScope key scope)
--- TYPESIG_SORRY:     (hcoreValue : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hcompatValue : "__compat_value" ∉ scope)
--- TYPESIG_SORRY:     (hcompatPacked : "__compat_packed" ∉ scope)
--- TYPESIG_SORRY:     (hcompatSlotWord : "__compat_slot_word" ∉ scope)
--- TYPESIG_SORRY:     (hcompatSlotCleared : "__compat_slot_cleared" ∉ scope)
--- TYPESIG_SORRY:     (hpacked : packedBitsValid packed = true)
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
--- TYPESIG_SORRY:     (hslotSafety :
--- TYPESIG_SORRY:       ∀ runtime keyNat,
--- TYPESIG_SORRY:         SourceSemantics.evalExpr fields runtime key = some keyNat →
--- TYPESIG_SORRY:           findResolvedFieldAtSlotCopy fields
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none ∧
--- TYPESIG_SORRY:           findDynamicArrayElementAtSlotCopy fields runtime.world
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none)
--- TYPESIG_SORRY:     (hkeyIR : CompilationModel.compileExpr fields .calldata key = Except.ok keyIR)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.setMappingPackedWord fieldName key wordOffset packed value)
--- TYPESIG_SORRY:       [YulStmt.block
--- TYPESIG_SORRY:         [ YulStmt.let_ "__compat_value" valueIR
--- TYPESIG_SORRY:         , YulStmt.let_ "__compat_packed"
--- TYPESIG_SORRY:             (YulExpr.call "and" [YulExpr.ident "__compat_value",
--- TYPESIG_SORRY:               YulExpr.lit (packedMaskNat packed)])
--- TYPESIG_SORRY:         , YulStmt.let_ "__compat_slot_word"
--- TYPESIG_SORRY:             (YulExpr.call "sload"
--- TYPESIG_SORRY:               [let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]
--- TYPESIG_SORRY:                if wordOffset == 0 then mappingBase
--- TYPESIG_SORRY:                else YulExpr.call "add" [mappingBase, YulExpr.lit wordOffset]])
--- TYPESIG_SORRY:         , YulStmt.let_ "__compat_slot_cleared"
--- TYPESIG_SORRY:             (YulExpr.call "and"
--- TYPESIG_SORRY:               [YulExpr.ident "__compat_slot_word",
--- TYPESIG_SORRY:                 YulExpr.call "not" [YulExpr.lit (packedShiftedMaskNat packed)]])
--- TYPESIG_SORRY:         , YulStmt.expr
--- TYPESIG_SORRY:             (YulExpr.call "sstore"
--- TYPESIG_SORRY:               [let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]
--- TYPESIG_SORRY:                if wordOffset == 0 then mappingBase
--- TYPESIG_SORRY:                else YulExpr.call "add" [mappingBase, YulExpr.lit wordOffset],
--- TYPESIG_SORRY:                YulExpr.call "or"
--- TYPESIG_SORRY:                  [YulExpr.ident "__compat_slot_cleared",
--- TYPESIG_SORRY:                    YulExpr.call "shl"
--- TYPESIG_SORRY:                      [YulExpr.lit packed.offset, YulExpr.ident "__compat_packed"]]])]] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, CompilationModel.compileMappingPackedSlotWrite,
--- SORRY'D:       hmapping, hpacked, hwriteSlots, hkeyIR, hvalueIR]
--- SORRY'D:   preserves := compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_preserves
--- SORRY'D:     hcoreKey hinScopeKey hcoreValue hinScopeValue
--- SORRY'D:     hcompatValue hcompatPacked hcompatSlotWord hcompatSlotCleared
--- SORRY'D:     hpacked hwriteSlots hslotSafety hkeyIR hvalueIR
+theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety
+    {fields : List Field}
+    {scope : List String}
+    {fieldName : String}
+    {key value : Expr}
+    {wordOffset : Nat}
+    {packed : PackedBits}
+    {keyIR valueIR : YulExpr}
+    {slot : Nat}
+    (hmapping : isMapping fields fieldName = true)
+    (hcoreKey : FunctionBody.ExprCompileCore key)
+    (hinScopeKey : FunctionBody.exprBoundNamesInScope key scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hcompatValue : "__compat_value" ∉ scope)
+    (hcompatPacked : "__compat_packed" ∉ scope)
+    (hcompatSlotWord : "__compat_slot_word" ∉ scope)
+    (hcompatSlotCleared : "__compat_slot_cleared" ∉ scope)
+    (hpacked : packedBitsValid packed = true)
+    (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
+    (hslotSafety :
+      ∀ runtime keyNat,
+        SourceSemantics.evalExpr fields runtime key = some keyNat →
+          findResolvedFieldAtSlotCopy fields
+            (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none ∧
+          findDynamicArrayElementAtSlotCopy fields runtime.world
+            (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none)
+    (hkeyIR : CompilationModel.compileExpr fields .calldata key = Except.ok keyIR)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.setMappingPackedWord fieldName key wordOffset packed value)
+      [YulStmt.block
+        [ YulStmt.let_ "__compat_value" valueIR
+        , YulStmt.let_ "__compat_packed"
+            (YulExpr.call "and" [YulExpr.ident "__compat_value",
+              YulExpr.lit (packedMaskNat packed)])
+        , YulStmt.let_ "__compat_slot_word"
+            (YulExpr.call "sload"
+              [let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]
+               if wordOffset == 0 then mappingBase
+               else YulExpr.call "add" [mappingBase, YulExpr.lit wordOffset]])
+        , YulStmt.let_ "__compat_slot_cleared"
+            (YulExpr.call "and"
+              [YulExpr.ident "__compat_slot_word",
+                YulExpr.call "not" [YulExpr.lit (packedShiftedMaskNat packed)]])
+        , YulStmt.expr
+            (YulExpr.call "sstore"
+              [let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]
+               if wordOffset == 0 then mappingBase
+               else YulExpr.call "add" [mappingBase, YulExpr.lit wordOffset],
+               YulExpr.call "or"
+                 [YulExpr.ident "__compat_slot_cleared",
+                   YulExpr.call "shl"
+                     [YulExpr.lit packed.offset, YulExpr.ident "__compat_packed"]]])]] where
+  compileOk := by
+    simp only [CompilationModel.compileStmt, CompilationModel.compileMappingPackedSlotWrite,
+      hmapping, hpacked, hwriteSlots, hkeyIR, hvalueIR, Bool.not_true, bne_self_eq_false,
+      ite_false, ite_true, pure, Except.pure, bind, Except.bind]
+    rfl
+  preserves := compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_preserves
+    hcoreKey hinScopeKey hcoreValue hinScopeValue
+    hcompatValue hcompatPacked hcompatSlotWord hcompatSlotCleared
+    hpacked hwriteSlots hslotSafety hkeyIR hvalueIR
 
 private theorem compiledStmtStep_setStructMember_singleSlot_of_slotSafety_preserves
     {fields : List Field}
@@ -10527,27 +10529,28 @@ private theorem stmtListGenericCore_singleton_setMappingPackedWordSingle_of_slot
             (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none ∧
           findDynamicArrayElementAtSlotCopy fields runtime.world
             (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none) :
-    StmtListGenericCore fields scope [Stmt.setMappingPackedWord fieldName key wordOffset packed value] := by sorry
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey with
--- SORRY'D:     ⟨keyIR, hkeyIR⟩
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
--- SORRY'D:     ⟨valueIR, hvalueIR⟩
--- SORRY'D:   refine StmtListGenericCore.cons ?_ StmtListGenericCore.nil
--- SORRY'D:   exact compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety
--- SORRY'D:     (hmapping := hmapping)
--- SORRY'D:     (hcoreKey := hcoreKey)
--- SORRY'D:     (hinScopeKey := hinScopeKey)
--- SORRY'D:     (hcoreValue := hcoreValue)
--- SORRY'D:     (hinScopeValue := hinScopeValue)
--- SORRY'D:     (hcompatValue := hcompatValue)
--- SORRY'D:     (hcompatPacked := hcompatPacked)
--- SORRY'D:     (hcompatSlotWord := hcompatSlotWord)
--- SORRY'D:     (hcompatSlotCleared := hcompatSlotCleared)
--- SORRY'D:     (hpacked := hpacked)
--- SORRY'D:     (hwriteSlots := hwriteSlots)
--- SORRY'D:     (hslotSafety := hslotSafety)
--- SORRY'D:     (hkeyIR := hkeyIR)
--- SORRY'D:     (hvalueIR := hvalueIR)
+    StmtListGenericCore fields scope [Stmt.setMappingPackedWord fieldName key wordOffset packed value] := by
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey with
+    ⟨keyIR, hkeyIR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+    ⟨valueIR, hvalueIR⟩
+  exact StmtListGenericCore.cons
+    (compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety
+      (hmapping := hmapping)
+      (hcoreKey := hcoreKey)
+      (hinScopeKey := hinScopeKey)
+      (hcoreValue := hcoreValue)
+      (hinScopeValue := hinScopeValue)
+      (hcompatValue := hcompatValue)
+      (hcompatPacked := hcompatPacked)
+      (hcompatSlotWord := hcompatSlotWord)
+      (hcompatSlotCleared := hcompatSlotCleared)
+      (hpacked := hpacked)
+      (hwriteSlots := hwriteSlots)
+      (hslotSafety := hslotSafety)
+      (hkeyIR := hkeyIR)
+      (hvalueIR := hvalueIR))
+    StmtListGenericCore.nil
 
 private theorem stmtListGenericCore_singleton_setStructMemberSingle_of_slotSafety
     {fields : List Field}
@@ -11555,260 +11558,6 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface
 -- TYPESIG_SORRY:     (hsurface :
 -- TYPESIG_SORRY:       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites stmts = false) :
 -- TYPESIG_SORRY:     StmtListGenericCore fields scope stmts := by sorry
--- SORRY'D:   induction hSupported with
--- SORRY'D:   | compileCore hcore =>
--- SORRY'D:       exact stmtListGenericCore_of_stmtListCompileCore hcore
--- SORRY'D:   | terminalCore hterminal =>
--- SORRY'D:       exact stmtListGenericCore_of_stmtListTerminalCore hterminal
--- SORRY'D:   | setStorageSingleSlot hcore hinScope hfind =>
--- SORRY'D:       exact stmtListGenericCore_of_supportedStmtList_setStorageSingleSlot_of_surface
--- SORRY'D:         (fields := fields) hnoConflict hfind hcore hinScope
--- SORRY'D:   | setStorageAddrSingleSlot hcore hinScope hfind =>
--- SORRY'D:       exact stmtListGenericCore_of_supportedStmtList_setStorageAddrSingleSlot_of_surface
--- SORRY'D:         (fields := fields) hnoConflict hfind hcore hinScope
--- SORRY'D:   | mstoreSingle hcoreOffset hinScopeOffset hcoreValue hinScopeValue =>
--- SORRY'D:       exact stmtListGenericCore_of_supportedStmtList_mstoreSingle_of_surface
--- SORRY'D:         (fields := fields) hcoreOffset hinScopeOffset hcoreValue hinScopeValue
--- SORRY'D:   | tstoreSingle hcoreOffset hinScopeOffset hcoreValue hinScopeValue =>
--- SORRY'D:       exact stmtListGenericCore_of_supportedStmtList_tstoreSingle_of_surface
--- SORRY'D:         (fields := fields) hcoreOffset hinScopeOffset hcoreValue hinScopeValue
--- SORRY'D:   | letStorageField hfind =>
--- SORRY'D:       have hsurfaceBase :
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface [Stmt.letVar tmp (Expr.storage fieldName)] = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface,
--- SORRY'D:           stmtTouchesUnsupportedContractSurface] using hsurface
--- SORRY'D:       exact False.elim (false_of_supportedStmtList_letStorageField_surface hsurfaceBase)
--- SORRY'D:   | returnMapping hkey hscope hslot =>
--- SORRY'D:       have hsurfaceBase :
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface [Stmt.return (Expr.mapping fieldName key)] = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface,
--- SORRY'D:           stmtTouchesUnsupportedContractSurface] using hsurface
--- SORRY'D:       exact False.elim (false_of_supportedStmtList_returnMapping_surface hsurfaceBase)
--- SORRY'D:   | letMapping hkey hscope hslot =>
--- SORRY'D:       have hsurfaceBase :
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface [Stmt.letVar tmp (Expr.mapping fieldName key)] = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface,
--- SORRY'D:           stmtTouchesUnsupportedContractSurface] using hsurface
--- SORRY'D:       exact False.elim (false_of_supportedStmtList_letMapping_surface hsurfaceBase)
--- SORRY'D:   | letMapping2 hkey1 hscope1 hkey2 hscope2 hslot =>
--- SORRY'D:       have hsurfaceBase :
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface [Stmt.letVar tmp (Expr.mapping2 fieldName key1 key2)] = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface,
--- SORRY'D:           stmtTouchesUnsupportedContractSurface] using hsurface
--- SORRY'D:       exact False.elim (false_of_supportedStmtList_letMapping2_surface hsurfaceBase)
--- SORRY'D:   | letMappingUint hkey hscope hslot =>
--- SORRY'D:       have hsurfaceBase :
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface [Stmt.letVar tmp (Expr.mappingUint fieldName key)] = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface,
--- SORRY'D:           stmtTouchesUnsupportedContractSurface] using hsurface
--- SORRY'D:       exact False.elim (false_of_supportedStmtList_letMappingUint_surface hsurfaceBase)
--- SORRY'D:   | setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot =>
--- SORRY'D:       rcases hsafety.setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot with
--- SORRY'D:         ⟨hmapping, hwriteSlots, hslotSafety⟩
--- SORRY'D:       exact stmtListGenericCore_singleton_setMappingUintSingle_of_slotSafety
--- SORRY'D:         (fields := fields)
--- SORRY'D:         (scope := scope)
--- SORRY'D:         (hcoreKey := hkey)
--- SORRY'D:         (hinScopeKey := hscopeKey)
--- SORRY'D:         (hcoreValue := hvalue)
--- SORRY'D:         (hinScopeValue := hscopeValue)
--- SORRY'D:         (hmapping := hmapping)
--- SORRY'D:         (hwriteSlots := hwriteSlots)
--- SORRY'D:         (hslotSafety := hslotSafety)
--- SORRY'D:   | setMappingChainSingle hkeys hscopeKeys hvalue hscopeValue hslot =>
--- SORRY'D:       rcases hsafety.setMappingChainSingle hkeys hscopeKeys hvalue hscopeValue hslot with
--- SORRY'D:         ⟨hmapping, hwriteSlots, hslotSafety⟩
--- SORRY'D:       exact stmtListGenericCore_singleton_setMappingChainSingle_of_slotSafety
--- SORRY'D:         (fields := fields)
--- SORRY'D:         (scope := scope)
--- SORRY'D:         (hcoreKeys := hkeys)
--- SORRY'D:         (hinScopeKeys := hscopeKeys)
--- SORRY'D:         (hcoreValue := hvalue)
--- SORRY'D:         (hinScopeValue := hscopeValue)
--- SORRY'D:         (hmapping := hmapping)
--- SORRY'D:         (hwriteSlots := hwriteSlots)
--- SORRY'D:         (hslotSafety := hslotSafety)
--- SORRY'D:   | setMappingSingle hkey hscopeKey hvalue hscopeValue hslot =>
--- SORRY'D:       rcases hsafety.setMappingSingle hkey hscopeKey hvalue hscopeValue hslot with
--- SORRY'D:         ⟨hmapping, hwriteSlots, hslotSafety⟩
--- SORRY'D:       exact stmtListGenericCore_singleton_setMappingSingle_of_slotSafety
--- SORRY'D:         (fields := fields)
--- SORRY'D:         (scope := scope)
--- SORRY'D:         (hcoreKey := hkey)
--- SORRY'D:         (hinScopeKey := hscopeKey)
--- SORRY'D:         (hcoreValue := hvalue)
--- SORRY'D:         (hinScopeValue := hscopeValue)
--- SORRY'D:         (hmapping := hmapping)
--- SORRY'D:         (hwriteSlots := hwriteSlots)
--- SORRY'D:         (hslotSafety := hslotSafety)
--- SORRY'D:   | setMappingWordSingle hkey hscopeKey hvalue hscopeValue hslot =>
--- SORRY'D:       rcases hsafety.setMappingWordSingle hkey hscopeKey hvalue hscopeValue hslot with
--- SORRY'D:         ⟨hmapping, hwriteSlots, hslotSafety⟩
--- SORRY'D:       exact stmtListGenericCore_singleton_setMappingWordSingle_of_slotSafety
--- SORRY'D:         (fields := fields)
--- SORRY'D:         (scope := scope)
--- SORRY'D:         (hcoreKey := hkey)
--- SORRY'D:         (hinScopeKey := hscopeKey)
--- SORRY'D:         (hcoreValue := hvalue)
--- SORRY'D:         (hinScopeValue := hscopeValue)
--- SORRY'D:         (hmapping := hmapping)
--- SORRY'D:         (hwriteSlots := hwriteSlots)
--- SORRY'D:         (hslotSafety := hslotSafety)
--- SORRY'D:   | setMappingPackedWordSingle hkey hscopeKey hvalue hscopeValue
--- SORRY'D:       hcompatValue hcompatPacked hcompatSlotWord hcompatSlotCleared hpacked hslot =>
--- SORRY'D:       rcases hsafety.setMappingPackedWordSingle
--- SORRY'D:           hkey hscopeKey hvalue hscopeValue hpacked hslot with
--- SORRY'D:         ⟨hmapping, hwriteSlots, hslotSafety⟩
--- SORRY'D:       exact stmtListGenericCore_singleton_setMappingPackedWordSingle_of_slotSafety
--- SORRY'D:         (fields := fields)
--- SORRY'D:         (scope := scope)
--- SORRY'D:         (hcoreKey := hkey)
--- SORRY'D:         (hinScopeKey := hscopeKey)
--- SORRY'D:         (hcoreValue := hvalue)
--- SORRY'D:         (hinScopeValue := hscopeValue)
--- SORRY'D:         (hcompatValue := hcompatValue)
--- SORRY'D:         (hcompatPacked := hcompatPacked)
--- SORRY'D:         (hcompatSlotWord := hcompatSlotWord)
--- SORRY'D:         (hcompatSlotCleared := hcompatSlotCleared)
--- SORRY'D:         (hpacked := hpacked)
--- SORRY'D:         (hmapping := hmapping)
--- SORRY'D:         (hwriteSlots := hwriteSlots)
--- SORRY'D:         (hslotSafety := hslotSafety)
--- SORRY'D:   | setStructMemberSingle hkey hscopeKey hvalue hscopeValue hslot hmembers hmember =>
--- SORRY'D:       rcases hsafety.setStructMemberSingle
--- SORRY'D:           hkey hscopeKey hvalue hscopeValue hslot hmembers hmember with
--- SORRY'D:         ⟨hmapping, hwriteSlots, hslotSafety⟩
--- SORRY'D:       exact stmtListGenericCore_singleton_setStructMemberSingle_of_slotSafety
--- SORRY'D:         (fields := fields)
--- SORRY'D:         (scope := scope)
--- SORRY'D:         (hcoreKey := hkey)
--- SORRY'D:         (hinScopeKey := hscopeKey)
--- SORRY'D:         (hcoreValue := hvalue)
--- SORRY'D:         (hinScopeValue := hscopeValue)
--- SORRY'D:         (hmapping := hmapping)
--- SORRY'D:         (hmembers := hmembers)
--- SORRY'D:         (hmember := hmember)
--- SORRY'D:         (hwriteSlots := hwriteSlots)
--- SORRY'D:         (hslotSafety := hslotSafety)
--- SORRY'D:   | setMapping2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot =>
--- SORRY'D:       rcases hsafety.setMapping2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot with
--- SORRY'D:         ⟨hmapping2, hwriteSlots, hslotSafety⟩
--- SORRY'D:       exact stmtListGenericCore_singleton_setMapping2Single_of_slotSafety
--- SORRY'D:         (fields := fields)
--- SORRY'D:         (scope := scope)
--- SORRY'D:         (hcoreKey1 := hkey1)
--- SORRY'D:         (hinScopeKey1 := hscope1)
--- SORRY'D:         (hcoreKey2 := hkey2)
--- SORRY'D:         (hinScopeKey2 := hscope2)
--- SORRY'D:         (hcoreValue := hvalue)
--- SORRY'D:         (hinScopeValue := hscopeValue)
--- SORRY'D:         (hmapping2 := hmapping2)
--- SORRY'D:         (hwriteSlots := hwriteSlots)
--- SORRY'D:         (hslotSafety := hslotSafety)
--- SORRY'D:   | setMapping2WordSingle hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot =>
--- SORRY'D:       rcases hsafety.setMapping2WordSingle hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot with
--- SORRY'D:         ⟨hmapping2, hwriteSlots, hslotSafety⟩
--- SORRY'D:       exact stmtListGenericCore_singleton_setMapping2WordSingle_of_slotSafety
--- SORRY'D:         (fields := fields)
--- SORRY'D:         (scope := scope)
--- SORRY'D:         (hcoreKey1 := hkey1)
--- SORRY'D:         (hinScopeKey1 := hscope1)
--- SORRY'D:         (hcoreKey2 := hkey2)
--- SORRY'D:         (hinScopeKey2 := hscope2)
--- SORRY'D:         (hcoreValue := hvalue)
--- SORRY'D:         (hinScopeValue := hscopeValue)
--- SORRY'D:         (hmapping2 := hmapping2)
--- SORRY'D:         (hwriteSlots := hwriteSlots)
--- SORRY'D:         (hslotSafety := hslotSafety)
--- SORRY'D:   | setStructMember2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot hmembers hmember =>
--- SORRY'D:       rcases hsafety.setStructMember2Single
--- SORRY'D:           hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot hmembers hmember with
--- SORRY'D:         ⟨hmapping2, hwriteSlots, hslotSafety⟩
--- SORRY'D:       exact stmtListGenericCore_singleton_setStructMember2Single_of_slotSafety
--- SORRY'D:         (fields := fields)
--- SORRY'D:         (scope := scope)
--- SORRY'D:         (hcoreKey1 := hkey1)
--- SORRY'D:         (hinScopeKey1 := hscope1)
--- SORRY'D:         (hcoreKey2 := hkey2)
--- SORRY'D:         (hinScopeKey2 := hscope2)
--- SORRY'D:         (hcoreValue := hvalue)
--- SORRY'D:         (hinScopeValue := hscopeValue)
--- SORRY'D:         (hmapping2 := hmapping2)
--- SORRY'D:         (hmembers := hmembers)
--- SORRY'D:         (hmember := hmember)
--- SORRY'D:         (hwriteSlots := hwriteSlots)
--- SORRY'D:         (hslotSafety := hslotSafety)
--- SORRY'D:   | rawLogLiterals htopics =>
--- SORRY'D:       have hsurfaceBase :
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface
--- SORRY'D:             [Stmt.rawLog (topics.map Expr.literal) (Expr.literal dataOffset) (Expr.literal dataSize)] = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface,
--- SORRY'D:           stmtTouchesUnsupportedContractSurface] using hsurface
--- SORRY'D:       exact False.elim (false_of_supportedStmtList_rawLogLiterals_surface hsurfaceBase)
--- SORRY'D:   | letCallerLetStorageReqEqReqNeqSetStorageParamStop hOwner hne_sv_p hne_ov_p hne_ov_sv =>
--- SORRY'D:       have hsurfaceBase :
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface
--- SORRY'D:             [ Stmt.letVar senderVar Expr.caller
--- SORRY'D:             , Stmt.letVar ownerVar (Expr.storage ownerField)
--- SORRY'D:             , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
--- SORRY'D:             , Stmt.require
--- SORRY'D:                 (Expr.logicalNot (Expr.eq (Expr.param paramName) (Expr.localVar ownerVar))) msg2
--- SORRY'D:             , Stmt.setStorage ownerField (Expr.param paramName)
--- SORRY'D:             , Stmt.stop
--- SORRY'D:             ] = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface,
--- SORRY'D:           stmtTouchesUnsupportedContractSurface] using hsurface
--- SORRY'D:       exact False.elim
--- SORRY'D:         (false_of_supportedStmtList_letCallerLetStorageReqEqReqNeqSetStorageParamStop_surface
--- SORRY'D:           hsurfaceBase)
--- SORRY'D:   | letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop
--- SORRY'D:       hOwner hTarget hne_sv_p hne_ov_p hne_ov_sv hne_tv_p hne_tv_sv hne_tv_ov =>
--- SORRY'D:       have hsurfaceBase :
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface
--- SORRY'D:             [ Stmt.letVar senderVar Expr.caller
--- SORRY'D:             , Stmt.letVar ownerVar (Expr.storage ownerField)
--- SORRY'D:             , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
--- SORRY'D:             , Stmt.letVar targetVar (Expr.storage targetField)
--- SORRY'D:             , Stmt.require
--- SORRY'D:                 (Expr.logicalNot (Expr.eq (Expr.param paramName) (Expr.localVar targetVar))) msg2
--- SORRY'D:             , Stmt.setStorage targetField (Expr.param paramName)
--- SORRY'D:             , Stmt.stop
--- SORRY'D:             ] = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface,
--- SORRY'D:           stmtTouchesUnsupportedContractSurface] using hsurface
--- SORRY'D:       exact False.elim
--- SORRY'D:         (false_of_supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop_surface
--- SORRY'D:           hsurfaceBase)
--- SORRY'D:   | requireClause clause hrest ih =>
--- SORRY'D:       exact stmtListGenericCore_of_supportedStmtList_requireClause_of_surface_exceptMappingWrites
--- SORRY'D:         (fields := fields) (scope := scope) clause ih hsurface
--- SORRY'D:   | ite hcond hscope hthen helse ihThen ihElse =>
--- SORRY'D:       have hsurfaceBase :
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface [Stmt.ite cond thenBranch elseBranch] = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface,
--- SORRY'D:           stmtTouchesUnsupportedContractSurface] using hsurface
--- SORRY'D:       exact False.elim (false_of_supportedStmtList_ite_list_surface hsurfaceBase)
--- SORRY'D:   | append hprefix hsuffix ihPrefix ihSuffix =>
--- SORRY'D:       exact stmtListGenericCore_of_supportedStmtList_append_of_surface_exceptMappingWrites
--- SORRY'D:         hprefix hsuffix ihPrefix ihSuffix hsurface
 
 -- SORRY'D: /-- The current supported statement-list witness already suffices for the
 -- SORRY'D: weaker helper-free source-step interface consumed by the exact helper-aware
@@ -11877,10 +11626,6 @@ theorem stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface
 -- SORRY'D:     hsafety
 -- SORRY'D:     hsurface
 
--- SORRY'D: /-- The supported-body interface also derives the weaker source-side reuse
--- SORRY'D: witness needed by the exact helper-aware seam: helper-free heads retain the
--- SORRY'D: legacy generic-step obligation, while helper-positive heads can be discharged
--- SORRY'D: separately. -/
 theorem SupportedBodyInterface.helperFreeStepInterface
     {spec : CompilationModel}
     {fn : FunctionSpec}
@@ -11901,20 +11646,6 @@ theorem SupportedBodyInterface.helperFreeStepInterface
     hnoConflict
     hBody.stmtList
     hsurface
--- SORRY'D:   have hsurface :
--- SORRY'D:       stmtListTouchesUnsupportedContractSurface fn.body = false :=
--- SORRY'D:     stmtListTouchesUnsupportedContractSurface_eq_false_of_featureClosed fn.body
--- SORRY'D:       hBody.core.surfaceClosed
--- SORRY'D:       hBody.state.surfaceClosed
--- SORRY'D:       (SupportedBodyCallInterface.surfaceClosed (hBody := hBody))
--- SORRY'D:       hBody.effects.surfaceClosed
--- SORRY'D:   stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface
--- SORRY'D:     (fields := spec.fields)
--- SORRY'D:     (scope := fn.params.map (·.name))
--- SORRY'D:     (stmts := fn.body)
--- SORRY'D:     hnoConflict
--- SORRY'D:     hBody.stmtList
--- SORRY'D:     hsurface
 
 -- TYPESIG_SORRY: theorem SupportedBodyInterfaceExceptMappingWrites.helperFreeStepInterface
 -- TYPESIG_SORRY:     {spec : CompilationModel}
