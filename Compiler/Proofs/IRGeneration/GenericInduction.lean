@@ -9114,107 +9114,139 @@ theorem compiledStmtStep_setStorage_of_validateIdentifierShapes
       (hNotMapping := hNotMapping)
       (hvalueIR := hvalueIR)
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_scopeDiscipline
--- TYPESIG_SORRY:     {spec : CompilationModel}
--- TYPESIG_SORRY:     {fn : FunctionSpec}
--- TYPESIG_SORRY:     {prefix suffix : List Stmt}
--- TYPESIG_SORRY:     {fieldName : String}
--- TYPESIG_SORRY:     {value : Expr}
--- TYPESIG_SORRY:     {valueIR : YulExpr}
--- TYPESIG_SORRY:     {f : Field}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hvalidate : validateIdentifierShapes spec = Except.ok ())
--- TYPESIG_SORRY:     (hfn : fn ∈ spec.functions)
--- TYPESIG_SORRY:     (hprefix :
--- TYPESIG_SORRY:       StmtListScopeDiscipline
--- TYPESIG_SORRY:         (spec.fields.map (·.name))
--- TYPESIG_SORRY:         (fn.params.map (·.name))
--- TYPESIG_SORRY:         prefix)
--- TYPESIG_SORRY:     (hbody : fn.body = prefix ++ .setStorage fieldName value :: suffix)
--- TYPESIG_SORRY:     (hcore : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScope :
--- TYPESIG_SORRY:       FunctionBody.exprBoundNamesInScope
--- TYPESIG_SORRY:         value
--- TYPESIG_SORRY:         (List.foldl stmtNextScope (fn.params.map (·.name)) prefix))
--- TYPESIG_SORRY:     (hfind : findFieldWithResolvedSlot spec.fields fieldName = some (f, slot))
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots spec.fields fieldName = some (slot :: f.aliasSlots))
--- TYPESIG_SORRY:     (hunpacked : f.packedBits = none)
--- TYPESIG_SORRY:     (hnoConflict : firstFieldWriteSlotConflict spec.fields = none)
--- TYPESIG_SORRY:     (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
--- TYPESIG_SORRY:     (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr spec.fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     ∃ compiledIR,
--- TYPESIG_SORRY:       CompiledStmtStep spec.fields
--- TYPESIG_SORRY:         (List.foldl stmtNextScope (fn.params.map (·.name)) prefix)
--- TYPESIG_SORRY:         (.setStorage fieldName value)
--- TYPESIG_SORRY:         compiledIR := by sorry
--- SORRY'D:   apply compiledStmtStep_setStorage_of_validateIdentifierShapes
--- SORRY'D:     (scope := List.foldl stmtNextScope (fn.params.map (·.name)) prefix)
--- SORRY'D:     (hvalidate := hvalidate)
--- SORRY'D:     (hfn := hfn)
--- SORRY'D:     (hscopeNames := ?_)
--- SORRY'D:     (hcore := hcore)
--- SORRY'D:     (hinScope := hinScope)
--- SORRY'D:     (hfind := hfind)
--- SORRY'D:     (hwriteSlots := hwriteSlots)
--- SORRY'D:     (hunpacked := hunpacked)
--- SORRY'D:     (hnoConflict := hnoConflict)
--- SORRY'D:     (hnotAddr := hnotAddr)
--- SORRY'D:     (hnotDyn := hnotDyn)
--- SORRY'D:     (hvalueIR := hvalueIR)
--- SORRY'D:   intro name hmem
--- SORRY'D:   have hscopeNames := stmtListScopeDiscipline_scope_names hprefix name hmem
--- SORRY'D:   rw [hbody] at hscopeNames
--- SORRY'D:   simpa [collectStmtListBindNames, collectStmtListAssignedNames, hbody] using hscopeNames
+theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_scopeDiscipline
+    {spec : CompilationModel}
+    {fn : FunctionSpec}
+    {«prefix» «suffix» : List Stmt}
+    {fieldName : String}
+    {value : Expr}
+    {valueIR : YulExpr}
+    {f : Field}
+    {slot : Nat}
+    (hvalidate : validateIdentifierShapes spec = Except.ok ())
+    (hfn : fn ∈ spec.functions)
+    (hprefix :
+      StmtListScopeDiscipline
+        (spec.fields.map (·.name))
+        (fn.params.map (·.name))
+        «prefix»)
+    (hbody : fn.body = «prefix» ++ .setStorage fieldName value :: «suffix»)
+    (hcore : FunctionBody.ExprCompileCore value)
+    (hinScope :
+      FunctionBody.exprBoundNamesInScope
+        value
+        (List.foldl stmtNextScope (fn.params.map (·.name)) «prefix»))
+    (hfind : findFieldWithResolvedSlot spec.fields fieldName = some (f, slot))
+    (hwriteSlots : findFieldWriteSlots spec.fields fieldName = some (slot :: f.aliasSlots))
+    (hunpacked : f.packedBits = none)
+    (hnoConflict : firstFieldWriteSlotConflict spec.fields = none)
+    (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
+    (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
+    (hNotMapping : isMapping spec.fields fieldName = false)
+    (hvalueIR : CompilationModel.compileExpr spec.fields .calldata value = Except.ok valueIR) :
+    ∃ compiledIR,
+      CompiledStmtStep spec.fields
+        (List.foldl stmtNextScope (fn.params.map (·.name)) «prefix»)
+        (.setStorage fieldName value)
+        compiledIR := by
+  apply compiledStmtStep_setStorage_of_validateIdentifierShapes
+    (scope := List.foldl stmtNextScope (fn.params.map (·.name)) «prefix»)
+    (hvalidate := hvalidate)
+    (hfn := hfn)
+    (hscopeNames := ?_)
+    (hcore := hcore)
+    (hinScope := hinScope)
+    (hfind := hfind)
+    (hwriteSlots := hwriteSlots)
+    (hunpacked := hunpacked)
+    (hnoConflict := hnoConflict)
+    (hnotAddr := hnotAddr)
+    (hnotDyn := hnotDyn)
+    (hNotMapping := hNotMapping)
+    (hvalueIR := hvalueIR)
+  intro name hmem
+  have hscopeNames := stmtListScopeDiscipline_scope_names hprefix name hmem
+  have collectStmtListBindNames_prefix_subset :
+      ∀ (a b : List Stmt), ∀ x, x ∈ collectStmtListBindNames a →
+        x ∈ collectStmtListBindNames (a ++ b) := by
+    intro a b x hx
+    induction a with
+    | nil => simp [collectStmtListBindNames] at hx
+    | cons s rest ih =>
+        simp only [collectStmtListBindNames, List.mem_append, List.cons_append] at hx ⊢
+        rcases hx with h | h
+        · exact Or.inl h
+        · exact Or.inr (ih h)
+  have collectStmtListAssignedNames_prefix_subset :
+      ∀ (a b : List Stmt), ∀ x, x ∈ collectStmtListAssignedNames a →
+        x ∈ collectStmtListAssignedNames (a ++ b) := by
+    intro a b x hx
+    induction a with
+    | nil => simp [collectStmtListAssignedNames] at hx
+    | cons s rest ih =>
+        simp only [collectStmtListAssignedNames, List.mem_append, List.cons_append] at hx ⊢
+        rcases hx with h | h
+        · exact Or.inl h
+        · exact Or.inr (ih h)
+  simp only [List.mem_append] at hscopeNames ⊢
+  rcases hscopeNames with ((h | h) | h) | h
+  · exact Or.inl (Or.inl (Or.inl h))
+  · exact Or.inl (Or.inl (Or.inr
+      (by rw [hbody]; exact collectStmtListBindNames_prefix_subset _ _ _ h)))
+  · exact Or.inl (Or.inr
+      (by rw [hbody]; exact collectStmtListAssignedNames_prefix_subset _ _ _ h))
+  · exact Or.inr h
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences
--- TYPESIG_SORRY:     {spec : CompilationModel}
--- TYPESIG_SORRY:     {fn : FunctionSpec}
--- TYPESIG_SORRY:     {prefix suffix : List Stmt}
--- TYPESIG_SORRY:     {fieldName : String}
--- TYPESIG_SORRY:     {value : Expr}
--- TYPESIG_SORRY:     {valueIR : YulExpr}
--- TYPESIG_SORRY:     {f : Field}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hvalidateShapes : validateIdentifierShapes spec = Except.ok ())
--- TYPESIG_SORRY:     (hvalidateRefs : validateFunctionIdentifierReferences fn = Except.ok ())
--- TYPESIG_SORRY:     (hfn : fn ∈ spec.functions)
--- TYPESIG_SORRY:     (hparamScope : paramScopeNames fn.params = fn.params.map (·.name))
--- TYPESIG_SORRY:     (hprefixCore : StmtListScopeCore (spec.fields.map (·.name)) prefix)
--- TYPESIG_SORRY:     (hbody : fn.body = prefix ++ .setStorage fieldName value :: suffix)
--- TYPESIG_SORRY:     (hcore : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScope :
--- TYPESIG_SORRY:       FunctionBody.exprBoundNamesInScope
--- TYPESIG_SORRY:         value
--- TYPESIG_SORRY:         (List.foldl stmtNextScope (fn.params.map (·.name)) prefix))
--- TYPESIG_SORRY:     (hfind : findFieldWithResolvedSlot spec.fields fieldName = some (f, slot))
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots spec.fields fieldName = some (slot :: f.aliasSlots))
--- TYPESIG_SORRY:     (hunpacked : f.packedBits = none)
--- TYPESIG_SORRY:     (hnoConflict : firstFieldWriteSlotConflict spec.fields = none)
--- TYPESIG_SORRY:     (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
--- TYPESIG_SORRY:     (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr spec.fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     ∃ compiledIR,
--- TYPESIG_SORRY:       CompiledStmtStep spec.fields
--- TYPESIG_SORRY:         (List.foldl stmtNextScope (fn.params.map (·.name)) prefix)
--- TYPESIG_SORRY:         (.setStorage fieldName value)
--- TYPESIG_SORRY:         compiledIR := by sorry
--- SORRY'D:   apply compiledStmtStep_setStorage_of_validateIdentifierShapes_of_scopeDiscipline
--- SORRY'D:     (hvalidate := hvalidateShapes)
--- SORRY'D:     (hfn := hfn)
--- SORRY'D:     (hprefix := stmtListScopeDiscipline_of_validateFunctionIdentifierReferences_prefix
--- SORRY'D:       hprefixCore hvalidateRefs hparamScope
--- SORRY'D:       (by simpa [List.append_assoc] using hbody))
--- SORRY'D:     (hbody := hbody)
--- SORRY'D:     (hcore := hcore)
--- SORRY'D:     (hinScope := hinScope)
--- SORRY'D:     (hfind := hfind)
--- SORRY'D:     (hwriteSlots := hwriteSlots)
--- SORRY'D:     (hunpacked := hunpacked)
--- SORRY'D:     (hnoConflict := hnoConflict)
--- SORRY'D:     (hnotAddr := hnotAddr)
--- SORRY'D:     (hnotDyn := hnotDyn)
--- SORRY'D:     (hvalueIR := hvalueIR)
+theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences
+    {spec : CompilationModel}
+    {fn : FunctionSpec}
+    {«prefix» «suffix» : List Stmt}
+    {fieldName : String}
+    {value : Expr}
+    {valueIR : YulExpr}
+    {f : Field}
+    {slot : Nat}
+    (hvalidateShapes : validateIdentifierShapes spec = Except.ok ())
+    (hvalidateRefs : validateFunctionIdentifierReferences fn = Except.ok ())
+    (hfn : fn ∈ spec.functions)
+    (hparamScope : paramScopeNames fn.params = fn.params.map (·.name))
+    (hprefixCore : StmtListScopeCore (spec.fields.map (·.name)) «prefix»)
+    (hbody : fn.body = «prefix» ++ .setStorage fieldName value :: «suffix»)
+    (hcore : FunctionBody.ExprCompileCore value)
+    (hinScope :
+      FunctionBody.exprBoundNamesInScope
+        value
+        (List.foldl stmtNextScope (fn.params.map (·.name)) «prefix»))
+    (hfind : findFieldWithResolvedSlot spec.fields fieldName = some (f, slot))
+    (hwriteSlots : findFieldWriteSlots spec.fields fieldName = some (slot :: f.aliasSlots))
+    (hunpacked : f.packedBits = none)
+    (hnoConflict : firstFieldWriteSlotConflict spec.fields = none)
+    (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
+    (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
+    (hNotMapping : isMapping spec.fields fieldName = false)
+    (hvalueIR : CompilationModel.compileExpr spec.fields .calldata value = Except.ok valueIR) :
+    ∃ compiledIR,
+      CompiledStmtStep spec.fields
+        (List.foldl stmtNextScope (fn.params.map (·.name)) «prefix»)
+        (.setStorage fieldName value)
+        compiledIR := by
+  apply compiledStmtStep_setStorage_of_validateIdentifierShapes_of_scopeDiscipline
+    (hvalidate := hvalidateShapes)
+    (hfn := hfn)
+    (hprefix := stmtListScopeDiscipline_of_validateFunctionIdentifierReferences_prefix
+      hprefixCore hvalidateRefs hparamScope
+      (by simpa [List.append_assoc] using hbody))
+    (hbody := hbody)
+    (hcore := hcore)
+    (hinScope := hinScope)
+    (hfind := hfind)
+    (hwriteSlots := hwriteSlots)
+    (hunpacked := hunpacked)
+    (hnoConflict := hnoConflict)
+    (hnotAddr := hnotAddr)
+    (hnotDyn := hnotDyn)
+    (hNotMapping := hNotMapping)
+    (hvalueIR := hvalueIR)
 
 -- TYPESIG_SORRY: theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences_of_compileStmtList
 -- TYPESIG_SORRY:     {spec : CompilationModel}
