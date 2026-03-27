@@ -1875,6 +1875,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.abstractStoreStorageOrMapping_eq
 #print axioms Compiler.Proofs.abstractMappingSlot_lt_evmModulus
 #print axioms Compiler.Proofs.solidityMappingSlot_add_lt_evmModulus
+#print axioms Compiler.Proofs.solidityMappingSlot_add_wordOffset_lt_evmModulus
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.word_lt_uint256_size  -- private
@@ -1968,4 +1969,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1837 theorems/lemmas (1246 public, 591 private, 0 sorry'd)
+-- Total: 1838 theorems/lemmas (1247 public, 591 private, 0 sorry'd)

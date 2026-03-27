@@ -5,7 +5,7 @@
   },
   "proofs": {
     "axioms": 2,
-    "sorry": 2
+    "sorry": 3
   },
   "schema_version": 1,
   "tests": {
@@ -33,7 +33,7 @@
       "SimpleStorage": 20,
       "SimpleToken": 61
     },
-    "proven": 275,
+    "proven": 274,
     "stdlib": 0,
     "total": 277
   },
