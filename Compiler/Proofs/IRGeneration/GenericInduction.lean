@@ -6024,6 +6024,11 @@ private theorem execIRStmts_single_block_of_continue
     simpa [execIRStmt, Nat.add_comm, Nat.add_left_comm, Nat.add_assoc] using hbody
   simpa [execIRStmts, hblock]
 
+private theorem singletonBlock_sizeOf_slack (body : List YulStmt) :
+    sizeOf [YulStmt.block body] - [YulStmt.block body].length = sizeOf body + 2 := by
+  simp [YulStmt.block.sizeOf_spec]
+  omega
+
 private theorem compatValue_not_mem_scope_of_reservedPrefix
     {scope : List String}
     (hscopeReserved : scopeAvoidsReservedCompilerPrefix scope) :
@@ -8030,6 +8035,8 @@ private theorem uint256_shl_val_eq_mul_pow_mod
     Nat.mod_eq_of_lt hshiftLt]
   rw [Nat.shiftLeft_eq]
 
+set_option maxHeartbeats 0 in
+set_option maxRecDepth 10000 in
 private theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_preserves
     {fields : List Field}
     {scope : List String}
@@ -8267,8 +8274,9 @@ private theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_p
           simpa [hzero, targetSlot, mappingWordTargetSlot_eq_uint256_add] using hAddEval'
       set state1 := state.setVar "__compat_value" valueNat
       have hCompatValue :
-          execIRStmt (extraFuel + 1) state (YulStmt.let_ "__compat_value" valueIR) =
+          ∀ fuel, execIRStmt (fuel + 1) state (YulStmt.let_ "__compat_value" valueIR) =
             .continue state1 := by
+        intro fuel
         simp [state1, execIRStmt, hIRValue]
       have hPackedEval :
           evalIRExpr state1
@@ -8285,10 +8293,11 @@ private theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_p
             (by simp [evalIRExpr])
       set state2 := state1.setVar "__compat_packed" (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val
       have hCompatPacked :
-          execIRStmt (extraFuel + 1) state1
+          ∀ fuel, execIRStmt (fuel + 1) state1
             (YulStmt.let_ "__compat_packed"
               (YulExpr.call "and" [YulExpr.ident "__compat_value", YulExpr.lit (packedMaskNat packed)])) =
             .continue state2 := by
+        intro fuel
         simp [state2, execIRStmt, hPackedEval]
       have hexact_state1 :
           FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state1 :=
@@ -8371,9 +8380,10 @@ private theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_p
       have hruntimeCompat3 : FunctionBody.runtimeStateMatchesIR fields runtime state3 :=
         FunctionBody.runtimeStateMatchesIR_setVar_irrelevant hruntimeCompat2
       have hCompatSlotWord :
-          execIRStmt (extraFuel + 1) state2
+          ∀ fuel, execIRStmt (fuel + 1) state2
             (YulStmt.let_ "__compat_slot_word" (YulExpr.call "sload" [writeSlotExpr])) =
             .continue state3 := by
+        intro fuel
         simp [state3, execIRStmt, hSlotWordEval]
       have hSlotClearedEval :
           evalIRExpr state3
@@ -8428,12 +8438,13 @@ private theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_p
       have hruntimeCompat4 : FunctionBody.runtimeStateMatchesIR fields runtime state4 :=
         FunctionBody.runtimeStateMatchesIR_setVar_irrelevant hruntimeCompat3
       have hCompatSlotCleared :
-          execIRStmt (extraFuel + 1) state3
+          ∀ fuel, execIRStmt (fuel + 1) state3
             (YulStmt.let_ "__compat_slot_cleared"
               (YulExpr.call "and"
                 [YulExpr.ident "__compat_slot_word",
                   YulExpr.call "not" [YulExpr.lit (packedShiftedMaskNat packed)]])) =
             .continue state4 := by
+        intro fuel
         simp [state4, execIRStmt, hSlotClearedEval]
       have hStoredEval :
           evalIRExpr state4
@@ -8602,70 +8613,55 @@ private theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_p
               Nat.add_left_comm] using hAddEval
           simpa [hzero, targetSlot, mappingWordTargetSlot_eq_uint256_add] using hAddEval'
       have hSstore :
-          execIRStmt (extraFuel + 1) state4
+          ∀ fuel, execIRStmt (fuel + 1) state4
             (YulStmt.expr
               (YulExpr.call "sstore"
                 [writeSlotExpr,
                   YulExpr.call "or"
-                    [YulExpr.ident "__compat_slot_cleared",
-                      YulExpr.call "shl" [YulExpr.lit packed.offset, YulExpr.ident "__compat_packed"]]])) =
+                      [YulExpr.ident "__compat_slot_cleared",
+                        YulExpr.call "shl" [YulExpr.lit packed.offset, YulExpr.ident "__compat_packed"]]])) =
             .continue state' := by
-        dsimp [writeSlotExpr]
-        by_cases hzero : wordOffset = 0
-        · subst hzero
-          have hTargetZero :
-              targetSlot = Compiler.Proofs.abstractMappingSlot slot keyNat := by
-            have hlt :
-                Compiler.Proofs.solidityMappingSlot slot keyNat < Compiler.Constants.evmModulus := by
-              simpa [Compiler.Proofs.abstractMappingSlot_eq_solidity] using
-                (Compiler.Proofs.abstractMappingSlot_lt_evmModulus slot keyNat)
-            simpa [targetSlot, mappingWordTargetSlot, SourceSemantics.wordNormalize,
-              Compiler.Proofs.abstractMappingSlot_eq_solidity, Nat.mod_eq_of_lt hlt]
-          have hTargetZero' : targetSlot = Compiler.Proofs.solidityMappingSlot slot keyNat := by
-            simpa [Compiler.Proofs.abstractMappingSlot_eq_solidity] using hTargetZero
-          have hStoreEq :
-              Compiler.Proofs.abstractStoreMappingEntry state.storage slot keyNat storedWordNat =
-                Compiler.Proofs.abstractStoreStorageOrMapping state.storage targetSlot storedWordNat := by
-            simp [Compiler.Proofs.abstractStoreStorageOrMapping,
-              Compiler.Proofs.abstractStoreMappingEntry, hTargetZero]
-          simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs, hIRKeyState4, hStoredEval,
-            state', state4, state3, state2, state1, IRState.setVar, hTargetZero',
-            Compiler.Proofs.abstractStoreMappingEntry_eq,
-            Compiler.Proofs.abstractStoreStorageOrMapping_eq, hStoreEq]
-        · have hbeq : (wordOffset == 0) = false := by
-            simp [beq_iff_eq, hzero]
-          have hTargetMod :
-              (Compiler.Proofs.solidityMappingSlot slot keyNat + wordOffset) %
-                Compiler.Constants.evmModulus = targetSlot := by
-            rw [show targetSlot =
-              (Verity.Core.Uint256.ofNat wordOffset +
-                Verity.Core.Uint256.ofNat
-                  (Compiler.Proofs.solidityMappingSlot slot keyNat)).val by
-                simpa [targetSlot] using mappingWordTargetSlot_eq_uint256_add slot keyNat wordOffset]
-            simpa [Nat.add_comm] using
-              (uint256_add_val_eq_mod wordOffset
-                (Compiler.Proofs.solidityMappingSlot slot keyNat)).symm
-          have hStoreEq :
-              Compiler.Proofs.abstractStoreStorageOrMapping state.storage targetSlot storedWordNat =
-                fun s =>
-                  if s =
-                      (Compiler.Proofs.solidityMappingSlot slot keyNat + wordOffset) %
-                        Compiler.Constants.evmModulus then
-                    storedWordNat
-                  else
-                    state.storage s := by
-            funext s
-            rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq, ← hTargetMod]
-          simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs, hIRKeyState4, hStoredEval,
-            Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-            Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
-            Compiler.Proofs.abstractMappingSlot_eq_solidity,
-            state', state4, state3, state2, state1, IRState.setVar,
-            hbeq, hTargetMod, hStoreEq]
+        intro fuel
+        simpa [state', state4, state3, state2, state1] using
+          (execIRStmt_sstore_of_eval
+            (state := state4)
+            (slotExpr := writeSlotExpr)
+            (valueExpr := YulExpr.call "or"
+              [YulExpr.ident "__compat_slot_cleared",
+                YulExpr.call "shl" [YulExpr.lit packed.offset, YulExpr.ident "__compat_packed"]])
+            (slotVal := targetSlot)
+            (valueVal := storedWordNat)
+            (fuel := fuel)
+            hWriteSlotEval4
+            hStoredEval)
+      have hSizeOfListBound : ∀ (l : List YulStmt), l.length + 1 ≤ sizeOf l := by
+        intro l
+        induction l with
+        | nil => simp
+        | cons h t ih =>
+            show t.length + 1 + 1 ≤ 1 + sizeOf h + sizeOf t
+            omega
+      have hbodyFuelLe : 6 ≤ extraFuel := by
+        have hBodyLen : blockBody.length = 5 := by
+          simp [blockBody]
+        have hBodyBound := hSizeOfListBound blockBody
+        have hBlockSizeOf : 6 ≤ sizeOf [YulStmt.block blockBody] - [YulStmt.block blockBody].length := by
+          rw [singletonBlock_sizeOf_slack]
+          omega
+        exact le_trans hBlockSizeOf hslack
+      let bodyExtraFuel := extraFuel - 6
+      have hbodyFuelEq : bodyExtraFuel + 6 = extraFuel := by
+        dsimp [bodyExtraFuel]
+        omega
       have hBody :
           execIRStmts extraFuel state blockBody = .continue state' := by
-        simp [execIRStmts, blockBody, hCompatValue, hCompatPacked, hCompatSlotWord,
-          hCompatSlotCleared, hSstore]
+        rw [← hbodyFuelEq]
+        simp [execIRStmts, blockBody, bodyExtraFuel,
+          hCompatValue (bodyExtraFuel + 4),
+          hCompatPacked (bodyExtraFuel + 3),
+          hCompatSlotWord (bodyExtraFuel + 2),
+          hCompatSlotCleared (bodyExtraFuel + 1),
+          hSstore bodyExtraFuel]
       have hWhole :
           execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR = .continue state' := by
         have hblock := execIRStmts_single_block_of_continue
@@ -8688,10 +8684,23 @@ private theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_p
         · exact hinScopeValue n (collectExprNames_mem_exprBoundNames_of_core hcoreValue n hv)
         · exact hs
       have hscope' := FunctionBody.scopeNamesPresent_of_included hscope hincl
-      have hruntime1 := FunctionBody.runtimeStateMatchesIR_setVar_irrelevant hruntime
-      have hruntime2 := FunctionBody.runtimeStateMatchesIR_setVar_irrelevant hruntime1
-      have hruntime3 := FunctionBody.runtimeStateMatchesIR_setVar_irrelevant hruntime2
-      have hruntime4 := FunctionBody.runtimeStateMatchesIR_setVar_irrelevant hruntime3
+      have hruntime1 :=
+        FunctionBody.runtimeStateMatchesIR_setVar_irrelevant
+          (name := "__compat_value") (value := valueNat) hruntime
+      have hruntime2 :=
+        FunctionBody.runtimeStateMatchesIR_setVar_irrelevant
+          (name := "__compat_packed")
+          (value := (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val)
+          hruntime1
+      have hruntime3 :=
+        FunctionBody.runtimeStateMatchesIR_setVar_irrelevant
+          (name := "__compat_slot_word") (value := oldWordNat) hruntime2
+      have hruntime4 :=
+        FunctionBody.runtimeStateMatchesIR_setVar_irrelevant
+          (name := "__compat_slot_cleared")
+          (value := (Verity.Core.Uint256.and oldWordNat
+            (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val)
+          hruntime3
       have hruntime' :
           FunctionBody.runtimeStateMatchesIR fields
             { runtime with
@@ -8705,13 +8714,23 @@ private theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_p
             (slot := slot) (key := keyNat) (wordOffset := wordOffset) (packed := packed)
             (value := valueNat) hruntime4 hresolvedNone hdynNone
       have hexact1 :=
-        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant hexact hcompatValue
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant
+          (tempName := "__compat_value") (value := valueNat) hexact hcompatValue
       have hexact2 :=
-        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant hexact1 hcompatPacked
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant
+          (tempName := "__compat_packed")
+          (value := (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val)
+          hexact1 hcompatPacked
       have hexact3 :=
-        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant hexact2 hcompatSlotWord
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant
+          (tempName := "__compat_slot_word") (value := oldWordNat)
+          hexact2 hcompatSlotWord
       have hexact4 :=
-        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant hexact3 hcompatSlotCleared
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant
+          (tempName := "__compat_slot_cleared")
+          (value := (Verity.Core.Uint256.and oldWordNat
+            (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val)
+          hexact3 hcompatSlotCleared
       have hexact' : FunctionBody.bindingsExactlyMatchIRVarsOnScope
           (stmtNextScope scope (.setMappingPackedWord fieldName key wordOffset packed value))
           runtime.bindings state' :=
