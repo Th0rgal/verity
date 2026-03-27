@@ -853,6 +853,16 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_logicalNot_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_logicalAnd_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_logicalOr_ok
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_bitAnd_ok
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_bitOr_ok
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_bitXor_ok
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_bitNot_ok
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_min_ok
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_max_ok
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_wMulDown_ok
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_wDivUp_ok
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_ceilDiv_ok
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_ite_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_add_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_sub_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_mul_ok
@@ -884,6 +894,14 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_div_of_compiled
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_sub_of_compiled
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_mod_of_compiled
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_bitAnd_of_values  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_bitOr_of_values  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_bitXor_of_values  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_bitNot_of_values  -- private
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_bitAnd_of_compiled
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_bitOr_of_compiled
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_bitXor_of_compiled
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_bitNot_of_compiled
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_literal_lt_evmModulus
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_param_lt_evmModulus_of_bindingsBounded
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_localVar_lt_evmModulus_of_bindingsBounded
@@ -1934,4 +1952,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1803 theorems/lemmas (1219 public, 584 private, 0 sorry'd)
+-- Total: 1821 theorems/lemmas (1233 public, 588 private, 0 sorry'd)
