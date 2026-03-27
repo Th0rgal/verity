@@ -9891,6 +9891,17 @@ private theorem stmtListTouchesUnsupportedContractSurface_append
   | cons stmt rest ih =>
       simp [stmtListTouchesUnsupportedContractSurface, ih, Bool.or_assoc]
 
+private theorem stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites_append
+    {«prefix» «suffix» : List Stmt} :
+    stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites («prefix» ++ «suffix») =
+      (stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites «prefix» ||
+        stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites «suffix») := by
+  induction «prefix» with
+  | nil =>
+      simp [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites]
+  | cons stmt rest ih =>
+      simp [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites, ih, Bool.or_assoc]
+
 private theorem stmtListCompileCore_of_requireLiteralGuardFamilyClauses
     {scope : List String}
     (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause) :
@@ -10041,50 +10052,6 @@ private theorem stmtListGenericCore_singleton_tstore_single
       (hoffsetIR := hoffsetIR)
       (hvalueIR := hvalueIR))
     StmtListGenericCore.nil
-
--- TYPESIG_SORRY: private theorem stmtListGenericCore_of_supportedStmtList_append_of_surface_exceptMappingWrites
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope prefix suffix : List Stmt}
--- TYPESIG_SORRY:     (hprefix : SupportedStmtList fields scope prefix)
--- TYPESIG_SORRY:     (hsuffix : SupportedStmtList fields (List.foldl stmtNextScope scope prefix) suffix)
--- TYPESIG_SORRY:     (ihPrefix :
--- TYPESIG_SORRY:       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites prefix = false →
--- TYPESIG_SORRY:         StmtListGenericCore fields scope prefix)
--- TYPESIG_SORRY:     (ihSuffix :
--- TYPESIG_SORRY:       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites suffix = false →
--- TYPESIG_SORRY:         StmtListGenericCore fields (List.foldl stmtNextScope scope prefix) suffix)
--- TYPESIG_SORRY:     (hsurface :
--- TYPESIG_SORRY:       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites (prefix ++ suffix) = false) :
--- TYPESIG_SORRY:     StmtListGenericCore fields scope (prefix ++ suffix) := by sorry
--- SORRY'D:   have hsplit :
--- SORRY'D:       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites prefix ||
--- SORRY'D:         stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites suffix = false := by
--- SORRY'D:     simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites] using hsurface
--- SORRY'D:   exact stmtListGenericCore_append
--- SORRY'D:     (ihPrefix (Bool.or_eq_false.mp hsplit).1)
--- SORRY'D:     (ihSuffix (Bool.or_eq_false.mp hsplit).2)
-
--- TYPESIG_SORRY: private theorem stmtListGenericCore_of_supportedStmtList_requireClause_of_surface_exceptMappingWrites
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {rest : List Stmt}
--- TYPESIG_SORRY:     (clause : RequireLiteralGuardFamilyClause)
--- TYPESIG_SORRY:     (ihRest :
--- TYPESIG_SORRY:       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites rest = false →
--- TYPESIG_SORRY:         StmtListGenericCore fields scope rest)
--- TYPESIG_SORRY:     (hsurface :
--- TYPESIG_SORRY:       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites (clause.toStmt :: rest) = false) :
--- TYPESIG_SORRY:     StmtListGenericCore fields scope (clause.toStmt :: rest) := by sorry
--- SORRY'D:   have hsplit :
--- SORRY'D:       stmtTouchesUnsupportedContractSurfaceExceptMappingWrites clause.toStmt ||
--- SORRY'D:         stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites rest = false := by
--- SORRY'D:     simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites] using hsurface
--- SORRY'D:   exact stmtListGenericCore_append
--- SORRY'D:     (by
--- SORRY'D:       simpa using stmtListGenericCore_singleton_requireLiteralGuardFamilyClause
--- SORRY'D:         (fields := fields) (scope := scope) clause)
--- SORRY'D:     (by
--- SORRY'D:       simpa using ihRest (Bool.or_eq_false.mp hsplit).2)
 
 private theorem false_of_supportedStmtList_ite_surface
     {cond : Expr}
@@ -11461,6 +11428,45 @@ private theorem stmtNextScope_requireLiteralGuardFamilyClause
           simp [stmtNextScope,
             Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt,
             collectStmtNames, collectExprNames]
+
+private theorem stmtListGenericCore_of_supportedStmtList_append_of_surface_exceptMappingWrites
+    {fields : List Field}
+    {scope : List String}
+    {«prefix» «suffix» : List Stmt}
+    (_hprefix : SupportedStmtList fields scope «prefix»)
+    (_hsuffix : SupportedStmtList fields (List.foldl stmtNextScope scope «prefix») «suffix»)
+    (ihPrefix :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites «prefix» = false →
+        StmtListGenericCore fields scope «prefix»)
+    (ihSuffix :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites «suffix» = false →
+        StmtListGenericCore fields (List.foldl stmtNextScope scope «prefix») «suffix»)
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites («prefix» ++ «suffix») = false) :
+    StmtListGenericCore fields scope («prefix» ++ «suffix») := by
+  rw [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites_append] at hsurface
+  exact stmtListGenericCore_append
+    (ihPrefix (Bool.or_eq_false_iff.mp hsurface).1)
+    (ihSuffix (Bool.or_eq_false_iff.mp hsurface).2)
+
+private theorem stmtListGenericCore_of_supportedStmtList_requireClause_of_surface_exceptMappingWrites
+    {fields : List Field}
+    {scope : List String}
+    {rest : List Stmt}
+    (clause : Verity.Core.Free.RequireLiteralGuardFamilyClause)
+    (ihRest :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites rest = false →
+        StmtListGenericCore fields scope rest)
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites (clause.toStmt :: rest) = false) :
+    StmtListGenericCore fields scope (clause.toStmt :: rest) := by
+  simp only [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
+    Bool.or_eq_false_iff] at hsurface
+  apply stmtListGenericCore_append
+    (stmtListGenericCore_singleton_requireLiteralGuardFamilyClause
+      (fields := fields) (scope := scope) clause)
+  simp only [List.foldl, stmtNextScope_requireLiteralGuardFamilyClause clause]
+  exact ihRest hsurface.2
 
 theorem stmtListGenericCore_of_supportedStmtList_of_surface
     {fields : List Field}
