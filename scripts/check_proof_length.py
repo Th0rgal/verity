@@ -551,6 +551,23 @@ ALLOWLIST: set[str] = {
     # identifier-shape and function-reference validation through the full
     # compiled storage-write step; mechanical plumbing, not proof complexity.
     "compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences",
+    # PR #1670 — GenericInduction setStorageAddr singleton bridge: long because
+    # it threads address-mask truncation, compat scratch, and the concrete
+    # compiled IR block execution through the full slot-safety witness.
+    "compiledStmtStep_setStorageAddr_singleSlot_preserves",
+    # PR #1670 — compat scratch exclusion lemma: proves no compat-scratch
+    # temporary name matches the `__immutable_*` prefix pattern; length is
+    # from exhaustive case analysis over the concrete name list.
+    "compatScratch_not_internalImmutable",
+    # PR #1670 — compat scratch reserved-prefix lemma: establishes that all
+    # compat-scratch names start with `__`, the reserved compiler prefix;
+    # length is similarly from exhaustive enumeration.
+    "compatScratch_startsWith_reserved",
+    # PR #1670 — packed mapping word singleton encoding lemma: bridges the
+    # abstract source-level `writeAddressKeyedMappingPackedWordSlots` with
+    # the IR-level `encodeStorageAt` for singleton slot lists; marginally
+    # over the limit (54 lines) due to explicit slot-safety unfolding.
+    "encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleton_eq_written",
 }
 
 # Directories containing proof files to scan.

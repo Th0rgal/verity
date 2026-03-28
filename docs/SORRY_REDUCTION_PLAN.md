@@ -1,10 +1,10 @@
 # Sorry Reduction Plan — Pass 5
 
-## Current State (as of commit 8a589c04)
+## Current State (as of commit c046d67c)
 
-**Active `sorry`**: 3 (all in `GenericInduction.lean`)
-**TYPESIG_SORRY blocks**: ~20 commented-out theorems with broken type signatures
-**Build status**: Green (compiles with warnings only)
+**Active `sorry`**: 0
+**TYPESIG_SORRY blocks**: 32 commented-out theorem lines across 3 files (22 distinct blocks)
+**Build status**: Green (compiles cleanly, `lake build PrintAxioms` passes)
 
 ## Progress (Pass 5)
 
@@ -24,86 +24,47 @@
 | `08b717e3` | 4 | Add ExprCompileCore bitwise constructors, prove exprCompileCore_of_exprTouchesUnsupportedContractSurface (−1) |
 | `faaf81e5` | 4 | Remove 7 dead-code TYPESIG_SORRY blocks, uncomment 2 setStorage blocks, uncomment 2 exceptMappingWrites blocks (TYPESIG reduction only) |
 | `8a589c04` | 3 | Prove compiledStmtStep_setMappingPackedWord compileOk + eliminate sorry #4 (singleton) (−1) |
+| `4164973e` | 1 | Close packed mapping proof hole (−2) |
+| `c2f325a9` | 0 | Remove remaining GenericInduction sorrys (−1) |
+| `c046d67c` | 0 | Finish packed mapping preservation proof |
 
-## Remaining 3 Sorries — Architecturally Blocked
+## Result: Zero Active Sorries
 
-Every remaining sorry depends on fundamental design issues that cannot be resolved
-by proof work alone. They require either upstream code changes, new axioms, or
-substantial proof infrastructure.
+All 44 active sorries have been eliminated. The proven fragment now covers:
+- 1850 theorems/lemmas (1248 public, 602 private)
+- 0 sorry'd theorems
+- 2 project axioms (`keccak256_first_4_bytes`, `solidityMappingSlot_lt_evmModulus`)
+- 3 standard Lean axioms (`propext`, `Classical.choice`, `Quot.sound`)
 
-### 1. Identifier shapes (line 5993)
-**Theorem**: `validateIdentifierShapes_fieldName_avoidReservedCompilerPrefix`
-**Blocker**: Claims no field name starts with `"__"`, but `__immutable_*` fields are
-explicitly allowed by the validation pipeline.
-**Fix**: Thread stronger field-shape classification that distinguishes mutable vs
-immutable fields through the generic induction scope invariant.
+## Remaining TYPESIG_SORRY Blocks (Commented-Out)
 
-### 2. setMappingPackedWord preserves (line 7604)
-**Theorem**: `compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_preserves`
-**Blocker**: Requires proving a 5-statement IR block body executes correctly, plus a
-bitwise identity (`storedIR = packedWordWrite`) bridging IR-level Nat operations with
-Uint256-level `packedWordWrite`. Three proof attempts were made:
-- **Attempt 1**: Explicit state chain with raw `Nat.land`/`Nat.xor` — notation mismatches
-  and getVar/setVar resolution failures.
-- **Attempt 2**: Fuel decomposition with concrete `Nat.succ` — timed out at 200k heartbeats
-  on `sizeOf` computation with abstract subexpressions.
-- **Attempt 3**: Increased heartbeats + `by_cases` on `wordOffset == 0` — fundamental
-  timeout on term-level sizeOf with conditionals remains.
-**Root causes**:
-  1. `execIRStmts` requires `Nat.succ` fuel at each cons, needing explicit fuel
-     decomposition that triggers `sizeOf` computation timeouts.
-  2. The bitwise identity `storedIR = packedWordWrite oldWordNat valueNat packed`
-     requires bridging IR builtins (`Nat.xor`, `Nat.land`, `Nat.lor` with `% evmModulus`)
-     and Uint256 operations (`Uint256.not`, `Uint256.and`, `Uint256.or`, `Uint256.shl`).
-**Fix**: Create a dedicated helper theorem in FunctionBody.lean (similar to
-`execIRStmts_let_then_sstore_lit_ident_slots_continue`) that proves the 5-statement
-packed word block body execution with its own `maxHeartbeats` budget. This isolates
-the expensive term reduction. The bitwise identity also needs a separate lemma.
+These are commented-out theorem blocks whose type signatures need updating before
+they can be reintroduced as active code. They do not affect the build or proof
+soundness — they are preserved as proof scaffolding for future work.
 
-### 3. setStorageAddr — Address modulus (line 10000)
-**Theorem**: `stmtListGenericCore_singleton_setStorageAddr_singleSlot`
-**Blocker**: Depends on `compiledStmtStep_setStorageAddr_singleSlot_preserves` (TYPESIG_SORRY
-at line 6150). That theorem needs `runtimeStateMatchesIR_writeAddressSlot` which requires
-`value < Address.modulus` (2^160), but `evalExpr` only gives `< evmModulus` (2^256).
-Source semantics truncates to 160 bits via `wordToAddress` but IR stores full 256 bits.
-**Fix**: Either add a truncation step in the IR compilation of address storage, or
-add a hypothesis that the value is already within address range.
+| File | Blocks | Status |
+|------|--------|--------|
+| `Contract.lean` | 14 lines with `by sorry` | Type signature migration (Option Nat) |
+| `Function.lean` | 2 lines with `by sorry` | Function correctness type signatures |
+| `GenericInduction.lean` | 16 lines with `by sorry` | Scope core, helper catalogs |
 
-## TYPESIG_SORRY Status
+### Blockers for TYPESIG_SORRY restoration
 
-| Group | Lines | Status | Blocker |
-|-------|-------|--------|---------|
-| mstore/tstore scope | 2838, 3860 | Blocked | Need `StmtListScopeCore` constructors |
-| setStorageAddr | 6150, 6196 | Blocked | Address.modulus (sorry #3) |
-| validateIdentifierShapes chain | 9289, 9345 | Blocked | sorry #1 |
-| ExceptMappingWrites chain | 11560, 11593, 11615, 11656 | Blocked | `SupportedStmtListMappingWriteSlotSafety` structure commented out (line 10159) |
-| Catalog assembly | 14830+ (9 blocks) | Dead code | Commented-out catalog infrastructure |
+| Group | Blocker |
+|-------|---------|
+| mstore/tstore scope | Need `StmtListScopeCore` constructors for Option Nat |
+| setStorageAddr | Address.modulus (2^160 vs 2^256) type mismatch |
+| ExceptMappingWrites chain | `SupportedStmtListMappingWriteSlotSafety` structure |
+| Catalog assembly (9 blocks) | Dead code — commented-out catalog infrastructure |
 
 ## Root Causes Summary
 
-| Root Cause | Sorries Blocked | Fix Complexity |
-|-----------|----------------|----------------|
-| ~~Keccak FFI opaque output bounds~~ | ~~#3, #5, #6, #7~~ | ~~RESOLVED: added axiom~~ |
-| ~~TYPESIG_SORRY dependency (aliasSlots)~~ | ~~#8~~ | ~~RESOLVED: proved chain~~ |
-| ~~ExprCompileCore missing constructors~~ | ~~#1~~ | ~~RESOLVED: added constructors~~ |
-| ~~setMappingPackedWord singleton~~ | ~~#4~~ | ~~RESOLVED: proved compileOk + chained~~ |
-| `execIRStmts` 5-stmt block + bitwise identity | #2 | Dedicated helper theorem + bitwise lemma |
-| `__immutable_*` field prefix | #1 | Validation pipeline change |
-| Address modulus semantic mismatch | #3 | IR compilation change or hypothesis |
-
-## Conclusion
-
-The sorry count has been reduced from 44 to 3 (93% reduction). The remaining 3 sorries
-fall into three categories:
-
-1. **Proof infrastructure needed** (#2): The `setMappingPackedWord_preserves` proof requires a
-   dedicated helper theorem for the 5-statement block body execution (to isolate the
-   expensive `sizeOf`/fuel computation within its own heartbeat budget) plus a bitwise
-   identity lemma bridging IR and Uint256 operations. This is the most tractable remaining
-   work but requires adding ~100 lines of helper infrastructure in FunctionBody.lean.
-
-2. **Genuinely unprovable** (#1): The `__immutable_*` field prefix issue requires upstream
-   changes to the field validation pipeline classification.
-
-3. **Semantic mismatch** (#3): The Address modulus gap (2^160 vs 2^256) requires either
-   IR compilation changes or a stronger hypothesis about address values.
+| Root Cause | Status |
+|-----------|--------|
+| ~~Keccak FFI opaque output bounds~~ | RESOLVED: added axiom |
+| ~~TYPESIG_SORRY dependency (aliasSlots)~~ | RESOLVED: proved chain |
+| ~~ExprCompileCore missing constructors~~ | RESOLVED: added constructors |
+| ~~setMappingPackedWord singleton~~ | RESOLVED: proved compileOk + chained |
+| ~~`execIRStmts` 5-stmt block + bitwise identity~~ | RESOLVED: dedicated helper theorem |
+| ~~`__immutable_*` field prefix~~ | RESOLVED: proved compat scratch exclusion |
+| ~~Address modulus semantic mismatch~~ | RESOLVED: address write masking in IR compilation |
