@@ -2069,11 +2069,11 @@ private theorem compiledStmtStepWithHelpers_preserves_withCompat
 -- SORRY'D:         (hstep.withHelpers_of_helperSurfaceClosed hsurface.1)
 -- SORRY'D:         (ih hsurface.2)
 
--- SORRY'D: /-- Any helper-aware generic statement-step proof already closes the exact
--- SORRY'D: helper-aware compiled-side step goal when the compiled head stays inside the
--- SORRY'D: legacy-compatible external Yul subset and the runtime contract has no internal
--- SORRY'D: helper table. This is the compiled-side fail-closed bridge from the current
--- TYPESIG_SORRY: theorem domain to the exact helper-aware induction seam. -/
+/-- Any helper-aware generic statement-step proof already closes the exact
+helper-aware compiled-side step goal when the compiled head stays inside the
+legacy-compatible external Yul subset and the runtime contract has no internal
+helper table. This is the compiled-side fail-closed bridge from the current
+theorem domain to the exact helper-aware induction seam. -/
 theorem CompiledStmtStepWithHelpers.withHelperIR_of_legacyCompatible
     {runtimeContract : IRContract}
     {spec : CompilationModel}
