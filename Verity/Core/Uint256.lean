@@ -133,6 +133,18 @@ def not (a : Uint256) : Uint256 := ofNat (MAX_UINT256 - a.val)
 def shl (shift value : Uint256) : Uint256 := ofNat (value.val <<< shift.val)
 def shr (shift value : Uint256) : Uint256 := ofNat (value.val >>> shift.val)
 
+-- EVM SIGNEXTEND(b, x): extend sign bit at byte position b
+def signextend (byteIdx value : Uint256) : Uint256 :=
+  let b := byteIdx.val
+  if b ≥ 31 then value
+  else
+    let bitPos := b * 8 + 7
+    let mask := 2 ^ (bitPos + 1) - 1
+    if value.val &&& (2 ^ bitPos) ≠ 0 then
+      ofNat (value.val ||| (modulus - 1 - mask))
+    else
+      ofNat (value.val &&& mask)
+
 -- Overflow detection predicates for safety proofs (on raw Nat values)
 def willAddOverflow (a b : Uint256) : Bool :=
   a.val + b.val ≥ modulus

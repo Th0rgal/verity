@@ -160,6 +160,13 @@ def evalBuiltinCallWithContext
         let sb := Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (value % evmModulus))
         some (Verity.Core.Int256.sar sa sb).toUint256.val
     | _ => none
+  else if func = "signextend" then
+    match argVals with
+    | [byteIdx, value] =>
+        some (Verity.Core.Uint256.signextend
+          (Verity.Core.Uint256.ofNat (byteIdx % evmModulus))
+          (Verity.Core.Uint256.ofNat (value % evmModulus))).val
+    | _ => none
   else if func = "caller" then
     match argVals with
     | [] => some sender
