@@ -864,6 +864,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_max_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_wMulDown_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_wDivUp_ok
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_mulDivDown_ok
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_mulDivUp_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_ceilDiv_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_ite_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_add_ok
@@ -918,6 +920,14 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evm_max_arith  -- private
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_min_of_compiled
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_max_of_compiled
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_wMulDown_of_values  -- private
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_wMulDown_of_compiled
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_wDivUp_of_values  -- private
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_wDivUp_of_compiled
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_mulDivDown_of_values  -- private
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_mulDivDown_of_compiled
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_mulDivUp_of_values  -- private
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_mulDivUp_of_compiled
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_ceilDiv_of_values  -- private
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_ceilDiv_of_compiled
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_literal_lt_evmModulus
@@ -1999,4 +2009,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1868 theorems/lemmas (1257 public, 611 private, 0 sorry'd)
+-- Total: 1878 theorems/lemmas (1263 public, 615 private, 0 sorry'd)
