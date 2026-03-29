@@ -841,6 +841,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.boolWord_lt_evmModulus
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.boolWord_and
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.boolWord_or
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.boolWord_iszero_iszero
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.boolWord_iszero_lt_eq_ge  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.boolWord_iszero_gt_eq_le  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_ge_raw  -- private
@@ -910,6 +911,9 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_bitNot_of_compiled
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_shl_of_compiled
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_shr_of_compiled
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_ite_of_values  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evm_ite_arith  -- private
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_ite_of_compiled
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evm_min_arith  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evm_max_arith  -- private
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_min_of_compiled
@@ -1993,4 +1997,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1862 theorems/lemmas (1254 public, 608 private, 0 sorry'd)
+-- Total: 1866 theorems/lemmas (1256 public, 610 private, 0 sorry'd)
