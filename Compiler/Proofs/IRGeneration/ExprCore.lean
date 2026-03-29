@@ -85,6 +85,7 @@ inductive ExprCompileCore : Expr → Prop where
   | blockTimestamp : ExprCompileCore .blockTimestamp
   | blockNumber : ExprCompileCore .blockNumber
   | chainid : ExprCompileCore .chainid
+  | blobbasefee : ExprCompileCore .blobbasefee
   | add {lhs rhs : Expr} :
       ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.add lhs rhs)
   | sub {lhs rhs : Expr} :

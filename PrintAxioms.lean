@@ -786,12 +786,14 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_blockTimestamp_of_runtimeStateMatchesIR
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_blockNumber_of_runtimeStateMatchesIR
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_chainid_of_runtimeStateMatchesIR
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_blobbasefee_of_runtimeStateMatchesIR
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_caller
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_contractAddress
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_msgValue
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_blockTimestamp
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_blockNumber
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_chainid
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_blobbasefee
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_literal
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.boolWord_eq_if
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_iszero_of_lt

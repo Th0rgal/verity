@@ -2740,6 +2740,7 @@ private theorem exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_fals
   | .blockTimestamp, _ => exact .blockTimestamp
   | .blockNumber, _ => exact .blockNumber
   | .chainid, _ => exact .chainid
+  | .blobbasefee, _ => exact .blobbasefee
   | .add a b, hsurface | .sub a b, hsurface | .mul a b, hsurface
   | .div a b, hsurface | .mod a b, hsurface
   | .bitAnd a b, hsurface | .bitOr a b, hsurface | .bitXor a b, hsurface
@@ -3120,7 +3121,7 @@ private theorem exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
       simp [FunctionBody.exprBoundNames] at hmem
       subst name
       exact hlocalsInScope name0 hlocal
-  | caller | contractAddress | msgValue | blockTimestamp | blockNumber | chainid =>
+  | caller | contractAddress | msgValue | blockTimestamp | blockNumber | chainid | blobbasefee =>
       intro name hmem
       simp [FunctionBody.exprBoundNames] at hmem
   | add hL hR ihL ihR
@@ -4185,7 +4186,8 @@ private theorem collectExprNames_mem_exprBoundNames_of_core
     (hcore : FunctionBody.ExprCompileCore expr) :
     ∀ name, name ∈ collectExprNames expr → name ∈ FunctionBody.exprBoundNames expr := by
   induction hcore with
-  | literal _ | caller | contractAddress | msgValue | blockTimestamp | blockNumber | chainid =>
+  | literal _ | caller | contractAddress | msgValue | blockTimestamp | blockNumber | chainid
+  | blobbasefee =>
       intro name hmem; simp [collectExprNames] at hmem
   | param _ | localVar _ =>
       intro name hmem; simpa [collectExprNames, FunctionBody.exprBoundNames] using hmem
