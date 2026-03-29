@@ -54,12 +54,13 @@ def exprTouchesUnsupportedCoreSurface : Expr → Bool
   | .logicalAnd a b | .logicalOr a b
   | .shl a b | .shr a b =>
       exprTouchesUnsupportedCoreSurface a || exprTouchesUnsupportedCoreSurface b
-  | .logicalNot a => exprTouchesUnsupportedCoreSurface a
-  | .sdiv a b | .smod a b | .bitAnd a b | .bitOr a b | .bitXor a b
+  | .logicalNot a | .bitNot a => exprTouchesUnsupportedCoreSurface a
+  | .bitAnd a b | .bitOr a b | .bitXor a b =>
+      exprTouchesUnsupportedCoreSurface a || exprTouchesUnsupportedCoreSurface b
+  | .sdiv a b | .smod a b
   | .sgt a b | .slt a b | .min a b | .max a b | .wMulDown a b | .wDivUp a b
   | .ceilDiv a b =>
       true
-  | .bitNot _ => true
   | .ite _ _ _ => true
   | .mulDivDown _ _ _ | .mulDivUp _ _ _
   | .sar _ _ | .signextend _ _ => true
@@ -2769,9 +2770,22 @@ private theorem exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed
       simp [exprTouchesUnsupportedContractSurface,
         exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed lhs hcore.1 hstate.1 hcalls.1,
         exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed rhs hcore.2 hstate.2 hcalls.2]
-  | sdiv _ _ | smod _ _ | bitAnd _ _ | bitOr _ _
-  | bitXor _ _ | sgt _ _ | slt _ _ | min _ _
-  | max _ _ | wMulDown _ _ | wDivUp _ _ | ceilDiv _ _ | bitNot _
+  | bitAnd lhs rhs | bitOr lhs rhs | bitXor lhs rhs =>
+      simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
+      simp only [exprTouchesUnsupportedStateSurface, Bool.or_eq_false_iff] at hstate
+      simp only [exprTouchesUnsupportedCallSurface, Bool.or_eq_false_iff] at hcalls
+      simp [exprTouchesUnsupportedContractSurface,
+        exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed lhs hcore.1 hstate.1 hcalls.1,
+        exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed rhs hcore.2 hstate.2 hcalls.2]
+  | bitNot a =>
+      simp only [exprTouchesUnsupportedCoreSurface] at hcore
+      simp only [exprTouchesUnsupportedStateSurface] at hstate
+      simp only [exprTouchesUnsupportedCallSurface] at hcalls
+      simp [exprTouchesUnsupportedContractSurface,
+        exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed a hcore hstate hcalls]
+  | sdiv _ _ | smod _ _
+  | sgt _ _ | slt _ _ | min _ _
+  | max _ _ | wMulDown _ _ | wDivUp _ _ | ceilDiv _ _
   | sar _ _ | signextend _ _
   | mulDivDown _ _ _ | mulDivUp _ _ _ =>
       cases hcore
@@ -2828,11 +2842,16 @@ private theorem exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed
       simp only [exprTouchesUnsupportedCoreSurface] at hcore
       simp [exprTouchesUnsupportedCallSurface,
         exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed a hcore]
-  | shl a b | shr a b =>
+  | shl a b | shr a b
+  | bitAnd a b | bitOr a b | bitXor a b =>
       simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
       simp [exprTouchesUnsupportedCallSurface,
         exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed a hcore.1,
         exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed b hcore.2]
+  | bitNot a =>
+      simp only [exprTouchesUnsupportedCoreSurface] at hcore
+      simp [exprTouchesUnsupportedCallSurface,
+        exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed a hcore]
   | ite _ _ _ => cases hcore
   | _ => cases hcore
 termination_by sizeOf expr
@@ -3180,11 +3199,15 @@ private theorem exprUsesArrayElement_eq_false_of_coreClosed
   | logicalNot a =>
       simp only [exprTouchesUnsupportedCoreSurface] at hcore
       simp [exprUsesArrayElement, exprUsesArrayElement_eq_false_of_coreClosed hcore]
-  | shl a b | shr a b =>
+  | shl a b | shr a b
+  | bitAnd a b | bitOr a b | bitXor a b =>
       simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
       simp [exprUsesArrayElement,
         exprUsesArrayElement_eq_false_of_coreClosed hcore.1,
         exprUsesArrayElement_eq_false_of_coreClosed hcore.2]
+  | bitNot a =>
+      simp only [exprTouchesUnsupportedCoreSurface] at hcore
+      simp [exprUsesArrayElement, exprUsesArrayElement_eq_false_of_coreClosed hcore]
   | ite _ _ _ => cases hcore
   | storage _ | storageAddr _ => simp [exprUsesArrayElement]
   | _ => simp [exprTouchesUnsupportedCoreSurface] at hcore
@@ -3209,11 +3232,15 @@ private theorem exprUsesStorageArrayElement_eq_false_of_coreClosed
   | logicalNot a =>
       simp only [exprTouchesUnsupportedCoreSurface] at hcore
       simp [exprUsesStorageArrayElement, exprUsesStorageArrayElement_eq_false_of_coreClosed hcore]
-  | shl a b | shr a b =>
+  | shl a b | shr a b
+  | bitAnd a b | bitOr a b | bitXor a b =>
       simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
       simp [exprUsesStorageArrayElement,
         exprUsesStorageArrayElement_eq_false_of_coreClosed hcore.1,
         exprUsesStorageArrayElement_eq_false_of_coreClosed hcore.2]
+  | bitNot a =>
+      simp only [exprTouchesUnsupportedCoreSurface] at hcore
+      simp [exprUsesStorageArrayElement, exprUsesStorageArrayElement_eq_false_of_coreClosed hcore]
   | ite _ _ _ => cases hcore
   | storage _ | storageAddr _ | arrayElement _ _ => simp [exprUsesStorageArrayElement]
   | _ => simp [exprTouchesUnsupportedCoreSurface] at hcore
@@ -3238,11 +3265,15 @@ private theorem exprUsesDynamicBytesEq_eq_false_of_coreClosed
   | logicalNot a =>
       simp only [exprTouchesUnsupportedCoreSurface] at hcore
       simp [exprUsesDynamicBytesEq, exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore]
-  | shl a b | shr a b =>
+  | shl a b | shr a b
+  | bitAnd a b | bitOr a b | bitXor a b =>
       simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
       simp [exprUsesDynamicBytesEq,
         exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore.1,
         exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore.2]
+  | bitNot a =>
+      simp only [exprTouchesUnsupportedCoreSurface] at hcore
+      simp [exprUsesDynamicBytesEq, exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore]
   | ite _ _ _ => cases hcore
   | storage _ | storageAddr _ => simp [exprUsesDynamicBytesEq]
   | _ => simp [exprTouchesUnsupportedCoreSurface] at hcore
