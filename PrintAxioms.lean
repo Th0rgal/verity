@@ -803,8 +803,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_mod_of_eval
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_eq_of_eval
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_lt_of_eval
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_slt_of_eval
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_gt_of_eval
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_slt_of_eval
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_and_of_eval
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_or_of_eval
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_xor_of_eval
@@ -878,6 +878,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_of_sourceEval_some  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_eq_of_values  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_lt_of_values  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_slt_of_values  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_gt_of_values  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_add_of_values  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_mul_of_values  -- private
@@ -2012,4 +2013,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1878 theorems/lemmas (1263 public, 615 private, 0 sorry'd)
+-- Total: 1882 theorems/lemmas (1266 public, 616 private, 0 sorry'd)

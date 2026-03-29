@@ -56,13 +56,16 @@
     "shl",
     "shr",
     "sload",
+    "slt",
     "sub",
     "timestamp",
     "xor"
   ],
   "schema_version": 2,
-  "status": "ok",
-  "unknown_builtins_present": [],
+  "status": "error",
+  "unknown_builtins_present": [
+    "slt"
+  ],
   "unsupported_adapter_nodes": [],
   "unsupported_builtins": [
     "create",
