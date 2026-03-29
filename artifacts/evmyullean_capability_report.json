@@ -59,6 +59,7 @@
     "shr",
     "sload",
     "slt",
+    "smod",
     "sub",
     "timestamp",
     "xor"
@@ -68,7 +69,8 @@
   "unknown_builtins_present": [
     "sdiv",
     "sgt",
-    "slt"
+    "slt",
+    "smod"
   ],
   "unsupported_adapter_nodes": [],
   "unsupported_builtins": [
