@@ -462,6 +462,12 @@ def evalExpr (fields : List Field) (state : RuntimeState) : Expr → Option Nat
       pure (Verity.Core.Int256.div
         (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs))
         (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs))).toUint256.val
+  | .smod a b => do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (Verity.Core.Int256.mod
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs))
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs))).toUint256.val
   | _ => none
 
 def evalExprList (fields : List Field) (state : RuntimeState) : List Expr → Option (List Nat)
@@ -763,7 +769,12 @@ private theorem evalExpr_smod
     (fields : List Field)
     (state : RuntimeState)
     (a b : Expr) :
-    evalExpr fields state (.smod a b) = none := rfl
+    evalExpr fields state (.smod a b) = (do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (Verity.Core.Int256.mod
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs))
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs))).toUint256.val) := rfl
 
 private theorem evalExpr_sgt
     (fields : List Field)
@@ -2354,15 +2365,13 @@ mutual
           evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state b hsurface.2
         simpa [evalExprWithHelpers, evalExpr_eq, evalExpr_ge, evalExpr_gt, evalExpr_lt,
           evalExpr_le, evalExpr_logicalAnd, evalExpr_logicalOr, ha, hb]
-    | sdiv a b | sgt a b | slt a b =>
+    | sdiv a b | smod a b | sgt a b | slt a b =>
         simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
         have ha :=
           evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state a hsurface.1
         have hb :=
           evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state b hsurface.2
-        simpa [evalExprWithHelpers, evalExpr_sdiv, evalExpr_sgt, evalExpr_slt, ha, hb]
-    | smod a b =>
-        simp [evalExprWithHelpers, evalExpr_smod]
+        simpa [evalExprWithHelpers, evalExpr_sdiv, evalExpr_smod, evalExpr_sgt, evalExpr_slt, ha, hb]
     | bitAnd a b | bitOr a b | bitXor a b | min a b | max a b | wMulDown a b | wDivUp a b =>
         simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
         have ha :=

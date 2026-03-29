@@ -568,6 +568,21 @@ theorem evalIRExpr_sdiv_of_eval
     Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
     Verity.Core.Int256.toUint256]
 
+theorem evalIRExpr_smod_of_eval
+    {state : IRState}
+    {lhs rhs : YulExpr}
+    {a b : Nat}
+    (hlhs : evalIRExpr state lhs = some a)
+    (hrhs : evalIRExpr state rhs = some b) :
+    evalIRExpr state (YulExpr.call "smod" [lhs, rhs]) =
+      some (Verity.Core.Int256.mod
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (a % Compiler.Constants.evmModulus)))
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (b % Compiler.Constants.evmModulus)))).toUint256.val := by
+  simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+    Verity.Core.Int256.toUint256]
+
 theorem evalIRExpr_and_of_eval
     {state : IRState}
     {lhs rhs : YulExpr}
@@ -1406,6 +1421,17 @@ theorem compileExpr_sdiv_ok
   rw [CompilationModel.compileExpr, hlhs, hrhs]
   rfl
 
+theorem compileExpr_smod_ok
+    {fields : List Field}
+    {lhs rhs : Expr}
+    {lhsIR rhsIR : YulExpr}
+    (hlhs : CompilationModel.compileExpr fields .calldata lhs = Except.ok lhsIR)
+    (hrhs : CompilationModel.compileExpr fields .calldata rhs = Except.ok rhsIR) :
+    CompilationModel.compileExpr fields .calldata (.smod lhs rhs) =
+      Except.ok (YulExpr.call "smod" [lhsIR, rhsIR]) := by
+  rw [CompilationModel.compileExpr, hlhs, hrhs]
+  rfl
+
 theorem compileExpr_gt_ok
     {fields : List Field}
     {lhs rhs : Expr}
@@ -1851,6 +1877,31 @@ private theorem evalExpr_sdiv_of_values
           (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhsVal))).toUint256.val := by
           simp [hlhs, hrhs]
 
+private theorem evalExpr_smod_of_values
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {lhs rhs : Expr}
+    {lhsVal rhsVal : Nat}
+    (hlhs : SourceSemantics.evalExpr fields runtime lhs = some lhsVal)
+    (hrhs : SourceSemantics.evalExpr fields runtime rhs = some rhsVal) :
+    SourceSemantics.evalExpr fields runtime (.smod lhs rhs) =
+      some (Verity.Core.Int256.mod
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhsVal))
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhsVal))).toUint256.val := by
+  calc
+    SourceSemantics.evalExpr fields runtime (.smod lhs rhs)
+        = (do
+            let lhs ← SourceSemantics.evalExpr fields runtime lhs
+            let rhs ← SourceSemantics.evalExpr fields runtime rhs
+            pure (Verity.Core.Int256.mod
+              (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs))
+              (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs))).toUint256.val) := by
+              rfl
+    _ = some (Verity.Core.Int256.mod
+          (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhsVal))
+          (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhsVal))).toUint256.val := by
+          simp [hlhs, hrhs]
+
 private theorem evalExpr_gt_of_values
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
@@ -2202,6 +2253,43 @@ theorem eval_compileExpr_sdiv_of_compiled
                 (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (rhsVal % Compiler.Constants.evmModulus)))).toUint256.val := by
         simpa [hcompile] using evalIRExpr_sdiv_of_eval hlhsEval' hrhsEval'
       have hsrc := evalExpr_sdiv_of_values hlhsSrc hrhsSrc
+      rw [heval, hsrc]
+      simp [Nat.mod_eq_of_lt hlhsLt', Nat.mod_eq_of_lt hrhsLt']
+
+theorem eval_compileExpr_smod_of_compiled
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {lhs rhs : Expr}
+    {lhsIR rhsIR : YulExpr}
+    (hlhsCompile : CompilationModel.compileExpr fields .calldata lhs = Except.ok lhsIR)
+    (hrhsCompile : CompilationModel.compileExpr fields .calldata rhs = Except.ok rhsIR)
+    (hlhsEval : evalIRExpr state lhsIR = some (SourceSemantics.evalExpr fields runtime lhs))
+    (hrhsEval : evalIRExpr state rhsIR = some (SourceSemantics.evalExpr fields runtime rhs))
+    (hlhsLt : SourceSemantics.evalExpr fields runtime lhs < Compiler.Constants.evmModulus)
+    (hrhsLt : SourceSemantics.evalExpr fields runtime rhs < Compiler.Constants.evmModulus) :
+    evalIRExpr state
+      (CompilationModel.compileExpr fields .calldata (.smod lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
+        some (SourceSemantics.evalExpr fields runtime (.smod lhs rhs)) := by
+  have hcompile := compileExpr_smod_ok hlhsCompile hrhsCompile
+  rcases hlhsSrc : SourceSemantics.evalExpr fields runtime lhs with _ | lhsVal
+  · cases hEval : evalIRExpr state lhsIR <;> simp [hEval, hlhsSrc] at hlhsEval
+  · rcases hrhsSrc : SourceSemantics.evalExpr fields runtime rhs with _ | rhsVal
+    · cases hEval : evalIRExpr state rhsIR <;> simp [hEval, hrhsSrc] at hrhsEval
+    · have hlhsEval' := evalIRExpr_of_sourceEval_some hlhsEval hlhsSrc
+      have hrhsEval' := evalIRExpr_of_sourceEval_some hrhsEval hrhsSrc
+      have hlhsLt' : lhsVal < Compiler.Constants.evmModulus := by
+        simpa [hlhsSrc] using hlhsLt
+      have hrhsLt' : rhsVal < Compiler.Constants.evmModulus := by
+        simpa [hrhsSrc] using hrhsLt
+      have heval :
+          evalIRExpr state
+            (CompilationModel.compileExpr fields .calldata (.smod lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
+              some (Verity.Core.Int256.mod
+                (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (lhsVal % Compiler.Constants.evmModulus)))
+                (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (rhsVal % Compiler.Constants.evmModulus)))).toUint256.val := by
+        simpa [hcompile] using evalIRExpr_smod_of_eval hlhsEval' hrhsEval'
+      have hsrc := evalExpr_smod_of_values hlhsSrc hrhsSrc
       rw [heval, hsrc]
       simp [Nat.mod_eq_of_lt hlhsLt', Nat.mod_eq_of_lt hrhsLt']
 
@@ -4222,6 +4310,11 @@ theorem compileExpr_core_ok
       rcases ihL with ⟨lhsIR, hlhs⟩
       rcases ihR with ⟨rhsIR, hrhs⟩
       exact ⟨YulExpr.call "sdiv" [lhsIR, rhsIR], compileExpr_sdiv_ok hlhs hrhs⟩
+  | smod hL hR ihL ihR =>
+      rename_i lhs rhs
+      rcases ihL with ⟨lhsIR, hlhs⟩
+      rcases ihR with ⟨rhsIR, hrhs⟩
+      exact ⟨YulExpr.call "smod" [lhsIR, rhsIR], compileExpr_smod_ok hlhs hrhs⟩
   | gt hL hR ihL ihR =>
       rename_i lhs rhs
       rcases ihL with ⟨lhsIR, hlhs⟩
@@ -4684,6 +4777,36 @@ theorem eval_compileExpr_core_onExpr
         rw [hrhs] at htmp
         simpa using htmp
       exact eval_compileExpr_sdiv_of_compiled hlhs hrhs
+        hEvalL hEvalR
+        (evalExpr_lt_evmModulus_core_onExpr hL hexactL hbounded hpresentL hruntime)
+        (evalExpr_lt_evmModulus_core_onExpr hR hexactR hbounded hpresentR hruntime)
+  | smod hL hR ihL ihR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok hL with ⟨lhsIR, hlhs⟩
+      rcases compileExpr_core_ok hR with ⟨rhsIR, hrhs⟩
+      have hexactL : bindingsExactlyMatchIRVarsOnExpr lhs runtime.bindings state :=
+        bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
+          intro name hmem
+          simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hmem))
+      have hexactR : bindingsExactlyMatchIRVarsOnExpr rhs runtime.bindings state :=
+        bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
+          intro name hmem
+          simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hmem))
+      have hpresentL := exprBoundNamesPresent_of_subset hpresent (by
+        intro name hmem
+        simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hmem))
+      have hpresentR := exprBoundNamesPresent_of_subset hpresent (by
+        intro name hmem
+        simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hmem))
+      have hEvalL : evalIRExpr state lhsIR = some (SourceSemantics.evalExpr fields runtime lhs) := by
+        have htmp := ihL hexactL hbounded hpresentL hruntime
+        rw [hlhs] at htmp
+        simpa using htmp
+      have hEvalR : evalIRExpr state rhsIR = some (SourceSemantics.evalExpr fields runtime rhs) := by
+        have htmp := ihR hexactR hbounded hpresentR hruntime
+        rw [hrhs] at htmp
+        simpa using htmp
+      exact eval_compileExpr_smod_of_compiled hlhs hrhs
         hEvalL hEvalR
         (evalExpr_lt_evmModulus_core_onExpr hL hexactL hbounded hpresentL hruntime)
         (evalExpr_lt_evmModulus_core_onExpr hR hexactR hbounded hpresentR hruntime)
@@ -5403,6 +5526,20 @@ theorem evalExpr_lt_evmModulus_core_onExpr
           exact (Verity.Core.Int256.div
             (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lVal))
             (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rVal))).toUint256.isLt
+  | @smod lhs rhs _ _ _ _ =>
+      show (do let lv ← SourceSemantics.evalExpr fields runtime lhs
+               let rv ← SourceSemantics.evalExpr fields runtime rhs
+               pure (Verity.Core.Int256.mod
+                 (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lv))
+                 (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rv))).toUint256.val) < _
+      rcases SourceSemantics.evalExpr fields runtime lhs with _ | lVal
+      · trivial
+      · rcases SourceSemantics.evalExpr fields runtime rhs with _ | rVal
+        · trivial
+        · simp only [Option.bind_some, Option.some_lt_some]
+          exact (Verity.Core.Int256.mod
+            (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lVal))
+            (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rVal))).toUint256.isLt
   | @gt lhs rhs _ _ _ _ =>
       show (do let lv ← SourceSemantics.evalExpr fields runtime lhs
                let rv ← SourceSemantics.evalExpr fields runtime rhs
@@ -5797,6 +5934,17 @@ theorem compileRequireFailCond_core_ok
       rcases compileExpr_core_ok (fields := fields) hR with ⟨rhsIR, hrhs⟩
       exact ⟨YulExpr.call "iszero" [YulExpr.call "sdiv" [lhsIR, rhsIR]], by
         rw [CompilationModel.compileRequireFailCond, compileExpr_sdiv_ok hlhs hrhs]
+        all_goals
+          try rfl
+          try
+            intro a b hEq
+            cases hEq⟩
+  | smod hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields) hL with ⟨lhsIR, hlhs⟩
+      rcases compileExpr_core_ok (fields := fields) hR with ⟨rhsIR, hrhs⟩
+      exact ⟨YulExpr.call "iszero" [YulExpr.call "smod" [lhsIR, rhsIR]], by
+        rw [CompilationModel.compileRequireFailCond, compileExpr_smod_ok hlhs hrhs]
         all_goals
           try rfl
           try
@@ -6197,6 +6345,14 @@ theorem eval_compileRequireFailCond_core_onExpr
       · simp [CompilationModel.compileRequireFailCond, hexpr]
       · simpa using finishIszeroEval (expr := .sdiv lhs rhs)
           (show ExprCompileCore (.sdiv lhs rhs) from ExprCompileCore.sdiv hL hR) hexact hpresent hexpr
+  | smod hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.smod lhs rhs) from ExprCompileCore.smod hL hR) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .smod lhs rhs)
+          (show ExprCompileCore (.smod lhs rhs) from ExprCompileCore.smod hL hR) hexact hpresent hexpr
   | gt hL hR =>
       rename_i lhs rhs
       rcases compileExpr_core_ok (fields := fields)

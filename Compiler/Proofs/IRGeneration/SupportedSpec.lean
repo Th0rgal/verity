@@ -66,10 +66,8 @@ def exprTouchesUnsupportedCoreSurface : Expr → Bool
   | .mulDivDown a b c | .mulDivUp a b c =>
       exprTouchesUnsupportedCoreSurface a || exprTouchesUnsupportedCoreSurface b ||
         exprTouchesUnsupportedCoreSurface c
-  | .slt a b | .sgt a b | .sdiv a b =>
+  | .slt a b | .sgt a b | .sdiv a b | .smod a b =>
       exprTouchesUnsupportedCoreSurface a || exprTouchesUnsupportedCoreSurface b
-  | .smod a b =>
-      true
   | .sar _ _ | .signextend _ _ => true
   | .mapping _ _ | .mappingWord _ _ _ | .mappingPackedWord _ _ _ _
   | .mapping2 _ _ _ | .mapping2Word _ _ _ _ | .mappingUint _ _ | .mappingChain _ _
@@ -330,7 +328,7 @@ def exprTouchesUnsupportedContractSurface (expr : Expr) : Bool :=
   | .bitAnd a b | .bitOr a b | .bitXor a b | .eq a b
   | .ge a b | .gt a b | .lt a b | .le a b
   | .logicalAnd a b | .logicalOr a b
-  | .shl a b | .shr a b | .slt a b | .sgt a b | .sdiv a b =>
+  | .shl a b | .shr a b | .slt a b | .sgt a b | .sdiv a b | .smod a b =>
       exprTouchesUnsupportedContractSurface a || exprTouchesUnsupportedContractSurface b
   | .bitNot a | .logicalNot a => exprTouchesUnsupportedContractSurface a
   | .min a b | .max a b | .ceilDiv a b =>
@@ -351,7 +349,6 @@ def exprTouchesUnsupportedContractSurface (expr : Expr) : Bool :=
   | .calldatasize | .calldataload _ | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
   | .arrayLength _ | .arrayElement _ _ | .storageArrayLength _ | .storageArrayElement _ _
-  | .smod _ _
   | .sar _ _ | .signextend _ _
   | .dynamicBytesEq _ _ => true
 
@@ -2797,7 +2794,8 @@ private theorem exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed
   | eq lhs rhs | ge lhs rhs | gt lhs rhs
   | lt lhs rhs | le lhs rhs
   | logicalAnd lhs rhs | logicalOr lhs rhs
-  | shl lhs rhs | shr lhs rhs | slt lhs rhs | sgt lhs rhs | sdiv lhs rhs =>
+  | shl lhs rhs | shr lhs rhs | slt lhs rhs | sgt lhs rhs
+  | sdiv lhs rhs | smod lhs rhs =>
       simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
       simp only [exprTouchesUnsupportedStateSurface, Bool.or_eq_false_iff] at hstate
       simp only [exprTouchesUnsupportedCallSurface, Bool.or_eq_false_iff] at hcalls
@@ -2847,7 +2845,6 @@ private theorem exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed
         exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed a hcore.1.1 hstate.1.1 hcalls.1.1,
         exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed b hcore.1.2 hstate.1.2 hcalls.1.2,
         exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed c hcore.2 hstate.2 hcalls.2]
-  | smod _ _
   | sar _ _ | signextend _ _ =>
       cases hcore
   | logicalNot a =>
@@ -2901,7 +2898,7 @@ private theorem exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed
       simp only [exprTouchesUnsupportedCoreSurface] at hcore
       simp [exprTouchesUnsupportedCallSurface,
         exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed a hcore]
-  | shl a b | shr a b | slt a b | sgt a b | sdiv a b
+  | shl a b | shr a b | slt a b | sgt a b | sdiv a b | smod a b
   | bitAnd a b | bitOr a b | bitXor a b | min a b | max a b =>
       simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
       simp [exprTouchesUnsupportedCallSurface,
@@ -3142,13 +3139,12 @@ theorem exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
         exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.1,
         exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.2]
   | bitAnd a b | bitOr a b | bitXor a b
-  | shl a b | shr a b | slt a b | sgt a b | sdiv a b
+  | shl a b | shr a b | slt a b | sgt a b | sdiv a b | smod a b
   | min a b | max a b | ceilDiv a b =>
       simp only [exprTouchesUnsupportedContractSurface, Bool.or_eq_false_iff] at hsurface
       simp [exprTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.1,
         exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.2]
-  | smod a b
   | sar a b | signextend a b =>
       simp [exprTouchesUnsupportedContractSurface] at hsurface
   | wMulDown a b | wDivUp a b =>
