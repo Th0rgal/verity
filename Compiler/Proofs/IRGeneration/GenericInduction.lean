@@ -2747,6 +2747,7 @@ private theorem exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_fals
   | .lt a b, hsurface | .le a b, hsurface
   | .logicalAnd a b, hsurface | .logicalOr a b, hsurface
   | .shl a b, hsurface | .shr a b, hsurface | .slt a b, hsurface | .sgt a b, hsurface
+  | .sdiv a b, hsurface
   | .min a b, hsurface | .max a b, hsurface
   | .ceilDiv a b, hsurface =>
       simp only [exprTouchesUnsupportedContractSurface, Bool.or_eq_false_iff] at hsurface

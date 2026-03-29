@@ -806,6 +806,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_gt_of_eval
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_slt_of_eval
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_sgt_of_eval
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_sdiv_of_eval
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_and_of_eval
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_or_of_eval
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_xor_of_eval
@@ -852,6 +853,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_lt_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_slt_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_sgt_ok
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_sdiv_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_gt_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_ge_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_le_ok
@@ -892,6 +894,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_lt_of_compiled
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_slt_of_compiled
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_sgt_of_compiled
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_sdiv_of_compiled
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_gt_of_compiled
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_ge_of_compiled
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_le_of_compiled

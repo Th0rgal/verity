@@ -146,6 +146,8 @@ inductive ExprCompileCore : Expr → Prop where
       ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.slt lhs rhs)
   | sgt {lhs rhs : Expr} :
       ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.sgt lhs rhs)
+  | sdiv {lhs rhs : Expr} :
+      ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.sdiv lhs rhs)
 
 /-! ## Scope analysis -/
 
