@@ -2753,8 +2753,11 @@ private theorem exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_fals
       constructor
       · exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1
       · exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.2
-  | .wMulDown _ _, hsurface | .wDivUp _ _, hsurface =>
-      simp [exprTouchesUnsupportedContractSurface] at hsurface
+  | .wMulDown a b, hsurface | .wDivUp a b, hsurface =>
+      simp only [exprTouchesUnsupportedContractSurface, Bool.or_eq_false_iff] at hsurface
+      constructor
+      · exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1
+      · exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.2
   | .logicalNot a, hsurface | .bitNot a, hsurface =>
       simp only [exprTouchesUnsupportedContractSurface] at hsurface
       constructor
@@ -2765,8 +2768,13 @@ private theorem exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_fals
         (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1.1)
         (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1.2)
         (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.2)
-  | .mulDivDown _ _ _, hsurface | .mulDivUp _ _ _, hsurface =>
-      simp [exprTouchesUnsupportedContractSurface] at hsurface
+  | .mulDivDown a b c, hsurface | .mulDivUp a b c, hsurface =>
+      simp only [exprTouchesUnsupportedContractSurface, Bool.or_eq_false_iff] at hsurface
+      constructor
+      · exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1.1
+      · constructor
+        · exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1.2
+        · exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.2
 
 private theorem fieldName_mem_fields_of_findFieldWithResolvedSlot_some
     {fields : List Field}
