@@ -111,6 +111,37 @@ inductive ExprCompileCore : Expr → Prop where
       ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.logicalAnd lhs rhs)
   | logicalOr {lhs rhs : Expr} :
       ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.logicalOr lhs rhs)
+  | bitAnd {lhs rhs : Expr} :
+      ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.bitAnd lhs rhs)
+  | bitOr {lhs rhs : Expr} :
+      ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.bitOr lhs rhs)
+  | bitXor {lhs rhs : Expr} :
+      ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.bitXor lhs rhs)
+  | bitNot {expr : Expr} :
+      ExprCompileCore expr → ExprCompileCore (.bitNot expr)
+  | shl {shift value : Expr} :
+      ExprCompileCore shift → ExprCompileCore value → ExprCompileCore (.shl shift value)
+  | shr {shift value : Expr} :
+      ExprCompileCore shift → ExprCompileCore value → ExprCompileCore (.shr shift value)
+  | min {lhs rhs : Expr} :
+      ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.min lhs rhs)
+  | max {lhs rhs : Expr} :
+      ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.max lhs rhs)
+  | ite {cond thenVal elseVal : Expr} :
+      ExprCompileCore cond → ExprCompileCore thenVal → ExprCompileCore elseVal →
+        ExprCompileCore (.ite cond thenVal elseVal)
+  | ceilDiv {lhs rhs : Expr} :
+      ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.ceilDiv lhs rhs)
+  | wMulDown {lhs rhs : Expr} :
+      ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.wMulDown lhs rhs)
+  | wDivUp {lhs rhs : Expr} :
+      ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.wDivUp lhs rhs)
+  | mulDivDown {a b c : Expr} :
+      ExprCompileCore a → ExprCompileCore b → ExprCompileCore c →
+        ExprCompileCore (.mulDivDown a b c)
+  | mulDivUp {a b c : Expr} :
+      ExprCompileCore a → ExprCompileCore b → ExprCompileCore c →
+        ExprCompileCore (.mulDivUp a b c)
 
 /-! ## Scope analysis -/
 

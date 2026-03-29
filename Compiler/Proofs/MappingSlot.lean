@@ -1,4 +1,5 @@
 import EvmYul
+import Compiler.Constants
 
 namespace Compiler.Proofs
 
@@ -115,5 +116,31 @@ def abstractStoreStorageOrMapping
     (slot value : Nat) :
     abstractStoreStorageOrMapping storage slot value =
       (fun s => if s = slot then value else storage s) := rfl
+
+/-- Keccak256 output interpreted as a big-endian 256-bit natural is less than 2^256.
+    This is mathematically true because keccak produces exactly 32 bytes, so
+    `fromByteArrayBigEndian` gives a value < 2^(8*32) = 2^256 = evmModulus.
+    It is unprovable in Lean because `ffi.KEC` is an opaque FFI call that
+    does not expose the output length. -/
+axiom solidityMappingSlot_lt_evmModulus (baseSlot key : Nat) :
+    solidityMappingSlot baseSlot key < Compiler.Constants.evmModulus
+
+theorem abstractMappingSlot_lt_evmModulus (baseSlot key : Nat) :
+    abstractMappingSlot baseSlot key < Compiler.Constants.evmModulus :=
+  solidityMappingSlot_lt_evmModulus baseSlot key
+
+theorem solidityMappingSlot_add_lt_evmModulus (baseSlot key wordOffset : Nat)
+    (h : wordOffset < Compiler.Constants.evmModulus - solidityMappingSlot baseSlot key) :
+    solidityMappingSlot baseSlot key + wordOffset < Compiler.Constants.evmModulus := by
+  omega
+
+/-- The sum of a mapping slot and a word offset fits in 256 bits.
+    This holds because keccak256 output < 2^256 and word offsets are
+    bounded explicitly by the available headroom under `2^256`. -/
+theorem solidityMappingSlot_add_wordOffset_lt_evmModulus
+    (baseSlot key wordOffset : Nat)
+    (h : wordOffset < Compiler.Constants.evmModulus - solidityMappingSlot baseSlot key) :
+    solidityMappingSlot baseSlot key + wordOffset < Compiler.Constants.evmModulus := by
+  exact solidityMappingSlot_add_lt_evmModulus baseSlot key wordOffset h
 
 end Compiler.Proofs

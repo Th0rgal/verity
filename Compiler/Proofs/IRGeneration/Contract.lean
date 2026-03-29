@@ -2885,13 +2885,13 @@ theorem compile_preserves_semantics
 -- SORRY'D:     (hparamsSupported := hparamsSupported)
 -- SORRY'D:     (hfunction := hfunction)
 
--- SORRY'D: /-- Helper-proof-carrying whole-contract Layer 2 theorem.
--- SORRY'D: This theorem family is the intended stable public interface for the helper
--- SORRY'D: composition step tracked by `#1630`: callers can already pass explicit
--- SORRY'D: summary-soundness evidence today, and once the body proof consumes it this
--- TYPESIG_SORRY: theorem can strengthen without another theorem-shape rewrite. The current proof
--- TYPESIG_SORRY: still reduces through the legacy helper-closed path, so the trusted boundary is
--- TYPESIG_SORRY: unchanged. -/
+/-- Helper-proof-carrying whole-contract Layer 2 theorem.
+This theorem family is the intended stable public interface for the helper
+composition step tracked by `#1630`: callers can already pass explicit
+summary-soundness evidence today, and once the body proof consumes it this
+theorem can strengthen without another theorem-shape rewrite. The current proof
+still reduces through the legacy helper-closed path, so the trusted boundary is
+unchanged. -/
 theorem compile_preserves_semantics_with_helper_proofs
     (model : CompilationModel)
     (selectors : List Nat)

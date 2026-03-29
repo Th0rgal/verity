@@ -18,7 +18,7 @@ Lean 4 EDSL for writing smart contracts with machine-checked proofs. Three-layer
 - **Core Size**: 400 lines
 - **Verified Contracts**: SimpleStorage, Counter, Owned, SimpleToken, OwnedCounter, Ledger, SafeCounter, ReentrancyExample (+ CryptoHash as unverified linker demo)
 - **Theorems**: 273 across 10 categories, 273 fully proven; Layer 2 proof scripts contain `sorry` placeholders (being repaired after definition refactor)
-- **Axioms**: 1 documented Lean axiom (see AXIOMS.md) — the selector axiom. Layer 2's former generic body-simulation axiom has been eliminated, and Layer 3 keeps an explicit dispatch bridge hypothesis rather than a Lean axiom.
+- **Axioms**: 2 documented Lean axioms (see AXIOMS.md) — the selector axiom and 1 mapping-slot range axiom. Layer 2's former generic body-simulation axiom has been eliminated, and Layer 3 keeps an explicit dispatch bridge hypothesis rather than a Lean axiom.
 - **Tests**: 478 Foundry tests, multi-seed differential testing (7 seeds), 8-shard parallel CI
 - **Build**: `lake build` verifies all proofs
 - **Repository**: https://github.com/Th0rgal/verity
@@ -126,7 +126,7 @@ Add `.md` to any URL for raw markdown (saves tokens).
 See TRUST_ASSUMPTIONS.md for full analysis. Key trust boundaries:
 - **Verified**: EDSL -> CompilationModel -> IR -> Yul
 - **Trusted**: Yul -> Bytecode (via solc, validated by 90,000+ differential tests)
-- **Axioms**: 1 documented Lean axiom, with soundness justification in AXIOMS.md
+- **Axioms**: 2 documented Lean axioms, with soundness justification in AXIOMS.md
 - **External**: Lean 4 kernel, EVM specification alignment
 
 ## Known Limitations

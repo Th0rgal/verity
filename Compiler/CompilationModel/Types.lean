@@ -547,6 +547,25 @@ theorem fieldName_eq_of_findFieldWithResolvedSlot_eq_some
       case isFalse =>
         exact ih (idx + 1) hgo
 
+private theorem find_eq_of_findFieldByName_go
+    {name : String}
+    {f : Field}
+    {slot : Nat}
+    {fields : List Field}
+    {idx : Nat} :
+    findFieldByName.go name (fun f slot => (f, slot)) fields idx = some (f, slot) →
+    fields.find? (·.name == name) = some f := by
+  intro hgo
+  induction fields generalizing idx with
+  | nil => simp [findFieldByName.go] at hgo
+  | cons hd tl ih =>
+    simp only [findFieldByName.go] at hgo
+    by_cases hname : hd.name == name
+    · simp [hname] at hgo ⊢
+      exact hgo.1
+    · simp [hname] at hgo ⊢
+      exact ih hgo
+
 def findFieldWriteSlots (fields : List Field) (name : String) : Option (List Nat) :=
   findFieldByName fields name fun f slot => slot :: f.aliasSlots
 
@@ -673,6 +692,38 @@ def isMapping (fields : List Field) (name : String) : Bool :=
     | FieldType.mappingStruct _ _ => true
     | FieldType.mappingStruct2 _ _ _ => true
     | _ => false
+
+theorem isMapping_false_of_findFieldWithResolvedSlot_address
+    {fields : List Field}
+    {name : String}
+    {f : Field}
+    {slot : Nat}
+    (hfind : findFieldWithResolvedSlot fields name = some (f, slot))
+    (hty : f.ty = FieldType.address) :
+    isMapping fields name = false := by
+  unfold isMapping
+  have hfound : fields.find? (·.name == name) = some f := by
+    unfold findFieldWithResolvedSlot at hfind
+    unfold findFieldByName at hfind
+    exact find_eq_of_findFieldByName_go hfind
+  rw [hfound]
+  simp [Option.any, hty]
+
+theorem isMapping_false_of_findFieldWithResolvedSlot_uint256
+    {fields : List Field}
+    {name : String}
+    {f : Field}
+    {slot : Nat}
+    (hfind : findFieldWithResolvedSlot fields name = some (f, slot))
+    (hty : f.ty = FieldType.uint256) :
+    isMapping fields name = false := by
+  unfold isMapping
+  have hfound : fields.find? (·.name == name) = some f := by
+    unfold findFieldWithResolvedSlot at hfind
+    unfold findFieldByName at hfind
+    exact find_eq_of_findFieldByName_go hfind
+  rw [hfound]
+  simp [Option.any, hty]
 
 -- Helper: Is field a double mapping?
 def isMapping2 (fields : List Field) (name : String) : Bool :=

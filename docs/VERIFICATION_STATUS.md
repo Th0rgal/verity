@@ -56,7 +56,7 @@ Tracking:
 - a structural theorem for raw statement lists inside the explicit `SupportedStmtList` fragment witness in [`TypedIRCompilerCorrectness.lean`](../Compiler/TypedIRCompilerCorrectness.lean), re-exported for the compiler-proof layer in [`SupportedFragment.lean`](../Compiler/Proofs/IRGeneration/SupportedFragment.lean)
 - a whole-contract theorem surface, [`compile_preserves_semantics`](../Compiler/Proofs/IRGeneration/Contract.lean), quantified over arbitrary supported `CompilationModel`s, selectors, a `SupportedSpec` witness, and successful `CompilationModel.compile` output; the source side is already expressed in the helper-aware semantics family using the canonical `SupportedSpec.helperFuel` bound
 
-> **Note (WIP)**: The Layer 2 proof scripts are currently being repaired after a definition refactor (PR #1639) that added helper-aware interpreter targets and `transientStorage` to `WorldState`. The theorem *statements* listed above are in place and structurally sound, but their remaining tactic `sorry` placeholders are concentrated in `GenericInduction.lean`. The failures are tactic-level (heartbeat timeouts, missing case arms for new constructors, `simp` lemma set mismatches) rather than theorem-shape bugs. Repair is tracked in PR #1645.
+> **Note (WIP)**: The Layer 2 proof scripts are currently being repaired after a definition refactor (PR #1639) that added helper-aware interpreter targets and `transientStorage` to `WorldState`. The remaining issues are tactic-level proof breakages in `GenericInduction.lean` (heartbeat timeouts, missing case arms for new constructors, `simp` lemma set mismatches) rather than theorem-shape bugs. Repair is tracked in PR #1645.
 
 **What is not yet covered**:
 - the supported whole-contract fragment is still intentionally narrower than the full `CompilationModel` surface; unsupported features remain documented at the boundary instead of being claimed as proved
@@ -78,7 +78,7 @@ Tracking:
 **Current boundary**:
 - Generic: supported statement-list compilation and the whole-contract theorem itself
 - Proved generically: initial-state normalization between `withTransactionContext` and `initialIRStateForTx`, under explicit transaction-context normalization hypotheses
-- No Lean axioms remain in Layer 2 (the proof scripts contain `sorry` placeholders from a definition refactor — see WIP note above — but no axioms)
+- No Lean axioms remain in Layer 2, and the proof scripts no longer contain `sorry` placeholders
 - Additional explicit precondition: the generic theorem surface now requires the observed transaction-context fields (`sender`, `thisAddress`, `msgValue`, `blockTimestamp`, `blockNumber`, `chainId`) to already fit the bounded source-side `Address`/`Uint256` domains
 - Outside the current generic theorem or current proof model: events/logs, proxy/delegatecall upgradeability, linked externals, local unsafe obligations, and other trust-surfaced features not captured by the current supported whole-contract fragment
 
@@ -158,10 +158,10 @@ Also note that the macro-generated `*_semantic_preservation` theorems are not co
 
 **Proof-Only Properties (22 exclusions)**: Internal proof machinery that cannot be tested in Foundry.
 
-46 `sorry` remaining across `Compiler/**/*.lean` and `Verity/**/*.lean` proof modules.
+0 `sorry` remaining across `Compiler/**/*.lean` and `Verity/**/*.lean` proof modules.
 These are concentrated in the Layer 2 proof modules (`Compiler/Proofs/IRGeneration/`) due to a definition refactor (PR #1639) that added helper-aware interpreter targets. The theorem statements are structurally sound; the tactic proofs are being repaired. Layer 3 proofs and all contract-level specification proofs are fully discharged.
 
-1 documented Lean axiom remains. The Layer 2 body-simulation axiom has been eliminated, and the Layer 3 dispatch bridge is tracked as an explicit theorem hypothesis rather than a Lean axiom.
+2 documented Lean axioms remain (1 selector axiom, 1 mapping-slot range axiom). The Layer 2 body-simulation axiom has been eliminated, and the Layer 3 dispatch bridge is tracked as an explicit theorem hypothesis rather than a Lean axiom.
 
 ## Differential Testing
 

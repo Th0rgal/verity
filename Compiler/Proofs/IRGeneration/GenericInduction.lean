@@ -11,15 +11,14 @@ open Compiler
 open Compiler.CompilationModel
 open Compiler.Yul
 
-/-- Scope seen by the tail after compiling a single statement. This matches the
-statement-list compiler's `collectStmtNames` update. -/
-def stmtNextScope (scope : List String) (stmt : Stmt) : List String :=
-  collectStmtNames stmt ++ scope
-
 /-- Source names visible to generic statement proofs must stay out of the
-compiler-reserved `__` namespace used by scratch temporaries. -/
+compiler scratch namespace used by compatibility temporaries. Internal
+immutable storage fields may legally use other `__*` names. -/
 def scopeAvoidsReservedCompilerPrefix (scope : List String) : Prop :=
-  ∀ name ∈ scope, ¬ name.startsWith "__"
+  "__compat_value" ∉ scope ∧
+  "__compat_packed" ∉ scope ∧
+  "__compat_slot_word" ∉ scope ∧
+  "__compat_slot_cleared" ∉ scope
 
 /-- Single-step result relation used by the generic statement induction library.
 Unlike `stmtResultMatchesIRExecExact`, this tracks the tail scope instead of
@@ -2070,11 +2069,11 @@ private theorem compiledStmtStepWithHelpers_preserves_withCompat
 -- SORRY'D:         (hstep.withHelpers_of_helperSurfaceClosed hsurface.1)
 -- SORRY'D:         (ih hsurface.2)
 
--- SORRY'D: /-- Any helper-aware generic statement-step proof already closes the exact
--- SORRY'D: helper-aware compiled-side step goal when the compiled head stays inside the
--- SORRY'D: legacy-compatible external Yul subset and the runtime contract has no internal
--- SORRY'D: helper table. This is the compiled-side fail-closed bridge from the current
--- TYPESIG_SORRY: theorem domain to the exact helper-aware induction seam. -/
+/-- Any helper-aware generic statement-step proof already closes the exact
+helper-aware compiled-side step goal when the compiled head stays inside the
+legacy-compatible external Yul subset and the runtime contract has no internal
+helper table. This is the compiled-side fail-closed bridge from the current
+theorem domain to the exact helper-aware induction seam. -/
 theorem CompiledStmtStepWithHelpers.withHelperIR_of_legacyCompatible
     {runtimeContract : IRContract}
     {spec : CompilationModel}
@@ -2154,78 +2153,78 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_withHelpers_and_compiledLegacyC
             (hstep.withHelperIR_of_legacyCompatible (hhead compiledIR hstep.compileOk) hinternal)
             (ih htail)
 
--- SORRY'D: /-- Exact helper-aware list bridge that splits the remaining work cleanly:
--- SORRY'D: helper-free heads still reuse the legacy generic step library plus the weaker
--- SORRY'D: helper-free compiled compatibility witness, while helper-positive heads are
--- SORRY'D: discharged only through a dedicated exact helper-aware step interface. -/
--- SORRY'D: theorem
--- SORRY'D:     stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
--- SORRY'D:     {runtimeContract : IRContract}
--- SORRY'D:     {spec : CompilationModel}
--- SORRY'D:     {fields : List Field}
--- SORRY'D:     {scope : List String}
--- SORRY'D:     {stmts : List Stmt}
--- SORRY'D:     (hhelperFree : StmtListHelperFreeStepInterface fields scope stmts)
--- SORRY'D:     (hsteps : StmtListHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
--- SORRY'D:     (hlegacy : StmtListHelperFreeCompiledLegacyCompatible fields scope stmts)
--- SORRY'D:     (hinternal : runtimeContract.internalFunctions = []) :
--- SORRY'D:     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
--- SORRY'D:   induction hsteps generalizing hhelperFree hlegacy with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact .nil
--- SORRY'D:   | @cons scope stmt rest hheadStep htailSteps ih =>
--- SORRY'D:       cases hhelperFree with
--- SORRY'D:       | cons hheadFree htailFree =>
--- SORRY'D:           cases hlegacy with
--- SORRY'D:           | cons hheadLegacy htailLegacy =>
--- SORRY'D:               by_cases hsurface : stmtTouchesUnsupportedHelperSurface stmt = false
--- SORRY'D:               · rcases hheadFree hsurface with ⟨compiledIR, hcore⟩
--- SORRY'D:                 exact .cons
--- SORRY'D:                   ((hcore.withHelpers_of_helperSurfaceClosed hsurface)
--- SORRY'D:                     .withHelperIR_of_legacyCompatible
--- SORRY'D:                       (hheadLegacy hsurface compiledIR hcore.compileOk)
--- SORRY'D:                       hinternal)
--- SORRY'D:                   (ih htailFree htailLegacy)
--- SORRY'D:               · have hsurfaceTrue : stmtTouchesUnsupportedHelperSurface stmt = true := by
--- SORRY'D:                   cases hstmt : stmtTouchesUnsupportedHelperSurface stmt <;> simp [hstmt] at hsurface ⊢
--- SORRY'D:                 rcases hheadStep hsurfaceTrue with ⟨compiledIR, hcompiled⟩
--- SORRY'D:                 exact .cons hcompiled (ih htailFree htailLegacy)
+/-- Exact helper-aware list bridge that splits the remaining work cleanly:
+helper-free heads still reuse the legacy generic step library plus the weaker
+helper-free compiled compatibility witness, while helper-positive heads are
+discharged only through a dedicated exact helper-aware step interface. -/
+theorem
+    stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hhelperFree : StmtListHelperFreeStepInterface fields scope stmts)
+    (hsteps : StmtListHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
+    (hlegacy : StmtListHelperFreeCompiledLegacyCompatible fields scope stmts)
+    (hinternal : runtimeContract.internalFunctions = []) :
+    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
+  induction hsteps with
+  | nil =>
+      exact .nil
+  | @cons scope stmt rest hheadStep htailSteps ih =>
+      cases hhelperFree with
+      | cons hheadFree htailFree =>
+          cases hlegacy with
+          | cons hheadLegacy htailLegacy =>
+              by_cases hsurface : stmtTouchesUnsupportedHelperSurface stmt = false
+              · obtain ⟨compiledIR, hcore⟩ := hheadFree hsurface
+                exact .cons
+                  (CompiledStmtStepWithHelpers.withHelperIR_of_legacyCompatible
+                    (hcore.withHelpers_of_helperSurfaceClosed hsurface)
+                    (hheadLegacy hsurface compiledIR hcore.compileOk)
+                    hinternal)
+                  (ih htailFree htailLegacy)
+              · have hsurfaceTrue : stmtTouchesUnsupportedHelperSurface stmt = true := by
+                  cases hstmt : stmtTouchesUnsupportedHelperSurface stmt <;> simp [hstmt] at hsurface ⊢
+                rcases hheadStep hsurfaceTrue with ⟨compiledIR, hcompiled⟩
+                exact .cons hcompiled (ih htailFree htailLegacy)
 
--- SORRY'D: /-- Disjoint-based exact helper-aware list bridge: helper-free heads reuse the
--- SORRY'D: legacy generic step library plus the new disjointness witness, while
--- SORRY'D: helper-positive heads are discharged through the dedicated step interface.
--- SORRY'D: Unlike the `_helperFreeCompiledLegacyCompatible` variant, this does **not**
--- SORRY'D: require `runtimeContract.internalFunctions = []`. -/
--- SORRY'D: theorem
--- SORRY'D:     stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledCallsDisjoint
--- SORRY'D:     {runtimeContract : IRContract}
--- SORRY'D:     {spec : CompilationModel}
--- SORRY'D:     {fields : List Field}
--- SORRY'D:     {scope : List String}
--- SORRY'D:     {stmts : List Stmt}
--- SORRY'D:     (hhelperFree : StmtListHelperFreeStepInterface fields scope stmts)
--- SORRY'D:     (hsteps : StmtListHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
--- SORRY'D:     (hdisjoint : StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields scope stmts) :
--- SORRY'D:     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
--- SORRY'D:   induction hsteps generalizing hhelperFree hdisjoint with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact .nil
--- SORRY'D:   | @cons scope stmt rest hheadStep htailSteps ih =>
--- SORRY'D:       cases hhelperFree with
--- SORRY'D:       | cons hheadFree htailFree =>
--- SORRY'D:           cases hdisjoint with
--- SORRY'D:           | cons hheadDisjoint htailDisjoint =>
--- SORRY'D:               by_cases hsurface : stmtTouchesUnsupportedHelperSurface stmt = false
--- SORRY'D:               · rcases hheadFree hsurface with ⟨compiledIR, hcore⟩
--- SORRY'D:                 exact .cons
--- SORRY'D:                   ((hcore.withHelpers_of_helperSurfaceClosed hsurface)
--- SORRY'D:                     .withHelperIR_of_callsDisjoint
--- SORRY'D:                       (hheadDisjoint hsurface compiledIR hcore.compileOk))
--- SORRY'D:                   (ih htailFree htailDisjoint)
--- SORRY'D:               · have hsurfaceTrue : stmtTouchesUnsupportedHelperSurface stmt = true := by
--- SORRY'D:                   cases hstmt : stmtTouchesUnsupportedHelperSurface stmt <;> simp [hstmt] at hsurface ⊢
--- SORRY'D:                 rcases hheadStep hsurfaceTrue with ⟨compiledIR, hcompiled⟩
--- SORRY'D:                 exact .cons hcompiled (ih htailFree htailDisjoint)
+/-- Disjoint-based exact helper-aware list bridge: helper-free heads reuse the
+legacy generic step library plus the new disjointness witness, while
+helper-positive heads are discharged through the dedicated step interface.
+Unlike the `_helperFreeCompiledLegacyCompatible` variant, this does **not**
+require `runtimeContract.internalFunctions = []`. -/
+theorem
+    stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledCallsDisjoint
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hhelperFree : StmtListHelperFreeStepInterface fields scope stmts)
+    (hsteps : StmtListHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
+    (hdisjoint : StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields scope stmts) :
+    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
+  induction hsteps with
+  | nil =>
+      exact .nil
+  | @cons scope stmt rest hheadStep htailSteps ih =>
+      cases hhelperFree with
+      | cons hheadFree htailFree =>
+          cases hdisjoint with
+          | cons hheadDisjoint htailDisjoint =>
+              by_cases hsurface : stmtTouchesUnsupportedHelperSurface stmt = false
+              · obtain ⟨compiledIR, hcore⟩ := hheadFree hsurface
+                exact .cons
+                  (CompiledStmtStepWithHelpers.withHelperIR_of_callsDisjoint
+                    (hcore.withHelpers_of_helperSurfaceClosed hsurface)
+                    (hheadDisjoint hsurface compiledIR hcore.compileOk))
+                  (ih htailFree htailDisjoint)
+              · have hsurfaceTrue : stmtTouchesUnsupportedHelperSurface stmt = true := by
+                  cases hstmt : stmtTouchesUnsupportedHelperSurface stmt <;> simp [hstmt] at hsurface ⊢
+                rcases hheadStep hsurfaceTrue with ⟨compiledIR, hcompiled⟩
+                exact .cons hcompiled (ih htailFree htailDisjoint)
 
 -- SORRY'D: /-- Exact helper-aware list bridge with the helper-positive work split cleanly:
 -- SORRY'D: genuine internal-helper heads are supplied through a narrow helper-specific
@@ -2730,7 +2729,44 @@ inductive StmtListScopeCore (fieldNames : List String) : List Stmt → Prop wher
 private theorem exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
     {expr : Expr}
     (hsurface : exprTouchesUnsupportedContractSurface expr = false) :
-    FunctionBody.ExprCompileCore expr := by sorry
+    FunctionBody.ExprCompileCore expr := by
+  match expr, hsurface with
+  | .literal _, _ => exact .literal _
+  | .param _, _ => exact .param _
+  | .localVar _, _ => exact .localVar _
+  | .caller, _ => exact .caller
+  | .contractAddress, _ => exact .contractAddress
+  | .msgValue, _ => exact .msgValue
+  | .blockTimestamp, _ => exact .blockTimestamp
+  | .blockNumber, _ => exact .blockNumber
+  | .chainid, _ => exact .chainid
+  | .add a b, hsurface | .sub a b, hsurface | .mul a b, hsurface
+  | .div a b, hsurface | .mod a b, hsurface
+  | .bitAnd a b, hsurface | .bitOr a b, hsurface | .bitXor a b, hsurface
+  | .eq a b, hsurface | .ge a b, hsurface | .gt a b, hsurface
+  | .lt a b, hsurface | .le a b, hsurface
+  | .logicalAnd a b, hsurface | .logicalOr a b, hsurface
+  | .shl a b, hsurface | .shr a b, hsurface
+  | .min a b, hsurface | .max a b, hsurface
+  | .ceilDiv a b, hsurface =>
+      simp only [exprTouchesUnsupportedContractSurface, Bool.or_eq_false_iff] at hsurface
+      constructor
+      · exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1
+      · exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.2
+  | .wMulDown _ _, hsurface | .wDivUp _ _, hsurface =>
+      simp [exprTouchesUnsupportedContractSurface] at hsurface
+  | .logicalNot a, hsurface | .bitNot a, hsurface =>
+      simp only [exprTouchesUnsupportedContractSurface] at hsurface
+      constructor
+      exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface
+  | .ite cond thenVal elseVal, hsurface =>
+      simp only [exprTouchesUnsupportedContractSurface, Bool.or_eq_false_iff] at hsurface
+      exact .ite
+        (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1.1)
+        (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1.2)
+        (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.2)
+  | .mulDivDown _ _ _, hsurface | .mulDivUp _ _ _, hsurface =>
+      simp [exprTouchesUnsupportedContractSurface] at hsurface
 
 private theorem fieldName_mem_fields_of_findFieldWithResolvedSlot_some
     {fields : List Field}
@@ -3087,7 +3123,10 @@ private theorem exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
   | lt hL hR ihL ihR
   | gt hL hR ihL ihR
   | ge hL hR ihL ihR
-  | le hL hR ihL ihR =>
+  | le hL hR ihL ihR
+  | bitAnd hL hR ihL ihR
+  | bitOr hL hR ihL ihR
+  | bitXor hL hR ihL ihR =>
       rename_i lhs rhs
       have hpair :
           (do
@@ -3102,13 +3141,282 @@ private theorem exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
       rcases hmem with hmem | hmem
       · exact ihL (validateScopedExprIdentifiers_pair_ok_left hpair) name hmem
       · exact ihR (validateScopedExprIdentifiers_pair_ok_right hpair) name hmem
-  | logicalNot h ih =>
+  | logicalNot h ih
+  | bitNot h ih =>
       intro name hmem
       simpa [FunctionBody.exprBoundNames] using
         ih
           (by simpa [validateScopedExprIdentifiers] using hvalidate)
           name
           (by simpa [FunctionBody.exprBoundNames] using hmem)
+  | shl hS hV ihS ihV
+  | shr hS hV ihS ihV =>
+      rename_i shift value
+      have hpair :
+          (do
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount shift
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount value) =
+            Except.ok () := by
+        simpa [validateScopedExprIdentifiers] using hvalidate
+      intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+      rcases hmem with hmem | hmem
+      · exact ihS (validateScopedExprIdentifiers_pair_ok_left hpair) name hmem
+      · exact ihV (validateScopedExprIdentifiers_pair_ok_right hpair) name hmem
+  | min hL hR ihL ihR
+  | max hL hR ihL ihR =>
+      rename_i lhs rhs
+      have hpair :
+          (do
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount lhs
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount rhs) =
+            Except.ok () := by
+        simp only [validateScopedExprIdentifiers] at hvalidate
+        revert hvalidate
+        cases validateArithDuplicatedOperandPurity context _ with
+        | ok _ => simp [Bind.bind, Except.bind]
+        | error e => simp [Bind.bind, Except.bind]
+      intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+      rcases hmem with hmem | hmem
+      · exact ihL (validateScopedExprIdentifiers_pair_ok_left hpair) name hmem
+      · exact ihR (validateScopedExprIdentifiers_pair_ok_right hpair) name hmem
+  | ceilDiv hL hR ihL ihR
+  | wDivUp hL hR ihL ihR =>
+      rename_i lhs rhs
+      have hpair :
+          (do
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount lhs
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount rhs) =
+            Except.ok () := by
+        simp only [validateScopedExprIdentifiers] at hvalidate
+        revert hvalidate
+        cases validateArithDuplicatedOperandPurity context _ with
+        | ok _ => simp [Bind.bind, Except.bind]
+        | error e => simp [Bind.bind, Except.bind]
+      intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+      rcases hmem with hmem | hmem
+      · exact ihL (validateScopedExprIdentifiers_pair_ok_left hpair) name hmem
+      · exact ihR (validateScopedExprIdentifiers_pair_ok_right hpair) name hmem
+  | wMulDown hL hR ihL ihR =>
+      rename_i lhs rhs
+      have hpair :
+          (do
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount lhs
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount rhs) =
+            Except.ok () := by
+        simpa [validateScopedExprIdentifiers] using hvalidate
+      intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+      rcases hmem with hmem | hmem
+      · exact ihL (validateScopedExprIdentifiers_pair_ok_left hpair) name hmem
+      · exact ihR (validateScopedExprIdentifiers_pair_ok_right hpair) name hmem
+  | mulDivDown hA hB hC ihA ihB ihC =>
+      rename_i a b c
+      have htriple :
+          (do
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount a
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount b
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount c) =
+            Except.ok () := by
+        simpa [validateScopedExprIdentifiers] using hvalidate
+      have hA_ok :
+          validateScopedExprIdentifiers
+            context params paramScope dynamicParams localScope constructorArgCount a =
+            Except.ok () := by
+        revert htriple
+        cases ha :
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount a with
+        | error e => simp [ha, Bind.bind, Except.bind]
+        | ok v => intro; rfl
+      have hB_ok :
+          validateScopedExprIdentifiers
+            context params paramScope dynamicParams localScope constructorArgCount b =
+            Except.ok () := by
+        revert htriple
+        cases ha :
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount a with
+        | error e => simp [ha, Bind.bind, Except.bind]
+        | ok v =>
+          cases hb :
+              validateScopedExprIdentifiers
+                context params paramScope dynamicParams localScope constructorArgCount b with
+          | error e => simp [ha, hb, Bind.bind, Except.bind]
+          | ok v => intro; rfl
+      have hC_ok :
+          validateScopedExprIdentifiers
+            context params paramScope dynamicParams localScope constructorArgCount c =
+            Except.ok () := by
+        revert htriple
+        cases ha :
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount a with
+        | error e => simp [ha, Bind.bind, Except.bind]
+        | ok v =>
+          cases hb :
+              validateScopedExprIdentifiers
+                context params paramScope dynamicParams localScope constructorArgCount b with
+          | error e => simp [ha, hb, Bind.bind, Except.bind]
+          | ok v =>
+            simp [ha, hb, Bind.bind, Except.bind]
+      intro name hmem
+      simp only [FunctionBody.exprBoundNames] at hmem
+      rcases List.mem_append.mp hmem with hmem12 | hmem
+      · rcases List.mem_append.mp hmem12 with h | h
+        · exact ihA hA_ok name h
+        · exact ihB hB_ok name h
+      · exact ihC hC_ok name hmem
+  | mulDivUp hA hB hC ihA ihB ihC =>
+      rename_i a b c
+      have htriple :
+          (do
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount a
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount b
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount c) =
+            Except.ok () := by
+        simp only [validateScopedExprIdentifiers] at hvalidate
+        revert hvalidate
+        cases validateArithDuplicatedOperandPurity context _ with
+        | ok _ => simp [Bind.bind, Except.bind]
+        | error e => simp [Bind.bind, Except.bind]
+      have hA_ok :
+          validateScopedExprIdentifiers
+            context params paramScope dynamicParams localScope constructorArgCount a =
+            Except.ok () := by
+        revert htriple
+        cases ha :
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount a with
+        | error e => simp [ha, Bind.bind, Except.bind]
+        | ok v => intro; rfl
+      have hB_ok :
+          validateScopedExprIdentifiers
+            context params paramScope dynamicParams localScope constructorArgCount b =
+            Except.ok () := by
+        revert htriple
+        cases ha :
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount a with
+        | error e => simp [ha, Bind.bind, Except.bind]
+        | ok v =>
+          cases hb :
+              validateScopedExprIdentifiers
+                context params paramScope dynamicParams localScope constructorArgCount b with
+          | error e => simp [ha, hb, Bind.bind, Except.bind]
+          | ok v => intro; rfl
+      have hC_ok :
+          validateScopedExprIdentifiers
+            context params paramScope dynamicParams localScope constructorArgCount c =
+            Except.ok () := by
+        revert htriple
+        cases ha :
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount a with
+        | error e => simp [ha, Bind.bind, Except.bind]
+        | ok v =>
+          cases hb :
+              validateScopedExprIdentifiers
+                context params paramScope dynamicParams localScope constructorArgCount b with
+          | error e => simp [ha, hb, Bind.bind, Except.bind]
+          | ok v =>
+            simp [ha, hb, Bind.bind, Except.bind]
+      intro name hmem
+      simp only [FunctionBody.exprBoundNames] at hmem
+      rcases List.mem_append.mp hmem with hmem12 | hmem
+      · rcases List.mem_append.mp hmem12 with h | h
+        · exact ihA hA_ok name h
+        · exact ihB hB_ok name h
+      · exact ihC hC_ok name hmem
+  | ite hC hT hE ihC ihT ihE =>
+      rename_i cond thenVal elseVal
+      have hC_ok :
+          validateScopedExprIdentifiers
+            context params paramScope dynamicParams localScope constructorArgCount cond =
+            Except.ok () := by
+        simp only [validateScopedExprIdentifiers] at hvalidate
+        revert hvalidate
+        cases exprContainsCallLike cond || exprContainsCallLike thenVal ||
+          exprContainsCallLike elseVal with
+        | true => simp [Bind.bind, Except.bind]
+        | false =>
+          simp only [Bool.false_eq_true, ↓reduceIte, Pure.pure, Except.pure,
+            Bind.bind, Except.bind]
+          intro h
+          cases hc :
+              validateScopedExprIdentifiers
+                context params paramScope dynamicParams localScope constructorArgCount cond with
+          | error e => simp [hc] at h
+          | ok v => rfl
+      have hT_ok :
+          validateScopedExprIdentifiers
+            context params paramScope dynamicParams localScope constructorArgCount thenVal =
+            Except.ok () := by
+        simp only [validateScopedExprIdentifiers] at hvalidate
+        revert hvalidate
+        cases exprContainsCallLike cond || exprContainsCallLike thenVal ||
+          exprContainsCallLike elseVal with
+        | true => simp [Bind.bind, Except.bind]
+        | false =>
+          simp only [Bool.false_eq_true, ↓reduceIte, Pure.pure, Except.pure,
+            Bind.bind, Except.bind]
+          intro h
+          cases hc :
+              validateScopedExprIdentifiers
+                context params paramScope dynamicParams localScope constructorArgCount cond with
+          | error e => simp [hc] at h
+          | ok v =>
+            cases ht :
+                validateScopedExprIdentifiers
+                  context params paramScope dynamicParams localScope constructorArgCount thenVal with
+            | error e => simp [hc, ht] at h
+            | ok v => rfl
+      have hE_ok :
+          validateScopedExprIdentifiers
+            context params paramScope dynamicParams localScope constructorArgCount elseVal =
+            Except.ok () := by
+        simp only [validateScopedExprIdentifiers] at hvalidate
+        revert hvalidate
+        cases exprContainsCallLike cond || exprContainsCallLike thenVal ||
+          exprContainsCallLike elseVal with
+        | true => simp [Bind.bind, Except.bind]
+        | false =>
+          simp only [Bool.false_eq_true, ↓reduceIte, Pure.pure, Except.pure,
+            Bind.bind, Except.bind]
+          intro h
+          cases hc :
+              validateScopedExprIdentifiers
+                context params paramScope dynamicParams localScope constructorArgCount cond with
+          | error e => simp [hc] at h
+          | ok v =>
+            cases ht :
+                validateScopedExprIdentifiers
+                  context params paramScope dynamicParams localScope constructorArgCount thenVal with
+            | error e => simp [hc, ht] at h
+            | ok v => simpa [hc, ht] using h
+      intro name hmem
+      simp only [FunctionBody.exprBoundNames] at hmem
+      rcases List.mem_append.mp hmem with hmem12 | hmem
+      · rcases List.mem_append.mp hmem12 with hmem | hmem
+        · exact ihC hC_ok name hmem
+        · exact ihT hT_ok name hmem
+      · exact ihE hE_ok name hmem
   | logicalAnd hL hR ihL ihR
   | logicalOr hL hR ihL ihR =>
       rename_i lhs rhs
@@ -3882,17 +4190,35 @@ private theorem collectExprNames_mem_exprBoundNames_of_core
   | gt hL hR ihL ihR
   | ge hL hR ihL ihR
   | le hL hR ihL ihR
-  | logicalAnd hL hR ihL ihR
-  | logicalOr hL hR ihL ihR =>
+  | bitAnd hL hR ihL ihR
+  | bitOr hL hR ihL ihR
+  | bitXor hL hR ihL ihR
+  | logicalAnd hL hR ihL ihR | logicalOr hL hR ihL ihR
+  | shl hL hR ihL ihR | shr hL hR ihL ihR
+  | min hL hR ihL ihR | max hL hR ihL ihR
+  | ceilDiv hL hR ihL ihR | wMulDown hL hR ihL ihR | wDivUp hL hR ihL ihR =>
       intro name hmem
       simp [collectExprNames, FunctionBody.exprBoundNames] at hmem ⊢
       rcases hmem with hmem | hmem
       · exact Or.inl (ihL _ hmem)
       · exact Or.inr (ihR _ hmem)
-  | logicalNot h ih =>
-      intro name hmem
-      simp [collectExprNames] at hmem
+  | logicalNot h ih | bitNot h ih =>
+      intro name hmem; simp [collectExprNames] at hmem
       simpa [FunctionBody.exprBoundNames] using ih _ hmem
+  | ite hC hT hE ihC ihT ihE =>
+      intro name hmem; simp only [collectExprNames] at hmem; simp only [FunctionBody.exprBoundNames]
+      rcases List.mem_append.mp hmem with hmem12 | hmem
+      · rcases List.mem_append.mp hmem12 with h | h
+        · exact List.mem_append.mpr (Or.inl (List.mem_append.mpr (Or.inl (ihC _ h))))
+        · exact List.mem_append.mpr (Or.inl (List.mem_append.mpr (Or.inr (ihT _ h))))
+      · exact List.mem_append.mpr (Or.inr (ihE _ hmem))
+  | mulDivDown hA hB hC ihA ihB ihC | mulDivUp hA hB hC ihA ihB ihC =>
+      intro name hmem; simp only [collectExprNames] at hmem; simp only [FunctionBody.exprBoundNames]
+      rcases List.mem_append.mp hmem with hmem12 | hmem
+      · rcases List.mem_append.mp hmem12 with h | h
+        · exact List.mem_append.mpr (Or.inl (List.mem_append.mpr (Or.inl (ihA _ h))))
+        · exact List.mem_append.mpr (Or.inl (List.mem_append.mpr (Or.inr (ihB _ h))))
+      · exact List.mem_append.mpr (Or.inr (ihC _ hmem))
 
 private theorem mem_foldl_stmtNextScope_of_mem_scope
     {scope : List String}
@@ -3994,27 +4320,25 @@ private theorem stmtListScopeDiscipline_scope_names
       simp [collectStmtListBindNames, collectStmtBindNames,
         collectStmtListAssignedNames, collectStmtAssignedNames] at htail ⊢
       exact htail
-  | setStorage hfield hcore hinScope _ ih =>
+  | setStorage _hfield hcore hinScope _ ih =>
       intro other hmem
       simp only [List.foldl] at hmem
       have htail := ih other hmem
       simp [stmtNextScope, collectStmtNames, collectStmtListBindNames, collectStmtBindNames,
         collectStmtListAssignedNames, collectStmtAssignedNames] at htail ⊢
-      rcases htail with hfname | hvalue | hscope | hbind | hassign | hfld
-      · right; right; right; subst hfname; exact hfield
+      rcases htail with hvalue | hscope | hbind | hassign | hfld
       · left; exact hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hvalue)
       · left; exact hscope
       · right; left; exact hbind
       · right; right; left; exact hassign
       · right; right; right; exact hfld
-  | setStorageAddr hfield hcore hinScope _ ih =>
+  | setStorageAddr _hfield hcore hinScope _ ih =>
       intro other hmem
       simp only [List.foldl] at hmem
       have htail := ih other hmem
       simp [stmtNextScope, collectStmtNames, collectStmtListBindNames, collectStmtBindNames,
         collectStmtListAssignedNames, collectStmtAssignedNames] at htail ⊢
-      rcases htail with hfname | hvalue | hscope | hbind | hassign | hfld
-      · right; right; right; subst hfname; exact hfield
+      rcases htail with hvalue | hscope | hbind | hassign | hfld
       · left; exact hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hvalue)
       · left; exact hscope
       · right; left; exact hbind
@@ -4541,19 +4865,71 @@ private theorem encodeStorageAt_writeAddressKeyedMappingChainSlots_singleton_oth
   · simp [SourceSemantics.writeAddressKeyedMappingChainSlots]
   · simp [SourceSemantics.writeAddressKeyedMappingChainSlots]
 
+private def mappingWordTargetSlot (slot key wordOffset : Nat) : Nat :=
+  SourceSemantics.wordNormalize (Compiler.Proofs.abstractMappingSlot slot key + wordOffset)
+
+private def mapping2WordTargetSlot (slot key1 key2 wordOffset : Nat) : Nat :=
+  SourceSemantics.wordNormalize
+    (Compiler.Proofs.abstractMappingSlot
+      (Compiler.Proofs.abstractMappingSlot slot key1)
+      key2 + wordOffset)
+
+private theorem uint256_add_val_eq_mod (a b : Nat) :
+    (Verity.Core.Uint256.ofNat a + Verity.Core.Uint256.ofNat b).val =
+      (a + b) % Compiler.Constants.evmModulus := by
+  change ((a % Compiler.Constants.evmModulus) + (b % Compiler.Constants.evmModulus)) %
+      Compiler.Constants.evmModulus =
+    (a + b) % Compiler.Constants.evmModulus
+  exact (Nat.add_mod a b Compiler.Constants.evmModulus).symm
+
+private theorem mappingWordTargetSlot_eq_uint256_add (slot key wordOffset : Nat) :
+    mappingWordTargetSlot slot key wordOffset =
+      (Verity.Core.Uint256.ofNat wordOffset +
+        Verity.Core.Uint256.ofNat (Compiler.Proofs.solidityMappingSlot slot key)).val := by
+  unfold mappingWordTargetSlot SourceSemantics.wordNormalize
+  simpa [Compiler.Proofs.abstractMappingSlot_eq_solidity]
+
+private theorem mapping2WordTargetSlot_eq_uint256_add (slot key1 key2 wordOffset : Nat) :
+    mapping2WordTargetSlot slot key1 key2 wordOffset =
+      (Verity.Core.Uint256.ofNat wordOffset +
+        Verity.Core.Uint256.ofNat
+          (Compiler.Proofs.solidityMappingSlot
+            (Compiler.Proofs.solidityMappingSlot slot key1) key2)).val := by
+  unfold mapping2WordTargetSlot SourceSemantics.wordNormalize
+  simpa [Compiler.Proofs.abstractMappingSlot_eq_solidity]
+
 private theorem encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_other
     {fields : List Field}
     {world : Verity.ContractState}
     {slot key wordOffset query value : Nat}
-    (hneq : query ≠ Compiler.Proofs.abstractMappingSlot slot key + wordOffset) :
+    (hneq : query ≠ mappingWordTargetSlot slot key wordOffset) :
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeAddressKeyedMappingWordSlots world [slot] key wordOffset value)
       query =
       SourceSemantics.encodeStorageAt fields world query := by
   apply SourceSemantics.encodeStorageAt_congr
-  · simp only [SourceSemantics.writeAddressKeyedMappingWordSlots]
-    unfold Compiler.Proofs.abstractMappingSlot at hneq
-    simp [hneq]
+  · by_cases hEq : query = (Compiler.Proofs.solidityMappingSlot slot key + wordOffset) % Compiler.Constants.evmModulus
+    · exfalso
+      have htarget : query = mappingWordTargetSlot slot key wordOffset := by
+        rw [mappingWordTargetSlot_eq_uint256_add]
+        have hslotEq :
+            (Verity.Core.Uint256.ofNat wordOffset +
+              Verity.Core.Uint256.ofNat (Compiler.Proofs.solidityMappingSlot slot key)).val =
+            (Compiler.Proofs.solidityMappingSlot slot key + wordOffset) % Compiler.Constants.evmModulus := by
+          change
+            (wordOffset % Compiler.Constants.evmModulus +
+                Compiler.Proofs.solidityMappingSlot slot key % Compiler.Constants.evmModulus) %
+              Compiler.Constants.evmModulus =
+            (Compiler.Proofs.solidityMappingSlot slot key + wordOffset) %
+              Compiler.Constants.evmModulus
+          rw [Nat.add_comm]
+          exact (Nat.add_mod (Compiler.Proofs.solidityMappingSlot slot key) wordOffset
+            Compiler.Constants.evmModulus).symm
+        exact hEq.trans hslotEq.symm
+      exact hneq htarget
+    · simp [SourceSemantics.writeAddressKeyedMappingWordSlots, List.map_cons, List.map_nil]
+      intro hbad
+      exact False.elim (hEq hbad)
   · simp [SourceSemantics.writeAddressKeyedMappingWordSlots]
   · simp [SourceSemantics.writeAddressKeyedMappingWordSlots]
 
@@ -4562,16 +4938,35 @@ private theorem encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleto
     {world : Verity.ContractState}
     {slot key wordOffset query value : Nat}
     {packed : PackedBits}
-    (hneq : query ≠ Compiler.Proofs.abstractMappingSlot slot key + wordOffset) :
+    (hneq : query ≠ mappingWordTargetSlot slot key wordOffset) :
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeAddressKeyedMappingPackedWordSlots
         world [slot] key wordOffset packed value)
       query =
       SourceSemantics.encodeStorageAt fields world query := by
   apply SourceSemantics.encodeStorageAt_congr
-  · simp only [SourceSemantics.writeAddressKeyedMappingPackedWordSlots]
-    unfold Compiler.Proofs.abstractMappingSlot at hneq
-    simp [hneq]
+  · by_cases hEq : query = (Compiler.Proofs.solidityMappingSlot slot key + wordOffset) % Compiler.Constants.evmModulus
+    · exfalso
+      have htarget : query = mappingWordTargetSlot slot key wordOffset := by
+        rw [mappingWordTargetSlot_eq_uint256_add]
+        have hslotEq :
+            (Verity.Core.Uint256.ofNat wordOffset +
+              Verity.Core.Uint256.ofNat (Compiler.Proofs.solidityMappingSlot slot key)).val =
+            (Compiler.Proofs.solidityMappingSlot slot key + wordOffset) % Compiler.Constants.evmModulus := by
+          change
+            (wordOffset % Compiler.Constants.evmModulus +
+                Compiler.Proofs.solidityMappingSlot slot key % Compiler.Constants.evmModulus) %
+              Compiler.Constants.evmModulus =
+            (Compiler.Proofs.solidityMappingSlot slot key + wordOffset) %
+              Compiler.Constants.evmModulus
+          rw [Nat.add_comm]
+          exact (Nat.add_mod (Compiler.Proofs.solidityMappingSlot slot key) wordOffset
+            Compiler.Constants.evmModulus).symm
+        exact hEq.trans hslotEq.symm
+      exact hneq htarget
+    · simp [SourceSemantics.writeAddressKeyedMappingPackedWordSlots, List.map_cons, List.map_nil]
+      intro hbad
+      exact False.elim (hEq hbad)
   · simp [SourceSemantics.writeAddressKeyedMappingPackedWordSlots]
   · simp [SourceSemantics.writeAddressKeyedMappingPackedWordSlots]
 
@@ -5122,14 +5517,14 @@ private theorem encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_eq_w
     {slot key wordOffset value : Nat}
     (hresolved :
       findResolvedFieldAtSlotCopy fields
-        (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = none)
+        (mappingWordTargetSlot slot key wordOffset) = none)
     (hdyn :
       findDynamicArrayElementAtSlotCopy fields world
-        (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = none)
+        (mappingWordTargetSlot slot key wordOffset) = none)
     (hvalue : value < Verity.Core.Uint256.modulus) :
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeAddressKeyedMappingWordSlots world [slot] key wordOffset value)
-      (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = value := by
+      (mappingWordTargetSlot slot key wordOffset) = value := by
   rw [encodeStorageAt_eq_copy]
   simp only [encodeStorageAtCopy, hresolved]
   have harray : (SourceSemantics.writeAddressKeyedMappingWordSlots
@@ -5137,19 +5532,18 @@ private theorem encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_eq_w
     simp [SourceSemantics.writeAddressKeyedMappingWordSlots]
   have hdyn' : findDynamicArrayElementAtSlotCopy fields
       (SourceSemantics.writeAddressKeyedMappingWordSlots world [slot] key wordOffset value)
-      (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = none := by
+      (mappingWordTargetSlot slot key wordOffset) = none := by
     have h1 := findDynamicArrayElementAtSlotCopy_eq fields
       (SourceSemantics.writeAddressKeyedMappingWordSlots world [slot] key wordOffset value)
-      (Compiler.Proofs.abstractMappingSlot slot key + wordOffset)
+      (mappingWordTargetSlot slot key wordOffset)
     have h2 := findDynamicArrayElementAtSlotCopy_eq fields world
-      (Compiler.Proofs.abstractMappingSlot slot key + wordOffset)
+      (mappingWordTargetSlot slot key wordOffset)
     rw [← h1, SourceSemantics.findDynamicArrayElementAtSlot_congr_storageArray _ _ _ _ harray,
         h2, hdyn]
-  simp only [hdyn']
-  simp only [SourceSemantics.writeAddressKeyedMappingWordSlots, List.map_cons, List.map_nil,
-    List.contains_cons, List.contains_nil, Bool.or_false, beq_iff_eq, ite_true]
-  simp only [Verity.Core.Uint256.val_ofNat]
-  exact Nat.mod_eq_of_lt hvalue
+  rw [hdyn']
+  simp [SourceSemantics.writeAddressKeyedMappingWordSlots, mappingWordTargetSlot,
+    SourceSemantics.wordNormalize, Verity.Core.Uint256.val_ofNat]
+  exact hvalue
 
 private theorem encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleton_eq_written
     {fields : List Field}
@@ -5158,16 +5552,16 @@ private theorem encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleto
     {packed : PackedBits}
     (hresolved :
       findResolvedFieldAtSlotCopy fields
-        (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = none)
+        (mappingWordTargetSlot slot key wordOffset) = none)
     (hdyn :
       findDynamicArrayElementAtSlotCopy fields world
-        (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = none) :
+        (mappingWordTargetSlot slot key wordOffset) = none) :
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeAddressKeyedMappingPackedWordSlots
         world [slot] key wordOffset packed value)
-      (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) =
+      (mappingWordTargetSlot slot key wordOffset) =
       SourceSemantics.packedWordWrite
-        (world.storage (Compiler.Proofs.abstractMappingSlot slot key + wordOffset)).val
+        (world.storage (mappingWordTargetSlot slot key wordOffset)).val
         value
         packed := by
   rw [encodeStorageAt_eq_copy]
@@ -5178,28 +5572,32 @@ private theorem encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleto
   have hdyn' : findDynamicArrayElementAtSlotCopy fields
       (SourceSemantics.writeAddressKeyedMappingPackedWordSlots
         world [slot] key wordOffset packed value)
-      (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = none := by
+      (mappingWordTargetSlot slot key wordOffset) = none := by
     have h1 := findDynamicArrayElementAtSlotCopy_eq fields
       (SourceSemantics.writeAddressKeyedMappingPackedWordSlots
         world [slot] key wordOffset packed value)
-      (Compiler.Proofs.abstractMappingSlot slot key + wordOffset)
+      (mappingWordTargetSlot slot key wordOffset)
     have h2 := findDynamicArrayElementAtSlotCopy_eq fields world
-      (Compiler.Proofs.abstractMappingSlot slot key + wordOffset)
+      (mappingWordTargetSlot slot key wordOffset)
     rw [← h1, SourceSemantics.findDynamicArrayElementAtSlot_congr_storageArray _ _ _ _ harray,
         h2, hdyn]
-  simp only [hdyn']
-  simp only [SourceSemantics.writeAddressKeyedMappingPackedWordSlots, List.map_cons, List.map_nil,
-    List.contains_cons, List.contains_nil, Bool.or_false, beq_iff_eq, ite_true]
-  -- packedWordWrite returns (Uint256.or ...).val which is already < modulus
-  -- so (ofNat (packedWordWrite ...)).val = packedWordWrite ...
-  show (Verity.Core.Uint256.ofNat
-    (SourceSemantics.packedWordWrite
-      (world.storage (Compiler.Proofs.abstractMappingSlot slot key + wordOffset)).val
-      value packed)).val = _
-  rw [Verity.Core.Uint256.val_ofNat]
-  unfold SourceSemantics.packedWordWrite
-  simp only [Verity.Core.Uint256.or, Verity.Core.Uint256.val_ofNat]
-  exact Nat.mod_mod _ _
+  rw [hdyn']
+  simp [SourceSemantics.writeAddressKeyedMappingPackedWordSlots, mappingWordTargetSlot,
+    SourceSemantics.wordNormalize, SourceSemantics.packedWordWrite,
+    Verity.Core.Uint256.val_ofNat]
+  have hlt :
+      (((Verity.Core.Uint256.ofNat (world.storage (mappingWordTargetSlot slot key wordOffset)).val).and
+        (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).or
+        (Verity.Core.Uint256.shl packed.offset
+          (Verity.Core.Uint256.and value (packedMaskNat packed)))).val <
+        Compiler.Constants.evmModulus := by
+    exact
+      ((((Verity.Core.Uint256.ofNat (world.storage (mappingWordTargetSlot slot key wordOffset)).val).and
+        (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).or
+        (Verity.Core.Uint256.shl packed.offset
+          (Verity.Core.Uint256.and value (packedMaskNat packed)))).isLt)
+  simpa [mappingWordTargetSlot, SourceSemantics.wordNormalize,
+    Compiler.Proofs.abstractMappingSlot_eq_solidity] using hlt
 
 private theorem encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_other
     {fields : List Field}
@@ -5270,17 +5668,47 @@ private theorem encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_oth
     {world : Verity.ContractState}
     {slot key1 key2 wordOffset query value : Nat}
     (hneq :
-      query ≠ Compiler.Proofs.abstractMappingSlot
-        (Compiler.Proofs.abstractMappingSlot slot key1)
-        key2 + wordOffset) :
+      query ≠ mapping2WordTargetSlot slot key1 key2 wordOffset) :
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeAddressKeyedMapping2WordSlots world [slot] key1 key2 wordOffset value)
       query =
       SourceSemantics.encodeStorageAt fields world query := by
   apply SourceSemantics.encodeStorageAt_congr
-  · simp only [SourceSemantics.writeAddressKeyedMapping2WordSlots]
-    unfold Compiler.Proofs.abstractMappingSlot at hneq
-    simp [hneq]
+  · by_cases hEq :
+        query =
+          (Compiler.Proofs.solidityMappingSlot
+            (Compiler.Proofs.solidityMappingSlot slot key1) key2 + wordOffset) %
+            Compiler.Constants.evmModulus
+    · exfalso
+      have htarget : query = mapping2WordTargetSlot slot key1 key2 wordOffset := by
+        rw [mapping2WordTargetSlot_eq_uint256_add]
+        have hslotEq :
+            (Verity.Core.Uint256.ofNat wordOffset +
+              Verity.Core.Uint256.ofNat
+                (Compiler.Proofs.solidityMappingSlot
+                  (Compiler.Proofs.solidityMappingSlot slot key1) key2)).val =
+            (Compiler.Proofs.solidityMappingSlot
+              (Compiler.Proofs.solidityMappingSlot slot key1) key2 + wordOffset) %
+              Compiler.Constants.evmModulus := by
+          change
+            (wordOffset % Compiler.Constants.evmModulus +
+                Compiler.Proofs.solidityMappingSlot
+                  (Compiler.Proofs.solidityMappingSlot slot key1) key2 %
+                  Compiler.Constants.evmModulus) %
+              Compiler.Constants.evmModulus =
+            (Compiler.Proofs.solidityMappingSlot
+              (Compiler.Proofs.solidityMappingSlot slot key1) key2 + wordOffset) %
+              Compiler.Constants.evmModulus
+          rw [Nat.add_comm]
+          exact (Nat.add_mod
+            (Compiler.Proofs.solidityMappingSlot
+              (Compiler.Proofs.solidityMappingSlot slot key1) key2)
+            wordOffset Compiler.Constants.evmModulus).symm
+        exact hEq.trans hslotEq.symm
+      exact hneq htarget
+    · simp [SourceSemantics.writeAddressKeyedMapping2WordSlots, List.map_cons, List.map_nil]
+      intro hbad
+      exact False.elim (hEq hbad)
   · simp [SourceSemantics.writeAddressKeyedMapping2WordSlots]
   · simp [SourceSemantics.writeAddressKeyedMapping2WordSlots]
 
@@ -5290,20 +5718,14 @@ private theorem encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_eq_
     {slot key1 key2 wordOffset value : Nat}
     (hresolved :
       findResolvedFieldAtSlotCopy fields
-        (Compiler.Proofs.abstractMappingSlot
-          (Compiler.Proofs.abstractMappingSlot slot key1)
-          key2 + wordOffset) = none)
+        (mapping2WordTargetSlot slot key1 key2 wordOffset) = none)
     (hdyn :
       findDynamicArrayElementAtSlotCopy fields world
-        (Compiler.Proofs.abstractMappingSlot
-          (Compiler.Proofs.abstractMappingSlot slot key1)
-          key2 + wordOffset) = none)
+        (mapping2WordTargetSlot slot key1 key2 wordOffset) = none)
     (hvalue : value < Verity.Core.Uint256.modulus) :
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeAddressKeyedMapping2WordSlots world [slot] key1 key2 wordOffset value)
-      (Compiler.Proofs.abstractMappingSlot
-        (Compiler.Proofs.abstractMappingSlot slot key1)
-        key2 + wordOffset) = value := by
+      (mapping2WordTargetSlot slot key1 key2 wordOffset) = value := by
   rw [encodeStorageAt_eq_copy]
   simp only [encodeStorageAtCopy, hresolved]
   have harray : (SourceSemantics.writeAddressKeyedMapping2WordSlots
@@ -5311,25 +5733,18 @@ private theorem encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_eq_
     simp [SourceSemantics.writeAddressKeyedMapping2WordSlots]
   have hdyn' : findDynamicArrayElementAtSlotCopy fields
       (SourceSemantics.writeAddressKeyedMapping2WordSlots world [slot] key1 key2 wordOffset value)
-      (Compiler.Proofs.abstractMappingSlot
-        (Compiler.Proofs.abstractMappingSlot slot key1)
-        key2 + wordOffset) = none := by
+      (mapping2WordTargetSlot slot key1 key2 wordOffset) = none := by
     have h1 := findDynamicArrayElementAtSlotCopy_eq fields
       (SourceSemantics.writeAddressKeyedMapping2WordSlots world [slot] key1 key2 wordOffset value)
-      (Compiler.Proofs.abstractMappingSlot
-        (Compiler.Proofs.abstractMappingSlot slot key1)
-        key2 + wordOffset)
+      (mapping2WordTargetSlot slot key1 key2 wordOffset)
     have h2 := findDynamicArrayElementAtSlotCopy_eq fields world
-      (Compiler.Proofs.abstractMappingSlot
-        (Compiler.Proofs.abstractMappingSlot slot key1)
-        key2 + wordOffset)
+      (mapping2WordTargetSlot slot key1 key2 wordOffset)
     rw [← h1, SourceSemantics.findDynamicArrayElementAtSlot_congr_storageArray _ _ _ _ harray,
         h2, hdyn]
-  simp only [hdyn']
-  simp only [SourceSemantics.writeAddressKeyedMapping2WordSlots, List.map_cons, List.map_nil,
-    List.contains_cons, List.contains_nil, Bool.or_false, beq_iff_eq, ite_true]
-  simp only [Verity.Core.Uint256.val_ofNat]
-  exact Nat.mod_eq_of_lt hvalue
+  rw [hdyn']
+  simp [SourceSemantics.writeAddressKeyedMapping2WordSlots, mapping2WordTargetSlot,
+    SourceSemantics.wordNormalize, Verity.Core.Uint256.val_ofNat]
+  exact hvalue
 
 private def abstractStoreStorageOrMappingMany
     (storage : Nat → Nat) (slots : List Nat) (value : Nat) : Nat → Nat :=
@@ -5407,11 +5822,12 @@ private theorem runtimeStateMatchesIR_writeAddressSlot
     (hresolved : findResolvedFieldAtSlotCopy fields slot = some f)
     (haddr : SourceSemantics.fieldUsesAddressStorage f = true)
     (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
-    (hvalue : value < Verity.Core.Address.modulus) :
+    (hvalue : value < Compiler.Constants.evmModulus) :
     FunctionBody.runtimeStateMatchesIR fields
       { runtime with world := SourceSemantics.writeAddressSlots runtime.world [slot] value }
       { state with
-          storage := Compiler.Proofs.abstractStoreStorageOrMapping state.storage slot value } := by
+          storage := Compiler.Proofs.abstractStoreStorageOrMapping state.storage slot
+            (value &&& Compiler.Constants.addressMask) } := by
   rcases hruntime with
     ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
   refine ⟨?_, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
@@ -5421,16 +5837,10 @@ private theorem runtimeStateMatchesIR_writeAddressSlot
     rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
     rw [encodeStorageAt_eq_storageAddr_of_resolvedSlot hresolved haddr hnotDyn]
     simp [SourceSemantics.writeAddressSlots, Verity.wordToAddress, Verity.Core.Address.ofNat,
-          Verity.Core.Uint256.val_ofNat, Verity.Core.Address.modulus]
-    -- Goal: value = value % Constants.evmModulus % ADDRESS_MODULUS
-    have h256 : value < Constants.evmModulus := by
-      have := hvalue
-      unfold Verity.Core.Address.modulus Verity.Core.ADDRESS_MODULUS at this
-      unfold Constants.evmModulus
-      omega
-    have haddr' : value < Verity.Core.ADDRESS_MODULUS := by
-      unfold Verity.Core.Address.modulus at hvalue; exact hvalue
-    rw [Nat.mod_eq_of_lt h256, Nat.mod_eq_of_lt haddr']
+          Verity.Core.Uint256.val_ofNat, Verity.Core.Address.modulus, Compiler.Constants.addressMask]
+    rw [Nat.mod_eq_of_lt hvalue]
+    simpa [Compiler.Constants.addressMask, Verity.Core.Address.modulus] using
+      (Nat.and_two_pow_sub_one_eq_mod (n := 160) value)
   · rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
     simp only [hEq, ↓reduceIte]
     rw [hstorage]
@@ -5605,10 +6015,10 @@ private theorem runtimeStateMatchesIR_writeAddressKeyedMappingWordSlot
     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state)
     (hresolved :
       findResolvedFieldAtSlotCopy fields
-        (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = none)
+        (mappingWordTargetSlot slot key wordOffset) = none)
     (hdyn :
       findDynamicArrayElementAtSlotCopy fields runtime.world
-        (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = none)
+        (mappingWordTargetSlot slot key wordOffset) = none)
     (hvalue : value < Verity.Core.Uint256.modulus) :
     FunctionBody.runtimeStateMatchesIR fields
       { runtime with
@@ -5617,18 +6027,18 @@ private theorem runtimeStateMatchesIR_writeAddressKeyedMappingWordSlot
       { state with
           storage := Compiler.Proofs.abstractStoreStorageOrMapping
             state.storage
-            (Compiler.Proofs.abstractMappingSlot slot key + wordOffset)
+            (mappingWordTargetSlot slot key wordOffset)
             value } := by
   rcases hruntime with
     ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
   refine ⟨?_, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
   funext query
-  by_cases hEq : query = Compiler.Proofs.abstractMappingSlot slot key + wordOffset
+  by_cases hEq : query = mappingWordTargetSlot slot key wordOffset
   · subst hEq
     rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
     have henc : SourceSemantics.encodeStorageAt fields runtime.world
-        (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) =
-        (runtime.world.storage (Compiler.Proofs.abstractMappingSlot slot key + wordOffset)).val := by
+        (mappingWordTargetSlot slot key wordOffset) =
+        (runtime.world.storage (mappingWordTargetSlot slot key wordOffset)).val := by
       rw [encodeStorageAt_eq_copy]
       simp only [encodeStorageAtCopy, hresolved, hdyn]
     simp only [hstorage, henc]
@@ -5651,10 +6061,10 @@ private theorem runtimeStateMatchesIR_writeAddressKeyedMappingPackedWordSlot
     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state)
     (hresolved :
       findResolvedFieldAtSlotCopy fields
-        (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = none)
+        (mappingWordTargetSlot slot key wordOffset) = none)
     (hdyn :
       findDynamicArrayElementAtSlotCopy fields runtime.world
-        (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = none) :
+        (mappingWordTargetSlot slot key wordOffset) = none) :
     FunctionBody.runtimeStateMatchesIR fields
       { runtime with
           world := SourceSemantics.writeAddressKeyedMappingPackedWordSlots
@@ -5662,23 +6072,23 @@ private theorem runtimeStateMatchesIR_writeAddressKeyedMappingPackedWordSlot
       { state with
           storage := Compiler.Proofs.abstractStoreStorageOrMapping
             state.storage
-            (Compiler.Proofs.abstractMappingSlot slot key + wordOffset)
+            (mappingWordTargetSlot slot key wordOffset)
             (SourceSemantics.packedWordWrite
-              (state.storage (Compiler.Proofs.abstractMappingSlot slot key + wordOffset))
+              (state.storage (mappingWordTargetSlot slot key wordOffset))
               value
               packed) } := by
   rcases hruntime with
     ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
   refine ⟨?_, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
   funext query
-  by_cases hEq : query = Compiler.Proofs.abstractMappingSlot slot key + wordOffset
+  by_cases hEq : query = mappingWordTargetSlot slot key wordOffset
   · subst hEq
     rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
     -- After simp [hstorage], the packedWordWrite arg becomes encodeStorageAt fields runtime.world slot
     -- but _eq_written expects (runtime.world.storage slot).val. Show they're equal.
     have henc : SourceSemantics.encodeStorageAt fields runtime.world
-        (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) =
-        (runtime.world.storage (Compiler.Proofs.abstractMappingSlot slot key + wordOffset)).val := by
+        (mappingWordTargetSlot slot key wordOffset) =
+        (runtime.world.storage (mappingWordTargetSlot slot key wordOffset)).val := by
       rw [encodeStorageAt_eq_copy]
       simp only [encodeStorageAtCopy, hresolved, hdyn]
     simp only [hstorage, henc]
@@ -5692,52 +6102,55 @@ private theorem runtimeStateMatchesIR_writeAddressKeyedMappingPackedWordSlot
       (fields := fields) (world := runtime.world) (slot := slot) (key := key)
       (wordOffset := wordOffset) (packed := packed) (query := query) (value := value) hEq).symm
 
--- TYPESIG_SORRY: private theorem runtimeStateMatchesIR_writeAddressKeyedMapping2Slot
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {runtime : SourceSemantics.RuntimeState}
--- TYPESIG_SORRY:     {state : IRState}
--- TYPESIG_SORRY:     {slot key1 key2 value : Nat}
--- TYPESIG_SORRY:     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state)
--- TYPESIG_SORRY:     (hresolved :
--- TYPESIG_SORRY:       findResolvedFieldAtSlotCopy fields
--- TYPESIG_SORRY:         (Compiler.Proofs.abstractMappingSlot
--- TYPESIG_SORRY:           (Compiler.Proofs.abstractMappingSlot slot key1)
--- TYPESIG_SORRY:           key2) = none)
--- TYPESIG_SORRY:     (hdyn :
--- TYPESIG_SORRY:       findDynamicArrayElementAtSlotCopy fields runtime.world
--- TYPESIG_SORRY:         (Compiler.Proofs.abstractMappingSlot
--- TYPESIG_SORRY:           (Compiler.Proofs.abstractMappingSlot slot key1)
--- TYPESIG_SORRY:           key2) = none) :
--- TYPESIG_SORRY:     FunctionBody.runtimeStateMatchesIR fields
--- TYPESIG_SORRY:       { runtime with
--- TYPESIG_SORRY:           world := SourceSemantics.writeAddressKeyedMapping2Slots runtime.world [slot] key1 key2 value }
--- TYPESIG_SORRY:       { state with
--- TYPESIG_SORRY:           storage := by sorry
--- SORRY'D:             Compiler.Proofs.abstractStoreMappingEntry
--- SORRY'D:               (Compiler.Proofs.abstractStoreMappingEntry state.storage slot key1 0)
--- SORRY'D:               (Compiler.Proofs.abstractMappingSlot slot key1)
--- SORRY'D:               key2
--- SORRY'D:               value } := by
--- SORRY'D:   rcases hruntime with
--- SORRY'D:     ⟨hstorage, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
--- SORRY'D:   refine ⟨?_, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
--- SORRY'D:   funext query
--- SORRY'D:   by_cases hEq : query =
--- SORRY'D:       Compiler.Proofs.abstractMappingSlot
--- SORRY'D:         (Compiler.Proofs.abstractMappingSlot slot key1)
--- SORRY'D:         key2
--- SORRY'D:   · subst hEq
--- SORRY'D:     rw [Compiler.Proofs.abstractStoreMappingEntry_eq]
--- SORRY'D:     simp [Compiler.Proofs.abstractStoreMappingEntry_eq]
--- SORRY'D:     exact encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_eq_written
--- SORRY'D:       (fields := fields) (world := runtime.world)
--- SORRY'D:       (slot := slot) (key1 := key1) (key2 := key2) (value := value)
--- SORRY'D:       hresolved hdyn
--- SORRY'D:   · rw [Compiler.Proofs.abstractStoreMappingEntry_eq, hstorage]
--- SORRY'D:     simp [hEq, Compiler.Proofs.abstractStoreMappingEntry_eq,
--- SORRY'D:       encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_other (fields := fields)
--- SORRY'D:         (world := runtime.world) (slot := slot) (key1 := key1) (key2 := key2)
--- SORRY'D:         (query := query) (value := value) hEq]
+private theorem runtimeStateMatchesIR_writeAddressKeyedMapping2Slot
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {slot key1 key2 value : Nat}
+    (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state)
+    (hresolved :
+      findResolvedFieldAtSlotCopy fields
+        (Compiler.Proofs.abstractMappingSlot
+          (Compiler.Proofs.abstractMappingSlot slot key1)
+          key2) = none)
+    (hdyn :
+      findDynamicArrayElementAtSlotCopy fields runtime.world
+        (Compiler.Proofs.abstractMappingSlot
+          (Compiler.Proofs.abstractMappingSlot slot key1)
+          key2) = none)
+    (hvalue : value < Verity.Core.Uint256.modulus) :
+    FunctionBody.runtimeStateMatchesIR fields
+      { runtime with
+          world := SourceSemantics.writeAddressKeyedMapping2Slots runtime.world [slot] key1 key2 value }
+      { state with
+          storage :=
+            Compiler.Proofs.abstractStoreMappingEntry
+              state.storage
+              (Compiler.Proofs.abstractMappingSlot slot key1)
+              key2
+              value } := by
+  rcases hruntime with
+    ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+  refine ⟨?_, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+  funext query
+  simp only [Compiler.Proofs.abstractStoreMappingEntry]
+  by_cases hEq : query =
+      Compiler.Proofs.solidityMappingSlot
+        (Compiler.Proofs.abstractMappingSlot slot key1)
+        key2
+  · subst hEq
+    simp only [↓reduceIte]
+    rw [Compiler.Proofs.abstractMappingSlot_eq_solidity] at hresolved hdyn
+    exact (encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_eq_written
+      (fields := fields) (world := runtime.world)
+      (slot := slot) (key1 := key1) (key2 := key2) (value := value)
+      hresolved hdyn hvalue).symm
+  · simp only [hEq, ↓reduceIte]
+    rw [hstorage]
+    rw [Compiler.Proofs.abstractMappingSlot_eq_solidity] at hEq
+    exact (encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_other (fields := fields)
+      (world := runtime.world) (slot := slot) (key1 := key1) (key2 := key2)
+      (query := query) (value := value) hEq).symm
 
 private theorem runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot
     {fields : List Field}
@@ -5747,14 +6160,10 @@ private theorem runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot
     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state)
     (hresolved :
       findResolvedFieldAtSlotCopy fields
-        (Compiler.Proofs.abstractMappingSlot
-          (Compiler.Proofs.abstractMappingSlot slot key1)
-          key2 + wordOffset) = none)
+        (mapping2WordTargetSlot slot key1 key2 wordOffset) = none)
     (hdyn :
       findDynamicArrayElementAtSlotCopy fields runtime.world
-        (Compiler.Proofs.abstractMappingSlot
-          (Compiler.Proofs.abstractMappingSlot slot key1)
-          key2 + wordOffset) = none)
+        (mapping2WordTargetSlot slot key1 key2 wordOffset) = none)
     (hvalue : value < Verity.Core.Uint256.modulus) :
     FunctionBody.runtimeStateMatchesIR fields
       { runtime with
@@ -5763,28 +6172,18 @@ private theorem runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot
       { state with
           storage := Compiler.Proofs.abstractStoreStorageOrMapping
             state.storage
-            (Compiler.Proofs.abstractMappingSlot
-              (Compiler.Proofs.abstractMappingSlot slot key1)
-              key2 + wordOffset)
+            (mapping2WordTargetSlot slot key1 key2 wordOffset)
             value } := by
   rcases hruntime with
     ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
   refine ⟨?_, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
   funext query
-  by_cases hEq : query =
-      Compiler.Proofs.abstractMappingSlot
-        (Compiler.Proofs.abstractMappingSlot slot key1)
-        key2 + wordOffset
+  by_cases hEq : query = mapping2WordTargetSlot slot key1 key2 wordOffset
   · subst hEq
     rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
     have henc : SourceSemantics.encodeStorageAt fields runtime.world
-        (Compiler.Proofs.abstractMappingSlot
-          (Compiler.Proofs.abstractMappingSlot slot key1)
-          key2 + wordOffset) =
-        (runtime.world.storage
-          (Compiler.Proofs.abstractMappingSlot
-            (Compiler.Proofs.abstractMappingSlot slot key1)
-            key2 + wordOffset)).val := by
+        (mapping2WordTargetSlot slot key1 key2 wordOffset) =
+        (runtime.world.storage (mapping2WordTargetSlot slot key1 key2 wordOffset)).val := by
       rw [encodeStorageAt_eq_copy]
       simp only [encodeStorageAtCopy, hresolved, hdyn]
     simp only [hstorage, henc]
@@ -5875,39 +6274,39 @@ private theorem execIRStmts_sstore_lit_ident_slots_continue
       simp only [abstractStoreStorageOrMappingMany]
       convert htail using 2 <;> omega
 
--- TYPESIG_SORRY: private theorem execIRStmts_let_then_sstore_lit_ident_slots_continue
--- TYPESIG_SORRY:     (fuel : Nat)
--- TYPESIG_SORRY:     (state : IRState)
--- TYPESIG_SORRY:     (slots : List Nat)
--- TYPESIG_SORRY:     (tempName : String)
--- TYPESIG_SORRY:     (valueIR : YulExpr)
--- TYPESIG_SORRY:     (value : Nat)
--- TYPESIG_SORRY:     (hvalue : evalIRExpr state valueIR = some value) :
--- TYPESIG_SORRY:     execIRStmts (slots.length + fuel + 2) state
--- TYPESIG_SORRY:       (YulStmt.let_ tempName valueIR ::
--- TYPESIG_SORRY:         slots.map (fun slot =>
--- TYPESIG_SORRY:           YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, YulExpr.ident tempName]))) =
--- TYPESIG_SORRY:       .continue
--- TYPESIG_SORRY:         { state.setVar tempName value with
--- TYPESIG_SORRY:             storage := by sorry
--- SORRY'D:               abstractStoreStorageOrMappingMany
--- SORRY'D:                 (state.setVar tempName value).storage
--- SORRY'D:                 slots
--- SORRY'D:                 value } := by
--- SORRY'D:   have hlet :
--- SORRY'D:       execIRStmt (slots.length + fuel + 1) state
--- SORRY'D:         (YulStmt.let_ tempName valueIR) =
--- SORRY'D:           .continue (state.setVar tempName value) := by
--- SORRY'D:     simp [execIRStmt, hvalue]
--- SORRY'D:   have hslots :=
--- SORRY'D:     execIRStmts_sstore_lit_ident_slots_continue
--- SORRY'D:       fuel
--- SORRY'D:       (state.setVar tempName value)
--- SORRY'D:       slots
--- SORRY'D:       tempName
--- SORRY'D:       value
--- SORRY'D:       (by simp [IRState.getVar])
--- SORRY'D:   simpa [execIRStmts, hlet] using hslots
+private theorem execIRStmts_let_then_sstore_lit_ident_slots_continue
+    (fuel : Nat)
+    (state : IRState)
+    (slots : List Nat)
+    (tempName : String)
+    (valueIR : YulExpr)
+    (value : Nat)
+    (hvalue : evalIRExpr state valueIR = some value) :
+    execIRStmts (slots.length + fuel + 2) state
+      (YulStmt.let_ tempName valueIR ::
+        slots.map (fun slot =>
+          YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, YulExpr.ident tempName]))) =
+      .continue
+        { state.setVar tempName value with
+            storage :=
+              abstractStoreStorageOrMappingMany
+                (state.setVar tempName value).storage
+                slots
+                value } := by
+  have hlet :
+      execIRStmt (slots.length + fuel + 1) state
+        (YulStmt.let_ tempName valueIR) =
+          .continue (state.setVar tempName value) := by
+    simp [execIRStmt, hvalue]
+  have hslots :=
+    execIRStmts_sstore_lit_ident_slots_continue
+      fuel
+      (state.setVar tempName value)
+      slots
+      tempName
+      value
+      (by simp [IRState.getVar, IRState.setVar])
+  simpa [execIRStmts, hlet] using hslots
 
 private theorem execIRStmts_single_block_of_continue
     (fuel : Nat)
@@ -5920,12 +6319,27 @@ private theorem execIRStmts_single_block_of_continue
     simpa [execIRStmt, Nat.add_comm, Nat.add_left_comm, Nat.add_assoc] using hbody
   simpa [execIRStmts, hblock]
 
+private theorem singletonBlock_sizeOf_slack (body : List YulStmt) :
+    sizeOf [YulStmt.block body] - [YulStmt.block body].length = sizeOf body + 2 := by
+  simp [YulStmt.block.sizeOf_spec]
+  omega
+
 private theorem compatValue_not_mem_scope_of_reservedPrefix
     {scope : List String}
     (hscopeReserved : scopeAvoidsReservedCompilerPrefix scope) :
     "__compat_value" ∉ scope := by
-  intro hmem
-  have hprefix : "__compat_value".startsWith "__" := by
+  exact hscopeReserved.1
+
+private theorem compatScratch_startsWith_reserved
+    {name : String}
+    (h :
+      name = "__compat_value" ∨
+      name = "__compat_packed" ∨
+      name = "__compat_slot_word" ∨
+      name = "__compat_slot_cleared") :
+    name.startsWith "__" = true := by
+  rcases h with h | h
+  · subst h
     unfold String.startsWith
     change Substring.beq ("__compat_value".toSubstring.take "__".length) "__".toSubstring = true
     simp [Substring.beq, String.toSubstring, Substring.take]
@@ -5949,20 +6363,238 @@ private theorem compatValue_not_mem_scope_of_reservedPrefix
             simp
             left
             decide
-  exact hscopeReserved "__compat_value" hmem hprefix
+  rcases h with h | h
+  · subst h
+    unfold String.startsWith
+    change Substring.beq ("__compat_packed".toSubstring.take "__".length) "__".toSubstring = true
+    simp [Substring.beq, String.toSubstring, Substring.take]
+    constructor
+    · rfl
+    · unfold String.substrEq
+      simp
+      constructor
+      · decide
+      · unfold String.substrEq.loop
+        simp
+        right
+        constructor
+        · rfl
+        · unfold String.substrEq.loop
+          simp
+          right
+          constructor
+          · rfl
+          · unfold String.substrEq.loop
+            simp
+            left
+            decide
+  rcases h with h | h
+  · subst h
+    unfold String.startsWith
+    change Substring.beq ("__compat_slot_word".toSubstring.take "__".length) "__".toSubstring = true
+    simp [Substring.beq, String.toSubstring, Substring.take]
+    constructor
+    · rfl
+    · unfold String.substrEq
+      simp
+      constructor
+      · decide
+      · unfold String.substrEq.loop
+        simp
+        right
+        constructor
+        · rfl
+        · unfold String.substrEq.loop
+          simp
+          right
+          constructor
+          · rfl
+          · unfold String.substrEq.loop
+            simp
+            left
+            decide
+  · subst h
+    unfold String.startsWith
+    change Substring.beq ("__compat_slot_cleared".toSubstring.take "__".length) "__".toSubstring = true
+    simp [Substring.beq, String.toSubstring, Substring.take]
+    constructor
+    · rfl
+    · unfold String.substrEq
+      simp
+      constructor
+      · decide
+      · unfold String.substrEq.loop
+        simp
+        right
+        constructor
+        · rfl
+        · unfold String.substrEq.loop
+          simp
+          right
+          constructor
+          · rfl
+          · unfold String.substrEq.loop
+            simp
+            left
+            decide
 
-private theorem validateIdentifierShapes_fieldName_avoidReservedCompilerPrefix
+private theorem compatScratch_not_internalImmutable
+    {name : String}
+    (h :
+      name = "__compat_value" ∨
+      name = "__compat_packed" ∨
+      name = "__compat_slot_word" ∨
+      name = "__compat_slot_cleared") :
+    name.startsWith "__immutable_" = false := by
+  rcases h with h | h
+  · subst h
+    unfold String.startsWith
+    change Substring.beq ("__compat_value".toSubstring.take "__immutable_".length)
+      "__immutable_".toSubstring = false
+    simp [Substring.beq, String.toSubstring, Substring.take]
+    intro hlen
+    unfold String.substrEq
+    simp
+    intro h1
+    intro h2
+    unfold String.substrEq.loop
+    simp
+    constructor
+    · decide
+    · intro hchar
+      unfold String.substrEq.loop
+      simp
+      constructor
+      · decide
+      · intro hchar2
+        unfold String.substrEq.loop
+        simp
+        constructor
+        · decide
+        · intro hchar3
+          cases hchar3
+  rcases h with h | h
+  · subst h
+    unfold String.startsWith
+    change Substring.beq ("__compat_packed".toSubstring.take "__immutable_".length)
+      "__immutable_".toSubstring = false
+    simp [Substring.beq, String.toSubstring, Substring.take]
+    intro hlen
+    unfold String.substrEq
+    simp
+    intro h1
+    intro h2
+    unfold String.substrEq.loop
+    simp
+    constructor
+    · decide
+    · intro hchar
+      unfold String.substrEq.loop
+      simp
+      constructor
+      · decide
+      · intro hchar2
+        unfold String.substrEq.loop
+        simp
+        constructor
+        · decide
+        · intro hchar3
+          cases hchar3
+  rcases h with h | h
+  · subst h
+    unfold String.startsWith
+    change Substring.beq ("__compat_slot_word".toSubstring.take "__immutable_".length)
+      "__immutable_".toSubstring = false
+    simp [Substring.beq, String.toSubstring, Substring.take]
+    intro hlen
+    unfold String.substrEq
+    simp
+    intro h1
+    intro h2
+    unfold String.substrEq.loop
+    simp
+    constructor
+    · decide
+    · intro hchar
+      unfold String.substrEq.loop
+      simp
+      constructor
+      · decide
+      · intro hchar2
+        unfold String.substrEq.loop
+        simp
+        constructor
+        · decide
+        · intro hchar3
+          cases hchar3
+  · subst h
+    unfold String.startsWith
+    change Substring.beq ("__compat_slot_cleared".toSubstring.take "__immutable_".length)
+      "__immutable_".toSubstring = false
+    simp [Substring.beq, String.toSubstring, Substring.take]
+    intro hlen
+    unfold String.substrEq
+    simp
+    intro h1
+    intro h2
+    unfold String.substrEq.loop
+    simp
+    constructor
+    · decide
+    · intro hchar
+      unfold String.substrEq.loop
+      simp
+      constructor
+      · decide
+      · intro hchar2
+        unfold String.substrEq.loop
+        simp
+        constructor
+        · decide
+        · intro hchar3
+          cases hchar3
+
+private theorem validateIdentifierShapes_fieldName_ne_reservedScratch
     {spec : CompilationModel}
     {name : String}
     (hvalidate : validateIdentifierShapes spec = Except.ok ())
     (hmem : name ∈ spec.fields.map (·.name)) :
-    ¬ name.startsWith "__" := by
-  -- Temporary stabilization point after `validateIdentifierShapes` started
-  -- permitting reserved-prefix field names for internal immutable storage.
-  -- Clean fix: thread the stronger field-shape classification through the
-  -- generic induction scope invariant instead of collapsing it to a blanket
-  -- `¬ startsWith "__"` fact here.
-  sorry
+    name ≠ "__compat_value" ∧
+    name ≠ "__compat_packed" ∧
+    name ≠ "__compat_slot_word" ∧
+    name ≠ "__compat_slot_cleared" := by
+  rcases List.mem_map.mp hmem with ⟨field, hfield, rfl⟩
+  have hreserved :=
+    CompilationModel.validateIdentifierShapes_field_avoidReservedCompilerPrefix hvalidate hfield
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · intro hEq
+    exact hreserved (by
+      have hprefix : "__compat_value".startsWith "__" = true := by
+        exact compatScratch_startsWith_reserved (Or.inl rfl)
+      have himm : "__compat_value".startsWith "__immutable_" = false := by
+        exact compatScratch_not_internalImmutable (Or.inl rfl)
+      simpa [hEq, hprefix, himm])
+  · intro hEq
+    exact hreserved (by
+      have hprefix : "__compat_packed".startsWith "__" = true := by
+        exact compatScratch_startsWith_reserved (Or.inr <| Or.inl rfl)
+      have himm : "__compat_packed".startsWith "__immutable_" = false := by
+        exact compatScratch_not_internalImmutable (Or.inr <| Or.inl rfl)
+      simpa [hEq, hprefix, himm])
+  · intro hEq
+    exact hreserved (by
+      have hprefix : "__compat_slot_word".startsWith "__" = true := by
+        exact compatScratch_startsWith_reserved (Or.inr <| Or.inr <| Or.inl rfl)
+      have himm : "__compat_slot_word".startsWith "__immutable_" = false := by
+        exact compatScratch_not_internalImmutable (Or.inr <| Or.inr <| Or.inl rfl)
+      simpa [hEq, hprefix, himm])
+  · intro hEq
+    exact hreserved (by
+      have hprefix : "__compat_slot_cleared".startsWith "__" = true := by
+        exact compatScratch_startsWith_reserved (Or.inr <| Or.inr <| Or.inr rfl)
+      have himm : "__compat_slot_cleared".startsWith "__immutable_" = false := by
+        exact compatScratch_not_internalImmutable (Or.inr <| Or.inr <| Or.inr rfl)
+      simpa [hEq, hprefix, himm])
 
 private theorem scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes
     {spec : CompilationModel}
@@ -5978,275 +6610,609 @@ private theorem scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes
             collectStmtListAssignedNames fn.body ++
             spec.fields.map (·.name))) :
     scopeAvoidsReservedCompilerPrefix scope := by
-  intro name hmem
-  have hname := hscopeNames name hmem
-  have hname' :
-      name ∈ fn.params.map (·.name) ∨
-      name ∈ collectStmtListBindNames fn.body ∨
-      name ∈ collectStmtListAssignedNames fn.body ∨
-      name ∈ spec.fields.map (·.name) := by
-    simpa [List.mem_append, or_assoc] using hname
-  rcases hname' with hparam | hrest
-  · exact CompilationModel.validateIdentifierShapes_functionParams_avoidReservedCompilerPrefix
-      hvalidate hfn hparam
-  rcases hrest with hlocal | hrest
-  · exact CompilationModel.validateIdentifierShapes_functionLocals_avoidReservedCompilerPrefix
-      hvalidate hfn hlocal
-  rcases hrest with hassign | hfield
-  · exact CompilationModel.validateIdentifierShapes_functionAssignTargets_avoidReservedCompilerPrefix
-      hvalidate hfn hassign
-  · exact validateIdentifierShapes_fieldName_avoidReservedCompilerPrefix hvalidate hfield
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · intro hmem
+    have hname := hscopeNames "__compat_value" hmem
+    have hname' :
+        "__compat_value" ∈ fn.params.map (·.name) ∨
+        "__compat_value" ∈ collectStmtListBindNames fn.body ∨
+        "__compat_value" ∈ collectStmtListAssignedNames fn.body ∨
+        "__compat_value" ∈ spec.fields.map (·.name) := by
+      simpa [List.mem_append, or_assoc] using hname
+    rcases hname' with hparam | hrest
+    · exact
+        (CompilationModel.validateIdentifierShapes_functionParams_avoidReservedCompilerPrefix
+          hvalidate hfn hparam) (compatScratch_startsWith_reserved (Or.inl rfl))
+    rcases hrest with hlocal | hrest
+    · exact
+        (CompilationModel.validateIdentifierShapes_functionLocals_avoidReservedCompilerPrefix
+          hvalidate hfn hlocal) (compatScratch_startsWith_reserved (Or.inl rfl))
+    rcases hrest with hassign | hfield
+    · exact
+        (CompilationModel.validateIdentifierShapes_functionAssignTargets_avoidReservedCompilerPrefix
+          hvalidate hfn hassign) (compatScratch_startsWith_reserved (Or.inl rfl))
+    · exact (validateIdentifierShapes_fieldName_ne_reservedScratch hvalidate hfield).1 rfl
+  · intro hmem
+    have hname := hscopeNames "__compat_packed" hmem
+    have hname' :
+        "__compat_packed" ∈ fn.params.map (·.name) ∨
+        "__compat_packed" ∈ collectStmtListBindNames fn.body ∨
+        "__compat_packed" ∈ collectStmtListAssignedNames fn.body ∨
+        "__compat_packed" ∈ spec.fields.map (·.name) := by
+      simpa [List.mem_append, or_assoc] using hname
+    rcases hname' with hparam | hrest
+    · exact
+        (CompilationModel.validateIdentifierShapes_functionParams_avoidReservedCompilerPrefix
+          hvalidate hfn hparam) (compatScratch_startsWith_reserved (Or.inr (Or.inl rfl)))
+    rcases hrest with hlocal | hrest
+    · exact
+        (CompilationModel.validateIdentifierShapes_functionLocals_avoidReservedCompilerPrefix
+          hvalidate hfn hlocal) (compatScratch_startsWith_reserved (Or.inr (Or.inl rfl)))
+    rcases hrest with hassign | hfield
+    · exact
+        (CompilationModel.validateIdentifierShapes_functionAssignTargets_avoidReservedCompilerPrefix
+          hvalidate hfn hassign) (compatScratch_startsWith_reserved (Or.inr (Or.inl rfl)))
+    · exact (validateIdentifierShapes_fieldName_ne_reservedScratch hvalidate hfield).2.1 rfl
+  · intro hmem
+    have hname := hscopeNames "__compat_slot_word" hmem
+    have hname' :
+        "__compat_slot_word" ∈ fn.params.map (·.name) ∨
+        "__compat_slot_word" ∈ collectStmtListBindNames fn.body ∨
+        "__compat_slot_word" ∈ collectStmtListAssignedNames fn.body ∨
+        "__compat_slot_word" ∈ spec.fields.map (·.name) := by
+      simpa [List.mem_append, or_assoc] using hname
+    rcases hname' with hparam | hrest
+    · exact
+        (CompilationModel.validateIdentifierShapes_functionParams_avoidReservedCompilerPrefix
+          hvalidate hfn hparam) (compatScratch_startsWith_reserved (Or.inr (Or.inr (Or.inl rfl))))
+    rcases hrest with hlocal | hrest
+    · exact
+        (CompilationModel.validateIdentifierShapes_functionLocals_avoidReservedCompilerPrefix
+          hvalidate hfn hlocal) (compatScratch_startsWith_reserved (Or.inr (Or.inr (Or.inl rfl))))
+    rcases hrest with hassign | hfield
+    · exact
+        (CompilationModel.validateIdentifierShapes_functionAssignTargets_avoidReservedCompilerPrefix
+          hvalidate hfn hassign) (compatScratch_startsWith_reserved (Or.inr (Or.inr (Or.inl rfl))))
+    · exact (validateIdentifierShapes_fieldName_ne_reservedScratch hvalidate hfield).2.2.1 rfl
+  · intro hmem
+    have hname := hscopeNames "__compat_slot_cleared" hmem
+    have hname' :
+        "__compat_slot_cleared" ∈ fn.params.map (·.name) ∨
+        "__compat_slot_cleared" ∈ collectStmtListBindNames fn.body ∨
+        "__compat_slot_cleared" ∈ collectStmtListAssignedNames fn.body ∨
+        "__compat_slot_cleared" ∈ spec.fields.map (·.name) := by
+      simpa [List.mem_append, or_assoc] using hname
+    rcases hname' with hparam | hrest
+    · exact
+        (CompilationModel.validateIdentifierShapes_functionParams_avoidReservedCompilerPrefix
+          hvalidate hfn hparam) (compatScratch_startsWith_reserved (Or.inr (Or.inr (Or.inr rfl))))
+    rcases hrest with hlocal | hrest
+    · exact
+        (CompilationModel.validateIdentifierShapes_functionLocals_avoidReservedCompilerPrefix
+          hvalidate hfn hlocal) (compatScratch_startsWith_reserved (Or.inr (Or.inr (Or.inr rfl))))
+    rcases hrest with hassign | hfield
+    · exact
+        (CompilationModel.validateIdentifierShapes_functionAssignTargets_avoidReservedCompilerPrefix
+          hvalidate hfn hassign) (compatScratch_startsWith_reserved (Or.inr (Or.inr (Or.inr rfl))))
+    · exact (validateIdentifierShapes_fieldName_ne_reservedScratch hvalidate hfield).2.2.2 rfl
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setStorage_singleSlot
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {fieldName : String}
--- TYPESIG_SORRY:     {value : Expr}
--- TYPESIG_SORRY:     {valueIR : YulExpr}
--- TYPESIG_SORRY:     {f : Field}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hcore : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScope : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hfind : findFieldWithResolvedSlot fields fieldName = some (f, slot))
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
--- TYPESIG_SORRY:     (halias : f.aliasSlots = [])
--- TYPESIG_SORRY:     (hunpacked : f.packedBits = none)
--- TYPESIG_SORRY:     (hnoConflict : firstFieldWriteSlotConflict fields = none)
--- TYPESIG_SORRY:     (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
--- TYPESIG_SORRY:     (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.setStorage fieldName value)
--- TYPESIG_SORRY:       [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, valueIR])] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, CompilationModel.compileSetStorage,
--- SORRY'D:       hfind, halias, hunpacked, hvalueIR]
--- SORRY'D:   preserves runtime state extraFuel hexact hscope hbounded hruntime hslack := by
--- SORRY'D:     let compiledIR := [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, valueIR])]
--- SORRY'D:     let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:     have hresolvedSlot :
--- SORRY'D:         findResolvedFieldAtSlotCopy fields slot = some f :=
--- SORRY'D:       findResolvedFieldAtSlotCopy_of_findFieldWithResolvedSlot_singleton
--- SORRY'D:         hnoConflict hfind hwriteSlots hunpacked
--- SORRY'D:     have heval :=
--- SORRY'D:       FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:         hcore hexact hinScope hbounded
--- SORRY'D:         (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope)
--- SORRY'D:         hruntime
--- SORRY'D:     rw [hvalueIR] at heval
--- SORRY'D:     have hvalueEval : evalIRExpr state valueIR = some valueNat := by
--- SORRY'D:       simpa [valueNat] using heval
--- SORRY'D:     have hslack' : sizeOf compiledIR - compiledIR.length ≤ extraFuel := by
--- SORRY'D:       simpa [compiledIR] using hslack
--- SORRY'D:     refine ⟨_, _, ?_⟩
--- SORRY'D:     · simp [SourceSemantics.execStmt, hwriteSlots, valueNat]
--- SORRY'D:     · have hExecStmt :
--- SORRY'D:           execIRStmt (extraFuel + 1) state
--- SORRY'D:             (YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, valueIR])) =
--- SORRY'D:               .continue
--- SORRY'D:                 { state with
--- SORRY'D:                     storage :=
--- SORRY'D:                       Compiler.Proofs.abstractStoreStorageOrMapping
--- SORRY'D:                         state.storage slot valueNat } :=
--- SORRY'D:         execIRStmt_sstore_lit_expr_succ_of_eval
--- SORRY'D:           extraFuel state slot valueIR valueNat hvalueEval
--- SORRY'D:       simpa [compiledIR, execIRStmts, hExecStmt]
--- SORRY'D:     · refine And.intro ?_ <| And.intro ?_ <| And.intro hbounded hscope
--- SORRY'D:       · exact runtimeStateMatchesIR_writeUintSlot hruntime hresolvedSlot hnotAddr hnotDyn
--- SORRY'D:       · exact bindingsExactlyMatchIRVarsOnScope_writeUintSlot hexact
+private theorem findFieldWriteSlots_of_findFieldWithResolvedSlot
+    {fields : List Field} {name : String} {f : Field} {slot : Nat}
+    (h : findFieldWithResolvedSlot fields name = some (f, slot)) :
+    findFieldWriteSlots fields name = some (slot :: f.aliasSlots) := by
+  rw [findFieldWriteSlots_eq_CopyFrom, findFieldWithResolvedSlot_eq_CopyFrom] at *
+  revert h
+  suffices ∀ idx,
+      findFieldWithResolvedSlotCopyFrom fields idx name = some (f, slot) →
+      findFieldWriteSlotsCopyFrom fields idx name = some (slot :: f.aliasSlots) by
+    exact this 0
+  intro idx h
+  induction fields generalizing idx with
+  | nil => simp [findFieldWithResolvedSlotCopyFrom] at h
+  | cons hd tl ih =>
+    unfold findFieldWithResolvedSlotCopyFrom at h
+    unfold findFieldWriteSlotsCopyFrom
+    by_cases hname : hd.name == name
+    · rw [if_pos hname] at h ⊢
+      simp at h
+      rcases h with ⟨hf, hslot⟩
+      rw [← hf, ← hslot]
+    · rw [if_neg hname] at h ⊢
+      exact ih (idx + 1) h
 
--- TYPESIG_SORRY: private theorem compiledStmtStep_setStorageAddr_singleSlot_preserves
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {fieldName : String}
--- TYPESIG_SORRY:     {value : Expr}
--- TYPESIG_SORRY:     {valueIR : YulExpr}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hcore : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScope : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hfind : findFieldWithResolvedSlot fields fieldName =
--- TYPESIG_SORRY:       some ({ name := fieldName, ty := FieldType.address }, slot))
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
--- TYPESIG_SORRY:     (hnoConflict : firstFieldWriteSlotConflict fields = none)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep.Preserves fields scope
--- TYPESIG_SORRY:       (.setStorageAddr fieldName value)
--- TYPESIG_SORRY:       [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, valueIR])] := by sorry
--- SORRY'D:   intro runtime state extraFuel hexact hscope hbounded hruntime hslack
--- SORRY'D:   let compiledIR := [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, valueIR])]
--- SORRY'D:   let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:   have hresolvedSlot : findResolvedFieldAtSlotCopy fields slot =
--- SORRY'D:       some { name := fieldName, ty := FieldType.address } :=
--- SORRY'D:     findResolvedFieldAtSlotCopy_of_findFieldWithResolvedSlot_singleton
--- SORRY'D:       hnoConflict hfind hwriteSlots (by rfl)
--- SORRY'D:   have heval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcore hexact hinScope hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope)
--- SORRY'D:       hruntime
--- SORRY'D:   rw [hvalueIR] at heval
--- SORRY'D:   have hvalueEval : evalIRExpr state valueIR = some valueNat := by
--- SORRY'D:     simpa [valueNat] using heval
--- SORRY'D:   refine ⟨_, _, ?_⟩
--- SORRY'D:   · simp [SourceSemantics.execStmt, hwriteSlots, valueNat]
--- SORRY'D:   · have hExecStmt :
--- SORRY'D:         execIRStmt (extraFuel + 1) state
--- SORRY'D:           (YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, valueIR])) =
--- SORRY'D:             .continue { state with
--- SORRY'D:               storage := Compiler.Proofs.abstractStoreStorageOrMapping state.storage slot valueNat } :=
--- SORRY'D:       execIRStmt_sstore_lit_expr_succ_of_eval
--- SORRY'D:         extraFuel state slot valueIR valueNat hvalueEval
--- SORRY'D:     simpa [compiledIR, execIRStmts, hExecStmt]
--- SORRY'D:   · refine And.intro ?_ <| And.intro ?_ <| And.intro hbounded hscope
--- SORRY'D:     · exact runtimeStateMatchesIR_writeAddressSlot hruntime hresolvedSlot (by rfl) (by rfl)
--- SORRY'D:     · exact bindingsExactlyMatchIRVarsOnScope_writeUintSlot hexact
+theorem compiledStmtStep_setStorage_singleSlot
+    {fields : List Field}
+    {scope : List String}
+    {fieldName : String}
+    {value : Expr}
+    {valueIR : YulExpr}
+    {f : Field}
+    {slot : Nat}
+    (hcore : FunctionBody.ExprCompileCore value)
+    (hinScope : FunctionBody.exprBoundNamesInScope value scope)
+    (hfind : findFieldWithResolvedSlot fields fieldName = some (f, slot))
+    (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
+    (halias : f.aliasSlots = [])
+    (hunpacked : f.packedBits = none)
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
+    (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
+    (hNotMapping : isMapping fields fieldName = false)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.setStorage fieldName value)
+      [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, valueIR])] where
+  compileOk := by
+    simp [CompilationModel.compileStmt, CompilationModel.compileSetStorage,
+      hNotMapping, hfind, halias, hunpacked, hvalueIR]
+  preserves runtime state extraFuel hexact hscope hbounded hruntime hslack := by
+    let compiledIR := [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, valueIR])]
+    have hresolvedSlot :
+        findResolvedFieldAtSlotCopy fields slot = some f :=
+      findResolvedFieldAtSlotCopy_of_findFieldWithResolvedSlot_singleton
+        hnoConflict hfind hwriteSlots hunpacked
+    have hvalueSourceEval :=
+      FunctionBody.eval_compileExpr_core_of_scope
+        hcore hexact hinScope hbounded
+        (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope)
+        hruntime
+    rw [hvalueIR] at hvalueSourceEval
+    simp [Except.toOption] at hvalueSourceEval
+    rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+    · simp [hIRValue, Option.bind] at hvalueSourceEval
+    · simp [hIRValue, Option.bind] at hvalueSourceEval
+      have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+        hvalueSourceEval.symm
+      have hvalueLt := FunctionBody.evalExpr_lt_evmModulus_core_of_scope
+          hcore hexact hinScope hbounded
+          (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope)
+          hruntime
+      rw [hValueSrc] at hvalueLt
+      simp at hvalueLt
+      set state' := { state with
+          storage :=
+            Compiler.Proofs.abstractStoreStorageOrMapping state.storage slot valueNat }
+      set runtime' := { runtime with
+          world := SourceSemantics.writeUintSlots runtime.world [slot] valueNat }
+      have hSrcExec : SourceSemantics.execStmt fields runtime
+          (.setStorage fieldName value) = .continue runtime' := by
+        simp [SourceSemantics.execStmt, hwriteSlots, hValueSrc, runtime']
+      have hExecStmt :
+          execIRStmt (extraFuel + 1) state
+            (YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, valueIR])) =
+              .continue state' :=
+        execIRStmt_sstore_lit_expr_succ_of_eval
+          extraFuel state slot valueIR valueNat hIRValue
+      have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
+      have hIRExec : execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
+          .continue state' := by
+        simp [compiledIR, execIRStmts, hfuelEq, hExecStmt]
+      have hincl : FunctionBody.scopeNamesIncluded
+          (stmtNextScope scope (.setStorage fieldName value)) scope := by
+        intro n hn
+        simp [stmtNextScope, collectStmtNames] at hn
+        rcases hn with hv | hs
+        · exact hinScope n (collectExprNames_mem_exprBoundNames_of_core hcore n hv)
+        · exact hs
+      have hexact' := FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
+        (bindingsExactlyMatchIRVarsOnScope_writeUintSlot (slot := slot) (value := valueNat) hexact)
+        hincl
+      have hscope' := FunctionBody.scopeNamesPresent_of_included hscope hincl
+      refine ⟨.continue runtime', .continue state', hSrcExec, hIRExec, ?_⟩
+      simp [stmtStepMatchesIRExec]
+      exact ⟨runtimeStateMatchesIR_writeUintSlot hruntime hresolvedSlot hnotAddr hnotDyn hvalueLt,
+        hexact', hbounded, hscope'⟩
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setStorageAddr_singleSlot
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {fieldName : String}
--- TYPESIG_SORRY:     {value : Expr}
--- TYPESIG_SORRY:     {valueIR : YulExpr}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hcore : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScope : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hfind : findFieldWithResolvedSlot fields fieldName =
--- TYPESIG_SORRY:       some ({ name := fieldName, ty := FieldType.address }, slot))
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
--- TYPESIG_SORRY:     (hnoConflict : firstFieldWriteSlotConflict fields = none)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.setStorageAddr fieldName value)
--- TYPESIG_SORRY:       [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, valueIR])] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, CompilationModel.compileSetStorage,
--- SORRY'D:       hfind, hwriteSlots, hvalueIR]
--- SORRY'D:   preserves := compiledStmtStep_setStorageAddr_singleSlot_preserves
--- SORRY'D:     hcore hinScope hfind hwriteSlots hnoConflict hvalueIR
+private theorem compiledStmtStep_setStorageAddr_singleSlot_preserves
+    {fields : List Field}
+    {scope : List String}
+    {fieldName : String}
+    {value : Expr}
+    {valueIR : YulExpr}
+    {slot : Nat}
+    (hcore : FunctionBody.ExprCompileCore value)
+    (hinScope : FunctionBody.exprBoundNamesInScope value scope)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.address }, slot))
+    (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    ∀ runtime state extraFuel,
+      FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state →
+      FunctionBody.scopeNamesPresent scope runtime.bindings →
+      FunctionBody.bindingsBounded runtime.bindings →
+      FunctionBody.runtimeStateMatchesIR fields runtime state →
+      sizeOf
+          [YulStmt.expr
+            (YulExpr.call "sstore"
+              [YulExpr.lit slot,
+                YulExpr.call "and" [valueIR, YulExpr.hex Compiler.Constants.addressMask]])] -
+        [YulStmt.expr
+          (YulExpr.call "sstore"
+            [YulExpr.lit slot,
+              YulExpr.call "and" [valueIR, YulExpr.hex Compiler.Constants.addressMask]])].length ≤
+        extraFuel →
+      ∃ sourceResult irExec,
+        SourceSemantics.execStmt fields runtime (.setStorageAddr fieldName value) = sourceResult ∧
+        execIRStmts
+            ([YulStmt.expr
+              (YulExpr.call "sstore"
+                [YulExpr.lit slot,
+                  YulExpr.call "and" [valueIR, YulExpr.hex Compiler.Constants.addressMask]])].length +
+              extraFuel + 1)
+            state
+            [YulStmt.expr
+              (YulExpr.call "sstore"
+                [YulExpr.lit slot,
+                  YulExpr.call "and" [valueIR, YulExpr.hex Compiler.Constants.addressMask]])] =
+          irExec ∧
+        stmtStepMatchesIRExec fields
+          (stmtNextScope scope (.setStorageAddr fieldName value))
+          sourceResult
+          irExec := by
+  intro runtime state extraFuel hexact hscope hbounded hruntime hslack
+  let compiledIR :=
+    [YulStmt.expr
+      (YulExpr.call "sstore"
+        [YulExpr.lit slot,
+          YulExpr.call "and" [valueIR, YulExpr.hex Compiler.Constants.addressMask]])]
+  have hresolvedSlot : findResolvedFieldAtSlotCopy fields slot =
+      some { name := fieldName, ty := FieldType.address } :=
+    findResolvedFieldAtSlotCopy_of_findFieldWithResolvedSlot_singleton
+      hnoConflict hfind hwriteSlots (by rfl)
+  have hvalueSourceEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcore hexact hinScope hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope)
+      hruntime
+  rw [hvalueIR] at hvalueSourceEval
+  simp [Except.toOption] at hvalueSourceEval
+  rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+  · simp [hIRValue, Option.bind] at hvalueSourceEval
+  · simp [hIRValue, Option.bind] at hvalueSourceEval
+    have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+      hvalueSourceEval.symm
+    have hvalueLt := FunctionBody.evalExpr_lt_evmModulus_core_of_scope
+        hcore hexact hinScope hbounded
+        (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope)
+        hruntime
+    rw [hValueSrc] at hvalueLt
+    simp at hvalueLt
+    have hMaskedEvalRaw :
+        evalIRExpr state
+          (YulExpr.call "and" [valueIR, YulExpr.hex Compiler.Constants.addressMask]) =
+            some ((valueNat % Compiler.Constants.evmModulus) &&&
+              (Compiler.Constants.addressMask % Compiler.Constants.evmModulus)) := by
+      simpa using FunctionBody.evalIRExpr_and_of_eval
+        (state := state)
+        (lhs := valueIR)
+        (rhs := YulExpr.hex Compiler.Constants.addressMask)
+        (b := Compiler.Constants.addressMask)
+        hIRValue
+        (by simp [evalIRExpr, Compiler.Constants.addressMask])
+    have hMaskedEval :
+        evalIRExpr state
+          (YulExpr.call "and" [valueIR, YulExpr.hex Compiler.Constants.addressMask]) =
+            some (valueNat &&& Compiler.Constants.addressMask) := by
+      simpa [Nat.mod_eq_of_lt hvalueLt, Compiler.Constants.addressMask] using hMaskedEvalRaw
+    set state' := { state with
+        storage :=
+          Compiler.Proofs.abstractStoreStorageOrMapping state.storage slot
+            (valueNat &&& Compiler.Constants.addressMask) }
+    set runtime' := { runtime with
+        world := SourceSemantics.writeAddressSlots runtime.world [slot] valueNat }
+    have hSrcExec : SourceSemantics.execStmt fields runtime
+        (.setStorageAddr fieldName value) = .continue runtime' := by
+      simp [SourceSemantics.execStmt, hwriteSlots, hValueSrc, runtime']
+    have hExecStmt :
+        execIRStmt (extraFuel + 1) state
+          (YulStmt.expr
+            (YulExpr.call "sstore"
+              [YulExpr.lit slot,
+                YulExpr.call "and" [valueIR, YulExpr.hex Compiler.Constants.addressMask]])) =
+          .continue state' :=
+      execIRStmt_sstore_lit_expr_succ_of_eval
+        extraFuel state slot
+        (YulExpr.call "and" [valueIR, YulExpr.hex Compiler.Constants.addressMask])
+        (valueNat &&& Compiler.Constants.addressMask)
+        hMaskedEval
+    have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
+    have hIRExec : execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
+        .continue state' := by
+      simp [compiledIR, execIRStmts, hfuelEq, hExecStmt]
+    have hincl : FunctionBody.scopeNamesIncluded
+        (stmtNextScope scope (.setStorageAddr fieldName value)) scope := by
+      intro n hn
+      simp [stmtNextScope, collectStmtNames] at hn
+      rcases hn with hv | hs
+      · exact hinScope n (collectExprNames_mem_exprBoundNames_of_core hcore n hv)
+      · exact hs
+    have hexact' := FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
+      (bindingsExactlyMatchIRVarsOnScope_writeUintSlot
+        (state := state) (slot := slot)
+        (value := valueNat &&& Compiler.Constants.addressMask) hexact)
+      hincl
+    have hscope' := FunctionBody.scopeNamesPresent_of_included hscope hincl
+    refine ⟨.continue runtime', .continue state', hSrcExec, hIRExec, ?_⟩
+    simp [stmtStepMatchesIRExec]
+    exact ⟨runtimeStateMatchesIR_writeAddressSlot hruntime hresolvedSlot (by rfl) (by rfl) hvalueLt,
+      hexact', hbounded, hscope'⟩
 
--- TYPESIG_SORRY: private theorem compiledStmtStep_mstore_single_preserves
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {offset value : Expr}
--- TYPESIG_SORRY:     {offsetIR valueIR : YulExpr}
--- TYPESIG_SORRY:     (hcoreOffset : FunctionBody.ExprCompileCore offset)
--- TYPESIG_SORRY:     (hinScopeOffset : FunctionBody.exprBoundNamesInScope offset scope)
--- TYPESIG_SORRY:     (hcoreValue : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hoffsetIR : CompilationModel.compileExpr fields .calldata offset = Except.ok offsetIR)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep.Preserves fields scope
--- TYPESIG_SORRY:       (.mstore offset value)
--- TYPESIG_SORRY:       [YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])] := by sorry
--- SORRY'D:   intro runtime state extraFuel hexact hscope hbounded hruntime hslack
--- SORRY'D:   let compiledIR := [YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])]
--- SORRY'D:   let offsetNat := SourceSemantics.evalExpr fields runtime offset
--- SORRY'D:   let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:   have hOffsetEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreOffset hexact hinScopeOffset hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeOffset)
--- SORRY'D:       hruntime
--- SORRY'D:   have hValueEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreValue hexact hinScopeValue hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
--- SORRY'D:       hruntime
--- SORRY'D:   rw [hoffsetIR] at hOffsetEval
--- SORRY'D:   rw [hvalueIR] at hValueEval
--- SORRY'D:   have hExecStmt :
--- SORRY'D:       execIRStmt (extraFuel + 1) state
--- SORRY'D:         (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])) =
--- SORRY'D:           .continue
--- SORRY'D:             { state with
--- SORRY'D:                 memory := fun o =>
--- SORRY'D:                   if o = offsetNat then valueNat else state.memory o } := by
--- SORRY'D:     simpa [offsetNat, valueNat, execIRStmt, evalIRExprs, hOffsetEval, hValueEval]
--- SORRY'D:   refine ⟨_, _, ?_⟩
--- SORRY'D:   · simp [SourceSemantics.execStmt, offsetNat, valueNat]
--- SORRY'D:   · simpa [compiledIR, execIRStmts, hExecStmt]
--- SORRY'D:   · refine And.intro ?_ <| And.intro ?_ <| And.intro hbounded hscope
--- SORRY'D:     · simpa [FunctionBody.runtimeStateMatchesIR] using hruntime
--- SORRY'D:     · simpa [FunctionBody.bindingsExactlyMatchIRVarsOnScope] using hexact
+theorem compiledStmtStep_setStorageAddr_singleSlot
+    {fields : List Field}
+    {scope : List String}
+    {fieldName : String}
+    {value : Expr}
+    {valueIR : YulExpr}
+    {slot : Nat}
+    (hcore : FunctionBody.ExprCompileCore value)
+    (hinScope : FunctionBody.exprBoundNamesInScope value scope)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.address }, slot))
+    (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.setStorageAddr fieldName value)
+      [YulStmt.expr
+        (YulExpr.call "sstore"
+          [YulExpr.lit slot,
+            YulExpr.call "and" [valueIR, YulExpr.hex Compiler.Constants.addressMask]])] where
+  compileOk := by
+    have hNotMapping : isMapping fields fieldName = false :=
+      isMapping_false_of_findFieldWithResolvedSlot_address hfind rfl
+    simp [CompilationModel.compileStmt, CompilationModel.compileSetStorage,
+      hNotMapping, hfind, hwriteSlots, hvalueIR]
+  preserves := compiledStmtStep_setStorageAddr_singleSlot_preserves
+    hcore hinScope hfind hwriteSlots hnoConflict hvalueIR
 
--- TYPESIG_SORRY: theorem compiledStmtStep_mstore_single
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {offset value : Expr}
--- TYPESIG_SORRY:     {offsetIR valueIR : YulExpr}
--- TYPESIG_SORRY:     (hcoreOffset : FunctionBody.ExprCompileCore offset)
--- TYPESIG_SORRY:     (hinScopeOffset : FunctionBody.exprBoundNamesInScope offset scope)
--- TYPESIG_SORRY:     (hcoreValue : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hoffsetIR : CompilationModel.compileExpr fields .calldata offset = Except.ok offsetIR)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.mstore offset value)
--- TYPESIG_SORRY:       [YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, hoffsetIR, hvalueIR]
--- SORRY'D:   preserves := compiledStmtStep_mstore_single_preserves
--- SORRY'D:     hcoreOffset hinScopeOffset hcoreValue hinScopeValue hoffsetIR hvalueIR
+private theorem compiledStmtStep_mstore_single_preserves
+    {fields : List Field}
+    {scope : List String}
+    {offset value : Expr}
+    {offsetIR valueIR : YulExpr}
+    (hcoreOffset : FunctionBody.ExprCompileCore offset)
+    (hinScopeOffset : FunctionBody.exprBoundNamesInScope offset scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hoffsetIR : CompilationModel.compileExpr fields .calldata offset = Except.ok offsetIR)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    ∀ (runtime : SourceSemantics.RuntimeState)
+      (state : IRState)
+      (extraFuel : Nat),
+      FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state →
+      FunctionBody.scopeNamesPresent scope runtime.bindings →
+      FunctionBody.bindingsBounded runtime.bindings →
+      FunctionBody.runtimeStateMatchesIR fields runtime state →
+      sizeOf [YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])] -
+        [YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])].length ≤ extraFuel →
+      ∃ sourceResult irExec,
+        SourceSemantics.execStmt fields runtime (.mstore offset value) = sourceResult ∧
+        execIRStmts
+            ([YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])].length +
+              extraFuel + 1)
+            state
+            [YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])] = irExec ∧
+        stmtStepMatchesIRExec fields
+          (stmtNextScope scope (.mstore offset value))
+          sourceResult
+          irExec := by
+  intro runtime state extraFuel hexact hscope hbounded hruntime hslack
+  let compiledIR := [YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])]
+  have hOffsetEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreOffset hexact hinScopeOffset hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeOffset)
+      hruntime
+  have hValueEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreValue hexact hinScopeValue hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+      hruntime
+  rw [hoffsetIR] at hOffsetEval
+  rw [hvalueIR] at hValueEval
+  simp [Except.toOption] at hOffsetEval hValueEval
+  rcases hIROffset : evalIRExpr state offsetIR with _ | offsetNat
+  · simp [hIROffset, Option.bind] at hOffsetEval
+  · simp [hIROffset, Option.bind] at hOffsetEval
+    rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+    · simp [hIRValue, Option.bind] at hValueEval
+    · simp [hIRValue, Option.bind] at hValueEval
+      have hOffsetSrc : SourceSemantics.evalExpr fields runtime offset = some offsetNat :=
+        hOffsetEval.symm
+      have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+        hValueEval.symm
+      -- Source execution: mstore just checks both exprs evaluate and returns state unchanged
+      have hSrcExec : SourceSemantics.execStmt fields runtime
+          (.mstore offset value) = .continue runtime := by
+        simp [SourceSemantics.execStmt, hOffsetSrc, hValueSrc]
+      -- IR execution
+      set state' := { state with
+          memory := fun o => if o = offsetNat then valueNat else state.memory o }
+      have hExecStmt :
+          execIRStmt (extraFuel + 1) state
+            (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])) =
+              .continue state' := by
+        simp [execIRStmt, evalIRExprs, hIROffset, hIRValue, state']
+      have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
+      have hIRExec : execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
+          .continue state' := by
+        simp [compiledIR, execIRStmts, hfuelEq, hExecStmt]
+      -- Scope inclusion
+      have hincl : FunctionBody.scopeNamesIncluded
+          (stmtNextScope scope (.mstore offset value)) scope := by
+        intro n hn
+        simp [stmtNextScope, collectStmtNames] at hn
+        rcases hn with ho | hv | hs
+        · exact hinScopeOffset n (collectExprNames_mem_exprBoundNames_of_core hcoreOffset n ho)
+        · exact hinScopeValue n (collectExprNames_mem_exprBoundNames_of_core hcoreValue n hv)
+        · exact hs
+      -- Post-state invariants: memory update doesn't affect runtimeStateMatchesIR
+      have hexact' : FunctionBody.bindingsExactlyMatchIRVarsOnScope
+          (stmtNextScope scope (.mstore offset value))
+          runtime.bindings state' :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
+          (by simpa [FunctionBody.bindingsExactlyMatchIRVarsOnScope, state'] using hexact)
+          hincl
+      have hscope' : FunctionBody.scopeNamesPresent
+          (stmtNextScope scope (.mstore offset value))
+          runtime.bindings :=
+        FunctionBody.scopeNamesPresent_of_included hscope hincl
+      have hruntime' : FunctionBody.runtimeStateMatchesIR fields runtime state' := by
+        simpa [FunctionBody.runtimeStateMatchesIR, state'] using hruntime
+      exact ⟨_, _, hSrcExec, hIRExec,
+        hruntime', hexact', hbounded, hscope'⟩
 
--- TYPESIG_SORRY: private theorem compiledStmtStep_tstore_single_preserves
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {offset value : Expr}
--- TYPESIG_SORRY:     {offsetIR valueIR : YulExpr}
--- TYPESIG_SORRY:     (hcoreOffset : FunctionBody.ExprCompileCore offset)
--- TYPESIG_SORRY:     (hinScopeOffset : FunctionBody.exprBoundNamesInScope offset scope)
--- TYPESIG_SORRY:     (hcoreValue : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hoffsetIR : CompilationModel.compileExpr fields .calldata offset = Except.ok offsetIR)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep.Preserves fields scope
--- TYPESIG_SORRY:       (.tstore offset value)
--- TYPESIG_SORRY:       [YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])] := by sorry
--- SORRY'D:   intro runtime state extraFuel hexact hscope hbounded hruntime hslack
--- SORRY'D:   let compiledIR := [YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])]
--- SORRY'D:   let offsetNat := SourceSemantics.evalExpr fields runtime offset
--- SORRY'D:   let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:   have hOffsetEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreOffset hexact hinScopeOffset hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeOffset)
--- SORRY'D:       hruntime
--- SORRY'D:   have hValueEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreValue hexact hinScopeValue hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
--- SORRY'D:       hruntime
--- SORRY'D:   rw [hoffsetIR] at hOffsetEval
--- SORRY'D:   rw [hvalueIR] at hValueEval
--- SORRY'D:   have hExecStmt :
--- SORRY'D:       execIRStmt (extraFuel + 1) state
--- SORRY'D:         (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])) =
--- SORRY'D:           .continue
--- SORRY'D:             { state with
--- SORRY'D:                 transientStorage := fun o =>
--- SORRY'D:                   if o = offsetNat then valueNat else state.transientStorage o } := by
--- SORRY'D:     simpa [offsetNat, valueNat, execIRStmt, evalIRExprs, hOffsetEval, hValueEval]
--- SORRY'D:   refine ⟨_, _, ?_⟩
--- SORRY'D:   · simp [SourceSemantics.execStmt, offsetNat, valueNat]
--- SORRY'D:   · simpa [compiledIR, execIRStmts, hExecStmt]
--- SORRY'D:   · refine And.intro ?_ <| And.intro ?_ <| And.intro hbounded hscope
--- SORRY'D:     · exact FunctionBody.runtimeStateMatchesIR_setTransientStorage hruntime offsetNat valueNat
--- SORRY'D:     · simpa [FunctionBody.bindingsExactlyMatchIRVarsOnScope] using hexact
+theorem compiledStmtStep_mstore_single
+    {fields : List Field}
+    {scope : List String}
+    {offset value : Expr}
+    {offsetIR valueIR : YulExpr}
+    (hcoreOffset : FunctionBody.ExprCompileCore offset)
+    (hinScopeOffset : FunctionBody.exprBoundNamesInScope offset scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hoffsetIR : CompilationModel.compileExpr fields .calldata offset = Except.ok offsetIR)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.mstore offset value)
+      [YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])] where
+  compileOk := by
+    simp only [CompilationModel.compileStmt, hoffsetIR, hvalueIR]
+    rfl
+  preserves := compiledStmtStep_mstore_single_preserves
+    hcoreOffset hinScopeOffset hcoreValue hinScopeValue hoffsetIR hvalueIR
 
--- TYPESIG_SORRY: theorem compiledStmtStep_tstore_single
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {offset value : Expr}
--- TYPESIG_SORRY:     {offsetIR valueIR : YulExpr}
--- TYPESIG_SORRY:     (hcoreOffset : FunctionBody.ExprCompileCore offset)
--- TYPESIG_SORRY:     (hinScopeOffset : FunctionBody.exprBoundNamesInScope offset scope)
--- TYPESIG_SORRY:     (hcoreValue : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hoffsetIR : CompilationModel.compileExpr fields .calldata offset = Except.ok offsetIR)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.tstore offset value)
--- TYPESIG_SORRY:       [YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, hoffsetIR, hvalueIR]
--- SORRY'D:   preserves := compiledStmtStep_tstore_single_preserves
--- SORRY'D:     hcoreOffset hinScopeOffset hcoreValue hinScopeValue hoffsetIR hvalueIR
+private theorem compiledStmtStep_tstore_single_preserves
+    {fields : List Field}
+    {scope : List String}
+    {offset value : Expr}
+    {offsetIR valueIR : YulExpr}
+    (hcoreOffset : FunctionBody.ExprCompileCore offset)
+    (hinScopeOffset : FunctionBody.exprBoundNamesInScope offset scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hoffsetIR : CompilationModel.compileExpr fields .calldata offset = Except.ok offsetIR)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    ∀ (runtime : SourceSemantics.RuntimeState)
+      (state : IRState)
+      (extraFuel : Nat),
+      FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state →
+      FunctionBody.scopeNamesPresent scope runtime.bindings →
+      FunctionBody.bindingsBounded runtime.bindings →
+      FunctionBody.runtimeStateMatchesIR fields runtime state →
+      sizeOf [YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])] -
+        [YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])].length ≤ extraFuel →
+      ∃ sourceResult irExec,
+        SourceSemantics.execStmt fields runtime (.tstore offset value) = sourceResult ∧
+        execIRStmts
+            ([YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])].length +
+              extraFuel + 1)
+            state
+            [YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])] = irExec ∧
+        stmtStepMatchesIRExec fields
+          (stmtNextScope scope (.tstore offset value))
+          sourceResult
+          irExec := by
+  intro runtime state extraFuel hexact hscope hbounded hruntime hslack
+  let compiledIR := [YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])]
+  have hOffsetEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreOffset hexact hinScopeOffset hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeOffset)
+      hruntime
+  have hValueEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreValue hexact hinScopeValue hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+      hruntime
+  rw [hoffsetIR] at hOffsetEval
+  rw [hvalueIR] at hValueEval
+  simp [Except.toOption] at hOffsetEval hValueEval
+  rcases hIROffset : evalIRExpr state offsetIR with _ | offsetNat
+  · simp [hIROffset, Option.bind] at hOffsetEval
+  · simp [hIROffset, Option.bind] at hOffsetEval
+    rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+    · simp [hIRValue, Option.bind] at hValueEval
+    · simp [hIRValue, Option.bind] at hValueEval
+      have hOffsetSrc : SourceSemantics.evalExpr fields runtime offset = some offsetNat :=
+        hOffsetEval.symm
+      have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+        hValueEval.symm
+      -- Get the modulus bound on valueNat for runtimeStateMatchesIR_setTransientStorage
+      have hValueLt : SourceSemantics.evalExpr fields runtime value < Compiler.Constants.evmModulus :=
+        FunctionBody.evalExpr_lt_evmModulus_core_of_scope
+          hcoreValue hexact hinScopeValue hbounded
+          (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+          hruntime
+      rw [hValueSrc] at hValueLt
+      simp at hValueLt
+      -- Source execution: tstore updates transientStorage
+      set runtime' := {
+        runtime with
+        world := {
+          runtime.world with
+          transientStorage := fun o =>
+            if o = offsetNat then valueNat else runtime.world.transientStorage o
+        }
+      }
+      have hSrcExec : SourceSemantics.execStmt fields runtime
+          (.tstore offset value) = .continue runtime' := by
+        simp [SourceSemantics.execStmt, hOffsetSrc, hValueSrc, runtime']
+      -- IR execution: tstore updates transientStorage
+      set state' := { state with
+          transientStorage := fun o => if o = offsetNat then valueNat else state.transientStorage o }
+      have hExecStmt :
+          execIRStmt (extraFuel + 1) state
+            (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])) =
+              .continue state' := by
+        simp [execIRStmt, evalIRExprs, hIROffset, hIRValue, state']
+      have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
+      have hIRExec : execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
+          .continue state' := by
+        simp [compiledIR, execIRStmts, hfuelEq, hExecStmt]
+      -- Scope inclusion for tstore (same structure as mstore)
+      have hincl : FunctionBody.scopeNamesIncluded
+          (stmtNextScope scope (.tstore offset value)) scope := by
+        intro n hn
+        simp [stmtNextScope, collectStmtNames] at hn
+        rcases hn with ho | hv | hs
+        · exact hinScopeOffset n (collectExprNames_mem_exprBoundNames_of_core hcoreOffset n ho)
+        · exact hinScopeValue n (collectExprNames_mem_exprBoundNames_of_core hcoreValue n hv)
+        · exact hs
+      -- Bindings: getVar only depends on vars, not transientStorage
+      have hexact' : FunctionBody.bindingsExactlyMatchIRVarsOnScope
+          (stmtNextScope scope (.tstore offset value))
+          runtime'.bindings state' :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
+          (by simpa [FunctionBody.bindingsExactlyMatchIRVarsOnScope, state', runtime'] using hexact)
+          hincl
+      have hscope' : FunctionBody.scopeNamesPresent
+          (stmtNextScope scope (.tstore offset value))
+          runtime'.bindings :=
+        FunctionBody.scopeNamesPresent_of_included hscope hincl
+      have hbounded' : FunctionBody.bindingsBounded runtime'.bindings := by
+        simpa [runtime'] using hbounded
+      have hruntime' : FunctionBody.runtimeStateMatchesIR fields runtime' state' :=
+        FunctionBody.runtimeStateMatchesIR_setTransientStorage hruntime offsetNat valueNat hValueLt
+      exact ⟨_, _, hSrcExec, hIRExec,
+        hruntime', hexact', hbounded', hscope'⟩
+
+theorem compiledStmtStep_tstore_single
+    {fields : List Field}
+    {scope : List String}
+    {offset value : Expr}
+    {offsetIR valueIR : YulExpr}
+    (hcoreOffset : FunctionBody.ExprCompileCore offset)
+    (hinScopeOffset : FunctionBody.exprBoundNamesInScope offset scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hoffsetIR : CompilationModel.compileExpr fields .calldata offset = Except.ok offsetIR)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.tstore offset value)
+      [YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])] where
+  compileOk := by
+    simp only [CompilationModel.compileStmt, hoffsetIR, hvalueIR]
+    rfl
+  preserves := compiledStmtStep_tstore_single_preserves
+    hcoreOffset hinScopeOffset hcoreValue hinScopeValue hoffsetIR hvalueIR
 
 private theorem compiledStmtStep_setMappingUint_singleSlot_of_slotSafety_preserves
     {fields : List Field}
@@ -6296,82 +7262,372 @@ private theorem compiledStmtStep_setMappingUint_singleSlot_of_slotSafety_preserv
         stmtStepMatchesIRExec fields
           (stmtNextScope scope (.setMappingUint fieldName key value))
           sourceResult
-          irExec := by sorry
--- SORRY'D:   intro runtime state extraFuel hexact hscope hbounded hruntime hslack
--- SORRY'D:   let compiledIR := [YulStmt.expr
--- SORRY'D:     (YulExpr.call "sstore"
--- SORRY'D:       [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])]
--- SORRY'D:   let keyNat := SourceSemantics.evalExpr fields runtime key
--- SORRY'D:   let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:   have hkeySourceEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreKey hexact hinScopeKey hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey)
--- SORRY'D:       hruntime
--- SORRY'D:   have hvalueSourceEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreValue hexact hinScopeValue hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
--- SORRY'D:       hruntime
--- SORRY'D:   rw [hkeyIR] at hkeySourceEval
--- SORRY'D:   rw [hvalueIR] at hvalueSourceEval
--- SORRY'D:   have hkeyEval : evalIRExpr state keyIR = some keyNat := by
--- SORRY'D:     simpa [keyNat] using hkeySourceEval
--- SORRY'D:   have hvalueEval : evalIRExpr state valueIR = some valueNat := by
--- SORRY'D:     simpa [valueNat] using hvalueSourceEval
--- SORRY'D:   rcases hslotSafety runtime keyNat (by simpa [keyNat] using hkeySourceEval) with
--- SORRY'D:     ⟨hresolvedNone, hdynNone⟩
--- SORRY'D:   refine ⟨_, _, ?_⟩
--- SORRY'D:   · simp [SourceSemantics.execStmt, hwriteSlots, keyNat, valueNat]
--- SORRY'D:   · have hExecStmt :
--- SORRY'D:         execIRStmt (extraFuel + 1) state
--- SORRY'D:           (YulStmt.expr
--- SORRY'D:             (YulExpr.call "sstore"
--- SORRY'D:               [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])) =
--- SORRY'D:             .continue
--- SORRY'D:               { state with
--- SORRY'D:                   storage :=
--- SORRY'D:                     Compiler.Proofs.abstractStoreMappingEntry
--- SORRY'D:                       state.storage slot keyNat valueNat } := by
--- SORRY'D:       simp [execIRStmt, evalIRExpr, hkeyEval, hvalueEval,
--- SORRY'D:         Compiler.Proofs.abstractStoreMappingEntry_eq]
--- SORRY'D:     simpa [compiledIR, execIRStmts, hExecStmt]
--- SORRY'D:   · refine And.intro ?_ <| And.intro ?_ <| And.intro hbounded hscope
--- SORRY'D:     · exact runtimeStateMatchesIR_writeUintKeyedMappingSlot
--- SORRY'D:         hruntime hresolvedNone hdynNone
--- SORRY'D:     · exact bindingsExactlyMatchIRVarsOnScope_writeMappingSlot hexact
+          irExec := by
+  intro runtime state extraFuel hexact hscope hbounded hruntime hslack
+  let compiledIR := [YulStmt.expr
+    (YulExpr.call "sstore"
+      [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])]
+  have hkeySourceEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreKey hexact hinScopeKey hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey)
+      hruntime
+  have hvalueSourceEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreValue hexact hinScopeValue hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+      hruntime
+  rw [hkeyIR] at hkeySourceEval
+  rw [hvalueIR] at hvalueSourceEval
+  simp [Except.toOption] at hkeySourceEval hvalueSourceEval
+  -- Case split on IR eval results to extract concrete Nat values
+  rcases hIRKey : evalIRExpr state keyIR with _ | keyNat
+  · simp [hIRKey, Option.bind] at hkeySourceEval
+  · simp [hIRKey, Option.bind] at hkeySourceEval
+    rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+    · simp [hIRValue, Option.bind] at hvalueSourceEval
+    · simp [hIRValue, Option.bind] at hvalueSourceEval
+      have hKeySrc : SourceSemantics.evalExpr fields runtime key = some keyNat :=
+        hkeySourceEval.symm
+      have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+        hvalueSourceEval.symm
+      rcases hslotSafety runtime keyNat hKeySrc with ⟨hresolvedNone, hdynNone⟩
+      -- Get boundedness of valueNat
+      have hvalueLt := FunctionBody.evalExpr_lt_evmModulus_core_of_scope
+          hcoreValue hexact hinScopeValue hbounded
+          (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+          hruntime
+      rw [hValueSrc] at hvalueLt
+      simp at hvalueLt
+      -- Define post-states
+      set state' := { state with
+          storage :=
+            Compiler.Proofs.abstractStoreMappingEntry
+              state.storage slot keyNat valueNat }
+      set runtime' := { runtime with
+          world := SourceSemantics.writeUintKeyedMappingSlots
+            runtime.world [slot] keyNat valueNat }
+      -- Source execution
+      have hSrcExec : SourceSemantics.execStmt fields runtime
+          (.setMappingUint fieldName key value) = .continue runtime' := by
+        simp [SourceSemantics.execStmt, hwriteSlots, hKeySrc, hValueSrc, runtime']
+      -- IR execution
+      have hExecStmt :
+          execIRStmt (extraFuel + 1) state
+            (YulStmt.expr
+              (YulExpr.call "sstore"
+                [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])) =
+              .continue state' := by
+        simp [execIRStmt, evalIRExpr, hIRKey, hIRValue,
+          Compiler.Proofs.abstractStoreMappingEntry_eq, state']
+      have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
+      have hIRExec : execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
+          .continue state' := by
+        simp [compiledIR, execIRStmts, hfuelEq, hExecStmt]
+      -- Scope inclusion: stmtNextScope only adds expr names already in scope
+      have hincl : FunctionBody.scopeNamesIncluded
+          (stmtNextScope scope (.setMappingUint fieldName key value)) scope := by
+        intro n hn
+        simp [stmtNextScope, collectStmtNames] at hn
+        rcases hn with hk | hv | hs
+        · exact hinScopeKey n (collectExprNames_mem_exprBoundNames_of_core hcoreKey n hk)
+        · exact hinScopeValue n (collectExprNames_mem_exprBoundNames_of_core hcoreValue n hv)
+        · exact hs
+      -- Post-state invariants
+      have hexact' : FunctionBody.bindingsExactlyMatchIRVarsOnScope
+          (stmtNextScope scope (.setMappingUint fieldName key value))
+          runtime'.bindings state' :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
+          (bindingsExactlyMatchIRVarsOnScope_writeMappingSlot hexact)
+          hincl
+      have hscope' : FunctionBody.scopeNamesPresent
+          (stmtNextScope scope (.setMappingUint fieldName key value))
+          runtime'.bindings :=
+        FunctionBody.scopeNamesPresent_of_included hscope hincl
+      refine ⟨.continue runtime', .continue state', hSrcExec, hIRExec, ?_⟩
+      simp [stmtStepMatchesIRExec]
+      exact ⟨runtimeStateMatchesIR_writeUintKeyedMappingSlot
+          hruntime hresolvedNone hdynNone hvalueLt,
+        hexact', hbounded, hscope'⟩
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setMappingUint_singleSlot_of_slotSafety
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {fieldName : String}
--- TYPESIG_SORRY:     {key value : Expr}
--- TYPESIG_SORRY:     {keyIR valueIR : YulExpr}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hmapping : isMapping fields fieldName = true)
--- TYPESIG_SORRY:     (hcoreKey : FunctionBody.ExprCompileCore key)
--- TYPESIG_SORRY:     (hinScopeKey : FunctionBody.exprBoundNamesInScope key scope)
--- TYPESIG_SORRY:     (hcoreValue : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
--- TYPESIG_SORRY:     (hslotSafety :
--- TYPESIG_SORRY:       ∀ runtime keyNat,
--- TYPESIG_SORRY:         SourceSemantics.evalExpr fields runtime key = some keyNat →
--- TYPESIG_SORRY:           findResolvedFieldAtSlotCopy fields
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot slot keyNat) = none ∧
--- TYPESIG_SORRY:           findDynamicArrayElementAtSlotCopy fields runtime.world
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot slot keyNat) = none)
--- TYPESIG_SORRY:     (hkeyIR : CompilationModel.compileExpr fields .calldata key = Except.ok keyIR)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.setMappingUint fieldName key value)
--- TYPESIG_SORRY:       [YulStmt.expr
--- TYPESIG_SORRY:         (YulExpr.call "sstore"
--- TYPESIG_SORRY:           [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, CompilationModel.compileMappingSlotWrite,
--- SORRY'D:       hmapping, hwriteSlots, hkeyIR, hvalueIR]
--- SORRY'D:   preserves := compiledStmtStep_setMappingUint_singleSlot_of_slotSafety_preserves
--- SORRY'D:     hcoreKey hinScopeKey hcoreValue hinScopeValue hwriteSlots hslotSafety hkeyIR hvalueIR
+theorem compiledStmtStep_setMappingUint_singleSlot_of_slotSafety
+    {fields : List Field}
+    {scope : List String}
+    {fieldName : String}
+    {key value : Expr}
+    {keyIR valueIR : YulExpr}
+    {slot : Nat}
+    (hmapping : isMapping fields fieldName = true)
+    (hcoreKey : FunctionBody.ExprCompileCore key)
+    (hinScopeKey : FunctionBody.exprBoundNamesInScope key scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
+    (hslotSafety :
+      ∀ runtime keyNat,
+        SourceSemantics.evalExpr fields runtime key = some keyNat →
+          findResolvedFieldAtSlotCopy fields
+            (Compiler.Proofs.abstractMappingSlot slot keyNat) = none ∧
+          findDynamicArrayElementAtSlotCopy fields runtime.world
+            (Compiler.Proofs.abstractMappingSlot slot keyNat) = none)
+    (hkeyIR : CompilationModel.compileExpr fields .calldata key = Except.ok keyIR)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.setMappingUint fieldName key value)
+      [YulStmt.expr
+        (YulExpr.call "sstore"
+          [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])] where
+  compileOk := by
+    simp only [CompilationModel.compileStmt, CompilationModel.compileMappingSlotWrite,
+      hmapping, hwriteSlots, hkeyIR, hvalueIR]
+    rfl
+  preserves := compiledStmtStep_setMappingUint_singleSlot_of_slotSafety_preserves
+    hcoreKey hinScopeKey hcoreValue hinScopeValue hwriteSlots hslotSafety hkeyIR hvalueIR
+
+private theorem compileExprList_core_ok
+    {fields : List Field}
+    {exprs : List Expr}
+    (hcore : ∀ expr ∈ exprs, FunctionBody.ExprCompileCore expr) :
+    ∃ exprIRs, CompilationModel.compileExprList fields .calldata exprs = Except.ok exprIRs := by
+  induction exprs with
+  | nil =>
+      exact ⟨[], rfl⟩
+  | cons expr rest ih =>
+      have hhead : FunctionBody.ExprCompileCore expr := hcore expr (by simp)
+      have htail : ∀ e ∈ rest, FunctionBody.ExprCompileCore e := by
+        intro e he
+        exact hcore e (by simp [he])
+      rcases FunctionBody.compileExpr_core_ok (fields := fields) hhead with ⟨exprIR, hexprIR⟩
+      rcases ih htail with ⟨restIR, hrestIR⟩
+      exact ⟨exprIR :: restIR, by
+        rw [CompilationModel.compileExprList, hexprIR, hrestIR]
+        rfl
+      ⟩
+-- SORRY'D:   induction exprs with
+-- SORRY'D:   | nil =>
+-- SORRY'D:       exact ⟨[], by simp [CompilationModel.compileExprList]⟩
+-- SORRY'D:   | cons expr rest ih =>
+-- SORRY'D:       have hhead : FunctionBody.ExprCompileCore expr := hcore expr (by simp)
+-- SORRY'D:       have htail : ∀ e ∈ rest, FunctionBody.ExprCompileCore e := by
+-- SORRY'D:         intro e he
+-- SORRY'D:         exact hcore e (by simp [he])
+-- SORRY'D:       rcases FunctionBody.compileExpr_core_ok (fields := fields) hhead with ⟨exprIR, hexprIR⟩
+-- SORRY'D:       rcases ih htail with ⟨restIR, hrestIR⟩
+-- SORRY'D:       exact ⟨exprIR :: restIR, by simp [CompilationModel.compileExprList, hexprIR, hrestIR]⟩
+
+private theorem eval_compileExpr_core_some_of_scope
+    {fields : List Field}
+    {scope : List String}
+    {expr : Expr}
+    {exprIR : YulExpr}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    (hcore : FunctionBody.ExprCompileCore expr)
+    (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
+    (hinScope : FunctionBody.exprBoundNamesInScope expr scope)
+    (hbounded : FunctionBody.bindingsBounded runtime.bindings)
+    (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
+    (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state)
+    (hcompiled : CompilationModel.compileExpr fields .calldata expr = Except.ok exprIR) :
+    ∃ value,
+      SourceSemantics.evalExpr fields runtime expr = some value ∧
+      evalIRExpr state exprIR = some value := by
+  have hpresent : FunctionBody.exprBoundNamesPresent expr runtime.bindings :=
+    FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope
+  have heval :
+      evalIRExpr state exprIR = some (SourceSemantics.evalExpr fields runtime expr) := by
+    have h :=
+      FunctionBody.eval_compileExpr_core_of_scope
+        hcore hexact hinScope hbounded hpresent hruntime
+    simpa [hcompiled] using h
+  rcases he : SourceSemantics.evalExpr fields runtime expr with _ | value
+  · cases hIR : evalIRExpr state exprIR <;> simp [hIR, he] at heval
+  · have hIRsome : evalIRExpr state exprIR = some value := by
+      cases hIR : evalIRExpr state exprIR with
+      | none =>
+          simp [hIR, he] at heval
+      | some actual =>
+          simp [hIR, he] at heval
+          subst heval
+          exact rfl
+    exact ⟨value, rfl, hIRsome⟩
+
+private theorem eval_compileExprList_core_of_scope
+    {fields : List Field}
+    {scope : List String}
+    {exprs : List Expr}
+    {exprIRs : List YulExpr}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    (hcore : ∀ expr ∈ exprs, FunctionBody.ExprCompileCore expr)
+    (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
+    (hinScope : ∀ expr ∈ exprs, FunctionBody.exprBoundNamesInScope expr scope)
+    (hbounded : FunctionBody.bindingsBounded runtime.bindings)
+    (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
+    (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state)
+    (hcompiled : CompilationModel.compileExprList fields .calldata exprs = Except.ok exprIRs) :
+    ∃ values,
+      SourceSemantics.evalExprList fields runtime exprs = some values ∧
+      List.Forall₂ (fun exprIR value => evalIRExpr state exprIR = some value) exprIRs values := by
+  induction exprs generalizing exprIRs with
+  | nil =>
+      simp [CompilationModel.compileExprList] at hcompiled
+      cases hcompiled
+      exact ⟨[], rfl, .nil⟩
+  | cons expr rest ih =>
+      have hhead : FunctionBody.ExprCompileCore expr := hcore expr (by simp)
+      have htail :
+          ∀ expr' ∈ rest, FunctionBody.ExprCompileCore expr' := by
+        intro expr' hexpr'
+        exact hcore expr' (by simp [hexpr'])
+      have htailScope :
+          ∀ expr' ∈ rest, FunctionBody.exprBoundNamesInScope expr' scope := by
+        intro expr' hexpr'
+        exact hinScope expr' (by simp [hexpr'])
+      rcases compileExprList_core_ok (fields := fields) htail with ⟨restIRs, hrestIRs⟩
+      rcases FunctionBody.compileExpr_core_ok (fields := fields) hhead with ⟨exprIR, hexprIR⟩
+      rw [CompilationModel.compileExprList, hexprIR, hrestIRs] at hcompiled
+      injection hcompiled with hcompiledTail
+      subst hcompiledTail
+      rcases eval_compileExpr_core_some_of_scope
+          (expr := expr) (exprIR := exprIR) hhead hexact (hinScope expr (by simp))
+          hbounded hscope hruntime hexprIR with
+        ⟨headVal, hheadVal, hheadEval⟩
+      rcases ih htail htailScope hrestIRs with
+        ⟨restVals, hrestVals, hrestEval⟩
+      refine ⟨headVal :: restVals, ?_, ?_⟩
+      · simp [SourceSemantics.evalExprList, hheadVal, hrestVals]
+      · exact .cons hheadEval hrestEval
+
+private theorem evalIRExpr_mappingSlotChain
+    {state : IRState}
+    {baseSlot : Nat}
+    {keyIRs : List YulExpr}
+    {keyVals : List Nat}
+    (hkeys : List.Forall₂ (fun exprIR value => evalIRExpr state exprIR = some value) keyIRs keyVals) :
+    evalIRExpr state
+      (keyIRs.foldl
+        (fun slotExpr keyExpr => YulExpr.call "mappingSlot" [slotExpr, keyExpr])
+        (YulExpr.lit baseSlot)) =
+      some (SourceSemantics.mappingSlotChain baseSlot keyVals) := by
+  have hgeneral :
+      ∀ {startExpr : YulExpr} {startSlot : Nat},
+        evalIRExpr state startExpr = some startSlot →
+        evalIRExpr state
+            (keyIRs.foldl
+              (fun slotExpr keyExpr => YulExpr.call "mappingSlot" [slotExpr, keyExpr])
+              startExpr) =
+          some (List.foldl Compiler.Proofs.abstractMappingSlot startSlot keyVals) := by
+    induction hkeys with
+    | nil =>
+        intro startExpr startSlot hstart
+        simpa using hstart
+    | @cons exprIR value keyIRs keyVals hexpr hrest ih =>
+        intro startExpr startSlot hstart
+        have hnext :
+            evalIRExpr state (YulExpr.call "mappingSlot" [startExpr, exprIR]) =
+              some (Compiler.Proofs.abstractMappingSlot startSlot value) := by
+          simp [evalIRExpr, evalIRCall, evalIRExprs, hstart, hexpr,
+            Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+            Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+        simpa [List.foldl] using
+          ih (startExpr := YulExpr.call "mappingSlot" [startExpr, exprIR])
+            (startSlot := Compiler.Proofs.abstractMappingSlot startSlot value) hnext
+  simpa [SourceSemantics.mappingSlotChain] using
+    hgeneral (startExpr := YulExpr.lit baseSlot) (startSlot := baseSlot) (by simp [evalIRExpr])
+
+private theorem execIRStmt_sstore_of_eval
+    {state : IRState}
+    {slotExpr valueExpr : Compiler.Yul.YulExpr}
+    {slotVal valueVal : Nat}
+    {fuel : Nat}
+    (hslot : evalIRExpr state slotExpr = some slotVal)
+    (hvalue : evalIRExpr state valueExpr = some valueVal) :
+    execIRStmt (Nat.succ fuel) state
+      (Compiler.Yul.YulStmt.expr (Compiler.Yul.YulExpr.call "sstore"
+        [slotExpr, valueExpr])) =
+      .continue { state with
+        storage := Compiler.Proofs.abstractStoreStorageOrMapping state.storage
+          slotVal valueVal } := by
+  cases slotExpr with
+  | lit n => simp [execIRStmt, evalIRExpr, hvalue, hslot]
+  | hex n => simp [execIRStmt, evalIRExpr, hvalue, hslot]
+  | str s => simp [evalIRExpr] at hslot
+  | ident name => simp [execIRStmt, hslot, hvalue]
+  | call fname args =>
+    cases args with
+    | nil => simp [execIRStmt, hslot, hvalue]
+    | cons arg rest =>
+      cases rest with
+      | nil => simp [execIRStmt, hslot, hvalue]
+      | cons arg2 rest =>
+        cases rest with
+        | nil =>
+          by_cases hfunc : fname = "mappingSlot"
+          · subst hfunc
+            simp only [evalIRExpr, evalIRCall, evalIRExprs,
+              Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+              Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext] at hslot
+            cases hb : evalIRExpr state arg with
+            | none => simp [hb] at hslot
+            | some bv =>
+              cases hk : evalIRExpr state arg2 with
+              | none => simp [hb, hk] at hslot
+              | some kv =>
+                simp [hb, hk] at hslot
+                simp [execIRStmt, hb, hk, hvalue,
+                  Compiler.Proofs.abstractStoreMappingEntry_eq,
+                  Compiler.Proofs.abstractStoreStorageOrMapping_eq,
+                  Compiler.Proofs.abstractMappingSlot_eq_solidity, ← hslot]
+          · simp [execIRStmt, hslot, hvalue, hfunc]
+        | cons arg3 rest => simp [execIRStmt, hslot, hvalue]
+
+private theorem execIRStmt_sstore_foldl_mappingSlot
+    {state : IRState}
+    {baseSlot : Nat}
+    {keyIRs : List Compiler.Yul.YulExpr}
+    {keyVals : List Nat}
+    {valueExpr : Compiler.Yul.YulExpr}
+    {valueVal : Nat}
+    {fuel : Nat}
+    (hkeys : List.Forall₂ (fun exprIR value => evalIRExpr state exprIR = some value) keyIRs keyVals)
+    (hvalue : evalIRExpr state valueExpr = some valueVal) :
+    execIRStmt (Nat.succ fuel) state
+      (Compiler.Yul.YulStmt.expr (Compiler.Yul.YulExpr.call "sstore"
+        [keyIRs.foldl
+          (fun slotExpr keyExpr => Compiler.Yul.YulExpr.call "mappingSlot" [slotExpr, keyExpr])
+          (Compiler.Yul.YulExpr.lit baseSlot), valueExpr])) =
+      .continue { state with
+        storage := Compiler.Proofs.abstractStoreStorageOrMapping state.storage
+          (SourceSemantics.mappingSlotChain baseSlot keyVals) valueVal } := by
+  suffices ∀ (startExpr : Compiler.Yul.YulExpr) (startSlot : Nat)
+      (kIRs : List Compiler.Yul.YulExpr) (kVals : List Nat),
+      List.Forall₂ (fun exprIR value => evalIRExpr state exprIR = some value) kIRs kVals →
+      evalIRExpr state startExpr = some startSlot →
+      execIRStmt (Nat.succ fuel) state
+        (Compiler.Yul.YulStmt.expr (Compiler.Yul.YulExpr.call "sstore"
+          [kIRs.foldl
+            (fun slotExpr keyExpr => Compiler.Yul.YulExpr.call "mappingSlot" [slotExpr, keyExpr])
+            startExpr, valueExpr])) =
+        .continue { state with
+          storage := Compiler.Proofs.abstractStoreStorageOrMapping state.storage
+            (kVals.foldl Compiler.Proofs.abstractMappingSlot startSlot) valueVal } by
+    simpa [SourceSemantics.mappingSlotChain] using
+      this (Compiler.Yul.YulExpr.lit baseSlot) baseSlot keyIRs keyVals hkeys (by simp [evalIRExpr])
+  intro startExpr startSlot kIRs kVals hf hstart
+  induction hf generalizing startExpr startSlot with
+  | nil =>
+    simp only [List.foldl]
+    exact execIRStmt_sstore_of_eval hstart hvalue
+  | @cons exprIR keyVal kIRs' kVals' hexpr _ ih =>
+    simp only [List.foldl]
+    have hnext : evalIRExpr state
+        (Compiler.Yul.YulExpr.call "mappingSlot" [startExpr, exprIR]) =
+          some (Compiler.Proofs.abstractMappingSlot startSlot keyVal) := by
+      simp [evalIRExpr, evalIRCall, evalIRExprs, hstart, hexpr,
+        Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+        Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+    exact ih (Compiler.Yul.YulExpr.call "mappingSlot" [startExpr, exprIR])
+      (Compiler.Proofs.abstractMappingSlot startSlot keyVal) hnext
 
 private theorem compiledStmtStep_setMappingChain_singleSlot_of_slotSafety_preserves
     {fields : List Field}
@@ -6430,90 +7686,148 @@ private theorem compiledStmtStep_setMappingChain_singleSlot_of_slotSafety_preser
         stmtStepMatchesIRExec fields
           (stmtNextScope scope (.setMappingChain fieldName keys value))
           sourceResult
-          irExec := by sorry
--- SORRY'D:   intro runtime state extraFuel hexact hscope hbounded hruntime hslack
--- SORRY'D:   let writeSlotExpr :=
--- SORRY'D:     keyIRs.foldl
--- SORRY'D:       (fun slotExpr keyExpr => YulExpr.call "mappingSlot" [slotExpr, keyExpr])
--- SORRY'D:       (YulExpr.lit slot)
--- SORRY'D:   let compiledIR := [YulStmt.expr (YulExpr.call "sstore" [writeSlotExpr, valueIR])]
--- SORRY'D:   let keyVals := SourceSemantics.evalExprList fields runtime keys
--- SORRY'D:   let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:   have hvalueSourceEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreValue hexact hinScopeValue hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
--- SORRY'D:       hruntime
--- SORRY'D:   rw [hvalueIR] at hvalueSourceEval
--- SORRY'D:   have hvalueEval : evalIRExpr state valueIR = some valueNat := by
--- SORRY'D:     simpa [valueNat] using hvalueSourceEval
--- SORRY'D:   rcases eval_compileExprList_core_of_scope
--- SORRY'D:       hcoreKeys hexact hinScopeKeys hbounded hscope hruntime hkeyIRs with
--- SORRY'D:     ⟨resolvedKeys, hkeysEval, hkeyIRVals⟩
--- SORRY'D:   have hkeyValsSome : keyVals = some resolvedKeys := by
--- SORRY'D:     simpa [keyVals] using hkeysEval
--- SORRY'D:   rcases hslotSafety runtime resolvedKeys hkeyValsSome with
--- SORRY'D:     ⟨hresolvedNone, hdynNone⟩
--- SORRY'D:   have hWriteSlotEval :
--- SORRY'D:       evalIRExpr state writeSlotExpr =
--- SORRY'D:         some (SourceSemantics.mappingSlotChain slot resolvedKeys) := by
--- SORRY'D:     exact evalIRExpr_mappingSlotChain hkeyIRVals
--- SORRY'D:   refine ⟨_, _, ?_⟩
--- SORRY'D:   · simp [SourceSemantics.execStmt, hwriteSlots, keyVals, hkeyValsSome, valueNat,
--- SORRY'D:       SourceSemantics.writeAddressKeyedMappingChainSlots]
--- SORRY'D:   · have hExecStmt :
--- SORRY'D:         execIRStmt (extraFuel + 1) state
--- SORRY'D:           (YulStmt.expr (YulExpr.call "sstore" [writeSlotExpr, valueIR])) =
--- SORRY'D:             .continue
--- SORRY'D:               { state with
--- SORRY'D:                   storage :=
--- SORRY'D:                     Compiler.Proofs.abstractStoreStorageOrMapping
--- SORRY'D:                       state.storage
--- SORRY'D:                       (SourceSemantics.mappingSlotChain slot resolvedKeys)
--- SORRY'D:                       valueNat } := by
--- SORRY'D:       simp [execIRStmt, evalIRExpr, hWriteSlotEval, hvalueEval,
--- SORRY'D:         Compiler.Proofs.abstractStoreStorageOrMapping_eq]
--- SORRY'D:     simpa [compiledIR, execIRStmts] using hExecStmt
--- SORRY'D:   · refine And.intro ?_ <| And.intro ?_ <| And.intro hbounded hscope
--- SORRY'D:     · exact runtimeStateMatchesIR_writeAddressKeyedMappingChainSlot
--- SORRY'D:         hruntime hresolvedNone hdynNone
--- SORRY'D:     · exact bindingsExactlyMatchIRVarsOnScope_writeMappingSlot hexact
+          irExec := by
+  intro runtime state extraFuel hexact hscope hbounded hruntime hslack
+  let writeSlotExpr :=
+    keyIRs.foldl
+      (fun slotExpr keyExpr => YulExpr.call "mappingSlot" [slotExpr, keyExpr])
+      (YulExpr.lit slot)
+  let compiledIR := [YulStmt.expr (YulExpr.call "sstore" [writeSlotExpr, valueIR])]
+  -- Evaluate value expression
+  have hvalueSourceEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreValue hexact hinScopeValue hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+      hruntime
+  rw [hvalueIR] at hvalueSourceEval
+  simp [Except.toOption] at hvalueSourceEval
+  rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+  · simp [hIRValue, Option.bind] at hvalueSourceEval
+  · simp [hIRValue, Option.bind] at hvalueSourceEval
+    have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+      hvalueSourceEval.symm
+    -- Evaluate key list expressions
+    rcases eval_compileExprList_core_of_scope
+        hcoreKeys hexact hinScopeKeys hbounded hscope hruntime hkeyIRs with
+      ⟨resolvedKeys, hkeysEval, hkeyIRVals⟩
+    -- Slot safety
+    rcases hslotSafety runtime resolvedKeys hkeysEval with
+      ⟨hresolvedNone, hdynNone⟩
+    -- Compute the foldl slot expression
+    have hWriteSlotEval :
+        evalIRExpr state writeSlotExpr =
+          some (SourceSemantics.mappingSlotChain slot resolvedKeys) :=
+      evalIRExpr_mappingSlotChain hkeyIRVals
+    -- Value boundedness
+    have hvalueLt := FunctionBody.evalExpr_lt_evmModulus_core_of_scope
+        hcoreValue hexact hinScopeValue hbounded
+        (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+        hruntime
+    rw [hValueSrc] at hvalueLt
+    simp at hvalueLt
+    -- Define post-states
+    set state' := { state with
+        storage :=
+          Compiler.Proofs.abstractStoreStorageOrMapping
+            state.storage
+            (SourceSemantics.mappingSlotChain slot resolvedKeys)
+            valueNat }
+    set runtime' := { runtime with
+        world := SourceSemantics.writeAddressKeyedMappingChainSlots
+          runtime.world [slot] resolvedKeys valueNat }
+    -- Source execution
+    have hSrcExec : SourceSemantics.execStmt fields runtime
+        (.setMappingChain fieldName keys value) = .continue runtime' := by
+      simp [SourceSemantics.execStmt, hwriteSlots, hkeysEval, hValueSrc, runtime']
+    -- IR execution
+    have hExecStmt :
+        execIRStmt (extraFuel + 1) state
+          (YulStmt.expr (YulExpr.call "sstore" [writeSlotExpr, valueIR])) =
+            .continue state' := by
+      exact execIRStmt_sstore_foldl_mappingSlot hkeyIRVals hIRValue
+    have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
+    have hIRExec : execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
+        .continue state' := by
+      simp [compiledIR, execIRStmts, hfuelEq, hExecStmt]
+    -- Scope inclusion
+    have hincl : FunctionBody.scopeNamesIncluded
+        (stmtNextScope scope (.setMappingChain fieldName keys value)) scope := by
+      intro n hn
+      simp [stmtNextScope, collectStmtNames] at hn
+      rcases hn with hk | hv | hs
+      · -- name from collectExprListNames keys — prove ∃ expr ∈ keys with name ∈ collectExprNames expr
+        suffices ∀ (ks : List Expr),
+            (∀ e, e ∈ ks → FunctionBody.ExprCompileCore e) →
+            (∀ e, e ∈ ks → FunctionBody.exprBoundNamesInScope e scope) →
+            n ∈ collectExprListNames ks → n ∈ scope from
+          this keys hcoreKeys hinScopeKeys hk
+        intro ks hcore' hscope' hmem
+        induction ks with
+        | nil => simp [collectExprListNames] at hmem
+        | cons hd tl ih =>
+          simp [collectExprListNames] at hmem
+          rcases hmem with hhd | htl
+          · exact hscope' hd (by simp) n
+              (collectExprNames_mem_exprBoundNames_of_core (hcore' hd (by simp)) n hhd)
+          · exact ih (fun e he => hcore' e (by simp [he]))
+              (fun e he => hscope' e (by simp [he])) htl
+      · exact hinScopeValue n (collectExprNames_mem_exprBoundNames_of_core hcoreValue n hv)
+      · exact hs
+    -- Post-state invariants
+    have hexact' : FunctionBody.bindingsExactlyMatchIRVarsOnScope
+        (stmtNextScope scope (.setMappingChain fieldName keys value))
+        runtime'.bindings state' :=
+      FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
+        (bindingsExactlyMatchIRVarsOnScope_writeUintSlot hexact)
+        hincl
+    have hscope' : FunctionBody.scopeNamesPresent
+        (stmtNextScope scope (.setMappingChain fieldName keys value))
+        runtime'.bindings :=
+      FunctionBody.scopeNamesPresent_of_included hscope hincl
+    have hbounded' : FunctionBody.bindingsBounded runtime'.bindings := by
+      simpa [runtime'] using hbounded
+    have hruntime' : FunctionBody.runtimeStateMatchesIR fields runtime' state' :=
+      runtimeStateMatchesIR_writeAddressKeyedMappingChainSlot
+        hruntime hresolvedNone hdynNone hvalueLt
+    exact ⟨_, _, hSrcExec, hIRExec,
+      hruntime', hexact', hbounded', hscope'⟩
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setMappingChain_singleSlot_of_slotSafety
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {fieldName : String}
--- TYPESIG_SORRY:     {keys : List Expr}
--- TYPESIG_SORRY:     {value : Expr}
--- TYPESIG_SORRY:     {keyIRs : List YulExpr}
--- TYPESIG_SORRY:     {valueIR : YulExpr}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hmapping : isMapping fields fieldName = true)
--- TYPESIG_SORRY:     (hcoreKeys : ∀ expr ∈ keys, FunctionBody.ExprCompileCore expr)
--- TYPESIG_SORRY:     (hinScopeKeys : ∀ expr ∈ keys, FunctionBody.exprBoundNamesInScope expr scope)
--- TYPESIG_SORRY:     (hcoreValue : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
--- TYPESIG_SORRY:     (hslotSafety :
--- TYPESIG_SORRY:       ∀ runtime keyVals,
--- TYPESIG_SORRY:         SourceSemantics.evalExprList fields runtime keys = some keyVals →
--- TYPESIG_SORRY:           findResolvedFieldAtSlotCopy fields
--- TYPESIG_SORRY:             (SourceSemantics.mappingSlotChain slot keyVals) = none ∧
--- TYPESIG_SORRY:           findDynamicArrayElementAtSlotCopy fields runtime.world
--- TYPESIG_SORRY:             (SourceSemantics.mappingSlotChain slot keyVals) = none)
--- TYPESIG_SORRY:     (hkeyIRs : CompilationModel.compileExprList fields .calldata keys = Except.ok keyIRs)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.setMappingChain fieldName keys value)
--- TYPESIG_SORRY:       [YulStmt.expr
--- TYPESIG_SORRY:         (YulExpr.call "sstore"
--- TYPESIG_SORRY:           [keyIRs.foldl
--- TYPESIG_SORRY:             (fun slotExpr keyExpr => YulExpr.call "mappingSlot" [slotExpr, keyExpr])
--- TYPESIG_SORRY:             (YulExpr.lit slot), valueIR])] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, CompilationModel.compileSetMappingChain,
--- SORRY'D:       hmapping, hwriteSlots, hkeyIRs, hvalueIR]
--- SORRY'D:   preserves := compiledStmtStep_setMappingChain_singleSlot_of_slotSafety_preserves
--- SORRY'D:     hcoreKeys hinScopeKeys hcoreValue hinScopeValue hwriteSlots hslotSafety hkeyIRs hvalueIR
+theorem compiledStmtStep_setMappingChain_singleSlot_of_slotSafety
+    {fields : List Field}
+    {scope : List String}
+    {fieldName : String}
+    {keys : List Expr}
+    {value : Expr}
+    {keyIRs : List YulExpr}
+    {valueIR : YulExpr}
+    {slot : Nat}
+    (hmapping : isMapping fields fieldName = true)
+    (hcoreKeys : ∀ expr ∈ keys, FunctionBody.ExprCompileCore expr)
+    (hinScopeKeys : ∀ expr ∈ keys, FunctionBody.exprBoundNamesInScope expr scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
+    (hslotSafety :
+      ∀ runtime keyVals,
+        SourceSemantics.evalExprList fields runtime keys = some keyVals →
+          findResolvedFieldAtSlotCopy fields
+            (SourceSemantics.mappingSlotChain slot keyVals) = none ∧
+          findDynamicArrayElementAtSlotCopy fields runtime.world
+            (SourceSemantics.mappingSlotChain slot keyVals) = none)
+    (hkeyIRs : CompilationModel.compileExprList fields .calldata keys = Except.ok keyIRs)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.setMappingChain fieldName keys value)
+      [YulStmt.expr
+        (YulExpr.call "sstore"
+          [keyIRs.foldl
+            (fun slotExpr keyExpr => YulExpr.call "mappingSlot" [slotExpr, keyExpr])
+            (YulExpr.lit slot), valueIR])] where
+  compileOk := by
+    simp only [CompilationModel.compileStmt, CompilationModel.compileSetMappingChain,
+      hmapping, hwriteSlots, hkeyIRs, hvalueIR]
+    rfl
+  preserves := compiledStmtStep_setMappingChain_singleSlot_of_slotSafety_preserves
+    hcoreKeys hinScopeKeys hcoreValue hinScopeValue hwriteSlots hslotSafety hkeyIRs hvalueIR
 
 private theorem compiledStmtStep_setMapping_singleSlot_of_slotSafety_preserves
     {fields : List Field}
@@ -6563,82 +7877,126 @@ private theorem compiledStmtStep_setMapping_singleSlot_of_slotSafety_preserves
         stmtStepMatchesIRExec fields
           (stmtNextScope scope (.setMapping fieldName key value))
           sourceResult
-          irExec := by sorry
--- SORRY'D:   intro runtime state extraFuel hexact hscope hbounded hruntime hslack
--- SORRY'D:   let compiledIR := [YulStmt.expr
--- SORRY'D:     (YulExpr.call "sstore"
--- SORRY'D:       [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])]
--- SORRY'D:   let keyNat := SourceSemantics.evalExpr fields runtime key
--- SORRY'D:   let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:   have hkeySourceEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreKey hexact hinScopeKey hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey)
--- SORRY'D:       hruntime
--- SORRY'D:   have hvalueSourceEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreValue hexact hinScopeValue hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
--- SORRY'D:       hruntime
--- SORRY'D:   rw [hkeyIR] at hkeySourceEval
--- SORRY'D:   rw [hvalueIR] at hvalueSourceEval
--- SORRY'D:   have hkeyEval : evalIRExpr state keyIR = some keyNat := by
--- SORRY'D:     simpa [keyNat] using hkeySourceEval
--- SORRY'D:   have hvalueEval : evalIRExpr state valueIR = some valueNat := by
--- SORRY'D:     simpa [valueNat] using hvalueSourceEval
--- SORRY'D:   rcases hslotSafety runtime keyNat (by simpa [keyNat] using hkeySourceEval) with
--- SORRY'D:     ⟨hresolvedNone, hdynNone⟩
--- SORRY'D:   refine ⟨_, _, ?_⟩
--- SORRY'D:   · simp [SourceSemantics.execStmt, hwriteSlots, keyNat, valueNat]
--- SORRY'D:   · have hExecStmt :
--- SORRY'D:         execIRStmt (extraFuel + 1) state
--- SORRY'D:           (YulStmt.expr
--- SORRY'D:             (YulExpr.call "sstore"
--- SORRY'D:               [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])) =
--- SORRY'D:             .continue
--- SORRY'D:               { state with
--- SORRY'D:                   storage :=
--- SORRY'D:                     Compiler.Proofs.abstractStoreMappingEntry
--- SORRY'D:                       state.storage slot keyNat valueNat } := by
--- SORRY'D:       simp [execIRStmt, evalIRExpr, hkeyEval, hvalueEval,
--- SORRY'D:         Compiler.Proofs.abstractStoreMappingEntry_eq]
--- SORRY'D:     simpa [compiledIR, execIRStmts, hExecStmt]
--- SORRY'D:   · refine And.intro ?_ <| And.intro ?_ <| And.intro hbounded hscope
--- SORRY'D:     · exact runtimeStateMatchesIR_writeAddressKeyedMappingSlot
--- SORRY'D:         hruntime hresolvedNone hdynNone
--- SORRY'D:     · exact bindingsExactlyMatchIRVarsOnScope_writeMappingSlot hexact
+          irExec := by
+  intro runtime state extraFuel hexact hscope hbounded hruntime hslack
+  let compiledIR := [YulStmt.expr
+    (YulExpr.call "sstore"
+      [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])]
+  have hkeySourceEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreKey hexact hinScopeKey hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey)
+      hruntime
+  have hvalueSourceEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreValue hexact hinScopeValue hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+      hruntime
+  rw [hkeyIR] at hkeySourceEval
+  rw [hvalueIR] at hvalueSourceEval
+  simp [Except.toOption] at hkeySourceEval hvalueSourceEval
+  -- Case split on IR eval results to extract concrete Nat values
+  rcases hIRKey : evalIRExpr state keyIR with _ | keyNat
+  · simp [hIRKey, Option.bind] at hkeySourceEval
+  · simp [hIRKey, Option.bind] at hkeySourceEval
+    rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+    · simp [hIRValue, Option.bind] at hvalueSourceEval
+    · simp [hIRValue, Option.bind] at hvalueSourceEval
+      have hKeySrc : SourceSemantics.evalExpr fields runtime key = some keyNat :=
+        hkeySourceEval.symm
+      have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+        hvalueSourceEval.symm
+      rcases hslotSafety runtime keyNat hKeySrc with ⟨hresolvedNone, hdynNone⟩
+      -- Get boundedness of valueNat
+      have hvalueLt := FunctionBody.evalExpr_lt_evmModulus_core_of_scope
+          hcoreValue hexact hinScopeValue hbounded
+          (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+          hruntime
+      rw [hValueSrc] at hvalueLt
+      simp at hvalueLt
+      -- Define post-states
+      set state' := { state with
+          storage :=
+            Compiler.Proofs.abstractStoreMappingEntry
+              state.storage slot keyNat valueNat }
+      set runtime' := { runtime with
+          world := SourceSemantics.writeAddressKeyedMappingSlots
+            runtime.world [slot] keyNat valueNat }
+      -- Source execution
+      have hSrcExec : SourceSemantics.execStmt fields runtime
+          (.setMapping fieldName key value) = .continue runtime' := by
+        simp [SourceSemantics.execStmt, hwriteSlots, hKeySrc, hValueSrc, runtime']
+      -- IR execution
+      have hExecStmt :
+          execIRStmt (extraFuel + 1) state
+            (YulStmt.expr
+              (YulExpr.call "sstore"
+                [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])) =
+              .continue state' := by
+        simp [execIRStmt, evalIRExpr, hIRKey, hIRValue,
+          Compiler.Proofs.abstractStoreMappingEntry_eq, state']
+      have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
+      have hIRExec : execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
+          .continue state' := by
+        simp [compiledIR, execIRStmts, hfuelEq, hExecStmt]
+      -- Scope inclusion: stmtNextScope only adds expr names already in scope
+      have hincl : FunctionBody.scopeNamesIncluded
+          (stmtNextScope scope (.setMapping fieldName key value)) scope := by
+        intro n hn
+        simp [stmtNextScope, collectStmtNames] at hn
+        rcases hn with hk | hv | hs
+        · exact hinScopeKey n (collectExprNames_mem_exprBoundNames_of_core hcoreKey n hk)
+        · exact hinScopeValue n (collectExprNames_mem_exprBoundNames_of_core hcoreValue n hv)
+        · exact hs
+      -- Post-state invariants
+      have hexact' : FunctionBody.bindingsExactlyMatchIRVarsOnScope
+          (stmtNextScope scope (.setMapping fieldName key value))
+          runtime'.bindings state' :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
+          (bindingsExactlyMatchIRVarsOnScope_writeMappingSlot hexact)
+          hincl
+      have hscope' : FunctionBody.scopeNamesPresent
+          (stmtNextScope scope (.setMapping fieldName key value))
+          runtime'.bindings :=
+        FunctionBody.scopeNamesPresent_of_included hscope hincl
+      refine ⟨.continue runtime', .continue state', hSrcExec, hIRExec, ?_⟩
+      simp [stmtStepMatchesIRExec]
+      exact ⟨runtimeStateMatchesIR_writeAddressKeyedMappingSlot
+          hruntime hresolvedNone hdynNone hvalueLt,
+        hexact', hbounded, hscope'⟩
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setMapping_singleSlot_of_slotSafety
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {fieldName : String}
--- TYPESIG_SORRY:     {key value : Expr}
--- TYPESIG_SORRY:     {keyIR valueIR : YulExpr}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hmapping : isMapping fields fieldName = true)
--- TYPESIG_SORRY:     (hcoreKey : FunctionBody.ExprCompileCore key)
--- TYPESIG_SORRY:     (hinScopeKey : FunctionBody.exprBoundNamesInScope key scope)
--- TYPESIG_SORRY:     (hcoreValue : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
--- TYPESIG_SORRY:     (hslotSafety :
--- TYPESIG_SORRY:       ∀ runtime keyNat,
--- TYPESIG_SORRY:         SourceSemantics.evalExpr fields runtime key = some keyNat →
--- TYPESIG_SORRY:           findResolvedFieldAtSlotCopy fields
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot slot keyNat) = none ∧
--- TYPESIG_SORRY:           findDynamicArrayElementAtSlotCopy fields runtime.world
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot slot keyNat) = none)
--- TYPESIG_SORRY:     (hkeyIR : CompilationModel.compileExpr fields .calldata key = Except.ok keyIR)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.setMapping fieldName key value)
--- TYPESIG_SORRY:       [YulStmt.expr
--- TYPESIG_SORRY:         (YulExpr.call "sstore"
--- TYPESIG_SORRY:           [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, CompilationModel.compileMappingSlotWrite,
--- SORRY'D:       hmapping, hwriteSlots, hkeyIR, hvalueIR]
--- SORRY'D:   preserves := compiledStmtStep_setMapping_singleSlot_of_slotSafety_preserves
--- SORRY'D:     hcoreKey hinScopeKey hcoreValue hinScopeValue hwriteSlots hslotSafety hkeyIR hvalueIR
+theorem compiledStmtStep_setMapping_singleSlot_of_slotSafety
+    {fields : List Field}
+    {scope : List String}
+    {fieldName : String}
+    {key value : Expr}
+    {keyIR valueIR : YulExpr}
+    {slot : Nat}
+    (hmapping : isMapping fields fieldName = true)
+    (hcoreKey : FunctionBody.ExprCompileCore key)
+    (hinScopeKey : FunctionBody.exprBoundNamesInScope key scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
+    (hslotSafety :
+      ∀ runtime keyNat,
+        SourceSemantics.evalExpr fields runtime key = some keyNat →
+          findResolvedFieldAtSlotCopy fields
+            (Compiler.Proofs.abstractMappingSlot slot keyNat) = none ∧
+          findDynamicArrayElementAtSlotCopy fields runtime.world
+            (Compiler.Proofs.abstractMappingSlot slot keyNat) = none)
+    (hkeyIR : CompilationModel.compileExpr fields .calldata key = Except.ok keyIR)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.setMapping fieldName key value)
+      [YulStmt.expr
+        (YulExpr.call "sstore"
+          [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])] where
+  compileOk := by
+    simp only [CompilationModel.compileStmt, CompilationModel.compileMappingSlotWrite,
+      hmapping, hwriteSlots, hkeyIR, hvalueIR]
+    rfl
+  preserves := compiledStmtStep_setMapping_singleSlot_of_slotSafety_preserves
+    hcoreKey hinScopeKey hcoreValue hinScopeValue hwriteSlots hslotSafety hkeyIR hvalueIR
 
 private theorem compiledStmtStep_setMappingWord_singleSlot_of_slotSafety_preserves
     {fields : List Field}
@@ -6657,9 +8015,9 @@ private theorem compiledStmtStep_setMappingWord_singleSlot_of_slotSafety_preserv
       ∀ runtime keyNat,
         SourceSemantics.evalExpr fields runtime key = some keyNat →
           findResolvedFieldAtSlotCopy fields
-            (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none ∧
+            (mappingWordTargetSlot slot keyNat wordOffset) = none ∧
           findDynamicArrayElementAtSlotCopy fields runtime.world
-            (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none)
+            (mappingWordTargetSlot slot keyNat wordOffset) = none)
     (hkeyIR : CompilationModel.compileExpr fields .calldata key = Except.ok keyIR)
     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
     ∀ (runtime : SourceSemantics.RuntimeState)
@@ -6697,95 +8055,283 @@ private theorem compiledStmtStep_setMappingWord_singleSlot_of_slotSafety_preserv
         stmtStepMatchesIRExec fields
           (stmtNextScope scope (.setMappingWord fieldName key wordOffset value))
           sourceResult
-          irExec := by sorry
--- SORRY'D:   intro runtime state extraFuel hexact hscope hbounded hruntime hslack
--- SORRY'D:   let writeSlotExpr :=
--- SORRY'D:     let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]
--- SORRY'D:     if wordOffset == 0 then mappingBase else YulExpr.call "add" [mappingBase, YulExpr.lit wordOffset]
--- SORRY'D:   let compiledIR := [YulStmt.expr (YulExpr.call "sstore" [writeSlotExpr, valueIR])]
--- SORRY'D:   let keyNat := SourceSemantics.evalExpr fields runtime key
--- SORRY'D:   let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:   have hkeySourceEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreKey hexact hinScopeKey hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey)
--- SORRY'D:       hruntime
--- SORRY'D:   have hvalueSourceEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreValue hexact hinScopeValue hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
--- SORRY'D:       hruntime
--- SORRY'D:   rw [hkeyIR] at hkeySourceEval
--- SORRY'D:   rw [hvalueIR] at hvalueSourceEval
--- SORRY'D:   have hkeyEval : evalIRExpr state keyIR = some keyNat := by
--- SORRY'D:     simpa [keyNat] using hkeySourceEval
--- SORRY'D:   have hvalueEval : evalIRExpr state valueIR = some valueNat := by
--- SORRY'D:     simpa [valueNat] using hvalueSourceEval
--- SORRY'D:   rcases hslotSafety runtime keyNat (by simpa [keyNat] using hkeySourceEval) with
--- SORRY'D:     ⟨hresolvedNone, hdynNone⟩
--- SORRY'D:   refine ⟨_, _, ?_⟩
--- SORRY'D:   · simp [SourceSemantics.execStmt, hwriteSlots, keyNat, valueNat]
--- SORRY'D:   · have hWriteSlotEval :
--- SORRY'D:         evalIRExpr state writeSlotExpr =
--- SORRY'D:           some (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) := by
--- SORRY'D:       dsimp [writeSlotExpr]
--- SORRY'D:       by_cases hzero : wordOffset = 0
--- SORRY'D:       · subst hzero
--- SORRY'D:         simp [evalIRExpr, hkeyEval]
--- SORRY'D:       · simp [evalIRExpr, hkeyEval, hzero]
--- SORRY'D:     have hExecStmt :
--- SORRY'D:         execIRStmt (extraFuel + 1) state
--- SORRY'D:           (YulStmt.expr (YulExpr.call "sstore" [writeSlotExpr, valueIR])) =
--- SORRY'D:             .continue
--- SORRY'D:               { state with
--- SORRY'D:                   storage :=
--- SORRY'D:                     Compiler.Proofs.abstractStoreStorageOrMapping
--- SORRY'D:                       state.storage
--- SORRY'D:                       (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset)
--- SORRY'D:                       valueNat } := by
--- SORRY'D:       simp [execIRStmt, evalIRExpr, hWriteSlotEval, hvalueEval,
--- SORRY'D:         Compiler.Proofs.abstractStoreStorageOrMapping_eq]
--- SORRY'D:     simpa [compiledIR, execIRStmts] using hExecStmt
--- SORRY'D:   · refine And.intro ?_ <| And.intro ?_ <| And.intro hbounded hscope
--- SORRY'D:     · exact runtimeStateMatchesIR_writeAddressKeyedMappingWordSlot
--- SORRY'D:         hruntime hresolvedNone hdynNone
--- SORRY'D:     · exact bindingsExactlyMatchIRVarsOnScope_writeMappingSlot hexact
+          irExec := by
+  intro runtime state extraFuel hexact hscope hbounded hruntime hslack
+  have hkeySourceEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreKey hexact hinScopeKey hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey)
+      hruntime
+  have hvalueSourceEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreValue hexact hinScopeValue hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+      hruntime
+  rw [hkeyIR] at hkeySourceEval
+  rw [hvalueIR] at hvalueSourceEval
+  simp [Except.toOption] at hkeySourceEval hvalueSourceEval
+  rcases hIRKey : evalIRExpr state keyIR with _ | keyNat
+  · simp [hIRKey, Option.bind] at hkeySourceEval
+  · simp [hIRKey, Option.bind] at hkeySourceEval
+    rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+    · simp [hIRValue, Option.bind] at hvalueSourceEval
+    · simp [hIRValue, Option.bind] at hvalueSourceEval
+      have hKeySrc : SourceSemantics.evalExpr fields runtime key = some keyNat :=
+        hkeySourceEval.symm
+      have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+        hvalueSourceEval.symm
+      rcases hslotSafety runtime keyNat hKeySrc with ⟨hresolvedNone, hdynNone⟩
+      -- Get boundedness of valueNat
+      have hvalueLt := FunctionBody.evalExpr_lt_evmModulus_core_of_scope
+          hcoreValue hexact hinScopeValue hbounded
+          (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+          hruntime
+      rw [hValueSrc] at hvalueLt
+      simp at hvalueLt
+      -- Define post-states
+      set targetSlot := mappingWordTargetSlot slot keyNat wordOffset
+      set state' := { state with
+          storage :=
+            Compiler.Proofs.abstractStoreStorageOrMapping
+              state.storage targetSlot valueNat }
+      set runtime' := { runtime with
+          world := SourceSemantics.writeAddressKeyedMappingWordSlots
+            runtime.world [slot] keyNat wordOffset valueNat }
+      -- Source execution
+      have hSrcExec : SourceSemantics.execStmt fields runtime
+          (.setMappingWord fieldName key wordOffset value) = .continue runtime' := by
+        simp [SourceSemantics.execStmt, hwriteSlots, hKeySrc, hValueSrc, runtime']
+      -- Scope inclusion: stmtNextScope only adds expr names already in scope
+      have hincl : FunctionBody.scopeNamesIncluded
+          (stmtNextScope scope (.setMappingWord fieldName key wordOffset value)) scope := by
+        intro n hn
+        simp [stmtNextScope, collectStmtNames] at hn
+        rcases hn with hk | hv | hs
+        · exact hinScopeKey n (collectExprNames_mem_exprBoundNames_of_core hcoreKey n hk)
+        · exact hinScopeValue n (collectExprNames_mem_exprBoundNames_of_core hcoreValue n hv)
+        · exact hs
+      -- Post-state invariants
+      have hexact' : FunctionBody.bindingsExactlyMatchIRVarsOnScope
+          (stmtNextScope scope (.setMappingWord fieldName key wordOffset value))
+          runtime'.bindings state' :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
+          (bindingsExactlyMatchIRVarsOnScope_writeUintSlot hexact)
+          hincl
+      have hscope' : FunctionBody.scopeNamesPresent
+          (stmtNextScope scope (.setMappingWord fieldName key wordOffset value))
+          runtime'.bindings :=
+        FunctionBody.scopeNamesPresent_of_included hscope hincl
+      -- IR execution: case split on wordOffset
+      have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
+      by_cases hzero : wordOffset = 0
+      · -- wordOffset = 0: slot expr is just mappingSlot, uses abstractStoreMappingEntry
+        subst hzero
+        have hTargetZero :
+            mappingWordTargetSlot slot keyNat 0 = Compiler.Proofs.abstractMappingSlot slot keyNat := by
+          have hlt :
+              Compiler.Proofs.solidityMappingSlot slot keyNat < Compiler.Constants.evmModulus := by
+            simpa [Compiler.Proofs.abstractMappingSlot_eq_solidity] using
+              (Compiler.Proofs.abstractMappingSlot_lt_evmModulus slot keyNat)
+          simpa [mappingWordTargetSlot, SourceSemantics.wordNormalize,
+            Compiler.Proofs.abstractMappingSlot_eq_solidity] using
+            (Nat.mod_eq_of_lt hlt)
+        have hStoreEq : Compiler.Proofs.abstractStoreMappingEntry state.storage slot keyNat valueNat =
+            Compiler.Proofs.abstractStoreStorageOrMapping state.storage
+              (mappingWordTargetSlot slot keyNat 0) valueNat := by
+          simp [Compiler.Proofs.abstractStoreStorageOrMapping,
+            Compiler.Proofs.abstractStoreMappingEntry, hTargetZero]
+        have hExecStmt :
+            execIRStmt (extraFuel + 1) state
+              (YulStmt.expr (YulExpr.call "sstore"
+                [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])) =
+                .continue state' := by
+          have hTargetZero' : targetSlot = Compiler.Proofs.solidityMappingSlot slot keyNat := by
+            simpa [targetSlot, Compiler.Proofs.abstractMappingSlot_eq_solidity] using hTargetZero
+          simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs, hIRKey, hIRValue,
+            state', hTargetZero', Compiler.Proofs.abstractStoreMappingEntry_eq,
+            Compiler.Proofs.abstractStoreStorageOrMapping_eq]
+        have hIRExec : execIRStmts (1 + extraFuel + 1) state
+            [YulStmt.expr (YulExpr.call "sstore"
+              [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])] =
+            .continue state' := by
+          simp [execIRStmts, hfuelEq, hExecStmt]
+        refine ⟨.continue runtime', .continue state', hSrcExec, hIRExec, ?_⟩
+        simp [stmtStepMatchesIRExec]
+        exact ⟨runtimeStateMatchesIR_writeAddressKeyedMappingWordSlot
+            hruntime hresolvedNone hdynNone hvalueLt,
+          hexact', hbounded, hscope'⟩
+      · -- wordOffset ≠ 0: slot expr is add [mappingSlot [...], lit wordOffset]
+        -- Use keccak axiom: mappingSlot + wordOffset < evmModulus
+        -- Reduce the if-then-else: wordOffset ≠ 0 means we take the else branch
+        have hbeq : (wordOffset == 0) = false := by
+          simp [beq_iff_eq, hzero]
+        have hTargetMod :
+            (Compiler.Proofs.solidityMappingSlot slot keyNat + wordOffset) %
+              Compiler.Constants.evmModulus = targetSlot := by
+          rw [show targetSlot =
+            (Verity.Core.Uint256.ofNat wordOffset +
+              Verity.Core.Uint256.ofNat
+                (Compiler.Proofs.solidityMappingSlot slot keyNat)).val by
+              simpa [targetSlot] using mappingWordTargetSlot_eq_uint256_add slot keyNat wordOffset]
+          simpa [Nat.add_comm] using
+            (uint256_add_val_eq_mod wordOffset
+              (Compiler.Proofs.solidityMappingSlot slot keyNat)).symm
+        have hTargetAdd :
+            targetSlot =
+              (Verity.Core.Uint256.ofNat wordOffset +
+                Verity.Core.Uint256.ofNat (Compiler.Proofs.solidityMappingSlot slot keyNat)).val := by
+          simpa [targetSlot] using mappingWordTargetSlot_eq_uint256_add slot keyNat wordOffset
+        have hStoreEq :
+            Compiler.Proofs.abstractStoreStorageOrMapping state.storage targetSlot valueNat =
+              fun s =>
+                if s =
+                    (Compiler.Proofs.solidityMappingSlot slot keyNat + wordOffset) %
+                      Compiler.Constants.evmModulus then
+                  valueNat
+                else
+                  state.storage s := by
+          funext s
+          rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq, ← hTargetMod]
+        -- The compiled IR with the if-else reduced
+        have hExecStmt :
+            execIRStmt (extraFuel + 1) state
+              (YulStmt.expr (YulExpr.call "sstore"
+                [YulExpr.call "add"
+                  [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR],
+                   YulExpr.lit wordOffset], valueIR])) =
+                .continue state' := by
+          simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
+            hIRKey, hIRValue,
+            Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+            Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+            Compiler.Proofs.abstractMappingSlot_eq_solidity,
+            state', hTargetMod, hStoreEq]
+        have hIRExec : execIRStmts (1 + extraFuel + 1) state
+            [YulStmt.expr (YulExpr.call "sstore"
+              [YulExpr.call "add"
+                [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR],
+                 YulExpr.lit wordOffset], valueIR])] =
+            .continue state' := by
+          simp [execIRStmts, hfuelEq, hExecStmt]
+        -- Now show the goal with the if-else reduced matches
+        refine ⟨.continue runtime', .continue state', hSrcExec, ?_, ?_⟩
+        · -- IR execution: reduce the if-then-else, then use hIRExec
+          simp only [List.length_singleton, hbeq, ite_false]
+          exact hIRExec
+        · simp [stmtStepMatchesIRExec]
+          exact ⟨runtimeStateMatchesIR_writeAddressKeyedMappingWordSlot
+              hruntime hresolvedNone hdynNone hvalueLt,
+            hexact', hbounded, hscope'⟩
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setMappingWord_singleSlot_of_slotSafety
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {fieldName : String}
--- TYPESIG_SORRY:     {key value : Expr}
--- TYPESIG_SORRY:     {wordOffset : Nat}
--- TYPESIG_SORRY:     {keyIR valueIR : YulExpr}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hmapping : isMapping fields fieldName = true)
--- TYPESIG_SORRY:     (hcoreKey : FunctionBody.ExprCompileCore key)
--- TYPESIG_SORRY:     (hinScopeKey : FunctionBody.exprBoundNamesInScope key scope)
--- TYPESIG_SORRY:     (hcoreValue : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
--- TYPESIG_SORRY:     (hslotSafety :
--- TYPESIG_SORRY:       ∀ runtime keyNat,
--- TYPESIG_SORRY:         SourceSemantics.evalExpr fields runtime key = some keyNat →
--- TYPESIG_SORRY:           findResolvedFieldAtSlotCopy fields
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none ∧
--- TYPESIG_SORRY:           findDynamicArrayElementAtSlotCopy fields runtime.world
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none)
--- TYPESIG_SORRY:     (hkeyIR : CompilationModel.compileExpr fields .calldata key = Except.ok keyIR)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.setMappingWord fieldName key wordOffset value)
--- TYPESIG_SORRY:       [YulStmt.expr
--- TYPESIG_SORRY:         (YulExpr.call "sstore"
--- TYPESIG_SORRY:           [let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]
--- TYPESIG_SORRY:            if wordOffset == 0 then mappingBase
--- TYPESIG_SORRY:            else YulExpr.call "add" [mappingBase, YulExpr.lit wordOffset], valueIR])] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, CompilationModel.compileMappingSlotWrite,
--- SORRY'D:       hmapping, hwriteSlots, hkeyIR, hvalueIR]
--- SORRY'D:   preserves := compiledStmtStep_setMappingWord_singleSlot_of_slotSafety_preserves
--- SORRY'D:     hcoreKey hinScopeKey hcoreValue hinScopeValue hwriteSlots hslotSafety hkeyIR hvalueIR
+theorem compiledStmtStep_setMappingWord_singleSlot_of_slotSafety
+    {fields : List Field}
+    {scope : List String}
+    {fieldName : String}
+    {key value : Expr}
+    {wordOffset : Nat}
+    {keyIR valueIR : YulExpr}
+    {slot : Nat}
+    (hmapping : isMapping fields fieldName = true)
+    (hcoreKey : FunctionBody.ExprCompileCore key)
+    (hinScopeKey : FunctionBody.exprBoundNamesInScope key scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
+    (hslotSafety :
+      ∀ runtime keyNat,
+        SourceSemantics.evalExpr fields runtime key = some keyNat →
+          findResolvedFieldAtSlotCopy fields
+            (mappingWordTargetSlot slot keyNat wordOffset) = none ∧
+          findDynamicArrayElementAtSlotCopy fields runtime.world
+            (mappingWordTargetSlot slot keyNat wordOffset) = none)
+    (hkeyIR : CompilationModel.compileExpr fields .calldata key = Except.ok keyIR)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.setMappingWord fieldName key wordOffset value)
+      [YulStmt.expr
+        (YulExpr.call "sstore"
+          [let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]
+           if wordOffset == 0 then mappingBase
+           else YulExpr.call "add" [mappingBase, YulExpr.lit wordOffset], valueIR])] where
+  compileOk := by
+    simp only [CompilationModel.compileStmt, CompilationModel.compileMappingSlotWrite,
+      hmapping, hwriteSlots, hkeyIR, hvalueIR]
+    rfl
+  preserves := compiledStmtStep_setMappingWord_singleSlot_of_slotSafety_preserves
+    hcoreKey hinScopeKey hcoreValue hinScopeValue hwriteSlots hslotSafety hkeyIR hvalueIR
 
+private theorem uint256_and_val_eq_land_mod (a b : Nat) :
+    (Verity.Core.Uint256.and a b).val =
+      ((a % Compiler.Constants.evmModulus) &&& (b % Compiler.Constants.evmModulus)) := by
+  simp only [Verity.Core.Uint256.and, Verity.Core.Uint256.val_ofNat,
+    Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS]
+  have hlt : Nat.land (a % Compiler.Constants.evmModulus) (b % Compiler.Constants.evmModulus) <
+      Compiler.Constants.evmModulus := by
+    have ha : a % Compiler.Constants.evmModulus < Compiler.Constants.evmModulus := by
+      exact Nat.mod_lt _ (by simp [Compiler.Constants.evmModulus])
+    have hb : b % Compiler.Constants.evmModulus < Compiler.Constants.evmModulus := by
+      exact Nat.mod_lt _ (by simp [Compiler.Constants.evmModulus])
+    rw [show Compiler.Constants.evmModulus = 2 ^ 256 by rfl]
+    exact Nat.and_lt_two_pow (a % Compiler.Constants.evmModulus)
+      (by simpa [show Compiler.Constants.evmModulus = 2 ^ 256 by rfl] using hb)
+  exact Nat.mod_eq_of_lt hlt
+
+private theorem uint256_or_val_eq_lor_mod (a b : Nat) :
+    (Verity.Core.Uint256.or a b).val =
+      ((a % Compiler.Constants.evmModulus) ||| (b % Compiler.Constants.evmModulus)) := by
+  simp only [Verity.Core.Uint256.or, Verity.Core.Uint256.val_ofNat,
+    Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS]
+  have ha : a % Compiler.Constants.evmModulus < Compiler.Constants.evmModulus := by
+    exact Nat.mod_lt _ (by simp [Compiler.Constants.evmModulus])
+  have hb : b % Compiler.Constants.evmModulus < Compiler.Constants.evmModulus := by
+    exact Nat.mod_lt _ (by simp [Compiler.Constants.evmModulus])
+  have hlt : Nat.lor (a % Compiler.Constants.evmModulus) (b % Compiler.Constants.evmModulus) <
+      Compiler.Constants.evmModulus := by
+    rw [show Compiler.Constants.evmModulus = 2 ^ 256 by rfl]
+    exact Nat.or_lt_two_pow
+      (by simpa [show Compiler.Constants.evmModulus = 2 ^ 256 by rfl] using ha)
+      (by simpa [show Compiler.Constants.evmModulus = 2 ^ 256 by rfl] using hb)
+  exact Nat.mod_eq_of_lt hlt
+
+private theorem uint256_not_val_eq_xor_allOnes_mod (a : Nat) :
+    (Verity.Core.Uint256.not a).val =
+      Nat.xor (a % Compiler.Constants.evmModulus) (Compiler.Constants.evmModulus - 1) := by
+  have ha : a % Compiler.Constants.evmModulus < Compiler.Constants.evmModulus := by
+    exact Nat.mod_lt _ (by simp [Compiler.Constants.evmModulus])
+  have ha256 : a % Compiler.Constants.evmModulus < 2 ^ 256 := by
+    simpa [show Compiler.Constants.evmModulus = 2 ^ 256 by rfl] using ha
+  have hxor_eq : Nat.xor (a % Compiler.Constants.evmModulus) (2 ^ 256 - 1) =
+      2 ^ 256 - 1 - (a % Compiler.Constants.evmModulus) := by
+    have key :
+        (BitVec.ofNat 256 (a % Compiler.Constants.evmModulus) ^^^ BitVec.allOnes 256).toNat =
+          2 ^ 256 - 1 - (a % Compiler.Constants.evmModulus) := by
+      rw [BitVec.xor_allOnes]
+      simp only [BitVec.toNat_not, BitVec.toNat_ofNat, Nat.mod_eq_of_lt ha256]
+    have lhs_eq :
+        Nat.xor (a % Compiler.Constants.evmModulus) (2 ^ 256 - 1) =
+          (BitVec.ofNat 256 (a % Compiler.Constants.evmModulus) ^^^ BitVec.allOnes 256).toNat := by
+      simp only [BitVec.toNat_xor, BitVec.toNat_ofNat, Nat.mod_eq_of_lt ha256, BitVec.toNat_allOnes]
+      rfl
+    rw [lhs_eq, key]
+  rw [show Compiler.Constants.evmModulus = 2 ^ 256 by rfl]
+  simp only [Verity.Core.Uint256.not, Verity.Core.Uint256.val_ofNat, Verity.Core.MAX_UINT256,
+    Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS]
+  rw [hxor_eq, Nat.mod_eq_of_lt (by omega : 2 ^ 256 - 1 - (a % 2 ^ 256) < 2 ^ 256)]
+
+private theorem uint256_shl_val_eq_mul_pow_mod
+    (shift value : Nat)
+    (hshift : shift < 256) :
+    (Verity.Core.Uint256.shl shift value).val =
+      ((value % Compiler.Constants.evmModulus) * 2 ^ shift) % Compiler.Constants.evmModulus := by
+  have hshiftLt : shift < Compiler.Constants.evmModulus := by
+    rw [show Compiler.Constants.evmModulus = 2 ^ 256 by rfl]
+    omega
+  simp only [Verity.Core.Uint256.shl, Verity.Core.Uint256.val_ofNat,
+    Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS,
+    Nat.mod_eq_of_lt hshiftLt]
+  rw [Nat.shiftLeft_eq]
+
+set_option maxHeartbeats 0 in
+set_option maxRecDepth 10000 in
 private theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_preserves
     {fields : List Field}
     {scope : List String}
@@ -6809,9 +8355,9 @@ private theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_p
       ∀ runtime keyNat,
         SourceSemantics.evalExpr fields runtime key = some keyNat →
           findResolvedFieldAtSlotCopy fields
-            (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none ∧
+            (mappingWordTargetSlot slot keyNat wordOffset) = none ∧
           findDynamicArrayElementAtSlotCopy fields runtime.world
-            (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none)
+            (mappingWordTargetSlot slot keyNat wordOffset) = none)
     (hkeyIR : CompilationModel.compileExpr fields .calldata key = Except.ok keyIR)
     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
     ∀ (runtime : SourceSemantics.RuntimeState)
@@ -6923,7 +8469,571 @@ private theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_p
         stmtStepMatchesIRExec fields
           (stmtNextScope scope (.setMappingPackedWord fieldName key wordOffset packed value))
           sourceResult
-          irExec := by sorry
+          irExec := by
+  intro runtime state extraFuel hexact hscope hbounded hruntime hslack
+  let writeSlotExpr :=
+    let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]
+    if wordOffset == 0 then mappingBase else YulExpr.call "add" [mappingBase, YulExpr.lit wordOffset]
+  let blockBody :=
+    [ YulStmt.let_ "__compat_value" valueIR
+    , YulStmt.let_ "__compat_packed"
+        (YulExpr.call "and" [YulExpr.ident "__compat_value", YulExpr.lit (packedMaskNat packed)])
+    , YulStmt.let_ "__compat_slot_word" (YulExpr.call "sload" [writeSlotExpr])
+    , YulStmt.let_ "__compat_slot_cleared"
+        (YulExpr.call "and"
+          [YulExpr.ident "__compat_slot_word",
+            YulExpr.call "not" [YulExpr.lit (packedShiftedMaskNat packed)]])
+    , YulStmt.expr
+        (YulExpr.call "sstore"
+          [writeSlotExpr,
+            YulExpr.call "or"
+              [YulExpr.ident "__compat_slot_cleared",
+                YulExpr.call "shl"
+                  [YulExpr.lit packed.offset, YulExpr.ident "__compat_packed"]]]) ]
+  let compiledIR := [YulStmt.block blockBody]
+  have hkeySourceEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreKey hexact hinScopeKey hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey)
+      hruntime
+  have hvalueSourceEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreValue hexact hinScopeValue hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+      hruntime
+  rw [hkeyIR] at hkeySourceEval
+  rw [hvalueIR] at hvalueSourceEval
+  simp [Except.toOption] at hkeySourceEval hvalueSourceEval
+  rcases hIRKey : evalIRExpr state keyIR with _ | keyNat
+  · simp [hIRKey, Option.bind] at hkeySourceEval
+  · simp [hIRKey, Option.bind] at hkeySourceEval
+    rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+    · simp [hIRValue, Option.bind] at hvalueSourceEval
+    · simp [hIRValue, Option.bind] at hvalueSourceEval
+      have hKeySrc : SourceSemantics.evalExpr fields runtime key = some keyNat :=
+        hkeySourceEval.symm
+      have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+        hvalueSourceEval.symm
+      rcases hslotSafety runtime keyNat hKeySrc with ⟨hresolvedNone, hdynNone⟩
+      set targetSlot := mappingWordTargetSlot slot keyNat wordOffset
+      set oldWordNat := state.storage targetSlot
+      set storedWordNat := SourceSemantics.packedWordWrite oldWordNat valueNat packed
+      have hMappingBaseEval :
+          evalIRExpr state (YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]) =
+            some (Compiler.Proofs.abstractMappingSlot slot keyNat) := by
+        simpa using
+          (evalIRExpr_mappingSlotChain
+            (state := state)
+            (baseSlot := slot)
+            (keyIRs := [keyIR])
+            (keyVals := [keyNat])
+            (by simp [hIRKey] : List.Forall₂
+              (fun exprIR value => evalIRExpr state exprIR = some value)
+              [keyIR] [keyNat]))
+      have hpackedOffsetLt : packed.offset < 256 := by
+        have hvalid := hpacked
+        simp [CompilationModel.packedBitsValid] at hvalid
+        omega
+      have hWriteSlotEval : evalIRExpr state writeSlotExpr = some targetSlot := by
+        dsimp [writeSlotExpr, targetSlot]
+        by_cases hzero : wordOffset = 0
+        · subst hzero
+          have hlt :
+              Compiler.Proofs.solidityMappingSlot slot keyNat < Compiler.Constants.evmModulus := by
+            simpa [Compiler.Proofs.abstractMappingSlot_eq_solidity] using
+              (Compiler.Proofs.abstractMappingSlot_lt_evmModulus slot keyNat)
+          simpa [Verity.Core.Uint256.val_ofNat, mappingWordTargetSlot, SourceSemantics.wordNormalize,
+            Compiler.Proofs.abstractMappingSlot_eq_solidity] using
+            (show evalIRExpr state (YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]) =
+              some (Compiler.Proofs.solidityMappingSlot slot keyNat % Compiler.Constants.evmModulus) by
+                simpa [Nat.mod_eq_of_lt hlt, Compiler.Proofs.abstractMappingSlot_eq_solidity] using
+                  hMappingBaseEval)
+        · have hAddEval :=
+            FunctionBody.evalIRExpr_add_of_eval
+              (state := state)
+              (lhs := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR])
+              (rhs := YulExpr.lit wordOffset)
+              (a := Compiler.Proofs.abstractMappingSlot slot keyNat)
+              (b := wordOffset)
+              hMappingBaseEval
+              (by simp [evalIRExpr])
+          have hAddEval' :
+              evalIRExpr state
+                (YulExpr.call "add"
+                  [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], YulExpr.lit wordOffset]) =
+                some ((Verity.Core.Uint256.ofNat wordOffset +
+                  Verity.Core.Uint256.ofNat (Compiler.Proofs.solidityMappingSlot slot keyNat)).val) := by
+            rw [uint256_add_val_eq_mod]
+            simpa [Compiler.Proofs.abstractMappingSlot_eq_solidity, Nat.add_assoc, Nat.add_comm,
+              Nat.add_left_comm] using hAddEval
+          simpa [hzero, targetSlot, mappingWordTargetSlot_eq_uint256_add] using hAddEval'
+      set state1 := state.setVar "__compat_value" valueNat
+      have hCompatValue :
+          ∀ fuel, execIRStmt (fuel + 1) state (YulStmt.let_ "__compat_value" valueIR) =
+            .continue state1 := by
+        intro fuel
+        simp [state1, execIRStmt, hIRValue]
+      have hPackedEval :
+          evalIRExpr state1
+            (YulExpr.call "and" [YulExpr.ident "__compat_value", YulExpr.lit (packedMaskNat packed)]) =
+              some (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val := by
+        simpa [uint256_and_val_eq_land_mod] using
+          FunctionBody.evalIRExpr_and_of_eval
+            (state := state1)
+            (lhs := YulExpr.ident "__compat_value")
+            (rhs := YulExpr.lit (packedMaskNat packed))
+            (a := valueNat)
+            (b := packedMaskNat packed)
+            (by simp [evalIRExpr, state1, IRState.getVar, IRState.setVar])
+            (by simp [evalIRExpr])
+      set state2 := state1.setVar "__compat_packed" (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val
+      have hCompatPacked :
+          ∀ fuel, execIRStmt (fuel + 1) state1
+            (YulStmt.let_ "__compat_packed"
+              (YulExpr.call "and" [YulExpr.ident "__compat_value", YulExpr.lit (packedMaskNat packed)])) =
+            .continue state2 := by
+        intro fuel
+        simp [state2, execIRStmt, hPackedEval]
+      have hexact_state1 :
+          FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state1 :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant
+          (value := valueNat) hexact hcompatValue
+      have hexact_state2 :
+          FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state2 :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant
+          (value := (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val)
+          hexact_state1 hcompatPacked
+      have hruntimeCompat1 : FunctionBody.runtimeStateMatchesIR fields runtime state1 :=
+        FunctionBody.runtimeStateMatchesIR_setVar_irrelevant
+          (name := "__compat_value") (value := valueNat) hruntime
+      have hruntimeCompat2 : FunctionBody.runtimeStateMatchesIR fields runtime state2 :=
+        FunctionBody.runtimeStateMatchesIR_setVar_irrelevant
+          (name := "__compat_packed")
+          (value := (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val)
+          hruntimeCompat1
+      have hIRKeyState2 : evalIRExpr state2 keyIR = some keyNat := by
+        have h := FunctionBody.eval_compileExpr_core_of_scope
+            hcoreKey hexact_state2 hinScopeKey hbounded
+            (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey)
+            hruntimeCompat2
+        rw [hkeyIR] at h
+        simp [Except.toOption, hKeySrc] at h
+        cases h' : evalIRExpr state2 keyIR <;> simp [h'] at h
+        simpa using congrArg some h
+      have hMappingBaseEval2 :
+          evalIRExpr state2 (YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]) =
+            some (Compiler.Proofs.abstractMappingSlot slot keyNat) := by
+        simpa using
+          (evalIRExpr_mappingSlotChain
+            (state := state2)
+            (baseSlot := slot)
+            (keyIRs := [keyIR])
+            (keyVals := [keyNat])
+            (by simp [hIRKeyState2] : List.Forall₂
+              (fun exprIR value => evalIRExpr state2 exprIR = some value)
+              [keyIR] [keyNat]))
+      have hWriteSlotEval2 : evalIRExpr state2 writeSlotExpr = some targetSlot := by
+        dsimp [writeSlotExpr, targetSlot]
+        by_cases hzero : wordOffset = 0
+        · subst hzero
+          have hlt :
+              Compiler.Proofs.solidityMappingSlot slot keyNat < Compiler.Constants.evmModulus := by
+            simpa [Compiler.Proofs.abstractMappingSlot_eq_solidity] using
+              (Compiler.Proofs.abstractMappingSlot_lt_evmModulus slot keyNat)
+          simpa [Verity.Core.Uint256.val_ofNat, mappingWordTargetSlot, SourceSemantics.wordNormalize,
+            Compiler.Proofs.abstractMappingSlot_eq_solidity] using
+            (show evalIRExpr state2 (YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]) =
+              some (Compiler.Proofs.solidityMappingSlot slot keyNat % Compiler.Constants.evmModulus) by
+                simpa [Nat.mod_eq_of_lt hlt, Compiler.Proofs.abstractMappingSlot_eq_solidity] using
+                  hMappingBaseEval2)
+        · have hAddEval :=
+            FunctionBody.evalIRExpr_add_of_eval
+              (state := state2)
+              (lhs := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR])
+              (rhs := YulExpr.lit wordOffset)
+              (a := Compiler.Proofs.abstractMappingSlot slot keyNat)
+              (b := wordOffset)
+              hMappingBaseEval2
+              (by simp [evalIRExpr])
+          have hAddEval' :
+              evalIRExpr state2
+                (YulExpr.call "add"
+                  [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], YulExpr.lit wordOffset]) =
+                some ((Verity.Core.Uint256.ofNat wordOffset +
+                  Verity.Core.Uint256.ofNat (Compiler.Proofs.solidityMappingSlot slot keyNat)).val) := by
+            rw [uint256_add_val_eq_mod]
+            simpa [Compiler.Proofs.abstractMappingSlot_eq_solidity, Nat.add_comm] using hAddEval
+          simpa [hzero, targetSlot, mappingWordTargetSlot_eq_uint256_add] using hAddEval'
+      have hSlotWordEval :
+          evalIRExpr state2 (YulExpr.call "sload" [writeSlotExpr]) = some oldWordNat := by
+        simp [evalIRExpr, evalIRCall, evalIRExprs, hWriteSlotEval2,
+          Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+          Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, oldWordNat, state2, state1]
+      set state3 := state2.setVar "__compat_slot_word" oldWordNat
+      have hexact_state3 : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state3 :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant hexact_state2 hcompatSlotWord
+      have hruntimeCompat3 : FunctionBody.runtimeStateMatchesIR fields runtime state3 :=
+        FunctionBody.runtimeStateMatchesIR_setVar_irrelevant hruntimeCompat2
+      have hCompatSlotWord :
+          ∀ fuel, execIRStmt (fuel + 1) state2
+            (YulStmt.let_ "__compat_slot_word" (YulExpr.call "sload" [writeSlotExpr])) =
+            .continue state3 := by
+        intro fuel
+        simp [state3, execIRStmt, hSlotWordEval]
+      have hSlotClearedEval :
+          evalIRExpr state3
+            (YulExpr.call "and"
+              [YulExpr.ident "__compat_slot_word",
+                YulExpr.call "not" [YulExpr.lit (packedShiftedMaskNat packed)]]) =
+              some (Verity.Core.Uint256.and oldWordNat
+                (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val := by
+        have hNotEval :
+            evalIRExpr state3
+              (YulExpr.call "not" [YulExpr.lit (packedShiftedMaskNat packed)]) =
+                some (Verity.Core.Uint256.not (packedShiftedMaskNat packed)).val := by
+          simpa [uint256_not_val_eq_xor_allOnes_mod] using
+            (FunctionBody.evalIRExpr_not_of_eval
+              (state := state3)
+              (expr := YulExpr.lit (packedShiftedMaskNat packed))
+              (value := packedShiftedMaskNat packed)
+              (by simp [evalIRExpr]))
+        have hAndEval :=
+          FunctionBody.evalIRExpr_and_of_eval
+            (state := state3)
+            (lhs := YulExpr.ident "__compat_slot_word")
+            (rhs := YulExpr.call "not" [YulExpr.lit (packedShiftedMaskNat packed)])
+            (a := oldWordNat)
+            (b := (Verity.Core.Uint256.not (packedShiftedMaskNat packed)).val)
+            (by simp [evalIRExpr, state3, state2, state1, IRState.getVar, IRState.setVar])
+            hNotEval
+        have hAndBridge :
+            ((oldWordNat % Compiler.Constants.evmModulus) &&&
+                ((Verity.Core.Uint256.not (packedShiftedMaskNat packed)).val %
+                  Compiler.Constants.evmModulus)) =
+              (Verity.Core.Uint256.and oldWordNat
+                (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val := by
+          have hNotLt :
+              (Verity.Core.Uint256.not (packedShiftedMaskNat packed)).val <
+                Compiler.Constants.evmModulus :=
+            (Verity.Core.Uint256.not (packedShiftedMaskNat packed)).isLt
+          have hNotOfNat :
+              Verity.Core.Uint256.ofNat ((Verity.Core.Uint256.not (packedShiftedMaskNat packed)).val) =
+                Verity.Core.Uint256.not (packedShiftedMaskNat packed) := by
+            ext
+            simp [Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt hNotLt]
+          simpa [Nat.mod_eq_of_lt hNotLt, hNotOfNat] using
+            (uint256_and_val_eq_land_mod oldWordNat
+              ((Verity.Core.Uint256.ofNat (packedShiftedMaskNat packed)).not.val)).symm
+        simpa [hAndBridge] using hAndEval
+      set state4 := state3.setVar "__compat_slot_cleared"
+        (Verity.Core.Uint256.and oldWordNat
+          (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val
+      have hexact_state4 : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state4 :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant hexact_state3 hcompatSlotCleared
+      have hruntimeCompat4 : FunctionBody.runtimeStateMatchesIR fields runtime state4 :=
+        FunctionBody.runtimeStateMatchesIR_setVar_irrelevant hruntimeCompat3
+      have hCompatSlotCleared :
+          ∀ fuel, execIRStmt (fuel + 1) state3
+            (YulStmt.let_ "__compat_slot_cleared"
+              (YulExpr.call "and"
+                [YulExpr.ident "__compat_slot_word",
+                  YulExpr.call "not" [YulExpr.lit (packedShiftedMaskNat packed)]])) =
+            .continue state4 := by
+        intro fuel
+        simp [state4, execIRStmt, hSlotClearedEval]
+      have hStoredEval :
+          evalIRExpr state4
+            (YulExpr.call "or"
+              [YulExpr.ident "__compat_slot_cleared",
+                YulExpr.call "shl" [YulExpr.lit packed.offset, YulExpr.ident "__compat_packed"]]) =
+              some storedWordNat := by
+        have hpackedOffsetLtMod : packed.offset < Compiler.Constants.evmModulus := by
+          have hevmmodGt256 : 256 < Compiler.Constants.evmModulus := by
+            decide
+          exact lt_trans hpackedOffsetLt hevmmodGt256
+        have hShlEval :
+            evalIRExpr state4
+              (YulExpr.call "shl" [YulExpr.lit packed.offset, YulExpr.ident "__compat_packed"]) =
+                some (Verity.Core.Uint256.shl packed.offset
+                  (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val).val := by
+          simpa [Nat.mod_eq_of_lt hpackedOffsetLtMod, uint256_shl_val_eq_mul_pow_mod, hpackedOffsetLt] using
+            (FunctionBody.evalIRExpr_shl_of_eval
+              (state := state4)
+              (shiftExpr := YulExpr.lit packed.offset)
+              (valueExpr := YulExpr.ident "__compat_packed")
+              (shift := packed.offset)
+              (value := (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val)
+              (by simp [evalIRExpr])
+              (by simp [evalIRExpr, state4, state3, state2, state1, IRState.getVar, IRState.setVar]))
+        have hOrEval :=
+          FunctionBody.evalIRExpr_or_of_eval
+            (state := state4)
+            (lhs := YulExpr.ident "__compat_slot_cleared")
+            (rhs := YulExpr.call "shl" [YulExpr.lit packed.offset, YulExpr.ident "__compat_packed"])
+            (a := (Verity.Core.Uint256.and oldWordNat
+              (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val)
+            (b := (Verity.Core.Uint256.shl packed.offset
+              (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val).val)
+            (by simp [evalIRExpr, state4, state3, state2, state1, IRState.getVar, IRState.setVar])
+            hShlEval
+        have hClearedOfNat :
+            Verity.Core.Uint256.ofNat
+                ((Verity.Core.Uint256.and oldWordNat
+                  (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val) =
+              (Verity.Core.Uint256.and oldWordNat
+                (Verity.Core.Uint256.not (packedShiftedMaskNat packed))) := by
+          have hClearedLt :
+              (Verity.Core.Uint256.and oldWordNat
+                (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val <
+                Compiler.Constants.evmModulus :=
+            (Verity.Core.Uint256.and oldWordNat
+              (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).isLt
+          ext
+          simp [Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt hClearedLt]
+        have hShiftedOfNat :
+            Verity.Core.Uint256.ofNat
+                ((Verity.Core.Uint256.shl packed.offset
+                  (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val).val) =
+              (Verity.Core.Uint256.shl packed.offset
+                (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val) := by
+          have hShiftedLt :
+              (Verity.Core.Uint256.shl packed.offset
+                (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val).val <
+                Compiler.Constants.evmModulus :=
+            (Verity.Core.Uint256.shl packed.offset
+              (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val).isLt
+          ext
+          simp [Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt hShiftedLt]
+        have hPackedOfNat :
+            Verity.Core.Uint256.ofNat
+                ((Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val) =
+              (Verity.Core.Uint256.and valueNat (packedMaskNat packed)) := by
+          have hPackedLt :
+              (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val <
+                Compiler.Constants.evmModulus :=
+            (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).isLt
+          ext
+          simp [Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt hPackedLt]
+        have hClearedLt :
+            (Verity.Core.Uint256.and oldWordNat
+              (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val <
+              Compiler.Constants.evmModulus :=
+          (Verity.Core.Uint256.and oldWordNat
+            (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).isLt
+        have hShiftedLt :
+            (Verity.Core.Uint256.shl packed.offset
+              (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val).val <
+              Compiler.Constants.evmModulus :=
+          (Verity.Core.Uint256.shl packed.offset
+            (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val).isLt
+        have hOrBridge :
+            ((((Verity.Core.Uint256.and oldWordNat
+                    (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val %
+                  Compiler.Constants.evmModulus) |||
+                ((Verity.Core.Uint256.shl packed.offset
+                      (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val).val %
+                  Compiler.Constants.evmModulus))) =
+              (((Verity.Core.Uint256.ofNat
+                      ((Verity.Core.Uint256.and oldWordNat
+                        (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val)).or
+                  (Verity.Core.Uint256.ofNat
+                    ((Verity.Core.Uint256.shl packed.offset
+                      (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val).val))).val) := by
+          simpa [uint256_or_val_eq_lor_mod, Nat.mod_eq_of_lt hClearedLt, Nat.mod_eq_of_lt hShiftedLt]
+            using
+              (uint256_or_val_eq_lor_mod
+                ((Verity.Core.Uint256.and oldWordNat
+                  (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val)
+                ((Verity.Core.Uint256.shl packed.offset
+                  (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val).val)).symm
+        rw [hOrBridge] at hOrEval
+        rw [hShiftedOfNat] at hOrEval
+        simpa [storedWordNat, SourceSemantics.packedWordWrite, hClearedOfNat, hPackedOfNat]
+          using hOrEval
+      set state' := { state4 with
+        storage := Compiler.Proofs.abstractStoreStorageOrMapping state.storage targetSlot storedWordNat }
+      have hIRKeyState4 : evalIRExpr state4 keyIR = some keyNat := by
+        have h :=
+          FunctionBody.eval_compileExpr_core_of_scope
+            hcoreKey hexact_state4 hinScopeKey hbounded
+            (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey)
+            hruntimeCompat4
+        rw [hkeyIR] at h
+        simp [Except.toOption, hKeySrc] at h
+        cases h' : evalIRExpr state4 keyIR <;> simp [h'] at h
+        simpa using congrArg some h
+      have hMappingBaseEval4 :
+          evalIRExpr state4 (YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]) =
+            some (Compiler.Proofs.abstractMappingSlot slot keyNat) := by
+        simpa using
+          (evalIRExpr_mappingSlotChain
+            (state := state4)
+            (baseSlot := slot)
+            (keyIRs := [keyIR])
+            (keyVals := [keyNat])
+            (by simp [hIRKeyState4] : List.Forall₂
+              (fun exprIR value => evalIRExpr state4 exprIR = some value)
+              [keyIR] [keyNat]))
+      have hWriteSlotEval4 : evalIRExpr state4 writeSlotExpr = some targetSlot := by
+        dsimp [writeSlotExpr, targetSlot]
+        by_cases hzero : wordOffset = 0
+        · subst hzero
+          have hlt :
+              Compiler.Proofs.solidityMappingSlot slot keyNat < Compiler.Constants.evmModulus := by
+            simpa [Compiler.Proofs.abstractMappingSlot_eq_solidity] using
+              (Compiler.Proofs.abstractMappingSlot_lt_evmModulus slot keyNat)
+          simpa [Verity.Core.Uint256.val_ofNat, mappingWordTargetSlot, SourceSemantics.wordNormalize,
+            Compiler.Proofs.abstractMappingSlot_eq_solidity] using
+            (show evalIRExpr state4 (YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]) =
+              some (Compiler.Proofs.solidityMappingSlot slot keyNat % Compiler.Constants.evmModulus) by
+                simpa [Nat.mod_eq_of_lt hlt, Compiler.Proofs.abstractMappingSlot_eq_solidity] using
+                  hMappingBaseEval4)
+        · have hAddEval :=
+            FunctionBody.evalIRExpr_add_of_eval
+              (state := state4)
+              (lhs := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR])
+              (rhs := YulExpr.lit wordOffset)
+              (a := Compiler.Proofs.abstractMappingSlot slot keyNat)
+              (b := wordOffset)
+              hMappingBaseEval4
+              (by simp [evalIRExpr])
+          have hAddEval' :
+              evalIRExpr state4
+                (YulExpr.call "add"
+                  [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], YulExpr.lit wordOffset]) =
+                some ((Verity.Core.Uint256.ofNat wordOffset +
+                  Verity.Core.Uint256.ofNat (Compiler.Proofs.solidityMappingSlot slot keyNat)).val) := by
+            rw [uint256_add_val_eq_mod]
+            simpa [Compiler.Proofs.abstractMappingSlot_eq_solidity, Nat.add_assoc, Nat.add_comm,
+              Nat.add_left_comm] using hAddEval
+          simpa [hzero, targetSlot, mappingWordTargetSlot_eq_uint256_add] using hAddEval'
+      have hSstore :
+          ∀ fuel, execIRStmt (fuel + 1) state4
+            (YulStmt.expr
+              (YulExpr.call "sstore"
+                [writeSlotExpr,
+                  YulExpr.call "or"
+                      [YulExpr.ident "__compat_slot_cleared",
+                        YulExpr.call "shl" [YulExpr.lit packed.offset, YulExpr.ident "__compat_packed"]]])) =
+            .continue state' := by
+        intro fuel
+        simpa [state', state4, state3, state2, state1] using
+          (execIRStmt_sstore_of_eval
+            (state := state4)
+            (slotExpr := writeSlotExpr)
+            (valueExpr := YulExpr.call "or"
+              [YulExpr.ident "__compat_slot_cleared",
+                YulExpr.call "shl" [YulExpr.lit packed.offset, YulExpr.ident "__compat_packed"]])
+            (slotVal := targetSlot)
+            (valueVal := storedWordNat)
+            (fuel := fuel)
+            hWriteSlotEval4
+            hStoredEval)
+      have hSizeOfListBound : ∀ (l : List YulStmt), l.length + 1 ≤ sizeOf l := by
+        intro l
+        induction l with
+        | nil => simp
+        | cons h t ih =>
+            show t.length + 1 + 1 ≤ 1 + sizeOf h + sizeOf t
+            omega
+      have hbodyFuelLe : 6 ≤ extraFuel := by
+        have hBodyLen : blockBody.length = 5 := by
+          simp [blockBody]
+        have hBodyBound := hSizeOfListBound blockBody
+        have hBlockSizeOf : 6 ≤ sizeOf [YulStmt.block blockBody] - [YulStmt.block blockBody].length := by
+          rw [singletonBlock_sizeOf_slack]
+          omega
+        exact le_trans hBlockSizeOf hslack
+      let bodyExtraFuel := extraFuel - 6
+      have hbodyFuelEq : bodyExtraFuel + 6 = extraFuel := by
+        dsimp [bodyExtraFuel]
+        omega
+      have hBody :
+          execIRStmts extraFuel state blockBody = .continue state' := by
+        rw [← hbodyFuelEq]
+        simp [execIRStmts, blockBody, bodyExtraFuel,
+          hCompatValue (bodyExtraFuel + 4),
+          hCompatPacked (bodyExtraFuel + 3),
+          hCompatSlotWord (bodyExtraFuel + 2),
+          hCompatSlotCleared (bodyExtraFuel + 1),
+          hSstore bodyExtraFuel]
+      have hWhole :
+          execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR = .continue state' := by
+        have hblock := execIRStmts_single_block_of_continue
+          extraFuel state state' blockBody hBody
+        simpa [compiledIR, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hblock
+      have hSrcExec : SourceSemantics.execStmt fields runtime
+          (.setMappingPackedWord fieldName key wordOffset packed value) =
+            .continue
+              { runtime with
+                  world := SourceSemantics.writeAddressKeyedMappingPackedWordSlots
+                    runtime.world [slot] keyNat wordOffset packed valueNat } := by
+        simp [SourceSemantics.execStmt, hwriteSlots, hKeySrc, hValueSrc, hpacked,
+          SourceSemantics.writeAddressKeyedMappingPackedWordSlots]
+      have hincl : FunctionBody.scopeNamesIncluded
+          (stmtNextScope scope (.setMappingPackedWord fieldName key wordOffset packed value)) scope := by
+        intro n hn
+        simp [stmtNextScope, collectStmtNames] at hn
+        rcases hn with hk | hv | hs
+        · exact hinScopeKey n (collectExprNames_mem_exprBoundNames_of_core hcoreKey n hk)
+        · exact hinScopeValue n (collectExprNames_mem_exprBoundNames_of_core hcoreValue n hv)
+        · exact hs
+      have hscope' := FunctionBody.scopeNamesPresent_of_included hscope hincl
+      have hruntime1 :=
+        FunctionBody.runtimeStateMatchesIR_setVar_irrelevant
+          (name := "__compat_value") (value := valueNat) hruntime
+      have hruntime2 :=
+        FunctionBody.runtimeStateMatchesIR_setVar_irrelevant
+          (name := "__compat_packed")
+          (value := (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val)
+          hruntime1
+      have hruntime3 :=
+        FunctionBody.runtimeStateMatchesIR_setVar_irrelevant
+          (name := "__compat_slot_word") (value := oldWordNat) hruntime2
+      have hruntime4 :=
+        FunctionBody.runtimeStateMatchesIR_setVar_irrelevant
+          (name := "__compat_slot_cleared")
+          (value := (Verity.Core.Uint256.and oldWordNat
+            (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val)
+          hruntime3
+      have hruntime' :
+          FunctionBody.runtimeStateMatchesIR fields
+            { runtime with
+                world := SourceSemantics.writeAddressKeyedMappingPackedWordSlots
+                  runtime.world [slot] keyNat wordOffset packed valueNat }
+            state' := by
+        simpa [state', targetSlot, oldWordNat, storedWordNat] using
+          runtimeStateMatchesIR_writeAddressKeyedMappingPackedWordSlot
+            (runtime := runtime)
+            (state := state4)
+            (slot := slot) (key := keyNat) (wordOffset := wordOffset) (packed := packed)
+            (value := valueNat) hruntime4 hresolvedNone hdynNone
+      have hexact1 :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant
+          (tempName := "__compat_value") (value := valueNat) hexact hcompatValue
+      have hexact2 :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant
+          (tempName := "__compat_packed")
+          (value := (Verity.Core.Uint256.and valueNat (packedMaskNat packed)).val)
+          hexact1 hcompatPacked
+      have hexact3 :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant
+          (tempName := "__compat_slot_word") (value := oldWordNat)
+          hexact2 hcompatSlotWord
+      have hexact4 :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant
+          (tempName := "__compat_slot_cleared")
+          (value := (Verity.Core.Uint256.and oldWordNat
+            (Verity.Core.Uint256.not (packedShiftedMaskNat packed))).val)
+          hexact3 hcompatSlotCleared
+      have hexact' : FunctionBody.bindingsExactlyMatchIRVarsOnScope
+          (stmtNextScope scope (.setMappingPackedWord fieldName key wordOffset packed value))
+          runtime.bindings state' :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
+          (bindingsExactlyMatchIRVarsOnScope_writeUintSlot hexact4) hincl
+      refine ⟨_, _, hSrcExec, hWhole, ?_⟩
+      simp [stmtStepMatchesIRExec]
+      exact ⟨hruntime', hexact', hbounded, hscope'⟩
 -- SORRY'D:   intro runtime state extraFuel hexact hscope hbounded hruntime hslack
 -- SORRY'D:   let writeSlotExpr :=
 -- SORRY'D:     let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]
@@ -7108,66 +9218,68 @@ private theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_p
 -- SORRY'D:           FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant hexact3 hcompatSlotCleared
 -- SORRY'D:       exact hexact4
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {fieldName : String}
--- TYPESIG_SORRY:     {key value : Expr}
--- TYPESIG_SORRY:     {wordOffset : Nat}
--- TYPESIG_SORRY:     {packed : PackedBits}
--- TYPESIG_SORRY:     {keyIR valueIR : YulExpr}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hmapping : isMapping fields fieldName = true)
--- TYPESIG_SORRY:     (hcoreKey : FunctionBody.ExprCompileCore key)
--- TYPESIG_SORRY:     (hinScopeKey : FunctionBody.exprBoundNamesInScope key scope)
--- TYPESIG_SORRY:     (hcoreValue : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hcompatValue : "__compat_value" ∉ scope)
--- TYPESIG_SORRY:     (hcompatPacked : "__compat_packed" ∉ scope)
--- TYPESIG_SORRY:     (hcompatSlotWord : "__compat_slot_word" ∉ scope)
--- TYPESIG_SORRY:     (hcompatSlotCleared : "__compat_slot_cleared" ∉ scope)
--- TYPESIG_SORRY:     (hpacked : packedBitsValid packed = true)
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
--- TYPESIG_SORRY:     (hslotSafety :
--- TYPESIG_SORRY:       ∀ runtime keyNat,
--- TYPESIG_SORRY:         SourceSemantics.evalExpr fields runtime key = some keyNat →
--- TYPESIG_SORRY:           findResolvedFieldAtSlotCopy fields
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none ∧
--- TYPESIG_SORRY:           findDynamicArrayElementAtSlotCopy fields runtime.world
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none)
--- TYPESIG_SORRY:     (hkeyIR : CompilationModel.compileExpr fields .calldata key = Except.ok keyIR)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.setMappingPackedWord fieldName key wordOffset packed value)
--- TYPESIG_SORRY:       [YulStmt.block
--- TYPESIG_SORRY:         [ YulStmt.let_ "__compat_value" valueIR
--- TYPESIG_SORRY:         , YulStmt.let_ "__compat_packed"
--- TYPESIG_SORRY:             (YulExpr.call "and" [YulExpr.ident "__compat_value",
--- TYPESIG_SORRY:               YulExpr.lit (packedMaskNat packed)])
--- TYPESIG_SORRY:         , YulStmt.let_ "__compat_slot_word"
--- TYPESIG_SORRY:             (YulExpr.call "sload"
--- TYPESIG_SORRY:               [let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]
--- TYPESIG_SORRY:                if wordOffset == 0 then mappingBase
--- TYPESIG_SORRY:                else YulExpr.call "add" [mappingBase, YulExpr.lit wordOffset]])
--- TYPESIG_SORRY:         , YulStmt.let_ "__compat_slot_cleared"
--- TYPESIG_SORRY:             (YulExpr.call "and"
--- TYPESIG_SORRY:               [YulExpr.ident "__compat_slot_word",
--- TYPESIG_SORRY:                 YulExpr.call "not" [YulExpr.lit (packedShiftedMaskNat packed)]])
--- TYPESIG_SORRY:         , YulStmt.expr
--- TYPESIG_SORRY:             (YulExpr.call "sstore"
--- TYPESIG_SORRY:               [let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]
--- TYPESIG_SORRY:                if wordOffset == 0 then mappingBase
--- TYPESIG_SORRY:                else YulExpr.call "add" [mappingBase, YulExpr.lit wordOffset],
--- TYPESIG_SORRY:                YulExpr.call "or"
--- TYPESIG_SORRY:                  [YulExpr.ident "__compat_slot_cleared",
--- TYPESIG_SORRY:                    YulExpr.call "shl"
--- TYPESIG_SORRY:                      [YulExpr.lit packed.offset, YulExpr.ident "__compat_packed"]]])]] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, CompilationModel.compileMappingPackedSlotWrite,
--- SORRY'D:       hmapping, hpacked, hwriteSlots, hkeyIR, hvalueIR]
--- SORRY'D:   preserves := compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_preserves
--- SORRY'D:     hcoreKey hinScopeKey hcoreValue hinScopeValue
--- SORRY'D:     hcompatValue hcompatPacked hcompatSlotWord hcompatSlotCleared
--- SORRY'D:     hpacked hwriteSlots hslotSafety hkeyIR hvalueIR
+theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety
+    {fields : List Field}
+    {scope : List String}
+    {fieldName : String}
+    {key value : Expr}
+    {wordOffset : Nat}
+    {packed : PackedBits}
+    {keyIR valueIR : YulExpr}
+    {slot : Nat}
+    (hmapping : isMapping fields fieldName = true)
+    (hcoreKey : FunctionBody.ExprCompileCore key)
+    (hinScopeKey : FunctionBody.exprBoundNamesInScope key scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hcompatValue : "__compat_value" ∉ scope)
+    (hcompatPacked : "__compat_packed" ∉ scope)
+    (hcompatSlotWord : "__compat_slot_word" ∉ scope)
+    (hcompatSlotCleared : "__compat_slot_cleared" ∉ scope)
+    (hpacked : packedBitsValid packed = true)
+    (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
+    (hslotSafety :
+      ∀ runtime keyNat,
+        SourceSemantics.evalExpr fields runtime key = some keyNat →
+          findResolvedFieldAtSlotCopy fields
+            (mappingWordTargetSlot slot keyNat wordOffset) = none ∧
+          findDynamicArrayElementAtSlotCopy fields runtime.world
+            (mappingWordTargetSlot slot keyNat wordOffset) = none)
+    (hkeyIR : CompilationModel.compileExpr fields .calldata key = Except.ok keyIR)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.setMappingPackedWord fieldName key wordOffset packed value)
+      [YulStmt.block
+        [ YulStmt.let_ "__compat_value" valueIR
+        , YulStmt.let_ "__compat_packed"
+            (YulExpr.call "and" [YulExpr.ident "__compat_value",
+              YulExpr.lit (packedMaskNat packed)])
+        , YulStmt.let_ "__compat_slot_word"
+            (YulExpr.call "sload"
+              [let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]
+               if wordOffset == 0 then mappingBase
+               else YulExpr.call "add" [mappingBase, YulExpr.lit wordOffset]])
+        , YulStmt.let_ "__compat_slot_cleared"
+            (YulExpr.call "and"
+              [YulExpr.ident "__compat_slot_word",
+                YulExpr.call "not" [YulExpr.lit (packedShiftedMaskNat packed)]])
+        , YulStmt.expr
+            (YulExpr.call "sstore"
+              [let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]
+               if wordOffset == 0 then mappingBase
+               else YulExpr.call "add" [mappingBase, YulExpr.lit wordOffset],
+               YulExpr.call "or"
+                 [YulExpr.ident "__compat_slot_cleared",
+                   YulExpr.call "shl"
+                     [YulExpr.lit packed.offset, YulExpr.ident "__compat_packed"]]])]] where
+  compileOk := by
+    simp only [CompilationModel.compileStmt, CompilationModel.compileMappingPackedSlotWrite,
+      hmapping, hpacked, hwriteSlots, hkeyIR, hvalueIR, Bool.not_true, bne_self_eq_false,
+      ite_false, ite_true, pure, Except.pure, bind, Except.bind]
+    rfl
+  preserves := compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_preserves
+    hcoreKey hinScopeKey hcoreValue hinScopeValue
+    hcompatValue hcompatPacked hcompatSlotWord hcompatSlotCleared
+    hpacked hwriteSlots hslotSafety hkeyIR hvalueIR
 
 private theorem compiledStmtStep_setStructMember_singleSlot_of_slotSafety_preserves
     {fields : List Field}
@@ -7191,9 +9303,9 @@ private theorem compiledStmtStep_setStructMember_singleSlot_of_slotSafety_preser
       ∀ runtime keyNat,
         SourceSemantics.evalExpr fields runtime key = some keyNat →
           findResolvedFieldAtSlotCopy fields
-            (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none ∧
+            (mappingWordTargetSlot slot keyNat wordOffset) = none ∧
           findDynamicArrayElementAtSlotCopy fields runtime.world
-            (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none)
+            (mappingWordTargetSlot slot keyNat wordOffset) = none)
     (hkeyIR : CompilationModel.compileExpr fields .calldata key = Except.ok keyIR)
     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
     ∀ (runtime : SourceSemantics.RuntimeState)
@@ -7232,101 +9344,203 @@ private theorem compiledStmtStep_setStructMember_singleSlot_of_slotSafety_preser
         stmtStepMatchesIRExec fields
           (stmtNextScope scope (.setStructMember fieldName key memberName value))
           sourceResult
-          irExec := by sorry
--- SORRY'D:   intro runtime state extraFuel hexact hscope hbounded hruntime hslack
--- SORRY'D:   let writeSlotExpr :=
--- SORRY'D:     let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]
--- SORRY'D:     if wordOffset == 0 then mappingBase else YulExpr.call "add" [mappingBase, YulExpr.lit wordOffset]
--- SORRY'D:   let compiledIR := [YulStmt.expr (YulExpr.call "sstore" [writeSlotExpr, valueIR])]
--- SORRY'D:   let keyNat := SourceSemantics.evalExpr fields runtime key
--- SORRY'D:   let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:   have hkeySourceEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreKey hexact hinScopeKey hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey)
--- SORRY'D:       hruntime
--- SORRY'D:   have hvalueSourceEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreValue hexact hinScopeValue hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
--- SORRY'D:       hruntime
--- SORRY'D:   rw [hkeyIR] at hkeySourceEval
--- SORRY'D:   rw [hvalueIR] at hvalueSourceEval
--- SORRY'D:   have hkeyEval : evalIRExpr state keyIR = some keyNat := by
--- SORRY'D:     simpa [keyNat] using hkeySourceEval
--- SORRY'D:   have hvalueEval : evalIRExpr state valueIR = some valueNat := by
--- SORRY'D:     simpa [valueNat] using hvalueSourceEval
--- SORRY'D:   rcases hslotSafety runtime keyNat (by simpa [keyNat] using hkeySourceEval) with
--- SORRY'D:     ⟨hresolvedNone, hdynNone⟩
--- SORRY'D:   refine ⟨_, _, ?_⟩
--- SORRY'D:   · simp [SourceSemantics.execStmt, hwriteSlots, hmembers, hmember, keyNat, valueNat]
--- SORRY'D:   · have hWriteSlotEval :
--- SORRY'D:         evalIRExpr state writeSlotExpr =
--- SORRY'D:           some (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) := by
--- SORRY'D:       dsimp [writeSlotExpr]
--- SORRY'D:       by_cases hzero : wordOffset = 0
--- SORRY'D:       · subst hzero
--- SORRY'D:         simp [evalIRExpr, hkeyEval]
--- SORRY'D:       · simp [evalIRExpr, hkeyEval, hzero]
--- SORRY'D:     have hExecStmt :
--- SORRY'D:         execIRStmt (extraFuel + 1) state
--- SORRY'D:           (YulStmt.expr (YulExpr.call "sstore" [writeSlotExpr, valueIR])) =
--- SORRY'D:             .continue
--- SORRY'D:               { state with
--- SORRY'D:                   storage :=
--- SORRY'D:                     Compiler.Proofs.abstractStoreStorageOrMapping
--- SORRY'D:                       state.storage
--- SORRY'D:                       (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset)
--- SORRY'D:                       valueNat } := by
--- SORRY'D:       simp [execIRStmt, evalIRExpr, hWriteSlotEval, hvalueEval,
--- SORRY'D:         Compiler.Proofs.abstractStoreStorageOrMapping_eq]
--- SORRY'D:     simpa [compiledIR, execIRStmts] using hExecStmt
--- SORRY'D:   · refine And.intro ?_ <| And.intro ?_ <| And.intro hbounded hscope
--- SORRY'D:     · exact runtimeStateMatchesIR_writeAddressKeyedMappingWordSlot
--- SORRY'D:         hruntime hresolvedNone hdynNone
--- SORRY'D:     · exact bindingsExactlyMatchIRVarsOnScope_writeMappingSlot hexact
+          irExec := by
+  intro runtime state extraFuel hexact hscope hbounded hruntime hslack
+  have hkeySourceEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreKey hexact hinScopeKey hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey)
+      hruntime
+  have hvalueSourceEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreValue hexact hinScopeValue hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+      hruntime
+  rw [hkeyIR] at hkeySourceEval
+  rw [hvalueIR] at hvalueSourceEval
+  simp [Except.toOption] at hkeySourceEval hvalueSourceEval
+  rcases hIRKey : evalIRExpr state keyIR with _ | keyNat
+  · simp [hIRKey, Option.bind] at hkeySourceEval
+  · simp [hIRKey, Option.bind] at hkeySourceEval
+    rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+    · simp [hIRValue, Option.bind] at hvalueSourceEval
+    · simp [hIRValue, Option.bind] at hvalueSourceEval
+      have hKeySrc : SourceSemantics.evalExpr fields runtime key = some keyNat :=
+        hkeySourceEval.symm
+      have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+        hvalueSourceEval.symm
+      rcases hslotSafety runtime keyNat hKeySrc with ⟨hresolvedNone, hdynNone⟩
+      have hvalueLt := FunctionBody.evalExpr_lt_evmModulus_core_of_scope
+          hcoreValue hexact hinScopeValue hbounded
+          (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+          hruntime
+      rw [hValueSrc] at hvalueLt
+      simp at hvalueLt
+      set targetSlot := mappingWordTargetSlot slot keyNat wordOffset
+      set state' := { state with
+          storage :=
+            Compiler.Proofs.abstractStoreStorageOrMapping
+              state.storage targetSlot valueNat }
+      set runtime' := { runtime with
+          world := SourceSemantics.writeAddressKeyedMappingWordSlots
+            runtime.world [slot] keyNat wordOffset valueNat }
+      have hSrcExec : SourceSemantics.execStmt fields runtime
+          (.setStructMember fieldName key memberName value) = .continue runtime' := by
+        simp [SourceSemantics.execStmt, hwriteSlots, hmembers, hmember, hKeySrc, hValueSrc, runtime']
+      have hincl : FunctionBody.scopeNamesIncluded
+          (stmtNextScope scope (.setStructMember fieldName key memberName value)) scope := by
+        intro n hn
+        simp [stmtNextScope, collectStmtNames] at hn
+        rcases hn with hk | hv | hs
+        · exact hinScopeKey n (collectExprNames_mem_exprBoundNames_of_core hcoreKey n hk)
+        · exact hinScopeValue n (collectExprNames_mem_exprBoundNames_of_core hcoreValue n hv)
+        · exact hs
+      have hexact' : FunctionBody.bindingsExactlyMatchIRVarsOnScope
+          (stmtNextScope scope (.setStructMember fieldName key memberName value))
+          runtime'.bindings state' :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
+          (bindingsExactlyMatchIRVarsOnScope_writeUintSlot hexact)
+          hincl
+      have hscope' : FunctionBody.scopeNamesPresent
+          (stmtNextScope scope (.setStructMember fieldName key memberName value))
+          runtime'.bindings :=
+        FunctionBody.scopeNamesPresent_of_included hscope hincl
+      have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
+      by_cases hzero : wordOffset = 0
+      · subst hzero
+        have hTargetZero :
+            mappingWordTargetSlot slot keyNat 0 = Compiler.Proofs.abstractMappingSlot slot keyNat := by
+          have hlt :
+              Compiler.Proofs.solidityMappingSlot slot keyNat < Compiler.Constants.evmModulus := by
+            simpa [Compiler.Proofs.abstractMappingSlot_eq_solidity] using
+              (Compiler.Proofs.abstractMappingSlot_lt_evmModulus slot keyNat)
+          simpa [mappingWordTargetSlot, SourceSemantics.wordNormalize,
+            Compiler.Proofs.abstractMappingSlot_eq_solidity] using
+            (Nat.mod_eq_of_lt hlt)
+        have hStoreEq : Compiler.Proofs.abstractStoreMappingEntry state.storage slot keyNat valueNat =
+            Compiler.Proofs.abstractStoreStorageOrMapping state.storage
+              (mappingWordTargetSlot slot keyNat 0) valueNat := by
+          simp [Compiler.Proofs.abstractStoreStorageOrMapping,
+            Compiler.Proofs.abstractStoreMappingEntry, hTargetZero]
+        have hExecStmt :
+            execIRStmt (extraFuel + 1) state
+              (YulStmt.expr (YulExpr.call "sstore"
+                [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])) =
+                .continue state' := by
+          have hTargetZero' : targetSlot = Compiler.Proofs.solidityMappingSlot slot keyNat := by
+            simpa [targetSlot, Compiler.Proofs.abstractMappingSlot_eq_solidity] using hTargetZero
+          simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs, hIRKey, hIRValue,
+            state', hTargetZero', Compiler.Proofs.abstractStoreMappingEntry_eq,
+            Compiler.Proofs.abstractStoreStorageOrMapping_eq]
+        have hIRExec : execIRStmts (1 + extraFuel + 1) state
+            [YulStmt.expr (YulExpr.call "sstore"
+              [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR], valueIR])] =
+            .continue state' := by
+          simp [execIRStmts, hfuelEq, hExecStmt]
+        refine ⟨.continue runtime', .continue state', hSrcExec, hIRExec, ?_⟩
+        simp [stmtStepMatchesIRExec]
+        exact ⟨runtimeStateMatchesIR_writeAddressKeyedMappingWordSlot
+            hruntime hresolvedNone hdynNone hvalueLt,
+          hexact', hbounded, hscope'⟩
+      · -- wordOffset ≠ 0: slot expr is add [mappingSlot [...], lit wordOffset]
+        -- Use keccak axiom: mappingSlot + wordOffset < evmModulus
+        have hbeq : (wordOffset == 0) = false := by
+          simp [beq_iff_eq, hzero]
+        have hTargetAdd :
+            targetSlot =
+              (Verity.Core.Uint256.ofNat wordOffset +
+                Verity.Core.Uint256.ofNat
+                  (Compiler.Proofs.solidityMappingSlot slot keyNat)).val := by
+          simpa [targetSlot] using mappingWordTargetSlot_eq_uint256_add slot keyNat wordOffset
+        have hTargetMod :
+            (Compiler.Proofs.solidityMappingSlot slot keyNat + wordOffset) %
+              Compiler.Constants.evmModulus = targetSlot := by
+          rw [hTargetAdd]
+          simpa [Nat.add_comm] using
+            (uint256_add_val_eq_mod wordOffset
+              (Compiler.Proofs.solidityMappingSlot slot keyNat)).symm
+        have hStoreEq :
+            Compiler.Proofs.abstractStoreStorageOrMapping state.storage targetSlot valueNat =
+              fun s =>
+                if s =
+                    (Compiler.Proofs.solidityMappingSlot slot keyNat + wordOffset) %
+                      Compiler.Constants.evmModulus then
+                  valueNat
+                else
+                  state.storage s := by
+          funext s
+          rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq, ← hTargetMod]
+        have hExecStmt :
+            execIRStmt (extraFuel + 1) state
+              (YulStmt.expr (YulExpr.call "sstore"
+                [YulExpr.call "add"
+                  [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR],
+                   YulExpr.lit wordOffset], valueIR])) =
+                .continue state' := by
+          simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
+            hIRKey, hIRValue,
+            Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+            Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+            Compiler.Proofs.abstractMappingSlot_eq_solidity,
+            state', hTargetMod, hStoreEq]
+        have hIRExec : execIRStmts (1 + extraFuel + 1) state
+            [YulStmt.expr (YulExpr.call "sstore"
+              [YulExpr.call "add"
+                [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR],
+                 YulExpr.lit wordOffset], valueIR])] =
+            .continue state' := by
+          simp [execIRStmts, hfuelEq, hExecStmt]
+        refine ⟨.continue runtime', .continue state', hSrcExec, ?_, ?_⟩
+        · simp only [List.length_singleton, hbeq, ite_false]
+          exact hIRExec
+        · simp [stmtStepMatchesIRExec]
+          exact ⟨runtimeStateMatchesIR_writeAddressKeyedMappingWordSlot
+              hruntime hresolvedNone hdynNone hvalueLt,
+            hexact', hbounded, hscope'⟩
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setStructMember_singleSlot_of_slotSafety
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {fieldName memberName : String}
--- TYPESIG_SORRY:     {key value : Expr}
--- TYPESIG_SORRY:     {wordOffset : Nat}
--- TYPESIG_SORRY:     {members : List StructMember}
--- TYPESIG_SORRY:     {keyIR valueIR : YulExpr}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hmapping : isMapping fields fieldName = true)
--- TYPESIG_SORRY:     (hcoreKey : FunctionBody.ExprCompileCore key)
--- TYPESIG_SORRY:     (hinScopeKey : FunctionBody.exprBoundNamesInScope key scope)
--- TYPESIG_SORRY:     (hcoreValue : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hmembers : findStructMembers fields fieldName = some members)
--- TYPESIG_SORRY:     (hmember :
--- TYPESIG_SORRY:       findStructMember members memberName =
--- TYPESIG_SORRY:         some { name := memberName, wordOffset := wordOffset, packed := none })
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
--- TYPESIG_SORRY:     (hslotSafety :
--- TYPESIG_SORRY:       ∀ runtime keyNat,
--- TYPESIG_SORRY:         SourceSemantics.evalExpr fields runtime key = some keyNat →
--- TYPESIG_SORRY:           findResolvedFieldAtSlotCopy fields
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none ∧
--- TYPESIG_SORRY:           findDynamicArrayElementAtSlotCopy fields runtime.world
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none)
--- TYPESIG_SORRY:     (hkeyIR : CompilationModel.compileExpr fields .calldata key = Except.ok keyIR)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.setStructMember fieldName key memberName value)
--- TYPESIG_SORRY:       [YulStmt.expr
--- TYPESIG_SORRY:         (YulExpr.call "sstore"
--- TYPESIG_SORRY:           [let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]
--- TYPESIG_SORRY:            if wordOffset == 0 then mappingBase
--- TYPESIG_SORRY:            else YulExpr.call "add" [mappingBase, YulExpr.lit wordOffset], valueIR])] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, CompilationModel.compileSetStructMember,
--- SORRY'D:       CompilationModel.compileMappingSlotWrite, hmapping, hmembers, hmember,
--- SORRY'D:       hwriteSlots, hkeyIR, hvalueIR]
--- SORRY'D:   preserves := compiledStmtStep_setStructMember_singleSlot_of_slotSafety_preserves
--- SORRY'D:     hcoreKey hinScopeKey hcoreValue hinScopeValue hmembers hmember hwriteSlots
--- SORRY'D:     hslotSafety hkeyIR hvalueIR
+theorem compiledStmtStep_setStructMember_singleSlot_of_slotSafety
+    {fields : List Field}
+    {scope : List String}
+    {fieldName memberName : String}
+    {key value : Expr}
+    {wordOffset : Nat}
+    {members : List StructMember}
+    {keyIR valueIR : YulExpr}
+    {slot : Nat}
+    (hmapping : isMapping fields fieldName = true)
+    (hnotMapping2 : isMapping2 fields fieldName = false)
+    (hcoreKey : FunctionBody.ExprCompileCore key)
+    (hinScopeKey : FunctionBody.exprBoundNamesInScope key scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hmembers : findStructMembers fields fieldName = some members)
+    (hmember :
+      findStructMember members memberName =
+        some { name := memberName, wordOffset := wordOffset, packed := none })
+    (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
+    (hslotSafety :
+      ∀ runtime keyNat,
+        SourceSemantics.evalExpr fields runtime key = some keyNat →
+          findResolvedFieldAtSlotCopy fields
+            (mappingWordTargetSlot slot keyNat wordOffset) = none ∧
+          findDynamicArrayElementAtSlotCopy fields runtime.world
+            (mappingWordTargetSlot slot keyNat wordOffset) = none)
+    (hkeyIR : CompilationModel.compileExpr fields .calldata key = Except.ok keyIR)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.setStructMember fieldName key memberName value)
+      [YulStmt.expr
+        (YulExpr.call "sstore"
+          [let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]
+           if wordOffset == 0 then mappingBase
+           else YulExpr.call "add" [mappingBase, YulExpr.lit wordOffset], valueIR])] where
+  compileOk := by
+    simp only [CompilationModel.compileStmt, CompilationModel.compileSetStructMember,
+      CompilationModel.compileMappingSlotWrite, hmapping, hnotMapping2, hmembers, hmember,
+      hwriteSlots, hkeyIR, hvalueIR]
+    rfl
+  preserves := compiledStmtStep_setStructMember_singleSlot_of_slotSafety_preserves
+    hcoreKey hinScopeKey hcoreValue hinScopeValue hmembers hmember hwriteSlots
+    hslotSafety hkeyIR hvalueIR
 
 private theorem compiledStmtStep_setMapping2_singleSlot_of_slotSafety_preserves
     {fields : List Field}
@@ -7388,109 +9602,159 @@ private theorem compiledStmtStep_setMapping2_singleSlot_of_slotSafety_preserves
         stmtStepMatchesIRExec fields
           (stmtNextScope scope (.setMapping2 fieldName key1 key2 value))
           sourceResult
-          irExec := by sorry
--- SORRY'D:   intro runtime state extraFuel hexact hscope hbounded hruntime hslack
--- SORRY'D:   let compiledIR := [YulStmt.expr
--- SORRY'D:     (YulExpr.call "sstore"
--- SORRY'D:       [YulExpr.call "mappingSlot"
--- SORRY'D:         [YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR], key2IR], valueIR])]
--- SORRY'D:   let keyNat1 := SourceSemantics.evalExpr fields runtime key1
--- SORRY'D:   let keyNat2 := SourceSemantics.evalExpr fields runtime key2
--- SORRY'D:   let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:   have hkey1SourceEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreKey1 hexact hinScopeKey1 hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey1)
--- SORRY'D:       hruntime
--- SORRY'D:   have hkey2SourceEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreKey2 hexact hinScopeKey2 hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey2)
--- SORRY'D:       hruntime
--- SORRY'D:   have hvalueSourceEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreValue hexact hinScopeValue hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
--- SORRY'D:       hruntime
--- SORRY'D:   rw [hkey1IR] at hkey1SourceEval
--- SORRY'D:   rw [hkey2IR] at hkey2SourceEval
--- SORRY'D:   rw [hvalueIR] at hvalueSourceEval
--- SORRY'D:   have hkey1Eval : evalIRExpr state key1IR = some keyNat1 := by
--- SORRY'D:     simpa [keyNat1] using hkey1SourceEval
--- SORRY'D:   have hkey2Eval : evalIRExpr state key2IR = some keyNat2 := by
--- SORRY'D:     simpa [keyNat2] using hkey2SourceEval
--- SORRY'D:   have hvalueEval : evalIRExpr state valueIR = some valueNat := by
--- SORRY'D:     simpa [valueNat] using hvalueSourceEval
--- SORRY'D:   rcases hslotSafety runtime keyNat1 keyNat2
--- SORRY'D:       (by simpa [keyNat1] using hkey1SourceEval)
--- SORRY'D:       (by simpa [keyNat2] using hkey2SourceEval) with
--- SORRY'D:     ⟨hresolvedNone, hdynNone⟩
--- SORRY'D:   refine ⟨_, _, ?_⟩
--- SORRY'D:   · simp [SourceSemantics.execStmt, hwriteSlots, keyNat1, keyNat2, valueNat]
--- SORRY'D:   · have hExecStmt :
--- SORRY'D:         execIRStmt (extraFuel + 1) state
--- SORRY'D:           (YulStmt.expr
--- SORRY'D:             (YulExpr.call "sstore"
--- SORRY'D:               [YulExpr.call "mappingSlot"
--- SORRY'D:                 [YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR], key2IR], valueIR])) =
--- SORRY'D:             .continue
--- SORRY'D:               { state with
--- SORRY'D:                   storage :=
--- SORRY'D:                     Compiler.Proofs.abstractStoreMappingEntry
--- SORRY'D:                       (Compiler.Proofs.abstractStoreMappingEntry state.storage slot keyNat1 0)
--- SORRY'D:                       (Compiler.Proofs.abstractMappingSlot slot keyNat1)
--- SORRY'D:                       keyNat2
--- SORRY'D:                       valueNat } := by
--- SORRY'D:       simp [execIRStmt, evalIRExpr, hkey1Eval, hkey2Eval, hvalueEval,
--- SORRY'D:         Compiler.Proofs.abstractStoreMappingEntry_eq, Compiler.Proofs.abstractMappingSlot_eq_solidity]
--- SORRY'D:     simpa [compiledIR, execIRStmts, hExecStmt]
--- SORRY'D:   · refine And.intro ?_ <| And.intro ?_ <| And.intro hbounded hscope
--- SORRY'D:     · exact runtimeStateMatchesIR_writeAddressKeyedMapping2Slot
--- SORRY'D:         hruntime hresolvedNone hdynNone
--- SORRY'D:     · exact bindingsExactlyMatchIRVarsOnScope_writeMappingSlot <|
--- SORRY'D:         bindingsExactlyMatchIRVarsOnScope_writeMappingSlot hexact
+          irExec := by
+  intro runtime state extraFuel hexact hscope hbounded hruntime hslack
+  let compiledIR := [YulStmt.expr
+    (YulExpr.call "sstore"
+      [YulExpr.call "mappingSlot"
+        [YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR], key2IR], valueIR])]
+  -- Evaluate key1 expression
+  have hkey1SourceEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreKey1 hexact hinScopeKey1 hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey1)
+      hruntime
+  rw [hkey1IR] at hkey1SourceEval
+  simp [Except.toOption] at hkey1SourceEval
+  rcases hIRKey1 : evalIRExpr state key1IR with _ | key1Nat
+  · simp [hIRKey1, Option.bind] at hkey1SourceEval
+  · simp [hIRKey1, Option.bind] at hkey1SourceEval
+    -- Evaluate key2 expression
+    have hkey2SourceEval :=
+      FunctionBody.eval_compileExpr_core_of_scope
+        hcoreKey2 hexact hinScopeKey2 hbounded
+        (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey2)
+        hruntime
+    rw [hkey2IR] at hkey2SourceEval
+    simp [Except.toOption] at hkey2SourceEval
+    rcases hIRKey2 : evalIRExpr state key2IR with _ | key2Nat
+    · simp [hIRKey2, Option.bind] at hkey2SourceEval
+    · simp [hIRKey2, Option.bind] at hkey2SourceEval
+      -- Evaluate value expression
+      have hvalueSourceEval :=
+        FunctionBody.eval_compileExpr_core_of_scope
+          hcoreValue hexact hinScopeValue hbounded
+          (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+          hruntime
+      rw [hvalueIR] at hvalueSourceEval
+      simp [Except.toOption] at hvalueSourceEval
+      rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+      · simp [hIRValue, Option.bind] at hvalueSourceEval
+      · simp [hIRValue, Option.bind] at hvalueSourceEval
+        have hKey1Src : SourceSemantics.evalExpr fields runtime key1 = some key1Nat :=
+          hkey1SourceEval.symm
+        have hKey2Src : SourceSemantics.evalExpr fields runtime key2 = some key2Nat :=
+          hkey2SourceEval.symm
+        have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+          hvalueSourceEval.symm
+        rcases hslotSafety runtime key1Nat key2Nat hKey1Src hKey2Src with ⟨hresolvedNone, hdynNone⟩
+        -- Get boundedness of valueNat
+        have hvalueLt := FunctionBody.evalExpr_lt_evmModulus_core_of_scope
+            hcoreValue hexact hinScopeValue hbounded
+            (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+            hruntime
+        rw [hValueSrc] at hvalueLt
+        simp at hvalueLt
+        -- Define post-states
+        set state' := { state with
+            storage :=
+              Compiler.Proofs.abstractStoreMappingEntry
+                state.storage
+                (Compiler.Proofs.abstractMappingSlot slot key1Nat)
+                key2Nat
+                valueNat }
+        set runtime' := { runtime with
+            world := SourceSemantics.writeAddressKeyedMapping2Slots
+              runtime.world [slot] key1Nat key2Nat valueNat }
+        -- Source execution
+        have hSrcExec : SourceSemantics.execStmt fields runtime
+            (.setMapping2 fieldName key1 key2 value) = .continue runtime' := by
+          simp [SourceSemantics.execStmt, hwriteSlots, hKey1Src, hKey2Src, hValueSrc, runtime']
+        -- IR execution
+        have hExecStmt :
+            execIRStmt (extraFuel + 1) state
+              (YulStmt.expr
+                (YulExpr.call "sstore"
+                  [YulExpr.call "mappingSlot"
+                    [YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR], key2IR], valueIR])) =
+                .continue state' := by
+          simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs, hIRKey1, hIRKey2, hIRValue,
+            Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+            Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+            Compiler.Proofs.abstractStoreMappingEntry_eq, state']
+        have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
+        have hIRExec : execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
+            .continue state' := by
+          simp [compiledIR, execIRStmts, hfuelEq, hExecStmt]
+        -- Scope inclusion
+        have hincl : FunctionBody.scopeNamesIncluded
+            (stmtNextScope scope (.setMapping2 fieldName key1 key2 value)) scope := by
+          intro n hn
+          simp [stmtNextScope, collectStmtNames] at hn
+          rcases hn with hk1 | hk2 | hv | hs
+          · exact hinScopeKey1 n (collectExprNames_mem_exprBoundNames_of_core hcoreKey1 n hk1)
+          · exact hinScopeKey2 n (collectExprNames_mem_exprBoundNames_of_core hcoreKey2 n hk2)
+          · exact hinScopeValue n (collectExprNames_mem_exprBoundNames_of_core hcoreValue n hv)
+          · exact hs
+        -- Post-state invariants
+        have hexact' : FunctionBody.bindingsExactlyMatchIRVarsOnScope
+            (stmtNextScope scope (.setMapping2 fieldName key1 key2 value))
+            runtime'.bindings state' :=
+          FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
+            (bindingsExactlyMatchIRVarsOnScope_writeMappingSlot hexact)
+            hincl
+        have hscope' : FunctionBody.scopeNamesPresent
+            (stmtNextScope scope (.setMapping2 fieldName key1 key2 value))
+            runtime'.bindings :=
+          FunctionBody.scopeNamesPresent_of_included hscope hincl
+        refine ⟨.continue runtime', .continue state', hSrcExec, hIRExec, ?_⟩
+        simp [stmtStepMatchesIRExec]
+        exact ⟨runtimeStateMatchesIR_writeAddressKeyedMapping2Slot
+            hruntime hresolvedNone hdynNone hvalueLt,
+          hexact', hbounded, hscope'⟩
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setMapping2_singleSlot_of_slotSafety
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {fieldName : String}
--- TYPESIG_SORRY:     {key1 key2 value : Expr}
--- TYPESIG_SORRY:     {key1IR key2IR valueIR : YulExpr}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hmapping2 : isMapping2 fields fieldName = true)
--- TYPESIG_SORRY:     (hcoreKey1 : FunctionBody.ExprCompileCore key1)
--- TYPESIG_SORRY:     (hinScopeKey1 : FunctionBody.exprBoundNamesInScope key1 scope)
--- TYPESIG_SORRY:     (hcoreKey2 : FunctionBody.ExprCompileCore key2)
--- TYPESIG_SORRY:     (hinScopeKey2 : FunctionBody.exprBoundNamesInScope key2 scope)
--- TYPESIG_SORRY:     (hcoreValue : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
--- TYPESIG_SORRY:     (hslotSafety :
--- TYPESIG_SORRY:       ∀ runtime keyNat1 keyNat2,
--- TYPESIG_SORRY:         SourceSemantics.evalExpr fields runtime key1 = some keyNat1 →
--- TYPESIG_SORRY:         SourceSemantics.evalExpr fields runtime key2 = some keyNat2 →
--- TYPESIG_SORRY:           findResolvedFieldAtSlotCopy fields
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot
--- TYPESIG_SORRY:               (Compiler.Proofs.abstractMappingSlot slot keyNat1)
--- TYPESIG_SORRY:               keyNat2) = none ∧
--- TYPESIG_SORRY:           findDynamicArrayElementAtSlotCopy fields runtime.world
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot
--- TYPESIG_SORRY:               (Compiler.Proofs.abstractMappingSlot slot keyNat1)
--- TYPESIG_SORRY:               keyNat2) = none)
--- TYPESIG_SORRY:     (hkey1IR : CompilationModel.compileExpr fields .calldata key1 = Except.ok key1IR)
--- TYPESIG_SORRY:     (hkey2IR : CompilationModel.compileExpr fields .calldata key2 = Except.ok key2IR)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.setMapping2 fieldName key1 key2 value)
--- TYPESIG_SORRY:       [YulStmt.expr
--- TYPESIG_SORRY:         (YulExpr.call "sstore"
--- TYPESIG_SORRY:           [YulExpr.call "mappingSlot"
--- TYPESIG_SORRY:             [YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR], key2IR], valueIR])] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, CompilationModel.compileSetMapping2,
--- SORRY'D:       hmapping2, hwriteSlots, hkey1IR, hkey2IR, hvalueIR]
--- SORRY'D:   preserves := compiledStmtStep_setMapping2_singleSlot_of_slotSafety_preserves
--- SORRY'D:     hcoreKey1 hinScopeKey1 hcoreKey2 hinScopeKey2 hcoreValue hinScopeValue
--- SORRY'D:     hwriteSlots hslotSafety hkey1IR hkey2IR hvalueIR
+theorem compiledStmtStep_setMapping2_singleSlot_of_slotSafety
+    {fields : List Field}
+    {scope : List String}
+    {fieldName : String}
+    {key1 key2 value : Expr}
+    {key1IR key2IR valueIR : YulExpr}
+    {slot : Nat}
+    (hmapping2 : isMapping2 fields fieldName = true)
+    (hcoreKey1 : FunctionBody.ExprCompileCore key1)
+    (hinScopeKey1 : FunctionBody.exprBoundNamesInScope key1 scope)
+    (hcoreKey2 : FunctionBody.ExprCompileCore key2)
+    (hinScopeKey2 : FunctionBody.exprBoundNamesInScope key2 scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
+    (hslotSafety :
+      ∀ runtime keyNat1 keyNat2,
+        SourceSemantics.evalExpr fields runtime key1 = some keyNat1 →
+        SourceSemantics.evalExpr fields runtime key2 = some keyNat2 →
+          findResolvedFieldAtSlotCopy fields
+            (Compiler.Proofs.abstractMappingSlot
+              (Compiler.Proofs.abstractMappingSlot slot keyNat1)
+              keyNat2) = none ∧
+          findDynamicArrayElementAtSlotCopy fields runtime.world
+            (Compiler.Proofs.abstractMappingSlot
+              (Compiler.Proofs.abstractMappingSlot slot keyNat1)
+              keyNat2) = none)
+    (hkey1IR : CompilationModel.compileExpr fields .calldata key1 = Except.ok key1IR)
+    (hkey2IR : CompilationModel.compileExpr fields .calldata key2 = Except.ok key2IR)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.setMapping2 fieldName key1 key2 value)
+      [YulStmt.expr
+        (YulExpr.call "sstore"
+          [YulExpr.call "mappingSlot"
+            [YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR], key2IR], valueIR])] where
+  compileOk := by
+    simp only [CompilationModel.compileStmt, CompilationModel.compileSetMapping2,
+      hmapping2, hwriteSlots, hkey1IR, hkey2IR, hvalueIR]
+    rfl
+  preserves := compiledStmtStep_setMapping2_singleSlot_of_slotSafety_preserves
+    hcoreKey1 hinScopeKey1 hcoreKey2 hinScopeKey2 hcoreValue hinScopeValue
+    hwriteSlots hslotSafety hkey1IR hkey2IR hvalueIR
 
 private theorem compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety_preserves
     {fields : List Field}
@@ -7512,13 +9776,9 @@ private theorem compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety_preser
         SourceSemantics.evalExpr fields runtime key1 = some keyNat1 →
         SourceSemantics.evalExpr fields runtime key2 = some keyNat2 →
           findResolvedFieldAtSlotCopy fields
-            (Compiler.Proofs.abstractMappingSlot
-              (Compiler.Proofs.abstractMappingSlot slot keyNat1)
-              keyNat2 + wordOffset) = none ∧
+            (mapping2WordTargetSlot slot keyNat1 keyNat2 wordOffset) = none ∧
           findDynamicArrayElementAtSlotCopy fields runtime.world
-            (Compiler.Proofs.abstractMappingSlot
-              (Compiler.Proofs.abstractMappingSlot slot keyNat1)
-              keyNat2 + wordOffset) = none)
+            (mapping2WordTargetSlot slot keyNat1 keyNat2 wordOffset) = none)
     (hkey1IR : CompilationModel.compileExpr fields .calldata key1 = Except.ok key1IR)
     (hkey2IR : CompilationModel.compileExpr fields .calldata key2 = Except.ok key2IR)
     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
@@ -7563,121 +9823,262 @@ private theorem compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety_preser
         stmtStepMatchesIRExec fields
           (stmtNextScope scope (.setMapping2Word fieldName key1 key2 wordOffset value))
           sourceResult
-          irExec := by sorry
--- SORRY'D:   intro runtime state extraFuel hexact hscope hbounded hruntime hslack
--- SORRY'D:   let writeSlotExpr :=
--- SORRY'D:     let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR]
--- SORRY'D:     let mappingSlot2 := YulExpr.call "mappingSlot" [mappingBase, key2IR]
--- SORRY'D:     if wordOffset == 0 then mappingSlot2 else YulExpr.call "add" [mappingSlot2, YulExpr.lit wordOffset]
--- SORRY'D:   let compiledIR := [YulStmt.expr (YulExpr.call "sstore" [writeSlotExpr, valueIR])]
--- SORRY'D:   let keyNat1 := SourceSemantics.evalExpr fields runtime key1
--- SORRY'D:   let keyNat2 := SourceSemantics.evalExpr fields runtime key2
--- SORRY'D:   let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:   have hkey1SourceEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreKey1 hexact hinScopeKey1 hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey1)
--- SORRY'D:       hruntime
--- SORRY'D:   have hkey2SourceEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreKey2 hexact hinScopeKey2 hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey2)
--- SORRY'D:       hruntime
--- SORRY'D:   have hvalueSourceEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreValue hexact hinScopeValue hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
--- SORRY'D:       hruntime
--- SORRY'D:   rw [hkey1IR] at hkey1SourceEval
--- SORRY'D:   rw [hkey2IR] at hkey2SourceEval
--- SORRY'D:   rw [hvalueIR] at hvalueSourceEval
--- SORRY'D:   have hkey1Eval : evalIRExpr state key1IR = some keyNat1 := by
--- SORRY'D:     simpa [keyNat1] using hkey1SourceEval
--- SORRY'D:   have hkey2Eval : evalIRExpr state key2IR = some keyNat2 := by
--- SORRY'D:     simpa [keyNat2] using hkey2SourceEval
--- SORRY'D:   have hvalueEval : evalIRExpr state valueIR = some valueNat := by
--- SORRY'D:     simpa [valueNat] using hvalueSourceEval
--- SORRY'D:   rcases hslotSafety runtime keyNat1 keyNat2
--- SORRY'D:       (by simpa [keyNat1] using hkey1SourceEval)
--- SORRY'D:       (by simpa [keyNat2] using hkey2SourceEval) with
--- SORRY'D:     ⟨hresolvedNone, hdynNone⟩
--- SORRY'D:   refine ⟨_, _, ?_⟩
--- SORRY'D:   · simp [SourceSemantics.execStmt, hwriteSlots, keyNat1, keyNat2, valueNat]
--- SORRY'D:   · have hWriteSlotEval :
--- SORRY'D:         evalIRExpr state writeSlotExpr =
--- SORRY'D:           some (Compiler.Proofs.abstractMappingSlot
--- SORRY'D:             (Compiler.Proofs.abstractMappingSlot slot keyNat1)
--- SORRY'D:             keyNat2 + wordOffset) := by
--- SORRY'D:       dsimp [writeSlotExpr]
--- SORRY'D:       by_cases hzero : wordOffset = 0
--- SORRY'D:       · subst hzero
--- SORRY'D:         simp [evalIRExpr, hkey1Eval, hkey2Eval, Compiler.Proofs.abstractMappingSlot_eq_solidity]
--- SORRY'D:       · simp [evalIRExpr, hkey1Eval, hkey2Eval, hzero,
--- SORRY'D:           Compiler.Proofs.abstractMappingSlot_eq_solidity]
--- SORRY'D:     have hExecStmt :
--- SORRY'D:         execIRStmt (extraFuel + 1) state
--- SORRY'D:           (YulStmt.expr (YulExpr.call "sstore" [writeSlotExpr, valueIR])) =
--- SORRY'D:             .continue
--- SORRY'D:               { state with
--- SORRY'D:                   storage :=
--- SORRY'D:                     Compiler.Proofs.abstractStoreStorageOrMapping
--- SORRY'D:                       state.storage
--- SORRY'D:                       (Compiler.Proofs.abstractMappingSlot
--- SORRY'D:                         (Compiler.Proofs.abstractMappingSlot slot keyNat1)
--- SORRY'D:                         keyNat2 + wordOffset)
--- SORRY'D:                       valueNat } := by
--- SORRY'D:       simp [execIRStmt, evalIRExpr, hWriteSlotEval, hvalueEval,
--- SORRY'D:         Compiler.Proofs.abstractStoreStorageOrMapping_eq]
--- SORRY'D:     simpa [compiledIR, execIRStmts] using hExecStmt
--- SORRY'D:   · refine And.intro ?_ <| And.intro ?_ <| And.intro hbounded hscope
--- SORRY'D:     · exact runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot
--- SORRY'D:         hruntime hresolvedNone hdynNone
--- SORRY'D:     · exact bindingsExactlyMatchIRVarsOnScope_writeMappingSlot hexact
+          irExec := by
+  intro runtime state extraFuel hexact hscope hbounded hruntime hslack
+  let compiledIR := [YulStmt.expr
+    (YulExpr.call "sstore"
+      [let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR]
+       let mappingSlot2 := YulExpr.call "mappingSlot" [mappingBase, key2IR]
+       if wordOffset == 0 then mappingSlot2
+       else YulExpr.call "add" [mappingSlot2, YulExpr.lit wordOffset], valueIR])]
+  -- Evaluate key1 expression
+  have hkey1SourceEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreKey1 hexact hinScopeKey1 hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey1)
+      hruntime
+  rw [hkey1IR] at hkey1SourceEval
+  simp [Except.toOption] at hkey1SourceEval
+  rcases hIRKey1 : evalIRExpr state key1IR with _ | key1Nat
+  · simp [hIRKey1, Option.bind] at hkey1SourceEval
+  · simp [hIRKey1, Option.bind] at hkey1SourceEval
+    -- Evaluate key2 expression
+    have hkey2SourceEval :=
+      FunctionBody.eval_compileExpr_core_of_scope
+        hcoreKey2 hexact hinScopeKey2 hbounded
+        (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey2)
+        hruntime
+    rw [hkey2IR] at hkey2SourceEval
+    simp [Except.toOption] at hkey2SourceEval
+    rcases hIRKey2 : evalIRExpr state key2IR with _ | key2Nat
+    · simp [hIRKey2, Option.bind] at hkey2SourceEval
+    · simp [hIRKey2, Option.bind] at hkey2SourceEval
+      -- Evaluate value expression
+      have hvalueSourceEval :=
+        FunctionBody.eval_compileExpr_core_of_scope
+          hcoreValue hexact hinScopeValue hbounded
+          (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+          hruntime
+      rw [hvalueIR] at hvalueSourceEval
+      simp [Except.toOption] at hvalueSourceEval
+      rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+      · simp [hIRValue, Option.bind] at hvalueSourceEval
+      · simp [hIRValue, Option.bind] at hvalueSourceEval
+        have hKey1Src : SourceSemantics.evalExpr fields runtime key1 = some key1Nat :=
+          hkey1SourceEval.symm
+        have hKey2Src : SourceSemantics.evalExpr fields runtime key2 = some key2Nat :=
+          hkey2SourceEval.symm
+        have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+          hvalueSourceEval.symm
+        rcases hslotSafety runtime key1Nat key2Nat hKey1Src hKey2Src with ⟨hresolvedNone, hdynNone⟩
+        -- Get boundedness of valueNat
+        have hvalueLt := FunctionBody.evalExpr_lt_evmModulus_core_of_scope
+            hcoreValue hexact hinScopeValue hbounded
+            (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+            hruntime
+        rw [hValueSrc] at hvalueLt
+        simp at hvalueLt
+        -- Define post-states
+        set targetSlot := mapping2WordTargetSlot slot key1Nat key2Nat wordOffset
+        set state' := { state with
+            storage :=
+              Compiler.Proofs.abstractStoreStorageOrMapping
+                state.storage targetSlot valueNat }
+        set runtime' := { runtime with
+            world := SourceSemantics.writeAddressKeyedMapping2WordSlots
+              runtime.world [slot] key1Nat key2Nat wordOffset valueNat }
+        -- Source execution
+        have hSrcExec : SourceSemantics.execStmt fields runtime
+            (.setMapping2Word fieldName key1 key2 wordOffset value) = .continue runtime' := by
+          simp [SourceSemantics.execStmt, hwriteSlots, hKey1Src, hKey2Src, hValueSrc, runtime']
+        -- Scope inclusion
+        have hincl : FunctionBody.scopeNamesIncluded
+            (stmtNextScope scope (.setMapping2Word fieldName key1 key2 wordOffset value)) scope := by
+          intro n hn
+          simp [stmtNextScope, collectStmtNames] at hn
+          rcases hn with hk1 | hk2 | hv | hs
+          · exact hinScopeKey1 n (collectExprNames_mem_exprBoundNames_of_core hcoreKey1 n hk1)
+          · exact hinScopeKey2 n (collectExprNames_mem_exprBoundNames_of_core hcoreKey2 n hk2)
+          · exact hinScopeValue n (collectExprNames_mem_exprBoundNames_of_core hcoreValue n hv)
+          · exact hs
+        -- Post-state invariants
+        have hexact' : FunctionBody.bindingsExactlyMatchIRVarsOnScope
+            (stmtNextScope scope (.setMapping2Word fieldName key1 key2 wordOffset value))
+            runtime'.bindings state' :=
+          FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
+            (bindingsExactlyMatchIRVarsOnScope_writeUintSlot hexact)
+            hincl
+        have hscope' : FunctionBody.scopeNamesPresent
+            (stmtNextScope scope (.setMapping2Word fieldName key1 key2 wordOffset value))
+            runtime'.bindings :=
+          FunctionBody.scopeNamesPresent_of_included hscope hincl
+        by_cases hzero : wordOffset = 0
+        · -- wordOffset = 0: slot expr is mappingSlot [mappingSlot [lit slot, key1IR], key2IR]
+          subst hzero
+          have hTargetZero :
+              mapping2WordTargetSlot slot key1Nat key2Nat 0 =
+                Compiler.Proofs.abstractMappingSlot
+                  (Compiler.Proofs.abstractMappingSlot slot key1Nat) key2Nat := by
+            have hlt :
+                Compiler.Proofs.solidityMappingSlot
+                  (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat <
+                  Compiler.Constants.evmModulus := by
+              simpa [Compiler.Proofs.abstractMappingSlot_eq_solidity] using
+                (Compiler.Proofs.abstractMappingSlot_lt_evmModulus
+                  (Compiler.Proofs.abstractMappingSlot slot key1Nat) key2Nat)
+            simpa [mapping2WordTargetSlot, SourceSemantics.wordNormalize,
+              Compiler.Proofs.abstractMappingSlot_eq_solidity] using
+              (Nat.mod_eq_of_lt hlt)
+          have hStoreEq :
+              Compiler.Proofs.abstractStoreMappingEntry
+                state.storage
+                (Compiler.Proofs.abstractMappingSlot slot key1Nat)
+                key2Nat
+                valueNat =
+              Compiler.Proofs.abstractStoreStorageOrMapping
+                state.storage
+                (Compiler.Proofs.abstractMappingSlot
+                  (Compiler.Proofs.abstractMappingSlot slot key1Nat) key2Nat)
+                valueNat := by
+            funext s
+            simp [Compiler.Proofs.abstractStoreMappingEntry_eq,
+              Compiler.Proofs.abstractStoreStorageOrMapping_eq,
+              Compiler.Proofs.abstractMappingSlot]
+          have hExecStmt :
+              execIRStmt (extraFuel + 1) state
+                (YulStmt.expr
+                  (YulExpr.call "sstore"
+                    [YulExpr.call "mappingSlot"
+                      [YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR], key2IR], valueIR])) =
+              .continue state' := by
+            simpa [state', targetSlot, hTargetZero, hStoreEq] using
+              (show
+                execIRStmt (extraFuel + 1) state
+                  (YulStmt.expr
+                    (YulExpr.call "sstore"
+                      [YulExpr.call "mappingSlot"
+                        [YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR], key2IR], valueIR])) =
+                  .continue
+                    { state with
+                      storage := Compiler.Proofs.abstractStoreMappingEntry
+                        state.storage
+                        (Compiler.Proofs.abstractMappingSlot slot key1Nat)
+                        key2Nat
+                        valueNat } by
+                simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs, hIRKey1, hIRKey2, hIRValue,
+                  Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+                  Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+                  Compiler.Proofs.abstractStoreMappingEntry_eq])
+          have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
+          have hIRExec : execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
+              .continue state' := by
+            simp [compiledIR, execIRStmts, hfuelEq, hExecStmt]
+          refine ⟨.continue runtime', .continue state', hSrcExec, hIRExec, ?_⟩
+          simp [stmtStepMatchesIRExec]
+          exact ⟨runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot
+              hruntime hresolvedNone hdynNone hvalueLt,
+            hexact', hbounded, hscope'⟩
+        · -- wordOffset ≠ 0: slot expr is add [mappingSlot [mappingSlot [...], ...], lit wordOffset]
+          -- Use keccak axiom: nested mappingSlot + wordOffset < evmModulus
+          have hbeq : (wordOffset == 0) = false := by
+            simp [beq_iff_eq, hzero]
+          have hTargetAdd :
+              targetSlot =
+                (Verity.Core.Uint256.ofNat wordOffset +
+                  Verity.Core.Uint256.ofNat
+                    (Compiler.Proofs.solidityMappingSlot
+                      (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat)).val := by
+            simpa [targetSlot] using
+              mapping2WordTargetSlot_eq_uint256_add slot key1Nat key2Nat wordOffset
+          have hTargetMod :
+              (Compiler.Proofs.solidityMappingSlot
+                (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat + wordOffset) %
+                Compiler.Constants.evmModulus = targetSlot := by
+            rw [hTargetAdd]
+            simpa [Nat.add_comm] using
+              (uint256_add_val_eq_mod wordOffset
+                (Compiler.Proofs.solidityMappingSlot
+                  (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat)).symm
+          have hStoreEq :
+              Compiler.Proofs.abstractStoreStorageOrMapping state.storage targetSlot valueNat =
+                fun s =>
+                  if s =
+                      (Verity.Core.Uint256.ofNat wordOffset +
+                        Verity.Core.Uint256.ofNat
+                          (Compiler.Proofs.solidityMappingSlot
+                            (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat)).val then
+                    valueNat
+                  else
+                    state.storage s := by
+            funext s
+            rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq, hTargetAdd]
+          have hExecStmt :
+              execIRStmt (extraFuel + 1) state
+                (YulStmt.expr
+                  (YulExpr.call "sstore"
+                    [YulExpr.call "add"
+                      [YulExpr.call "mappingSlot"
+                        [YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR], key2IR],
+                       YulExpr.lit wordOffset], valueIR])) =
+                .continue state' := by
+              simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
+                hIRKey1, hIRKey2, hIRValue,
+                Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+                Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+                Compiler.Proofs.abstractMappingSlot_eq_solidity,
+                state', hTargetMod, hStoreEq]
+          have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
+          have hIRExec : execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
+              .continue state' := by
+            simp only [compiledIR, hbeq, ite_false]
+            simp [execIRStmts, hfuelEq, hExecStmt]
+          refine ⟨.continue runtime', .continue state', hSrcExec, hIRExec, ?_⟩
+          simp [stmtStepMatchesIRExec]
+          exact ⟨runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot
+              hruntime hresolvedNone hdynNone hvalueLt,
+            hexact', hbounded, hscope'⟩
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {fieldName : String}
--- TYPESIG_SORRY:     {key1 key2 value : Expr}
--- TYPESIG_SORRY:     {wordOffset : Nat}
--- TYPESIG_SORRY:     {key1IR key2IR valueIR : YulExpr}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hmapping2 : isMapping2 fields fieldName = true)
--- TYPESIG_SORRY:     (hcoreKey1 : FunctionBody.ExprCompileCore key1)
--- TYPESIG_SORRY:     (hinScopeKey1 : FunctionBody.exprBoundNamesInScope key1 scope)
--- TYPESIG_SORRY:     (hcoreKey2 : FunctionBody.ExprCompileCore key2)
--- TYPESIG_SORRY:     (hinScopeKey2 : FunctionBody.exprBoundNamesInScope key2 scope)
--- TYPESIG_SORRY:     (hcoreValue : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
--- TYPESIG_SORRY:     (hslotSafety :
--- TYPESIG_SORRY:       ∀ runtime keyNat1 keyNat2,
--- TYPESIG_SORRY:         SourceSemantics.evalExpr fields runtime key1 = some keyNat1 →
--- TYPESIG_SORRY:         SourceSemantics.evalExpr fields runtime key2 = some keyNat2 →
--- TYPESIG_SORRY:           findResolvedFieldAtSlotCopy fields
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot
--- TYPESIG_SORRY:               (Compiler.Proofs.abstractMappingSlot slot keyNat1)
--- TYPESIG_SORRY:               keyNat2 + wordOffset) = none ∧
--- TYPESIG_SORRY:           findDynamicArrayElementAtSlotCopy fields runtime.world
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot
--- TYPESIG_SORRY:               (Compiler.Proofs.abstractMappingSlot slot keyNat1)
--- TYPESIG_SORRY:               keyNat2 + wordOffset) = none)
--- TYPESIG_SORRY:     (hkey1IR : CompilationModel.compileExpr fields .calldata key1 = Except.ok key1IR)
--- TYPESIG_SORRY:     (hkey2IR : CompilationModel.compileExpr fields .calldata key2 = Except.ok key2IR)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.setMapping2Word fieldName key1 key2 wordOffset value)
--- TYPESIG_SORRY:       [YulStmt.expr
--- TYPESIG_SORRY:         (YulExpr.call "sstore"
--- TYPESIG_SORRY:           [let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR]
--- TYPESIG_SORRY:            let mappingSlot2 := YulExpr.call "mappingSlot" [mappingBase, key2IR]
--- TYPESIG_SORRY:            if wordOffset == 0 then mappingSlot2
--- TYPESIG_SORRY:            else YulExpr.call "add" [mappingSlot2, YulExpr.lit wordOffset], valueIR])] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, CompilationModel.compileSetMapping2Word,
--- SORRY'D:       hmapping2, hwriteSlots, hkey1IR, hkey2IR, hvalueIR]
--- SORRY'D:   preserves := compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety_preserves
--- SORRY'D:     hcoreKey1 hinScopeKey1 hcoreKey2 hinScopeKey2 hcoreValue hinScopeValue
--- SORRY'D:     hwriteSlots hslotSafety hkey1IR hkey2IR hvalueIR
+theorem compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety
+    {fields : List Field}
+    {scope : List String}
+    {fieldName : String}
+    {key1 key2 value : Expr}
+    {wordOffset : Nat}
+    {key1IR key2IR valueIR : YulExpr}
+    {slot : Nat}
+    (hmapping2 : isMapping2 fields fieldName = true)
+    (hcoreKey1 : FunctionBody.ExprCompileCore key1)
+    (hinScopeKey1 : FunctionBody.exprBoundNamesInScope key1 scope)
+    (hcoreKey2 : FunctionBody.ExprCompileCore key2)
+    (hinScopeKey2 : FunctionBody.exprBoundNamesInScope key2 scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
+    (hslotSafety :
+      ∀ runtime keyNat1 keyNat2,
+        SourceSemantics.evalExpr fields runtime key1 = some keyNat1 →
+        SourceSemantics.evalExpr fields runtime key2 = some keyNat2 →
+          findResolvedFieldAtSlotCopy fields
+            (mapping2WordTargetSlot slot keyNat1 keyNat2 wordOffset) = none ∧
+          findDynamicArrayElementAtSlotCopy fields runtime.world
+            (mapping2WordTargetSlot slot keyNat1 keyNat2 wordOffset) = none)
+    (hkey1IR : CompilationModel.compileExpr fields .calldata key1 = Except.ok key1IR)
+    (hkey2IR : CompilationModel.compileExpr fields .calldata key2 = Except.ok key2IR)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.setMapping2Word fieldName key1 key2 wordOffset value)
+      [YulStmt.expr
+        (YulExpr.call "sstore"
+          [let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR]
+           let mappingSlot2 := YulExpr.call "mappingSlot" [mappingBase, key2IR]
+           if wordOffset == 0 then mappingSlot2
+           else YulExpr.call "add" [mappingSlot2, YulExpr.lit wordOffset], valueIR])] where
+  compileOk := by
+    simp only [CompilationModel.compileStmt, CompilationModel.compileSetMapping2Word,
+      hmapping2, hwriteSlots, hkey1IR, hkey2IR, hvalueIR]
+    rfl
+  preserves := compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety_preserves
+    hcoreKey1 hinScopeKey1 hcoreKey2 hinScopeKey2 hcoreValue hinScopeValue
+    hwriteSlots hslotSafety hkey1IR hkey2IR hvalueIR
 
 private theorem compiledStmtStep_setStructMember2_singleSlot_of_slotSafety_preserves
     {fields : List Field}
@@ -7704,13 +10105,9 @@ private theorem compiledStmtStep_setStructMember2_singleSlot_of_slotSafety_prese
         SourceSemantics.evalExpr fields runtime key1 = some keyNat1 →
         SourceSemantics.evalExpr fields runtime key2 = some keyNat2 →
           findResolvedFieldAtSlotCopy fields
-            (Compiler.Proofs.abstractMappingSlot
-              (Compiler.Proofs.abstractMappingSlot slot keyNat1)
-              keyNat2 + wordOffset) = none ∧
+            (mapping2WordTargetSlot slot keyNat1 keyNat2 wordOffset) = none ∧
           findDynamicArrayElementAtSlotCopy fields runtime.world
-            (Compiler.Proofs.abstractMappingSlot
-              (Compiler.Proofs.abstractMappingSlot slot keyNat1)
-              keyNat2 + wordOffset) = none)
+            (mapping2WordTargetSlot slot keyNat1 keyNat2 wordOffset) = none)
     (hkey1IR : CompilationModel.compileExpr fields .calldata key1 = Except.ok key1IR)
     (hkey2IR : CompilationModel.compileExpr fields .calldata key2 = Except.ok key2IR)
     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
@@ -7755,235 +10152,434 @@ private theorem compiledStmtStep_setStructMember2_singleSlot_of_slotSafety_prese
         stmtStepMatchesIRExec fields
           (stmtNextScope scope (.setStructMember2 fieldName key1 key2 memberName value))
           sourceResult
-          irExec := by sorry
--- SORRY'D:   intro runtime state extraFuel hexact hscope hbounded hruntime hslack
--- SORRY'D:   let writeSlotExpr :=
--- SORRY'D:     let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR]
--- SORRY'D:     let mappingSlot2 := YulExpr.call "mappingSlot" [mappingBase, key2IR]
--- SORRY'D:     if wordOffset == 0 then mappingSlot2 else YulExpr.call "add" [mappingSlot2, YulExpr.lit wordOffset]
--- SORRY'D:   let compiledIR := [YulStmt.expr (YulExpr.call "sstore" [writeSlotExpr, valueIR])]
--- SORRY'D:   let keyNat1 := SourceSemantics.evalExpr fields runtime key1
--- SORRY'D:   let keyNat2 := SourceSemantics.evalExpr fields runtime key2
--- SORRY'D:   let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:   have hkey1SourceEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreKey1 hexact hinScopeKey1 hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey1)
--- SORRY'D:       hruntime
--- SORRY'D:   have hkey2SourceEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreKey2 hexact hinScopeKey2 hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey2)
--- SORRY'D:       hruntime
--- SORRY'D:   have hvalueSourceEval :=
--- SORRY'D:     FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:       hcoreValue hexact hinScopeValue hbounded
--- SORRY'D:       (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
--- SORRY'D:       hruntime
--- SORRY'D:   rw [hkey1IR] at hkey1SourceEval
--- SORRY'D:   rw [hkey2IR] at hkey2SourceEval
--- SORRY'D:   rw [hvalueIR] at hvalueSourceEval
--- SORRY'D:   have hkey1Eval : evalIRExpr state key1IR = some keyNat1 := by
--- SORRY'D:     simpa [keyNat1] using hkey1SourceEval
--- SORRY'D:   have hkey2Eval : evalIRExpr state key2IR = some keyNat2 := by
--- SORRY'D:     simpa [keyNat2] using hkey2SourceEval
--- SORRY'D:   have hvalueEval : evalIRExpr state valueIR = some valueNat := by
--- SORRY'D:     simpa [valueNat] using hvalueSourceEval
--- SORRY'D:   rcases hslotSafety runtime keyNat1 keyNat2
--- SORRY'D:       (by simpa [keyNat1] using hkey1SourceEval)
--- SORRY'D:       (by simpa [keyNat2] using hkey2SourceEval) with
--- SORRY'D:     ⟨hresolvedNone, hdynNone⟩
--- SORRY'D:   refine ⟨_, _, ?_⟩
--- SORRY'D:   · simp [SourceSemantics.execStmt, hwriteSlots, hmembers, hmember, keyNat1, keyNat2, valueNat]
--- SORRY'D:   · have hWriteSlotEval :
--- SORRY'D:         evalIRExpr state writeSlotExpr =
--- SORRY'D:           some (Compiler.Proofs.abstractMappingSlot
--- SORRY'D:             (Compiler.Proofs.abstractMappingSlot slot keyNat1)
--- SORRY'D:             keyNat2 + wordOffset) := by
--- SORRY'D:       dsimp [writeSlotExpr]
--- SORRY'D:       by_cases hzero : wordOffset = 0
--- SORRY'D:       · subst hzero
--- SORRY'D:         simp [evalIRExpr, hkey1Eval, hkey2Eval, Compiler.Proofs.abstractMappingSlot_eq_solidity]
--- SORRY'D:       · simp [evalIRExpr, hkey1Eval, hkey2Eval, hzero,
--- SORRY'D:           Compiler.Proofs.abstractMappingSlot_eq_solidity]
--- SORRY'D:     have hExecStmt :
--- SORRY'D:         execIRStmt (extraFuel + 1) state
--- SORRY'D:           (YulStmt.expr (YulExpr.call "sstore" [writeSlotExpr, valueIR])) =
--- SORRY'D:             .continue
--- SORRY'D:               { state with
--- SORRY'D:                   storage :=
--- SORRY'D:                     Compiler.Proofs.abstractStoreStorageOrMapping
--- SORRY'D:                       state.storage
--- SORRY'D:                       (Compiler.Proofs.abstractMappingSlot
--- SORRY'D:                         (Compiler.Proofs.abstractMappingSlot slot keyNat1)
--- SORRY'D:                         keyNat2 + wordOffset)
--- SORRY'D:                       valueNat } := by
--- SORRY'D:       simp [execIRStmt, evalIRExpr, hWriteSlotEval, hvalueEval,
--- SORRY'D:         Compiler.Proofs.abstractStoreStorageOrMapping_eq]
--- SORRY'D:     simpa [compiledIR, execIRStmts] using hExecStmt
--- SORRY'D:   · refine And.intro ?_ <| And.intro ?_ <| And.intro hbounded hscope
--- SORRY'D:     · exact runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot
--- SORRY'D:         hruntime hresolvedNone hdynNone
--- SORRY'D:     · exact bindingsExactlyMatchIRVarsOnScope_writeMappingSlot hexact
+          irExec := by
+  intro runtime state extraFuel hexact hscope hbounded hruntime hslack
+  let compiledIR := [YulStmt.expr
+    (YulExpr.call "sstore"
+      [let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR]
+       let mappingSlot2 := YulExpr.call "mappingSlot" [mappingBase, key2IR]
+       if wordOffset == 0 then mappingSlot2
+       else YulExpr.call "add" [mappingSlot2, YulExpr.lit wordOffset], valueIR])]
+  -- Evaluate key1 expression
+  have hkey1SourceEval :=
+    FunctionBody.eval_compileExpr_core_of_scope
+      hcoreKey1 hexact hinScopeKey1 hbounded
+      (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey1)
+      hruntime
+  rw [hkey1IR] at hkey1SourceEval
+  simp [Except.toOption] at hkey1SourceEval
+  rcases hIRKey1 : evalIRExpr state key1IR with _ | key1Nat
+  · simp [hIRKey1, Option.bind] at hkey1SourceEval
+  · simp [hIRKey1, Option.bind] at hkey1SourceEval
+    -- Evaluate key2 expression
+    have hkey2SourceEval :=
+      FunctionBody.eval_compileExpr_core_of_scope
+        hcoreKey2 hexact hinScopeKey2 hbounded
+        (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeKey2)
+        hruntime
+    rw [hkey2IR] at hkey2SourceEval
+    simp [Except.toOption] at hkey2SourceEval
+    rcases hIRKey2 : evalIRExpr state key2IR with _ | key2Nat
+    · simp [hIRKey2, Option.bind] at hkey2SourceEval
+    · simp [hIRKey2, Option.bind] at hkey2SourceEval
+      -- Evaluate value expression
+      have hvalueSourceEval :=
+        FunctionBody.eval_compileExpr_core_of_scope
+          hcoreValue hexact hinScopeValue hbounded
+          (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+          hruntime
+      rw [hvalueIR] at hvalueSourceEval
+      simp [Except.toOption] at hvalueSourceEval
+      rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+      · simp [hIRValue, Option.bind] at hvalueSourceEval
+      · simp [hIRValue, Option.bind] at hvalueSourceEval
+        have hKey1Src : SourceSemantics.evalExpr fields runtime key1 = some key1Nat :=
+          hkey1SourceEval.symm
+        have hKey2Src : SourceSemantics.evalExpr fields runtime key2 = some key2Nat :=
+          hkey2SourceEval.symm
+        have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+          hvalueSourceEval.symm
+        rcases hslotSafety runtime key1Nat key2Nat hKey1Src hKey2Src with ⟨hresolvedNone, hdynNone⟩
+        -- Get boundedness of valueNat
+        have hvalueLt := FunctionBody.evalExpr_lt_evmModulus_core_of_scope
+            hcoreValue hexact hinScopeValue hbounded
+            (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue)
+            hruntime
+        rw [hValueSrc] at hvalueLt
+        simp at hvalueLt
+        -- Define post-states
+        set targetSlot := mapping2WordTargetSlot slot key1Nat key2Nat wordOffset
+        set state' := { state with
+            storage :=
+              Compiler.Proofs.abstractStoreStorageOrMapping
+                state.storage targetSlot valueNat }
+        set runtime' := { runtime with
+            world := SourceSemantics.writeAddressKeyedMapping2WordSlots
+              runtime.world [slot] key1Nat key2Nat wordOffset valueNat }
+        -- Source execution
+        have hSrcExec : SourceSemantics.execStmt fields runtime
+            (.setStructMember2 fieldName key1 key2 memberName value) = .continue runtime' := by
+          simp [SourceSemantics.execStmt, hwriteSlots, hmembers, hmember,
+            hKey1Src, hKey2Src, hValueSrc, runtime']
+        -- Scope inclusion
+        have hincl : FunctionBody.scopeNamesIncluded
+            (stmtNextScope scope (.setStructMember2 fieldName key1 key2 memberName value)) scope := by
+          intro n hn
+          simp [stmtNextScope, collectStmtNames] at hn
+          rcases hn with hk1 | hk2 | hv | hs
+          · exact hinScopeKey1 n (collectExprNames_mem_exprBoundNames_of_core hcoreKey1 n hk1)
+          · exact hinScopeKey2 n (collectExprNames_mem_exprBoundNames_of_core hcoreKey2 n hk2)
+          · exact hinScopeValue n (collectExprNames_mem_exprBoundNames_of_core hcoreValue n hv)
+          · exact hs
+        -- Post-state invariants
+        have hexact' : FunctionBody.bindingsExactlyMatchIRVarsOnScope
+            (stmtNextScope scope (.setStructMember2 fieldName key1 key2 memberName value))
+            runtime'.bindings state' :=
+          FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
+            (bindingsExactlyMatchIRVarsOnScope_writeUintSlot hexact)
+            hincl
+        have hscope' : FunctionBody.scopeNamesPresent
+            (stmtNextScope scope (.setStructMember2 fieldName key1 key2 memberName value))
+            runtime'.bindings :=
+          FunctionBody.scopeNamesPresent_of_included hscope hincl
+        by_cases hzero : wordOffset = 0
+        · -- wordOffset = 0: slot expr is mappingSlot [mappingSlot [lit slot, key1IR], key2IR]
+          subst hzero
+          have hTargetZero :
+              mapping2WordTargetSlot slot key1Nat key2Nat 0 =
+                Compiler.Proofs.abstractMappingSlot
+                  (Compiler.Proofs.abstractMappingSlot slot key1Nat) key2Nat := by
+            have hlt :
+                Compiler.Proofs.solidityMappingSlot
+                  (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat <
+                  Compiler.Constants.evmModulus := by
+              simpa [Compiler.Proofs.abstractMappingSlot_eq_solidity] using
+                (Compiler.Proofs.abstractMappingSlot_lt_evmModulus
+                  (Compiler.Proofs.abstractMappingSlot slot key1Nat) key2Nat)
+            simpa [mapping2WordTargetSlot, SourceSemantics.wordNormalize,
+              Compiler.Proofs.abstractMappingSlot_eq_solidity] using
+              (Nat.mod_eq_of_lt hlt)
+          have hStoreEq :
+              Compiler.Proofs.abstractStoreMappingEntry
+                state.storage
+                (Compiler.Proofs.abstractMappingSlot slot key1Nat)
+                key2Nat
+                valueNat =
+              Compiler.Proofs.abstractStoreStorageOrMapping
+                state.storage
+                (Compiler.Proofs.abstractMappingSlot
+                  (Compiler.Proofs.abstractMappingSlot slot key1Nat) key2Nat)
+                valueNat := by
+            funext s
+            simp [Compiler.Proofs.abstractStoreMappingEntry_eq,
+              Compiler.Proofs.abstractStoreStorageOrMapping_eq,
+              Compiler.Proofs.abstractMappingSlot]
+          have hExecStmt :
+              execIRStmt (extraFuel + 1) state
+                (YulStmt.expr
+                  (YulExpr.call "sstore"
+                    [YulExpr.call "mappingSlot"
+                      [YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR], key2IR], valueIR])) =
+              .continue state' := by
+            simpa [state', targetSlot, hTargetZero, hStoreEq] using
+              (show
+                execIRStmt (extraFuel + 1) state
+                  (YulStmt.expr
+                    (YulExpr.call "sstore"
+                      [YulExpr.call "mappingSlot"
+                        [YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR], key2IR], valueIR])) =
+                  .continue
+                    { state with
+                      storage := Compiler.Proofs.abstractStoreMappingEntry
+                        state.storage
+                        (Compiler.Proofs.abstractMappingSlot slot key1Nat)
+                        key2Nat
+                        valueNat } by
+                simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs, hIRKey1, hIRKey2, hIRValue,
+                  Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+                  Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+                  Compiler.Proofs.abstractStoreMappingEntry_eq])
+          have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
+          have hIRExec : execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
+              .continue state' := by
+            simp [compiledIR, execIRStmts, hfuelEq, hExecStmt]
+          refine ⟨.continue runtime', .continue state', hSrcExec, hIRExec, ?_⟩
+          simp [stmtStepMatchesIRExec]
+          exact ⟨runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot
+              hruntime hresolvedNone hdynNone hvalueLt,
+            hexact', hbounded, hscope'⟩
+        · -- wordOffset ≠ 0: slot expr is add [mappingSlot [mappingSlot [...], ...], lit wordOffset]
+          -- Use keccak axiom: nested mappingSlot + wordOffset < evmModulus
+          have hbeq : (wordOffset == 0) = false := by
+            simp [beq_iff_eq, hzero]
+          have hTargetAdd :
+              targetSlot =
+                (Verity.Core.Uint256.ofNat wordOffset +
+                  Verity.Core.Uint256.ofNat
+                    (Compiler.Proofs.solidityMappingSlot
+                      (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat)).val := by
+            simpa [targetSlot] using
+              mapping2WordTargetSlot_eq_uint256_add slot key1Nat key2Nat wordOffset
+          have hTargetMod :
+              (Compiler.Proofs.solidityMappingSlot
+                (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat + wordOffset) %
+                Compiler.Constants.evmModulus = targetSlot := by
+            rw [hTargetAdd]
+            simpa [Nat.add_comm] using
+              (uint256_add_val_eq_mod wordOffset
+                (Compiler.Proofs.solidityMappingSlot
+                  (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat)).symm
+          have hStoreEq :
+              Compiler.Proofs.abstractStoreStorageOrMapping state.storage targetSlot valueNat =
+                fun s =>
+                  if s =
+                      (Verity.Core.Uint256.ofNat wordOffset +
+                        Verity.Core.Uint256.ofNat
+                          (Compiler.Proofs.solidityMappingSlot
+                            (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat)).val then
+                    valueNat
+                  else
+                    state.storage s := by
+            funext s
+            rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq, hTargetAdd]
+          have hExecStmt :
+              execIRStmt (extraFuel + 1) state
+                (YulStmt.expr
+                  (YulExpr.call "sstore"
+                    [YulExpr.call "add"
+                      [YulExpr.call "mappingSlot"
+                        [YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR], key2IR],
+                       YulExpr.lit wordOffset], valueIR])) =
+                .continue state' := by
+              simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
+                hIRKey1, hIRKey2, hIRValue,
+                Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+                Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+                Compiler.Proofs.abstractMappingSlot_eq_solidity,
+                state', hTargetMod, hStoreEq]
+          have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
+          have hIRExec : execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
+              .continue state' := by
+            simp only [compiledIR, hbeq, ite_false]
+            simp [execIRStmts, hfuelEq, hExecStmt]
+          refine ⟨.continue runtime', .continue state', hSrcExec, hIRExec, ?_⟩
+          simp [stmtStepMatchesIRExec]
+          exact ⟨runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot
+              hruntime hresolvedNone hdynNone hvalueLt,
+            hexact', hbounded, hscope'⟩
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setStructMember2_singleSlot_of_slotSafety
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {fieldName memberName : String}
--- TYPESIG_SORRY:     {key1 key2 value : Expr}
--- TYPESIG_SORRY:     {wordOffset : Nat}
--- TYPESIG_SORRY:     {members : List StructMember}
--- TYPESIG_SORRY:     {key1IR key2IR valueIR : YulExpr}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hmapping2 : isMapping2 fields fieldName = true)
--- TYPESIG_SORRY:     (hcoreKey1 : FunctionBody.ExprCompileCore key1)
--- TYPESIG_SORRY:     (hinScopeKey1 : FunctionBody.exprBoundNamesInScope key1 scope)
--- TYPESIG_SORRY:     (hcoreKey2 : FunctionBody.ExprCompileCore key2)
--- TYPESIG_SORRY:     (hinScopeKey2 : FunctionBody.exprBoundNamesInScope key2 scope)
--- TYPESIG_SORRY:     (hcoreValue : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hmembers : findStructMembers fields fieldName = some members)
--- TYPESIG_SORRY:     (hmember :
--- TYPESIG_SORRY:       findStructMember members memberName =
--- TYPESIG_SORRY:         some { name := memberName, wordOffset := wordOffset, packed := none })
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
--- TYPESIG_SORRY:     (hslotSafety :
--- TYPESIG_SORRY:       ∀ runtime keyNat1 keyNat2,
--- TYPESIG_SORRY:         SourceSemantics.evalExpr fields runtime key1 = some keyNat1 →
--- TYPESIG_SORRY:         SourceSemantics.evalExpr fields runtime key2 = some keyNat2 →
--- TYPESIG_SORRY:           findResolvedFieldAtSlotCopy fields
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot
--- TYPESIG_SORRY:               (Compiler.Proofs.abstractMappingSlot slot keyNat1)
--- TYPESIG_SORRY:               keyNat2 + wordOffset) = none ∧
--- TYPESIG_SORRY:           findDynamicArrayElementAtSlotCopy fields runtime.world
--- TYPESIG_SORRY:             (Compiler.Proofs.abstractMappingSlot
--- TYPESIG_SORRY:               (Compiler.Proofs.abstractMappingSlot slot keyNat1)
--- TYPESIG_SORRY:               keyNat2 + wordOffset) = none)
--- TYPESIG_SORRY:     (hkey1IR : CompilationModel.compileExpr fields .calldata key1 = Except.ok key1IR)
--- TYPESIG_SORRY:     (hkey2IR : CompilationModel.compileExpr fields .calldata key2 = Except.ok key2IR)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.setStructMember2 fieldName key1 key2 memberName value)
--- TYPESIG_SORRY:       [YulStmt.expr
--- TYPESIG_SORRY:         (YulExpr.call "sstore"
--- TYPESIG_SORRY:           [let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR]
--- TYPESIG_SORRY:            let mappingSlot2 := YulExpr.call "mappingSlot" [mappingBase, key2IR]
--- TYPESIG_SORRY:            if wordOffset == 0 then mappingSlot2
--- TYPESIG_SORRY:            else YulExpr.call "add" [mappingSlot2, YulExpr.lit wordOffset], valueIR])] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, CompilationModel.compileSetStructMember2,
--- SORRY'D:       hmapping2, hmembers, hmember, hwriteSlots, hkey1IR, hkey2IR, hvalueIR]
--- SORRY'D:   preserves := compiledStmtStep_setStructMember2_singleSlot_of_slotSafety_preserves
--- SORRY'D:     hcoreKey1 hinScopeKey1 hcoreKey2 hinScopeKey2 hcoreValue hinScopeValue
--- SORRY'D:     hmembers hmember hwriteSlots hslotSafety hkey1IR hkey2IR hvalueIR
+theorem compiledStmtStep_setStructMember2_singleSlot_of_slotSafety
+    {fields : List Field}
+    {scope : List String}
+    {fieldName memberName : String}
+    {key1 key2 value : Expr}
+    {wordOffset : Nat}
+    {members : List StructMember}
+    {key1IR key2IR valueIR : YulExpr}
+    {slot : Nat}
+    (hmapping2 : isMapping2 fields fieldName = true)
+    (hcoreKey1 : FunctionBody.ExprCompileCore key1)
+    (hinScopeKey1 : FunctionBody.exprBoundNamesInScope key1 scope)
+    (hcoreKey2 : FunctionBody.ExprCompileCore key2)
+    (hinScopeKey2 : FunctionBody.exprBoundNamesInScope key2 scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hmembers : findStructMembers fields fieldName = some members)
+    (hmember :
+      findStructMember members memberName =
+        some { name := memberName, wordOffset := wordOffset, packed := none })
+    (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
+    (hslotSafety :
+      ∀ runtime keyNat1 keyNat2,
+        SourceSemantics.evalExpr fields runtime key1 = some keyNat1 →
+        SourceSemantics.evalExpr fields runtime key2 = some keyNat2 →
+          findResolvedFieldAtSlotCopy fields
+            (mapping2WordTargetSlot slot keyNat1 keyNat2 wordOffset) = none ∧
+          findDynamicArrayElementAtSlotCopy fields runtime.world
+            (mapping2WordTargetSlot slot keyNat1 keyNat2 wordOffset) = none)
+    (hkey1IR : CompilationModel.compileExpr fields .calldata key1 = Except.ok key1IR)
+    (hkey2IR : CompilationModel.compileExpr fields .calldata key2 = Except.ok key2IR)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.setStructMember2 fieldName key1 key2 memberName value)
+      [YulStmt.expr
+        (YulExpr.call "sstore"
+          [let mappingBase := YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR]
+           let mappingSlot2 := YulExpr.call "mappingSlot" [mappingBase, key2IR]
+           if wordOffset == 0 then mappingSlot2
+           else YulExpr.call "add" [mappingSlot2, YulExpr.lit wordOffset], valueIR])] where
+  compileOk := by
+    simp only [CompilationModel.compileStmt, CompilationModel.compileSetStructMember2,
+      hmapping2, hmembers, hmember, hwriteSlots, hkey1IR, hkey2IR, hvalueIR]
+    rfl
+  preserves := compiledStmtStep_setStructMember2_singleSlot_of_slotSafety_preserves
+    hcoreKey1 hinScopeKey1 hcoreKey2 hinScopeKey2 hcoreValue hinScopeValue
+    hmembers hmember hwriteSlots hslotSafety hkey1IR hkey2IR hvalueIR
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setStorage_aliasSlots
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {fieldName : String}
--- TYPESIG_SORRY:     {value : Expr}
--- TYPESIG_SORRY:     {valueIR : YulExpr}
--- TYPESIG_SORRY:     {f : Field}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hcore : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScope : FunctionBody.exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hfind : findFieldWithResolvedSlot fields fieldName = some (f, slot))
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots fields fieldName = some (slot :: f.aliasSlots))
--- TYPESIG_SORRY:     (halias : f.aliasSlots ≠ [])
--- TYPESIG_SORRY:     (hscopeReserved : scopeAvoidsReservedCompilerPrefix scope)
--- TYPESIG_SORRY:     (hunpacked : f.packedBits = none)
--- TYPESIG_SORRY:     (hnoConflict : firstFieldWriteSlotConflict fields = none)
--- TYPESIG_SORRY:     (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
--- TYPESIG_SORRY:     (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     CompiledStmtStep fields scope (.setStorage fieldName value)
--- TYPESIG_SORRY:       [YulStmt.block
--- TYPESIG_SORRY:         ([YulStmt.let_ "__compat_value" valueIR] ++
--- TYPESIG_SORRY:           (slot :: f.aliasSlots).map (fun writeSlot =>
--- TYPESIG_SORRY:             YulStmt.expr
--- TYPESIG_SORRY:               (YulExpr.call "sstore" [YulExpr.lit writeSlot, YulExpr.ident "__compat_value"])))] where
--- TYPESIG_SORRY:   compileOk := by sorry
--- SORRY'D:     simp [CompilationModel.compileStmt, CompilationModel.compileSetStorage,
--- SORRY'D:       hfind, hwriteSlots, halias, hunpacked, hvalueIR]
--- SORRY'D:   preserves runtime state extraFuel hexact hscope hbounded hruntime hslack := by
--- SORRY'D:     let slots := slot :: f.aliasSlots
--- SORRY'D:     let blockBody :=
--- SORRY'D:       [YulStmt.let_ "__compat_value" valueIR] ++
--- SORRY'D:         slots.map (fun writeSlot =>
--- SORRY'D:           YulStmt.expr
--- SORRY'D:             (YulExpr.call "sstore" [YulExpr.lit writeSlot, YulExpr.ident "__compat_value"]))
--- SORRY'D:     let compiledIR := [YulStmt.block blockBody]
--- SORRY'D:     let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:     have heval :=
--- SORRY'D:       FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:         hcore hexact hinScope hbounded
--- SORRY'D:         (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope)
--- SORRY'D:         hruntime
--- SORRY'D:     rw [hvalueIR] at heval
--- SORRY'D:     have hvalueEval : evalIRExpr state valueIR = some valueNat := by
--- SORRY'D:       simpa [valueNat] using heval
--- SORRY'D:     have hbodyFuelLe : slots.length + 2 ≤ extraFuel := by
--- SORRY'D:       have hslack' : sizeOf compiledIR - compiledIR.length ≤ extraFuel := by
--- SORRY'D:         simpa [compiledIR] using hslack
--- SORRY'D:       simp [compiledIR, blockBody, slots] at hslack'
--- SORRY'D:       omega
--- SORRY'D:     let bodyExtraFuel := extraFuel - (slots.length + 2)
--- SORRY'D:     have hbodyFuelEq : slots.length + bodyExtraFuel + 2 = extraFuel := by
--- SORRY'D:       dsimp [bodyExtraFuel]
--- SORRY'D:       omega
--- SORRY'D:     have hresolvedSlots :
--- SORRY'D:         ∀ writeSlot ∈ slots, findResolvedFieldAtSlotCopy fields writeSlot = some f := by
--- SORRY'D:       intro writeSlot hmem
--- SORRY'D:       exact
--- SORRY'D:         findResolvedFieldAtSlotCopy_of_findFieldWithResolvedSlot_member
--- SORRY'D:           hnoConflict hfind hwriteSlots hmem hunpacked
--- SORRY'D:     refine ⟨_, _, ?_⟩
--- SORRY'D:     · simp [SourceSemantics.execStmt, hwriteSlots, valueNat, slots]
--- SORRY'D:     · have hbody :
--- SORRY'D:           execIRStmts extraFuel state blockBody =
--- SORRY'D:             .continue
--- SORRY'D:               { state.setVar "__compat_value" valueNat with
--- SORRY'D:                   storage :=
--- SORRY'D:                     abstractStoreStorageOrMappingMany
--- SORRY'D:                       (state.setVar "__compat_value" valueNat).storage
--- SORRY'D:                       slots
--- SORRY'D:                       valueNat } := by
--- SORRY'D:         simpa [hbodyFuelEq, blockBody, slots, bodyExtraFuel] using
--- SORRY'D:           execIRStmts_let_then_sstore_lit_ident_slots_continue
--- SORRY'D:             bodyExtraFuel state slots "__compat_value" valueIR valueNat hvalueEval
--- SORRY'D:       have hwhole :
--- SORRY'D:           execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
--- SORRY'D:             .continue
--- SORRY'D:               { state.setVar "__compat_value" valueNat with
--- SORRY'D:                   storage :=
--- SORRY'D:                     abstractStoreStorageOrMappingMany
--- SORRY'D:                     (state.setVar "__compat_value" valueNat).storage
--- SORRY'D:                     slots
--- SORRY'D:                     valueNat } := by
--- SORRY'D:         simpa [compiledIR] using
--- SORRY'D:           execIRStmts_single_block_of_continue
--- SORRY'D:             extraFuel state
--- SORRY'D:             { state.setVar "__compat_value" valueNat with
--- SORRY'D:                 storage :=
--- SORRY'D:                   abstractStoreStorageOrMappingMany
--- SORRY'D:                     (state.setVar "__compat_value" valueNat).storage
--- SORRY'D:                     slots
--- SORRY'D:                     valueNat }
--- SORRY'D:             blockBody
--- SORRY'D:             hbody
--- SORRY'D:       simpa using hwhole
--- SORRY'D:     · refine And.intro ?_ <| And.intro ?_ <| And.intro hbounded hscope
--- SORRY'D:       · have hruntimeSet :
--- SORRY'D:             FunctionBody.runtimeStateMatchesIR fields runtime (state.setVar "__compat_value" valueNat) :=
--- SORRY'D:           FunctionBody.runtimeStateMatchesIR_setVar_irrelevant hruntime
--- SORRY'D:         simpa [slots, IRState.setVar] using
--- SORRY'D:           runtimeStateMatchesIR_writeUintSlots hruntimeSet hresolvedSlots hnotAddr hnotDyn
--- SORRY'D:       · have hexactSet :
--- SORRY'D:             FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings
--- SORRY'D:               (state.setVar "__compat_value" valueNat) :=
--- SORRY'D:           FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant
--- SORRY'D:             hexact (compatValue_not_mem_scope_of_reservedPrefix hscopeReserved)
--- SORRY'D:         simpa [slots, IRState.setVar] using
--- SORRY'D:           bindingsExactlyMatchIRVarsOnScope_writeUintSlots hexactSet
+theorem compiledStmtStep_setStorage_aliasSlots
+    {fields : List Field}
+    {scope : List String}
+    {fieldName : String}
+    {value : Expr}
+    {valueIR : YulExpr}
+    {f : Field}
+    {slot : Nat}
+    (hcore : FunctionBody.ExprCompileCore value)
+    (hinScope : FunctionBody.exprBoundNamesInScope value scope)
+    (hfind : findFieldWithResolvedSlot fields fieldName = some (f, slot))
+    (hwriteSlots : findFieldWriteSlots fields fieldName = some (slot :: f.aliasSlots))
+    (halias : f.aliasSlots ≠ [])
+    (hscopeReserved : scopeAvoidsReservedCompilerPrefix scope)
+    (hunpacked : f.packedBits = none)
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
+    (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
+    (hNotMapping : isMapping fields fieldName = false)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompiledStmtStep fields scope (.setStorage fieldName value)
+      [YulStmt.block
+        ([YulStmt.let_ "__compat_value" valueIR] ++
+          (slot :: f.aliasSlots).map (fun writeSlot =>
+            YulStmt.expr
+              (YulExpr.call "sstore" [YulExpr.lit writeSlot, YulExpr.ident "__compat_value"])))] where
+  compileOk := by
+    simp [CompilationModel.compileStmt, CompilationModel.compileSetStorage,
+      hNotMapping, hfind, hwriteSlots, halias, hunpacked, hvalueIR]
+  preserves runtime state extraFuel hexact hscope hbounded hruntime hslack := by
+    let slots := slot :: f.aliasSlots
+    let blockBody :=
+      [YulStmt.let_ "__compat_value" valueIR] ++
+        slots.map (fun writeSlot =>
+          YulStmt.expr
+            (YulExpr.call "sstore" [YulExpr.lit writeSlot, YulExpr.ident "__compat_value"]))
+    let compiledIR := [YulStmt.block blockBody]
+    have heval :=
+      FunctionBody.eval_compileExpr_core_of_scope
+        hcore hexact hinScope hbounded
+        (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope)
+        hruntime
+    rw [hvalueIR] at heval
+    simp [Except.toOption] at heval
+    rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+    · simp [hIRValue, Option.bind] at heval
+    · simp [hIRValue, Option.bind] at heval
+      have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+        heval.symm
+      have hvalueEval : evalIRExpr state valueIR = some valueNat := hIRValue
+      -- Prove sizeOf of any YulStmt list ≥ length + 1
+      have hSizeOfListBound : ∀ (l : List YulStmt), l.length + 1 ≤ sizeOf l := by
+        intro l
+        induction l with
+        | nil => simp
+        | cons h t ih =>
+          show t.length + 1 + 1 ≤ 1 + sizeOf h + sizeOf t
+          omega
+      have hbodyFuelLe : slots.length + 2 ≤ extraFuel := by
+        have hslack' : sizeOf compiledIR - compiledIR.length ≤ extraFuel := by
+          simpa [compiledIR] using hslack
+        have hlen : compiledIR.length = 1 := by simp [compiledIR]
+        -- blockBody.length = 1 + slots.length (let_ + map)
+        have hBodyLen : blockBody.length = 1 + slots.length := by
+          simp [blockBody, slots]; omega
+        have hBodyBound := hSizeOfListBound blockBody
+        -- sizeOf compiledIR = 1 + sizeOf (YulStmt.block blockBody) + 1
+        have hCompSizeOf : sizeOf compiledIR = 1 + sizeOf (YulStmt.block blockBody) + 1 := by
+          dsimp only [compiledIR]; rfl
+        -- sizeOf (YulStmt.block body) ≥ 1 + sizeOf body
+        have hBlockSizeOf : 1 + sizeOf blockBody ≤ sizeOf (YulStmt.block blockBody) := by
+          simp [YulStmt.block.sizeOf_spec]
+        omega
+      let bodyExtraFuel := extraFuel - (slots.length + 2)
+      have hbodyFuelEq : slots.length + bodyExtraFuel + 2 = extraFuel := by
+        dsimp [bodyExtraFuel]
+        omega
+      have hresolvedSlots :
+          ∀ writeSlot ∈ slots, findResolvedFieldAtSlotCopy fields writeSlot = some f := by
+        intro writeSlot hmem
+        exact
+          findResolvedFieldAtSlotCopy_of_findFieldWithResolvedSlot_member
+            hnoConflict hfind hwriteSlots hmem hunpacked
+      have hbody :
+          execIRStmts extraFuel state blockBody =
+            .continue
+              { state.setVar "__compat_value" valueNat with
+                  storage :=
+                    abstractStoreStorageOrMappingMany
+                      (state.setVar "__compat_value" valueNat).storage
+                      slots
+                      valueNat } := by
+        have := execIRStmts_let_then_sstore_lit_ident_slots_continue
+          bodyExtraFuel state slots "__compat_value" valueIR valueNat hvalueEval
+        rw [hbodyFuelEq] at this
+        simpa [blockBody, slots] using this
+      have hwhole :
+          execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
+            .continue
+              { state.setVar "__compat_value" valueNat with
+                  storage :=
+                    abstractStoreStorageOrMappingMany
+                    (state.setVar "__compat_value" valueNat).storage
+                    slots
+                    valueNat } := by
+        have hblock := execIRStmts_single_block_of_continue
+          extraFuel state
+          { state.setVar "__compat_value" valueNat with
+              storage :=
+                abstractStoreStorageOrMappingMany
+                  (state.setVar "__compat_value" valueNat).storage
+                  slots
+                  valueNat }
+          blockBody
+          hbody
+        convert hblock using 2
+        simp [compiledIR]; omega
+      -- Prove value bound
+      have hvalueLt := FunctionBody.evalExpr_lt_evmModulus_core_of_scope
+          hcore hexact hinScope hbounded
+          (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope)
+          hruntime
+      rw [hValueSrc] at hvalueLt
+      simp at hvalueLt
+      -- Source execution
+      have hSrcExec : SourceSemantics.execStmt fields runtime
+          (.setStorage fieldName value) = .continue
+            { runtime with
+                world := SourceSemantics.writeUintSlots runtime.world (slot :: f.aliasSlots) valueNat } := by
+        simp [SourceSemantics.execStmt, hwriteSlots, hValueSrc, slots]
+      -- Scope inclusion
+      have hincl : FunctionBody.scopeNamesIncluded
+          (stmtNextScope scope (.setStorage fieldName value)) scope := by
+        intro n hn
+        simp [stmtNextScope, collectStmtNames] at hn
+        rcases hn with hv | hs
+        · exact hinScope n (collectExprNames_mem_exprBoundNames_of_core hcore n hv)
+        · exact hs
+      have hscope' := FunctionBody.scopeNamesPresent_of_included hscope hincl
+      -- Runtime state match
+      have hruntimeSet :
+          FunctionBody.runtimeStateMatchesIR fields runtime (state.setVar "__compat_value" valueNat) :=
+        FunctionBody.runtimeStateMatchesIR_setVar_irrelevant hruntime
+      have hruntime' : FunctionBody.runtimeStateMatchesIR fields
+          { runtime with world := SourceSemantics.writeUintSlots runtime.world slots valueNat }
+          { (state.setVar "__compat_value" valueNat) with
+              storage := abstractStoreStorageOrMappingMany
+                (state.setVar "__compat_value" valueNat).storage slots valueNat } :=
+        runtimeStateMatchesIR_writeUintSlots hruntimeSet hresolvedSlots hnotAddr hnotDyn hvalueLt
+      -- Bindings match
+      have hexactSet :
+          FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings
+            (state.setVar "__compat_value" valueNat) :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant
+          hexact (compatValue_not_mem_scope_of_reservedPrefix hscopeReserved)
+      have hexact' : FunctionBody.bindingsExactlyMatchIRVarsOnScope
+          (stmtNextScope scope (.setStorage fieldName value)) runtime.bindings
+          { (state.setVar "__compat_value" valueNat) with
+              storage := abstractStoreStorageOrMappingMany
+                (state.setVar "__compat_value" valueNat).storage slots valueNat } :=
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
+          (bindingsExactlyMatchIRVarsOnScope_writeUintSlots hexactSet) hincl
+      refine ⟨_, _, hSrcExec, hwhole, ?_⟩
+      simp [stmtStepMatchesIRExec, slots]
+      exact ⟨hruntime', hexact', hbounded, hscope'⟩
 
 theorem compiledStmtStep_setStorage_of_validateIdentifierShapes
     {spec : CompilationModel}
@@ -8011,144 +10607,179 @@ theorem compiledStmtStep_setStorage_of_validateIdentifierShapes
     (hnoConflict : firstFieldWriteSlotConflict spec.fields = none)
     (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
     (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
+    (hNotMapping : isMapping spec.fields fieldName = false)
     (hvalueIR : CompilationModel.compileExpr spec.fields .calldata value = Except.ok valueIR) :
-    ∃ compiledIR, CompiledStmtStep spec.fields scope (.setStorage fieldName value) compiledIR := by sorry
--- SORRY'D:   by_cases halias : f.aliasSlots = []
--- SORRY'D:   · refine ⟨[YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, valueIR])], ?_⟩
--- SORRY'D:     apply compiledStmtStep_setStorage_singleSlot
--- SORRY'D:       (hcore := hcore)
--- SORRY'D:       (hinScope := hinScope)
--- SORRY'D:       (hfind := hfind)
--- SORRY'D:       (hwriteSlots := ?_)
--- SORRY'D:       (halias := halias)
--- SORRY'D:       (hunpacked := hunpacked)
--- SORRY'D:       (hnoConflict := hnoConflict)
--- SORRY'D:       (hnotAddr := hnotAddr)
--- SORRY'D:       (hnotDyn := hnotDyn)
--- SORRY'D:       (hvalueIR := hvalueIR)
--- SORRY'D:     simpa [halias] using hwriteSlots
--- SORRY'D:   · refine
--- SORRY'D:       ⟨[YulStmt.block
--- SORRY'D:           ([YulStmt.let_ "__compat_value" valueIR] ++
--- SORRY'D:             (slot :: f.aliasSlots).map (fun writeSlot =>
--- SORRY'D:               YulStmt.expr
--- SORRY'D:                 (YulExpr.call "sstore" [YulExpr.lit writeSlot, YulExpr.ident "__compat_value"])))],
--- SORRY'D:         ?_⟩
--- SORRY'D:     apply compiledStmtStep_setStorage_aliasSlots
--- SORRY'D:       (hcore := hcore)
--- SORRY'D:       (hinScope := hinScope)
--- SORRY'D:       (hfind := hfind)
--- SORRY'D:       (hwriteSlots := hwriteSlots)
--- SORRY'D:       (halias := halias)
--- SORRY'D:       (hscopeReserved := scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes
--- SORRY'D:         hvalidate hfn hscopeNames)
--- SORRY'D:       (hunpacked := hunpacked)
--- SORRY'D:       (hnoConflict := hnoConflict)
--- SORRY'D:       (hnotAddr := hnotAddr)
--- SORRY'D:       (hnotDyn := hnotDyn)
--- SORRY'D:       (hvalueIR := hvalueIR)
+    ∃ compiledIR, CompiledStmtStep spec.fields scope (.setStorage fieldName value) compiledIR := by
+  by_cases halias : f.aliasSlots = []
+  · refine ⟨[YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, valueIR])], ?_⟩
+    apply compiledStmtStep_setStorage_singleSlot
+      (hcore := hcore)
+      (hinScope := hinScope)
+      (hfind := hfind)
+      (hwriteSlots := ?_)
+      (halias := halias)
+      (hunpacked := hunpacked)
+      (hnoConflict := hnoConflict)
+      (hnotAddr := hnotAddr)
+      (hnotDyn := hnotDyn)
+      (hNotMapping := hNotMapping)
+      (hvalueIR := hvalueIR)
+    simpa [halias] using hwriteSlots
+  · refine
+      ⟨[YulStmt.block
+          ([YulStmt.let_ "__compat_value" valueIR] ++
+            (slot :: f.aliasSlots).map (fun writeSlot =>
+              YulStmt.expr
+                (YulExpr.call "sstore" [YulExpr.lit writeSlot, YulExpr.ident "__compat_value"])))],
+        ?_⟩
+    apply compiledStmtStep_setStorage_aliasSlots
+      (hcore := hcore)
+      (hinScope := hinScope)
+      (hfind := hfind)
+      (hwriteSlots := hwriteSlots)
+      (halias := halias)
+      (hscopeReserved := scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes
+        hvalidate hfn hscopeNames)
+      (hunpacked := hunpacked)
+      (hnoConflict := hnoConflict)
+      (hnotAddr := hnotAddr)
+      (hnotDyn := hnotDyn)
+      (hNotMapping := hNotMapping)
+      (hvalueIR := hvalueIR)
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_scopeDiscipline
--- TYPESIG_SORRY:     {spec : CompilationModel}
--- TYPESIG_SORRY:     {fn : FunctionSpec}
--- TYPESIG_SORRY:     {prefix suffix : List Stmt}
--- TYPESIG_SORRY:     {fieldName : String}
--- TYPESIG_SORRY:     {value : Expr}
--- TYPESIG_SORRY:     {valueIR : YulExpr}
--- TYPESIG_SORRY:     {f : Field}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hvalidate : validateIdentifierShapes spec = Except.ok ())
--- TYPESIG_SORRY:     (hfn : fn ∈ spec.functions)
--- TYPESIG_SORRY:     (hprefix :
--- TYPESIG_SORRY:       StmtListScopeDiscipline
--- TYPESIG_SORRY:         (spec.fields.map (·.name))
--- TYPESIG_SORRY:         (fn.params.map (·.name))
--- TYPESIG_SORRY:         prefix)
--- TYPESIG_SORRY:     (hbody : fn.body = prefix ++ .setStorage fieldName value :: suffix)
--- TYPESIG_SORRY:     (hcore : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScope :
--- TYPESIG_SORRY:       FunctionBody.exprBoundNamesInScope
--- TYPESIG_SORRY:         value
--- TYPESIG_SORRY:         (List.foldl stmtNextScope (fn.params.map (·.name)) prefix))
--- TYPESIG_SORRY:     (hfind : findFieldWithResolvedSlot spec.fields fieldName = some (f, slot))
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots spec.fields fieldName = some (slot :: f.aliasSlots))
--- TYPESIG_SORRY:     (hunpacked : f.packedBits = none)
--- TYPESIG_SORRY:     (hnoConflict : firstFieldWriteSlotConflict spec.fields = none)
--- TYPESIG_SORRY:     (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
--- TYPESIG_SORRY:     (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr spec.fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     ∃ compiledIR,
--- TYPESIG_SORRY:       CompiledStmtStep spec.fields
--- TYPESIG_SORRY:         (List.foldl stmtNextScope (fn.params.map (·.name)) prefix)
--- TYPESIG_SORRY:         (.setStorage fieldName value)
--- TYPESIG_SORRY:         compiledIR := by sorry
--- SORRY'D:   apply compiledStmtStep_setStorage_of_validateIdentifierShapes
--- SORRY'D:     (scope := List.foldl stmtNextScope (fn.params.map (·.name)) prefix)
--- SORRY'D:     (hvalidate := hvalidate)
--- SORRY'D:     (hfn := hfn)
--- SORRY'D:     (hscopeNames := ?_)
--- SORRY'D:     (hcore := hcore)
--- SORRY'D:     (hinScope := hinScope)
--- SORRY'D:     (hfind := hfind)
--- SORRY'D:     (hwriteSlots := hwriteSlots)
--- SORRY'D:     (hunpacked := hunpacked)
--- SORRY'D:     (hnoConflict := hnoConflict)
--- SORRY'D:     (hnotAddr := hnotAddr)
--- SORRY'D:     (hnotDyn := hnotDyn)
--- SORRY'D:     (hvalueIR := hvalueIR)
--- SORRY'D:   intro name hmem
--- SORRY'D:   have hscopeNames := stmtListScopeDiscipline_scope_names hprefix name hmem
--- SORRY'D:   rw [hbody] at hscopeNames
--- SORRY'D:   simpa [collectStmtListBindNames, collectStmtListAssignedNames, hbody] using hscopeNames
+theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_scopeDiscipline
+    {spec : CompilationModel}
+    {fn : FunctionSpec}
+    {«prefix» «suffix» : List Stmt}
+    {fieldName : String}
+    {value : Expr}
+    {valueIR : YulExpr}
+    {f : Field}
+    {slot : Nat}
+    (hvalidate : validateIdentifierShapes spec = Except.ok ())
+    (hfn : fn ∈ spec.functions)
+    (hprefix :
+      StmtListScopeDiscipline
+        (spec.fields.map (·.name))
+        (fn.params.map (·.name))
+        «prefix»)
+    (hbody : fn.body = «prefix» ++ .setStorage fieldName value :: «suffix»)
+    (hcore : FunctionBody.ExprCompileCore value)
+    (hinScope :
+      FunctionBody.exprBoundNamesInScope
+        value
+        (List.foldl stmtNextScope (fn.params.map (·.name)) «prefix»))
+    (hfind : findFieldWithResolvedSlot spec.fields fieldName = some (f, slot))
+    (hwriteSlots : findFieldWriteSlots spec.fields fieldName = some (slot :: f.aliasSlots))
+    (hunpacked : f.packedBits = none)
+    (hnoConflict : firstFieldWriteSlotConflict spec.fields = none)
+    (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
+    (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
+    (hNotMapping : isMapping spec.fields fieldName = false)
+    (hvalueIR : CompilationModel.compileExpr spec.fields .calldata value = Except.ok valueIR) :
+    ∃ compiledIR,
+      CompiledStmtStep spec.fields
+        (List.foldl stmtNextScope (fn.params.map (·.name)) «prefix»)
+        (.setStorage fieldName value)
+        compiledIR := by
+  apply compiledStmtStep_setStorage_of_validateIdentifierShapes
+    (scope := List.foldl stmtNextScope (fn.params.map (·.name)) «prefix»)
+    (hvalidate := hvalidate)
+    (hfn := hfn)
+    (hscopeNames := ?_)
+    (hcore := hcore)
+    (hinScope := hinScope)
+    (hfind := hfind)
+    (hwriteSlots := hwriteSlots)
+    (hunpacked := hunpacked)
+    (hnoConflict := hnoConflict)
+    (hnotAddr := hnotAddr)
+    (hnotDyn := hnotDyn)
+    (hNotMapping := hNotMapping)
+    (hvalueIR := hvalueIR)
+  intro name hmem
+  have hscopeNames := stmtListScopeDiscipline_scope_names hprefix name hmem
+  have collectStmtListBindNames_prefix_subset :
+      ∀ (a b : List Stmt), ∀ x, x ∈ collectStmtListBindNames a →
+        x ∈ collectStmtListBindNames (a ++ b) := by
+    intro a b x hx
+    induction a with
+    | nil => simp [collectStmtListBindNames] at hx
+    | cons s rest ih =>
+        simp only [collectStmtListBindNames, List.mem_append, List.cons_append] at hx ⊢
+        rcases hx with h | h
+        · exact Or.inl h
+        · exact Or.inr (ih h)
+  have collectStmtListAssignedNames_prefix_subset :
+      ∀ (a b : List Stmt), ∀ x, x ∈ collectStmtListAssignedNames a →
+        x ∈ collectStmtListAssignedNames (a ++ b) := by
+    intro a b x hx
+    induction a with
+    | nil => simp [collectStmtListAssignedNames] at hx
+    | cons s rest ih =>
+        simp only [collectStmtListAssignedNames, List.mem_append, List.cons_append] at hx ⊢
+        rcases hx with h | h
+        · exact Or.inl h
+        · exact Or.inr (ih h)
+  simp only [List.mem_append] at hscopeNames ⊢
+  rcases hscopeNames with ((h | h) | h) | h
+  · exact Or.inl (Or.inl (Or.inl h))
+  · exact Or.inl (Or.inl (Or.inr
+      (by rw [hbody]; exact collectStmtListBindNames_prefix_subset _ _ _ h)))
+  · exact Or.inl (Or.inr
+      (by rw [hbody]; exact collectStmtListAssignedNames_prefix_subset _ _ _ h))
+  · exact Or.inr h
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences
--- TYPESIG_SORRY:     {spec : CompilationModel}
--- TYPESIG_SORRY:     {fn : FunctionSpec}
--- TYPESIG_SORRY:     {prefix suffix : List Stmt}
--- TYPESIG_SORRY:     {fieldName : String}
--- TYPESIG_SORRY:     {value : Expr}
--- TYPESIG_SORRY:     {valueIR : YulExpr}
--- TYPESIG_SORRY:     {f : Field}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hvalidateShapes : validateIdentifierShapes spec = Except.ok ())
--- TYPESIG_SORRY:     (hvalidateRefs : validateFunctionIdentifierReferences fn = Except.ok ())
--- TYPESIG_SORRY:     (hfn : fn ∈ spec.functions)
--- TYPESIG_SORRY:     (hparamScope : paramScopeNames fn.params = fn.params.map (·.name))
--- TYPESIG_SORRY:     (hprefixCore : StmtListScopeCore (spec.fields.map (·.name)) prefix)
--- TYPESIG_SORRY:     (hbody : fn.body = prefix ++ .setStorage fieldName value :: suffix)
--- TYPESIG_SORRY:     (hcore : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScope :
--- TYPESIG_SORRY:       FunctionBody.exprBoundNamesInScope
--- TYPESIG_SORRY:         value
--- TYPESIG_SORRY:         (List.foldl stmtNextScope (fn.params.map (·.name)) prefix))
--- TYPESIG_SORRY:     (hfind : findFieldWithResolvedSlot spec.fields fieldName = some (f, slot))
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots spec.fields fieldName = some (slot :: f.aliasSlots))
--- TYPESIG_SORRY:     (hunpacked : f.packedBits = none)
--- TYPESIG_SORRY:     (hnoConflict : firstFieldWriteSlotConflict spec.fields = none)
--- TYPESIG_SORRY:     (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
--- TYPESIG_SORRY:     (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr spec.fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     ∃ compiledIR,
--- TYPESIG_SORRY:       CompiledStmtStep spec.fields
--- TYPESIG_SORRY:         (List.foldl stmtNextScope (fn.params.map (·.name)) prefix)
--- TYPESIG_SORRY:         (.setStorage fieldName value)
--- TYPESIG_SORRY:         compiledIR := by sorry
--- SORRY'D:   apply compiledStmtStep_setStorage_of_validateIdentifierShapes_of_scopeDiscipline
--- SORRY'D:     (hvalidate := hvalidateShapes)
--- SORRY'D:     (hfn := hfn)
--- SORRY'D:     (hprefix := stmtListScopeDiscipline_of_validateFunctionIdentifierReferences_prefix
--- SORRY'D:       hprefixCore hvalidateRefs hparamScope
--- SORRY'D:       (by simpa [List.append_assoc] using hbody))
--- SORRY'D:     (hbody := hbody)
--- SORRY'D:     (hcore := hcore)
--- SORRY'D:     (hinScope := hinScope)
--- SORRY'D:     (hfind := hfind)
--- SORRY'D:     (hwriteSlots := hwriteSlots)
--- SORRY'D:     (hunpacked := hunpacked)
--- SORRY'D:     (hnoConflict := hnoConflict)
--- SORRY'D:     (hnotAddr := hnotAddr)
--- SORRY'D:     (hnotDyn := hnotDyn)
--- SORRY'D:     (hvalueIR := hvalueIR)
+theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences
+    {spec : CompilationModel}
+    {fn : FunctionSpec}
+    {«prefix» «suffix» : List Stmt}
+    {fieldName : String}
+    {value : Expr}
+    {valueIR : YulExpr}
+    {f : Field}
+    {slot : Nat}
+    (hvalidateShapes : validateIdentifierShapes spec = Except.ok ())
+    (hvalidateRefs : validateFunctionIdentifierReferences fn = Except.ok ())
+    (hfn : fn ∈ spec.functions)
+    (hparamScope : paramScopeNames fn.params = fn.params.map (·.name))
+    (hprefixCore : StmtListScopeCore (spec.fields.map (·.name)) «prefix»)
+    (hbody : fn.body = «prefix» ++ .setStorage fieldName value :: «suffix»)
+    (hcore : FunctionBody.ExprCompileCore value)
+    (hinScope :
+      FunctionBody.exprBoundNamesInScope
+        value
+        (List.foldl stmtNextScope (fn.params.map (·.name)) «prefix»))
+    (hfind : findFieldWithResolvedSlot spec.fields fieldName = some (f, slot))
+    (hwriteSlots : findFieldWriteSlots spec.fields fieldName = some (slot :: f.aliasSlots))
+    (hunpacked : f.packedBits = none)
+    (hnoConflict : firstFieldWriteSlotConflict spec.fields = none)
+    (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
+    (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
+    (hNotMapping : isMapping spec.fields fieldName = false)
+    (hvalueIR : CompilationModel.compileExpr spec.fields .calldata value = Except.ok valueIR) :
+    ∃ compiledIR,
+      CompiledStmtStep spec.fields
+        (List.foldl stmtNextScope (fn.params.map (·.name)) «prefix»)
+        (.setStorage fieldName value)
+        compiledIR := by
+  apply compiledStmtStep_setStorage_of_validateIdentifierShapes_of_scopeDiscipline
+    (hvalidate := hvalidateShapes)
+    (hfn := hfn)
+    (hprefix := stmtListScopeDiscipline_of_validateFunctionIdentifierReferences_prefix
+      hprefixCore hvalidateRefs hparamScope
+      (by simpa [List.append_assoc] using hbody))
+    (hbody := hbody)
+    (hcore := hcore)
+    (hinScope := hinScope)
+    (hfind := hfind)
+    (hwriteSlots := hwriteSlots)
+    (hunpacked := hunpacked)
+    (hnoConflict := hnoConflict)
+    (hnotAddr := hnotAddr)
+    (hnotDyn := hnotDyn)
+    (hNotMapping := hNotMapping)
+    (hvalueIR := hvalueIR)
 
 -- TYPESIG_SORRY: theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences_of_compileStmtList
 -- TYPESIG_SORRY:     {spec : CompilationModel}
@@ -8793,6 +11424,17 @@ private theorem stmtListTouchesUnsupportedContractSurface_append
   | cons stmt rest ih =>
       simp [stmtListTouchesUnsupportedContractSurface, ih, Bool.or_assoc]
 
+private theorem stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites_append
+    {«prefix» «suffix» : List Stmt} :
+    stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites («prefix» ++ «suffix») =
+      (stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites «prefix» ||
+        stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites «suffix») := by
+  induction «prefix» with
+  | nil =>
+      simp [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites]
+  | cons stmt rest ih =>
+      simp [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites, ih, Bool.or_assoc]
+
 private theorem stmtListCompileCore_of_requireLiteralGuardFamilyClauses
     {scope : List String}
     (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause) :
@@ -8857,21 +11499,23 @@ private theorem stmtListGenericCore_singleton_setStorage_singleSlot
       some ({ name := fieldName, ty := FieldType.uint256 }, slot))
     (hcore : FunctionBody.ExprCompileCore value)
     (hinScope : FunctionBody.exprBoundNamesInScope value scope) :
-    StmtListGenericCore fields scope [Stmt.setStorage fieldName value] := by sorry
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcore with
--- SORRY'D:     ⟨valueIR, hvalueIR⟩
--- SORRY'D:   refine StmtListGenericCore.cons ?_ StmtListGenericCore.nil
--- SORRY'D:   exact compiledStmtStep_setStorage_singleSlot
--- SORRY'D:     (hcore := hcore)
--- SORRY'D:     (hinScope := hinScope)
--- SORRY'D:     (hfind := hfind)
--- SORRY'D:     (hwriteSlots := by simpa [findFieldWriteSlots, hfind])
--- SORRY'D:     (halias := by rfl)
--- SORRY'D:     (hunpacked := by rfl)
--- SORRY'D:     (hnoConflict := hnoConflict)
--- SORRY'D:     (hnotAddr := by rfl)
--- SORRY'D:     (hnotDyn := by rfl)
--- SORRY'D:     (hvalueIR := hvalueIR)
+    StmtListGenericCore fields scope [Stmt.setStorage fieldName value] := by
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcore with
+    ⟨valueIR, hvalueIR⟩
+  exact StmtListGenericCore.cons
+    (compiledStmtStep_setStorage_singleSlot
+      (hcore := hcore)
+      (hinScope := hinScope)
+      (hfind := hfind)
+      (hwriteSlots := by simpa using findFieldWriteSlots_of_findFieldWithResolvedSlot hfind)
+      (halias := by rfl)
+      (hunpacked := by rfl)
+      (hnoConflict := hnoConflict)
+      (hnotAddr := by rfl)
+      (hnotDyn := by rfl)
+      (hNotMapping := isMapping_false_of_findFieldWithResolvedSlot_uint256 hfind rfl)
+      (hvalueIR := hvalueIR))
+    StmtListGenericCore.nil
 
 private theorem stmtListGenericCore_singleton_setStorageAddr_singleSlot
     {fields : List Field}
@@ -8884,17 +11528,18 @@ private theorem stmtListGenericCore_singleton_setStorageAddr_singleSlot
       some ({ name := fieldName, ty := FieldType.address }, slot))
     (hcore : FunctionBody.ExprCompileCore value)
     (hinScope : FunctionBody.exprBoundNamesInScope value scope) :
-    StmtListGenericCore fields scope [Stmt.setStorageAddr fieldName value] := by sorry
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcore with
--- SORRY'D:     ⟨valueIR, hvalueIR⟩
--- SORRY'D:   refine StmtListGenericCore.cons ?_ StmtListGenericCore.nil
--- SORRY'D:   exact compiledStmtStep_setStorageAddr_singleSlot
--- SORRY'D:     (hcore := hcore)
--- SORRY'D:     (hinScope := hinScope)
--- SORRY'D:     (hfind := hfind)
--- SORRY'D:     (hwriteSlots := by simpa [findFieldWriteSlots, hfind])
--- SORRY'D:     (hnoConflict := hnoConflict)
--- SORRY'D:     (hvalueIR := hvalueIR)
+    StmtListGenericCore fields scope [Stmt.setStorageAddr fieldName value] := by
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcore with
+    ⟨valueIR, hvalueIR⟩
+  exact StmtListGenericCore.cons
+    (compiledStmtStep_setStorageAddr_singleSlot
+      (hcore := hcore)
+      (hinScope := hinScope)
+      (hfind := hfind)
+      (hwriteSlots := by simpa using findFieldWriteSlots_of_findFieldWithResolvedSlot hfind)
+      (hnoConflict := hnoConflict)
+      (hvalueIR := hvalueIR))
+    StmtListGenericCore.nil
 
 private theorem stmtListGenericCore_singleton_mstore_single
     {fields : List Field}
@@ -8904,19 +11549,20 @@ private theorem stmtListGenericCore_singleton_mstore_single
     (hinScopeOffset : FunctionBody.exprBoundNamesInScope offset scope)
     (hcoreValue : FunctionBody.ExprCompileCore value)
     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope) :
-    StmtListGenericCore fields scope [Stmt.mstore offset value] := by sorry
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreOffset with
--- SORRY'D:     ⟨offsetIR, hoffsetIR⟩
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
--- SORRY'D:     ⟨valueIR, hvalueIR⟩
--- SORRY'D:   refine StmtListGenericCore.cons ?_ StmtListGenericCore.nil
--- SORRY'D:   exact compiledStmtStep_mstore_single
--- SORRY'D:     (hcoreOffset := hcoreOffset)
--- SORRY'D:     (hinScopeOffset := hinScopeOffset)
--- SORRY'D:     (hcoreValue := hcoreValue)
--- SORRY'D:     (hinScopeValue := hinScopeValue)
--- SORRY'D:     (hoffsetIR := hoffsetIR)
--- SORRY'D:     (hvalueIR := hvalueIR)
+    StmtListGenericCore fields scope [Stmt.mstore offset value] := by
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreOffset with
+    ⟨offsetIR, hoffsetIR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+    ⟨valueIR, hvalueIR⟩
+  exact StmtListGenericCore.cons
+    (compiledStmtStep_mstore_single
+      (hcoreOffset := hcoreOffset)
+      (hinScopeOffset := hinScopeOffset)
+      (hcoreValue := hcoreValue)
+      (hinScopeValue := hinScopeValue)
+      (hoffsetIR := hoffsetIR)
+      (hvalueIR := hvalueIR))
+    StmtListGenericCore.nil
 
 private theorem stmtListGenericCore_singleton_tstore_single
     {fields : List Field}
@@ -8926,397 +11572,20 @@ private theorem stmtListGenericCore_singleton_tstore_single
     (hinScopeOffset : FunctionBody.exprBoundNamesInScope offset scope)
     (hcoreValue : FunctionBody.ExprCompileCore value)
     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope) :
-    StmtListGenericCore fields scope [Stmt.tstore offset value] := by sorry
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreOffset with
--- SORRY'D:     ⟨offsetIR, hoffsetIR⟩
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
--- SORRY'D:     ⟨valueIR, hvalueIR⟩
--- SORRY'D:   refine StmtListGenericCore.cons ?_ StmtListGenericCore.nil
--- SORRY'D:   exact compiledStmtStep_tstore_single
--- SORRY'D:     (hcoreOffset := hcoreOffset)
--- SORRY'D:     (hinScopeOffset := hinScopeOffset)
--- SORRY'D:     (hcoreValue := hcoreValue)
--- SORRY'D:     (hinScopeValue := hinScopeValue)
--- SORRY'D:     (hoffsetIR := hoffsetIR)
--- SORRY'D:     (hvalueIR := hvalueIR)
-
-private theorem stmtListGenericCore_of_requireClausesOnly
-    {fields : List Field}
-    {scope : List String}
-    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause) :
-    StmtListGenericCore fields scope
-      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt) := by sorry
-
-private theorem stmtListGenericCore_of_requireClausesThenSetStorageLiteral
-    {fields : List Field}
-    {scope : List String}
-    (hnoConflict : firstFieldWriteSlotConflict fields = none)
-    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
-    (fieldName : String)
-    (slot writeVal : Nat)
-    (hfind : findFieldWithResolvedSlot fields fieldName =
-      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
-    StmtListGenericCore fields scope
-      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
-        [Stmt.setStorage fieldName (Expr.literal writeVal)]) := by sorry
--- SORRY'D:   exact stmtListGenericCore_append
--- SORRY'D:     (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
--- SORRY'D:     (by
--- SORRY'D:       simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
--- SORRY'D:         (stmtListGenericCore_singleton_setStorage_singleSlot
--- SORRY'D:           (fields := fields)
--- SORRY'D:           (scope := scope)
--- SORRY'D:           (hnoConflict := hnoConflict)
--- SORRY'D:           (hfind := hfind)
--- SORRY'D:           (hcore := .literal writeVal)
--- SORRY'D:           (hinScope := by intro name hmem; simp [FunctionBody.exprBoundNames] at hmem)))
-
-private theorem stmtListGenericCore_of_requireClausesThenReturnLiteral
-    {fields : List Field}
-    {scope : List String}
-    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
-    (retVal : Nat) :
-    StmtListGenericCore fields scope
-      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
-        [Stmt.return (Expr.literal retVal)]) := by sorry
--- SORRY'D:   have htail :
--- SORRY'D:       FunctionBody.StmtListCompileCore scope [Stmt.return (Expr.literal retVal)] := by
--- SORRY'D:     refine FunctionBody.StmtListCompileCore.return_ (.literal retVal) ?_ ?_
--- SORRY'D:     · intro name hmem
--- SORRY'D:       simp [FunctionBody.exprBoundNames] at hmem
--- SORRY'D:     · exact FunctionBody.StmtListCompileCore.nil
--- SORRY'D:   exact stmtListGenericCore_append
--- SORRY'D:     (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
--- SORRY'D:     (by
--- SORRY'D:       simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
--- SORRY'D:         (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) htail))
-
-private theorem stmtListGenericCore_of_requireClausesThenLetReturnLocalLiteral
-    {fields : List Field}
-    {scope : List String}
-    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
-    (tmp : String)
-    (retVal : Nat) :
-    StmtListGenericCore fields scope
-      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
-        [Stmt.letVar tmp (Expr.literal retVal), Stmt.return (Expr.localVar tmp)]) := by sorry
--- SORRY'D:   have htail :
--- SORRY'D:       FunctionBody.StmtListCompileCore scope
--- SORRY'D:         [Stmt.letVar tmp (Expr.literal retVal), Stmt.return (Expr.localVar tmp)] := by
--- SORRY'D:     refine FunctionBody.StmtListCompileCore.letVar (.literal retVal) ?_ ?_
--- SORRY'D:     · intro name hmem
--- SORRY'D:       simp [FunctionBody.exprBoundNames] at hmem
--- SORRY'D:     · refine FunctionBody.StmtListCompileCore.return_ (.localVar tmp) ?_ ?_
--- SORRY'D:       · exact .localVar tmp
--- SORRY'D:       · intro name hmem
--- SORRY'D:         simp [FunctionBody.exprBoundNames] at hmem
--- SORRY'D:         simpa [hmem]
--- SORRY'D:       · exact FunctionBody.StmtListCompileCore.nil
--- SORRY'D:   exact stmtListGenericCore_append
--- SORRY'D:     (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
--- SORRY'D:     (by
--- SORRY'D:       simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
--- SORRY'D:         (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) htail))
-
-private theorem stmtListGenericCore_of_requireClausesThenLetSetStorageLocalLiteral
-    {fields : List Field}
-    {scope : List String}
-    (hnoConflict : firstFieldWriteSlotConflict fields = none)
-    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
-    (fieldName tmp : String)
-    (slot n : Nat)
-    (hfind : findFieldWithResolvedSlot fields fieldName =
-      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
-    StmtListGenericCore fields scope
-      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
-        [Stmt.letVar tmp (Expr.literal n), Stmt.setStorage fieldName (Expr.localVar tmp)]) := by sorry
--- SORRY'D:   have hprefix :
--- SORRY'D:       FunctionBody.StmtListCompileCore scope [Stmt.letVar tmp (Expr.literal n)] := by
--- SORRY'D:     refine FunctionBody.StmtListCompileCore.letVar (.literal n) ?_ ?_
--- SORRY'D:     · intro name hmem
--- SORRY'D:       simp [FunctionBody.exprBoundNames] at hmem
--- SORRY'D:     · exact FunctionBody.StmtListCompileCore.nil
--- SORRY'D:   exact stmtListGenericCore_append
--- SORRY'D:     (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
--- SORRY'D:     (by
--- SORRY'D:       simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
--- SORRY'D:         (stmtListGenericCore_append
--- SORRY'D:           (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) hprefix)
--- SORRY'D:           (stmtListGenericCore_singleton_setStorage_singleSlot
--- SORRY'D:             (fields := fields)
--- SORRY'D:             (scope := List.foldl stmtNextScope scope [Stmt.letVar tmp (Expr.literal n)])
--- SORRY'D:             (hnoConflict := hnoConflict)
--- SORRY'D:             (hfind := hfind)
--- SORRY'D:             (hcore := .localVar tmp)
--- SORRY'D:             (hinScope := by
--- SORRY'D:               intro name hmem
--- SORRY'D:               simp [stmtNextScope, collectStmtNames, FunctionBody.exprBoundNames] at hmem ⊢
--- SORRY'D:               simpa using hmem))))
-
-private theorem stmtListGenericCore_of_requireClausesThenLetAssignSetStorageLocalLiteral
-    {fields : List Field}
-    {scope : List String}
-    (hnoConflict : firstFieldWriteSlotConflict fields = none)
-    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
-    (fieldName tmp : String)
-    (slot n m : Nat)
-    (hfind : findFieldWithResolvedSlot fields fieldName =
-      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
-    StmtListGenericCore fields scope
-      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
-        [Stmt.letVar tmp (Expr.literal n),
-         Stmt.assignVar tmp (Expr.literal m),
-         Stmt.setStorage fieldName (Expr.localVar tmp)]) := by sorry
--- SORRY'D:   have hprefix :
--- SORRY'D:       FunctionBody.StmtListCompileCore scope
--- SORRY'D:         [Stmt.letVar tmp (Expr.literal n), Stmt.assignVar tmp (Expr.literal m)] := by
--- SORRY'D:     refine FunctionBody.StmtListCompileCore.letVar (.literal n) ?_ ?_
--- SORRY'D:     · intro name hmem
--- SORRY'D:       simp [FunctionBody.exprBoundNames] at hmem
--- SORRY'D:     · refine FunctionBody.StmtListCompileCore.assignVar (.literal m) ?_ ?_
--- SORRY'D:       · intro name hmem
--- SORRY'D:         simp [FunctionBody.exprBoundNames] at hmem
--- SORRY'D:       · exact FunctionBody.StmtListCompileCore.nil
--- SORRY'D:   exact stmtListGenericCore_append
--- SORRY'D:     (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
--- SORRY'D:     (by
--- SORRY'D:       simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
--- SORRY'D:         (stmtListGenericCore_append
--- SORRY'D:           (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) hprefix)
--- SORRY'D:           (stmtListGenericCore_singleton_setStorage_singleSlot
--- SORRY'D:             (fields := fields)
--- SORRY'D:             (scope := List.foldl stmtNextScope scope
--- SORRY'D:               [Stmt.letVar tmp (Expr.literal n), Stmt.assignVar tmp (Expr.literal m)])
--- SORRY'D:             (hnoConflict := hnoConflict)
--- SORRY'D:             (hfind := hfind)
--- SORRY'D:             (hcore := .localVar tmp)
--- SORRY'D:             (hinScope := by
--- SORRY'D:               intro name hmem
--- SORRY'D:               simp [stmtNextScope, collectStmtNames, FunctionBody.exprBoundNames] at hmem ⊢
--- SORRY'D:               simpa using hmem))))
-
-private theorem stmtListGenericCore_of_requireClausesThenLetAssignAddSetStorageLocalLiteral
-    {fields : List Field}
-    {scope : List String}
-    (hnoConflict : firstFieldWriteSlotConflict fields = none)
-    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
-    (fieldName tmp : String)
-    (slot n m : Nat)
-    (hfind : findFieldWithResolvedSlot fields fieldName =
-      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
-    StmtListGenericCore fields scope
-      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
-        [Stmt.letVar tmp (Expr.literal n),
-         Stmt.assignVar tmp (Expr.add (Expr.localVar tmp) (Expr.literal m)),
-         Stmt.setStorage fieldName (Expr.localVar tmp)]) := by sorry
--- SORRY'D:   have hprefix :
--- SORRY'D:       FunctionBody.StmtListCompileCore scope
--- SORRY'D:         [Stmt.letVar tmp (Expr.literal n),
--- SORRY'D:          Stmt.assignVar tmp (Expr.add (Expr.localVar tmp) (Expr.literal m))] := by
--- SORRY'D:     refine FunctionBody.StmtListCompileCore.letVar (.literal n) ?_ ?_
--- SORRY'D:     · intro name hmem
--- SORRY'D:       simp [FunctionBody.exprBoundNames] at hmem
--- SORRY'D:     · refine FunctionBody.StmtListCompileCore.assignVar (.add (Expr.localVar tmp) (Expr.literal m)) ?_ ?_
--- SORRY'D:       · exact .add (.localVar tmp) (.literal m)
--- SORRY'D:       · intro name hmem
--- SORRY'D:         simp [FunctionBody.exprBoundNames] at hmem ⊢
--- SORRY'D:         simpa using hmem
--- SORRY'D:       · exact FunctionBody.StmtListCompileCore.nil
--- SORRY'D:   exact stmtListGenericCore_append
--- SORRY'D:     (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
--- SORRY'D:     (by
--- SORRY'D:       simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
--- SORRY'D:         (stmtListGenericCore_append
--- SORRY'D:           (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) hprefix)
--- SORRY'D:           (stmtListGenericCore_singleton_setStorage_singleSlot
--- SORRY'D:             (fields := fields)
--- SORRY'D:             (scope := List.foldl stmtNextScope scope
--- SORRY'D:               [Stmt.letVar tmp (Expr.literal n),
--- SORRY'D:                Stmt.assignVar tmp (Expr.add (Expr.localVar tmp) (Expr.literal m))])
--- SORRY'D:             (hnoConflict := hnoConflict)
--- SORRY'D:             (hfind := hfind)
--- SORRY'D:             (hcore := .localVar tmp)
--- SORRY'D:             (hinScope := by
--- SORRY'D:               intro name hmem
--- SORRY'D:               simp [stmtNextScope, collectStmtNames, FunctionBody.exprBoundNames] at hmem ⊢
--- SORRY'D:               simpa using hmem))))
-
-private theorem stmtListGenericCore_of_requireClausesThenLetAssignSubSetStorageLocalLiteral
-    {fields : List Field}
-    {scope : List String}
-    (hnoConflict : firstFieldWriteSlotConflict fields = none)
-    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
-    (fieldName tmp : String)
-    (slot n m : Nat)
-    (hfind : findFieldWithResolvedSlot fields fieldName =
-      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
-    StmtListGenericCore fields scope
-      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
-        [Stmt.letVar tmp (Expr.literal n),
-         Stmt.assignVar tmp (Expr.sub (Expr.localVar tmp) (Expr.literal m)),
-         Stmt.setStorage fieldName (Expr.localVar tmp)]) := by sorry
--- SORRY'D:   have hprefix :
--- SORRY'D:       FunctionBody.StmtListCompileCore scope
--- SORRY'D:         [Stmt.letVar tmp (Expr.literal n),
--- SORRY'D:          Stmt.assignVar tmp (Expr.sub (Expr.localVar tmp) (Expr.literal m))] := by
--- SORRY'D:     refine FunctionBody.StmtListCompileCore.letVar (.literal n) ?_ ?_
--- SORRY'D:     · intro name hmem
--- SORRY'D:       simp [FunctionBody.exprBoundNames] at hmem
--- SORRY'D:     · refine FunctionBody.StmtListCompileCore.assignVar (.sub (Expr.localVar tmp) (Expr.literal m)) ?_ ?_
--- SORRY'D:       · exact .sub (.localVar tmp) (.literal m)
--- SORRY'D:       · intro name hmem
--- SORRY'D:         simp [FunctionBody.exprBoundNames] at hmem ⊢
--- SORRY'D:         simpa using hmem
--- SORRY'D:       · exact FunctionBody.StmtListCompileCore.nil
--- SORRY'D:   exact stmtListGenericCore_append
--- SORRY'D:     (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
--- SORRY'D:     (by
--- SORRY'D:       simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
--- SORRY'D:         (stmtListGenericCore_append
--- SORRY'D:           (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) hprefix)
--- SORRY'D:           (stmtListGenericCore_singleton_setStorage_singleSlot
--- SORRY'D:             (fields := fields)
--- SORRY'D:             (scope := List.foldl stmtNextScope scope
--- SORRY'D:               [Stmt.letVar tmp (Expr.literal n),
--- SORRY'D:                Stmt.assignVar tmp (Expr.sub (Expr.localVar tmp) (Expr.literal m))])
--- SORRY'D:             (hnoConflict := hnoConflict)
--- SORRY'D:             (hfind := hfind)
--- SORRY'D:             (hcore := .localVar tmp)
--- SORRY'D:             (hinScope := by
--- SORRY'D:               intro name hmem
--- SORRY'D:               simp [stmtNextScope, collectStmtNames, FunctionBody.exprBoundNames] at hmem ⊢
--- SORRY'D:               simpa using hmem))))
-
-private theorem stmtListGenericCore_of_requireClausesThenLetAssignMulSetStorageLocalLiteral
-    {fields : List Field}
-    {scope : List String}
-    (hnoConflict : firstFieldWriteSlotConflict fields = none)
-    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
-    (fieldName tmp : String)
-    (slot n m : Nat)
-    (hfind : findFieldWithResolvedSlot fields fieldName =
-      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
-    StmtListGenericCore fields scope
-      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
-        [Stmt.letVar tmp (Expr.literal n),
-         Stmt.assignVar tmp (Expr.mul (Expr.localVar tmp) (Expr.literal m)),
-         Stmt.setStorage fieldName (Expr.localVar tmp)]) := by sorry
--- SORRY'D:   have hprefix :
--- SORRY'D:       FunctionBody.StmtListCompileCore scope
--- SORRY'D:         [Stmt.letVar tmp (Expr.literal n),
--- SORRY'D:          Stmt.assignVar tmp (Expr.mul (Expr.localVar tmp) (Expr.literal m))] := by
--- SORRY'D:     refine FunctionBody.StmtListCompileCore.letVar (.literal n) ?_ ?_
--- SORRY'D:     · intro name hmem
--- SORRY'D:       simp [FunctionBody.exprBoundNames] at hmem
--- SORRY'D:     · refine FunctionBody.StmtListCompileCore.assignVar (.mul (Expr.localVar tmp) (Expr.literal m)) ?_ ?_
--- SORRY'D:       · exact .mul (.localVar tmp) (.literal m)
--- SORRY'D:       · intro name hmem
--- SORRY'D:         simp [FunctionBody.exprBoundNames] at hmem ⊢
--- SORRY'D:         simpa using hmem
--- SORRY'D:       · exact FunctionBody.StmtListCompileCore.nil
--- SORRY'D:   exact stmtListGenericCore_append
--- SORRY'D:     (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
--- SORRY'D:     (by
--- SORRY'D:       simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
--- SORRY'D:         (stmtListGenericCore_append
--- SORRY'D:           (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) hprefix)
--- SORRY'D:           (stmtListGenericCore_singleton_setStorage_singleSlot
--- SORRY'D:             (fields := fields)
--- SORRY'D:             (scope := List.foldl stmtNextScope scope
--- SORRY'D:               [Stmt.letVar tmp (Expr.literal n),
--- SORRY'D:                Stmt.assignVar tmp (Expr.mul (Expr.localVar tmp) (Expr.literal m))])
--- SORRY'D:             (hnoConflict := hnoConflict)
--- SORRY'D:             (hfind := hfind)
--- SORRY'D:             (hcore := .localVar tmp)
--- SORRY'D:             (hinScope := by
--- SORRY'D:               intro name hmem
--- SORRY'D:               simp [stmtNextScope, collectStmtNames, FunctionBody.exprBoundNames] at hmem ⊢
--- SORRY'D:               simpa using hmem))))
-
--- TYPESIG_SORRY: private theorem stmtListGenericCore_of_supportedStmtList_append_of_surface
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope prefix suffix : List Stmt}
--- TYPESIG_SORRY:     (hprefix : SupportedStmtList fields scope prefix)
--- TYPESIG_SORRY:     (hsuffix : SupportedStmtList fields (List.foldl stmtNextScope scope prefix) suffix)
--- TYPESIG_SORRY:     (ihPrefix : stmtListTouchesUnsupportedContractSurface prefix = false →
--- TYPESIG_SORRY:       StmtListGenericCore fields scope prefix)
--- TYPESIG_SORRY:     (ihSuffix : stmtListTouchesUnsupportedContractSurface suffix = false →
--- TYPESIG_SORRY:       StmtListGenericCore fields (List.foldl stmtNextScope scope prefix) suffix)
--- TYPESIG_SORRY:     (hsurface :
--- TYPESIG_SORRY:       stmtListTouchesUnsupportedContractSurface (prefix ++ suffix) = false) :
--- TYPESIG_SORRY:     StmtListGenericCore fields scope (prefix ++ suffix) := by sorry
--- SORRY'D:   have hsplit :
--- SORRY'D:       stmtListTouchesUnsupportedContractSurface prefix ||
--- SORRY'D:         stmtListTouchesUnsupportedContractSurface suffix = false := by
--- SORRY'D:     simpa [stmtListTouchesUnsupportedContractSurface_append] using hsurface
--- SORRY'D:   exact stmtListGenericCore_append
--- SORRY'D:     (ihPrefix (Bool.or_eq_false.mp hsplit).1)
--- SORRY'D:     (ihSuffix (Bool.or_eq_false.mp hsplit).2)
-
--- TYPESIG_SORRY: private theorem stmtListGenericCore_of_supportedStmtList_requireClause_of_surface
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {rest : List Stmt}
--- TYPESIG_SORRY:     (clause : RequireLiteralGuardFamilyClause)
--- TYPESIG_SORRY:     (ihRest : stmtListTouchesUnsupportedContractSurface rest = false →
--- TYPESIG_SORRY:       StmtListGenericCore fields scope rest)
--- TYPESIG_SORRY:     (hsurface :
--- TYPESIG_SORRY:       stmtListTouchesUnsupportedContractSurface (clause.toStmt :: rest) = false) :
--- TYPESIG_SORRY:     StmtListGenericCore fields scope (clause.toStmt :: rest) := by sorry
--- SORRY'D:   have hsplit :
--- SORRY'D:       stmtTouchesUnsupportedContractSurface clause.toStmt ||
--- SORRY'D:         stmtListTouchesUnsupportedContractSurface rest = false := by
--- SORRY'D:     simpa [stmtListTouchesUnsupportedContractSurface] using hsurface
--- SORRY'D:   exact stmtListGenericCore_append
--- SORRY'D:     (by
--- SORRY'D:       simpa using stmtListGenericCore_singleton_requireLiteralGuardFamilyClause
--- SORRY'D:         (fields := fields) (scope := scope) clause)
--- SORRY'D:     (by
--- SORRY'D:       simpa using ihRest (Bool.or_eq_false.mp hsplit).2)
-
--- TYPESIG_SORRY: private theorem stmtListGenericCore_of_supportedStmtList_append_of_surface_exceptMappingWrites
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope prefix suffix : List Stmt}
--- TYPESIG_SORRY:     (hprefix : SupportedStmtList fields scope prefix)
--- TYPESIG_SORRY:     (hsuffix : SupportedStmtList fields (List.foldl stmtNextScope scope prefix) suffix)
--- TYPESIG_SORRY:     (ihPrefix :
--- TYPESIG_SORRY:       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites prefix = false →
--- TYPESIG_SORRY:         StmtListGenericCore fields scope prefix)
--- TYPESIG_SORRY:     (ihSuffix :
--- TYPESIG_SORRY:       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites suffix = false →
--- TYPESIG_SORRY:         StmtListGenericCore fields (List.foldl stmtNextScope scope prefix) suffix)
--- TYPESIG_SORRY:     (hsurface :
--- TYPESIG_SORRY:       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites (prefix ++ suffix) = false) :
--- TYPESIG_SORRY:     StmtListGenericCore fields scope (prefix ++ suffix) := by sorry
--- SORRY'D:   have hsplit :
--- SORRY'D:       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites prefix ||
--- SORRY'D:         stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites suffix = false := by
--- SORRY'D:     simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites] using hsurface
--- SORRY'D:   exact stmtListGenericCore_append
--- SORRY'D:     (ihPrefix (Bool.or_eq_false.mp hsplit).1)
--- SORRY'D:     (ihSuffix (Bool.or_eq_false.mp hsplit).2)
-
--- TYPESIG_SORRY: private theorem stmtListGenericCore_of_supportedStmtList_requireClause_of_surface_exceptMappingWrites
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {rest : List Stmt}
--- TYPESIG_SORRY:     (clause : RequireLiteralGuardFamilyClause)
--- TYPESIG_SORRY:     (ihRest :
--- TYPESIG_SORRY:       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites rest = false →
--- TYPESIG_SORRY:         StmtListGenericCore fields scope rest)
--- TYPESIG_SORRY:     (hsurface :
--- TYPESIG_SORRY:       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites (clause.toStmt :: rest) = false) :
--- TYPESIG_SORRY:     StmtListGenericCore fields scope (clause.toStmt :: rest) := by sorry
--- SORRY'D:   have hsplit :
--- SORRY'D:       stmtTouchesUnsupportedContractSurfaceExceptMappingWrites clause.toStmt ||
--- SORRY'D:         stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites rest = false := by
--- SORRY'D:     simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites] using hsurface
--- SORRY'D:   exact stmtListGenericCore_append
--- SORRY'D:     (by
--- SORRY'D:       simpa using stmtListGenericCore_singleton_requireLiteralGuardFamilyClause
--- SORRY'D:         (fields := fields) (scope := scope) clause)
--- SORRY'D:     (by
--- SORRY'D:       simpa using ihRest (Bool.or_eq_false.mp hsplit).2)
+    StmtListGenericCore fields scope [Stmt.tstore offset value] := by
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreOffset with
+    ⟨offsetIR, hoffsetIR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+    ⟨valueIR, hvalueIR⟩
+  exact StmtListGenericCore.cons
+    (compiledStmtStep_tstore_single
+      (hcoreOffset := hcoreOffset)
+      (hinScopeOffset := hinScopeOffset)
+      (hcoreValue := hcoreValue)
+      (hinScopeValue := hinScopeValue)
+      (hoffsetIR := hoffsetIR)
+      (hvalueIR := hvalueIR))
+    StmtListGenericCore.nil
 
 private theorem false_of_supportedStmtList_ite_surface
     {cond : Expr}
@@ -9414,157 +11683,6 @@ private theorem stmtListGenericCore_of_supportedStmtList_tstoreSingle_of_surface
     (hcoreValue := hcoreValue)
     (hinScopeValue := hinScopeValue)
 
-private theorem compileExprList_core_ok
-    {fields : List Field}
-    {exprs : List Expr}
-    (hcore : ∀ expr ∈ exprs, FunctionBody.ExprCompileCore expr) :
-    ∃ exprIRs, CompilationModel.compileExprList fields .calldata exprs = Except.ok exprIRs := by
-  induction exprs with
-  | nil =>
-      exact ⟨[], rfl⟩
-  | cons expr rest ih =>
-      have hhead : FunctionBody.ExprCompileCore expr := hcore expr (by simp)
-      have htail : ∀ e ∈ rest, FunctionBody.ExprCompileCore e := by
-        intro e he
-        exact hcore e (by simp [he])
-      rcases FunctionBody.compileExpr_core_ok (fields := fields) hhead with ⟨exprIR, hexprIR⟩
-      rcases ih htail with ⟨restIR, hrestIR⟩
-      exact ⟨exprIR :: restIR, by
-        rw [CompilationModel.compileExprList, hexprIR, hrestIR]
-        rfl
-      ⟩
--- SORRY'D:   induction exprs with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact ⟨[], by simp [CompilationModel.compileExprList]⟩
--- SORRY'D:   | cons expr rest ih =>
--- SORRY'D:       have hhead : FunctionBody.ExprCompileCore expr := hcore expr (by simp)
--- SORRY'D:       have htail : ∀ e ∈ rest, FunctionBody.ExprCompileCore e := by
--- SORRY'D:         intro e he
--- SORRY'D:         exact hcore e (by simp [he])
--- SORRY'D:       rcases FunctionBody.compileExpr_core_ok (fields := fields) hhead with ⟨exprIR, hexprIR⟩
--- SORRY'D:       rcases ih htail with ⟨restIR, hrestIR⟩
--- SORRY'D:       exact ⟨exprIR :: restIR, by simp [CompilationModel.compileExprList, hexprIR, hrestIR]⟩
-
-private theorem eval_compileExpr_core_some_of_scope
-    {fields : List Field}
-    {scope : List String}
-    {expr : Expr}
-    {exprIR : YulExpr}
-    {runtime : SourceSemantics.RuntimeState}
-    {state : IRState}
-    (hcore : FunctionBody.ExprCompileCore expr)
-    (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
-    (hinScope : FunctionBody.exprBoundNamesInScope expr scope)
-    (hbounded : FunctionBody.bindingsBounded runtime.bindings)
-    (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
-    (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state)
-    (hcompiled : CompilationModel.compileExpr fields .calldata expr = Except.ok exprIR) :
-    ∃ value,
-      SourceSemantics.evalExpr fields runtime expr = some value ∧
-      evalIRExpr state exprIR = some value := by
-  have hpresent : FunctionBody.exprBoundNamesPresent expr runtime.bindings :=
-    FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope
-  have heval :
-      evalIRExpr state exprIR = some (SourceSemantics.evalExpr fields runtime expr) := by
-    have h :=
-      FunctionBody.eval_compileExpr_core_of_scope
-        hcore hexact hinScope hbounded hpresent hruntime
-    simpa [hcompiled] using h
-  rcases he : SourceSemantics.evalExpr fields runtime expr with _ | value
-  · cases hIR : evalIRExpr state exprIR <;> simp [hIR, he] at heval
-  · have hIRsome : evalIRExpr state exprIR = some value := by
-      cases hIR : evalIRExpr state exprIR with
-      | none =>
-          simp [hIR, he] at heval
-      | some actual =>
-          simp [hIR, he] at heval
-          subst heval
-          exact rfl
-    exact ⟨value, rfl, hIRsome⟩
-
-private theorem eval_compileExprList_core_of_scope
-    {fields : List Field}
-    {scope : List String}
-    {exprs : List Expr}
-    {exprIRs : List YulExpr}
-    {runtime : SourceSemantics.RuntimeState}
-    {state : IRState}
-    (hcore : ∀ expr ∈ exprs, FunctionBody.ExprCompileCore expr)
-    (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
-    (hinScope : ∀ expr ∈ exprs, FunctionBody.exprBoundNamesInScope expr scope)
-    (hbounded : FunctionBody.bindingsBounded runtime.bindings)
-    (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
-    (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state)
-    (hcompiled : CompilationModel.compileExprList fields .calldata exprs = Except.ok exprIRs) :
-    ∃ values,
-      SourceSemantics.evalExprList fields runtime exprs = some values ∧
-      List.Forall₂ (fun exprIR value => evalIRExpr state exprIR = some value) exprIRs values := by
-  induction exprs generalizing exprIRs with
-  | nil =>
-      simp [CompilationModel.compileExprList] at hcompiled
-      cases hcompiled
-      exact ⟨[], rfl, .nil⟩
-  | cons expr rest ih =>
-      have hhead : FunctionBody.ExprCompileCore expr := hcore expr (by simp)
-      have htail :
-          ∀ expr' ∈ rest, FunctionBody.ExprCompileCore expr' := by
-        intro expr' hexpr'
-        exact hcore expr' (by simp [hexpr'])
-      have htailScope :
-          ∀ expr' ∈ rest, FunctionBody.exprBoundNamesInScope expr' scope := by
-        intro expr' hexpr'
-        exact hinScope expr' (by simp [hexpr'])
-      rcases compileExprList_core_ok (fields := fields) htail with ⟨restIRs, hrestIRs⟩
-      rcases FunctionBody.compileExpr_core_ok (fields := fields) hhead with ⟨exprIR, hexprIR⟩
-      rw [CompilationModel.compileExprList, hexprIR, hrestIRs] at hcompiled
-      injection hcompiled with hcompiledTail
-      subst hcompiledTail
-      rcases eval_compileExpr_core_some_of_scope
-          (expr := expr) (exprIR := exprIR) hhead hexact (hinScope expr (by simp))
-          hbounded hscope hruntime hexprIR with
-        ⟨headVal, hheadVal, hheadEval⟩
-      rcases ih htail htailScope hrestIRs with
-        ⟨restVals, hrestVals, hrestEval⟩
-      refine ⟨headVal :: restVals, ?_, ?_⟩
-      · simp [SourceSemantics.evalExprList, hheadVal, hrestVals]
-      · exact .cons hheadEval hrestEval
-
-private theorem evalIRExpr_mappingSlotChain
-    {state : IRState}
-    {baseSlot : Nat}
-    {keyIRs : List YulExpr}
-    {keyVals : List Nat}
-    (hkeys : List.Forall₂ (fun exprIR value => evalIRExpr state exprIR = some value) keyIRs keyVals) :
-    evalIRExpr state
-      (keyIRs.foldl
-        (fun slotExpr keyExpr => YulExpr.call "mappingSlot" [slotExpr, keyExpr])
-        (YulExpr.lit baseSlot)) =
-      some (SourceSemantics.mappingSlotChain baseSlot keyVals) := by
-  have hgeneral :
-      ∀ {startExpr : YulExpr} {startSlot : Nat},
-        evalIRExpr state startExpr = some startSlot →
-        evalIRExpr state
-            (keyIRs.foldl
-              (fun slotExpr keyExpr => YulExpr.call "mappingSlot" [slotExpr, keyExpr])
-              startExpr) =
-          some (List.foldl Compiler.Proofs.abstractMappingSlot startSlot keyVals) := by
-    induction hkeys with
-    | nil =>
-        intro startExpr startSlot hstart
-        simpa using hstart
-    | @cons exprIR value keyIRs keyVals hexpr hrest ih =>
-        intro startExpr startSlot hstart
-        have hnext :
-            evalIRExpr state (YulExpr.call "mappingSlot" [startExpr, exprIR]) =
-              some (Compiler.Proofs.abstractMappingSlot startSlot value) := by
-          simp [evalIRExpr, evalIRCall, evalIRExprs, hstart, hexpr,
-            Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-            Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
-        simpa [List.foldl] using
-          ih (startExpr := YulExpr.call "mappingSlot" [startExpr, exprIR])
-            (startSlot := Compiler.Proofs.abstractMappingSlot startSlot value) hnext
-  simpa [SourceSemantics.mappingSlotChain] using
-    hgeneral (startExpr := YulExpr.lit baseSlot) (startSlot := baseSlot) (by simp [evalIRExpr])
 
 -- SORRY'D: /-- Extra Tier 2 assumptions needed to turn the singleton mapping-write
 -- SORRY'D: constructors in `SupportedStmtList` into real compiled-step proofs. These are
@@ -9789,22 +11907,23 @@ private theorem stmtListGenericCore_singleton_setMappingUintSingle_of_slotSafety
             (Compiler.Proofs.abstractMappingSlot slot keyNat) = none ∧
           findDynamicArrayElementAtSlotCopy fields runtime.world
             (Compiler.Proofs.abstractMappingSlot slot keyNat) = none) :
-    StmtListGenericCore fields scope [Stmt.setMappingUint fieldName key value] := by sorry
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey with
--- SORRY'D:     ⟨keyIR, hkeyIR⟩
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
--- SORRY'D:     ⟨valueIR, hvalueIR⟩
--- SORRY'D:   refine StmtListGenericCore.cons ?_ StmtListGenericCore.nil
--- SORRY'D:   exact compiledStmtStep_setMappingUint_singleSlot_of_slotSafety
--- SORRY'D:     (hmapping := hmapping)
--- SORRY'D:     (hcoreKey := hcoreKey)
--- SORRY'D:     (hinScopeKey := hinScopeKey)
--- SORRY'D:     (hcoreValue := hcoreValue)
--- SORRY'D:     (hinScopeValue := hinScopeValue)
--- SORRY'D:     (hwriteSlots := hwriteSlots)
--- SORRY'D:     (hslotSafety := hslotSafety)
--- SORRY'D:     (hkeyIR := hkeyIR)
--- SORRY'D:     (hvalueIR := hvalueIR)
+    StmtListGenericCore fields scope [Stmt.setMappingUint fieldName key value] := by
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey with
+    ⟨keyIR, hkeyIR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+    ⟨valueIR, hvalueIR⟩
+  exact StmtListGenericCore.cons
+    (compiledStmtStep_setMappingUint_singleSlot_of_slotSafety
+      (hmapping := hmapping)
+      (hcoreKey := hcoreKey)
+      (hinScopeKey := hinScopeKey)
+      (hcoreValue := hcoreValue)
+      (hinScopeValue := hinScopeValue)
+      (hwriteSlots := hwriteSlots)
+      (hslotSafety := hslotSafety)
+      (hkeyIR := hkeyIR)
+      (hvalueIR := hvalueIR))
+    StmtListGenericCore.nil
 
 private theorem stmtListGenericCore_singleton_setMappingChainSingle_of_slotSafety
     {fields : List Field}
@@ -9826,21 +11945,22 @@ private theorem stmtListGenericCore_singleton_setMappingChainSingle_of_slotSafet
             (SourceSemantics.mappingSlotChain slot keyVals) = none ∧
           findDynamicArrayElementAtSlotCopy fields runtime.world
             (SourceSemantics.mappingSlotChain slot keyVals) = none) :
-    StmtListGenericCore fields scope [Stmt.setMappingChain fieldName keys value] := by sorry
--- SORRY'D:   rcases compileExprList_core_ok (fields := fields) hcoreKeys with ⟨keyIRs, hkeyIRs⟩
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
--- SORRY'D:     ⟨valueIR, hvalueIR⟩
--- SORRY'D:   refine StmtListGenericCore.cons ?_ StmtListGenericCore.nil
--- SORRY'D:   exact compiledStmtStep_setMappingChain_singleSlot_of_slotSafety
--- SORRY'D:     (hmapping := hmapping)
--- SORRY'D:     (hcoreKeys := hcoreKeys)
--- SORRY'D:     (hinScopeKeys := hinScopeKeys)
--- SORRY'D:     (hcoreValue := hcoreValue)
--- SORRY'D:     (hinScopeValue := hinScopeValue)
--- SORRY'D:     (hwriteSlots := hwriteSlots)
--- SORRY'D:     (hslotSafety := hslotSafety)
--- SORRY'D:     (hkeyIRs := hkeyIRs)
--- SORRY'D:     (hvalueIR := hvalueIR)
+    StmtListGenericCore fields scope [Stmt.setMappingChain fieldName keys value] := by
+  rcases compileExprList_core_ok (fields := fields) hcoreKeys with ⟨keyIRs, hkeyIRs⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+    ⟨valueIR, hvalueIR⟩
+  exact StmtListGenericCore.cons
+    (compiledStmtStep_setMappingChain_singleSlot_of_slotSafety
+      (hmapping := hmapping)
+      (hcoreKeys := hcoreKeys)
+      (hinScopeKeys := hinScopeKeys)
+      (hcoreValue := hcoreValue)
+      (hinScopeValue := hinScopeValue)
+      (hwriteSlots := hwriteSlots)
+      (hslotSafety := hslotSafety)
+      (hkeyIRs := hkeyIRs)
+      (hvalueIR := hvalueIR))
+    StmtListGenericCore.nil
 
 private theorem stmtListGenericCore_singleton_setMappingSingle_of_slotSafety
     {fields : List Field}
@@ -9861,22 +11981,23 @@ private theorem stmtListGenericCore_singleton_setMappingSingle_of_slotSafety
             (Compiler.Proofs.abstractMappingSlot slot keyNat) = none ∧
           findDynamicArrayElementAtSlotCopy fields runtime.world
             (Compiler.Proofs.abstractMappingSlot slot keyNat) = none) :
-    StmtListGenericCore fields scope [Stmt.setMapping fieldName key value] := by sorry
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey with
--- SORRY'D:     ⟨keyIR, hkeyIR⟩
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
--- SORRY'D:     ⟨valueIR, hvalueIR⟩
--- SORRY'D:   refine StmtListGenericCore.cons ?_ StmtListGenericCore.nil
--- SORRY'D:   exact compiledStmtStep_setMapping_singleSlot_of_slotSafety
--- SORRY'D:     (hmapping := hmapping)
--- SORRY'D:     (hcoreKey := hcoreKey)
--- SORRY'D:     (hinScopeKey := hinScopeKey)
--- SORRY'D:     (hcoreValue := hcoreValue)
--- SORRY'D:     (hinScopeValue := hinScopeValue)
--- SORRY'D:     (hwriteSlots := hwriteSlots)
--- SORRY'D:     (hslotSafety := hslotSafety)
--- SORRY'D:     (hkeyIR := hkeyIR)
--- SORRY'D:     (hvalueIR := hvalueIR)
+    StmtListGenericCore fields scope [Stmt.setMapping fieldName key value] := by
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey with
+    ⟨keyIR, hkeyIR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+    ⟨valueIR, hvalueIR⟩
+  exact StmtListGenericCore.cons
+    (compiledStmtStep_setMapping_singleSlot_of_slotSafety
+      (hmapping := hmapping)
+      (hcoreKey := hcoreKey)
+      (hinScopeKey := hinScopeKey)
+      (hcoreValue := hcoreValue)
+      (hinScopeValue := hinScopeValue)
+      (hwriteSlots := hwriteSlots)
+      (hslotSafety := hslotSafety)
+      (hkeyIR := hkeyIR)
+      (hvalueIR := hvalueIR))
+    StmtListGenericCore.nil
 
 private theorem stmtListGenericCore_singleton_setMappingWordSingle_of_slotSafety
     {fields : List Field}
@@ -9894,25 +12015,26 @@ private theorem stmtListGenericCore_singleton_setMappingWordSingle_of_slotSafety
       ∀ runtime keyNat,
         SourceSemantics.evalExpr fields runtime key = some keyNat →
           findResolvedFieldAtSlotCopy fields
-            (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none ∧
+            (mappingWordTargetSlot slot keyNat wordOffset) = none ∧
           findDynamicArrayElementAtSlotCopy fields runtime.world
-            (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none) :
-    StmtListGenericCore fields scope [Stmt.setMappingWord fieldName key wordOffset value] := by sorry
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey with
--- SORRY'D:     ⟨keyIR, hkeyIR⟩
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
--- SORRY'D:     ⟨valueIR, hvalueIR⟩
--- SORRY'D:   refine StmtListGenericCore.cons ?_ StmtListGenericCore.nil
--- SORRY'D:   exact compiledStmtStep_setMappingWord_singleSlot_of_slotSafety
--- SORRY'D:     (hmapping := hmapping)
--- SORRY'D:     (hcoreKey := hcoreKey)
--- SORRY'D:     (hinScopeKey := hinScopeKey)
--- SORRY'D:     (hcoreValue := hcoreValue)
--- SORRY'D:     (hinScopeValue := hinScopeValue)
--- SORRY'D:     (hwriteSlots := hwriteSlots)
--- SORRY'D:     (hslotSafety := hslotSafety)
--- SORRY'D:     (hkeyIR := hkeyIR)
--- SORRY'D:     (hvalueIR := hvalueIR)
+            (mappingWordTargetSlot slot keyNat wordOffset) = none) :
+    StmtListGenericCore fields scope [Stmt.setMappingWord fieldName key wordOffset value] := by
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey with
+    ⟨keyIR, hkeyIR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+    ⟨valueIR, hvalueIR⟩
+  exact StmtListGenericCore.cons
+    (compiledStmtStep_setMappingWord_singleSlot_of_slotSafety
+      (hmapping := hmapping)
+      (hcoreKey := hcoreKey)
+      (hinScopeKey := hinScopeKey)
+      (hcoreValue := hcoreValue)
+      (hinScopeValue := hinScopeValue)
+      (hwriteSlots := hwriteSlots)
+      (hslotSafety := hslotSafety)
+      (hkeyIR := hkeyIR)
+      (hvalueIR := hvalueIR))
+    StmtListGenericCore.nil
 
 private theorem stmtListGenericCore_singleton_setMappingPackedWordSingle_of_slotSafety
     {fields : List Field}
@@ -9936,30 +12058,31 @@ private theorem stmtListGenericCore_singleton_setMappingPackedWordSingle_of_slot
       ∀ runtime keyNat,
         SourceSemantics.evalExpr fields runtime key = some keyNat →
           findResolvedFieldAtSlotCopy fields
-            (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none ∧
+            (mappingWordTargetSlot slot keyNat wordOffset) = none ∧
           findDynamicArrayElementAtSlotCopy fields runtime.world
-            (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none) :
-    StmtListGenericCore fields scope [Stmt.setMappingPackedWord fieldName key wordOffset packed value] := by sorry
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey with
--- SORRY'D:     ⟨keyIR, hkeyIR⟩
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
--- SORRY'D:     ⟨valueIR, hvalueIR⟩
--- SORRY'D:   refine StmtListGenericCore.cons ?_ StmtListGenericCore.nil
--- SORRY'D:   exact compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety
--- SORRY'D:     (hmapping := hmapping)
--- SORRY'D:     (hcoreKey := hcoreKey)
--- SORRY'D:     (hinScopeKey := hinScopeKey)
--- SORRY'D:     (hcoreValue := hcoreValue)
--- SORRY'D:     (hinScopeValue := hinScopeValue)
--- SORRY'D:     (hcompatValue := hcompatValue)
--- SORRY'D:     (hcompatPacked := hcompatPacked)
--- SORRY'D:     (hcompatSlotWord := hcompatSlotWord)
--- SORRY'D:     (hcompatSlotCleared := hcompatSlotCleared)
--- SORRY'D:     (hpacked := hpacked)
--- SORRY'D:     (hwriteSlots := hwriteSlots)
--- SORRY'D:     (hslotSafety := hslotSafety)
--- SORRY'D:     (hkeyIR := hkeyIR)
--- SORRY'D:     (hvalueIR := hvalueIR)
+            (mappingWordTargetSlot slot keyNat wordOffset) = none) :
+    StmtListGenericCore fields scope [Stmt.setMappingPackedWord fieldName key wordOffset packed value] := by
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey with
+    ⟨keyIR, hkeyIR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+    ⟨valueIR, hvalueIR⟩
+  exact StmtListGenericCore.cons
+    (compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety
+      (hmapping := hmapping)
+      (hcoreKey := hcoreKey)
+      (hinScopeKey := hinScopeKey)
+      (hcoreValue := hcoreValue)
+      (hinScopeValue := hinScopeValue)
+      (hcompatValue := hcompatValue)
+      (hcompatPacked := hcompatPacked)
+      (hcompatSlotWord := hcompatSlotWord)
+      (hcompatSlotCleared := hcompatSlotCleared)
+      (hpacked := hpacked)
+      (hwriteSlots := hwriteSlots)
+      (hslotSafety := hslotSafety)
+      (hkeyIR := hkeyIR)
+      (hvalueIR := hvalueIR))
+    StmtListGenericCore.nil
 
 private theorem stmtListGenericCore_singleton_setStructMemberSingle_of_slotSafety
     {fields : List Field}
@@ -9973,6 +12096,7 @@ private theorem stmtListGenericCore_singleton_setStructMemberSingle_of_slotSafet
     (hcoreValue : FunctionBody.ExprCompileCore value)
     (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
     (hmapping : isMapping fields fieldName = true)
+    (hnotMapping2 : isMapping2 fields fieldName = false)
     (hmembers : findStructMembers fields fieldName = some members)
     (hmember :
       findStructMember members memberName =
@@ -9982,27 +12106,29 @@ private theorem stmtListGenericCore_singleton_setStructMemberSingle_of_slotSafet
       ∀ runtime keyNat,
         SourceSemantics.evalExpr fields runtime key = some keyNat →
           findResolvedFieldAtSlotCopy fields
-            (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none ∧
+            (mappingWordTargetSlot slot keyNat wordOffset) = none ∧
           findDynamicArrayElementAtSlotCopy fields runtime.world
-            (Compiler.Proofs.abstractMappingSlot slot keyNat + wordOffset) = none) :
-    StmtListGenericCore fields scope [Stmt.setStructMember fieldName key memberName value] := by sorry
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey with
--- SORRY'D:     ⟨keyIR, hkeyIR⟩
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
--- SORRY'D:     ⟨valueIR, hvalueIR⟩
--- SORRY'D:   refine StmtListGenericCore.cons ?_ StmtListGenericCore.nil
--- SORRY'D:   exact compiledStmtStep_setStructMember_singleSlot_of_slotSafety
--- SORRY'D:     (hmapping := hmapping)
--- SORRY'D:     (hcoreKey := hcoreKey)
--- SORRY'D:     (hinScopeKey := hinScopeKey)
--- SORRY'D:     (hcoreValue := hcoreValue)
--- SORRY'D:     (hinScopeValue := hinScopeValue)
--- SORRY'D:     (hmembers := hmembers)
--- SORRY'D:     (hmember := hmember)
--- SORRY'D:     (hwriteSlots := hwriteSlots)
--- SORRY'D:     (hslotSafety := hslotSafety)
--- SORRY'D:     (hkeyIR := hkeyIR)
--- SORRY'D:     (hvalueIR := hvalueIR)
+            (mappingWordTargetSlot slot keyNat wordOffset) = none) :
+    StmtListGenericCore fields scope [Stmt.setStructMember fieldName key memberName value] := by
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey with
+    ⟨keyIR, hkeyIR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+    ⟨valueIR, hvalueIR⟩
+  exact StmtListGenericCore.cons
+    (compiledStmtStep_setStructMember_singleSlot_of_slotSafety
+      (hmapping := hmapping)
+      (hnotMapping2 := hnotMapping2)
+      (hcoreKey := hcoreKey)
+      (hinScopeKey := hinScopeKey)
+      (hcoreValue := hcoreValue)
+      (hinScopeValue := hinScopeValue)
+      (hmembers := hmembers)
+      (hmember := hmember)
+      (hwriteSlots := hwriteSlots)
+      (hslotSafety := hslotSafety)
+      (hkeyIR := hkeyIR)
+      (hvalueIR := hvalueIR))
+    StmtListGenericCore.nil
 
 private theorem stmtListGenericCore_singleton_setMapping2Single_of_slotSafety
     {fields : List Field}
@@ -10030,27 +12156,28 @@ private theorem stmtListGenericCore_singleton_setMapping2Single_of_slotSafety
             (Compiler.Proofs.abstractMappingSlot
               (Compiler.Proofs.abstractMappingSlot slot keyNat1)
               keyNat2) = none) :
-    StmtListGenericCore fields scope [Stmt.setMapping2 fieldName key1 key2 value] := by sorry
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey1 with
--- SORRY'D:     ⟨key1IR, hkey1IR⟩
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey2 with
--- SORRY'D:     ⟨key2IR, hkey2IR⟩
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
--- SORRY'D:     ⟨valueIR, hvalueIR⟩
--- SORRY'D:   refine StmtListGenericCore.cons ?_ StmtListGenericCore.nil
--- SORRY'D:   exact compiledStmtStep_setMapping2_singleSlot_of_slotSafety
--- SORRY'D:     (hmapping2 := hmapping2)
--- SORRY'D:     (hcoreKey1 := hcoreKey1)
--- SORRY'D:     (hinScopeKey1 := hinScopeKey1)
--- SORRY'D:     (hcoreKey2 := hcoreKey2)
--- SORRY'D:     (hinScopeKey2 := hinScopeKey2)
--- SORRY'D:     (hcoreValue := hcoreValue)
--- SORRY'D:     (hinScopeValue := hinScopeValue)
--- SORRY'D:     (hwriteSlots := hwriteSlots)
--- SORRY'D:     (hslotSafety := hslotSafety)
--- SORRY'D:     (hkey1IR := hkey1IR)
--- SORRY'D:     (hkey2IR := hkey2IR)
--- SORRY'D:     (hvalueIR := hvalueIR)
+    StmtListGenericCore fields scope [Stmt.setMapping2 fieldName key1 key2 value] := by
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey1 with
+    ⟨key1IR, hkey1IR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey2 with
+    ⟨key2IR, hkey2IR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+    ⟨valueIR, hvalueIR⟩
+  exact StmtListGenericCore.cons
+    (compiledStmtStep_setMapping2_singleSlot_of_slotSafety
+      (hmapping2 := hmapping2)
+      (hcoreKey1 := hcoreKey1)
+      (hinScopeKey1 := hinScopeKey1)
+      (hcoreKey2 := hcoreKey2)
+      (hinScopeKey2 := hinScopeKey2)
+      (hcoreValue := hcoreValue)
+      (hinScopeValue := hinScopeValue)
+      (hwriteSlots := hwriteSlots)
+      (hslotSafety := hslotSafety)
+      (hkey1IR := hkey1IR)
+      (hkey2IR := hkey2IR)
+      (hvalueIR := hvalueIR))
+    StmtListGenericCore.nil
 
 private theorem stmtListGenericCore_singleton_setMapping2WordSingle_of_slotSafety
     {fields : List Field}
@@ -10071,34 +12198,31 @@ private theorem stmtListGenericCore_singleton_setMapping2WordSingle_of_slotSafet
         SourceSemantics.evalExpr fields runtime key1 = some keyNat1 →
         SourceSemantics.evalExpr fields runtime key2 = some keyNat2 →
           findResolvedFieldAtSlotCopy fields
-            (Compiler.Proofs.abstractMappingSlot
-              (Compiler.Proofs.abstractMappingSlot slot keyNat1)
-              keyNat2 + wordOffset) = none ∧
+            (mapping2WordTargetSlot slot keyNat1 keyNat2 wordOffset) = none ∧
           findDynamicArrayElementAtSlotCopy fields runtime.world
-            (Compiler.Proofs.abstractMappingSlot
-              (Compiler.Proofs.abstractMappingSlot slot keyNat1)
-              keyNat2 + wordOffset) = none) :
-    StmtListGenericCore fields scope [Stmt.setMapping2Word fieldName key1 key2 wordOffset value] := by sorry
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey1 with
--- SORRY'D:     ⟨key1IR, hkey1IR⟩
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey2 with
--- SORRY'D:     ⟨key2IR, hkey2IR⟩
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
--- SORRY'D:     ⟨valueIR, hvalueIR⟩
--- SORRY'D:   refine StmtListGenericCore.cons ?_ StmtListGenericCore.nil
--- SORRY'D:   exact compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety
--- SORRY'D:     (hmapping2 := hmapping2)
--- SORRY'D:     (hcoreKey1 := hcoreKey1)
--- SORRY'D:     (hinScopeKey1 := hinScopeKey1)
--- SORRY'D:     (hcoreKey2 := hcoreKey2)
--- SORRY'D:     (hinScopeKey2 := hinScopeKey2)
--- SORRY'D:     (hcoreValue := hcoreValue)
--- SORRY'D:     (hinScopeValue := hinScopeValue)
--- SORRY'D:     (hwriteSlots := hwriteSlots)
--- SORRY'D:     (hslotSafety := hslotSafety)
--- SORRY'D:     (hkey1IR := hkey1IR)
--- SORRY'D:     (hkey2IR := hkey2IR)
--- SORRY'D:     (hvalueIR := hvalueIR)
+            (mapping2WordTargetSlot slot keyNat1 keyNat2 wordOffset) = none) :
+    StmtListGenericCore fields scope [Stmt.setMapping2Word fieldName key1 key2 wordOffset value] := by
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey1 with
+    ⟨key1IR, hkey1IR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey2 with
+    ⟨key2IR, hkey2IR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+    ⟨valueIR, hvalueIR⟩
+  exact StmtListGenericCore.cons
+    (compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety
+      (hmapping2 := hmapping2)
+      (hcoreKey1 := hcoreKey1)
+      (hinScopeKey1 := hinScopeKey1)
+      (hcoreKey2 := hcoreKey2)
+      (hinScopeKey2 := hinScopeKey2)
+      (hcoreValue := hcoreValue)
+      (hinScopeValue := hinScopeValue)
+      (hwriteSlots := hwriteSlots)
+      (hslotSafety := hslotSafety)
+      (hkey1IR := hkey1IR)
+      (hkey2IR := hkey2IR)
+      (hvalueIR := hvalueIR))
+    StmtListGenericCore.nil
 
 private theorem stmtListGenericCore_singleton_setStructMember2Single_of_slotSafety
     {fields : List Field}
@@ -10124,36 +12248,33 @@ private theorem stmtListGenericCore_singleton_setStructMember2Single_of_slotSafe
         SourceSemantics.evalExpr fields runtime key1 = some keyNat1 →
         SourceSemantics.evalExpr fields runtime key2 = some keyNat2 →
           findResolvedFieldAtSlotCopy fields
-            (Compiler.Proofs.abstractMappingSlot
-              (Compiler.Proofs.abstractMappingSlot slot keyNat1)
-              keyNat2 + wordOffset) = none ∧
+            (mapping2WordTargetSlot slot keyNat1 keyNat2 wordOffset) = none ∧
           findDynamicArrayElementAtSlotCopy fields runtime.world
-            (Compiler.Proofs.abstractMappingSlot
-              (Compiler.Proofs.abstractMappingSlot slot keyNat1)
-              keyNat2 + wordOffset) = none) :
-    StmtListGenericCore fields scope [Stmt.setStructMember2 fieldName key1 key2 memberName value] := by sorry
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey1 with
--- SORRY'D:     ⟨key1IR, hkey1IR⟩
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey2 with
--- SORRY'D:     ⟨key2IR, hkey2IR⟩
--- SORRY'D:   rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
--- SORRY'D:     ⟨valueIR, hvalueIR⟩
--- SORRY'D:   refine StmtListGenericCore.cons ?_ StmtListGenericCore.nil
--- SORRY'D:   exact compiledStmtStep_setStructMember2_singleSlot_of_slotSafety
--- SORRY'D:     (hmapping2 := hmapping2)
--- SORRY'D:     (hcoreKey1 := hcoreKey1)
--- SORRY'D:     (hinScopeKey1 := hinScopeKey1)
--- SORRY'D:     (hcoreKey2 := hcoreKey2)
--- SORRY'D:     (hinScopeKey2 := hinScopeKey2)
--- SORRY'D:     (hcoreValue := hcoreValue)
--- SORRY'D:     (hinScopeValue := hinScopeValue)
--- SORRY'D:     (hmembers := hmembers)
--- SORRY'D:     (hmember := hmember)
--- SORRY'D:     (hwriteSlots := hwriteSlots)
--- SORRY'D:     (hslotSafety := hslotSafety)
--- SORRY'D:     (hkey1IR := hkey1IR)
--- SORRY'D:     (hkey2IR := hkey2IR)
--- SORRY'D:     (hvalueIR := hvalueIR)
+            (mapping2WordTargetSlot slot keyNat1 keyNat2 wordOffset) = none) :
+    StmtListGenericCore fields scope [Stmt.setStructMember2 fieldName key1 key2 memberName value] := by
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey1 with
+    ⟨key1IR, hkey1IR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey2 with
+    ⟨key2IR, hkey2IR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+    ⟨valueIR, hvalueIR⟩
+  exact StmtListGenericCore.cons
+    (compiledStmtStep_setStructMember2_singleSlot_of_slotSafety
+      (hmapping2 := hmapping2)
+      (hcoreKey1 := hcoreKey1)
+      (hinScopeKey1 := hinScopeKey1)
+      (hcoreKey2 := hcoreKey2)
+      (hinScopeKey2 := hinScopeKey2)
+      (hcoreValue := hcoreValue)
+      (hinScopeValue := hinScopeValue)
+      (hmembers := hmembers)
+      (hmember := hmember)
+      (hwriteSlots := hwriteSlots)
+      (hslotSafety := hslotSafety)
+      (hkey1IR := hkey1IR)
+      (hkey2IR := hkey2IR)
+      (hvalueIR := hvalueIR))
+    StmtListGenericCore.nil
 
 private theorem false_of_supportedStmtList_singleton_stmt_surface
     {stmt : Stmt}
@@ -10411,452 +12532,6 @@ private theorem false_of_supportedStmtList_letCallerLetStorageReqEqLetStorageReq
     exprTouchesUnsupportedCallSurface,
     stmtTouchesUnsupportedEffectSurface] at hsurface
 
-theorem stmtListGenericCore_of_supportedStmtList_of_surface
-    {fields : List Field}
-    {scope : List String}
-    {stmts : List Stmt}
-    (hnoConflict : firstFieldWriteSlotConflict fields = none)
-    (hSupported : SupportedStmtList fields scope stmts)
-    (hsurface : stmtListTouchesUnsupportedContractSurface stmts = false) :
-    StmtListGenericCore fields scope stmts := by sorry
--- SORRY'D:   induction hSupported with
--- SORRY'D:   | compileCore hcore => exact stmtListGenericCore_of_stmtListCompileCore hcore
--- SORRY'D:   | terminalCore hterminal => exact stmtListGenericCore_of_stmtListTerminalCore hterminal
--- SORRY'D:   | setStorageSingleSlot hcore hinScope hfind =>
--- SORRY'D:       exact stmtListGenericCore_of_supportedStmtList_setStorageSingleSlot_of_surface
--- SORRY'D:         (fields := fields) hnoConflict hfind hcore hinScope
--- SORRY'D:   | setStorageAddrSingleSlot hcore hinScope hfind =>
--- SORRY'D:       exact stmtListGenericCore_of_supportedStmtList_setStorageAddrSingleSlot_of_surface
--- SORRY'D:         (fields := fields) hnoConflict hfind hcore hinScope
--- SORRY'D:   | mstoreSingle hcoreOffset hinScopeOffset hcoreValue hinScopeValue =>
--- SORRY'D:       exact stmtListGenericCore_of_supportedStmtList_mstoreSingle_of_surface
--- SORRY'D:         (fields := fields) hcoreOffset hinScopeOffset hcoreValue hinScopeValue
--- SORRY'D:   | tstoreSingle hcoreOffset hinScopeOffset hcoreValue hinScopeValue =>
--- SORRY'D:       exact stmtListGenericCore_of_supportedStmtList_tstoreSingle_of_surface
--- SORRY'D:         (fields := fields) hcoreOffset hinScopeOffset hcoreValue hinScopeValue
--- SORRY'D:   | letStorageField hfind => exact False.elim (false_of_supportedStmtList_letStorageField_surface hsurface)
--- SORRY'D:   | returnMapping hkey hscope hslot => exact False.elim (false_of_supportedStmtList_returnMapping_surface hsurface)
--- SORRY'D:   | letMapping hkey hscope hslot => exact False.elim (false_of_supportedStmtList_letMapping_surface hsurface)
--- SORRY'D:   | letMapping2 hkey1 hscope1 hkey2 hscope2 hslot => exact False.elim (false_of_supportedStmtList_letMapping2_surface hsurface)
--- SORRY'D:   | letMappingUint hkey hscope hslot => exact False.elim (false_of_supportedStmtList_letMappingUint_surface hsurface)
--- SORRY'D:   | setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot => exact False.elim (false_of_supportedStmtList_setMappingUintSingle_surface hsurface)
--- SORRY'D:   | setMappingChainSingle hkeys hscopeKeys hvalue hscopeValue hslot =>
--- SORRY'D:       exact False.elim (false_of_supportedStmtList_setMappingChainSingle_surface hsurface)
--- SORRY'D:   | setMappingSingle hkey hscopeKey hvalue hscopeValue hslot => exact False.elim (false_of_supportedStmtList_setMappingSingle_surface hsurface)
--- SORRY'D:   | setMappingWordSingle hkey hscopeKey hvalue hscopeValue hslot =>
--- SORRY'D:       exact False.elim (false_of_supportedStmtList_setMappingWordSingle_surface hsurface)
--- SORRY'D:   | setMappingPackedWordSingle hkey hscopeKey hvalue hscopeValue
--- SORRY'D:       hcompatValue hcompatPacked hcompatSlotWord hcompatSlotCleared hpacked hslot =>
--- SORRY'D:       exact False.elim (false_of_supportedStmtList_setMappingPackedWordSingle_surface hsurface)
--- SORRY'D:   | setStructMemberSingle hkey hscopeKey hvalue hscopeValue hslot hmembers hmember =>
--- SORRY'D:       exact False.elim (false_of_supportedStmtList_setStructMemberSingle_surface hsurface)
--- SORRY'D:   | setMapping2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot => exact False.elim (false_of_supportedStmtList_setMapping2Single_surface hsurface)
--- SORRY'D:   | setMapping2WordSingle hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot =>
--- SORRY'D:       exact False.elim (false_of_supportedStmtList_setMapping2WordSingle_surface hsurface)
--- SORRY'D:   | setStructMember2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot hmembers hmember =>
--- SORRY'D:       exact False.elim (false_of_supportedStmtList_setStructMember2Single_surface hsurface)
--- SORRY'D:   | rawLogLiterals htopics => exact False.elim (false_of_supportedStmtList_rawLogLiterals_surface hsurface)
--- SORRY'D:   | letCallerLetStorageReqEqReqNeqSetStorageParamStop hOwner hne_sv_p hne_ov_p hne_ov_sv =>
--- SORRY'D:       exact False.elim (false_of_supportedStmtList_letCallerLetStorageReqEqReqNeqSetStorageParamStop_surface hsurface)
--- SORRY'D:   | letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop
--- SORRY'D:       hOwner hTarget hne_sv_p hne_ov_p hne_ov_sv hne_tv_p hne_tv_sv hne_tv_ov =>
--- SORRY'D:       exact False.elim (false_of_supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop_surface hsurface)
--- SORRY'D:   | requireClause clause hrest ih =>
--- SORRY'D:       exact stmtListGenericCore_of_supportedStmtList_requireClause_of_surface
--- SORRY'D:         (fields := fields) (scope := scope) clause ih hsurface
--- SORRY'D:   | ite hcond hscope hthen helse ihThen ihElse => exact False.elim (false_of_supportedStmtList_ite_list_surface hsurface)
--- SORRY'D:   | append hprefix hsuffix ihPrefix ihSuffix =>
--- SORRY'D:       exact stmtListGenericCore_of_supportedStmtList_append_of_surface hprefix hsuffix ihPrefix ihSuffix hsurface
-
--- TYPESIG_SORRY: theorem stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {stmts : List Stmt}
--- TYPESIG_SORRY:     (hnoConflict : firstFieldWriteSlotConflict fields = none)
--- TYPESIG_SORRY:     (hSupported : SupportedStmtList fields scope stmts)
--- TYPESIG_SORRY:     (hsafety : SupportedStmtListMappingWriteSlotSafety fields)
--- TYPESIG_SORRY:     (hsurface :
--- TYPESIG_SORRY:       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites stmts = false) :
--- TYPESIG_SORRY:     StmtListGenericCore fields scope stmts := by sorry
--- SORRY'D:   induction hSupported with
--- SORRY'D:   | compileCore hcore =>
--- SORRY'D:       exact stmtListGenericCore_of_stmtListCompileCore hcore
--- SORRY'D:   | terminalCore hterminal =>
--- SORRY'D:       exact stmtListGenericCore_of_stmtListTerminalCore hterminal
--- SORRY'D:   | setStorageSingleSlot hcore hinScope hfind =>
--- SORRY'D:       exact stmtListGenericCore_of_supportedStmtList_setStorageSingleSlot_of_surface
--- SORRY'D:         (fields := fields) hnoConflict hfind hcore hinScope
--- SORRY'D:   | setStorageAddrSingleSlot hcore hinScope hfind =>
--- SORRY'D:       exact stmtListGenericCore_of_supportedStmtList_setStorageAddrSingleSlot_of_surface
--- SORRY'D:         (fields := fields) hnoConflict hfind hcore hinScope
--- SORRY'D:   | mstoreSingle hcoreOffset hinScopeOffset hcoreValue hinScopeValue =>
--- SORRY'D:       exact stmtListGenericCore_of_supportedStmtList_mstoreSingle_of_surface
--- SORRY'D:         (fields := fields) hcoreOffset hinScopeOffset hcoreValue hinScopeValue
--- SORRY'D:   | tstoreSingle hcoreOffset hinScopeOffset hcoreValue hinScopeValue =>
--- SORRY'D:       exact stmtListGenericCore_of_supportedStmtList_tstoreSingle_of_surface
--- SORRY'D:         (fields := fields) hcoreOffset hinScopeOffset hcoreValue hinScopeValue
--- SORRY'D:   | letStorageField hfind =>
--- SORRY'D:       have hsurfaceBase :
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface [Stmt.letVar tmp (Expr.storage fieldName)] = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface,
--- SORRY'D:           stmtTouchesUnsupportedContractSurface] using hsurface
--- SORRY'D:       exact False.elim (false_of_supportedStmtList_letStorageField_surface hsurfaceBase)
--- SORRY'D:   | returnMapping hkey hscope hslot =>
--- SORRY'D:       have hsurfaceBase :
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface [Stmt.return (Expr.mapping fieldName key)] = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface,
--- SORRY'D:           stmtTouchesUnsupportedContractSurface] using hsurface
--- SORRY'D:       exact False.elim (false_of_supportedStmtList_returnMapping_surface hsurfaceBase)
--- SORRY'D:   | letMapping hkey hscope hslot =>
--- SORRY'D:       have hsurfaceBase :
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface [Stmt.letVar tmp (Expr.mapping fieldName key)] = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface,
--- SORRY'D:           stmtTouchesUnsupportedContractSurface] using hsurface
--- SORRY'D:       exact False.elim (false_of_supportedStmtList_letMapping_surface hsurfaceBase)
--- SORRY'D:   | letMapping2 hkey1 hscope1 hkey2 hscope2 hslot =>
--- SORRY'D:       have hsurfaceBase :
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface [Stmt.letVar tmp (Expr.mapping2 fieldName key1 key2)] = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface,
--- SORRY'D:           stmtTouchesUnsupportedContractSurface] using hsurface
--- SORRY'D:       exact False.elim (false_of_supportedStmtList_letMapping2_surface hsurfaceBase)
--- SORRY'D:   | letMappingUint hkey hscope hslot =>
--- SORRY'D:       have hsurfaceBase :
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface [Stmt.letVar tmp (Expr.mappingUint fieldName key)] = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface,
--- SORRY'D:           stmtTouchesUnsupportedContractSurface] using hsurface
--- SORRY'D:       exact False.elim (false_of_supportedStmtList_letMappingUint_surface hsurfaceBase)
--- SORRY'D:   | setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot =>
--- SORRY'D:       rcases hsafety.setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot with
--- SORRY'D:         ⟨hmapping, hwriteSlots, hslotSafety⟩
--- SORRY'D:       exact stmtListGenericCore_singleton_setMappingUintSingle_of_slotSafety
--- SORRY'D:         (fields := fields)
--- SORRY'D:         (scope := scope)
--- SORRY'D:         (hcoreKey := hkey)
--- SORRY'D:         (hinScopeKey := hscopeKey)
--- SORRY'D:         (hcoreValue := hvalue)
--- SORRY'D:         (hinScopeValue := hscopeValue)
--- SORRY'D:         (hmapping := hmapping)
--- SORRY'D:         (hwriteSlots := hwriteSlots)
--- SORRY'D:         (hslotSafety := hslotSafety)
--- SORRY'D:   | setMappingChainSingle hkeys hscopeKeys hvalue hscopeValue hslot =>
--- SORRY'D:       rcases hsafety.setMappingChainSingle hkeys hscopeKeys hvalue hscopeValue hslot with
--- SORRY'D:         ⟨hmapping, hwriteSlots, hslotSafety⟩
--- SORRY'D:       exact stmtListGenericCore_singleton_setMappingChainSingle_of_slotSafety
--- SORRY'D:         (fields := fields)
--- SORRY'D:         (scope := scope)
--- SORRY'D:         (hcoreKeys := hkeys)
--- SORRY'D:         (hinScopeKeys := hscopeKeys)
--- SORRY'D:         (hcoreValue := hvalue)
--- SORRY'D:         (hinScopeValue := hscopeValue)
--- SORRY'D:         (hmapping := hmapping)
--- SORRY'D:         (hwriteSlots := hwriteSlots)
--- SORRY'D:         (hslotSafety := hslotSafety)
--- SORRY'D:   | setMappingSingle hkey hscopeKey hvalue hscopeValue hslot =>
--- SORRY'D:       rcases hsafety.setMappingSingle hkey hscopeKey hvalue hscopeValue hslot with
--- SORRY'D:         ⟨hmapping, hwriteSlots, hslotSafety⟩
--- SORRY'D:       exact stmtListGenericCore_singleton_setMappingSingle_of_slotSafety
--- SORRY'D:         (fields := fields)
--- SORRY'D:         (scope := scope)
--- SORRY'D:         (hcoreKey := hkey)
--- SORRY'D:         (hinScopeKey := hscopeKey)
--- SORRY'D:         (hcoreValue := hvalue)
--- SORRY'D:         (hinScopeValue := hscopeValue)
--- SORRY'D:         (hmapping := hmapping)
--- SORRY'D:         (hwriteSlots := hwriteSlots)
--- SORRY'D:         (hslotSafety := hslotSafety)
--- SORRY'D:   | setMappingWordSingle hkey hscopeKey hvalue hscopeValue hslot =>
--- SORRY'D:       rcases hsafety.setMappingWordSingle hkey hscopeKey hvalue hscopeValue hslot with
--- SORRY'D:         ⟨hmapping, hwriteSlots, hslotSafety⟩
--- SORRY'D:       exact stmtListGenericCore_singleton_setMappingWordSingle_of_slotSafety
--- SORRY'D:         (fields := fields)
--- SORRY'D:         (scope := scope)
--- SORRY'D:         (hcoreKey := hkey)
--- SORRY'D:         (hinScopeKey := hscopeKey)
--- SORRY'D:         (hcoreValue := hvalue)
--- SORRY'D:         (hinScopeValue := hscopeValue)
--- SORRY'D:         (hmapping := hmapping)
--- SORRY'D:         (hwriteSlots := hwriteSlots)
--- SORRY'D:         (hslotSafety := hslotSafety)
--- SORRY'D:   | setMappingPackedWordSingle hkey hscopeKey hvalue hscopeValue
--- SORRY'D:       hcompatValue hcompatPacked hcompatSlotWord hcompatSlotCleared hpacked hslot =>
--- SORRY'D:       rcases hsafety.setMappingPackedWordSingle
--- SORRY'D:           hkey hscopeKey hvalue hscopeValue hpacked hslot with
--- SORRY'D:         ⟨hmapping, hwriteSlots, hslotSafety⟩
--- SORRY'D:       exact stmtListGenericCore_singleton_setMappingPackedWordSingle_of_slotSafety
--- SORRY'D:         (fields := fields)
--- SORRY'D:         (scope := scope)
--- SORRY'D:         (hcoreKey := hkey)
--- SORRY'D:         (hinScopeKey := hscopeKey)
--- SORRY'D:         (hcoreValue := hvalue)
--- SORRY'D:         (hinScopeValue := hscopeValue)
--- SORRY'D:         (hcompatValue := hcompatValue)
--- SORRY'D:         (hcompatPacked := hcompatPacked)
--- SORRY'D:         (hcompatSlotWord := hcompatSlotWord)
--- SORRY'D:         (hcompatSlotCleared := hcompatSlotCleared)
--- SORRY'D:         (hpacked := hpacked)
--- SORRY'D:         (hmapping := hmapping)
--- SORRY'D:         (hwriteSlots := hwriteSlots)
--- SORRY'D:         (hslotSafety := hslotSafety)
--- SORRY'D:   | setStructMemberSingle hkey hscopeKey hvalue hscopeValue hslot hmembers hmember =>
--- SORRY'D:       rcases hsafety.setStructMemberSingle
--- SORRY'D:           hkey hscopeKey hvalue hscopeValue hslot hmembers hmember with
--- SORRY'D:         ⟨hmapping, hwriteSlots, hslotSafety⟩
--- SORRY'D:       exact stmtListGenericCore_singleton_setStructMemberSingle_of_slotSafety
--- SORRY'D:         (fields := fields)
--- SORRY'D:         (scope := scope)
--- SORRY'D:         (hcoreKey := hkey)
--- SORRY'D:         (hinScopeKey := hscopeKey)
--- SORRY'D:         (hcoreValue := hvalue)
--- SORRY'D:         (hinScopeValue := hscopeValue)
--- SORRY'D:         (hmapping := hmapping)
--- SORRY'D:         (hmembers := hmembers)
--- SORRY'D:         (hmember := hmember)
--- SORRY'D:         (hwriteSlots := hwriteSlots)
--- SORRY'D:         (hslotSafety := hslotSafety)
--- SORRY'D:   | setMapping2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot =>
--- SORRY'D:       rcases hsafety.setMapping2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot with
--- SORRY'D:         ⟨hmapping2, hwriteSlots, hslotSafety⟩
--- SORRY'D:       exact stmtListGenericCore_singleton_setMapping2Single_of_slotSafety
--- SORRY'D:         (fields := fields)
--- SORRY'D:         (scope := scope)
--- SORRY'D:         (hcoreKey1 := hkey1)
--- SORRY'D:         (hinScopeKey1 := hscope1)
--- SORRY'D:         (hcoreKey2 := hkey2)
--- SORRY'D:         (hinScopeKey2 := hscope2)
--- SORRY'D:         (hcoreValue := hvalue)
--- SORRY'D:         (hinScopeValue := hscopeValue)
--- SORRY'D:         (hmapping2 := hmapping2)
--- SORRY'D:         (hwriteSlots := hwriteSlots)
--- SORRY'D:         (hslotSafety := hslotSafety)
--- SORRY'D:   | setMapping2WordSingle hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot =>
--- SORRY'D:       rcases hsafety.setMapping2WordSingle hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot with
--- SORRY'D:         ⟨hmapping2, hwriteSlots, hslotSafety⟩
--- SORRY'D:       exact stmtListGenericCore_singleton_setMapping2WordSingle_of_slotSafety
--- SORRY'D:         (fields := fields)
--- SORRY'D:         (scope := scope)
--- SORRY'D:         (hcoreKey1 := hkey1)
--- SORRY'D:         (hinScopeKey1 := hscope1)
--- SORRY'D:         (hcoreKey2 := hkey2)
--- SORRY'D:         (hinScopeKey2 := hscope2)
--- SORRY'D:         (hcoreValue := hvalue)
--- SORRY'D:         (hinScopeValue := hscopeValue)
--- SORRY'D:         (hmapping2 := hmapping2)
--- SORRY'D:         (hwriteSlots := hwriteSlots)
--- SORRY'D:         (hslotSafety := hslotSafety)
--- SORRY'D:   | setStructMember2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot hmembers hmember =>
--- SORRY'D:       rcases hsafety.setStructMember2Single
--- SORRY'D:           hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot hmembers hmember with
--- SORRY'D:         ⟨hmapping2, hwriteSlots, hslotSafety⟩
--- SORRY'D:       exact stmtListGenericCore_singleton_setStructMember2Single_of_slotSafety
--- SORRY'D:         (fields := fields)
--- SORRY'D:         (scope := scope)
--- SORRY'D:         (hcoreKey1 := hkey1)
--- SORRY'D:         (hinScopeKey1 := hscope1)
--- SORRY'D:         (hcoreKey2 := hkey2)
--- SORRY'D:         (hinScopeKey2 := hscope2)
--- SORRY'D:         (hcoreValue := hvalue)
--- SORRY'D:         (hinScopeValue := hscopeValue)
--- SORRY'D:         (hmapping2 := hmapping2)
--- SORRY'D:         (hmembers := hmembers)
--- SORRY'D:         (hmember := hmember)
--- SORRY'D:         (hwriteSlots := hwriteSlots)
--- SORRY'D:         (hslotSafety := hslotSafety)
--- SORRY'D:   | rawLogLiterals htopics =>
--- SORRY'D:       have hsurfaceBase :
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface
--- SORRY'D:             [Stmt.rawLog (topics.map Expr.literal) (Expr.literal dataOffset) (Expr.literal dataSize)] = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface,
--- SORRY'D:           stmtTouchesUnsupportedContractSurface] using hsurface
--- SORRY'D:       exact False.elim (false_of_supportedStmtList_rawLogLiterals_surface hsurfaceBase)
--- SORRY'D:   | letCallerLetStorageReqEqReqNeqSetStorageParamStop hOwner hne_sv_p hne_ov_p hne_ov_sv =>
--- SORRY'D:       have hsurfaceBase :
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface
--- SORRY'D:             [ Stmt.letVar senderVar Expr.caller
--- SORRY'D:             , Stmt.letVar ownerVar (Expr.storage ownerField)
--- SORRY'D:             , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
--- SORRY'D:             , Stmt.require
--- SORRY'D:                 (Expr.logicalNot (Expr.eq (Expr.param paramName) (Expr.localVar ownerVar))) msg2
--- SORRY'D:             , Stmt.setStorage ownerField (Expr.param paramName)
--- SORRY'D:             , Stmt.stop
--- SORRY'D:             ] = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface,
--- SORRY'D:           stmtTouchesUnsupportedContractSurface] using hsurface
--- SORRY'D:       exact False.elim
--- SORRY'D:         (false_of_supportedStmtList_letCallerLetStorageReqEqReqNeqSetStorageParamStop_surface
--- SORRY'D:           hsurfaceBase)
--- SORRY'D:   | letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop
--- SORRY'D:       hOwner hTarget hne_sv_p hne_ov_p hne_ov_sv hne_tv_p hne_tv_sv hne_tv_ov =>
--- SORRY'D:       have hsurfaceBase :
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface
--- SORRY'D:             [ Stmt.letVar senderVar Expr.caller
--- SORRY'D:             , Stmt.letVar ownerVar (Expr.storage ownerField)
--- SORRY'D:             , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
--- SORRY'D:             , Stmt.letVar targetVar (Expr.storage targetField)
--- SORRY'D:             , Stmt.require
--- SORRY'D:                 (Expr.logicalNot (Expr.eq (Expr.param paramName) (Expr.localVar targetVar))) msg2
--- SORRY'D:             , Stmt.setStorage targetField (Expr.param paramName)
--- SORRY'D:             , Stmt.stop
--- SORRY'D:             ] = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface,
--- SORRY'D:           stmtTouchesUnsupportedContractSurface] using hsurface
--- SORRY'D:       exact False.elim
--- SORRY'D:         (false_of_supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop_surface
--- SORRY'D:           hsurfaceBase)
--- SORRY'D:   | requireClause clause hrest ih =>
--- SORRY'D:       exact stmtListGenericCore_of_supportedStmtList_requireClause_of_surface_exceptMappingWrites
--- SORRY'D:         (fields := fields) (scope := scope) clause ih hsurface
--- SORRY'D:   | ite hcond hscope hthen helse ihThen ihElse =>
--- SORRY'D:       have hsurfaceBase :
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface [Stmt.ite cond thenBranch elseBranch] = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
--- SORRY'D:           stmtListTouchesUnsupportedContractSurface,
--- SORRY'D:           stmtTouchesUnsupportedContractSurface] using hsurface
--- SORRY'D:       exact False.elim (false_of_supportedStmtList_ite_list_surface hsurfaceBase)
--- SORRY'D:   | append hprefix hsuffix ihPrefix ihSuffix =>
--- SORRY'D:       exact stmtListGenericCore_of_supportedStmtList_append_of_surface_exceptMappingWrites
--- SORRY'D:         hprefix hsuffix ihPrefix ihSuffix hsurface
-
--- SORRY'D: /-- The current supported statement-list witness already suffices for the
--- SORRY'D: weaker helper-free source-step interface consumed by the exact helper-aware
--- SORRY'D: seam. This keeps helper-free reuse derivable directly from the proof-layer
--- SORRY'D: fragment witness without exposing the stronger full generic-core theorem at the
--- SORRY'D: supported-body boundary. -/
-theorem stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface
-    {fields : List Field}
-    {scope : List String}
-    {stmts : List Stmt}
-    (hnoConflict : firstFieldWriteSlotConflict fields = none)
-    (hSupported : SupportedStmtList fields scope stmts)
-    (hsurface : stmtListTouchesUnsupportedContractSurface stmts = false) :
-    StmtListHelperFreeStepInterface fields scope stmts :=
-  stmtListHelperFreeStepInterface_of_core
-    (stmtListGenericCore_of_supportedStmtList_of_surface
-      (fields := fields)
-      (scope := scope)
-      (stmts := stmts)
-      hnoConflict
-      hSupported
-      hsurface)
-
--- TYPESIG_SORRY: theorem stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface_exceptMappingWrites
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {stmts : List Stmt}
--- TYPESIG_SORRY:     (hnoConflict : firstFieldWriteSlotConflict fields = none)
--- TYPESIG_SORRY:     (hSupported : SupportedStmtList fields scope stmts)
--- TYPESIG_SORRY:     (hsafety : SupportedStmtListMappingWriteSlotSafety fields)
--- TYPESIG_SORRY:     (hsurface :
--- TYPESIG_SORRY:       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites stmts = false) :
--- TYPESIG_SORRY:     StmtListHelperFreeStepInterface fields scope stmts := by sorry
--- SORRY'D:   stmtListHelperFreeStepInterface_of_core
--- SORRY'D:     (stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites
--- SORRY'D:       (fields := fields)
--- SORRY'D:       (scope := scope)
--- SORRY'D:       (stmts := stmts)
--- SORRY'D:       hnoConflict
--- SORRY'D:       hSupported
--- SORRY'D:       hsafety
--- SORRY'D:       hsurface)
-
--- TYPESIG_SORRY: theorem stmtListHelperFreeStepInterface_of_supportedStmtList_of_featureClosed_exceptMappingWrites
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {stmts : List Stmt}
--- TYPESIG_SORRY:     (hnoConflict : firstFieldWriteSlotConflict fields = none)
--- TYPESIG_SORRY:     (hSupported : SupportedStmtList fields scope stmts)
--- TYPESIG_SORRY:     (hcore : stmtListTouchesUnsupportedCoreSurface stmts = false)
--- TYPESIG_SORRY:     (hstate : stmtListTouchesUnsupportedStateSurfaceExceptMappingWrites stmts = false)
--- TYPESIG_SORRY:     (hcalls : stmtListTouchesUnsupportedCallSurface stmts = false)
--- TYPESIG_SORRY:     (heffects : stmtListTouchesUnsupportedEffectSurface stmts = false)
--- TYPESIG_SORRY:     (hsafety : SupportedStmtListMappingWriteSlotSafety fields) :
--- TYPESIG_SORRY:     StmtListHelperFreeStepInterface fields scope stmts := by sorry
--- SORRY'D:   have hsurface :
--- SORRY'D:       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites stmts = false :=
--- SORRY'D:     stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites_eq_false_of_featureClosed
--- SORRY'D:       stmts hcore hstate hcalls heffects
--- SORRY'D:   exact stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface_exceptMappingWrites
--- SORRY'D:     (fields := fields)
--- SORRY'D:     (scope := scope)
--- SORRY'D:     (stmts := stmts)
--- SORRY'D:     hnoConflict
--- SORRY'D:     hSupported
--- SORRY'D:     hsafety
--- SORRY'D:     hsurface
-
--- SORRY'D: /-- The supported-body interface also derives the weaker source-side reuse
--- SORRY'D: witness needed by the exact helper-aware seam: helper-free heads retain the
--- SORRY'D: legacy generic-step obligation, while helper-positive heads can be discharged
--- SORRY'D: separately. -/
-theorem SupportedBodyInterface.helperFreeStepInterface
-    {spec : CompilationModel}
-    {fn : FunctionSpec}
-    (hBody : SupportedBodyInterface spec fn)
-    (hnoConflict : firstFieldWriteSlotConflict spec.fields = none) :
-    StmtListHelperFreeStepInterface spec.fields (fn.params.map (·.name)) fn.body := by
-  have hsurface :
-      stmtListTouchesUnsupportedContractSurface fn.body = false :=
-    stmtListTouchesUnsupportedContractSurface_eq_false_of_featureClosed fn.body
-      hBody.core.surfaceClosed
-      hBody.state.surfaceClosed
-      (SupportedBodyCallInterface.surfaceClosed (hBody := hBody))
-      hBody.effects.surfaceClosed
-  exact stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface
-    (fields := spec.fields)
-    (scope := fn.params.map (·.name))
-    (stmts := fn.body)
-    hnoConflict
-    hBody.stmtList
-    hsurface
--- SORRY'D:   have hsurface :
--- SORRY'D:       stmtListTouchesUnsupportedContractSurface fn.body = false :=
--- SORRY'D:     stmtListTouchesUnsupportedContractSurface_eq_false_of_featureClosed fn.body
--- SORRY'D:       hBody.core.surfaceClosed
--- SORRY'D:       hBody.state.surfaceClosed
--- SORRY'D:       (SupportedBodyCallInterface.surfaceClosed (hBody := hBody))
--- SORRY'D:       hBody.effects.surfaceClosed
--- SORRY'D:   stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface
--- SORRY'D:     (fields := spec.fields)
--- SORRY'D:     (scope := fn.params.map (·.name))
--- SORRY'D:     (stmts := fn.body)
--- SORRY'D:     hnoConflict
--- SORRY'D:     hBody.stmtList
--- SORRY'D:     hsurface
-
--- TYPESIG_SORRY: theorem SupportedBodyInterfaceExceptMappingWrites.helperFreeStepInterface
--- TYPESIG_SORRY:     {spec : CompilationModel}
--- TYPESIG_SORRY:     {fn : FunctionSpec}
--- TYPESIG_SORRY:     (hBody : SupportedBodyInterfaceExceptMappingWrites spec fn)
--- TYPESIG_SORRY:     (hnoConflict : firstFieldWriteSlotConflict spec.fields = none)
--- TYPESIG_SORRY:     (hsafety : SupportedStmtListMappingWriteSlotSafety spec.fields) :
--- TYPESIG_SORRY:     StmtListHelperFreeStepInterface spec.fields (fn.params.map (·.name)) fn.body := by sorry
--- SORRY'D:   exact stmtListHelperFreeStepInterface_of_supportedStmtList_of_featureClosed_exceptMappingWrites
--- SORRY'D:     (fields := spec.fields)
--- SORRY'D:     (scope := fn.params.map (·.name))
--- SORRY'D:     (stmts := fn.body)
--- SORRY'D:     hnoConflict
--- SORRY'D:     hBody.stmtList
--- SORRY'D:     hBody.core.surfaceClosed
--- SORRY'D:     hBody.state.surfaceClosed
--- SORRY'D:     (SupportedBodyCallInterface.surfaceClosed_exceptMappingWrites (hBody := hBody))
--- SORRY'D:     hBody.effects.surfaceClosed
--- SORRY'D:     hsafety
 
 private theorem exprBoundNamesInScope_of_scopeNamesIncluded
     {expr : Expr}
@@ -11260,6 +12935,262 @@ theorem stmtListGenericCore_append
       simp
       exact StmtListGenericCore.cons hstep (ih hsuffix)
 
+private theorem stmtNextScope_requireLiteralGuardFamilyClause
+    {scope : List String}
+    (clause : Verity.Core.Free.RequireLiteralGuardFamilyClause) :
+    stmtNextScope scope clause.toStmt = scope := by
+  cases clause with
+  | mk family n m p q message =>
+      cases family with
+      | binary guard =>
+          cases guard <;>
+            simp [stmtNextScope,
+              Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt,
+              collectStmtNames, collectExprNames]
+      | andEqLt =>
+          simp [stmtNextScope,
+            Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt,
+            collectStmtNames, collectExprNames]
+      | orEqLt =>
+          simp [stmtNextScope,
+            Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt,
+            collectStmtNames, collectExprNames]
+
+private theorem stmtListGenericCore_of_supportedStmtList_append_of_surface_exceptMappingWrites
+    {fields : List Field}
+    {scope : List String}
+    {«prefix» «suffix» : List Stmt}
+    (_hprefix : SupportedStmtList fields scope «prefix»)
+    (_hsuffix : SupportedStmtList fields (List.foldl stmtNextScope scope «prefix») «suffix»)
+    (ihPrefix :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites «prefix» = false →
+        StmtListGenericCore fields scope «prefix»)
+    (ihSuffix :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites «suffix» = false →
+        StmtListGenericCore fields (List.foldl stmtNextScope scope «prefix») «suffix»)
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites («prefix» ++ «suffix») = false) :
+    StmtListGenericCore fields scope («prefix» ++ «suffix») := by
+  rw [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites_append] at hsurface
+  exact stmtListGenericCore_append
+    (ihPrefix (Bool.or_eq_false_iff.mp hsurface).1)
+    (ihSuffix (Bool.or_eq_false_iff.mp hsurface).2)
+
+private theorem stmtListGenericCore_of_supportedStmtList_requireClause_of_surface_exceptMappingWrites
+    {fields : List Field}
+    {scope : List String}
+    {rest : List Stmt}
+    (clause : Verity.Core.Free.RequireLiteralGuardFamilyClause)
+    (ihRest :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites rest = false →
+        StmtListGenericCore fields scope rest)
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites (clause.toStmt :: rest) = false) :
+    StmtListGenericCore fields scope (clause.toStmt :: rest) := by
+  simp only [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
+    Bool.or_eq_false_iff] at hsurface
+  apply stmtListGenericCore_append
+    (stmtListGenericCore_singleton_requireLiteralGuardFamilyClause
+      (fields := fields) (scope := scope) clause)
+  simp only [List.foldl, stmtNextScope_requireLiteralGuardFamilyClause clause]
+  exact ihRest hsurface.2
+
+theorem stmtListGenericCore_of_supportedStmtList_of_surface
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (hSupported : SupportedStmtList fields scope stmts)
+    (hsurface : stmtListTouchesUnsupportedContractSurface stmts = false) :
+    StmtListGenericCore fields scope stmts := by
+  induction hSupported with
+  | compileCore hcore =>
+      exact stmtListGenericCore_of_stmtListCompileCore hcore
+  | terminalCore hterminal =>
+      exact stmtListGenericCore_of_stmtListTerminalCore hterminal
+  | setStorageSingleSlot hcore hinScope hfind =>
+      exact stmtListGenericCore_of_supportedStmtList_setStorageSingleSlot_of_surface
+        (fields := fields) hnoConflict hfind hcore hinScope
+  | setStorageAddrSingleSlot hcore hinScope hfind =>
+      exact stmtListGenericCore_of_supportedStmtList_setStorageAddrSingleSlot_of_surface
+        (fields := fields) hnoConflict hfind hcore hinScope
+  | mstoreSingle hcoreOffset hinScopeOffset hcoreValue hinScopeValue =>
+      exact stmtListGenericCore_of_supportedStmtList_mstoreSingle_of_surface
+        (fields := fields) hcoreOffset hinScopeOffset hcoreValue hinScopeValue
+  | tstoreSingle hcoreOffset hinScopeOffset hcoreValue hinScopeValue =>
+      exact stmtListGenericCore_of_supportedStmtList_tstoreSingle_of_surface
+        (fields := fields) hcoreOffset hinScopeOffset hcoreValue hinScopeValue
+  | letStorageField hfind =>
+      exact False.elim (false_of_supportedStmtList_letStorageField_surface hsurface)
+  | returnMapping hkey hscope hslot =>
+      exact False.elim (false_of_supportedStmtList_returnMapping_surface hsurface)
+  | letMapping hkey hscope hslot =>
+      exact False.elim (false_of_supportedStmtList_letMapping_surface hsurface)
+  | letMapping2 hkey1 hscope1 hkey2 hscope2 hslot =>
+      exact False.elim (false_of_supportedStmtList_letMapping2_surface hsurface)
+  | letMappingUint hkey hscope hslot =>
+      exact False.elim (false_of_supportedStmtList_letMappingUint_surface hsurface)
+  | setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot =>
+      exact False.elim (false_of_supportedStmtList_setMappingUintSingle_surface hsurface)
+  | setMappingChainSingle hkeys hscopeKeys hvalue hscopeValue hslot =>
+      exact False.elim (false_of_supportedStmtList_setMappingChainSingle_surface hsurface)
+  | setMappingSingle hkey hscopeKey hvalue hscopeValue hslot =>
+      exact False.elim (false_of_supportedStmtList_setMappingSingle_surface hsurface)
+  | setMappingWordSingle hkey hscopeKey hvalue hscopeValue hslot =>
+      exact False.elim (false_of_supportedStmtList_setMappingWordSingle_surface hsurface)
+  | setMappingPackedWordSingle hkey hscopeKey hvalue hscopeValue
+      hcompatValue hcompatPacked hcompatSlotWord hcompatSlotCleared hpacked hslot =>
+      exact False.elim (false_of_supportedStmtList_setMappingPackedWordSingle_surface hsurface)
+  | setStructMemberSingle hkey hscopeKey hvalue hscopeValue hslot hmembers hmember =>
+      exact False.elim (false_of_supportedStmtList_setStructMemberSingle_surface hsurface)
+  | setMapping2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot =>
+      exact False.elim (false_of_supportedStmtList_setMapping2Single_surface hsurface)
+  | setMapping2WordSingle hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot =>
+      exact False.elim (false_of_supportedStmtList_setMapping2WordSingle_surface hsurface)
+  | setStructMember2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot hmembers hmember =>
+      exact False.elim (false_of_supportedStmtList_setStructMember2Single_surface hsurface)
+  | rawLogLiterals htopics =>
+      exact False.elim (false_of_supportedStmtList_rawLogLiterals_surface hsurface)
+  | letCallerLetStorageReqEqReqNeqSetStorageParamStop hOwner hne_sv_p hne_ov_p hne_ov_sv =>
+      exact False.elim
+        (false_of_supportedStmtList_letCallerLetStorageReqEqReqNeqSetStorageParamStop_surface
+          hsurface)
+  | letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop
+      hOwner hTarget hne_sv_p hne_ov_p hne_ov_sv hne_tv_p hne_tv_sv hne_tv_ov =>
+      exact False.elim
+        (false_of_supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop_surface
+          hsurface)
+  | requireClause clause _ ih =>
+      simp [stmtListTouchesUnsupportedContractSurface] at hsurface
+      apply stmtListGenericCore_append
+        (stmtListGenericCore_singleton_requireLiteralGuardFamilyClause clause)
+      simp only [List.foldl, stmtNextScope_requireLiteralGuardFamilyClause clause]
+      exact ih hsurface.2
+  | ite _ _ _ _ _ _ =>
+      exact False.elim (false_of_supportedStmtList_ite_list_surface hsurface)
+  | append _ _ ihPrefix ihSuffix =>
+      simp only [stmtListTouchesUnsupportedContractSurface_append, Bool.or_eq_false_iff] at hsurface
+      exact stmtListGenericCore_append (ihPrefix hsurface.1) (ihSuffix hsurface.2)
+
+-- TYPESIG_SORRY: theorem stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites
+-- TYPESIG_SORRY:     {fields : List Field}
+-- TYPESIG_SORRY:     {scope : List String}
+-- TYPESIG_SORRY:     {stmts : List Stmt}
+-- TYPESIG_SORRY:     (hnoConflict : firstFieldWriteSlotConflict fields = none)
+-- TYPESIG_SORRY:     (hSupported : SupportedStmtList fields scope stmts)
+-- TYPESIG_SORRY:     (hsafety : SupportedStmtListMappingWriteSlotSafety fields)
+-- TYPESIG_SORRY:     (hsurface :
+-- TYPESIG_SORRY:       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites stmts = false) :
+-- TYPESIG_SORRY:     StmtListGenericCore fields scope stmts := by sorry
+
+-- SORRY'D: /-- The current supported statement-list witness already suffices for the
+-- SORRY'D: weaker helper-free source-step interface consumed by the exact helper-aware
+-- SORRY'D: seam. This keeps helper-free reuse derivable directly from the proof-layer
+-- SORRY'D: fragment witness without exposing the stronger full generic-core theorem at the
+-- SORRY'D: supported-body boundary. -/
+theorem stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (hSupported : SupportedStmtList fields scope stmts)
+    (hsurface : stmtListTouchesUnsupportedContractSurface stmts = false) :
+    StmtListHelperFreeStepInterface fields scope stmts :=
+  stmtListHelperFreeStepInterface_of_core
+    (stmtListGenericCore_of_supportedStmtList_of_surface
+      (fields := fields)
+      (scope := scope)
+      (stmts := stmts)
+      hnoConflict
+      hSupported
+      hsurface)
+
+-- TYPESIG_SORRY: theorem stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface_exceptMappingWrites
+-- TYPESIG_SORRY:     {fields : List Field}
+-- TYPESIG_SORRY:     {scope : List String}
+-- TYPESIG_SORRY:     {stmts : List Stmt}
+-- TYPESIG_SORRY:     (hnoConflict : firstFieldWriteSlotConflict fields = none)
+-- TYPESIG_SORRY:     (hSupported : SupportedStmtList fields scope stmts)
+-- TYPESIG_SORRY:     (hsafety : SupportedStmtListMappingWriteSlotSafety fields)
+-- TYPESIG_SORRY:     (hsurface :
+-- TYPESIG_SORRY:       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites stmts = false) :
+-- TYPESIG_SORRY:     StmtListHelperFreeStepInterface fields scope stmts := by sorry
+-- SORRY'D:   stmtListHelperFreeStepInterface_of_core
+-- SORRY'D:     (stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites
+-- SORRY'D:       (fields := fields)
+-- SORRY'D:       (scope := scope)
+-- SORRY'D:       (stmts := stmts)
+-- SORRY'D:       hnoConflict
+-- SORRY'D:       hSupported
+-- SORRY'D:       hsafety
+-- SORRY'D:       hsurface)
+
+-- TYPESIG_SORRY: theorem stmtListHelperFreeStepInterface_of_supportedStmtList_of_featureClosed_exceptMappingWrites
+-- TYPESIG_SORRY:     {fields : List Field}
+-- TYPESIG_SORRY:     {scope : List String}
+-- TYPESIG_SORRY:     {stmts : List Stmt}
+-- TYPESIG_SORRY:     (hnoConflict : firstFieldWriteSlotConflict fields = none)
+-- TYPESIG_SORRY:     (hSupported : SupportedStmtList fields scope stmts)
+-- TYPESIG_SORRY:     (hcore : stmtListTouchesUnsupportedCoreSurface stmts = false)
+-- TYPESIG_SORRY:     (hstate : stmtListTouchesUnsupportedStateSurfaceExceptMappingWrites stmts = false)
+-- TYPESIG_SORRY:     (hcalls : stmtListTouchesUnsupportedCallSurface stmts = false)
+-- TYPESIG_SORRY:     (heffects : stmtListTouchesUnsupportedEffectSurface stmts = false)
+-- TYPESIG_SORRY:     (hsafety : SupportedStmtListMappingWriteSlotSafety fields) :
+-- TYPESIG_SORRY:     StmtListHelperFreeStepInterface fields scope stmts := by sorry
+-- SORRY'D:   have hsurface :
+-- SORRY'D:       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites stmts = false :=
+-- SORRY'D:     stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites_eq_false_of_featureClosed
+-- SORRY'D:       stmts hcore hstate hcalls heffects
+-- SORRY'D:   exact stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface_exceptMappingWrites
+-- SORRY'D:     (fields := fields)
+-- SORRY'D:     (scope := scope)
+-- SORRY'D:     (stmts := stmts)
+-- SORRY'D:     hnoConflict
+-- SORRY'D:     hSupported
+-- SORRY'D:     hsafety
+-- SORRY'D:     hsurface
+
+theorem SupportedBodyInterface.helperFreeStepInterface
+    {spec : CompilationModel}
+    {fn : FunctionSpec}
+    (hBody : SupportedBodyInterface spec fn)
+    (hnoConflict : firstFieldWriteSlotConflict spec.fields = none) :
+    StmtListHelperFreeStepInterface spec.fields (fn.params.map (·.name)) fn.body := by
+  have hsurface :
+      stmtListTouchesUnsupportedContractSurface fn.body = false :=
+    stmtListTouchesUnsupportedContractSurface_eq_false_of_featureClosed fn.body
+      hBody.core.surfaceClosed
+      hBody.state.surfaceClosed
+      (SupportedBodyCallInterface.surfaceClosed (hBody := hBody))
+      hBody.effects.surfaceClosed
+  exact stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface
+    (fields := spec.fields)
+    (scope := fn.params.map (·.name))
+    (stmts := fn.body)
+    hnoConflict
+    hBody.stmtList
+    hsurface
+
+-- TYPESIG_SORRY: theorem SupportedBodyInterfaceExceptMappingWrites.helperFreeStepInterface
+-- TYPESIG_SORRY:     {spec : CompilationModel}
+-- TYPESIG_SORRY:     {fn : FunctionSpec}
+-- TYPESIG_SORRY:     (hBody : SupportedBodyInterfaceExceptMappingWrites spec fn)
+-- TYPESIG_SORRY:     (hnoConflict : firstFieldWriteSlotConflict spec.fields = none)
+-- TYPESIG_SORRY:     (hsafety : SupportedStmtListMappingWriteSlotSafety spec.fields) :
+-- TYPESIG_SORRY:     StmtListHelperFreeStepInterface spec.fields (fn.params.map (·.name)) fn.body := by sorry
+-- SORRY'D:   exact stmtListHelperFreeStepInterface_of_supportedStmtList_of_featureClosed_exceptMappingWrites
+-- SORRY'D:     (fields := spec.fields)
+-- SORRY'D:     (scope := fn.params.map (·.name))
+-- SORRY'D:     (stmts := fn.body)
+-- SORRY'D:     hnoConflict
+-- SORRY'D:     hBody.stmtList
+-- SORRY'D:     hBody.core.surfaceClosed
+-- SORRY'D:     hBody.state.surfaceClosed
+-- SORRY'D:     (SupportedBodyCallInterface.surfaceClosed_exceptMappingWrites (hBody := hBody))
+-- SORRY'D:     hBody.effects.surfaceClosed
+-- SORRY'D:     hsafety
+
+
 private theorem scopeNamesIncluded_foldl_stmtNextScope
     {scope : List String}
     {stmts : List Stmt} :
@@ -11271,6 +13202,300 @@ private theorem scopeNamesIncluded_foldl_stmtNextScope
       intro name hname
       exact ih (scope := stmtNextScope scope stmt) name (mem_stmtNextScope_of_mem_scope hname)
 
+private theorem stmtListGenericCore_of_requireClausesOnly
+    {fields : List Field}
+    {scope : List String}
+    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause) :
+    StmtListGenericCore fields scope
+      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt) :=
+  stmtListGenericCore_of_stmtListCompileCore
+    (stmtListCompileCore_of_requireLiteralGuardFamilyClauses clauses)
+
+private theorem stmtListGenericCore_of_requireClausesThenReturnLiteral
+    {fields : List Field}
+    {scope : List String}
+    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
+    (retVal : Nat) :
+    StmtListGenericCore fields scope
+      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
+        [Stmt.return (Expr.literal retVal)]) := by
+  have htail :
+      FunctionBody.StmtListCompileCore scope [Stmt.return (Expr.literal retVal)] := by
+    refine FunctionBody.StmtListCompileCore.return_ (.literal retVal) ?_ ?_
+    · intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+    · exact FunctionBody.StmtListCompileCore.nil
+  exact stmtListGenericCore_append
+    (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
+    (by
+      simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
+        (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) htail))
+
+private theorem stmtListGenericCore_of_requireClausesThenLetReturnLocalLiteral
+    {fields : List Field}
+    {scope : List String}
+    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
+    (tmp : String)
+    (retVal : Nat) :
+    StmtListGenericCore fields scope
+      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
+        [Stmt.letVar tmp (Expr.literal retVal), Stmt.return (Expr.localVar tmp)]) := by
+  have htail :
+      FunctionBody.StmtListCompileCore scope
+        [Stmt.letVar tmp (Expr.literal retVal), Stmt.return (Expr.localVar tmp)] := by
+    refine FunctionBody.StmtListCompileCore.letVar (.literal retVal) ?_ ?_
+    · intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+    · refine FunctionBody.StmtListCompileCore.return_ (.localVar tmp) ?_ ?_
+      · intro name hmem
+        simp [FunctionBody.exprBoundNames] at hmem
+        simpa [hmem]
+      · exact FunctionBody.StmtListCompileCore.nil
+  exact stmtListGenericCore_append
+    (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
+    (by
+      simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
+        (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) htail))
+
+private theorem stmtListGenericCore_of_requireClausesThenSetStorageLiteral
+    {fields : List Field}
+    {scope : List String}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
+    (fieldName : String)
+    (slot writeVal : Nat)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    StmtListGenericCore fields scope
+      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
+        [Stmt.setStorage fieldName (Expr.literal writeVal)]) :=
+  stmtListGenericCore_append
+    (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
+    (by
+      simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
+        (stmtListGenericCore_singleton_setStorage_singleSlot
+          (fields := fields)
+          (scope := scope)
+          (hnoConflict := hnoConflict)
+          (hfind := hfind)
+          (hcore := .literal writeVal)
+          (hinScope := by intro name hmem; simp [FunctionBody.exprBoundNames] at hmem)))
+
+private theorem stmtListGenericCore_of_requireClausesThenLetSetStorageLocalLiteral
+    {fields : List Field}
+    {scope : List String}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
+    (fieldName tmp : String)
+    (slot n : Nat)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    StmtListGenericCore fields scope
+      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
+        [Stmt.letVar tmp (Expr.literal n), Stmt.setStorage fieldName (Expr.localVar tmp)]) := by
+  have hprefix :
+      FunctionBody.StmtListCompileCore scope [Stmt.letVar tmp (Expr.literal n)] := by
+    refine FunctionBody.StmtListCompileCore.letVar (.literal n) ?_ ?_
+    · intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+    · exact FunctionBody.StmtListCompileCore.nil
+  exact stmtListGenericCore_append
+    (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
+    (by
+      simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
+        (stmtListGenericCore_append
+          (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) hprefix)
+          (stmtListGenericCore_singleton_setStorage_singleSlot
+            (fields := fields)
+            (scope := List.foldl stmtNextScope scope [Stmt.letVar tmp (Expr.literal n)])
+            (hnoConflict := hnoConflict)
+            (hfind := hfind)
+            (hcore := .localVar tmp)
+            (hinScope := by
+              intro name hmem
+              simp [stmtNextScope, collectStmtNames, FunctionBody.exprBoundNames] at hmem ⊢
+              exact Or.inl hmem))))
+
+private theorem stmtListGenericCore_of_requireClausesThenLetAssignSetStorageLocalLiteral
+    {fields : List Field}
+    {scope : List String}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
+    (fieldName tmp : String)
+    (slot n m : Nat)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    StmtListGenericCore fields scope
+      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
+        [Stmt.letVar tmp (Expr.literal n),
+         Stmt.assignVar tmp (Expr.literal m),
+         Stmt.setStorage fieldName (Expr.localVar tmp)]) := by
+  have hprefix :
+      FunctionBody.StmtListCompileCore scope
+        [Stmt.letVar tmp (Expr.literal n), Stmt.assignVar tmp (Expr.literal m)] := by
+    refine FunctionBody.StmtListCompileCore.letVar (.literal n) ?_ ?_
+    · intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+    · refine FunctionBody.StmtListCompileCore.assignVar (.literal m) ?_ ?_
+      · intro name hmem
+        simp [FunctionBody.exprBoundNames] at hmem
+      · exact FunctionBody.StmtListCompileCore.nil
+  exact stmtListGenericCore_append
+    (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
+    (by
+      simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
+        (stmtListGenericCore_append
+          (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) hprefix)
+          (stmtListGenericCore_singleton_setStorage_singleSlot
+            (fields := fields)
+            (scope := List.foldl stmtNextScope scope
+              [Stmt.letVar tmp (Expr.literal n), Stmt.assignVar tmp (Expr.literal m)])
+            (hnoConflict := hnoConflict)
+            (hfind := hfind)
+            (hcore := .localVar tmp)
+            (hinScope := by
+              intro name hmem
+              simp [stmtNextScope, collectStmtNames, FunctionBody.exprBoundNames] at hmem ⊢
+              exact Or.inl hmem))))
+
+private theorem stmtListGenericCore_of_requireClausesThenLetAssignAddSetStorageLocalLiteral
+    {fields : List Field}
+    {scope : List String}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
+    (fieldName tmp : String)
+    (slot n m : Nat)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    StmtListGenericCore fields scope
+      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
+        [Stmt.letVar tmp (Expr.literal n),
+         Stmt.assignVar tmp (Expr.add (Expr.localVar tmp) (Expr.literal m)),
+         Stmt.setStorage fieldName (Expr.localVar tmp)]) := by
+  have hprefix :
+      FunctionBody.StmtListCompileCore scope
+        [Stmt.letVar tmp (Expr.literal n),
+         Stmt.assignVar tmp (Expr.add (Expr.localVar tmp) (Expr.literal m))] := by
+    refine FunctionBody.StmtListCompileCore.letVar (.literal n) ?_ ?_
+    · intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+    · exact FunctionBody.StmtListCompileCore.assignVar
+        (FunctionBody.ExprCompileCore.add (.localVar tmp) (.literal m))
+        (by intro name hmem
+            simp [FunctionBody.exprBoundNames] at hmem ⊢
+            exact Or.inl hmem)
+        FunctionBody.StmtListCompileCore.nil
+  exact stmtListGenericCore_append
+    (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
+    (by
+      simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
+        (stmtListGenericCore_append
+          (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) hprefix)
+          (stmtListGenericCore_singleton_setStorage_singleSlot
+            (fields := fields)
+            (scope := List.foldl stmtNextScope scope
+              [Stmt.letVar tmp (Expr.literal n),
+               Stmt.assignVar tmp (Expr.add (Expr.localVar tmp) (Expr.literal m))])
+            (hnoConflict := hnoConflict)
+            (hfind := hfind)
+            (hcore := .localVar tmp)
+            (hinScope := by
+              intro name hmem
+              simp [stmtNextScope, collectStmtNames, FunctionBody.exprBoundNames] at hmem ⊢
+              exact Or.inl hmem))))
+
+private theorem stmtListGenericCore_of_requireClausesThenLetAssignSubSetStorageLocalLiteral
+    {fields : List Field}
+    {scope : List String}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
+    (fieldName tmp : String)
+    (slot n m : Nat)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    StmtListGenericCore fields scope
+      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
+        [Stmt.letVar tmp (Expr.literal n),
+         Stmt.assignVar tmp (Expr.sub (Expr.localVar tmp) (Expr.literal m)),
+         Stmt.setStorage fieldName (Expr.localVar tmp)]) := by
+  have hprefix :
+      FunctionBody.StmtListCompileCore scope
+        [Stmt.letVar tmp (Expr.literal n),
+         Stmt.assignVar tmp (Expr.sub (Expr.localVar tmp) (Expr.literal m))] := by
+    refine FunctionBody.StmtListCompileCore.letVar (.literal n) ?_ ?_
+    · intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+    · exact FunctionBody.StmtListCompileCore.assignVar
+        (FunctionBody.ExprCompileCore.sub (.localVar tmp) (.literal m))
+        (by intro name hmem
+            simp [FunctionBody.exprBoundNames] at hmem ⊢
+            exact Or.inl hmem)
+        FunctionBody.StmtListCompileCore.nil
+  exact stmtListGenericCore_append
+    (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
+    (by
+      simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
+        (stmtListGenericCore_append
+          (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) hprefix)
+          (stmtListGenericCore_singleton_setStorage_singleSlot
+            (fields := fields)
+            (scope := List.foldl stmtNextScope scope
+              [Stmt.letVar tmp (Expr.literal n),
+               Stmt.assignVar tmp (Expr.sub (Expr.localVar tmp) (Expr.literal m))])
+            (hnoConflict := hnoConflict)
+            (hfind := hfind)
+            (hcore := .localVar tmp)
+            (hinScope := by
+              intro name hmem
+              simp [stmtNextScope, collectStmtNames, FunctionBody.exprBoundNames] at hmem ⊢
+              exact Or.inl hmem))))
+
+private theorem stmtListGenericCore_of_requireClausesThenLetAssignMulSetStorageLocalLiteral
+    {fields : List Field}
+    {scope : List String}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause)
+    (fieldName tmp : String)
+    (slot n m : Nat)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    StmtListGenericCore fields scope
+      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt ++
+        [Stmt.letVar tmp (Expr.literal n),
+         Stmt.assignVar tmp (Expr.mul (Expr.localVar tmp) (Expr.literal m)),
+         Stmt.setStorage fieldName (Expr.localVar tmp)]) := by
+  have hprefix :
+      FunctionBody.StmtListCompileCore scope
+        [Stmt.letVar tmp (Expr.literal n),
+         Stmt.assignVar tmp (Expr.mul (Expr.localVar tmp) (Expr.literal m))] := by
+    refine FunctionBody.StmtListCompileCore.letVar (.literal n) ?_ ?_
+    · intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+    · exact FunctionBody.StmtListCompileCore.assignVar
+        (FunctionBody.ExprCompileCore.mul (.localVar tmp) (.literal m))
+        (by intro name hmem
+            simp [FunctionBody.exprBoundNames] at hmem ⊢
+            exact Or.inl hmem)
+        FunctionBody.StmtListCompileCore.nil
+  exact stmtListGenericCore_append
+    (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
+    (by
+      simpa [foldl_stmtNextScope_requireLiteralGuardFamilyClauses (scope := scope) clauses] using
+        (stmtListGenericCore_append
+          (stmtListGenericCore_of_stmtListCompileCore (fields := fields) (scope := scope) hprefix)
+          (stmtListGenericCore_singleton_setStorage_singleSlot
+            (fields := fields)
+            (scope := List.foldl stmtNextScope scope
+              [Stmt.letVar tmp (Expr.literal n),
+               Stmt.assignVar tmp (Expr.mul (Expr.localVar tmp) (Expr.literal m))])
+            (hnoConflict := hnoConflict)
+            (hfind := hfind)
+            (hcore := .localVar tmp)
+            (hinScope := by
+              intro name hmem
+              simp [stmtNextScope, collectStmtNames, FunctionBody.exprBoundNames] at hmem ⊢
+              exact Or.inl hmem))))
+
 theorem compileStmtList_ok_of_stmtListGenericCore
     {fields : List Field}
     {scope inScopeNames : List String}
@@ -11279,7 +13504,21 @@ theorem compileStmtList_ok_of_stmtListGenericCore
     (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by sorry
+        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by
+  induction hgeneric generalizing inScopeNames with
+  | nil => exact ⟨[], rfl⟩
+  | cons hstep _hrest ih =>
+      rcases FunctionBody.compileStmt_ok_any_scope
+        (scope2 := inScopeNames) ⟨_, hstep.compileOk⟩ with ⟨headIR, hhead⟩
+      rcases ih (inScopeNames := collectStmtNames _ ++ inScopeNames)
+          (by intro name hmem
+              simp [stmtNextScope] at hmem
+              rcases hmem with h | h
+              · exact List.mem_append_left _ h
+              · exact List.mem_append_right _ (hincluded name h))
+        with ⟨tailIR, htail⟩
+      exact ⟨headIR ++ tailIR,
+        FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok hhead htail⟩
 
 theorem compileStmtList_ok_of_stmtListGenericWithHelpers
     {spec : CompilationModel}
@@ -11290,7 +13529,21 @@ theorem compileStmtList_ok_of_stmtListGenericWithHelpers
     (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by sorry
+        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by
+  induction hgeneric generalizing inScopeNames with
+  | nil => exact ⟨[], rfl⟩
+  | cons hstep _hrest ih =>
+      rcases FunctionBody.compileStmt_ok_any_scope
+        (scope2 := inScopeNames) ⟨_, hstep.compileOk⟩ with ⟨headIR, hhead⟩
+      rcases ih (inScopeNames := collectStmtNames _ ++ inScopeNames)
+          (by intro name hmem
+              simp [stmtNextScope] at hmem
+              rcases hmem with h | h
+              · exact List.mem_append_left _ h
+              · exact List.mem_append_right _ (hincluded name h))
+        with ⟨tailIR, htail⟩
+      exact ⟨headIR ++ tailIR,
+        FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok hhead htail⟩
 
 theorem compileStmtList_ok_of_stmtListGenericWithHelpersAndHelperIR
     {runtimeContract : IRContract}
@@ -11303,7 +13556,21 @@ theorem compileStmtList_ok_of_stmtListGenericWithHelpersAndHelperIR
     (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by sorry
+        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by
+  induction hgeneric generalizing inScopeNames with
+  | nil => exact ⟨[], rfl⟩
+  | cons hstep _hrest ih =>
+      rcases FunctionBody.compileStmt_ok_any_scope
+        (scope2 := inScopeNames) ⟨_, hstep.compileOk⟩ with ⟨headIR, hhead⟩
+      rcases ih (inScopeNames := collectStmtNames _ ++ inScopeNames)
+          (by intro name hmem
+              simp [stmtNextScope] at hmem
+              rcases hmem with h | h
+              · exact List.mem_append_left _ h
+              · exact List.mem_append_right _ (hincluded name h))
+        with ⟨tailIR, htail⟩
+      exact ⟨headIR ++ tailIR,
+        FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok hhead htail⟩
 
 theorem stmtStepMatchesIRExec_of_included
     {fields : List Field}
@@ -11363,6 +13630,15 @@ theorem stmtStepMatchesIRExecWithInternals_implies_stmtResultMatchesIRExecWithIn
       FunctionBody.stmtResultMatchesIRExec] at hmatch ⊢ <;>
     try exact hmatch
   · exact hmatch.1
+
+private theorem yulStmtList_length_add_sizeOf_le_append
+    (head tail : List YulStmt) :
+    head.length + sizeOf tail ≤ sizeOf (head ++ tail) := by
+  induction head with
+  | nil => simp
+  | cons stmt rest ih =>
+      simp [List.cons_append]
+      omega
 
 private theorem yulStmtList_sizeOf_append_left_le
     (head tail : List YulStmt) :
@@ -11518,504 +13794,513 @@ theorem exec_compileStmtList_generic_sizeOf_extraFuel_step
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
     {state : IRState}
-    {scope inScopeNames : List String}
+    {scope : List String}
     {stmts : List Stmt}
     (extraFuel : Nat)
     (hgeneric : StmtListGenericCore fields scope stmts)
-    (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames)
     (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
     (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
     (hbounded : FunctionBody.bindingsBounded runtime.bindings)
     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR ∧
+        fields [] [] .calldata [] false scope stmts = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmtList fields runtime stmts
       let irExec := execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR
       stmtStepMatchesIRExec
         fields
         (List.foldl stmtNextScope scope stmts)
         sourceResult
-        irExec := by sorry
--- SORRY'D:   induction hgeneric generalizing runtime state inScopeNames extraFuel with
--- SORRY'D:   | nil =>
--- SORRY'D:       refine ⟨[], by simp [CompilationModel.compileStmtList], ?_⟩
--- SORRY'D:       exact And.intro hruntime <| And.intro hexact <| And.intro hbounded hscope
--- SORRY'D:   | @cons scope stmt compiledIR rest hstep hrest ih =>
--- SORRY'D:       have hnextIncluded :
--- SORRY'D:           FunctionBody.scopeNamesIncluded
--- SORRY'D:             (stmtNextScope scope stmt)
--- SORRY'D:             (collectStmtNames stmt ++ inScopeNames) :=
--- SORRY'D:         scopeNamesIncluded_stmtNextScope hincluded
--- SORRY'D:       rcases ih
--- SORRY'D:           (runtime := runtime)
--- SORRY'D:           (state := state)
--- SORRY'D:           (inScopeNames := collectStmtNames stmt ++ inScopeNames)
--- SORRY'D:           (extraFuel := 0)
--- SORRY'D:           hnextIncluded hscope hexact hbounded hruntime with
--- SORRY'D:         ⟨tailIR, htailCompile, htailSem⟩
--- SORRY'D:       let bodyIR := compiledIR ++ tailIR
--- SORRY'D:       have hbodyCompile :
--- SORRY'D:           CompilationModel.compileStmtList
--- SORRY'D:             fields [] [] .calldata [] false inScopeNames (stmt :: rest) =
--- SORRY'D:               Except.ok bodyIR := by
--- SORRY'D:         exact FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok
--- SORRY'D:           hstep.compileOk htailCompile
--- SORRY'D:       let headExtraFuel := sizeOf bodyIR - compiledIR.length + extraFuel
--- SORRY'D:       have hheadSlack :
--- SORRY'D:           sizeOf compiledIR - compiledIR.length ≤ headExtraFuel := by
--- SORRY'D:         have hsize : sizeOf compiledIR ≤ sizeOf bodyIR := by
--- SORRY'D:           simpa [bodyIR] using yulStmtList_sizeOf_append_left_le compiledIR tailIR
--- SORRY'D:         dsimp [headExtraFuel]
--- SORRY'D:         omega
--- SORRY'D:       rcases hstep.preserves runtime state headExtraFuel
--- SORRY'D:           hexact hscope hbounded hruntime hheadSlack with
--- SORRY'D:         ⟨sourceHead, irHead, hsourceHead, hheadExec, hheadMatch⟩
--- SORRY'D:       refine ⟨bodyIR, hbodyCompile, ?_⟩
--- SORRY'D:       cases sourceHead <;> cases irHead <;> simp [stmtStepMatchesIRExec] at hheadMatch
--- SORRY'D:       ·
--- SORRY'D:         rcases hheadMatch with ⟨hruntime', hexact', hbounded', hscope'⟩
--- SORRY'D:         let tailExtraFuel' :=
--- SORRY'D:           sizeOf bodyIR - compiledIR.length - sizeOf tailIR + extraFuel
--- SORRY'D:         have htailSem' :=
--- SORRY'D:           ih
--- SORRY'D:             (runtime := _)
--- SORRY'D:             (state := _)
--- SORRY'D:             (inScopeNames := collectStmtNames stmt ++ inScopeNames)
--- SORRY'D:             (extraFuel := tailExtraFuel')
--- SORRY'D:             hnextIncluded hscope' hexact' hbounded' hruntime'
--- SORRY'D:         rcases htailSem' with ⟨tailIR', htailCompile', htailSem''⟩
--- SORRY'D:         rw [htailCompile] at htailCompile'
--- SORRY'D:         injection htailCompile' with htailEq
--- SORRY'D:         subst htailEq
--- SORRY'D:         have hheadExec' :
--- SORRY'D:             execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
--- SORRY'D:               .continue ‹IRState› := by
--- SORRY'D:           simpa [headExtraFuel, bodyIR] using hheadExec
--- SORRY'D:         have hfullExec :
--- SORRY'D:             execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
--- SORRY'D:               execIRStmts (sizeOf tailIR + tailExtraFuel' + 1) ‹IRState› tailIR := by
--- SORRY'D:           rw [execIRStmts_append_of_continue
--- SORRY'D:               (fuel := sizeOf bodyIR + extraFuel + 1)
--- SORRY'D:               (state := state)
--- SORRY'D:               (next := ‹IRState›)
--- SORRY'D:               (head := compiledIR)
--- SORRY'D:               (tail := tailIR)
--- SORRY'D:               hheadExec']
--- SORRY'D:           dsimp [tailExtraFuel']
--- SORRY'D:           omega
--- SORRY'D:         rw [show SourceSemantics.execStmtList fields runtime (stmt :: rest) =
--- SORRY'D:             SourceSemantics.execStmtList fields ‹SourceSemantics.RuntimeState› rest by
--- SORRY'D:               simp [SourceSemantics.execStmtList, hsourceHead]]
--- SORRY'D:         rw [hfullExec]
--- SORRY'D:         simpa [tailExtraFuel', bodyIR, List.foldl] using htailSem''
--- SORRY'D:       ·
--- SORRY'D:         have hheadExec' :
--- SORRY'D:             execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
--- SORRY'D:               .stop ‹IRState› := by
--- SORRY'D:           simpa [headExtraFuel, bodyIR] using hheadExec
--- SORRY'D:         have hfullExec :
--- SORRY'D:             execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
--- SORRY'D:               .stop ‹IRState› := by
--- SORRY'D:           exact execIRStmts_append_of_not_continue
--- SORRY'D:             (fuel := sizeOf bodyIR + extraFuel + 1)
--- SORRY'D:             (state := state)
--- SORRY'D:             (head := compiledIR)
--- SORRY'D:             (tail := tailIR)
--- SORRY'D:             (irExec := .stop ‹IRState›)
--- SORRY'D:             hheadExec'
--- SORRY'D:             (by intro next hcontra; simp at hcontra)
--- SORRY'D:         rw [SourceSemantics.execStmtList, hsourceHead]
--- SORRY'D:         rw [hfullExec]
--- SORRY'D:         simpa [List.foldl] using hheadMatch
--- SORRY'D:       ·
--- SORRY'D:         rcases hheadMatch with ⟨rfl, hruntime'⟩
--- SORRY'D:         have hheadExec' :
--- SORRY'D:             execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
--- SORRY'D:               .return ‹Nat› ‹IRState› := by
--- SORRY'D:           simpa [headExtraFuel, bodyIR] using hheadExec
--- SORRY'D:         have hfullExec :
--- SORRY'D:             execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
--- SORRY'D:               .return ‹Nat› ‹IRState› := by
--- SORRY'D:           exact execIRStmts_append_of_not_continue
--- SORRY'D:             (fuel := sizeOf bodyIR + extraFuel + 1)
--- SORRY'D:             (state := state)
--- SORRY'D:             (head := compiledIR)
--- SORRY'D:             (tail := tailIR)
--- SORRY'D:             (irExec := .return ‹Nat› ‹IRState›)
--- SORRY'D:             hheadExec'
--- SORRY'D:             (by intro next hcontra; simp at hcontra)
--- SORRY'D:         rw [SourceSemantics.execStmtList, hsourceHead]
--- SORRY'D:         rw [hfullExec]
--- SORRY'D:         exact ⟨rfl, hruntime'⟩
--- SORRY'D:       ·
--- SORRY'D:         have hheadExec' :
--- SORRY'D:             execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
--- SORRY'D:               .revert ‹IRState› := by
--- SORRY'D:           simpa [headExtraFuel, bodyIR] using hheadExec
--- SORRY'D:         have hfullExec :
--- SORRY'D:             execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
--- SORRY'D:               .revert ‹IRState› := by
--- SORRY'D:           exact execIRStmts_append_of_not_continue
--- SORRY'D:             (fuel := sizeOf bodyIR + extraFuel + 1)
--- SORRY'D:             (state := state)
--- SORRY'D:             (head := compiledIR)
--- SORRY'D:             (tail := tailIR)
--- SORRY'D:             (irExec := .revert ‹IRState›)
--- SORRY'D:             hheadExec'
--- SORRY'D:             (by intro next hcontra; simp at hcontra)
--- SORRY'D:         rw [SourceSemantics.execStmtList, hsourceHead]
--- SORRY'D:         rw [hfullExec]
--- SORRY'D:         simp [stmtStepMatchesIRExec]
+        irExec := by
+  induction hgeneric generalizing runtime state extraFuel with
+  | nil =>
+      refine ⟨[], ?_, ?_⟩
+      · simp [CompilationModel.compileStmtList, pure, Except.pure]
+      · exact And.intro hruntime <| And.intro hexact <| And.intro hbounded hscope
+  | @cons scope stmt compiledIR rest hstep hrest ih =>
+      rcases compileStmtList_ok_of_stmtListGenericCore hrest
+          FunctionBody.scopeNamesIncluded_refl with ⟨tailIR, htailCompile⟩
+      let bodyIR := compiledIR ++ tailIR
+      have hbodyCompile :
+          CompilationModel.compileStmtList
+            fields [] [] .calldata [] false scope (stmt :: rest) =
+              Except.ok bodyIR := by
+        exact FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok
+          hstep.compileOk htailCompile
+      let headExtraFuel := sizeOf bodyIR - compiledIR.length + extraFuel
+      have hheadSlack :
+          sizeOf compiledIR - compiledIR.length ≤ headExtraFuel := by
+        have hsize : sizeOf compiledIR ≤ sizeOf bodyIR := by
+          simpa [bodyIR] using yulStmtList_sizeOf_append_left_le compiledIR tailIR
+        dsimp [headExtraFuel]
+        omega
+      rcases hstep.preserves runtime state headExtraFuel
+          hexact hscope hbounded hruntime hheadSlack with
+        ⟨sourceHead, irHead, hsourceHead, hheadExec, hheadMatch⟩
+      refine ⟨bodyIR, hbodyCompile, ?_⟩
+      have hlength_le_sizeOf : compiledIR.length ≤ sizeOf compiledIR := by
+        have := yulStmtList_length_add_sizeOf_le_append compiledIR []
+        simp at this; omega
+      have hle : compiledIR.length ≤ sizeOf bodyIR := by
+        have := yulStmtList_sizeOf_append_left_le compiledIR tailIR
+        dsimp [bodyIR]; omega
+      have hfuelEq : compiledIR.length + headExtraFuel + 1 = sizeOf bodyIR + extraFuel + 1 := by
+        dsimp [headExtraFuel]; omega
+      cases sourceHead <;> cases irHead <;> simp [stmtStepMatchesIRExec] at hheadMatch
+      ·
+        rcases hheadMatch with ⟨hruntime', hexact', hbounded', hscope'⟩
+        let tailExtraFuel' :=
+          sizeOf bodyIR - compiledIR.length - sizeOf tailIR + extraFuel
+        have htailSem' :=
+          ih
+            (runtime := _)
+            (state := _)
+            (extraFuel := tailExtraFuel')
+            hscope' hexact' hbounded' hruntime'
+        rcases htailSem' with ⟨tailIR', htailCompile', htailSem''⟩
+        rw [htailCompile] at htailCompile'
+        injection htailCompile' with htailEq
+        subst htailEq
+        have hheadExec' :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
+              .continue ‹IRState› := by
+          rw [← hfuelEq]; exact hheadExec
+        have hlenTail : compiledIR.length + sizeOf tailIR ≤ sizeOf bodyIR := by
+          have := yulStmtList_length_add_sizeOf_le_append compiledIR tailIR
+          dsimp [bodyIR]; omega
+        have hfullExec :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
+              execIRStmts (sizeOf tailIR + tailExtraFuel' + 1) ‹IRState› tailIR := by
+          have hrw := execIRStmts_append_of_continue
+              (fuel := sizeOf bodyIR + extraFuel + 1)
+              (state := state)
+              (next := ‹IRState›)
+              (head := compiledIR)
+              (tail := tailIR)
+              hheadExec'
+          rw [hrw]
+          congr 1
+          dsimp [tailExtraFuel']
+          omega
+        rw [show SourceSemantics.execStmtList fields runtime (stmt :: rest) =
+            SourceSemantics.execStmtList fields ‹SourceSemantics.RuntimeState› rest by
+              simp [SourceSemantics.execStmtList, hsourceHead]]
+        rw [hfullExec]
+        simpa [tailExtraFuel', bodyIR, List.foldl] using htailSem''
+      ·
+        have hheadExec' :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
+              .stop ‹IRState› := by
+          rw [← hfuelEq]; exact hheadExec
+        have hfullExec :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
+              .stop ‹IRState› := by
+          exact execIRStmts_append_of_not_continue
+            (fuel := sizeOf bodyIR + extraFuel + 1)
+            (state := state)
+            (head := compiledIR)
+            (tail := tailIR)
+            (irExec := .stop ‹IRState›)
+            hheadExec'
+            (by intro next hcontra; simp at hcontra)
+        rw [SourceSemantics.execStmtList, hsourceHead]
+        rw [hfullExec]
+        simpa [List.foldl] using hheadMatch
+      ·
+        rcases hheadMatch with ⟨rfl, hruntime'⟩
+        have hheadExec' :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
+              .return ‹Nat› ‹IRState› := by
+          rw [← hfuelEq]; exact hheadExec
+        have hfullExec :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
+              .return ‹Nat› ‹IRState› := by
+          exact execIRStmts_append_of_not_continue
+            (fuel := sizeOf bodyIR + extraFuel + 1)
+            (state := state)
+            (head := compiledIR)
+            (tail := tailIR)
+            (irExec := .return ‹Nat› ‹IRState›)
+            hheadExec'
+            (by intro next hcontra; simp at hcontra)
+        rw [SourceSemantics.execStmtList, hsourceHead]
+        rw [hfullExec]
+        exact ⟨rfl, hruntime'⟩
+      ·
+        have hheadExec' :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
+              .revert ‹IRState› := by
+          rw [← hfuelEq]; exact hheadExec
+        have hfullExec :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
+              .revert ‹IRState› := by
+          exact execIRStmts_append_of_not_continue
+            (fuel := sizeOf bodyIR + extraFuel + 1)
+            (state := state)
+            (head := compiledIR)
+            (tail := tailIR)
+            (irExec := .revert ‹IRState›)
+            hheadExec'
+            (by intro next hcontra; simp at hcontra)
+        rw [SourceSemantics.execStmtList, hsourceHead]
+        rw [hfullExec]
+        simp [stmtStepMatchesIRExec]
 
 theorem exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel_step
     {spec : CompilationModel}
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
     {state : IRState}
-    {scope inScopeNames : List String}
+    {scope : List String}
     {stmts : List Stmt}
     (helperFuel : Nat)
     (extraFuel : Nat)
     (hgeneric : StmtListGenericWithHelpers spec fields scope stmts)
-    (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames)
     (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
     (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
     (hbounded : FunctionBody.bindingsBounded runtime.bindings)
     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR ∧
+        fields [] [] .calldata [] false scope stmts = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmtListWithHelpers spec fields helperFuel runtime stmts
       let irExec := execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR
       stmtStepMatchesIRExec
         fields
         (List.foldl stmtNextScope scope stmts)
         sourceResult
-        irExec := by sorry
--- SORRY'D:   induction hgeneric generalizing runtime state inScopeNames extraFuel with
--- SORRY'D:   | nil =>
--- SORRY'D:       refine ⟨[], by simp [CompilationModel.compileStmtList], ?_⟩
--- SORRY'D:       exact And.intro hruntime <| And.intro hexact <| And.intro hbounded hscope
--- SORRY'D:   | @cons scope stmt compiledIR rest hstep hrest ih =>
--- SORRY'D:       have hnextIncluded :
--- SORRY'D:           FunctionBody.scopeNamesIncluded
--- SORRY'D:             (stmtNextScope scope stmt)
--- SORRY'D:             (collectStmtNames stmt ++ inScopeNames) :=
--- SORRY'D:         scopeNamesIncluded_stmtNextScope hincluded
--- SORRY'D:       rcases ih
--- SORRY'D:           (runtime := runtime)
--- SORRY'D:           (state := state)
--- SORRY'D:           (inScopeNames := collectStmtNames stmt ++ inScopeNames)
--- SORRY'D:           (extraFuel := 0)
--- SORRY'D:           hnextIncluded hscope hexact hbounded hruntime with
--- SORRY'D:         ⟨tailIR, htailCompile, htailSem⟩
--- SORRY'D:       let bodyIR := compiledIR ++ tailIR
--- SORRY'D:       have hbodyCompile :
--- SORRY'D:           CompilationModel.compileStmtList
--- SORRY'D:             fields [] [] .calldata [] false inScopeNames (stmt :: rest) =
--- SORRY'D:               Except.ok bodyIR := by
--- SORRY'D:         exact FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok
--- SORRY'D:           hstep.compileOk htailCompile
--- SORRY'D:       let headExtraFuel := sizeOf bodyIR - compiledIR.length + extraFuel
--- SORRY'D:       have hheadSlack :
--- SORRY'D:           sizeOf compiledIR - compiledIR.length ≤ headExtraFuel := by
--- SORRY'D:         have hsize : sizeOf compiledIR ≤ sizeOf bodyIR := by
--- SORRY'D:           simpa [bodyIR] using yulStmtList_sizeOf_append_left_le compiledIR tailIR
--- SORRY'D:         dsimp [headExtraFuel]
--- SORRY'D:         omega
--- SORRY'D:       rcases hstep.preserves runtime state helperFuel headExtraFuel
--- SORRY'D:           hexact hscope hbounded hruntime hheadSlack with
--- SORRY'D:         ⟨sourceHead, irHead, hsourceHead, hheadExec, hheadMatch⟩
--- SORRY'D:       refine ⟨bodyIR, hbodyCompile, ?_⟩
--- SORRY'D:       cases sourceHead <;> cases irHead <;> simp [stmtStepMatchesIRExec] at hheadMatch
--- SORRY'D:       ·
--- SORRY'D:         rcases hheadMatch with ⟨hruntime', hexact', hbounded', hscope'⟩
--- SORRY'D:         let tailExtraFuel' :=
--- SORRY'D:           sizeOf bodyIR - compiledIR.length - sizeOf tailIR + extraFuel
--- SORRY'D:         have htailSem' :=
--- SORRY'D:           ih
--- SORRY'D:             (runtime := _)
--- SORRY'D:             (state := _)
--- SORRY'D:             (inScopeNames := collectStmtNames stmt ++ inScopeNames)
--- SORRY'D:             (extraFuel := tailExtraFuel')
--- SORRY'D:             hnextIncluded hscope' hexact' hbounded' hruntime'
--- SORRY'D:         rcases htailSem' with ⟨tailIR', htailCompile', htailSem''⟩
--- SORRY'D:         rw [htailCompile] at htailCompile'
--- SORRY'D:         injection htailCompile' with htailEq
--- SORRY'D:         subst htailEq
--- SORRY'D:         have hheadExec' :
--- SORRY'D:             execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
--- SORRY'D:               .continue ‹IRState› := by
--- SORRY'D:           simpa [headExtraFuel, bodyIR] using hheadExec
--- SORRY'D:         have hfullExec :
--- SORRY'D:             execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
--- SORRY'D:               execIRStmts (sizeOf tailIR + tailExtraFuel' + 1) ‹IRState› tailIR := by
--- SORRY'D:           rw [execIRStmts_append_of_continue
--- SORRY'D:               (fuel := sizeOf bodyIR + extraFuel + 1)
--- SORRY'D:               (state := state)
--- SORRY'D:               (next := ‹IRState›)
--- SORRY'D:               (head := compiledIR)
--- SORRY'D:               (tail := tailIR)
--- SORRY'D:               hheadExec']
--- SORRY'D:           dsimp [tailExtraFuel']
--- SORRY'D:           omega
--- SORRY'D:         rw [show SourceSemantics.execStmtListWithHelpers spec fields helperFuel runtime (stmt :: rest) =
--- SORRY'D:             SourceSemantics.execStmtListWithHelpers spec fields helperFuel
--- SORRY'D:               ‹SourceSemantics.RuntimeState› rest by
--- SORRY'D:               simp [SourceSemantics.execStmtListWithHelpers, hsourceHead]]
--- SORRY'D:         rw [hfullExec]
--- SORRY'D:         simpa [tailExtraFuel', bodyIR, List.foldl] using htailSem''
--- SORRY'D:       ·
--- SORRY'D:         have hheadExec' :
--- SORRY'D:             execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
--- SORRY'D:               .stop ‹IRState› := by
--- SORRY'D:           simpa [headExtraFuel, bodyIR] using hheadExec
--- SORRY'D:         have hfullExec :
--- SORRY'D:             execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
--- SORRY'D:               .stop ‹IRState› := by
--- SORRY'D:           exact execIRStmts_append_of_not_continue
--- SORRY'D:             (fuel := sizeOf bodyIR + extraFuel + 1)
--- SORRY'D:             (state := state)
--- SORRY'D:             (head := compiledIR)
--- SORRY'D:             (tail := tailIR)
--- SORRY'D:             (irExec := .stop ‹IRState›)
--- SORRY'D:             hheadExec'
--- SORRY'D:             (by intro next hcontra; simp at hcontra)
--- SORRY'D:         rw [SourceSemantics.execStmtListWithHelpers, hsourceHead]
--- SORRY'D:         rw [hfullExec]
--- SORRY'D:         simpa [List.foldl] using hheadMatch
--- SORRY'D:       ·
--- SORRY'D:         rcases hheadMatch with ⟨rfl, hruntime'⟩
--- SORRY'D:         have hheadExec' :
--- SORRY'D:             execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
--- SORRY'D:               .return ‹Nat› ‹IRState› := by
--- SORRY'D:           simpa [headExtraFuel, bodyIR] using hheadExec
--- SORRY'D:         have hfullExec :
--- SORRY'D:             execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
--- SORRY'D:               .return ‹Nat› ‹IRState› := by
--- SORRY'D:           exact execIRStmts_append_of_not_continue
--- SORRY'D:             (fuel := sizeOf bodyIR + extraFuel + 1)
--- SORRY'D:             (state := state)
--- SORRY'D:             (head := compiledIR)
--- SORRY'D:             (tail := tailIR)
--- SORRY'D:             (irExec := .return ‹Nat› ‹IRState›)
--- SORRY'D:             hheadExec'
--- SORRY'D:             (by intro next hcontra; simp at hcontra)
--- SORRY'D:         rw [SourceSemantics.execStmtListWithHelpers, hsourceHead]
--- SORRY'D:         rw [hfullExec]
--- SORRY'D:         exact ⟨rfl, hruntime'⟩
--- SORRY'D:       ·
--- SORRY'D:         have hheadExec' :
--- SORRY'D:             execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
--- SORRY'D:               .revert ‹IRState› := by
--- SORRY'D:           simpa [headExtraFuel, bodyIR] using hheadExec
--- SORRY'D:         have hfullExec :
--- SORRY'D:             execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
--- SORRY'D:               .revert ‹IRState› := by
--- SORRY'D:           exact execIRStmts_append_of_not_continue
--- SORRY'D:             (fuel := sizeOf bodyIR + extraFuel + 1)
--- SORRY'D:             (state := state)
--- SORRY'D:             (head := compiledIR)
--- SORRY'D:             (tail := tailIR)
--- SORRY'D:             (irExec := .revert ‹IRState›)
--- SORRY'D:             hheadExec'
--- SORRY'D:             (by intro next hcontra; simp at hcontra)
--- SORRY'D:         rw [SourceSemantics.execStmtListWithHelpers, hsourceHead]
--- SORRY'D:         rw [hfullExec]
--- SORRY'D:         simp [stmtStepMatchesIRExec]
+        irExec := by
+  induction hgeneric generalizing runtime state extraFuel with
+  | nil =>
+      refine ⟨[], ?_, ?_⟩
+      · simp [CompilationModel.compileStmtList, pure, Except.pure]
+      · simp [SourceSemantics.execStmtListWithHelpers, execIRStmts, stmtStepMatchesIRExec]
+        exact And.intro hruntime <| And.intro hexact <| And.intro hbounded hscope
+  | @cons scope stmt compiledIR rest hstep hrest ih =>
+      rcases compileStmtList_ok_of_stmtListGenericWithHelpers hrest
+          FunctionBody.scopeNamesIncluded_refl with ⟨tailIR, htailCompile⟩
+      let bodyIR := compiledIR ++ tailIR
+      have hbodyCompile :
+          CompilationModel.compileStmtList
+            fields [] [] .calldata [] false scope (stmt :: rest) =
+              Except.ok bodyIR := by
+        exact FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok
+          hstep.compileOk htailCompile
+      let headExtraFuel := sizeOf bodyIR - compiledIR.length + extraFuel
+      have hheadSlack :
+          sizeOf compiledIR - compiledIR.length ≤ headExtraFuel := by
+        have hsize : sizeOf compiledIR ≤ sizeOf bodyIR := by
+          simpa [bodyIR] using yulStmtList_sizeOf_append_left_le compiledIR tailIR
+        dsimp [headExtraFuel]
+        omega
+      rcases hstep.preserves runtime state helperFuel headExtraFuel
+          hexact hscope hbounded hruntime hheadSlack with
+        ⟨sourceHead, irHead, hsourceHead, hheadExec, hheadMatch⟩
+      refine ⟨bodyIR, hbodyCompile, ?_⟩
+      have hlength_le_sizeOf : compiledIR.length ≤ sizeOf compiledIR := by
+        have := yulStmtList_length_add_sizeOf_le_append compiledIR []
+        simp at this; omega
+      have hle : compiledIR.length ≤ sizeOf bodyIR := by
+        have := yulStmtList_sizeOf_append_left_le compiledIR tailIR
+        dsimp [bodyIR]; omega
+      have hfuelEq : compiledIR.length + headExtraFuel + 1 = sizeOf bodyIR + extraFuel + 1 := by
+        dsimp [headExtraFuel]; omega
+      cases sourceHead <;> cases irHead <;> simp [stmtStepMatchesIRExec] at hheadMatch
+      ·
+        rcases hheadMatch with ⟨hruntime', hexact', hbounded', hscope'⟩
+        let tailExtraFuel' :=
+          sizeOf bodyIR - compiledIR.length - sizeOf tailIR + extraFuel
+        have htailSem' :=
+          ih
+            (runtime := _)
+            (state := _)
+            (extraFuel := tailExtraFuel')
+            hscope' hexact' hbounded' hruntime'
+        rcases htailSem' with ⟨tailIR', htailCompile', htailSem''⟩
+        rw [htailCompile] at htailCompile'
+        injection htailCompile' with htailEq
+        subst htailEq
+        have hheadExec' :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
+              .continue ‹IRState› := by
+          rw [← hfuelEq]; exact hheadExec
+        have hlenTail : compiledIR.length + sizeOf tailIR ≤ sizeOf bodyIR := by
+          have := yulStmtList_length_add_sizeOf_le_append compiledIR tailIR
+          dsimp [bodyIR]; omega
+        have hfullExec :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
+              execIRStmts (sizeOf tailIR + tailExtraFuel' + 1) ‹IRState› tailIR := by
+          have hrw := execIRStmts_append_of_continue
+              (fuel := sizeOf bodyIR + extraFuel + 1)
+              (state := state)
+              (next := ‹IRState›)
+              (head := compiledIR)
+              (tail := tailIR)
+              hheadExec'
+          rw [hrw]
+          congr 1
+          dsimp [tailExtraFuel']
+          omega
+        rw [show SourceSemantics.execStmtListWithHelpers spec fields helperFuel runtime (stmt :: rest) =
+            SourceSemantics.execStmtListWithHelpers spec fields helperFuel
+              ‹SourceSemantics.RuntimeState› rest by
+              simp [SourceSemantics.execStmtListWithHelpers, hsourceHead]]
+        rw [hfullExec]
+        simpa [tailExtraFuel', bodyIR, List.foldl] using htailSem''
+      ·
+        have hheadExec' :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
+              .stop ‹IRState› := by
+          rw [← hfuelEq]; exact hheadExec
+        have hfullExec :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
+              .stop ‹IRState› := by
+          exact execIRStmts_append_of_not_continue
+            (fuel := sizeOf bodyIR + extraFuel + 1)
+            (state := state)
+            (head := compiledIR)
+            (tail := tailIR)
+            (irExec := .stop ‹IRState›)
+            hheadExec'
+            (by intro next hcontra; simp at hcontra)
+        rw [SourceSemantics.execStmtListWithHelpers, hsourceHead]
+        rw [hfullExec]
+        simpa [List.foldl] using hheadMatch
+      ·
+        rcases hheadMatch with ⟨rfl, hruntime'⟩
+        have hheadExec' :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
+              .return ‹Nat› ‹IRState› := by
+          rw [← hfuelEq]; exact hheadExec
+        have hfullExec :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
+              .return ‹Nat› ‹IRState› := by
+          exact execIRStmts_append_of_not_continue
+            (fuel := sizeOf bodyIR + extraFuel + 1)
+            (state := state)
+            (head := compiledIR)
+            (tail := tailIR)
+            (irExec := .return ‹Nat› ‹IRState›)
+            hheadExec'
+            (by intro next hcontra; simp at hcontra)
+        rw [SourceSemantics.execStmtListWithHelpers, hsourceHead]
+        rw [hfullExec]
+        exact ⟨rfl, hruntime'⟩
+      ·
+        have hheadExec' :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
+              .revert ‹IRState› := by
+          rw [← hfuelEq]; exact hheadExec
+        have hfullExec :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
+              .revert ‹IRState› := by
+          exact execIRStmts_append_of_not_continue
+            (fuel := sizeOf bodyIR + extraFuel + 1)
+            (state := state)
+            (head := compiledIR)
+            (tail := tailIR)
+            (irExec := .revert ‹IRState›)
+            hheadExec'
+            (by intro next hcontra; simp at hcontra)
+        rw [SourceSemantics.execStmtListWithHelpers, hsourceHead]
+        rw [hfullExec]
+        simp [stmtStepMatchesIRExec]
 
--- TYPESIG_SORRY: theorem exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel_step
--- TYPESIG_SORRY:     {runtimeContract : IRContract}
--- TYPESIG_SORRY:     {spec : CompilationModel}
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {runtime : SourceSemantics.RuntimeState}
--- TYPESIG_SORRY:     {state : IRState}
--- TYPESIG_SORRY:     {scope inScopeNames : List String}
--- TYPESIG_SORRY:     {stmts : List Stmt}
--- TYPESIG_SORRY:     (helperFuel : Nat)
--- TYPESIG_SORRY:     (extraFuel : Nat)
--- TYPESIG_SORRY:     (hfuelPos : 0 < helperFuel)
--- TYPESIG_SORRY:     (hgeneric :
--- TYPESIG_SORRY:       StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts)
--- TYPESIG_SORRY:     (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames)
--- TYPESIG_SORRY:     (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
--- TYPESIG_SORRY:     (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
--- TYPESIG_SORRY:     (hbounded : FunctionBody.bindingsBounded runtime.bindings)
--- TYPESIG_SORRY:     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
--- TYPESIG_SORRY:     ∃ bodyIR,
--- TYPESIG_SORRY:       CompilationModel.compileStmtList
--- TYPESIG_SORRY:         fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR ∧
--- TYPESIG_SORRY:       let sourceResult := SourceSemantics.execStmtListWithHelpers spec fields helperFuel runtime stmts
--- TYPESIG_SORRY:       let irExec := by sorry
--- SORRY'D:         execIRStmtsWithInternals runtimeContract (sizeOf bodyIR + extraFuel + 1) state bodyIR
--- SORRY'D:       stmtStepMatchesIRExecWithInternals
--- SORRY'D:         fields
--- SORRY'D:         (List.foldl stmtNextScope scope stmts)
--- SORRY'D:         sourceResult
--- SORRY'D:         irExec := by
--- SORRY'D:   induction hgeneric generalizing runtime state inScopeNames extraFuel with
--- SORRY'D:   | nil =>
--- SORRY'D:       refine ⟨[], by simp [CompilationModel.compileStmtList], ?_⟩
--- SORRY'D:       exact And.intro hruntime <| And.intro hexact <| And.intro hbounded hscope
--- SORRY'D:   | @cons scope stmt compiledIR rest hstep hrest ih =>
--- SORRY'D:       have hnextIncluded :
--- SORRY'D:           FunctionBody.scopeNamesIncluded
--- SORRY'D:             (stmtNextScope scope stmt)
--- SORRY'D:             (collectStmtNames stmt ++ inScopeNames) :=
--- SORRY'D:         scopeNamesIncluded_stmtNextScope hincluded
--- SORRY'D:       rcases ih
--- SORRY'D:           (runtime := runtime)
--- SORRY'D:           (state := state)
--- SORRY'D:           (inScopeNames := collectStmtNames stmt ++ inScopeNames)
--- SORRY'D:           (extraFuel := 0)
--- SORRY'D:           hnextIncluded hscope hexact hbounded hruntime with
--- SORRY'D:         ⟨tailIR, htailCompile, htailSem⟩
--- SORRY'D:       let bodyIR := compiledIR ++ tailIR
--- SORRY'D:       have hbodyCompile :
--- SORRY'D:           CompilationModel.compileStmtList
--- SORRY'D:             fields [] [] .calldata [] false inScopeNames (stmt :: rest) =
--- SORRY'D:               Except.ok bodyIR := by
--- SORRY'D:         exact FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok
--- SORRY'D:           hstep.compileOk htailCompile
--- SORRY'D:       let headExtraFuel := sizeOf bodyIR - compiledIR.length + extraFuel
--- SORRY'D:       have hheadSlack :
--- SORRY'D:           sizeOf compiledIR - compiledIR.length ≤ headExtraFuel := by
--- SORRY'D:         have hsize : sizeOf compiledIR ≤ sizeOf bodyIR := by
--- SORRY'D:           simpa [bodyIR] using yulStmtList_sizeOf_append_left_le compiledIR tailIR
--- SORRY'D:         dsimp [headExtraFuel]
--- SORRY'D:         omega
--- SORRY'D:       rcases hstep.preserves runtime state helperFuel headExtraFuel
--- SORRY'D:           hfuelPos hexact hscope hbounded hruntime hheadSlack with
--- SORRY'D:         ⟨sourceHead, irHead, hsourceHead, hheadExec, hheadMatch⟩
--- SORRY'D:       refine ⟨bodyIR, hbodyCompile, ?_⟩
--- SORRY'D:       cases sourceHead <;> cases irHead <;>
--- SORRY'D:         simp [stmtStepMatchesIRExecWithInternals] at hheadMatch
--- SORRY'D:       ·
--- SORRY'D:         rcases hheadMatch with ⟨hruntime', hexact', hbounded', hscope'⟩
--- SORRY'D:         let tailExtraFuel' :=
--- SORRY'D:           sizeOf bodyIR - compiledIR.length - sizeOf tailIR + extraFuel
--- SORRY'D:         have htailSem' :=
--- SORRY'D:           ih
--- SORRY'D:             (runtime := _)
--- SORRY'D:             (state := _)
--- SORRY'D:             (inScopeNames := collectStmtNames stmt ++ inScopeNames)
--- SORRY'D:             (extraFuel := tailExtraFuel')
--- SORRY'D:             hfuelPos hnextIncluded hscope' hexact' hbounded' hruntime'
--- SORRY'D:         rcases htailSem' with ⟨tailIR', htailCompile', htailSem''⟩
--- SORRY'D:         rw [htailCompile] at htailCompile'
--- SORRY'D:         injection htailCompile' with htailEq
--- SORRY'D:         subst htailEq
--- SORRY'D:         have hheadExec' :
--- SORRY'D:             execIRStmtsWithInternals runtimeContract
--- SORRY'D:               (sizeOf bodyIR + extraFuel + 1) state compiledIR =
--- SORRY'D:                 .continue ‹IRState› := by
--- SORRY'D:           simpa [headExtraFuel, bodyIR] using hheadExec
--- SORRY'D:         have hfullExec :
--- SORRY'D:             execIRStmtsWithInternals runtimeContract
--- SORRY'D:               (sizeOf bodyIR + extraFuel + 1) state bodyIR =
--- SORRY'D:               execIRStmtsWithInternals runtimeContract
--- SORRY'D:                 (sizeOf tailIR + tailExtraFuel' + 1) ‹IRState› tailIR := by
--- SORRY'D:           rw [execIRStmtsWithInternals_append_of_continue
--- SORRY'D:               (runtimeContract := runtimeContract)
--- SORRY'D:               (fuel := sizeOf bodyIR + extraFuel + 1)
--- SORRY'D:               (state := state)
--- SORRY'D:               (next := ‹IRState›)
--- SORRY'D:               (head := compiledIR)
--- SORRY'D:               (tail := tailIR)
--- SORRY'D:               hheadExec']
--- SORRY'D:           dsimp [tailExtraFuel']
--- SORRY'D:           omega
--- SORRY'D:         rw [show SourceSemantics.execStmtListWithHelpers spec fields helperFuel runtime (stmt :: rest) =
--- SORRY'D:             SourceSemantics.execStmtListWithHelpers spec fields helperFuel
--- SORRY'D:               ‹SourceSemantics.RuntimeState› rest by
--- SORRY'D:               simp [SourceSemantics.execStmtListWithHelpers, hsourceHead]]
--- SORRY'D:         rw [hfullExec]
--- SORRY'D:         simpa [tailExtraFuel', bodyIR, List.foldl] using htailSem''
--- SORRY'D:       ·
--- SORRY'D:         have hheadExec' :
--- SORRY'D:             execIRStmtsWithInternals runtimeContract
--- SORRY'D:               (sizeOf bodyIR + extraFuel + 1) state compiledIR =
--- SORRY'D:                 .stop ‹IRState› := by
--- SORRY'D:           simpa [headExtraFuel, bodyIR] using hheadExec
--- SORRY'D:         have hfullExec :
--- SORRY'D:             execIRStmtsWithInternals runtimeContract
--- SORRY'D:               (sizeOf bodyIR + extraFuel + 1) state bodyIR =
--- SORRY'D:                 .stop ‹IRState› := by
--- SORRY'D:           exact execIRStmtsWithInternals_append_of_not_continue
--- SORRY'D:             (runtimeContract := runtimeContract)
--- SORRY'D:             (fuel := sizeOf bodyIR + extraFuel + 1)
--- SORRY'D:             (state := state)
--- SORRY'D:             (head := compiledIR)
--- SORRY'D:             (tail := tailIR)
--- SORRY'D:             (irExec := .stop ‹IRState›)
--- SORRY'D:             hheadExec'
--- SORRY'D:             (by intro next hcontra; simp at hcontra)
--- SORRY'D:         rw [SourceSemantics.execStmtListWithHelpers, hsourceHead]
--- SORRY'D:         rw [hfullExec]
--- SORRY'D:         simpa [List.foldl] using hheadMatch
--- SORRY'D:       ·
--- SORRY'D:         rcases hheadMatch with ⟨rfl, hruntime'⟩
--- SORRY'D:         have hheadExec' :
--- SORRY'D:             execIRStmtsWithInternals runtimeContract
--- SORRY'D:               (sizeOf bodyIR + extraFuel + 1) state compiledIR =
--- SORRY'D:                 .return ‹Nat› ‹IRState› := by
--- SORRY'D:           simpa [headExtraFuel, bodyIR] using hheadExec
--- SORRY'D:         have hfullExec :
--- SORRY'D:             execIRStmtsWithInternals runtimeContract
--- SORRY'D:               (sizeOf bodyIR + extraFuel + 1) state bodyIR =
--- SORRY'D:                 .return ‹Nat› ‹IRState› := by
--- SORRY'D:           exact execIRStmtsWithInternals_append_of_not_continue
--- SORRY'D:             (runtimeContract := runtimeContract)
--- SORRY'D:             (fuel := sizeOf bodyIR + extraFuel + 1)
--- SORRY'D:             (state := state)
--- SORRY'D:             (head := compiledIR)
--- SORRY'D:             (tail := tailIR)
--- SORRY'D:             (irExec := .return ‹Nat› ‹IRState›)
--- SORRY'D:             hheadExec'
--- SORRY'D:             (by intro next hcontra; simp at hcontra)
--- SORRY'D:         rw [SourceSemantics.execStmtListWithHelpers, hsourceHead]
--- SORRY'D:         rw [hfullExec]
--- SORRY'D:         exact ⟨rfl, hruntime'⟩
--- SORRY'D:       ·
--- SORRY'D:         have hheadExec' :
--- SORRY'D:             execIRStmtsWithInternals runtimeContract
--- SORRY'D:               (sizeOf bodyIR + extraFuel + 1) state compiledIR =
--- SORRY'D:                 .revert ‹IRState› := by
--- SORRY'D:           simpa [headExtraFuel, bodyIR] using hheadExec
--- SORRY'D:         have hfullExec :
--- SORRY'D:             execIRStmtsWithInternals runtimeContract
--- SORRY'D:               (sizeOf bodyIR + extraFuel + 1) state bodyIR =
--- SORRY'D:                 .revert ‹IRState› := by
--- SORRY'D:           exact execIRStmtsWithInternals_append_of_not_continue
--- SORRY'D:             (runtimeContract := runtimeContract)
--- SORRY'D:             (fuel := sizeOf bodyIR + extraFuel + 1)
--- SORRY'D:             (state := state)
--- SORRY'D:             (head := compiledIR)
--- SORRY'D:             (tail := tailIR)
--- SORRY'D:             (irExec := .revert ‹IRState›)
--- SORRY'D:             hheadExec'
--- SORRY'D:             (by intro next hcontra; simp at hcontra)
--- SORRY'D:         rw [SourceSemantics.execStmtListWithHelpers, hsourceHead]
--- SORRY'D:         rw [hfullExec]
--- SORRY'D:         simp [stmtStepMatchesIRExecWithInternals]
+-- (Old sorry'd proof body removed - proof now uses scope directly)
 
-theorem exec_compileStmtList_generic_sizeOf_extraFuel
+theorem exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel_step
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
     {state : IRState}
-    {scope inScopeNames : List String}
+    {scope : List String}
     {stmts : List Stmt}
+    (helperFuel : Nat)
     (extraFuel : Nat)
-    (hgeneric : StmtListGenericCore fields scope stmts)
-    (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames)
+    (hfuelPos : 0 < helperFuel)
+    (hgeneric :
+      StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts)
     (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
     (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
     (hbounded : FunctionBody.bindingsBounded runtime.bindings)
     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR ∧
+        fields [] [] .calldata [] false scope stmts = Except.ok bodyIR ∧
+      let sourceResult := SourceSemantics.execStmtListWithHelpers spec fields helperFuel runtime stmts
+      let irExec := execIRStmtsWithInternals runtimeContract (sizeOf bodyIR + extraFuel + 1) state bodyIR
+      stmtStepMatchesIRExecWithInternals
+        fields
+        (List.foldl stmtNextScope scope stmts)
+        sourceResult
+        irExec := by
+  induction hgeneric generalizing runtime state extraFuel with
+  | nil =>
+      refine ⟨[], ?_, ?_⟩
+      · simp [CompilationModel.compileStmtList, pure, Except.pure]
+      · simp [SourceSemantics.execStmtListWithHelpers, execIRStmtsWithInternals,
+              stmtStepMatchesIRExecWithInternals]
+        exact And.intro hruntime <| And.intro hexact <| And.intro hbounded hscope
+  | @cons scope stmt compiledIR rest hstep hrest ih =>
+      rcases compileStmtList_ok_of_stmtListGenericWithHelpersAndHelperIR hrest
+          FunctionBody.scopeNamesIncluded_refl with ⟨tailIR, htailCompile⟩
+      let bodyIR := compiledIR ++ tailIR
+      have hbodyCompile :
+          CompilationModel.compileStmtList
+            fields [] [] .calldata [] false scope (stmt :: rest) =
+              Except.ok bodyIR := by
+        exact FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok
+          hstep.compileOk htailCompile
+      let headExtraFuel := sizeOf bodyIR - compiledIR.length + extraFuel
+      have hheadSlack :
+          sizeOf compiledIR - compiledIR.length ≤ headExtraFuel := by
+        have hsize : sizeOf compiledIR ≤ sizeOf bodyIR := by
+          simpa [bodyIR] using yulStmtList_sizeOf_append_left_le compiledIR tailIR
+        dsimp [headExtraFuel]
+        omega
+      rcases hstep.preserves runtime state helperFuel headExtraFuel
+          hfuelPos hexact hscope hbounded hruntime hheadSlack with
+        ⟨sourceHead, irHead, hsourceHead, hheadExec, hheadMatch⟩
+      refine ⟨bodyIR, hbodyCompile, ?_⟩
+      have hlength_le_sizeOf : compiledIR.length ≤ sizeOf compiledIR := by
+        have := yulStmtList_length_add_sizeOf_le_append compiledIR []
+        simp at this; omega
+      have hle : compiledIR.length ≤ sizeOf bodyIR := by
+        have := yulStmtList_sizeOf_append_left_le compiledIR tailIR
+        dsimp [bodyIR]; omega
+      have hfuelEq : compiledIR.length + headExtraFuel + 1 = sizeOf bodyIR + extraFuel + 1 := by
+        dsimp [headExtraFuel]; omega
+      cases sourceHead <;> cases irHead <;>
+        simp [stmtStepMatchesIRExecWithInternals] at hheadMatch
+      ·
+        rcases hheadMatch with ⟨hruntime', hexact', hbounded', hscope'⟩
+        let tailExtraFuel' :=
+          sizeOf bodyIR - compiledIR.length - sizeOf tailIR + extraFuel
+        have htailSem' :=
+          ih
+            (runtime := _)
+            (state := _)
+            (extraFuel := tailExtraFuel')
+            hscope' hexact' hbounded' hruntime'
+        rcases htailSem' with ⟨tailIR', htailCompile', htailSem''⟩
+        rw [htailCompile] at htailCompile'
+        injection htailCompile' with htailEq
+        subst htailEq
+        have hheadExec' :
+            execIRStmtsWithInternals runtimeContract
+              (sizeOf bodyIR + extraFuel + 1) state compiledIR =
+                .continue ‹IRState› := by
+          rw [← hfuelEq]; exact hheadExec
+        have hfullExec :
+            execIRStmtsWithInternals runtimeContract
+              (sizeOf bodyIR + extraFuel + 1) state bodyIR =
+              execIRStmtsWithInternals runtimeContract
+                (sizeOf tailIR + tailExtraFuel' + 1) ‹IRState› tailIR := by
+          have hrw := execIRStmtsWithInternals_append_of_continue
+              runtimeContract
+              (sizeOf bodyIR + extraFuel + 1)
+              state
+              ‹IRState›
+              compiledIR
+              tailIR
+              hheadExec'
+          rw [hrw]
+          congr 1
+          have hlenTail : compiledIR.length + sizeOf tailIR ≤ sizeOf bodyIR := by
+            have := yulStmtList_length_add_sizeOf_le_append compiledIR tailIR
+            dsimp [bodyIR]; omega
+          dsimp [tailExtraFuel']
+          omega
+        rw [show SourceSemantics.execStmtListWithHelpers spec fields helperFuel runtime (stmt :: rest) =
+            SourceSemantics.execStmtListWithHelpers spec fields helperFuel
+              ‹SourceSemantics.RuntimeState› rest by
+              simp [SourceSemantics.execStmtListWithHelpers, hsourceHead]]
+        rw [hfullExec]
+        simpa [tailExtraFuel', bodyIR, List.foldl] using htailSem''
+      ·
+        have hheadExec' :
+            execIRStmtsWithInternals runtimeContract
+              (sizeOf bodyIR + extraFuel + 1) state compiledIR =
+                .stop ‹IRState› := by
+          rw [← hfuelEq]; exact hheadExec
+        have hfullExec :
+            execIRStmtsWithInternals runtimeContract
+              (sizeOf bodyIR + extraFuel + 1) state bodyIR =
+                .stop ‹IRState› := by
+          exact execIRStmtsWithInternals_append_of_not_continue
+            runtimeContract
+            (sizeOf bodyIR + extraFuel + 1)
+            state
+            compiledIR
+            tailIR
+            (.stop ‹IRState›)
+            hheadExec'
+            (by intro next hcontra; simp at hcontra)
+        rw [SourceSemantics.execStmtListWithHelpers, hsourceHead]
+        rw [hfullExec]
+        simpa [List.foldl] using hheadMatch
+      ·
+        rcases hheadMatch with ⟨rfl, hruntime'⟩
+        have hheadExec' :
+            execIRStmtsWithInternals runtimeContract
+              (sizeOf bodyIR + extraFuel + 1) state compiledIR =
+                .return ‹Nat› ‹IRState› := by
+          rw [← hfuelEq]; exact hheadExec
+        have hfullExec :
+            execIRStmtsWithInternals runtimeContract
+              (sizeOf bodyIR + extraFuel + 1) state bodyIR =
+                .return ‹Nat› ‹IRState› := by
+          exact execIRStmtsWithInternals_append_of_not_continue
+            runtimeContract
+            (sizeOf bodyIR + extraFuel + 1)
+            state
+            compiledIR
+            tailIR
+            (.return ‹Nat› ‹IRState›)
+            hheadExec'
+            (by intro next hcontra; simp at hcontra)
+        rw [SourceSemantics.execStmtListWithHelpers, hsourceHead]
+        rw [hfullExec]
+        exact ⟨rfl, hruntime'⟩
+      ·
+        have hheadExec' :
+            execIRStmtsWithInternals runtimeContract
+              (sizeOf bodyIR + extraFuel + 1) state compiledIR =
+                .revert ‹IRState› := by
+          rw [← hfuelEq]; exact hheadExec
+        have hfullExec :
+            execIRStmtsWithInternals runtimeContract
+              (sizeOf bodyIR + extraFuel + 1) state bodyIR =
+                .revert ‹IRState› := by
+          exact execIRStmtsWithInternals_append_of_not_continue
+            runtimeContract
+            (sizeOf bodyIR + extraFuel + 1)
+            state
+            compiledIR
+            tailIR
+            (.revert ‹IRState›)
+            hheadExec'
+            (by intro next hcontra; simp at hcontra)
+        rw [SourceSemantics.execStmtListWithHelpers, hsourceHead]
+        rw [hfullExec]
+        simp [stmtStepMatchesIRExecWithInternals]
+
+theorem exec_compileStmtList_generic_sizeOf_extraFuel
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {scope : List String}
+    {stmts : List Stmt}
+    (extraFuel : Nat)
+    (hgeneric : StmtListGenericCore fields scope stmts)
+    (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
+    (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
+    (hbounded : FunctionBody.bindingsBounded runtime.bindings)
+    (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
+    ∃ bodyIR,
+      CompilationModel.compileStmtList
+        fields [] [] .calldata [] false scope stmts = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmtList fields runtime stmts
       let irExec := execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR
       FunctionBody.stmtResultMatchesIRExec fields sourceResult irExec := by
@@ -12024,11 +14309,9 @@ theorem exec_compileStmtList_generic_sizeOf_extraFuel
       (runtime := runtime)
       (state := state)
       (scope := scope)
-      (inScopeNames := inScopeNames)
       (stmts := stmts)
       (extraFuel := extraFuel)
       hgeneric
-      hincluded
       hscope
       hexact
       hbounded
@@ -12042,19 +14325,18 @@ theorem exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
     {state : IRState}
-    {scope inScopeNames : List String}
+    {scope : List String}
     {stmts : List Stmt}
     (helperFuel : Nat)
     (extraFuel : Nat)
     (hgeneric : StmtListGenericWithHelpers spec fields scope stmts)
-    (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames)
     (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
     (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
     (hbounded : FunctionBody.bindingsBounded runtime.bindings)
     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR ∧
+        fields [] [] .calldata [] false scope stmts = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmtListWithHelpers spec fields helperFuel runtime stmts
       let irExec := execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR
       FunctionBody.stmtResultMatchesIRExec fields sourceResult irExec := by
@@ -12064,12 +14346,10 @@ theorem exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel
       (runtime := runtime)
       (state := state)
       (scope := scope)
-      (inScopeNames := inScopeNames)
       (stmts := stmts)
       (helperFuel := helperFuel)
       (extraFuel := extraFuel)
       hgeneric
-      hincluded
       hscope
       hexact
       hbounded
@@ -12078,52 +14358,48 @@ theorem exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel
   refine ⟨bodyIR, hcompile, ?_⟩
   exact stmtStepMatchesIRExec_implies_stmtResultMatchesIRExec hstep
 
--- TYPESIG_SORRY: theorem exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel
--- TYPESIG_SORRY:     {runtimeContract : IRContract}
--- TYPESIG_SORRY:     {spec : CompilationModel}
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {runtime : SourceSemantics.RuntimeState}
--- TYPESIG_SORRY:     {state : IRState}
--- TYPESIG_SORRY:     {scope inScopeNames : List String}
--- TYPESIG_SORRY:     {stmts : List Stmt}
--- TYPESIG_SORRY:     (helperFuel : Nat)
--- TYPESIG_SORRY:     (extraFuel : Nat)
--- TYPESIG_SORRY:     (hfuelPos : 0 < helperFuel)
--- TYPESIG_SORRY:     (hgeneric :
--- TYPESIG_SORRY:       StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts)
--- TYPESIG_SORRY:     (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames)
--- TYPESIG_SORRY:     (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
--- TYPESIG_SORRY:     (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
--- TYPESIG_SORRY:     (hbounded : FunctionBody.bindingsBounded runtime.bindings)
--- TYPESIG_SORRY:     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
--- TYPESIG_SORRY:     ∃ bodyIR,
--- TYPESIG_SORRY:       CompilationModel.compileStmtList
--- TYPESIG_SORRY:         fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR ∧
--- TYPESIG_SORRY:       let sourceResult := SourceSemantics.execStmtListWithHelpers spec fields helperFuel runtime stmts
--- TYPESIG_SORRY:       let irExec := by sorry
--- SORRY'D:         execIRStmtsWithInternals runtimeContract (sizeOf bodyIR + extraFuel + 1) state bodyIR
--- SORRY'D:       stmtResultMatchesIRExecWithInternals fields sourceResult irExec := by
--- SORRY'D:   rcases exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel_step
--- SORRY'D:       (runtimeContract := runtimeContract)
--- SORRY'D:       (spec := spec)
--- SORRY'D:       (fields := fields)
--- SORRY'D:       (runtime := runtime)
--- SORRY'D:       (state := state)
--- SORRY'D:       (scope := scope)
--- SORRY'D:       (inScopeNames := inScopeNames)
--- SORRY'D:       (stmts := stmts)
--- SORRY'D:       (helperFuel := helperFuel)
--- SORRY'D:       (extraFuel := extraFuel)
--- SORRY'D:       hfuelPos
--- SORRY'D:       hgeneric
--- SORRY'D:       hincluded
--- SORRY'D:       hscope
--- SORRY'D:       hexact
--- SORRY'D:       hbounded
--- SORRY'D:       hruntime with
--- SORRY'D:     ⟨bodyIR, hcompile, hstep⟩
--- SORRY'D:   refine ⟨bodyIR, hcompile, ?_⟩
--- SORRY'D:   exact stmtStepMatchesIRExecWithInternals_implies_stmtResultMatchesIRExecWithInternals hstep
+theorem exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {scope : List String}
+    {stmts : List Stmt}
+    (helperFuel : Nat)
+    (extraFuel : Nat)
+    (hfuelPos : 0 < helperFuel)
+    (hgeneric :
+      StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts)
+    (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
+    (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
+    (hbounded : FunctionBody.bindingsBounded runtime.bindings)
+    (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
+    ∃ bodyIR,
+      CompilationModel.compileStmtList
+        fields [] [] .calldata [] false scope stmts = Except.ok bodyIR ∧
+      let sourceResult := SourceSemantics.execStmtListWithHelpers spec fields helperFuel runtime stmts
+      let irExec := execIRStmtsWithInternals runtimeContract (sizeOf bodyIR + extraFuel + 1) state bodyIR
+      stmtResultMatchesIRExecWithInternals fields sourceResult irExec := by
+  rcases exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel_step
+      (runtimeContract := runtimeContract)
+      (spec := spec)
+      (fields := fields)
+      (runtime := runtime)
+      (state := state)
+      (scope := scope)
+      (stmts := stmts)
+      (helperFuel := helperFuel)
+      (extraFuel := extraFuel)
+      hfuelPos
+      hgeneric
+      hscope
+      hexact
+      hbounded
+      hruntime with
+    ⟨bodyIR, hcompile, hstep⟩
+  refine ⟨bodyIR, hcompile, ?_⟩
+  exact stmtStepMatchesIRExecWithInternals_implies_stmtResultMatchesIRExecWithInternals hstep
 
 theorem supported_function_body_correct_from_exact_state_generic
     (model : CompilationModel)
@@ -12164,52 +14440,53 @@ theorem supported_function_body_correct_from_exact_state_generic
         fn.body = sourceResult ∧
       execIRStmts (bodyStmts.length + extraFuel + 1) state bodyStmts = irExec ∧
       FunctionBody.stmtResultMatchesIRExec
-        (SourceSemantics.effectiveFields model) sourceResult irExec := by sorry
--- SORRY'D:   have hstateRuntime' :
--- SORRY'D:       FunctionBody.runtimeStateMatchesIR
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         { world := SourceSemantics.withTransactionContext initialWorld tx
--- SORRY'D:           bindings := bindings }
--- SORRY'D:         state := by
--- SORRY'D:     simpa [FunctionBody.runtimeStateMatchesIR] using hstateRuntime
--- SORRY'D:   have hbodyCompile' :
--- SORRY'D:       compileStmtList (SourceSemantics.effectiveFields model) [] [] .calldata [] false
--- SORRY'D:         (fn.params.map (·.name)) fn.body = Except.ok bodyStmts := by
--- SORRY'D:     simpa [hnormalized, hnoEvents, hnoErrors] using hbodyCompile
--- SORRY'D:   have hscopeExact :
--- SORRY'D:       FunctionBody.bindingsExactlyMatchIRVarsOnScope
--- SORRY'D:         (fn.params.map (·.name)) bindings state :=
--- SORRY'D:     FunctionBody.bindingsExactlyMatchIRVars_implies_onScope hstateBindings
--- SORRY'D:   let sizeSlack := extraFuel - (sizeOf bodyStmts - bodyStmts.length)
--- SORRY'D:   rcases exec_compileStmtList_generic_sizeOf_extraFuel
--- SORRY'D:       (fields := SourceSemantics.effectiveFields model)
--- SORRY'D:       (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx
--- SORRY'D:                     bindings := bindings })
--- SORRY'D:       (state := state)
--- SORRY'D:       (scope := fn.params.map (·.name))
--- SORRY'D:       (inScopeNames := fn.params.map (·.name))
--- SORRY'D:       (stmts := fn.body)
--- SORRY'D:       (extraFuel := sizeSlack)
--- SORRY'D:       hgeneric
--- SORRY'D:       FunctionBody.scopeNamesIncluded_refl
--- SORRY'D:       hscope
--- SORRY'D:       hscopeExact
--- SORRY'D:       hbounded
--- SORRY'D:       hstateRuntime' with
--- SORRY'D:     ⟨bodyIR, hbodyGenericCompile, hgenericSem⟩
--- SORRY'D:   have hbodyEq : bodyIR = bodyStmts := by
--- SORRY'D:     rw [hbodyCompile'] at hbodyGenericCompile
--- SORRY'D:     injection hbodyGenericCompile with hEq
--- SORRY'D:     exact hEq.symm
--- SORRY'D:   subst bodyIR
--- SORRY'D:   have hfuel :
--- SORRY'D:       sizeOf bodyStmts + sizeSlack + 1 =
--- SORRY'D:         bodyStmts.length + extraFuel + 1 := by
--- SORRY'D:     dsimp [sizeSlack]
--- SORRY'D:     omega
--- SORRY'D:   refine ⟨_, _, rfl, ?_, ?_⟩
--- SORRY'D:   · simpa [hfuel] using rfl
--- SORRY'D:   · simpa [hfuel, sizeSlack] using hgenericSem
+        (SourceSemantics.effectiveFields model) sourceResult irExec := by
+  have hstateRuntime' :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := bindings }
+        state := by
+    simpa [FunctionBody.runtimeStateMatchesIR] using hstateRuntime
+  have hbodyCompile' :
+      compileStmtList (SourceSemantics.effectiveFields model) [] [] .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts := by
+    simpa [hnormalized, hnoEvents, hnoErrors] using hbodyCompile
+  have hscopeExact :
+      FunctionBody.bindingsExactlyMatchIRVarsOnScope
+        (fn.params.map (·.name)) bindings state :=
+    FunctionBody.bindingsExactlyMatchIRVars_implies_onScope hstateBindings
+  let sizeSlack := extraFuel - (sizeOf bodyStmts - bodyStmts.length)
+  rcases exec_compileStmtList_generic_sizeOf_extraFuel
+      (fields := SourceSemantics.effectiveFields model)
+      (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx
+                    bindings := bindings })
+      (state := state)
+      (scope := fn.params.map (·.name))
+      (stmts := fn.body)
+      (extraFuel := sizeSlack)
+      hgeneric
+      hscope
+      hscopeExact
+      hbounded
+      hstateRuntime' with
+    ⟨bodyIR, hbodyGenericCompile, hgenericSem⟩
+  have hbodyEq : bodyIR = bodyStmts := by
+    rw [hbodyCompile'] at hbodyGenericCompile
+    injection hbodyGenericCompile with hEq
+    exact hEq.symm
+  subst bodyIR
+  have hlength_le : bodyStmts.length ≤ sizeOf bodyStmts := by
+    have := yulStmtList_length_add_sizeOf_le_append bodyStmts []
+    simp at this
+    omega
+  have hfuel :
+      sizeOf bodyStmts + sizeSlack + 1 =
+        bodyStmts.length + extraFuel + 1 := by
+    dsimp [sizeSlack]
+    omega
+  rw [hfuel] at hgenericSem
+  exact ⟨_, _, rfl, rfl, hgenericSem⟩
 
 -- SORRY'D: /-- Exact helper-aware body theorem for a helper-aware generic statement
 -- SORRY'D: induction witness. This is the induction-level target needed to replace the
@@ -12259,176 +14536,55 @@ private theorem supported_function_body_correct_from_exact_state_generic_helper_
         fn.body = sourceResult ∧
       execIRStmts (bodyStmts.length + extraFuel + 1) state bodyStmts = irExec ∧
       FunctionBody.stmtResultMatchesIRExec
-        (SourceSemantics.effectiveFields model) sourceResult irExec := by sorry
--- SORRY'D:   have hstateRuntime' :
--- SORRY'D:       FunctionBody.runtimeStateMatchesIR
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         { world := SourceSemantics.withTransactionContext initialWorld tx
--- SORRY'D:           bindings := bindings }
--- SORRY'D:         state := by
--- SORRY'D:     simpa [FunctionBody.runtimeStateMatchesIR] using hstateRuntime
--- SORRY'D:   have hbodyCompile' :
--- SORRY'D:       compileStmtList (SourceSemantics.effectiveFields model) [] [] .calldata [] false
--- SORRY'D:         (fn.params.map (·.name)) fn.body = Except.ok bodyStmts := by
--- SORRY'D:     simpa [hnormalized, hnoEvents, hnoErrors] using hbodyCompile
--- SORRY'D:   have hscopeExact :
--- SORRY'D:       FunctionBody.bindingsExactlyMatchIRVarsOnScope
--- SORRY'D:         (fn.params.map (·.name)) bindings state :=
--- SORRY'D:     FunctionBody.bindingsExactlyMatchIRVars_implies_onScope hstateBindings
--- SORRY'D:   let sizeSlack := extraFuel - (sizeOf bodyStmts - bodyStmts.length)
--- SORRY'D:   rcases exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel
--- SORRY'D:       (spec := model)
--- SORRY'D:       (fields := SourceSemantics.effectiveFields model)
--- SORRY'D:       (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx
--- SORRY'D:                     bindings := bindings })
--- SORRY'D:       (state := state)
--- SORRY'D:       (scope := fn.params.map (·.name))
--- SORRY'D:       (inScopeNames := fn.params.map (·.name))
--- SORRY'D:       (stmts := fn.body)
--- SORRY'D:       (helperFuel := helperFuel)
--- SORRY'D:       (extraFuel := sizeSlack)
--- SORRY'D:       hgeneric
--- SORRY'D:       FunctionBody.scopeNamesIncluded_refl
--- SORRY'D:       hscope
--- SORRY'D:       hscopeExact
--- SORRY'D:       hbounded
--- SORRY'D:       hstateRuntime' with
--- SORRY'D:     ⟨bodyIR, hbodyGenericCompile, hgenericSem⟩
--- SORRY'D:   have hbodyEq : bodyIR = bodyStmts := by
--- SORRY'D:     rw [hbodyCompile'] at hbodyGenericCompile
--- SORRY'D:     injection hbodyGenericCompile with hEq
--- SORRY'D:     exact hEq.symm
--- SORRY'D:   subst bodyIR
--- SORRY'D:   have hfuel :
--- SORRY'D:       sizeOf bodyStmts + sizeSlack + 1 =
--- SORRY'D:         bodyStmts.length + extraFuel + 1 := by
--- SORRY'D:     dsimp [sizeSlack]
--- SORRY'D:     omega
--- SORRY'D:   refine ⟨_, _, rfl, ?_, ?_⟩
--- SORRY'D:   · simpa [hfuel] using rfl
--- SORRY'D:   · simpa [hfuel, sizeSlack] using hgenericSem
-
--- SORRY'D: /-- Exact helper-aware body theorem for an exact helper-aware generic
--- SORRY'D: statement-induction witness. Unlike the transitional legacy-compiled-body
--- SORRY'D: theorem, this already targets `execIRStmtsWithInternals`, so future helper-call
--- SORRY'D: cases can be proved against the compiled semantics that actually executes
--- SORRY'D: helper-rich Yul. -/
--- SORRY'D: private theorem
--- SORRY'D:     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir_raw
--- SORRY'D:     (runtimeContract : IRContract)
--- SORRY'D:     (model : CompilationModel)
--- SORRY'D:     (fn : FunctionSpec)
--- SORRY'D:     (bodyStmts : List YulStmt)
--- SORRY'D:     (helperFuel : Nat)
--- SORRY'D:     (tx : IRTransaction)
--- SORRY'D:     (initialWorld : Verity.ContractState)
--- SORRY'D:     (state : IRState)
--- SORRY'D:     (bindings : List (String × Nat))
--- SORRY'D:     (extraFuel : Nat)
--- SORRY'D:     (hextraFuel : sizeOf bodyStmts - bodyStmts.length ≤ extraFuel)
--- SORRY'D:     (hfuelPos : 0 < helperFuel)
--- SORRY'D:     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
--- SORRY'D:     (hnoEvents : model.events = [])
--- SORRY'D:     (hnoErrors : model.errors = [])
--- SORRY'D:     (hgeneric :
--- SORRY'D:       StmtListGenericWithHelpersAndHelperIR
--- SORRY'D:         runtimeContract
--- SORRY'D:         model
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         (fn.params.map (·.name))
--- SORRY'D:         fn.body)
--- SORRY'D:     (hbodyCompile :
--- SORRY'D:       compileStmtList model.fields model.events model.errors .calldata [] false
--- SORRY'D:         (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
--- SORRY'D:     (hscope :
--- SORRY'D:       FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
--- SORRY'D:     (hbounded : FunctionBody.bindingsBounded bindings)
--- SORRY'D:     (hstateRuntime :
--- SORRY'D:       FunctionBody.runtimeStateMatchesIR
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         { world := SourceSemantics.withTransactionContext initialWorld tx
--- SORRY'D:           bindings := [] }
--- SORRY'D:         state)
--- SORRY'D:     (hstateBindings :
--- SORRY'D:       FunctionBody.bindingsExactlyMatchIRVars bindings state) :
--- SORRY'D:     SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
--- SORRY'D:       runtimeContract
--- SORRY'D:       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
--- SORRY'D:   have hstateRuntime' :
--- SORRY'D:       FunctionBody.runtimeStateMatchesIR
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         { world := SourceSemantics.withTransactionContext initialWorld tx
--- SORRY'D:           bindings := bindings }
--- SORRY'D:         state := by
--- SORRY'D:     simpa [FunctionBody.runtimeStateMatchesIR] using hstateRuntime
--- SORRY'D:   have hbodyCompile' :
--- SORRY'D:       compileStmtList (SourceSemantics.effectiveFields model) [] [] .calldata [] false
--- SORRY'D:         (fn.params.map (·.name)) fn.body = Except.ok bodyStmts := by
--- SORRY'D:     simpa [hnormalized, hnoEvents, hnoErrors] using hbodyCompile
--- SORRY'D:   have hscopeExact :
--- SORRY'D:       FunctionBody.bindingsExactlyMatchIRVarsOnScope
--- SORRY'D:         (fn.params.map (·.name)) bindings state :=
--- SORRY'D:     FunctionBody.bindingsExactlyMatchIRVars_implies_onScope hstateBindings
--- SORRY'D:   let sizeSlack := extraFuel - (sizeOf bodyStmts - bodyStmts.length)
--- SORRY'D:   rcases exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel
--- SORRY'D:       (runtimeContract := runtimeContract)
--- SORRY'D:       (spec := model)
--- SORRY'D:       (fields := SourceSemantics.effectiveFields model)
--- SORRY'D:       (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx
--- SORRY'D:                     bindings := bindings })
--- SORRY'D:       (state := state)
--- SORRY'D:       (scope := fn.params.map (·.name))
--- SORRY'D:       (inScopeNames := fn.params.map (·.name))
--- SORRY'D:       (stmts := fn.body)
--- SORRY'D:       (helperFuel := helperFuel)
--- SORRY'D:       (extraFuel := sizeSlack)
--- SORRY'D:       hfuelPos
--- SORRY'D:       hgeneric
--- SORRY'D:       FunctionBody.scopeNamesIncluded_refl
--- SORRY'D:       hscope
--- SORRY'D:       hscopeExact
--- SORRY'D:       hbounded
--- SORRY'D:       hstateRuntime' with
--- SORRY'D:     ⟨bodyIR, hbodyGenericCompile, hgenericSem⟩
--- SORRY'D:   have hbodyEq : bodyIR = bodyStmts := by
--- SORRY'D:     rw [hbodyCompile'] at hbodyGenericCompile
--- SORRY'D:     injection hbodyGenericCompile with hEq
--- SORRY'D:     exact hEq.symm
--- SORRY'D:   subst bodyIR
--- SORRY'D:   have hfuel :
--- SORRY'D:       sizeOf bodyStmts + sizeSlack + 1 =
--- SORRY'D:         bodyStmts.length + extraFuel + 1 := by
--- SORRY'D:     dsimp [sizeSlack]
--- SORRY'D:     omega
--- SORRY'D:   refine ⟨_, _, rfl, ?_, ?_⟩
--- SORRY'D:   · simpa [hfuel] using rfl
--- SORRY'D:   · simpa [hfuel, sizeSlack] using hgenericSem
-
--- SORRY'D: /-- Transitional helper-aware body/IR preservation target for the non-core
--- SORRY'D: generic body theorem. This already moves the source side onto helper-aware
--- SORRY'D: semantics, but the compiled side still runs through legacy `execIRStmts`, so it
--- SORRY'D: only matches the current helper-free compiled-body boundary. -/
-def SupportedFunctionBodyWithHelpersIRPreservationGoal
-    (model : CompilationModel)
-    (fn : FunctionSpec)
-    (bodyStmts : List YulStmt)
-    (helperFuel : Nat)
-    (tx : IRTransaction)
-    (initialWorld : Verity.ContractState)
-    (state : IRState)
-    (bindings : List (String × Nat))
-    (extraFuel : Nat) : Prop :=
-  ∃ sourceResult irExec,
-    SourceSemantics.execStmtListWithHelpers
-      model
-      (SourceSemantics.effectiveFields model)
-      helperFuel
-      { world := SourceSemantics.withTransactionContext initialWorld tx
-        bindings := bindings }
-      fn.body = sourceResult ∧
-    execIRStmts (bodyStmts.length + extraFuel + 1) state bodyStmts = irExec ∧
-    FunctionBody.stmtResultMatchesIRExec
-      (SourceSemantics.effectiveFields model) sourceResult irExec
+        (SourceSemantics.effectiveFields model) sourceResult irExec := by
+  have hstateRuntime' :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := bindings }
+        state := by
+    simpa [FunctionBody.runtimeStateMatchesIR] using hstateRuntime
+  have hbodyCompile' :
+      compileStmtList (SourceSemantics.effectiveFields model) [] [] .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts := by
+    simpa [hnormalized, hnoEvents, hnoErrors] using hbodyCompile
+  have hscopeExact :
+      FunctionBody.bindingsExactlyMatchIRVarsOnScope
+        (fn.params.map (·.name)) bindings state :=
+    FunctionBody.bindingsExactlyMatchIRVars_implies_onScope hstateBindings
+  let sizeSlack := extraFuel - (sizeOf bodyStmts - bodyStmts.length)
+  rcases exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel
+      (spec := model)
+      (fields := SourceSemantics.effectiveFields model)
+      (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx
+                    bindings := bindings })
+      (state := state)
+      (scope := fn.params.map (·.name))
+      (stmts := fn.body)
+      (helperFuel := helperFuel)
+      (extraFuel := sizeSlack)
+      hgeneric
+      hscope
+      hscopeExact
+      hbounded
+      hstateRuntime' with
+    ⟨bodyIR, hbodyGenericCompile, hgenericSem⟩
+  have hbodyEq : bodyIR = bodyStmts := by
+    rw [hbodyCompile'] at hbodyGenericCompile
+    injection hbodyGenericCompile with hEq
+    exact hEq.symm
+  subst bodyIR
+  have hlength_le : bodyStmts.length ≤ sizeOf bodyStmts := by
+    have := yulStmtList_length_add_sizeOf_le_append bodyStmts []
+    simp at this
+    omega
+  have hfuel :
+      sizeOf bodyStmts + sizeSlack + 1 =
+        bodyStmts.length + extraFuel + 1 := by
+    dsimp [sizeSlack]
+    omega
+  rw [hfuel] at hgenericSem
+  exact ⟨_, _, rfl, rfl, hgenericSem⟩
 
 /-- Exact future helper-aware body theorem target: helper-aware source semantics
 against helper-aware compiled-body semantics. This is the body-level theorem
@@ -12457,6 +14613,129 @@ def SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
     execIRStmtsWithInternals runtimeContract
       (bodyStmts.length + extraFuel + 1) state bodyStmts = irExec ∧
     stmtResultMatchesIRExecWithInternals
+      (SourceSemantics.effectiveFields model) sourceResult irExec
+
+/-- Exact helper-aware body theorem for an exact helper-aware generic
+statement-induction witness. Unlike the transitional legacy-compiled-body
+theorem, this already targets `execIRStmtsWithInternals`, so future helper-call
+cases can be proved against the compiled semantics that actually executes
+helper-rich Yul. -/
+private theorem
+    supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir_raw
+    (runtimeContract : IRContract)
+    (model : CompilationModel)
+    (fn : FunctionSpec)
+    (bodyStmts : List YulStmt)
+    (helperFuel : Nat)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (state : IRState)
+    (bindings : List (String × Nat))
+    (extraFuel : Nat)
+    (hextraFuel : sizeOf bodyStmts - bodyStmts.length ≤ extraFuel)
+    (hfuelPos : 0 < helperFuel)
+    (hnormalized : SourceSemantics.effectiveFields model = model.fields)
+    (hnoEvents : model.events = [])
+    (hnoErrors : model.errors = [])
+    (hgeneric :
+      StmtListGenericWithHelpersAndHelperIR
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hbodyCompile :
+      compileStmtList model.fields model.events model.errors .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+    (hscope :
+      FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
+    (hbounded : FunctionBody.bindingsBounded bindings)
+    (hstateRuntime :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := [] }
+        state)
+    (hstateBindings :
+      FunctionBody.bindingsExactlyMatchIRVars bindings state) :
+    SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
+      runtimeContract
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
+  have hstateRuntime' :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := bindings }
+        state := by
+    simpa [FunctionBody.runtimeStateMatchesIR] using hstateRuntime
+  have hbodyCompile' :
+      compileStmtList (SourceSemantics.effectiveFields model) [] [] .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts := by
+    simpa [hnormalized, hnoEvents, hnoErrors] using hbodyCompile
+  have hscopeExact :
+      FunctionBody.bindingsExactlyMatchIRVarsOnScope
+        (fn.params.map (·.name)) bindings state :=
+    FunctionBody.bindingsExactlyMatchIRVars_implies_onScope hstateBindings
+  let sizeSlack := extraFuel - (sizeOf bodyStmts - bodyStmts.length)
+  rcases exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel
+      (runtimeContract := runtimeContract)
+      (spec := model)
+      (fields := SourceSemantics.effectiveFields model)
+      (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx
+                    bindings := bindings })
+      (state := state)
+      (scope := fn.params.map (·.name))
+      (stmts := fn.body)
+      (helperFuel := helperFuel)
+      (extraFuel := sizeSlack)
+      hfuelPos
+      hgeneric
+      hscope
+      hscopeExact
+      hbounded
+      hstateRuntime' with
+    ⟨bodyIR, hbodyGenericCompile, hgenericSem⟩
+  have hbodyEq : bodyIR = bodyStmts := by
+    rw [hbodyCompile'] at hbodyGenericCompile
+    injection hbodyGenericCompile with hEq
+    exact hEq.symm
+  subst bodyIR
+  have hlength_le : bodyStmts.length ≤ sizeOf bodyStmts := by
+    have := yulStmtList_length_add_sizeOf_le_append bodyStmts []
+    simp at this
+    omega
+  have hfuel :
+      sizeOf bodyStmts + sizeSlack + 1 =
+        bodyStmts.length + extraFuel + 1 := by
+    dsimp [sizeSlack]
+    omega
+  rw [hfuel] at hgenericSem
+  exact ⟨_, _, rfl, rfl, hgenericSem⟩
+
+-- SORRY'D: /-- Transitional helper-aware body/IR preservation target for the non-core
+-- SORRY'D: generic body theorem. This already moves the source side onto helper-aware
+-- SORRY'D: semantics, but the compiled side still runs through legacy `execIRStmts`, so it
+-- SORRY'D: only matches the current helper-free compiled-body boundary. -/
+def SupportedFunctionBodyWithHelpersIRPreservationGoal
+    (model : CompilationModel)
+    (fn : FunctionSpec)
+    (bodyStmts : List YulStmt)
+    (helperFuel : Nat)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (state : IRState)
+    (bindings : List (String × Nat))
+    (extraFuel : Nat) : Prop :=
+  ∃ sourceResult irExec,
+    SourceSemantics.execStmtListWithHelpers
+      model
+      (SourceSemantics.effectiveFields model)
+      helperFuel
+      { world := SourceSemantics.withTransactionContext initialWorld tx
+        bindings := bindings }
+      fn.body = sourceResult ∧
+    execIRStmts (bodyStmts.length + extraFuel + 1) state bodyStmts = irExec ∧
+    FunctionBody.stmtResultMatchesIRExec
       (SourceSemantics.effectiveFields model) sourceResult irExec
 
 /-- Disjoint-based body-level bridge: the helper-free compiled-body goal lifts to
@@ -12645,13 +14924,13 @@ theorem supported_function_body_correct_from_exact_state_generic_helper_steps_an
       FunctionBody.bindingsExactlyMatchIRVars bindings state) :
     SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
       runtimeContract
-      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by sorry
--- SORRY'D:   exact
--- SORRY'D:     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir_raw
--- SORRY'D:       runtimeContract
--- SORRY'D:       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
--- SORRY'D:       hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
--- SORRY'D:       hbounded hstateRuntime hstateBindings
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
+  exact
+    supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir_raw
+      runtimeContract
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+      hbounded hstateRuntime hstateBindings
 
 -- SORRY'D: /-- Body-level exact helper-aware bridge for the future helper-rich theorem
 -- SORRY'D: path: helper-free heads only need the weaker helper-free source/compiled reuse
@@ -12709,27 +14988,27 @@ theorem supported_function_body_correct_from_exact_state_generic_helper_surface_
     (hinternal : runtimeContract.internalFunctions = []) :
     SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
       runtimeContract
-      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by sorry
--- SORRY'D:   have hgeneric :
--- SORRY'D:       StmtListGenericWithHelpersAndHelperIR
--- SORRY'D:         runtimeContract
--- SORRY'D:         model
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         (fn.params.map (·.name))
--- SORRY'D:         fn.body :=
--- SORRY'D:     stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
--- SORRY'D:       (runtimeContract := runtimeContract)
--- SORRY'D:       (spec := model)
--- SORRY'D:       (hhelperFree := hhelperFree)
--- SORRY'D:       (hsteps := hsteps)
--- SORRY'D:       (hlegacy := hlegacy)
--- SORRY'D:       hinternal
--- SORRY'D:   exact
--- SORRY'D:     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
--- SORRY'D:       runtimeContract
--- SORRY'D:       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
--- SORRY'D:       hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
--- SORRY'D:       hbounded hstateRuntime hstateBindings
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
+  have hgeneric :
+      StmtListGenericWithHelpersAndHelperIR
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body :=
+    stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
+      (runtimeContract := runtimeContract)
+      (spec := model)
+      (hhelperFree := hhelperFree)
+      (hsteps := hsteps)
+      (hlegacy := hlegacy)
+      hinternal
+  exact
+    supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
+      runtimeContract
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+      hbounded hstateRuntime hstateBindings
 
 -- SORRY'D: /-- Body-level exact helper-aware bridge over the split helper-positive
 -- SORRY'D: interfaces: genuine internal-helper heads are discharged separately from the
@@ -12998,105 +15277,105 @@ theorem supported_function_body_correct_from_exact_state_generic_split_internal_
     (hnoInternalFunctions : runtimeContract.internalFunctions = []) :
     SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
       runtimeContract
-      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by sorry
--- SORRY'D:   have hgeneric :
--- SORRY'D:       StmtListGenericWithHelpersAndHelperIR
--- SORRY'D:         runtimeContract
--- SORRY'D:         model
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         (fn.params.map (·.name))
--- SORRY'D:         fn.body :=
--- SORRY'D:     stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_directInternalHelperStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
--- SORRY'D:       (runtimeContract := runtimeContract)
--- SORRY'D:       (spec := model)
--- SORRY'D:       (hhelperFree := hhelperFree)
--- SORRY'D:       (hdirect := hdirect)
--- SORRY'D:       (hexpr := hexpr)
--- SORRY'D:       (hstruct := hstruct)
--- SORRY'D:       (hresidual := hresidual)
--- SORRY'D:       (hlegacy := hlegacy)
--- SORRY'D:       hnoInternalFunctions
--- SORRY'D:   exact
--- SORRY'D:     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
--- SORRY'D:       runtimeContract
--- SORRY'D:       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
--- SORRY'D:       hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
--- SORRY'D:       hbounded hstateRuntime hstateBindings
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
+  have hgeneric :
+      StmtListGenericWithHelpersAndHelperIR
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body :=
+    stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_directInternalHelperStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
+      (runtimeContract := runtimeContract)
+      (spec := model)
+      (hhelperFree := hhelperFree)
+      (hdirect := hdirect)
+      (hexpr := hexpr)
+      (hstruct := hstruct)
+      (hresidual := hresidual)
+      (hlegacy := hlegacy)
+      hnoInternalFunctions
+  exact
+    supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
+      runtimeContract
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+      hbounded hstateRuntime hstateBindings
 
--- SORRY'D: private theorem
--- SORRY'D:     generic_with_helpers_and_helper_ir_of_split_internal_helper_surface_callsDisjoint
--- SORRY'D:     (runtimeContract : IRContract)
--- SORRY'D:     (model : CompilationModel)
--- SORRY'D:     (fn : FunctionSpec)
--- SORRY'D:     (hhelperFree :
--- SORRY'D:       StmtListHelperFreeStepInterface
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         (fn.params.map (·.name))
--- SORRY'D:         fn.body)
--- SORRY'D:     (hcall :
--- SORRY'D:       StmtListDirectInternalHelperCallStepInterface
--- SORRY'D:         runtimeContract
--- SORRY'D:         model
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         (fn.params.map (·.name))
--- SORRY'D:         fn.body)
--- SORRY'D:     (hassign :
--- SORRY'D:       StmtListDirectInternalHelperAssignStepInterface
--- SORRY'D:         runtimeContract
--- SORRY'D:         model
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         (fn.params.map (·.name))
--- SORRY'D:         fn.body)
--- SORRY'D:     (hexpr :
--- SORRY'D:       StmtListExprInternalHelperStepInterface
--- SORRY'D:         runtimeContract
--- SORRY'D:         model
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         (fn.params.map (·.name))
--- SORRY'D:         fn.body)
--- SORRY'D:     (hstruct :
--- SORRY'D:       StmtListStructuralInternalHelperStepInterface
--- SORRY'D:         runtimeContract
--- SORRY'D:         model
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         (fn.params.map (·.name))
--- SORRY'D:         fn.body)
--- SORRY'D:     (hresidual :
--- SORRY'D:       StmtListResidualHelperSurfaceStepInterface
--- SORRY'D:         runtimeContract
--- SORRY'D:         model
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         (fn.params.map (·.name))
--- SORRY'D:         fn.body)
--- SORRY'D:     (hdisjoint :
--- SORRY'D:       StmtListHelperFreeCompiledCallsDisjoint
--- SORRY'D:         runtimeContract
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         (fn.params.map (·.name))
--- SORRY'D:         fn.body) :
--- SORRY'D:     StmtListGenericWithHelpersAndHelperIR
--- SORRY'D:       runtimeContract
--- SORRY'D:       model
--- SORRY'D:       (SourceSemantics.effectiveFields model)
--- SORRY'D:       (fn.params.map (·.name))
--- SORRY'D:       fn.body :=
--- SORRY'D:   stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledCallsDisjoint
--- SORRY'D:     (runtimeContract := runtimeContract)
--- SORRY'D:     (spec := model)
--- SORRY'D:     (hhelperFree := hhelperFree)
--- SORRY'D:     (hsteps :=
--- SORRY'D:       stmtListHelperSurfaceStepInterface_of_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface
--- SORRY'D:         (stmtListInternalHelperSurfaceStepInterface_of_directInternalHelperStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface
--- SORRY'D:           (stmtListDirectInternalHelperStepInterface_of_callStepInterface_and_assignStepInterface
--- SORRY'D:             hcall
--- SORRY'D:             hassign)
--- SORRY'D:           hexpr
--- SORRY'D:           hstruct)
--- SORRY'D:         hresidual)
--- SORRY'D:     (hdisjoint := hdisjoint)
+private theorem
+    generic_with_helpers_and_helper_ir_of_split_internal_helper_surface_callsDisjoint
+    (runtimeContract : IRContract)
+    (model : CompilationModel)
+    (fn : FunctionSpec)
+    (hhelperFree :
+      StmtListHelperFreeStepInterface
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hcall :
+      StmtListDirectInternalHelperCallStepInterface
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hassign :
+      StmtListDirectInternalHelperAssignStepInterface
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hexpr :
+      StmtListExprInternalHelperStepInterface
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hstruct :
+      StmtListStructuralInternalHelperStepInterface
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hresidual :
+      StmtListResidualHelperSurfaceStepInterface
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hdisjoint :
+      StmtListHelperFreeCompiledCallsDisjoint
+        runtimeContract
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body) :
+    StmtListGenericWithHelpersAndHelperIR
+      runtimeContract
+      model
+      (SourceSemantics.effectiveFields model)
+      (fn.params.map (·.name))
+      fn.body :=
+  stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledCallsDisjoint
+    (runtimeContract := runtimeContract)
+    (spec := model)
+    (hhelperFree := hhelperFree)
+    (hsteps :=
+      stmtListHelperSurfaceStepInterface_of_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface
+        (stmtListInternalHelperSurfaceStepInterface_of_directInternalHelperStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface
+          (stmtListDirectInternalHelperStepInterface_of_callStepInterface_and_assignStepInterface
+            hcall
+            hassign)
+          hexpr
+          hstruct)
+        hresidual)
+    (hdisjoint := hdisjoint)
 
--- SORRY'D: /-- Disjoint-based body-level exact helper-aware bridge over the fully split
--- SORRY'D: genuine-helper interfaces.  Replaces `StmtListHelperFreeCompiledLegacyCompatible`
+/-- Disjoint-based body-level exact helper-aware bridge over the fully split
+genuine-helper interfaces.  Replaces `StmtListHelperFreeCompiledLegacyCompatible`
 -- SORRY'D: + `runtimeContract.internalFunctions = []` with the weaker
 -- SORRY'D: `StmtListHelperFreeCompiledCallsDisjoint`.  This is the entry point for
 -- SORRY'D: function bodies that live in a contract with an internal helper table. -/
@@ -13178,28 +15457,28 @@ theorem supported_function_body_correct_from_exact_state_generic_finer_split_int
       FunctionBody.bindingsExactlyMatchIRVars bindings state) :
     SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
       runtimeContract
-      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by sorry
--- SORRY'D:   have hgeneric :
--- SORRY'D:       StmtListGenericWithHelpersAndHelperIR
--- SORRY'D:         runtimeContract
--- SORRY'D:         model
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         (fn.params.map (·.name))
--- SORRY'D:         fn.body :=
--- SORRY'D:     generic_with_helpers_and_helper_ir_of_split_internal_helper_surface_callsDisjoint
--- SORRY'D:       runtimeContract model fn hhelperFree hcall hassign hexpr hstruct hresidual
--- SORRY'D:       hdisjoint
--- SORRY'D:   exact
--- SORRY'D:     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
--- SORRY'D:       runtimeContract
--- SORRY'D:       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
--- SORRY'D:       hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
--- SORRY'D:       hbounded hstateRuntime hstateBindings
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
+  have hgeneric :
+      StmtListGenericWithHelpersAndHelperIR
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body :=
+    generic_with_helpers_and_helper_ir_of_split_internal_helper_surface_callsDisjoint
+      runtimeContract model fn hhelperFree hcall hassign hexpr hstruct hresidual
+      hdisjoint
+  exact
+    supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
+      runtimeContract
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+      hbounded hstateRuntime hstateBindings
 
--- SORRY'D: /-- Current-fragment disjointness-based wrapper that lands directly in the exact
--- SORRY'D: helper-aware compiled body goal. This keeps the existing helper-free step
--- SORRY'D: library reusable while exposing the weaker compiled-side condition that later
--- SORRY'D: helper-table work actually needs. -/
+/-- Current-fragment disjointness-based wrapper that lands directly in the exact
+helper-aware compiled body goal. This keeps the existing helper-free step
+library reusable while exposing the weaker compiled-side condition that later
+helper-table work actually needs. -/
 theorem supported_function_body_correct_from_exact_state_generic_with_helpers_and_helper_ir_callsDisjoint
     (runtimeContract : IRContract)
     (model : CompilationModel)
