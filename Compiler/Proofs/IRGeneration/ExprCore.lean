@@ -130,6 +130,8 @@ inductive ExprCompileCore : Expr → Prop where
   | ite {cond thenVal elseVal : Expr} :
       ExprCompileCore cond → ExprCompileCore thenVal → ExprCompileCore elseVal →
         ExprCompileCore (.ite cond thenVal elseVal)
+  | ceilDiv {lhs rhs : Expr} :
+      ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.ceilDiv lhs rhs)
 
 /-! ## Scope analysis -/
 

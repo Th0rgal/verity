@@ -2747,7 +2747,8 @@ private theorem exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_fals
   | .lt a b, hsurface | .le a b, hsurface
   | .logicalAnd a b, hsurface | .logicalOr a b, hsurface
   | .shl a b, hsurface | .shr a b, hsurface
-  | .min a b, hsurface | .max a b, hsurface =>
+  | .min a b, hsurface | .max a b, hsurface
+  | .ceilDiv a b, hsurface =>
       simp only [exprTouchesUnsupportedContractSurface, Bool.or_eq_false_iff] at hsurface
       constructor
       · exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1
@@ -2756,6 +2757,12 @@ private theorem exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_fals
       simp only [exprTouchesUnsupportedContractSurface] at hsurface
       constructor
       exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface
+  | .ite cond thenVal elseVal, hsurface =>
+      simp only [exprTouchesUnsupportedContractSurface, Bool.or_eq_false_iff] at hsurface
+      exact .ite
+        (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1.1)
+        (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1.2)
+        (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.2)
 
 private theorem fieldName_mem_fields_of_findFieldWithResolvedSlot_some
     {fields : List Field}
@@ -3174,6 +3181,98 @@ private theorem exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
       rcases hmem with hmem | hmem
       · exact ihL (validateScopedExprIdentifiers_pair_ok_left hpair) name hmem
       · exact ihR (validateScopedExprIdentifiers_pair_ok_right hpair) name hmem
+  | ceilDiv hL hR ihL ihR =>
+      rename_i lhs rhs
+      have hpair :
+          (do
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount lhs
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount rhs) =
+            Except.ok () := by
+        simp only [validateScopedExprIdentifiers] at hvalidate
+        revert hvalidate
+        cases validateArithDuplicatedOperandPurity context _ with
+        | ok _ => simp [Bind.bind, Except.bind]
+        | error e => simp [Bind.bind, Except.bind]
+      intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+      rcases hmem with hmem | hmem
+      · exact ihL (validateScopedExprIdentifiers_pair_ok_left hpair) name hmem
+      · exact ihR (validateScopedExprIdentifiers_pair_ok_right hpair) name hmem
+  | ite hC hT hE ihC ihT ihE =>
+      rename_i cond thenVal elseVal
+      have hC_ok :
+          validateScopedExprIdentifiers
+            context params paramScope dynamicParams localScope constructorArgCount cond =
+            Except.ok () := by
+        simp only [validateScopedExprIdentifiers] at hvalidate
+        revert hvalidate
+        cases exprContainsCallLike cond || exprContainsCallLike thenVal ||
+          exprContainsCallLike elseVal with
+        | true => simp [Bind.bind, Except.bind]
+        | false =>
+          simp only [Bool.false_eq_true, ↓reduceIte, Pure.pure, Except.pure,
+            Bind.bind, Except.bind]
+          intro h
+          cases hc :
+              validateScopedExprIdentifiers
+                context params paramScope dynamicParams localScope constructorArgCount cond with
+          | error e => simp [hc] at h
+          | ok v => rfl
+      have hT_ok :
+          validateScopedExprIdentifiers
+            context params paramScope dynamicParams localScope constructorArgCount thenVal =
+            Except.ok () := by
+        simp only [validateScopedExprIdentifiers] at hvalidate
+        revert hvalidate
+        cases exprContainsCallLike cond || exprContainsCallLike thenVal ||
+          exprContainsCallLike elseVal with
+        | true => simp [Bind.bind, Except.bind]
+        | false =>
+          simp only [Bool.false_eq_true, ↓reduceIte, Pure.pure, Except.pure,
+            Bind.bind, Except.bind]
+          intro h
+          cases hc :
+              validateScopedExprIdentifiers
+                context params paramScope dynamicParams localScope constructorArgCount cond with
+          | error e => simp [hc] at h
+          | ok v =>
+            cases ht :
+                validateScopedExprIdentifiers
+                  context params paramScope dynamicParams localScope constructorArgCount thenVal with
+            | error e => simp [hc, ht] at h
+            | ok v => rfl
+      have hE_ok :
+          validateScopedExprIdentifiers
+            context params paramScope dynamicParams localScope constructorArgCount elseVal =
+            Except.ok () := by
+        simp only [validateScopedExprIdentifiers] at hvalidate
+        revert hvalidate
+        cases exprContainsCallLike cond || exprContainsCallLike thenVal ||
+          exprContainsCallLike elseVal with
+        | true => simp [Bind.bind, Except.bind]
+        | false =>
+          simp only [Bool.false_eq_true, ↓reduceIte, Pure.pure, Except.pure,
+            Bind.bind, Except.bind]
+          intro h
+          cases hc :
+              validateScopedExprIdentifiers
+                context params paramScope dynamicParams localScope constructorArgCount cond with
+          | error e => simp [hc] at h
+          | ok v =>
+            cases ht :
+                validateScopedExprIdentifiers
+                  context params paramScope dynamicParams localScope constructorArgCount thenVal with
+            | error e => simp [hc, ht] at h
+            | ok v => simpa [hc, ht] using h
+      intro name hmem
+      simp only [FunctionBody.exprBoundNames] at hmem
+      rcases List.mem_append.mp hmem with hmem12 | hmem
+      · rcases List.mem_append.mp hmem12 with hmem | hmem
+        · exact ihC hC_ok name hmem
+        · exact ihT hT_ok name hmem
+      · exact ihE hE_ok name hmem
   | logicalAnd hL hR ihL ihR
   | logicalOr hL hR ihL ihR =>
       rename_i lhs rhs
@@ -3950,27 +4049,25 @@ private theorem collectExprNames_mem_exprBoundNames_of_core
   | bitAnd hL hR ihL ihR
   | bitOr hL hR ihL ihR
   | bitXor hL hR ihL ihR
-  | logicalAnd hL hR ihL ihR
-  | logicalOr hL hR ihL ihR =>
+  | logicalAnd hL hR ihL ihR | logicalOr hL hR ihL ihR
+  | shl hL hR ihL ihR | shr hL hR ihL ihR
+  | min hL hR ihL ihR | max hL hR ihL ihR
+  | ceilDiv hL hR ihL ihR =>
       intro name hmem
       simp [collectExprNames, FunctionBody.exprBoundNames] at hmem ⊢
       rcases hmem with hmem | hmem
       · exact Or.inl (ihL _ hmem)
       · exact Or.inr (ihR _ hmem)
-  | logicalNot h ih
-  | bitNot h ih =>
-      intro name hmem
-      simp [collectExprNames] at hmem
+  | logicalNot h ih | bitNot h ih =>
+      intro name hmem; simp [collectExprNames] at hmem
       simpa [FunctionBody.exprBoundNames] using ih _ hmem
-  | shl hS hV ihS ihV
-  | shr hS hV ihS ihV
-  | min hL hR ihL ihR
-  | max hL hR ihL ihR =>
-      intro name hmem
-      simp [collectExprNames, FunctionBody.exprBoundNames] at hmem ⊢
-      rcases hmem with hmem | hmem
-      · exact Or.inl (ihL _ hmem)
-      · exact Or.inr (ihR _ hmem)
+  | ite hC hT hE ihC ihT ihE =>
+      intro name hmem; simp only [collectExprNames] at hmem; simp only [FunctionBody.exprBoundNames]
+      rcases List.mem_append.mp hmem with hmem12 | hmem
+      · rcases List.mem_append.mp hmem12 with h | h
+        · exact List.mem_append.mpr (Or.inl (List.mem_append.mpr (Or.inl (ihC _ h))))
+        · exact List.mem_append.mpr (Or.inl (List.mem_append.mpr (Or.inr (ihT _ h))))
+      · exact List.mem_append.mpr (Or.inr (ihE _ hmem))
 
 private theorem mem_foldl_stmtNextScope_of_mem_scope
     {scope : List String}

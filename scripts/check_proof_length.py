@@ -35,6 +35,7 @@ HARD_LIMIT = 50
 # before the check was introduced. New proofs must not be added here without a
 # justification comment in the PR explaining why decomposition is not feasible.
 ALLOWLIST: set[str] = {
+    "eval_compileExpr_ceilDiv_of_compiled",  # ceilDiv correctness: 5-op IR chain (mul/iszero/add/div/sub) with zero/non-zero split
     "runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot",
     "findResolvedFieldAtSlotCopyFrom_of_member",
     "ledger_transfer_correct_sufficient",
