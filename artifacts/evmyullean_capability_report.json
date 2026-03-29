@@ -58,6 +58,7 @@
     "sgt",
     "shl",
     "shr",
+    "signextend",
     "sload",
     "slt",
     "smod",
@@ -71,6 +72,7 @@
     "sar",
     "sdiv",
     "sgt",
+    "signextend",
     "slt",
     "smod"
   ],
