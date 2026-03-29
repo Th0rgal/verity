@@ -64,6 +64,7 @@ structure ContractState where
   blockNumber : Uint256 := 0
   chainId : Uint256 := 0
   blobBaseFee : Uint256 := 0
+  calldataSize : Uint256 := 0
   knownAddresses : Nat → FiniteAddressSet  -- Tracked addresses per storage slot (for sum properties)
   events : List Event := []  -- Emitted events, append-only log (#153)
 

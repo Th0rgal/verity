@@ -332,6 +332,7 @@ def evalExpr (fields : List Field) (state : RuntimeState) : Expr → Option Nat
   | .blockTimestamp => some state.world.blockTimestamp.val
   | .blockNumber => some state.world.blockNumber.val
   | .blobbasefee => some state.world.blobBaseFee.val
+  | .calldatasize => some state.world.calldataSize.val
   | .localVar name => some (lookupValue state.bindings name)
   | .add a b => do
       let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
@@ -579,7 +580,7 @@ private theorem evalExpr_blobbasefee
 private theorem evalExpr_calldatasize
     (fields : List Field)
     (state : RuntimeState) :
-    evalExpr fields state .calldatasize = none := rfl
+    evalExpr fields state .calldatasize = some state.world.calldataSize.val := rfl
 
 private theorem evalExpr_returndataSize
     (fields : List Field)
@@ -1314,7 +1315,8 @@ def withTransactionContext (world : Verity.ContractState) (tx : IRTransaction) :
     blockTimestamp := tx.blockTimestamp
     blockNumber := tx.blockNumber
     chainId := tx.chainId
-    blobBaseFee := tx.blobBaseFee }
+    blobBaseFee := tx.blobBaseFee
+    calldataSize := Verity.Core.Uint256.ofNat (4 + tx.args.length * 32) }
 
 theorem findDynamicArrayElementAtSlot_withTransactionContext
     (fields : List Field)
@@ -2341,18 +2343,20 @@ mutual
         simpa [evalExprWithHelpers, evalExpr_param]
     | localVar _ =>
         simpa [evalExprWithHelpers, evalExpr_localVar]
-    | caller | contractAddress | chainid | msgValue | blockTimestamp | blockNumber | blobbasefee =>
+    | caller | contractAddress | chainid | msgValue | blockTimestamp | blockNumber | blobbasefee
+    | calldatasize =>
         simp [evalExprWithHelpers, evalExpr_caller, evalExpr_contractAddress, evalExpr_chainid,
-          evalExpr_msgValue, evalExpr_blockTimestamp, evalExpr_blockNumber, evalExpr_blobbasefee]
+          evalExpr_msgValue, evalExpr_blockTimestamp, evalExpr_blockNumber, evalExpr_blobbasefee,
+          evalExpr_calldatasize]
     | storage _ =>
         simpa [evalExprWithHelpers, evalExpr_storage]
     | storageAddr _ =>
         simpa [evalExprWithHelpers, evalExpr_storageAddr]
     | storageArrayLength _ =>
         simpa [evalExprWithHelpers, evalExpr_storageArrayLength]
-    | constructorArg _ | calldatasize | returndataSize =>
+    | constructorArg _ | returndataSize =>
         simp [evalExprWithHelpers, evalExpr_constructorArg,
-          evalExpr_calldatasize, evalExpr_returndataSize]
+          evalExpr_returndataSize]
     | arrayLength _ =>
         simpa [evalExprWithHelpers, evalExpr_arrayLength]
     | dynamicBytesEq _ _ =>

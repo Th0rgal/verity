@@ -794,6 +794,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_blockNumber
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_chainid
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_blobbasefee
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_calldatasize_of_runtimeStateMatchesIR
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_calldatasize
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_literal
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.boolWord_eq_if
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_iszero_of_lt

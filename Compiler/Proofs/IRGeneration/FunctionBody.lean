@@ -106,6 +106,7 @@ def runtimeStateMatchesIR
   state.blockNumber = runtime.world.blockNumber.val ∧
   state.chainId = runtime.world.chainId.val ∧
   state.blobBaseFee = runtime.world.blobBaseFee.val ∧
+  runtime.world.calldataSize.val = 4 + state.calldata.length * 32 ∧
   state.returnValue = none ∧
   state.events = SourceSemantics.encodeEvents runtime.world.events
 
@@ -172,7 +173,7 @@ theorem evalIRExpr_caller_of_runtimeStateMatchesIR
     (hmatch : runtimeStateMatchesIR fields runtime state) :
     evalIRExpr state (YulExpr.call "caller" []) =
       some (SourceSemantics.evalExpr fields runtime (.caller)) := by
-  rcases hmatch with ⟨_, _, hsender, _, _, _, _, _, _, _, _⟩
+  rcases hmatch with ⟨_, _, hsender, _, _, _, _, _, _, _, _, _⟩
   simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
     Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, hsender]
   rfl
@@ -184,7 +185,7 @@ theorem evalIRExpr_contractAddress_of_runtimeStateMatchesIR
     (hmatch : runtimeStateMatchesIR fields runtime state) :
     evalIRExpr state (YulExpr.call "address" []) =
       some (SourceSemantics.evalExpr fields runtime (.contractAddress)) := by
-  rcases hmatch with ⟨_, _, _, _, hthisAddress, _, _, _, _, _, _⟩
+  rcases hmatch with ⟨_, _, _, _, hthisAddress, _, _, _, _, _, _, _⟩
   have hthisLt : runtime.world.thisAddress.val < Compiler.Constants.evmModulus := by
     have haddrLt : runtime.world.thisAddress.val < Verity.Core.Address.modulus :=
       Verity.Core.Address.val_lt_modulus runtime.world.thisAddress
@@ -203,7 +204,7 @@ theorem evalIRExpr_msgValue_of_runtimeStateMatchesIR
     (hmatch : runtimeStateMatchesIR fields runtime state) :
     evalIRExpr state (YulExpr.call "callvalue" []) =
       some (SourceSemantics.evalExpr fields runtime (.msgValue)) := by
-  rcases hmatch with ⟨_, _, _, hmsgValue, _, _, _, _, _, _, _⟩
+  rcases hmatch with ⟨_, _, _, hmsgValue, _, _, _, _, _, _, _, _⟩
   have hmsgLt : runtime.world.msgValue.val < Compiler.Constants.evmModulus := by
     simpa [Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS] using runtime.world.msgValue.isLt
   have hmsgMod : runtime.world.msgValue.val % Compiler.Constants.evmModulus =
@@ -219,7 +220,7 @@ theorem evalIRExpr_blockTimestamp_of_runtimeStateMatchesIR
     (hmatch : runtimeStateMatchesIR fields runtime state) :
     evalIRExpr state (YulExpr.call "timestamp" []) =
       some (SourceSemantics.evalExpr fields runtime (.blockTimestamp)) := by
-  rcases hmatch with ⟨_, _, _, _, _, hblockTimestamp, _, _, _, _, _⟩
+  rcases hmatch with ⟨_, _, _, _, _, hblockTimestamp, _, _, _, _, _, _⟩
   have htimeLt : runtime.world.blockTimestamp.val < Compiler.Constants.evmModulus := by
     simpa [Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS] using runtime.world.blockTimestamp.isLt
   have htimeMod : runtime.world.blockTimestamp.val % Compiler.Constants.evmModulus =
@@ -235,7 +236,7 @@ theorem evalIRExpr_blockNumber_of_runtimeStateMatchesIR
     (hmatch : runtimeStateMatchesIR fields runtime state) :
     evalIRExpr state (YulExpr.call "number" []) =
       some (SourceSemantics.evalExpr fields runtime (.blockNumber)) := by
-  rcases hmatch with ⟨_, _, _, _, _, _, hblockNumber, _, _, _, _⟩
+  rcases hmatch with ⟨_, _, _, _, _, _, hblockNumber, _, _, _, _, _⟩
   have hnumberLt : runtime.world.blockNumber.val < Compiler.Constants.evmModulus := by
     simpa [Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS] using runtime.world.blockNumber.isLt
   have hnumberMod : runtime.world.blockNumber.val % Compiler.Constants.evmModulus =
@@ -251,7 +252,7 @@ theorem evalIRExpr_chainid_of_runtimeStateMatchesIR
     (hmatch : runtimeStateMatchesIR fields runtime state) :
     evalIRExpr state (YulExpr.call "chainid" []) =
       some (SourceSemantics.evalExpr fields runtime (.chainid)) := by
-  rcases hmatch with ⟨_, _, _, _, _, _, _, hchainId, _, _, _⟩
+  rcases hmatch with ⟨_, _, _, _, _, _, _, hchainId, _, _, _, _⟩
   have hchainLt : runtime.world.chainId.val < Compiler.Constants.evmModulus := by
     simpa [Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS] using runtime.world.chainId.isLt
   have hchainMod : runtime.world.chainId.val % Compiler.Constants.evmModulus =
@@ -267,7 +268,7 @@ theorem evalIRExpr_blobbasefee_of_runtimeStateMatchesIR
     (hmatch : runtimeStateMatchesIR fields runtime state) :
     evalIRExpr state (YulExpr.call "blobbasefee" []) =
       some (SourceSemantics.evalExpr fields runtime (.blobbasefee)) := by
-  rcases hmatch with ⟨_, _, _, _, _, _, _, _, hblobBaseFee, _, _⟩
+  rcases hmatch with ⟨_, _, _, _, _, _, _, _, hblobBaseFee, _, _, _⟩
   have hblobLt : runtime.world.blobBaseFee.val < Compiler.Constants.evmModulus := by
     simpa [Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS] using runtime.world.blobBaseFee.isLt
   have hblobMod : runtime.world.blobBaseFee.val % Compiler.Constants.evmModulus =
@@ -345,6 +346,28 @@ theorem eval_compileExpr_blobbasefee
       some (SourceSemantics.evalExpr fields runtime (.blobbasefee)) := by
   simp [CompilationModel.compileExpr]
   exact evalIRExpr_blobbasefee_of_runtimeStateMatchesIR hmatch
+
+theorem evalIRExpr_calldatasize_of_runtimeStateMatchesIR
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    (hmatch : runtimeStateMatchesIR fields runtime state) :
+    evalIRExpr state (YulExpr.call "calldatasize" []) =
+      some (SourceSemantics.evalExpr fields runtime (.calldatasize)) := by
+  rcases hmatch with ⟨_, _, _, _, _, _, _, _, _, hcalldataSize, _, _⟩
+  simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+  exact hcalldataSize.symm
+
+theorem eval_compileExpr_calldatasize
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    (hmatch : runtimeStateMatchesIR fields runtime state) :
+    evalIRExpr state (CompilationModel.compileExpr fields .calldata .calldatasize |>.toOption.getD (YulExpr.lit 0)) =
+      some (SourceSemantics.evalExpr fields runtime (.calldatasize)) := by
+  simp [CompilationModel.compileExpr]
+  exact evalIRExpr_calldatasize_of_runtimeStateMatchesIR hmatch
 
 theorem eval_compileExpr_literal
     (fields : List Field)
@@ -1169,7 +1192,7 @@ theorem evalIRExpr_sload_of_runtimeStateMatchesIR
     (slot : Nat) :
     evalIRExpr state (YulExpr.call "sload" [YulExpr.lit slot]) =
       some (SourceSemantics.encodeStorageAt fields runtime.world slot) := by
-  rcases hmatch with ⟨hstorage, _, _, _, _, _, _, _, _, _⟩
+  rcases hmatch with ⟨hstorage, _, _, _, _, _, _, _, _, _, _⟩
   simp [evalIRExpr, evalIRCall, evalIRExprs,
     Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
     Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, hstorage]
@@ -4465,6 +4488,8 @@ theorem compileExpr_core_ok
       exact ⟨YulExpr.call "chainid" [], rfl⟩
   | blobbasefee =>
       exact ⟨YulExpr.call "blobbasefee" [], rfl⟩
+  | calldatasize =>
+      exact ⟨YulExpr.call "calldatasize" [], rfl⟩
   | add hL hR ihL ihR =>
       rename_i lhs rhs
       rcases ihL with ⟨lhsIR, hlhs⟩
@@ -4701,6 +4726,8 @@ theorem eval_compileExpr_core_onExpr
       exact eval_compileExpr_chainid hruntime
   | blobbasefee =>
       exact eval_compileExpr_blobbasefee hruntime
+  | calldatasize =>
+      exact eval_compileExpr_calldatasize hruntime
   | add hL hR ihL ihR =>
       rename_i lhs rhs
       rcases compileExpr_core_ok hL with ⟨lhsIR, hlhs⟩
@@ -5707,6 +5734,9 @@ theorem evalExpr_lt_evmModulus_core_onExpr
   | blobbasefee =>
       change runtime.world.blobBaseFee.val < Compiler.Constants.evmModulus
       exact runtime.world.blobBaseFee.isLt
+  | calldatasize =>
+      change runtime.world.calldataSize.val < Compiler.Constants.evmModulus
+      exact runtime.world.calldataSize.isLt
   | @add lhs rhs _ _ _ _ =>
       show (do let l : Verity.Core.Uint256 := ← SourceSemantics.evalExpr fields runtime lhs
                let r : Verity.Core.Uint256 := ← SourceSemantics.evalExpr fields runtime rhs
@@ -6139,6 +6169,8 @@ theorem compileRequireFailCond_core_ok
       exact ⟨YulExpr.call "iszero" [YulExpr.call "chainid" []], rfl⟩
   | blobbasefee =>
       exact ⟨YulExpr.call "iszero" [YulExpr.call "blobbasefee" []], rfl⟩
+  | calldatasize =>
+      exact ⟨YulExpr.call "iszero" [YulExpr.call "calldatasize" []], rfl⟩
   | add hL hR =>
       rename_i lhs rhs
       rcases compileExpr_core_ok (fields := fields) hL with ⟨lhsIR, hlhs⟩
@@ -6604,6 +6636,13 @@ theorem eval_compileRequireFailCond_core_onExpr
       · simp [CompilationModel.compileRequireFailCond, hexpr]
       · simpa using finishIszeroEval (expr := .blobbasefee)
           (show ExprCompileCore (.blobbasefee) from ExprCompileCore.blobbasefee) hexact hpresent hexpr
+  | calldatasize =>
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.calldatasize) from ExprCompileCore.calldatasize) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .calldatasize)
+          (show ExprCompileCore (.calldatasize) from ExprCompileCore.calldatasize) hexact hpresent hexpr
   | add hL hR =>
       rename_i lhs rhs
       rcases compileExpr_core_ok (fields := fields)
@@ -7354,7 +7393,7 @@ theorem runtimeStateMatchesIR_setTransientStorage
   cases runtime
   cases state
   simp only [runtimeStateMatchesIR] at hmatch ⊢
-  obtain ⟨hstor, htrans, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hret, hevt⟩ := hmatch
+  obtain ⟨hstor, htrans, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hcds, hret, hevt⟩ := hmatch
   refine ⟨?_, ?_, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hret, hevt⟩
   · -- storage: encodeStorageAt doesn't depend on transientStorage
     rw [hstor]
@@ -14781,17 +14820,17 @@ theorem stmtResultToSourceResult_matches_irExecResult
   cases sourceResult <;> cases irResult <;>
     simp [stmtResultMatchesIRExec] at hmatch
   · rcases hmatch with
-      ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hblob, hret, hevents⟩
+      ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hblob, hcds, hret, hevents⟩
     simp [stmtResultToSourceResult, sourceResultMatchesIRResult, irResultOfExecResult,
       SourceSemantics.successResult, SourceSemantics.encodeStorage,
       hstorage, hevents, hret]
   · rcases hmatch with
-      ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hblob, hret, hevents⟩
+      ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hblob, hcds, hret, hevents⟩
     simp [stmtResultToSourceResult, sourceResultMatchesIRResult, irResultOfExecResult,
       SourceSemantics.successResult, SourceSemantics.encodeStorage,
       hstorage, hevents]
   · rcases hmatch with
-      ⟨hvalue, hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hblob, hret,
+      ⟨hvalue, hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hblob, hcds, hret,
         hevents⟩
     simp [stmtResultToSourceResult, sourceResultMatchesIRResult, irResultOfExecResult,
       SourceSemantics.successResult, SourceSemantics.encodeStorage,

@@ -47,7 +47,7 @@ rather than a semantic trust boundary. -/
 def exprTouchesUnsupportedCoreSurface : Expr → Bool
   | .literal _ | .param _ | .caller | .contractAddress
   | .chainid | .msgValue | .blockTimestamp | .blockNumber
-  | .blobbasefee | .localVar _ => false
+  | .blobbasefee | .calldatasize | .localVar _ => false
   | .storage _ | .storageAddr _ => false
   | .add a b | .sub a b | .mul a b | .div a b | .mod a b
   | .eq a b | .ge a b | .gt a b | .lt a b | .le a b
@@ -73,7 +73,7 @@ def exprTouchesUnsupportedCoreSurface : Expr → Bool
   | .structMember _ _ _ | .structMember2 _ _ _ _
   | .constructorArg _ | .mload _ | .tload _ | .keccak256 _ _
   | .call _ _ _ _ _ _ _ | .staticcall _ _ _ _ _ _ | .delegatecall _ _ _ _ _ _
-  | .calldatasize | .calldataload _ | .returndataSize | .extcodesize _
+  | .calldataload _ | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
   | .arrayLength _ | .arrayElement _ _ | .storageArrayLength _ | .storageArrayElement _ _
   | .dynamicBytesEq _ _ => true
@@ -320,7 +320,7 @@ def exprTouchesUnsupportedContractSurface (expr : Expr) : Bool :=
   match expr with
   | .literal _ | .param _ | .caller | .contractAddress
   | .chainid | .msgValue | .blockTimestamp | .blockNumber
-  | .blobbasefee | .localVar _ => false
+  | .blobbasefee | .calldatasize | .localVar _ => false
   | .storage _ | .storageAddr _ => true
   | .add a b | .sub a b | .mul a b | .div a b | .mod a b
   | .bitAnd a b | .bitOr a b | .bitXor a b | .eq a b
@@ -345,7 +345,7 @@ def exprTouchesUnsupportedContractSurface (expr : Expr) : Bool :=
   | .structMember _ _ _ | .structMember2 _ _ _ _
   | .constructorArg _ | .mload _ | .tload _ | .keccak256 _ _
   | .call _ _ _ _ _ _ _ | .staticcall _ _ _ _ _ _ | .delegatecall _ _ _ _ _ _
-  | .calldatasize | .calldataload _ | .returndataSize | .extcodesize _
+  | .calldataload _ | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
   | .arrayLength _ | .arrayElement _ _ | .storageArrayLength _ | .storageArrayElement _ _
   | .dynamicBytesEq _ _ => true
@@ -2778,12 +2778,13 @@ private theorem exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed
     exprTouchesUnsupportedContractSurface expr = false := by
   cases expr with
   | literal _ | param _ | localVar _ | caller | contractAddress
-  | chainid | msgValue | blockTimestamp | blockNumber | blobbasefee =>
+  | chainid | msgValue | blockTimestamp | blockNumber | blobbasefee
+  | calldatasize =>
       simp [exprTouchesUnsupportedContractSurface]
   | storage _ | storageAddr _ =>
       cases hstate
   | constructorArg _
-  | calldatasize | returndataSize | arrayLength _ | storageArrayLength _
+  | returndataSize | arrayLength _ | storageArrayLength _
   | returndataOptionalBoolAt _ | mload _ | tload _ | calldataload _ | extcodesize _
   | dynamicBytesEq _ _ | keccak256 _ _ =>
       cases hcore
@@ -2881,7 +2882,7 @@ private theorem exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed
   cases expr with
   | literal _ | param _ | localVar _ | caller | contractAddress
   | chainid | msgValue | blockTimestamp | blockNumber | blobbasefee
-  | storage _ | storageAddr _ =>
+  | calldatasize | storage _ | storageAddr _ =>
       simp [exprTouchesUnsupportedCallSurface]
   | add a b | sub a b | mul a b | div a b | mod a b
   | eq a b | ge a b | gt a b | lt a b | le a b
@@ -3113,11 +3114,12 @@ theorem exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
     exprTouchesUnsupportedHelperSurface expr = false := by
   cases expr with
   | literal _ | param _ | localVar _ | caller | contractAddress
-  | chainid | msgValue | blockTimestamp | blockNumber | blobbasefee =>
+  | chainid | msgValue | blockTimestamp | blockNumber | blobbasefee
+  | calldatasize =>
       simp [exprTouchesUnsupportedHelperSurface]
   | storage _ | storageAddr _ | internalCall _ _ | externalCall _ _
   | constructorArg _ | mload _ | tload _ | keccak256 _ _
-  | calldatasize | calldataload _ | returndataSize | extcodesize _
+  | calldataload _ | returndataSize | extcodesize _
   | returndataOptionalBoolAt _ | arrayLength _ | storageArrayLength _
   | dynamicBytesEq _ _
   | call _ _ _ _ _ _ _ | staticcall _ _ _ _ _ _ | delegatecall _ _ _ _ _ _
