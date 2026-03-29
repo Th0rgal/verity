@@ -123,6 +123,10 @@ inductive ExprCompileCore : Expr → Prop where
       ExprCompileCore shift → ExprCompileCore value → ExprCompileCore (.shl shift value)
   | shr {shift value : Expr} :
       ExprCompileCore shift → ExprCompileCore value → ExprCompileCore (.shr shift value)
+  | min {lhs rhs : Expr} :
+      ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.min lhs rhs)
+  | max {lhs rhs : Expr} :
+      ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.max lhs rhs)
 
 /-! ## Scope analysis -/
 

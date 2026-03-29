@@ -2774,6 +2774,40 @@ private theorem evalExpr_shr_of_values
     _ = some ((Verity.Core.Uint256.shr (shiftVal : Verity.Core.Uint256)
           (valueVal : Verity.Core.Uint256)).val) := by simp [hshift, hvalue]
 
+private theorem evalExpr_min_of_values
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {lhs rhs : Expr}
+    {lhsVal rhsVal : Nat}
+    (hlhs : SourceSemantics.evalExpr fields runtime lhs = some lhsVal)
+    (hrhs : SourceSemantics.evalExpr fields runtime rhs = some rhsVal) :
+    SourceSemantics.evalExpr fields runtime (.min lhs rhs) =
+      some (if lhsVal ≤ rhsVal then lhsVal else rhsVal) := by
+  calc
+    SourceSemantics.evalExpr fields runtime (.min lhs rhs)
+        = (do
+            let l ← SourceSemantics.evalExpr fields runtime lhs
+            let r ← SourceSemantics.evalExpr fields runtime rhs
+            pure (if l ≤ r then l else r)) := by rfl
+    _ = some (if lhsVal ≤ rhsVal then lhsVal else rhsVal) := by simp [hlhs, hrhs]
+
+private theorem evalExpr_max_of_values
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {lhs rhs : Expr}
+    {lhsVal rhsVal : Nat}
+    (hlhs : SourceSemantics.evalExpr fields runtime lhs = some lhsVal)
+    (hrhs : SourceSemantics.evalExpr fields runtime rhs = some rhsVal) :
+    SourceSemantics.evalExpr fields runtime (.max lhs rhs) =
+      some (if rhsVal ≤ lhsVal then lhsVal else rhsVal) := by
+  calc
+    SourceSemantics.evalExpr fields runtime (.max lhs rhs)
+        = (do
+            let l ← SourceSemantics.evalExpr fields runtime lhs
+            let r ← SourceSemantics.evalExpr fields runtime rhs
+            pure (if r ≤ l then l else r)) := by rfl
+    _ = some (if rhsVal ≤ lhsVal then lhsVal else rhsVal) := by simp [hlhs, hrhs]
+
 theorem eval_compileExpr_bitAnd_of_compiled
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
@@ -3034,6 +3068,100 @@ theorem eval_compileExpr_shr_of_compiled
               Nat.zero_mod]
         rw [hmz]
 
+private theorem evm_min_arith {a b M : Nat} (ha : a < M) (hb : b < M) :
+    (M + a - ((a - b) % M * SourceSemantics.boolWord (b < a) % M)) % M =
+      if a ≤ b then a else b := by
+  by_cases hgt : b < a
+  · simp only [hgt, SourceSemantics.boolWord, ↓reduceIte]
+    have hsub_lt : a - b < M := Nat.lt_of_le_of_lt (Nat.sub_le a b) ha
+    rw [Nat.mod_eq_of_lt hsub_lt, Nat.mul_one, Nat.mod_eq_of_lt hsub_lt]
+    have hle : a - b ≤ a := Nat.sub_le a b
+    rw [show M + a - (a - b) = M + b from by omega, Nat.add_mod_right, Nat.mod_eq_of_lt hb]
+    simp [Nat.not_le.mpr hgt]; omega
+  · simp only [hgt, SourceSemantics.boolWord, ↓reduceIte, Nat.mul_zero, Nat.zero_mod, Nat.sub_zero,
+      Nat.add_mod_right, Nat.mod_eq_of_lt ha, Nat.le_of_not_gt hgt]
+
+private theorem evm_max_arith {a b M : Nat} (ha : a < M) (hb : b < M) :
+    (a + (b - a) % M * SourceSemantics.boolWord (a < b) % M) % M =
+      if b ≤ a then a else b := by
+  by_cases hgt : a < b
+  · simp only [hgt, SourceSemantics.boolWord, ↓reduceIte]
+    have hsub_lt : b - a < M := Nat.lt_of_le_of_lt (Nat.sub_le b a) hb
+    rw [Nat.mod_eq_of_lt hsub_lt, Nat.mul_one, Nat.mod_eq_of_lt hsub_lt]
+    rw [show a + (b - a) = b from by omega, Nat.mod_eq_of_lt hb, Nat.not_le.mpr hgt]
+  · simp only [hgt, SourceSemantics.boolWord, ↓reduceIte, Nat.mul_zero, Nat.zero_mod,
+      Nat.add_zero, Nat.mod_eq_of_lt ha, Nat.le_of_not_gt hgt]
+
+theorem eval_compileExpr_min_of_compiled
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {lhs rhs : Expr}
+    {lhsIR rhsIR : YulExpr}
+    (hlhsCompile : CompilationModel.compileExpr fields .calldata lhs = Except.ok lhsIR)
+    (hrhsCompile : CompilationModel.compileExpr fields .calldata rhs = Except.ok rhsIR)
+    (hlhsEval : evalIRExpr state lhsIR = some (SourceSemantics.evalExpr fields runtime lhs))
+    (hrhsEval : evalIRExpr state rhsIR = some (SourceSemantics.evalExpr fields runtime rhs))
+    (hlhsLt : SourceSemantics.evalExpr fields runtime lhs < Compiler.Constants.evmModulus)
+    (hrhsLt : SourceSemantics.evalExpr fields runtime rhs < Compiler.Constants.evmModulus) :
+    evalIRExpr state
+      (CompilationModel.compileExpr fields .calldata (.min lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
+        some (SourceSemantics.evalExpr fields runtime (.min lhs rhs)) := by
+  have hcompile := compileExpr_min_ok hlhsCompile hrhsCompile
+  rcases hlhsSrc : SourceSemantics.evalExpr fields runtime lhs with _ | lhsVal
+  · cases hEval : evalIRExpr state lhsIR <;> simp [hEval, hlhsSrc] at hlhsEval
+  · rcases hrhsSrc : SourceSemantics.evalExpr fields runtime rhs with _ | rhsVal
+    · cases hEval : evalIRExpr state rhsIR <;> simp [hEval, hrhsSrc] at hrhsEval
+    · have hlhsEval' := evalIRExpr_of_sourceEval_some hlhsEval hlhsSrc
+      have hrhsEval' := evalIRExpr_of_sourceEval_some hrhsEval hrhsSrc
+      have hlhsLt' : lhsVal < Compiler.Constants.evmModulus := by simpa [hlhsSrc] using hlhsLt
+      have hrhsLt' : rhsVal < Compiler.Constants.evmModulus := by simpa [hrhsSrc] using hrhsLt
+      have hGt := evalIRExpr_gt_of_eval hlhsEval' hrhsEval'
+      have hSubInner := evalIRExpr_sub_of_eval hlhsEval' hrhsEval'
+      have hMul := evalIRExpr_mul_of_eval hSubInner hGt
+      have hSubOuter := evalIRExpr_sub_of_eval hlhsEval' hMul
+      have hsrc := evalExpr_min_of_values hlhsSrc hrhsSrc
+      rw [hsrc]
+      simp only [hcompile, Except.toOption, Option.getD] at hSubOuter ⊢
+      rw [hSubOuter]
+      simp only [Nat.mod_eq_of_lt hlhsLt', Nat.mod_eq_of_lt hrhsLt']
+      rw [evm_min_arith hlhsLt' hrhsLt']
+
+theorem eval_compileExpr_max_of_compiled
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {lhs rhs : Expr}
+    {lhsIR rhsIR : YulExpr}
+    (hlhsCompile : CompilationModel.compileExpr fields .calldata lhs = Except.ok lhsIR)
+    (hrhsCompile : CompilationModel.compileExpr fields .calldata rhs = Except.ok rhsIR)
+    (hlhsEval : evalIRExpr state lhsIR = some (SourceSemantics.evalExpr fields runtime lhs))
+    (hrhsEval : evalIRExpr state rhsIR = some (SourceSemantics.evalExpr fields runtime rhs))
+    (hlhsLt : SourceSemantics.evalExpr fields runtime lhs < Compiler.Constants.evmModulus)
+    (hrhsLt : SourceSemantics.evalExpr fields runtime rhs < Compiler.Constants.evmModulus) :
+    evalIRExpr state
+      (CompilationModel.compileExpr fields .calldata (.max lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
+        some (SourceSemantics.evalExpr fields runtime (.max lhs rhs)) := by
+  have hcompile := compileExpr_max_ok hlhsCompile hrhsCompile
+  rcases hlhsSrc : SourceSemantics.evalExpr fields runtime lhs with _ | lhsVal
+  · cases hEval : evalIRExpr state lhsIR <;> simp [hEval, hlhsSrc] at hlhsEval
+  · rcases hrhsSrc : SourceSemantics.evalExpr fields runtime rhs with _ | rhsVal
+    · cases hEval : evalIRExpr state rhsIR <;> simp [hEval, hrhsSrc] at hrhsEval
+    · have hlhsEval' := evalIRExpr_of_sourceEval_some hlhsEval hlhsSrc
+      have hrhsEval' := evalIRExpr_of_sourceEval_some hrhsEval hrhsSrc
+      have hlhsLt' : lhsVal < Compiler.Constants.evmModulus := by simpa [hlhsSrc] using hlhsLt
+      have hrhsLt' : rhsVal < Compiler.Constants.evmModulus := by simpa [hrhsSrc] using hrhsLt
+      have hGt := evalIRExpr_gt_of_eval hrhsEval' hlhsEval'
+      have hSubInner := evalIRExpr_sub_of_eval hrhsEval' hlhsEval'
+      have hMul := evalIRExpr_mul_of_eval hSubInner hGt
+      have hAddOuter := evalIRExpr_add_of_eval hlhsEval' hMul
+      have hsrc := evalExpr_max_of_values hlhsSrc hrhsSrc
+      rw [hsrc]
+      simp only [hcompile, Except.toOption, Option.getD] at hAddOuter ⊢
+      rw [hAddOuter]
+      simp only [Nat.mod_eq_of_lt hlhsLt', Nat.mod_eq_of_lt hrhsLt']
+      rw [evm_max_arith hlhsLt' hrhsLt']
+
 theorem evalExpr_literal_lt_evmModulus
     (fields : List Field)
     (state : SourceSemantics.RuntimeState)
@@ -3192,6 +3320,22 @@ theorem compileExpr_core_ok
       rcases ihS with ⟨shiftIR, hshift⟩
       rcases ihV with ⟨valueIR, hvalue⟩
       exact ⟨YulExpr.call "shr" [shiftIR, valueIR], compileExpr_shr_ok hshift hvalue⟩
+  | min hL hR ihL ihR =>
+      rename_i lhs rhs
+      rcases ihL with ⟨lhsIR, hlhs⟩
+      rcases ihR with ⟨rhsIR, hrhs⟩
+      exact ⟨YulExpr.call "sub" [lhsIR,
+        YulExpr.call "mul" [YulExpr.call "sub" [lhsIR, rhsIR],
+          YulExpr.call "gt" [lhsIR, rhsIR]]],
+        compileExpr_min_ok hlhs hrhs⟩
+  | max hL hR ihL ihR =>
+      rename_i lhs rhs
+      rcases ihL with ⟨lhsIR, hlhs⟩
+      rcases ihR with ⟨rhsIR, hrhs⟩
+      exact ⟨YulExpr.call "add" [lhsIR,
+        YulExpr.call "mul" [YulExpr.call "sub" [rhsIR, lhsIR],
+          YulExpr.call "gt" [rhsIR, lhsIR]]],
+        compileExpr_max_ok hlhs hrhs⟩
 
 mutual
 theorem eval_compileExpr_core_onExpr
@@ -3768,6 +3912,66 @@ theorem eval_compileExpr_core_onExpr
         hEvalS hEvalV
         (evalExpr_lt_evmModulus_core_onExpr hS hexactS hbounded hpresentS hruntime)
         (evalExpr_lt_evmModulus_core_onExpr hV hexactV hbounded hpresentV hruntime)
+  | min hL hR ihL ihR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok hL with ⟨lhsIR, hlhs⟩
+      rcases compileExpr_core_ok hR with ⟨rhsIR, hrhs⟩
+      have hexactL : bindingsExactlyMatchIRVarsOnExpr lhs runtime.bindings state :=
+        bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
+          intro name hmem
+          simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hmem))
+      have hexactR : bindingsExactlyMatchIRVarsOnExpr rhs runtime.bindings state :=
+        bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
+          intro name hmem
+          simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hmem))
+      have hpresentL := exprBoundNamesPresent_of_subset hpresent (by
+        intro name hmem
+        simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hmem))
+      have hpresentR := exprBoundNamesPresent_of_subset hpresent (by
+        intro name hmem
+        simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hmem))
+      have hEvalL : evalIRExpr state lhsIR = some (SourceSemantics.evalExpr fields runtime lhs) := by
+        have htmp := ihL hexactL hbounded hpresentL hruntime
+        rw [hlhs] at htmp
+        simpa using htmp
+      have hEvalR : evalIRExpr state rhsIR = some (SourceSemantics.evalExpr fields runtime rhs) := by
+        have htmp := ihR hexactR hbounded hpresentR hruntime
+        rw [hrhs] at htmp
+        simpa using htmp
+      exact eval_compileExpr_min_of_compiled hlhs hrhs
+        hEvalL hEvalR
+        (evalExpr_lt_evmModulus_core_onExpr hL hexactL hbounded hpresentL hruntime)
+        (evalExpr_lt_evmModulus_core_onExpr hR hexactR hbounded hpresentR hruntime)
+  | max hL hR ihL ihR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok hL with ⟨lhsIR, hlhs⟩
+      rcases compileExpr_core_ok hR with ⟨rhsIR, hrhs⟩
+      have hexactL : bindingsExactlyMatchIRVarsOnExpr lhs runtime.bindings state :=
+        bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
+          intro name hmem
+          simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hmem))
+      have hexactR : bindingsExactlyMatchIRVarsOnExpr rhs runtime.bindings state :=
+        bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
+          intro name hmem
+          simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hmem))
+      have hpresentL := exprBoundNamesPresent_of_subset hpresent (by
+        intro name hmem
+        simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hmem))
+      have hpresentR := exprBoundNamesPresent_of_subset hpresent (by
+        intro name hmem
+        simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hmem))
+      have hEvalL : evalIRExpr state lhsIR = some (SourceSemantics.evalExpr fields runtime lhs) := by
+        have htmp := ihL hexactL hbounded hpresentL hruntime
+        rw [hlhs] at htmp
+        simpa using htmp
+      have hEvalR : evalIRExpr state rhsIR = some (SourceSemantics.evalExpr fields runtime rhs) := by
+        have htmp := ihR hexactR hbounded hpresentR hruntime
+        rw [hrhs] at htmp
+        simpa using htmp
+      exact eval_compileExpr_max_of_compiled hlhs hrhs
+        hEvalL hEvalR
+        (evalExpr_lt_evmModulus_core_onExpr hL hexactL hbounded hpresentL hruntime)
+        (evalExpr_lt_evmModulus_core_onExpr hR hexactR hbounded hpresentR hruntime)
 
 theorem eval_compileExpr_core
     {fields : List Field}
@@ -3989,6 +4193,34 @@ theorem evalExpr_lt_evmModulus_core_onExpr
       · rcases SourceSemantics.evalExpr fields runtime value with _ | vVal
         · trivial
         · exact (Verity.Core.Uint256.shr (Verity.Core.Uint256.ofNat sVal) (Verity.Core.Uint256.ofNat vVal)).isLt
+  | @min lhs rhs _ _ ihL ihR =>
+      show (do let l ← SourceSemantics.evalExpr fields runtime lhs
+               let r ← SourceSemantics.evalExpr fields runtime rhs
+               pure (if l ≤ r then l else r)) < _
+      rcases SourceSemantics.evalExpr fields runtime lhs with _ | lVal
+      · trivial
+      · rcases SourceSemantics.evalExpr fields runtime rhs with _ | rVal
+        · trivial
+        · simp only [Option.bind_some, Option.some_bind, Option.pure_def]
+          split
+          · exact ihL hexact hbounded (exprBoundNamesPresent_of_subset hpresent (by
+              intro name hmem; simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hmem))) hruntime
+          · exact ihR hexact hbounded (exprBoundNamesPresent_of_subset hpresent (by
+              intro name hmem; simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hmem))) hruntime
+  | @max lhs rhs _ _ ihL ihR =>
+      show (do let l ← SourceSemantics.evalExpr fields runtime lhs
+               let r ← SourceSemantics.evalExpr fields runtime rhs
+               pure (if r ≤ l then l else r)) < _
+      rcases SourceSemantics.evalExpr fields runtime lhs with _ | lVal
+      · trivial
+      · rcases SourceSemantics.evalExpr fields runtime rhs with _ | rVal
+        · trivial
+        · simp only [Option.bind_some, Option.some_bind, Option.pure_def]
+          split
+          · exact ihL hexact hbounded (exprBoundNamesPresent_of_subset hpresent (by
+              intro name hmem; simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hmem))) hruntime
+          · exact ihR hexact hbounded (exprBoundNamesPresent_of_subset hpresent (by
+              intro name hmem; simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hmem))) hruntime
 end
 
 theorem evalExpr_lt_evmModulus_core
