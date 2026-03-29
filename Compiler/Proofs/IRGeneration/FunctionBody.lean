@@ -1415,6 +1415,28 @@ theorem compileExpr_bitNot_ok
   rw [CompilationModel.compileExpr, hexpr]
   rfl
 
+theorem compileExpr_shl_ok
+    {fields : List Field}
+    {shift value : Expr}
+    {shiftIR valueIR : YulExpr}
+    (hshift : CompilationModel.compileExpr fields .calldata shift = Except.ok shiftIR)
+    (hvalue : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompilationModel.compileExpr fields .calldata (.shl shift value) =
+      Except.ok (YulExpr.call "shl" [shiftIR, valueIR]) := by
+  rw [CompilationModel.compileExpr, hshift, hvalue]
+  rfl
+
+theorem compileExpr_shr_ok
+    {fields : List Field}
+    {shift value : Expr}
+    {shiftIR valueIR : YulExpr}
+    (hshift : CompilationModel.compileExpr fields .calldata shift = Except.ok shiftIR)
+    (hvalue : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompilationModel.compileExpr fields .calldata (.shr shift value) =
+      Except.ok (YulExpr.call "shr" [shiftIR, valueIR]) := by
+  rw [CompilationModel.compileExpr, hshift, hvalue]
+  rfl
+
 theorem compileExpr_min_ok
     {fields : List Field}
     {lhs rhs : Expr}
@@ -2714,6 +2736,44 @@ private theorem evalExpr_bitNot_of_values
             pure (Verity.Core.Uint256.not v).val) := by rfl
     _ = some ((Verity.Core.Uint256.not (val : Verity.Core.Uint256)).val) := by simp [hexpr]
 
+private theorem evalExpr_shl_of_values
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {shift value : Expr}
+    {shiftVal valueVal : Nat}
+    (hshift : SourceSemantics.evalExpr fields runtime shift = some shiftVal)
+    (hvalue : SourceSemantics.evalExpr fields runtime value = some valueVal) :
+    SourceSemantics.evalExpr fields runtime (.shl shift value) =
+      some ((Verity.Core.Uint256.shl (shiftVal : Verity.Core.Uint256)
+        (valueVal : Verity.Core.Uint256)).val) := by
+  calc
+    SourceSemantics.evalExpr fields runtime (.shl shift value)
+        = (do
+            let s ← SourceSemantics.evalExpr fields runtime shift
+            let v ← SourceSemantics.evalExpr fields runtime value
+            pure (Verity.Core.Uint256.shl s v).val) := by rfl
+    _ = some ((Verity.Core.Uint256.shl (shiftVal : Verity.Core.Uint256)
+          (valueVal : Verity.Core.Uint256)).val) := by simp [hshift, hvalue]
+
+private theorem evalExpr_shr_of_values
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {shift value : Expr}
+    {shiftVal valueVal : Nat}
+    (hshift : SourceSemantics.evalExpr fields runtime shift = some shiftVal)
+    (hvalue : SourceSemantics.evalExpr fields runtime value = some valueVal) :
+    SourceSemantics.evalExpr fields runtime (.shr shift value) =
+      some ((Verity.Core.Uint256.shr (shiftVal : Verity.Core.Uint256)
+        (valueVal : Verity.Core.Uint256)).val) := by
+  calc
+    SourceSemantics.evalExpr fields runtime (.shr shift value)
+        = (do
+            let s ← SourceSemantics.evalExpr fields runtime shift
+            let v ← SourceSemantics.evalExpr fields runtime value
+            pure (Verity.Core.Uint256.shr s v).val) := by rfl
+    _ = some ((Verity.Core.Uint256.shr (shiftVal : Verity.Core.Uint256)
+          (valueVal : Verity.Core.Uint256)).val) := by simp [hshift, hvalue]
+
 theorem eval_compileExpr_bitAnd_of_compiled
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
@@ -2883,6 +2943,97 @@ theorem eval_compileExpr_bitNot_of_compiled
       Nat.mod_eq_of_lt (by omega : 2 ^ 256 - 1 - val < 2 ^ 256)]
     simp
 
+theorem eval_compileExpr_shl_of_compiled
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {shift value : Expr}
+    {shiftIR valueIR : YulExpr}
+    (hshiftCompile : CompilationModel.compileExpr fields .calldata shift = Except.ok shiftIR)
+    (hvalueCompile : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR)
+    (hshiftEval : evalIRExpr state shiftIR = some (SourceSemantics.evalExpr fields runtime shift))
+    (hvalueEval : evalIRExpr state valueIR = some (SourceSemantics.evalExpr fields runtime value))
+    (hshiftLt : SourceSemantics.evalExpr fields runtime shift < Compiler.Constants.evmModulus)
+    (hvalueLt : SourceSemantics.evalExpr fields runtime value < Compiler.Constants.evmModulus) :
+    evalIRExpr state
+      (CompilationModel.compileExpr fields .calldata (.shl shift value) |>.toOption.getD (YulExpr.lit 0)) =
+        some (SourceSemantics.evalExpr fields runtime (.shl shift value)) := by
+  have hcompile := compileExpr_shl_ok hshiftCompile hvalueCompile
+  rcases hshiftSrc : SourceSemantics.evalExpr fields runtime shift with _ | shiftVal
+  · cases hEval : evalIRExpr state shiftIR <;> simp [hEval, hshiftSrc] at hshiftEval
+  · rcases hvalueSrc : SourceSemantics.evalExpr fields runtime value with _ | valueVal
+    · cases hEval : evalIRExpr state valueIR <;> simp [hEval, hvalueSrc] at hvalueEval
+    · have hshiftEval' := evalIRExpr_of_sourceEval_some hshiftEval hshiftSrc
+      have hvalueEval' := evalIRExpr_of_sourceEval_some hvalueEval hvalueSrc
+      have hshiftLt' : shiftVal < Compiler.Constants.evmModulus := by simpa [hshiftSrc] using hshiftLt
+      have hvalueLt' : valueVal < Compiler.Constants.evmModulus := by simpa [hvalueSrc] using hvalueLt
+      have hIR := evalIRExpr_shl_of_eval hshiftEval' hvalueEval'
+      have hsrc := evalExpr_shl_of_values hshiftSrc hvalueSrc
+      rw [hsrc]
+      simp only [hcompile, Except.toOption, Option.getD] at hIR ⊢
+      rw [hIR]
+      have hevmMod : Compiler.Constants.evmModulus = 2 ^ 256 := rfl
+      rw [hevmMod] at hshiftLt' hvalueLt'
+      simp only [Verity.Core.Uint256.shl, Verity.Core.Uint256.val_ofNat,
+        Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS, hevmMod,
+        Nat.mod_eq_of_lt hshiftLt', Nat.mod_eq_of_lt hvalueLt', Nat.shiftLeft_eq]
+      simp only [Bind.bind, Option.bind, Pure.pure]
+      by_cases hlt : shiftVal < 256
+      · simp [hlt]
+      · simp only [hlt, ↓reduceIte]
+        have hge : 256 ≤ shiftVal := Nat.not_lt.mp hlt
+        have h2pow : 2 ^ 256 ∣ 2 ^ shiftVal := Nat.pow_dvd_pow 2 hge
+        have hmz : (valueVal * 2 ^ shiftVal) % 2 ^ 256 = 0 := by
+          rw [Nat.mul_mod, Nat.dvd_iff_mod_eq_zero.mp h2pow, Nat.mul_zero, Nat.zero_mod]
+        rw [hmz]
+
+theorem eval_compileExpr_shr_of_compiled
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {shift value : Expr}
+    {shiftIR valueIR : YulExpr}
+    (hshiftCompile : CompilationModel.compileExpr fields .calldata shift = Except.ok shiftIR)
+    (hvalueCompile : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR)
+    (hshiftEval : evalIRExpr state shiftIR = some (SourceSemantics.evalExpr fields runtime shift))
+    (hvalueEval : evalIRExpr state valueIR = some (SourceSemantics.evalExpr fields runtime value))
+    (hshiftLt : SourceSemantics.evalExpr fields runtime shift < Compiler.Constants.evmModulus)
+    (hvalueLt : SourceSemantics.evalExpr fields runtime value < Compiler.Constants.evmModulus) :
+    evalIRExpr state
+      (CompilationModel.compileExpr fields .calldata (.shr shift value) |>.toOption.getD (YulExpr.lit 0)) =
+        some (SourceSemantics.evalExpr fields runtime (.shr shift value)) := by
+  have hcompile := compileExpr_shr_ok hshiftCompile hvalueCompile
+  rcases hshiftSrc : SourceSemantics.evalExpr fields runtime shift with _ | shiftVal
+  · cases hEval : evalIRExpr state shiftIR <;> simp [hEval, hshiftSrc] at hshiftEval
+  · rcases hvalueSrc : SourceSemantics.evalExpr fields runtime value with _ | valueVal
+    · cases hEval : evalIRExpr state valueIR <;> simp [hEval, hvalueSrc] at hvalueEval
+    · have hshiftEval' := evalIRExpr_of_sourceEval_some hshiftEval hshiftSrc
+      have hvalueEval' := evalIRExpr_of_sourceEval_some hvalueEval hvalueSrc
+      have hshiftLt' : shiftVal < Compiler.Constants.evmModulus := by simpa [hshiftSrc] using hshiftLt
+      have hvalueLt' : valueVal < Compiler.Constants.evmModulus := by simpa [hvalueSrc] using hvalueLt
+      have hIR := evalIRExpr_shr_of_eval hshiftEval' hvalueEval'
+      have hsrc := evalExpr_shr_of_values hshiftSrc hvalueSrc
+      rw [hsrc]
+      simp only [hcompile, Except.toOption, Option.getD] at hIR ⊢
+      rw [hIR]
+      have hevmMod : Compiler.Constants.evmModulus = 2 ^ 256 := rfl
+      rw [hevmMod] at hshiftLt' hvalueLt'
+      simp only [Verity.Core.Uint256.shr, Verity.Core.Uint256.val_ofNat,
+        Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS, hevmMod,
+        Nat.mod_eq_of_lt hshiftLt', Nat.mod_eq_of_lt hvalueLt', Nat.shiftRight_eq_div_pow,
+        Bind.bind, Option.bind, Pure.pure]
+      by_cases hlt : shiftVal < 256
+      · simp only [hlt, ↓reduceIte]
+        have : valueVal / 2 ^ shiftVal < 2 ^ 256 :=
+          lt_of_le_of_lt (Nat.div_le_self _ _) hvalueLt'
+        rw [Nat.mod_eq_of_lt this]
+      · simp only [hlt, ↓reduceIte]
+        have hge : 256 ≤ shiftVal := Nat.not_lt.mp hlt
+        have hmz : (valueVal / 2 ^ shiftVal) % 2 ^ 256 = 0 := by
+          rw [Nat.div_eq_of_lt (lt_of_lt_of_le hvalueLt' (Nat.pow_le_pow_right (by norm_num) hge)),
+              Nat.zero_mod]
+        rw [hmz]
+
 theorem evalExpr_literal_lt_evmModulus
     (fields : List Field)
     (state : SourceSemantics.RuntimeState)
@@ -3031,6 +3182,16 @@ theorem compileExpr_core_ok
       rename_i expr
       rcases ih with ⟨exprIR, hexpr⟩
       exact ⟨YulExpr.call "not" [exprIR], compileExpr_bitNot_ok hexpr⟩
+  | shl hS hV ihS ihV =>
+      rename_i shift value
+      rcases ihS with ⟨shiftIR, hshift⟩
+      rcases ihV with ⟨valueIR, hvalue⟩
+      exact ⟨YulExpr.call "shl" [shiftIR, valueIR], compileExpr_shl_ok hshift hvalue⟩
+  | shr hS hV ihS ihV =>
+      rename_i shift value
+      rcases ihS with ⟨shiftIR, hshift⟩
+      rcases ihV with ⟨valueIR, hvalue⟩
+      exact ⟨YulExpr.call "shr" [shiftIR, valueIR], compileExpr_shr_ok hshift hvalue⟩
 
 mutual
 theorem eval_compileExpr_core_onExpr
@@ -3547,6 +3708,66 @@ theorem eval_compileExpr_core_onExpr
       exact eval_compileExpr_bitNot_of_compiled hexpr
         hEval
         (evalExpr_lt_evmModulus_core_onExpr h hexact' hbounded hpresent' hruntime)
+  | shl hS hV ihS ihV =>
+      rename_i shift value
+      rcases compileExpr_core_ok hS with ⟨shiftIR, hshift⟩
+      rcases compileExpr_core_ok hV with ⟨valueIR, hvalue⟩
+      have hexactS : bindingsExactlyMatchIRVarsOnExpr shift runtime.bindings state :=
+        bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
+          intro name hmem
+          simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hmem))
+      have hexactV : bindingsExactlyMatchIRVarsOnExpr value runtime.bindings state :=
+        bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
+          intro name hmem
+          simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hmem))
+      have hpresentS := exprBoundNamesPresent_of_subset hpresent (by
+        intro name hmem
+        simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hmem))
+      have hpresentV := exprBoundNamesPresent_of_subset hpresent (by
+        intro name hmem
+        simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hmem))
+      have hEvalS : evalIRExpr state shiftIR = some (SourceSemantics.evalExpr fields runtime shift) := by
+        have htmp := ihS hexactS hbounded hpresentS hruntime
+        rw [hshift] at htmp
+        simpa using htmp
+      have hEvalV : evalIRExpr state valueIR = some (SourceSemantics.evalExpr fields runtime value) := by
+        have htmp := ihV hexactV hbounded hpresentV hruntime
+        rw [hvalue] at htmp
+        simpa using htmp
+      exact eval_compileExpr_shl_of_compiled hshift hvalue
+        hEvalS hEvalV
+        (evalExpr_lt_evmModulus_core_onExpr hS hexactS hbounded hpresentS hruntime)
+        (evalExpr_lt_evmModulus_core_onExpr hV hexactV hbounded hpresentV hruntime)
+  | shr hS hV ihS ihV =>
+      rename_i shift value
+      rcases compileExpr_core_ok hS with ⟨shiftIR, hshift⟩
+      rcases compileExpr_core_ok hV with ⟨valueIR, hvalue⟩
+      have hexactS : bindingsExactlyMatchIRVarsOnExpr shift runtime.bindings state :=
+        bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
+          intro name hmem
+          simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hmem))
+      have hexactV : bindingsExactlyMatchIRVarsOnExpr value runtime.bindings state :=
+        bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
+          intro name hmem
+          simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hmem))
+      have hpresentS := exprBoundNamesPresent_of_subset hpresent (by
+        intro name hmem
+        simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hmem))
+      have hpresentV := exprBoundNamesPresent_of_subset hpresent (by
+        intro name hmem
+        simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hmem))
+      have hEvalS : evalIRExpr state shiftIR = some (SourceSemantics.evalExpr fields runtime shift) := by
+        have htmp := ihS hexactS hbounded hpresentS hruntime
+        rw [hshift] at htmp
+        simpa using htmp
+      have hEvalV : evalIRExpr state valueIR = some (SourceSemantics.evalExpr fields runtime value) := by
+        have htmp := ihV hexactV hbounded hpresentV hruntime
+        rw [hvalue] at htmp
+        simpa using htmp
+      exact eval_compileExpr_shr_of_compiled hshift hvalue
+        hEvalS hEvalV
+        (evalExpr_lt_evmModulus_core_onExpr hS hexactS hbounded hpresentS hruntime)
+        (evalExpr_lt_evmModulus_core_onExpr hV hexactV hbounded hpresentV hruntime)
 
 theorem eval_compileExpr_core
     {fields : List Field}
@@ -3750,6 +3971,24 @@ theorem evalExpr_lt_evmModulus_core_onExpr
       rcases SourceSemantics.evalExpr fields runtime subexpr with _ | val
       · trivial
       · exact (Verity.Core.Uint256.not (Verity.Core.Uint256.ofNat val)).isLt
+  | @shl shift value _ _ _ _ =>
+      show (do let s : Verity.Core.Uint256 := ← SourceSemantics.evalExpr fields runtime shift
+               let v : Verity.Core.Uint256 := ← SourceSemantics.evalExpr fields runtime value
+               pure (Verity.Core.Uint256.shl s v).val) < _
+      rcases SourceSemantics.evalExpr fields runtime shift with _ | sVal
+      · trivial
+      · rcases SourceSemantics.evalExpr fields runtime value with _ | vVal
+        · trivial
+        · exact (Verity.Core.Uint256.shl (Verity.Core.Uint256.ofNat sVal) (Verity.Core.Uint256.ofNat vVal)).isLt
+  | @shr shift value _ _ _ _ =>
+      show (do let s : Verity.Core.Uint256 := ← SourceSemantics.evalExpr fields runtime shift
+               let v : Verity.Core.Uint256 := ← SourceSemantics.evalExpr fields runtime value
+               pure (Verity.Core.Uint256.shr s v).val) < _
+      rcases SourceSemantics.evalExpr fields runtime shift with _ | sVal
+      · trivial
+      · rcases SourceSemantics.evalExpr fields runtime value with _ | vVal
+        · trivial
+        · exact (Verity.Core.Uint256.shr (Verity.Core.Uint256.ofNat sVal) (Verity.Core.Uint256.ofNat vVal)).isLt
 end
 
 theorem evalExpr_lt_evmModulus_core
@@ -3966,6 +4205,28 @@ theorem compileRequireFailCond_core_ok
       rcases compileExpr_core_ok (fields := fields) h with ⟨exprIR, hexpr⟩
       exact ⟨YulExpr.call "iszero" [YulExpr.call "not" [exprIR]], by
         rw [CompilationModel.compileRequireFailCond, compileExpr_bitNot_ok hexpr]
+        all_goals
+          try rfl
+          try
+            intro a b hEq
+            cases hEq⟩
+  | shl hS hV =>
+      rename_i shift value
+      rcases compileExpr_core_ok (fields := fields) hS with ⟨shiftIR, hshift⟩
+      rcases compileExpr_core_ok (fields := fields) hV with ⟨valueIR, hvalue⟩
+      exact ⟨YulExpr.call "iszero" [YulExpr.call "shl" [shiftIR, valueIR]], by
+        rw [CompilationModel.compileRequireFailCond, compileExpr_shl_ok hshift hvalue]
+        all_goals
+          try rfl
+          try
+            intro a b hEq
+            cases hEq⟩
+  | shr hS hV =>
+      rename_i shift value
+      rcases compileExpr_core_ok (fields := fields) hS with ⟨shiftIR, hshift⟩
+      rcases compileExpr_core_ok (fields := fields) hV with ⟨valueIR, hvalue⟩
+      exact ⟨YulExpr.call "iszero" [YulExpr.call "shr" [shiftIR, valueIR]], by
+        rw [CompilationModel.compileRequireFailCond, compileExpr_shr_ok hshift hvalue]
         all_goals
           try rfl
           try
@@ -4328,6 +4589,22 @@ theorem eval_compileRequireFailCond_core_onExpr
       · simp [CompilationModel.compileRequireFailCond, hexpr]
       · simpa using finishIszeroEval (expr := .bitNot expr)
           (show ExprCompileCore (.bitNot expr) from ExprCompileCore.bitNot h) hexact hpresent hexpr
+  | shl hS hV =>
+      rename_i shift value
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.shl shift value) from ExprCompileCore.shl hS hV) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .shl shift value)
+          (show ExprCompileCore (.shl shift value) from ExprCompileCore.shl hS hV) hexact hpresent hexpr
+  | shr hS hV =>
+      rename_i shift value
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.shr shift value) from ExprCompileCore.shr hS hV) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .shr shift value)
+          (show ExprCompileCore (.shr shift value) from ExprCompileCore.shr hS hV) hexact hpresent hexpr
 -- SORRY'D:   let finishIszeroEval {expr : Expr} (h : ExprCompileCore expr)
 -- SORRY'D:       (hexactExpr : bindingsExactlyMatchIRVarsOnExpr expr runtime.bindings state)
 -- SORRY'D:       (hpresentExpr : exprBoundNamesPresent expr runtime.bindings)

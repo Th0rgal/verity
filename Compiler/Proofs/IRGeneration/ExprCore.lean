@@ -119,6 +119,10 @@ inductive ExprCompileCore : Expr → Prop where
       ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.bitXor lhs rhs)
   | bitNot {expr : Expr} :
       ExprCompileCore expr → ExprCompileCore (.bitNot expr)
+  | shl {shift value : Expr} :
+      ExprCompileCore shift → ExprCompileCore value → ExprCompileCore (.shl shift value)
+  | shr {shift value : Expr} :
+      ExprCompileCore shift → ExprCompileCore value → ExprCompileCore (.shr shift value)
 
 /-! ## Scope analysis -/
 

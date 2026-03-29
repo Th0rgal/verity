@@ -2745,7 +2745,8 @@ private theorem exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_fals
   | .bitAnd a b, hsurface | .bitOr a b, hsurface | .bitXor a b, hsurface
   | .eq a b, hsurface | .ge a b, hsurface | .gt a b, hsurface
   | .lt a b, hsurface | .le a b, hsurface
-  | .logicalAnd a b, hsurface | .logicalOr a b, hsurface =>
+  | .logicalAnd a b, hsurface | .logicalOr a b, hsurface
+  | .shl a b, hsurface | .shr a b, hsurface =>
       simp only [exprTouchesUnsupportedContractSurface, Bool.or_eq_false_iff] at hsurface
       constructor
       · exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1
@@ -3136,6 +3137,22 @@ private theorem exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
           (by simpa [validateScopedExprIdentifiers] using hvalidate)
           name
           (by simpa [FunctionBody.exprBoundNames] using hmem)
+  | shl hS hV ihS ihV
+  | shr hS hV ihS ihV =>
+      rename_i shift value
+      have hpair :
+          (do
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount shift
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount value) =
+            Except.ok () := by
+        simpa [validateScopedExprIdentifiers] using hvalidate
+      intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+      rcases hmem with hmem | hmem
+      · exact ihS (validateScopedExprIdentifiers_pair_ok_left hpair) name hmem
+      · exact ihV (validateScopedExprIdentifiers_pair_ok_right hpair) name hmem
   | logicalAnd hL hR ihL ihR
   | logicalOr hL hR ihL ihR =>
       rename_i lhs rhs
@@ -3924,6 +3941,13 @@ private theorem collectExprNames_mem_exprBoundNames_of_core
       intro name hmem
       simp [collectExprNames] at hmem
       simpa [FunctionBody.exprBoundNames] using ih _ hmem
+  | shl hS hV ihS ihV
+  | shr hS hV ihS ihV =>
+      intro name hmem
+      simp [collectExprNames, FunctionBody.exprBoundNames] at hmem ⊢
+      rcases hmem with hmem | hmem
+      · exact Or.inl (ihS _ hmem)
+      · exact Or.inr (ihV _ hmem)
 
 private theorem mem_foldl_stmtNextScope_of_mem_scope
     {scope : List String}
