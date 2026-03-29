@@ -21,9 +21,15 @@
     "not",
     "number",
     "or",
+    "sar",
+    "sdiv",
+    "sgt",
     "shl",
     "shr",
+    "signextend",
     "sload",
+    "slt",
+    "smod",
     "sub",
     "timestamp",
     "xor"
@@ -67,15 +73,8 @@
     "xor"
   ],
   "schema_version": 2,
-  "status": "error",
-  "unknown_builtins_present": [
-    "sar",
-    "sdiv",
-    "sgt",
-    "signextend",
-    "slt",
-    "smod"
-  ],
+  "status": "ok",
+  "unknown_builtins_present": [],
   "unsupported_adapter_nodes": [],
   "unsupported_builtins": [
     "create",
