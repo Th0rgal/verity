@@ -58,11 +58,13 @@ def exprTouchesUnsupportedCoreSurface : Expr → Bool
   | .bitAnd a b | .bitOr a b | .bitXor a b
   | .min a b | .max a b =>
       exprTouchesUnsupportedCoreSurface a || exprTouchesUnsupportedCoreSurface b
+  | .ite a b c =>
+      exprTouchesUnsupportedCoreSurface a || exprTouchesUnsupportedCoreSurface b ||
+        exprTouchesUnsupportedCoreSurface c
   | .sdiv a b | .smod a b
   | .sgt a b | .slt a b | .wMulDown a b | .wDivUp a b
   | .ceilDiv a b =>
       true
-  | .ite _ _ _ => true
   | .mulDivDown _ _ _ | .mulDivUp _ _ _
   | .sar _ _ | .signextend _ _ => true
   | .mapping _ _ | .mappingWord _ _ _ | .mappingPackedWord _ _ _ _
@@ -326,8 +328,10 @@ def exprTouchesUnsupportedContractSurface (expr : Expr) : Bool :=
   | .bitNot a | .logicalNot a => exprTouchesUnsupportedContractSurface a
   | .min a b | .max a b =>
       exprTouchesUnsupportedContractSurface a || exprTouchesUnsupportedContractSurface b
+  | .ite a b c =>
+      exprTouchesUnsupportedContractSurface a || exprTouchesUnsupportedContractSurface b ||
+        exprTouchesUnsupportedContractSurface c
   | .wMulDown _ _ | .wDivUp _ _ | .ceilDiv _ _
-  | .ite _ _ _
   | .mapping _ _ | .mappingWord _ _ _ | .mappingPackedWord _ _ _ _
   | .mapping2 _ _ _ | .mapping2Word _ _ _ _ | .mappingUint _ _ | .mappingChain _ _
   | .structMember _ _ _ | .structMember2 _ _ _ _

@@ -127,6 +127,9 @@ inductive ExprCompileCore : Expr → Prop where
       ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.min lhs rhs)
   | max {lhs rhs : Expr} :
       ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.max lhs rhs)
+  | ite {cond thenVal elseVal : Expr} :
+      ExprCompileCore cond → ExprCompileCore thenVal → ExprCompileCore elseVal →
+        ExprCompileCore (.ite cond thenVal elseVal)
 
 /-! ## Scope analysis -/
 

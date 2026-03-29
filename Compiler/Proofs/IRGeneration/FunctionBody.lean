@@ -1167,6 +1167,13 @@ theorem eval_compileExpr_localVar_of_expr_bindings
   cases a <;> cases b <;>
     simp [SourceSemantics.boolWord]
 
+theorem boolWord_iszero_iszero
+    {v : Nat}
+    (hv : v < Compiler.Constants.evmModulus) :
+    SourceSemantics.boolWord (SourceSemantics.boolWord (v = 0) = 0) =
+      SourceSemantics.boolWord (v ≠ 0) := by
+  by_cases hzero : v = 0 <;> simp [hzero, SourceSemantics.boolWord]
+
 private theorem boolWord_iszero_lt_eq_ge
     (a b : Nat)
     (ha : a < Compiler.Constants.evmModulus)
@@ -3068,6 +3075,77 @@ theorem eval_compileExpr_shr_of_compiled
               Nat.zero_mod]
         rw [hmz]
 
+private theorem evalExpr_ite_of_values
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {cond thenVal elseVal : Expr}
+    {condVal thenV elseV : Nat}
+    (hcond : SourceSemantics.evalExpr fields runtime cond = some condVal)
+    (hthen : SourceSemantics.evalExpr fields runtime thenVal = some thenV)
+    (helse : SourceSemantics.evalExpr fields runtime elseVal = some elseV) :
+    SourceSemantics.evalExpr fields runtime (.ite cond thenVal elseVal) =
+      some (if condVal ≠ 0 then thenV else elseV) := by
+  show (do let c ← SourceSemantics.evalExpr fields runtime cond
+           if c != 0 then SourceSemantics.evalExpr fields runtime thenVal
+           else SourceSemantics.evalExpr fields runtime elseVal) = _
+  simp [hcond, hthen, helse, bne_iff_ne]
+
+private theorem evm_ite_arith {c t e M : Nat} (hc : c < M) (ht : t < M) (he : e < M)
+    (hM : 0 < M) :
+    (SourceSemantics.boolWord (c ≠ 0) * t % M +
+      SourceSemantics.boolWord (c = 0) * e % M) % M =
+      if c ≠ 0 then t else e := by
+  by_cases hzero : c = 0
+  · simp [hzero, SourceSemantics.boolWord, Nat.one_mul, Nat.zero_mul, Nat.zero_mod,
+      Nat.mod_eq_of_lt he]
+  · simp only [hzero, SourceSemantics.boolWord, ↓reduceIte, not_false_eq_true]
+    rw [Nat.one_mul, Nat.mod_eq_of_lt ht, Nat.zero_mul, Nat.zero_mod, Nat.add_zero,
+      Nat.mod_eq_of_lt ht]
+
+theorem eval_compileExpr_ite_of_compiled
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {cond thenVal elseVal : Expr}
+    {condIR thenIR elseIR : YulExpr}
+    (hcondCompile : CompilationModel.compileExpr fields .calldata cond = Except.ok condIR)
+    (hthenCompile : CompilationModel.compileExpr fields .calldata thenVal = Except.ok thenIR)
+    (helseCompile : CompilationModel.compileExpr fields .calldata elseVal = Except.ok elseIR)
+    (hcondEval : evalIRExpr state condIR = some (SourceSemantics.evalExpr fields runtime cond))
+    (hthenEval : evalIRExpr state thenIR = some (SourceSemantics.evalExpr fields runtime thenVal))
+    (helseEval : evalIRExpr state elseIR = some (SourceSemantics.evalExpr fields runtime elseVal))
+    (hcondLt : SourceSemantics.evalExpr fields runtime cond < Compiler.Constants.evmModulus)
+    (hthenLt : SourceSemantics.evalExpr fields runtime thenVal < Compiler.Constants.evmModulus)
+    (helseLt : SourceSemantics.evalExpr fields runtime elseVal < Compiler.Constants.evmModulus) :
+    evalIRExpr state
+      (CompilationModel.compileExpr fields .calldata (.ite cond thenVal elseVal) |>.toOption.getD
+        (YulExpr.lit 0)) =
+        some (SourceSemantics.evalExpr fields runtime (.ite cond thenVal elseVal)) := by
+  have hcompile := compileExpr_ite_ok hcondCompile hthenCompile helseCompile
+  rcases hcondSrc : SourceSemantics.evalExpr fields runtime cond with _ | condV
+  · cases hEval : evalIRExpr state condIR <;> simp [hEval, hcondSrc] at hcondEval
+  · rcases hthenSrc : SourceSemantics.evalExpr fields runtime thenVal with _ | thenV
+    · cases hEval : evalIRExpr state thenIR <;> simp [hEval, hthenSrc] at hthenEval
+    · rcases helseSrc : SourceSemantics.evalExpr fields runtime elseVal with _ | elseV
+      · cases hEval : evalIRExpr state elseIR <;> simp [hEval, helseSrc] at helseEval
+      · have hcondEval' := evalIRExpr_of_sourceEval_some hcondEval hcondSrc
+        have hthenEval' := evalIRExpr_of_sourceEval_some hthenEval hthenSrc
+        have helseEval' := evalIRExpr_of_sourceEval_some helseEval helseSrc
+        have hcondLt' : condV < Compiler.Constants.evmModulus := by simpa [hcondSrc] using hcondLt
+        have hthenLt' : thenV < Compiler.Constants.evmModulus := by simpa [hthenSrc] using hthenLt
+        have helseLt' : elseV < Compiler.Constants.evmModulus := by simpa [helseSrc] using helseLt
+        have hIsZero := evalIRExpr_iszero_of_lt hcondEval' hcondLt'
+        have hIsZeroIsZero := evalIRExpr_iszero_of_lt hIsZero (boolWord_lt_evmModulus _)
+        have hMulThen := evalIRExpr_mul_of_eval hIsZeroIsZero hthenEval'
+        have hMulElse := evalIRExpr_mul_of_eval hIsZero helseEval'
+        have hAdd := evalIRExpr_add_of_eval hMulThen hMulElse
+        have hsrc := evalExpr_ite_of_values hcondSrc hthenSrc helseSrc
+        rw [hsrc]
+        simp only [hcompile, Except.toOption, Option.getD] at hAdd ⊢
+        rw [hAdd]
+        simp only [SourceSemantics.boolWord_iszero_iszero hcondLt']
+        exact evm_ite_arith hcondLt' hthenLt' helseLt' (by decide)
+
 private theorem evm_min_arith {a b M : Nat} (ha : a < M) (hb : b < M) :
     (M + a - ((a - b) % M * SourceSemantics.boolWord (b < a) % M)) % M =
       if a ≤ b then a else b := by
@@ -3336,6 +3414,17 @@ theorem compileExpr_core_ok
         YulExpr.call "mul" [YulExpr.call "sub" [rhsIR, lhsIR],
           YulExpr.call "gt" [rhsIR, lhsIR]]],
         compileExpr_max_ok hlhs hrhs⟩
+  | ite hC hT hE ihC ihT ihE =>
+      rename_i cond thenVal elseVal
+      rcases ihC with ⟨condIR, hcond⟩
+      rcases ihT with ⟨thenIR, hthen⟩
+      rcases ihE with ⟨elseIR, helse⟩
+      exact ⟨YulExpr.call "add" [
+        YulExpr.call "mul" [
+          YulExpr.call "iszero" [YulExpr.call "iszero" [condIR]], thenIR],
+        YulExpr.call "mul" [
+          YulExpr.call "iszero" [condIR], elseIR]],
+        compileExpr_ite_ok hcond hthen helse⟩
 
 mutual
 theorem eval_compileExpr_core_onExpr
@@ -3972,6 +4061,41 @@ theorem eval_compileExpr_core_onExpr
         hEvalL hEvalR
         (evalExpr_lt_evmModulus_core_onExpr hL hexactL hbounded hpresentL hruntime)
         (evalExpr_lt_evmModulus_core_onExpr hR hexactR hbounded hpresentR hruntime)
+  | ite hC hT hE ihC ihT ihE =>
+      rename_i cond thenVal elseVal
+      rcases compileExpr_core_ok hC with ⟨condIR, hcond⟩
+      rcases compileExpr_core_ok hT with ⟨thenIR, hthen⟩
+      rcases compileExpr_core_ok hE with ⟨elseIR, helse⟩
+      have hexactC : bindingsExactlyMatchIRVarsOnExpr cond runtime.bindings state :=
+        bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
+          intro name hmem; simp [exprBoundNames]
+          exact Or.inl (List.mem_append.mpr (Or.inl hmem)))
+      have hexactT : bindingsExactlyMatchIRVarsOnExpr thenVal runtime.bindings state :=
+        bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
+          intro name hmem; simp [exprBoundNames]
+          exact Or.inl (List.mem_append.mpr (Or.inr hmem)))
+      have hexactE : bindingsExactlyMatchIRVarsOnExpr elseVal runtime.bindings state :=
+        bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
+          intro name hmem; simp [exprBoundNames]; exact Or.inr hmem)
+      have hpresentC := exprBoundNamesPresent_of_subset hpresent (by
+        intro name hmem; simp [exprBoundNames]
+        exact Or.inl (List.mem_append.mpr (Or.inl hmem)))
+      have hpresentT := exprBoundNamesPresent_of_subset hpresent (by
+        intro name hmem; simp [exprBoundNames]
+        exact Or.inl (List.mem_append.mpr (Or.inr hmem)))
+      have hpresentE := exprBoundNamesPresent_of_subset hpresent (by
+        intro name hmem; simp [exprBoundNames]; exact Or.inr hmem)
+      have hEvalC : evalIRExpr state condIR = some (SourceSemantics.evalExpr fields runtime cond) := by
+        have htmp := ihC hexactC hbounded hpresentC hruntime; rw [hcond] at htmp; simpa using htmp
+      have hEvalT : evalIRExpr state thenIR = some (SourceSemantics.evalExpr fields runtime thenVal) := by
+        have htmp := ihT hexactT hbounded hpresentT hruntime; rw [hthen] at htmp; simpa using htmp
+      have hEvalE : evalIRExpr state elseIR = some (SourceSemantics.evalExpr fields runtime elseVal) := by
+        have htmp := ihE hexactE hbounded hpresentE hruntime; rw [helse] at htmp; simpa using htmp
+      exact eval_compileExpr_ite_of_compiled hcond hthen helse
+        hEvalC hEvalT hEvalE
+        (evalExpr_lt_evmModulus_core_onExpr hC hexactC hbounded hpresentC hruntime)
+        (evalExpr_lt_evmModulus_core_onExpr hT hexactT hbounded hpresentT hruntime)
+        (evalExpr_lt_evmModulus_core_onExpr hE hexactE hbounded hpresentE hruntime)
 
 theorem eval_compileExpr_core
     {fields : List Field}
@@ -4221,6 +4345,19 @@ theorem evalExpr_lt_evmModulus_core_onExpr
               intro name hmem; simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hmem))) hruntime
           · exact ihR hexact hbounded (exprBoundNamesPresent_of_subset hpresent (by
               intro name hmem; simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hmem))) hruntime
+  | @ite cond thenVal elseVal _ _ _ ihC ihT ihE =>
+      show (do let c ← SourceSemantics.evalExpr fields runtime cond
+               if c != 0 then SourceSemantics.evalExpr fields runtime thenVal
+               else SourceSemantics.evalExpr fields runtime elseVal) < _
+      rcases SourceSemantics.evalExpr fields runtime cond with _ | cVal
+      · trivial
+      · simp only [Option.bind_some, bne_iff_ne]
+        split
+        · exact ihT hexact hbounded (exprBoundNamesPresent_of_subset hpresent (by
+            intro name hmem; simp [exprBoundNames]
+            exact Or.inl (List.mem_append.mpr (Or.inr hmem)))) hruntime
+        · exact ihE hexact hbounded (exprBoundNamesPresent_of_subset hpresent (by
+            intro name hmem; simp [exprBoundNames]; exact Or.inr hmem)) hruntime
 end
 
 theorem evalExpr_lt_evmModulus_core
