@@ -6663,7 +6663,7 @@ theorem compiledStmtStep_setStorageAddr_singleSlot
             YulExpr.call "and" [valueIR, YulExpr.hex Compiler.Constants.addressMask]])] where
   compileOk := by
     have hNotMapping : isMapping fields fieldName = false :=
-      isMapping_false_of_findFieldWithResolvedSlot_address hfind
+      isMapping_false_of_findFieldWithResolvedSlot_address hfind rfl
     simp [CompilationModel.compileStmt, CompilationModel.compileSetStorage,
       hNotMapping, hfind, hwriteSlots, hvalueIR]
   preserves := compiledStmtStep_setStorageAddr_singleSlot_preserves
@@ -11218,7 +11218,7 @@ private theorem stmtListGenericCore_singleton_setStorage_singleSlot
       (hnoConflict := hnoConflict)
       (hnotAddr := by rfl)
       (hnotDyn := by rfl)
-      (hNotMapping := isMapping_false_of_findFieldWithResolvedSlot_uint256 hfind)
+      (hNotMapping := isMapping_false_of_findFieldWithResolvedSlot_uint256 hfind rfl)
       (hvalueIR := hvalueIR))
     StmtListGenericCore.nil
 

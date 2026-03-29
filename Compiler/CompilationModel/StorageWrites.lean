@@ -98,7 +98,7 @@ def compileSetStorage (fields : List Field) (dynamicSource : DynamicDataSource)
             | none =>
                 pure [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit singleSlot, storedValueExpr])]
             | some packed =>
-                pure (compilePackedStorageWrite (YulExpr.lit singleSlot) valueExpr packed)
+                pure (compilePackedStorageWrite (YulExpr.lit singleSlot) storedValueExpr packed)
         | _ =>
             let writeSlots := slots.map YulExpr.lit
             match f.packedBits with
@@ -111,7 +111,7 @@ def compileSetStorage (fields : List Field) (dynamicSource : DynamicDataSource)
                   )
                 ]
             | some packed =>
-                pure (compileCompatPackedStorageWrites writeSlots valueExpr packed)
+                pure (compileCompatPackedStorageWrites writeSlots storedValueExpr packed)
     | none => throw s!"Compilation error: unknown storage field '{field}' in setStorage"
 
 def compileStorageArrayPush (fields : List Field) (dynamicSource : DynamicDataSource)
