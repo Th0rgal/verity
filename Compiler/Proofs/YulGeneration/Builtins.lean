@@ -153,6 +153,13 @@ def evalBuiltinCallWithContext
         else
           some 0
     | _ => none
+  else if func = "sar" then
+    match argVals with
+    | [shift, value] =>
+        let sa := Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (shift % evmModulus))
+        let sb := Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (value % evmModulus))
+        some (Verity.Core.Int256.sar sa sb).toUint256.val
+    | _ => none
   else if func = "caller" then
     match argVals with
     | [] => some sender

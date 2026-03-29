@@ -468,6 +468,12 @@ def evalExpr (fields : List Field) (state : RuntimeState) : Expr → Option Nat
       pure (Verity.Core.Int256.mod
         (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs))
         (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs))).toUint256.val
+  | .sar a b => do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (Verity.Core.Int256.sar
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs))
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs))).toUint256.val
   | _ => none
 
 def evalExprList (fields : List Field) (state : RuntimeState) : List Expr → Option (List Nat)
@@ -855,7 +861,12 @@ private theorem evalExpr_sar
     (fields : List Field)
     (state : RuntimeState)
     (shift value : Expr) :
-    evalExpr fields state (.sar shift value) = none := rfl
+    evalExpr fields state (.sar shift value) = (do
+      let lhs ← evalExpr fields state shift
+      let rhs ← evalExpr fields state value
+      pure (Verity.Core.Int256.sar
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs))
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs))).toUint256.val) := rfl
 
 private theorem evalExpr_signextend
     (fields : List Field)
@@ -2387,8 +2398,15 @@ mutual
         have hb :=
           evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state b hsurface.2
         simpa [evalExprWithHelpers, evalExpr_shl, evalExpr_shr, ha, hb]
-    | sar a b | signextend a b =>
-        simp [evalExprWithHelpers, evalExpr_sar, evalExpr_signextend]
+    | sar a b =>
+        simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+        have ha :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state a hsurface.1
+        have hb :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state b hsurface.2
+        simpa [evalExprWithHelpers, evalExpr_sar, ha, hb]
+    | signextend a b =>
+        simp [evalExprWithHelpers, evalExpr_signextend]
     | bitNot a | logicalNot a =>
         simp only [exprTouchesUnsupportedHelperSurface] at hsurface
         have ha :=
