@@ -144,6 +144,8 @@ inductive ExprCompileCore : Expr → Prop where
         ExprCompileCore (.mulDivUp a b c)
   | slt {lhs rhs : Expr} :
       ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.slt lhs rhs)
+  | sgt {lhs rhs : Expr} :
+      ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.sgt lhs rhs)
 
 /-! ## Scope analysis -/
 

@@ -450,6 +450,12 @@ def evalExpr (fields : List Field) (state : RuntimeState) : Expr → Option Nat
       pure (boolWord (decide (
         (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs) : Int) <
         (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs) : Int))))
+  | .sgt a b => do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (boolWord (decide (
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs) : Int) <
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs) : Int))))
   | _ => none
 
 def evalExprList (fields : List Field) (state : RuntimeState) : List Expr → Option (List Nat)
@@ -752,7 +758,12 @@ private theorem evalExpr_sgt
     (fields : List Field)
     (state : RuntimeState)
     (a b : Expr) :
-    evalExpr fields state (.sgt a b) = none := rfl
+    evalExpr fields state (.sgt a b) = (do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (boolWord (decide (
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs) : Int) <
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs) : Int))))) := rfl
 
 private theorem evalExpr_slt
     (fields : List Field)

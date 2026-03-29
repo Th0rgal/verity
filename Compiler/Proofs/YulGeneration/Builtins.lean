@@ -89,6 +89,13 @@ def evalBuiltinCallWithContext
         let sb := Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (b % evmModulus)))
         some (if sa < sb then 1 else 0)
     | _ => none
+  else if func = "sgt" then
+    match argVals with
+    | [a, b] =>
+        let sa := Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (a % evmModulus)))
+        let sb := Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (b % evmModulus)))
+        some (if sb < sa then 1 else 0)
+    | _ => none
   else if func = "eq" then
     match argVals with
     | [a, b] => some (if a % evmModulus = b % evmModulus then 1 else 0)
