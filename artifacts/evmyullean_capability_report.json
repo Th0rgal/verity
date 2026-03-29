@@ -53,6 +53,7 @@
     "not",
     "number",
     "or",
+    "sdiv",
     "sgt",
     "shl",
     "shr",
@@ -65,6 +66,7 @@
   "schema_version": 2,
   "status": "error",
   "unknown_builtins_present": [
+    "sdiv",
     "sgt",
     "slt"
   ],
