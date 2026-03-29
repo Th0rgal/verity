@@ -36,6 +36,9 @@ HARD_LIMIT = 50
 # justification comment in the PR explaining why decomposition is not feasible.
 ALLOWLIST: set[str] = {
     "eval_compileExpr_ceilDiv_of_compiled",  # ceilDiv correctness: 5-op IR chain (mul/iszero/add/div/sub) with zero/non-zero split
+    "eval_compileExpr_wDivUp_of_compiled",  # wDivUp correctness: 4-op IR chain (div/add/mul/sub) with zero/non-zero split and Uint256-to-Nat bridging
+    "eval_compileExpr_mulDivDown_of_compiled",  # mulDivDown correctness: 3-op IR chain (div/mul) with zero/non-zero split
+    "eval_compileExpr_mulDivUp_of_compiled",  # mulDivUp correctness: 4-op IR chain (div/add/mul/sub) with zero/non-zero split and Uint256-to-Nat bridging
     "runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot",
     "findResolvedFieldAtSlotCopyFrom_of_member",
     "ledger_transfer_correct_sufficient",

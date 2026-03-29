@@ -1459,12 +1459,15 @@ private theorem exprCompileCore_helperSurfaceClosed
     | shr _ _ ihL ihR
     | min _ _ ihL ihR
     | max _ _ ihL ihR
-    | ceilDiv _ _ ihL ihR =>
+    | ceilDiv _ _ ihL ihR | wMulDown _ _ ihL ihR | wDivUp _ _ ihL ihR =>
       simp only [exprTouchesUnsupportedHelperSurface, ihL, ihR, Bool.or_false, Bool.false_or]
   | logicalNot _ ih | bitNot _ ih =>
       simp only [exprTouchesUnsupportedHelperSurface, ih]
   | ite _ _ _ ihC ihT ihE =>
       simp only [exprTouchesUnsupportedHelperSurface, ihC, ihT, ihE,
+        Bool.or_false, Bool.false_or]
+  | mulDivDown _ _ _ ihA ihB ihC | mulDivUp _ _ _ ihA ihB ihC =>
+      simp only [exprTouchesUnsupportedHelperSurface, ihA, ihB, ihC,
         Bool.or_false, Bool.false_or]
 
 private theorem exprCompileCore_internalHelperCallNames_nil
@@ -1494,12 +1497,14 @@ private theorem exprCompileCore_internalHelperCallNames_nil
     | shr _ _ ihL ihR
     | min _ _ ihL ihR
     | max _ _ ihL ihR
-    | ceilDiv _ _ ihL ihR =>
+    | ceilDiv _ _ ihL ihR | wMulDown _ _ ihL ihR | wDivUp _ _ ihL ihR =>
       simp only [exprInternalHelperCallNames, ihL, ihR, List.nil_append]
   | logicalNot _ ih | bitNot _ ih =>
       simp only [exprInternalHelperCallNames, ih]
   | ite _ _ _ ihC ihT ihE =>
       simp only [exprInternalHelperCallNames, ihC, ihT, ihE, List.nil_append]
+  | mulDivDown _ _ _ ihA ihB ihC | mulDivUp _ _ _ ihA ihB ihC =>
+      simp only [exprInternalHelperCallNames, ihA, ihB, ihC, List.nil_append]
 
 private theorem exprListCompileCore_helperSurfaceClosed
     {exprs : List Expr}
@@ -3358,8 +3363,11 @@ private theorem exprCompileCore_usesArrayElement_false
     | le _ _ ihL ihR | logicalAnd _ _ ihL ihR | logicalOr _ _ ihL ihR
     | bitAnd _ _ ihL ihR | bitOr _ _ ihL ihR | bitXor _ _ ihL ihR
     | shl _ _ ihL ihR | shr _ _ ihL ihR
-    | min _ _ ihL ihR | max _ _ ihL ihR | ceilDiv _ _ ihL ihR =>
+    | min _ _ ihL ihR | max _ _ ihL ihR | ceilDiv _ _ ihL ihR
+    | wMulDown _ _ ihL ihR | wDivUp _ _ ihL ihR =>
       simp only [exprUsesArrayElement, ihL, ihR, Bool.false_or]
+  | mulDivDown _ _ _ ihA ihB ihC | mulDivUp _ _ _ ihA ihB ihC =>
+      simp only [exprUsesArrayElement, ihA, ihB, ihC, Bool.false_or]
   | logicalNot _ ih | bitNot _ ih =>
       simp only [exprUsesArrayElement, ih, Bool.false_or]
   | ite _ _ _ ihC ihT ihE =>
@@ -3380,8 +3388,11 @@ private theorem exprCompileCore_usesStorageArrayElement_false
     | le _ _ ihL ihR | logicalAnd _ _ ihL ihR | logicalOr _ _ ihL ihR
     | bitAnd _ _ ihL ihR | bitOr _ _ ihL ihR | bitXor _ _ ihL ihR
     | shl _ _ ihL ihR | shr _ _ ihL ihR
-    | min _ _ ihL ihR | max _ _ ihL ihR | ceilDiv _ _ ihL ihR =>
+    | min _ _ ihL ihR | max _ _ ihL ihR | ceilDiv _ _ ihL ihR
+    | wMulDown _ _ ihL ihR | wDivUp _ _ ihL ihR =>
       simp only [exprUsesStorageArrayElement, ihL, ihR, Bool.false_or]
+  | mulDivDown _ _ _ ihA ihB ihC | mulDivUp _ _ _ ihA ihB ihC =>
+      simp only [exprUsesStorageArrayElement, ihA, ihB, ihC, Bool.false_or]
   | logicalNot _ ih | bitNot _ ih =>
       simp only [exprUsesStorageArrayElement, ih, Bool.false_or]
   | ite _ _ _ ihC ihT ihE =>
@@ -3402,8 +3413,11 @@ private theorem exprCompileCore_usesDynamicBytesEq_false
     | le _ _ ihL ihR | logicalAnd _ _ ihL ihR | logicalOr _ _ ihL ihR
     | bitAnd _ _ ihL ihR | bitOr _ _ ihL ihR | bitXor _ _ ihL ihR
     | shl _ _ ihL ihR | shr _ _ ihL ihR
-    | min _ _ ihL ihR | max _ _ ihL ihR | ceilDiv _ _ ihL ihR =>
+    | min _ _ ihL ihR | max _ _ ihL ihR | ceilDiv _ _ ihL ihR
+    | wMulDown _ _ ihL ihR | wDivUp _ _ ihL ihR =>
       simp only [exprUsesDynamicBytesEq, ihL, ihR, Bool.false_or]
+  | mulDivDown _ _ _ ihA ihB ihC | mulDivUp _ _ _ ihA ihB ihC =>
+      simp only [exprUsesDynamicBytesEq, ihA, ihB, ihC, Bool.false_or]
   | logicalNot _ ih | bitNot _ ih =>
       simp only [exprUsesDynamicBytesEq, ih, Bool.false_or]
   | ite _ _ _ ihC ihT ihE =>

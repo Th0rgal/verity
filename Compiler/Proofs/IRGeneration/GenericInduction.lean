@@ -2753,6 +2753,8 @@ private theorem exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_fals
       constructor
       · exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1
       · exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.2
+  | .wMulDown _ _, hsurface | .wDivUp _ _, hsurface =>
+      simp [exprTouchesUnsupportedContractSurface] at hsurface
   | .logicalNot a, hsurface | .bitNot a, hsurface =>
       simp only [exprTouchesUnsupportedContractSurface] at hsurface
       constructor
@@ -2763,6 +2765,8 @@ private theorem exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_fals
         (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1.1)
         (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1.2)
         (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.2)
+  | .mulDivDown _ _ _, hsurface | .mulDivUp _ _ _, hsurface =>
+      simp [exprTouchesUnsupportedContractSurface] at hsurface
 
 private theorem fieldName_mem_fields_of_findFieldWithResolvedSlot_some
     {fields : List Field}
@@ -3181,7 +3185,8 @@ private theorem exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
       rcases hmem with hmem | hmem
       · exact ihL (validateScopedExprIdentifiers_pair_ok_left hpair) name hmem
       · exact ihR (validateScopedExprIdentifiers_pair_ok_right hpair) name hmem
-  | ceilDiv hL hR ihL ihR =>
+  | ceilDiv hL hR ihL ihR
+  | wDivUp hL hR ihL ihR =>
       rename_i lhs rhs
       have hpair :
           (do
@@ -3200,6 +3205,145 @@ private theorem exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
       rcases hmem with hmem | hmem
       · exact ihL (validateScopedExprIdentifiers_pair_ok_left hpair) name hmem
       · exact ihR (validateScopedExprIdentifiers_pair_ok_right hpair) name hmem
+  | wMulDown hL hR ihL ihR =>
+      rename_i lhs rhs
+      have hpair :
+          (do
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount lhs
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount rhs) =
+            Except.ok () := by
+        simpa [validateScopedExprIdentifiers] using hvalidate
+      intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+      rcases hmem with hmem | hmem
+      · exact ihL (validateScopedExprIdentifiers_pair_ok_left hpair) name hmem
+      · exact ihR (validateScopedExprIdentifiers_pair_ok_right hpair) name hmem
+  | mulDivDown hA hB hC ihA ihB ihC =>
+      rename_i a b c
+      have htriple :
+          (do
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount a
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount b
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount c) =
+            Except.ok () := by
+        simpa [validateScopedExprIdentifiers] using hvalidate
+      have hA_ok :
+          validateScopedExprIdentifiers
+            context params paramScope dynamicParams localScope constructorArgCount a =
+            Except.ok () := by
+        revert htriple
+        cases ha :
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount a with
+        | error e => simp [ha, Bind.bind, Except.bind]
+        | ok v => intro; rfl
+      have hB_ok :
+          validateScopedExprIdentifiers
+            context params paramScope dynamicParams localScope constructorArgCount b =
+            Except.ok () := by
+        revert htriple
+        cases ha :
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount a with
+        | error e => simp [ha, Bind.bind, Except.bind]
+        | ok v =>
+          cases hb :
+              validateScopedExprIdentifiers
+                context params paramScope dynamicParams localScope constructorArgCount b with
+          | error e => simp [ha, hb, Bind.bind, Except.bind]
+          | ok v => intro; rfl
+      have hC_ok :
+          validateScopedExprIdentifiers
+            context params paramScope dynamicParams localScope constructorArgCount c =
+            Except.ok () := by
+        revert htriple
+        cases ha :
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount a with
+        | error e => simp [ha, Bind.bind, Except.bind]
+        | ok v =>
+          cases hb :
+              validateScopedExprIdentifiers
+                context params paramScope dynamicParams localScope constructorArgCount b with
+          | error e => simp [ha, hb, Bind.bind, Except.bind]
+          | ok v =>
+            simp [ha, hb, Bind.bind, Except.bind]
+      intro name hmem
+      simp only [FunctionBody.exprBoundNames] at hmem
+      rcases List.mem_append.mp hmem with hmem12 | hmem
+      · rcases List.mem_append.mp hmem12 with h | h
+        · exact ihA hA_ok name h
+        · exact ihB hB_ok name h
+      · exact ihC hC_ok name hmem
+  | mulDivUp hA hB hC ihA ihB ihC =>
+      rename_i a b c
+      have htriple :
+          (do
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount a
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount b
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount c) =
+            Except.ok () := by
+        simp only [validateScopedExprIdentifiers] at hvalidate
+        revert hvalidate
+        cases validateArithDuplicatedOperandPurity context _ with
+        | ok _ => simp [Bind.bind, Except.bind]
+        | error e => simp [Bind.bind, Except.bind]
+      have hA_ok :
+          validateScopedExprIdentifiers
+            context params paramScope dynamicParams localScope constructorArgCount a =
+            Except.ok () := by
+        revert htriple
+        cases ha :
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount a with
+        | error e => simp [ha, Bind.bind, Except.bind]
+        | ok v => intro; rfl
+      have hB_ok :
+          validateScopedExprIdentifiers
+            context params paramScope dynamicParams localScope constructorArgCount b =
+            Except.ok () := by
+        revert htriple
+        cases ha :
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount a with
+        | error e => simp [ha, Bind.bind, Except.bind]
+        | ok v =>
+          cases hb :
+              validateScopedExprIdentifiers
+                context params paramScope dynamicParams localScope constructorArgCount b with
+          | error e => simp [ha, hb, Bind.bind, Except.bind]
+          | ok v => intro; rfl
+      have hC_ok :
+          validateScopedExprIdentifiers
+            context params paramScope dynamicParams localScope constructorArgCount c =
+            Except.ok () := by
+        revert htriple
+        cases ha :
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount a with
+        | error e => simp [ha, Bind.bind, Except.bind]
+        | ok v =>
+          cases hb :
+              validateScopedExprIdentifiers
+                context params paramScope dynamicParams localScope constructorArgCount b with
+          | error e => simp [ha, hb, Bind.bind, Except.bind]
+          | ok v =>
+            simp [ha, hb, Bind.bind, Except.bind]
+      intro name hmem
+      simp only [FunctionBody.exprBoundNames] at hmem
+      rcases List.mem_append.mp hmem with hmem12 | hmem
+      · rcases List.mem_append.mp hmem12 with h | h
+        · exact ihA hA_ok name h
+        · exact ihB hB_ok name h
+      · exact ihC hC_ok name hmem
   | ite hC hT hE ihC ihT ihE =>
       rename_i cond thenVal elseVal
       have hC_ok :
@@ -4052,7 +4196,7 @@ private theorem collectExprNames_mem_exprBoundNames_of_core
   | logicalAnd hL hR ihL ihR | logicalOr hL hR ihL ihR
   | shl hL hR ihL ihR | shr hL hR ihL ihR
   | min hL hR ihL ihR | max hL hR ihL ihR
-  | ceilDiv hL hR ihL ihR =>
+  | ceilDiv hL hR ihL ihR | wMulDown hL hR ihL ihR | wDivUp hL hR ihL ihR =>
       intro name hmem
       simp [collectExprNames, FunctionBody.exprBoundNames] at hmem ⊢
       rcases hmem with hmem | hmem
@@ -4068,6 +4212,13 @@ private theorem collectExprNames_mem_exprBoundNames_of_core
         · exact List.mem_append.mpr (Or.inl (List.mem_append.mpr (Or.inl (ihC _ h))))
         · exact List.mem_append.mpr (Or.inl (List.mem_append.mpr (Or.inr (ihT _ h))))
       · exact List.mem_append.mpr (Or.inr (ihE _ hmem))
+  | mulDivDown hA hB hC ihA ihB ihC | mulDivUp hA hB hC ihA ihB ihC =>
+      intro name hmem; simp only [collectExprNames] at hmem; simp only [FunctionBody.exprBoundNames]
+      rcases List.mem_append.mp hmem with hmem12 | hmem
+      · rcases List.mem_append.mp hmem12 with h | h
+        · exact List.mem_append.mpr (Or.inl (List.mem_append.mpr (Or.inl (ihA _ h))))
+        · exact List.mem_append.mpr (Or.inl (List.mem_append.mpr (Or.inr (ihB _ h))))
+      · exact List.mem_append.mpr (Or.inr (ihC _ hmem))
 
 private theorem mem_foldl_stmtNextScope_of_mem_scope
     {scope : List String}
