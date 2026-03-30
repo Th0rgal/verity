@@ -1218,14 +1218,6 @@ theorem eval_compileExpr_param_of_exact_bindings
   have hidentLift :=
     congrArg (fun x => x.bind fun a => some (some a)) hident
   simpa [hsource] using hidentLift
--- SORRY'D:   rcases hpresent name (by simp [exprBoundNames]) with ⟨value, hlookup⟩
--- SORRY'D:   have hident := evalIRExpr_ident_of_exact_bindings hexact name
--- SORRY'D:   rw [hlookup] at hident
--- SORRY'D:   have hsource : SourceSemantics.evalExpr fields runtime (.param name) = value := by
--- SORRY'D:     change SourceSemantics.lookupValue runtime.bindings name = value
--- SORRY'D:     exact lookupValue_eq_of_lookupBinding?_some hlookup
--- SORRY'D:   rw [hsource]
--- SORRY'D:   exact hident
 
 theorem eval_compileExpr_localVar_of_exact_bindings
     {fields : List Field}
@@ -1245,14 +1237,6 @@ theorem eval_compileExpr_localVar_of_exact_bindings
   have hidentLift :=
     congrArg (fun x => x.bind fun a => some (some a)) hident
   simpa [hsource] using hidentLift
--- SORRY'D:   rcases hpresent name (by simp [exprBoundNames]) with ⟨value, hlookup⟩
--- SORRY'D:   have hident := evalIRExpr_ident_of_exact_bindings hexact name
--- SORRY'D:   rw [hlookup] at hident
--- SORRY'D:   have hsource : SourceSemantics.evalExpr fields runtime (.localVar name) = value := by
--- SORRY'D:     change SourceSemantics.lookupValue runtime.bindings name = value
--- SORRY'D:     exact lookupValue_eq_of_lookupBinding?_some hlookup
--- SORRY'D:   rw [hsource]
--- SORRY'D:   exact hident
 
 theorem eval_compileExpr_param_of_expr_bindings
     {fields : List Field}
@@ -1272,14 +1256,6 @@ theorem eval_compileExpr_param_of_expr_bindings
   have hidentLift :=
     congrArg (fun x => x.bind fun a => some (some a)) hident
   simpa [evalIRExpr, hsource] using hidentLift
--- SORRY'D:   rcases hpresent name (by simp [exprBoundNames]) with ⟨value, hlookup⟩
--- SORRY'D:   have hident := hexact name (by simp [exprBoundNames])
--- SORRY'D:   rw [hlookup] at hident
--- SORRY'D:   have hsource : SourceSemantics.evalExpr fields runtime (.param name) = value := by
--- SORRY'D:     change SourceSemantics.lookupValue runtime.bindings name = value
--- SORRY'D:     exact lookupValue_eq_of_lookupBinding?_some hlookup
--- SORRY'D:   rw [hsource]
--- SORRY'D:   simpa [evalIRExpr] using hident
 
 theorem eval_compileExpr_localVar_of_expr_bindings
     {fields : List Field}
@@ -1299,14 +1275,6 @@ theorem eval_compileExpr_localVar_of_expr_bindings
   have hidentLift :=
     congrArg (fun x => x.bind fun a => some (some a)) hident
   simpa [evalIRExpr, hsource] using hidentLift
--- SORRY'D:   rcases hpresent name (by simp [exprBoundNames]) with ⟨value, hlookup⟩
--- SORRY'D:   have hident := hexact name (by simp [exprBoundNames])
--- SORRY'D:   rw [hlookup] at hident
--- SORRY'D:   have hsource : SourceSemantics.evalExpr fields runtime (.localVar name) = value := by
--- SORRY'D:     change SourceSemantics.lookupValue runtime.bindings name = value
--- SORRY'D:     exact lookupValue_eq_of_lookupBinding?_some hlookup
--- SORRY'D:   rw [hsource]
--- SORRY'D:   simpa [evalIRExpr] using hident
 
 @[simp] theorem boolWord_lt_evmModulus (b : Bool) :
     SourceSemantics.boolWord b < Compiler.Constants.evmModulus := by
@@ -2237,19 +2205,6 @@ theorem eval_compileExpr_eq_of_compiled
       have hsrc := evalExpr_eq_of_values hlhsSrc hrhsSrc
       rw [heval, hsrc]
       simp [Nat.mod_eq_of_lt hlhsLt', Nat.mod_eq_of_lt hrhsLt']
--- SORRY'D:   have hcompile := compileExpr_eq_ok hlhsCompile hrhsCompile
--- SORRY'D:   have heval :
--- SORRY'D:       evalIRExpr state
--- SORRY'D:         (CompilationModel.compileExpr fields .calldata (.eq lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
--- SORRY'D:           some (SourceSemantics.boolWord
--- SORRY'D:             (SourceSemantics.evalExpr fields runtime lhs % Compiler.Constants.evmModulus =
--- SORRY'D:               SourceSemantics.evalExpr fields runtime rhs % Compiler.Constants.evmModulus)) := by
--- SORRY'D:     simpa [hcompile] using evalIRExpr_eq_of_eval hlhsEval hrhsEval
--- SORRY'D:   rw [heval]
--- SORRY'D:   rw [show SourceSemantics.evalExpr fields runtime (.eq lhs rhs) =
--- SORRY'D:       SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime lhs =
--- SORRY'D:         SourceSemantics.evalExpr fields runtime rhs)) by rfl]
--- SORRY'D:   simp [Nat.mod_eq_of_lt hlhsLt, Nat.mod_eq_of_lt hrhsLt]
 
 theorem eval_compileExpr_lt_of_compiled
     {fields : List Field}
@@ -2286,19 +2241,6 @@ theorem eval_compileExpr_lt_of_compiled
       have hsrc := evalExpr_lt_of_values hlhsSrc hrhsSrc
       rw [heval, hsrc]
       simp [Nat.mod_eq_of_lt hlhsLt', Nat.mod_eq_of_lt hrhsLt']
--- SORRY'D:   have hcompile := compileExpr_lt_ok hlhsCompile hrhsCompile
--- SORRY'D:   have heval :
--- SORRY'D:       evalIRExpr state
--- SORRY'D:         (CompilationModel.compileExpr fields .calldata (.lt lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
--- SORRY'D:           some (SourceSemantics.boolWord
--- SORRY'D:             (SourceSemantics.evalExpr fields runtime lhs % Compiler.Constants.evmModulus <
--- SORRY'D:               SourceSemantics.evalExpr fields runtime rhs % Compiler.Constants.evmModulus)) := by
--- SORRY'D:     simpa [hcompile] using evalIRExpr_lt_of_eval hlhsEval hrhsEval
--- SORRY'D:   rw [heval]
--- SORRY'D:   rw [show SourceSemantics.evalExpr fields runtime (.lt lhs rhs) =
--- SORRY'D:       SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime lhs <
--- SORRY'D:         SourceSemantics.evalExpr fields runtime rhs)) by rfl]
--- SORRY'D:   simp [Nat.mod_eq_of_lt hlhsLt, Nat.mod_eq_of_lt hrhsLt]
 
 theorem eval_compileExpr_slt_of_compiled
     {fields : List Field}
@@ -2558,19 +2500,6 @@ theorem eval_compileExpr_gt_of_compiled
       have hsrc := evalExpr_gt_of_values hlhsSrc hrhsSrc
       rw [heval, hsrc]
       simp [Nat.mod_eq_of_lt hlhsLt', Nat.mod_eq_of_lt hrhsLt']
--- SORRY'D:   have hcompile := compileExpr_gt_ok hlhsCompile hrhsCompile
--- SORRY'D:   have heval :
--- SORRY'D:       evalIRExpr state
--- SORRY'D:         (CompilationModel.compileExpr fields .calldata (.gt lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
--- SORRY'D:           some (SourceSemantics.boolWord
--- SORRY'D:             (SourceSemantics.evalExpr fields runtime rhs % Compiler.Constants.evmModulus <
--- SORRY'D:               SourceSemantics.evalExpr fields runtime lhs % Compiler.Constants.evmModulus)) := by
--- SORRY'D:     simpa [hcompile] using evalIRExpr_gt_of_eval hlhsEval hrhsEval
--- SORRY'D:   rw [heval]
--- SORRY'D:   rw [show SourceSemantics.evalExpr fields runtime (.gt lhs rhs) =
--- SORRY'D:       SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime rhs <
--- SORRY'D:         SourceSemantics.evalExpr fields runtime lhs)) by rfl]
--- SORRY'D:   simp [Nat.mod_eq_of_lt hlhsLt, Nat.mod_eq_of_lt hrhsLt]
 
 theorem eval_compileExpr_ge_of_compiled {fields : List Field} {runtime : SourceSemantics.RuntimeState}
     {state : IRState} {lhs rhs : Expr} {lhsIR rhsIR : YulExpr}
@@ -2611,38 +2540,6 @@ theorem eval_compileExpr_ge_of_compiled {fields : List Field} {runtime : SourceS
                 simp [hlhsSrc, hrhsSrc]
       rw [heval, hsrc]
       simp [hlhsSrc, hrhsSrc, Nat.mod_eq_of_lt hlhsLt', Nat.mod_eq_of_lt hrhsLt']
--- SORRY'D:   have hcompile := compileExpr_ge_ok hlhsCompile hrhsCompile
--- SORRY'D:   have hltEval :
--- SORRY'D:       evalIRExpr state (YulExpr.call "lt" [lhsIR, rhsIR]) =
--- SORRY'D:         some (SourceSemantics.boolWord
--- SORRY'D:           (SourceSemantics.evalExpr fields runtime lhs % Compiler.Constants.evmModulus <
--- SORRY'D:             SourceSemantics.evalExpr fields runtime rhs % Compiler.Constants.evmModulus)) := by
--- SORRY'D:     simpa using evalIRExpr_lt_of_eval hlhsEval hrhsEval
--- SORRY'D:   have hinnerLt :
--- SORRY'D:       SourceSemantics.boolWord
--- SORRY'D:         (SourceSemantics.evalExpr fields runtime lhs % Compiler.Constants.evmModulus <
--- SORRY'D:           SourceSemantics.evalExpr fields runtime rhs % Compiler.Constants.evmModulus) <
--- SORRY'D:         Compiler.Constants.evmModulus :=
--- SORRY'D:     boolWord_lt_evmModulus _
--- SORRY'D:   have heval :
--- SORRY'D:       evalIRExpr state
--- SORRY'D:         (CompilationModel.compileExpr fields .calldata (.ge lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
--- SORRY'D:           some (SourceSemantics.boolWord
--- SORRY'D:             (SourceSemantics.boolWord
--- SORRY'D:               (SourceSemantics.evalExpr fields runtime lhs % Compiler.Constants.evmModulus <
--- SORRY'D:                 SourceSemantics.evalExpr fields runtime rhs % Compiler.Constants.evmModulus) = 0)) := by
--- SORRY'D:     simpa [hcompile] using evalIRExpr_iszero_of_lt hltEval hinnerLt
--- SORRY'D:   rw [heval]
--- SORRY'D:   rw [show SourceSemantics.evalExpr fields runtime (.ge lhs rhs) =
--- SORRY'D:       SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime rhs ≤
--- SORRY'D:         SourceSemantics.evalExpr fields runtime lhs)) by rfl]
--- SORRY'D:   by_cases hlt : SourceSemantics.evalExpr fields runtime lhs < SourceSemantics.evalExpr fields runtime rhs
--- SORRY'D:   · have hnotle : ¬ SourceSemantics.evalExpr fields runtime rhs ≤
--- SORRY'D:       SourceSemantics.evalExpr fields runtime lhs := Nat.not_le_of_gt hlt
--- SORRY'D:     simp [Nat.mod_eq_of_lt hlhsLt, Nat.mod_eq_of_lt hrhsLt, hlt, hnotle, SourceSemantics.boolWord]
--- SORRY'D:   · have hle : SourceSemantics.evalExpr fields runtime rhs ≤
--- SORRY'D:       SourceSemantics.evalExpr fields runtime lhs := Nat.le_of_not_gt hlt
--- SORRY'D:     simp [Nat.mod_eq_of_lt hlhsLt, Nat.mod_eq_of_lt hrhsLt, hlt, hle, SourceSemantics.boolWord]
 
 theorem eval_compileExpr_le_of_compiled {fields : List Field} {runtime : SourceSemantics.RuntimeState}
     {state : IRState} {lhs rhs : Expr} {lhsIR rhsIR : YulExpr}
@@ -2684,38 +2581,6 @@ theorem eval_compileExpr_le_of_compiled {fields : List Field} {runtime : SourceS
       rw [heval, hsrc]
       rw [hlhsSrc, hrhsSrc]
       simpa using congrArg some (boolWord_iszero_gt_eq_le lhsVal rhsVal hlhsLt' hrhsLt')
--- SORRY'D:   have hcompile := compileExpr_le_ok hlhsCompile hrhsCompile
--- SORRY'D:   have hgtEval :
--- SORRY'D:       evalIRExpr state (YulExpr.call "gt" [lhsIR, rhsIR]) =
--- SORRY'D:         some (SourceSemantics.boolWord
--- SORRY'D:           (SourceSemantics.evalExpr fields runtime rhs % Compiler.Constants.evmModulus <
--- SORRY'D:             SourceSemantics.evalExpr fields runtime lhs % Compiler.Constants.evmModulus)) := by
--- SORRY'D:     simpa using evalIRExpr_gt_of_eval hlhsEval hrhsEval
--- SORRY'D:   have hinnerLt :
--- SORRY'D:       SourceSemantics.boolWord
--- SORRY'D:         (SourceSemantics.evalExpr fields runtime rhs % Compiler.Constants.evmModulus <
--- SORRY'D:           SourceSemantics.evalExpr fields runtime lhs % Compiler.Constants.evmModulus) <
--- SORRY'D:         Compiler.Constants.evmModulus :=
--- SORRY'D:     boolWord_lt_evmModulus _
--- SORRY'D:   have heval :
--- SORRY'D:       evalIRExpr state
--- SORRY'D:         (CompilationModel.compileExpr fields .calldata (.le lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
--- SORRY'D:           some (SourceSemantics.boolWord
--- SORRY'D:             (SourceSemantics.boolWord
--- SORRY'D:               (SourceSemantics.evalExpr fields runtime rhs % Compiler.Constants.evmModulus <
--- SORRY'D:                 SourceSemantics.evalExpr fields runtime lhs % Compiler.Constants.evmModulus) = 0)) := by
--- SORRY'D:     simpa [hcompile] using evalIRExpr_iszero_of_lt hgtEval hinnerLt
--- SORRY'D:   rw [heval]
--- SORRY'D:   rw [show SourceSemantics.evalExpr fields runtime (.le lhs rhs) =
--- SORRY'D:       SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime lhs ≤
--- SORRY'D:         SourceSemantics.evalExpr fields runtime rhs)) by rfl]
--- SORRY'D:   by_cases hgt : SourceSemantics.evalExpr fields runtime rhs < SourceSemantics.evalExpr fields runtime lhs
--- SORRY'D:   · have hnotle : ¬ SourceSemantics.evalExpr fields runtime lhs ≤
--- SORRY'D:       SourceSemantics.evalExpr fields runtime rhs := Nat.not_le_of_gt hgt
--- SORRY'D:     simp [Nat.mod_eq_of_lt hlhsLt, Nat.mod_eq_of_lt hrhsLt, hgt, hnotle, SourceSemantics.boolWord]
--- SORRY'D:   · have hle : SourceSemantics.evalExpr fields runtime lhs ≤
--- SORRY'D:       SourceSemantics.evalExpr fields runtime rhs := Nat.le_of_not_gt hgt
--- SORRY'D:     simp [Nat.mod_eq_of_lt hlhsLt, Nat.mod_eq_of_lt hrhsLt, hgt, hle, SourceSemantics.boolWord]
 
 theorem eval_compileExpr_logicalNot_of_compiled
     {fields : List Field}
@@ -2831,24 +2696,6 @@ theorem eval_compileExpr_logicalAnd_of_compiled
                 simp [hlhsSrc, hrhsSrc]
       rw [heval, hsrc]
       simp [boolWord_and]
--- SORRY'D:           some ((SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime lhs ≠ 0)) &&&
--- SORRY'D:             (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime rhs ≠ 0))) := by
--- SORRY'D:     simpa [hcompile] using hcall
--- SORRY'D:   rw [heval]
--- SORRY'D:   congr
--- SORRY'D:   rw [boolWord_and]
--- SORRY'D:   rw [show SourceSemantics.evalExpr fields runtime (.logicalAnd lhs rhs) =
--- SORRY'D:       SourceSemantics.boolWord
--- SORRY'D:         (decide (SourceSemantics.evalExpr fields runtime lhs != 0) &&
--- SORRY'D:           decide (SourceSemantics.evalExpr fields runtime rhs != 0)) by
--- SORRY'D:       rfl]
--- SORRY'D:   by_cases hlhsZero : SourceSemantics.evalExpr fields runtime lhs = 0
--- SORRY'D:   · by_cases hrhsZero : SourceSemantics.evalExpr fields runtime rhs = 0
--- SORRY'D:     · simp [hlhsZero, hrhsZero, SourceSemantics.boolWord]
--- SORRY'D:     · simp [hlhsZero, hrhsZero, SourceSemantics.boolWord]
--- SORRY'D:   · by_cases hrhsZero : SourceSemantics.evalExpr fields runtime rhs = 0
--- SORRY'D:     · simp [hlhsZero, hrhsZero, SourceSemantics.boolWord]
--- SORRY'D:     · simp [hlhsZero, hrhsZero, SourceSemantics.boolWord]
 
 theorem eval_compileExpr_logicalOr_of_compiled
     {fields : List Field}
@@ -2916,45 +2763,6 @@ theorem eval_compileExpr_logicalOr_of_compiled
                 simp [hlhsSrc, hrhsSrc]
       rw [heval, hsrc]
       simp [boolWord_or]
--- SORRY'D:   have hcompile := compileExpr_logicalOr_ok hlhsCompile hrhsCompile
--- SORRY'D:   have hlhsBool :
--- SORRY'D:       evalIRExpr state (CompilationModel.yulToBool lhsIR) =
--- SORRY'D:         some (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime lhs ≠ 0)) := by
--- SORRY'D:     simpa using evalIRExpr_yulToBool_of_lt hlhsEval hlhsLt
--- SORRY'D:   have hrhsBool :
--- SORRY'D:       evalIRExpr state (CompilationModel.yulToBool rhsIR) =
--- SORRY'D:         some (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime rhs ≠ 0)) := by
--- SORRY'D:     simpa using evalIRExpr_yulToBool_of_lt hrhsEval hrhsLt
--- SORRY'D:   have hcall :
--- SORRY'D:       evalIRExpr state
--- SORRY'D:         (YulExpr.call "or" [CompilationModel.yulToBool lhsIR, CompilationModel.yulToBool rhsIR]) =
--- SORRY'D:           some ((SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime lhs ≠ 0)) |||
--- SORRY'D:             (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime rhs ≠ 0))) := by
--- SORRY'D:     simpa only
--- SORRY'D:       [Nat.mod_eq_of_lt (boolWord_lt_evmModulus (decide (SourceSemantics.evalExpr fields runtime lhs ≠ 0))),
--- SORRY'D:       Nat.mod_eq_of_lt (boolWord_lt_evmModulus (decide (SourceSemantics.evalExpr fields runtime rhs ≠ 0)))] using
--- SORRY'D:       evalIRExpr_or_of_eval hlhsBool hrhsBool
--- SORRY'D:   have heval :
--- SORRY'D:       evalIRExpr state
--- SORRY'D:         (CompilationModel.compileExpr fields .calldata (.logicalOr lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
--- SORRY'D:           some ((SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime lhs ≠ 0)) |||
--- SORRY'D:             (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime rhs ≠ 0))) := by
--- SORRY'D:     simpa [hcompile] using hcall
--- SORRY'D:   rw [heval]
--- SORRY'D:   congr
--- SORRY'D:   rw [boolWord_or]
--- SORRY'D:   rw [show SourceSemantics.evalExpr fields runtime (.logicalOr lhs rhs) =
--- SORRY'D:       SourceSemantics.boolWord
--- SORRY'D:         (decide (SourceSemantics.evalExpr fields runtime lhs != 0) ||
--- SORRY'D:           decide (SourceSemantics.evalExpr fields runtime rhs != 0)) by
--- SORRY'D:       rfl]
--- SORRY'D:   by_cases hlhsZero : SourceSemantics.evalExpr fields runtime lhs = 0
--- SORRY'D:   · by_cases hrhsZero : SourceSemantics.evalExpr fields runtime rhs = 0
--- SORRY'D:     · simp [hlhsZero, hrhsZero, SourceSemantics.boolWord]
--- SORRY'D:     · simp [hlhsZero, hrhsZero, SourceSemantics.boolWord]
--- SORRY'D:   · by_cases hrhsZero : SourceSemantics.evalExpr fields runtime rhs = 0
--- SORRY'D:     · simp [hlhsZero, hrhsZero, SourceSemantics.boolWord]
--- SORRY'D:     · simp [hlhsZero, hrhsZero, SourceSemantics.boolWord]
 
 theorem eval_compileExpr_add_of_compiled
     {fields : List Field}
@@ -2987,23 +2795,6 @@ theorem eval_compileExpr_add_of_compiled
         Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus,
         Verity.Core.UINT256_MODULUS]
       simpa [Add.add] using (Nat.add_mod lhsVal rhsVal Compiler.Constants.evmModulus).symm
--- SORRY'D:   have hcompile := compileExpr_add_ok hlhsCompile hrhsCompile
--- SORRY'D:   have heval :
--- SORRY'D:       evalIRExpr state
--- SORRY'D:         (CompilationModel.compileExpr fields .calldata (.add lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
--- SORRY'D:           some ((SourceSemantics.evalExpr fields runtime lhs +
--- SORRY'D:             SourceSemantics.evalExpr fields runtime rhs) % Compiler.Constants.evmModulus) := by
--- SORRY'D:     simpa [hcompile] using evalIRExpr_add_of_eval hlhsEval hrhsEval
--- SORRY'D:   rw [heval]
--- SORRY'D:   refine congrArg some ?_
--- SORRY'D:   change
--- SORRY'D:     ((SourceSemantics.evalExpr fields runtime lhs + SourceSemantics.evalExpr fields runtime rhs) %
--- SORRY'D:       Compiler.Constants.evmModulus) =
--- SORRY'D:     (((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) +
--- SORRY'D:       (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) : Verity.Core.Uint256).val
--- SORRY'D:   rw [Nat.add_mod]
--- SORRY'D:   simp [HAdd.hAdd, Verity.Core.Uint256.add, Verity.Core.Uint256.ofNat,
--- SORRY'D:     Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS]
 
 theorem eval_compileExpr_mul_of_compiled
     {fields : List Field}
@@ -3036,25 +2827,6 @@ theorem eval_compileExpr_mul_of_compiled
         Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus,
         Verity.Core.UINT256_MODULUS]
       simpa [Mul.mul] using (Nat.mul_mod lhsVal rhsVal Compiler.Constants.evmModulus).symm
--- SORRY'D:   have hcompile := compileExpr_mul_ok hlhsCompile hrhsCompile
--- SORRY'D:   have heval :
--- SORRY'D:       evalIRExpr state
--- SORRY'D:         (CompilationModel.compileExpr fields .calldata (.mul lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
--- SORRY'D:           some ((SourceSemantics.evalExpr fields runtime lhs *
--- SORRY'D:             SourceSemantics.evalExpr fields runtime rhs) % Compiler.Constants.evmModulus) := by
--- SORRY'D:     simpa [hcompile] using evalIRExpr_mul_of_eval hlhsEval hrhsEval
--- SORRY'D:   rw [heval]
--- SORRY'D:   refine congrArg some ?_
--- SORRY'D:   change
--- SORRY'D:     ((SourceSemantics.evalExpr fields runtime lhs * SourceSemantics.evalExpr fields runtime rhs) %
--- SORRY'D:       Compiler.Constants.evmModulus) =
--- SORRY'D:     (((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) *
--- SORRY'D:       (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) : Verity.Core.Uint256).val
--- SORRY'D:   rw [Nat.mul_mod]
--- SORRY'D:   simp [HMul.hMul, Verity.Core.Uint256.mul, Verity.Core.Uint256.ofNat,
--- SORRY'D:     Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS]
-
--- SORRY'D: /-- Bridge `Nat` values already known to be in-range to their `Uint256` coercion. -/
 theorem uint256_val_ofNat_eq
     {n : Nat}
     (hn : n < Compiler.Constants.evmModulus) :
@@ -3169,22 +2941,6 @@ theorem eval_compileExpr_div_of_compiled
       rw [hsrc]
       rw [uint256_div_val_eq hlhsLt' hrhsLt']
       simp [Nat.mod_eq_of_lt hlhsLt', Nat.mod_eq_of_lt hrhsLt']
--- SORRY'D:   have hcompile := compileExpr_div_ok hlhsCompile hrhsCompile
--- SORRY'D:   have heval :
--- SORRY'D:       evalIRExpr state
--- SORRY'D:         (CompilationModel.compileExpr fields .calldata (.div lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
--- SORRY'D:           some (if SourceSemantics.evalExpr fields runtime rhs % Compiler.Constants.evmModulus = 0 then 0
--- SORRY'D:             else
--- SORRY'D:               (SourceSemantics.evalExpr fields runtime lhs % Compiler.Constants.evmModulus) /
--- SORRY'D:                 (SourceSemantics.evalExpr fields runtime rhs % Compiler.Constants.evmModulus)) := by
--- SORRY'D:     simpa [hcompile] using evalIRExpr_div_of_eval hlhsEval hrhsEval
--- SORRY'D:   rw [heval]
--- SORRY'D:   rw [show SourceSemantics.evalExpr fields runtime (.div lhs rhs) =
--- SORRY'D:       (((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) /
--- SORRY'D:         (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) : Verity.Core.Uint256).val by
--- SORRY'D:       rfl]
--- SORRY'D:   rw [uint256_div_val_eq hlhsLt hrhsLt]
--- SORRY'D:   simp [Nat.mod_eq_of_lt hlhsLt, Nat.mod_eq_of_lt hrhsLt]
 
 theorem eval_compileExpr_sub_of_compiled
     {fields : List Field}
@@ -3224,22 +2980,6 @@ theorem eval_compileExpr_sub_of_compiled
       rw [hsrc]
       rw [uint256_sub_val_eq hlhsLt' hrhsLt']
       simp [Nat.mod_eq_of_lt hlhsLt', Nat.mod_eq_of_lt hrhsLt']
--- SORRY'D:   have hcompile := compileExpr_sub_ok hlhsCompile hrhsCompile
--- SORRY'D:   have heval :
--- SORRY'D:       evalIRExpr state
--- SORRY'D:         (CompilationModel.compileExpr fields .calldata (.sub lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
--- SORRY'D:           some ((Compiler.Constants.evmModulus +
--- SORRY'D:             (SourceSemantics.evalExpr fields runtime lhs % Compiler.Constants.evmModulus) -
--- SORRY'D:             (SourceSemantics.evalExpr fields runtime rhs % Compiler.Constants.evmModulus)) %
--- SORRY'D:               Compiler.Constants.evmModulus) := by
--- SORRY'D:     simpa [hcompile] using evalIRExpr_sub_of_eval hlhsEval hrhsEval
--- SORRY'D:   rw [heval]
--- SORRY'D:   rw [show SourceSemantics.evalExpr fields runtime (.sub lhs rhs) =
--- SORRY'D:       (((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) -
--- SORRY'D:         (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) : Verity.Core.Uint256).val by
--- SORRY'D:       rfl]
--- SORRY'D:   rw [uint256_sub_val_eq hlhsLt hrhsLt]
--- SORRY'D:   simp [Nat.mod_eq_of_lt hlhsLt, Nat.mod_eq_of_lt hrhsLt]
 
 theorem eval_compileExpr_mod_of_compiled
     {fields : List Field}
@@ -3278,22 +3018,6 @@ theorem eval_compileExpr_mod_of_compiled
       rw [hsrc]
       rw [uint256_mod_val_eq hlhsLt' hrhsLt']
       simp [Nat.mod_eq_of_lt hlhsLt', Nat.mod_eq_of_lt hrhsLt']
--- SORRY'D:   have hcompile := compileExpr_mod_ok hlhsCompile hrhsCompile
--- SORRY'D:   have heval :
--- SORRY'D:       evalIRExpr state
--- SORRY'D:         (CompilationModel.compileExpr fields .calldata (.mod lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
--- SORRY'D:           some (if SourceSemantics.evalExpr fields runtime rhs % Compiler.Constants.evmModulus = 0 then 0
--- SORRY'D:             else
--- SORRY'D:               (SourceSemantics.evalExpr fields runtime lhs % Compiler.Constants.evmModulus) %
--- SORRY'D:                 (SourceSemantics.evalExpr fields runtime rhs % Compiler.Constants.evmModulus)) := by
--- SORRY'D:     simpa [hcompile] using evalIRExpr_mod_of_eval hlhsEval hrhsEval
--- SORRY'D:   rw [heval]
--- SORRY'D:   rw [show SourceSemantics.evalExpr fields runtime (.mod lhs rhs) =
--- SORRY'D:       (((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) %
--- SORRY'D:         (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) : Verity.Core.Uint256).val by
--- SORRY'D:       rfl]
--- SORRY'D:   rw [uint256_mod_val_eq hlhsLt hrhsLt]
--- SORRY'D:   simp [Nat.mod_eq_of_lt hlhsLt, Nat.mod_eq_of_lt hrhsLt]
 
 private theorem evalExpr_bitAnd_of_values
     {fields : List Field}
@@ -7016,263 +6740,6 @@ theorem eval_compileRequireFailCond_core_onExpr
       · simp [CompilationModel.compileRequireFailCond, hexpr]
       · simpa using finishIszeroEval (expr := .mulDivUp a b c)
           (show ExprCompileCore (.mulDivUp a b c) from ExprCompileCore.mulDivUp hA hB hC) hexact hpresent hexpr
--- SORRY'D:   let finishIszeroEval {expr : Expr} (h : ExprCompileCore expr)
--- SORRY'D:       (hexactExpr : bindingsExactlyMatchIRVarsOnExpr expr runtime.bindings state)
--- SORRY'D:       (hpresentExpr : exprBoundNamesPresent expr runtime.bindings)
--- SORRY'D:       {exprIR : YulExpr}
--- SORRY'D:       (hexpr : CompilationModel.compileExpr fields .calldata expr = Except.ok exprIR) :
--- SORRY'D:       evalIRExpr state (YulExpr.call "iszero" [exprIR]) =
--- SORRY'D:         some (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime expr = 0)) := by
--- SORRY'D:     have heval := eval_compileExpr_core_onExpr h hexactExpr hbounded hpresentExpr hruntime
--- SORRY'D:     rw [hexpr] at heval
--- SORRY'D:     have hlt := evalExpr_lt_evmModulus_core_onExpr h hexactExpr hbounded hpresentExpr hruntime
--- SORRY'D:     simpa [hexpr] using evalIRExpr_iszero_of_lt heval hlt
--- SORRY'D:   cases hcore with
--- SORRY'D:   | literal value =>
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields)
--- SORRY'D:           (show ExprCompileCore (.literal value) from ExprCompileCore.literal value) with ⟨exprIR, hexpr⟩
--- SORRY'D:       refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
--- SORRY'D:       · simp [CompilationModel.compileRequireFailCond, hexpr]
--- SORRY'D:       · simpa using finishIszeroEval (expr := .literal value)
--- SORRY'D:           (show ExprCompileCore (.literal value) from ExprCompileCore.literal value) hexact hpresent hexpr
--- SORRY'D:   | param name =>
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields)
--- SORRY'D:           (show ExprCompileCore (.param name) from ExprCompileCore.param name) with ⟨exprIR, hexpr⟩
--- SORRY'D:       refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
--- SORRY'D:       · simp [CompilationModel.compileRequireFailCond, hexpr]
--- SORRY'D:       · simpa using finishIszeroEval (expr := .param name)
--- SORRY'D:           (show ExprCompileCore (.param name) from ExprCompileCore.param name) hexact hpresent hexpr
--- SORRY'D:   | localVar name =>
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields)
--- SORRY'D:           (show ExprCompileCore (.localVar name) from ExprCompileCore.localVar name) with ⟨exprIR, hexpr⟩
--- SORRY'D:       refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
--- SORRY'D:       · simp [CompilationModel.compileRequireFailCond, hexpr]
--- SORRY'D:       · simpa using finishIszeroEval (expr := .localVar name)
--- SORRY'D:           (show ExprCompileCore (.localVar name) from ExprCompileCore.localVar name) hexact hpresent hexpr
--- SORRY'D:   | caller =>
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields)
--- SORRY'D:           (show ExprCompileCore (.caller) from ExprCompileCore.caller) with ⟨exprIR, hexpr⟩
--- SORRY'D:       refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
--- SORRY'D:       · simp [CompilationModel.compileRequireFailCond, hexpr]
--- SORRY'D:       · simpa using finishIszeroEval (expr := .caller)
--- SORRY'D:           (show ExprCompileCore (.caller) from ExprCompileCore.caller) hexact hpresent hexpr
--- SORRY'D:   | contractAddress =>
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields)
--- SORRY'D:           (show ExprCompileCore (.contractAddress) from ExprCompileCore.contractAddress) with ⟨exprIR, hexpr⟩
--- SORRY'D:       refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
--- SORRY'D:       · simp [CompilationModel.compileRequireFailCond, hexpr]
--- SORRY'D:       · simpa using finishIszeroEval (expr := .contractAddress)
--- SORRY'D:           (show ExprCompileCore (.contractAddress) from ExprCompileCore.contractAddress) hexact hpresent hexpr
--- SORRY'D:   | msgValue =>
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields)
--- SORRY'D:           (show ExprCompileCore (.msgValue) from ExprCompileCore.msgValue) with ⟨exprIR, hexpr⟩
--- SORRY'D:       refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
--- SORRY'D:       · simp [CompilationModel.compileRequireFailCond, hexpr]
--- SORRY'D:       · simpa using finishIszeroEval (expr := .msgValue)
--- SORRY'D:           (show ExprCompileCore (.msgValue) from ExprCompileCore.msgValue) hexact hpresent hexpr
--- SORRY'D:   | blockTimestamp =>
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields)
--- SORRY'D:           (show ExprCompileCore (.blockTimestamp) from ExprCompileCore.blockTimestamp) with ⟨exprIR, hexpr⟩
--- SORRY'D:       refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
--- SORRY'D:       · simp [CompilationModel.compileRequireFailCond, hexpr]
--- SORRY'D:       · simpa using finishIszeroEval (expr := .blockTimestamp)
--- SORRY'D:           (show ExprCompileCore (.blockTimestamp) from ExprCompileCore.blockTimestamp) hexact hpresent hexpr
--- SORRY'D:   | blockNumber =>
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields)
--- SORRY'D:           (show ExprCompileCore (.blockNumber) from ExprCompileCore.blockNumber) with ⟨exprIR, hexpr⟩
--- SORRY'D:       refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
--- SORRY'D:       · simp [CompilationModel.compileRequireFailCond, hexpr]
--- SORRY'D:       · simpa using finishIszeroEval (expr := .blockNumber)
--- SORRY'D:           (show ExprCompileCore (.blockNumber) from ExprCompileCore.blockNumber) hexact hpresent hexpr
--- SORRY'D:   | chainid =>
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields)
--- SORRY'D:           (show ExprCompileCore (.chainid) from ExprCompileCore.chainid) with ⟨exprIR, hexpr⟩
--- SORRY'D:       refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
--- SORRY'D:       · simp [CompilationModel.compileRequireFailCond, hexpr]
--- SORRY'D:       · simpa using finishIszeroEval (expr := .chainid)
--- SORRY'D:           (show ExprCompileCore (.chainid) from ExprCompileCore.chainid) hexact hpresent hexpr
--- SORRY'D:   | add hL hR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields)
--- SORRY'D:           (show ExprCompileCore (.add lhs rhs) from ExprCompileCore.add hL hR) with ⟨exprIR, hexpr⟩
--- SORRY'D:       refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
--- SORRY'D:       · simp [CompilationModel.compileRequireFailCond, hexpr]
--- SORRY'D:       · simpa using finishIszeroEval (expr := .add lhs rhs)
--- SORRY'D:           (show ExprCompileCore (.add lhs rhs) from ExprCompileCore.add hL hR) hexact hpresent hexpr
--- SORRY'D:   | sub hL hR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields)
--- SORRY'D:           (show ExprCompileCore (.sub lhs rhs) from ExprCompileCore.sub hL hR) with ⟨exprIR, hexpr⟩
--- SORRY'D:       refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
--- SORRY'D:       · simp [CompilationModel.compileRequireFailCond, hexpr]
--- SORRY'D:       · simpa using finishIszeroEval (expr := .sub lhs rhs)
--- SORRY'D:           (show ExprCompileCore (.sub lhs rhs) from ExprCompileCore.sub hL hR) hexact hpresent hexpr
--- SORRY'D:   | mul hL hR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields)
--- SORRY'D:           (show ExprCompileCore (.mul lhs rhs) from ExprCompileCore.mul hL hR) with ⟨exprIR, hexpr⟩
--- SORRY'D:       refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
--- SORRY'D:       · simp [CompilationModel.compileRequireFailCond, hexpr]
--- SORRY'D:       · simpa using finishIszeroEval (expr := .mul lhs rhs)
--- SORRY'D:           (show ExprCompileCore (.mul lhs rhs) from ExprCompileCore.mul hL hR) hexact hpresent hexpr
--- SORRY'D:   | div hL hR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields)
--- SORRY'D:           (show ExprCompileCore (.div lhs rhs) from ExprCompileCore.div hL hR) with ⟨exprIR, hexpr⟩
--- SORRY'D:       refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
--- SORRY'D:       · simp [CompilationModel.compileRequireFailCond, hexpr]
--- SORRY'D:       · simpa using finishIszeroEval (expr := .div lhs rhs)
--- SORRY'D:           (show ExprCompileCore (.div lhs rhs) from ExprCompileCore.div hL hR) hexact hpresent hexpr
--- SORRY'D:   | mod hL hR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields)
--- SORRY'D:           (show ExprCompileCore (.mod lhs rhs) from ExprCompileCore.mod hL hR) with ⟨exprIR, hexpr⟩
--- SORRY'D:       refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
--- SORRY'D:       · simp [CompilationModel.compileRequireFailCond, hexpr]
--- SORRY'D:       · simpa using finishIszeroEval (expr := .mod lhs rhs)
--- SORRY'D:           (show ExprCompileCore (.mod lhs rhs) from ExprCompileCore.mod hL hR) hexact hpresent hexpr
--- SORRY'D:   | eq hL hR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields)
--- SORRY'D:           (show ExprCompileCore (.eq lhs rhs) from ExprCompileCore.eq hL hR) with ⟨exprIR, hexpr⟩
--- SORRY'D:       refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
--- SORRY'D:       · simp [CompilationModel.compileRequireFailCond, hexpr]
--- SORRY'D:       · simpa using finishIszeroEval (expr := .eq lhs rhs)
--- SORRY'D:           (show ExprCompileCore (.eq lhs rhs) from ExprCompileCore.eq hL hR) hexact hpresent hexpr
--- SORRY'D:   | lt hL hR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields)
--- SORRY'D:           (show ExprCompileCore (.lt lhs rhs) from ExprCompileCore.lt hL hR) with ⟨exprIR, hexpr⟩
--- SORRY'D:       refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
--- SORRY'D:       · simp [CompilationModel.compileRequireFailCond, hexpr]
--- SORRY'D:       · simpa using finishIszeroEval (expr := .lt lhs rhs)
--- SORRY'D:           (show ExprCompileCore (.lt lhs rhs) from ExprCompileCore.lt hL hR) hexact hpresent hexpr
--- SORRY'D:   | gt hL hR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields)
--- SORRY'D:           (show ExprCompileCore (.gt lhs rhs) from ExprCompileCore.gt hL hR) with ⟨exprIR, hexpr⟩
--- SORRY'D:       refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
--- SORRY'D:       · simp [CompilationModel.compileRequireFailCond, hexpr]
--- SORRY'D:       · simpa using finishIszeroEval (expr := .gt lhs rhs)
--- SORRY'D:           (show ExprCompileCore (.gt lhs rhs) from ExprCompileCore.gt hL hR) hexact hpresent hexpr
--- SORRY'D:   | ge hL hR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields) hL with ⟨lhsIR, hlhs⟩
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields) hR with ⟨rhsIR, hrhs⟩
--- SORRY'D:       have hexactL : bindingsExactlyMatchIRVarsOnExpr lhs runtime.bindings state :=
--- SORRY'D:         bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
--- SORRY'D:           intro name hname
--- SORRY'D:           simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hname))
--- SORRY'D:       have hexactR : bindingsExactlyMatchIRVarsOnExpr rhs runtime.bindings state :=
--- SORRY'D:         bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
--- SORRY'D:           intro name hname
--- SORRY'D:           simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hname))
--- SORRY'D:       have hpresentL : exprBoundNamesPresent lhs runtime.bindings :=
--- SORRY'D:         exprBoundNamesPresent_of_subset hpresent (by
--- SORRY'D:           intro name hname
--- SORRY'D:           simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hname))
--- SORRY'D:       have hpresentR : exprBoundNamesPresent rhs runtime.bindings :=
--- SORRY'D:         exprBoundNamesPresent_of_subset hpresent (by
--- SORRY'D:           intro name hname
--- SORRY'D:           simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hname))
--- SORRY'D:       have hlhsEval := eval_compileExpr_core_onExpr hL hexactL hbounded hpresentL hruntime
--- SORRY'D:       have hrhsEval := eval_compileExpr_core_onExpr hR hexactR hbounded hpresentR hruntime
--- SORRY'D:       rw [hlhs] at hlhsEval
--- SORRY'D:       rw [hrhs] at hrhsEval
--- SORRY'D:       have hlhsLt := evalExpr_lt_evmModulus_core_onExpr hL hexactL hbounded hpresentL hruntime
--- SORRY'D:       have hrhsLt := evalExpr_lt_evmModulus_core_onExpr hR hexactR hbounded hpresentR hruntime
--- SORRY'D:       refine ⟨YulExpr.call "lt" [lhsIR, rhsIR], ?_, ?_⟩
--- SORRY'D:       · rw [CompilationModel.compileRequireFailCond, hlhs, hrhs]
--- SORRY'D:         rfl
--- SORRY'D:       · have hltEval :
--- SORRY'D:             evalIRExpr state (YulExpr.call "lt" [lhsIR, rhsIR]) =
--- SORRY'D:               some (SourceSemantics.boolWord
--- SORRY'D:                 (SourceSemantics.evalExpr fields runtime lhs % Compiler.Constants.evmModulus <
--- SORRY'D:                   SourceSemantics.evalExpr fields runtime rhs % Compiler.Constants.evmModulus)) := by
--- SORRY'D:           simpa using evalIRExpr_lt_of_eval hlhsEval hrhsEval
--- SORRY'D:         rw [show SourceSemantics.evalExpr fields runtime (.ge lhs rhs) =
--- SORRY'D:             SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime rhs ≤
--- SORRY'D:               SourceSemantics.evalExpr fields runtime lhs)) by rfl]
--- SORRY'D:         by_cases hlt : SourceSemantics.evalExpr fields runtime lhs < SourceSemantics.evalExpr fields runtime rhs
--- SORRY'D:         · have hnotge : ¬ (SourceSemantics.evalExpr fields runtime rhs ≤
--- SORRY'D:             SourceSemantics.evalExpr fields runtime lhs) := Nat.not_le_of_gt hlt
--- SORRY'D:           simp [hltEval, Nat.mod_eq_of_lt hlhsLt, Nat.mod_eq_of_lt hrhsLt, hlt, hnotge,
--- SORRY'D:             SourceSemantics.boolWord]
--- SORRY'D:         · have hge : SourceSemantics.evalExpr fields runtime rhs ≤
--- SORRY'D:             SourceSemantics.evalExpr fields runtime lhs := Nat.le_of_not_gt hlt
--- SORRY'D:           simp [hltEval, Nat.mod_eq_of_lt hlhsLt, Nat.mod_eq_of_lt hrhsLt, hlt, hge,
--- SORRY'D:             SourceSemantics.boolWord]
--- SORRY'D:   | le hL hR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields) hL with ⟨lhsIR, hlhs⟩
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields) hR with ⟨rhsIR, hrhs⟩
--- SORRY'D:       have hexactL : bindingsExactlyMatchIRVarsOnExpr lhs runtime.bindings state :=
--- SORRY'D:         bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
--- SORRY'D:           intro name hname
--- SORRY'D:           simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hname))
--- SORRY'D:       have hexactR : bindingsExactlyMatchIRVarsOnExpr rhs runtime.bindings state :=
--- SORRY'D:         bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
--- SORRY'D:           intro name hname
--- SORRY'D:           simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hname))
--- SORRY'D:       have hpresentL : exprBoundNamesPresent lhs runtime.bindings :=
--- SORRY'D:         exprBoundNamesPresent_of_subset hpresent (by
--- SORRY'D:           intro name hname
--- SORRY'D:           simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hname))
--- SORRY'D:       have hpresentR : exprBoundNamesPresent rhs runtime.bindings :=
--- SORRY'D:         exprBoundNamesPresent_of_subset hpresent (by
--- SORRY'D:           intro name hname
--- SORRY'D:           simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hname))
--- SORRY'D:       have hlhsEval := eval_compileExpr_core_onExpr hL hexactL hbounded hpresentL hruntime
--- SORRY'D:       have hrhsEval := eval_compileExpr_core_onExpr hR hexactR hbounded hpresentR hruntime
--- SORRY'D:       rw [hlhs] at hlhsEval
--- SORRY'D:       rw [hrhs] at hrhsEval
--- SORRY'D:       have hlhsLt := evalExpr_lt_evmModulus_core_onExpr hL hexactL hbounded hpresentL hruntime
--- SORRY'D:       have hrhsLt := evalExpr_lt_evmModulus_core_onExpr hR hexactR hbounded hpresentR hruntime
--- SORRY'D:       refine ⟨YulExpr.call "gt" [lhsIR, rhsIR], ?_, ?_⟩
--- SORRY'D:       · rw [CompilationModel.compileRequireFailCond, hlhs, hrhs]
--- SORRY'D:         rfl
--- SORRY'D:       · have hgtEval :
--- SORRY'D:             evalIRExpr state (YulExpr.call "gt" [lhsIR, rhsIR]) =
--- SORRY'D:               some (SourceSemantics.boolWord
--- SORRY'D:                 (SourceSemantics.evalExpr fields runtime rhs % Compiler.Constants.evmModulus <
--- SORRY'D:                   SourceSemantics.evalExpr fields runtime lhs % Compiler.Constants.evmModulus)) := by
--- SORRY'D:           simpa using evalIRExpr_gt_of_eval hlhsEval hrhsEval
--- SORRY'D:         rw [show SourceSemantics.evalExpr fields runtime (.le lhs rhs) =
--- SORRY'D:             SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime lhs ≤
--- SORRY'D:               SourceSemantics.evalExpr fields runtime rhs)) by rfl]
--- SORRY'D:         by_cases hgt : SourceSemantics.evalExpr fields runtime rhs < SourceSemantics.evalExpr fields runtime lhs
--- SORRY'D:         · have hnotle : ¬ (SourceSemantics.evalExpr fields runtime lhs ≤
--- SORRY'D:             SourceSemantics.evalExpr fields runtime rhs) := Nat.not_le_of_gt hgt
--- SORRY'D:           simp [hgtEval, Nat.mod_eq_of_lt hlhsLt, Nat.mod_eq_of_lt hrhsLt, hgt, hnotle,
--- SORRY'D:             SourceSemantics.boolWord]
--- SORRY'D:         · have hle : SourceSemantics.evalExpr fields runtime lhs ≤
--- SORRY'D:             SourceSemantics.evalExpr fields runtime rhs := Nat.le_of_not_gt hgt
--- SORRY'D:           simp [hgtEval, Nat.mod_eq_of_lt hlhsLt, Nat.mod_eq_of_lt hrhsLt, hgt, hle,
--- SORRY'D:             SourceSemantics.boolWord]
--- SORRY'D:   | logicalNot h =>
--- SORRY'D:       rename_i expr
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields)
--- SORRY'D:           (show ExprCompileCore (.logicalNot expr) from ExprCompileCore.logicalNot h) with ⟨exprIR, hexpr⟩
--- SORRY'D:       refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
--- SORRY'D:       · simp [CompilationModel.compileRequireFailCond, hexpr]
--- SORRY'D:       · simpa using finishIszeroEval (expr := .logicalNot expr)
--- SORRY'D:           (show ExprCompileCore (.logicalNot expr) from ExprCompileCore.logicalNot h) hexact hpresent hexpr
--- SORRY'D:   | logicalAnd hL hR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields)
--- SORRY'D:           (show ExprCompileCore (.logicalAnd lhs rhs) from ExprCompileCore.logicalAnd hL hR) with ⟨exprIR, hexpr⟩
--- SORRY'D:       refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
--- SORRY'D:       · simp [CompilationModel.compileRequireFailCond, hexpr]
--- SORRY'D:       · simpa using finishIszeroEval (expr := .logicalAnd lhs rhs)
--- SORRY'D:           (show ExprCompileCore (.logicalAnd lhs rhs) from ExprCompileCore.logicalAnd hL hR) hexact hpresent hexpr
--- SORRY'D:   | logicalOr hL hR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields)
--- SORRY'D:           (show ExprCompileCore (.logicalOr lhs rhs) from ExprCompileCore.logicalOr hL hR) with ⟨exprIR, hexpr⟩
--- SORRY'D:       refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
--- SORRY'D:       · simp [CompilationModel.compileRequireFailCond, hexpr]
--- SORRY'D:       · simpa using finishIszeroEval (expr := .logicalOr lhs rhs)
--- SORRY'D:           (show ExprCompileCore (.logicalOr lhs rhs) from ExprCompileCore.logicalOr hL hR) hexact hpresent hexpr
 
 theorem runtimeStateMatchesIR_setVar_bindValue
     {fields : List Field}
@@ -9924,244 +9391,6 @@ theorem exec_compileStmtList_core
         rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
         simp [hirExec]
         exact ⟨hruntime, ⟨hexact, hbounded⟩⟩
--- SORRY'D:   induction hcore generalizing runtime state inScopeNames with
--- SORRY'D:   | nil =>
--- SORRY'D:       refine ⟨[], rfl, ?_⟩
--- SORRY'D:       constructor
--- SORRY'D:       · simpa [SourceSemantics.execStmtList, execIRStmts, stmtResultMatchesIRExec] using hruntime
--- SORRY'D:       · simpa [SourceSemantics.execStmtList, execIRStmts, stmtResultMatchesIRExecExact] using
--- SORRY'D:           And.intro hexact hbounded
--- SORRY'D:   | letVar hvalue hinScope hrest ih =>
--- SORRY'D:       rename_i scope name value rest
--- SORRY'D:       have hpresent : exprBoundNamesPresent value runtime.bindings :=
--- SORRY'D:         exprBoundNamesPresent_of_scope hscope hinScope
--- SORRY'D:       rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
--- SORRY'D:       let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:       let runtime' :=
--- SORRY'D:         { runtime with bindings := SourceSemantics.bindValue runtime.bindings name valueNat }
--- SORRY'D:       let state' := state.setVar name valueNat
--- SORRY'D:       have heval := eval_compileExpr_core hvalue hexact hbounded hpresent hruntime
--- SORRY'D:       rw [hvalueIR] at heval
--- SORRY'D:       have heval' : evalIRExpr state valueIR = some valueNat := by
--- SORRY'D:         simpa [valueNat] using heval
--- SORRY'D:       have hvalueLt := evalExpr_lt_evmModulus_core hvalue hexact hbounded hpresent hruntime
--- SORRY'D:       have hruntime' : runtimeStateMatchesIR fields runtime' state' :=
--- SORRY'D:         runtimeStateMatchesIR_setVar_bindValue hruntime name valueNat
--- SORRY'D:       have hexact' : bindingsExactlyMatchIRVars runtime'.bindings state' :=
--- SORRY'D:         bindingsExactlyMatchIRVars_setVar_bindValue hexact name valueNat
--- SORRY'D:       have hbounded' : bindingsBounded runtime'.bindings :=
--- SORRY'D:         bindingsBounded_bindValue hbounded name valueNat hvalueLt
--- SORRY'D:       have hscope' : scopeNamesPresent (name :: scope) runtime'.bindings :=
--- SORRY'D:         scopeNamesPresent_cons_bindValue hscope
--- SORRY'D:       rcases ih (runtime := runtime') (state := state')
--- SORRY'D:           (inScopeNames := collectStmtNames (.letVar name value) ++ inScopeNames)
--- SORRY'D:           hscope' hexact' hbounded' hruntime' with
--- SORRY'D:         ⟨tailIR, htailCompile, htailSem, htailExact⟩
--- SORRY'D:       refine ⟨[YulStmt.let_ name valueIR] ++ tailIR, ?_, ?_⟩
--- SORRY'D:       · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
--- SORRY'D:         rw [hvalueIR]
--- SORRY'D:         simp [htailCompile]
--- SORRY'D:         exact rfl
--- SORRY'D:       · have hstmt :
--- SORRY'D:             execIRStmt (tailIR.length + 1) state (YulStmt.let_ name valueIR) =
--- SORRY'D:               .continue state' := by
--- SORRY'D:           simp [execIRStmt, heval', state', valueNat]
--- SORRY'D:         have hirExec :
--- SORRY'D:             execIRStmts (tailIR.length + 2) state
--- SORRY'D:               (YulStmt.let_ name valueIR :: tailIR) =
--- SORRY'D:               execIRStmts (tailIR.length + 1) state' tailIR := by
--- SORRY'D:           simpa using
--- SORRY'D:             (execIRStmts_cons_of_execIRStmt_continue state state'
--- SORRY'D:               (YulStmt.let_ name valueIR) tailIR hstmt)
--- SORRY'D:         rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
--- SORRY'D:         dsimp [runtime', state']
--- SORRY'D:         constructor
--- SORRY'D:         · simpa [hirExec, runtime', valueNat] using htailSem
--- SORRY'D:         · simpa [hirExec, runtime', valueNat] using htailExact
--- SORRY'D:   | assignVar hvalue hinScope hrest ih =>
--- SORRY'D:       rename_i scope name value rest
--- SORRY'D:       have hpresent : exprBoundNamesPresent value runtime.bindings :=
--- SORRY'D:         exprBoundNamesPresent_of_scope hscope hinScope
--- SORRY'D:       rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
--- SORRY'D:       let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:       let runtime' :=
--- SORRY'D:         { runtime with bindings := SourceSemantics.bindValue runtime.bindings name valueNat }
--- SORRY'D:       let state' := state.setVar name valueNat
--- SORRY'D:       have heval := eval_compileExpr_core hvalue hexact hbounded hpresent hruntime
--- SORRY'D:       rw [hvalueIR] at heval
--- SORRY'D:       have heval' : evalIRExpr state valueIR = some valueNat := by
--- SORRY'D:         simpa [valueNat] using heval
--- SORRY'D:       have hvalueLt := evalExpr_lt_evmModulus_core hvalue hexact hbounded hpresent hruntime
--- SORRY'D:       have hruntime' : runtimeStateMatchesIR fields runtime' state' :=
--- SORRY'D:         runtimeStateMatchesIR_setVar_bindValue hruntime name valueNat
--- SORRY'D:       have hexact' : bindingsExactlyMatchIRVars runtime'.bindings state' :=
--- SORRY'D:         bindingsExactlyMatchIRVars_setVar_bindValue hexact name valueNat
--- SORRY'D:       have hbounded' : bindingsBounded runtime'.bindings :=
--- SORRY'D:         bindingsBounded_bindValue hbounded name valueNat hvalueLt
--- SORRY'D:       have hscope' : scopeNamesPresent (name :: scope) runtime'.bindings :=
--- SORRY'D:         scopeNamesPresent_cons_bindValue hscope
--- SORRY'D:       rcases ih (runtime := runtime') (state := state')
--- SORRY'D:           (inScopeNames := collectStmtNames (.assignVar name value) ++ inScopeNames)
--- SORRY'D:           hscope' hexact' hbounded' hruntime' with
--- SORRY'D:         ⟨tailIR, htailCompile, htailSem, htailExact⟩
--- SORRY'D:       refine ⟨[YulStmt.assign name valueIR] ++ tailIR, ?_, ?_⟩
--- SORRY'D:       · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
--- SORRY'D:         rw [hvalueIR]
--- SORRY'D:         simp [htailCompile]
--- SORRY'D:         exact rfl
--- SORRY'D:       · have hstmt :
--- SORRY'D:             execIRStmt (tailIR.length + 1) state (YulStmt.assign name valueIR) =
--- SORRY'D:               .continue state' := by
--- SORRY'D:           simp [execIRStmt, heval', state', valueNat]
--- SORRY'D:         have hirExec :
--- SORRY'D:             execIRStmts (tailIR.length + 2) state
--- SORRY'D:               (YulStmt.assign name valueIR :: tailIR) =
--- SORRY'D:               execIRStmts (tailIR.length + 1) state' tailIR := by
--- SORRY'D:           simpa using
--- SORRY'D:             (execIRStmts_cons_of_execIRStmt_continue state state'
--- SORRY'D:               (YulStmt.assign name valueIR) tailIR hstmt)
--- SORRY'D:         rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
--- SORRY'D:         dsimp [runtime', state']
--- SORRY'D:         constructor
--- SORRY'D:         · simpa [hirExec, runtime', valueNat] using htailSem
--- SORRY'D:         · simpa [hirExec, runtime', valueNat] using htailExact
--- SORRY'D:   | require_ hcond hinScope hrest ih =>
--- SORRY'D:       rename_i scope cond message rest
--- SORRY'D:       have hpresent : exprBoundNamesPresent cond runtime.bindings :=
--- SORRY'D:         exprBoundNamesPresent_of_scope hscope hinScope
--- SORRY'D:       rcases eval_compileRequireFailCond_core hcond hexact hbounded hpresent hruntime with
--- SORRY'D:         ⟨failCond, hfailCompile, hfailEval⟩
--- SORRY'D:       rcases ih (runtime := runtime) (state := state)
--- SORRY'D:           (inScopeNames := collectStmtNames (.require cond message) ++ inScopeNames)
--- SORRY'D:           hscope hexact hbounded hruntime with
--- SORRY'D:         ⟨tailIR, htailCompile, htailSem, htailExact⟩
--- SORRY'D:       refine ⟨[YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR, ?_, ?_⟩
--- SORRY'D:       · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
--- SORRY'D:         rw [hfailCompile]
--- SORRY'D:         simp [htailCompile]
--- SORRY'D:         exact rfl
--- SORRY'D:       · by_cases hcondZero : SourceSemantics.evalExpr fields runtime cond = 0
--- SORRY'D:         · rcases execIRStmts_revertWithMessage_revert (fuel := tailIR.length) (state := state) message with
--- SORRY'D:             ⟨revState, hrev⟩
--- SORRY'D:           have hfailEval' : evalIRExpr state failCond = some 1 := by
--- SORRY'D:             simpa [hcondZero, SourceSemantics.boolWord] using hfailEval
--- SORRY'D:           have hstmt :
--- SORRY'D:               execIRStmt (tailIR.length + 1) state
--- SORRY'D:                 (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) =
--- SORRY'D:                   .revert revState := by
--- SORRY'D:             simp [execIRStmt, hfailEval', hrev]
--- SORRY'D:           have hirExec :
--- SORRY'D:               execIRStmts (tailIR.length + 2) state
--- SORRY'D:                 (YulStmt.if_ failCond (CompilationModel.revertWithMessage message) :: tailIR) =
--- SORRY'D:                   .revert revState := by
--- SORRY'D:             simpa using
--- SORRY'D:               (execIRStmts_cons_of_execIRStmt_revert state revState
--- SORRY'D:                 (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) tailIR hstmt)
--- SORRY'D:           rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
--- SORRY'D:           simp [hcondZero, hirExec, stmtResultMatchesIRExec, stmtResultMatchesIRExecExact]
--- SORRY'D:         · have hfailEval' : evalIRExpr state failCond = some 0 := by
--- SORRY'D:             simpa [hcondZero, SourceSemantics.boolWord] using hfailEval
--- SORRY'D:           have hstmt :
--- SORRY'D:               execIRStmt (tailIR.length + 1) state
--- SORRY'D:                 (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) =
--- SORRY'D:                   .continue state := by
--- SORRY'D:             simp [execIRStmt, hfailEval']
--- SORRY'D:           have hirExec :
--- SORRY'D:               execIRStmts (tailIR.length + 2) state
--- SORRY'D:                 (YulStmt.if_ failCond (CompilationModel.revertWithMessage message) :: tailIR) =
--- SORRY'D:                   execIRStmts (tailIR.length + 1) state tailIR := by
--- SORRY'D:             simpa using
--- SORRY'D:               (execIRStmts_cons_of_execIRStmt_continue state state
--- SORRY'D:                 (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) tailIR hstmt)
--- SORRY'D:           rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
--- SORRY'D:           simp [hcondZero, hirExec]
--- SORRY'D:           constructor
--- SORRY'D:           · simpa [hirExec] using htailSem
--- SORRY'D:           · simpa [hirExec] using htailExact
--- SORRY'D:   | return_ hvalue hinScope hrest ih =>
--- SORRY'D:       rename_i scope value rest
--- SORRY'D:       have hpresent : exprBoundNamesPresent value runtime.bindings :=
--- SORRY'D:         exprBoundNamesPresent_of_scope hscope hinScope
--- SORRY'D:       rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
--- SORRY'D:       let retVal := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:       let state' := { state with memory := fun o => if o = 0 then retVal else state.memory o }
--- SORRY'D:       rcases ih (runtime := runtime) (state := state')
--- SORRY'D:           (inScopeNames := collectStmtNames (.return value) ++ inScopeNames)
--- SORRY'D:           hscope
--- SORRY'D:           (bindingsExactlyMatchIRVars_setMemory hexact 0 retVal)
--- SORRY'D:           hbounded
--- SORRY'D:           (runtimeStateMatchesIR_setMemory hruntime 0 retVal) with
--- SORRY'D:         ⟨tailIR, htailCompile, htailSem, htailExact⟩
--- SORRY'D:       refine ⟨[ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
--- SORRY'D:               , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++ tailIR,
--- SORRY'D:         ?_, ?_⟩
--- SORRY'D:       · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
--- SORRY'D:         rw [hvalueIR]
--- SORRY'D:         simp [htailCompile]
--- SORRY'D:         exact rfl
--- SORRY'D:       · have heval := eval_compileExpr_core hvalue hexact hbounded hpresent hruntime
--- SORRY'D:         rw [hvalueIR] at heval
--- SORRY'D:         have heval' : evalIRExpr state valueIR = some retVal := by
--- SORRY'D:           simpa [retVal] using heval
--- SORRY'D:         have hruntime' : runtimeStateMatchesIR fields runtime state' :=
--- SORRY'D:           runtimeStateMatchesIR_setMemory hruntime 0 retVal
--- SORRY'D:         have hexact' : bindingsExactlyMatchIRVars runtime.bindings state' :=
--- SORRY'D:           bindingsExactlyMatchIRVars_setMemory hexact 0 retVal
--- SORRY'D:         have hmstore :
--- SORRY'D:             execIRStmt (tailIR.length + 2) state
--- SORRY'D:               (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])) =
--- SORRY'D:               .continue state' := by
--- SORRY'D:           simp [execIRStmt, evalIRExpr, heval', retVal, state']
--- SORRY'D:         have hreturn :
--- SORRY'D:             execIRStmt (tailIR.length + 1) state'
--- SORRY'D:               (YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32])) =
--- SORRY'D:               .return retVal state' := by
--- SORRY'D:           simp [execIRStmt, evalIRExpr, retVal, state']
--- SORRY'D:         have hirExec :
--- SORRY'D:             execIRStmts (tailIR.length + 3)
--- SORRY'D:               state
--- SORRY'D:               (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR]) ::
--- SORRY'D:                 YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ::
--- SORRY'D:                 tailIR) =
--- SORRY'D:               .return retVal state' := by
--- SORRY'D:           simpa using
--- SORRY'D:             (execIRStmts_two_of_continue_then_return state state' state'
--- SORRY'D:               (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR]))
--- SORRY'D:               (YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]))
--- SORRY'D:               tailIR retVal hmstore hreturn)
--- SORRY'D:         rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
--- SORRY'D:         dsimp [retVal, state']
--- SORRY'D:         constructor
--- SORRY'D:         · simpa [hirExec] using (show
--- SORRY'D:             stmtResultMatchesIRExec fields
--- SORRY'D:               (SourceSemantics.StmtResult.return retVal runtime)
--- SORRY'D:               (.return retVal state') from ⟨rfl, hruntime'⟩)
--- SORRY'D:         · simpa [hirExec] using (show
--- SORRY'D:             stmtResultMatchesIRExecExact
--- SORRY'D:               (SourceSemantics.StmtResult.return retVal runtime)
--- SORRY'D:               (.return retVal state') from ⟨hexact', hbounded⟩)
--- SORRY'D:   | stop hrest ih =>
--- SORRY'D:       rename_i scope rest
--- SORRY'D:       rcases ih (runtime := runtime) (state := state)
--- SORRY'D:           (inScopeNames := collectStmtNames (.stop) ++ inScopeNames)
--- SORRY'D:           hscope hexact hbounded hruntime with
--- SORRY'D:         ⟨tailIR, htailCompile, htailSem, htailExact⟩
--- SORRY'D:       refine ⟨[YulStmt.expr (YulExpr.call "stop" [])] ++ tailIR, ?_, ?_⟩
--- SORRY'D:       · simpa [CompilationModel.compileStmtList, CompilationModel.compileStmt, htailCompile]
--- SORRY'D:       · have hstmt :
--- SORRY'D:             execIRStmt (tailIR.length + 1) state (YulStmt.expr (YulExpr.call "stop" [])) =
--- SORRY'D:               .stop state := by
--- SORRY'D:           simp [execIRStmt]
--- SORRY'D:         have hirExec :
--- SORRY'D:             execIRStmts (tailIR.length + 2) state
--- SORRY'D:               (YulStmt.expr (YulExpr.call "stop" []) :: tailIR) =
--- SORRY'D:               .stop state := by
--- SORRY'D:           simpa using
--- SORRY'D:             (execIRStmts_cons_of_execIRStmt_stop state state
--- SORRY'D:               (YulStmt.expr (YulExpr.call "stop" [])) tailIR hstmt)
--- SORRY'D:         rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
--- SORRY'D:         simp [hirExec]
--- SORRY'D:         exact ⟨hruntime, ⟨hexact, hbounded⟩⟩
 
 theorem exec_compileStmtList_core_extraFuel
     {fields : List Field}
@@ -10497,297 +9726,6 @@ theorem exec_compileStmtList_core_extraFuel
         rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
         simp [hirExec']
         exact ⟨hruntime, ⟨hexact, hbounded⟩⟩
--- SORRY'D:   induction hcore generalizing runtime state inScopeNames with
--- SORRY'D:   | nil =>
--- SORRY'D:       refine ⟨[], rfl, ?_⟩
--- SORRY'D:       constructor
--- SORRY'D:       · simpa [SourceSemantics.execStmtList, execIRStmts, stmtResultMatchesIRExec] using hruntime
--- SORRY'D:       · simpa [SourceSemantics.execStmtList, execIRStmts, stmtResultMatchesIRExecExact] using
--- SORRY'D:           And.intro hexact hbounded
--- SORRY'D:   | letVar hvalue hinScope hrest ih =>
--- SORRY'D:       rename_i scope name value rest
--- SORRY'D:       have hpresent : exprBoundNamesPresent value runtime.bindings :=
--- SORRY'D:         exprBoundNamesPresent_of_scope hscope hinScope
--- SORRY'D:       rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
--- SORRY'D:       let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:       let runtime' :=
--- SORRY'D:         { runtime with bindings := SourceSemantics.bindValue runtime.bindings name valueNat }
--- SORRY'D:       let state' := state.setVar name valueNat
--- SORRY'D:       have heval := eval_compileExpr_core hvalue hexact hbounded hpresent hruntime
--- SORRY'D:       rw [hvalueIR] at heval
--- SORRY'D:       have heval' : evalIRExpr state valueIR = some valueNat := by
--- SORRY'D:         simpa [valueNat] using heval
--- SORRY'D:       have hvalueLt := evalExpr_lt_evmModulus_core hvalue hexact hbounded hpresent hruntime
--- SORRY'D:       have hruntime' : runtimeStateMatchesIR fields runtime' state' :=
--- SORRY'D:         runtimeStateMatchesIR_setVar_bindValue hruntime name valueNat
--- SORRY'D:       have hexact' : bindingsExactlyMatchIRVars runtime'.bindings state' :=
--- SORRY'D:         bindingsExactlyMatchIRVars_setVar_bindValue hexact name valueNat
--- SORRY'D:       have hbounded' : bindingsBounded runtime'.bindings :=
--- SORRY'D:         bindingsBounded_bindValue hbounded name valueNat hvalueLt
--- SORRY'D:       have hscope' : scopeNamesPresent (name :: scope) runtime'.bindings :=
--- SORRY'D:         scopeNamesPresent_cons_bindValue hscope
--- SORRY'D:       rcases ih (runtime := runtime') (state := state')
--- SORRY'D:           (inScopeNames := collectStmtNames (.letVar name value) ++ inScopeNames)
--- SORRY'D:           hscope' hexact' hbounded' hruntime' with
--- SORRY'D:         ⟨tailIR, htailCompile, htailSem, htailExact⟩
--- SORRY'D:       refine ⟨[YulStmt.let_ name valueIR] ++ tailIR, ?_, ?_⟩
--- SORRY'D:       · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
--- SORRY'D:         rw [hvalueIR]
--- SORRY'D:         simp [htailCompile]
--- SORRY'D:         exact rfl
--- SORRY'D:       · have hstmt :
--- SORRY'D:             execIRStmt (tailIR.length + extraFuel + 1) state (YulStmt.let_ name valueIR) =
--- SORRY'D:               .continue state' := by
--- SORRY'D:           simp [execIRStmt, heval', state', valueNat]
--- SORRY'D:         have hirExec :
--- SORRY'D:             execIRStmts (tailIR.length + extraFuel + 2) state
--- SORRY'D:               (YulStmt.let_ name valueIR :: tailIR) =
--- SORRY'D:               execIRStmts (tailIR.length + extraFuel + 1) state' tailIR := by
--- SORRY'D:           simpa using
--- SORRY'D:             (execIRStmts_cons_of_execIRStmt_continue_extraFuel extraFuel state state'
--- SORRY'D:               (YulStmt.let_ name valueIR) tailIR hstmt)
--- SORRY'D:         rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
--- SORRY'D:         dsimp [runtime', state']
--- SORRY'D:         constructor
--- SORRY'D:         · have hirExec' :
--- SORRY'D:               execIRStmts (tailIR.length + 1 + extraFuel + 1) state
--- SORRY'D:                 (YulStmt.let_ name valueIR :: tailIR) =
--- SORRY'D:                 execIRStmts (tailIR.length + extraFuel + 1) state' tailIR := by
--- SORRY'D:             simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using hirExec
--- SORRY'D:           rw [hirExec']
--- SORRY'D:           simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm, runtime', valueNat] using htailSem
--- SORRY'D:         · have hirExec' :
--- SORRY'D:               execIRStmts (tailIR.length + 1 + extraFuel + 1) state
--- SORRY'D:                 (YulStmt.let_ name valueIR :: tailIR) =
--- SORRY'D:                 execIRStmts (tailIR.length + extraFuel + 1) state' tailIR := by
--- SORRY'D:             simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using hirExec
--- SORRY'D:           rw [hirExec']
--- SORRY'D:           simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm, runtime', valueNat] using htailExact
--- SORRY'D:   | assignVar hvalue hinScope hrest ih =>
--- SORRY'D:       rename_i scope name value rest
--- SORRY'D:       have hpresent : exprBoundNamesPresent value runtime.bindings :=
--- SORRY'D:         exprBoundNamesPresent_of_scope hscope hinScope
--- SORRY'D:       rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
--- SORRY'D:       let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:       let runtime' :=
--- SORRY'D:         { runtime with bindings := SourceSemantics.bindValue runtime.bindings name valueNat }
--- SORRY'D:       let state' := state.setVar name valueNat
--- SORRY'D:       have heval := eval_compileExpr_core hvalue hexact hbounded hpresent hruntime
--- SORRY'D:       rw [hvalueIR] at heval
--- SORRY'D:       have heval' : evalIRExpr state valueIR = some valueNat := by
--- SORRY'D:         simpa [valueNat] using heval
--- SORRY'D:       have hvalueLt := evalExpr_lt_evmModulus_core hvalue hexact hbounded hpresent hruntime
--- SORRY'D:       have hruntime' : runtimeStateMatchesIR fields runtime' state' :=
--- SORRY'D:         runtimeStateMatchesIR_setVar_bindValue hruntime name valueNat
--- SORRY'D:       have hexact' : bindingsExactlyMatchIRVars runtime'.bindings state' :=
--- SORRY'D:         bindingsExactlyMatchIRVars_setVar_bindValue hexact name valueNat
--- SORRY'D:       have hbounded' : bindingsBounded runtime'.bindings :=
--- SORRY'D:         bindingsBounded_bindValue hbounded name valueNat hvalueLt
--- SORRY'D:       have hscope' : scopeNamesPresent (name :: scope) runtime'.bindings :=
--- SORRY'D:         scopeNamesPresent_cons_bindValue hscope
--- SORRY'D:       rcases ih (runtime := runtime') (state := state')
--- SORRY'D:           (inScopeNames := collectStmtNames (.assignVar name value) ++ inScopeNames)
--- SORRY'D:           hscope' hexact' hbounded' hruntime' with
--- SORRY'D:         ⟨tailIR, htailCompile, htailSem, htailExact⟩
--- SORRY'D:       refine ⟨[YulStmt.assign name valueIR] ++ tailIR, ?_, ?_⟩
--- SORRY'D:       · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
--- SORRY'D:         rw [hvalueIR]
--- SORRY'D:         simp [htailCompile]
--- SORRY'D:         exact rfl
--- SORRY'D:       · have hstmt :
--- SORRY'D:             execIRStmt (tailIR.length + extraFuel + 1) state (YulStmt.assign name valueIR) =
--- SORRY'D:               .continue state' := by
--- SORRY'D:           simp [execIRStmt, heval', state', valueNat]
--- SORRY'D:         have hirExec :
--- SORRY'D:             execIRStmts (tailIR.length + extraFuel + 2) state
--- SORRY'D:               (YulStmt.assign name valueIR :: tailIR) =
--- SORRY'D:               execIRStmts (tailIR.length + extraFuel + 1) state' tailIR := by
--- SORRY'D:           simpa using
--- SORRY'D:             (execIRStmts_cons_of_execIRStmt_continue_extraFuel extraFuel state state'
--- SORRY'D:               (YulStmt.assign name valueIR) tailIR hstmt)
--- SORRY'D:         rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
--- SORRY'D:         dsimp [runtime', state']
--- SORRY'D:         constructor
--- SORRY'D:         · have hirExec' :
--- SORRY'D:               execIRStmts (tailIR.length + 1 + extraFuel + 1) state
--- SORRY'D:                 (YulStmt.assign name valueIR :: tailIR) =
--- SORRY'D:                 execIRStmts (tailIR.length + extraFuel + 1) state' tailIR := by
--- SORRY'D:             simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using hirExec
--- SORRY'D:           rw [hirExec']
--- SORRY'D:           simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm, runtime', valueNat] using htailSem
--- SORRY'D:         · have hirExec' :
--- SORRY'D:               execIRStmts (tailIR.length + 1 + extraFuel + 1) state
--- SORRY'D:                 (YulStmt.assign name valueIR :: tailIR) =
--- SORRY'D:                 execIRStmts (tailIR.length + extraFuel + 1) state' tailIR := by
--- SORRY'D:             simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using hirExec
--- SORRY'D:           rw [hirExec']
--- SORRY'D:           simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm, runtime', valueNat] using htailExact
--- SORRY'D:   | require_ hcond hinScope hrest ih =>
--- SORRY'D:       rename_i scope cond message rest
--- SORRY'D:       have hpresent : exprBoundNamesPresent cond runtime.bindings :=
--- SORRY'D:         exprBoundNamesPresent_of_scope hscope hinScope
--- SORRY'D:       rcases eval_compileRequireFailCond_core hcond hexact hbounded hpresent hruntime with
--- SORRY'D:         ⟨failCond, hfailCompile, hfailEval⟩
--- SORRY'D:       rcases ih (runtime := runtime) (state := state)
--- SORRY'D:           (inScopeNames := collectStmtNames (.require cond message) ++ inScopeNames)
--- SORRY'D:           hscope hexact hbounded hruntime with
--- SORRY'D:         ⟨tailIR, htailCompile, htailSem, htailExact⟩
--- SORRY'D:       refine ⟨[YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR, ?_, ?_⟩
--- SORRY'D:       · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
--- SORRY'D:         rw [hfailCompile]
--- SORRY'D:         simp [htailCompile]
--- SORRY'D:         exact rfl
--- SORRY'D:       · by_cases hcondZero : SourceSemantics.evalExpr fields runtime cond = 0
--- SORRY'D:         · rcases execIRStmts_revertWithMessage_revert (fuel := tailIR.length + extraFuel)
--- SORRY'D:             (state := state) message with
--- SORRY'D:             ⟨revState, hrev⟩
--- SORRY'D:           have hfailEval' : evalIRExpr state failCond = some 1 := by
--- SORRY'D:             simpa [hcondZero, SourceSemantics.boolWord] using hfailEval
--- SORRY'D:           have hstmt :
--- SORRY'D:               execIRStmt (tailIR.length + extraFuel + 1) state
--- SORRY'D:                 (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) =
--- SORRY'D:                   .revert revState := by
--- SORRY'D:             simp [execIRStmt, hfailEval', hrev]
--- SORRY'D:           have hirExec :
--- SORRY'D:               execIRStmts (tailIR.length + extraFuel + 2) state
--- SORRY'D:                 (YulStmt.if_ failCond (CompilationModel.revertWithMessage message) :: tailIR) =
--- SORRY'D:                   .revert revState := by
--- SORRY'D:             simpa using
--- SORRY'D:               (execIRStmts_cons_of_execIRStmt_revert_extraFuel extraFuel state revState
--- SORRY'D:                 (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) tailIR hstmt)
--- SORRY'D:           have hirExec' :
--- SORRY'D:               execIRStmts (tailIR.length + 1 + extraFuel + 1) state
--- SORRY'D:                 (YulStmt.if_ failCond (CompilationModel.revertWithMessage message) :: tailIR) =
--- SORRY'D:                   .revert revState := by
--- SORRY'D:             simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using hirExec
--- SORRY'D:           rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
--- SORRY'D:           simp [hcondZero, hirExec', stmtResultMatchesIRExec, stmtResultMatchesIRExecExact]
--- SORRY'D:         · have hfailEval' : evalIRExpr state failCond = some 0 := by
--- SORRY'D:             simpa [hcondZero, SourceSemantics.boolWord] using hfailEval
--- SORRY'D:           have hstmt :
--- SORRY'D:               execIRStmt (tailIR.length + extraFuel + 1) state
--- SORRY'D:                 (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) =
--- SORRY'D:                   .continue state := by
--- SORRY'D:             simp [execIRStmt, hfailEval']
--- SORRY'D:           have hirExec :
--- SORRY'D:               execIRStmts (tailIR.length + extraFuel + 2) state
--- SORRY'D:                 (YulStmt.if_ failCond (CompilationModel.revertWithMessage message) :: tailIR) =
--- SORRY'D:                   execIRStmts (tailIR.length + extraFuel + 1) state tailIR := by
--- SORRY'D:             simpa using
--- SORRY'D:               (execIRStmts_cons_of_execIRStmt_continue_extraFuel extraFuel state state
--- SORRY'D:                 (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) tailIR hstmt)
--- SORRY'D:           have hirExec' :
--- SORRY'D:               execIRStmts (tailIR.length + 1 + extraFuel + 1) state
--- SORRY'D:                 (YulStmt.if_ failCond (CompilationModel.revertWithMessage message) :: tailIR) =
--- SORRY'D:                   execIRStmts (tailIR.length + extraFuel + 1) state tailIR := by
--- SORRY'D:             simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using hirExec
--- SORRY'D:           rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
--- SORRY'D:           simp [hcondZero, hirExec']
--- SORRY'D:           constructor
--- SORRY'D:           · exact htailSem
--- SORRY'D:           · exact htailExact
--- SORRY'D:   | return_ hvalue hinScope hrest ih =>
--- SORRY'D:       rename_i scope value rest
--- SORRY'D:       have hpresent : exprBoundNamesPresent value runtime.bindings :=
--- SORRY'D:         exprBoundNamesPresent_of_scope hscope hinScope
--- SORRY'D:       rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
--- SORRY'D:       let retVal := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:       let state' := { state with memory := fun o => if o = 0 then retVal else state.memory o }
--- SORRY'D:       rcases ih (runtime := runtime) (state := state')
--- SORRY'D:           (inScopeNames := collectStmtNames (.return value) ++ inScopeNames)
--- SORRY'D:           hscope
--- SORRY'D:           (bindingsExactlyMatchIRVars_setMemory hexact 0 retVal)
--- SORRY'D:           hbounded
--- SORRY'D:           (runtimeStateMatchesIR_setMemory hruntime 0 retVal) with
--- SORRY'D:         ⟨tailIR, htailCompile, htailSem, htailExact⟩
--- SORRY'D:       refine ⟨[ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
--- SORRY'D:               , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++ tailIR,
--- SORRY'D:         ?_, ?_⟩
--- SORRY'D:       · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
--- SORRY'D:         rw [hvalueIR]
--- SORRY'D:         simp [htailCompile]
--- SORRY'D:         exact rfl
--- SORRY'D:       · have heval := eval_compileExpr_core hvalue hexact hbounded hpresent hruntime
--- SORRY'D:         rw [hvalueIR] at heval
--- SORRY'D:         have heval' : evalIRExpr state valueIR = some retVal := by
--- SORRY'D:           simpa [retVal] using heval
--- SORRY'D:         have hruntime' : runtimeStateMatchesIR fields runtime state' :=
--- SORRY'D:           runtimeStateMatchesIR_setMemory hruntime 0 retVal
--- SORRY'D:         have hexact' : bindingsExactlyMatchIRVars runtime.bindings state' :=
--- SORRY'D:           bindingsExactlyMatchIRVars_setMemory hexact 0 retVal
--- SORRY'D:         have hmstore :
--- SORRY'D:             execIRStmt (tailIR.length + extraFuel + 2) state
--- SORRY'D:               (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])) =
--- SORRY'D:               .continue state' := by
--- SORRY'D:           simp [execIRStmt, evalIRExpr, heval', retVal, state']
--- SORRY'D:         have hreturn :
--- SORRY'D:             execIRStmt (tailIR.length + extraFuel + 1) state'
--- SORRY'D:               (YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32])) =
--- SORRY'D:               .return retVal state' := by
--- SORRY'D:           simp [execIRStmt, evalIRExpr, retVal, state']
--- SORRY'D:         have hirExec :
--- SORRY'D:             execIRStmts (tailIR.length + extraFuel + 3)
--- SORRY'D:               state
--- SORRY'D:               (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR]) ::
--- SORRY'D:                 YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ::
--- SORRY'D:                 tailIR) =
--- SORRY'D:               .return retVal state' := by
--- SORRY'D:           simpa using
--- SORRY'D:             (execIRStmts_two_of_continue_then_return_extraFuel extraFuel state state' state'
--- SORRY'D:               (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR]))
--- SORRY'D:               (YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]))
--- SORRY'D:               tailIR retVal hmstore hreturn)
--- SORRY'D:         have hirExec' :
--- SORRY'D:             execIRStmts (tailIR.length + 1 + 1 + extraFuel + 1)
--- SORRY'D:               state
--- SORRY'D:               (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR]) ::
--- SORRY'D:                 YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ::
--- SORRY'D:                 tailIR) =
--- SORRY'D:               .return retVal state' := by
--- SORRY'D:           simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using hirExec
--- SORRY'D:         rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
--- SORRY'D:         dsimp [retVal, state']
--- SORRY'D:         constructor
--- SORRY'D:         · rw [hirExec']
--- SORRY'D:           simpa using (show
--- SORRY'D:             stmtResultMatchesIRExec fields
--- SORRY'D:               (SourceSemantics.StmtResult.return retVal runtime)
--- SORRY'D:               (.return retVal state') from ⟨rfl, hruntime'⟩)
--- SORRY'D:         · rw [hirExec']
--- SORRY'D:           simpa using (show
--- SORRY'D:             stmtResultMatchesIRExecExact
--- SORRY'D:               (SourceSemantics.StmtResult.return retVal runtime)
--- SORRY'D:               (.return retVal state') from ⟨hexact', hbounded⟩)
--- SORRY'D:   | stop hrest ih =>
--- SORRY'D:       rename_i scope rest
--- SORRY'D:       rcases ih (runtime := runtime) (state := state)
--- SORRY'D:           (inScopeNames := collectStmtNames (.stop) ++ inScopeNames)
--- SORRY'D:           hscope hexact hbounded hruntime with
--- SORRY'D:         ⟨tailIR, htailCompile, htailSem, htailExact⟩
--- SORRY'D:       refine ⟨[YulStmt.expr (YulExpr.call "stop" [])] ++ tailIR, ?_, ?_⟩
--- SORRY'D:       · simpa [CompilationModel.compileStmtList, CompilationModel.compileStmt, htailCompile]
--- SORRY'D:       · have hstmt :
--- SORRY'D:             execIRStmt (tailIR.length + extraFuel + 1) state
--- SORRY'D:               (YulStmt.expr (YulExpr.call "stop" [])) =
--- SORRY'D:               .stop state := by
--- SORRY'D:           simp [execIRStmt]
--- SORRY'D:         have hirExec :
--- SORRY'D:             execIRStmts (tailIR.length + extraFuel + 2) state
--- SORRY'D:               (YulStmt.expr (YulExpr.call "stop" []) :: tailIR) =
--- SORRY'D:               .stop state := by
--- SORRY'D:           simpa using
--- SORRY'D:             (execIRStmts_cons_of_execIRStmt_stop_extraFuel extraFuel state state
--- SORRY'D:               (YulStmt.expr (YulExpr.call "stop" [])) tailIR hstmt)
--- SORRY'D:         have hirExec' :
--- SORRY'D:             execIRStmts (tailIR.length + 1 + extraFuel + 1) state
--- SORRY'D:               (YulStmt.expr (YulExpr.call "stop" []) :: tailIR) =
--- SORRY'D:               .stop state := by
--- SORRY'D:           simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using hirExec
--- SORRY'D:         rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
--- SORRY'D:         simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm, hirExec'] using
--- SORRY'D:           (show stmtResultMatchesIRExec fields (SourceSemantics.StmtResult.stop runtime) (.stop state) ∧
--- SORRY'D:               stmtResultMatchesIRExecExact (SourceSemantics.StmtResult.stop runtime) (.stop state) from
--- SORRY'D:             ⟨hruntime, ⟨hexact, hbounded⟩⟩)
 
 private theorem compiled_terminal_ite_body_block_extraFuel_eq
     (extraFuel : Nat)
@@ -13215,109 +12153,6 @@ theorem execIRStmts_compiled_return_core_append_wholeFuel_of_scope
       (value := retVal)
       hmstore
       hreturn
--- SORRY'D:   rcases compileExpr_core_ok (fields := fields) hcore with ⟨valueIR, hvalueIR⟩
--- SORRY'D:   let retVal := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:   let state' := { state with memory := fun o => if o = 0 then retVal else state.memory o }
--- SORRY'D:   have heval :=
--- SORRY'D:     eval_compileExpr_core_of_scope hcore hexact hinScope hbounded hpresent hruntime
--- SORRY'D:   rw [hvalueIR] at heval
--- SORRY'D:   have heval' : evalIRExpr state valueIR = some retVal := by
--- SORRY'D:     simpa [retVal] using heval
--- SORRY'D:   have hmstoreFuelNeZero :
--- SORRY'D:       sizeOf
--- SORRY'D:           ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
--- SORRY'D:            , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
--- SORRY'D:             tailIR) + extraFuel ≠ 0 := by
--- SORRY'D:     have hprefixLen :
--- SORRY'D:         2 ≤
--- SORRY'D:           ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
--- SORRY'D:            , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
--- SORRY'D:             tailIR).length := by
--- SORRY'D:       simp
--- SORRY'D:     have hlen :
--- SORRY'D:         ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
--- SORRY'D:          , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
--- SORRY'D:           tailIR).length ≤
--- SORRY'D:           sizeOf
--- SORRY'D:             ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
--- SORRY'D:              , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
--- SORRY'D:               tailIR) := by
--- SORRY'D:       exact yulStmtList_length_le_sizeOf _
--- SORRY'D:     omega
--- SORRY'D:   have hreturnFuelNeZero :
--- SORRY'D:       sizeOf
--- SORRY'D:           ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
--- SORRY'D:            , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
--- SORRY'D:             tailIR) + extraFuel - 1 ≠ 0 := by
--- SORRY'D:     have hprefixLen :
--- SORRY'D:         2 ≤
--- SORRY'D:           ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
--- SORRY'D:            , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
--- SORRY'D:             tailIR).length := by
--- SORRY'D:       simp
--- SORRY'D:     have hlen :
--- SORRY'D:         ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
--- SORRY'D:          , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
--- SORRY'D:           tailIR).length ≤
--- SORRY'D:           sizeOf
--- SORRY'D:             ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
--- SORRY'D:              , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
--- SORRY'D:               tailIR) := by
--- SORRY'D:       exact yulStmtList_length_le_sizeOf _
--- SORRY'D:     omega
--- SORRY'D:   have hmstore :
--- SORRY'D:       execIRStmt
--- SORRY'D:           (sizeOf
--- SORRY'D:               ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
--- SORRY'D:                , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
--- SORRY'D:                 tailIR) + extraFuel)
--- SORRY'D:           state
--- SORRY'D:           (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])) =
--- SORRY'D:         .continue state' := by
--- SORRY'D:     simpa [state'] using
--- SORRY'D:       execIRStmt_mstore_of_eval_nonzeroFuel
--- SORRY'D:         (fuel :=
--- SORRY'D:           sizeOf
--- SORRY'D:             ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
--- SORRY'D:              , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
--- SORRY'D:               tailIR) + extraFuel)
--- SORRY'D:         (state := state)
--- SORRY'D:         (offset := 0)
--- SORRY'D:         (valueExpr := valueIR)
--- SORRY'D:         (value := retVal)
--- SORRY'D:         hmstoreFuelNeZero
--- SORRY'D:         heval'
--- SORRY'D:   have hreturn :
--- SORRY'D:       execIRStmt
--- SORRY'D:           (sizeOf
--- SORRY'D:               ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
--- SORRY'D:                , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
--- SORRY'D:                 tailIR) + extraFuel - 1)
--- SORRY'D:           state'
--- SORRY'D:           (YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32])) =
--- SORRY'D:         .return retVal state' := by
--- SORRY'D:     simpa [state', retVal] using
--- SORRY'D:       execIRStmt_return32_of_memory_nonzeroFuel
--- SORRY'D:         (fuel :=
--- SORRY'D:           sizeOf
--- SORRY'D:             ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
--- SORRY'D:              , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
--- SORRY'D:               tailIR) + extraFuel - 1)
--- SORRY'D:         (state := state')
--- SORRY'D:         (offset := 0)
--- SORRY'D:         hreturnFuelNeZero
--- SORRY'D:   refine ⟨valueIR, hvalueIR, ?_⟩
--- SORRY'D:   exact execIRStmts_two_append_of_continue_then_return_wholeFuel
--- SORRY'D:     (extraFuel := extraFuel)
--- SORRY'D:     (state := state)
--- SORRY'D:     (mid := state')
--- SORRY'D:     (next := state')
--- SORRY'D:     (stmt1 := YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR]))
--- SORRY'D:     (stmt2 := YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]))
--- SORRY'D:     (rest := tailIR)
--- SORRY'D:     (value := retVal)
--- SORRY'D:     hmstore
--- SORRY'D:     hreturn
 
 theorem execIRStmts_compiled_stop_core_append_wholeFuel
     {state : IRState}
