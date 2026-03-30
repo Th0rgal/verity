@@ -2843,6 +2843,56 @@ private theorem fieldName_mem_fields_of_compileSetStorage_ok
       exact fieldName_mem_fields_of_findFieldWithResolvedSlot_some hfind
     · simp at hcompile
 
+private theorem isMapping_false_of_compileSetStorage_ok
+    {fields : List Field}
+    {fieldName : String}
+    {value : Expr}
+    {requireAddressField : Bool}
+    {compiledIR : List YulStmt}
+    (hcompile :
+      CompilationModel.compileSetStorage
+        fields .calldata fieldName value requireAddressField = Except.ok compiledIR) :
+    isMapping fields fieldName = false := by
+  by_cases h : isMapping fields fieldName
+  · simp [CompilationModel.compileSetStorage, h] at hcompile
+  · simpa using h
+
+private theorem compileStmt_ok_of_compileStmtList_append_cons
+    {fields : List Field}
+    {scope : List String}
+    {«prefix» : List Stmt}
+    {stmt : Stmt}
+    {«suffix» : List Stmt}
+    {bodyIR : List YulStmt}
+    (hcompile :
+      CompilationModel.compileStmtList
+        fields [] [] .calldata [] false scope («prefix» ++ stmt :: «suffix») =
+          Except.ok bodyIR) :
+    ∃ stmtIR,
+      CompilationModel.compileStmt
+        fields [] [] .calldata [] false
+          (List.foldl (fun acc s => collectStmtNames s ++ acc) scope «prefix»)
+          stmt = Except.ok stmtIR := by
+  induction «prefix» generalizing scope bodyIR with
+  | nil => rcases FunctionBody.compileStmtList_cons_ok_inv hcompile with ⟨hd, _, hstmt, _⟩; exact ⟨hd, hstmt⟩
+  | cons s rest ih =>
+      rcases FunctionBody.compileStmtList_cons_ok_inv hcompile with ⟨_, _, _, htail, _⟩
+      exact ih htail
+
+private theorem isMapping_false_of_compileStmt_setStorage_ok
+    {fields : List Field}
+    {scope : List String}
+    {fieldName : String}
+    {value : Expr}
+    {compiledIR : List YulStmt}
+    (hcompile :
+      CompilationModel.compileStmt
+        fields [] [] .calldata [] false scope (.setStorage fieldName value) =
+          Except.ok compiledIR) :
+    isMapping fields fieldName = false := by
+  simp only [CompilationModel.compileStmt] at hcompile
+  exact isMapping_false_of_compileSetStorage_ok hcompile
+
 private theorem compileStmt_ite_ok_inv
     {fields : List Field}
     {scope : List String}
@@ -4212,47 +4262,44 @@ private theorem scopeNamesPresent_foldl_stmtNextScope_of_validateScopedStmtListI
 -- SORRY'D:           exact mem_stmtNextScope_of_mem_scope (hlocalsInScope name hname))
 -- SORRY'D:         other hmem
 
--- TYPESIG_SORRY: private theorem exprBoundNamesInScope_setStorage_of_validateFunctionIdentifierReferences
--- TYPESIG_SORRY:     {spec : FunctionSpec}
--- TYPESIG_SORRY:     {fieldNames : List String}
--- TYPESIG_SORRY:     {prefix suffix : List Stmt}
--- TYPESIG_SORRY:     {fieldName : String}
--- TYPESIG_SORRY:     {value : Expr}
--- TYPESIG_SORRY:     (hprefixCore : StmtListScopeCore fieldNames prefix)
--- TYPESIG_SORRY:     (hvalueCore : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hvalidate : validateFunctionIdentifierReferences spec = Except.ok ())
--- TYPESIG_SORRY:     (hparamScope : paramScopeNames spec.params = spec.params.map (·.name))
--- TYPESIG_SORRY:     (hbody : spec.body = prefix ++ .setStorage fieldName value :: suffix) :
--- TYPESIG_SORRY:     FunctionBody.exprBoundNamesInScope
--- TYPESIG_SORRY:       value
--- TYPESIG_SORRY:       (List.foldl stmtNextScope (spec.params.map (·.name)) prefix) := by sorry
--- SORRY'D:   rcases validateFunctionIdentifierReferences_prefix_stmt_ok hvalidate hbody with
--- SORRY'D:     ⟨localScope, nextScope, hprefixValidate, hstmtValidate⟩
--- SORRY'D:   simp [validateScopedStmtIdentifiers] at hstmtValidate
--- SORRY'D:   rcases hstmtValidate with ⟨hvalueValidate, rfl⟩
--- SORRY'D:   apply exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
--- SORRY'D:     (paramScope := paramScopeNames spec.params)
--- SORRY'D:     (dynamicParams := dynamicParamBases spec.params)
--- SORRY'D:     (localScope := localScope)
--- SORRY'D:     (scope := List.foldl stmtNextScope (spec.params.map (·.name)) prefix)
--- SORRY'D:     hvalueCore
--- SORRY'D:     hvalueValidate
--- SORRY'D:   · intro name hname
--- SORRY'D:     rw [hparamScope] at hname
--- SORRY'D:     exact mem_stmtNextScopeList_of_mem_scope hname
--- SORRY'D:   · intro name hname
--- SORRY'D:     exact scopeNamesPresent_foldl_stmtNextScope_of_validateScopedStmtListIdentifiers
--- SORRY'D:       hprefixCore
--- SORRY'D:       hprefixValidate
--- SORRY'D:       (by
--- SORRY'D:         intro other hmem
--- SORRY'D:         rw [hparamScope] at hmem
--- SORRY'D:         simpa using hmem)
--- SORRY'D:       (by
--- SORRY'D:         intro other hmem
--- SORRY'D:         simp at hmem)
--- SORRY'D:       name
--- SORRY'D:       hname
+private theorem exprBoundNamesInScope_setStorage_of_validateFunctionIdentifierReferences
+    {spec : FunctionSpec}
+    {fieldNames : List String}
+    {«prefix» «suffix» : List Stmt}
+    {fieldName : String}
+    {value : Expr}
+    (hprefixCore : StmtListScopeCore fieldNames «prefix»)
+    (hvalueCore : FunctionBody.ExprCompileCore value)
+    (hvalidate : validateFunctionIdentifierReferences spec = Except.ok ())
+    (hparamScope : paramScopeNames spec.params = spec.params.map (·.name))
+    (hbody : spec.body = «prefix» ++ .setStorage fieldName value :: «suffix») :
+    FunctionBody.exprBoundNamesInScope
+      value
+      (List.foldl stmtNextScope (spec.params.map (·.name)) «prefix») := by
+  rcases validateFunctionIdentifierReferences_prefix_stmt_ok hvalidate hbody with
+    ⟨localScope, nextScope, hprefixValidate, hstmtValidate⟩
+  have hstmt' := hstmtValidate
+  unfold validateScopedStmtIdentifiers at hstmt'
+  revert hstmt'
+  rcases hExprVal : validateScopedExprIdentifiers _ _ _ _ localScope _ value with _ | _
+  · intro h; simp [bind, Except.bind] at h
+  · simp only [bind, Except.bind, pure, Except.pure]
+    intro h; cases h
+    apply exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
+      (paramScope := paramScopeNames spec.params)
+      (dynamicParams := dynamicParamBases spec.params)
+      (localScope := localScope)
+      (scope := List.foldl stmtNextScope (spec.params.map (·.name)) «prefix»)
+      hvalueCore hExprVal
+    · intro name hname
+      rw [hparamScope] at hname
+      exact mem_stmtNextScopeList_of_mem_scope hname
+    · intro name hname
+      exact scopeNamesPresent_foldl_stmtNextScope_of_validateScopedStmtListIdentifiers
+        hprefixCore hprefixValidate
+        (by intro other hmem; rw [hparamScope] at hmem; simpa using hmem)
+        (by intro other hmem; simp at hmem)
+        name hname
 
 private theorem collectExprNames_mem_exprBoundNames_of_core
     {expr : Expr}
@@ -10944,79 +10991,57 @@ theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunct
 -- SORRY'D:     (hnotDyn := hnotDyn)
 -- SORRY'D:     (hvalueIR := hvalueIR)
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences_of_compileStmtList_of_bodySurface
--- TYPESIG_SORRY:     {spec : CompilationModel}
--- TYPESIG_SORRY:     {fn : FunctionSpec}
--- TYPESIG_SORRY:     {prefix suffix : List Stmt}
--- TYPESIG_SORRY:     {bodyIR : List YulStmt}
--- TYPESIG_SORRY:     {fieldName : String}
--- TYPESIG_SORRY:     {value : Expr}
--- TYPESIG_SORRY:     {valueIR : YulExpr}
--- TYPESIG_SORRY:     {f : Field}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hvalidateShapes : validateIdentifierShapes spec = Except.ok ())
--- TYPESIG_SORRY:     (hvalidateRefs : validateFunctionIdentifierReferences fn = Except.ok ())
--- TYPESIG_SORRY:     (hfn : fn ∈ spec.functions)
--- TYPESIG_SORRY:     (hparamScope : paramScopeNames fn.params = fn.params.map (·.name))
--- TYPESIG_SORRY:     (hbodySurface : stmtListTouchesUnsupportedContractSurface fn.body = false)
--- TYPESIG_SORRY:     (hbodyCompile :
--- TYPESIG_SORRY:       CompilationModel.compileStmtList
--- TYPESIG_SORRY:         spec.fields [] [] .calldata [] false (fn.params.map (·.name)) fn.body =
--- TYPESIG_SORRY:           Except.ok bodyIR)
--- TYPESIG_SORRY:     (hbody : fn.body = prefix ++ .setStorage fieldName value :: suffix)
--- TYPESIG_SORRY:     (hfind : findFieldWithResolvedSlot spec.fields fieldName = some (f, slot))
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots spec.fields fieldName = some (slot :: f.aliasSlots))
--- TYPESIG_SORRY:     (hunpacked : f.packedBits = none)
--- TYPESIG_SORRY:     (hnoConflict : firstFieldWriteSlotConflict spec.fields = none)
--- TYPESIG_SORRY:     (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
--- TYPESIG_SORRY:     (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr spec.fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     ∃ compiledIR,
--- TYPESIG_SORRY:       CompiledStmtStep spec.fields
--- TYPESIG_SORRY:         (List.foldl stmtNextScope (fn.params.map (·.name)) prefix)
--- TYPESIG_SORRY:         (.setStorage fieldName value)
--- TYPESIG_SORRY:         compiledIR := by sorry
--- SORRY'D:   have hprefixCore :
--- SORRY'D:       StmtListScopeCore (spec.fields.map (·.name)) prefix :=
--- SORRY'D:     stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsupportedContractSurface
--- SORRY'D:       (fields := spec.fields)
--- SORRY'D:       (scope := fn.params.map (·.name))
--- SORRY'D:       (prefix := prefix)
--- SORRY'D:       (suffix := .setStorage fieldName value :: suffix)
--- SORRY'D:       (bodyIR := bodyIR)
--- SORRY'D:       (by simpa [hbody] using hbodySurface)
--- SORRY'D:       (by simpa [hbody] using hbodyCompile)
--- SORRY'D:   have hstmtSurface :
--- SORRY'D:       stmtTouchesUnsupportedContractSurface (.setStorage fieldName value) = false := by
--- SORRY'D:     exact
--- SORRY'D:       stmtTouchesUnsupportedContractSurface_of_stmtListTouchesUnsupportedContractSurface_append_cons
--- SORRY'D:         (by simpa [hbody] using hbodySurface)
--- SORRY'D:   have hvalueCore : FunctionBody.ExprCompileCore value :=
--- SORRY'D:     exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
--- SORRY'D:       (by simpa [stmtTouchesUnsupportedContractSurface] using hstmtSurface)
--- SORRY'D:   have hinScope :
--- SORRY'D:       FunctionBody.exprBoundNamesInScope
--- SORRY'D:         value
--- SORRY'D:         (List.foldl stmtNextScope (fn.params.map (·.name)) prefix) :=
--- SORRY'D:     exprBoundNamesInScope_setStorage_of_validateFunctionIdentifierReferences
--- SORRY'D:       hprefixCore hvalueCore hvalidateRefs hparamScope hbody
--- SORRY'D:   exact compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences_of_compileStmtList
--- SORRY'D:     (hvalidateShapes := hvalidateShapes)
--- SORRY'D:     (hvalidateRefs := hvalidateRefs)
--- SORRY'D:     (hfn := hfn)
--- SORRY'D:     (hparamScope := hparamScope)
--- SORRY'D:     (hbodySurface := hbodySurface)
--- SORRY'D:     (hbodyCompile := hbodyCompile)
--- SORRY'D:     (hbody := hbody)
--- SORRY'D:     (hcore := hvalueCore)
--- SORRY'D:     (hinScope := hinScope)
--- SORRY'D:     (hfind := hfind)
--- SORRY'D:     (hwriteSlots := hwriteSlots)
--- SORRY'D:     (hunpacked := hunpacked)
--- SORRY'D:     (hnoConflict := hnoConflict)
--- SORRY'D:     (hnotAddr := hnotAddr)
--- SORRY'D:     (hnotDyn := hnotDyn)
--- SORRY'D:     (hvalueIR := hvalueIR)
+theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences_of_compileStmtList_of_bodySurface
+    {spec : CompilationModel}
+    {fn : FunctionSpec}
+    {«prefix» «suffix» : List Stmt}
+    {bodyIR : List YulStmt}
+    {fieldName : String}
+    {value : Expr}
+    {valueIR : YulExpr}
+    {f : Field}
+    {slot : Nat}
+    (hvalidateShapes : validateIdentifierShapes spec = Except.ok ())
+    (hvalidateRefs : validateFunctionIdentifierReferences fn = Except.ok ())
+    (hfn : fn ∈ spec.functions)
+    (hparamScope : paramScopeNames fn.params = fn.params.map (·.name))
+    (hbodySurface : stmtListTouchesUnsupportedContractSurface fn.body = false)
+    (hbodyCompile :
+      CompilationModel.compileStmtList
+        spec.fields [] [] .calldata [] false (fn.params.map (·.name)) fn.body =
+          Except.ok bodyIR)
+    (hbody : fn.body = «prefix» ++ .setStorage fieldName value :: «suffix»)
+    (hfind : findFieldWithResolvedSlot spec.fields fieldName = some (f, slot))
+    (hwriteSlots : findFieldWriteSlots spec.fields fieldName = some (slot :: f.aliasSlots))
+    (hunpacked : f.packedBits = none)
+    (hnoConflict : firstFieldWriteSlotConflict spec.fields = none)
+    (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
+    (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
+    (hvalueIR : CompilationModel.compileExpr spec.fields .calldata value = Except.ok valueIR) :
+    ∃ compiledIR,
+      CompiledStmtStep spec.fields
+        (List.foldl stmtNextScope (fn.params.map (·.name)) «prefix»)
+        (.setStorage fieldName value)
+        compiledIR := by
+  have hprefixCore : StmtListScopeCore (spec.fields.map (·.name)) «prefix» :=
+    stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsupportedContractSurface
+      (by simpa [hbody] using hbodySurface) (by simpa [hbody] using hbodyCompile)
+  have hstmtSurface :
+      stmtTouchesUnsupportedContractSurface (.setStorage fieldName value) = false :=
+    stmtTouchesUnsupportedContractSurface_of_stmtListTouchesUnsupportedContractSurface_append_cons
+      (by simpa [hbody] using hbodySurface)
+  have hvalueCore : FunctionBody.ExprCompileCore value :=
+    exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+      (by simpa [stmtTouchesUnsupportedContractSurface] using hstmtSurface)
+  have hinScope := exprBoundNamesInScope_setStorage_of_validateFunctionIdentifierReferences
+    hprefixCore hvalueCore hvalidateRefs hparamScope hbody
+  have hNotMapping : isMapping spec.fields fieldName = false := by
+    rcases compileStmt_ok_of_compileStmtList_append_cons
+      (by simpa [hbody] using hbodyCompile) with ⟨stmtIR, hstmt⟩
+    exact isMapping_false_of_compileStmt_setStorage_ok hstmt
+  exact compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences
+    hvalidateShapes hvalidateRefs hfn hparamScope hprefixCore hbody hvalueCore hinScope
+    hfind hwriteSlots hunpacked hnoConflict hnotAddr hnotDyn hNotMapping hvalueIR
 
 private theorem terminal_stmtResultMatchesIRExec_implies_stmtStepMatchesIRExec
     {fields : List Field}
