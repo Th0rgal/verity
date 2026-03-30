@@ -1297,47 +1297,47 @@ theorem compileFunctionSpec_correct_generic
 `SupportedSpecExceptMappingWrites` and successful `compileFunctionSpec`. This
 exposes the widened singleton storage-write fragment on the same public theorem
 surface as the ordinary supported-function wrapper. -/
--- TYPESIG_SORRY: theorem compileFunctionSpec_correct_generic_except_mapping_writes
--- TYPESIG_SORRY:     (model : CompilationModel)
--- TYPESIG_SORRY:     (selectors : List Nat)
--- TYPESIG_SORRY:     (hSupported : SupportedSpecExceptMappingWrites model selectors)
--- TYPESIG_SORRY:     (fn : FunctionSpec)
--- TYPESIG_SORRY:     (sel : Nat)
--- TYPESIG_SORRY:     (irFn : IRFunction)
--- TYPESIG_SORRY:     (tx : IRTransaction)
--- TYPESIG_SORRY:     (initialWorld : Verity.ContractState)
--- TYPESIG_SORRY:     (htxNormalized : Function.TxContextNormalized tx)
--- TYPESIG_SORRY:     (bindings : List (String × Nat))
--- TYPESIG_SORRY:     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
--- TYPESIG_SORRY:     (hnoConflict : firstFieldWriteSlotConflict model.fields = none)
--- TYPESIG_SORRY:     (hsafety : SupportedStmtListMappingWriteSlotSafety model.fields)
--- TYPESIG_SORRY:     (hfn : fn ∈ selectorDispatchedFunctions model)
--- TYPESIG_SORRY:     (hcompileFn :
--- TYPESIG_SORRY:       compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn)
--- TYPESIG_SORRY:     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings) :
--- TYPESIG_SORRY:     FunctionBody.sourceResultMatchesIRResult
--- TYPESIG_SORRY:       (supportedSourceFunctionSemanticsExceptMappingWrites model selectors hSupported fn tx initialWorld)
--- TYPESIG_SORRY:       (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by sorry
--- SORRY'D:   have hcorrect :=
--- SORRY'D:     Function.supported_function_correct_except_mapping_writes
--- SORRY'D:       (model := model)
--- SORRY'D:       (selectors := selectors)
--- SORRY'D:       (hSupported := hSupported)
--- SORRY'D:       (fn := fn)
--- SORRY'D:       (selector := sel)
--- SORRY'D:       (irFn := irFn)
--- SORRY'D:       (tx := tx)
--- SORRY'D:       (initialWorld := initialWorld)
--- SORRY'D:       (bindings := bindings)
--- SORRY'D:       (hfn := hfn)
--- SORRY'D:       (hcompileFn := hcompileFn)
--- SORRY'D:       (hbind := hbind)
--- SORRY'D:       (hnoConflict := hnoConflict)
--- SORRY'D:       (hsafety := hsafety)
--- SORRY'D:       (htxNormalized := htxNormalized)
--- SORRY'D:       (hcalldataSizeFits := hcalldataSizeFits)
--- SORRY'D:   simpa [supportedSourceFunctionSemanticsExceptMappingWrites_eq_interpretFunction_of_selectorDispatched
--- SORRY'D:     (hSupported := hSupported) hfn tx initialWorld] using hcorrect
+theorem compileFunctionSpec_correct_generic_except_mapping_writes
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpecExceptMappingWrites model selectors)
+    (fn : FunctionSpec)
+    (sel : Nat)
+    (irFn : IRFunction)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (htxNormalized : Function.TxContextNormalized tx)
+    (bindings : List (String × Nat))
+    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+    (hnoConflict : firstFieldWriteSlotConflict model.fields = none)
+    (hsafety : SupportedStmtListMappingWriteSlotSafety model.fields)
+    (hfn : fn ∈ selectorDispatchedFunctions model)
+    (hcompileFn :
+      compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn)
+    (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings) :
+    FunctionBody.sourceResultMatchesIRResult
+      (supportedSourceFunctionSemanticsExceptMappingWrites model selectors hSupported fn tx initialWorld)
+      (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  have hcorrect :=
+    Function.supported_function_correct_except_mapping_writes
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (fn := fn)
+      (selector := sel)
+      (irFn := irFn)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (bindings := bindings)
+      (hfn := hfn)
+      (hcompileFn := hcompileFn)
+      (hbind := hbind)
+      (hnoConflict := hnoConflict)
+      (hsafety := hsafety)
+      (htxNormalized := htxNormalized)
+      (hcalldataSizeFits := hcalldataSizeFits)
+  simpa [supportedSourceFunctionSemanticsExceptMappingWrites_eq_interpretFunction_of_selectorDispatched
+    (hSupported := hSupported) hfn tx initialWorld] using hcorrect
 
 -- SORRY'D: /-- Helper-proof-carrying function-level generic theorem.
 -- SORRY'D: This is the proof-ready theorem surface for the next helper-composition step.
@@ -2813,77 +2813,77 @@ theorem compile_preserves_semantics
 -- SORRY'D:   simpa [supportedSourceContractSemantics_eq_sourceContractSemantics
 -- SORRY'D:     (hSupported := hSupported) tx initialWorld] using hcontract
 
--- SORRY'D: /-- Whole-contract Tier 2 bridge for specs whose selector-dispatched bodies use
--- SORRY'D: the alternate singleton-storage-write state interface. This keeps the contract
--- SORRY'D: proof on the same generic dispatch skeleton while widening only the function
--- SORRY'D: correctness theorem it instantiates. -/
--- TYPESIG_SORRY: theorem compile_preserves_semantics_except_mapping_writes
--- TYPESIG_SORRY:     (model : CompilationModel)
--- TYPESIG_SORRY:     (selectors : List Nat)
--- TYPESIG_SORRY:     (hSupported : SupportedSpecExceptMappingWrites model selectors)
--- TYPESIG_SORRY:     (ir : IRContract)
--- TYPESIG_SORRY:     (tx : IRTransaction)
--- TYPESIG_SORRY:     (initialWorld : Verity.ContractState)
--- TYPESIG_SORRY:     (hnoConflict : firstFieldWriteSlotConflict model.fields = none)
--- TYPESIG_SORRY:     (hsafety : SupportedStmtListMappingWriteSlotSafety model.fields)
--- TYPESIG_SORRY:     (htxNormalized : Function.TxContextNormalized tx)
--- TYPESIG_SORRY:     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
--- TYPESIG_SORRY:     (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
--- TYPESIG_SORRY:     FunctionBody.sourceResultMatchesIRResult
--- TYPESIG_SORRY:       (supportedSourceContractSemanticsExceptMappingWrites model selectors hSupported tx initialWorld)
--- TYPESIG_SORRY:       (interpretIR ir tx (FunctionBody.initialIRStateForTx model tx initialWorld)) := by sorry
--- SORRY'D:   have hcompiled :
--- SORRY'D:       List.Forall₂
--- SORRY'D:         (fun entry irFn =>
--- SORRY'D:           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
--- SORRY'D:         (SourceSemantics.selectorFunctionPairs model selectors)
--- SORRY'D:         ir.functions :=
--- SORRY'D:     compile_ok_yields_compiled_functions_except_mapping_writes
--- SORRY'D:       (model := model)
--- SORRY'D:       (selectors := selectors)
--- SORRY'D:       (hSupported := hSupported)
--- SORRY'D:       (ir := ir)
--- SORRY'D:       (hcompile := hcompile)
--- SORRY'D:   have hparamsSupported :
--- SORRY'D:       ∀ fn ∈ selectorDispatchedFunctions model,
--- SORRY'D:         ∀ param ∈ fn.params, SupportedExternalParamType param.ty :=
--- SORRY'D:     supported_params_of_supportedSpec_except_mapping_writes model selectors hSupported
--- SORRY'D:   have hfunction :
--- SORRY'D:       ∀ fn sel irFn bindings,
--- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
--- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
--- SORRY'D:         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
--- SORRY'D:         FunctionBody.sourceResultMatchesIRResult
--- SORRY'D:           (supportedSourceFunctionSemanticsExceptMappingWrites model selectors hSupported fn tx initialWorld)
--- SORRY'D:           (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
--- SORRY'D:     intro fn sel irFn bindings hfn hcompileFn hbind
--- SORRY'D:     exact compileFunctionSpec_correct_generic_except_mapping_writes
--- SORRY'D:       (model := model)
--- SORRY'D:       (selectors := selectors)
--- SORRY'D:       (hSupported := hSupported)
--- SORRY'D:       (fn := fn)
--- SORRY'D:       (sel := sel)
--- SORRY'D:       (irFn := irFn)
--- SORRY'D:       (tx := tx)
--- SORRY'D:       (initialWorld := initialWorld)
--- SORRY'D:       (bindings := bindings)
--- SORRY'D:       (htxNormalized := htxNormalized)
--- SORRY'D:       (hcalldataSizeFits := hcalldataSizeFits)
--- SORRY'D:       (hnoConflict := hnoConflict)
--- SORRY'D:       (hsafety := hsafety)
--- SORRY'D:       (hfn := hfn)
--- SORRY'D:       (hcompileFn := hcompileFn)
--- SORRY'D:       (hbind := hbind)
--- SORRY'D:   exact Dispatch.interpretContract_correct_of_compiled_functions_except_mapping_writes
--- SORRY'D:     (model := model)
--- SORRY'D:     (selectors := selectors)
--- SORRY'D:     (hSupported := hSupported)
--- SORRY'D:     (irFns := ir.functions)
--- SORRY'D:     (tx := tx)
--- SORRY'D:     (initialWorld := initialWorld)
--- SORRY'D:     (hcompiled := hcompiled)
--- SORRY'D:     (hparamsSupported := hparamsSupported)
--- SORRY'D:     (hfunction := hfunction)
+/-- Whole-contract Tier 2 bridge for specs whose selector-dispatched bodies use
+the alternate singleton-storage-write state interface. This keeps the contract
+proof on the same generic dispatch skeleton while widening only the function
+correctness theorem it instantiates. -/
+theorem compile_preserves_semantics_except_mapping_writes
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpecExceptMappingWrites model selectors)
+    (ir : IRContract)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (hnoConflict : firstFieldWriteSlotConflict model.fields = none)
+    (hsafety : SupportedStmtListMappingWriteSlotSafety model.fields)
+    (htxNormalized : Function.TxContextNormalized tx)
+    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+    (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
+    FunctionBody.sourceResultMatchesIRResult
+      (supportedSourceContractSemanticsExceptMappingWrites model selectors hSupported tx initialWorld)
+      (interpretIR ir tx (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  have hcompiled :
+      List.Forall₂
+        (fun entry irFn =>
+          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        (SourceSemantics.selectorFunctionPairs model selectors)
+        ir.functions :=
+    compile_ok_yields_compiled_functions_except_mapping_writes
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (ir := ir)
+      (hcompile := hcompile)
+  have hparamsSupported :
+      ∀ fn ∈ selectorDispatchedFunctions model,
+        ∀ param ∈ fn.params, SupportedExternalParamType param.ty :=
+    supported_params_of_supportedSpec_except_mapping_writes model selectors hSupported
+  have hfunction :
+      ∀ fn sel irFn bindings,
+        fn ∈ selectorDispatchedFunctions model →
+        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+        FunctionBody.sourceResultMatchesIRResult
+          (supportedSourceFunctionSemanticsExceptMappingWrites model selectors hSupported fn tx initialWorld)
+          (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+    intro fn sel irFn bindings hfn hcompileFn hbind
+    exact compileFunctionSpec_correct_generic_except_mapping_writes
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (fn := fn)
+      (sel := sel)
+      (irFn := irFn)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (bindings := bindings)
+      (htxNormalized := htxNormalized)
+      (hcalldataSizeFits := hcalldataSizeFits)
+      (hnoConflict := hnoConflict)
+      (hsafety := hsafety)
+      (hfn := hfn)
+      (hcompileFn := hcompileFn)
+      (hbind := hbind)
+  exact Dispatch.interpretContract_correct_of_compiled_functions_except_mapping_writes
+    (model := model)
+    (selectors := selectors)
+    (hSupported := hSupported)
+    (irFns := ir.functions)
+    (tx := tx)
+    (initialWorld := initialWorld)
+    (hcompiled := hcompiled)
+    (hparamsSupported := hparamsSupported)
+    (hfunction := hfunction)
 
 /-- Helper-proof-carrying whole-contract Layer 2 theorem.
 This theorem family is the intended stable public interface for the helper
