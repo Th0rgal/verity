@@ -1681,18 +1681,6 @@ private theorem stmtListTerminalCore_helperSurfaceClosed
         stmtListCompileCore_helperSurfaceClosed hrest,
         Bool.or_false, Bool.false_or]
 
-private theorem supportedStmtList_returnMapping_helperSurfaceClosed
-    {fieldName : String}
-    {key : Expr}
-    (hkey : FunctionBody.ExprCompileCore key) :
-    stmtListTouchesUnsupportedHelperSurface
-      [Stmt.return (Expr.mapping fieldName key)] = false := by
-  simp only [stmtListTouchesUnsupportedHelperSurface,
-    stmtTouchesUnsupportedHelperSurface,
-    exprTouchesUnsupportedHelperSurface,
-    exprCompileCore_helperSurfaceClosed hkey,
-        Bool.or_false, Bool.false_or]
-
 private theorem supportedStmtList_letStorageField_helperSurfaceClosed
     {tmp fieldName : String} :
     stmtListTouchesUnsupportedHelperSurface
@@ -1747,44 +1735,6 @@ private theorem supportedStmtList_tstoreSingle_helperSurfaceClosed
     exprTouchesUnsupportedHelperSurface,
     exprCompileCore_helperSurfaceClosed hoffset,
     exprCompileCore_helperSurfaceClosed hvalue,
-        Bool.or_false, Bool.false_or]
-
-private theorem supportedStmtList_letMapping_helperSurfaceClosed
-    {tmp fieldName : String}
-    {key : Expr}
-    (hkey : FunctionBody.ExprCompileCore key) :
-    stmtListTouchesUnsupportedHelperSurface
-      [Stmt.letVar tmp (Expr.mapping fieldName key)] = false := by
-  simp only [stmtListTouchesUnsupportedHelperSurface,
-    stmtTouchesUnsupportedHelperSurface,
-    exprTouchesUnsupportedHelperSurface,
-    exprCompileCore_helperSurfaceClosed hkey,
-        Bool.or_false, Bool.false_or]
-
-private theorem supportedStmtList_letMapping2_helperSurfaceClosed
-    {tmp fieldName : String}
-    {key1 key2 : Expr}
-    (hkey1 : FunctionBody.ExprCompileCore key1)
-    (hkey2 : FunctionBody.ExprCompileCore key2) :
-    stmtListTouchesUnsupportedHelperSurface
-      [Stmt.letVar tmp (Expr.mapping2 fieldName key1 key2)] = false := by
-  simp only [stmtListTouchesUnsupportedHelperSurface,
-    stmtTouchesUnsupportedHelperSurface,
-    exprTouchesUnsupportedHelperSurface,
-    exprCompileCore_helperSurfaceClosed hkey1,
-    exprCompileCore_helperSurfaceClosed hkey2,
-        Bool.or_false, Bool.false_or]
-
-private theorem supportedStmtList_letMappingUint_helperSurfaceClosed
-    {tmp fieldName : String}
-    {key : Expr}
-    (hkey : FunctionBody.ExprCompileCore key) :
-    stmtListTouchesUnsupportedHelperSurface
-      [Stmt.letVar tmp (Expr.mappingUint fieldName key)] = false := by
-  simp only [stmtListTouchesUnsupportedHelperSurface,
-    stmtTouchesUnsupportedHelperSurface,
-    exprTouchesUnsupportedHelperSurface,
-    exprCompileCore_helperSurfaceClosed hkey,
         Bool.or_false, Bool.false_or]
 
 private theorem supportedStmtList_setMappingUintSingle_helperSurfaceClosed
@@ -1924,49 +1874,6 @@ private theorem supportedStmtList_setStructMember2Single_helperSurfaceClosed
     exprCompileCore_helperSurfaceClosed hvalue,
         Bool.or_false, Bool.false_or]
 
-private theorem supportedStmtList_rawLogLiterals_helperSurfaceClosed
-    {topics : List Nat}
-    {dataOffset dataSize : Nat} :
-    stmtListTouchesUnsupportedHelperSurface
-      [Stmt.rawLog (topics.map Expr.literal) (Expr.literal dataOffset) (Expr.literal dataSize)] = false := by
-  simp only [stmtListTouchesUnsupportedHelperSurface,
-    stmtTouchesUnsupportedHelperSurface,
-    exprTouchesUnsupportedHelperSurface,
-        Bool.or_false, Bool.false_or]
-
-private theorem supportedStmtList_letCallerLetStorageReqEqReqNeqSetStorageParamStop_helperSurfaceClosed
-    {ownerField senderVar ownerVar paramName msg1 msg2 : String} :
-    stmtListTouchesUnsupportedHelperSurface
-      [ Stmt.letVar senderVar Expr.caller
-      , Stmt.letVar ownerVar (Expr.storage ownerField)
-      , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
-      , Stmt.require
-          (Expr.logicalNot (Expr.eq (Expr.param paramName) (Expr.localVar ownerVar))) msg2
-      , Stmt.setStorage ownerField (Expr.param paramName)
-      , Stmt.stop
-      ] = false := by
-  simp only [stmtListTouchesUnsupportedHelperSurface,
-    stmtTouchesUnsupportedHelperSurface,
-    exprTouchesUnsupportedHelperSurface,
-        Bool.or_false, Bool.false_or]
-
-private theorem supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop_helperSurfaceClosed
-    {ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2 : String} :
-    stmtListTouchesUnsupportedHelperSurface
-      [ Stmt.letVar senderVar Expr.caller
-      , Stmt.letVar ownerVar (Expr.storage ownerField)
-      , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
-      , Stmt.letVar targetVar (Expr.storage targetField)
-      , Stmt.require
-          (Expr.logicalNot (Expr.eq (Expr.param paramName) (Expr.localVar targetVar))) msg2
-      , Stmt.setStorage targetField (Expr.param paramName)
-      , Stmt.stop
-      ] = false := by
-  simp only [stmtListTouchesUnsupportedHelperSurface,
-    stmtTouchesUnsupportedHelperSurface,
-    exprTouchesUnsupportedHelperSurface,
-        Bool.or_false, Bool.false_or]
-
 open Verity.Core.Free in
 theorem SupportedStmtList.helperSurfaceClosed
     {fields : List Field}
@@ -1993,14 +1900,6 @@ theorem SupportedStmtList.helperSurfaceClosed
       exact supportedStmtList_letStorageField_helperSurfaceClosed
   | letStorageAddrField _ _ =>
       exact supportedStmtList_letStorageAddrField_helperSurfaceClosed
-  | returnMapping hkey _ _ =>
-      exact supportedStmtList_returnMapping_helperSurfaceClosed hkey
-  | letMapping hkey _ _ =>
-      exact supportedStmtList_letMapping_helperSurfaceClosed hkey
-  | letMapping2 hkey1 _ hkey2 _ _ =>
-      exact supportedStmtList_letMapping2_helperSurfaceClosed hkey1 hkey2
-  | letMappingUint hkey _ _ =>
-      exact supportedStmtList_letMappingUint_helperSurfaceClosed hkey
   | setMappingUintSingle hkey _ hvalue _ _ =>
       exact supportedStmtList_setMappingUintSingle_helperSurfaceClosed hkey hvalue
   | setMappingChainSingle hkeys _ hvalue _ _ =>
@@ -2019,12 +1918,6 @@ theorem SupportedStmtList.helperSurfaceClosed
       exact supportedStmtList_setMapping2WordSingle_helperSurfaceClosed hkey1 hkey2 hvalue
   | setStructMember2Single hkey1 _ hkey2 _ hvalue _ _ _ _ =>
       exact supportedStmtList_setStructMember2Single_helperSurfaceClosed hkey1 hkey2 hvalue
-  | rawLogLiterals _ =>
-      exact supportedStmtList_rawLogLiterals_helperSurfaceClosed
-  | letCallerLetStorageReqEqReqNeqSetStorageParamStop _ _ _ _ =>
-      exact supportedStmtList_letCallerLetStorageReqEqReqNeqSetStorageParamStop_helperSurfaceClosed
-  | letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop _ _ _ _ _ _ =>
-      exact supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop_helperSurfaceClosed
   | requireClause clause _ ih =>
       simp [stmtListTouchesUnsupportedHelperSurface]
       constructor
@@ -2040,12 +1933,6 @@ theorem SupportedStmtList.helperSurfaceClosed
               simp [RequireLiteralGuardFamilyClause.toStmt,
                 stmtTouchesUnsupportedHelperSurface, exprTouchesUnsupportedHelperSurface]
       · exact ih
-  | ite hcond _ _ _ ihThen ihElse =>
-      simp only [stmtListTouchesUnsupportedHelperSurface,
-        stmtTouchesUnsupportedHelperSurface,
-        exprCompileCore_helperSurfaceClosed hcond,
-        ihThen, ihElse,
-        Bool.or_false, Bool.false_or]
   | iteTerminal hcond _ hthen helse =>
       simp only [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
@@ -2118,31 +2005,6 @@ theorem SupportedStmtList.internalHelperCallNames_nil
         stmtInternalHelperCallNames,
         exprInternalHelperCallNames,
         List.nil_append, List.append_nil]
-  | returnMapping hkey _ _ =>
-      simp only [stmtListInternalHelperCallNames,
-        stmtInternalHelperCallNames,
-        exprInternalHelperCallNames,
-        exprCompileCore_internalHelperCallNames_nil hkey,
-        List.nil_append, List.append_nil]
-  | letMapping hkey _ _ =>
-      simp only [stmtListInternalHelperCallNames,
-        stmtInternalHelperCallNames,
-        exprInternalHelperCallNames,
-        exprCompileCore_internalHelperCallNames_nil hkey,
-        List.nil_append, List.append_nil]
-  | letMapping2 hkey1 _ hkey2 _ _ =>
-      simp only [stmtListInternalHelperCallNames,
-        stmtInternalHelperCallNames,
-        exprInternalHelperCallNames,
-        exprCompileCore_internalHelperCallNames_nil hkey1,
-        exprCompileCore_internalHelperCallNames_nil hkey2,
-        List.nil_append, List.append_nil]
-  | letMappingUint hkey _ _ =>
-      simp only [stmtListInternalHelperCallNames,
-        stmtInternalHelperCallNames,
-        exprInternalHelperCallNames,
-        exprCompileCore_internalHelperCallNames_nil hkey,
-        List.nil_append, List.append_nil]
   | setMappingUintSingle hkey _ hvalue _ _ =>
       simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
@@ -2200,22 +2062,6 @@ theorem SupportedStmtList.internalHelperCallNames_nil
         exprCompileCore_internalHelperCallNames_nil hkey2,
         exprCompileCore_internalHelperCallNames_nil hvalue,
         List.nil_append, List.append_nil]
-  | rawLogLiterals _ =>
-      simp only [stmtListInternalHelperCallNames,
-        stmtInternalHelperCallNames,
-        exprInternalHelperCallNames,
-        exprListInternalHelperCallNames_literals,
-        List.nil_append, List.append_nil]
-  | letCallerLetStorageReqEqReqNeqSetStorageParamStop _ _ _ _ =>
-      simp only [stmtListInternalHelperCallNames,
-        stmtInternalHelperCallNames,
-        exprInternalHelperCallNames,
-        List.nil_append, List.append_nil]
-  | letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop _ _ _ _ _ _ =>
-      simp only [stmtListInternalHelperCallNames,
-        stmtInternalHelperCallNames,
-        exprInternalHelperCallNames,
-        List.nil_append, List.append_nil]
   | requireClause clause _ ih =>
       simp [stmtListInternalHelperCallNames]
       constructor
@@ -2231,11 +2077,6 @@ theorem SupportedStmtList.internalHelperCallNames_nil
               simp [RequireLiteralGuardFamilyClause.toStmt,
                 stmtInternalHelperCallNames, exprInternalHelperCallNames]
       · exact ih
-  | ite hcond _ _ _ ihThen ihElse =>
-      simp only [stmtListInternalHelperCallNames,
-        stmtInternalHelperCallNames,
-        exprCompileCore_internalHelperCallNames_nil hcond,
-        ihThen, ihElse, List.nil_append, List.append_nil]
   | iteTerminal hcond _ hthen helse =>
       simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
@@ -3752,19 +3593,6 @@ private theorem supportedStmtList_usesArrayElement_false
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement, Bool.false_or]
   | letStorageAddrField _ _ =>
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement, Bool.false_or]
-  | returnMapping hkey _ _ =>
-      simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement,
-        exprCompileCore_usesArrayElement_false hkey, Bool.false_or]
-  | letMapping hkey _ _ =>
-      simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement,
-        exprCompileCore_usesArrayElement_false hkey, Bool.false_or]
-  | letMapping2 hkey1 _ hkey2 _ _ =>
-      simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement,
-        exprCompileCore_usesArrayElement_false hkey1,
-        exprCompileCore_usesArrayElement_false hkey2, Bool.false_or]
-  | letMappingUint hkey _ _ =>
-      simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement,
-        exprCompileCore_usesArrayElement_false hkey, Bool.false_or]
   | setMappingUintSingle hkey _ hvalue _ _ =>
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
         exprCompileCore_usesArrayElement_false hkey,
@@ -3804,20 +3632,6 @@ private theorem supportedStmtList_usesArrayElement_false
         exprCompileCore_usesArrayElement_false hkey1,
         exprCompileCore_usesArrayElement_false hkey2,
         exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]
-  | rawLogLiterals _ =>
-      have hliterals : ∀ (ns : List Nat),
-          exprListUsesArrayElement (ns.map Expr.literal) = false := by
-        intro ns; induction ns with
-        | nil => simp only [List.map_nil, exprListUsesArrayElement, Bool.false_or]
-        | cons _ _ ih => simp only [List.map_cons, exprListUsesArrayElement, exprUsesArrayElement, ih, Bool.false_or]
-      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
-        exprUsesArrayElement, hliterals, Bool.false_or]
-  | letCallerLetStorageReqEqReqNeqSetStorageParamStop _ _ _ _ =>
-      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
-        exprUsesArrayElement, exprListUsesArrayElement, Bool.false_or]
-  | letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop _ _ _ _ _ _ =>
-      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
-        exprUsesArrayElement, exprListUsesArrayElement, Bool.false_or]
   | requireClause clause _ ih =>
       simp only [stmtListUsesArrayElement, Bool.or_eq_false_iff, Bool.false_or]
       exact ⟨by cases clause with | mk family n m p q message =>
@@ -3831,9 +3645,6 @@ private theorem supportedStmtList_usesArrayElement_false
           | orEqLt =>
               simp only [RequireLiteralGuardFamilyClause.toStmt,
                 stmtUsesArrayElement, exprUsesArrayElement, Bool.false_or], ih⟩
-  | ite hcond _ _ _ ihThen ihElse =>
-      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
-        exprCompileCore_usesArrayElement_false hcond, ihThen, ihElse, Bool.false_or]
   | iteTerminal hcond _ hthen helse =>
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
         exprCompileCore_usesArrayElement_false hcond,
@@ -3872,20 +3683,6 @@ private theorem supportedStmtList_usesStorageArrayElement_false
   | letStorageAddrField _ _ =>
       simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprUsesStorageArrayElement, Bool.false_or]
-  | returnMapping hkey _ _ =>
-      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprUsesStorageArrayElement, exprCompileCore_usesStorageArrayElement_false hkey, Bool.false_or]
-  | letMapping hkey _ _ =>
-      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprUsesStorageArrayElement, exprCompileCore_usesStorageArrayElement_false hkey, Bool.false_or]
-  | letMapping2 hkey1 _ hkey2 _ _ =>
-      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprUsesStorageArrayElement,
-        exprCompileCore_usesStorageArrayElement_false hkey1,
-        exprCompileCore_usesStorageArrayElement_false hkey2, Bool.false_or]
-  | letMappingUint hkey _ _ =>
-      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprUsesStorageArrayElement, exprCompileCore_usesStorageArrayElement_false hkey, Bool.false_or]
   | setMappingUintSingle hkey _ hvalue _ _ =>
       simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false hkey,
@@ -3925,21 +3722,6 @@ private theorem supportedStmtList_usesStorageArrayElement_false
         exprCompileCore_usesStorageArrayElement_false hkey1,
         exprCompileCore_usesStorageArrayElement_false hkey2,
         exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]
-  | rawLogLiterals _ =>
-      have hliterals : ∀ (ns : List Nat),
-          exprListUsesStorageArrayElement (ns.map Expr.literal) = false := by
-        intro ns; induction ns with
-        | nil => simp only [List.map_nil, exprListUsesStorageArrayElement, Bool.false_or]
-        | cons _ _ ih =>
-          simp only [List.map_cons, exprListUsesStorageArrayElement, exprUsesStorageArrayElement, ih, Bool.false_or]
-      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprUsesStorageArrayElement, hliterals, Bool.false_or]
-  | letCallerLetStorageReqEqReqNeqSetStorageParamStop _ _ _ _ =>
-      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprUsesStorageArrayElement, exprListUsesStorageArrayElement, Bool.false_or]
-  | letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop _ _ _ _ _ _ =>
-      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprUsesStorageArrayElement, exprListUsesStorageArrayElement, Bool.false_or]
   | requireClause clause _ ih =>
       simp only [stmtListUsesStorageArrayElement, Bool.or_eq_false_iff, Bool.false_or]
       exact ⟨by cases clause with | mk family n m p q message =>
@@ -3953,9 +3735,6 @@ private theorem supportedStmtList_usesStorageArrayElement_false
           | orEqLt =>
               simp only [RequireLiteralGuardFamilyClause.toStmt,
                 stmtUsesStorageArrayElement, exprUsesStorageArrayElement, Bool.false_or], ih⟩
-  | ite hcond _ _ _ ihThen ihElse =>
-      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprCompileCore_usesStorageArrayElement_false hcond, ihThen, ihElse, Bool.false_or]
   | iteTerminal hcond _ hthen helse =>
       simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false hcond,
@@ -3992,20 +3771,6 @@ private theorem supportedStmtList_usesDynamicBytesEq_false
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq, Bool.false_or]
   | letStorageAddrField _ _ =>
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq, Bool.false_or]
-  | returnMapping hkey _ _ =>
-      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprUsesDynamicBytesEq, exprCompileCore_usesDynamicBytesEq_false hkey, Bool.false_or]
-  | letMapping hkey _ _ =>
-      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprUsesDynamicBytesEq, exprCompileCore_usesDynamicBytesEq_false hkey, Bool.false_or]
-  | letMapping2 hkey1 _ hkey2 _ _ =>
-      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprUsesDynamicBytesEq,
-        exprCompileCore_usesDynamicBytesEq_false hkey1,
-        exprCompileCore_usesDynamicBytesEq_false hkey2, Bool.false_or]
-  | letMappingUint hkey _ _ =>
-      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprUsesDynamicBytesEq, exprCompileCore_usesDynamicBytesEq_false hkey, Bool.false_or]
   | setMappingUintSingle hkey _ hvalue _ _ =>
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hkey,
@@ -4045,21 +3810,6 @@ private theorem supportedStmtList_usesDynamicBytesEq_false
         exprCompileCore_usesDynamicBytesEq_false hkey1,
         exprCompileCore_usesDynamicBytesEq_false hkey2,
         exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]
-  | rawLogLiterals _ =>
-      have hliterals : ∀ (ns : List Nat),
-          exprListUsesDynamicBytesEq (ns.map Expr.literal) = false := by
-        intro ns; induction ns with
-        | nil => simp only [List.map_nil, exprListUsesDynamicBytesEq, Bool.false_or]
-        | cons _ _ ih =>
-          simp only [List.map_cons, exprListUsesDynamicBytesEq, exprUsesDynamicBytesEq, ih, Bool.false_or]
-      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprUsesDynamicBytesEq, hliterals, Bool.false_or]
-  | letCallerLetStorageReqEqReqNeqSetStorageParamStop _ _ _ _ =>
-      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprUsesDynamicBytesEq, exprListUsesDynamicBytesEq, Bool.false_or]
-  | letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop _ _ _ _ _ _ =>
-      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprUsesDynamicBytesEq, exprListUsesDynamicBytesEq, Bool.false_or]
   | requireClause clause _ ih =>
       simp only [stmtListUsesDynamicBytesEq, Bool.or_eq_false_iff, Bool.false_or]
       exact ⟨by cases clause with | mk family n m p q message =>
@@ -4073,9 +3823,6 @@ private theorem supportedStmtList_usesDynamicBytesEq_false
           | orEqLt =>
               simp only [RequireLiteralGuardFamilyClause.toStmt,
                 stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq, Bool.false_or], ih⟩
-  | ite hcond _ _ _ ihThen ihElse =>
-      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprCompileCore_usesDynamicBytesEq_false hcond, ihThen, ihElse, Bool.false_or]
   | iteTerminal hcond _ hthen helse =>
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hcond,

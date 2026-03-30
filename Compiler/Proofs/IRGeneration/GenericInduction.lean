@@ -10945,28 +10945,6 @@ private theorem stmtListGenericCore_singleton_tstore_single
       (hvalueIR := hvalueIR))
     StmtListGenericCore.nil
 
-private theorem false_of_supportedStmtList_ite_surface
-    {cond : Expr}
-    {thenBranch elseBranch : List Stmt}
-    (hsurface :
-      stmtTouchesUnsupportedContractSurface
-        (Stmt.ite cond thenBranch elseBranch) = false) :
-    False := by
-  simp [stmtTouchesUnsupportedContractSurface] at hsurface
-
-private theorem false_of_supportedStmtList_ite_list_surface
-    {cond : Expr}
-    {thenBranch elseBranch : List Stmt}
-    (hsurface :
-      stmtListTouchesUnsupportedContractSurface
-        [Stmt.ite cond thenBranch elseBranch] = false) :
-    False := by
-  have hhead :
-      stmtTouchesUnsupportedContractSurface
-        (Stmt.ite cond thenBranch elseBranch) = false := by
-    simpa [stmtListTouchesUnsupportedContractSurface] using hsurface
-  exact false_of_supportedStmtList_ite_surface hhead
-
 private theorem stmtListGenericCore_of_supportedStmtList_setStorageSingleSlot_of_surface
     {fields : List Field}
     {scope : List String}
@@ -11637,19 +11615,6 @@ private theorem false_of_supportedStmtList_singleton_stmt_surface
   rw [hunsupported] at hhead
   contradiction
 
-private theorem false_of_supportedStmtList_returnMapping_surface
-    {fieldName : String}
-    {key : Expr}
-    (hsurface :
-      stmtListTouchesUnsupportedContractSurface
-        [Stmt.return (Expr.mapping fieldName key)] = false) :
-    False :=
-  false_of_supportedStmtList_singleton_stmt_surface
-    (stmt := Stmt.return (Expr.mapping fieldName key))
-    (by simp [stmtTouchesUnsupportedContractSurface,
-      exprTouchesUnsupportedContractSurface])
-    hsurface
-
 private theorem stmtListGenericCore_of_supportedStmtList_letStorageField_of_surface
     {fields : List Field}
     {scope : List String}
@@ -11685,45 +11650,6 @@ private theorem stmtListGenericCore_of_supportedStmtList_iteTerminal_of_surface
     (helse : FunctionBody.StmtListTerminalCore scope elseBranch) :
     StmtListGenericCore fields scope [Stmt.ite cond thenBranch elseBranch] :=
   stmtListGenericCore_singleton_iteTerminal hcond hinScope hthen helse
-
-private theorem false_of_supportedStmtList_letMapping_surface
-    {tmp fieldName : String}
-    {key : Expr}
-    (hsurface :
-      stmtListTouchesUnsupportedContractSurface
-        [Stmt.letVar tmp (Expr.mapping fieldName key)] = false) :
-    False :=
-  false_of_supportedStmtList_singleton_stmt_surface
-    (stmt := Stmt.letVar tmp (Expr.mapping fieldName key))
-    (by simp [stmtTouchesUnsupportedContractSurface,
-      exprTouchesUnsupportedContractSurface])
-    hsurface
-
-private theorem false_of_supportedStmtList_letMapping2_surface
-    {tmp fieldName : String}
-    {key1 key2 : Expr}
-    (hsurface :
-      stmtListTouchesUnsupportedContractSurface
-        [Stmt.letVar tmp (Expr.mapping2 fieldName key1 key2)] = false) :
-    False :=
-  false_of_supportedStmtList_singleton_stmt_surface
-    (stmt := Stmt.letVar tmp (Expr.mapping2 fieldName key1 key2))
-    (by simp [stmtTouchesUnsupportedContractSurface,
-      exprTouchesUnsupportedContractSurface])
-    hsurface
-
-private theorem false_of_supportedStmtList_letMappingUint_surface
-    {tmp fieldName : String}
-    {key : Expr}
-    (hsurface :
-      stmtListTouchesUnsupportedContractSurface
-        [Stmt.letVar tmp (Expr.mappingUint fieldName key)] = false) :
-    False :=
-  false_of_supportedStmtList_singleton_stmt_surface
-    (stmt := Stmt.letVar tmp (Expr.mappingUint fieldName key))
-    (by simp [stmtTouchesUnsupportedContractSurface,
-      exprTouchesUnsupportedContractSurface])
-    hsurface
 
 private theorem false_of_supportedStmtList_setMappingUintSingle_surface
     {fieldName : String}
@@ -11847,67 +11773,6 @@ private theorem false_of_supportedStmtList_setStructMember2Single_surface
       exprTouchesUnsupportedContractSurface])
     hsurface
 
-private theorem false_of_supportedStmtList_rawLogLiterals_surface
-    {topics : List Nat}
-    {dataOffset dataSize : Nat}
-    (hsurface :
-      stmtListTouchesUnsupportedContractSurface
-        [Stmt.rawLog (topics.map Expr.literal) (Expr.literal dataOffset) (Expr.literal dataSize)] = false) :
-    False :=
-  false_of_supportedStmtList_singleton_stmt_surface
-    (stmt := Stmt.rawLog (topics.map Expr.literal) (Expr.literal dataOffset) (Expr.literal dataSize))
-    (by simp [stmtTouchesUnsupportedContractSurface,
-      exprTouchesUnsupportedContractSurface,
-      exprTouchesUnsupportedCoreSurface,
-      exprTouchesUnsupportedStateSurface,
-      exprTouchesUnsupportedCallSurface,
-      stmtTouchesUnsupportedEffectSurface])
-    hsurface
-
-private theorem false_of_supportedStmtList_letCallerLetStorageReqEqReqNeqSetStorageParamStop_surface
-    {ownerField senderVar ownerVar paramName msg1 msg2 : String}
-    (hsurface :
-      stmtListTouchesUnsupportedContractSurface
-        [ Stmt.letVar senderVar Expr.caller
-        , Stmt.letVar ownerVar (Expr.storage ownerField)
-        , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
-        , Stmt.require
-            (Expr.logicalNot (Expr.eq (Expr.param paramName) (Expr.localVar ownerVar))) msg2
-        , Stmt.setStorage ownerField (Expr.param paramName)
-        , Stmt.stop
-        ] = false) :
-    False := by
-  simp [stmtListTouchesUnsupportedContractSurface,
-    stmtTouchesUnsupportedContractSurface,
-    exprTouchesUnsupportedContractSurface,
-    exprTouchesUnsupportedCoreSurface,
-    exprTouchesUnsupportedStateSurface,
-    exprTouchesUnsupportedCallSurface,
-    stmtTouchesUnsupportedEffectSurface] at hsurface
-
-private theorem false_of_supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop_surface
-    {ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2 : String}
-    (hsurface :
-      stmtListTouchesUnsupportedContractSurface
-        [ Stmt.letVar senderVar Expr.caller
-        , Stmt.letVar ownerVar (Expr.storage ownerField)
-        , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
-        , Stmt.letVar targetVar (Expr.storage targetField)
-        , Stmt.require
-            (Expr.logicalNot (Expr.eq (Expr.param paramName) (Expr.localVar targetVar))) msg2
-        , Stmt.setStorage targetField (Expr.param paramName)
-        , Stmt.stop
-        ] = false) :
-    False := by
-  simp [stmtListTouchesUnsupportedContractSurface,
-    stmtTouchesUnsupportedContractSurface,
-    exprTouchesUnsupportedContractSurface,
-    exprTouchesUnsupportedCoreSurface,
-    exprTouchesUnsupportedStateSurface,
-    exprTouchesUnsupportedCallSurface,
-    stmtTouchesUnsupportedEffectSurface] at hsurface
-
-
 private theorem false_of_supportedStmtList_singleton_stmt_surface_exceptMappingWrites
     {stmt : Stmt}
     (hunsupported : stmtTouchesUnsupportedContractSurface stmt = true)
@@ -11919,123 +11784,6 @@ private theorem false_of_supportedStmtList_singleton_stmt_surface_exceptMappingW
     simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites] using hsurface
   rw [hnotMappingWrite, hunsupported] at hhead
   contradiction
-
-private theorem false_of_supportedStmtList_returnMapping_surface_exceptMappingWrites
-    {fieldName : String}
-    {key : Expr}
-    (hsurface :
-      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites
-        [Stmt.return (Expr.mapping fieldName key)] = false) :
-    False :=
-  false_of_supportedStmtList_singleton_stmt_surface_exceptMappingWrites
-    (by simp [stmtTouchesUnsupportedContractSurface, exprTouchesUnsupportedContractSurface])
-    (by rfl) hsurface
-
-private theorem false_of_supportedStmtList_letMapping_surface_exceptMappingWrites
-    {tmp fieldName : String}
-    {key : Expr}
-    (hsurface :
-      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites
-        [Stmt.letVar tmp (Expr.mapping fieldName key)] = false) :
-    False :=
-  false_of_supportedStmtList_singleton_stmt_surface_exceptMappingWrites
-    (by simp [stmtTouchesUnsupportedContractSurface, exprTouchesUnsupportedContractSurface])
-    (by rfl) hsurface
-
-private theorem false_of_supportedStmtList_letMapping2_surface_exceptMappingWrites
-    {tmp fieldName : String}
-    {key1 key2 : Expr}
-    (hsurface :
-      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites
-        [Stmt.letVar tmp (Expr.mapping2 fieldName key1 key2)] = false) :
-    False :=
-  false_of_supportedStmtList_singleton_stmt_surface_exceptMappingWrites
-    (by simp [stmtTouchesUnsupportedContractSurface, exprTouchesUnsupportedContractSurface])
-    (by rfl) hsurface
-
-private theorem false_of_supportedStmtList_letMappingUint_surface_exceptMappingWrites
-    {tmp fieldName : String}
-    {key : Expr}
-    (hsurface :
-      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites
-        [Stmt.letVar tmp (Expr.mappingUint fieldName key)] = false) :
-    False :=
-  false_of_supportedStmtList_singleton_stmt_surface_exceptMappingWrites
-    (by simp [stmtTouchesUnsupportedContractSurface, exprTouchesUnsupportedContractSurface])
-    (by rfl) hsurface
-
-private theorem false_of_supportedStmtList_rawLogLiterals_surface_exceptMappingWrites
-    {topics : List Nat}
-    {dataOffset dataSize : Nat}
-    (hsurface :
-      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites
-        [Stmt.rawLog (topics.map Expr.literal) (Expr.literal dataOffset)
-          (Expr.literal dataSize)] = false) :
-    False :=
-  false_of_supportedStmtList_singleton_stmt_surface_exceptMappingWrites
-    (by simp [stmtTouchesUnsupportedContractSurface, exprTouchesUnsupportedContractSurface,
-      exprTouchesUnsupportedCoreSurface, exprTouchesUnsupportedStateSurface,
-      exprTouchesUnsupportedCallSurface, stmtTouchesUnsupportedEffectSurface])
-    (by rfl) hsurface
-
-private theorem false_of_supportedStmtList_letCallerLetStorageReqEqReqNeqSetStorageParamStop_surface_exceptMappingWrites
-    {ownerField senderVar ownerVar paramName msg1 msg2 : String}
-    (hsurface :
-      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites
-        [ Stmt.letVar senderVar Expr.caller
-        , Stmt.letVar ownerVar (Expr.storage ownerField)
-        , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
-        , Stmt.require
-            (Expr.logicalNot (Expr.eq (Expr.param paramName) (Expr.localVar ownerVar))) msg2
-        , Stmt.setStorage ownerField (Expr.param paramName)
-        , Stmt.stop
-        ] = false) :
-    False := by
-  simp [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
-    stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
-    stmtTouchesUnsupportedContractSurface,
-    exprTouchesUnsupportedContractSurface,
-    exprTouchesUnsupportedCoreSurface,
-    exprTouchesUnsupportedStateSurface,
-    exprTouchesUnsupportedCallSurface,
-    stmtTouchesUnsupportedEffectSurface] at hsurface
-
-private theorem false_of_supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop_surface_exceptMappingWrites
-    {ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2 : String}
-    (hsurface :
-      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites
-        [ Stmt.letVar senderVar Expr.caller
-        , Stmt.letVar ownerVar (Expr.storage ownerField)
-        , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
-        , Stmt.letVar targetVar (Expr.storage targetField)
-        , Stmt.require
-            (Expr.logicalNot (Expr.eq (Expr.param paramName) (Expr.localVar targetVar))) msg2
-        , Stmt.setStorage targetField (Expr.param paramName)
-        , Stmt.stop
-        ] = false) :
-    False := by
-  simp [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
-    stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
-    stmtTouchesUnsupportedContractSurface,
-    exprTouchesUnsupportedContractSurface,
-    exprTouchesUnsupportedCoreSurface,
-    exprTouchesUnsupportedStateSurface,
-    exprTouchesUnsupportedCallSurface,
-    stmtTouchesUnsupportedEffectSurface] at hsurface
-
-private theorem false_of_supportedStmtList_ite_list_surface_exceptMappingWrites
-    {cond : Expr}
-    {thenBranch elseBranch : List Stmt}
-    (hsurface :
-      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites
-        [Stmt.ite cond thenBranch elseBranch] = false) :
-    False := by
-  have hhead :
-      stmtTouchesUnsupportedContractSurfaceExceptMappingWrites
-        (Stmt.ite cond thenBranch elseBranch) = false := by
-    simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites] using hsurface
-  simp [stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
-    stmtTouchesUnsupportedContractSurface] at hhead
 
 private theorem exprBoundNamesInScope_of_scopeNamesIncluded
     {expr : Expr}
@@ -12473,14 +12221,6 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface
   | letStorageAddrField hfind hfieldInScope =>
       exact stmtListGenericCore_of_supportedStmtList_letStorageAddrField_of_surface
         hnoConflict hfind hfieldInScope
-  | returnMapping hkey hscope hslot =>
-      exact False.elim (false_of_supportedStmtList_returnMapping_surface hsurface)
-  | letMapping hkey hscope hslot =>
-      exact False.elim (false_of_supportedStmtList_letMapping_surface hsurface)
-  | letMapping2 hkey1 hscope1 hkey2 hscope2 hslot =>
-      exact False.elim (false_of_supportedStmtList_letMapping2_surface hsurface)
-  | letMappingUint hkey hscope hslot =>
-      exact False.elim (false_of_supportedStmtList_letMappingUint_surface hsurface)
   | setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot =>
       exact False.elim (false_of_supportedStmtList_setMappingUintSingle_surface hsurface)
   | setMappingChainSingle hkeys hscopeKeys hvalue hscopeValue hslot =>
@@ -12500,25 +12240,12 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface
       exact False.elim (false_of_supportedStmtList_setMapping2WordSingle_surface hsurface)
   | setStructMember2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot hmembers hmember =>
       exact False.elim (false_of_supportedStmtList_setStructMember2Single_surface hsurface)
-  | rawLogLiterals htopics =>
-      exact False.elim (false_of_supportedStmtList_rawLogLiterals_surface hsurface)
-  | letCallerLetStorageReqEqReqNeqSetStorageParamStop hOwner hne_sv_p hne_ov_p hne_ov_sv =>
-      exact False.elim
-        (false_of_supportedStmtList_letCallerLetStorageReqEqReqNeqSetStorageParamStop_surface
-          hsurface)
-  | letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop
-      hOwner hTarget hne_sv_p hne_ov_p hne_ov_sv hne_tv_p hne_tv_sv hne_tv_ov =>
-      exact False.elim
-        (false_of_supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop_surface
-          hsurface)
   | requireClause clause _ ih =>
       simp [stmtListTouchesUnsupportedContractSurface] at hsurface
       apply stmtListGenericCore_append
         (stmtListGenericCore_singleton_requireLiteralGuardFamilyClause clause)
       simp only [List.foldl, stmtNextScope_requireLiteralGuardFamilyClause clause]
       exact ih hsurface.2
-  | ite _ _ _ _ _ _ =>
-      exact False.elim (false_of_supportedStmtList_ite_list_surface hsurface)
   | iteTerminal hcond hinScope hthen helse =>
       exact stmtListGenericCore_of_supportedStmtList_iteTerminal_of_surface
         hcond hinScope hthen helse
@@ -12559,18 +12286,6 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites
   | letStorageAddrField hfind hfieldInScope =>
       exact stmtListGenericCore_of_supportedStmtList_letStorageAddrField_of_surface
         hnoConflict hfind hfieldInScope
-  | returnMapping hkey hscope hslot =>
-      exact False.elim (false_of_supportedStmtList_returnMapping_surface_exceptMappingWrites
-        hsurface)
-  | letMapping hkey hscope hslot =>
-      exact False.elim (false_of_supportedStmtList_letMapping_surface_exceptMappingWrites
-        hsurface)
-  | letMapping2 hkey1 hscope1 hkey2 hscope2 hslot =>
-      exact False.elim (false_of_supportedStmtList_letMapping2_surface_exceptMappingWrites
-        hsurface)
-  | letMappingUint hkey hscope hslot =>
-      exact False.elim (false_of_supportedStmtList_letMappingUint_surface_exceptMappingWrites
-        hsurface)
   | setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot =>
       rcases hsafety.setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot with
         ⟨hm, hws, hss⟩
@@ -12620,24 +12335,9 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites
         hvalue hscopeValue hslot hmembers hmember with ⟨hm, hws, hss⟩
       exact stmtListGenericCore_singleton_setStructMember2Single_of_slotSafety
         hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hm hmembers hmember hws hss
-  | rawLogLiterals htopics =>
-      exact False.elim (false_of_supportedStmtList_rawLogLiterals_surface_exceptMappingWrites
-        hsurface)
-  | letCallerLetStorageReqEqReqNeqSetStorageParamStop hOwner hne_sv_p hne_ov_p hne_ov_sv =>
-      exact False.elim
-        (false_of_supportedStmtList_letCallerLetStorageReqEqReqNeqSetStorageParamStop_surface_exceptMappingWrites
-          hsurface)
-  | letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop
-      hOwner hTarget hne_sv_p hne_ov_p hne_ov_sv hne_tv_p hne_tv_sv hne_tv_ov =>
-      exact False.elim
-        (false_of_supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop_surface_exceptMappingWrites
-          hsurface)
   | requireClause clause _ ih =>
       exact stmtListGenericCore_of_supportedStmtList_requireClause_of_surface_exceptMappingWrites
         clause ih hsurface
-  | ite _ _ _ _ _ _ =>
-      exact False.elim (false_of_supportedStmtList_ite_list_surface_exceptMappingWrites
-        hsurface)
   | iteTerminal hcond hinScope hthen helse =>
       exact stmtListGenericCore_of_supportedStmtList_iteTerminal_of_surface
         hcond hinScope hthen helse
