@@ -10832,6 +10832,20 @@ private theorem stmtListGenericCore_singleton_letStorageAddrField
     (compiledStmtStep_letStorageAddrField hnoConflict hfind hfieldInScope)
     StmtListGenericCore.nil
 
+private theorem stmtListGenericCore_singleton_iteTerminal
+    {fields : List Field}
+    {scope : List String}
+    {cond : Expr}
+    {thenBranch elseBranch : List Stmt}
+    (hcond : FunctionBody.ExprCompileCore cond)
+    (hinScope : FunctionBody.exprBoundNamesInScope cond scope)
+    (hthen : FunctionBody.StmtListTerminalCore scope thenBranch)
+    (helse : FunctionBody.StmtListTerminalCore scope elseBranch) :
+    StmtListGenericCore fields scope [Stmt.ite cond thenBranch elseBranch] := by
+  rcases compiledStmtStep_ite (fields := fields)
+      hcond hinScope hthen helse with ⟨compiledIR, hstep⟩
+  exact StmtListGenericCore.cons hstep StmtListGenericCore.nil
+
 private theorem stmtListGenericCore_singleton_setStorage_singleSlot
     {fields : List Field}
     {scope : List String}
@@ -11659,6 +11673,18 @@ private theorem stmtListGenericCore_of_supportedStmtList_letStorageAddrField_of_
     (hfieldInScope : fieldName ∈ scope) :
     StmtListGenericCore fields scope [Stmt.letVar tmp (Expr.storageAddr fieldName)] :=
   stmtListGenericCore_singleton_letStorageAddrField hnoConflict hfind hfieldInScope
+
+private theorem stmtListGenericCore_of_supportedStmtList_iteTerminal_of_surface
+    {fields : List Field}
+    {scope : List String}
+    {cond : Expr}
+    {thenBranch elseBranch : List Stmt}
+    (hcond : FunctionBody.ExprCompileCore cond)
+    (hinScope : FunctionBody.exprBoundNamesInScope cond scope)
+    (hthen : FunctionBody.StmtListTerminalCore scope thenBranch)
+    (helse : FunctionBody.StmtListTerminalCore scope elseBranch) :
+    StmtListGenericCore fields scope [Stmt.ite cond thenBranch elseBranch] :=
+  stmtListGenericCore_singleton_iteTerminal hcond hinScope hthen helse
 
 private theorem false_of_supportedStmtList_letMapping_surface
     {tmp fieldName : String}
@@ -12493,6 +12519,9 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface
       exact ih hsurface.2
   | ite _ _ _ _ _ _ =>
       exact False.elim (false_of_supportedStmtList_ite_list_surface hsurface)
+  | iteTerminal hcond hinScope hthen helse =>
+      exact stmtListGenericCore_of_supportedStmtList_iteTerminal_of_surface
+        hcond hinScope hthen helse
   | append _ _ ihPrefix ihSuffix =>
       simp only [stmtListTouchesUnsupportedContractSurface_append, Bool.or_eq_false_iff] at hsurface
       exact stmtListGenericCore_append (ihPrefix hsurface.1) (ihSuffix hsurface.2)
@@ -12609,6 +12638,9 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites
   | ite _ _ _ _ _ _ =>
       exact False.elim (false_of_supportedStmtList_ite_list_surface_exceptMappingWrites
         hsurface)
+  | iteTerminal hcond hinScope hthen helse =>
+      exact stmtListGenericCore_of_supportedStmtList_iteTerminal_of_surface
+        hcond hinScope hthen helse
   | append hpfx hsfx ihPrefix ihSuffix =>
       exact stmtListGenericCore_of_supportedStmtList_append_of_surface_exceptMappingWrites
         hpfx hsfx ihPrefix ihSuffix hsurface

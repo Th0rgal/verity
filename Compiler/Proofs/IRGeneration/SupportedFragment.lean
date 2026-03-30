@@ -319,6 +319,21 @@ inductive SupportedStmtList (fields : List Field) : List String → List Stmt �
       SupportedStmtList fields scope thenBranch →
       SupportedStmtList fields scope elseBranch →
       SupportedStmtList fields scope [Stmt.ite cond thenBranch elseBranch]
+  /-- If-then-else with terminal branches. Unlike `ite`, the branches are
+  required to satisfy `StmtListTerminalCore` (i.e. every execution path
+  through each branch must end with `return` / `stop` / revert). This
+  directly enables the proven fragment because the existing
+  `compiledStmtStep_ite` proof requires terminality to prevent execution
+  from falling through the compiled Yul `if_` blocks. -/
+  | iteTerminal
+      {scope : List String}
+      {cond : Expr}
+      {thenBranch elseBranch : List Stmt} :
+      FunctionBody.ExprCompileCore cond →
+      FunctionBody.exprBoundNamesInScope cond scope →
+      FunctionBody.StmtListTerminalCore scope thenBranch →
+      FunctionBody.StmtListTerminalCore scope elseBranch →
+      SupportedStmtList fields scope [Stmt.ite cond thenBranch elseBranch]
   | append
       {scope : List String}
       {pfx sfx : List Stmt} :

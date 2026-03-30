@@ -2046,6 +2046,13 @@ theorem SupportedStmtList.helperSurfaceClosed
         exprCompileCore_helperSurfaceClosed hcond,
         ihThen, ihElse,
         Bool.or_false, Bool.false_or]
+  | iteTerminal hcond _ hthen helse =>
+      simp only [stmtListTouchesUnsupportedHelperSurface,
+        stmtTouchesUnsupportedHelperSurface,
+        exprCompileCore_helperSurfaceClosed hcond,
+        stmtListTerminalCore_helperSurfaceClosed hthen,
+        stmtListTerminalCore_helperSurfaceClosed helse,
+        Bool.or_false, Bool.false_or]
   | @append _ pfx sfx _ _ ihPfx ihSfx =>
       suffices h : ∀ (xs ys : List Stmt),
           stmtListTouchesUnsupportedHelperSurface xs = false →
@@ -2229,6 +2236,13 @@ theorem SupportedStmtList.internalHelperCallNames_nil
         stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hcond,
         ihThen, ihElse, List.nil_append, List.append_nil]
+  | iteTerminal hcond _ hthen helse =>
+      simp only [stmtListInternalHelperCallNames,
+        stmtInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hcond,
+        stmtListTerminalCore_internalHelperCallNames_nil hthen,
+        stmtListTerminalCore_internalHelperCallNames_nil helse,
+        List.nil_append, List.append_nil]
   | @append _ pfx sfx _ _ ihPfx ihSfx =>
       suffices h : ∀ (xs ys : List Stmt),
           stmtListInternalHelperCallNames xs = [] →
@@ -2616,26 +2630,21 @@ def SupportedRuntimeHelperTableInterface.compiledOfCall
   hRuntime.compiledOfWitness calleeName (hHelpers.summaryOfCall hmem)
 
 
--- NOTE: The theorem statement below claims an exact decomposition of the
--- monolithic contract surface into sub-surfaces.  However the current
--- definition of `exprTouchesUnsupportedContractSurface` treats some
--- constructors (sdiv, smod, bitAnd, …) differently from the per-surface
--- functions (the contract surface recurses while the core surface returns
--- true directly), making the equality unprovable as-is.
+-- NOTE: An exact decomposition theorem
+--   exprTouchesUnsupportedContractSurface expr =
+--     (exprTouchesUnsupportedCoreSurface expr ||
+--      exprTouchesUnsupportedStateSurface expr ||
+--      exprTouchesUnsupportedCallSurface expr)
+-- was removed because it is not used by any downstream proof and the
+-- implication direction (featureClosed → contractSurface = false) already
+-- suffices for the generic-induction bridge.
 --
--- Concrete counterexample at the expression level:
---   exprTouchesUnsupportedContractSurface (Expr.sdiv (Expr.literal 1) (Expr.literal 2))
---     = (false || false) = false  (recurses on both arguments)
---   exprTouchesUnsupportedCoreSurface (Expr.sdiv (Expr.literal 1) (Expr.literal 2))
---     = true  (returns true directly for sdiv, without checking arguments)
---
--- Similarly, for `.ite` statements:
---   stmtTouchesUnsupportedContractSurface (.ite cond thenBranch elseBranch) = true
---   but the OR of sub-predicates recurses on cond and branches, giving different results.
---
--- The statement needs revision by project authors.
--- This theorem was removed because the stated equality is unprovable with the
--- current definitions and is not used in any downstream proof.
+-- The original expression-level counterexample (sdiv returning true in
+-- core but recursing in contract) was resolved when signed arithmetic was
+-- ungated in the core surface. The statement-level `.ite` mismatch
+-- (both core and contract return true directly) does not block the
+-- decomposition, but the equality is still fragile under future surface
+-- changes and carries no proof value, so it remains intentionally absent.
 
 private theorem exprTouchesUnsupportedCallSurface_eq_featureOr
     (expr : Expr) :
@@ -3825,6 +3834,11 @@ private theorem supportedStmtList_usesArrayElement_false
   | ite hcond _ _ _ ihThen ihElse =>
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
         exprCompileCore_usesArrayElement_false hcond, ihThen, ihElse, Bool.false_or]
+  | iteTerminal hcond _ hthen helse =>
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
+        exprCompileCore_usesArrayElement_false hcond,
+        stmtListTerminalCore_usesArrayElement_false hthen,
+        stmtListTerminalCore_usesArrayElement_false helse, Bool.false_or]
   | @append _ pfx sfx _ _ ihPfx ihSfx =>
       rw [stmtListUsesArrayElement_append, ihPfx, ihSfx]
       simp
@@ -3942,6 +3956,11 @@ private theorem supportedStmtList_usesStorageArrayElement_false
   | ite hcond _ _ _ ihThen ihElse =>
       simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false hcond, ihThen, ihElse, Bool.false_or]
+  | iteTerminal hcond _ hthen helse =>
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprCompileCore_usesStorageArrayElement_false hcond,
+        stmtListTerminalCore_usesStorageArrayElement_false hthen,
+        stmtListTerminalCore_usesStorageArrayElement_false helse, Bool.false_or]
   | @append _ pfx sfx _ _ ihPfx ihSfx =>
       rw [stmtListUsesStorageArrayElement_append, ihPfx, ihSfx]
       simp
@@ -4057,6 +4076,11 @@ private theorem supportedStmtList_usesDynamicBytesEq_false
   | ite hcond _ _ _ ihThen ihElse =>
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hcond, ihThen, ihElse, Bool.false_or]
+  | iteTerminal hcond _ hthen helse =>
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+        exprCompileCore_usesDynamicBytesEq_false hcond,
+        stmtListTerminalCore_usesDynamicBytesEq_false hthen,
+        stmtListTerminalCore_usesDynamicBytesEq_false helse, Bool.false_or]
   | @append _ pfx sfx _ _ ihPfx ihSfx =>
       rw [stmtListUsesDynamicBytesEq_append, ihPfx, ihSfx]
       simp
