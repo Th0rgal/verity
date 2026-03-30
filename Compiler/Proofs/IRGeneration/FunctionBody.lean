@@ -106,6 +106,7 @@ def runtimeStateMatchesIR
   state.blockNumber = runtime.world.blockNumber.val ∧
   state.chainId = runtime.world.chainId.val ∧
   state.blobBaseFee = runtime.world.blobBaseFee.val ∧
+  state.calldata = runtime.world.calldata ∧
   runtime.world.calldataSize.val = 4 + state.calldata.length * 32 ∧
   state.returnValue = none ∧
   state.events = SourceSemantics.encodeEvents runtime.world.events
@@ -354,7 +355,7 @@ theorem evalIRExpr_calldatasize_of_runtimeStateMatchesIR
     (hmatch : runtimeStateMatchesIR fields runtime state) :
     evalIRExpr state (YulExpr.call "calldatasize" []) =
       some (SourceSemantics.evalExpr fields runtime (.calldatasize)) := by
-  rcases hmatch with ⟨_, _, _, _, _, _, _, _, _, hcalldataSize, _, _⟩
+  rcases hmatch with ⟨_, _, _, _, _, _, _, _, _, _, hcalldataSize, _, _⟩
   have heval : SourceSemantics.evalExpr fields runtime (.calldatasize) =
     some runtime.world.calldataSize.val := rfl
   rw [heval]
@@ -6951,8 +6952,8 @@ theorem runtimeStateMatchesIR_setBothMemory
   cases runtime
   cases state
   simp only [runtimeStateMatchesIR] at hmatch ⊢
-  obtain ⟨hstor, htrans, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hcds, hret, hevt⟩ := hmatch
-  refine ⟨?_, htrans, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hcds, hret, hevt⟩
+  obtain ⟨hstor, htrans, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hcd, hcds, hret, hevt⟩ := hmatch
+  refine ⟨?_, htrans, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hcd, hcds, hret, hevt⟩
   · rw [hstor]
     funext slot
     exact SourceSemantics.encodeStorageAt_congr rfl rfl rfl
@@ -6975,8 +6976,8 @@ theorem runtimeStateMatchesIR_setTransientStorage
   cases runtime
   cases state
   simp only [runtimeStateMatchesIR] at hmatch ⊢
-  obtain ⟨hstor, htrans, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hcds, hret, hevt⟩ := hmatch
-  refine ⟨?_, ?_, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hcds, hret, hevt⟩
+  obtain ⟨hstor, htrans, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hcd, hcds, hret, hevt⟩ := hmatch
+  refine ⟨?_, ?_, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hcd, hcds, hret, hevt⟩
   · -- storage: encodeStorageAt doesn't depend on transientStorage
     rw [hstor]
     funext slot
@@ -13770,17 +13771,17 @@ theorem stmtResultToSourceResult_matches_irExecResult
   cases sourceResult <;> cases irResult <;>
     simp [stmtResultMatchesIRExec] at hmatch
   · rcases hmatch with
-      ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hblob, hcds, hret, hevents⟩
+      ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hblob, _, hcds, hret, hevents⟩
     simp [stmtResultToSourceResult, sourceResultMatchesIRResult, irResultOfExecResult,
       SourceSemantics.successResult, SourceSemantics.encodeStorage,
       hstorage, hevents, hret]
   · rcases hmatch with
-      ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hblob, hcds, hret, hevents⟩
+      ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hblob, _, hcds, hret, hevents⟩
     simp [stmtResultToSourceResult, sourceResultMatchesIRResult, irResultOfExecResult,
       SourceSemantics.successResult, SourceSemantics.encodeStorage,
       hstorage, hevents]
   · rcases hmatch with
-      ⟨hvalue, hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hblob, hcds, hret,
+      ⟨hvalue, hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hblob, _, hcds, hret,
         hevents⟩
     simp [stmtResultToSourceResult, sourceResultMatchesIRResult, irResultOfExecResult,
       SourceSemantics.successResult, SourceSemantics.encodeStorage,

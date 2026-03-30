@@ -137,6 +137,7 @@ theorem transferOwnership_unfold (s : ContractState) (newOwner : Address)
       chainId := s.chainId,
       blobBaseFee := s.blobBaseFee,
       calldataSize := s.calldataSize,
+      calldata := s.calldata,
       memory := s.memory,
       knownAddresses := s.knownAddresses,
       events := s.events } := by

@@ -71,6 +71,7 @@ private theorem increment_unfold (s : ContractState)
       chainId := s.chainId,
       blobBaseFee := s.blobBaseFee,
       calldataSize := s.calldataSize,
+      calldata := s.calldata,
       memory := s.memory,
       knownAddresses := s.knownAddresses,
       events := s.events } := by
@@ -135,6 +136,7 @@ private theorem decrement_unfold (s : ContractState)
       chainId := s.chainId,
       blobBaseFee := s.blobBaseFee,
       calldataSize := s.calldataSize,
+      calldata := s.calldata,
       memory := s.memory,
       knownAddresses := s.knownAddresses,
       events := s.events } := by

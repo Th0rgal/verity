@@ -166,6 +166,7 @@ private theorem mint_unfold (s : ContractState) (to : Address) (amount : Uint256
       chainId := s.chainId,
       blobBaseFee := s.blobBaseFee,
       calldataSize := s.calldataSize,
+      calldata := s.calldata,
       memory := s.memory,
       knownAddresses := fun slotIdx =>
         if slotIdx == 1 then (s.knownAddresses slotIdx).insert to
@@ -304,6 +305,7 @@ private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount
       chainId := s.chainId,
       blobBaseFee := s.blobBaseFee,
       calldataSize := s.calldataSize,
+      calldata := s.calldata,
       memory := s.memory,
       knownAddresses := fun slotIdx =>
         if slotIdx == 1 then ((s.knownAddresses slotIdx).insert s.sender).insert to
