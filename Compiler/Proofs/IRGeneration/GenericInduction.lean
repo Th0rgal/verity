@@ -11575,6 +11575,71 @@ private theorem stmtListGenericCore_singleton_letStorageField
     (compiledStmtStep_letStorageField hnoConflict hfind hfieldInScope)
     StmtListGenericCore.nil
 
+set_option maxHeartbeats 800000 in
+private theorem compiledStmtStep_letStorageAddrField
+    {fields : List Field}
+    {scope : List String}
+    {tmp fieldName : String}
+    {slot : Nat}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.address }, slot))
+    (hfieldInScope : fieldName ∈ scope) :
+    CompiledStmtStep fields scope (.letVar tmp (Expr.storageAddr fieldName))
+      [YulStmt.let_ tmp (YulExpr.call "sload" [YulExpr.lit slot])] where
+  compileOk := by
+    have hNotMapping := isMapping_false_of_findFieldWithResolvedSlot_address hfind rfl
+    simp only [CompilationModel.compileStmt, CompilationModel.compileExpr, hNotMapping, hfind]
+    rfl
+  preserves runtime state extraFuel hexact hscope hbounded hruntime hslack := by
+    have hEvalSrc : SourceSemantics.evalExpr fields runtime (.storageAddr fieldName) =
+        some (runtime.world.storageAddr slot).val := by
+      show (match findFieldWithResolvedSlot fields fieldName with
+        | some (_, s) => some (runtime.world.storageAddr s).val | none => none) = _
+      rw [hfind]
+    have hresolved := findResolvedFieldAtSlotCopy_of_findFieldWithResolvedSlot_singleton
+      hnoConflict hfind
+      (by simpa using findFieldWriteSlots_of_findFieldWithResolvedSlot hfind) (by rfl)
+    have hIR := FunctionBody.evalIRExpr_sload_of_runtimeStateMatchesIR hruntime slot
+    rw [encodeStorageAt_eq_storageAddr_of_resolvedSlot hresolved (by rfl) (by rfl)] at hIR
+    set v := (runtime.world.storageAddr slot).val; set state' := state.setVar tmp v
+    set runtime' := { runtime with bindings := SourceSemantics.bindValue runtime.bindings tmp v }
+    have hNextScopeIncl : FunctionBody.scopeNamesIncluded
+        (stmtNextScope scope (.letVar tmp (Expr.storageAddr fieldName))) (tmp :: scope) := by
+      intro n hn; simp [stmtNextScope, collectStmtNames, collectExprNames] at hn
+      rcases hn with rfl | rfl | hn <;>
+        [simp; exact List.mem_cons_of_mem _ hfieldInScope; exact List.mem_cons_of_mem _ hn]
+    refine ⟨.continue runtime', .continue state', ?_, ?_, ?_⟩
+    · show (match SourceSemantics.evalExpr fields runtime (.storageAddr fieldName) with
+        | some r => SourceSemantics.StmtResult.continue { runtime with
+            bindings := SourceSemantics.bindValue runtime.bindings tmp r }
+        | none => SourceSemantics.StmtResult.revert) = _; rw [hEvalSrc]
+    · have : [YulStmt.let_ tmp (YulExpr.call "sload" [YulExpr.lit slot])].length +
+          extraFuel + 1 = Nat.succ (Nat.succ extraFuel) := by simp [List.length]; omega
+      rw [this]; simp [execIRStmts, execIRStmt, hIR, state']
+    · simp only [stmtStepMatchesIRExec]
+      exact ⟨FunctionBody.runtimeStateMatchesIR_setVar_bindValue hruntime tmp v,
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
+          (FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_bindValue hexact) hNextScopeIncl,
+        FunctionBody.bindingsBounded_bindValue hbounded tmp v
+          (Nat.lt_trans (runtime.world.storageAddr slot).isLt (by decide)),
+        FunctionBody.scopeNamesPresent_of_included
+          (FunctionBody.scopeNamesPresent_cons_bindValue hscope) hNextScopeIncl⟩
+
+private theorem stmtListGenericCore_singleton_letStorageAddrField
+    {fields : List Field}
+    {scope : List String}
+    {tmp fieldName : String}
+    {slot : Nat}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.address }, slot))
+    (hfieldInScope : fieldName ∈ scope) :
+    StmtListGenericCore fields scope [Stmt.letVar tmp (Expr.storageAddr fieldName)] :=
+  StmtListGenericCore.cons
+    (compiledStmtStep_letStorageAddrField hnoConflict hfind hfieldInScope)
+    StmtListGenericCore.nil
+
 private theorem stmtListGenericCore_singleton_setStorage_singleSlot
     {fields : List Field}
     {scope : List String}
@@ -12398,6 +12463,18 @@ private theorem stmtListGenericCore_of_supportedStmtList_letStorageField_of_surf
     StmtListGenericCore fields scope [Stmt.letVar tmp (Expr.storage fieldName)] :=
   stmtListGenericCore_singleton_letStorageField hnoConflict hfind hfieldInScope
 
+private theorem stmtListGenericCore_of_supportedStmtList_letStorageAddrField_of_surface
+    {fields : List Field}
+    {scope : List String}
+    {tmp fieldName : String}
+    {slot : Nat}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.address }, slot))
+    (hfieldInScope : fieldName ∈ scope) :
+    StmtListGenericCore fields scope [Stmt.letVar tmp (Expr.storageAddr fieldName)] :=
+  stmtListGenericCore_singleton_letStorageAddrField hnoConflict hfind hfieldInScope
+
 private theorem false_of_supportedStmtList_letMapping_surface
     {tmp fieldName : String}
     {key : Expr}
@@ -13109,6 +13186,9 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface
         (fields := fields) hcoreOffset hinScopeOffset hcoreValue hinScopeValue
   | letStorageField hfind hfieldInScope =>
       exact stmtListGenericCore_of_supportedStmtList_letStorageField_of_surface
+        hnoConflict hfind hfieldInScope
+  | letStorageAddrField hfind hfieldInScope =>
+      exact stmtListGenericCore_of_supportedStmtList_letStorageAddrField_of_surface
         hnoConflict hfind hfieldInScope
   | returnMapping hkey hscope hslot =>
       exact False.elim (false_of_supportedStmtList_returnMapping_surface hsurface)
