@@ -553,18 +553,6 @@ private theorem field_mem_of_findFieldWithResolvedSlot_some
     f ∈ fields :=
   field_mem_of_findFieldWithResolvedSlot_eq_some hfind
 
-private theorem legacyCompatibleExternalStmtList_of_unpackedStorageWrite
-    (slot : Nat)
-    (aliasSlots : List Nat)
-    (valueExpr : YulExpr) :
-    True := by
-  trivial
-
--- TODO: prove by case analysis on compileSetStorage output
--- The proof needs to handle: rcases on compileExpr (error propagates as Except.error,
--- contradiction with Except.ok), then split on slot :: aliasSlots pattern, rewrite
--- packedBits = none, and construct LegacyCompatibleExternalStmtList for the resulting IR.
--- Key difficulty: the block case produces non-trivial statement lists.
 private theorem legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields_resolved
     {fields : List Field}
     {fieldName : String}
