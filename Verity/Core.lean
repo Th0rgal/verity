@@ -65,6 +65,7 @@ structure ContractState where
   chainId : Uint256 := 0
   blobBaseFee : Uint256 := 0
   calldataSize : Uint256 := 0
+  memory : Nat → Uint256 := fun _ => 0     -- EVM memory (word-addressed, zero-initialized)
   knownAddresses : Nat → FiniteAddressSet  -- Tracked addresses per storage slot (for sum properties)
   events : List Event := []  -- Emitted events, append-only log (#153)
 
