@@ -268,6 +268,7 @@ private def findUniqueInternalFunction? (spec : CompilationModel) (calleeName : 
 structure RuntimeState where
   world : Verity.ContractState
   bindings : List (String × Nat)
+  selector : Nat := 0
 
 inductive StmtResult where
   | continue (state : RuntimeState)
@@ -567,6 +568,9 @@ def evalExpr (fields : List Field) (state : RuntimeState) : Expr → Option Nat
   | .tload offset => do
       let resolvedOffset ← evalExpr fields state offset
       some (state.world.transientStorage resolvedOffset).val
+  | .calldataload offset => do
+      let resolvedOffset ← evalExpr fields state offset
+      some (Compiler.Proofs.YulGeneration.calldataloadWord state.selector state.world.calldata resolvedOffset)
   | _ => none
 
 def evalExprList (fields : List Field) (state : RuntimeState) : List Expr → Option (List Nat)
@@ -709,7 +713,9 @@ private theorem evalExpr_calldataload
     (fields : List Field)
     (state : RuntimeState)
     (a : Expr) :
-    evalExpr fields state (.calldataload a) = none := rfl
+    evalExpr fields state (.calldataload a) =
+      (evalExpr fields state a).bind
+        (fun resolvedOffset => some (Compiler.Proofs.YulGeneration.calldataloadWord state.selector state.world.calldata resolvedOffset)) := rfl
 
 private theorem evalExpr_extcodesize
     (fields : List Field)
@@ -1621,7 +1627,7 @@ def interpretFunction (spec : CompilationModel) (fn : FunctionSpec)
   match bindSupportedParams fn.params tx.args with
   | none => revertedResult spec worldWithTx
   | some bindings =>
-      match execStmtList fields { world := worldWithTx, bindings := bindings } fn.body with
+      match execStmtList fields { world := worldWithTx, bindings := bindings, selector := tx.functionSelector } fn.body with
       | .continue state => successResult spec state.world none
       | .stop state => successResult spec state.world none
       | .return value state => successResult spec state.world (some value)
@@ -1917,6 +1923,9 @@ mutual
     | .tload offset => do
         let resolvedOffset ← evalExprWithHelpers spec fields fuel state offset
         some (state.world.transientStorage resolvedOffset).val
+    | .calldataload offset => do
+        let resolvedOffset ← evalExprWithHelpers spec fields fuel state offset
+        some (Compiler.Proofs.YulGeneration.calldataloadWord state.selector state.world.calldata resolvedOffset)
     | _ => none
   termination_by expr => (fuel, sizeOf expr)
   decreasing_by all_goals (simp_wf; omega)
@@ -2240,7 +2249,7 @@ def interpretFunctionWithHelpers
   match bindSupportedParams fn.params tx.args with
   | none => revertedResult spec worldWithTx
   | some bindings =>
-      match execStmtListWithHelpers spec fields fuel { world := worldWithTx, bindings := bindings } fn.body with
+      match execStmtListWithHelpers spec fields fuel { world := worldWithTx, bindings := bindings, selector := tx.functionSelector } fn.body with
       | .continue state => successResult spec state.world none
       | .stop state => successResult spec state.world none
       | .return value state => successResult spec state.world (some value)
@@ -2673,8 +2682,13 @@ mutual
         have ha :=
           evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state a hsurface
         simp [evalExprWithHelpers, evalExpr_tload, ha]
-    | calldataload a | extcodesize a | returndataOptionalBoolAt a =>
-        simp [evalExprWithHelpers, evalExpr_calldataload, evalExpr_extcodesize,
+    | calldataload a =>
+        simp only [exprTouchesUnsupportedHelperSurface] at hsurface
+        have ha :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state a hsurface
+        simp [evalExprWithHelpers, evalExpr_calldataload, ha]
+    | extcodesize a | returndataOptionalBoolAt a =>
+        simp [evalExprWithHelpers, evalExpr_extcodesize,
           evalExpr_returndataOptionalBoolAt]
     | keccak256 a b =>
         simpa [evalExprWithHelpers, evalExpr_keccak256]
@@ -3271,14 +3285,14 @@ theorem interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
   | some bindings =>
       have hbody :
           execStmtListWithHelpers spec (effectiveFields spec) fuel
-              { world := withTransactionContext initialWorld tx, bindings := bindings } fn.body =
+              { world := withTransactionContext initialWorld tx, bindings := bindings, selector := tx.functionSelector } fn.body =
             execStmtList (effectiveFields spec)
-              { world := withTransactionContext initialWorld tx, bindings := bindings } fn.body :=
+              { world := withTransactionContext initialWorld tx, bindings := bindings, selector := tx.functionSelector } fn.body :=
         execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
           (spec := spec)
           (fields := effectiveFields spec)
           (fuel := fuel)
-          (state := { world := withTransactionContext initialWorld tx, bindings := bindings })
+          (state := { world := withTransactionContext initialWorld tx, bindings := bindings, selector := tx.functionSelector })
           (stmts := fn.body)
           hsurface
       simp [hbody]

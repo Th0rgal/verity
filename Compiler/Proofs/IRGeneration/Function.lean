@@ -380,7 +380,8 @@ theorem interpretFunction_eq_execResultToIRResult_of_body
     (hsource :
       SourceSemantics.execStmtList (SourceSemantics.effectiveFields model)
         { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := bindings }
+          bindings := bindings
+          selector := tx.functionSelector }
         fn.body = sourceResult)
     (hrollbackStorage :
       rollback.storage =
@@ -590,7 +591,8 @@ theorem initialIRStateForTx_matches_runtime
     FunctionBody.runtimeStateMatchesIR
       (SourceSemantics.effectiveFields model)
       { world := SourceSemantics.withTransactionContext initialWorld tx
-        bindings := [] }
+        bindings := []
+        selector := tx.functionSelector }
       (FunctionBody.initialIRStateForTx model tx initialWorld) := by
   rcases htxNormalized with
     ⟨hsender, hthis, hmsgValue, htimestamp, hnumber, hchain, hblob⟩
@@ -604,7 +606,7 @@ theorem initialIRStateForTx_matches_runtime
     simpa [Verity.Core.Address.modulus, Compiler.Constants.addressModulus] using hsender
   have hthisAddr : tx.thisAddress < Verity.Core.Address.modulus := by
     simpa [Verity.Core.Address.modulus, Compiler.Constants.addressModulus] using hthis
-  refine ⟨?_, rfl, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  refine ⟨?_, rfl, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
   · simpa [FunctionBody.initialIRStateForTx, SourceSemantics.effectiveFields,
       SourceSemantics.encodeStorage] using
       (FunctionBody.encodeStorage_withTransactionContext model initialWorld tx).symm
@@ -640,6 +642,8 @@ theorem initialIRStateForTx_matches_runtime
     simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext]
     symm
     exact Nat.mod_eq_of_lt hblob
+  · -- selector
+    rfl
   · -- calldata
     rfl
   · -- calldataSize
@@ -718,14 +722,16 @@ theorem supported_function_body_correct_from_exact_state_core
       FunctionBody.runtimeStateMatchesIR
         (SourceSemantics.effectiveFields model)
         { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := [] }
+          bindings := []
+          selector := tx.functionSelector }
         state)
     (hstateBindings :
       FunctionBody.bindingsExactlyMatchIRVars bindings state) :
     ∃ sourceResult irExec,
       SourceSemantics.execStmtList (SourceSemantics.effectiveFields model)
         { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := bindings }
+          bindings := bindings
+          selector := tx.functionSelector }
         fn.body = sourceResult ∧
       execIRStmts (bodyStmts.length + 1) state bodyStmts = irExec ∧
       FunctionBody.stmtResultMatchesIRExec
@@ -743,7 +749,8 @@ theorem supported_function_body_correct_from_exact_state_core
       FunctionBody.runtimeStateMatchesIR
         (SourceSemantics.effectiveFields model)
         { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := bindings }
+          bindings := bindings
+          selector := tx.functionSelector }
         state := by
     simpa [FunctionBody.runtimeStateMatchesIR] using hstateRuntime
   have hbodyCompile' :
@@ -753,7 +760,8 @@ theorem supported_function_body_correct_from_exact_state_core
   rcases FunctionBody.exec_compileStmtList_core
       (fields := SourceSemantics.effectiveFields model)
       (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx
-                    bindings := bindings })
+                    bindings := bindings
+                    selector := tx.functionSelector })
       (state := state)
       (scope := fn.params.map (·.name))
       (inScopeNames := fn.params.map (·.name))
@@ -788,14 +796,16 @@ theorem supported_function_body_correct_from_exact_state_core_extraFuel
       FunctionBody.runtimeStateMatchesIR
         (SourceSemantics.effectiveFields model)
         { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := [] }
+          bindings := []
+          selector := tx.functionSelector }
         state)
     (hstateBindings :
       FunctionBody.bindingsExactlyMatchIRVars bindings state) :
     ∃ sourceResult irExec,
       SourceSemantics.execStmtList (SourceSemantics.effectiveFields model)
         { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := bindings }
+          bindings := bindings
+          selector := tx.functionSelector }
         fn.body = sourceResult ∧
       execIRStmts (bodyStmts.length + extraFuel + 1) state bodyStmts = irExec ∧
       FunctionBody.stmtResultMatchesIRExec
@@ -813,7 +823,8 @@ theorem supported_function_body_correct_from_exact_state_core_extraFuel
       FunctionBody.runtimeStateMatchesIR
         (SourceSemantics.effectiveFields model)
         { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := bindings }
+          bindings := bindings
+          selector := tx.functionSelector }
         state := by
     simpa [FunctionBody.runtimeStateMatchesIR] using hstateRuntime
   have hbodyCompile' :
@@ -823,7 +834,8 @@ theorem supported_function_body_correct_from_exact_state_core_extraFuel
   rcases FunctionBody.exec_compileStmtList_core_extraFuel
       (fields := SourceSemantics.effectiveFields model)
       (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx
-                    bindings := bindings })
+                    bindings := bindings
+                    selector := tx.functionSelector })
       (state := state)
       (scope := fn.params.map (·.name))
       (inScopeNames := fn.params.map (·.name))
@@ -859,14 +871,16 @@ theorem supported_function_body_correct_from_exact_state_terminal_core_extraFuel
       FunctionBody.runtimeStateMatchesIR
         (SourceSemantics.effectiveFields model)
         { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := [] }
+          bindings := []
+          selector := tx.functionSelector }
         state)
     (hstateBindings :
       FunctionBody.bindingsExactlyMatchIRVars bindings state) :
     ∃ sourceResult irExec,
       SourceSemantics.execStmtList (SourceSemantics.effectiveFields model)
         { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := bindings }
+          bindings := bindings
+          selector := tx.functionSelector }
         fn.body = sourceResult ∧
       execIRStmts (bodyStmts.length + extraFuel + 1) state bodyStmts = irExec ∧
       FunctionBody.stmtResultMatchesIRExec
@@ -888,7 +902,8 @@ theorem supported_function_body_correct_from_exact_state_terminal_core_extraFuel
       FunctionBody.runtimeStateMatchesIR
         (SourceSemantics.effectiveFields model)
         { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := bindings }
+          bindings := bindings
+          selector := tx.functionSelector }
         state := by
     simpa [FunctionBody.runtimeStateMatchesIR] using hstateRuntime
   have hbodyCompile' :
@@ -899,7 +914,8 @@ theorem supported_function_body_correct_from_exact_state_terminal_core_extraFuel
   rcases FunctionBody.exec_compileStmtList_terminal_core_sizeOf_extraFuel
       (fields := SourceSemantics.effectiveFields model)
       (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx
-                    bindings := bindings })
+                    bindings := bindings
+                    selector := tx.functionSelector })
       (state := state)
       (scope := fn.params.map (·.name))
       (inScopeNames := fn.params.map (·.name))
@@ -954,7 +970,8 @@ theorem compileFunctionSpec_correct_of_body
     (hsource :
       SourceSemantics.execStmtList (SourceSemantics.effectiveFields model)
         { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := bindings }
+          bindings := bindings
+          selector := tx.functionSelector }
         fn.body = sourceResult)
     (hbodyExec :
       execIRStmts (bodyStmts.length + 1)
@@ -1032,7 +1049,8 @@ theorem compileFunctionSpec_correct_of_body_normalized_extraFuel
     (hsource :
       SourceSemantics.execStmtList (SourceSemantics.effectiveFields model)
         { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := bindings }
+          bindings := bindings
+          selector := tx.functionSelector }
         fn.body = sourceResult)
     (hbodyExec :
       execIRStmts (bodyStmts.length + extraFuel + 1)
@@ -1118,7 +1136,8 @@ theorem compileFunctionSpec_correct_of_body_supported_extraFuel
     (hsource :
       SourceSemantics.execStmtList (SourceSemantics.effectiveFields model)
         { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := bindings }
+          bindings := bindings
+          selector := tx.functionSelector }
         fn.body = sourceResult)
     (hbodyExec :
       execIRStmts (bodyStmts.length + extraFuel + 1)
@@ -1188,12 +1207,13 @@ theorem supported_function_correct
       FunctionBody.runtimeStateMatchesIR
         (SourceSemantics.effectiveFields model)
         { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := [] }
+          bindings := []
+          selector := tx.functionSelector }
         (prebindRawArgs initialState fn.params) := by
     simpa [initialState] using
       runtimeStateMatchesIR_prebindRawArgs
         (state := initialState)
-        (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [] })
+        (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [], selector := tx.functionSelector })
         (fields := SourceSemantics.effectiveFields model)
         (params := fn.params)
         (initialIRStateForTx_matches_runtime model tx initialWorld htxNormalized
@@ -1202,12 +1222,13 @@ theorem supported_function_correct
       FunctionBody.runtimeStateMatchesIR
         (SourceSemantics.effectiveFields model)
         { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := [] }
+          bindings := []
+          selector := tx.functionSelector }
         (ParamLoading.applyBindingsToIRState
           (prebindRawArgs initialState fn.params) bindings) :=
     runtimeStateMatchesIR_applyBindingsToIRState
       (state := prebindRawArgs initialState fn.params)
-      (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [] })
+      (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [], selector := tx.functionSelector })
       (fields := SourceSemantics.effectiveFields model)
       (bindings := bindings)
       hpreboundRuntime
@@ -1219,7 +1240,8 @@ theorem supported_function_correct
         ∃ sourceResult irExec,
           SourceSemantics.execStmtList (SourceSemantics.effectiveFields model)
             { world := SourceSemantics.withTransactionContext initialWorld tx
-              bindings := bindings }
+              bindings := bindings
+              selector := tx.functionSelector }
             fn.body = sourceResult ∧
           execIRStmts (bodyStmts.length + extraFuel + 1)
             (ParamLoading.applyBindingsToIRState
@@ -1332,21 +1354,24 @@ theorem supported_function_correct
           (SourceSemantics.effectiveFields model)
           hSupported.helperFuel
           { world := SourceSemantics.withTransactionContext initialWorld tx
-            bindings := bindings }
+            bindings := bindings
+            selector := tx.functionSelector }
           fn.body :=
       SourceSemantics.execStmtListWithHelpersConservativeExtensionGoal_of_helperSurfaceClosed
         (spec := model)
         (fields := SourceSemantics.effectiveFields model)
         (fuel := hSupported.helperFuel)
         (state := { world := SourceSemantics.withTransactionContext initialWorld tx
-                    bindings := bindings })
+                    bindings := bindings
+                    selector := tx.functionSelector })
         (stmts := fn.body)
         hsupportedFn.body.helperSurfaceClosed
     have hbodyCorrect :
         ∃ sourceResult irExec,
           SourceSemantics.execStmtList (SourceSemantics.effectiveFields model)
             { world := SourceSemantics.withTransactionContext initialWorld tx
-              bindings := bindings }
+              bindings := bindings
+              selector := tx.functionSelector }
             fn.body = sourceResult ∧
           execIRStmts (bodyStmts.length + extraFuel + 1)
             (ParamLoading.applyBindingsToIRState
@@ -1809,25 +1834,27 @@ theorem supported_function_correct_with_body_interface_except_mapping_writes
       FunctionBody.runtimeStateMatchesIR
         (SourceSemantics.effectiveFields model)
         { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := [] }
+          bindings := []
+          selector := tx.functionSelector }
         (ParamLoading.applyBindingsToIRState
           (prebindRawArgs initialState fn.params) bindings) := by
     have hpreboundRuntime :
         FunctionBody.runtimeStateMatchesIR
           (SourceSemantics.effectiveFields model)
           { world := SourceSemantics.withTransactionContext initialWorld tx
-            bindings := [] }
+            bindings := []
+            selector := tx.functionSelector }
           (prebindRawArgs initialState fn.params) := by
       simpa [initialState] using
         runtimeStateMatchesIR_prebindRawArgs
           (state := initialState)
-          (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [] })
+          (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [], selector := tx.functionSelector })
           (fields := SourceSemantics.effectiveFields model)
           (params := fn.params)
           (initialIRStateForTx_matches_runtime model tx initialWorld htxNormalized hcalldataSizeFits)
     exact runtimeStateMatchesIR_applyBindingsToIRState
       (state := prebindRawArgs initialState fn.params)
-      (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [] })
+      (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [], selector := tx.functionSelector })
       (fields := SourceSemantics.effectiveFields model)
       (bindings := bindings)
       hpreboundRuntime
@@ -1894,14 +1921,16 @@ theorem supported_function_correct_with_body_interface_except_mapping_writes
             (SourceSemantics.effectiveFields model)
             helperFuel
             { world := SourceSemantics.withTransactionContext initialWorld tx
-              bindings := bindings }
+              bindings := bindings
+              selector := tx.functionSelector }
             fn.body :=
         SourceSemantics.execStmtListWithHelpersConservativeExtensionGoal_of_helperSurfaceClosed
           (spec := model)
           (fields := SourceSemantics.effectiveFields model)
           (fuel := helperFuel)
           (state := { world := SourceSemantics.withTransactionContext initialWorld tx
-                      bindings := bindings })
+                      bindings := bindings
+                      selector := tx.functionSelector })
           (stmts := fn.body)
           hBody.helperSurfaceClosed
       simpa [SourceSemantics.ExecStmtListWithHelpersConservativeExtensionGoal] using
@@ -1944,20 +1973,23 @@ theorem supported_function_correct_with_body_interface_except_mapping_writes
         (SourceSemantics.effectiveFields model)
         helperFuel
         { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := bindings }
+          bindings := bindings
+          selector := tx.functionSelector }
         fn.body :=
     SourceSemantics.execStmtListWithHelpersConservativeExtensionGoal_of_helperSurfaceClosed
       (spec := model)
       (fields := SourceSemantics.effectiveFields model)
       (fuel := helperFuel)
       (state := { world := SourceSemantics.withTransactionContext initialWorld tx
-                  bindings := bindings })
+                  bindings := bindings
+                  selector := tx.functionSelector })
       (stmts := fn.body)
       hBody.helperSurfaceClosed
   have hsourceLegacy :
       SourceSemantics.execStmtList (SourceSemantics.effectiveFields model)
         { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := bindings }
+          bindings := bindings
+          selector := tx.functionSelector }
         fn.body = sourceResult := by
     simpa [SourceSemantics.ExecStmtListWithHelpersConservativeExtensionGoal] using
       hhelperGoal.symm.trans hsource
@@ -2117,7 +2149,8 @@ theorem supported_function_correct_with_helper_proofs_goal
         (SourceSemantics.effectiveFields model)
         hSupported.helperFuel
         { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := bindings }
+          bindings := bindings
+          selector := tx.functionSelector }
         fn.body)
     (hcalldataSizeFits : TxCalldataSizeFitsEvm tx) :
     FunctionBody.sourceResultMatchesIRResult
@@ -2138,26 +2171,28 @@ theorem supported_function_correct_with_helper_proofs_goal
       FunctionBody.runtimeStateMatchesIR
         (SourceSemantics.effectiveFields model)
         { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := [] }
+          bindings := []
+          selector := tx.functionSelector }
         (ParamLoading.applyBindingsToIRState
           (prebindRawArgs initialState fn.params) bindings) := by
     have hpreboundRuntime :
         FunctionBody.runtimeStateMatchesIR
           (SourceSemantics.effectiveFields model)
           { world := SourceSemantics.withTransactionContext initialWorld tx
-            bindings := [] }
+            bindings := []
+            selector := tx.functionSelector }
           (prebindRawArgs initialState fn.params) := by
       simpa [initialState] using
         runtimeStateMatchesIR_prebindRawArgs
           (state := initialState)
-          (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [] })
+          (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [], selector := tx.functionSelector })
           (fields := SourceSemantics.effectiveFields model)
           (params := fn.params)
           (initialIRStateForTx_matches_runtime model tx initialWorld htxNormalized
             hcalldataSizeFits)
     exact runtimeStateMatchesIR_applyBindingsToIRState
       (state := prebindRawArgs initialState fn.params)
-      (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [] })
+      (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [], selector := tx.functionSelector })
       (fields := SourceSemantics.effectiveFields model)
       (bindings := bindings)
       hpreboundRuntime
@@ -2304,14 +2339,16 @@ theorem supported_function_correct_with_helper_proofs
         (SourceSemantics.effectiveFields model)
         hSupported.helperFuel
         { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := bindings }
+          bindings := bindings
+          selector := tx.functionSelector }
         fn.body :=
     SourceSemantics.execStmtListWithHelpersConservativeExtensionGoal_of_helperSurfaceClosed
       (spec := model)
       (fields := SourceSemantics.effectiveFields model)
       (fuel := hSupported.helperFuel)
       (state := { world := SourceSemantics.withTransactionContext initialWorld tx
-                  bindings := bindings })
+                  bindings := bindings
+                  selector := tx.functionSelector })
       (stmts := fn.body)
       hsupportedFn.body.helperSurfaceClosed
   exact supported_function_correct_with_helper_proofs_goal

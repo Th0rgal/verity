@@ -158,6 +158,8 @@ inductive ExprCompileCore : Expr → Prop where
       ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.signextend lhs rhs)
   | tload {offset : Expr} :
       ExprCompileCore offset → ExprCompileCore (.tload offset)
+  | calldataload {offset : Expr} :
+      ExprCompileCore offset → ExprCompileCore (.calldataload offset)
 
 /-! ## Scope analysis -/
 
