@@ -1445,7 +1445,7 @@ private theorem exprCompileCore_helperSurfaceClosed
     exprTouchesUnsupportedHelperSurface expr = false := by
   induction hcore with
   | literal | param | localVar | caller | contractAddress | msgValue
-    | blockTimestamp | blockNumber | chainid =>
+    | blockTimestamp | blockNumber | chainid | blobbasefee | calldatasize =>
       simp only [exprTouchesUnsupportedHelperSurface]
   | add _ _ ihL ihR
     | sub _ _ ihL ihR
@@ -1466,7 +1466,9 @@ private theorem exprCompileCore_helperSurfaceClosed
     | shr _ _ ihL ihR
     | min _ _ ihL ihR
     | max _ _ ihL ihR
-    | ceilDiv _ _ ihL ihR | wMulDown _ _ ihL ihR | wDivUp _ _ ihL ihR =>
+    | ceilDiv _ _ ihL ihR | wMulDown _ _ ihL ihR | wDivUp _ _ ihL ihR
+    | slt _ _ ihL ihR | sgt _ _ ihL ihR | sdiv _ _ ihL ihR
+    | smod _ _ ihL ihR | sar _ _ ihL ihR | signextend _ _ ihL ihR =>
       simp only [exprTouchesUnsupportedHelperSurface, ihL, ihR, Bool.or_false, Bool.false_or]
   | logicalNot _ ih | bitNot _ ih =>
       simp only [exprTouchesUnsupportedHelperSurface, ih]
@@ -1483,7 +1485,7 @@ private theorem exprCompileCore_internalHelperCallNames_nil
     exprInternalHelperCallNames expr = [] := by
   induction hcore with
   | literal | param | localVar | caller | contractAddress | msgValue
-    | blockTimestamp | blockNumber | chainid =>
+    | blockTimestamp | blockNumber | chainid | blobbasefee | calldatasize =>
       simp only [exprInternalHelperCallNames]
   | add _ _ ihL ihR
     | sub _ _ ihL ihR
@@ -1504,7 +1506,9 @@ private theorem exprCompileCore_internalHelperCallNames_nil
     | shr _ _ ihL ihR
     | min _ _ ihL ihR
     | max _ _ ihL ihR
-    | ceilDiv _ _ ihL ihR | wMulDown _ _ ihL ihR | wDivUp _ _ ihL ihR =>
+    | ceilDiv _ _ ihL ihR | wMulDown _ _ ihL ihR | wDivUp _ _ ihL ihR
+    | slt _ _ ihL ihR | sgt _ _ ihL ihR | sdiv _ _ ihL ihR
+    | smod _ _ ihL ihR | sar _ _ ihL ihR | signextend _ _ ihL ihR =>
       simp only [exprInternalHelperCallNames, ihL, ihR, List.nil_append]
   | logicalNot _ ih | bitNot _ ih =>
       simp only [exprInternalHelperCallNames, ih]
@@ -3263,7 +3267,8 @@ private theorem exprUsesArrayElement_eq_false_of_coreClosed
     exprUsesArrayElement expr = false := by
   cases expr with
   | literal _ | param _ | localVar _ | caller | contractAddress
-  | chainid | msgValue | blockTimestamp | blockNumber =>
+  | chainid | msgValue | blockTimestamp | blockNumber
+  | blobbasefee | calldatasize =>
       simp [exprUsesArrayElement]
   | add a b | sub a b | mul a b | div a b | mod a b
   | eq a b | ge a b | gt a b | lt a b | le a b
@@ -3277,10 +3282,18 @@ private theorem exprUsesArrayElement_eq_false_of_coreClosed
       simp [exprUsesArrayElement, exprUsesArrayElement_eq_false_of_coreClosed hcore]
   | shl a b | shr a b
   | bitAnd a b | bitOr a b | bitXor a b
-  | min a b | max a b | ceilDiv a b =>
+  | min a b | max a b | ceilDiv a b
+  | wMulDown a b | wDivUp a b
+  | slt a b | sgt a b | sdiv a b | smod a b | sar a b | signextend a b =>
       simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
       simp [exprUsesArrayElement,
         exprUsesArrayElement_eq_false_of_coreClosed hcore.1,
+        exprUsesArrayElement_eq_false_of_coreClosed hcore.2]
+  | mulDivDown a b c | mulDivUp a b c =>
+      simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
+      simp [exprUsesArrayElement,
+        exprUsesArrayElement_eq_false_of_coreClosed hcore.1.1,
+        exprUsesArrayElement_eq_false_of_coreClosed hcore.1.2,
         exprUsesArrayElement_eq_false_of_coreClosed hcore.2]
   | bitNot a =>
       simp only [exprTouchesUnsupportedCoreSurface] at hcore
@@ -3302,7 +3315,8 @@ private theorem exprUsesStorageArrayElement_eq_false_of_coreClosed
     exprUsesStorageArrayElement expr = false := by
   cases expr with
   | literal _ | param _ | localVar _ | caller | contractAddress
-  | chainid | msgValue | blockTimestamp | blockNumber =>
+  | chainid | msgValue | blockTimestamp | blockNumber
+  | blobbasefee | calldatasize =>
       simp [exprUsesStorageArrayElement]
   | add a b | sub a b | mul a b | div a b | mod a b
   | eq a b | ge a b | gt a b | lt a b | le a b
@@ -3316,10 +3330,18 @@ private theorem exprUsesStorageArrayElement_eq_false_of_coreClosed
       simp [exprUsesStorageArrayElement, exprUsesStorageArrayElement_eq_false_of_coreClosed hcore]
   | shl a b | shr a b
   | bitAnd a b | bitOr a b | bitXor a b
-  | min a b | max a b | ceilDiv a b =>
+  | min a b | max a b | ceilDiv a b
+  | wMulDown a b | wDivUp a b
+  | slt a b | sgt a b | sdiv a b | smod a b | sar a b | signextend a b =>
       simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
       simp [exprUsesStorageArrayElement,
         exprUsesStorageArrayElement_eq_false_of_coreClosed hcore.1,
+        exprUsesStorageArrayElement_eq_false_of_coreClosed hcore.2]
+  | mulDivDown a b c | mulDivUp a b c =>
+      simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
+      simp [exprUsesStorageArrayElement,
+        exprUsesStorageArrayElement_eq_false_of_coreClosed hcore.1.1,
+        exprUsesStorageArrayElement_eq_false_of_coreClosed hcore.1.2,
         exprUsesStorageArrayElement_eq_false_of_coreClosed hcore.2]
   | bitNot a =>
       simp only [exprTouchesUnsupportedCoreSurface] at hcore
@@ -3341,7 +3363,8 @@ private theorem exprUsesDynamicBytesEq_eq_false_of_coreClosed
     exprUsesDynamicBytesEq expr = false := by
   cases expr with
   | literal _ | param _ | localVar _ | caller | contractAddress
-  | chainid | msgValue | blockTimestamp | blockNumber =>
+  | chainid | msgValue | blockTimestamp | blockNumber
+  | blobbasefee | calldatasize =>
       simp [exprUsesDynamicBytesEq]
   | add a b | sub a b | mul a b | div a b | mod a b
   | eq a b | ge a b | gt a b | lt a b | le a b
@@ -3355,10 +3378,18 @@ private theorem exprUsesDynamicBytesEq_eq_false_of_coreClosed
       simp [exprUsesDynamicBytesEq, exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore]
   | shl a b | shr a b
   | bitAnd a b | bitOr a b | bitXor a b
-  | min a b | max a b | ceilDiv a b =>
+  | min a b | max a b | ceilDiv a b
+  | wMulDown a b | wDivUp a b
+  | slt a b | sgt a b | sdiv a b | smod a b | sar a b | signextend a b =>
       simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
       simp [exprUsesDynamicBytesEq,
         exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore.1,
+        exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore.2]
+  | mulDivDown a b c | mulDivUp a b c =>
+      simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
+      simp [exprUsesDynamicBytesEq,
+        exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore.1.1,
+        exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore.1.2,
         exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore.2]
   | bitNot a =>
       simp only [exprTouchesUnsupportedCoreSurface] at hcore
@@ -3381,7 +3412,8 @@ private theorem exprCompileCore_usesArrayElement_false
     exprUsesArrayElement expr = false := by
   induction hcore with
   | literal | param | localVar | caller | contractAddress | msgValue
-    | blockTimestamp | blockNumber | chainid =>
+    | blockTimestamp | blockNumber | chainid
+    | blobbasefee | calldatasize =>
       simp only [exprUsesArrayElement, Bool.false_or]
   | add _ _ ihL ihR | sub _ _ ihL ihR | mul _ _ ihL ihR
     | div _ _ ihL ihR | mod _ _ ihL ihR | eq _ _ ihL ihR
@@ -3390,7 +3422,9 @@ private theorem exprCompileCore_usesArrayElement_false
     | bitAnd _ _ ihL ihR | bitOr _ _ ihL ihR | bitXor _ _ ihL ihR
     | shl _ _ ihL ihR | shr _ _ ihL ihR
     | min _ _ ihL ihR | max _ _ ihL ihR | ceilDiv _ _ ihL ihR
-    | wMulDown _ _ ihL ihR | wDivUp _ _ ihL ihR =>
+    | wMulDown _ _ ihL ihR | wDivUp _ _ ihL ihR
+    | slt _ _ ihL ihR | sgt _ _ ihL ihR | sdiv _ _ ihL ihR
+    | smod _ _ ihL ihR | sar _ _ ihL ihR | signextend _ _ ihL ihR =>
       simp only [exprUsesArrayElement, ihL, ihR, Bool.false_or]
   | mulDivDown _ _ _ ihA ihB ihC | mulDivUp _ _ _ ihA ihB ihC =>
       simp only [exprUsesArrayElement, ihA, ihB, ihC, Bool.false_or]
@@ -3406,7 +3440,8 @@ private theorem exprCompileCore_usesStorageArrayElement_false
     exprUsesStorageArrayElement expr = false := by
   induction hcore with
   | literal | param | localVar | caller | contractAddress | msgValue
-    | blockTimestamp | blockNumber | chainid =>
+    | blockTimestamp | blockNumber | chainid
+    | blobbasefee | calldatasize =>
       simp only [exprUsesStorageArrayElement, Bool.false_or]
   | add _ _ ihL ihR | sub _ _ ihL ihR | mul _ _ ihL ihR
     | div _ _ ihL ihR | mod _ _ ihL ihR | eq _ _ ihL ihR
@@ -3415,7 +3450,9 @@ private theorem exprCompileCore_usesStorageArrayElement_false
     | bitAnd _ _ ihL ihR | bitOr _ _ ihL ihR | bitXor _ _ ihL ihR
     | shl _ _ ihL ihR | shr _ _ ihL ihR
     | min _ _ ihL ihR | max _ _ ihL ihR | ceilDiv _ _ ihL ihR
-    | wMulDown _ _ ihL ihR | wDivUp _ _ ihL ihR =>
+    | wMulDown _ _ ihL ihR | wDivUp _ _ ihL ihR
+    | slt _ _ ihL ihR | sgt _ _ ihL ihR | sdiv _ _ ihL ihR
+    | smod _ _ ihL ihR | sar _ _ ihL ihR | signextend _ _ ihL ihR =>
       simp only [exprUsesStorageArrayElement, ihL, ihR, Bool.false_or]
   | mulDivDown _ _ _ ihA ihB ihC | mulDivUp _ _ _ ihA ihB ihC =>
       simp only [exprUsesStorageArrayElement, ihA, ihB, ihC, Bool.false_or]
@@ -3431,7 +3468,8 @@ private theorem exprCompileCore_usesDynamicBytesEq_false
     exprUsesDynamicBytesEq expr = false := by
   induction hcore with
   | literal | param | localVar | caller | contractAddress | msgValue
-    | blockTimestamp | blockNumber | chainid =>
+    | blockTimestamp | blockNumber | chainid
+    | blobbasefee | calldatasize =>
       simp only [exprUsesDynamicBytesEq, Bool.false_or]
   | add _ _ ihL ihR | sub _ _ ihL ihR | mul _ _ ihL ihR
     | div _ _ ihL ihR | mod _ _ ihL ihR | eq _ _ ihL ihR
@@ -3440,7 +3478,9 @@ private theorem exprCompileCore_usesDynamicBytesEq_false
     | bitAnd _ _ ihL ihR | bitOr _ _ ihL ihR | bitXor _ _ ihL ihR
     | shl _ _ ihL ihR | shr _ _ ihL ihR
     | min _ _ ihL ihR | max _ _ ihL ihR | ceilDiv _ _ ihL ihR
-    | wMulDown _ _ ihL ihR | wDivUp _ _ ihL ihR =>
+    | wMulDown _ _ ihL ihR | wDivUp _ _ ihL ihR
+    | slt _ _ ihL ihR | sgt _ _ ihL ihR | sdiv _ _ ihL ihR
+    | smod _ _ ihL ihR | sar _ _ ihL ihR | signextend _ _ ihL ihR =>
       simp only [exprUsesDynamicBytesEq, ihL, ihR, Bool.false_or]
   | mulDivDown _ _ _ ihA ihB ihC | mulDivUp _ _ _ ihA ihB ihC =>
       simp only [exprUsesDynamicBytesEq, ihA, ihB, ihC, Bool.false_or]
