@@ -1900,6 +1900,12 @@ theorem SupportedStmtList.helperSurfaceClosed
       exact supportedStmtList_letStorageField_helperSurfaceClosed
   | letStorageAddrField _ _ =>
       exact supportedStmtList_letStorageAddrField_helperSurfaceClosed
+  | letMappingField hkey _ _ =>
+      simp only [stmtListTouchesUnsupportedHelperSurface,
+        stmtTouchesUnsupportedHelperSurface,
+        exprTouchesUnsupportedHelperSurface,
+        exprCompileCore_helperSurfaceClosed hkey,
+        Bool.or_false, Bool.false_or]
   | setMappingUintSingle hkey _ hvalue _ _ =>
       exact supportedStmtList_setMappingUintSingle_helperSurfaceClosed hkey hvalue
   | setMappingChainSingle hkeys _ hvalue _ _ =>
@@ -2004,6 +2010,12 @@ theorem SupportedStmtList.internalHelperCallNames_nil
       simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprInternalHelperCallNames,
+        List.nil_append, List.append_nil]
+  | letMappingField hkey _ _ =>
+      simp only [stmtListInternalHelperCallNames,
+        stmtInternalHelperCallNames,
+        exprInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hkey,
         List.nil_append, List.append_nil]
   | setMappingUintSingle hkey _ hvalue _ _ =>
       simp only [stmtListInternalHelperCallNames,
@@ -3593,6 +3605,9 @@ private theorem supportedStmtList_usesArrayElement_false
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement, Bool.false_or]
   | letStorageAddrField _ _ =>
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement, Bool.false_or]
+  | letMappingField hkey _ _ =>
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement,
+        exprCompileCore_usesArrayElement_false hkey, Bool.false_or]
   | setMappingUintSingle hkey _ hvalue _ _ =>
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
         exprCompileCore_usesArrayElement_false hkey,
@@ -3683,6 +3698,10 @@ private theorem supportedStmtList_usesStorageArrayElement_false
   | letStorageAddrField _ _ =>
       simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprUsesStorageArrayElement, Bool.false_or]
+  | letMappingField hkey _ _ =>
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprUsesStorageArrayElement,
+        exprCompileCore_usesStorageArrayElement_false hkey, Bool.false_or]
   | setMappingUintSingle hkey _ hvalue _ _ =>
       simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false hkey,
@@ -3771,6 +3790,9 @@ private theorem supportedStmtList_usesDynamicBytesEq_false
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq, Bool.false_or]
   | letStorageAddrField _ _ =>
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq, Bool.false_or]
+  | letMappingField hkey _ _ =>
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq,
+        exprCompileCore_usesDynamicBytesEq_false hkey, Bool.false_or]
   | setMappingUintSingle hkey _ hvalue _ _ =>
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hkey,

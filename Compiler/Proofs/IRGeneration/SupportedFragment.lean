@@ -93,6 +93,16 @@ inductive SupportedStmtList (fields : List Field) : List String → List Stmt �
         some ({ name := fieldName, ty := FieldType.address }, slot) →
       fieldName ∈ scope →
       SupportedStmtList fields scope [Stmt.letVar tmp (Expr.storageAddr fieldName)]
+  | letMappingField
+      {scope : List String}
+      {tmp : String}
+      {fieldName : String}
+      {key : Expr}
+      {slot : Nat} :
+      FunctionBody.ExprCompileCore key →
+      FunctionBody.exprBoundNamesInScope key scope →
+      findFieldSlot fields fieldName = some slot →
+      SupportedStmtList fields scope [Stmt.letVar tmp (Expr.mapping fieldName key)]
   | setMappingUintSingle
       {scope : List String}
       {fieldName : String}

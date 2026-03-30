@@ -11651,6 +11651,31 @@ private theorem stmtListGenericCore_of_supportedStmtList_iteTerminal_of_surface
     StmtListGenericCore fields scope [Stmt.ite cond thenBranch elseBranch] :=
   stmtListGenericCore_singleton_iteTerminal hcond hinScope hthen helse
 
+private theorem false_of_supportedStmtList_letMappingField_surface
+    {tmp fieldName : String}
+    {key : Expr}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface
+        [Stmt.letVar tmp (Expr.mapping fieldName key)] = false) :
+    False :=
+  false_of_supportedStmtList_singleton_stmt_surface
+    (stmt := Stmt.letVar tmp (Expr.mapping fieldName key))
+    (by simp [stmtTouchesUnsupportedContractSurface,
+      exprTouchesUnsupportedContractSurface])
+    hsurface
+
+private theorem false_of_supportedStmtList_letMappingField_surface_exceptMappingWrites
+    {tmp fieldName : String}
+    {key : Expr}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites
+        [Stmt.letVar tmp (Expr.mapping fieldName key)] = false) :
+    False := by
+  simp [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
+    stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
+    stmtTouchesUnsupportedContractSurface,
+    exprTouchesUnsupportedContractSurface] at hsurface
+
 private theorem false_of_supportedStmtList_setMappingUintSingle_surface
     {fieldName : String}
     {key value : Expr}
@@ -12221,6 +12246,8 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface
   | letStorageAddrField hfind hfieldInScope =>
       exact stmtListGenericCore_of_supportedStmtList_letStorageAddrField_of_surface
         hnoConflict hfind hfieldInScope
+  | letMappingField _ _ _ =>
+      exact False.elim (false_of_supportedStmtList_letMappingField_surface hsurface)
   | setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot =>
       exact False.elim (false_of_supportedStmtList_setMappingUintSingle_surface hsurface)
   | setMappingChainSingle hkeys hscopeKeys hvalue hscopeValue hslot =>
@@ -12286,6 +12313,9 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites
   | letStorageAddrField hfind hfieldInScope =>
       exact stmtListGenericCore_of_supportedStmtList_letStorageAddrField_of_surface
         hnoConflict hfind hfieldInScope
+  | letMappingField _ _ _ =>
+      exact False.elim
+        (false_of_supportedStmtList_letMappingField_surface_exceptMappingWrites hsurface)
   | setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot =>
       rcases hsafety.setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot with
         ⟨hm, hws, hss⟩
