@@ -2714,6 +2714,10 @@ private theorem exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_fals
       simp only [exprTouchesUnsupportedContractSurface] at hsurface
       constructor
       exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface
+  | .tload a, hsurface =>
+      simp only [exprTouchesUnsupportedContractSurface] at hsurface
+      exact .tload
+        (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface)
   | .ite cond thenVal elseVal, hsurface =>
       simp only [exprTouchesUnsupportedContractSurface, Bool.or_eq_false_iff] at hsurface
       exact .ite
@@ -3102,7 +3106,8 @@ private theorem exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
       · exact ihL (validateScopedExprIdentifiers_pair_ok_left hpair) name hmem
       · exact ihR (validateScopedExprIdentifiers_pair_ok_right hpair) name hmem
   | logicalNot h ih
-  | bitNot h ih =>
+  | bitNot h ih
+  | tload h ih =>
       intro name hmem
       simpa [FunctionBody.exprBoundNames] using
         ih
@@ -3961,7 +3966,7 @@ private theorem collectExprNames_mem_exprBoundNames_of_core
       rcases hmem with hmem | hmem
       · exact Or.inl (ihL _ hmem)
       · exact Or.inr (ihR _ hmem)
-  | logicalNot h ih | bitNot h ih =>
+  | logicalNot h ih | bitNot h ih | tload h ih =>
       intro name hmem; simp [collectExprNames] at hmem
       simpa [FunctionBody.exprBoundNames] using ih _ hmem
   | ite hC hT hE ihC ihT ihE =>
@@ -6747,11 +6752,19 @@ private theorem compiledStmtStep_mstore_single_preserves
         hOffsetEval.symm
       have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
         hValueEval.symm
-      -- Source execution: mstore just checks both exprs evaluate and returns state unchanged
+      -- Source execution: mstore updates source-level memory
+      set runtime' := {
+        runtime with
+        world := {
+          runtime.world with
+          memory := fun o =>
+            if o = offsetNat then valueNat else runtime.world.memory o
+        }
+      }
       have hSrcExec : SourceSemantics.execStmt fields runtime
-          (.mstore offset value) = .continue runtime := by
-        simp [SourceSemantics.execStmt, hOffsetSrc, hValueSrc]
-      -- IR execution
+          (.mstore offset value) = .continue runtime' := by
+        simp [SourceSemantics.execStmt, hOffsetSrc, hValueSrc, runtime']
+      -- IR execution: mstore updates IR-level memory
       set state' := { state with
           memory := fun o => if o = offsetNat then valueNat else state.memory o }
       have hExecStmt :
@@ -6763,7 +6776,7 @@ private theorem compiledStmtStep_mstore_single_preserves
       have hIRExec : execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
           .continue state' := by
         simp [compiledIR, execIRStmts, hfuelEq, hExecStmt]
-      -- Scope inclusion
+      -- Scope inclusion (same structure as tstore)
       have hincl : FunctionBody.scopeNamesIncluded
           (stmtNextScope scope (.mstore offset value)) scope := by
         intro n hn
@@ -6772,21 +6785,23 @@ private theorem compiledStmtStep_mstore_single_preserves
         · exact hinScopeOffset n (collectExprNames_mem_exprBoundNames_of_core hcoreOffset n ho)
         · exact hinScopeValue n (collectExprNames_mem_exprBoundNames_of_core hcoreValue n hv)
         · exact hs
-      -- Post-state invariants: memory update doesn't affect runtimeStateMatchesIR
+      -- Bindings: getVar only depends on vars, not memory
       have hexact' : FunctionBody.bindingsExactlyMatchIRVarsOnScope
           (stmtNextScope scope (.mstore offset value))
-          runtime.bindings state' :=
+          runtime'.bindings state' :=
         FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
-          (by simpa [FunctionBody.bindingsExactlyMatchIRVarsOnScope, state'] using hexact)
+          (by simpa [FunctionBody.bindingsExactlyMatchIRVarsOnScope, state', runtime'] using hexact)
           hincl
       have hscope' : FunctionBody.scopeNamesPresent
           (stmtNextScope scope (.mstore offset value))
-          runtime.bindings :=
+          runtime'.bindings :=
         FunctionBody.scopeNamesPresent_of_included hscope hincl
-      have hruntime' : FunctionBody.runtimeStateMatchesIR fields runtime state' := by
-        simpa [FunctionBody.runtimeStateMatchesIR, state'] using hruntime
+      have hbounded' : FunctionBody.bindingsBounded runtime'.bindings := by
+        simpa [runtime'] using hbounded
+      have hruntime' : FunctionBody.runtimeStateMatchesIR fields runtime' state' :=
+        FunctionBody.runtimeStateMatchesIR_setBothMemory hruntime offsetNat valueNat
       exact ⟨_, _, hSrcExec, hIRExec,
-        hruntime', hexact', hbounded, hscope'⟩
+        hruntime', hexact', hbounded', hscope'⟩
 
 theorem compiledStmtStep_mstore_single
     {fields : List Field}

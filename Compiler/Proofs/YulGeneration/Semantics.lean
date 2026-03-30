@@ -121,10 +121,15 @@ decreasing_by
 def evalYulCall (state : YulState) (func : String) : List YulExpr → Option Nat
   | args => do
     let argVals ← evalYulExprs state args
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-      Compiler.Proofs.YulGeneration.defaultBuiltinBackend
-      state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
-      state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals
+    if func = "tload" then
+      match argVals with
+      | [slot] => some (state.transientStorage (slot % Compiler.Constants.evmModulus))
+      | _ => none
+    else
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
+        Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+        state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
+        state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals
 termination_by args => exprsSize args + 1
 decreasing_by
   omega

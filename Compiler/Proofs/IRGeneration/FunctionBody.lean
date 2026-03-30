@@ -1814,6 +1814,59 @@ theorem compileExpr_mod_ok
   rw [CompilationModel.compileExpr, hlhs, hrhs]
   rfl
 
+theorem compileExpr_tload_ok
+    {fields : List Field}
+    {expr : Expr}
+    {exprIR : YulExpr}
+    (hexpr : CompilationModel.compileExpr fields .calldata expr = Except.ok exprIR) :
+    CompilationModel.compileExpr fields .calldata (.tload expr) =
+      Except.ok (YulExpr.call "tload" [exprIR]) := by
+  rw [CompilationModel.compileExpr, hexpr]
+  rfl
+
+private theorem eval_compileExpr_tload_of_compiled
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {offset : Expr}
+    {offsetIR : YulExpr}
+    (hoffset : CompilationModel.compileExpr fields .calldata offset = Except.ok offsetIR)
+    (hEvalOff : evalIRExpr state offsetIR =
+        some (SourceSemantics.evalExpr fields runtime offset))
+    (hruntime : runtimeStateMatchesIR fields runtime state)
+    (hlt : SourceSemantics.evalExpr fields runtime offset <
+        Compiler.Constants.evmModulus) :
+    evalIRExpr state
+      (CompilationModel.compileExpr fields .calldata (.tload offset)
+        |>.toOption.getD (YulExpr.lit 0)) =
+      some (SourceSemantics.evalExpr fields runtime (.tload offset)) := by
+  rw [compileExpr_tload_ok hoffset]
+  simp only [Except.toOption, Option.getD]
+  rcases hruntime with ⟨_, htrans, _, _, _, _, _, _, _, _, _, _⟩
+  -- hEvalOff : (do ...).bind ... = some (evalExpr ..)
+  -- Case split on evalExpr result
+  -- First case-split on evalIRExpr to extract concrete value
+  rcases hIR : evalIRExpr state offsetIR with _ | irVal
+  · -- evalIRExpr = none → hEvalOff is contradictory
+    simp [hIR] at hEvalOff
+  · -- evalIRExpr = some irVal
+    simp only [hIR] at hEvalOff
+    -- hEvalOff now has do-notation with (some irVal); simplify it fully
+    simp only [Option.pure_def, Option.bind_eq_bind, Option.bind_some] at hEvalOff
+    -- hEvalOff : some (some irVal) = some (evalExpr ...) or vice versa
+    have hsrc : SourceSemantics.evalExpr fields runtime offset = some irVal := by
+      simpa using hEvalOff.symm
+    rw [hsrc] at hlt; simp at hlt
+    -- Unfold RHS: evalExpr (.tload offset) → bind form → concrete value
+    have htload_unfold : SourceSemantics.evalExpr fields runtime (.tload offset) =
+        (SourceSemantics.evalExpr fields runtime offset).bind
+          (fun r => some (runtime.world.transientStorage r).val) := rfl
+    rw [htload_unfold, hsrc]
+    simp only [Option.bind_some]
+    -- Goal: (do ...) = some (some (world.transientStorage irVal).val)
+    -- Unfold LHS using evalIRExpr, evalIRExprs, hIR
+    simp [evalIRExpr, hIR, Nat.mod_eq_of_lt hlt, htrans]
+
 private theorem evalIRExpr_of_sourceEval_some
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
@@ -4409,6 +4462,10 @@ theorem compileExpr_core_ok
           YulExpr.call "sub" [cIR, YulExpr.lit 1]],
         cIR],
         compileExpr_mulDivUp_ok ha hb hc⟩
+  | tload hO ihO =>
+      rename_i offset
+      rcases ihO with ⟨offsetIR, hoffset⟩
+      exact ⟨YulExpr.call "tload" [offsetIR], compileExpr_tload_ok hoffset⟩
 
 mutual
 theorem eval_compileExpr_core_onExpr
@@ -5396,6 +5453,23 @@ theorem eval_compileExpr_core_onExpr
         (evalExpr_lt_evmModulus_core_onExpr hA hexactA hbounded hpresentA hruntime)
         (evalExpr_lt_evmModulus_core_onExpr hB hexactB hbounded hpresentB hruntime)
         (evalExpr_lt_evmModulus_core_onExpr hC hexactC hbounded hpresentC hruntime)
+  | tload hO ihO =>
+      rename_i offset
+      rcases compileExpr_core_ok hO with ⟨offsetIR, hoffset⟩
+      have hexact' : bindingsExactlyMatchIRVarsOnExpr offset runtime.bindings state :=
+        bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
+          intro name hmem
+          simpa [exprBoundNames] using hmem)
+      have hpresent' := exprBoundNamesPresent_of_subset hpresent (by
+        intro name hmem
+        simpa [exprBoundNames] using hmem)
+      have hEvalOff : evalIRExpr state offsetIR =
+          some (SourceSemantics.evalExpr fields runtime offset) := by
+        have htmp := ihO hexact' hbounded hpresent' hruntime
+        rw [hoffset] at htmp
+        simpa using htmp
+      exact eval_compileExpr_tload_of_compiled hoffset hEvalOff hruntime
+        (evalExpr_lt_evmModulus_core_onExpr hO hexact' hbounded hpresent' hruntime)
 
 theorem eval_compileExpr_core
     {fields : List Field}
@@ -5842,6 +5916,14 @@ theorem evalExpr_lt_evmModulus_core_onExpr
             have hModEq : Verity.Core.Uint256.modulus = Compiler.Constants.evmModulus := rfl
             exact hModEq ▸ (((Verity.Core.Uint256.ofNat aVal * Verity.Core.Uint256.ofNat bVal) +
               (Verity.Core.Uint256.ofNat cVal - 1)) / Verity.Core.Uint256.ofNat cVal).isLt
+  | @tload offset _ ihO =>
+      show (do let r ← SourceSemantics.evalExpr fields runtime offset
+               some (runtime.world.transientStorage r).val) < _
+      rcases SourceSemantics.evalExpr fields runtime offset with _ | offsetVal
+      · trivial
+      · simp only [Bind.bind, Option.bind, Pure.pure]
+        have hModEq : Verity.Core.Uint256.modulus = Compiler.Constants.evmModulus := rfl
+        exact hModEq ▸ (runtime.world.transientStorage offsetVal).isLt
 end
 
 theorem evalExpr_lt_evmModulus_core
@@ -6235,6 +6317,16 @@ theorem compileRequireFailCond_core_ok
         cIR]], by
         rw [CompilationModel.compileRequireFailCond, compileExpr_mulDivUp_ok ha hb hc]
         all_goals first | rfl | (intro a b; exact nofun) | (intro a b c; exact nofun)⟩
+  | tload h =>
+      rename_i expr
+      rcases compileExpr_core_ok (fields := fields) h with ⟨exprIR, hexpr⟩
+      exact ⟨YulExpr.call "iszero" [YulExpr.call "tload" [exprIR]], by
+        rw [CompilationModel.compileRequireFailCond, compileExpr_tload_ok hexpr]
+        all_goals
+          try rfl
+          try
+            intro a b hEq
+            cases hEq⟩
 
 theorem eval_compileRequireFailCond_core_onExpr
     {fields : List Field}
@@ -6734,6 +6826,14 @@ theorem eval_compileRequireFailCond_core_onExpr
       · simp [CompilationModel.compileRequireFailCond, hexpr]
       · simpa using finishIszeroEval (expr := .mulDivUp a b c)
           (show ExprCompileCore (.mulDivUp a b c) from ExprCompileCore.mulDivUp hA hB hC) hexact hpresent hexpr
+  | tload h =>
+      rename_i expr
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.tload expr) from ExprCompileCore.tload h) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .tload expr)
+          (show ExprCompileCore (.tload expr) from ExprCompileCore.tload h) hexact hpresent hexpr
 
 theorem runtimeStateMatchesIR_setVar_bindValue
     {fields : List Field}
@@ -6834,6 +6934,28 @@ theorem runtimeStateMatchesIR_setMemory
   cases runtime
   cases state
   simpa [runtimeStateMatchesIR]
+
+theorem runtimeStateMatchesIR_setBothMemory
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    (hmatch : runtimeStateMatchesIR fields runtime state)
+    (offset value : Nat) :
+    runtimeStateMatchesIR fields
+      { runtime with
+          world := {
+            runtime.world with
+            memory := fun o => if o = offset then value else runtime.world.memory o
+          } }
+      { state with memory := fun o => if o = offset then value else state.memory o } := by
+  cases runtime
+  cases state
+  simp only [runtimeStateMatchesIR] at hmatch ⊢
+  obtain ⟨hstor, htrans, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hcds, hret, hevt⟩ := hmatch
+  refine ⟨?_, htrans, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hcds, hret, hevt⟩
+  · rw [hstor]
+    funext slot
+    exact SourceSemantics.encodeStorageAt_congr rfl rfl rfl
 
 theorem runtimeStateMatchesIR_setTransientStorage
     {fields : List Field}

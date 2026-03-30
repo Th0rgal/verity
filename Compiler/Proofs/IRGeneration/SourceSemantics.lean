@@ -564,6 +564,9 @@ def evalExpr (fields : List Field) (state : RuntimeState) : Expr → Option Nat
             (Verity.Core.Uint256.shr packed.offset rawWord)
             (packedMaskNat packed)).val
       | none => none
+  | .tload offset => do
+      let resolvedOffset ← evalExpr fields state offset
+      some (state.world.transientStorage resolvedOffset).val
   | _ => none
 
 def evalExprList (fields : List Field) (state : RuntimeState) : List Expr → Option (List Nat)
@@ -698,7 +701,9 @@ private theorem evalExpr_tload
     (fields : List Field)
     (state : RuntimeState)
     (a : Expr) :
-    evalExpr fields state (.tload a) = none := rfl
+    evalExpr fields state (.tload a) =
+      (evalExpr fields state a).bind
+        (fun resolvedOffset => some (state.world.transientStorage resolvedOffset).val) := rfl
 
 private theorem evalExpr_calldataload
     (fields : List Field)
@@ -1372,7 +1377,15 @@ mutual
         | _, _ => .revert
     | state, .mstore offset value =>
         match evalExpr fields state offset, evalExpr fields state value with
-        | some _, some _ => .continue state
+        | some resolvedOffset, some resolvedValue =>
+            .continue {
+              state with
+              world := {
+                state.world with
+                memory := fun o =>
+                  if o = resolvedOffset then resolvedValue else state.world.memory o
+              }
+            }
         | _, _ => .revert
     | state, .tstore offset value =>
         match evalExpr fields state offset, evalExpr fields state value with
@@ -1900,6 +1913,9 @@ mutual
             let callee ← findUniqueInternalFunction? spec calleeName
             let hresult := interpretInternalFunctionFuel spec fuel callee state.world argVals
             if hresult.success then hresult.returnValue else none
+    | .tload offset => do
+        let resolvedOffset ← evalExprWithHelpers spec fields fuel state offset
+        some (state.world.transientStorage resolvedOffset).val
     | _ => none
   termination_by expr => (fuel, sizeOf expr)
   decreasing_by all_goals (simp_wf; omega)
@@ -2080,7 +2096,15 @@ mutual
     | .mstore offset value =>
         match evalExprWithHelpers spec fields fuel state offset,
             evalExprWithHelpers spec fields fuel state value with
-        | some _, some _ => .continue state
+        | some resolvedOffset, some resolvedValue =>
+            .continue {
+              state with
+              world := {
+                state.world with
+                memory := fun o =>
+                  if o = resolvedOffset then resolvedValue else state.world.memory o
+              }
+            }
         | _, _ => .revert
     | .tstore offset value =>
         match evalExprWithHelpers spec fields fuel state offset,
@@ -2641,8 +2665,13 @@ mutual
         simpa [evalExprWithHelpers, evalExpr_dynamicBytesEq]
     | externalCall _ _ =>
         simpa [evalExprWithHelpers, evalExpr_externalCall]
-    | mload a | tload a =>
-        simp [evalExprWithHelpers, evalExpr_mload, evalExpr_tload]
+    | mload a =>
+        simp [evalExprWithHelpers, evalExpr_mload]
+    | tload a =>
+        simp only [exprTouchesUnsupportedHelperSurface] at hsurface
+        have ha :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state a hsurface
+        simp [evalExprWithHelpers, evalExpr_tload, ha]
     | calldataload a | extcodesize a | returndataOptionalBoolAt a =>
         simp [evalExprWithHelpers, evalExpr_calldataload, evalExpr_extcodesize,
           evalExpr_returndataOptionalBoolAt]
