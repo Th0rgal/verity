@@ -1225,6 +1225,9 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.fieldName_mem_fields_of_findFieldWithResolvedSlot_some  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.fieldName_mem_fields_of_compileSetStorage_ok  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.isMapping_false_of_compileSetStorage_ok  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.compileStmt_ok_of_compileStmtList_append_cons  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.isMapping_false_of_compileStmt_setStorage_ok  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compileStmt_ite_ok_inv  -- private
 #print axioms Compiler.Proofs.IRGeneration.stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsupportedContractSurface
 -- #print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurface_of_stmtListTouchesUnsupportedContractSurface_append_cons  -- private
@@ -1236,6 +1239,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListScopeDiscipline_of_validateScopedStmtListIdentifiers  -- private
 #print axioms Compiler.Proofs.IRGeneration.stmtListScopeDiscipline_of_validateFunctionIdentifierReferences_prefix
 -- #print axioms Compiler.Proofs.IRGeneration.scopeNamesPresent_foldl_stmtNextScope_of_validateScopedStmtListIdentifiers  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.exprBoundNamesInScope_setStorage_of_validateFunctionIdentifierReferences  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.collectExprNames_mem_exprBoundNames_of_core  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.mem_foldl_stmtNextScope_of_mem_scope  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListNames_subset_foldl_stmtNextScope  -- private
@@ -1343,6 +1347,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes_of_scopeDiscipline
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences_of_compileStmtList_of_bodySurface
 -- #print axioms Compiler.Proofs.IRGeneration.terminal_stmtResultMatchesIRExec_implies_stmtStepMatchesIRExec  -- private
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_ite
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedContractSurface_append  -- private
@@ -2061,4 +2066,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1930 theorems/lemmas (1294 public, 636 private, 0 sorry'd)
+-- Total: 1935 theorems/lemmas (1295 public, 640 private, 0 sorry'd)
