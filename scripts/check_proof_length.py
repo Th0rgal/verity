@@ -35,244 +35,62 @@ HARD_LIMIT = 50
 # before the check was introduced. New proofs must not be added here without a
 # justification comment in the PR explaining why decomposition is not feasible.
 ALLOWLIST: set[str] = {
-    "eval_compileExpr_ceilDiv_of_compiled",  # ceilDiv correctness: 5-op IR chain (mul/iszero/add/div/sub) with zero/non-zero split
-    "eval_compileExpr_wDivUp_of_compiled",  # wDivUp correctness: 4-op IR chain (div/add/mul/sub) with zero/non-zero split and Uint256-to-Nat bridging
-    "eval_compileExpr_mulDivDown_of_compiled",  # mulDivDown correctness: 3-op IR chain (div/mul) with zero/non-zero split
-    "eval_compileExpr_mulDivUp_of_compiled",  # mulDivUp correctness: 4-op IR chain (div/add/mul/sub) with zero/non-zero split and Uint256-to-Nat bridging
-    "runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot",
-    "findResolvedFieldAtSlotCopyFrom_of_member",
-    "ledger_transfer_correct_sufficient",
-    "token_transfer_correct_sufficient",
-    "token_mint_correct_as_owner",
-    "all_stmts_equiv",
-    "sub_add_cancel_of_lt",
-    "safeIncrement_correct",
-    "execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv",
-    "simpleToken_owner_correct",
-    "yulCodegen_preserves_semantics",
-    "token_transfer_preserves_total_balance",
-    "safeDecrement_correct",
-    "add_one_preserves_order_iff_no_overflow",
-    "ledger_transfer_preserves_total",
-    "ledger_withdraw_correct_sufficient",
-    "resultsMatch_of_execResultsAligned",
-    "constructor_increment_getCount",
-    "sub_add_cancel_left",
-    "ledger_deposit_correct",
-    "safeDiv_result_le_numerator",
-    # End-to-end composition proofs (Issue #998) — compose Layers 2+3:
-    "simpleStorage_endToEnd",
-    "simpleStorage_retrieve_edsl_to_yul",
-    "yulBody_from_state_eq_yulBody",
-    # Statement equivalence core recursion proof (Lean 4.22 transport-heavy);
-    # decomposition planned after stabilization of helper lemmas.
-    "stmt_and_stmts_equiv",
-    # Issue #1060 stabilization: fragment-dispatch semantic theorem currently
-    # centralizes many continuation cases; temporary allowlist to unblock CI
-    # while decomposing into helper lemmas in follow-up 2.2 slices.
-    "compile_require_family_clauses_then_tail_semantics",
-    # Morpho Blue admin function compilation fragments — mechanical proofs
-    # whose length comes from spelling out the full typed-IR output, not
-    # from proof complexity (each closes with a single simp+rfl).
-    "compileStmts_letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop_run",
-    "compileStmts_letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop_run",
-    "compileStmts_letCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop_run",
-    "compileStmts_letCallerLetMapping2IteParamReqSetMapping2Stop_run",
-    # Guard no-op bridge for switch-case execution (Issue #1094 follow-up):
-    # long due explicit Yul expression reduction over reducible exec semantics.
-    "exec_calldatasizeGuard_noop",
-    # Execution-context dispatch helpers in Preservation.lean; both are long due
-    # transport-heavy local normalization over reducible Yul/IR state updates.
-    "exec_callvalueGuard_noop",
-    "evalSelectorExpr_setVar_has_selector",
-    # Tier-2 singleton mapping-write bridge: long because it spells out the
-    # slot-safety hypothesis threading and the concrete source/IR post-state
-    # relation in one place. Further decomposition is possible after more write
-    # families share the same abstraction.
+    # --- Expression compilation correctness proofs ---
+    "eval_compileExpr_ceilDiv_of_compiled",
+    "eval_compileExpr_wDivUp_of_compiled",
+    "eval_compileExpr_mulDivDown_of_compiled",
+    "eval_compileExpr_mulDivUp_of_compiled",
+    "eval_compileExpr_logicalAnd_of_compiled",
+    "eval_compileExpr_logicalOr_of_compiled",
+    # --- Core expression/statement compilation ---
+    "compileExpr_core_ok",
+    "compileRequireFailCond_core_ok",
+    "compileStmtList_core_ok",
+    "compileStmtList_terminal_core_ok",
+    "compileStmtList_terminal_core_ok_nonempty",
+    "compileStmtList_terminal_ite_ok_inv",
+    "compileStmt_terminal_ite_ok_inv",
+    "compileStmt_ok_any_scope_aux",
+    "eval_compileExpr_core_onExpr",
+    "evalExpr_lt_evmModulus_core_onExpr",
+    "eval_compileRequireFailCond_core_onExpr",
+    # --- Statement-level compiled step proofs ---
+    "compiledStmtStep_letVar",
+    "compiledStmtStep_assignVar",
+    "compiledStmtStep_require",
+    "compiledStmtStep_return",
+    "compiledStmtStep_ite",
+    # --- Storage write compiled step proofs ---
+    "compiledStmtStep_setStorage_singleSlot",
+    "compiledStmtStep_setStorage_aliasSlots",
+    "compiledStmtStep_setStorage_of_validateIdentifierShapes",
+    "compiledStmtStep_setStorage_of_validateIdentifierShapes_of_scopeDiscipline",
+    "compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences",
+    "compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences_of_compileStmtList_of_bodySurface",
+    "compiledStmtStep_setStorageAddr_singleSlot_preserves",
+    # --- Mapping write singleton bridges ---
     "compiledStmtStep_setMappingUint_singleSlot_of_slotSafety_preserves",
     "compiledStmtStep_setMapping_singleSlot_of_slotSafety_preserves",
     "compiledStmtStep_setMappingWord_singleSlot_of_slotSafety_preserves",
     "compiledStmtStep_setStructMember_singleSlot_of_slotSafety_preserves",
     "compiledStmtStep_setMapping2_singleSlot_of_slotSafety_preserves",
-    # Tier-4 semantic-kernel reassembly theorem: long due to the intentionally
-    # explicit call/assign split carried through a very long declaration name.
-    # The proof body itself is mechanical projection/repackaging.
-    "directInternalHelperPerCalleeSemanticKernelCatalog_of_callCatalog_and_assignCatalog",
     "compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety_preserves",
-    # Tier-2 `setMappingChain` singleton mapping-write bridge: long because the
-    # proof threads a list-of-keys evaluation witness through the folded
-    # `mappingSlot` IR expression and the concrete source/IR post-state update in
-    # one reusable compiled-step theorem.
     "compiledStmtStep_setMappingChain_singleSlot_of_slotSafety_preserves",
-    # Tier-2 `setMappingPackedWord` singleton mapping-write bridge: long because
-    # the compiled form introduces compat temporaries plus a read-modify-write
-    # packed-slot update, so the proof currently keeps the concrete block-level
-    # IR execution and the source/IR post-state alignment in one theorem.
     "compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_preserves",
-    # Thin wrapper over the packed-word preservation theorem above. Its size
-    # comes from spelling out the exact compiled Yul block shape consumed by the
-    # generic singleton bridge.
     "compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety",
-    # Tier-2 `setStructMember2` singleton mapping-write bridge: mirrors the
-    # existing `setMapping2Word` proof shape but keeps the struct-member layout
-    # witness and the concrete post-state alignment in one theorem so the
-    # alternate mapping-write seam can consume a single compiled-step boundary.
     "compiledStmtStep_setStructMember2_singleSlot_of_slotSafety_preserves",
-    # Tier-2 singleton supported-list packaging for `setStructMember2`: long
-    # only because it threads the struct-member layout witness into the same
-    # constructor-to-compiled-step pattern already used by the other write
-    # families; further decomposition would just split out mechanical plumbing.
     "stmtListGenericCore_singleton_setStructMember2Single_of_slotSafety",
-    # Tier-4 runtime-helper-table packaging: these theorems intentionally keep
-    # the witness-to-lookup extraction and the final IR characterization in one
-    # place so later helper-rank induction can consume a single structured seam
-    # instead of repeating the same `findInternalFunction?` plumbing.
-    "execIRStmtsWithInternals_of_internalCallAssign_compiledHelperWitness",
-    "execIRStmtsWithInternals_of_internalCall_compiledHelperWitness",
-    # Tier-4 head-step catalog packaging from runtime witnesses: long because
-    # it still centralizes the mechanical witness-to-head-step assembly before
-    # future rank induction can replace the vacuous helper interface.
-    "directInternalHelperHeadStepCatalog_of_supportedBodyHelpers_and_compileCatalog_and_runtimeWitnessCatalog_and_helperSummariesSound_and_semanticKernelCatalog",
-    # Tier-3 direct-helper call packaging: long only because it now carries the
-    # builtin-name exclusion proof for the transient-storage builtin alongside
-    # the existing helper witness extraction and singleton IR execution shape.
-    "execIRStmtsWithInternals_of_internalCall_compile",
-    # Tier-2 supported-list bridge with explicit mapping slot-safety hypotheses:
-    # long because it keeps the constructor-by-constructor migration from
-    # contradiction to construction in one theorem while the broader supported
-    # surface still uses the stricter fail-closed predicate.
-    "stmtListGenericCore_of_supportedStmtList_of_surface",
-    "stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites",
-    # Generic Layer 2 param-loading list theorem (Issue #1510 / PR #1554):
-    # centralizes the scalar-head induction for `genParamLoadBodyFrom`; further
-    # decomposition is possible later, but keeping the recursion in one place
-    # is currently the least duplicated proof boundary for compileFunctionSpec.
-    "exec_genParamLoadBodyFrom_supported_then",
-    # Generic Layer 2 function assembly theorem (Issue #1510 / PR #1554):
-    # packages raw-arg prebinding, param-load normalization, and IR result
-    # construction into one reusable compiler-facing boundary ahead of the
-    # remaining body-correctness proof.
-    "exec_compiledFunctionIR_of_body",
-    # Generic Layer 2 compileFunctionSpec assembly theorem (Issue #1510 / PR #1554):
-    # centralizes the successful compiler-output shape plus source/IR function
-    # packaging so the remaining work stays focused on one generic body theorem
-    # instead of repeating function-level composition in later dispatch/contract proofs.
-    "compileFunctionSpec_correct_of_body",
-    # Generic Layer 2 supported-field normalization wrapper (Issue #1510 / PR #1554):
-    # isolates the `CompilationModel.compile` field-normalization boundary so later
-    # compile-facing theorems can reuse the existing function correctness theorem
-    # without re-proving slot-alias normalization at each call site.
-    "compileFunctionSpec_correct_of_body_normalized_extraFuel",
-    # Generic Layer 2 dispatch assembly theorem (Issue #1510 / PR #1554):
-    # intentionally keeps selector lookup, arity shortfall, and revert packaging
-    # in one compiler-facing theorem so later whole-contract correctness can
-    # consume a single dispatch boundary instead of reassembling these cases.
-    "interpretContract_correct_of_compiled_functions",
-    # Tier-4 disjoint-runtime dispatch wrapper: this theorem is slightly over
-    # the hard limit because it keeps the full helper-aware dispatch theorem
-    # signature intact while swapping only the compiled-side runtime premise
-    # from legacy-compatibility to disjointness.
-    "interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir_of_disjointRuntimeContract",
-    # Generic Layer 2 proof-spine carryover from PR #1554:
-    # these theorems predate the hard-limit gate and currently centralize the
-    # structural-fuel/whole-fuel transports, terminal-ite normalization, and
-    # compiler-facing assembly steps needed to keep the partially generic Layer 2
-    # boundary stable. Splitting them is follow-up work, but allowlisting keeps
-    # CI green without mutating the proof architecture during merge resolution.
-    "bindSupportedParams_lookupBinding",
-    "compileExpr_core_ok",
-    "eval_compileExpr_core_onExpr",
-    "evalExpr_lt_evmModulus_core_onExpr",
-    "eval_compileExpr_logicalAnd_of_compiled",
-    "eval_compileExpr_logicalOr_of_compiled",
-    # Generic Layer 2 comparison/arithmetic compiled-expression proofs
-    # (sorry-reduction pass 3): these follow the same mechanical case-split
-    # pattern as the logicalAnd/logicalOr proofs above, threading source
-    # evaluation witnesses through the Option-migrated IR lemmas.
-    "eval_compileExpr_ge_of_compiled",
-    "eval_compileExpr_le_of_compiled",
-    "eval_compileExpr_div_of_compiled",
-    "eval_compileExpr_sub_of_compiled",
-    "eval_compileExpr_mod_of_compiled",
-    "compileRequireFailCond_core_ok",
-    "eval_compileRequireFailCond_core_onExpr",
-    "exec_compileStmt_return_core",
-    # Helper-table closure theorem for the exact helper-aware Layer 2 seam
-    # (Issue #1630 follow-up): long because it destructures the whole
-    # `compileValidatedCore` assembly pipeline once to recover the compiled
-    # source-helper table as a reusable interface, avoiding repetition in the
-    # later direct/expr/structural helper-step proofs.
-    "compileValidatedCore_ok_yields_supportedRuntimeHelperTableInterface",
-    "exec_compileStmt_return_core_extraFuel",
-    "compileStmtList_core_ok",
-    "compileStmt_terminal_ite_ok_inv",
-    "compileStmtList_terminal_ite_ok_inv",
-    "compileStmtList_terminal_core_ok",
-    "compileStmtList_terminal_core_ok_nonempty",
-    "exec_compileStmtList_core",
-    "exec_compileStmtList_core_extraFuel",
-    "exec_compileStmtList_terminal_core_sizeOf_extraFuel",
-    "initialIRStateForTx_matches_runtime",
-    "exec_compiledFunctionIR_of_body_extraFuel",
-    # Tier-2 function-level mapping-write bridge: currently long because it
-    # packages param prebinding, helper-surface collapse, alternate body
-    # interface wiring, and final function-adequacy assembly into one reusable
-    # theorem for the first non-vacuous singleton mapping-write path.
-    "supported_function_correct_with_body_interface_except_mapping_writes",
-    # Tier-2 selector-dispatched wrapper for the alternate mapping-write spec:
-    # long because it unpacks `compileFunctionSpec`, rethreads the alternate
-    # spec witness, and repackages the body-level bridge into the generic
-    # function theorem shape consumed by contract-level proofs.
-    "supported_function_correct_except_mapping_writes",
-    "supported_function_body_correct_from_exact_state_core",
-    "supported_function_body_correct_from_exact_state_core_extraFuel",
-    "supported_function_body_correct_from_exact_state_terminal_core_extraFuel",
-    "compileFunctionSpec_correct_of_body_supported_extraFuel",
-    "supported_function_correct",
-    "compileFunctionSpec_correct_generic",
-    "compile_preserves_semantics",
-    # GenericInduction legacy-compatibility repair pass:
-    # these proofs are mechanically long because they case-split over concrete
-    # compiler output shapes (`compileSetStorage` / alternate mapping-write
-    # surface packaging) and the shared list-surface inversion plumbing. They
-    # are intentionally localized bridge lemmas rather than proof-search-heavy
-    # arguments, and further decomposition would mostly split syntax plumbing.
-    "legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields_resolved",
-    "stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites_cons_inv",
-    "legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface_exceptMappingWrites",
-    "stmtListHelperFreeCompiledCallsDisjoint_of_supportedContractSurface_exceptMappingWrites",
-    # Tier-2 whole-contract mapping-write bridge: long because it mirrors the
-    # primary contract theorem while swapping in the alternate selector/body
-    # witness family and threading slot-safety/no-conflict assumptions through
-    # the per-function generic closure.
-    "compile_preserves_semantics_except_mapping_writes",
-    # Tier-1 supported-fragment grammar declaration: the inductive is long
-    # because it enumerates the currently admitted singleton heads plus the
-    # compositional constructors in one place; splitting it would not reduce
-    # maintenance or proof complexity.
-    "SupportedStmtList.helperSurfaceClosed",
-    "SupportedStmtList.internalHelperCallNames_nil",
-    # Tier-2 exact helper-aware singleton mapping-write bridge pieces: one
-    # theorem exhaustively unfolds the double-mapping compile shape to recover a
-    # legacy-compatible Yul witness, and the other packages the alternate
-    # contract-surface disjointness proof into the exact helper-aware body goal.
-    "legacyCompatibleExternalStmtList_of_compileSetMapping2_ok",
-    "supported_function_body_correct_from_exact_state_generic_with_helpers_and_helper_ir_except_mapping_writes_callsDisjoint",
-    "supported_function_body_correct_from_exact_state_generic_with_helpers_and_helper_ir_except_mapping_writes",
-    # Issue #1564 / PR #1606:
-    # these are the pre-existing long terminal-ite branch-entry transport
-    # proofs, now exposed as public lemmas so later Layer 2 induction work can
-    # reuse them directly. The proof bodies are unchanged; only the exported
-    # names shifted, so the historical allowlist needs to track the new names.
+    # --- Transient/memory write singleton bridges ---
+    "compiledStmtStep_tstore_single_preserves",
+    "compiledStmtStep_mstore_single_preserves",
+    # --- IR execution proofs (terminal ite, core append/tail) ---
     "execIRStmt_compiled_terminal_ite_then_branch_entry",
     "execIRStmt_compiled_terminal_ite_else_branch_entry",
     "execIRStmt_compiled_terminal_ite_else_branch_entry_tailFuel",
-    "execStmtList_terminal_core_not_continue",
     "execIRStmts_compiled_terminal_ite_then_of_irExec",
     "execIRStmts_compiled_terminal_ite_else_of_irExec",
     "stmtResultMatchesIRExec_compiled_terminal_ite_then",
     "stmtResultMatchesIRExec_compiled_terminal_ite_else",
-    "execIRStmts_compiled_return_core_append_wholeFuel",
     "execIRStmts_compiled_return_core_append_wholeFuel_of_scope",
     "execIRStmts_compiled_let_core_append_wholeFuel_of_scope",
     "execIRStmts_compiled_let_core_tailExtraFuel_of_scope",
@@ -285,293 +103,127 @@ ALLOWLIST: set[str] = {
     "stmtResultMatchesIRExec_compiled_assign_core_tailExtraFuel_of_scope",
     "stmtResultMatchesIRExec_compiled_require_core_pass_tailExtraFuel_of_scope",
     "stmtResultMatchesIRExec_compiled_return_core_append_wholeFuel_of_scope",
-    "exec_genParamLoads_supported_then_extraFuel",
-    # Generic Layer 3 switch-case bridge shrink follow-up:
-    # these proofs are transport-heavy reductions over reducible Yul semantics,
-    # and are kept intact while the remaining dispatch axiom is narrowed further.
-    "exec_switchCaseBody_revert_of_short",
-    "SwitchCaseBodyBridge_short",
-    # Layer 3 switch-case axiom decomposition (SwitchCaseBodyBridge narrowing):
-    # success-path guard stepping mirrors the revert-path structure and is long
-    # for the same reason (explicit case-split over payable + fuel arithmetic).
-    "exec_switchCaseBody_continue_of_long",
-    # Composition theorem bridging proved guard stepping + narrower body axiom;
-    # long due to explicit fuel case-split and interpretYulRuntime unfolding.
-    "SwitchCaseBodyBridge",
-    # Issue #1563 — fuel adequacy proof (axiom elimination):
-    # strong induction over sizeOf covering all YulStmt constructors; length
-    # comes from exhaustive case-split, not proof complexity.
-    "execYulFuel_succ_eq",
-    # Issue #1563 — end-to-end composition now threads loop-free hypothesis;
-    # marginally above limit (55 lines) due to added precondition plumbing.
-    "layer3_contract_preserves_semantics",
-    # Issue #1618 / PR #1620 — generic statement-induction library:
-    # these proofs are the initial axiom-elimination spine for Layer 2. Most are
-    # structural inductions or compiler-surface assembly lemmas that currently
-    # centralize scope discipline, storage-write transport, and fuel arithmetic so
-    # the new generic theorem has a single reusable proof boundary. They should be
-    # decomposed further in follow-up cleanup, but allowlisting them keeps the
-    # migration reviewable without forcing a second large refactor in the same PR.
-    "exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false",
+    "exec_compileStmtList_core",
+    "exec_compileStmtList_core_extraFuel",
+    "exec_compileStmtList_terminal_core_sizeOf_extraFuel",
+    "exec_compileStmtList_generic_sizeOf_extraFuel_step",
+    # --- Generic induction and scope proofs ---
+    "stmtListGenericCore_of_stmtListCompileCore_of_scopeNamesIncluded",
+    "stmtListGenericCore_of_stmtListTerminalCore_of_scopeNamesIncluded",
+    "stmtListGenericCore_of_supportedStmtList_of_surface",
+    "stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites",
+    "stmtListGenericCore_singleton_requireLiteralGuardFamilyClause",
     "stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsupportedContractSurface",
     "exprBoundNamesInScope_of_validateScopedExprIdentifiers_core",
     "stmtListScopeDiscipline_of_validateScopedStmtListIdentifiers",
     "scopeNamesPresent_foldl_stmtNextScope_of_validateScopedStmtListIdentifiers",
     "stmtListScopeDiscipline_scope_names",
-    "compiledStmtStep_require",
-    "findResolvedFieldAtSlotCopy_of_findFieldWithResolvedSlot_member",
-    "firstFieldWriteSlotConflictCopyFrom_some_of_seen_slot_member",
-    "compiledStmtStep_setStorage_singleSlot",
-    "compiledStmtStep_setStorage_aliasSlots",
-    "compiledStmtStep_setStorage_of_validateIdentifierShapes",
-    "compiledStmtStep_setStorage_of_validateIdentifierShapes_of_scopeDiscipline",
-    "compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences_of_compileStmtList",
-    "compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences_of_compileStmtList_of_bodySurface",
-    "compiledStmtStep_ite",
-    "stmtListGenericCore_of_stmtListCompileCore_of_scopeNamesIncluded",
-    "stmtListGenericCore_of_stmtListTerminalCore_of_scopeNamesIncluded",
-    "exec_compileStmtList_generic_sizeOf_extraFuel_step",
-    "supported_function_body_correct_from_exact_state_generic",
-    # Issue #1630 / helper-semantics retarget follow-up:
-    # this theorem is the helper-aware wrapper around the existing generic body
-    # proof while helper-summary soundness/rank evidence is still threaded only
-    # partway through the stack. Its length comes from preserving the generic
-    # body theorem surface during the semantics retarget, not from novel proof
-    # complexity in the wrapper itself.
-    "supported_function_body_correct_from_exact_state_generic_with_helpers",
-    # Issue #1630 / PR #1639 — helper-aware stmt retarget seam isolation:
-    # this theorem performs the constructor-by-constructor stmt-list lift from
-    # residual expr-statement compatibility to full legacy-compatible external
-    # stmt-list compatibility. Its length comes from spelling out the remaining
-    # compiled-side transport cases once, so the named stmt-subgoal interface
-    # can shrink to the real semantic core instead of carrying separate if/block
-    # obligations.
-    "execIRStmtsWithInternals_eq_execIRStmts_of_exprCompatibility",
-    # Issue #1630 / PR #1633 — helper-aware source-semantics compatibility:
-    # this mutual-recursion theorem centralizes the constructor-by-constructor
-    # collapse from helper-aware expression evaluation back to the legacy
-    # helper-free semantics under the temporary fail-closed helper boundary.
-    # Splitting it further is follow-up cleanup once helper-summary composition
-    # replaces the compatibility path; for now keeping the recursion in one
-    # theorem avoids duplicating the structural cases across the paired list/stmt
-    # compatibility lemmas introduced by the new proof interface inventory.
-    # Issue #1630 / PR #1639 helper-aware IR retarget:
-    # the remaining long proofs are transport-heavy conservative-extension and
-    # exact-seam assembly lemmas. They stay centralized until the helper-call
-    # body recursion is wired through the new direct/expr/structural interfaces.
-    "execIRStmtWithInternals_eq_execIRStmt_expr_of_callsDisjoint",
-    "execIRStmtsWithInternals_eq_execIRStmts_of_callsDisjoint",
-    "supported_function_body_correct_from_exact_state_generic_finer_split_internal_helper_surface_steps_and_helper_ir_callsDisjoint",
-    # Public singleton-step constructors for direct internal helper calls:
-    # the line count comes from one-time compilation-shape extraction plus the
-    # fuel transport into the supplied bridge hypothesis; decomposition would
-    # mostly split bookkeeping away from the theorem boundary the callers need.
-    "compiledStmtStepWithHelpersAndHelperIR_internalCallAssign",
-    "compiledStmtStepWithHelpersAndHelperIR_internalCall",
-    "evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed",
-    # Post-merge proof-reduction branch still carries a few long mechanical
-    # SupportedSpec/GenericInduction transport lemmas. They remain localized
-    # syntax-plumbing proofs, and allowlisting them keeps the branch buildable
-    # while follow-up cleanup decomposes the constructors more aggressively.
-    "stmtListGenericCore_of_requireClausesThenLetAssignMulSetStorageLocalLiteral",
-    "stmtTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed",
-    "stmtTouchesUnsupportedContractSurface_eq_false_of_featureClosed",
-    "stmtTouchesUnsupportedContractSurfaceExceptMappingWrites_eq_false_of_featureClosed",
-    # Issue #1630 / PR #1633 follow-up — helper-proof theorem-surface adapters:
-    # these declarations are intentionally long because they mirror the existing
-    # generic Layer 2 theorem signatures while adding the explicit helper-proof
-    # slot. The proof bodies are thin wrappers around the existing theorems; the
-    # line count comes from preserving the stable public API shape, not from
-    # proof complexity.
-    "supported_function_body_correct_from_exact_state_generic_with_helpers_goal",
-    "supported_function_correct_with_helper_proofs_goal",
-    "supported_function_correct_with_helper_proofs",
-    "interpretContract_correct_of_compiled_functions_with_helper_proofs",
-    "compileFunctionSpec_correct_generic_with_helper_proofs",
-    "compile_preserves_semantics_with_helper_proofs",
-    # Issue #1630 / PR #1639 follow-up — direct helper-aware function theorem:
-    # this theorem factors the exact future helper seam out of the existing
-    # non-core function proof while preserving the compiler-facing API shape.
-    # Its length comes from one-time transport/fuel assembly that was already
-    # present in the surrounding wrapper; splitting further is follow-up cleanup.
-    # Issue #1630 / PR #1639 follow-up — helper-aware induction seam:
-    # these two theorems are the list-composition and body-level transports that
-    # expose the new helper-aware generic induction interfaces
-    # `CompiledStmtStepWithHelpers` / `StmtListGenericWithHelpers`. Their length
-    # comes from spelling out the existing stmt-list composition once for the
-    # helper-aware semantics family; decomposition is follow-up cleanup once real
-    # helper-step proofs begin consuming summary soundness/rank evidence.
-    "exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel_step",
-    "supported_function_body_correct_from_exact_state_generic_helper_steps_raw",
-    "supported_function_body_correct_from_exact_state_generic_helper_steps",
-    # Issue #1630 / PR #1639 follow-up — exact helper-aware compiled induction seam:
-    # this theorem and its list-composition transport are the first exact
-    # induction-level surface over `execIRStmtsWithInternals`. Their length
-    # comes from mirroring the existing helper-aware stmt-list composition once
-    # at the correct compiled semantics target; decomposition is follow-up
-    # cleanup once the real helper-call step proofs land.
-    "exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel_step",
-    "supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir_raw",
-    "supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir",
-    # Issue #1630 / PR #1639 follow-up — exact helper-aware split reuse bridge:
-    # these theorems are the one list/body-level transport layer that
-    # separates helper-free head reuse from genuinely new helper-surface-
-    # positive step obligations. Keeping the split centralized makes the
-    # remaining helper-rich proof work land at a single named seam instead of
-    # duplicating the branch logic.
-    "stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible",
-    "stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible",
-    "supported_function_body_correct_from_exact_state_generic_helper_surface_steps_and_helper_ir",
-    "supported_function_body_correct_from_exact_state_generic_internal_helper_surface_steps_and_helper_ir",
-    # Issue #1630 / PR #1639 follow-up — finer direct-helper split:
-    # this wrapper keeps the exact helper-aware body target centralized while
-    # threading distinct direct-helper-call and direct-helper-assign interfaces
-    # through the same transport layer instead of duplicating the surrounding
-    # body-goal plumbing in later helper-summary proof PRs.
-    "supported_function_body_correct_from_exact_state_generic_finer_split_internal_helper_surface_steps_and_helper_ir",
-    # Issue #1630 / PR #1639 follow-up — helper-positive seam split by proof
-    # obligation shape: this body-level bridge preserves the public exact target
-    # while threading direct-helper, expression-helper, structural-helper, and
-    # residual interfaces through one transport layer instead of duplicating the
-    # same composition logic across later helper-summary proof PRs.
-    "supported_function_body_correct_from_exact_state_generic_split_internal_helper_surface_steps_and_helper_ir",
-    # Issue #1630 / PR #1639 follow-up — current-fragment exact helper-aware body wrapper:
-    # this theorem keeps the public body-proof surface stable while deriving the
-    # new compiled-side legacy-compatibility witness and lifting the existing
-    # helper-free generic core into the exact helper-aware compiled seam.
-    "supported_function_body_correct_from_exact_state_generic_with_helpers_and_helper_ir_callsDisjoint",
-    "supported_function_body_correct_from_exact_state_generic_with_helpers_and_helper_ir",
-    "supported_function_correct_with_helper_proofs_body_goal",
-    # Issue #1639 follow-up — exact helper-aware body/function wrappers:
-    # these theorems close the bidirectional disjointness bridge between the
-    # new exact helper-aware body goal and the existing function theorem stack.
-    # They are transport-heavy composition wrappers rather than new semantic
-    # arguments, and will shrink once the helper-aware path becomes the default.
-    "supported_function_body_with_helpers_ir_goal_of_helper_ir_goal_callsDisjoint",
-    "supported_function_correct_with_helper_proofs_body_goal_and_helper_ir",
-    "supported_function_correct_with_helper_proofs_body_goal_and_helper_ir_of_bodyCallsDisjoint",
-    # Issue #1638 / PR #1639 — helper-aware compiled-target retarget wrappers:
-    # these theorems preserve the public Layer 2 theorem signatures while
-    # swapping in the helper-aware compiled semantics target or goal surface.
-    # They are mostly API-preserving composition lemmas; decomposition is
-    # follow-up cleanup once the remaining stmt-level conservative-extension
-    # theorem lands and the helper-aware path becomes the default theorem stack.
-    "compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir",
-    "compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir_of_bodyCallsDisjoint",
-    "interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir",
-    "interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir_goal",
-    "compile_preserves_semantics_with_helper_proofs_and_helper_ir_closed",
-    # Issue #1638 / PR #1639 — compiled-side helper retarget seam:
-    # this theorem is the one list-composition proof that shows the open helper
-    # blocker lives at single-statement compatibility rather than list plumbing.
-    # Its length comes from the constructor-by-constructor composition over the
-    # legacy-compatible Yul stmt-list fragment.
-    "stmtListGenericWithHelpersAndHelperIR_of_withHelpers_and_compiledLegacyCompatible",
-    "execIRStmtsWithInternals_eq_execIRStmts_of_stmtCompatibility",
-    # Issue #1638 / PR #1639 follow-up — closing the helper-free conservative-
-    # extension theorem on the legacy-compatible runtime subset currently
-    # requires one explicit constructor-by-constructor `sstore` split and one
-    # explicit expr-statement case split over dedicated builtin statement
-    # forms. These are the final closed helper-free semantic proofs; splitting
-    # them further would mostly duplicate the same reduced-form branches.
-    "execIRStmtWithInternals_eq_execIRStmt_sstore_of_no_internal",
-    "execIRStmtWithInternals_eq_execIRStmt_expr_of_no_internal",
-    # Issue #1630 / PR #1633 — feature-interface compatibility bridge:
-    # this private theorem is the one place that folds the split `core` / `state`
-    # / `calls` booleans back into the legacy `exprTouchesUnsupportedContractSurface`
-    # predicate while the generic body proof still consumes the old boundary.
-    # Decomposing it now would only spread the temporary compatibility transport.
+    # --- Surface predicate bridge proofs ---
+    "exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false",
     "exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed",
-    "firstFieldWriteSlotConflict_eq_none_of_validateCompileInputs",
-    # SupportedSpec.lean helper-surface fragment proofs (PR #1639);
-    # mechanical case-splits over the supported-fragment predicate.
-    "supportedStmtList_usesStorageArrayElement_false",
-    "supportedStmtList_usesDynamicBytesEq_false",
-    "supportedStmtList_usesArrayElement_false",
     "exprTouchesUnsupportedCallSurface_eq_featureOr",
     "exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed",
     "exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed",
-    # PR #1645 — per-function termination_by refactor of the helper-aware mutual
-    # block required rewriting findUniqueInternalFunction?_of_witness with more
-    # explicit subgoal resolution; marginally over limit (57 lines).
-    "findUniqueInternalFunction",
-    # PR #1645 follow-up — pre-existing long proofs newly exposed by from-scratch
-    # CI rebuild after sorry'ing broken theorems in FunctionBody/GenericInduction/
-    # Function/Dispatch/Contract. These proofs were previously hidden behind
-    # incremental caching; their lengths are unchanged from the original code.
-    "sizeOf_singleton_append_extraFuel_ne_zero",
-    "directInternalHelperPerCalleeCallCompileCatalog_of_supportedBody",
-    "stmtResultMatchesIRExec_ir_not_continue_of_terminal_core",
-    "scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes",
-    "legacyCompatibleExternalStmtList_revertWithMessage",
-    "evalIRExpr_mappingSlotChain",
-    "compileStmt_ite_ok_inv",
-    "directInternalHelperHeadStepCatalog_of_perCalleeBridgeCatalog",
-    "compile_ok_yields_internalFunctions_nil",
-    "stmtListGenericCore_singleton_requireLiteralGuardFamilyClause",
-    "runtimeStateMatchesIR_writeAddressKeyedMappingPackedWordSlot",
-    "exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel",
-    "execIRStmts_sstore_lit_ident_slots_continue",
-    "stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface",
-    "compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList",
-    "field_mem_of_findFieldWithResolvedSlot_some",
-    "legacyCompatibleExternalStmtList_genParamLoads_of_supported",
-    # SourceSemantics helper-aware execution compatibility proof: long due to
-    # exhaustive constructor case-split over the mutual exec/evalExpr pair.
-    "execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux",
-    # Helper-aware bridge theorem combining internal+residual helper interfaces:
-    # long due to explicit case-split on helper-surface touching and threading
-    # of legacy-compatibility through the list induction.
-    "stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible",
-    # PR #1659 sorry-reduction pass 3 — newly proven step theorems and their
-    # supporting lemmas. These are mechanical Option-migration-adapted proofs
-    # that thread source/IR evaluation witnesses through the compiled step
-    # boundary; decomposition would mostly split bookkeeping away from the
-    # theorem boundary consumed by the generic induction.
-    "compiledStmtStep_letVar",
-    "compiledStmtStep_assignVar",
-    "compiledStmtStep_return",
-    "execStmtList_terminal_core_ite_else_eq",
-    "SupportedBodyInterface.helperFreeStepInterface",
-    "legacyCompatibleExternalStmtList_of_compileSetStructMember2_ok",
-    # PR #1670 sorry-reduction pass 5 — transient-storage and memory-write
-    # singleton bridges: mechanical compiled-step proofs that thread the
-    # tstore/mstore IR evaluation witnesses through the generic induction
-    # interface; line count comes from spelling out the concrete compiled
-    # block shape, not from proof complexity.
-    "compiledStmtStep_tstore_single_preserves",
-    "compiledStmtStep_mstore_single_preserves",
-    "stmtListGenericCore_singleton_tstore_single",
-    "stmtListGenericCore_of_supportedStmtList_tstoreSingle_of_surface",
-    # PR #1670 — struct-member-2 singleton slot-safety bridge without the
-    # `_preserves` suffix: mirrors the existing `_preserves` variant but
-    # packages the slot-safety witness into the generic body interface.
-    "compiledStmtStep_setStructMember2_singleSlot_of_slotSafety",
-    # PR #1670 — FunctionBody aux lemma for compileStmt_ok under any scope:
-    # long due to explicit scope-discipline threading through the full
-    # compiled statement list; decomposition is follow-up cleanup.
-    "compileStmt_ok_any_scope_aux",
-    # PR #1670 — GenericInduction setStorage bridge: long because it threads
-    # identifier-shape and function-reference validation through the full
-    # compiled storage-write step; mechanical plumbing, not proof complexity.
-    "compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences",
-    # PR #1670 — GenericInduction setStorageAddr singleton bridge: long because
-    # it threads address-mask truncation, compat scratch, and the concrete
-    # compiled IR block execution through the full slot-safety witness.
-    "compiledStmtStep_setStorageAddr_singleSlot_preserves",
-    # PR #1670 — compat scratch exclusion lemma: proves no compat-scratch
-    # temporary name matches the `__immutable_*` prefix pattern; length is
-    # from exhaustive case analysis over the concrete name list.
-    "compatScratch_not_internalImmutable",
-    # PR #1670 — compat scratch reserved-prefix lemma: establishes that all
-    # compat-scratch names start with `__`, the reserved compiler prefix;
-    # length is similarly from exhaustive enumeration.
-    "compatScratch_startsWith_reserved",
-    # PR #1670 — packed mapping word singleton encoding lemma: bridges the
-    # abstract source-level `writeAddressKeyedMappingPackedWordSlots` with
-    # the IR-level `encodeStorageAt` for singleton slot lists; marginally
-    # over the limit (54 lines) due to explicit slot-safety unfolding.
+    "stmtTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed",
+    "stmtTouchesUnsupportedContractSurface_eq_false_of_featureClosed",
+    "SupportedStmtList.helperSurfaceClosed",
+    "SupportedStmtList.internalHelperCallNames_nil",
+    "supportedStmtList_usesStorageArrayElement_false",
+    "supportedStmtList_usesDynamicBytesEq_false",
+    "supportedStmtList_usesArrayElement_false",
+    # --- Mapping slot and field resolution proofs ---
+    "findResolvedFieldAtSlotCopyFrom_of_member",
+    "firstFieldWriteSlotConflictCopyFrom_some_of_seen_slot_member",
     "encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleton_eq_written",
+    # --- Compat scratch lemmas ---
+    "compatScratch_not_internalImmutable",
+    "compatScratch_startsWith_reserved",
+    "scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes",
+    # --- Function-level compilation proofs ---
+    "compileFunctionSpec_correct_of_body",
+    "compileFunctionSpec_correct_of_body_normalized_extraFuel",
+    "compileFunctionSpec_correct_generic",
+    "exec_compiledFunctionIR_of_body",
+    "exec_compiledFunctionIR_of_body_extraFuel",
+    "exec_genParamLoadBodyFrom_supported_then",
+    "exec_genParamLoads_supported_then_extraFuel",
+    "bindSupportedParams_lookupBinding",
+    "supported_function_body_correct_from_exact_state_core",
+    "supported_function_body_correct_from_exact_state_core_extraFuel",
+    "supported_function_body_correct_from_exact_state_terminal_core_extraFuel",
+    "supported_function_body_correct_from_exact_state_generic",
+    "supported_function_correct",
+    "supported_function_correct_except_mapping_writes",
+    "supported_function_correct_with_body_interface_except_mapping_writes",
+    # --- Legacy compatibility and dispatch ---
+    "legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields_resolved",
+    "legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface_exceptMappingWrites",
+    "legacyCompatibleExternalStmtList_of_compileSetStructMember2_ok",
+    "interpretContract_correct_of_compiled_functions",
+    "compile_preserves_semantics",
+    "compile_preserves_semantics_except_mapping_writes",
+    "initialIRStateForTx_matches_runtime",
+    "resultsMatch_of_execResultsAligned",
+    # --- Helper-aware theorem stack (Issue #1630 / PR #1633 / PR #1639) ---
+    "supported_function_body_correct_from_exact_state_generic_with_helpers",
+    "supported_function_body_correct_from_exact_state_generic_with_helpers_goal",
+    "supported_function_body_correct_from_exact_state_generic_with_helpers_and_helper_ir",
+    "supported_function_body_correct_from_exact_state_generic_with_helpers_and_helper_ir_callsDisjoint",
+    "supported_function_body_correct_from_exact_state_generic_with_helpers_and_helper_ir_except_mapping_writes",
+    "supported_function_body_correct_from_exact_state_generic_helper_steps_raw",
+    "supported_function_body_correct_from_exact_state_generic_helper_surface_steps_and_helper_ir",
+    "supported_function_body_correct_from_exact_state_generic_internal_helper_surface_steps_and_helper_ir",
+    "supported_function_body_correct_from_exact_state_generic_finer_split_internal_helper_surface_steps_and_helper_ir",
+    "supported_function_body_correct_from_exact_state_generic_finer_split_internal_helper_surface_steps_and_helper_ir_callsDisjoint",
+    "supported_function_body_correct_from_exact_state_generic_split_internal_helper_surface_steps_and_helper_ir",
+    "supported_function_body_with_helpers_ir_goal_of_helper_ir_goal_callsDisjoint",
+    "supported_function_correct_with_helper_proofs",
+    "supported_function_correct_with_helper_proofs_goal",
+    "supported_function_correct_with_helper_proofs_body_goal",
+    "supported_function_correct_with_helper_proofs_body_goal_and_helper_ir",
+    "supported_function_correct_with_helper_proofs_body_goal_and_helper_ir_of_bodyCallsDisjoint",
+    "compileFunctionSpec_correct_generic_with_helper_proofs",
+    "compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir",
+    "compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir_of_bodyCallsDisjoint",
+    "interpretContract_correct_of_compiled_functions_with_helper_proofs",
+    "interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir_goal",
+    "compile_preserves_semantics_with_helper_proofs",
+    "exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel_step",
+    "exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel_step",
+    "stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible",
+    "stmtListGenericWithHelpersAndHelperIR_of_withHelpers_and_compiledLegacyCompatible",
+    # --- Helper-aware IR compatibility proofs ---
+    "execIRStmtWithInternals_eq_execIRStmt_sstore_of_no_internal",
+    "execIRStmtWithInternals_eq_execIRStmt_expr_of_no_internal",
+    "execIRStmtWithInternals_eq_execIRStmt_expr_of_callsDisjoint",
+    "execIRStmtsWithInternals_eq_execIRStmts_of_exprCompatibility",
+    "execIRStmtsWithInternals_eq_execIRStmts_of_callsDisjoint",
+    "execIRStmtsWithInternals_eq_execIRStmts_of_stmtCompatibility",
+    "execIRStmtsWithInternals_of_internalCallAssign_compiledHelperWitness",
+    "execIRStmtsWithInternals_of_internalCall_compiledHelperWitness",
+    "execIRStmtsWithInternals_of_internalCall_compile",
+    "compiledStmtStepWithHelpersAndHelperIR_internalCallAssign",
+    "compiledStmtStepWithHelpersAndHelperIR_internalCall",
+    "evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed",
+    "execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux",
+    # --- Yul generation / Layer 3 proofs ---
+    "yulCodegen_preserves_semantics",
+    "stmt_and_stmts_equiv",
+    "execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv",
+    "execYulFuel_succ_eq",
+    "exec_switchCaseBody_revert_of_short",
+    "exec_switchCaseBody_continue_of_long",
+    "SwitchCaseBodyBridge_short",
+    "SwitchCaseBodyBridge",
+    "layer3_contract_preserves_semantics",
+    # --- Contract proofs (Contracts/) ---
+    "constructor_increment_getCount",
+    "add_one_preserves_order_iff_no_overflow",
+    "sub_add_cancel_of_lt",
+    "sub_add_cancel_left",
+    "safeDiv_result_le_numerator",
+    # --- Misc ---
+    "findUniqueInternalFunction",
 }
 
 # Directories containing proof files to scan.
