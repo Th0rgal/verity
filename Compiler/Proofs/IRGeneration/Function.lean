@@ -604,7 +604,7 @@ theorem initialIRStateForTx_matches_runtime
     simpa [Verity.Core.Address.modulus, Compiler.Constants.addressModulus] using hsender
   have hthisAddr : tx.thisAddress < Verity.Core.Address.modulus := by
     simpa [Verity.Core.Address.modulus, Compiler.Constants.addressModulus] using hthis
-  refine ⟨?_, rfl, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  refine ⟨?_, rfl, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
   · simpa [FunctionBody.initialIRStateForTx, SourceSemantics.effectiveFields,
       SourceSemantics.encodeStorage] using
       (FunctionBody.encodeStorage_withTransactionContext model initialWorld tx).symm
@@ -636,18 +636,25 @@ theorem initialIRStateForTx_matches_runtime
   · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext]
     symm
     exact Nat.mod_eq_of_lt hchain
-  · -- returnValue ∧ events
-    constructor
-    · -- returnValue
+  · -- blobBaseFee
+    simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext]
+    symm
+    exact Nat.mod_eq_of_lt hblob
+  · -- calldataSize
+    have : Verity.Core.Uint256.modulus = Compiler.Constants.evmModulus := rfl
+    simp only [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext,
+      Verity.Core.Uint256.ofNat, this]
+    exact Nat.mod_eq_of_lt hcalldataSizeFits
+  · -- returnValue
+    rfl
+  · -- events
+    change (FunctionBody.initialIRStateForTx model tx initialWorld).events =
+      SourceSemantics.encodeEvents
+        (SourceSemantics.withTransactionContext initialWorld tx).events
+    have : (SourceSemantics.withTransactionContext initialWorld tx).events = initialWorld.events :=
       rfl
-    · -- events
-      change (FunctionBody.initialIRStateForTx model tx initialWorld).events =
-        SourceSemantics.encodeEvents
-          (SourceSemantics.withTransactionContext initialWorld tx).events
-      have : (SourceSemantics.withTransactionContext initialWorld tx).events = initialWorld.events :=
-        rfl
-      rw [this]
-      rfl
+    rw [this]
+    rfl
 
 -- SORRY'D: /-- The ABI parameter-loading prefix reconstructs exactly the decoded source
 -- SORRY'D: bindings for any supported function with pairwise-distinct parameter names. -/

@@ -62,6 +62,8 @@ private theorem deposit_unfold (s : ContractState) (amount : Uint256) :
       blockTimestamp := s.blockTimestamp,
       blockNumber := s.blockNumber,
       chainId := s.chainId,
+      blobBaseFee := s.blobBaseFee,
+      calldataSize := s.calldataSize,
       knownAddresses := fun slotIdx =>
         if slotIdx == 0 then (s.knownAddresses slotIdx).insert s.sender
         else s.knownAddresses slotIdx,
@@ -115,6 +117,8 @@ private theorem withdraw_unfold (s : ContractState) (amount : Uint256)
       blockTimestamp := s.blockTimestamp,
       blockNumber := s.blockNumber,
       chainId := s.chainId,
+      blobBaseFee := s.blobBaseFee,
+      calldataSize := s.calldataSize,
       knownAddresses := fun slotIdx =>
         if slotIdx == 0 then (s.knownAddresses slotIdx).insert s.sender
         else s.knownAddresses slotIdx,
@@ -182,6 +186,8 @@ private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount
       blockTimestamp := s.blockTimestamp,
       blockNumber := s.blockNumber,
       chainId := s.chainId,
+      blobBaseFee := s.blobBaseFee,
+      calldataSize := s.calldataSize,
       knownAddresses := fun slotIdx =>
         if slotIdx == 0 then ((s.knownAddresses slotIdx).insert s.sender).insert to
         else s.knownAddresses slotIdx,
@@ -280,6 +286,8 @@ theorem transfer_succeeds_recipient_overflow (s : ContractState) (to : Address) 
       blockTimestamp := s.blockTimestamp,
       blockNumber := s.blockNumber,
       chainId := s.chainId,
+      blobBaseFee := s.blobBaseFee,
+      calldataSize := s.calldataSize,
       knownAddresses := fun slotIdx =>
         if slotIdx == 0 then ((s.knownAddresses slotIdx).insert s.sender).insert to
         else s.knownAddresses slotIdx,

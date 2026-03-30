@@ -1501,6 +1501,8 @@ mutual
     | .msgValue => some state.world.msgValue.val
     | .blockTimestamp => some state.world.blockTimestamp.val
     | .blockNumber => some state.world.blockNumber.val
+    | .blobbasefee => some state.world.blobBaseFee.val
+    | .calldatasize => some state.world.calldataSize.val
     | .localVar name => some (lookupValue state.bindings name)
     | .add a b => do
         let lhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state a
@@ -1614,6 +1616,42 @@ mutual
         let shiftVal ← evalExprWithHelpers spec fields fuel state shift
         let wordVal ← evalExprWithHelpers spec fields fuel state value
         pure (Verity.Core.Uint256.shr shiftVal wordVal).val
+    | .slt a b => do
+        let lhs ← evalExprWithHelpers spec fields fuel state a
+        let rhs ← evalExprWithHelpers spec fields fuel state b
+        pure (boolWord (decide (
+          (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs) : Int) <
+          (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs) : Int))))
+    | .sgt a b => do
+        let lhs ← evalExprWithHelpers spec fields fuel state a
+        let rhs ← evalExprWithHelpers spec fields fuel state b
+        pure (boolWord (decide (
+          (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs) : Int) <
+          (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs) : Int))))
+    | .sdiv a b => do
+        let lhs ← evalExprWithHelpers spec fields fuel state a
+        let rhs ← evalExprWithHelpers spec fields fuel state b
+        pure (Verity.Core.Int256.div
+          (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs))
+          (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs))).toUint256.val
+    | .smod a b => do
+        let lhs ← evalExprWithHelpers spec fields fuel state a
+        let rhs ← evalExprWithHelpers spec fields fuel state b
+        pure (Verity.Core.Int256.mod
+          (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs))
+          (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs))).toUint256.val
+    | .sar a b => do
+        let lhs ← evalExprWithHelpers spec fields fuel state a
+        let rhs ← evalExprWithHelpers spec fields fuel state b
+        pure (Verity.Core.Int256.sar
+          (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs))
+          (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs))).toUint256.val
+    | .signextend a b => do
+        let byteIdx ← evalExprWithHelpers spec fields fuel state a
+        let value ← evalExprWithHelpers spec fields fuel state b
+        pure (Verity.Core.Uint256.signextend
+          (Verity.Core.Uint256.ofNat byteIdx)
+          (Verity.Core.Uint256.ofNat value)).val
     | .internalCall calleeName args =>
         match fuel with
         | 0 => none

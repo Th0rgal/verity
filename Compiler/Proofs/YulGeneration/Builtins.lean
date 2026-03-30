@@ -1,6 +1,8 @@
 import Compiler.Constants
 import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
+import Verity.Core.Int256
+import Verity.Core.Uint256
 
 namespace Compiler.Proofs.YulGeneration
 

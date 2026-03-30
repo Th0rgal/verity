@@ -355,9 +355,12 @@ theorem evalIRExpr_calldatasize_of_runtimeStateMatchesIR
     evalIRExpr state (YulExpr.call "calldatasize" []) =
       some (SourceSemantics.evalExpr fields runtime (.calldatasize)) := by
   rcases hmatch with ⟨_, _, _, _, _, _, _, _, _, hcalldataSize, _, _⟩
-  simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
-  exact hcalldataSize.symm
+  have heval : SourceSemantics.evalExpr fields runtime (.calldatasize) =
+    some runtime.world.calldataSize.val := rfl
+  rw [heval]
+  simp [evalIRExpr, evalIRCall, evalIRExprs,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, hcalldataSize]
 
 theorem eval_compileExpr_calldatasize
     {fields : List Field}
@@ -5832,8 +5835,7 @@ theorem evalExpr_lt_evmModulus_core_onExpr
       · trivial
       · rcases SourceSemantics.evalExpr fields runtime rhs with _ | rVal
         · trivial
-        · simp only [Option.bind_some, Option.some_lt_some]
-          exact (Verity.Core.Int256.div
+        · exact (Verity.Core.Int256.div
             (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lVal))
             (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rVal))).toUint256.isLt
   | @smod lhs rhs _ _ _ _ =>
@@ -5846,8 +5848,7 @@ theorem evalExpr_lt_evmModulus_core_onExpr
       · trivial
       · rcases SourceSemantics.evalExpr fields runtime rhs with _ | rVal
         · trivial
-        · simp only [Option.bind_some, Option.some_lt_some]
-          exact (Verity.Core.Int256.mod
+        · exact (Verity.Core.Int256.mod
             (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lVal))
             (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rVal))).toUint256.isLt
   | @sar lhs rhs _ _ _ _ =>
@@ -5860,8 +5861,7 @@ theorem evalExpr_lt_evmModulus_core_onExpr
       · trivial
       · rcases SourceSemantics.evalExpr fields runtime rhs with _ | rVal
         · trivial
-        · simp only [Option.bind_some, Option.some_lt_some]
-          exact (Verity.Core.Int256.sar
+        · exact (Verity.Core.Int256.sar
             (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lVal))
             (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rVal))).toUint256.isLt
   | @signextend lhs rhs _ _ _ _ =>
@@ -5874,8 +5874,7 @@ theorem evalExpr_lt_evmModulus_core_onExpr
       · trivial
       · rcases SourceSemantics.evalExpr fields runtime rhs with _ | rVal
         · trivial
-        · simp only [Option.bind_some, Option.some_lt_some]
-          exact (Verity.Core.Uint256.signextend
+        · exact (Verity.Core.Uint256.signextend
             (Verity.Core.Uint256.ofNat lVal)
             (Verity.Core.Uint256.ofNat rVal)).isLt
   | @gt lhs rhs _ _ _ _ =>
@@ -7394,7 +7393,7 @@ theorem runtimeStateMatchesIR_setTransientStorage
   cases state
   simp only [runtimeStateMatchesIR] at hmatch ⊢
   obtain ⟨hstor, htrans, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hcds, hret, hevt⟩ := hmatch
-  refine ⟨?_, ?_, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hret, hevt⟩
+  refine ⟨?_, ?_, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hcds, hret, hevt⟩
   · -- storage: encodeStorageAt doesn't depend on transientStorage
     rw [hstor]
     funext slot

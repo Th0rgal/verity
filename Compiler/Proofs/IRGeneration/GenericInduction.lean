@@ -2771,13 +2771,18 @@ private theorem exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_fals
         (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1.1)
         (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1.2)
         (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.2)
-  | .mulDivDown a b c, hsurface | .mulDivUp a b c, hsurface =>
+  | .mulDivDown a b c, hsurface =>
       simp only [exprTouchesUnsupportedContractSurface, Bool.or_eq_false_iff] at hsurface
-      constructor
-      · exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1.1
-      · constructor
-        · exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1.2
-        · exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.2
+      exact .mulDivDown
+        (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1.1)
+        (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1.2)
+        (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.2)
+  | .mulDivUp a b c, hsurface =>
+      simp only [exprTouchesUnsupportedContractSurface, Bool.or_eq_false_iff] at hsurface
+      exact .mulDivUp
+        (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1.1)
+        (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1.2)
+        (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.2)
 
 private theorem fieldName_mem_fields_of_findFieldWithResolvedSlot_some
     {fields : List Field}
@@ -3138,7 +3143,9 @@ private theorem exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
   | le hL hR ihL ihR
   | bitAnd hL hR ihL ihR
   | bitOr hL hR ihL ihR
-  | bitXor hL hR ihL ihR =>
+  | bitXor hL hR ihL ihR
+  | slt hL hR ihL ihR | sgt hL hR ihL ihR | sdiv hL hR ihL ihR
+  | smod hL hR ihL ihR | sar hL hR ihL ihR | signextend hL hR ihL ihR =>
       rename_i lhs rhs
       have hpair :
           (do
@@ -4209,7 +4216,9 @@ private theorem collectExprNames_mem_exprBoundNames_of_core
   | logicalAnd hL hR ihL ihR | logicalOr hL hR ihL ihR
   | shl hL hR ihL ihR | shr hL hR ihL ihR
   | min hL hR ihL ihR | max hL hR ihL ihR
-  | ceilDiv hL hR ihL ihR | wMulDown hL hR ihL ihR | wDivUp hL hR ihL ihR =>
+  | ceilDiv hL hR ihL ihR | wMulDown hL hR ihL ihR | wDivUp hL hR ihL ihR
+  | slt hL hR ihL ihR | sgt hL hR ihL ihR | sdiv hL hR ihL ihR
+  | smod hL hR ihL ihR | sar hL hR ihL ihR | signextend hL hR ihL ihR =>
       intro name hmem
       simp [collectExprNames, FunctionBody.exprBoundNames] at hmem ⊢
       rcases hmem with hmem | hmem
