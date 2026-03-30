@@ -27,7 +27,8 @@ def TxContextNormalized (tx : IRTransaction) : Prop :=
   tx.msgValue < Compiler.Constants.evmModulus ∧
   tx.blockTimestamp < Compiler.Constants.evmModulus ∧
   tx.blockNumber < Compiler.Constants.evmModulus ∧
-  tx.chainId < Compiler.Constants.evmModulus
+  tx.chainId < Compiler.Constants.evmModulus ∧
+  tx.blobBaseFee < Compiler.Constants.evmModulus
 
 def compiledFunctionIR
     (selector : Nat) (spec : FunctionSpec) (returns : List ParamType) (bodyStmts : List YulStmt) :
@@ -584,14 +585,15 @@ theorem initialIRStateForTx_matches_runtime
     (model : CompilationModel)
     (tx : IRTransaction)
     (initialWorld : Verity.ContractState)
-    (htxNormalized : TxContextNormalized tx) :
+    (htxNormalized : TxContextNormalized tx)
+    (hcalldataSizeFits : TxCalldataSizeFitsEvm tx) :
     FunctionBody.runtimeStateMatchesIR
       (SourceSemantics.effectiveFields model)
       { world := SourceSemantics.withTransactionContext initialWorld tx
         bindings := [] }
       (FunctionBody.initialIRStateForTx model tx initialWorld) := by
   rcases htxNormalized with
-    ⟨hsender, hthis, hmsgValue, htimestamp, hnumber, hchain⟩
+    ⟨hsender, hthis, hmsgValue, htimestamp, hnumber, hchain, hblob⟩
   have hsenderEvm : tx.sender < Compiler.Constants.evmModulus := by
     dsimp [Compiler.Constants.addressModulus, Compiler.Constants.evmModulus] at hsender ⊢
     omega
@@ -602,7 +604,7 @@ theorem initialIRStateForTx_matches_runtime
     simpa [Verity.Core.Address.modulus, Compiler.Constants.addressModulus] using hsender
   have hthisAddr : tx.thisAddress < Verity.Core.Address.modulus := by
     simpa [Verity.Core.Address.modulus, Compiler.Constants.addressModulus] using hthis
-  refine ⟨?_, rfl, ?_, ?_, ?_, ?_, ?_, ?_, rfl, ?_⟩
+  refine ⟨?_, rfl, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
   · simpa [FunctionBody.initialIRStateForTx, SourceSemantics.effectiveFields,
       SourceSemantics.encodeStorage] using
       (FunctionBody.encodeStorage_withTransactionContext model initialWorld tx).symm
@@ -634,7 +636,18 @@ theorem initialIRStateForTx_matches_runtime
   · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext]
     symm
     exact Nat.mod_eq_of_lt hchain
-  · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext]
+  · -- returnValue ∧ events
+    constructor
+    · -- returnValue
+      rfl
+    · -- events
+      change (FunctionBody.initialIRStateForTx model tx initialWorld).events =
+        SourceSemantics.encodeEvents
+          (SourceSemantics.withTransactionContext initialWorld tx).events
+      have : (SourceSemantics.withTransactionContext initialWorld tx).events = initialWorld.events :=
+        rfl
+      rw [this]
+      rfl
 
 -- SORRY'D: /-- The ABI parameter-loading prefix reconstructs exactly the decoded source
 -- SORRY'D: bindings for any supported function with pairwise-distinct parameter names. -/
@@ -1174,7 +1187,8 @@ theorem supported_function_correct
         (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [] })
         (fields := SourceSemantics.effectiveFields model)
         (params := fn.params)
-        (initialIRStateForTx_matches_runtime model tx initialWorld htxNormalized)
+        (initialIRStateForTx_matches_runtime model tx initialWorld htxNormalized
+          hcalldataSizeFits)
   have hstateRuntime :
       FunctionBody.runtimeStateMatchesIR
         (SourceSemantics.effectiveFields model)
@@ -1494,7 +1508,7 @@ theorem supported_function_correct
 -- SORRY'D:         (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [] })
 -- SORRY'D:         (fields := SourceSemantics.effectiveFields model)
 -- SORRY'D:         (params := fn.params)
--- SORRY'D:         (initialIRStateForTx_matches_runtime model tx initialWorld htxNormalized)
+-- SORRY'D:         (initialIRStateForTx_matches_runtime model tx initialWorld htxNormalized hcalldataSizeFits)
 -- SORRY'D:   have hstateRuntime :
 -- SORRY'D:       FunctionBody.runtimeStateMatchesIR
 -- SORRY'D:         (SourceSemantics.effectiveFields model)
@@ -2061,7 +2075,7 @@ theorem supported_function_correct_with_helper_proofs_body_goal_and_helper_ir_of
 -- SORRY'D:                         bindings := [] })
 -- SORRY'D:           (fields := SourceSemantics.effectiveFields model)
 -- SORRY'D:           (params := fn.params)
--- SORRY'D:           (initialIRStateForTx_matches_runtime model tx initialWorld htxNormalized)
+-- SORRY'D:           (initialIRStateForTx_matches_runtime model tx initialWorld htxNormalized hcalldataSizeFits)
 -- SORRY'D:     exact runtimeStateMatchesIR_applyBindingsToIRState
 -- SORRY'D:       (state := prebindRawArgs initialState fn.params)
 -- SORRY'D:       (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx
@@ -3541,7 +3555,7 @@ theorem supported_function_correct_with_helper_proofs_body_goal_and_helper_ir_of
 -- SORRY'D:           (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [] })
 -- SORRY'D:           (fields := SourceSemantics.effectiveFields model)
 -- SORRY'D:           (params := fn.params)
--- SORRY'D:           (initialIRStateForTx_matches_runtime model tx initialWorld htxNormalized)
+-- SORRY'D:           (initialIRStateForTx_matches_runtime model tx initialWorld htxNormalized hcalldataSizeFits)
 -- SORRY'D:     exact runtimeStateMatchesIR_applyBindingsToIRState
 -- SORRY'D:       (state := prebindRawArgs initialState fn.params)
 -- SORRY'D:       (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [] })
@@ -3861,7 +3875,8 @@ theorem supported_function_correct_with_helper_proofs_goal
           (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [] })
           (fields := SourceSemantics.effectiveFields model)
           (params := fn.params)
-          (initialIRStateForTx_matches_runtime model tx initialWorld htxNormalized)
+          (initialIRStateForTx_matches_runtime model tx initialWorld htxNormalized
+            hcalldataSizeFits)
     exact runtimeStateMatchesIR_applyBindingsToIRState
       (state := prebindRawArgs initialState fn.params)
       (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [] })
@@ -4004,7 +4019,7 @@ theorem supported_function_correct_with_helper_proofs_goal
 -- SORRY'D:           (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [] })
 -- SORRY'D:           (fields := SourceSemantics.effectiveFields model)
 -- SORRY'D:           (params := fn.params)
--- SORRY'D:           (initialIRStateForTx_matches_runtime model tx initialWorld htxNormalized)
+-- SORRY'D:           (initialIRStateForTx_matches_runtime model tx initialWorld htxNormalized hcalldataSizeFits)
 -- SORRY'D:     exact runtimeStateMatchesIR_applyBindingsToIRState
 -- SORRY'D:       (state := prebindRawArgs initialState fn.params)
 -- SORRY'D:       (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [] })
@@ -4187,7 +4202,7 @@ theorem supported_function_correct_with_helper_proofs
 -- SORRY'D:           (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [] })
 -- SORRY'D:           (fields := SourceSemantics.effectiveFields model)
 -- SORRY'D:           (params := fn.params)
--- SORRY'D:           (initialIRStateForTx_matches_runtime model tx initialWorld htxNormalized)
+-- SORRY'D:           (initialIRStateForTx_matches_runtime model tx initialWorld htxNormalized hcalldataSizeFits)
 -- SORRY'D:     exact runtimeStateMatchesIR_applyBindingsToIRState
 -- SORRY'D:       (state := prebindRawArgs initialState fn.params)
 -- SORRY'D:       (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [] })
