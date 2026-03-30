@@ -1980,7 +1980,7 @@ theorem SupportedStmtList.helperSurfaceClosed
       exact supportedStmtList_mstoreSingle_helperSurfaceClosed hoffset hvalue
   | tstoreSingle hoffset _ hvalue _ =>
       exact supportedStmtList_tstoreSingle_helperSurfaceClosed hoffset hvalue
-  | letStorageField _ =>
+  | letStorageField _ _ =>
       exact supportedStmtList_letStorageField_helperSurfaceClosed
   | returnMapping hkey _ _ =>
       exact supportedStmtList_returnMapping_helperSurfaceClosed hkey
@@ -2090,7 +2090,7 @@ theorem SupportedStmtList.internalHelperCallNames_nil
         exprCompileCore_internalHelperCallNames_nil hoffset,
         exprCompileCore_internalHelperCallNames_nil hvalue,
         List.nil_append, List.append_nil]
-  | letStorageField _ =>
+  | letStorageField _ _ =>
       simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprInternalHelperCallNames,
@@ -3723,7 +3723,7 @@ private theorem supportedStmtList_usesArrayElement_false
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
         exprCompileCore_usesArrayElement_false hoffset,
         exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]
-  | letStorageField _ =>
+  | letStorageField _ _ =>
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement, Bool.false_or]
   | returnMapping hkey _ _ =>
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement,
@@ -3834,7 +3834,7 @@ private theorem supportedStmtList_usesStorageArrayElement_false
       simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false hoffset,
         exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]
-  | letStorageField _ =>
+  | letStorageField _ _ =>
       simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprUsesStorageArrayElement, Bool.false_or]
   | returnMapping hkey _ _ =>
@@ -3948,7 +3948,7 @@ private theorem supportedStmtList_usesDynamicBytesEq_false
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hoffset,
         exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]
-  | letStorageField _ =>
+  | letStorageField _ _ =>
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq, Bool.false_or]
   | returnMapping hkey _ _ =>
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,

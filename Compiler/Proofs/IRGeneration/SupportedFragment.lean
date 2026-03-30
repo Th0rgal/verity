@@ -79,9 +79,10 @@ inductive SupportedStmtList (fields : List Field) : List String → List Stmt �
       {scope : List String}
       {tmp : String}
       {fieldName : String}
-      {field : Field}
       {slot : Nat} :
-      findFieldWithResolvedSlot fields fieldName = some (field, slot) →
+      findFieldWithResolvedSlot fields fieldName =
+        some ({ name := fieldName, ty := FieldType.uint256 }, slot) →
+      fieldName ∈ scope →
       SupportedStmtList fields scope [Stmt.letVar tmp (Expr.storage fieldName)]
   | returnMapping
       {scope : List String}
