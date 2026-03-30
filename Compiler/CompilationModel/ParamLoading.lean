@@ -88,20 +88,7 @@ def genScalarLoad
         YulExpr.hex addressMask
       ])]
   | ParamType.bool =>
-      let boolWord := s!"__abi_bool_word_{offset}"
-      [ YulStmt.let_ boolWord load
-      , YulStmt.if_ (YulExpr.call "iszero" [
-          YulExpr.call "or" [
-            YulExpr.call "eq" [YulExpr.ident boolWord, YulExpr.lit 0],
-            YulExpr.call "eq" [YulExpr.ident boolWord, YulExpr.lit 1]
-          ]
-        ]) [
-          YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
-        ]
-      , YulStmt.let_ name (YulExpr.call "iszero" [YulExpr.call "iszero" [
-          YulExpr.ident boolWord
-        ]])
-      ]
+      [YulStmt.let_ name (YulExpr.call "iszero" [YulExpr.call "iszero" [load]])]
   | _ => []
 
 private partial def genStaticTypeLoads

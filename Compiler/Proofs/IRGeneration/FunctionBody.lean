@@ -907,16 +907,10 @@ private theorem decodeSupportedParamWord_bool_lt_evmModulus
     {word value : Nat}
     (hdecode : SourceSemantics.decodeSupportedParamWord .bool word = some value) :
     value < Compiler.Constants.evmModulus := by
-  by_cases hzero : word % Compiler.Constants.evmModulus = 0
-  · simp [SourceSemantics.decodeSupportedParamWord, SourceSemantics.wordNormalize, hzero] at hdecode
-    cases hdecode
-    simp [Compiler.Constants.evmModulus]
-  · by_cases hone : word % Compiler.Constants.evmModulus = 1
-    · simp [SourceSemantics.decodeSupportedParamWord, SourceSemantics.wordNormalize, hzero, hone] at hdecode
-      cases hdecode
-      simp [Compiler.Constants.evmModulus]
-    · exfalso
-      simp [SourceSemantics.decodeSupportedParamWord, SourceSemantics.wordNormalize, hzero, hone] at hdecode
+  simp only [SourceSemantics.decodeSupportedParamWord, SourceSemantics.wordNormalize,
+    Option.some.injEq] at hdecode
+  subst value
+  split <;> simp [Compiler.Constants.evmModulus]
 
 theorem decodeSupportedParamWord_lt_evmModulus
     {ty : ParamType}

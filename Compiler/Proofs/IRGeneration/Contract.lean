@@ -323,6 +323,15 @@ private theorem legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_scala
       case bytes32 =>
         exact legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_bytes32
           loadWord sizeExpr headSize baseOffset name rest headOffset hrest
+      case bool =>
+        simpa [CompilationModel.genParamLoadBodyFrom, CompilationModel.genScalarLoad] using
+          LegacyCompatibleExternalStmtList.let_
+            name
+            (YulExpr.call "iszero" [YulExpr.call "iszero" [loadWord (YulExpr.lit headOffset)]])
+            (CompilationModel.genParamLoadBodyFrom
+              loadWord sizeExpr headSize baseOffset rest
+                (headOffset + paramHeadSize ParamType.bool))
+            hrest
 
 private theorem legacyCompatibleExternalStmtList_genParamLoadBodyFrom_of_supported
     (loadWord : YulExpr → YulExpr)
