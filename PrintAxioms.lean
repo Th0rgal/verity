@@ -1226,6 +1226,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.fieldName_mem_fields_of_findFieldWithResolvedSlot_some  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.fieldName_mem_fields_of_compileSetStorage_ok  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compileStmt_ite_ok_inv  -- private
+#print axioms Compiler.Proofs.IRGeneration.stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsupportedContractSurface
 -- #print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurface_of_stmtListTouchesUnsupportedContractSurface_append_cons  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.mem_stmtNextScope_of_mem_scope  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.mem_stmtNextScopeList_of_mem_scope  -- private
@@ -2060,4 +2061,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1929 theorems/lemmas (1293 public, 636 private, 0 sorry'd)
+-- Total: 1930 theorems/lemmas (1294 public, 636 private, 0 sorry'd)
