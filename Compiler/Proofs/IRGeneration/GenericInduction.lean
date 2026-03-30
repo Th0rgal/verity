@@ -10930,66 +10930,8 @@ theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunct
     (hNotMapping := hNotMapping)
     (hvalueIR := hvalueIR)
 
--- TYPESIG_SORRY: theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences_of_compileStmtList
--- TYPESIG_SORRY:     {spec : CompilationModel}
--- TYPESIG_SORRY:     {fn : FunctionSpec}
--- TYPESIG_SORRY:     {prefix suffix : List Stmt}
--- TYPESIG_SORRY:     {bodyIR : List YulStmt}
--- TYPESIG_SORRY:     {fieldName : String}
--- TYPESIG_SORRY:     {value : Expr}
--- TYPESIG_SORRY:     {valueIR : YulExpr}
--- TYPESIG_SORRY:     {f : Field}
--- TYPESIG_SORRY:     {slot : Nat}
--- TYPESIG_SORRY:     (hvalidateShapes : validateIdentifierShapes spec = Except.ok ())
--- TYPESIG_SORRY:     (hvalidateRefs : validateFunctionIdentifierReferences fn = Except.ok ())
--- TYPESIG_SORRY:     (hfn : fn ∈ spec.functions)
--- TYPESIG_SORRY:     (hparamScope : paramScopeNames fn.params = fn.params.map (·.name))
--- TYPESIG_SORRY:     (hbodySurface : stmtListTouchesUnsupportedContractSurface fn.body = false)
--- TYPESIG_SORRY:     (hbodyCompile :
--- TYPESIG_SORRY:       CompilationModel.compileStmtList
--- TYPESIG_SORRY:         spec.fields [] [] .calldata [] false (fn.params.map (·.name)) fn.body =
--- TYPESIG_SORRY:           Except.ok bodyIR)
--- TYPESIG_SORRY:     (hbody : fn.body = prefix ++ .setStorage fieldName value :: suffix)
--- TYPESIG_SORRY:     (hcore : FunctionBody.ExprCompileCore value)
--- TYPESIG_SORRY:     (hinScope :
--- TYPESIG_SORRY:       FunctionBody.exprBoundNamesInScope
--- TYPESIG_SORRY:         value
--- TYPESIG_SORRY:         (List.foldl stmtNextScope (fn.params.map (·.name)) prefix))
--- TYPESIG_SORRY:     (hfind : findFieldWithResolvedSlot spec.fields fieldName = some (f, slot))
--- TYPESIG_SORRY:     (hwriteSlots : findFieldWriteSlots spec.fields fieldName = some (slot :: f.aliasSlots))
--- TYPESIG_SORRY:     (hunpacked : f.packedBits = none)
--- TYPESIG_SORRY:     (hnoConflict : firstFieldWriteSlotConflict spec.fields = none)
--- TYPESIG_SORRY:     (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
--- TYPESIG_SORRY:     (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
--- TYPESIG_SORRY:     (hvalueIR : CompilationModel.compileExpr spec.fields .calldata value = Except.ok valueIR) :
--- TYPESIG_SORRY:     ∃ compiledIR,
--- TYPESIG_SORRY:       CompiledStmtStep spec.fields
--- TYPESIG_SORRY:         (List.foldl stmtNextScope (fn.params.map (·.name)) prefix)
--- TYPESIG_SORRY:         (.setStorage fieldName value)
--- TYPESIG_SORRY:         compiledIR := by sorry
--- SORRY'D:   apply compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences
--- SORRY'D:     (hvalidateShapes := hvalidateShapes)
--- SORRY'D:     (hvalidateRefs := hvalidateRefs)
--- SORRY'D:     (hfn := hfn)
--- SORRY'D:     (hparamScope := hparamScope)
--- SORRY'D:     (hprefixCore := stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsupportedContractSurface
--- SORRY'D:       (fields := spec.fields)
--- SORRY'D:       (scope := fn.params.map (·.name))
--- SORRY'D:       (prefix := prefix)
--- SORRY'D:       (suffix := .setStorage fieldName value :: suffix)
--- SORRY'D:       (bodyIR := bodyIR)
--- SORRY'D:       (by simpa [hbody] using hbodySurface)
--- SORRY'D:       (by simpa [hbody] using hbodyCompile))
--- SORRY'D:     (hbody := hbody)
--- SORRY'D:     (hcore := hcore)
--- SORRY'D:     (hinScope := hinScope)
--- SORRY'D:     (hfind := hfind)
--- SORRY'D:     (hwriteSlots := hwriteSlots)
--- SORRY'D:     (hunpacked := hunpacked)
--- SORRY'D:     (hnoConflict := hnoConflict)
--- SORRY'D:     (hnotAddr := hnotAddr)
--- SORRY'D:     (hnotDyn := hnotDyn)
--- SORRY'D:     (hvalueIR := hvalueIR)
+-- NOTE: The _of_compileStmtList intermediate was superseded by _of_bodySurface below.
+-- Its TYPESIG_SORRY signature had a bug (missing hNotMapping parameter) and was bypassed.
 
 theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences_of_compileStmtList_of_bodySurface
     {spec : CompilationModel}
