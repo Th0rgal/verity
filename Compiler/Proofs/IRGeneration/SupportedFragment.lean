@@ -103,6 +103,94 @@ inductive SupportedStmtList (fields : List Field) : List String → List Stmt �
       FunctionBody.exprBoundNamesInScope key scope →
       findFieldSlot fields fieldName = some slot →
       SupportedStmtList fields scope [Stmt.letVar tmp (Expr.mapping fieldName key)]
+  | letMappingWordField
+      {scope : List String}
+      {tmp : String}
+      {fieldName : String}
+      {key : Expr}
+      {wordOffset : Nat}
+      {slot : Nat} :
+      FunctionBody.ExprCompileCore key →
+      FunctionBody.exprBoundNamesInScope key scope →
+      findFieldSlot fields fieldName = some slot →
+      SupportedStmtList fields scope
+        [Stmt.letVar tmp (Expr.mappingWord fieldName key wordOffset)]
+  | letMappingUintField
+      {scope : List String}
+      {tmp : String}
+      {fieldName : String}
+      {key : Expr}
+      {slot : Nat} :
+      FunctionBody.ExprCompileCore key →
+      FunctionBody.exprBoundNamesInScope key scope →
+      findFieldSlot fields fieldName = some slot →
+      SupportedStmtList fields scope [Stmt.letVar tmp (Expr.mappingUint fieldName key)]
+  | letMappingPackedWordField
+      {scope : List String}
+      {tmp : String}
+      {fieldName : String}
+      {key : Expr}
+      {wordOffset : Nat}
+      {packed : PackedBits}
+      {slot : Nat} :
+      FunctionBody.ExprCompileCore key →
+      FunctionBody.exprBoundNamesInScope key scope →
+      findFieldSlot fields fieldName = some slot →
+      SupportedStmtList fields scope
+        [Stmt.letVar tmp (Expr.mappingPackedWord fieldName key wordOffset packed)]
+  | letMapping2Field
+      {scope : List String}
+      {tmp : String}
+      {fieldName : String}
+      {key1 key2 : Expr}
+      {slot : Nat} :
+      FunctionBody.ExprCompileCore key1 →
+      FunctionBody.exprBoundNamesInScope key1 scope →
+      FunctionBody.ExprCompileCore key2 →
+      FunctionBody.exprBoundNamesInScope key2 scope →
+      findFieldSlot fields fieldName = some slot →
+      SupportedStmtList fields scope
+        [Stmt.letVar tmp (Expr.mapping2 fieldName key1 key2)]
+  | letMapping2WordField
+      {scope : List String}
+      {tmp : String}
+      {fieldName : String}
+      {key1 key2 : Expr}
+      {wordOffset : Nat}
+      {slot : Nat} :
+      FunctionBody.ExprCompileCore key1 →
+      FunctionBody.exprBoundNamesInScope key1 scope →
+      FunctionBody.ExprCompileCore key2 →
+      FunctionBody.exprBoundNamesInScope key2 scope →
+      findFieldSlot fields fieldName = some slot →
+      SupportedStmtList fields scope
+        [Stmt.letVar tmp (Expr.mapping2Word fieldName key1 key2 wordOffset)]
+  | letStructMemberField
+      {scope : List String}
+      {tmp : String}
+      {fieldName : String}
+      {key : Expr}
+      {memberName : String}
+      {slot : Nat} :
+      FunctionBody.ExprCompileCore key →
+      FunctionBody.exprBoundNamesInScope key scope →
+      findFieldSlot fields fieldName = some slot →
+      SupportedStmtList fields scope
+        [Stmt.letVar tmp (Expr.structMember fieldName key memberName)]
+  | letStructMember2Field
+      {scope : List String}
+      {tmp : String}
+      {fieldName : String}
+      {key1 key2 : Expr}
+      {memberName : String}
+      {slot : Nat} :
+      FunctionBody.ExprCompileCore key1 →
+      FunctionBody.exprBoundNamesInScope key1 scope →
+      FunctionBody.ExprCompileCore key2 →
+      FunctionBody.exprBoundNamesInScope key2 scope →
+      findFieldSlot fields fieldName = some slot →
+      SupportedStmtList fields scope
+        [Stmt.letVar tmp (Expr.structMember2 fieldName key1 key2 memberName)]
   | setMappingUintSingle
       {scope : List String}
       {fieldName : String}

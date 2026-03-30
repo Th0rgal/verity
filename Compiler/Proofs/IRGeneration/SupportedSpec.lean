@@ -1906,6 +1906,21 @@ theorem SupportedStmtList.helperSurfaceClosed
         exprTouchesUnsupportedHelperSurface,
         exprCompileCore_helperSurfaceClosed hkey,
         Bool.or_false, Bool.false_or]
+  | letMappingWordField hkey _ _ | letMappingUintField hkey _ _
+  | letMappingPackedWordField hkey _ _ | letStructMemberField hkey _ _ =>
+      simp only [stmtListTouchesUnsupportedHelperSurface,
+        stmtTouchesUnsupportedHelperSurface,
+        exprTouchesUnsupportedHelperSurface,
+        exprCompileCore_helperSurfaceClosed hkey,
+        Bool.or_false, Bool.false_or]
+  | letMapping2Field hkey1 _ hkey2 _ _ | letMapping2WordField hkey1 _ hkey2 _ _
+  | letStructMember2Field hkey1 _ hkey2 _ _ =>
+      simp only [stmtListTouchesUnsupportedHelperSurface,
+        stmtTouchesUnsupportedHelperSurface,
+        exprTouchesUnsupportedHelperSurface,
+        exprCompileCore_helperSurfaceClosed hkey1,
+        exprCompileCore_helperSurfaceClosed hkey2,
+        Bool.or_false, Bool.false_or]
   | setMappingUintSingle hkey _ hvalue _ _ =>
       exact supportedStmtList_setMappingUintSingle_helperSurfaceClosed hkey hvalue
   | setMappingChainSingle hkeys _ hvalue _ _ =>
@@ -2016,6 +2031,21 @@ theorem SupportedStmtList.internalHelperCallNames_nil
         stmtInternalHelperCallNames,
         exprInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hkey,
+        List.nil_append, List.append_nil]
+  | letMappingWordField hkey _ _ | letMappingUintField hkey _ _
+  | letMappingPackedWordField hkey _ _ | letStructMemberField hkey _ _ =>
+      simp only [stmtListInternalHelperCallNames,
+        stmtInternalHelperCallNames,
+        exprInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hkey,
+        List.nil_append, List.append_nil]
+  | letMapping2Field hkey1 _ hkey2 _ _ | letMapping2WordField hkey1 _ hkey2 _ _
+  | letStructMember2Field hkey1 _ hkey2 _ _ =>
+      simp only [stmtListInternalHelperCallNames,
+        stmtInternalHelperCallNames,
+        exprInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hkey1,
+        exprCompileCore_internalHelperCallNames_nil hkey2,
         List.nil_append, List.append_nil]
   | setMappingUintSingle hkey _ hvalue _ _ =>
       simp only [stmtListInternalHelperCallNames,
@@ -3608,6 +3638,15 @@ private theorem supportedStmtList_usesArrayElement_false
   | letMappingField hkey _ _ =>
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement,
         exprCompileCore_usesArrayElement_false hkey, Bool.false_or]
+  | letMappingWordField hkey _ _ | letMappingUintField hkey _ _
+  | letMappingPackedWordField hkey _ _ | letStructMemberField hkey _ _ =>
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement,
+        exprCompileCore_usesArrayElement_false hkey, Bool.false_or]
+  | letMapping2Field hkey1 _ hkey2 _ _ | letMapping2WordField hkey1 _ hkey2 _ _
+  | letStructMember2Field hkey1 _ hkey2 _ _ =>
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement,
+        exprCompileCore_usesArrayElement_false hkey1,
+        exprCompileCore_usesArrayElement_false hkey2, Bool.false_or]
   | setMappingUintSingle hkey _ hvalue _ _ =>
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
         exprCompileCore_usesArrayElement_false hkey,
@@ -3702,6 +3741,17 @@ private theorem supportedStmtList_usesStorageArrayElement_false
       simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false hkey, Bool.false_or]
+  | letMappingWordField hkey _ _ | letMappingUintField hkey _ _
+  | letMappingPackedWordField hkey _ _ | letStructMemberField hkey _ _ =>
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprUsesStorageArrayElement,
+        exprCompileCore_usesStorageArrayElement_false hkey, Bool.false_or]
+  | letMapping2Field hkey1 _ hkey2 _ _ | letMapping2WordField hkey1 _ hkey2 _ _
+  | letStructMember2Field hkey1 _ hkey2 _ _ =>
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprUsesStorageArrayElement,
+        exprCompileCore_usesStorageArrayElement_false hkey1,
+        exprCompileCore_usesStorageArrayElement_false hkey2, Bool.false_or]
   | setMappingUintSingle hkey _ hvalue _ _ =>
       simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false hkey,
@@ -3793,6 +3843,15 @@ private theorem supportedStmtList_usesDynamicBytesEq_false
   | letMappingField hkey _ _ =>
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hkey, Bool.false_or]
+  | letMappingWordField hkey _ _ | letMappingUintField hkey _ _
+  | letMappingPackedWordField hkey _ _ | letStructMemberField hkey _ _ =>
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq,
+        exprCompileCore_usesDynamicBytesEq_false hkey, Bool.false_or]
+  | letMapping2Field hkey1 _ hkey2 _ _ | letMapping2WordField hkey1 _ hkey2 _ _
+  | letStructMember2Field hkey1 _ hkey2 _ _ =>
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq,
+        exprCompileCore_usesDynamicBytesEq_false hkey1,
+        exprCompileCore_usesDynamicBytesEq_false hkey2, Bool.false_or]
   | setMappingUintSingle hkey _ hvalue _ _ =>
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hkey,

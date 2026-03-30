@@ -11676,6 +11676,181 @@ private theorem false_of_supportedStmtList_letMappingField_surface_exceptMapping
     stmtTouchesUnsupportedContractSurface,
     exprTouchesUnsupportedContractSurface] at hsurface
 
+private theorem false_of_supportedStmtList_letMappingWordField_surface
+    {tmp fieldName : String}
+    {key : Expr} {wordOffset : Nat}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface
+        [Stmt.letVar tmp (Expr.mappingWord fieldName key wordOffset)] = false) :
+    False :=
+  false_of_supportedStmtList_singleton_stmt_surface
+    (stmt := Stmt.letVar tmp (Expr.mappingWord fieldName key wordOffset))
+    (by simp [stmtTouchesUnsupportedContractSurface,
+      exprTouchesUnsupportedContractSurface])
+    hsurface
+
+private theorem false_of_supportedStmtList_letMappingWordField_surface_exceptMappingWrites
+    {tmp fieldName : String}
+    {key : Expr} {wordOffset : Nat}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites
+        [Stmt.letVar tmp (Expr.mappingWord fieldName key wordOffset)] = false) :
+    False := by
+  simp [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
+    stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
+    stmtTouchesUnsupportedContractSurface,
+    exprTouchesUnsupportedContractSurface] at hsurface
+
+private theorem false_of_supportedStmtList_letMappingUintField_surface
+    {tmp fieldName : String}
+    {key : Expr}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface
+        [Stmt.letVar tmp (Expr.mappingUint fieldName key)] = false) :
+    False :=
+  false_of_supportedStmtList_singleton_stmt_surface
+    (stmt := Stmt.letVar tmp (Expr.mappingUint fieldName key))
+    (by simp [stmtTouchesUnsupportedContractSurface,
+      exprTouchesUnsupportedContractSurface])
+    hsurface
+
+private theorem false_of_supportedStmtList_letMappingUintField_surface_exceptMappingWrites
+    {tmp fieldName : String}
+    {key : Expr}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites
+        [Stmt.letVar tmp (Expr.mappingUint fieldName key)] = false) :
+    False := by
+  simp [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
+    stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
+    stmtTouchesUnsupportedContractSurface,
+    exprTouchesUnsupportedContractSurface] at hsurface
+
+private theorem false_of_supportedStmtList_letMappingPackedWordField_surface
+    {tmp fieldName : String}
+    {key : Expr} {wordOffset : Nat} {packed : PackedBits}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface
+        [Stmt.letVar tmp (Expr.mappingPackedWord fieldName key wordOffset packed)] = false) :
+    False :=
+  false_of_supportedStmtList_singleton_stmt_surface
+    (stmt := Stmt.letVar tmp (Expr.mappingPackedWord fieldName key wordOffset packed))
+    (by simp [stmtTouchesUnsupportedContractSurface,
+      exprTouchesUnsupportedContractSurface])
+    hsurface
+
+private theorem false_of_supportedStmtList_letMappingPackedWordField_surface_exceptMappingWrites
+    {tmp fieldName : String}
+    {key : Expr} {wordOffset : Nat} {packed : PackedBits}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites
+        [Stmt.letVar tmp (Expr.mappingPackedWord fieldName key wordOffset packed)] = false) :
+    False := by
+  simp [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
+    stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
+    stmtTouchesUnsupportedContractSurface,
+    exprTouchesUnsupportedContractSurface] at hsurface
+
+private theorem false_of_supportedStmtList_letMapping2Field_surface
+    {tmp fieldName : String}
+    {key1 key2 : Expr}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface
+        [Stmt.letVar tmp (Expr.mapping2 fieldName key1 key2)] = false) :
+    False :=
+  false_of_supportedStmtList_singleton_stmt_surface
+    (stmt := Stmt.letVar tmp (Expr.mapping2 fieldName key1 key2))
+    (by simp [stmtTouchesUnsupportedContractSurface,
+      exprTouchesUnsupportedContractSurface])
+    hsurface
+
+private theorem false_of_supportedStmtList_letMapping2Field_surface_exceptMappingWrites
+    {tmp fieldName : String}
+    {key1 key2 : Expr}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites
+        [Stmt.letVar tmp (Expr.mapping2 fieldName key1 key2)] = false) :
+    False := by
+  simp [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
+    stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
+    stmtTouchesUnsupportedContractSurface,
+    exprTouchesUnsupportedContractSurface] at hsurface
+
+private theorem false_of_supportedStmtList_letMapping2WordField_surface
+    {tmp fieldName : String}
+    {key1 key2 : Expr} {wordOffset : Nat}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface
+        [Stmt.letVar tmp (Expr.mapping2Word fieldName key1 key2 wordOffset)] = false) :
+    False :=
+  false_of_supportedStmtList_singleton_stmt_surface
+    (stmt := Stmt.letVar tmp (Expr.mapping2Word fieldName key1 key2 wordOffset))
+    (by simp [stmtTouchesUnsupportedContractSurface,
+      exprTouchesUnsupportedContractSurface])
+    hsurface
+
+private theorem false_of_supportedStmtList_letMapping2WordField_surface_exceptMappingWrites
+    {tmp fieldName : String}
+    {key1 key2 : Expr} {wordOffset : Nat}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites
+        [Stmt.letVar tmp (Expr.mapping2Word fieldName key1 key2 wordOffset)] = false) :
+    False := by
+  simp [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
+    stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
+    stmtTouchesUnsupportedContractSurface,
+    exprTouchesUnsupportedContractSurface] at hsurface
+
+private theorem false_of_supportedStmtList_letStructMemberField_surface
+    {tmp fieldName : String}
+    {key : Expr} {memberName : String}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface
+        [Stmt.letVar tmp (Expr.structMember fieldName key memberName)] = false) :
+    False :=
+  false_of_supportedStmtList_singleton_stmt_surface
+    (stmt := Stmt.letVar tmp (Expr.structMember fieldName key memberName))
+    (by simp [stmtTouchesUnsupportedContractSurface,
+      exprTouchesUnsupportedContractSurface])
+    hsurface
+
+private theorem false_of_supportedStmtList_letStructMemberField_surface_exceptMappingWrites
+    {tmp fieldName : String}
+    {key : Expr} {memberName : String}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites
+        [Stmt.letVar tmp (Expr.structMember fieldName key memberName)] = false) :
+    False := by
+  simp [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
+    stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
+    stmtTouchesUnsupportedContractSurface,
+    exprTouchesUnsupportedContractSurface] at hsurface
+
+private theorem false_of_supportedStmtList_letStructMember2Field_surface
+    {tmp fieldName : String}
+    {key1 key2 : Expr} {memberName : String}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface
+        [Stmt.letVar tmp (Expr.structMember2 fieldName key1 key2 memberName)] = false) :
+    False :=
+  false_of_supportedStmtList_singleton_stmt_surface
+    (stmt := Stmt.letVar tmp (Expr.structMember2 fieldName key1 key2 memberName))
+    (by simp [stmtTouchesUnsupportedContractSurface,
+      exprTouchesUnsupportedContractSurface])
+    hsurface
+
+private theorem false_of_supportedStmtList_letStructMember2Field_surface_exceptMappingWrites
+    {tmp fieldName : String}
+    {key1 key2 : Expr} {memberName : String}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites
+        [Stmt.letVar tmp (Expr.structMember2 fieldName key1 key2 memberName)] = false) :
+    False := by
+  simp [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
+    stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
+    stmtTouchesUnsupportedContractSurface,
+    exprTouchesUnsupportedContractSurface] at hsurface
+
 private theorem false_of_supportedStmtList_setMappingUintSingle_surface
     {fieldName : String}
     {key value : Expr}
@@ -12248,6 +12423,20 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface
         hnoConflict hfind hfieldInScope
   | letMappingField _ _ _ =>
       exact False.elim (false_of_supportedStmtList_letMappingField_surface hsurface)
+  | letMappingWordField _ _ _ =>
+      exact False.elim (false_of_supportedStmtList_letMappingWordField_surface hsurface)
+  | letMappingUintField _ _ _ =>
+      exact False.elim (false_of_supportedStmtList_letMappingUintField_surface hsurface)
+  | letMappingPackedWordField _ _ _ =>
+      exact False.elim (false_of_supportedStmtList_letMappingPackedWordField_surface hsurface)
+  | letMapping2Field _ _ _ _ _ =>
+      exact False.elim (false_of_supportedStmtList_letMapping2Field_surface hsurface)
+  | letMapping2WordField _ _ _ _ _ =>
+      exact False.elim (false_of_supportedStmtList_letMapping2WordField_surface hsurface)
+  | letStructMemberField _ _ _ =>
+      exact False.elim (false_of_supportedStmtList_letStructMemberField_surface hsurface)
+  | letStructMember2Field _ _ _ _ _ =>
+      exact False.elim (false_of_supportedStmtList_letStructMember2Field_surface hsurface)
   | setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot =>
       exact False.elim (false_of_supportedStmtList_setMappingUintSingle_surface hsurface)
   | setMappingChainSingle hkeys hscopeKeys hvalue hscopeValue hslot =>
@@ -12316,6 +12505,27 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites
   | letMappingField _ _ _ =>
       exact False.elim
         (false_of_supportedStmtList_letMappingField_surface_exceptMappingWrites hsurface)
+  | letMappingWordField _ _ _ =>
+      exact False.elim
+        (false_of_supportedStmtList_letMappingWordField_surface_exceptMappingWrites hsurface)
+  | letMappingUintField _ _ _ =>
+      exact False.elim
+        (false_of_supportedStmtList_letMappingUintField_surface_exceptMappingWrites hsurface)
+  | letMappingPackedWordField _ _ _ =>
+      exact False.elim
+        (false_of_supportedStmtList_letMappingPackedWordField_surface_exceptMappingWrites hsurface)
+  | letMapping2Field _ _ _ _ _ =>
+      exact False.elim
+        (false_of_supportedStmtList_letMapping2Field_surface_exceptMappingWrites hsurface)
+  | letMapping2WordField _ _ _ _ _ =>
+      exact False.elim
+        (false_of_supportedStmtList_letMapping2WordField_surface_exceptMappingWrites hsurface)
+  | letStructMemberField _ _ _ =>
+      exact False.elim
+        (false_of_supportedStmtList_letStructMemberField_surface_exceptMappingWrites hsurface)
+  | letStructMember2Field _ _ _ _ _ =>
+      exact False.elim
+        (false_of_supportedStmtList_letStructMember2Field_surface_exceptMappingWrites hsurface)
   | setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot =>
       rcases hsafety.setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot with
         ⟨hm, hws, hss⟩
