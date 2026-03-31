@@ -2722,6 +2722,10 @@ private theorem exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_fals
       simp only [exprTouchesUnsupportedContractSurface] at hsurface
       exact .calldataload
         (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface)
+  | .mload a, hsurface =>
+      simp only [exprTouchesUnsupportedContractSurface] at hsurface
+      exact .mload
+        (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface)
   | .ite cond thenVal elseVal, hsurface =>
       simp only [exprTouchesUnsupportedContractSurface, Bool.or_eq_false_iff] at hsurface
       exact .ite
@@ -3112,7 +3116,8 @@ private theorem exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
   | logicalNot h ih
   | bitNot h ih
   | tload h ih
-  | calldataload h ih =>
+  | calldataload h ih
+  | mload h ih =>
       intro name hmem
       simpa [FunctionBody.exprBoundNames] using
         ih
@@ -3971,7 +3976,7 @@ private theorem collectExprNames_mem_exprBoundNames_of_core
       rcases hmem with hmem | hmem
       · exact Or.inl (ihL _ hmem)
       · exact Or.inr (ihR _ hmem)
-  | logicalNot h ih | bitNot h ih | tload h ih | calldataload h ih =>
+  | logicalNot h ih | bitNot h ih | tload h ih | calldataload h ih | mload h ih =>
       intro name hmem; simp [collectExprNames] at hmem
       simpa [FunctionBody.exprBoundNames] using ih _ hmem
   | ite hC hT hE ihC ihT ihE =>
@@ -4513,11 +4518,25 @@ theorem compiledStmtStep_return
         omega
       -- Provide explicit witnesses
       set state' := { state with memory := fun o => if o = 0 then v else state.memory o }
-      refine ⟨.return v runtime, .return v state', ?_, ?_, ?_⟩
-      · simp [SourceSemantics.execStmt, hEvalSrc]
+      have hlt : v < Verity.Core.Uint256.modulus := by
+        have := FunctionBody.evalExpr_lt_evmModulus_core_of_scope hcore hexact hinScope hbounded
+          (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope) hruntime
+        rw [hEvalSrc] at this; exact this
+      set runtime' : SourceSemantics.RuntimeState :=
+        { runtime with world := { runtime.world with
+            memory := fun o => if o = 0 then v else runtime.world.memory o } }
+      refine ⟨.return v runtime', .return v state', ?_, ?_, ?_⟩
+      · show SourceSemantics.execStmt fields runtime (.return value) = .return v runtime'
+        have hunfold : SourceSemantics.execStmt fields runtime (.return value) =
+          match SourceSemantics.evalExpr fields runtime value with
+          | some resolved => .return resolved
+              { runtime with world := { runtime.world with
+                  memory := fun o => if o = 0 then resolved else runtime.world.memory o } }
+          | none => .revert := rfl
+        rw [hunfold, hEvalSrc]
       · rw [hRetVal] at hwhole; rw [hfuelEq]; exact hwhole
       · simp [stmtStepMatchesIRExec, stmtNextScope, collectStmtNames]
-        exact FunctionBody.runtimeStateMatchesIR_setMemory hruntime 0 v
+        exact FunctionBody.runtimeStateMatchesIR_setBothMemory hruntime 0 v hlt
 
 theorem compiledStmtStep_stop
     {fields : List Field}
@@ -6803,8 +6822,14 @@ private theorem compiledStmtStep_mstore_single_preserves
         FunctionBody.scopeNamesPresent_of_included hscope hincl
       have hbounded' : FunctionBody.bindingsBounded runtime'.bindings := by
         simpa [runtime'] using hbounded
-      have hruntime' : FunctionBody.runtimeStateMatchesIR fields runtime' state' :=
-        FunctionBody.runtimeStateMatchesIR_setBothMemory hruntime offsetNat valueNat
+      have hValueLt : valueNat < Verity.Core.Uint256.modulus := by
+        have := FunctionBody.evalExpr_lt_evmModulus_core_of_scope
+          hcoreValue hexact hinScopeValue hbounded
+          (FunctionBody.exprBoundNamesPresent_of_scope hscope hinScopeValue) hruntime
+        rw [hValueSrc] at this; exact this
+      have hruntime' : FunctionBody.runtimeStateMatchesIR fields runtime' state' := by
+        show FunctionBody.runtimeStateMatchesIR fields _ _
+        exact FunctionBody.runtimeStateMatchesIR_setBothMemory hruntime offsetNat valueNat hValueLt
       exact ⟨_, _, hSrcExec, hIRExec,
         hruntime', hexact', hbounded', hscope'⟩
 

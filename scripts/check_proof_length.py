@@ -192,6 +192,11 @@ ALLOWLIST: set[str] = {
     "exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel_step",
     "stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible",
     "stmtListGenericWithHelpersAndHelperIR_of_withHelpers_and_compiledLegacyCompatible",
+    # --- IR interpreter dispatch (mload pre-dispatch adds extra branches) ---
+    "evalIRExprWithInternals_eq_evalIRExpr_of_callsDisjoint",
+    "evalIRExprWithInternals_eq_evalIRExpr_of_no_internal",
+    # --- Return statement compilation (memory sync adds steps) ---
+    "exec_compileStmt_return_core_extraFuel",
     # --- Helper-aware IR compatibility proofs ---
     "execIRStmtWithInternals_eq_execIRStmt_sstore_of_no_internal",
     "execIRStmtWithInternals_eq_execIRStmt_expr_of_no_internal",

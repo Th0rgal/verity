@@ -606,7 +606,7 @@ theorem initialIRStateForTx_matches_runtime
     simpa [Verity.Core.Address.modulus, Compiler.Constants.addressModulus] using hsender
   have hthisAddr : tx.thisAddress < Verity.Core.Address.modulus := by
     simpa [Verity.Core.Address.modulus, Compiler.Constants.addressModulus] using hthis
-  refine ⟨?_, rfl, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  refine ⟨?_, rfl, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
   · simpa [FunctionBody.initialIRStateForTx, SourceSemantics.effectiveFields,
       SourceSemantics.encodeStorage] using
       (FunctionBody.encodeStorage_withTransactionContext model initialWorld tx).symm
@@ -651,6 +651,9 @@ theorem initialIRStateForTx_matches_runtime
     simp only [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext,
       Verity.Core.Uint256.ofNat, this]
     exact Nat.mod_eq_of_lt hcalldataSizeFits
+  · -- memory
+    funext o
+    simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext]
   · -- returnValue
     rfl
   · -- events

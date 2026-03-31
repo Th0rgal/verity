@@ -109,6 +109,7 @@ def runtimeStateMatchesIR
   state.selector = runtime.selector ∧
   state.calldata = runtime.world.calldata ∧
   runtime.world.calldataSize.val = 4 + state.calldata.length * 32 ∧
+  state.memory = (fun o => (runtime.world.memory o).val) ∧
   state.returnValue = none ∧
   state.events = SourceSemantics.encodeEvents runtime.world.events
 
@@ -119,7 +120,7 @@ def initialIRStateForTx
   { vars := []
     storage := SourceSemantics.encodeStorage spec initialWorld
     transientStorage := fun slot => (initialWorld.transientStorage slot).val
-    memory := fun _ => 0
+    memory := fun o => (initialWorld.memory o).val
     calldata := tx.args
     returnValue := none
     sender := tx.sender
@@ -1815,6 +1816,46 @@ theorem compileExpr_mod_ok
       Except.ok (YulExpr.call "mod" [lhsIR, rhsIR]) := by
   rw [CompilationModel.compileExpr, hlhs, hrhs]
   rfl
+
+theorem compileExpr_mload_ok
+    {fields : List Field}
+    {expr : Expr}
+    {exprIR : YulExpr}
+    (hexpr : CompilationModel.compileExpr fields .calldata expr = Except.ok exprIR) :
+    CompilationModel.compileExpr fields .calldata (.mload expr) =
+      Except.ok (YulExpr.call "mload" [exprIR]) := by
+  rw [CompilationModel.compileExpr, hexpr]
+  rfl
+
+private theorem eval_compileExpr_mload_of_compiled
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {offset : Expr}
+    {offsetIR : YulExpr}
+    (hoffset : CompilationModel.compileExpr fields .calldata offset = Except.ok offsetIR)
+    (hEvalOff : evalIRExpr state offsetIR =
+        some (SourceSemantics.evalExpr fields runtime offset))
+    (hruntime : runtimeStateMatchesIR fields runtime state) :
+    evalIRExpr state
+      (CompilationModel.compileExpr fields .calldata (.mload offset)
+        |>.toOption.getD (YulExpr.lit 0)) =
+      some (SourceSemantics.evalExpr fields runtime (.mload offset)) := by
+  rw [compileExpr_mload_ok hoffset]
+  simp only [Except.toOption, Option.getD]
+  rcases hruntime with ⟨_, _, _, _, _, _, _, _, _, _, _, _, hmem, _, _⟩
+  rcases hIR : evalIRExpr state offsetIR with _ | irVal
+  · simp [hIR] at hEvalOff
+  · simp only [hIR] at hEvalOff
+    simp only [Option.pure_def, Option.bind_eq_bind, Option.bind_some] at hEvalOff
+    have hsrc : SourceSemantics.evalExpr fields runtime offset = some irVal := by
+      simpa using hEvalOff.symm
+    have hmload_unfold : SourceSemantics.evalExpr fields runtime (.mload offset) =
+        (SourceSemantics.evalExpr fields runtime offset).bind
+          (fun r => some (runtime.world.memory r).val) := rfl
+    rw [hmload_unfold, hsrc]
+    simp only [Option.bind_some]
+    simp [evalIRExpr, hIR, hmem]
 
 theorem compileExpr_tload_ok
     {fields : List Field}
@@ -4548,6 +4589,10 @@ theorem compileExpr_core_ok
       rcases ihO with ⟨offsetIR, hoffset⟩
       exact ⟨YulExpr.call "calldataload" [offsetIR],
         compileExpr_calldataload_ok hoffset⟩
+  | mload hO ihO =>
+      rename_i offset
+      rcases ihO with ⟨offsetIR, hoffset⟩
+      exact ⟨YulExpr.call "mload" [offsetIR], compileExpr_mload_ok hoffset⟩
 
 mutual
 theorem eval_compileExpr_core_onExpr
@@ -5569,6 +5614,22 @@ theorem eval_compileExpr_core_onExpr
         simpa using htmp
       exact eval_compileExpr_calldataload_of_compiled hoffset hEvalOff hruntime
         (evalExpr_lt_evmModulus_core_onExpr hO hexact' hbounded hpresent' hruntime)
+  | mload hO ihO =>
+      rename_i offset
+      rcases compileExpr_core_ok hO with ⟨offsetIR, hoffset⟩
+      have hexact' : bindingsExactlyMatchIRVarsOnExpr offset runtime.bindings state :=
+        bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
+          intro name hmem
+          simpa [exprBoundNames] using hmem)
+      have hpresent' := exprBoundNamesPresent_of_subset hpresent (by
+        intro name hmem
+        simpa [exprBoundNames] using hmem)
+      have hEvalOff : evalIRExpr state offsetIR =
+          some (SourceSemantics.evalExpr fields runtime offset) := by
+        have htmp := ihO hexact' hbounded hpresent' hruntime
+        rw [hoffset] at htmp
+        simpa using htmp
+      exact eval_compileExpr_mload_of_compiled hoffset hEvalOff hruntime
 
 theorem eval_compileExpr_core
     {fields : List Field}
@@ -6031,6 +6092,14 @@ theorem evalExpr_lt_evmModulus_core_onExpr
       · trivial
       · simp only [Bind.bind, Option.bind, Pure.pure]
         exact calldataloadWord_lt_evmModulus _ _ _
+  | @mload offset _ ihO =>
+      show (do let r ← SourceSemantics.evalExpr fields runtime offset
+               some (runtime.world.memory r).val) < _
+      rcases SourceSemantics.evalExpr fields runtime offset with _ | offsetVal
+      · trivial
+      · simp only [Bind.bind, Option.bind, Pure.pure]
+        have hModEq : Verity.Core.Uint256.modulus = Compiler.Constants.evmModulus := rfl
+        exact hModEq ▸ (runtime.world.memory offsetVal).isLt
 end
 
 theorem evalExpr_lt_evmModulus_core
@@ -6440,6 +6509,16 @@ theorem compileRequireFailCond_core_ok
       exact ⟨YulExpr.call "iszero" [YulExpr.call "calldataload" [exprIR]], by
         rw [CompilationModel.compileRequireFailCond,
           compileExpr_calldataload_ok hexpr]
+        all_goals
+          try rfl
+          try
+            intro a b hEq
+            cases hEq⟩
+  | mload h =>
+      rename_i expr
+      rcases compileExpr_core_ok (fields := fields) h with ⟨exprIR, hexpr⟩
+      exact ⟨YulExpr.call "iszero" [YulExpr.call "mload" [exprIR]], by
+        rw [CompilationModel.compileRequireFailCond, compileExpr_mload_ok hexpr]
         all_goals
           try rfl
           try
@@ -6962,6 +7041,16 @@ theorem eval_compileRequireFailCond_core_onExpr
       · simpa using finishIszeroEval (expr := .calldataload expr)
           (show ExprCompileCore (.calldataload expr) from
             ExprCompileCore.calldataload h) hexact hpresent hexpr
+  | mload h =>
+      rename_i expr
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.mload expr) from
+            ExprCompileCore.mload h) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .mload expr)
+          (show ExprCompileCore (.mload expr) from
+            ExprCompileCore.mload h) hexact hpresent hexpr
 
 theorem runtimeStateMatchesIR_setVar_bindValue
     {fields : List Field}
@@ -7051,24 +7140,13 @@ theorem compileStmt_core_ok
         rw [CompilationModel.compileStmt]
         rfl⟩
 
-theorem runtimeStateMatchesIR_setMemory
-    {fields : List Field}
-    {runtime : SourceSemantics.RuntimeState}
-    {state : IRState}
-    (hmatch : runtimeStateMatchesIR fields runtime state)
-    (offset value : Nat) :
-    runtimeStateMatchesIR fields runtime
-      { state with memory := fun o => if o = offset then value else state.memory o } := by
-  cases runtime
-  cases state
-  simpa [runtimeStateMatchesIR]
-
 theorem runtimeStateMatchesIR_setBothMemory
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
     {state : IRState}
     (hmatch : runtimeStateMatchesIR fields runtime state)
-    (offset value : Nat) :
+    (offset : Nat) (value : Nat)
+    (hvalue : value < Verity.Core.Uint256.modulus) :
     runtimeStateMatchesIR fields
       { runtime with
           world := {
@@ -7079,11 +7157,18 @@ theorem runtimeStateMatchesIR_setBothMemory
   cases runtime
   cases state
   simp only [runtimeStateMatchesIR] at hmatch ⊢
-  obtain ⟨hstor, htrans, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hsel, hcd, hcds, hret, hevt⟩ := hmatch
-  refine ⟨?_, htrans, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hsel, hcd, hcds, hret, hevt⟩
+  obtain ⟨hstor, htrans, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hsel, hcd, hcds, hmem, hret, hevt⟩ := hmatch
+  refine ⟨?_, htrans, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hsel, hcd, hcds, ?_, hret, hevt⟩
   · rw [hstor]
     funext slot
     exact SourceSemantics.encodeStorageAt_congr rfl rfl rfl
+  · -- memory
+    funext o
+    by_cases ho : o = offset
+    · subst ho
+      simp only [ite_true, Verity.Core.Uint256.ofNat, Nat.mod_eq_of_lt hvalue]
+    · simp [ho]
+      exact congrFun hmem o
 
 theorem runtimeStateMatchesIR_setTransientStorage
     {fields : List Field}
@@ -7103,8 +7188,8 @@ theorem runtimeStateMatchesIR_setTransientStorage
   cases runtime
   cases state
   simp only [runtimeStateMatchesIR] at hmatch ⊢
-  obtain ⟨hstor, htrans, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hsel, hcd, hcds, hret, hevt⟩ := hmatch
-  refine ⟨?_, ?_, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hsel, hcd, hcds, hret, hevt⟩
+  obtain ⟨hstor, htrans, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hsel, hcd, hcds, hmem, hret, hevt⟩ := hmatch
+  refine ⟨?_, ?_, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hsel, hcd, hcds, hmem, hret, hevt⟩
   · -- storage: encodeStorageAt doesn't depend on transientStorage
     rw [hstor]
     funext slot
@@ -7354,8 +7439,11 @@ theorem exec_compileStmt_return_core
     · simp [hIR, Option.bind] at heval
     · simp [hIR, Option.bind] at heval
       rw [show SourceSemantics.evalExpr fields runtime value = some v from heval.symm]
+      have hlt : v < Verity.Core.Uint256.modulus := by
+        have := evalExpr_lt_evmModulus_core hcore hexact hbounded hpresent hruntime
+        rw [heval.symm] at this; exact this
       simp [stmtResultMatchesIRExec, stmtResultMatchesIRExecExact]
-      exact ⟨hruntime, hexact, hbounded⟩
+      exact ⟨runtimeStateMatchesIR_setBothMemory hruntime 0 v hlt, hexact, hbounded⟩
 
 theorem exec_compileStmt_return_core_extraFuel
     {fields : List Field}
@@ -7386,6 +7474,9 @@ theorem exec_compileStmt_return_core_extraFuel
     · simp [hIR, Option.bind] at heval
     · simp [hIR, Option.bind] at heval
       rw [show SourceSemantics.evalExpr fields runtime value = some v from heval.symm]
+      have hlt : v < Verity.Core.Uint256.modulus := by
+        have := evalExpr_lt_evmModulus_core hcore hexact hbounded hpresent hruntime
+        rw [heval.symm] at this; exact this
       -- Reduce source side
       simp only [SourceSemantics.execStmt, List.length]
       -- Compute the IR execution result
@@ -7398,11 +7489,13 @@ theorem exec_compileStmt_return_core_extraFuel
         -- Now simp can unfold because fuel is Nat.succ form
         simp only [execIRStmts, execIRStmt, evalIRExpr, evalIRExprs, hIR, Option.bind,
                    ite_true, ite_false]
-      -- Rewrite the goal to use the computed result
-      show stmtResultMatchesIRExec fields (.return v runtime) _ ∧
-           stmtResultMatchesIRExecExact (.return v runtime) _
+      set runtime' : SourceSemantics.RuntimeState :=
+        { runtime with world := { runtime.world with
+            memory := fun o => if o = 0 then Verity.Core.Uint256.ofNat v else runtime.world.memory o } }
+      show stmtResultMatchesIRExec fields (.return v runtime') _ ∧
+           stmtResultMatchesIRExecExact (.return v runtime') _
       rw [hexec]
-      exact ⟨⟨rfl, hruntime⟩, hexact, hbounded⟩
+      exact ⟨⟨rfl, runtimeStateMatchesIR_setBothMemory hruntime 0 v hlt⟩, hexact, hbounded⟩
 
 theorem exec_compileStmt_stop_core
     {fields : List Field}
@@ -9561,13 +9654,20 @@ theorem exec_compileStmtList_core
       · simp [hIR, Option.bind] at heval
         have hEvalSrc : SourceSemantics.evalExpr fields runtime value = some retVal :=
           heval.symm
+        have hlt : retVal < Verity.Core.Uint256.modulus := by
+          have := evalExpr_lt_evmModulus_core_onExpr hvalue
+            (bindingsExactlyMatchIRVars_implies_onExpr hexact) hbounded hpresent hruntime
+          rw [hEvalSrc] at this; exact this
         let state' := { state with memory := fun o => if o = 0 then retVal else state.memory o }
-        rcases ih (runtime := runtime) (state := state')
+        let runtime' : SourceSemantics.RuntimeState :=
+          { runtime with world := { runtime.world with
+              memory := fun o => if o = 0 then retVal else runtime.world.memory o } }
+        rcases ih (runtime := runtime') (state := state')
             (inScopeNames := collectStmtNames (.return value) ++ inScopeNames)
             hscope
             (bindingsExactlyMatchIRVars_setMemory hexact 0 retVal)
             hbounded
-            (runtimeStateMatchesIR_setMemory hruntime 0 retVal) with
+            (runtimeStateMatchesIR_setBothMemory hruntime 0 retVal hlt) with
           ⟨tailIR, htailCompile, htailSem, htailExact⟩
         refine ⟨[ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
                 , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++ tailIR,
@@ -9576,9 +9676,9 @@ theorem exec_compileStmtList_core
           rw [hvalueIR]
           simp [htailCompile]
           exact rfl
-        · have hruntime' : runtimeStateMatchesIR fields runtime state' :=
-            runtimeStateMatchesIR_setMemory hruntime 0 retVal
-          have hexact' : bindingsExactlyMatchIRVars runtime.bindings state' :=
+        · have hruntime' : runtimeStateMatchesIR fields runtime' state' :=
+            runtimeStateMatchesIR_setBothMemory hruntime 0 retVal hlt
+          have hexact' : bindingsExactlyMatchIRVars runtime'.bindings state' :=
             bindingsExactlyMatchIRVars_setMemory hexact 0 retVal
           have hmstore :
               execIRStmt (tailIR.length + 2) state
@@ -9603,15 +9703,15 @@ theorem exec_compileStmtList_core
                 (YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]))
                 tailIR retVal hmstore hreturn)
           rw [SourceSemantics.execStmtList, SourceSemantics.execStmt, hEvalSrc]
-          dsimp [state']
+          dsimp [state', runtime']
           constructor
           · simpa [hirExec] using (show
               stmtResultMatchesIRExec fields
-                (SourceSemantics.StmtResult.return retVal runtime)
+                (SourceSemantics.StmtResult.return retVal runtime')
                 (.return retVal state') from ⟨rfl, hruntime'⟩)
           · simpa [hirExec] using (show
               stmtResultMatchesIRExecExact
-                (SourceSemantics.StmtResult.return retVal runtime)
+                (SourceSemantics.StmtResult.return retVal runtime')
                 (.return retVal state') from ⟨hexact', hbounded⟩)
   | stop hrest ih =>
       rename_i scope rest
@@ -9882,13 +9982,20 @@ theorem exec_compileStmtList_core_extraFuel
       · simp [hIR, Option.bind] at heval
         have hEvalSrc : SourceSemantics.evalExpr fields runtime value = some retVal :=
           heval.symm
+        have hlt : retVal < Verity.Core.Uint256.modulus := by
+          have := evalExpr_lt_evmModulus_core_onExpr hvalue
+            (bindingsExactlyMatchIRVars_implies_onExpr hexact) hbounded hpresent hruntime
+          rw [hEvalSrc] at this; exact this
         let state' := { state with memory := fun o => if o = 0 then retVal else state.memory o }
-        rcases ih (runtime := runtime) (state := state')
+        let runtime' : SourceSemantics.RuntimeState :=
+          { runtime with world := { runtime.world with
+              memory := fun o => if o = 0 then retVal else runtime.world.memory o } }
+        rcases ih (runtime := runtime') (state := state')
             (inScopeNames := collectStmtNames (.return value) ++ inScopeNames)
             hscope
             (bindingsExactlyMatchIRVars_setMemory hexact 0 retVal)
             hbounded
-            (runtimeStateMatchesIR_setMemory hruntime 0 retVal) with
+            (runtimeStateMatchesIR_setBothMemory hruntime 0 retVal hlt) with
           ⟨tailIR, htailCompile, htailSem, htailExact⟩
         refine ⟨[ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
                 , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++ tailIR,
@@ -9897,9 +10004,9 @@ theorem exec_compileStmtList_core_extraFuel
           rw [hvalueIR]
           simp [htailCompile]
           exact rfl
-        · have hruntime' : runtimeStateMatchesIR fields runtime state' :=
-            runtimeStateMatchesIR_setMemory hruntime 0 retVal
-          have hexact' : bindingsExactlyMatchIRVars runtime.bindings state' :=
+        · have hruntime' : runtimeStateMatchesIR fields runtime' state' :=
+            runtimeStateMatchesIR_setBothMemory hruntime 0 retVal hlt
+          have hexact' : bindingsExactlyMatchIRVars runtime'.bindings state' :=
             bindingsExactlyMatchIRVars_setMemory hexact 0 retVal
           have hmstore :
               execIRStmt (tailIR.length + extraFuel + 2) state
@@ -9932,15 +10039,15 @@ theorem exec_compileStmtList_core_extraFuel
                 .return retVal state' := by
             simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using hirExec
           rw [SourceSemantics.execStmtList, SourceSemantics.execStmt, hEvalSrc]
-          dsimp [state']
+          dsimp [state', runtime']
           constructor
           · simpa [hirExec'] using (show
               stmtResultMatchesIRExec fields
-                (SourceSemantics.StmtResult.return retVal runtime)
+                (SourceSemantics.StmtResult.return retVal runtime')
                 (.return retVal state') from ⟨rfl, hruntime'⟩)
           · simpa [hirExec'] using (show
               stmtResultMatchesIRExecExact
-                (SourceSemantics.StmtResult.return retVal runtime)
+                (SourceSemantics.StmtResult.return retVal runtime')
                 (.return retVal state') from ⟨hexact', hbounded⟩)
   | stop hrest ih =>
       rename_i scope rest
@@ -13269,11 +13376,16 @@ theorem stmtResultMatchesIRExec_compiled_return_core_append_wholeFuel_of_scope
   · simp [hIR, Option.bind] at heval
   · simp [hIR, Option.bind] at heval
     rw [show SourceSemantics.evalExpr fields runtime value = some v from heval.symm]
-    -- Source = .return v runtime, IR = .return retVal state'
+    -- Source = .return v runtime', IR = .return retVal state'
     -- retVal = (some v).getD 0 = v
     have hRetVal : (some v).getD 0 = v := rfl
+    have hlt : v < Verity.Core.Uint256.modulus := by
+      have := evalExpr_lt_evmModulus_core_of_scope hcore hexact hinScope hbounded
+        (exprBoundNamesPresent_of_scope hscope hinScope) hruntime
+      rw [show SourceSemantics.evalExpr fields runtime value = some v from heval.symm] at this
+      exact this
     simp only [hRetVal, stmtResultMatchesIRExec]
-    exact ⟨trivial, runtimeStateMatchesIR_setMemory hruntime 0 v⟩
+    exact ⟨trivial, runtimeStateMatchesIR_setBothMemory hruntime 0 v hlt⟩
 
 theorem stmtResultMatchesIRExec_compiled_stop_core_append_wholeFuel
     {fields : List Field}
@@ -13898,17 +14010,17 @@ theorem stmtResultToSourceResult_matches_irExecResult
   cases sourceResult <;> cases irResult <;>
     simp [stmtResultMatchesIRExec] at hmatch
   · rcases hmatch with
-      ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hblob, _, _, hcds, hret, hevents⟩
+      ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hblob, _, _, hcds, _, hret, hevents⟩
     simp [stmtResultToSourceResult, sourceResultMatchesIRResult, irResultOfExecResult,
       SourceSemantics.successResult, SourceSemantics.encodeStorage,
       hstorage, hevents, hret]
   · rcases hmatch with
-      ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hblob, _, _, hcds, hret, hevents⟩
+      ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hblob, _, _, hcds, _, hret, hevents⟩
     simp [stmtResultToSourceResult, sourceResultMatchesIRResult, irResultOfExecResult,
       SourceSemantics.successResult, SourceSemantics.encodeStorage,
       hstorage, hevents]
   · rcases hmatch with
-      ⟨hvalue, hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hblob, _, _, hcds, hret,
+      ⟨hvalue, hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hblob, _, _, hcds, _, hret,
         hevents⟩
     simp [stmtResultToSourceResult, sourceResultMatchesIRResult, irResultOfExecResult,
       SourceSemantics.successResult, SourceSemantics.encodeStorage,

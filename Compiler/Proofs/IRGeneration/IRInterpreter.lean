@@ -237,6 +237,10 @@ def evalIRCall (state : IRState) (func : String) : List YulExpr → Option Nat
       match argVals with
       | [slot] => some (state.transientStorage (slot % Compiler.Constants.evmModulus))
       | _ => none
+    else if func = "mload" then
+      match argVals with
+      | [offset] => some (state.memory offset)
+      | _ => none
     else
       Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
         Compiler.Proofs.YulGeneration.defaultBuiltinBackend
@@ -271,6 +275,16 @@ end -- mutual
   | none => simp
   | some val => simp
 
+
+@[simp] theorem evalIRCall_mload_singleton
+    (state : IRState) (argExpr : YulExpr) :
+    evalIRCall state "mload" [argExpr] =
+      (evalIRExpr state argExpr).bind
+        (fun offset => some (state.memory offset)) := by
+  simp [evalIRCall, evalIRExprs]
+  cases evalIRExpr state argExpr with
+  | none => simp
+  | some val => simp
 
 @[simp] theorem evalIRCall_calldataload_singleton
     (state : IRState) (argExpr : YulExpr) :
@@ -419,6 +433,10 @@ def evalIRCallWithInternals
           if func = "tload" then
             match argVals with
             | [slot] => .values [state'.transientStorage (slot % Compiler.Constants.evmModulus)] state'
+            | _ => .revert state'
+          else if func = "mload" then
+            match argVals with
+            | [offset] => .values [state'.memory offset] state'
             | _ => .revert state'
           else
             match Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
@@ -1170,14 +1188,22 @@ theorem evalIRExprWithInternals_eq_evalIRExpr_of_no_internal
                 cases rest with
                 | nil => simp
                 | cons _ _ => simp
-          · simp only [htload, ↓reduceIte]
-            cases hbuiltin :
-                Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                  Compiler.Proofs.YulGeneration.defaultBuiltinBackend
-                  state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
-                  state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
-            | none => simp [hbuiltin]
-            | some value => simp [hbuiltin]
+          · by_cases hmload : func = "mload"
+            · simp [hmload]
+              cases argVals with
+              | nil => simp
+              | cons offset rest =>
+                  cases rest with
+                  | nil => simp
+                  | cons _ _ => simp
+            · simp only [htload, hmload, ↓reduceIte]
+              cases hbuiltin :
+                  Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
+                    Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                    state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
+                    state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
+              | none => simp [hbuiltin]
+              | some value => simp [hbuiltin]
 
 theorem evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal
     (contract : IRContract)
@@ -1309,22 +1335,22 @@ theorem evalIRExprWithInternals_eq_evalIRExpr_of_callsDisjoint
           simp
       | some argVals =>
           simp only [hfunc]
-          by_cases htload : func = "tload"
-          · simp [htload]
-            cases argVals with
-            | nil => simp
-            | cons slot rest =>
-                cases rest with
-                | nil => simp
-                | cons _ _ => simp
-          · simp only [htload, ↓reduceIte]
-            cases hbuiltin :
-                Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                  Compiler.Proofs.YulGeneration.defaultBuiltinBackend
-                  state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
-                  state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
-            | none => simp [hbuiltin]
-            | some value => simp [hbuiltin]
+          · by_cases hmload : func = "mload"
+            · simp [hmload]
+              cases argVals with
+              | nil => simp
+              | cons offset rest =>
+                  cases rest with
+                  | nil => simp
+                  | cons _ _ => simp
+            · simp only [htload, hmload, ↓reduceIte]
+              cases hbuiltin :
+                  Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
+                    Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                    state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
+                    state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
+              | none => simp [hbuiltin]
+              | some value => simp [hbuiltin]
 
 /-- Expression-list conservative extension under per-expression disjointness.
 Generalizes `evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal`. -/
@@ -1469,14 +1495,22 @@ theorem evalIRCallWithInternals_stmt_eq_of_callsDisjoint
             cases rest with
             | nil => simp
             | cons _ _ => simp
-      · simp only [htload, ↓reduceIte]
-        cases hbuiltin :
-            Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-              Compiler.Proofs.YulGeneration.defaultBuiltinBackend
-              state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
-              state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
-        | none => simp [hbuiltin]
-        | some value => simp [hbuiltin]
+      · by_cases hmload : func = "mload"
+        · simp [hmload]
+          cases argVals with
+          | nil => simp
+          | cons offset rest =>
+              cases rest with
+              | nil => simp
+              | cons _ _ => simp
+        · simp only [htload, hmload, ↓reduceIte]
+          cases hbuiltin :
+              Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
+                Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
+                state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
+          | none => simp [hbuiltin]
+          | some value => simp [hbuiltin]
 
 /-- Statement-level collapse for call expressions when `internalFunctions = []`. -/
 theorem evalIRCallWithInternals_stmt_eq_of_no_internal
@@ -1505,14 +1539,22 @@ theorem evalIRCallWithInternals_stmt_eq_of_no_internal
             cases rest with
             | nil => simp
             | cons _ _ => simp
-      · simp only [htload, ↓reduceIte]
-        cases hbuiltin :
-            Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-              Compiler.Proofs.YulGeneration.defaultBuiltinBackend
-              state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
-              state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
-        | none => simp [hbuiltin]
-        | some value => simp [hbuiltin]
+      · by_cases hmload : func = "mload"
+        · simp [hmload]
+          cases argVals with
+          | nil => simp
+          | cons offset rest =>
+              cases rest with
+              | nil => simp
+              | cons _ _ => simp
+        · simp only [htload, hmload, ↓reduceIte]
+          cases hbuiltin :
+              Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
+                Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
+                state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
+          | none => simp [hbuiltin]
+          | some value => simp [hbuiltin]
 
 /-- Generalized expr-stmt conservative extension under per-expression disjointness.
 This does not require `contract.internalFunctions = []`: it suffices that the
@@ -3208,7 +3250,8 @@ theorem evalIRCallWithInternals_of_builtin
     (argVals : List Nat) (state' : IRState)
     (hargs : evalIRExprsWithInternals contract fuel state args = .values argVals state')
     (hfind : findInternalFunction? contract func = none)
-    (hnotTload : func ≠ "tload") :
+    (hnotTload : func ≠ "tload")
+    (hnotMload : func ≠ "mload") :
     evalIRCallWithInternals contract fuel state func args =
       match Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
           Compiler.Proofs.YulGeneration.defaultBuiltinBackend
@@ -3217,7 +3260,7 @@ theorem evalIRCallWithInternals_of_builtin
           state'.selector state'.calldata func argVals with
       | some value => .values [value] state'
       | none => .revert state' := by
-  simp only [evalIRCallWithInternals, hargs, hfind, hnotTload, ↓reduceIte]
+  simp only [evalIRCallWithInternals, hargs, hfind, hnotTload, hnotMload, ↓reduceIte]
 
 /-- When argument evaluation propagates a control-flow effect (stop/return/revert),
 `evalIRCallWithInternals` propagates it unchanged. -/

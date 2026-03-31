@@ -565,6 +565,9 @@ def evalExpr (fields : List Field) (state : RuntimeState) : Expr → Option Nat
             (Verity.Core.Uint256.shr packed.offset rawWord)
             (packedMaskNat packed)).val
       | none => none
+  | .mload offset => do
+      let resolvedOffset ← evalExpr fields state offset
+      some (state.world.memory resolvedOffset).val
   | .tload offset => do
       let resolvedOffset ← evalExpr fields state offset
       some (state.world.transientStorage resolvedOffset).val
@@ -699,7 +702,9 @@ private theorem evalExpr_mload
     (fields : List Field)
     (state : RuntimeState)
     (a : Expr) :
-    evalExpr fields state (.mload a) = none := rfl
+    evalExpr fields state (.mload a) =
+      (evalExpr fields state a).bind
+        (fun offset => some (state.world.memory offset).val) := rfl
 
 private theorem evalExpr_tload
     (fields : List Field)
@@ -1412,7 +1417,10 @@ mutual
         | none => .revert
     | state, .return value =>
         match evalExpr fields state value with
-        | some resolved => .return resolved state
+        | some resolved => .return resolved
+            { state with
+                world := { state.world with
+                  memory := fun o => if o = 0 then resolved else state.world.memory o } }
         | none => .revert
     | state, .stop => .stop state
     | state, .ite cond thenBranch elseBranch =>
@@ -1920,6 +1928,9 @@ mutual
             let callee ← findUniqueInternalFunction? spec calleeName
             let hresult := interpretInternalFunctionFuel spec fuel callee state.world argVals
             if hresult.success then hresult.returnValue else none
+    | .mload offset => do
+        let resolvedOffset ← evalExprWithHelpers spec fields fuel state offset
+        some (state.world.memory resolvedOffset).val
     | .tload offset => do
         let resolvedOffset ← evalExprWithHelpers spec fields fuel state offset
         some (state.world.transientStorage resolvedOffset).val
@@ -2136,7 +2147,10 @@ mutual
         | none => .revert
     | .return value =>
         match evalExprWithHelpers spec fields fuel state value with
-        | some resolved => .return resolved state
+        | some resolved => .return resolved
+            { state with
+                world := { state.world with
+                  memory := fun o => if o = 0 then resolved else state.world.memory o } }
         | none => .revert
     | .stop => .stop state
     | .ite cond thenBranch elseBranch =>
@@ -2676,7 +2690,10 @@ mutual
     | externalCall _ _ =>
         simpa [evalExprWithHelpers, evalExpr_externalCall]
     | mload a =>
-        simp [evalExprWithHelpers, evalExpr_mload]
+        simp only [exprTouchesUnsupportedHelperSurface] at hsurface
+        have ha :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state a hsurface
+        simp [evalExprWithHelpers, evalExpr_mload, ha]
     | tload a =>
         simp only [exprTouchesUnsupportedHelperSurface] at hsurface
         have ha :=

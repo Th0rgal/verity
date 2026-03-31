@@ -125,6 +125,10 @@ def evalYulCall (state : YulState) (func : String) : List YulExpr → Option Nat
       match argVals with
       | [slot] => some (state.transientStorage (slot % Compiler.Constants.evmModulus))
       | _ => none
+    else if func = "mload" then
+      match argVals with
+      | [offset] => some (state.memory offset)
+      | _ => none
     else
       Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
         Compiler.Proofs.YulGeneration.defaultBuiltinBackend
