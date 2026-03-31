@@ -789,6 +789,7 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_tstore
         []
         LegacyCompatibleExternalStmtList.nil
 
+mutual
 /-- On the current supported contract surface, successful single-statement
 compilation stays inside the legacy helper-free external Yul subset. This is
 the compiled-side compatibility fact needed to reuse already-proved helper-free
@@ -837,8 +838,40 @@ theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractS
   | tstore offset value =>
       simp [stmtTouchesUnsupportedContractSurface] at hsurface
       exact legacyCompatibleExternalStmtList_of_compileStmt_ok_tstore hcompile
+  | ite cond thenBranch elseBranch =>
+      simp only [stmtTouchesUnsupportedContractSurface, Bool.or_eq_false_iff] at hsurface
+      simp only [CompilationModel.compileStmt, bind, Except.bind] at hcompile
+      cases hcond : CompilationModel.compileExpr fields .calldata cond with
+      | error e => simp [hcond] at hcompile
+      | ok condIR =>
+          simp only [hcond] at hcompile
+          cases hthen : CompilationModel.compileStmtList fields [] [] .calldata [] false inScopeNames thenBranch with
+          | error e => simp [hthen] at hcompile
+          | ok thenIR =>
+              simp only [hthen] at hcompile
+              cases helse : CompilationModel.compileStmtList fields [] [] .calldata [] false inScopeNames elseBranch with
+              | error e => simp [helse] at hcompile
+              | ok elseIR =>
+                  simp only [helse] at hcompile
+                  have hthenLegacy := legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface
+                    hnoPacked hsurface.1.2 hthen
+                  have helseLegacy := legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface
+                    hnoPacked hsurface.2 helse
+                  by_cases hempty : elseBranch.isEmpty
+                  · simp [hempty] at hcompile
+                    cases hcompile
+                    exact .if_ condIR thenIR [] hthenLegacy .nil
+                  · simp [hempty] at hcompile
+                    cases hcompile
+                    exact .block _ []
+                      (.let_ _ condIR _
+                        (.if_ _ thenIR _
+                          hthenLegacy
+                          (.if_ _ elseIR [] helseLegacy .nil)))
+                      .nil
   | _ =>
       simp [stmtTouchesUnsupportedContractSurface] at hsurface
+termination_by sizeOf stmt
 
 /-- On the current supported contract surface, successful statement-list
 compilation stays inside the legacy helper-free external Yul subset. -/
@@ -853,12 +886,12 @@ theorem legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContr
       CompilationModel.compileStmtList
         fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-  induction stmts generalizing inScopeNames bodyIR with
-  | nil =>
+  match stmts with
+  | [] =>
       simp [CompilationModel.compileStmtList] at hcompile
       cases hcompile
       exact .nil
-  | cons stmt rest ih =>
+  | stmt :: rest =>
       have hsplit := Bool.or_eq_false_iff.mp hsurface
       have hstmtSurface : stmtTouchesUnsupportedContractSurface stmt = false := by
         simpa [stmtListTouchesUnsupportedContractSurface] using hsplit.1
@@ -869,7 +902,10 @@ theorem legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContr
       exact legacyCompatibleExternalStmtList_append
         (legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface
           hnoPacked hstmtSurface hhead)
-        (ih hrestSurface htail)
+        (legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface
+          hnoPacked hrestSurface htail)
+termination_by sizeOf stmts
+end
 
 /-- Derive the compiled-side legacy-compatibility witness needed by the exact
 helper-aware induction seam from the existing supported contract-surface scan. -/
@@ -2868,6 +2904,83 @@ private theorem compileStmt_ite_ok_inv
               Except.ok elseIR = Except.ok elseIR from
             ⟨condIR, thenIR, elseIR, rfl, rfl, rfl⟩)
 
+private theorem stmtListScopeCore_of_unsupportedContractSurface_eq_false
+    (fields : List Field)
+    (scope : List String)
+    (stmts : List Stmt)
+    (bodyIR : List YulStmt)
+    (hsurface : stmtListTouchesUnsupportedContractSurface stmts = false)
+    (hcompile :
+      CompilationModel.compileStmtList
+        fields [] [] .calldata [] false scope stmts = Except.ok bodyIR) :
+    StmtListScopeCore (fields.map (·.name)) stmts := by
+  match stmts with
+  | [] => exact StmtListScopeCore.nil
+  | stmt :: rest =>
+      rcases FunctionBody.compileStmtList_cons_ok_inv hcompile with
+        ⟨headIR, tailIR, hhead, htail, rfl⟩
+      have hstmtSurface :
+          stmtTouchesUnsupportedContractSurface stmt = false := by
+        simpa [stmtListTouchesUnsupportedContractSurface] using
+          (Bool.or_eq_false_iff.mp hsurface).1
+      have hrestSurface :
+          stmtListTouchesUnsupportedContractSurface rest = false := by
+        simpa [stmtListTouchesUnsupportedContractSurface] using
+          (Bool.or_eq_false_iff.mp hsurface).2
+      have ihRest := stmtListScopeCore_of_unsupportedContractSurface_eq_false
+        fields _ rest _ hrestSurface htail
+      cases stmt with
+      | letVar _ value =>
+          exact .letVar (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+            (by simpa [stmtTouchesUnsupportedContractSurface] using hstmtSurface)) ihRest
+      | assignVar _ value =>
+          exact .assignVar (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+            (by simpa [stmtTouchesUnsupportedContractSurface] using hstmtSurface)) ihRest
+      | setStorage fieldName value =>
+          exact .setStorage
+            (by simp [CompilationModel.compileStmt] at hhead
+                exact fieldName_mem_fields_of_compileSetStorage_ok hhead)
+            (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+              (by simpa [stmtTouchesUnsupportedContractSurface] using hstmtSurface)) ihRest
+      | setStorageAddr fieldName value =>
+          exact .setStorageAddr
+            (by simp [CompilationModel.compileStmt] at hhead
+                exact fieldName_mem_fields_of_compileSetStorage_ok hhead)
+            (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+              (by simpa [stmtTouchesUnsupportedContractSurface] using hstmtSurface)) ihRest
+      | require cond message =>
+          exact .require (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+            (by simpa [stmtTouchesUnsupportedContractSurface] using hstmtSurface)) ihRest
+      | «return» value =>
+          exact .return_ (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+            (by simpa [stmtTouchesUnsupportedContractSurface] using hstmtSurface)) ihRest
+      | stop => exact .stop ihRest
+      | mstore offset value =>
+          have hor := Bool.or_eq_false_iff.mp hstmtSurface
+          exact .mstore (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+            (by simpa [stmtTouchesUnsupportedContractSurface] using hor.1))
+            (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+              (by simpa [stmtTouchesUnsupportedContractSurface] using hor.2)) ihRest
+      | tstore offset value =>
+          have hor := Bool.or_eq_false_iff.mp hstmtSurface
+          exact .tstore (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+            (by simpa [stmtTouchesUnsupportedContractSurface] using hor.1))
+            (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+              (by simpa [stmtTouchesUnsupportedContractSurface] using hor.2)) ihRest
+      | ite cond thenBranch elseBranch =>
+          simp only [stmtTouchesUnsupportedContractSurface,
+            Bool.or_eq_false_iff] at hstmtSurface
+          rcases compileStmt_ite_ok_inv hhead with
+            ⟨_, thenIR, elseIR, _, hthenCompile, helseCompile⟩
+          exact .ite (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+              hstmtSurface.1.1)
+            (stmtListScopeCore_of_unsupportedContractSurface_eq_false
+              fields scope thenBranch thenIR hstmtSurface.1.2 hthenCompile)
+            (stmtListScopeCore_of_unsupportedContractSurface_eq_false
+              fields scope elseBranch elseIR hstmtSurface.2 helseCompile) ihRest
+      | _ => simp [stmtTouchesUnsupportedContractSurface] at hstmtSurface
+termination_by sizeOf stmts
+
 theorem stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsupportedContractSurface
     {fields : List Field}
     {scope : List String}
@@ -2945,7 +3058,19 @@ theorem stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsuppo
             (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
               (by simpa [stmtTouchesUnsupportedContractSurface] using hor.2))
             (ih hrestSurface htail)
-      | ite _ _ _ => simp [stmtTouchesUnsupportedContractSurface] at hstmtSurface
+      | ite cond thenBranch elseBranch =>
+          simp only [stmtTouchesUnsupportedContractSurface,
+            Bool.or_eq_false_iff] at hstmtSurface
+          rcases compileStmt_ite_ok_inv hhead with
+            ⟨_, thenIR, elseIR, _, hthenCompile, helseCompile⟩
+          exact StmtListScopeCore.ite
+            (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+              hstmtSurface.1.1)
+            (stmtListScopeCore_of_unsupportedContractSurface_eq_false
+              fields scope thenBranch thenIR hstmtSurface.1.2 hthenCompile)
+            (stmtListScopeCore_of_unsupportedContractSurface_eq_false
+              fields scope elseBranch elseIR hstmtSurface.2 helseCompile)
+            (ih hrestSurface htail)
       | setMapping _ _ _ | setMappingWord _ _ _ _ | setMappingPackedWord _ _ _ _ _
       | setMapping2 _ _ _ _ | setMapping2Word _ _ _ _ _ | setMappingUint _ _ _
       | setMappingChain _ _ _

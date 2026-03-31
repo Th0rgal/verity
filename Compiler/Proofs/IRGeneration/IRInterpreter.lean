@@ -1335,6 +1335,14 @@ theorem evalIRExprWithInternals_eq_evalIRExpr_of_callsDisjoint
           simp
       | some argVals =>
           simp only [hfunc]
+          by_cases htload : func = "tload"
+          · simp [htload]
+            cases argVals with
+            | nil => simp
+            | cons slot rest =>
+                cases rest with
+                | nil => simp
+                | cons _ _ => simp
           · by_cases hmload : func = "mload"
             · simp [hmload]
               cases argVals with

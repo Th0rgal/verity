@@ -114,6 +114,7 @@ ALLOWLIST: set[str] = {
     "stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites",
     "stmtListGenericCore_singleton_requireLiteralGuardFamilyClause",
     "stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsupportedContractSurface",
+    "stmtListScopeCore_of_unsupportedContractSurface_eq_false",
     "exprBoundNamesInScope_of_validateScopedExprIdentifiers_core",
     "stmtListScopeDiscipline_of_validateScopedStmtListIdentifiers",
     "scopeNamesPresent_foldl_stmtNextScope_of_validateScopedStmtListIdentifiers",
@@ -156,6 +157,7 @@ ALLOWLIST: set[str] = {
     "supported_function_correct_except_mapping_writes",
     "supported_function_correct_with_body_interface_except_mapping_writes",
     # --- Legacy compatibility and dispatch ---
+    "legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface",
     "legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields_resolved",
     "legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface_exceptMappingWrites",
     "legacyCompatibleExternalStmtList_of_compileSetStructMember2_ok",
