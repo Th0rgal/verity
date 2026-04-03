@@ -113,7 +113,7 @@ abstract contract YulTestBase is Test {
             "if [ ! -x \"$compiler\" ] && [ -x \"./compiler/bin/$compiler_name\" ]; then compiler=\"./compiler/bin/$compiler_name\"; fi; ",
             "if [ -f \"$artifact\" ] && [ -x \"$compiler\" ] && [ \"$compiler\" -ot \"$artifact\" ] && ",
             "! find Contracts Compiler Verity -name '*.lean' -newer \"$artifact\" -print -quit | grep -q .; then exit 0; fi; ",
-            "mkdir -p \"$out\" && lake build \"$module\" \"$compiler_target\" >/dev/null && ",
+            "mkdir -p \"$out\" && if [ -x \"$compiler\" ]; then lake build \"$module\" >/dev/null; else lake build \"$module\" \"$compiler_target\" >/dev/null; fi && ",
             "\"$compiler\" --module \"$module\" --output \"$out\" $compiler_args >/dev/null"
         );
         vm.ffi(cmds);
@@ -147,7 +147,7 @@ abstract contract YulTestBase is Test {
             "if [ ! -x \"$compiler\" ] && [ -x \"./compiler/bin/$compiler_name\" ]; then compiler=\"./compiler/bin/$compiler_name\"; fi; ",
             "if [ -f \"$artifact\" ] && [ -x \"$compiler\" ] && [ \"$compiler\" -ot \"$artifact\" ] && [ \"$manifest\" -ot \"$artifact\" ] && ",
             "! find Contracts Compiler Verity -name '*.lean' -newer \"$artifact\" -print -quit | grep -q .; then exit 0; fi; ",
-            "mkdir -p \"$out\" && set -- $(grep -vE '^[[:space:]]*($|#)' \"$manifest\") && lake build \"$@\" \"$compiler_target\" >/dev/null && ",
+            "mkdir -p \"$out\" && set -- $(grep -vE '^[[:space:]]*($|#)' \"$manifest\") && if [ -x \"$compiler\" ]; then lake build \"$@\" >/dev/null; else lake build \"$@\" \"$compiler_target\" >/dev/null; fi && ",
             "\"$compiler\" --manifest \"$manifest\" --output \"$out\" $compiler_args >/dev/null"
         );
         vm.ffi(cmds);
