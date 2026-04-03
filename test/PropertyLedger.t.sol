@@ -365,22 +365,23 @@ contract PropertyLedgerTest is YulTestBase {
 
     /**
      * Property 19: transfer_succeeds_recipient_overflow
-     * The compiled Yul contract guards against recipient balance overflow
-     * (see Ledger.yul: `if lt(newRecipientBal, recipientBal) { revert ... }`).
-     * The Lean-level theorem proves the *specification* allows wrapping,
-     * but the compiled artifact is strictly safer and reverts.
+     * The Lean contract uses Uint256 addition, so recipient overflow wraps.
+     * This property keeps the Foundry expectation aligned with the
+     * proven contract semantics.
      */
-    function testProperty_Transfer_RevertsRecipientOverflow() public {
+    function testProperty_Transfer_WrapsRecipientOverflow() public {
         // Set bob's balance to MAX_UINT256
         setBalance(bob, type(uint256).max);
 
         // Give alice some balance
         setBalance(alice, 1);
 
-        // Alice transfers 1 to bob; compiled Yul reverts on recipient overflow.
+        // Alice transfers 1 to bob; recipient balance wraps to 0 and sender is debited.
         vm.prank(alice);
         (bool success,) = ledger.call(abi.encodeWithSignature("transfer(address,uint256)", bob, 1));
-        assertFalse(success, "Transfer should revert on recipient overflow");
+        assertTrue(success, "Transfer should succeed on recipient overflow");
+        assertEq(getBalanceFromStorage(alice), 0, "sender balance should be debited");
+        assertEq(getBalanceFromStorage(bob), 0, "recipient balance should wrap on overflow");
     }
 
     /**
