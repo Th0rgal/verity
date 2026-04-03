@@ -69,14 +69,17 @@ private def exprCallNames : Expr → List String
   | .not a => exprCallNames a
   | _ => []
 
+/-- Collect all function names called in a single statement. -/
+private def stmtCallNamesOne : Stmt → List String
+  | .emit _ => []
+  | .ite cond thenBr elseBr =>
+    exprCallNames cond ++ thenBr.flatMap stmtCallNamesOne ++ elseBr.flatMap stmtCallNamesOne
+  | .call fnName args =>
+    fnName :: args.flatMap exprCallNames
+
 /-- Collect all function names called in statements. -/
-private partial def stmtCallNames : List Stmt → List String
-  | [] => []
-  | .emit _ :: rest => stmtCallNames rest
-  | .ite cond thenBr elseBr :: rest =>
-    exprCallNames cond ++ stmtCallNames thenBr ++ stmtCallNames elseBr ++ stmtCallNames rest
-  | .call fnName args :: rest =>
-    fnName :: args.flatMap exprCallNames ++ stmtCallNames rest
+private def stmtCallNames (stmts : List Stmt) : List String :=
+  stmts.flatMap stmtCallNamesOne
 
 /-- Collect all param references in an expression (potential constant refs). -/
 private def exprParamRefs : Expr → List String
