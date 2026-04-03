@@ -21,7 +21,7 @@ contract OwnedTest is Test {
     }
 
     /// @notice Test initial owner is set correctly
-    function test_InitialOwner() public {
+    function test_InitialOwner() public view {
         assertEq(owned.getOwner(), alice, "Initial owner should be Alice");
     }
 

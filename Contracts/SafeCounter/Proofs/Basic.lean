@@ -69,6 +69,10 @@ private theorem increment_unfold (s : ContractState)
       blockTimestamp := s.blockTimestamp,
       blockNumber := s.blockNumber,
       chainId := s.chainId,
+      blobBaseFee := s.blobBaseFee,
+      calldataSize := s.calldataSize,
+      calldata := s.calldata,
+      memory := s.memory,
       knownAddresses := s.knownAddresses,
       events := s.events } := by
   verity_unfold increment
@@ -130,6 +134,10 @@ private theorem decrement_unfold (s : ContractState)
       blockTimestamp := s.blockTimestamp,
       blockNumber := s.blockNumber,
       chainId := s.chainId,
+      blobBaseFee := s.blobBaseFee,
+      calldataSize := s.calldataSize,
+      calldata := s.calldata,
+      memory := s.memory,
       knownAddresses := s.knownAddresses,
       events := s.events } := by
   verity_unfold decrement

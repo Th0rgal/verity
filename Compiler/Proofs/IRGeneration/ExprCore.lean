@@ -85,6 +85,8 @@ inductive ExprCompileCore : Expr → Prop where
   | blockTimestamp : ExprCompileCore .blockTimestamp
   | blockNumber : ExprCompileCore .blockNumber
   | chainid : ExprCompileCore .chainid
+  | blobbasefee : ExprCompileCore .blobbasefee
+  | calldatasize : ExprCompileCore .calldatasize
   | add {lhs rhs : Expr} :
       ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.add lhs rhs)
   | sub {lhs rhs : Expr} :
@@ -142,6 +144,24 @@ inductive ExprCompileCore : Expr → Prop where
   | mulDivUp {a b c : Expr} :
       ExprCompileCore a → ExprCompileCore b → ExprCompileCore c →
         ExprCompileCore (.mulDivUp a b c)
+  | slt {lhs rhs : Expr} :
+      ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.slt lhs rhs)
+  | sgt {lhs rhs : Expr} :
+      ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.sgt lhs rhs)
+  | sdiv {lhs rhs : Expr} :
+      ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.sdiv lhs rhs)
+  | smod {lhs rhs : Expr} :
+      ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.smod lhs rhs)
+  | sar {lhs rhs : Expr} :
+      ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.sar lhs rhs)
+  | signextend {lhs rhs : Expr} :
+      ExprCompileCore lhs → ExprCompileCore rhs → ExprCompileCore (.signextend lhs rhs)
+  | tload {offset : Expr} :
+      ExprCompileCore offset → ExprCompileCore (.tload offset)
+  | calldataload {offset : Expr} :
+      ExprCompileCore offset → ExprCompileCore (.calldataload offset)
+  | mload {offset : Expr} :
+      ExprCompileCore offset → ExprCompileCore (.mload offset)
 
 /-! ## Scope analysis -/
 

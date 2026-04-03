@@ -21,7 +21,7 @@ contract OwnedCounterTest is Test {
     }
 
     /// @notice Test initial state
-    function test_InitialState() public {
+    function test_InitialState() public view {
         assertEq(ownedCounter.getOwner(), alice, "Initial owner should be Alice");
         assertEq(ownedCounter.getCount(), 0, "Initial count should be 0");
     }

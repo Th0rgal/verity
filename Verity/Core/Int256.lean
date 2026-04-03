@@ -137,6 +137,14 @@ def mod (a b : Int256) : Int256 :=
     else
       ofInt (Int.ofNat remainder)
 
+def sar (shift value : Int256) : Int256 :=
+  let s := shift.word.val % modulus
+  let v : Int := value
+  if s ≥ 256 then
+    if v < 0 then ofInt (-1) else 0
+  else
+    ofInt (Int.fdiv v (Int.ofNat (2 ^ s)))
+
 def isNeg (value : Int256) : Bool :=
   signBit ≤ value.word.val
 

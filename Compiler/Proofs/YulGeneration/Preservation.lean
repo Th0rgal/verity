@@ -459,7 +459,7 @@ private theorem exec_calldatasizeGuard_noop_of_noWrap
         hEval)
   simpa [execYulStmtsFuel_singleton_succ_bridge] using hstmt
 
-/-! ### buildSwitch stepping axiom
+/-! ### buildSwitch stepping lemmas
 
 The `buildSwitch` block structure generates:
 ```
@@ -475,12 +475,9 @@ Executing this with enough fuel steps through:
 2. `__has_selector = 1`, so `iszero(1) = 0` → first `if_` skipped
 3. `1 ≠ 0` → second `if_` enters body containing the switch
 
-This reduction is mathematically straightforward but difficult to prove mechanically
-because `execYulFuel` is `[reducible]` and `simp` over-reduces to produce
-`Option.map`/`List.find?_map` fusion forms that don't match bridge lemmas.
-
-**TODO**: Prove this mechanically (see issue #1094). The gap is purely technical:
-the theorem statement is correct and the execution trace is well-understood.
+This reduction is proved mechanically below via bridge lemmas that avoid
+`execYulFuel`'s `[reducible]` over-reduction into `Option.map`/`List.find?_map`
+fusion forms.
 -/
 
 /-- After setting `__has_selector := 1`, reading `__has_selector` yields 1. -/
@@ -585,7 +582,8 @@ private theorem execBuildSwitch_none_none_aux_of_noWrap (fuel : Nat) (state : Yu
   simp [execYulStmtsFuel, execYulFuel, hstmt']
 
 /-- The case list emitted by `buildSwitch` is definitionally `switchCases`.
-    Keeping this fact explicit helps avoid large reducible unfold chains in #1094 proofs. -/
+    Keeping this fact explicit helps avoid large reducible unfold chains in the
+    buildSwitch stepping proofs. -/
 private theorem buildSwitch_cases_eq_switchCases (fns : List IRFunction) :
     (fns.map (fun fn =>
       (fn.selector,

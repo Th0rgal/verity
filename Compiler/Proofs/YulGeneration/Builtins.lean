@@ -1,6 +1,8 @@
 import Compiler.Constants
 import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
+import Verity.Core.Int256
+import Verity.Core.Uint256
 
 namespace Compiler.Proofs.YulGeneration
 
@@ -82,6 +84,34 @@ def evalBuiltinCallWithContext
     match argVals with
     | [a, b] => some (if a % evmModulus > b % evmModulus then 1 else 0)
     | _ => none
+  else if func = "slt" then
+    match argVals with
+    | [a, b] =>
+        let sa := Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (a % evmModulus)))
+        let sb := Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (b % evmModulus)))
+        some (if sa < sb then 1 else 0)
+    | _ => none
+  else if func = "sgt" then
+    match argVals with
+    | [a, b] =>
+        let sa := Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (a % evmModulus)))
+        let sb := Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (b % evmModulus)))
+        some (if sb < sa then 1 else 0)
+    | _ => none
+  else if func = "sdiv" then
+    match argVals with
+    | [a, b] =>
+        let sa := Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (a % evmModulus))
+        let sb := Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (b % evmModulus))
+        some (Verity.Core.Int256.div sa sb).toUint256.val
+    | _ => none
+  else if func = "smod" then
+    match argVals with
+    | [a, b] =>
+        let sa := Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (a % evmModulus))
+        let sb := Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (b % evmModulus))
+        some (Verity.Core.Int256.mod sa sb).toUint256.val
+    | _ => none
   else if func = "eq" then
     match argVals with
     | [a, b] => some (if a % evmModulus = b % evmModulus then 1 else 0)
@@ -124,6 +154,20 @@ def evalBuiltinCallWithContext
           some (value / (2 ^ shift))
         else
           some 0
+    | _ => none
+  else if func = "sar" then
+    match argVals with
+    | [shift, value] =>
+        let sa := Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (shift % evmModulus))
+        let sb := Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (value % evmModulus))
+        some (Verity.Core.Int256.sar sa sb).toUint256.val
+    | _ => none
+  else if func = "signextend" then
+    match argVals with
+    | [byteIdx, value] =>
+        some (Verity.Core.Uint256.signextend
+          (Verity.Core.Uint256.ofNat (byteIdx % evmModulus))
+          (Verity.Core.Uint256.ofNat (value % evmModulus))).val
     | _ => none
   else if func = "caller" then
     match argVals with

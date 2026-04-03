@@ -49,7 +49,7 @@ contract SelectorSanityTest is YulTestBase {
         return string.concat(_yulDir(), "/", contractName, ".yul");
     }
 
-    function _assertSelector(string memory path, string memory signature) internal {
+    function _assertSelector(string memory path, string memory signature) internal view {
         string memory yul = vm.readFile(path);
         bytes4 selector = bytes4(keccak256(bytes(signature)));
         string memory selectorHex = _bytes4ToHex(selector);

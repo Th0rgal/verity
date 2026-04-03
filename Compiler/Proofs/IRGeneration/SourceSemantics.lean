@@ -240,10 +240,7 @@ def decodeSupportedParamWord (ty : ParamType) (word : Nat) : Option Nat :=
   | .uint256 | .int256 | .bytes32 => some word
   | .uint8 => some (word &&& (uint8Modulus - 1))
   | .address => some (word &&& Compiler.Constants.addressMask)
-  | .bool =>
-      if word = 0 then some 0
-      else if word = 1 then some 1
-      else none
+  | .bool => some (if word = 0 then 0 else 1)
   | _ => none
 
 def bindValue (bindings : List (String × Nat)) (name : String) (value : Nat) :
@@ -271,6 +268,7 @@ private def findUniqueInternalFunction? (spec : CompilationModel) (calleeName : 
 structure RuntimeState where
   world : Verity.ContractState
   bindings : List (String × Nat)
+  selector : Nat := 0
 
 inductive StmtResult where
   | continue (state : RuntimeState)
@@ -331,6 +329,8 @@ def evalExpr (fields : List Field) (state : RuntimeState) : Expr → Option Nat
   | .msgValue => some state.world.msgValue.val
   | .blockTimestamp => some state.world.blockTimestamp.val
   | .blockNumber => some state.world.blockNumber.val
+  | .blobbasefee => some state.world.blobBaseFee.val
+  | .calldatasize => some state.world.calldataSize.val
   | .localVar name => some (lookupValue state.bindings name)
   | .add a b => do
       let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
@@ -444,6 +444,136 @@ def evalExpr (fields : List Field) (state : RuntimeState) : Expr → Option Nat
       let shiftVal ← evalExpr fields state shift
       let wordVal ← evalExpr fields state value
       pure (Verity.Core.Uint256.shr shiftVal wordVal).val
+  | .slt a b => do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (boolWord (decide (
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs) : Int) <
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs) : Int))))
+  | .sgt a b => do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (boolWord (decide (
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs) : Int) <
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs) : Int))))
+  | .sdiv a b => do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (Verity.Core.Int256.div
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs))
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs))).toUint256.val
+  | .smod a b => do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (Verity.Core.Int256.mod
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs))
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs))).toUint256.val
+  | .sar a b => do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (Verity.Core.Int256.sar
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs))
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs))).toUint256.val
+  | .signextend a b => do
+      let byteIdx ← evalExpr fields state a
+      let value ← evalExpr fields state b
+      pure (Verity.Core.Uint256.signextend
+        (Verity.Core.Uint256.ofNat byteIdx)
+        (Verity.Core.Uint256.ofNat value)).val
+  | .mapping field key => do
+      let keyVal ← evalExpr fields state key
+      match findFieldSlot fields field with
+      | some slot =>
+          some (state.world.storage (Compiler.Proofs.abstractMappingSlot slot keyVal)).val
+      | none => none
+  | .mappingWord field key wordOffset => do
+      let keyVal ← evalExpr fields state key
+      match findFieldSlot fields field with
+      | some slot =>
+          some (state.world.storage
+            (wordNormalize (Compiler.Proofs.abstractMappingSlot slot keyVal + wordOffset))).val
+      | none => none
+  | .mappingUint field key => do
+      let keyVal ← evalExpr fields state key
+      match findFieldSlot fields field with
+      | some slot =>
+          some (state.world.storage (Compiler.Proofs.abstractMappingSlot slot keyVal)).val
+      | none => none
+  | .mapping2 field key1 key2 => do
+      let key1Val ← evalExpr fields state key1
+      let key2Val ← evalExpr fields state key2
+      match findFieldSlot fields field with
+      | some slot =>
+          let innerSlot := Compiler.Proofs.abstractMappingSlot slot key1Val
+          some (state.world.storage (Compiler.Proofs.abstractMappingSlot innerSlot key2Val)).val
+      | none => none
+  | .mapping2Word field key1 key2 wordOffset => do
+      let key1Val ← evalExpr fields state key1
+      let key2Val ← evalExpr fields state key2
+      match findFieldSlot fields field with
+      | some slot =>
+          let innerSlot := Compiler.Proofs.abstractMappingSlot slot key1Val
+          let outerSlot := Compiler.Proofs.abstractMappingSlot innerSlot key2Val
+          some (state.world.storage (wordNormalize (outerSlot + wordOffset))).val
+      | none => none
+  -- mappingChain: deferred — requires List Expr recursion infrastructure
+  -- | .mappingChain field keys => ...
+  | .structMember field key memberName => do
+      let keyVal ← evalExpr fields state key
+      match findFieldSlot fields field, findStructMembers fields field with
+      | some slot, some members =>
+          match findStructMember members memberName with
+          | some member =>
+              let targetSlot := wordNormalize
+                (Compiler.Proofs.abstractMappingSlot slot keyVal + member.wordOffset)
+              let rawWord := (state.world.storage targetSlot).val
+              match member.packed with
+              | none => some rawWord
+              | some packed =>
+                  some (Verity.Core.Uint256.and
+                    (Verity.Core.Uint256.shr packed.offset rawWord)
+                    (packedMaskNat packed)).val
+          | none => none
+      | _, _ => none
+  | .structMember2 field key1 key2 memberName => do
+      let key1Val ← evalExpr fields state key1
+      let key2Val ← evalExpr fields state key2
+      match findFieldSlot fields field, findStructMembers fields field with
+      | some slot, some members =>
+          match findStructMember members memberName with
+          | some member =>
+              let innerSlot := Compiler.Proofs.abstractMappingSlot slot key1Val
+              let outerSlot := Compiler.Proofs.abstractMappingSlot innerSlot key2Val
+              let targetSlot := wordNormalize (outerSlot + member.wordOffset)
+              let rawWord := (state.world.storage targetSlot).val
+              match member.packed with
+              | none => some rawWord
+              | some packed =>
+                  some (Verity.Core.Uint256.and
+                    (Verity.Core.Uint256.shr packed.offset rawWord)
+                    (packedMaskNat packed)).val
+          | none => none
+      | _, _ => none
+  | .mappingPackedWord field key wordOffset packed => do
+      let keyVal ← evalExpr fields state key
+      match findFieldSlot fields field with
+      | some slot =>
+          let targetSlot := wordNormalize
+            (Compiler.Proofs.abstractMappingSlot slot keyVal + wordOffset)
+          let rawWord := (state.world.storage targetSlot).val
+          some (Verity.Core.Uint256.and
+            (Verity.Core.Uint256.shr packed.offset rawWord)
+            (packedMaskNat packed)).val
+      | none => none
+  | .mload offset => do
+      let resolvedOffset ← evalExpr fields state offset
+      some (state.world.memory resolvedOffset).val
+  | .tload offset => do
+      let resolvedOffset ← evalExpr fields state offset
+      some (state.world.transientStorage resolvedOffset).val
+  | .calldataload offset => do
+      let resolvedOffset ← evalExpr fields state offset
+      some (Compiler.Proofs.YulGeneration.calldataloadWord state.selector state.world.calldata resolvedOffset)
   | _ => none
 
 def evalExprList (fields : List Field) (state : RuntimeState) : List Expr → Option (List Nat)
@@ -537,12 +667,12 @@ private theorem evalExpr_constructorArg
 private theorem evalExpr_blobbasefee
     (fields : List Field)
     (state : RuntimeState) :
-    evalExpr fields state .blobbasefee = none := rfl
+    evalExpr fields state .blobbasefee = some state.world.blobBaseFee.val := rfl
 
 private theorem evalExpr_calldatasize
     (fields : List Field)
     (state : RuntimeState) :
-    evalExpr fields state .calldatasize = none := rfl
+    evalExpr fields state .calldatasize = some state.world.calldataSize.val := rfl
 
 private theorem evalExpr_returndataSize
     (fields : List Field)
@@ -572,19 +702,25 @@ private theorem evalExpr_mload
     (fields : List Field)
     (state : RuntimeState)
     (a : Expr) :
-    evalExpr fields state (.mload a) = none := rfl
+    evalExpr fields state (.mload a) =
+      (evalExpr fields state a).bind
+        (fun offset => some (state.world.memory offset).val) := rfl
 
 private theorem evalExpr_tload
     (fields : List Field)
     (state : RuntimeState)
     (a : Expr) :
-    evalExpr fields state (.tload a) = none := rfl
+    evalExpr fields state (.tload a) =
+      (evalExpr fields state a).bind
+        (fun resolvedOffset => some (state.world.transientStorage resolvedOffset).val) := rfl
 
 private theorem evalExpr_calldataload
     (fields : List Field)
     (state : RuntimeState)
     (a : Expr) :
-    evalExpr fields state (.calldataload a) = none := rfl
+    evalExpr fields state (.calldataload a) =
+      (evalExpr fields state a).bind
+        (fun resolvedOffset => some (Compiler.Proofs.YulGeneration.calldataloadWord state.selector state.world.calldata resolvedOffset)) := rfl
 
 private theorem evalExpr_extcodesize
     (fields : List Field)
@@ -734,25 +870,45 @@ private theorem evalExpr_sdiv
     (fields : List Field)
     (state : RuntimeState)
     (a b : Expr) :
-    evalExpr fields state (.sdiv a b) = none := rfl
+    evalExpr fields state (.sdiv a b) = (do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (Verity.Core.Int256.div
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs))
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs))).toUint256.val) := rfl
 
 private theorem evalExpr_smod
     (fields : List Field)
     (state : RuntimeState)
     (a b : Expr) :
-    evalExpr fields state (.smod a b) = none := rfl
+    evalExpr fields state (.smod a b) = (do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (Verity.Core.Int256.mod
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs))
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs))).toUint256.val) := rfl
 
 private theorem evalExpr_sgt
     (fields : List Field)
     (state : RuntimeState)
     (a b : Expr) :
-    evalExpr fields state (.sgt a b) = none := rfl
+    evalExpr fields state (.sgt a b) = (do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (boolWord (decide (
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs) : Int) <
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs) : Int))))) := rfl
 
 private theorem evalExpr_slt
     (fields : List Field)
     (state : RuntimeState)
     (a b : Expr) :
-    evalExpr fields state (.slt a b) = none := rfl
+    evalExpr fields state (.slt a b) = (do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (boolWord (decide (
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs) : Int) <
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs) : Int))))) := rfl
 
 private theorem evalExpr_bitAnd
     (fields : List Field)
@@ -811,13 +967,23 @@ private theorem evalExpr_sar
     (fields : List Field)
     (state : RuntimeState)
     (shift value : Expr) :
-    evalExpr fields state (.sar shift value) = none := rfl
+    evalExpr fields state (.sar shift value) = (do
+      let lhs ← evalExpr fields state shift
+      let rhs ← evalExpr fields state value
+      pure (Verity.Core.Int256.sar
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs))
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs))).toUint256.val) := rfl
 
 private theorem evalExpr_signextend
     (fields : List Field)
     (state : RuntimeState)
     (byteIndex value : Expr) :
-    evalExpr fields state (.signextend byteIndex value) = none := rfl
+    evalExpr fields state (.signextend byteIndex value) = (do
+      let b ← evalExpr fields state byteIndex
+      let v ← evalExpr fields state value
+      pure (Verity.Core.Uint256.signextend
+        (Verity.Core.Uint256.ofNat b)
+        (Verity.Core.Uint256.ofNat v)).val) := rfl
 
 private theorem evalExpr_logicalNot
     (fields : List Field)
@@ -870,14 +1036,24 @@ private theorem evalExpr_mapping
     (state : RuntimeState)
     (field : String)
     (key : Expr) :
-    evalExpr fields state (.mapping field key) = none := rfl
+    evalExpr fields state (.mapping field key) = (do
+      let keyVal ← evalExpr fields state key
+      match findFieldSlot fields field with
+      | some slot =>
+          some (state.world.storage (Compiler.Proofs.abstractMappingSlot slot keyVal)).val
+      | none => none) := rfl
 
 private theorem evalExpr_mappingUint
     (fields : List Field)
     (state : RuntimeState)
     (field : String)
     (key : Expr) :
-    evalExpr fields state (.mappingUint field key) = none := rfl
+    evalExpr fields state (.mappingUint field key) = (do
+      let keyVal ← evalExpr fields state key
+      match findFieldSlot fields field with
+      | some slot =>
+          some (state.world.storage (Compiler.Proofs.abstractMappingSlot slot keyVal)).val
+      | none => none) := rfl
 
 private theorem evalExpr_arrayElement
     (fields : List Field)
@@ -892,7 +1068,13 @@ private theorem evalExpr_mappingWord
     (field : String)
     (key : Expr)
     (wordOffset : Nat) :
-    evalExpr fields state (.mappingWord field key wordOffset) = none := rfl
+    evalExpr fields state (.mappingWord field key wordOffset) = (do
+      let keyVal ← evalExpr fields state key
+      match findFieldSlot fields field with
+      | some slot =>
+          some (state.world.storage
+            (wordNormalize (Compiler.Proofs.abstractMappingSlot slot keyVal + wordOffset))).val
+      | none => none) := rfl
 
 private theorem evalExpr_mappingPackedWord
     (fields : List Field)
@@ -901,7 +1083,17 @@ private theorem evalExpr_mappingPackedWord
     (key : Expr)
     (wordOffset : Nat)
     (packed : PackedBits) :
-    evalExpr fields state (.mappingPackedWord field key wordOffset packed) = none := rfl
+    evalExpr fields state (.mappingPackedWord field key wordOffset packed) = (do
+      let keyVal ← evalExpr fields state key
+      match findFieldSlot fields field with
+      | some slot =>
+          let targetSlot := wordNormalize
+            (Compiler.Proofs.abstractMappingSlot slot keyVal + wordOffset)
+          let rawWord := (state.world.storage targetSlot).val
+          some (Verity.Core.Uint256.and
+            (Verity.Core.Uint256.shr packed.offset rawWord)
+            (packedMaskNat packed)).val
+      | none => none) := rfl
 
 private theorem evalExpr_structMember
     (fields : List Field)
@@ -909,7 +1101,23 @@ private theorem evalExpr_structMember
     (field : String)
     (key : Expr)
     (memberName : String) :
-    evalExpr fields state (.structMember field key memberName) = none := rfl
+    evalExpr fields state (.structMember field key memberName) = (do
+      let keyVal ← evalExpr fields state key
+      match findFieldSlot fields field, findStructMembers fields field with
+      | some slot, some members =>
+          match findStructMember members memberName with
+          | some member =>
+              let targetSlot := wordNormalize
+                (Compiler.Proofs.abstractMappingSlot slot keyVal + member.wordOffset)
+              let rawWord := (state.world.storage targetSlot).val
+              match member.packed with
+              | none => some rawWord
+              | some packed =>
+                  some (Verity.Core.Uint256.and
+                    (Verity.Core.Uint256.shr packed.offset rawWord)
+                    (packedMaskNat packed)).val
+          | none => none
+      | _, _ => none) := rfl
 
 private theorem evalExpr_storageArrayElement
     (fields : List Field)
@@ -930,7 +1138,14 @@ private theorem evalExpr_mapping2
     (state : RuntimeState)
     (field : String)
     (key1 key2 : Expr) :
-    evalExpr fields state (.mapping2 field key1 key2) = none := rfl
+    evalExpr fields state (.mapping2 field key1 key2) = (do
+      let key1Val ← evalExpr fields state key1
+      let key2Val ← evalExpr fields state key2
+      match findFieldSlot fields field with
+      | some slot =>
+          let innerSlot := Compiler.Proofs.abstractMappingSlot slot key1Val
+          some (state.world.storage (Compiler.Proofs.abstractMappingSlot innerSlot key2Val)).val
+      | none => none) := rfl
 
 private theorem evalExpr_mapping2Word
     (fields : List Field)
@@ -938,7 +1153,15 @@ private theorem evalExpr_mapping2Word
     (field : String)
     (key1 key2 : Expr)
     (wordOffset : Nat) :
-    evalExpr fields state (.mapping2Word field key1 key2 wordOffset) = none := rfl
+    evalExpr fields state (.mapping2Word field key1 key2 wordOffset) = (do
+      let key1Val ← evalExpr fields state key1
+      let key2Val ← evalExpr fields state key2
+      match findFieldSlot fields field with
+      | some slot =>
+          let innerSlot := Compiler.Proofs.abstractMappingSlot slot key1Val
+          let outerSlot := Compiler.Proofs.abstractMappingSlot innerSlot key2Val
+          some (state.world.storage (wordNormalize (outerSlot + wordOffset))).val
+      | none => none) := rfl
 
 private theorem evalExpr_structMember2
     (fields : List Field)
@@ -946,7 +1169,25 @@ private theorem evalExpr_structMember2
     (field : String)
     (key1 key2 : Expr)
     (memberName : String) :
-    evalExpr fields state (.structMember2 field key1 key2 memberName) = none := rfl
+    evalExpr fields state (.structMember2 field key1 key2 memberName) = (do
+      let key1Val ← evalExpr fields state key1
+      let key2Val ← evalExpr fields state key2
+      match findFieldSlot fields field, findStructMembers fields field with
+      | some slot, some members =>
+          match findStructMember members memberName with
+          | some member =>
+              let innerSlot := Compiler.Proofs.abstractMappingSlot slot key1Val
+              let outerSlot := Compiler.Proofs.abstractMappingSlot innerSlot key2Val
+              let targetSlot := wordNormalize (outerSlot + member.wordOffset)
+              let rawWord := (state.world.storage targetSlot).val
+              match member.packed with
+              | none => some rawWord
+              | some packed =>
+                  some (Verity.Core.Uint256.and
+                    (Verity.Core.Uint256.shr packed.offset rawWord)
+                    (packedMaskNat packed)).val
+          | none => none
+      | _, _ => none) := rfl
 
 private theorem evalExpr_ceilDiv
     (fields : List Field)
@@ -1147,7 +1388,15 @@ mutual
         | _, _ => .revert
     | state, .mstore offset value =>
         match evalExpr fields state offset, evalExpr fields state value with
-        | some _, some _ => .continue state
+        | some resolvedOffset, some resolvedValue =>
+            .continue {
+              state with
+              world := {
+                state.world with
+                memory := fun o =>
+                  if o = resolvedOffset then resolvedValue else state.world.memory o
+              }
+            }
         | _, _ => .revert
     | state, .tstore offset value =>
         match evalExpr fields state offset, evalExpr fields state value with
@@ -1168,7 +1417,10 @@ mutual
         | none => .revert
     | state, .return value =>
         match evalExpr fields state value with
-        | some resolved => .return resolved state
+        | some resolved => .return resolved
+            { state with
+                world := { state.world with
+                  memory := fun o => if o = 0 then resolved else state.world.memory o } }
         | none => .revert
     | state, .stop => .stop state
     | state, .ite cond thenBranch elseBranch =>
@@ -1246,7 +1498,10 @@ def withTransactionContext (world : Verity.ContractState) (tx : IRTransaction) :
     msgValue := tx.msgValue
     blockTimestamp := tx.blockTimestamp
     blockNumber := tx.blockNumber
-    chainId := tx.chainId }
+    chainId := tx.chainId
+    blobBaseFee := tx.blobBaseFee
+    calldataSize := Verity.Core.Uint256.ofNat (4 + tx.args.length * 32)
+    calldata := tx.args }
 
 theorem findDynamicArrayElementAtSlot_withTransactionContext
     (fields : List Field)
@@ -1380,7 +1635,7 @@ def interpretFunction (spec : CompilationModel) (fn : FunctionSpec)
   match bindSupportedParams fn.params tx.args with
   | none => revertedResult spec worldWithTx
   | some bindings =>
-      match execStmtList fields { world := worldWithTx, bindings := bindings } fn.body with
+      match execStmtList fields { world := worldWithTx, bindings := bindings, selector := tx.functionSelector } fn.body with
       | .continue state => successResult spec state.world none
       | .stop state => successResult spec state.world none
       | .return value state => successResult spec state.world (some value)
@@ -1431,6 +1686,8 @@ mutual
     | .msgValue => some state.world.msgValue.val
     | .blockTimestamp => some state.world.blockTimestamp.val
     | .blockNumber => some state.world.blockNumber.val
+    | .blobbasefee => some state.world.blobBaseFee.val
+    | .calldatasize => some state.world.calldataSize.val
     | .localVar name => some (lookupValue state.bindings name)
     | .add a b => do
         let lhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state a
@@ -1544,6 +1801,125 @@ mutual
         let shiftVal ← evalExprWithHelpers spec fields fuel state shift
         let wordVal ← evalExprWithHelpers spec fields fuel state value
         pure (Verity.Core.Uint256.shr shiftVal wordVal).val
+    | .slt a b => do
+        let lhs ← evalExprWithHelpers spec fields fuel state a
+        let rhs ← evalExprWithHelpers spec fields fuel state b
+        pure (boolWord (decide (
+          (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs) : Int) <
+          (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs) : Int))))
+    | .sgt a b => do
+        let lhs ← evalExprWithHelpers spec fields fuel state a
+        let rhs ← evalExprWithHelpers spec fields fuel state b
+        pure (boolWord (decide (
+          (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs) : Int) <
+          (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs) : Int))))
+    | .sdiv a b => do
+        let lhs ← evalExprWithHelpers spec fields fuel state a
+        let rhs ← evalExprWithHelpers spec fields fuel state b
+        pure (Verity.Core.Int256.div
+          (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs))
+          (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs))).toUint256.val
+    | .smod a b => do
+        let lhs ← evalExprWithHelpers spec fields fuel state a
+        let rhs ← evalExprWithHelpers spec fields fuel state b
+        pure (Verity.Core.Int256.mod
+          (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs))
+          (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs))).toUint256.val
+    | .sar a b => do
+        let lhs ← evalExprWithHelpers spec fields fuel state a
+        let rhs ← evalExprWithHelpers spec fields fuel state b
+        pure (Verity.Core.Int256.sar
+          (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lhs))
+          (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rhs))).toUint256.val
+    | .signextend a b => do
+        let byteIdx ← evalExprWithHelpers spec fields fuel state a
+        let value ← evalExprWithHelpers spec fields fuel state b
+        pure (Verity.Core.Uint256.signextend
+          (Verity.Core.Uint256.ofNat byteIdx)
+          (Verity.Core.Uint256.ofNat value)).val
+    | .mapping field key => do
+        let keyVal ← evalExprWithHelpers spec fields fuel state key
+        match findFieldSlot fields field with
+        | some slot =>
+            some (state.world.storage (Compiler.Proofs.abstractMappingSlot slot keyVal)).val
+        | none => none
+    | .mappingWord field key wordOffset => do
+        let keyVal ← evalExprWithHelpers spec fields fuel state key
+        match findFieldSlot fields field with
+        | some slot =>
+            some (state.world.storage
+              (wordNormalize (Compiler.Proofs.abstractMappingSlot slot keyVal + wordOffset))).val
+        | none => none
+    | .mappingUint field key => do
+        let keyVal ← evalExprWithHelpers spec fields fuel state key
+        match findFieldSlot fields field with
+        | some slot =>
+            some (state.world.storage (Compiler.Proofs.abstractMappingSlot slot keyVal)).val
+        | none => none
+    | .mapping2 field key1 key2 => do
+        let key1Val ← evalExprWithHelpers spec fields fuel state key1
+        let key2Val ← evalExprWithHelpers spec fields fuel state key2
+        match findFieldSlot fields field with
+        | some slot =>
+            let innerSlot := Compiler.Proofs.abstractMappingSlot slot key1Val
+            some (state.world.storage (Compiler.Proofs.abstractMappingSlot innerSlot key2Val)).val
+        | none => none
+    | .mapping2Word field key1 key2 wordOffset => do
+        let key1Val ← evalExprWithHelpers spec fields fuel state key1
+        let key2Val ← evalExprWithHelpers spec fields fuel state key2
+        match findFieldSlot fields field with
+        | some slot =>
+            let innerSlot := Compiler.Proofs.abstractMappingSlot slot key1Val
+            let outerSlot := Compiler.Proofs.abstractMappingSlot innerSlot key2Val
+            some (state.world.storage (wordNormalize (outerSlot + wordOffset))).val
+        | none => none
+    | .mappingPackedWord field key wordOffset packed => do
+        let keyVal ← evalExprWithHelpers spec fields fuel state key
+        match findFieldSlot fields field with
+        | some slot =>
+            let targetSlot := wordNormalize
+              (Compiler.Proofs.abstractMappingSlot slot keyVal + wordOffset)
+            let rawWord := (state.world.storage targetSlot).val
+            some (Verity.Core.Uint256.and
+              (Verity.Core.Uint256.shr packed.offset rawWord)
+              (packedMaskNat packed)).val
+        | none => none
+    | .structMember field key memberName => do
+        let keyVal ← evalExprWithHelpers spec fields fuel state key
+        match findFieldSlot fields field, findStructMembers fields field with
+        | some slot, some members =>
+            match findStructMember members memberName with
+            | some member =>
+                let targetSlot := wordNormalize
+                  (Compiler.Proofs.abstractMappingSlot slot keyVal + member.wordOffset)
+                let rawWord := (state.world.storage targetSlot).val
+                match member.packed with
+                | none => some rawWord
+                | some packed =>
+                    some (Verity.Core.Uint256.and
+                      (Verity.Core.Uint256.shr packed.offset rawWord)
+                      (packedMaskNat packed)).val
+            | none => none
+        | _, _ => none
+    | .structMember2 field key1 key2 memberName => do
+        let key1Val ← evalExprWithHelpers spec fields fuel state key1
+        let key2Val ← evalExprWithHelpers spec fields fuel state key2
+        match findFieldSlot fields field, findStructMembers fields field with
+        | some slot, some members =>
+            match findStructMember members memberName with
+            | some member =>
+                let innerSlot := Compiler.Proofs.abstractMappingSlot slot key1Val
+                let outerSlot := Compiler.Proofs.abstractMappingSlot innerSlot key2Val
+                let targetSlot := wordNormalize (outerSlot + member.wordOffset)
+                let rawWord := (state.world.storage targetSlot).val
+                match member.packed with
+                | none => some rawWord
+                | some packed =>
+                    some (Verity.Core.Uint256.and
+                      (Verity.Core.Uint256.shr packed.offset rawWord)
+                      (packedMaskNat packed)).val
+            | none => none
+        | _, _ => none
     | .internalCall calleeName args =>
         match fuel with
         | 0 => none
@@ -1552,6 +1928,15 @@ mutual
             let callee ← findUniqueInternalFunction? spec calleeName
             let hresult := interpretInternalFunctionFuel spec fuel callee state.world argVals
             if hresult.success then hresult.returnValue else none
+    | .mload offset => do
+        let resolvedOffset ← evalExprWithHelpers spec fields fuel state offset
+        some (state.world.memory resolvedOffset).val
+    | .tload offset => do
+        let resolvedOffset ← evalExprWithHelpers spec fields fuel state offset
+        some (state.world.transientStorage resolvedOffset).val
+    | .calldataload offset => do
+        let resolvedOffset ← evalExprWithHelpers spec fields fuel state offset
+        some (Compiler.Proofs.YulGeneration.calldataloadWord state.selector state.world.calldata resolvedOffset)
     | _ => none
   termination_by expr => (fuel, sizeOf expr)
   decreasing_by all_goals (simp_wf; omega)
@@ -1732,7 +2117,15 @@ mutual
     | .mstore offset value =>
         match evalExprWithHelpers spec fields fuel state offset,
             evalExprWithHelpers spec fields fuel state value with
-        | some _, some _ => .continue state
+        | some resolvedOffset, some resolvedValue =>
+            .continue {
+              state with
+              world := {
+                state.world with
+                memory := fun o =>
+                  if o = resolvedOffset then resolvedValue else state.world.memory o
+              }
+            }
         | _, _ => .revert
     | .tstore offset value =>
         match evalExprWithHelpers spec fields fuel state offset,
@@ -1754,7 +2147,10 @@ mutual
         | none => .revert
     | .return value =>
         match evalExprWithHelpers spec fields fuel state value with
-        | some resolved => .return resolved state
+        | some resolved => .return resolved
+            { state with
+                world := { state.world with
+                  memory := fun o => if o = 0 then resolved else state.world.memory o } }
         | none => .revert
     | .stop => .stop state
     | .ite cond thenBranch elseBranch =>
@@ -1867,7 +2263,7 @@ def interpretFunctionWithHelpers
   match bindSupportedParams fn.params tx.args with
   | none => revertedResult spec worldWithTx
   | some bindings =>
-      match execStmtListWithHelpers spec fields fuel { world := worldWithTx, bindings := bindings } fn.body with
+      match execStmtListWithHelpers spec fields fuel { world := worldWithTx, bindings := bindings, selector := tx.functionSelector } fn.body with
       | .continue state => successResult spec state.world none
       | .stop state => successResult spec state.world none
       | .return value state => successResult spec state.world (some value)
@@ -2273,28 +2669,43 @@ mutual
         simpa [evalExprWithHelpers, evalExpr_param]
     | localVar _ =>
         simpa [evalExprWithHelpers, evalExpr_localVar]
-    | caller | contractAddress | chainid | msgValue | blockTimestamp | blockNumber =>
+    | caller | contractAddress | chainid | msgValue | blockTimestamp | blockNumber | blobbasefee
+    | calldatasize =>
         simp [evalExprWithHelpers, evalExpr_caller, evalExpr_contractAddress, evalExpr_chainid,
-          evalExpr_msgValue, evalExpr_blockTimestamp, evalExpr_blockNumber]
+          evalExpr_msgValue, evalExpr_blockTimestamp, evalExpr_blockNumber, evalExpr_blobbasefee,
+          evalExpr_calldatasize]
     | storage _ =>
         simpa [evalExprWithHelpers, evalExpr_storage]
     | storageAddr _ =>
         simpa [evalExprWithHelpers, evalExpr_storageAddr]
     | storageArrayLength _ =>
         simpa [evalExprWithHelpers, evalExpr_storageArrayLength]
-    | constructorArg _ | blobbasefee | calldatasize | returndataSize =>
-        simp [evalExprWithHelpers, evalExpr_constructorArg, evalExpr_blobbasefee,
-          evalExpr_calldatasize, evalExpr_returndataSize]
+    | constructorArg _ | returndataSize =>
+        simp [evalExprWithHelpers, evalExpr_constructorArg,
+          evalExpr_returndataSize]
     | arrayLength _ =>
         simpa [evalExprWithHelpers, evalExpr_arrayLength]
     | dynamicBytesEq _ _ =>
         simpa [evalExprWithHelpers, evalExpr_dynamicBytesEq]
     | externalCall _ _ =>
         simpa [evalExprWithHelpers, evalExpr_externalCall]
-    | mload a | tload a =>
-        simp [evalExprWithHelpers, evalExpr_mload, evalExpr_tload]
-    | calldataload a | extcodesize a | returndataOptionalBoolAt a =>
-        simp [evalExprWithHelpers, evalExpr_calldataload, evalExpr_extcodesize,
+    | mload a =>
+        simp only [exprTouchesUnsupportedHelperSurface] at hsurface
+        have ha :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state a hsurface
+        simp [evalExprWithHelpers, evalExpr_mload, ha]
+    | tload a =>
+        simp only [exprTouchesUnsupportedHelperSurface] at hsurface
+        have ha :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state a hsurface
+        simp [evalExprWithHelpers, evalExpr_tload, ha]
+    | calldataload a =>
+        simp only [exprTouchesUnsupportedHelperSurface] at hsurface
+        have ha :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state a hsurface
+        simp [evalExprWithHelpers, evalExpr_calldataload, ha]
+    | extcodesize a | returndataOptionalBoolAt a =>
+        simp [evalExprWithHelpers, evalExpr_extcodesize,
           evalExpr_returndataOptionalBoolAt]
     | keccak256 a b =>
         simpa [evalExprWithHelpers, evalExpr_keccak256]
@@ -2322,7 +2733,12 @@ mutual
         simpa [evalExprWithHelpers, evalExpr_eq, evalExpr_ge, evalExpr_gt, evalExpr_lt,
           evalExpr_le, evalExpr_logicalAnd, evalExpr_logicalOr, ha, hb]
     | sdiv a b | smod a b | sgt a b | slt a b =>
-        simp [evalExprWithHelpers, evalExpr_sdiv, evalExpr_smod, evalExpr_sgt, evalExpr_slt]
+        simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+        have ha :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state a hsurface.1
+        have hb :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state b hsurface.2
+        simpa [evalExprWithHelpers, evalExpr_sdiv, evalExpr_smod, evalExpr_sgt, evalExpr_slt, ha, hb]
     | bitAnd a b | bitOr a b | bitXor a b | min a b | max a b | wMulDown a b | wDivUp a b =>
         simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
         have ha :=
@@ -2338,25 +2754,51 @@ mutual
         have hb :=
           evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state b hsurface.2
         simpa [evalExprWithHelpers, evalExpr_shl, evalExpr_shr, ha, hb]
-    | sar a b | signextend a b =>
-        simp [evalExprWithHelpers, evalExpr_sar, evalExpr_signextend]
+    | sar a b =>
+        simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+        have ha :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state a hsurface.1
+        have hb :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state b hsurface.2
+        simpa [evalExprWithHelpers, evalExpr_sar, ha, hb]
+    | signextend a b =>
+        simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+        have ha :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state a hsurface.1
+        have hb :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state b hsurface.2
+        simpa [evalExprWithHelpers, evalExpr_signextend, ha, hb]
     | bitNot a | logicalNot a =>
         simp only [exprTouchesUnsupportedHelperSurface] at hsurface
         have ha :=
           evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state a hsurface
         simpa [evalExprWithHelpers, evalExpr_bitNot, evalExpr_logicalNot, ha]
-    | mapping _ b | mappingUint _ b | arrayElement _ b
+    | mapping _ b | mappingUint _ b =>
+        simp only [exprTouchesUnsupportedHelperSurface] at hsurface
+        have hb :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state b hsurface
+        simpa [evalExprWithHelpers, evalExpr_mapping, evalExpr_mappingUint, hb]
+    | arrayElement _ b =>
+        simp [evalExprWithHelpers, evalExpr_arrayElement]
     | mappingWord _ b _ | mappingPackedWord _ b _ _ | structMember _ b _ =>
-        simp [evalExprWithHelpers, evalExpr_mapping, evalExpr_mappingUint, evalExpr_arrayElement,
-          evalExpr_mappingWord, evalExpr_mappingPackedWord, evalExpr_structMember]
+        simp only [exprTouchesUnsupportedHelperSurface] at hsurface
+        have hb :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state b hsurface
+        simpa [evalExprWithHelpers, evalExpr_mappingWord, evalExpr_mappingPackedWord,
+          evalExpr_structMember, hb]
     | storageArrayElement fieldName b =>
         simp only [exprTouchesUnsupportedHelperSurface] at hsurface
         have hb :=
           evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state b hsurface
         simpa [evalExprWithHelpers, evalExpr_storageArrayElement, hb]
     | mapping2 _ a b | mapping2Word _ a b _ | structMember2 _ a b _ =>
-        simp [evalExprWithHelpers, evalExpr_mapping2, evalExpr_mapping2Word,
-          evalExpr_structMember2]
+        simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+        have ha :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state a hsurface.1
+        have hb :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state b hsurface.2
+        simpa [evalExprWithHelpers, evalExpr_mapping2, evalExpr_mapping2Word,
+          evalExpr_structMember2, ha, hb]
     | ceilDiv a b =>
         simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
         have ha :=
@@ -2860,14 +3302,14 @@ theorem interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
   | some bindings =>
       have hbody :
           execStmtListWithHelpers spec (effectiveFields spec) fuel
-              { world := withTransactionContext initialWorld tx, bindings := bindings } fn.body =
+              { world := withTransactionContext initialWorld tx, bindings := bindings, selector := tx.functionSelector } fn.body =
             execStmtList (effectiveFields spec)
-              { world := withTransactionContext initialWorld tx, bindings := bindings } fn.body :=
+              { world := withTransactionContext initialWorld tx, bindings := bindings, selector := tx.functionSelector } fn.body :=
         execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
           (spec := spec)
           (fields := effectiveFields spec)
           (fuel := fuel)
-          (state := { world := withTransactionContext initialWorld tx, bindings := bindings })
+          (state := { world := withTransactionContext initialWorld tx, bindings := bindings, selector := tx.functionSelector })
           (stmts := fn.body)
           hsurface
       simp [hbody]

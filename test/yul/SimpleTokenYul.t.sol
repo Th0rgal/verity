@@ -23,7 +23,7 @@ contract SimpleTokenYulTest is YulTestBase {
         solidityImpl = new SimpleToken(alice);
     }
 
-    function testOwnerAndSupply() public {
+    function testOwnerAndSupply() public view {
         assertEq(solidityImpl.owner(), yul.owner());
         assertEq(solidityImpl.totalSupply(), yul.totalSupply());
     }

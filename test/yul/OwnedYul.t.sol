@@ -20,7 +20,7 @@ contract OwnedYulTest is YulTestBase {
         solidityImpl = new Owned(alice);
     }
 
-    function testInitialOwner() public {
+    function testInitialOwner() public view {
         assertEq(solidityImpl.getOwner(), alice);
         assertEq(yul.getOwner(), alice);
     }

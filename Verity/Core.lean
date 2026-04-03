@@ -63,6 +63,10 @@ structure ContractState where
   blockTimestamp : Uint256
   blockNumber : Uint256 := 0
   chainId : Uint256 := 0
+  blobBaseFee : Uint256 := 0
+  calldataSize : Uint256 := 0
+  calldata : List Nat := []                 -- Calldata words (immutable after tx start)
+  memory : Nat → Uint256 := fun _ => 0     -- EVM memory (word-addressed, zero-initialized)
   knownAddresses : Nat → FiniteAddressSet  -- Tracked addresses per storage slot (for sum properties)
   events : List Event := []  -- Emitted events, append-only log (#153)
 
