@@ -230,6 +230,16 @@ private def hasSubstr (haystack needle : String) : Bool :=
   | some _ => IO.println "✓ Param type mismatch detected"
   | none => throw (IO.userError "expected type mismatch error")
 
+-- Test: undefined constant reference is caught.
+#eval do
+  let badSpec : IntentSpec := { erc20IntentSpec with
+    constants := []  -- remove MAX_UINT256 constant
+  }
+  let errors := Validate.validate badSpec mockErc20Model
+  match errors.find? (fun e => hasSubstr e "undefined name 'MAX_UINT256'") with
+  | some _ => IO.println "✓ Undefined constant reference detected"
+  | none => throw (IO.userError "expected undefined name error")
+
 /-! ## Circuit Output Cross-Validation Tests
 
 Verify that `evalIntentCircuitOutput` computes the same `(templateId, holeValues)`

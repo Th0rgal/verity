@@ -35,10 +35,6 @@ private def findFunction? (cm : CompilationModel) (name : String) : Option Funct
 private def findFnDecl? (spec : IntentSpec) (name : String) : Option FnDecl :=
   spec.fns.find? (fun f => f.name == name)
 
-/-- Find a constant definition by name. -/
-private def findConst? (spec : IntentSpec) (name : String) : Option ConstDef :=
-  spec.constants.find? (fun c => c.name == name)
-
 /-- Validate that intent function params match the ABI function params.
     Returns a list of error messages. -/
 private def validateParams
@@ -81,7 +77,7 @@ private def stmtCallNamesOne : Stmt → List String
 private def stmtCallNames (stmts : List Stmt) : List String :=
   stmts.flatMap stmtCallNamesOne
 
-/-- Collect all param references in an expression (potential constant refs). -/
+/-- Collect all param/constant references in an expression. -/
 private def exprParamRefs : Expr → List String
   | .param name => [name]
   | .eq a b | .ne a b | .lt a b | .gt a b | .le a b | .ge a b
@@ -89,6 +85,28 @@ private def exprParamRefs : Expr → List String
   | .not a => exprParamRefs a
   | .call _ args => args.flatMap exprParamRefs
   | _ => []
+
+/-- Collect all param/constant references in a single statement. -/
+private def stmtParamRefsOne : Stmt → List String
+  | .emit tmpl => tmpl.holes.map (·.param)
+  | .ite cond thenBr elseBr =>
+    exprParamRefs cond ++ thenBr.flatMap stmtParamRefsOne ++ elseBr.flatMap stmtParamRefsOne
+  | .call _ args => args.flatMap exprParamRefs
+
+/-- Validate that all param/constant references in a function resolve to either
+    a function parameter or a defined constant. -/
+private def validateRefsInFn (spec : IntentSpec) (fn : FnDecl) : List String :=
+  let paramNames := fn.params.map (·.1)
+  let constNames := spec.constants.map (·.name)
+  let knownNames := paramNames ++ constNames
+  let bodyRefs := fn.body.flatMap stmtParamRefsOne
+  let exprRefs := match fn.expr with
+    | some e => exprParamRefs e
+    | none => []
+  let allRefs := bodyRefs ++ exprRefs
+  allRefs.filterMap fun name =>
+    if knownNames.contains name then none
+    else some s!"Function '{fn.name}': references undefined name '{name}'"
 
 /-- Validate that all function calls in a function body resolve to known functions. -/
 private def validateCallsInFn (spec : IntentSpec) (fn : FnDecl) : List String :=
@@ -136,7 +154,9 @@ def validate (spec : IntentSpec) (cm : CompilationModel) : List String :=
   let callErrors := spec.fns.flatMap (validateCallsInFn spec)
   -- 4. Validate Phase 1 type restrictions
   let typeErrors := spec.fns.flatMap validatePhase1Types
-  -- 5. Check for duplicate binding function names
+  -- 5. Validate all param/constant references resolve
+  let refErrors := spec.fns.flatMap (validateRefsInFn spec)
+  -- 6. Check for duplicate binding function names
   let bindingNames := spec.bindings.map (·.functionName)
   let dupErrors :=
     let rec findDup : List String → List String → List String
@@ -146,7 +166,7 @@ def validate (spec : IntentSpec) (cm : CompilationModel) : List String :=
         then s!"Duplicate binding for function '{n}'" :: findDup rest seen
         else findDup rest (n :: seen)
     findDup bindingNames []
-  nameErrors ++ bindingErrors ++ callErrors ++ typeErrors ++ dupErrors
+  nameErrors ++ bindingErrors ++ callErrors ++ typeErrors ++ refErrors ++ dupErrors
 
 /-- Convenience: validate and return an Except. -/
 def validateOrError (spec : IntentSpec) (cm : CompilationModel) : Except String Unit :=
