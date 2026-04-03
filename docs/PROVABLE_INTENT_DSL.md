@@ -27,15 +27,17 @@ to verified Groth16 proof:
 ./scripts/test_circom_e2e.sh
 ```
 
-This script runs 10 tests across 5 pipeline stages:
+This script runs 18 tests across 5 pipeline stages (2 contracts, 6 circuits):
 
-1. **Generate** `.circom` files from the ERC-20 `IntentSpec` (via `lake env lean`)
+1. **Generate** `.circom` files from the ERC-20 and Ledger `IntentSpec`s (via `lake env lean`)
 2. **Compile** circuits with `circom` (syntax check + constraint generation)
 3. **Compute** Poseidon commitment inputs using `circomlibjs`
 4. **Witness** generation and R1CS constraint verification with `snarkjs`
 5. **Prove** Groth16 proof generation (trusted setup → prove → verify)
 
 ### Test Matrix
+
+**ERC-20 Contract:**
 
 | Test | Function | Input | Branch | TemplateId | Witness | Proof |
 |------|----------|-------|--------|------------|---------|-------|
@@ -45,7 +47,16 @@ This script runs 10 tests across 5 pipeline stages:
 | `transferFrom_2000` | `transferFrom(from=0xcafe, to=0xdead, amount=2000)` | Specific amount | else | 1 | PASS | PASS |
 | `transferFrom_max` | `transferFrom(from=0xcafe, to=0xdead, amount=MAX)` | All tokens | then | 0 | PASS | PASS |
 
-All 10 tests pass: 5 witness verifications + 5 Groth16 proof verifications.
+**Ledger Contract:**
+
+| Test | Function | Input | Branch | TemplateId | Witness | Proof |
+|------|----------|-------|--------|------------|---------|-------|
+| `deposit_5000` | `deposit(amount=5000)` | Deposit | — | 0 | PASS | PASS |
+| `withdraw_3000` | `withdraw(amount=3000)` | Withdraw | — | 0 | PASS | PASS |
+| `ledger_transfer_2000` | `transfer(to=0xdead, amount=2000)` | Specific amount | else | 1 | PASS | PASS |
+| `ledger_transfer_max` | `transfer(to=0xdead, amount=MAX)` | All tokens | then | 0 | PASS | PASS |
+
+All 18 tests pass: 9 witness verifications + 9 Groth16 proof verifications.
 
 ### What the Proof Proves
 
@@ -71,7 +82,8 @@ IntentSpec (Lean)
     │
     ├── Compiler/Circom.lean         Circom circuit generator
     │
-    └── Contracts/ERC20/Display.lean Production intentSpec constant
+    ├── Contracts/ERC20/Display.lean  Production ERC-20 intentSpec
+    └── Contracts/Ledger/Display.lean Production Ledger intentSpec
          │
          └── .circom files
               │
@@ -102,18 +114,22 @@ The `--circom-output` flag triggers:
 - [x] `Compiler/CircomTest.lean` — Regression tests for generated Circom structure
 - [x] `--circom-output <dir>` CLI flag (wired through compile pipeline)
 - [x] `Contracts/ERC20/Display.lean` — Production `intentSpec` for the ERC-20 contract
+- [x] `Contracts/Ledger/Display.lean` — Production `intentSpec` for the Ledger contract
 - [x] ERC-20 example with 5 test cases: transfer, approve, transferFrom (witness + proof)
+- [x] Ledger example with 4 test cases: deposit, withdraw, transfer (witness + proof)
 - [x] Groth16 proof generation and verification
 - [x] `lake build` passes, `make check` passes
 
 ### Constraint Budget (Measured)
 
-| Component | Constraints |
-|-----------|------------|
-| 2× Poseidon(4) commitments | ~480 |
-| uint256 equality (2× IsEqual) | ~10 |
-| Branch selection | ~2 |
-| Signal routing | ~113 |
-| **Total (non-linear)** | **605** |
+| Circuit | Non-linear Constraints | Notes |
+|---------|----------------------|-------|
+| ERC20 Transfer | 605 | 2 params, conditional |
+| ERC20 Approve | 605 | 2 params, conditional |
+| ERC20 TransferFrom | 653 | 3 params, conditional, Poseidon(5) |
+| Ledger Deposit | 528 | 1 param, unconditional |
+| Ledger Withdraw | 528 | 1 param, unconditional |
+| Ledger Transfer | 605 | 2 params, conditional |
 
-This is well within the estimated ~700-1,500 range from the design document.
+All well within the estimated ~700-1,500 range from the design document. Unconditional
+circuits (deposit, withdraw) are smaller since they skip the IsEqual comparator.

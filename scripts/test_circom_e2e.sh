@@ -63,28 +63,40 @@ echo "$CIRCOM_OUTPUT" | awk '
   found{print}
 ' > "$WORK_DIR/ERC20_approve.circom"
 
-# Extract transferFrom circuit (from transferFrom header to end)
+# Extract transferFrom circuit (between transferFrom and Ledger.deposit headers)
 echo "$CIRCOM_OUTPUT" | awk '
   /^=== Generated Circom for ERC20.transferFrom ===$/{found=1; next}
+  /^=== Generated Circom for Ledger.deposit ===$/{found=0}
   found{print}
 ' > "$WORK_DIR/ERC20_transferFrom.circom"
 
-if [ ! -s "$WORK_DIR/ERC20_transfer.circom" ]; then
-  echo "ERROR: Failed to generate transfer circuit"
-  exit 1
-fi
-if [ ! -s "$WORK_DIR/ERC20_approve.circom" ]; then
-  echo "ERROR: Failed to generate approve circuit"
-  exit 1
-fi
-if [ ! -s "$WORK_DIR/ERC20_transferFrom.circom" ]; then
-  echo "ERROR: Failed to generate transferFrom circuit"
-  exit 1
-fi
+# Extract Ledger deposit circuit (between deposit and withdraw headers)
+echo "$CIRCOM_OUTPUT" | awk '
+  /^=== Generated Circom for Ledger.deposit ===$/{found=1; next}
+  /^=== Generated Circom for Ledger.withdraw ===$/{found=0}
+  found{print}
+' > "$WORK_DIR/Ledger_deposit.circom"
 
-echo "✓ Generated ERC20_transfer.circom ($(wc -l < "$WORK_DIR/ERC20_transfer.circom") lines)"
-echo "✓ Generated ERC20_approve.circom ($(wc -l < "$WORK_DIR/ERC20_approve.circom") lines)"
-echo "✓ Generated ERC20_transferFrom.circom ($(wc -l < "$WORK_DIR/ERC20_transferFrom.circom") lines)"
+# Extract Ledger withdraw circuit (between withdraw and Ledger.transfer headers)
+echo "$CIRCOM_OUTPUT" | awk '
+  /^=== Generated Circom for Ledger.withdraw ===$/{found=1; next}
+  /^=== Generated Circom for Ledger.transfer ===$/{found=0}
+  found{print}
+' > "$WORK_DIR/Ledger_withdraw.circom"
+
+# Extract Ledger transfer circuit (from Ledger.transfer header to EOF)
+echo "$CIRCOM_OUTPUT" | awk '
+  /^=== Generated Circom for Ledger.transfer ===$/{found=1; next}
+  found{print}
+' > "$WORK_DIR/Ledger_transfer.circom"
+
+for f in ERC20_transfer ERC20_approve ERC20_transferFrom Ledger_deposit Ledger_withdraw Ledger_transfer; do
+  if [ ! -s "$WORK_DIR/${f}.circom" ]; then
+    echo "ERROR: Failed to generate ${f} circuit"
+    exit 1
+  fi
+  echo "✓ Generated ${f}.circom ($(wc -l < "$WORK_DIR/${f}.circom") lines)"
+done
 
 # ---- Step 2: Install circomlib and compile circuits ----
 echo ""
@@ -104,6 +116,18 @@ echo "✓ Approve circuit compiled: ${APPROVE_NL} non-linear constraints"
 circom ERC20_transferFrom.circom --r1cs --wasm --sym -l node_modules 2>&1 | grep -E "constraints|okay|Error"
 TRANSFER_FROM_NL=$(circom ERC20_transferFrom.circom --r1cs -l node_modules 2>&1 | grep "non-linear" | awk '{print $NF}')
 echo "✓ TransferFrom circuit compiled: ${TRANSFER_FROM_NL} non-linear constraints"
+
+circom Ledger_deposit.circom --r1cs --wasm --sym -l node_modules 2>&1 | grep -E "constraints|okay|Error"
+DEPOSIT_NL=$(circom Ledger_deposit.circom --r1cs -l node_modules 2>&1 | grep "non-linear" | awk '{print $NF}')
+echo "✓ Deposit circuit compiled: ${DEPOSIT_NL} non-linear constraints"
+
+circom Ledger_withdraw.circom --r1cs --wasm --sym -l node_modules 2>&1 | grep -E "constraints|okay|Error"
+WITHDRAW_NL=$(circom Ledger_withdraw.circom --r1cs -l node_modules 2>&1 | grep "non-linear" | awk '{print $NF}')
+echo "✓ Withdraw circuit compiled: ${WITHDRAW_NL} non-linear constraints"
+
+circom Ledger_transfer.circom --r1cs --wasm --sym -l node_modules 2>&1 | grep -E "constraints|okay|Error"
+LEDGER_TRANSFER_NL=$(circom Ledger_transfer.circom --r1cs -l node_modules 2>&1 | grep "non-linear" | awk '{print $NF}')
+echo "✓ Ledger Transfer circuit compiled: ${LEDGER_TRANSFER_NL} non-linear constraints"
 
 # ---- Step 3: Compute witness inputs ----
 echo ""
@@ -245,6 +269,102 @@ async function main() {
     fs.writeFileSync("transferFrom_max_input.json", JSON.stringify(input, null, 2));
     console.log("✓ Wrote transferFrom_max_input.json (amount=MAX, templateId=0)");
   }
+
+  // ---------- Ledger deposit test case ----------
+
+  // Case 6: deposit(amount=5000) — single template (unconditional)
+  {
+    const selector = BigInt("3065339685");  // 0xb6b55f25
+    const amount_lo = BigInt(5000);
+    const amount_hi = BigInt(0);
+
+    // cdHash: Poseidon(selector, amount_lo, amount_hi) — 3 inputs
+    const cdHash = F.toObject(poseidon([selector, amount_lo, amount_hi]));
+    // Single template (unconditional) → templateId = 0
+    const templateId = BigInt(0);
+    // outHash: Poseidon(templateId, amount_lo, amount_hi) — 3 inputs
+    const outHash = F.toObject(poseidon([templateId, amount_lo, amount_hi]));
+
+    const input = {
+      selector: selector.toString(),
+      calldataCommitment: cdHash.toString(),
+      outputCommitment: outHash.toString(),
+      amount_lo: amount_lo.toString(),
+      amount_hi: amount_hi.toString()
+    };
+    fs.writeFileSync("deposit_5000_input.json", JSON.stringify(input, null, 2));
+    console.log("✓ Wrote deposit_5000_input.json (amount=5000, templateId=0)");
+  }
+
+  // ---------- Ledger withdraw test case ----------
+
+  // Case 7: withdraw(amount=3000) — single template (unconditional)
+  {
+    const selector = BigInt("773487949");  // 0x2e1a7d4d
+    const amount_lo = BigInt(3000);
+    const amount_hi = BigInt(0);
+
+    const cdHash = F.toObject(poseidon([selector, amount_lo, amount_hi]));
+    const templateId = BigInt(0);
+    const outHash = F.toObject(poseidon([templateId, amount_lo, amount_hi]));
+
+    const input = {
+      selector: selector.toString(),
+      calldataCommitment: cdHash.toString(),
+      outputCommitment: outHash.toString(),
+      amount_lo: amount_lo.toString(),
+      amount_hi: amount_hi.toString()
+    };
+    fs.writeFileSync("withdraw_3000_input.json", JSON.stringify(input, null, 2));
+    console.log("✓ Wrote withdraw_3000_input.json (amount=3000, templateId=0)");
+  }
+
+  // ---------- Ledger transfer test cases ----------
+
+  // Case 8: ledger transfer(to=0xdead, amount=2000) — specific amount (else branch)
+  {
+    const selector = BigInt("2835717307");  // 0xa9059cbb
+    const to = BigInt("0xdead");
+    const amount_lo = BigInt(2000);
+    const amount_hi = BigInt(0);
+
+    const cdHash = F.toObject(poseidon([selector, to, amount_lo, amount_hi]));
+    const templateId = BigInt(1);  // else branch
+    const outHash = F.toObject(poseidon([templateId, amount_lo, amount_hi, to]));
+
+    const input = {
+      selector: selector.toString(),
+      calldataCommitment: cdHash.toString(),
+      outputCommitment: outHash.toString(),
+      to: to.toString(),
+      amount_lo: amount_lo.toString(),
+      amount_hi: amount_hi.toString()
+    };
+    fs.writeFileSync("ledger_transfer_2000_input.json", JSON.stringify(input, null, 2));
+    console.log("✓ Wrote ledger_transfer_2000_input.json (amount=2000, templateId=1)");
+  }
+
+  // Case 9: ledger transfer(to=0xdead, amount=MAX) — all tokens (then branch)
+  {
+    const selector = BigInt("2835717307");  // 0xa9059cbb
+    const to = BigInt("0xdead");
+    const max128 = (BigInt(1) << BigInt(128)) - BigInt(1);
+
+    const cdHash = F.toObject(poseidon([selector, to, max128, max128]));
+    const templateId = BigInt(0);  // then branch
+    const outHash = F.toObject(poseidon([templateId, max128, max128, to]));
+
+    const input = {
+      selector: selector.toString(),
+      calldataCommitment: cdHash.toString(),
+      outputCommitment: outHash.toString(),
+      to: to.toString(),
+      amount_lo: max128.toString(),
+      amount_hi: max128.toString()
+    };
+    fs.writeFileSync("ledger_transfer_max_input.json", JSON.stringify(input, null, 2));
+    console.log("✓ Wrote ledger_transfer_max_input.json (amount=MAX, templateId=0)");
+  }
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
@@ -293,6 +413,10 @@ run_witness_test "transfer_amount_max"      "ERC20_transfer.circom"     "transfe
 run_witness_test "approve_amount_500"       "ERC20_approve.circom"      "approve_500_input.json"
 run_witness_test "transferFrom_amount_2000" "ERC20_transferFrom.circom" "transferFrom_2000_input.json"
 run_witness_test "transferFrom_amount_max"  "ERC20_transferFrom.circom" "transferFrom_max_input.json"
+run_witness_test "deposit_amount_5000"      "Ledger_deposit.circom"     "deposit_5000_input.json"
+run_witness_test "withdraw_amount_3000"     "Ledger_withdraw.circom"    "withdraw_3000_input.json"
+run_witness_test "ledger_transfer_2000"     "Ledger_transfer.circom"    "ledger_transfer_2000_input.json"
+run_witness_test "ledger_transfer_max"      "Ledger_transfer.circom"    "ledger_transfer_max_input.json"
 
 # ---- Step 5: Groth16 proof generation and verification ----
 echo ""
@@ -361,6 +485,10 @@ run_proof_test "transfer_max_proof"      "ERC20_transfer.circom"     "transfer_a
 run_proof_test "approve_500_proof"       "ERC20_approve.circom"      "approve_amount_500.wtns"
 run_proof_test "transferFrom_2000_proof" "ERC20_transferFrom.circom" "transferFrom_amount_2000.wtns"
 run_proof_test "transferFrom_max_proof"  "ERC20_transferFrom.circom" "transferFrom_amount_max.wtns"
+run_proof_test "deposit_5000_proof"      "Ledger_deposit.circom"     "deposit_amount_5000.wtns"
+run_proof_test "withdraw_3000_proof"     "Ledger_withdraw.circom"    "withdraw_amount_3000.wtns"
+run_proof_test "ledger_transfer_2000_proof" "Ledger_transfer.circom" "ledger_transfer_2000.wtns"
+run_proof_test "ledger_transfer_max_proof"  "Ledger_transfer.circom" "ledger_transfer_max.wtns"
 
 # ---- Summary ----
 echo ""
@@ -379,10 +507,14 @@ if [ "$FAIL" -eq 0 ]; then
   echo "  4. Witness generation + R1CS constraint verification"
   echo "  5. Groth16 proof generation + verification"
   echo ""
-  echo "Circuit stats:"
+  echo "Circuit stats (ERC20):"
   echo "  Transfer:     ${TRANSFER_NL} non-linear constraints"
   echo "  Approve:      ${APPROVE_NL} non-linear constraints"
   echo "  TransferFrom: ${TRANSFER_FROM_NL} non-linear constraints"
+  echo "Circuit stats (Ledger):"
+  echo "  Deposit:      ${DEPOSIT_NL} non-linear constraints"
+  echo "  Withdraw:     ${WITHDRAW_NL} non-linear constraints"
+  echo "  Transfer:     ${LEDGER_TRANSFER_NL} non-linear constraints"
   exit 0
 else
   echo ""

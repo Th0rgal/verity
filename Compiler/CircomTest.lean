@@ -11,11 +11,15 @@
     === Generated Circom for ERC20.transfer ===
     === Generated Circom for ERC20.approve ===
     === Generated Circom for ERC20.transferFrom ===
+    === Generated Circom for Ledger.deposit ===
+    === Generated Circom for Ledger.withdraw ===
+    === Generated Circom for Ledger.transfer ===
   No other text may appear between a header and the next header (or EOF).
   All assertion messages are printed BEFORE the first header.
 -/
 import Compiler.Circom
 import Verity.Intent.Example
+import Contracts.Ledger.Display
 
 namespace Compiler.CircomTest
 
@@ -100,6 +104,73 @@ private def assertTransferFromStructure (circom : String) : IO Unit := do
   unless hasSubstr circom "component main {public [selector, calldataCommitment, outputCommitment]}" do
     throw (IO.userError "missing main component declaration")
 
+/-- Verify structural properties of the Ledger deposit Circom circuit.
+    Single-parameter function (amount: uint256) → unconditional single template.
+    1 param → 2 signals (amount_lo, amount_hi) → Poseidon(3) for calldata/output. -/
+private def assertDepositStructure (circom : String) : IO Unit := do
+  unless hasSubstr circom "template DepositIntent()" do
+    throw (IO.userError "missing template DepositIntent()")
+  unless hasSubstr circom "selector === 0xb6b55f25" do
+    throw (IO.userError "missing selector check")
+  unless hasSubstr circom "signal input amount_lo" do
+    throw (IO.userError "missing 'amount_lo' input")
+  unless hasSubstr circom "signal input amount_hi" do
+    throw (IO.userError "missing 'amount_hi' input")
+  -- 1 (selector) + 2 (amount_lo, amount_hi) = 3
+  unless hasSubstr circom "component cdHash = Poseidon(3)" do
+    throw (IO.userError "missing calldata Poseidon(3)")
+  -- 1 (templateId) + 2 (amount_lo, amount_hi) = 3
+  unless hasSubstr circom "component outHash = Poseidon(3)" do
+    throw (IO.userError "missing output Poseidon(3)")
+  unless hasSubstr circom "signal templateId" do
+    throw (IO.userError "missing templateId signal")
+  unless hasSubstr circom "component main {public [selector, calldataCommitment, outputCommitment]}" do
+    throw (IO.userError "missing main component declaration")
+
+/-- Verify structural properties of the Ledger withdraw Circom circuit.
+    Same structure as deposit: single uint256 param, unconditional. -/
+private def assertWithdrawStructure (circom : String) : IO Unit := do
+  unless hasSubstr circom "template WithdrawIntent()" do
+    throw (IO.userError "missing template WithdrawIntent()")
+  unless hasSubstr circom "selector === 0x2e1a7d4d" do
+    throw (IO.userError "missing selector check")
+  unless hasSubstr circom "signal input amount_lo" do
+    throw (IO.userError "missing 'amount_lo' input")
+  unless hasSubstr circom "signal input amount_hi" do
+    throw (IO.userError "missing 'amount_hi' input")
+  unless hasSubstr circom "component cdHash = Poseidon(3)" do
+    throw (IO.userError "missing calldata Poseidon(3)")
+  unless hasSubstr circom "component outHash = Poseidon(3)" do
+    throw (IO.userError "missing output Poseidon(3)")
+  unless hasSubstr circom "signal templateId" do
+    throw (IO.userError "missing templateId signal")
+  unless hasSubstr circom "component main {public [selector, calldataCommitment, outputCommitment]}" do
+    throw (IO.userError "missing main component declaration")
+
+/-- Verify structural properties of the Ledger transfer Circom circuit.
+    Same as ERC20 transfer: (to: address, amount: uint256), conditional. -/
+private def assertLedgerTransferStructure (circom : String) : IO Unit := do
+  unless hasSubstr circom "template TransferIntent()" do
+    throw (IO.userError "missing template TransferIntent()")
+  unless hasSubstr circom "selector === 0xa9059cbb" do
+    throw (IO.userError "missing selector check")
+  unless hasSubstr circom "signal input to" do
+    throw (IO.userError "missing 'to' input")
+  unless hasSubstr circom "signal input amount_lo" do
+    throw (IO.userError "missing 'amount_lo' input")
+  unless hasSubstr circom "signal input amount_hi" do
+    throw (IO.userError "missing 'amount_hi' input")
+  unless hasSubstr circom "component cdHash = Poseidon(4)" do
+    throw (IO.userError "missing calldata Poseidon(4)")
+  unless hasSubstr circom "component outHash = Poseidon(4)" do
+    throw (IO.userError "missing output Poseidon(4)")
+  unless hasSubstr circom "IsEqual()" do
+    throw (IO.userError "missing IsEqual for uint256 comparison")
+  unless hasSubstr circom "signal templateId" do
+    throw (IO.userError "missing templateId signal")
+  unless hasSubstr circom "component main {public [selector, calldataCommitment, outputCommitment]}" do
+    throw (IO.userError "missing main component declaration")
+
 -- Single #eval block: run all assertions, then print structured output.
 -- All assertion/status messages come before headers so the E2E script's
 -- awk extraction gets clean circom source between headers (and to EOF).
@@ -139,16 +210,55 @@ private def assertTransferFromStructure (circom : String) : IO Unit := do
   | some _ => throw (IO.userError "expected none for invalid binding")
   | none => pure ()
 
+  -- === Ledger Contract ===
+  let ledgerSpec := Contracts.Ledger.intentSpec
+
+  -- Generate deposit circuit (single uint256 param, unconditional)
+  let depositBinding ← match getBinding ledgerSpec 0 with
+    | some b => pure b
+    | none => throw (IO.userError "deposit binding not found")
+  let depositCircom ← match Compiler.Circom.emitCircom ledgerSpec depositBinding "0xb6b55f25" with
+    | some c => pure c
+    | none => throw (IO.userError "Circom generation failed for deposit")
+  assertDepositStructure depositCircom
+
+  -- Generate withdraw circuit (single uint256 param, unconditional)
+  let withdrawBinding ← match getBinding ledgerSpec 1 with
+    | some b => pure b
+    | none => throw (IO.userError "withdraw binding not found")
+  let withdrawCircom ← match Compiler.Circom.emitCircom ledgerSpec withdrawBinding "0x2e1a7d4d" with
+    | some c => pure c
+    | none => throw (IO.userError "Circom generation failed for withdraw")
+  assertWithdrawStructure withdrawCircom
+
+  -- Generate Ledger transfer circuit (address + uint256, conditional)
+  let ledgerTransferBinding ← match getBinding ledgerSpec 2 with
+    | some b => pure b
+    | none => throw (IO.userError "ledger transfer binding not found")
+  let ledgerTransferCircom ← match Compiler.Circom.emitCircom ledgerSpec ledgerTransferBinding "0xa9059cbb" with
+    | some c => pure c
+    | none => throw (IO.userError "Circom generation failed for ledger transfer")
+  assertLedgerTransferStructure ledgerTransferCircom
+
   -- All assertions passed. Print status messages first, then headers+circom.
   IO.println "✓ TransferIntent: all structural checks pass"
   IO.println "✓ ApproveIntent: all structural checks pass"
   IO.println "✓ TransferFromIntent: all structural checks pass"
   IO.println "✓ Invalid binding correctly returns none"
+  IO.println "✓ DepositIntent: all structural checks pass"
+  IO.println "✓ WithdrawIntent: all structural checks pass"
+  IO.println "✓ Ledger TransferIntent: all structural checks pass"
   IO.println "=== Generated Circom for ERC20.transfer ==="
   IO.println transferCircom
   IO.println "=== Generated Circom for ERC20.approve ==="
   IO.println approveCircom
   IO.println "=== Generated Circom for ERC20.transferFrom ==="
   IO.println transferFromCircom
+  IO.println "=== Generated Circom for Ledger.deposit ==="
+  IO.println depositCircom
+  IO.println "=== Generated Circom for Ledger.withdraw ==="
+  IO.println withdrawCircom
+  IO.println "=== Generated Circom for Ledger.transfer ==="
+  IO.println ledgerTransferCircom
 
 end Compiler.CircomTest
