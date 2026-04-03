@@ -149,13 +149,16 @@ scoped to contracts that use the module.
 
 ## Non-Axiom: Arithmetic
 
-All 15 arithmetic operations (add, sub, mul, div, mod, lt, gt, eq, iszero,
-and, or, xor, not, shl, shr) are **proven correct** — not assumed. The proofs
-show that Verity's arithmetic matches EVM arithmetic (wrapping at 2^256) for
-*all* possible inputs, not just test cases. The EVMYulLean bridge currently has
-universal equivalence lemmas for 15 of them (`add`, `sub`, `mul`, `div`,
-`mod`, `lt`, `gt`, `eq`, `iszero`, `and`, `or`, `xor`, `not`, `shl`, `shr`),
-with no remaining pure builtins relying only on concrete bridge checks. See
+All 15 low-level EVM arithmetic builtins are **proven correct** — not assumed.
+The proofs show that Verity's arithmetic matches EVM arithmetic (wrapping at
+2^256) for *all* possible inputs, not just test cases. The EVMYulLean bridge
+currently has universal equivalence lemmas for 15 of them (`add`, `sub`, `mul`,
+`div`, `mod`, `lt`, `gt`, `eq`, `iszero`, `and`, `or`, `xor`, `not`, `shl`,
+`shr`), with no remaining pure builtins relying only on concrete bridge checks.
+
+Additionally, 8 higher-level expression operators have proven compilation
+correctness in the `ExprCompileCore` fragment: `min`, `max`, `ceilDiv`, `ite`
+(conditional), `wMulDown`, `wDivUp`, `mulDivDown`, and `mulDivUp`. See
 [`docs/ARITHMETIC_PROFILE.md`](docs/ARITHMETIC_PROFILE.md) for the full
 specification.
 
@@ -174,4 +177,4 @@ Any commit that adds, removes, renames, or moves an axiom must update this file 
 
 If this file is stale, trust analysis is stale.
 
-**Last Updated**: 2026-03-27
+**Last Updated**: 2026-03-29

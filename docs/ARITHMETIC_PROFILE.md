@@ -43,6 +43,23 @@ The EVMYulLean bridge validates that Verity's `Nat`-modular arithmetic agrees wi
 - universal bridge lemmas for 15 pure builtins: `add`, `sub`, `mul`, `div`, `mod`, `lt`, `gt`, `eq`, `iszero`, `and`, `or`, `xor`, `not`, `shl`, and `shr`
 - concrete bridge smoke tests are no longer needed for any pure builtin
 
+### Higher-Level Expression Operators
+
+Beyond the 15 low-level builtins, the `ExprCompileCore` proven fragment includes compilation-correctness proofs for 8 higher-level expression operators:
+
+| Operator | Arity | Semantics |
+|----------|-------|-----------|
+| `min(a, b)` | binary | minimum of two values |
+| `max(a, b)` | binary | maximum of two values |
+| `ceilDiv(a, b)` | binary | ceiling division `(a + b - 1) / b` |
+| `ite(c, t, e)` | ternary | conditional expression |
+| `wMulDown(a, b)` | binary | `(a * b) / WAD` (WAD = 10^18) |
+| `wDivUp(a, b)` | binary | `(a * WAD + b - 1) / b` |
+| `mulDivDown(a, b, c)` | ternary | `(a * b) / c` |
+| `mulDivUp(a, b, c)` | ternary | `(a * b + c - 1) / c` |
+
+These proofs are in `Compiler/Proofs/IRGeneration/FunctionBody.lean` and cover both IR compilation correctness and end-to-end evaluation semantics.
+
 ## Checked (Safe) Arithmetic
 
 For contracts that require overflow protection, the EDSL provides checked operations:
@@ -92,7 +109,7 @@ The arithmetic model is invariant across profiles. See [`docs/SOLIDITY_PARITY_PR
 - **Gas semantics**: proofs establish result correctness, not gas cost or bounded liveness.
 - **Compiler-layer overflow detection**: the compiler does not insert overflow checks. Use EDSL `safeAdd`/`safeSub`/`safeMul` for checked behavior.
 - **Cryptographic primitives**: keccak256 is axiomatized (see [`AXIOMS.md`](../AXIOMS.md)).
-- **Universal bridge equivalence**: 15/15 pure EVMYulLean-backed builtins have universal bridge lemmas.
+- **Universal bridge equivalence**: 15/15 pure EVMYulLean-backed builtins have universal bridge lemmas. All 8 higher-level expression operators also have proven compilation correctness.
 
 ## Auditor Checklist
 
