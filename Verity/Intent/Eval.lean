@@ -293,18 +293,6 @@ private def dedup : List String → List String
   | [] => []
   | x :: xs => if xs.contains x then dedup xs else x :: dedup xs
 
-/-- Collect all hole parameter names across all emitted templates,
-    deduped in order (matching the Circom generator's allHoleSignals). -/
-private def collectAllHoleParams (templates : List EmittedTemplate)
-    (fnParams : List (String × ParamType)) : List (String × ParamType) :=
-  -- Collect hole param names across all templates, with uint256 expanding to two entries
-  let allNames := dedup (templates.flatMap (·.holes.map (·.param)))
-  -- Look up types from the function params
-  allNames.filterMap fun name =>
-    match fnParams.find? (fun (n, _) => n == name) with
-    | some (_, ty) => some (name, ty)
-    | none => none
-
 /-- Circuit output: the values that the Circom circuit commits to. -/
 structure CircuitOutput where
   /-- The numeric template index (0-based, sequential per emit). -/
@@ -313,18 +301,6 @@ structure CircuitOutput where
       as the Circom output commitment: Poseidon(templateIdx, vals...). -/
   holeValues : List Nat
   deriving Repr
-
-/-- Assign sequential template indices to emitted templates.
-    The first emit in program order gets index 0, second gets 1, etc.
-    This matches the Circom compiler's indexing in compileStmts. -/
-private def assignTemplateIndices : List EmittedTemplate → List (Nat × EmittedTemplate)
-  | [] => []
-  | t :: ts =>
-    let rest := assignTemplateIndices ts
-    let idx := match rest with
-      | [] => 0
-      | (i, _) :: _ => i + 1
-    (idx, t) :: rest
 
 mutual
 
