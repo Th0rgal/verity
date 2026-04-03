@@ -1,6 +1,8 @@
 import Std
 import Compiler.Selector
 import Compiler.ABI
+import Compiler.Circom
+import Compiler.Hex
 import Compiler.ModuleInput
 import Compiler.CompilationModel.Compile
 import Compiler.CompilationModel.EventEmission
@@ -194,6 +196,8 @@ def compileSpecsWithOptions
     (trustReportPath : Option String)
     (assumptionReportPath : Option String)
     (abiOutDir : Option String)
+    (circomOutDir : Option String := none)
+    (intentSpecs : List (Lean.Name × Verity.Intent.IntentSpec) := [])
     (denyUncheckedDependencies : Bool := false)
     (denyAssumedDependencies : Bool := false)
     (denyAxiomatizedPrimitives : Bool := false)
@@ -208,6 +212,9 @@ def compileSpecsWithOptions
     (denyLayoutIncompatibility : Bool := false) : IO Unit := do
   IO.FS.createDirAll outDir
   match abiOutDir with
+  | some dir => IO.FS.createDirAll dir
+  | none => pure ()
+  match circomOutDir with
   | some dir => IO.FS.createDirAll dir
   | none => pure ()
 
@@ -227,6 +234,25 @@ def compileSpecsWithOptions
             Compiler.ABI.writeContractABIFile dir spec
             if verbose then
               IO.println s!"✓ Wrote ABI {dir}/{spec.name}.abi.json"
+        | none => pure ()
+        match circomOutDir with
+        | some dir =>
+            -- Find an IntentSpec whose contractName matches this CompilationModel
+            let matchingIntent := intentSpecs.find? fun (_, iSpec) =>
+              iSpec.contractName == spec.name
+            match matchingIntent with
+            | some (_, iSpec) =>
+              -- Build (functionName, hexSelector) pairs from the computed selectors
+              let externalFns := spec.functions.filter
+                (fun fn => !fn.isInternal && !Compiler.CompilationModel.isInteropEntrypointName fn.name)
+              let selectorPairs := (externalFns.zip selectors).map fun (fn, sel) =>
+                (fn.name, Compiler.Hex.natToHex sel)
+              Compiler.Circom.writeAllCircomFiles dir iSpec selectorPairs
+              if verbose then
+                IO.println s!"✓ Wrote Circom circuits in {dir}/"
+            | none =>
+              if verbose then
+                IO.println s!"  (no IntentSpec found for {spec.name}, skipping Circom output)"
         | none => pure ()
         patchRows := (contract.name, patchReport) :: patchRows
         if verbose then
@@ -491,6 +517,7 @@ unsafe def compileModulesWithOptions
     (trustReportPath : Option String := none)
     (assumptionReportPath : Option String := none)
     (abiOutDir : Option String := none)
+    (circomOutDir : Option String := none)
     (denyUncheckedDependencies : Bool := false)
     (denyAssumedDependencies : Bool := false)
     (denyAxiomatizedPrimitives : Bool := false)
@@ -503,12 +530,13 @@ unsafe def compileModulesWithOptions
     (layoutReportPath : Option String := none)
     (layoutCompatibilityReportPath : Option String := none)
     (denyLayoutIncompatibility : Bool := false) : IO Unit := do
-  let specs ←
+  let (specs, intentSpecs) ←
     match ← Compiler.ModuleInput.loadSpecsFromRawModules modules with
-    | .ok specs => pure specs
+    | .ok result => pure result
     | .error err => throw (IO.userError err)
   compileSpecsWithOptions
     backend specs outDir verbose libraryPaths options patchReportPath trustReportPath assumptionReportPath abiOutDir
+    circomOutDir intentSpecs
     denyUncheckedDependencies denyAssumedDependencies denyAxiomatizedPrimitives denyLocalObligations denyLinearMemoryMechanics
     denyEventEmission denyLowLevelMechanics denyRuntimeIntrospection denyProxyUpgradeability layoutReportPath
     layoutCompatibilityReportPath denyLayoutIncompatibility

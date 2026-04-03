@@ -107,7 +107,7 @@ unsafe def main (args : List String) : IO Unit := do
       throw <| IO.userError "No compiler input provided. Use --manifest and/or --module."
     let specs ←
       match ← Compiler.ModuleInput.loadSpecsFromRawModules rawModules with
-      | .ok specs => pure specs
+      | .ok (specs, _) => pure specs
       | .error err => throw <| IO.userError err
     let gasCfg : GasConfig := {
       loopIterations := cli.loopIterations
