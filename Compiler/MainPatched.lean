@@ -59,6 +59,40 @@ private def packForcesPatches (cfg : CLIArgs) : Bool :=
 private def patchEnabledFor (cfg : CLIArgs) : Bool :=
   cfg.patchEnabled || profileForcesPatches cfg.backendProfile || packForcesPatches cfg
 
+private def defaultRewriteBundleIdFor (cfg : CLIArgs) : String :=
+  match cfg.parityPackId with
+  | some packId =>
+      match Compiler.findParityPack? packId with
+      | some pack => pack.rewriteBundleId
+      | none => Compiler.Yul.foundationRewriteBundleId
+  | none =>
+      match cfg.backendProfile with
+      | .solidityParity => Compiler.Yul.solcCompatRewriteBundleId
+      | _ => Compiler.Yul.foundationRewriteBundleId
+
+private def requiredProofRefsFor (cfg : CLIArgs) : List Lean.Name :=
+  match cfg.parityPackId with
+  | some packId =>
+      match Compiler.findParityPack? packId with
+      | some pack => pack.requiredProofRefs
+      | none => Compiler.Yul.foundationProofAllowlist
+  | none =>
+      Compiler.Yul.rewriteProofAllowlistForId (defaultRewriteBundleIdFor cfg)
+
+example :
+    defaultRewriteBundleIdFor
+      { backendProfile := .solidityParity
+        patchEnabled := true } =
+      Compiler.Yul.solcCompatRewriteBundleId := by
+  native_decide
+
+example :
+    requiredProofRefsFor
+      { backendProfile := .solidityParity
+        patchEnabled := true } =
+      Compiler.Yul.solcCompatProofAllowlist := by
+  native_decide
+
 private def parseBackendProfile (raw : String) : Option Compiler.BackendProfile :=
   match raw with
   | "semantic" => some .semantic
@@ -314,20 +348,8 @@ unsafe def main (args : List String) : IO Unit := do
         IO.println "Unchecked dependencies: denied"
       IO.println s!"Mapping slot scratch base: {cfg.mappingSlotScratchBase}"
       IO.println ""
-    let packRequiredProofRefs :=
-      match cfg.parityPackId with
-      | some packId =>
-          match Compiler.findParityPack? packId with
-          | some pack => pack.requiredProofRefs
-          | none => []
-      | none => []
-    let packRewriteBundleId :=
-      match cfg.parityPackId with
-      | some packId =>
-          match Compiler.findParityPack? packId with
-          | some pack => pack.rewriteBundleId
-          | none => Compiler.Yul.foundationRewriteBundleId
-      | none => Compiler.Yul.foundationRewriteBundleId
+    let packRequiredProofRefs := requiredProofRefsFor cfg
+    let packRewriteBundleId := defaultRewriteBundleIdFor cfg
     let options : Compiler.YulEmitOptions := {
       backendProfile := cfg.backendProfile
       patchConfig := {
