@@ -429,4 +429,112 @@ private def max128 : Nat := (2 ^ 128) - 1
     | none => throw (IO.userError "evalIntentCircuitOutput returned none")
   | none => throw (IO.userError "binding not found")
 
+/-! ## Bool Parameter Example
+
+A minimal IntentSpec that exercises the `bool` type (Phase 1).
+Models `setApprovalForAll(operator: address, approved: bool)` from ERC-721.
+-/
+
+/-- Example: IntentSpec with a bool parameter. -/
+def boolIntentSpec : IntentSpec := {
+  contractName := "ERC721"
+
+  fns := [
+    -- Intent: setApprovalForAll(operator: address, approved: bool)
+    { name := "setApprovalForAllIntent"
+      params := [("operator", .address), ("approved", .bool)]
+      returnKind := .void
+      body := [
+        .ite (.param "approved")
+          [.emit { text := "Approve {operator} to manage all your NFTs",
+                   holes := [{ param := "operator", format := .address }] }]
+          [.emit { text := "Revoke {operator} from managing your NFTs",
+                   holes := [{ param := "operator", format := .address }] }]
+      ]
+    }
+  ]
+
+  bindings := [
+    { functionName := "setApprovalForAll", intentFn := "setApprovalForAllIntent" }
+  ]
+}
+
+-- Test: setApprovalForAll(operator=0xbeef, approved=true)
+-- → "Approve {operator} to manage all your NFTs"
+#eval do
+  let spec := boolIntentSpec
+  match getBinding spec 0 with
+  | some binding =>
+    let params : List (String × Value) := [
+      ("operator", .addr "0xbeef"),
+      ("approved", .bool true)
+    ]
+    match evalIntent spec binding params with
+    | some [t] =>
+      unless t.text == "Approve {operator} to manage all your NFTs" do
+        throw (IO.userError s!"wrong text: {t.text}")
+      IO.println s!"✓ setApprovalForAll(approved=true): \"{t.text}\""
+    | some ts => throw (IO.userError s!"expected 1 template, got {ts.length}")
+    | none => throw (IO.userError "evaluation failed")
+  | none => throw (IO.userError "binding not found")
+
+-- Test: setApprovalForAll(operator=0xbeef, approved=false)
+-- → "Revoke {operator} from managing your NFTs"
+#eval do
+  let spec := boolIntentSpec
+  match getBinding spec 0 with
+  | some binding =>
+    let params : List (String × Value) := [
+      ("operator", .addr "0xbeef"),
+      ("approved", .bool false)
+    ]
+    match evalIntent spec binding params with
+    | some [t] =>
+      unless t.text == "Revoke {operator} from managing your NFTs" do
+        throw (IO.userError s!"wrong text: {t.text}")
+      IO.println s!"✓ setApprovalForAll(approved=false): \"{t.text}\""
+    | some ts => throw (IO.userError s!"expected 1 template, got {ts.length}")
+    | none => throw (IO.userError "evaluation failed")
+  | none => throw (IO.userError "binding not found")
+
+-- Test: circuit output for setApprovalForAll(operator=0xbeef, approved=true)
+-- → templateIdx=0 (then branch), holes=[48879] (operator only)
+#eval do
+  let spec := boolIntentSpec
+  match getBinding spec 0 with
+  | some binding =>
+    let params : List (String × Value) := [
+      ("operator", .addr "0xbeef"),
+      ("approved", .bool true)
+    ]
+    match evalIntentCircuitOutput spec binding params with
+    | some co =>
+      unless co.templateIdx == 0 do
+        throw (IO.userError s!"expected templateIdx=0, got {co.templateIdx}")
+      unless co.holeValues == [48879] do
+        throw (IO.userError s!"expected holeValues=[48879], got {repr co.holeValues}")
+      IO.println s!"✓ Circuit output: setApprovalForAll(true) → templateIdx={co.templateIdx}, holes={repr co.holeValues}"
+    | none => throw (IO.userError "evalIntentCircuitOutput returned none")
+  | none => throw (IO.userError "binding not found")
+
+-- Test: circuit output for setApprovalForAll(operator=0xbeef, approved=false)
+-- → templateIdx=1 (else branch), holes=[48879] (operator only)
+#eval do
+  let spec := boolIntentSpec
+  match getBinding spec 0 with
+  | some binding =>
+    let params : List (String × Value) := [
+      ("operator", .addr "0xbeef"),
+      ("approved", .bool false)
+    ]
+    match evalIntentCircuitOutput spec binding params with
+    | some co =>
+      unless co.templateIdx == 1 do
+        throw (IO.userError s!"expected templateIdx=1, got {co.templateIdx}")
+      unless co.holeValues == [48879] do
+        throw (IO.userError s!"expected holeValues=[48879], got {repr co.holeValues}")
+      IO.println s!"✓ Circuit output: setApprovalForAll(false) → templateIdx={co.templateIdx}, holes={repr co.holeValues}"
+    | none => throw (IO.userError "evalIntentCircuitOutput returned none")
+  | none => throw (IO.userError "binding not found")
+
 end Verity.Intent.Example

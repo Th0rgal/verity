@@ -27,7 +27,7 @@ to verified Groth16 proof:
 ./scripts/test_circom_e2e.sh
 ```
 
-This script runs 18 tests across 5 pipeline stages (2 contracts, 6 circuits):
+This script runs 22 tests across 5 pipeline stages (3 contracts, 7 circuits):
 
 1. **Generate** `.circom` files from the ERC-20 and Ledger `IntentSpec`s (via `lake env lean`)
 2. **Compile** circuits with `circom` (syntax check + constraint generation)
@@ -56,7 +56,14 @@ This script runs 18 tests across 5 pipeline stages (2 contracts, 6 circuits):
 | `ledger_transfer_2000` | `transfer(to=0xdead, amount=2000)` | Specific amount | else | 1 | PASS | PASS |
 | `ledger_transfer_max` | `transfer(to=0xdead, amount=MAX)` | All tokens | then | 0 | PASS | PASS |
 
-All 18 tests pass: 9 witness verifications + 9 Groth16 proof verifications.
+**ERC-721 Contract (bool parameter):**
+
+| Test | Function | Input | Branch | TemplateId | Witness | Proof |
+|------|----------|-------|--------|------------|---------|-------|
+| `setApproval_true` | `setApprovalForAll(operator=0xbeef, approved=true)` | Approve | then | 0 | PASS | PASS |
+| `setApproval_false` | `setApprovalForAll(operator=0xbeef, approved=false)` | Revoke | else | 1 | PASS | PASS |
+
+All 22 tests pass: 11 witness verifications + 11 Groth16 proof verifications.
 
 ### What the Proof Proves
 
@@ -78,7 +85,7 @@ IntentSpec (Lean)
     ├── Verity/Intent/Types.lean     AST types
     ├── Verity/Intent/Eval.lean      Reference evaluator (total)
     ├── Verity/Intent/Validate.lean  Validates against CompilationModel
-    ├── Verity/Intent/Example.lean   ERC-20 example + smoke tests
+    ├── Verity/Intent/Example.lean   ERC-20 + ERC-721 examples + smoke tests
     │
     ├── Compiler/Circom.lean         Circom circuit generator
     │
@@ -117,6 +124,7 @@ The `--circom-output` flag triggers:
 - [x] `Contracts/Ledger/Display.lean` — Production `intentSpec` for the Ledger contract
 - [x] ERC-20 example with 5 test cases: transfer, approve, transferFrom (witness + proof)
 - [x] Ledger example with 4 test cases: deposit, withdraw, transfer (witness + proof)
+- [x] ERC-721 example with 2 test cases: setApprovalForAll with bool param (witness + proof)
 - [x] Groth16 proof generation and verification
 - [x] `lake build` passes, `make check` passes
 
@@ -130,6 +138,9 @@ The `--circom-output` flag triggers:
 | Ledger Deposit | 528 | 1 param, unconditional |
 | Ledger Withdraw | 528 | 1 param, unconditional |
 | Ledger Transfer | 605 | 2 params, conditional |
+| ERC721 SetApprovalForAll | ~244 | 2 params (addr+bool), conditional |
 
 All well within the estimated ~700-1,500 range from the design document. Unconditional
-circuits (deposit, withdraw) are smaller since they skip the IsEqual comparator.
+circuits (deposit, withdraw) are smaller since they skip the IsEqual comparator. The
+bool-conditioned `setApprovalForAll` circuit is the smallest since `bool` maps to a
+single signal (no uint256 lo/hi splitting) and uses smaller Poseidon instances.

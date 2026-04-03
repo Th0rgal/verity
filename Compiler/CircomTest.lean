@@ -14,6 +14,7 @@
     === Generated Circom for Ledger.deposit ===
     === Generated Circom for Ledger.withdraw ===
     === Generated Circom for Ledger.transfer ===
+    === Generated Circom for ERC721.setApprovalForAll ===
   No other text may appear between a header and the next header (or EOF).
   All assertion messages are printed BEFORE the first header.
 -/
@@ -171,6 +172,30 @@ private def assertLedgerTransferStructure (circom : String) : IO Unit := do
   unless hasSubstr circom "component main {public [selector, calldataCommitment, outputCommitment]}" do
     throw (IO.userError "missing main component declaration")
 
+/-- Verify structural properties of the ERC-721 setApprovalForAll Circom circuit.
+    2-parameter function (operator: address, approved: bool), conditional on bool.
+    1 (selector) + 2 (operator, approved) = 3 inputs for calldata Poseidon.
+    1 (templateId) + 1 (operator) = 2 inputs for output Poseidon. -/
+private def assertSetApprovalForAllStructure (circom : String) : IO Unit := do
+  unless hasSubstr circom "template SetApprovalForAllIntent()" do
+    throw (IO.userError "missing template SetApprovalForAllIntent()")
+  unless hasSubstr circom "selector === 0xa22cb465" do
+    throw (IO.userError "missing selector check")
+  unless hasSubstr circom "signal input operator" do
+    throw (IO.userError "missing 'operator' input")
+  unless hasSubstr circom "signal input approved" do
+    throw (IO.userError "missing 'approved' input")
+  -- 1 (selector) + 2 (operator, approved) = 3
+  unless hasSubstr circom "component cdHash = Poseidon(3)" do
+    throw (IO.userError "missing calldata Poseidon(3)")
+  -- 1 (templateId) + 1 (operator) = 2
+  unless hasSubstr circom "component outHash = Poseidon(2)" do
+    throw (IO.userError "missing output Poseidon(2)")
+  unless hasSubstr circom "signal templateId" do
+    throw (IO.userError "missing templateId signal")
+  unless hasSubstr circom "component main {public [selector, calldataCommitment, outputCommitment]}" do
+    throw (IO.userError "missing main component declaration")
+
 -- Single #eval block: run all assertions, then print structured output.
 -- All assertion/status messages come before headers so the E2E script's
 -- awk extraction gets clean circom source between headers (and to EOF).
@@ -240,6 +265,18 @@ private def assertLedgerTransferStructure (circom : String) : IO Unit := do
     | none => throw (IO.userError "Circom generation failed for ledger transfer")
   assertLedgerTransferStructure ledgerTransferCircom
 
+  -- === ERC-721 (bool parameter) ===
+  let erc721Spec := boolIntentSpec
+
+  -- Generate setApprovalForAll circuit (address + bool, conditional)
+  let setApprovalBinding ← match getBinding erc721Spec 0 with
+    | some b => pure b
+    | none => throw (IO.userError "setApprovalForAll binding not found")
+  let setApprovalCircom ← match Compiler.Circom.emitCircom erc721Spec setApprovalBinding "0xa22cb465" with
+    | some c => pure c
+    | none => throw (IO.userError "Circom generation failed for setApprovalForAll")
+  assertSetApprovalForAllStructure setApprovalCircom
+
   -- All assertions passed. Print status messages first, then headers+circom.
   IO.println "✓ TransferIntent: all structural checks pass"
   IO.println "✓ ApproveIntent: all structural checks pass"
@@ -248,6 +285,7 @@ private def assertLedgerTransferStructure (circom : String) : IO Unit := do
   IO.println "✓ DepositIntent: all structural checks pass"
   IO.println "✓ WithdrawIntent: all structural checks pass"
   IO.println "✓ Ledger TransferIntent: all structural checks pass"
+  IO.println "✓ SetApprovalForAllIntent: all structural checks pass"
   IO.println "=== Generated Circom for ERC20.transfer ==="
   IO.println transferCircom
   IO.println "=== Generated Circom for ERC20.approve ==="
@@ -260,5 +298,7 @@ private def assertLedgerTransferStructure (circom : String) : IO Unit := do
   IO.println withdrawCircom
   IO.println "=== Generated Circom for Ledger.transfer ==="
   IO.println ledgerTransferCircom
+  IO.println "=== Generated Circom for ERC721.setApprovalForAll ==="
+  IO.println setApprovalCircom
 
 end Compiler.CircomTest
