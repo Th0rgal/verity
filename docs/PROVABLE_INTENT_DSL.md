@@ -138,7 +138,7 @@ The `--circom-output` flag triggers:
 | Ledger Deposit | 528 | 1 param, unconditional |
 | Ledger Withdraw | 528 | 1 param, unconditional |
 | Ledger Transfer | 605 | 2 params, conditional |
-| ERC721 SetApprovalForAll | ~244 | 2 params (addr+bool), conditional |
+| ERC721 SetApprovalForAll | 507 | 2 params (addr+bool), conditional |
 
 All well within the estimated ~700-1,500 range from the design document. Unconditional
 circuits (deposit, withdraw) are smaller since they skip the IsEqual comparator. The

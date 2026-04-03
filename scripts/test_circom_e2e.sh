@@ -381,7 +381,7 @@ async function main() {
 
   // Case 10: setApprovalForAll(operator=0xbeef, approved=true) — then branch
   {
-    const selector = BigInt("2722547813");  // 0xa22cb465
+    const selector = BigInt("2720838757");  // 0xa22cb465
     const operator = BigInt("0xbeef");
     const approved = BigInt(1);  // true
 
@@ -405,7 +405,7 @@ async function main() {
 
   // Case 11: setApprovalForAll(operator=0xbeef, approved=false) — else branch
   {
-    const selector = BigInt("2722547813");  // 0xa22cb465
+    const selector = BigInt("2720838757");  // 0xa22cb465
     const operator = BigInt("0xbeef");
     const approved = BigInt(0);  // false
 
