@@ -6,6 +6,7 @@
 #   2. Compiles circuits with the `circom` compiler
 #   3. Computes witness inputs (Poseidon commitments) with snarkjs/circomlibjs
 #   4. Generates witnesses and verifies R1CS constraint satisfaction
+#   5. Generates Groth16 proofs and verifies them (trusted setup → prove → verify)
 #
 # Prerequisites:
 #   - circom (https://docs.circom.io/getting-started/installation/)
@@ -220,15 +221,88 @@ run_witness_test "transfer_amount_1000" "ERC20_transfer.circom" "transfer_1000_i
 run_witness_test "transfer_amount_max"  "ERC20_transfer.circom" "transfer_max_input.json"
 run_witness_test "approve_amount_500"   "ERC20_approve.circom"  "approve_500_input.json"
 
+# ---- Step 5: Groth16 proof generation and verification ----
+echo ""
+echo "--- Step 5: Groth16 proof generation and verification ---"
+
+# Powers of tau ceremony (2^12 = 4096 > 605 constraints)
+echo -n "  Powers of tau ceremony ... "
+snarkjs powersoftau new bn128 12 pot12_0000.ptau 2>/dev/null
+snarkjs powersoftau contribute pot12_0000.ptau pot12_0001.ptau \
+  --name="E2E test" -e="verity-intent-dsl-e2e-entropy" 2>/dev/null
+snarkjs powersoftau prepare phase2 pot12_0001.ptau pot12_final.ptau 2>/dev/null
+echo "done"
+
+run_proof_test() {
+  local name="$1"
+  local circuit="$2"
+  local wtns_file="$3"
+  local circuit_base="${circuit%.circom}"
+
+  echo -n "  $name ... "
+
+  # Groth16 setup
+  if ! snarkjs groth16 setup "${circuit_base}.r1cs" pot12_final.ptau "${name}_0000.zkey" 2>/dev/null; then
+    echo "FAIL (groth16 setup)"
+    FAIL=$((FAIL + 1))
+    return
+  fi
+
+  # Contribute to ceremony
+  if ! snarkjs zkey contribute "${name}_0000.zkey" "${name}_final.zkey" \
+      --name="E2E test" -e="verity-proof-test-${name}" 2>/dev/null; then
+    echo "FAIL (zkey contribute)"
+    FAIL=$((FAIL + 1))
+    return
+  fi
+
+  # Export verification key
+  if ! snarkjs zkey export verificationkey "${name}_final.zkey" "${name}_vkey.json" 2>/dev/null; then
+    echo "FAIL (export vkey)"
+    FAIL=$((FAIL + 1))
+    return
+  fi
+
+  # Generate proof
+  if ! snarkjs groth16 prove "${name}_final.zkey" "$wtns_file" "${name}_proof.json" "${name}_public.json" 2>/dev/null; then
+    echo "FAIL (prove)"
+    FAIL=$((FAIL + 1))
+    return
+  fi
+
+  # Verify proof
+  local verify_output
+  verify_output=$(snarkjs groth16 verify "${name}_vkey.json" "${name}_public.json" "${name}_proof.json" 2>&1)
+  if echo "$verify_output" | grep -q "OK"; then
+    echo "PASS (proof verified)"
+    PASS=$((PASS + 1))
+  else
+    echo "FAIL (verification)"
+    echo "$verify_output"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+run_proof_test "transfer_1000_proof" "ERC20_transfer.circom" "transfer_amount_1000.wtns"
+run_proof_test "transfer_max_proof"  "ERC20_transfer.circom" "transfer_amount_max.wtns"
+run_proof_test "approve_500_proof"   "ERC20_approve.circom"  "approve_amount_500.wtns"
+
 # ---- Summary ----
 echo ""
 echo "=== Results ==="
-echo "Passed: $PASS"
+echo "Passed: $PASS / $((PASS + FAIL))"
 echo "Failed: $FAIL"
 
 if [ "$FAIL" -eq 0 ]; then
   echo ""
-  echo "✓ All end-to-end Circom tests passed!"
+  echo "✓ All end-to-end tests passed!"
+  echo ""
+  echo "Pipeline validated:"
+  echo "  1. Lean IntentSpec → Circom circuit generation"
+  echo "  2. Circom compilation → R1CS + WASM"
+  echo "  3. Poseidon commitment computation"
+  echo "  4. Witness generation + R1CS constraint verification"
+  echo "  5. Groth16 proof generation + verification"
   echo ""
   echo "Circuit stats:"
   echo "  Transfer: ${TRANSFER_NL} non-linear constraints"
