@@ -4,6 +4,31 @@ pragma solidity ^0.8.0;
 import "forge-std/Test.sol";
 
 abstract contract YulTestBase is Test {
+    function _usePatchedVerityCompiler() internal view returns (bool) {
+        return keccak256(bytes(_yulDir())) == keccak256(bytes("compiler/yul-patched"));
+    }
+
+    function _verityCompilerBinName() internal view returns (string memory) {
+        if (_usePatchedVerityCompiler()) {
+            return "verity-compiler-patched";
+        }
+        return "verity-compiler";
+    }
+
+    function _verityCompilerBuildTarget() internal view returns (string memory) {
+        if (_usePatchedVerityCompiler()) {
+            return "verity-compiler-patched";
+        }
+        return "verity-compiler";
+    }
+
+    function _verityCompilerArgs() internal view returns (string memory) {
+        if (_usePatchedVerityCompiler()) {
+            return " --enable-patches";
+        }
+        return "";
+    }
+
     function _yulDir() internal view returns (string memory) {
         string memory envDir = vm.envOr("DIFFTEST_YUL_DIR", string(""));
         if (bytes(envDir).length != 0) {
@@ -77,11 +102,19 @@ abstract contract YulTestBase is Test {
             outDir,
             "'; module='",
             moduleName,
-            "'; compiler='./.lake/build/bin/verity-compiler'; ",
+            "'; compiler_name='",
+            _verityCompilerBinName(),
+            "'; compiler_target='",
+            _verityCompilerBuildTarget(),
+            "'; compiler_args='",
+            _verityCompilerArgs(),
+            "'; ",
+            "compiler=\"./.lake/build/bin/$compiler_name\"; ",
+            "if [ ! -x \"$compiler\" ] && [ -x \"./compiler/bin/$compiler_name\" ]; then compiler=\"./compiler/bin/$compiler_name\"; fi; ",
             "if [ -f \"$artifact\" ] && [ -x \"$compiler\" ] && [ \"$compiler\" -ot \"$artifact\" ] && ",
             "! find Contracts Compiler Verity -name '*.lean' -newer \"$artifact\" -print -quit | grep -q .; then exit 0; fi; ",
-            "mkdir -p \"$out\" && lake build \"$module\" verity-compiler >/dev/null && ",
-            "\"$compiler\" --module \"$module\" --output \"$out\" >/dev/null"
+            "mkdir -p \"$out\" && lake build \"$module\" \"$compiler_target\" >/dev/null && ",
+            "\"$compiler\" --module \"$module\" --output \"$out\" $compiler_args >/dev/null"
         );
         vm.ffi(cmds);
         require(vm.exists(artifactPath), "Verity module compile did not emit Yul artifact");
@@ -103,11 +136,19 @@ abstract contract YulTestBase is Test {
             outDir,
             "'; manifest='",
             manifestPath,
-            "'; compiler='./.lake/build/bin/verity-compiler'; ",
+            "'; compiler_name='",
+            _verityCompilerBinName(),
+            "'; compiler_target='",
+            _verityCompilerBuildTarget(),
+            "'; compiler_args='",
+            _verityCompilerArgs(),
+            "'; ",
+            "compiler=\"./.lake/build/bin/$compiler_name\"; ",
+            "if [ ! -x \"$compiler\" ] && [ -x \"./compiler/bin/$compiler_name\" ]; then compiler=\"./compiler/bin/$compiler_name\"; fi; ",
             "if [ -f \"$artifact\" ] && [ -x \"$compiler\" ] && [ \"$compiler\" -ot \"$artifact\" ] && [ \"$manifest\" -ot \"$artifact\" ] && ",
             "! find Contracts Compiler Verity -name '*.lean' -newer \"$artifact\" -print -quit | grep -q .; then exit 0; fi; ",
-            "mkdir -p \"$out\" && set -- $(grep -vE '^[[:space:]]*($|#)' \"$manifest\") && lake build \"$@\" verity-compiler >/dev/null && ",
-            "\"$compiler\" --manifest \"$manifest\" --output \"$out\" >/dev/null"
+            "mkdir -p \"$out\" && set -- $(grep -vE '^[[:space:]]*($|#)' \"$manifest\") && lake build \"$@\" \"$compiler_target\" >/dev/null && ",
+            "\"$compiler\" --manifest \"$manifest\" --output \"$out\" $compiler_args >/dev/null"
         );
         vm.ffi(cmds);
         require(vm.exists(artifactPath), "Verity manifest compile did not emit Yul artifact");
