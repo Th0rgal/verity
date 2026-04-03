@@ -27,7 +27,7 @@ to verified Groth16 proof:
 ./scripts/test_circom_e2e.sh
 ```
 
-This script runs 6 tests across 5 pipeline stages:
+This script runs 10 tests across 5 pipeline stages:
 
 1. **Generate** `.circom` files from the ERC-20 `IntentSpec` (via `lake env lean`)
 2. **Compile** circuits with `circom` (syntax check + constraint generation)
@@ -37,21 +37,23 @@ This script runs 6 tests across 5 pipeline stages:
 
 ### Test Matrix
 
-| Test | Function | Input | Branch | TemplateId | Constraints | Witness | Proof |
-|------|----------|-------|--------|------------|-------------|---------|-------|
-| `transfer_1000` | `transfer(to=0xdead, amount=1000)` | Specific amount | else | 1 | 605 NL | PASS | PASS |
-| `transfer_max` | `transfer(to=0xdead, amount=MAX)` | All tokens | then | 0 | 605 NL | PASS | PASS |
-| `approve_500` | `approve(spender=0xbeef, amount=500)` | Specific amount | else | 1 | 605 NL | PASS | PASS |
+| Test | Function | Input | Branch | TemplateId | Witness | Proof |
+|------|----------|-------|--------|------------|---------|-------|
+| `transfer_1000` | `transfer(to=0xdead, amount=1000)` | Specific amount | else | 1 | PASS | PASS |
+| `transfer_max` | `transfer(to=0xdead, amount=MAX)` | All tokens | then | 0 | PASS | PASS |
+| `approve_500` | `approve(spender=0xbeef, amount=500)` | Specific amount | else | 1 | PASS | PASS |
+| `transferFrom_2000` | `transferFrom(from=0xcafe, to=0xdead, amount=2000)` | Specific amount | else | 1 | PASS | PASS |
+| `transferFrom_max` | `transferFrom(from=0xcafe, to=0xdead, amount=MAX)` | All tokens | then | 0 | PASS | PASS |
 
-All 6 tests pass: 3 witness verifications + 3 Groth16 proof verifications.
+All 10 tests pass: 5 witness verifications + 5 Groth16 proof verifications.
 
 ### What the Proof Proves
 
 For each test case, the Groth16 proof demonstrates:
 
-> "I know parameter values `(to, amount_lo, amount_hi)` such that:
-> 1. The selector matches `0xa9059cbb` (transfer) or `0x095ea7b3` (approve)
-> 2. `Poseidon(selector, to, amount_lo, amount_hi) == calldataCommitment`
+> "I know parameter values `(params...)` such that:
+> 1. The selector matches the expected constant (e.g. `0xa9059cbb` for transfer)
+> 2. `Poseidon(selector, params...) == calldataCommitment`
 > 3. Evaluating the intent DSL program selects the correct template and holes
 > 4. `Poseidon(templateId, holes...) == outputCommitment`"
 
@@ -67,7 +69,9 @@ IntentSpec (Lean)
     ├── Verity/Intent/Validate.lean  Validates against CompilationModel
     ├── Verity/Intent/Example.lean   ERC-20 example + smoke tests
     │
-    └── Compiler/Circom.lean         Circom circuit generator
+    ├── Compiler/Circom.lean         Circom circuit generator
+    │
+    └── Contracts/ERC20/Display.lean Production intentSpec constant
          │
          └── .circom files
               │
@@ -97,7 +101,8 @@ The `--circom-output` flag triggers:
 - [x] `Compiler/Circom.lean` — Circom circuit generator (Poseidon commitments, uint256 lo/hi)
 - [x] `Compiler/CircomTest.lean` — Regression tests for generated Circom structure
 - [x] `--circom-output <dir>` CLI flag (wired through compile pipeline)
-- [x] ERC-20 example with 3 test cases (witness + proof)
+- [x] `Contracts/ERC20/Display.lean` — Production `intentSpec` for the ERC-20 contract
+- [x] ERC-20 example with 5 test cases: transfer, approve, transferFrom (witness + proof)
 - [x] Groth16 proof generation and verification
 - [x] `lake build` passes, `make check` passes
 

@@ -10,6 +10,7 @@
   for external compilation and witness verification. The headers are:
     === Generated Circom for ERC20.transfer ===
     === Generated Circom for ERC20.approve ===
+    === Generated Circom for ERC20.transferFrom ===
   No other text may appear between a header and the next header (or EOF).
   All assertion messages are printed BEFORE the first header.
 -/
@@ -70,6 +71,35 @@ private def assertApproveStructure (circom : String) : IO Unit := do
   unless hasSubstr circom "component main" do
     throw (IO.userError "missing main component")
 
+/-- Verify structural properties of the transferFrom Circom circuit.
+    3-parameter function (fromAddr: address, to: address, amount: uint256)
+    maps to 4 signals (fromAddr, to, amount_lo, amount_hi) → Poseidon(5) for calldata. -/
+private def assertTransferFromStructure (circom : String) : IO Unit := do
+  unless hasSubstr circom "template TransferFromIntent()" do
+    throw (IO.userError "missing template TransferFromIntent()")
+  unless hasSubstr circom "selector === 0x23b872dd" do
+    throw (IO.userError "missing selector check")
+  unless hasSubstr circom "signal input fromAddr" do
+    throw (IO.userError "missing 'fromAddr' input")
+  unless hasSubstr circom "signal input to" do
+    throw (IO.userError "missing 'to' input")
+  unless hasSubstr circom "signal input amount_lo" do
+    throw (IO.userError "missing 'amount_lo' input")
+  unless hasSubstr circom "signal input amount_hi" do
+    throw (IO.userError "missing 'amount_hi' input")
+  -- 1 (selector) + 4 (fromAddr, to, amount_lo, amount_hi) = 5 inputs
+  unless hasSubstr circom "component cdHash = Poseidon(5)" do
+    throw (IO.userError "missing calldata Poseidon(5)")
+  -- 1 (templateId) + 4 hole signals (amount_lo, amount_hi, fromAddr, to) = 5 outputs
+  unless hasSubstr circom "component outHash = Poseidon(5)" do
+    throw (IO.userError "missing output Poseidon(5)")
+  unless hasSubstr circom "IsEqual()" do
+    throw (IO.userError "missing IsEqual for uint256 comparison")
+  unless hasSubstr circom "signal templateId" do
+    throw (IO.userError "missing templateId signal")
+  unless hasSubstr circom "component main {public [selector, calldataCommitment, outputCommitment]}" do
+    throw (IO.userError "missing main component declaration")
+
 -- Single #eval block: run all assertions, then print structured output.
 -- All assertion/status messages come before headers so the E2E script's
 -- awk extraction gets clean circom source between headers (and to EOF).
@@ -94,6 +124,15 @@ private def assertApproveStructure (circom : String) : IO Unit := do
     | none => throw (IO.userError "Circom generation failed for approve")
   assertApproveStructure approveCircom
 
+  -- Generate transferFrom circuit (3-parameter: address, address, uint256)
+  let transferFromBinding ← match getBinding spec 2 with
+    | some b => pure b
+    | none => throw (IO.userError "transferFrom binding not found")
+  let transferFromCircom ← match Compiler.Circom.emitCircom spec transferFromBinding "0x23b872dd" with
+    | some c => pure c
+    | none => throw (IO.userError "Circom generation failed for transferFrom")
+  assertTransferFromStructure transferFromCircom
+
   -- Verify emitCircom returns none for invalid bindings
   let badBinding : IntentBinding := { functionName := "fake", intentFn := "nonexistent" }
   match Compiler.Circom.emitCircom spec badBinding "0x00000000" with
@@ -103,10 +142,13 @@ private def assertApproveStructure (circom : String) : IO Unit := do
   -- All assertions passed. Print status messages first, then headers+circom.
   IO.println "✓ TransferIntent: all structural checks pass"
   IO.println "✓ ApproveIntent: all structural checks pass"
+  IO.println "✓ TransferFromIntent: all structural checks pass"
   IO.println "✓ Invalid binding correctly returns none"
   IO.println "=== Generated Circom for ERC20.transfer ==="
   IO.println transferCircom
   IO.println "=== Generated Circom for ERC20.approve ==="
   IO.println approveCircom
+  IO.println "=== Generated Circom for ERC20.transferFrom ==="
+  IO.println transferFromCircom
 
 end Compiler.CircomTest

@@ -1,11 +1,11 @@
 /-
-  Verity.Intent.Example: Example IntentSpec for an ERC-20 transfer function.
+  Verity.Intent.Example: Example IntentSpec for an ERC-20 contract.
 
   Demonstrates the provable intent DSL by defining:
     - A `isMaxUint` predicate helper
-    - A `transfer` intent that emits different templates based on whether
-      the amount equals MAX_UINT256 ("all tokens" vs specific amount)
-    - An `approve` intent (simpler, unconditional)
+    - A `transfer` intent (2 params: address + uint256, conditional)
+    - An `approve` intent (2 params: address + uint256, conditional)
+    - A `transferFrom` intent (3 params: address + address + uint256, conditional)
 
   These examples can be used to:
     1. Test the reference evaluator
@@ -31,7 +31,7 @@ def maxUint256 : Int :=
 
 /-! ## ERC-20 Transfer Intent -/
 
-/-- Example: ERC-20 IntentSpec with transfer and approve. -/
+/-- Example: ERC-20 IntentSpec with transfer, approve, and transferFrom. -/
 def erc20IntentSpec : IntentSpec := {
   contractName := "ERC20"
 
@@ -75,12 +75,29 @@ def erc20IntentSpec : IntentSpec := {
                              { param := "amount",
                                format := .tokenAmount 18 (some "TOKEN") }] }]
       ]
+    },
+    -- Intent: transferFrom(fromAddr: address, to: address, amount: uint256)
+    { name := "transferFromIntent"
+      params := [("fromAddr", .address), ("to", .address), ("amount", .uint256)]
+      returnKind := .void
+      body := [
+        .ite (.call "isMaxUint" [.param "amount"])
+          [.emit { text := "Transfer all tokens from {fromAddr} to {to}",
+                   holes := [{ param := "fromAddr", format := .address },
+                             { param := "to", format := .address }] }]
+          [.emit { text := "Transfer {amount} tokens from {fromAddr} to {to}",
+                   holes := [{ param := "amount",
+                               format := .tokenAmount 18 (some "TOKEN") },
+                             { param := "fromAddr", format := .address },
+                             { param := "to", format := .address }] }]
+      ]
     }
   ]
 
   bindings := [
-    { functionName := "transfer", intentFn := "transferIntent" },
-    { functionName := "approve",  intentFn := "approveIntent"  }
+    { functionName := "transfer",     intentFn := "transferIntent" },
+    { functionName := "approve",      intentFn := "approveIntent"  },
+    { functionName := "transferFrom", intentFn := "transferFromIntent" }
   ]
 }
 
@@ -149,6 +166,45 @@ Run `#eval` to verify the evaluator produces the expected output.
     | none => IO.println "ERROR: evaluation failed"
   | none => IO.println "ERROR: binding not found"
 
+-- Test: transferFrom with a specific amount (3-parameter function).
+#eval do
+  let spec := erc20IntentSpec
+  match getBinding spec 2 with
+  | some binding =>
+    let params : List (String × Value) := [
+      ("fromAddr", .addr "0xcafe"),
+      ("to", .addr "0xdead"),
+      ("amount", .int 2000)
+    ]
+    let result := evalIntent spec binding params
+    match result with
+    | some templates =>
+      IO.println s!"TransferFrom (amount=2000): {templates.length} template(s)"
+      for t in templates do
+        IO.println s!"  text: \"{t.text}\""
+        IO.println s!"  holes: {t.holes.length}"
+    | none => IO.println "ERROR: evaluation failed"
+  | none => IO.println "ERROR: binding not found"
+
+-- Test: transferFrom with MAX_UINT256 should emit "Transfer all tokens from {fromAddr} to {to}".
+#eval do
+  let spec := erc20IntentSpec
+  match getBinding spec 2 with
+  | some binding =>
+    let params : List (String × Value) := [
+      ("fromAddr", .addr "0xcafe"),
+      ("to", .addr "0xdead"),
+      ("amount", .int maxUint256)
+    ]
+    let result := evalIntent spec binding params
+    match result with
+    | some templates =>
+      IO.println s!"TransferFrom (amount=MAX): {templates.length} template(s)"
+      for t in templates do
+        IO.println s!"  text: \"{t.text}\""
+    | none => IO.println "ERROR: evaluation failed"
+  | none => IO.println "ERROR: binding not found"
+
 /-! ## Validation Smoke Tests
 
 Build a mock CompilationModel matching the ERC-20 intent spec and verify validation.
@@ -156,7 +212,7 @@ Build a mock CompilationModel matching the ERC-20 intent spec and verify validat
 
 open Compiler.CompilationModel (CompilationModel FunctionSpec Param)
 
-/-- Mock ERC-20 CompilationModel with transfer and approve functions. -/
+/-- Mock ERC-20 CompilationModel with transfer, approve, and transferFrom. -/
 private def mockErc20Model : CompilationModel := {
   name := "ERC20"
   fields := []
@@ -168,6 +224,10 @@ private def mockErc20Model : CompilationModel := {
       body := [] },
     { name := "approve"
       params := [⟨"spender", .address⟩, ⟨"amount", .uint256⟩]
+      returnType := none
+      body := [] },
+    { name := "transferFrom"
+      params := [⟨"fromAddr", .address⟩, ⟨"to", .address⟩, ⟨"amount", .uint256⟩]
       returnType := none
       body := [] }
   ]
@@ -322,6 +382,50 @@ private def max128 : Nat := (2 ^ 128) - 1
       unless co.holeValues == [48879, 500, 0] do
         throw (IO.userError s!"expected holeValues=[48879, 500, 0], got {repr co.holeValues}")
       IO.println s!"✓ Circuit output: approve(500) → templateIdx={co.templateIdx}, holes={repr co.holeValues}"
+    | none => throw (IO.userError "evalIntentCircuitOutput returned none")
+  | none => throw (IO.userError "binding not found")
+
+-- Test: transferFrom(fromAddr=0xcafe, to=0xdead, amount=2000)
+--   → templateIdx=1 (else branch), holes=[2000, 0, 51966, 57005]
+--   Hole order: dedup of [fromAddr, to] ++ [amount, fromAddr, to] = [amount, fromAddr, to]
+--   Values: amount_lo=2000, amount_hi=0, fromAddr=0xcafe=51966, to=0xdead=57005
+#eval do
+  let spec := erc20IntentSpec
+  match getBinding spec 2 with
+  | some binding =>
+    let params : List (String × Value) := [
+      ("fromAddr", .addr "0xcafe"),
+      ("to", .addr "0xdead"),
+      ("amount", .int 2000)
+    ]
+    match evalIntentCircuitOutput spec binding params with
+    | some co =>
+      unless co.templateIdx == 1 do
+        throw (IO.userError s!"expected templateIdx=1, got {co.templateIdx}")
+      unless co.holeValues == [2000, 0, 51966, 57005] do
+        throw (IO.userError s!"expected holeValues=[2000, 0, 51966, 57005], got {repr co.holeValues}")
+      IO.println s!"✓ Circuit output: transferFrom(2000) → templateIdx={co.templateIdx}, holes={repr co.holeValues}"
+    | none => throw (IO.userError "evalIntentCircuitOutput returned none")
+  | none => throw (IO.userError "binding not found")
+
+-- Test: transferFrom(fromAddr=0xcafe, to=0xdead, amount=MAX)
+--   → templateIdx=0 (then branch), holes=[max128, max128, 51966, 57005]
+#eval do
+  let spec := erc20IntentSpec
+  match getBinding spec 2 with
+  | some binding =>
+    let params : List (String × Value) := [
+      ("fromAddr", .addr "0xcafe"),
+      ("to", .addr "0xdead"),
+      ("amount", .int maxUint256)
+    ]
+    match evalIntentCircuitOutput spec binding params with
+    | some co =>
+      unless co.templateIdx == 0 do
+        throw (IO.userError s!"expected templateIdx=0, got {co.templateIdx}")
+      unless co.holeValues == [max128, max128, 51966, 57005] do
+        throw (IO.userError s!"expected holeValues=[max128, max128, 51966, 57005], got {repr co.holeValues}")
+      IO.println s!"✓ Circuit output: transferFrom(MAX) → templateIdx={co.templateIdx}, holes match"
     | none => throw (IO.userError "evalIntentCircuitOutput returned none")
   | none => throw (IO.userError "binding not found")
 

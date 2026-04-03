@@ -49,18 +49,25 @@ cd "$REPO_DIR"
 CIRCOM_OUTPUT="$(PATH="${ELAN_HOME:-$HOME/.elan}/bin:$PATH" \
   lake env lean Compiler/CircomTest.lean 2>/dev/null)"
 
-# Extract transfer circuit (lines between the two headers)
+# Extract transfer circuit (between transfer and approve headers)
 echo "$CIRCOM_OUTPUT" | awk '
   /^=== Generated Circom for ERC20.transfer ===$/{found=1; next}
   /^=== Generated Circom for ERC20.approve ===$/{found=0}
   found{print}
 ' > "$WORK_DIR/ERC20_transfer.circom"
 
-# Extract approve circuit (from second header to end)
+# Extract approve circuit (between approve and transferFrom headers)
 echo "$CIRCOM_OUTPUT" | awk '
   /^=== Generated Circom for ERC20.approve ===$/{found=1; next}
+  /^=== Generated Circom for ERC20.transferFrom ===$/{found=0}
   found{print}
 ' > "$WORK_DIR/ERC20_approve.circom"
+
+# Extract transferFrom circuit (from transferFrom header to end)
+echo "$CIRCOM_OUTPUT" | awk '
+  /^=== Generated Circom for ERC20.transferFrom ===$/{found=1; next}
+  found{print}
+' > "$WORK_DIR/ERC20_transferFrom.circom"
 
 if [ ! -s "$WORK_DIR/ERC20_transfer.circom" ]; then
   echo "ERROR: Failed to generate transfer circuit"
@@ -70,9 +77,14 @@ if [ ! -s "$WORK_DIR/ERC20_approve.circom" ]; then
   echo "ERROR: Failed to generate approve circuit"
   exit 1
 fi
+if [ ! -s "$WORK_DIR/ERC20_transferFrom.circom" ]; then
+  echo "ERROR: Failed to generate transferFrom circuit"
+  exit 1
+fi
 
 echo "✓ Generated ERC20_transfer.circom ($(wc -l < "$WORK_DIR/ERC20_transfer.circom") lines)"
 echo "✓ Generated ERC20_approve.circom ($(wc -l < "$WORK_DIR/ERC20_approve.circom") lines)"
+echo "✓ Generated ERC20_transferFrom.circom ($(wc -l < "$WORK_DIR/ERC20_transferFrom.circom") lines)"
 
 # ---- Step 2: Install circomlib and compile circuits ----
 echo ""
@@ -88,6 +100,10 @@ echo "✓ Transfer circuit compiled: ${TRANSFER_NL} non-linear constraints"
 circom ERC20_approve.circom --r1cs --wasm --sym -l node_modules 2>&1 | grep -E "constraints|okay|Error"
 APPROVE_NL=$(circom ERC20_approve.circom --r1cs -l node_modules 2>&1 | grep "non-linear" | awk '{print $NF}')
 echo "✓ Approve circuit compiled: ${APPROVE_NL} non-linear constraints"
+
+circom ERC20_transferFrom.circom --r1cs --wasm --sym -l node_modules 2>&1 | grep -E "constraints|okay|Error"
+TRANSFER_FROM_NL=$(circom ERC20_transferFrom.circom --r1cs -l node_modules 2>&1 | grep "non-linear" | awk '{print $NF}')
+echo "✓ TransferFrom circuit compiled: ${TRANSFER_FROM_NL} non-linear constraints"
 
 # ---- Step 3: Compute witness inputs ----
 echo ""
@@ -174,6 +190,61 @@ async function main() {
     fs.writeFileSync("approve_500_input.json", JSON.stringify(input, null, 2));
     console.log("✓ Wrote approve_500_input.json (amount=500, templateId=1)");
   }
+
+  // ---------- TransferFrom test cases ----------
+
+  // Case 4: transferFrom(fromAddr=0xcafe, to=0xdead, amount=2000) — specific amount (else branch)
+  {
+    const selector = BigInt("599290589");  // 0x23b872dd
+    const fromAddr = BigInt("0xcafe");
+    const to = BigInt("0xdead");
+    const amount_lo = BigInt(2000);
+    const amount_hi = BigInt(0);
+
+    // cdHash: Poseidon(selector, fromAddr, to, amount_lo, amount_hi) — 5 inputs
+    const cdHash = F.toObject(poseidon([selector, fromAddr, to, amount_lo, amount_hi]));
+    // amount != MAX → isMaxUint false → templateId = 1 (else branch)
+    const templateId = BigInt(1);
+    // outHash: Poseidon(templateId, amount_lo, amount_hi, fromAddr, to) — deduped hole order
+    const outHash = F.toObject(poseidon([templateId, amount_lo, amount_hi, fromAddr, to]));
+
+    const input = {
+      selector: selector.toString(),
+      calldataCommitment: cdHash.toString(),
+      outputCommitment: outHash.toString(),
+      fromAddr: fromAddr.toString(),
+      to: to.toString(),
+      amount_lo: amount_lo.toString(),
+      amount_hi: amount_hi.toString()
+    };
+    fs.writeFileSync("transferFrom_2000_input.json", JSON.stringify(input, null, 2));
+    console.log("✓ Wrote transferFrom_2000_input.json (amount=2000, templateId=1)");
+  }
+
+  // Case 5: transferFrom(fromAddr=0xcafe, to=0xdead, amount=MAX_UINT256) — all tokens (then branch)
+  {
+    const selector = BigInt("599290589");  // 0x23b872dd
+    const fromAddr = BigInt("0xcafe");
+    const to = BigInt("0xdead");
+    const max128 = (BigInt(1) << BigInt(128)) - BigInt(1);
+
+    const cdHash = F.toObject(poseidon([selector, fromAddr, to, max128, max128]));
+    // amount == MAX → isMaxUint true → templateId = 0 (then branch)
+    const templateId = BigInt(0);
+    const outHash = F.toObject(poseidon([templateId, max128, max128, fromAddr, to]));
+
+    const input = {
+      selector: selector.toString(),
+      calldataCommitment: cdHash.toString(),
+      outputCommitment: outHash.toString(),
+      fromAddr: fromAddr.toString(),
+      to: to.toString(),
+      amount_lo: max128.toString(),
+      amount_hi: max128.toString()
+    };
+    fs.writeFileSync("transferFrom_max_input.json", JSON.stringify(input, null, 2));
+    console.log("✓ Wrote transferFrom_max_input.json (amount=MAX, templateId=0)");
+  }
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
@@ -217,9 +288,11 @@ run_witness_test() {
   fi
 }
 
-run_witness_test "transfer_amount_1000" "ERC20_transfer.circom" "transfer_1000_input.json"
-run_witness_test "transfer_amount_max"  "ERC20_transfer.circom" "transfer_max_input.json"
-run_witness_test "approve_amount_500"   "ERC20_approve.circom"  "approve_500_input.json"
+run_witness_test "transfer_amount_1000"     "ERC20_transfer.circom"     "transfer_1000_input.json"
+run_witness_test "transfer_amount_max"      "ERC20_transfer.circom"     "transfer_max_input.json"
+run_witness_test "approve_amount_500"       "ERC20_approve.circom"      "approve_500_input.json"
+run_witness_test "transferFrom_amount_2000" "ERC20_transferFrom.circom" "transferFrom_2000_input.json"
+run_witness_test "transferFrom_amount_max"  "ERC20_transferFrom.circom" "transferFrom_max_input.json"
 
 # ---- Step 5: Groth16 proof generation and verification ----
 echo ""
@@ -283,9 +356,11 @@ run_proof_test() {
   fi
 }
 
-run_proof_test "transfer_1000_proof" "ERC20_transfer.circom" "transfer_amount_1000.wtns"
-run_proof_test "transfer_max_proof"  "ERC20_transfer.circom" "transfer_amount_max.wtns"
-run_proof_test "approve_500_proof"   "ERC20_approve.circom"  "approve_amount_500.wtns"
+run_proof_test "transfer_1000_proof"     "ERC20_transfer.circom"     "transfer_amount_1000.wtns"
+run_proof_test "transfer_max_proof"      "ERC20_transfer.circom"     "transfer_amount_max.wtns"
+run_proof_test "approve_500_proof"       "ERC20_approve.circom"      "approve_amount_500.wtns"
+run_proof_test "transferFrom_2000_proof" "ERC20_transferFrom.circom" "transferFrom_amount_2000.wtns"
+run_proof_test "transferFrom_max_proof"  "ERC20_transferFrom.circom" "transferFrom_amount_max.wtns"
 
 # ---- Summary ----
 echo ""
@@ -305,8 +380,9 @@ if [ "$FAIL" -eq 0 ]; then
   echo "  5. Groth16 proof generation + verification"
   echo ""
   echo "Circuit stats:"
-  echo "  Transfer: ${TRANSFER_NL} non-linear constraints"
-  echo "  Approve:  ${APPROVE_NL} non-linear constraints"
+  echo "  Transfer:     ${TRANSFER_NL} non-linear constraints"
+  echo "  Approve:      ${APPROVE_NL} non-linear constraints"
+  echo "  TransferFrom: ${TRANSFER_FROM_NL} non-linear constraints"
   exit 0
 else
   echo ""
