@@ -6,7 +6,8 @@
   2. Every IntentBinding.intentFn exists in IntentSpec.fns
   3. Intent function params match the CompilationModel function's ABI params
   4. All helper functions referenced in expressions/statements exist
-  5. All constants referenced in expressions exist
+  5. All param/constant references resolve to known names
+  6. Poseidon calldata commitment arity ≤ 16 (circomlib limit)
 
   Returns a list of error messages (empty = valid).
 -/
@@ -126,6 +127,24 @@ private def validatePhase1Types (fn : FnDecl) : List String :=
     if isPhase1Type ty then none
     else some s!"Function '{fn.name}': param '{name}' has unsupported Phase 1 type {repr ty} (expected uint256, address, or bool)"
 
+/-- Number of Circom signals per parameter type (uint256 → 2 for lo/hi split). -/
+private def signalCount : ParamType → Nat
+  | .uint256 | .int256 => 2
+  | _ => 1
+
+/-- Maximum number of inputs supported by circomlib's Poseidon template. -/
+private def poseidonMaxInputs : Nat := 16
+
+/-- Validate that an intent function's Poseidon calldata commitment arity
+    does not exceed circomlib's limit (16 inputs).
+    Arity = 1 (selector) + Σ(signals per param). -/
+private def validatePoseidonArity (fn : FnDecl) : List String :=
+  let totalSignals := fn.params.foldl (fun acc (_, ty) => acc + signalCount ty) 0
+  let cdArity := 1 + totalSignals  -- selector + param signals
+  if cdArity > poseidonMaxInputs then
+    [s!"Function '{fn.name}': calldata commitment requires Poseidon({cdArity}) but circomlib supports at most {poseidonMaxInputs} inputs ({totalSignals} param signals + 1 selector)"]
+  else []
+
 /-- Validate a single intent binding. -/
 private def validateBinding
     (spec : IntentSpec) (cm : CompilationModel) (binding : IntentBinding) : List String :=
@@ -156,7 +175,12 @@ def validate (spec : IntentSpec) (cm : CompilationModel) : List String :=
   let typeErrors := spec.fns.flatMap validatePhase1Types
   -- 5. Validate all param/constant references resolve
   let refErrors := spec.fns.flatMap (validateRefsInFn spec)
-  -- 6. Check for duplicate binding function names
+  -- 6. Validate Poseidon arity for intent functions (bound to ABI functions)
+  let arityErrors := spec.bindings.flatMap fun binding =>
+    match spec.fns.find? (fun f => f.name == binding.intentFn) with
+    | some fn => validatePoseidonArity fn
+    | none => []  -- already caught by binding validation
+  -- 7. Check for duplicate binding function names
   let bindingNames := spec.bindings.map (·.functionName)
   let dupErrors :=
     let rec findDup : List String → List String → List String
@@ -166,7 +190,7 @@ def validate (spec : IntentSpec) (cm : CompilationModel) : List String :=
         then s!"Duplicate binding for function '{n}'" :: findDup rest seen
         else findDup rest (n :: seen)
     findDup bindingNames []
-  nameErrors ++ bindingErrors ++ callErrors ++ typeErrors ++ refErrors ++ dupErrors
+  nameErrors ++ bindingErrors ++ callErrors ++ typeErrors ++ refErrors ++ arityErrors ++ dupErrors
 
 /-- Convenience: validate and return an Except. -/
 def validateOrError (spec : IntentSpec) (cm : CompilationModel) : Except String Unit :=

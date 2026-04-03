@@ -240,6 +240,25 @@ private def hasSubstr (haystack needle : String) : Bool :=
   | some _ => IO.println "✓ Undefined constant reference detected"
   | none => throw (IO.userError "expected undefined name error")
 
+-- Test: Poseidon arity overflow is caught (too many params for circomlib).
+#eval do
+  -- Create a spec with 8 uint256 params = 16 signals + 1 selector = 17 > Poseidon max of 16
+  let manyParamFn : FnDecl := {
+    name := "bigIntent"
+    params := (List.range 8).map (fun i => (s!"p{i}", ParamType.uint256))
+    returnKind := .void
+    body := [.emit { text := "test", holes := [] }]
+  }
+  let bigSpec : IntentSpec := {
+    contractName := "ERC20"
+    fns := [manyParamFn]
+    bindings := [{ functionName := "transfer", intentFn := "bigIntent" }]
+  }
+  let errors := Validate.validate bigSpec mockErc20Model
+  match errors.find? (fun e => hasSubstr e "Poseidon") with
+  | some _ => IO.println "✓ Poseidon arity overflow detected"
+  | none => throw (IO.userError "expected Poseidon arity error")
+
 /-! ## Circuit Output Cross-Validation Tests
 
 Verify that `evalIntentCircuitOutput` computes the same `(templateId, holeValues)`
