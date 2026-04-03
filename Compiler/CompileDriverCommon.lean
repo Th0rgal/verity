@@ -3,6 +3,7 @@ import Compiler.Selector
 import Compiler.ABI
 import Compiler.Circom
 import Compiler.Hex
+import Verity.Intent.Validate
 import Compiler.ModuleInput
 import Compiler.CompilationModel.Compile
 import Compiler.CompilationModel.EventEmission
@@ -242,6 +243,12 @@ def compileSpecsWithOptions
               iSpec.contractName == spec.name
             match matchingIntent with
             | some (_, iSpec) =>
+              -- Validate IntentSpec against the CompilationModel before generating circuits
+              match Verity.Intent.Validate.validateOrError iSpec spec with
+              | .error err =>
+                IO.eprintln s!"✗ IntentSpec validation failed for {spec.name}:\n{err}"
+                throw (IO.userError s!"IntentSpec validation failed for {spec.name}")
+              | .ok () =>
               -- Build (functionName, hexSelector) pairs from the computed selectors
               let externalFns := spec.functions.filter
                 (fun fn => !fn.isInternal && !Compiler.CompilationModel.isInteropEntrypointName fn.name)

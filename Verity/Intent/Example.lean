@@ -14,6 +14,7 @@
 -/
 import Verity.Intent.Types
 import Verity.Intent.Eval
+import Verity.Intent.Validate
 import Compiler.CompilationModel.Types
 
 namespace Verity.Intent.Example
@@ -147,5 +148,86 @@ Run `#eval` to verify the evaluator produces the expected output.
         IO.println s!"  text: \"{t.text}\""
     | none => IO.println "ERROR: evaluation failed"
   | none => IO.println "ERROR: binding not found"
+
+/-! ## Validation Smoke Tests
+
+Build a mock CompilationModel matching the ERC-20 intent spec and verify validation.
+-/
+
+open Compiler.CompilationModel (CompilationModel FunctionSpec Param)
+
+/-- Mock ERC-20 CompilationModel with transfer and approve functions. -/
+private def mockErc20Model : CompilationModel := {
+  name := "ERC20"
+  fields := []
+  constructor := none
+  functions := [
+    { name := "transfer"
+      params := [⟨"to", .address⟩, ⟨"amount", .uint256⟩]
+      returnType := none
+      body := [] },
+    { name := "approve"
+      params := [⟨"spender", .address⟩, ⟨"amount", .uint256⟩]
+      returnType := none
+      body := [] }
+  ]
+}
+
+-- Test: valid intent spec passes validation.
+#eval do
+  let errors := Validate.validate erc20IntentSpec mockErc20Model
+  if errors.isEmpty then
+    IO.println "✓ ERC-20 intent spec validates against mock CompilationModel"
+  else
+    for e in errors do
+      IO.println s!"✗ {e}"
+    throw (IO.userError "validation failed")
+
+private def hasSubstr (haystack needle : String) : Bool :=
+  (haystack.splitOn needle).length > 1
+
+-- Test: mismatched contract name is caught.
+#eval do
+  let badSpec := { erc20IntentSpec with contractName := "BadName" }
+  let errors := Validate.validate badSpec mockErc20Model
+  match errors.find? (fun e => hasSubstr e "Contract name mismatch") with
+  | some _ => IO.println "✓ Mismatched contract name detected"
+  | none => throw (IO.userError "expected contract name mismatch error")
+
+-- Test: binding to missing ABI function is caught.
+#eval do
+  let badSpec := { erc20IntentSpec with
+    bindings := [{ functionName := "nonexistent", intentFn := "transferIntent" }] }
+  let errors := Validate.validate badSpec mockErc20Model
+  match errors.find? (fun e => hasSubstr e "no matching function") with
+  | some _ => IO.println "✓ Missing ABI function detected"
+  | none => throw (IO.userError "expected missing function error")
+
+-- Test: binding to missing intent function is caught.
+#eval do
+  let badSpec := { erc20IntentSpec with
+    bindings := [{ functionName := "transfer", intentFn := "missingFn" }] }
+  let errors := Validate.validate badSpec mockErc20Model
+  match errors.find? (fun e => hasSubstr e "intent function 'missingFn' not found") with
+  | some _ => IO.println "✓ Missing intent function detected"
+  | none => throw (IO.userError "expected missing intent function error")
+
+-- Test: param type mismatch is caught.
+#eval do
+  let badModel : CompilationModel := { mockErc20Model with
+    functions := [
+      { name := "transfer"
+        params := [⟨"to", .bool⟩, ⟨"amount", .uint256⟩]  -- wrong type for 'to'
+        returnType := none
+        body := [] },
+      { name := "approve"
+        params := [⟨"spender", .address⟩, ⟨"amount", .uint256⟩]
+        returnType := none
+        body := [] }
+    ] }
+  let errors := Validate.validate erc20IntentSpec badModel
+  match errors.find? (fun e => hasSubstr e "type mismatch") with
+  | some _ => IO.println "✓ Param type mismatch detected"
+  | none => throw (IO.userError "expected type mismatch error")
 
 end Verity.Intent.Example
