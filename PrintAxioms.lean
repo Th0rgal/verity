@@ -893,6 +893,13 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_mul_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_div_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_mod_ok
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_mload_ok
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_mload_of_compiled  -- private
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_tload_ok
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.calldataloadWord_lt_evmModulus  -- private
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_calldataload_ok
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_calldataload_of_compiled  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_tload_of_compiled  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_of_sourceEval_some  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_eq_of_values  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_lt_of_values  -- private
@@ -1228,6 +1235,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.compileStmt_ok_of_compileStmtList_append_cons  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.isMapping_false_of_compileStmt_setStorage_ok  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compileStmt_ite_ok_inv  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListScopeCore_of_unsupportedContractSurface_eq_false  -- private
 #print axioms Compiler.Proofs.IRGeneration.stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsupportedContractSurface
 -- #print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurface_of_stmtListTouchesUnsupportedContractSurface_append_cons  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.mem_stmtNextScope_of_mem_scope  -- private
@@ -1357,12 +1365,11 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_letStorageField  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_letStorageAddrField  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_letStorageAddrField  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_iteTerminal  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_setStorage_singleSlot  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_setStorageAddr_singleSlot  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_mstore_single  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_tstore_single  -- private
--- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_ite_surface  -- private
--- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_ite_list_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_setStorageSingleSlot_of_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_setStorageAddrSingleSlot_of_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_mstoreSingle_of_surface  -- private
@@ -1377,12 +1384,25 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_setMapping2WordSingle_of_slotSafety  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_setStructMember2Single_of_slotSafety  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_singleton_stmt_surface  -- private
--- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_returnMapping_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_letStorageField_of_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_letStorageAddrField_of_surface  -- private
--- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMapping_surface  -- private
--- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMapping2_surface  -- private
--- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMappingUint_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_iteTerminal_of_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMappingField_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMappingField_surface_exceptMappingWrites  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMappingWordField_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMappingWordField_surface_exceptMappingWrites  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMappingUintField_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMappingUintField_surface_exceptMappingWrites  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMappingPackedWordField_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMappingPackedWordField_surface_exceptMappingWrites  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMapping2Field_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMapping2Field_surface_exceptMappingWrites  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMapping2WordField_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMapping2WordField_surface_exceptMappingWrites  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letStructMemberField_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letStructMemberField_surface_exceptMappingWrites  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letStructMember2Field_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letStructMember2Field_surface_exceptMappingWrites  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_setMappingUintSingle_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_setMappingChainSingle_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_setMappingSingle_surface  -- private
@@ -1392,18 +1412,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_setMapping2Single_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_setMapping2WordSingle_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_setStructMember2Single_surface  -- private
--- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_rawLogLiterals_surface  -- private
--- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letCallerLetStorageReqEqReqNeqSetStorageParamStop_surface  -- private
--- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_singleton_stmt_surface_exceptMappingWrites  -- private
--- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_returnMapping_surface_exceptMappingWrites  -- private
--- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMapping_surface_exceptMappingWrites  -- private
--- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMapping2_surface_exceptMappingWrites  -- private
--- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMappingUint_surface_exceptMappingWrites  -- private
--- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_rawLogLiterals_surface_exceptMappingWrites  -- private
--- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letCallerLetStorageReqEqReqNeqSetStorageParamStop_surface_exceptMappingWrites  -- private
--- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop_surface_exceptMappingWrites  -- private
--- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_ite_list_surface_exceptMappingWrites  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.exprBoundNamesInScope_of_scopeNamesIncluded  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.scopeNamesIncluded_cons  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListCompileCore_of_scopeNamesIncluded  -- private
@@ -1512,6 +1521,9 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.expr_call_measure_decreases  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.pairLex_same_fst_succ  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.internal_call_measure_decreases  -- private
+#print axioms Compiler.Proofs.IRGeneration.evalIRCall_tload_singleton
+#print axioms Compiler.Proofs.IRGeneration.evalIRCall_mload_singleton
+#print axioms Compiler.Proofs.IRGeneration.evalIRCall_calldataload_singleton
 -- #print axioms Compiler.Proofs.IRGeneration.prepareInternalCalleeState_vars  -- private
 #print axioms Compiler.Proofs.IRGeneration.execIRInternalFunctionWithInternals_hides_caller_only_locals
 #print axioms Compiler.Proofs.IRGeneration.execIRStmt_stop_succ
@@ -1651,13 +1663,13 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genScalarLoad_supported
 -- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.getD_eq_of_drop_eq_cons  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.drop_succ_eq_of_drop_eq_cons  -- private
--- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.genScalarLoad_length_supported  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.supportedExternalParamType_cases  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.execIRStmts_cons_of_execIRStmt_continue  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.execIRStmts_cons_of_execIRStmt_continue_extraFuel  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genScalarLoad_supported_then_word_passthrough  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genScalarLoad_supported_then_uint8  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genScalarLoad_supported_then_address  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genScalarLoad_supported_then_bool  -- private
 #print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genScalarLoad_supported_then
 #print axioms Compiler.Proofs.IRGeneration.ParamLoading.bindSupportedParams_names
 #print axioms Compiler.Proofs.IRGeneration.ParamLoading.bindSupportedParams_names_nodup
@@ -1824,15 +1836,11 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListCompileCore_internalHelperCallNames_nil  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListTerminalCore_internalHelperCallNames_nil  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListTerminalCore_helperSurfaceClosed  -- private
--- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_returnMapping_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_letStorageField_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_letStorageAddrField_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_setStorageAddrSingleSlot_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_mstoreSingle_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_tstoreSingle_helperSurfaceClosed  -- private
--- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_letMapping_helperSurfaceClosed  -- private
--- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_letMapping2_helperSurfaceClosed  -- private
--- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_letMappingUint_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_setMappingUintSingle_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_setMappingChainSingle_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_setMappingSingle_helperSurfaceClosed  -- private
@@ -1842,9 +1850,6 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_setMapping2WordSingle_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_setMappingPackedWordSingle_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_setStructMember2Single_helperSurfaceClosed  -- private
--- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_rawLogLiterals_helperSurfaceClosed  -- private
--- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_letCallerLetStorageReqEqReqNeqSetStorageParamStop_helperSurfaceClosed  -- private
--- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop_helperSurfaceClosed  -- private
 #print axioms Compiler.Proofs.IRGeneration.SupportedStmtList.helperSurfaceClosed
 -- #print axioms Compiler.Proofs.IRGeneration.exprListInternalHelperCallNames_literals  -- private
 #print axioms Compiler.Proofs.IRGeneration.SupportedStmtList.internalHelperCallNames_nil
@@ -1876,11 +1881,11 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.exprListTouchesUnsupportedContractSurface_eq_false_of_featureClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed  -- private
--- #print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurface_eq_false_of_featureClosed  -- private
--- #print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurfaceExceptMappingWrites_eq_false_of_featureClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListFeatureClosed_cons_inv  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListFeatureClosedExceptMappingWrites_cons_inv  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurface_eq_false_of_featureClosed  -- private
 #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedContractSurface_eq_false_of_featureClosed
+-- #print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurfaceExceptMappingWrites_eq_false_of_featureClosed  -- private
 #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites_eq_false_of_featureClosed
 #print axioms Compiler.Proofs.IRGeneration.exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
 -- #print axioms Compiler.Proofs.IRGeneration.exprListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed  -- private
@@ -2065,4 +2070,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1934 theorems/lemmas (1295 public, 639 private, 0 sorry'd)
+-- Total: 1939 theorems/lemmas (1301 public, 638 private, 0 sorry'd)

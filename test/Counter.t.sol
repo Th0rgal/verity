@@ -17,7 +17,7 @@ contract CounterTest is Test {
     }
 
     /// @notice Test initial state (should be 0)
-    function test_InitialState() public {
+    function test_InitialState() public view {
         assertEq(counter.getCount(), 0, "Initial count should be 0");
     }
 

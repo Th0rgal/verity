@@ -104,7 +104,7 @@ contract PropertyOwnedTest is YulTestBase {
      * Theorem: Constructor sets owner to initialOwner
      * Property: constructor_meets_spec
      */
-    function testProperty_Constructor_SetsInitialOwner() public {
+    function testProperty_Constructor_SetsInitialOwner() public view {
         // setUp deployed with ALICE as owner
         address currentOwner = readOwner();
 
@@ -120,7 +120,7 @@ contract PropertyOwnedTest is YulTestBase {
      * Property: getOwner_preserves_state
      * Property: getOwner_preserves_wellformedness
      */
-    function testProperty_GetOwner_ReadsCorrectValue() public {
+    function testProperty_GetOwner_ReadsCorrectValue() public view {
         address ownerBefore = readOwner();
 
         // Call getOwner
@@ -136,7 +136,7 @@ contract PropertyOwnedTest is YulTestBase {
         assertEq(ownerAfter, ownerBefore, "getOwner preserves state");
     }
 
-    function testProperty_GetOwner_Idempotent() public {
+    function testProperty_GetOwner_Idempotent() public view {
         // Call getOwner twice
         (, bytes memory data1) = owned.staticcall(
             abi.encodeWithSignature("getOwner()")

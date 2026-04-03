@@ -17,7 +17,7 @@ contract SimpleStorageTest is Test {
     }
 
     /// @notice Test initial state (should be 0)
-    function test_InitialState() public {
+    function test_InitialState() public view {
         assertEq(simpleStorage.retrieve(), 0, "Initial value should be 0");
     }
 

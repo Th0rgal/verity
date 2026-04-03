@@ -18,7 +18,7 @@ contract SafeCounterTest is Test {
     }
 
     /// @notice Test initial state (should be 0)
-    function test_InitialState() public {
+    function test_InitialState() public view {
         assertEq(safeCounter.getCount(), 0, "Initial count should be 0");
     }
 
