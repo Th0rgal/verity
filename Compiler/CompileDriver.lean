@@ -41,9 +41,12 @@ def compileSpecsWithOptions
     (denyLayoutIncompatibility : Bool := false) : IO Unit :=
   Compiler.CompileDriverCommon.compileSpecsWithOptions
     backend specs outDir verbose libraryPaths options patchReportPath trustReportPath assumptionReportPath abiOutDir
-    denyUncheckedDependencies denyAssumedDependencies denyAxiomatizedPrimitives denyLocalObligations denyLinearMemoryMechanics
-    denyEventEmission denyLowLevelMechanics denyRuntimeIntrospection denyProxyUpgradeability layoutReportPath
-    layoutCompatibilityReportPath denyLayoutIncompatibility
+    (denyUncheckedDependencies := denyUncheckedDependencies) (denyAssumedDependencies := denyAssumedDependencies)
+    (denyAxiomatizedPrimitives := denyAxiomatizedPrimitives) (denyLocalObligations := denyLocalObligations)
+    (denyLinearMemoryMechanics := denyLinearMemoryMechanics) (denyEventEmission := denyEventEmission)
+    (denyLowLevelMechanics := denyLowLevelMechanics) (denyRuntimeIntrospection := denyRuntimeIntrospection)
+    (denyProxyUpgradeability := denyProxyUpgradeability) (layoutReportPath := layoutReportPath)
+    (layoutCompatibilityReportPath := layoutCompatibilityReportPath) (denyLayoutIncompatibility := denyLayoutIncompatibility)
 
 unsafe def compileModulesWithOptions
     (outDir : String)
@@ -69,8 +72,11 @@ unsafe def compileModulesWithOptions
     (denyLayoutIncompatibility : Bool := false) : IO Unit := do
   Compiler.CompileDriverCommon.compileModulesWithOptions
     backend outDir modules verbose libraryPaths options patchReportPath trustReportPath assumptionReportPath
-    abiOutDir denyUncheckedDependencies denyAssumedDependencies denyAxiomatizedPrimitives denyLocalObligations
-    denyLinearMemoryMechanics denyEventEmission denyLowLevelMechanics denyRuntimeIntrospection
-    denyProxyUpgradeability layoutReportPath layoutCompatibilityReportPath denyLayoutIncompatibility
+    abiOutDir (denyUncheckedDependencies := denyUncheckedDependencies) (denyAssumedDependencies := denyAssumedDependencies)
+    (denyAxiomatizedPrimitives := denyAxiomatizedPrimitives) (denyLocalObligations := denyLocalObligations)
+    (denyLinearMemoryMechanics := denyLinearMemoryMechanics) (denyEventEmission := denyEventEmission)
+    (denyLowLevelMechanics := denyLowLevelMechanics) (denyRuntimeIntrospection := denyRuntimeIntrospection)
+    (denyProxyUpgradeability := denyProxyUpgradeability) (layoutReportPath := layoutReportPath)
+    (layoutCompatibilityReportPath := layoutCompatibilityReportPath) (denyLayoutIncompatibility := denyLayoutIncompatibility)
 
 end Compiler

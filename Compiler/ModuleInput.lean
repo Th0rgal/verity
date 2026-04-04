@@ -1,5 +1,6 @@
 import Lean
 import Compiler.CompilationModel
+import Verity.Intent.Types
 
 namespace Compiler.ModuleInput
 
@@ -45,6 +46,37 @@ def specNameOfModule (moduleName : Name) : Name :=
   let owner := ownerParts.foldl Name.str Name.anonymous
   owner ++ `spec
 
+/-- Resolve the intent spec constant for a module.
+
+The intent spec constant follows the same convention as `specNameOfModule`
+but uses `intentSpec` instead of `spec`.  For `Contracts.ERC20.ERC20` the
+canonical name is `Contracts.ERC20.intentSpec`.
+-/
+def intentSpecNameOfModule (moduleName : Name) : Name :=
+  let parts := moduleName.toString.splitOn "."
+  let ownerParts :=
+    match parts.reverse with
+    | leaf :: parent :: rest =>
+        if leaf == parent then
+          (parent :: rest).reverse
+        else
+          parts
+    | _ => parts
+  let owner := ownerParts.foldl Name.str Name.anonymous
+  owner ++ `intentSpec
+
+private unsafe def evalIntentSpecConst
+    (env : Environment)
+    (opts : Options)
+    (specName : Name) : Option Verity.Intent.IntentSpec :=
+  if !env.contains specName then
+    none
+  else
+    match unsafe env.evalConstCheck Verity.Intent.IntentSpec opts
+        ``Verity.Intent.IntentSpec specName with
+    | .ok spec => some spec
+    | .error _ => none
+
 private def manifestLine? (line : String) : Option String :=
   let trimmed := line.trim
   if trimmed.isEmpty || trimmed.startsWith "#" then
@@ -86,8 +118,28 @@ private def existingSplitPackageSearchRoots : IO SearchPath := do
       roots := roots.concat path
   pure roots
 
-/-- Import modules and evaluate their canonical `<Module>.spec` constants. -/
-unsafe def loadSpecsFromModules (moduleNames : List Name) : IO (Except String (List CompilationModel)) := do
+/-- Load intent specs (if present) from already-imported modules.
+
+Returns a list of `(moduleName, IntentSpec)` pairs for every module that
+defines a canonical `<Module>.intentSpec` constant.  Modules that do not
+define one are silently skipped. -/
+unsafe def loadIntentSpecsFromModules
+    (env : Environment)
+    (moduleNames : List Name) : List (Name × Verity.Intent.IntentSpec) :=
+  let opts : Options := {}
+  moduleNames.filterMap fun moduleName =>
+    let name := intentSpecNameOfModule moduleName
+    match evalIntentSpecConst env opts name with
+    | some spec => some (moduleName, spec)
+    | none => none
+
+/-- Import modules and evaluate their canonical `<Module>.spec` constants.
+
+Also optionally loads `<Module>.intentSpec` constants (for Circom output).
+Returns `(compilationModels, intentSpecs)` where `intentSpecs` only
+contains entries for modules that define an `intentSpec` constant. -/
+unsafe def loadSpecsFromModules (moduleNames : List Name)
+    : IO (Except String (List CompilationModel × List (Name × Verity.Intent.IntentSpec))) := do
   Lean.initSearchPath (← Lean.findSysroot)
   let originalSearchPath ← searchPathRef.get
   let extraSearchRoots ← existingSplitPackageSearchRoots
@@ -95,14 +147,19 @@ unsafe def loadSpecsFromModules (moduleNames : List Name) : IO (Except String (L
   try
     let env ← Lean.importModules (moduleNames.toArray.map fun moduleName => { module := moduleName }) {}
     let opts : Options := {}
-    pure <| moduleNames.mapM (fun moduleName => evalSpecConst env opts (specNameOfModule moduleName))
+    match moduleNames.mapM (fun moduleName => evalSpecConst env opts (specNameOfModule moduleName)) with
+    | .ok specs =>
+      let intentSpecs := loadIntentSpecsFromModules env moduleNames
+      pure <| .ok (specs, intentSpecs)
+    | .error err => pure <| .error err
   catch e =>
     pure <| .error e.toString
   finally
     searchPathRef.set originalSearchPath
 
 /-- Parse raw module names, reject duplicates, then load their canonical specs. -/
-unsafe def loadSpecsFromRawModules (rawModules : List String) : IO (Except String (List CompilationModel)) := do
+unsafe def loadSpecsFromRawModules (rawModules : List String)
+    : IO (Except String (List CompilationModel × List (Name × Verity.Intent.IntentSpec))) := do
   match rawModules.mapM (fun raw => do pure (raw, ← parseModuleName raw)) with
   | .error err => pure <| .error err
   | .ok parsedModules =>

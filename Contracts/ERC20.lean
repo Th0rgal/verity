@@ -3,3 +3,4 @@ import Contracts.ERC20.Spec
 import Contracts.ERC20.Invariants
 import Contracts.ERC20.Proofs.Basic
 import Contracts.ERC20.Proofs.Correctness
+import Contracts.ERC20.Display

@@ -93,7 +93,7 @@ env:
 
 jobs:
   changes:
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: 5
     outputs:
       code: ${{ steps.effective.outputs.code }}
@@ -203,7 +203,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   checks:
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: 5
     permissions:
       contents: write
@@ -238,7 +238,7 @@ jobs:
         run: make check
 
   timeout-watchdog:
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: 5
     needs: checks
     if: needs.checks.result == 'success' && !(github.event_name == 'workflow_dispatch' && inputs.clean_build)
@@ -258,7 +258,7 @@ jobs:
             --branch ${{ github.event.pull_request.base.ref || github.ref_name }}
 
   build:
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '60' || '35') }}
     needs: [changes, checks]
     if: needs.checks.result == 'success' && needs.changes.outputs.build == 'true'
@@ -321,7 +321,7 @@ jobs:
           key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
 
   prepare-macro-fuzz:
-    runs-on: blacksmith-16vcpu-ubuntu-2404
+    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: 360
     needs: [changes, checks, build]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'
@@ -376,7 +376,7 @@ jobs:
           path: lean-workspace-macro-fuzz-build.tar
 
   build-audits:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: 20
     needs: [changes, checks, build]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.build == 'true'
@@ -470,7 +470,7 @@ jobs:
             axiom-report-raw.log
 
   macro-fuzz:
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '150' || '90') }}
     needs: [changes, checks, prepare-macro-fuzz]
     if: needs.checks.result == 'success' && needs.prepare-macro-fuzz.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'
@@ -513,7 +513,7 @@ jobs:
           ./.lake/build/bin/macro-roundtrip-fuzz
 
   build-compiler-binaries:
-    runs-on: blacksmith-16vcpu-ubuntu-2404
+    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: 360
     needs: [changes, checks, build]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.compiler == 'true'
@@ -562,7 +562,7 @@ jobs:
             exit 0
           fi
           sudo apt-get update
-          sudo apt-get install -y clang lld ccache libc++-dev libc++abi-dev libuv1-dev
+          sudo apt-get install -y clang lld ccache libc++-dev libc++abi-dev libgmp-dev libuv1-dev
 
           printf 'int main() { return 0; }\n' | clang++ -x c++ - -fuse-ld=lld -stdlib=libc++ -lc++abi -o /tmp/verity-clang-smoke
           printf 'int main() { return 0; }\n' | clang -x c - -fuse-ld=lld -luv -o /tmp/verity-libuv-smoke
@@ -583,34 +583,14 @@ jobs:
             compiler-ccache-cache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-
             compiler-ccache-cache-${{ env.VERIFY_MAIN_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-
 
-      - name: Mount compiler ccache sticky disk
+      - name: Attach persistent compiler ccache directory
         if: env.VERIFY_USE_STICKY_DISKS == 'true'
-        uses: useblacksmith/stickydisk@v1
-        with:
-          key: compiler-ccache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
-          path: ${{ github.workspace }}/.cache/ccache
-
-      - name: Prepare compiler ccache fallback mount
-        if: env.VERIFY_USE_STICKY_DISKS == 'true' && github.event_name == 'pull_request'
-        run: mkdir -p "$RUNNER_TEMP/compiler-ccache-main"
-
-      - name: Mount main compiler ccache fallback sticky disk
-        if: env.VERIFY_USE_STICKY_DISKS == 'true' && github.event_name == 'pull_request'
-        uses: useblacksmith/stickydisk@v1
-        with:
-          key: compiler-ccache-${{ env.VERIFY_MAIN_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
-          path: ${{ runner.temp }}/compiler-ccache-main
-
-      - name: Seed compiler ccache sticky disk from main fallback
-        if: env.VERIFY_USE_STICKY_DISKS == 'true' && github.event_name == 'pull_request'
         run: |
-          if find "$CCACHE_DIR" -mindepth 1 -print -quit | grep -q .; then
-            exit 0
-          fi
-          if ! find "$RUNNER_TEMP/compiler-ccache-main" -mindepth 1 -print -quit | grep -q .; then
-            exit 0
-          fi
-          cp -a "$RUNNER_TEMP/compiler-ccache-main/." "$CCACHE_DIR/"
+          scripts/ci_local_persistence.sh mount \
+            --root "/srv/verity-ci-cache/compiler-ccache" \
+            --key "compiler-ccache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}" \
+            --path "$CCACHE_DIR" \
+            --fallback-key "${{ github.event_name == 'pull_request' && format('compiler-ccache-{0}-{1}-{2}-{3}-{4}', env.VERIFY_MAIN_CACHE_BUCKET, runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}"
 
       - name: Seed compiler ccache from GitHub cache fallback
         run: |
@@ -741,7 +721,7 @@ jobs:
           compression-level: 0
 
   generate-yul:
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: 45
     needs: [changes, checks, build, build-compiler-binaries]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
@@ -803,7 +783,7 @@ jobs:
           path: compiler/yul
 
   generate-yul-patched:
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: 45
     needs: [changes, checks, build, build-compiler-binaries]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
@@ -873,7 +853,7 @@ jobs:
           path: compiler/patch-report.tsv
 
   gas-report:
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: 45
     needs: [changes, checks, build, build-compiler-binaries]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
@@ -930,7 +910,7 @@ jobs:
           path: gas-report-static-patched.tsv
 
   compiler-audits:
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: 45
     needs: [changes, checks, build, generate-yul, generate-yul-patched, gas-report, build-compiler-binaries]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.generate-yul.result == 'success' && needs.generate-yul-patched.result == 'success' && needs.gas-report.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
@@ -1113,7 +1093,7 @@ jobs:
           path: compiler/parity-pack-identity-report.json
 
   compiler-regressions:
-    runs-on: blacksmith-16vcpu-ubuntu-2404
+    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '150' || '90') }}
     needs: [changes, checks, build, build-compiler-binaries]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
@@ -1163,7 +1143,7 @@ jobs:
         run: stdbuf -oL -eL lake build Compiler.CompilationModelFeatureTest
 
   lean-profile:
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: 45
     needs: changes
     if: github.event_name == 'workflow_dispatch' && needs.changes.outputs.build == 'true'
@@ -1192,7 +1172,7 @@ jobs:
           path: lean-perf-queue.md
 
   foundry-gas-calibration:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: 15
     needs: [changes, generate-yul, gas-report, build-compiler-binaries]
     if: needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
@@ -1220,7 +1200,7 @@ jobs:
           --allow-missing-contract Vault
 
   foundry:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: 15
     needs: [changes, generate-yul, build-compiler-binaries]
     if: needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
@@ -1250,7 +1230,7 @@ jobs:
           forge test
 
   foundry-patched:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: 25
     needs: [changes, generate-yul-patched, build-compiler-binaries]
     if: needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
@@ -1295,7 +1275,7 @@ jobs:
           forge test --no-match-test "Random10000"
 
   foundry-multi-seed:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: 25
     needs: [changes, generate-yul, build-compiler-binaries]
     if: needs.changes.outputs.compiler == 'true' && github.event_name != 'pull_request'
@@ -1333,7 +1313,7 @@ jobs:
           echo "::notice::Reproduce locally: FOUNDRY_PROFILE=difftest DIFFTEST_RANDOM_SEED=${{ matrix.seed }} forge test -vv"
 
   failure-hints:
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     needs: [checks, build, prepare-macro-fuzz, build-audits, macro-fuzz, build-compiler-binaries, generate-yul, generate-yul-patched, gas-report, compiler-audits, compiler-regressions, foundry-gas-calibration, foundry, foundry-patched, foundry-multi-seed]
     if: always() && github.event_name == 'pull_request' && contains(join(needs.*.result, ','), 'failure')
     permissions:
