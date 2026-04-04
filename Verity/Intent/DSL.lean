@@ -176,7 +176,7 @@ private def parseFormatSpec (spec : String) : Lean.MacroM (Lean.TSyntax `term) :
   else if spec == "address" then
     `(Format.address)
   else if spec.startsWith "tokenAmount " then
-    let rest := (spec.drop 13).trim  -- "tokenAmount " is 13 chars
+    let rest := (spec.drop 12).trim  -- "tokenAmount " is 12 chars
     -- Check for optional symbol: `tokenAmount 18 "SYM"`
     if let some qIdx := rest.toList.findIdx? (· == '"') then
       let numStr := (rest.take qIdx).trim
