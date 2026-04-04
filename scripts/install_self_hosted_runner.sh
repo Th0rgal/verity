@@ -42,6 +42,7 @@ install_packages() {
     jq \
     libc++-dev \
     libc++abi-dev \
+    libgmp-dev \
     libicu-dev \
     libssl-dev \
     libuv1-dev \

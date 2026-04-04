@@ -562,7 +562,7 @@ jobs:
             exit 0
           fi
           sudo apt-get update
-          sudo apt-get install -y clang lld ccache libc++-dev libc++abi-dev libuv1-dev
+          sudo apt-get install -y clang lld ccache libc++-dev libc++abi-dev libgmp-dev libuv1-dev
 
           printf 'int main() { return 0; }\n' | clang++ -x c++ - -fuse-ld=lld -stdlib=libc++ -lc++abi -o /tmp/verity-clang-smoke
           printf 'int main() { return 0; }\n' | clang -x c - -fuse-ld=lld -luv -o /tmp/verity-libuv-smoke

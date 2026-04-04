@@ -33,7 +33,7 @@ cd /path/to/verity
 
 That prepares:
 
-- package dependencies (`clang`, `lld`, `ccache`, `jq`, `libuv`, and friends)
+- package dependencies (`clang`, `lld`, `ccache`, `jq`, `libgmp`, `libuv`, and friends)
 - the `github-runner` user
 - `/opt/actions-runner`
 - `/srv/verity-ci-cache`
