@@ -13,11 +13,12 @@
 
   See `Contracts/ERC20/Display.lean` for the ERC-20 version.
 -/
-import Verity.Intent.Types
+import Verity.Intent.DSL
 
 namespace Contracts.ERC721
 
 open Verity.Intent
+open Verity.Intent.DSL
 open Compiler.CompilationModel (ParamType)
 
 /-- Intent specification for the ERC-721 contract.
@@ -29,55 +30,20 @@ open Compiler.CompilationModel (ParamType)
 
     Read-only functions (`balanceOf`, `ownerOf`, `getApproved`, `isApprovedForAll`)
     and owner-only functions (`mint`) are not covered. -/
-def intentSpec : IntentSpec := {
-  contractName := "ERC721"
+intent_spec "ERC721" where
+  intent approveIntent(approved : address, tokenId : uint256) where
+    emit "Approve {approved} to transfer token #{tokenId}" [approved : address, tokenId : raw]
 
-  fns := [
-    -- Intent: approve(approved: address, tokenId: uint256)
-    -- Unconditional — always shows the approved address and token ID
-    { name := "approveIntent"
-      params := [("approved", .address), ("tokenId", .uint256)]
-      returnKind := .void
-      body := [
-        .emit { text := "Approve {approved} to transfer token #{tokenId}",
-                holes := [{ param := "approved", format := .address },
-                          { param := "tokenId", format := .raw }] }
-      ]
-    },
+  intent setApprovalForAllIntent(operator : address, approved : bool) where
+    if approved
+    then { emit "Approve {operator} to manage all your NFTs" [operator : address] }
+    else { emit "Revoke {operator} from managing your NFTs" [operator : address] }
 
-    -- Intent: setApprovalForAll(operator: address, approved: bool)
-    -- Conditional on the bool parameter
-    { name := "setApprovalForAllIntent"
-      params := [("operator", .address), ("approved", .bool)]
-      returnKind := .void
-      body := [
-        .ite (.param "approved")
-          [.emit { text := "Approve {operator} to manage all your NFTs",
-                   holes := [{ param := "operator", format := .address }] }]
-          [.emit { text := "Revoke {operator} from managing your NFTs",
-                   holes := [{ param := "operator", format := .address }] }]
-      ]
-    },
+  intent transferFromIntent(fromAddr : address, to : address, tokenId : uint256) where
+    emit "Transfer token #{tokenId} from {fromAddr} to {to}" [tokenId : raw, fromAddr : address, to : address]
 
-    -- Intent: transferFrom(fromAddr: address, to: address, tokenId: uint256)
-    -- Unconditional — always shows from, to, and token ID
-    { name := "transferFromIntent"
-      params := [("fromAddr", .address), ("to", .address), ("tokenId", .uint256)]
-      returnKind := .void
-      body := [
-        .emit { text := "Transfer token #{tokenId} from {fromAddr} to {to}",
-                holes := [{ param := "tokenId", format := .raw },
-                          { param := "fromAddr", format := .address },
-                          { param := "to", format := .address }] }
-      ]
-    }
-  ]
-
-  bindings := [
-    { functionName := "approve",           intentFn := "approveIntent" },
-    { functionName := "setApprovalForAll", intentFn := "setApprovalForAllIntent" },
-    { functionName := "transferFrom",      intentFn := "transferFromIntent" }
-  ]
-}
+  bind "approve" => approveIntent
+  bind "setApprovalForAll" => setApprovalForAllIntent
+  bind "transferFrom" => transferFromIntent
 
 end Contracts.ERC721

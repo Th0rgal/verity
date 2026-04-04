@@ -12,11 +12,12 @@
 
   See `Contracts/ERC20/Display.lean` for the ERC-20 version.
 -/
-import Verity.Intent.Types
+import Verity.Intent.DSL
 
 namespace Contracts.Ledger
 
 open Verity.Intent
+open Verity.Intent.DSL
 open Compiler.CompilationModel (ParamType)
 
 /-- MAX_UINT256 = 2^256 - 1.
@@ -31,67 +32,25 @@ private def maxUint256 : Int := (2 ^ 256 : Nat) - 1
     - `transfer`: conditional on amount == MAX_UINT256
 
     Read-only function (`getBalance`) is not covered. -/
-def intentSpec : IntentSpec := {
-  contractName := "Ledger"
+intent_spec "Ledger" where
+  const MAX_UINT256 := maxUint256
 
-  constants := [
-    { name := "MAX_UINT256", value := .intLit maxUint256 }
-  ]
+  predicate isMaxUint(v : uint256) :=
+    v == MAX_UINT256
 
-  fns := [
-    -- Predicate: isMaxUint(v: uint256) → Bool := v == MAX_UINT256
-    { name := "isMaxUint"
-      params := [("v", .uint256)]
-      returnKind := .bool
-      expr := some (.eq (.param "v") (.param "MAX_UINT256"))
-    },
+  intent depositIntent(amount : uint256) where
+    emit "Deposit {amount} tokens" [amount : tokenAmount 18]
 
-    -- Intent: deposit(amount: uint256)
-    -- Single template — no conditional needed for deposit
-    { name := "depositIntent"
-      params := [("amount", .uint256)]
-      returnKind := .void
-      body := [
-        .emit { text := "Deposit {amount} tokens",
-                holes := [{ param := "amount",
-                            format := .tokenAmount 18 }] }
-      ]
-    },
+  intent withdrawIntent(amount : uint256) where
+    emit "Withdraw {amount} tokens" [amount : tokenAmount 18]
 
-    -- Intent: withdraw(amount: uint256)
-    -- Single template — no conditional needed for withdraw
-    { name := "withdrawIntent"
-      params := [("amount", .uint256)]
-      returnKind := .void
-      body := [
-        .emit { text := "Withdraw {amount} tokens",
-                holes := [{ param := "amount",
-                            format := .tokenAmount 18 }] }
-      ]
-    },
+  intent transferIntent(to : address, amount : uint256) where
+    if isMaxUint(amount)
+    then { emit "Send all tokens to {to}" [to : address] }
+    else { emit "Send {amount} tokens to {to}" [amount : tokenAmount 18, to : address] }
 
-    -- Intent: transfer(to: address, amount: uint256)
-    -- Conditional: "Send all tokens" vs "Send {amount} tokens"
-    { name := "transferIntent"
-      params := [("to", .address), ("amount", .uint256)]
-      returnKind := .void
-      body := [
-        .ite (.call "isMaxUint" [.param "amount"])
-          [.emit { text := "Send all tokens to {to}",
-                   holes := [{ param := "to", format := .address }] }]
-          [.emit { text := "Send {amount} tokens to {to}",
-                   holes := [{ param := "amount",
-                               format := .tokenAmount 18 },
-                             { param := "to", format := .address }] }]
-      ]
-    }
-  ]
-
-  bindings := [
-    { functionName := "deposit",  intentFn := "depositIntent" },
-    { functionName := "withdraw", intentFn := "withdrawIntent" },
-    { functionName := "transfer", intentFn := "transferIntent" }
-  ]
-}
+  bind "deposit" => depositIntent
+  bind "withdraw" => withdrawIntent
+  bind "transfer" => transferIntent
 
 end Contracts.Ledger

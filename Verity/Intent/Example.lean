@@ -15,6 +15,7 @@
 import Verity.Intent.Types
 import Verity.Intent.Eval
 import Verity.Intent.Validate
+import Verity.Intent.DSL
 import Compiler.CompilationModel.Types
 import Contracts.ERC721.Display
 import Contracts.Ledger.Display
@@ -246,7 +247,8 @@ private def mockErc20Model : CompilationModel := {
     throw (IO.userError "validation failed")
 
 private def hasSubstr (haystack needle : String) : Bool :=
-  (haystack.splitOn needle).length > 1
+  let parts := haystack.splitOn needle
+  parts.length > 1
 
 -- Test: mismatched contract name is caught.
 #eval do
@@ -816,5 +818,101 @@ private def enumIntentSpec' : IntentSpec := {
   | some v => throw (IO.userError s!"expected int 3, got {repr v}")
   | none => throw (IO.userError "length eval returned none")
   IO.println "✓ index/length: arr[1]=20, arr.length=3"
+
+/-! ## DSL Macro Equivalence Tests
+
+Verify that the `intent_spec` DSL macro generates IntentSpecs identical
+to the hand-written ones. This tests the macro end-to-end.
+-/
+
+open Verity.Intent.DSL
+
+-- Define an ERC-20 spec using the DSL macro (generates `dslErc20.intentSpec`)
+namespace dslErc20
+
+private def maxUint256 : Int := (2 ^ 256 : Nat) - 1
+
+intent_spec "ERC20" where
+  const MAX_UINT256 := maxUint256
+
+  predicate isMaxUint(v : uint256) :=
+    v == MAX_UINT256
+
+  intent transferIntent(to : address, amount : uint256) where
+    if isMaxUint(amount)
+    then { emit "Send all tokens to {to}" [to : address] }
+    else { emit "Send {amount} tokens to {to}" [amount : tokenAmount 18 "TOKEN", to : address] }
+
+  intent approveIntent(spender : address, amount : uint256) where
+    if isMaxUint(amount)
+    then { emit "Approve {spender} to spend unlimited tokens" [spender : address] }
+    else { emit "Approve {spender} to spend {amount} tokens" [spender : address, amount : tokenAmount 18 "TOKEN"] }
+
+  intent transferFromIntent(fromAddr : address, to : address, amount : uint256) where
+    if isMaxUint(amount)
+    then { emit "Transfer all tokens from {fromAddr} to {to}" [fromAddr : address, to : address] }
+    else { emit "Transfer {amount} tokens from {fromAddr} to {to}" [amount : tokenAmount 18 "TOKEN", fromAddr : address, to : address] }
+
+  bind "transfer" => transferIntent
+  bind "approve" => approveIntent
+  bind "transferFrom" => transferFromIntent
+
+end dslErc20
+
+-- Test: DSL-generated spec matches hand-written spec field by field
+#eval do
+  let dsl := dslErc20.intentSpec
+  let hw := erc20IntentSpec
+  unless dsl.contractName == hw.contractName do
+    throw (IO.userError s!"contractName mismatch: {dsl.contractName} vs {hw.contractName}")
+  unless dsl.fns.length == hw.fns.length do
+    throw (IO.userError s!"fns count mismatch: {dsl.fns.length} vs {hw.fns.length}")
+  unless dsl.bindings.length == hw.bindings.length do
+    throw (IO.userError s!"bindings count mismatch: {dsl.bindings.length} vs {hw.bindings.length}")
+  unless dsl.constants.length == hw.constants.length do
+    throw (IO.userError s!"constants count mismatch: {dsl.constants.length} vs {hw.constants.length}")
+  -- Verify binding names match
+  for (db, hb) in dsl.bindings.zip hw.bindings do
+    unless db.functionName == hb.functionName do
+      throw (IO.userError s!"binding functionName mismatch: {db.functionName} vs {hb.functionName}")
+    unless db.intentFn == hb.intentFn do
+      throw (IO.userError s!"binding intentFn mismatch: {db.intentFn} vs {hb.intentFn}")
+  -- Verify function names and params match
+  for (df, hf) in dsl.fns.zip hw.fns do
+    unless df.name == hf.name do
+      throw (IO.userError s!"fn name mismatch: {df.name} vs {hf.name}")
+    unless df.params.length == hf.params.length do
+      throw (IO.userError s!"fn {df.name} params count mismatch")
+    unless df.returnKind == hf.returnKind do
+      throw (IO.userError s!"fn {df.name} returnKind mismatch")
+  IO.println "✓ DSL-generated ERC-20 spec matches hand-written spec"
+
+-- Test: DSL-generated spec works with the evaluator
+#eval do
+  let spec := dslErc20.intentSpec
+  match spec.bindings[0]? with
+  | some binding =>
+    let params : List (String × Value) := [
+      ("to", .addr "0xdead"),
+      ("amount", .int 1000)
+    ]
+    match evalIntent spec binding params with
+    | some [t] =>
+      unless t.text == "Send {amount} tokens to {to}" do
+        throw (IO.userError s!"wrong text: {t.text}")
+      IO.println s!"✓ DSL spec evaluator: transfer(1000) = \"{t.text}\""
+    | some ts => throw (IO.userError s!"expected 1 template, got {ts.length}")
+    | none => throw (IO.userError "evaluation failed")
+  | none => throw (IO.userError "binding not found")
+
+-- Test: DSL-generated spec works with the validator
+#eval do
+  let errors := Validate.validate dslErc20.intentSpec mockErc20Model
+  if errors.isEmpty then
+    IO.println "✓ DSL-generated ERC-20 spec validates against mock CompilationModel"
+  else
+    for e in errors do
+      IO.println s!"✗ {e}"
+    throw (IO.userError "DSL spec validation failed")
 
 end Verity.Intent.Example

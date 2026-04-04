@@ -13,11 +13,12 @@
   See `Verity/Intent/Example.lean` for the standalone version with
   evaluator smoke tests and circuit cross-validation.
 -/
-import Verity.Intent.Types
+import Verity.Intent.DSL
 
 namespace Contracts.ERC20
 
 open Verity.Intent
+open Verity.Intent.DSL
 open Compiler.CompilationModel (ParamType)
 
 /-- MAX_UINT256 = 2^256 - 1.
@@ -34,74 +35,29 @@ private def maxUint256 : Int := (2 ^ 256 : Nat) - 1
     Read-only functions (`balanceOf`, `allowanceOf`, `totalSupply`, `owner`)
     and owner-only functions (`mint`) are not covered — they either have no
     calldata display value or are privileged operations. -/
-def intentSpec : IntentSpec := {
-  contractName := "ERC20"
+intent_spec "ERC20" where
+  const MAX_UINT256 := maxUint256
 
-  constants := [
-    { name := "MAX_UINT256", value := .intLit maxUint256 }
-  ]
+  predicate isMaxUint(v : uint256) :=
+    v == MAX_UINT256
 
-  fns := [
-    -- Predicate: isMaxUint(v: uint256) → Bool := v == MAX_UINT256
-    { name := "isMaxUint"
-      params := [("v", .uint256)]
-      returnKind := .bool
-      expr := some (.eq (.param "v") (.param "MAX_UINT256"))
-    },
+  intent transferIntent(to : address, amount : uint256) where
+    if isMaxUint(amount)
+    then { emit "Send all tokens to {to}" [to : address] }
+    else { emit "Send {amount} tokens to {to}" [amount : tokenAmount 18, to : address] }
 
-    -- Intent: transfer(to: address, amount: uint256)
-    { name := "transferIntent"
-      params := [("to", .address), ("amount", .uint256)]
-      returnKind := .void
-      body := [
-        .ite (.call "isMaxUint" [.param "amount"])
-          [.emit { text := "Send all tokens to {to}",
-                   holes := [{ param := "to", format := .address }] }]
-          [.emit { text := "Send {amount} tokens to {to}",
-                   holes := [{ param := "amount",
-                               format := .tokenAmount 18 },
-                             { param := "to", format := .address }] }]
-      ]
-    },
+  intent approveIntent(spender : address, amount : uint256) where
+    if isMaxUint(amount)
+    then { emit "Approve {spender} to spend unlimited tokens" [spender : address] }
+    else { emit "Approve {spender} to spend {amount} tokens" [spender : address, amount : tokenAmount 18] }
 
-    -- Intent: approve(spender: address, amount: uint256)
-    { name := "approveIntent"
-      params := [("spender", .address), ("amount", .uint256)]
-      returnKind := .void
-      body := [
-        .ite (.call "isMaxUint" [.param "amount"])
-          [.emit { text := "Approve {spender} to spend unlimited tokens",
-                   holes := [{ param := "spender", format := .address }] }]
-          [.emit { text := "Approve {spender} to spend {amount} tokens",
-                   holes := [{ param := "spender", format := .address },
-                             { param := "amount",
-                               format := .tokenAmount 18 }] }]
-      ]
-    },
+  intent transferFromIntent(fromAddr : address, to : address, amount : uint256) where
+    if isMaxUint(amount)
+    then { emit "Transfer all tokens from {fromAddr} to {to}" [fromAddr : address, to : address] }
+    else { emit "Transfer {amount} tokens from {fromAddr} to {to}" [amount : tokenAmount 18, fromAddr : address, to : address] }
 
-    -- Intent: transferFrom(fromAddr: address, to: address, amount: uint256)
-    { name := "transferFromIntent"
-      params := [("fromAddr", .address), ("to", .address), ("amount", .uint256)]
-      returnKind := .void
-      body := [
-        .ite (.call "isMaxUint" [.param "amount"])
-          [.emit { text := "Transfer all tokens from {fromAddr} to {to}",
-                   holes := [{ param := "fromAddr", format := .address },
-                             { param := "to", format := .address }] }]
-          [.emit { text := "Transfer {amount} tokens from {fromAddr} to {to}",
-                   holes := [{ param := "amount",
-                               format := .tokenAmount 18 },
-                             { param := "fromAddr", format := .address },
-                             { param := "to", format := .address }] }]
-      ]
-    }
-  ]
-
-  bindings := [
-    { functionName := "transfer",     intentFn := "transferIntent" },
-    { functionName := "approve",      intentFn := "approveIntent" },
-    { functionName := "transferFrom", intentFn := "transferFromIntent" }
-  ]
-}
+  bind "transfer" => transferIntent
+  bind "approve" => approveIntent
+  bind "transferFrom" => transferFromIntent
 
 end Contracts.ERC20
