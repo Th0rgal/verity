@@ -27,7 +27,7 @@ to verified Groth16 proof:
 ./scripts/test_circom_e2e.sh
 ```
 
-This script runs 22 tests across 5 pipeline stages (3 contracts, 7 circuits):
+This script runs 26 tests across 5 pipeline stages (3 contracts, 9 circuits):
 
 1. **Generate** `.circom` files from the ERC-20 and Ledger `IntentSpec`s (via `lake env lean`)
 2. **Compile** circuits with `circom` (syntax check + constraint generation)
@@ -56,14 +56,16 @@ This script runs 22 tests across 5 pipeline stages (3 contracts, 7 circuits):
 | `ledger_transfer_2000` | `transfer(to=0xdead, amount=2000)` | Specific amount | else | 1 | PASS | PASS |
 | `ledger_transfer_max` | `transfer(to=0xdead, amount=MAX)` | All tokens | then | 0 | PASS | PASS |
 
-**ERC-721 Contract (bool parameter):**
+**ERC-721 Contract:**
 
 | Test | Function | Input | Branch | TemplateId | Witness | Proof |
 |------|----------|-------|--------|------------|---------|-------|
+| `erc721_approve_42` | `approve(approved=0xbeef, tokenId=42)` | Approve token | — | 0 | PASS | PASS |
 | `setApproval_true` | `setApprovalForAll(operator=0xbeef, approved=true)` | Approve | then | 0 | PASS | PASS |
 | `setApproval_false` | `setApprovalForAll(operator=0xbeef, approved=false)` | Revoke | else | 1 | PASS | PASS |
+| `erc721_transferFrom_99` | `transferFrom(from=0xcafe, to=0xdead, tokenId=99)` | Transfer token | — | 0 | PASS | PASS |
 
-All 22 tests pass: 11 witness verifications + 11 Groth16 proof verifications.
+All 26 tests pass: 13 witness verifications + 13 Groth16 proof verifications.
 
 ### What the Proof Proves
 
@@ -138,7 +140,7 @@ The `--erc7730-output` flag triggers:
 - [x] `Contracts/ERC721/Display.lean` — Production `intentSpec` for the ERC-721 contract
 - [x] ERC-20 example with 5 test cases: transfer, approve, transferFrom (witness + proof)
 - [x] Ledger example with 4 test cases: deposit, withdraw, transfer (witness + proof)
-- [x] ERC-721 example with 2 test cases: setApprovalForAll with bool param (witness + proof)
+- [x] ERC-721 example with 4 test cases: approve, setApprovalForAll, transferFrom (witness + proof)
 - [x] Groth16 proof generation and verification
 - [x] `lake build` passes, `make check` passes
 
@@ -152,7 +154,9 @@ The `--erc7730-output` flag triggers:
 | Ledger Deposit | 528 | 1 param, unconditional |
 | Ledger Withdraw | 528 | 1 param, unconditional |
 | Ledger Transfer | 605 | 2 params, conditional |
+| ERC721 Approve | TBD | 2 params (addr+uint256), unconditional |
 | ERC721 SetApprovalForAll | 507 | 2 params (addr+bool), conditional |
+| ERC721 TransferFrom | TBD | 3 params (addr+addr+uint256), unconditional |
 
 All well within the estimated ~700-1,500 range from the design document. Unconditional
 circuits (deposit, withdraw) are smaller since they skip the IsEqual comparator. The

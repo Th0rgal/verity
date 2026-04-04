@@ -84,20 +84,34 @@ echo "$CIRCOM_OUTPUT" | awk '
   found{print}
 ' > "$WORK_DIR/Ledger_withdraw.circom"
 
-# Extract Ledger transfer circuit (between Ledger.transfer and ERC721.setApprovalForAll headers)
+# Extract Ledger transfer circuit (between Ledger.transfer and ERC721.approve headers)
 echo "$CIRCOM_OUTPUT" | awk '
   /^=== Generated Circom for Ledger.transfer ===$/{found=1; next}
-  /^=== Generated Circom for ERC721.setApprovalForAll ===$/{found=0}
+  /^=== Generated Circom for ERC721.approve ===$/{found=0}
   found{print}
 ' > "$WORK_DIR/Ledger_transfer.circom"
 
-# Extract ERC721 setApprovalForAll circuit (from ERC721.setApprovalForAll header to EOF)
+# Extract ERC721 approve circuit (between ERC721.approve and ERC721.setApprovalForAll headers)
+echo "$CIRCOM_OUTPUT" | awk '
+  /^=== Generated Circom for ERC721.approve ===$/{found=1; next}
+  /^=== Generated Circom for ERC721.setApprovalForAll ===$/{found=0}
+  found{print}
+' > "$WORK_DIR/ERC721_approve.circom"
+
+# Extract ERC721 setApprovalForAll circuit (between setApprovalForAll and transferFrom headers)
 echo "$CIRCOM_OUTPUT" | awk '
   /^=== Generated Circom for ERC721.setApprovalForAll ===$/{found=1; next}
+  /^=== Generated Circom for ERC721.transferFrom ===$/{found=0}
   found{print}
 ' > "$WORK_DIR/ERC721_setApprovalForAll.circom"
 
-for f in ERC20_transfer ERC20_approve ERC20_transferFrom Ledger_deposit Ledger_withdraw Ledger_transfer ERC721_setApprovalForAll; do
+# Extract ERC721 transferFrom circuit (from ERC721.transferFrom header to EOF)
+echo "$CIRCOM_OUTPUT" | awk '
+  /^=== Generated Circom for ERC721.transferFrom ===$/{found=1; next}
+  found{print}
+' > "$WORK_DIR/ERC721_transferFrom.circom"
+
+for f in ERC20_transfer ERC20_approve ERC20_transferFrom Ledger_deposit Ledger_withdraw Ledger_transfer ERC721_approve ERC721_setApprovalForAll ERC721_transferFrom; do
   if [ ! -s "$WORK_DIR/${f}.circom" ]; then
     echo "ERROR: Failed to generate ${f} circuit"
     exit 1
@@ -136,9 +150,17 @@ circom Ledger_transfer.circom --r1cs --wasm --sym -l node_modules 2>&1 | grep -E
 LEDGER_TRANSFER_NL=$(circom Ledger_transfer.circom --r1cs -l node_modules 2>&1 | grep "non-linear" | awk '{print $NF}')
 echo "✓ Ledger Transfer circuit compiled: ${LEDGER_TRANSFER_NL} non-linear constraints"
 
+circom ERC721_approve.circom --r1cs --wasm --sym -l node_modules 2>&1 | grep -E "constraints|okay|Error"
+ERC721_APPROVE_NL=$(circom ERC721_approve.circom --r1cs -l node_modules 2>&1 | grep "non-linear" | awk '{print $NF}')
+echo "✓ ERC721 Approve circuit compiled: ${ERC721_APPROVE_NL} non-linear constraints"
+
 circom ERC721_setApprovalForAll.circom --r1cs --wasm --sym -l node_modules 2>&1 | grep -E "constraints|okay|Error"
 SET_APPROVAL_NL=$(circom ERC721_setApprovalForAll.circom --r1cs -l node_modules 2>&1 | grep "non-linear" | awk '{print $NF}')
 echo "✓ SetApprovalForAll circuit compiled: ${SET_APPROVAL_NL} non-linear constraints"
+
+circom ERC721_transferFrom.circom --r1cs --wasm --sym -l node_modules 2>&1 | grep -E "constraints|okay|Error"
+ERC721_TRANSFER_FROM_NL=$(circom ERC721_transferFrom.circom --r1cs -l node_modules 2>&1 | grep "non-linear" | awk '{print $NF}')
+echo "✓ ERC721 TransferFrom circuit compiled: ${ERC721_TRANSFER_FROM_NL} non-linear constraints"
 
 # ---- Step 3: Compute witness inputs ----
 echo ""
@@ -424,6 +446,64 @@ async function main() {
     fs.writeFileSync("setApproval_false_input.json", JSON.stringify(input, null, 2));
     console.log("✓ Wrote setApproval_false_input.json (approved=false, templateId=1)");
   }
+
+  // ---------- ERC-721 approve test case ----------
+
+  // Case 12: approve(approved=0xbeef, tokenId=42) — unconditional
+  {
+    const selector = BigInt("157198259");  // 0x095ea7b3
+    const approved = BigInt("0xbeef");
+    const tokenId_lo = BigInt(42);
+    const tokenId_hi = BigInt(0);
+
+    // cdHash: Poseidon(selector, approved, tokenId_lo, tokenId_hi) — 4 inputs
+    const cdHash = F.toObject(poseidon([selector, approved, tokenId_lo, tokenId_hi]));
+    // Unconditional → templateId = 0
+    const templateId = BigInt(0);
+    // outHash: Poseidon(templateId, approved, tokenId_lo, tokenId_hi) — hole order from emit
+    const outHash = F.toObject(poseidon([templateId, approved, tokenId_lo, tokenId_hi]));
+
+    const input = {
+      selector: selector.toString(),
+      calldataCommitment: cdHash.toString(),
+      outputCommitment: outHash.toString(),
+      approved: approved.toString(),
+      tokenId_lo: tokenId_lo.toString(),
+      tokenId_hi: tokenId_hi.toString()
+    };
+    fs.writeFileSync("erc721_approve_42_input.json", JSON.stringify(input, null, 2));
+    console.log("✓ Wrote erc721_approve_42_input.json (tokenId=42, templateId=0)");
+  }
+
+  // ---------- ERC-721 transferFrom test case ----------
+
+  // Case 13: transferFrom(fromAddr=0xcafe, to=0xdead, tokenId=99) — unconditional
+  {
+    const selector = BigInt("599290589");  // 0x23b872dd
+    const fromAddr = BigInt("0xcafe");
+    const to = BigInt("0xdead");
+    const tokenId_lo = BigInt(99);
+    const tokenId_hi = BigInt(0);
+
+    // cdHash: Poseidon(selector, fromAddr, to, tokenId_lo, tokenId_hi) — 5 inputs
+    const cdHash = F.toObject(poseidon([selector, fromAddr, to, tokenId_lo, tokenId_hi]));
+    // Unconditional → templateId = 0
+    const templateId = BigInt(0);
+    // outHash: Poseidon(templateId, tokenId_lo, tokenId_hi, fromAddr, to) — hole order from emit
+    const outHash = F.toObject(poseidon([templateId, tokenId_lo, tokenId_hi, fromAddr, to]));
+
+    const input = {
+      selector: selector.toString(),
+      calldataCommitment: cdHash.toString(),
+      outputCommitment: outHash.toString(),
+      fromAddr: fromAddr.toString(),
+      to: to.toString(),
+      tokenId_lo: tokenId_lo.toString(),
+      tokenId_hi: tokenId_hi.toString()
+    };
+    fs.writeFileSync("erc721_transferFrom_99_input.json", JSON.stringify(input, null, 2));
+    console.log("✓ Wrote erc721_transferFrom_99_input.json (tokenId=99, templateId=0)");
+  }
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
@@ -476,8 +556,10 @@ run_witness_test "deposit_amount_5000"      "Ledger_deposit.circom"     "deposit
 run_witness_test "withdraw_amount_3000"     "Ledger_withdraw.circom"    "withdraw_3000_input.json"
 run_witness_test "ledger_transfer_2000"     "Ledger_transfer.circom"    "ledger_transfer_2000_input.json"
 run_witness_test "ledger_transfer_max"      "Ledger_transfer.circom"    "ledger_transfer_max_input.json"
+run_witness_test "erc721_approve_42"        "ERC721_approve.circom"          "erc721_approve_42_input.json"
 run_witness_test "setApproval_true"         "ERC721_setApprovalForAll.circom" "setApproval_true_input.json"
 run_witness_test "setApproval_false"        "ERC721_setApprovalForAll.circom" "setApproval_false_input.json"
+run_witness_test "erc721_transferFrom_99"   "ERC721_transferFrom.circom"     "erc721_transferFrom_99_input.json"
 
 # ---- Step 5: Groth16 proof generation and verification ----
 echo ""
@@ -550,8 +632,10 @@ run_proof_test "deposit_5000_proof"      "Ledger_deposit.circom"     "deposit_am
 run_proof_test "withdraw_3000_proof"     "Ledger_withdraw.circom"    "withdraw_amount_3000.wtns"
 run_proof_test "ledger_transfer_2000_proof" "Ledger_transfer.circom" "ledger_transfer_2000.wtns"
 run_proof_test "ledger_transfer_max_proof"  "Ledger_transfer.circom" "ledger_transfer_max.wtns"
-run_proof_test "setApproval_true_proof"     "ERC721_setApprovalForAll.circom" "setApproval_true.wtns"
-run_proof_test "setApproval_false_proof"    "ERC721_setApprovalForAll.circom" "setApproval_false.wtns"
+run_proof_test "erc721_approve_42_proof"       "ERC721_approve.circom"          "erc721_approve_42.wtns"
+run_proof_test "setApproval_true_proof"        "ERC721_setApprovalForAll.circom" "setApproval_true.wtns"
+run_proof_test "setApproval_false_proof"       "ERC721_setApprovalForAll.circom" "setApproval_false.wtns"
+run_proof_test "erc721_transferFrom_99_proof"  "ERC721_transferFrom.circom"     "erc721_transferFrom_99.wtns"
 
 # ---- Summary ----
 echo ""
@@ -579,7 +663,9 @@ if [ "$FAIL" -eq 0 ]; then
   echo "  Withdraw:     ${WITHDRAW_NL} non-linear constraints"
   echo "  Transfer:     ${LEDGER_TRANSFER_NL} non-linear constraints"
   echo "Circuit stats (ERC721):"
+  echo "  Approve:           ${ERC721_APPROVE_NL} non-linear constraints"
   echo "  SetApprovalForAll: ${SET_APPROVAL_NL} non-linear constraints"
+  echo "  TransferFrom:      ${ERC721_TRANSFER_FROM_NL} non-linear constraints"
   exit 0
 else
   echo ""

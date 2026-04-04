@@ -16,6 +16,7 @@ import Verity.Intent.Types
 import Verity.Intent.Eval
 import Verity.Intent.Validate
 import Compiler.CompilationModel.Types
+import Contracts.ERC721.Display
 
 namespace Verity.Intent.Example
 
@@ -534,6 +535,99 @@ def boolIntentSpec : IntentSpec := {
       unless co.holeValues == [48879] do
         throw (IO.userError s!"expected holeValues=[48879], got {repr co.holeValues}")
       IO.println s!"✓ Circuit output: setApprovalForAll(false) → templateIdx={co.templateIdx}, holes={repr co.holeValues}"
+    | none => throw (IO.userError "evalIntentCircuitOutput returned none")
+  | none => throw (IO.userError "binding not found")
+
+/-! ## ERC-721 Approve / TransferFrom Tests (Production IntentSpec)
+
+Tests for the two remaining ERC-721 bindings using the production
+`Contracts.ERC721.intentSpec` (binding 0 = approve, binding 2 = transferFrom).
+Both are unconditional (single-template) functions.
+-/
+
+-- Test: ERC-721 approve(approved=0xbeef, tokenId=42)
+-- → "Approve {approved} to transfer token #{tokenId}"
+#eval do
+  let spec := Contracts.ERC721.intentSpec
+  match getBinding spec 0 with
+  | some binding =>
+    let params : List (String × Value) := [
+      ("approved", .addr "0xbeef"),
+      ("tokenId", .int 42)
+    ]
+    match evalIntent spec binding params with
+    | some [t] =>
+      unless t.text == "Approve {approved} to transfer token #{tokenId}" do
+        throw (IO.userError s!"wrong text: {t.text}")
+      unless t.holes.length == 2 do
+        throw (IO.userError s!"expected 2 holes, got {t.holes.length}")
+      IO.println s!"✓ ERC-721 approve(tokenId=42): \"{t.text}\""
+    | some ts => throw (IO.userError s!"expected 1 template, got {ts.length}")
+    | none => throw (IO.userError "evaluation failed")
+  | none => throw (IO.userError "binding not found")
+
+-- Test: ERC-721 transferFrom(fromAddr=0xcafe, to=0xdead, tokenId=99)
+-- → "Transfer token #{tokenId} from {fromAddr} to {to}"
+#eval do
+  let spec := Contracts.ERC721.intentSpec
+  match getBinding spec 2 with
+  | some binding =>
+    let params : List (String × Value) := [
+      ("fromAddr", .addr "0xcafe"),
+      ("to", .addr "0xdead"),
+      ("tokenId", .int 99)
+    ]
+    match evalIntent spec binding params with
+    | some [t] =>
+      unless t.text == "Transfer token #{tokenId} from {fromAddr} to {to}" do
+        throw (IO.userError s!"wrong text: {t.text}")
+      unless t.holes.length == 3 do
+        throw (IO.userError s!"expected 3 holes, got {t.holes.length}")
+      IO.println s!"✓ ERC-721 transferFrom(tokenId=99): \"{t.text}\""
+    | some ts => throw (IO.userError s!"expected 1 template, got {ts.length}")
+    | none => throw (IO.userError "evaluation failed")
+  | none => throw (IO.userError "binding not found")
+
+-- Test: circuit output for ERC-721 approve(approved=0xbeef, tokenId=42)
+-- → templateIdx=0 (unconditional), holes=[48879, 42, 0]
+-- Hole order: approved (address → Nat), tokenId (uint256 → lo, hi)
+#eval do
+  let spec := Contracts.ERC721.intentSpec
+  match getBinding spec 0 with
+  | some binding =>
+    let params : List (String × Value) := [
+      ("approved", .addr "0xbeef"),
+      ("tokenId", .int 42)
+    ]
+    match evalIntentCircuitOutput spec binding params with
+    | some co =>
+      unless co.templateIdx == 0 do
+        throw (IO.userError s!"expected templateIdx=0, got {co.templateIdx}")
+      unless co.holeValues == [48879, 42, 0] do
+        throw (IO.userError s!"expected holeValues=[48879, 42, 0], got {repr co.holeValues}")
+      IO.println s!"✓ Circuit output: ERC-721 approve(42) → templateIdx={co.templateIdx}, holes={repr co.holeValues}"
+    | none => throw (IO.userError "evalIntentCircuitOutput returned none")
+  | none => throw (IO.userError "binding not found")
+
+-- Test: circuit output for ERC-721 transferFrom(fromAddr=0xcafe, to=0xdead, tokenId=99)
+-- → templateIdx=0 (unconditional), holes=[99, 0, 51966, 57005]
+-- Hole order: tokenId (uint256 → lo, hi), fromAddr (address → Nat), to (address → Nat)
+#eval do
+  let spec := Contracts.ERC721.intentSpec
+  match getBinding spec 2 with
+  | some binding =>
+    let params : List (String × Value) := [
+      ("fromAddr", .addr "0xcafe"),
+      ("to", .addr "0xdead"),
+      ("tokenId", .int 99)
+    ]
+    match evalIntentCircuitOutput spec binding params with
+    | some co =>
+      unless co.templateIdx == 0 do
+        throw (IO.userError s!"expected templateIdx=0, got {co.templateIdx}")
+      unless co.holeValues == [99, 0, 51966, 57005] do
+        throw (IO.userError s!"expected holeValues=[99, 0, 51966, 57005], got {repr co.holeValues}")
+      IO.println s!"✓ Circuit output: ERC-721 transferFrom(99) → templateIdx={co.templateIdx}, holes={repr co.holeValues}"
     | none => throw (IO.userError "evalIntentCircuitOutput returned none")
   | none => throw (IO.userError "binding not found")
 
