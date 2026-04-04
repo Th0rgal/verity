@@ -260,7 +260,7 @@ runs:
       id: lake-resolve
       if: steps.hydration.outputs.required == 'true'
       shell: bash
-      run: lake resolve
+      run: lake update
       continue-on-error: true
 
     - name: Retry Lake dependency resolution on transient failures
@@ -269,13 +269,13 @@ runs:
       run: |
         set -u
         for delay in 5 15; do
-          echo "::warning::lake resolve failed; retrying in ${delay}s"
+          echo "::warning::lake update failed; retrying in ${delay}s"
           sleep "${delay}"
-          if lake resolve; then
+          if lake update; then
             exit 0
           fi
         done
-        echo "::error::Unable to resolve Lake dependencies after retries"
+        echo "::error::Unable to update Lake dependencies after retries"
         exit 1
 
 outputs:

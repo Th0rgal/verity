@@ -100,6 +100,7 @@ configure_runner() {
   local index="$1"
   local runner_dir="$RUNNER_ROOT/$index"
   local runner_name="${RUNNER_NAME_PREFIX}-${index}"
+  local service_name="actions.runner.$(printf '%s' "${RUNNER_URL#https://github.com/}" | tr '/' '-').${runner_name}.service"
   local labels
   labels="$(runner_labels_for_index "$index")"
 
@@ -128,8 +129,17 @@ configure_runner() {
       --work '_work'
   "
 
-  "$runner_dir/svc.sh" install "$RUNNER_USER"
-  "$runner_dir/svc.sh" start
+  if ! systemctl list-unit-files "$service_name" >/dev/null 2>&1; then
+    (
+      cd "$runner_dir"
+      ./svc.sh install "$RUNNER_USER"
+    )
+  fi
+
+  (
+    cd "$runner_dir"
+    ./svc.sh start
+  )
 }
 
 install_packages
