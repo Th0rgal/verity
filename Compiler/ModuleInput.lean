@@ -118,6 +118,21 @@ private def existingSplitPackageSearchRoots : IO SearchPath := do
       roots := roots.concat path
   pure roots
 
+/-- Load intent specs (if present) from already-imported modules.
+
+Returns a list of `(moduleName, IntentSpec)` pairs for every module that
+defines a canonical `<Module>.intentSpec` constant.  Modules that do not
+define one are silently skipped. -/
+unsafe def loadIntentSpecsFromModules
+    (env : Environment)
+    (moduleNames : List Name) : List (Name × Verity.Intent.IntentSpec) :=
+  let opts : Options := {}
+  moduleNames.filterMap fun moduleName =>
+    let name := intentSpecNameOfModule moduleName
+    match evalIntentSpecConst env opts name with
+    | some spec => some (moduleName, spec)
+    | none => none
+
 /-- Import modules and evaluate their canonical `<Module>.spec` constants.
 
 Also optionally loads `<Module>.intentSpec` constants (for Circom output).
@@ -141,21 +156,6 @@ unsafe def loadSpecsFromModules (moduleNames : List Name)
     pure <| .error e.toString
   finally
     searchPathRef.set originalSearchPath
-
-/-- Load intent specs (if present) from already-imported modules.
-
-Returns a list of `(moduleName, IntentSpec)` pairs for every module that
-defines a canonical `<Module>.intentSpec` constant.  Modules that do not
-define one are silently skipped. -/
-unsafe def loadIntentSpecsFromModules
-    (env : Environment)
-    (moduleNames : List Name) : List (Name × Verity.Intent.IntentSpec) :=
-  let opts : Options := {}
-  moduleNames.filterMap fun moduleName =>
-    let name := intentSpecNameOfModule moduleName
-    match evalIntentSpecConst env opts name with
-    | some spec => some (moduleName, spec)
-    | none => none
 
 /-- Parse raw module names, reject duplicates, then load their canonical specs. -/
 unsafe def loadSpecsFromRawModules (rawModules : List String)
