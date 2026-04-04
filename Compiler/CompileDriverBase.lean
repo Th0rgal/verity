@@ -28,6 +28,7 @@ def compileSpecsWithOptions
     (assumptionReportPath : Option String)
     (abiOutDir : Option String)
     (circomOutDir : Option String := none)
+    (erc7730OutDir : Option String := none)
     (intentSpecs : List (Lean.Name × Verity.Intent.IntentSpec) := [])
     (denyUncheckedDependencies : Bool := false)
     (denyAssumedDependencies : Bool := false)
@@ -43,7 +44,7 @@ def compileSpecsWithOptions
     (denyLayoutIncompatibility : Bool := false) : IO Unit :=
   Compiler.CompileDriverCommon.compileSpecsWithOptions
     backend specs outDir verbose libraryPaths options patchReportPath trustReportPath assumptionReportPath abiOutDir
-    circomOutDir intentSpecs
+    circomOutDir erc7730OutDir intentSpecs
     denyUncheckedDependencies denyAssumedDependencies denyAxiomatizedPrimitives denyLocalObligations denyLinearMemoryMechanics
     denyEventEmission denyLowLevelMechanics denyRuntimeIntrospection denyProxyUpgradeability layoutReportPath
     layoutCompatibilityReportPath denyLayoutIncompatibility
@@ -59,6 +60,7 @@ unsafe def compileModulesWithOptions
     (assumptionReportPath : Option String := none)
     (abiOutDir : Option String := none)
     (circomOutDir : Option String := none)
+    (erc7730OutDir : Option String := none)
     (denyUncheckedDependencies : Bool := false)
     (denyAssumedDependencies : Bool := false)
     (denyAxiomatizedPrimitives : Bool := false)
@@ -73,7 +75,7 @@ unsafe def compileModulesWithOptions
     (denyLayoutIncompatibility : Bool := false) : IO Unit := do
   Compiler.CompileDriverCommon.compileModulesWithOptions
     backend outDir modules verbose libraryPaths options patchReportPath trustReportPath assumptionReportPath
-    abiOutDir circomOutDir denyUncheckedDependencies denyAssumedDependencies denyAxiomatizedPrimitives denyLocalObligations
+    abiOutDir circomOutDir erc7730OutDir denyUncheckedDependencies denyAssumedDependencies denyAxiomatizedPrimitives denyLocalObligations
     denyLinearMemoryMechanics denyEventEmission denyLowLevelMechanics denyRuntimeIntrospection
     denyProxyUpgradeability layoutReportPath layoutCompatibilityReportPath denyLayoutIncompatibility
 

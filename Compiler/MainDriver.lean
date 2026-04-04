@@ -15,6 +15,7 @@ private structure CLIArgs where
   outDir : String := "artifacts/yul"
   abiOutDir : Option String := none
   circomOutDir : Option String := none
+  erc7730OutDir : Option String := none
   manifestPath : Option String := none
   modules : List String := []
   libs : List String := []
@@ -66,6 +67,7 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         IO.println "  -o <dir>           Short form of --output"
         IO.println "  --abi-output <dir> Output ABI JSON artifacts (one <Contract>.abi.json per spec)"
         IO.println "  --circom-output <dir> Output Circom intent circuits (one per intent binding)"
+        IO.println "  --erc7730-output <dir> Output ERC-7730 clear-signing JSON (one per contract)"
         IO.println "  --manifest <path>  Manifest file with one Lean module per line"
         IO.println "  --module <name>    Import a Lean module and compile its canonical `<Module>.spec`"
         IO.println "  --backend-profile <semantic|solidity-parity-ordering>"
@@ -110,6 +112,10 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         go rest { cfg with circomOutDir := some dir }
     | ["--circom-output"] =>
         throw (IO.userError "Missing value for --circom-output")
+    | "--erc7730-output" :: dir :: rest =>
+        go rest { cfg with erc7730OutDir := some dir }
+    | ["--erc7730-output"] =>
+        throw (IO.userError "Missing value for --erc7730-output")
     | "--manifest" :: path :: rest =>
         if cfg.manifestPath.isSome then
           throw (IO.userError "Cannot specify --manifest more than once")
@@ -216,6 +222,9 @@ unsafe def run (args : List String) : IO Unit := do
       match cfg.circomOutDir with
       | some dir => IO.println s!"Circom output directory: {dir}"
       | none => pure ()
+      match cfg.erc7730OutDir with
+      | some dir => IO.println s!"ERC-7730 output directory: {dir}"
+      | none => pure ()
       match cfg.trustReportPath with
       | some path => IO.println s!"Trust report: {path}"
       | none => pure ()
@@ -236,7 +245,7 @@ unsafe def run (args : List String) : IO Unit := do
     }
     Compiler.Base.compileModulesWithOptions
       cfg.outDir rawModules cfg.verbose cfg.libs options none cfg.trustReportPath
-      cfg.assumptionReportPath cfg.abiOutDir cfg.circomOutDir cfg.denyUncheckedDependencies cfg.denyAssumedDependencies
+      cfg.assumptionReportPath cfg.abiOutDir cfg.circomOutDir cfg.erc7730OutDir cfg.denyUncheckedDependencies cfg.denyAssumedDependencies
       cfg.denyAxiomatizedPrimitives cfg.denyLocalObligations cfg.denyLinearMemoryMechanics cfg.denyEventEmission
       cfg.denyLowLevelMechanics cfg.denyRuntimeIntrospection cfg.denyProxyUpgradeability cfg.layoutReportPath
       cfg.layoutCompatibilityReportPath cfg.denyLayoutIncompatibility

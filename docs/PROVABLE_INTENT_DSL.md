@@ -88,15 +88,13 @@ IntentSpec (Lean)
     ├── Verity/Intent/Example.lean   ERC-20 + ERC-721 examples + smoke tests
     │
     ├── Compiler/Circom.lean         Circom circuit generator
+    ├── Compiler/ERC7730.lean        ERC-7730 clear-signing JSON generator
     │
     ├── Contracts/ERC20/Display.lean  Production ERC-20 intentSpec
     └── Contracts/Ledger/Display.lean Production Ledger intentSpec
          │
-         └── .circom files
-              │
-              ├── circom compiler → R1CS + WASM
-              ├── snarkjs wchk → witness verification
-              └── snarkjs groth16 → proof generation + verification
+         ├── .circom files → circom compiler → snarkjs → Groth16 proof
+         └── .erc7730.json files → wallet clear-signing display
 ```
 
 ### CLI Integration
@@ -104,6 +102,12 @@ IntentSpec (Lean)
 ```bash
 # Generate Circom circuits from a compiled module with IntentSpec:
 verity-compiler --module Contracts.ERC20.ERC20 --circom-output artifacts/circom
+
+# Generate ERC-7730 clear-signing JSON:
+verity-compiler --module Contracts.ERC20.ERC20 --erc7730-output artifacts/erc7730
+
+# Both can be combined:
+verity-compiler --module Contracts.ERC20.ERC20 --circom-output artifacts/circom --erc7730-output artifacts/erc7730
 ```
 
 The `--circom-output` flag triggers:
@@ -112,6 +116,11 @@ The `--circom-output` flag triggers:
 3. Computing selectors from the ABI
 4. Writing one `.circom` file per intent binding
 
+The `--erc7730-output` flag triggers:
+1. Loading the module's `intentSpec` constant
+2. Computing selectors from the ABI
+3. Writing one `.erc7730.json` file per contract (ERC-7730 Structured Data Clear Signing Format)
+
 ## Phase 1 Status
 
 - [x] `Verity/Intent/Types.lean` — AST types (Expr, Stmt, FnDecl, IntentSpec)
@@ -119,7 +128,10 @@ The `--circom-output` flag triggers:
 - [x] `Verity/Intent/Validate.lean` — Validates IntentSpec against CompilationModel
 - [x] `Compiler/Circom.lean` — Circom circuit generator (Poseidon commitments, uint256 lo/hi)
 - [x] `Compiler/CircomTest.lean` — Regression tests for generated Circom structure
+- [x] `Compiler/ERC7730.lean` — ERC-7730 clear-signing JSON generator
+- [x] `Compiler/ERC7730Test.lean` — Regression tests for generated ERC-7730 JSON
 - [x] `--circom-output <dir>` CLI flag (wired through compile pipeline)
+- [x] `--erc7730-output <dir>` CLI flag (wired through compile pipeline)
 - [x] `Contracts/ERC20/Display.lean` — Production `intentSpec` for the ERC-20 contract
 - [x] `Contracts/Ledger/Display.lean` — Production `intentSpec` for the Ledger contract
 - [x] ERC-20 example with 5 test cases: transfer, approve, transferFrom (witness + proof)
