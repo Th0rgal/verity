@@ -90,8 +90,9 @@ IntentSpec (Lean)
     ├── Compiler/Circom.lean         Circom circuit generator
     ├── Compiler/ERC7730.lean        ERC-7730 clear-signing JSON generator
     │
-    ├── Contracts/ERC20/Display.lean  Production ERC-20 intentSpec
-    └── Contracts/Ledger/Display.lean Production Ledger intentSpec
+    ├── Contracts/ERC20/Display.lean   Production ERC-20 intentSpec
+    ├── Contracts/Ledger/Display.lean  Production Ledger intentSpec
+    └── Contracts/ERC721/Display.lean  Production ERC-721 intentSpec
          │
          ├── .circom files → circom compiler → snarkjs → Groth16 proof
          └── .erc7730.json files → wallet clear-signing display
@@ -134,6 +135,7 @@ The `--erc7730-output` flag triggers:
 - [x] `--erc7730-output <dir>` CLI flag (wired through compile pipeline)
 - [x] `Contracts/ERC20/Display.lean` — Production `intentSpec` for the ERC-20 contract
 - [x] `Contracts/Ledger/Display.lean` — Production `intentSpec` for the Ledger contract
+- [x] `Contracts/ERC721/Display.lean` — Production `intentSpec` for the ERC-721 contract
 - [x] ERC-20 example with 5 test cases: transfer, approve, transferFrom (witness + proof)
 - [x] Ledger example with 4 test cases: deposit, withdraw, transfer (witness + proof)
 - [x] ERC-721 example with 2 test cases: setApprovalForAll with bool param (witness + proof)
