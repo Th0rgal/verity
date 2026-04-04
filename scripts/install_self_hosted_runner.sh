@@ -20,13 +20,13 @@ RUNNER_COUNT="${RUNNER_COUNT:-2}"
 runner_labels_for_index() {
   case "$1" in
     1)
-      printf '%s' "${RUNNER_LABELS_1:-verity,build,cpu-8,mem-64g}"
+      printf '%s' "${RUNNER_LABELS_1:-verity,build,build-heavy,cpu-8,mem-64g}"
       ;;
     2)
       printf '%s' "${RUNNER_LABELS_2:-verity,build,build-heavy,cpu-8,mem-64g}"
       ;;
     *)
-      printf '%s' "${RUNNER_LABELS_EXTRA:-verity,build,cpu-8,mem-64g}"
+      printf '%s' "${RUNNER_LABELS_EXTRA:-verity,build,build-heavy,cpu-8,mem-64g}"
       ;;
   esac
 }

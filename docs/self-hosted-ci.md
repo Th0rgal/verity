@@ -5,12 +5,12 @@ GitHub Actions self-hosted runners that share a persistent cache root.
 
 ## Runner layout
 
-- Runner `1`: `self-hosted,linux,x64,verity,build,cpu-8,mem-64g`
+- Runner `1`: `self-hosted,linux,x64,verity,build,build-heavy,cpu-8,mem-64g`
 - Runner `2`: `self-hosted,linux,x64,verity,build,build-heavy,cpu-8,mem-64g`
 - Shared cache root: `/srv/verity-ci-cache`
 
-`build-heavy` is reserved for the most expensive jobs so they do not run
-concurrently on both runner services.
+Both services can take the full verify workload. On a single 8-core host this
+trades some CPU contention for much less queueing.
 
 ## Workflow behavior
 

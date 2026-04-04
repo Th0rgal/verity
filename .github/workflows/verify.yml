@@ -321,7 +321,7 @@ jobs:
           key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
 
   prepare-macro-fuzz:
-    runs-on: [self-hosted, linux, x64, verity, build-heavy, cpu-8, mem-64g]
+    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: 360
     needs: [changes, checks, build]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'
@@ -513,7 +513,7 @@ jobs:
           ./.lake/build/bin/macro-roundtrip-fuzz
 
   build-compiler-binaries:
-    runs-on: [self-hosted, linux, x64, verity, build-heavy, cpu-8, mem-64g]
+    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: 360
     needs: [changes, checks, build]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.compiler == 'true'
@@ -1093,7 +1093,7 @@ jobs:
           path: compiler/parity-pack-identity-report.json
 
   compiler-regressions:
-    runs-on: [self-hosted, linux, x64, verity, build-heavy, cpu-8, mem-64g]
+    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '150' || '90') }}
     needs: [changes, checks, build, build-compiler-binaries]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'

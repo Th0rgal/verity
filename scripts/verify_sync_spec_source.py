@@ -191,15 +191,15 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                           'checks': '[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]',
                           'timeout-watchdog': '[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]',
                           'build': '[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]',
-                          'prepare-macro-fuzz': '[self-hosted, linux, x64, verity, build-heavy, cpu-8, mem-64g]',
+                          'prepare-macro-fuzz': '[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]',
                           'build-audits': '[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]',
                           'macro-fuzz': '[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]',
-                          'build-compiler-binaries': '[self-hosted, linux, x64, verity, build-heavy, cpu-8, mem-64g]',
+                          'build-compiler-binaries': '[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]',
                           'generate-yul': '[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]',
                           'generate-yul-patched': '[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]',
                           'gas-report': '[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]',
                           'compiler-audits': '[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]',
-                          'compiler-regressions': '[self-hosted, linux, x64, verity, build-heavy, cpu-8, mem-64g]',
+                          'compiler-regressions': '[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]',
                           'lean-profile': '[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]',
                           'foundry-gas-calibration': '[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]',
                           'foundry': '[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]',
@@ -1044,7 +1044,7 @@ SPEC['expected_job_if_conditions'].update({
 })
 
 SPEC['expected_job_runs_on'].update({
-    'build-compiler-binaries': '[self-hosted, linux, x64, verity, build-heavy, cpu-8, mem-64g]',
+    'build-compiler-binaries': '[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]',
 })
 
 SPEC['expected_job_timeouts'].update({
