@@ -72,7 +72,7 @@ during witness generation (the circuit constraint `outputCommitment === outHash.
 
 ### What the Proof Proves
 
-For each test case, the Groth16 proof demonstrates:
+For each test case, the Groth16 proof for one bound ABI entrypoint demonstrates:
 
 > "I know parameter values `(params...)` such that:
 > 1. The selector matches the expected constant (e.g. `0xa9059cbb` for transfer)
@@ -120,7 +120,7 @@ The `--circom-output` flag triggers:
 1. Loading the module's `intentSpec` constant
 2. Validating against the `CompilationModel`
 3. Computing selectors from the ABI
-4. Writing one `.circom` file per intent binding
+4. Writing one `.circom` file per intent binding / external ABI entrypoint
 
 The `--erc7730-output` flag triggers:
 1. Loading the module's `intentSpec` constant
