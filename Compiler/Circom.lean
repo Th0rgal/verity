@@ -1,7 +1,8 @@
 /-
   Compiler.Circom: Generate Circom circuits from IntentSpec.
 
-  For each intent binding, produces a `.circom` file that proves:
+  For each intent binding to an external ABI entrypoint, produces a
+  `.circom` file that proves:
     1. The selector matches the expected constant
     2. Poseidon(selector, params...) == calldataCommitment  (public)
     3. The DSL program evaluation selects a templateId and hole values
