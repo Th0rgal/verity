@@ -330,7 +330,8 @@ test (`test_circom_e2e.sh`) hard-codes as Poseidon inputs.
 
 private def max128 : Nat := (2 ^ 128) - 1
 
--- Test: transfer(to=0xdead, amount=1000) → templateIdx=1 (else branch), holes=[1000, 0, 57005]
+-- Test: transfer(to=0xdead, amount=1000) → templateIdx=1 (else branch), holes=[57005, 1000, 0]
+-- Hole order: dedup first-occurrence of [to] ++ [amount, to] = [to, amount] → [to, amount_lo, amount_hi]
 #eval do
   let spec := erc20IntentSpec
   match getBinding spec 0 with
@@ -343,13 +344,14 @@ private def max128 : Nat := (2 ^ 128) - 1
     | some co =>
       unless co.templateIdx == 1 do
         throw (IO.userError s!"expected templateIdx=1, got {co.templateIdx}")
-      unless co.holeValues == [1000, 0, 57005] do
-        throw (IO.userError s!"expected holeValues=[1000, 0, 57005], got {repr co.holeValues}")
+      unless co.holeValues == [57005, 1000, 0] do
+        throw (IO.userError s!"expected holeValues=[57005, 1000, 0], got {repr co.holeValues}")
       IO.println s!"✓ Circuit output: transfer(1000) → templateIdx={co.templateIdx}, holes={repr co.holeValues}"
     | none => throw (IO.userError "evalIntentCircuitOutput returned none")
   | none => throw (IO.userError "binding not found")
 
--- Test: transfer(to=0xdead, amount=MAX) → templateIdx=0 (then branch), holes=[max128, max128, 57005]
+-- Test: transfer(to=0xdead, amount=MAX) → templateIdx=0 (then branch), holes=[57005, max128, max128]
+-- Hole order: [to, amount_lo, amount_hi]
 #eval do
   let spec := erc20IntentSpec
   match getBinding spec 0 with
@@ -362,8 +364,8 @@ private def max128 : Nat := (2 ^ 128) - 1
     | some co =>
       unless co.templateIdx == 0 do
         throw (IO.userError s!"expected templateIdx=0, got {co.templateIdx}")
-      unless co.holeValues == [max128, max128, 57005] do
-        throw (IO.userError s!"expected holeValues=[max128, max128, 57005], got {repr co.holeValues}")
+      unless co.holeValues == [57005, max128, max128] do
+        throw (IO.userError s!"expected holeValues=[57005, max128, max128], got {repr co.holeValues}")
       IO.println s!"✓ Circuit output: transfer(MAX) → templateIdx={co.templateIdx}, holes match"
     | none => throw (IO.userError "evalIntentCircuitOutput returned none")
   | none => throw (IO.userError "binding not found")
@@ -388,9 +390,9 @@ private def max128 : Nat := (2 ^ 128) - 1
   | none => throw (IO.userError "binding not found")
 
 -- Test: transferFrom(fromAddr=0xcafe, to=0xdead, amount=2000)
---   → templateIdx=1 (else branch), holes=[2000, 0, 51966, 57005]
---   Hole order: dedup of [fromAddr, to] ++ [amount, fromAddr, to] = [amount, fromAddr, to]
---   Values: amount_lo=2000, amount_hi=0, fromAddr=0xcafe=51966, to=0xdead=57005
+--   → templateIdx=1 (else branch), holes=[51966, 57005, 2000, 0]
+--   Hole order: dedup first-occurrence of [fromAddr, to] ++ [amount, fromAddr, to] = [fromAddr, to, amount]
+--   Values: fromAddr=0xcafe=51966, to=0xdead=57005, amount_lo=2000, amount_hi=0
 #eval do
   let spec := erc20IntentSpec
   match getBinding spec 2 with
@@ -404,14 +406,15 @@ private def max128 : Nat := (2 ^ 128) - 1
     | some co =>
       unless co.templateIdx == 1 do
         throw (IO.userError s!"expected templateIdx=1, got {co.templateIdx}")
-      unless co.holeValues == [2000, 0, 51966, 57005] do
-        throw (IO.userError s!"expected holeValues=[2000, 0, 51966, 57005], got {repr co.holeValues}")
+      unless co.holeValues == [51966, 57005, 2000, 0] do
+        throw (IO.userError s!"expected holeValues=[51966, 57005, 2000, 0], got {repr co.holeValues}")
       IO.println s!"✓ Circuit output: transferFrom(2000) → templateIdx={co.templateIdx}, holes={repr co.holeValues}"
     | none => throw (IO.userError "evalIntentCircuitOutput returned none")
   | none => throw (IO.userError "binding not found")
 
 -- Test: transferFrom(fromAddr=0xcafe, to=0xdead, amount=MAX)
---   → templateIdx=0 (then branch), holes=[max128, max128, 51966, 57005]
+--   → templateIdx=0 (then branch), holes=[51966, 57005, max128, max128]
+--   Hole order: [fromAddr, to, amount_lo, amount_hi]
 #eval do
   let spec := erc20IntentSpec
   match getBinding spec 2 with
@@ -425,8 +428,8 @@ private def max128 : Nat := (2 ^ 128) - 1
     | some co =>
       unless co.templateIdx == 0 do
         throw (IO.userError s!"expected templateIdx=0, got {co.templateIdx}")
-      unless co.holeValues == [max128, max128, 51966, 57005] do
-        throw (IO.userError s!"expected holeValues=[max128, max128, 51966, 57005], got {repr co.holeValues}")
+      unless co.holeValues == [51966, 57005, max128, max128] do
+        throw (IO.userError s!"expected holeValues=[51966, 57005, max128, max128], got {repr co.holeValues}")
       IO.println s!"✓ Circuit output: transferFrom(MAX) → templateIdx={co.templateIdx}, holes match"
     | none => throw (IO.userError "evalIntentCircuitOutput returned none")
   | none => throw (IO.userError "binding not found")

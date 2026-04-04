@@ -63,14 +63,19 @@ def EmitState.addLine (st : EmitState) (line : String) : EmitState :=
 
 /-! ## Constant Folding -/
 
-/-- Try to evaluate a constant expression to an integer value at compile time. -/
-partial def evalConstInt (consts : List ConstDef) : Expr → Option Int
-  | .intLit n => some n
-  | .param name =>
-    match consts.find? (fun c => c.name == name) with
-    | some c => evalConstInt consts c.value
-    | none => none
-  | _ => none
+/-- Try to evaluate a constant expression to an integer value at compile time.
+    Uses fuel bounded by the number of constants to guard against cycles. -/
+def evalConstInt (consts : List ConstDef) (expr : Expr) : Option Int :=
+  go consts (consts.length + 1) expr
+where
+  go (consts : List ConstDef) : Nat → Expr → Option Int
+    | _, .intLit n => some n
+    | 0, _ => none  -- fuel exhausted (cycle in constants)
+    | fuel + 1, .param name =>
+      match consts.find? (fun c => c.name == name) with
+      | some c => go consts fuel c.value
+      | none => none
+    | _, _ => none
 
 /-- Split a 256-bit integer into lo/hi 128-bit limbs (as Nat). -/
 def splitUint256 (n : Int) : Nat × Nat :=
@@ -116,11 +121,6 @@ def remapStmtParams (fnPfx : String) (paramNames : List String) : Stmt → Stmt
   | .call fn args =>
     .call fn (args.map (remapParams fnPfx paramNames))
 
-/-- Remap a ParamCtx: add function prefix to param names. -/
-def remapCtx (fnPfx : String) (paramNames : List String) (ctx : ParamCtx) : ParamCtx :=
-  ctx.map (fun (n, t) =>
-    if paramNames.contains n then (s!"{fnPfx}_{n}", t) else (n, t))
-
 /-! ## Helpers for uint256 signal resolution -/
 
 /-- Check if an expression refers to a uint256 value. -/
@@ -129,8 +129,9 @@ def isUint256Expr (ctx : ParamCtx) (consts : List ConstDef) : Expr → Bool
     match ctx.findType name with
     | some .uint256 | some .int256 => true
     | _ =>
-      match consts.find? (fun c => c.name == name) with
-      | some _ => true  -- constants are typically uint256
+      -- Check if it's a constant whose value needs uint256 (lo/hi) treatment
+      match evalConstInt consts (.param name) with
+      | some n => n > (2 ^ 128 : Nat) || n < 0
       | none => false
   | .intLit n => n > (2 ^ 128 : Nat) || n < 0
   | _ => false
@@ -300,14 +301,19 @@ partial def compileExpr (st : EmitState) (ctx : ParamCtx)
     | some fn =>
       match fn.expr with
       | some body =>
-        -- Type-aware argument binding: uint256 params need lo/hi signals
-        let st := bindFnArgs st ctx fns consts fnName fn.params args
-        let fnCtx : ParamCtx := fn.params.map (fun (n, t) => (s!"{fnName}_{n}", t))
+        -- Use a unique prefix to avoid duplicate signals when the same helper is called twice
+        let (uniquePfx, st) := st.fresh fnName
+        let st := bindFnArgs st ctx fns consts uniquePfx fn.params args
+        let fnCtx : ParamCtx := fn.params.map (fun (n, t) => (s!"{uniquePfx}_{n}", t))
         let paramNames := fn.params.map (·.1)
-        let remappedBody := remapParams fnName paramNames body
+        let remappedBody := remapParams uniquePfx paramNames body
         compileExpr st (fnCtx ++ ctx) fns consts remappedBody
-      | none => ("0", st)
-    | none => ("0", st)
+      | none =>
+        let st := st.addLine s!"    // ERROR: function '{fnName}' has no expression body"
+        ("0", st)
+    | none =>
+      let st := st.addLine s!"    // ERROR: undefined function '{fnName}'"
+      ("0", st)
   -- index and length are not directly compilable to circuits in general;
   -- they are resolved during forEach unrolling. If reached here, emit 0.
   | .index _ _ => ("0", st)
@@ -389,13 +395,19 @@ partial def compileStmts (st : EmitState) (ctx : ParamCtx)
     | .call fnName args =>
       match fns.find? (fun f => f.name == fnName) with
       | some fn =>
-        let st := bindFnArgs st ctx fns consts fnName fn.params args
-        let fnCtx : ParamCtx := fn.params.map (fun (n, t) => (s!"{fnName}_{n}", t))
-        let paramNames := fn.params.map (·.1)
-        let remappedBody := fn.body.map (remapStmtParams fnName paramNames)
-        let (st, callPaths, nextIdx) := compileStmts st (fnCtx ++ ctx) fns consts remappedBody condSig nextTemplateIdx
-        let (st, restPaths, nextIdx) := compileStmts st ctx fns consts rest condSig nextIdx
-        (st, callPaths ++ restPaths, nextIdx)
+        -- Only inline void functions; non-void helpers are expression-level
+        if fn.returnKind != .void then
+          compileStmts st ctx fns consts rest condSig nextTemplateIdx
+        else
+          -- Use a unique prefix to avoid duplicate signals when the same helper is called twice
+          let (uniquePfx, st) := st.fresh fnName
+          let st := bindFnArgs st ctx fns consts uniquePfx fn.params args
+          let fnCtx : ParamCtx := fn.params.map (fun (n, t) => (s!"{uniquePfx}_{n}", t))
+          let paramNames := fn.params.map (·.1)
+          let remappedBody := fn.body.map (remapStmtParams uniquePfx paramNames)
+          let (st, callPaths, nextIdx) := compileStmts st (fnCtx ++ ctx) fns consts remappedBody condSig nextTemplateIdx
+          let (st, restPaths, nextIdx) := compileStmts st ctx fns consts rest condSig nextIdx
+          (st, callPaths ++ restPaths, nextIdx)
       | none =>
         compileStmts st ctx fns consts rest condSig nextTemplateIdx
 
@@ -414,9 +426,13 @@ private def indexed (xs : List α) : List (Nat × α) :=
     | i, x :: rest => (i, x) :: go (i + 1) rest
   go 0 xs
 
-private def dedup : List String → List String
-  | [] => []
-  | x :: xs => if xs.contains x then dedup xs else x :: dedup xs
+private def dedup (xs : List String) : List String :=
+  let rec go : List String → List String → List String
+    | [], _ => []
+    | x :: rest, seen =>
+      if seen.contains x then go rest seen
+      else x :: go rest (x :: seen)
+  go xs []
 
 /-- Generate Circom source for a single intent binding.
     `selectorHex` is the 4-byte selector as a hex string (e.g. "0xa9059cbb").

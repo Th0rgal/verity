@@ -104,11 +104,21 @@ def evalExpr (fns : List FnDecl) (consts : List ConstDef) (env : Env)
     | Expr.eq a b => do
       let va ← evalExpr fns consts env fuel' a
       let vb ← evalExpr fns consts env fuel' b
-      some (.bool (va == vb))
+      match va, vb with
+      | .int x, .int y => some (.bool (x == y))
+      | .str x, .str y => some (.bool (x == y))
+      | .bool x, .bool y => some (.bool (x == y))
+      | .addr x, .addr y => some (.bool (x == y))
+      | _, _ => none  -- cross-type equality is undefined
     | Expr.ne a b => do
       let va ← evalExpr fns consts env fuel' a
       let vb ← evalExpr fns consts env fuel' b
-      some (.bool (va != vb))
+      match va, vb with
+      | .int x, .int y => some (.bool (x != y))
+      | .str x, .str y => some (.bool (x != y))
+      | .bool x, .bool y => some (.bool (x != y))
+      | .addr x, .addr y => some (.bool (x != y))
+      | _, _ => none  -- cross-type inequality is undefined
     | Expr.lt a b => do
       let va ← evalExpr fns consts env fuel' a
       let vb ← evalExpr fns consts env fuel' b
@@ -259,7 +269,9 @@ def evalIntent (spec : IntentSpec) (binding : IntentBinding)
     (params : List (String × Value)) (fuel : Nat := defaultFuel)
     : Option (List EmittedTemplate) := do
   let fn ← findFn spec.fns binding.intentFn
-  if fn.params.length != params.length then none
+  -- Only void functions emit templates; non-void (bool/string) are helpers
+  if fn.returnKind != .void then none
+  else if fn.params.length != params.length then none
   else
     let env : Env := params
     evalStmts spec.fns spec.constants env fuel fn.body
@@ -324,9 +336,13 @@ def paramCircuitValues (env : Env) (paramName : String) (ty : ParamType) : Optio
       | _ => none
 
 /-- Dedup preserving first-occurrence order (same as Circom.dedup). -/
-private def dedup : List String → List String
-  | [] => []
-  | x :: xs => if xs.contains x then dedup xs else x :: dedup xs
+private def dedup (xs : List String) : List String :=
+  let rec go : List String → List String → List String
+    | [], _ => []
+    | x :: rest, seen =>
+      if seen.contains x then go rest seen
+      else x :: go rest (x :: seen)
+  go xs []
 
 /-- Circuit output: the values that the Circom circuit commits to. -/
 structure CircuitOutput where
@@ -337,54 +353,27 @@ structure CircuitOutput where
   holeValues : List Nat
   deriving Repr
 
-mutual
-
-/-- Count total emit paths in an expression (for void function calls).
-    Same traversal as Circom's compileStmts — needed for index agreement. -/
-def countEmitsExpr (fns : List FnDecl) (consts : List ConstDef)
-    (fuel : Nat) (expr : Expr) : Nat :=
-  match fuel with
-  | 0 => 0
-  | fuel' + 1 =>
-    match expr with
-    | .call fnName _args =>
-      match findFn fns fnName with
-      | some fn =>
-        match fn.returnKind with
-        | .void => countEmitsStmts fns consts fuel' fn.body
-        | _ => 0
-      | none => 0
-    | _ => 0
-
 /-- Count total emit paths in a statement list (same traversal as Circom's compileStmts).
     Counts ALL paths, not just the one taken — needed for consistent index assignment. -/
-def countEmitsStmts (fns : List FnDecl) (consts : List ConstDef)
-    (fuel : Nat) : List Stmt → Nat
+partial def countEmitsStmts (fns : List FnDecl) (consts : List ConstDef)
+    : List Stmt → Nat
   | [] => 0
-  | stmts =>
-    match fuel with
-    | 0 => 0
-    | fuel' + 1 =>
-      match stmts with
-      | [] => 0
-      | .emit _ :: rest => 1 + countEmitsStmts fns consts fuel' rest
-      | .ite _cond thenBr elseBr :: rest =>
-        countEmitsStmts fns consts fuel' thenBr +
-        countEmitsStmts fns consts fuel' elseBr +
-        countEmitsStmts fns consts fuel' rest
-      | .forEach _var _array body :: rest =>
-        -- forEach emits are counted once (for the body pattern);
-        -- actual unrolling happens at runtime/circuit compile time
-        countEmitsStmts fns consts fuel' body +
-        countEmitsStmts fns consts fuel' rest
-      | .call fnName _args :: rest =>
-        match findFn fns fnName with
-        | some fn =>
-          countEmitsStmts fns consts fuel' fn.body +
-          countEmitsStmts fns consts fuel' rest
-        | none => countEmitsStmts fns consts fuel' rest
-
-end
+  | .emit _ :: rest => 1 + countEmitsStmts fns consts rest
+  | .ite _cond thenBr elseBr :: rest =>
+    countEmitsStmts fns consts thenBr +
+    countEmitsStmts fns consts elseBr +
+    countEmitsStmts fns consts rest
+  | .forEach _var _array body :: rest =>
+    -- forEach emits are counted once (for the body pattern);
+    -- actual unrolling happens at runtime/circuit compile time
+    countEmitsStmts fns consts body +
+    countEmitsStmts fns consts rest
+  | .call fnName _args :: rest =>
+    match findFn fns fnName with
+    | some fn =>
+      countEmitsStmts fns consts fn.body +
+      countEmitsStmts fns consts rest
+    | none => countEmitsStmts fns consts rest
 
 /-- Evaluate an intent and return the circuit-compatible output.
     This computes the same `(templateId, holeValues)` that the Circom
@@ -434,8 +423,8 @@ where
             findEmitIndex spec fn env fuel' rest target (startIdx + 1)
         | none => findEmitIndex spec fn env fuel' rest target (startIdx + 1)
       | .ite cond thenBranch elseBranch :: rest =>
-        let thenCount := countEmitsStmts spec.fns spec.constants fuel' thenBranch
-        let elseCount := countEmitsStmts spec.fns spec.constants fuel' elseBranch
+        let thenCount := countEmitsStmts spec.fns spec.constants thenBranch
+        let elseCount := countEmitsStmts spec.fns spec.constants elseBranch
         match evalExpr spec.fns spec.constants env fuel' cond with
         | some (.bool true) =>
           match findEmitIndex spec fn env fuel' thenBranch target startIdx with
@@ -447,7 +436,7 @@ where
           | none => findEmitIndex spec fn env fuel' rest target (startIdx + thenCount + elseCount)
         | _ => none
       | .forEach _var _array body :: rest =>
-        let bodyCount := countEmitsStmts spec.fns spec.constants fuel' body
+        let bodyCount := countEmitsStmts spec.fns spec.constants body
         -- forEach circuit output not yet supported — skip the body emits
         findEmitIndex spec fn env fuel' rest target (startIdx + bodyCount)
       | .call fnName args :: rest =>
@@ -457,7 +446,7 @@ where
           match argVals with
           | some vals =>
             let callEnv := List.zipWith (fun (name, _) val => (name, val)) calledFn.params vals
-            let callCount := countEmitsStmts spec.fns spec.constants fuel' calledFn.body
+            let callCount := countEmitsStmts spec.fns spec.constants calledFn.body
             match findEmitIndex spec calledFn callEnv fuel' calledFn.body target startIdx with
             | some idx => some idx
             | none => findEmitIndex spec fn env fuel' rest target (startIdx + callCount)

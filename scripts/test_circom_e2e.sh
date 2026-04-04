@@ -186,7 +186,7 @@ async function main() {
     const cdHash = F.toObject(poseidon([selector, to, amount_lo, amount_hi]));
     // amount != MAX → isMaxUint false → templateId = 1 (else branch)
     const templateId = BigInt(1);
-    const outHash = F.toObject(poseidon([templateId, amount_lo, amount_hi, to]));
+    const outHash = F.toObject(poseidon([templateId, to, amount_lo, amount_hi]));
 
     const input = {
       selector: selector.toString(),
@@ -209,7 +209,7 @@ async function main() {
     const cdHash = F.toObject(poseidon([selector, to, max128, max128]));
     // amount == MAX → isMaxUint true → templateId = 0 (then branch)
     const templateId = BigInt(0);
-    const outHash = F.toObject(poseidon([templateId, max128, max128, to]));
+    const outHash = F.toObject(poseidon([templateId, to, max128, max128]));
 
     const input = {
       selector: selector.toString(),
@@ -262,8 +262,8 @@ async function main() {
     const cdHash = F.toObject(poseidon([selector, fromAddr, to, amount_lo, amount_hi]));
     // amount != MAX → isMaxUint false → templateId = 1 (else branch)
     const templateId = BigInt(1);
-    // outHash: Poseidon(templateId, amount_lo, amount_hi, fromAddr, to) — deduped hole order
-    const outHash = F.toObject(poseidon([templateId, amount_lo, amount_hi, fromAddr, to]));
+    // outHash: Poseidon(templateId, fromAddr, to, amount_lo, amount_hi) — first-occurrence dedup order
+    const outHash = F.toObject(poseidon([templateId, fromAddr, to, amount_lo, amount_hi]));
 
     const input = {
       selector: selector.toString(),
@@ -288,7 +288,7 @@ async function main() {
     const cdHash = F.toObject(poseidon([selector, fromAddr, to, max128, max128]));
     // amount == MAX → isMaxUint true → templateId = 0 (then branch)
     const templateId = BigInt(0);
-    const outHash = F.toObject(poseidon([templateId, max128, max128, fromAddr, to]));
+    const outHash = F.toObject(poseidon([templateId, fromAddr, to, max128, max128]));
 
     const input = {
       selector: selector.toString(),
@@ -363,7 +363,7 @@ async function main() {
 
     const cdHash = F.toObject(poseidon([selector, to, amount_lo, amount_hi]));
     const templateId = BigInt(1);  // else branch
-    const outHash = F.toObject(poseidon([templateId, amount_lo, amount_hi, to]));
+    const outHash = F.toObject(poseidon([templateId, to, amount_lo, amount_hi]));
 
     const input = {
       selector: selector.toString(),
@@ -385,7 +385,7 @@ async function main() {
 
     const cdHash = F.toObject(poseidon([selector, to, max128, max128]));
     const templateId = BigInt(0);  // then branch
-    const outHash = F.toObject(poseidon([templateId, max128, max128, to]));
+    const outHash = F.toObject(poseidon([templateId, to, max128, max128]));
 
     const input = {
       selector: selector.toString(),

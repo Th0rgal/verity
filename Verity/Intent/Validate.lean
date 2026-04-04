@@ -37,26 +37,26 @@ private def findFnDecl? (spec : IntentSpec) (name : String) : Option FnDecl :=
   spec.fns.find? (fun f => f.name == name)
 
 /-- Validate that intent function params match the ABI function params.
+    Checks name, type, count, and order (order matters for Poseidon commitment).
     Returns a list of error messages. -/
 private def validateParams
     (bindingName : String)
     (intentParams : List (String × ParamType))
     (abiParams : List Param) : List String :=
-  let intentByName := intentParams
   let abiByName := abiParams.map (fun p => (p.name, p.ty))
-  -- Check each intent param exists in ABI with compatible type
-  let paramErrors := intentByName.filterMap fun (name, intentTy) =>
-    match abiByName.find? (fun (n, _) => n == name) with
-    | none => some s!"Binding '{bindingName}': intent param '{name}' not found in ABI function"
-    | some (_, abiTy) =>
-      if typesCompatible intentTy abiTy then none
-      else some s!"Binding '{bindingName}': param '{name}' type mismatch — intent has {repr intentTy}, ABI has {repr abiTy}"
-  -- Check each ABI param is covered by the intent
-  let missingErrors := abiByName.filterMap fun (name, _) =>
-    match intentByName.find? (fun (n, _) => n == name) with
-    | none => some s!"Binding '{bindingName}': ABI param '{name}' missing from intent function"
-    | some _ => none
-  paramErrors ++ missingErrors
+  -- Check count matches
+  let countErrors :=
+    if intentParams.length != abiByName.length then
+      [s!"Binding '{bindingName}': param count mismatch — intent has {intentParams.length}, ABI has {abiByName.length}"]
+    else []
+  -- Check positional match: name, type, and order must all agree
+  let positionalErrors := (intentParams.zip abiByName).filterMap fun ((iName, iTy), (aName, aTy)) =>
+    if iName != aName then
+      some s!"Binding '{bindingName}': param order mismatch — intent has '{iName}' where ABI expects '{aName}'"
+    else if !typesCompatible iTy aTy then
+      some s!"Binding '{bindingName}': param '{iName}' type mismatch — intent has {repr iTy}, ABI has {repr aTy}"
+    else none
+  countErrors ++ positionalErrors
 
 /-- Collect all function names called in an expression. -/
 private def exprCallNames : Expr → List String
