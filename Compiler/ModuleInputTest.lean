@@ -52,7 +52,7 @@ unsafe def runTests : IO Unit := do
   let originalSearchPath ← searchPathRef.get
   let loadedSpecs ← loadSpecsFromRawModules ["Contracts.Counter.Counter"]
   match loadedSpecs with
-  | .ok (specs, _intentSpecs) =>
+  | .ok specs =>
       expectTrue
         "module loader imports contracts from split package build outputs"
         (specs.length == 1)

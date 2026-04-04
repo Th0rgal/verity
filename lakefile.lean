@@ -16,8 +16,7 @@ lean_lib «Verity» where
     .andSubmodules `Verity.Macro,
     .submodules `Verity.Stdlib,
     .andSubmodules `Verity.Specs.Common,
-    .submodules `Verity.Proofs.Stdlib,
-    .andSubmodules `Verity.Intent
+    .submodules `Verity.Proofs.Stdlib
   ]
 
 lean_lib «Contracts» where

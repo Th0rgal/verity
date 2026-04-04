@@ -1,10 +1,6 @@
 import Std
 import Compiler.Selector
 import Compiler.ABI
-import Compiler.Circom
-import Compiler.ERC7730
-import Compiler.Hex
-import Verity.Intent.Validate
 import Compiler.ModuleInput
 import Compiler.CompilationModel.Compile
 import Compiler.CompilationModel.EventEmission
@@ -198,9 +194,6 @@ def compileSpecsWithOptions
     (trustReportPath : Option String)
     (assumptionReportPath : Option String)
     (abiOutDir : Option String)
-    (circomOutDir : Option String := none)
-    (erc7730OutDir : Option String := none)
-    (intentSpecs : List (Lean.Name × Verity.Intent.IntentSpec) := [])
     (denyUncheckedDependencies : Bool := false)
     (denyAssumedDependencies : Bool := false)
     (denyAxiomatizedPrimitives : Bool := false)
@@ -215,12 +208,6 @@ def compileSpecsWithOptions
     (denyLayoutIncompatibility : Bool := false) : IO Unit := do
   IO.FS.createDirAll outDir
   match abiOutDir with
-  | some dir => IO.FS.createDirAll dir
-  | none => pure ()
-  match circomOutDir with
-  | some dir => IO.FS.createDirAll dir
-  | none => pure ()
-  match erc7730OutDir with
   | some dir => IO.FS.createDirAll dir
   | none => pure ()
 
@@ -240,48 +227,6 @@ def compileSpecsWithOptions
             Compiler.ABI.writeContractABIFile dir spec
             if verbose then
               IO.println s!"✓ Wrote ABI {dir}/{spec.name}.abi.json"
-        | none => pure ()
-        match circomOutDir with
-        | some dir =>
-            -- Find an IntentSpec whose contractName matches this CompilationModel
-            let matchingIntent := intentSpecs.find? fun (_, iSpec) =>
-              iSpec.contractName == spec.name
-            match matchingIntent with
-            | some (_, iSpec) =>
-              -- Validate IntentSpec against the CompilationModel before generating circuits
-              match Verity.Intent.Validate.validateOrError iSpec spec with
-              | .error err =>
-                IO.eprintln s!"✗ IntentSpec validation failed for {spec.name}:\n{err}"
-                throw (IO.userError s!"IntentSpec validation failed for {spec.name}")
-              | .ok () =>
-              -- Build (functionName, hexSelector) pairs from the computed selectors
-              let externalFns := spec.functions.filter
-                (fun fn => !fn.isInternal && !Compiler.CompilationModel.isInteropEntrypointName fn.name)
-              let selectorPairs := (externalFns.zip selectors).map fun (fn, sel) =>
-                (fn.name, Compiler.Hex.natToHex sel)
-              Compiler.Circom.writeAllCircomFiles dir iSpec selectorPairs
-              if verbose then
-                IO.println s!"✓ Wrote Circom circuits in {dir}/"
-            | none =>
-              if verbose then
-                IO.println s!"  (no IntentSpec found for {spec.name}, skipping Circom output)"
-        | none => pure ()
-        match erc7730OutDir with
-        | some dir =>
-            let matchingIntent := intentSpecs.find? fun (_, iSpec) =>
-              iSpec.contractName == spec.name
-            match matchingIntent with
-            | some (_, iSpec) =>
-              let externalFns := spec.functions.filter
-                (fun fn => !fn.isInternal && !Compiler.CompilationModel.isInteropEntrypointName fn.name)
-              let selectorPairs := (externalFns.zip selectors).map fun (fn, sel) =>
-                (fn.name, Compiler.Hex.natToHex sel)
-              Compiler.ERC7730.writeAllERC7730Files dir iSpec selectorPairs
-              if verbose then
-                IO.println s!"✓ Wrote ERC-7730 manifest in {dir}/"
-            | none =>
-              if verbose then
-                IO.println s!"  (no IntentSpec found for {spec.name}, skipping ERC-7730 output)"
         | none => pure ()
         patchRows := (contract.name, patchReport) :: patchRows
         if verbose then
@@ -546,8 +491,6 @@ unsafe def compileModulesWithOptions
     (trustReportPath : Option String := none)
     (assumptionReportPath : Option String := none)
     (abiOutDir : Option String := none)
-    (circomOutDir : Option String := none)
-    (erc7730OutDir : Option String := none)
     (denyUncheckedDependencies : Bool := false)
     (denyAssumedDependencies : Bool := false)
     (denyAxiomatizedPrimitives : Bool := false)
@@ -560,13 +503,12 @@ unsafe def compileModulesWithOptions
     (layoutReportPath : Option String := none)
     (layoutCompatibilityReportPath : Option String := none)
     (denyLayoutIncompatibility : Bool := false) : IO Unit := do
-  let (specs, intentSpecs) ←
+  let specs ←
     match ← Compiler.ModuleInput.loadSpecsFromRawModules modules with
-    | .ok result => pure result
+    | .ok specs => pure specs
     | .error err => throw (IO.userError err)
   compileSpecsWithOptions
     backend specs outDir verbose libraryPaths options patchReportPath trustReportPath assumptionReportPath abiOutDir
-    circomOutDir erc7730OutDir intentSpecs
     denyUncheckedDependencies denyAssumedDependencies denyAxiomatizedPrimitives denyLocalObligations denyLinearMemoryMechanics
     denyEventEmission denyLowLevelMechanics denyRuntimeIntrospection denyProxyUpgradeability layoutReportPath
     layoutCompatibilityReportPath denyLayoutIncompatibility
