@@ -42,10 +42,10 @@ private def assertTransferStructure (circom : String) : IO Unit := do
     throw (IO.userError "missing selector check")
   unless hasSubstr circom "signal input selector" do
     throw (IO.userError "missing selector input")
-  unless hasSubstr circom "signal input calldataCommitment" do
-    throw (IO.userError "missing calldataCommitment input")
-  unless hasSubstr circom "signal input outputCommitment" do
-    throw (IO.userError "missing outputCommitment input")
+  unless hasSubstr circom "signal output calldataCommitment" do
+    throw (IO.userError "missing calldataCommitment output")
+  unless hasSubstr circom "signal output outputCommitment" do
+    throw (IO.userError "missing outputCommitment output")
   unless hasSubstr circom "signal input to" do
     throw (IO.userError "missing 'to' input")
   unless hasSubstr circom "signal input amount_lo" do
@@ -60,7 +60,7 @@ private def assertTransferStructure (circom : String) : IO Unit := do
     throw (IO.userError "missing IsEqual for uint256 comparison")
   unless hasSubstr circom "signal templateId" do
     throw (IO.userError "missing templateId signal")
-  unless hasSubstr circom "component main {public [selector, calldataCommitment, outputCommitment]}" do
+  unless hasSubstr circom "component main {public [selector]}" do
     throw (IO.userError "missing main component declaration")
 
 /-- Verify structural properties of the approve Circom circuit. -/
@@ -106,7 +106,7 @@ private def assertTransferFromStructure (circom : String) : IO Unit := do
     throw (IO.userError "missing IsEqual for uint256 comparison")
   unless hasSubstr circom "signal templateId" do
     throw (IO.userError "missing templateId signal")
-  unless hasSubstr circom "component main {public [selector, calldataCommitment, outputCommitment]}" do
+  unless hasSubstr circom "component main {public [selector]}" do
     throw (IO.userError "missing main component declaration")
 
 /-- Verify structural properties of the Ledger deposit Circom circuit.
@@ -129,7 +129,7 @@ private def assertDepositStructure (circom : String) : IO Unit := do
     throw (IO.userError "missing output Poseidon(3)")
   unless hasSubstr circom "signal templateId" do
     throw (IO.userError "missing templateId signal")
-  unless hasSubstr circom "component main {public [selector, calldataCommitment, outputCommitment]}" do
+  unless hasSubstr circom "component main {public [selector]}" do
     throw (IO.userError "missing main component declaration")
 
 /-- Verify structural properties of the Ledger withdraw Circom circuit.
@@ -149,7 +149,7 @@ private def assertWithdrawStructure (circom : String) : IO Unit := do
     throw (IO.userError "missing output Poseidon(3)")
   unless hasSubstr circom "signal templateId" do
     throw (IO.userError "missing templateId signal")
-  unless hasSubstr circom "component main {public [selector, calldataCommitment, outputCommitment]}" do
+  unless hasSubstr circom "component main {public [selector]}" do
     throw (IO.userError "missing main component declaration")
 
 /-- Verify structural properties of the Ledger transfer Circom circuit.
@@ -173,7 +173,7 @@ private def assertLedgerTransferStructure (circom : String) : IO Unit := do
     throw (IO.userError "missing IsEqual for uint256 comparison")
   unless hasSubstr circom "signal templateId" do
     throw (IO.userError "missing templateId signal")
-  unless hasSubstr circom "component main {public [selector, calldataCommitment, outputCommitment]}" do
+  unless hasSubstr circom "component main {public [selector]}" do
     throw (IO.userError "missing main component declaration")
 
 /-- Verify structural properties of the ERC-721 approve Circom circuit.
@@ -196,7 +196,7 @@ private def assertERC721ApproveStructure (circom : String) : IO Unit := do
     throw (IO.userError "missing calldata Poseidon(4)")
   unless hasSubstr circom "signal templateId" do
     throw (IO.userError "missing templateId signal")
-  unless hasSubstr circom "component main {public [selector, calldataCommitment, outputCommitment]}" do
+  unless hasSubstr circom "component main {public [selector]}" do
     throw (IO.userError "missing main component declaration")
 
 /-- Verify structural properties of the ERC-721 transferFrom Circom circuit.
@@ -220,7 +220,7 @@ private def assertERC721TransferFromStructure (circom : String) : IO Unit := do
     throw (IO.userError "missing calldata Poseidon(5)")
   unless hasSubstr circom "signal templateId" do
     throw (IO.userError "missing templateId signal")
-  unless hasSubstr circom "component main {public [selector, calldataCommitment, outputCommitment]}" do
+  unless hasSubstr circom "component main {public [selector]}" do
     throw (IO.userError "missing main component declaration")
 
 /-- Verify structural properties of the ERC-721 setApprovalForAll Circom circuit.
@@ -244,7 +244,7 @@ private def assertSetApprovalForAllStructure (circom : String) : IO Unit := do
     throw (IO.userError "missing output Poseidon(2)")
   unless hasSubstr circom "signal templateId" do
     throw (IO.userError "missing templateId signal")
-  unless hasSubstr circom "component main {public [selector, calldataCommitment, outputCommitment]}" do
+  unless hasSubstr circom "component main {public [selector]}" do
     throw (IO.userError "missing main component declaration")
 
 -- Single #eval block: run all assertions, then print structured output.

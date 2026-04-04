@@ -4,9 +4,13 @@
   For each intent binding to an external ABI entrypoint, produces a
   `.circom` file that proves:
     1. The selector matches the expected constant
-    2. Poseidon(selector, params...) == calldataCommitment  (public)
+    2. Computes calldataCommitment = Poseidon(selector, params...)  (output)
     3. The DSL program evaluation selects a templateId and hole values
-    4. Poseidon(templateId, holes...) == outputCommitment  (public)
+    4. Computes outputCommitment = Poseidon(templateId, holes...)  (output)
+
+  Commitments are circuit outputs (not inputs), so the prover does not
+  need to compute Poseidon in JavaScript. This enables BLS12-381 support
+  since circomlibjs only implements Poseidon for BN254.
 
   Phase 2: uint256 (split into lo/hi 128-bit limbs), address, bool.
   forEach loops are unrolled at compile time when the array size is
@@ -496,10 +500,12 @@ def emitCircom (spec : IntentSpec) (binding : IntentBinding)
 
   let templateDecl :=
     s!"template {templateName}() \{\n" ++
-    "    // Public inputs\n" ++
+    "    // Public input\n" ++
     "    signal input selector;\n" ++
-    "    signal input calldataCommitment;\n" ++
-    "    signal input outputCommitment;\n" ++
+    "\n" ++
+    "    // Public outputs (Poseidon commitments computed by circuit)\n" ++
+    "    signal output calldataCommitment;\n" ++
+    "    signal output outputCommitment;\n" ++
     "\n" ++
     "    // Private inputs (decoded calldata parameters)\n"
 
@@ -521,7 +527,7 @@ def emitCircom (spec : IntentSpec) (binding : IntentBinding)
       ((indexed inputSignals).map (fun (i, s) =>
         s!"    cdHash.inputs[{i + 1}] <== {s};")) ++
     "\n" ++
-    "    calldataCommitment === cdHash.out;\n"
+    "    calldataCommitment <== cdHash.out;\n"
 
   let condCode :=
     "\n" ++
@@ -556,12 +562,12 @@ def emitCircom (spec : IntentSpec) (binding : IntentBinding)
       ((indexed allHoleSignals).map (fun (i, s) =>
         s!"    outHash.inputs[{i + 1}] <== {s};")) ++
     "\n" ++
-    "    outputCommitment === outHash.out;\n"
+    "    outputCommitment <== outHash.out;\n"
 
   let footer :=
     "}\n" ++
     "\n" ++
-    s!"component main \{public [selector, calldataCommitment, outputCommitment]} = {templateName}();\n"
+    s!"component main \{public [selector]} = {templateName}();\n"
 
   pure (header ++ templateDecl ++ paramDecls ++ selectorCheck
     ++ cdLines ++ condCode ++ templateSelection
