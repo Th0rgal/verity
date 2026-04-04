@@ -64,6 +64,8 @@ private def exprCallNames : Expr → List String
   | .eq a b | .ne a b | .lt a b | .gt a b | .le a b | .ge a b
   | .and a b | .or a b => exprCallNames a ++ exprCallNames b
   | .not a => exprCallNames a
+  | .index arr idx => exprCallNames arr ++ exprCallNames idx
+  | .length arr => exprCallNames arr
   | _ => []
 
 /-- Collect all function names called in a single statement. -/
@@ -71,6 +73,8 @@ private def stmtCallNamesOne : Stmt → List String
   | .emit _ => []
   | .ite cond thenBr elseBr =>
     exprCallNames cond ++ thenBr.flatMap stmtCallNamesOne ++ elseBr.flatMap stmtCallNamesOne
+  | .forEach _var array body =>
+    exprCallNames array ++ body.flatMap stmtCallNamesOne
   | .call fnName args =>
     fnName :: args.flatMap exprCallNames
 
@@ -85,6 +89,8 @@ private def exprParamRefs : Expr → List String
   | .and a b | .or a b => exprParamRefs a ++ exprParamRefs b
   | .not a => exprParamRefs a
   | .call _ args => args.flatMap exprParamRefs
+  | .index arr idx => exprParamRefs arr ++ exprParamRefs idx
+  | .length arr => exprParamRefs arr
   | _ => []
 
 /-- Collect all param/constant references in a single statement. -/
@@ -92,6 +98,8 @@ private def stmtParamRefsOne : Stmt → List String
   | .emit tmpl => tmpl.holes.map (·.param)
   | .ite cond thenBr elseBr =>
     exprParamRefs cond ++ thenBr.flatMap stmtParamRefsOne ++ elseBr.flatMap stmtParamRefsOne
+  | .forEach _var array body =>
+    exprParamRefs array ++ body.flatMap stmtParamRefsOne
   | .call _ args => args.flatMap exprParamRefs
 
 /-- Validate that all param/constant references in a function resolve to either

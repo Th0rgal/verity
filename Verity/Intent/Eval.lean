@@ -7,6 +7,9 @@
   Totality: structural recursion on a `fuel : Nat` parameter.
   Every recursive call passes strictly less fuel.
   Default fuel is generous (1024) so real programs never exhaust it.
+
+  Phase 2: supports forEach loops (over list values), index/length expressions,
+  and enum format lookups.
 -/
 import Verity.Intent.Types
 
@@ -20,6 +23,7 @@ inductive Value where
   | str (s : String)
   | bool (b : Bool)
   | addr (a : String)
+  | list (vs : List Value)
   deriving Repr, BEq
 
 /-! ## Evaluation Output -/
@@ -159,6 +163,19 @@ def evalExpr (fns : List FnDecl) (consts : List ConstDef) (env : Env)
           | some body => evalExpr fns consts callEnv fuel' body
           | none => none
         | .void => none
+    | Expr.index array idx => do
+      let va ← evalExpr fns consts env fuel' array
+      let vi ← evalExpr fns consts env fuel' idx
+      match va, vi with
+      | .list vs, .int i =>
+        let idx := i.toNat
+        if idx < vs.length then vs[idx]? else none
+      | _, _ => none
+    | Expr.length array => do
+      let va ← evalExpr fns consts env fuel' array
+      match va with
+      | .list vs => some (.int vs.length)
+      | _ => none
 
 /-- Evaluate a list of expressions. Structurally recursive on `fuel`. -/
 def evalExprList (fns : List FnDecl) (consts : List ConstDef) (env : Env)
@@ -168,6 +185,16 @@ def evalExprList (fns : List FnDecl) (consts : List ConstDef) (env : Env)
     let v ← evalExpr fns consts env fuel e
     let vs ← evalExprList fns consts env fuel es
     some (v :: vs)
+
+/-- Evaluate forEach iterations. Recursive on the list of values. -/
+def evalForEach (fns : List FnDecl) (consts : List ConstDef) (env : Env)
+    (fuel : Nat) (var : String) : List Value → List Stmt → Option (List EmittedTemplate)
+  | [], _ => some []
+  | v :: vs, body => do
+    let loopEnv : Env := (var, v) :: env
+    let iterResults ← evalStmts fns consts loopEnv fuel body
+    let restResults ← evalForEach fns consts env fuel var vs body
+    some (iterResults ++ restResults)
 
 /-- Evaluate a list of statements, collecting emitted templates.
     Structurally recursive on `fuel`. -/
@@ -196,6 +223,14 @@ def evalStmts (fns : List FnDecl) (consts : List ConstDef) (env : Env)
           let elseResults ← evalStmts fns consts env fuel' elseBranch
           let more ← evalStmts fns consts env fuel' rest
           some (elseResults ++ more)
+        | _ => none
+      | Stmt.forEach var array body :: rest => do
+        let arrVal ← evalExpr fns consts env fuel' array
+        match arrVal with
+        | .list vs =>
+          let loopResults ← evalForEach fns consts env fuel' var vs body
+          let more ← evalStmts fns consts env fuel' rest
+          some (loopResults ++ more)
         | _ => none
       | Stmt.call fnName args :: rest => do
         let fn ← findFn fns fnName
@@ -337,6 +372,11 @@ def countEmitsStmts (fns : List FnDecl) (consts : List ConstDef)
         countEmitsStmts fns consts fuel' thenBr +
         countEmitsStmts fns consts fuel' elseBr +
         countEmitsStmts fns consts fuel' rest
+      | .forEach _var _array body :: rest =>
+        -- forEach emits are counted once (for the body pattern);
+        -- actual unrolling happens at runtime/circuit compile time
+        countEmitsStmts fns consts fuel' body +
+        countEmitsStmts fns consts fuel' rest
       | .call fnName _args :: rest =>
         match findFn fns fnName with
         | some fn =>
@@ -406,6 +446,10 @@ where
           | some idx => some idx
           | none => findEmitIndex spec fn env fuel' rest target (startIdx + thenCount + elseCount)
         | _ => none
+      | .forEach _var _array body :: rest =>
+        let bodyCount := countEmitsStmts spec.fns spec.constants fuel' body
+        -- forEach circuit output not yet supported — skip the body emits
+        findEmitIndex spec fn env fuel' rest target (startIdx + bodyCount)
       | .call fnName args :: rest =>
         match findFn spec.fns fnName with
         | some calledFn =>
@@ -438,6 +482,9 @@ where
     | .ite _ thenBr elseBr :: rest =>
       collectHoleNamesFromStmts thenBr ++
       collectHoleNamesFromStmts elseBr ++
+      collectHoleNamesFromStmts rest
+    | .forEach _ _ body :: rest =>
+      collectHoleNamesFromStmts body ++
       collectHoleNamesFromStmts rest
     | .call _ _ :: rest =>
       -- For simplicity, skip inlined call bodies in hole collection.

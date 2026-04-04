@@ -46,6 +46,7 @@ private def erc7730FormatType : Format → String
   | .raw => "raw"
   | .tokenAmount _ _ => "tokenAmount"
   | .address => "addressName"
+  | .enum _ => "enum"
 
 /-- Render the `params` object for a field, if applicable. -/
 private def erc7730FormatParams : Format → Option String
@@ -59,6 +60,10 @@ private def erc7730FormatParams : Format → Option String
   | .tokenAmount _decimals none =>
     some (jsonObject [
       ("tokenPath", jsonString "$.metadata.token")
+    ])
+  | .enum enumName =>
+    some (jsonObject [
+      ("enumRef", jsonString enumName)
     ])
   | _ => none
 
@@ -101,6 +106,8 @@ private def collectTemplates : List Stmt → List (Template)
   | .emit tmpl :: rest => tmpl :: collectTemplates rest
   | .ite _ thenBranch elseBranch :: rest =>
     collectTemplates thenBranch ++ collectTemplates elseBranch ++ collectTemplates rest
+  | .forEach _ _ body :: rest =>
+    collectTemplates body ++ collectTemplates rest
   | .call _ _ :: rest => collectTemplates rest
 
 /-- Collect all unique holes from all templates in a function body. -/

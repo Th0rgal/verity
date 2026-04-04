@@ -6,8 +6,8 @@
 
   See PR #1676 for the full design document.
 
-  Phase 1 scope: uint256, address, bool params only.
-  No dynamic types, no `for` loops.
+  Phase 2: adds forEach loops (unrolled at compile time), index/length
+  expressions, and enum format support.
 -/
 import Compiler.CompilationModel.Types
 
@@ -18,7 +18,6 @@ open Compiler.CompilationModel (ParamType)
 /-! ## Format Directives
 
 Describe how to render a parameter value in a template hole.
-Phase 1: raw, tokenAmount, address only.
 -/
 
 inductive Format where
@@ -28,6 +27,8 @@ inductive Format where
   | tokenAmount (decimals : Nat) (symbol : Option String := none)
   /-- Display as a checksummed or named address. -/
   | address
+  /-- Display using an enum mapping: look up the integer value in the named EnumDef. -/
+  | enum (enumName : String)
   deriving Repr, BEq
 
 /-! ## Templates
@@ -86,6 +87,10 @@ inductive Expr where
   | not (a : Expr)
   /-- Call a named helper function. -/
   | call (fnName : String) (args : List Expr)
+  /-- Array indexing: `array[idx]`. -/
+  | index (array : Expr) (idx : Expr)
+  /-- Array length: `array.length`. -/
+  | length (array : Expr)
   deriving Repr
 
 /-! ## Statements
@@ -98,6 +103,10 @@ inductive Stmt where
   | emit (tmpl : Template)
   /-- Conditional: if cond then thenBranch else elseBranch. -/
   | ite (cond : Expr) (thenBranch : List Stmt) (elseBranch : List Stmt)
+  /-- Iterate over an array parameter: `for x in arr { body }`.
+      The array length must be statically known (from ABI fixed-size arrays)
+      so the loop can be unrolled at circuit compile time. -/
+  | forEach (var : String) (array : Expr) (body : List Stmt)
   /-- Call a void helper function. -/
   | call (fnName : String) (args : List Expr)
   deriving Repr

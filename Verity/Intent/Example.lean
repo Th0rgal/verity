@@ -699,4 +699,119 @@ private def mockErc721Model : CompilationModel := {
       IO.println s!"✗ {e}"
     throw (IO.userError "ERC-721 validation failed")
 
+/-! ## Phase 2: forEach + enum Smoke Tests -/
+
+/-- A mock multicall-like intent spec that uses forEach to iterate over actions. -/
+private def forEachIntentSpec : IntentSpec := {
+  contractName := "Multicall"
+  fns := [
+    { name := "multicallIntent"
+      params := [("targets", .address)]  -- simplified: single param for the test
+      returnKind := .void
+      body := [
+        .forEach "target" (.param "targets")
+          [.emit { text := "Call {target}",
+                   holes := [{ param := "target", format := .address }] }]
+      ]
+    }
+  ]
+  bindings := [
+    { functionName := "multicall", intentFn := "multicallIntent" }
+  ]
+}
+
+-- Test: forEach evaluator emits one template per list element.
+#eval do
+  let spec := forEachIntentSpec
+  match spec.bindings with
+  | binding :: _ =>
+    let params : List (String × Value) := [
+      ("targets", .list [.addr "0xdead", .addr "0xbeef", .addr "0xcafe"])
+    ]
+    match evalIntent spec binding params with
+    | some templates =>
+      unless templates.length == 3 do
+        throw (IO.userError s!"expected 3 templates, got {templates.length}")
+      match templates with
+      | t0 :: _ :: t2 :: _ =>
+        unless t0.text == "Call {target}" do
+          throw (IO.userError s!"wrong text: {t0.text}")
+        match t0.holes with
+        | h :: _ =>
+          match h.value with
+          | .addr a => unless a == "0xdead" do
+              throw (IO.userError s!"expected 0xdead, got {a}")
+          | _ => throw (IO.userError "expected addr value")
+        | _ => throw (IO.userError "missing holes")
+        match t2.holes with
+        | h :: _ =>
+          match h.value with
+          | .addr a => unless a == "0xcafe" do
+              throw (IO.userError s!"expected 0xcafe, got {a}")
+          | _ => throw (IO.userError "expected addr value")
+        | _ => throw (IO.userError "missing holes")
+      | _ => throw (IO.userError "expected 3 templates")
+      IO.println s!"✓ forEach multicall: emitted {templates.length} templates correctly"
+    | none => throw (IO.userError "forEach eval returned none")
+  | [] => throw (IO.userError "no bindings")
+
+/-- A mock intent spec that uses enum format. -/
+private def enumIntentSpec' : IntentSpec := {
+  contractName := "Lending"
+  enums := [
+    { name := "RateMode", values := [(1, "Stable"), (2, "Variable")] }
+  ]
+  fns := [
+    { name := "borrowIntent"
+      params := [("amount", .uint256), ("rateMode", .bool)]
+      returnKind := .void
+      body := [
+        .emit { text := "Borrow {amount} at {rateMode} rate",
+                holes := [{ param := "amount", format := .tokenAmount 18 },
+                          { param := "rateMode", format := .enum "RateMode" }] }
+      ]
+    }
+  ]
+  bindings := [
+    { functionName := "borrow", intentFn := "borrowIntent" }
+  ]
+}
+
+-- Test: enum format evaluator runs without error.
+#eval do
+  let spec := enumIntentSpec'
+  match spec.bindings with
+  | binding :: _ =>
+    let params : List (String × Value) := [
+      ("amount", .int 5000),
+      ("rateMode", .int 1)
+    ]
+    match evalIntent spec binding params with
+    | some templates =>
+      unless templates.length == 1 do
+        throw (IO.userError s!"expected 1 template, got {templates.length}")
+      match templates with
+      | t :: _ =>
+        unless t.text == "Borrow {amount} at {rateMode} rate" do
+          throw (IO.userError s!"wrong text: {t.text}")
+      | _ => throw (IO.userError "expected 1 template")
+      IO.println "✓ Enum format: borrow intent evaluates correctly"
+    | none => throw (IO.userError "enum eval returned none")
+  | [] => throw (IO.userError "no bindings")
+
+-- Test: index and length expressions.
+#eval do
+  let env : Env := [("arr", .list [.int 10, .int 20, .int 30])]
+  let idxExpr := Expr.index (.param "arr") (.intLit 1)
+  match evalExpr [] [] env 100 idxExpr with
+  | some (.int 20) => pure ()
+  | some v => throw (IO.userError s!"expected int 20, got {repr v}")
+  | none => throw (IO.userError "index eval returned none")
+  let lenExpr := Expr.length (.param "arr")
+  match evalExpr [] [] env 100 lenExpr with
+  | some (.int 3) => pure ()
+  | some v => throw (IO.userError s!"expected int 3, got {repr v}")
+  | none => throw (IO.userError "length eval returned none")
+  IO.println "✓ index/length: arr[1]=20, arr.length=3"
+
 end Verity.Intent.Example

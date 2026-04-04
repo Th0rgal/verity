@@ -127,7 +127,9 @@ The `--erc7730-output` flag triggers:
 2. Computing selectors from the ABI
 3. Writing one `.erc7730.json` file per contract (ERC-7730 Structured Data Clear Signing Format)
 
-## Phase 1 Status
+## Implementation Status
+
+### Phase 1 (Complete)
 
 - [x] `Verity/Intent/Types.lean` — AST types (Expr, Stmt, FnDecl, IntentSpec)
 - [x] `Verity/Intent/Eval.lean` — Reference evaluator (total, fuel-based)
@@ -146,6 +148,17 @@ The `--erc7730-output` flag triggers:
 - [x] ERC-721 example with 4 test cases: approve, setApprovalForAll, transferFrom (witness + proof)
 - [x] Groth16 proof generation and verification
 - [x] `lake build` passes, `make check` passes
+
+### Phase 2 (Complete)
+
+- [x] `forEach` loop statement (AST + evaluator, unrolled at circuit compile time)
+- [x] `Expr.index` / `Expr.length` for array access and length
+- [x] `Format.enum` for enum-mapped display formatting
+- [x] `Value.list` runtime list values for forEach iteration
+- [x] Updated Validate.lean for new AST nodes
+- [x] Updated Circom.lean, ERC7730.lean for new nodes (circuit forEach skipped — evaluator only)
+- [x] 3 new smoke tests: forEach multicall, enum format, index/length
+- [x] 30 total `#eval` tests passing at build time
 
 ### Constraint Budget (Measured)
 

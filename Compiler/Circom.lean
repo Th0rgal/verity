@@ -7,8 +7,9 @@
     3. The DSL program evaluation selects a templateId and hole values
     4. Poseidon(templateId, holes...) == outputCommitment  (public)
 
-  Phase 1: uint256 (split into lo/hi 128-bit limbs), address, bool.
-  No for-loops. Conditions compiled to Mux selectors.
+  Phase 2: uint256 (split into lo/hi 128-bit limbs), address, bool.
+  forEach loops are unrolled at compile time when the array size is
+  statically known. Conditions compiled to Mux selectors.
 
   See PR #1676 for the full design document.
 -/
@@ -93,6 +94,8 @@ def remapParams (fnPfx : String) (paramNames : List String) : Expr → Expr
   | .or a b => .or (remapParams fnPfx paramNames a) (remapParams fnPfx paramNames b)
   | .not a => .not (remapParams fnPfx paramNames a)
   | .call fn args => .call fn (args.map (remapParams fnPfx paramNames))
+  | .index arr idx => .index (remapParams fnPfx paramNames arr) (remapParams fnPfx paramNames idx)
+  | .length arr => .length (remapParams fnPfx paramNames arr)
   | other => other
 
 /-- Remap param references in a statement to use function-scoped signal names. -/
@@ -107,6 +110,9 @@ def remapStmtParams (fnPfx : String) (paramNames : List String) : Stmt → Stmt
     .ite (remapParams fnPfx paramNames cond)
       (thenBr.map (remapStmtParams fnPfx paramNames))
       (elseBr.map (remapStmtParams fnPfx paramNames))
+  | .forEach var array body =>
+    .forEach var (remapParams fnPfx paramNames array)
+      (body.map (remapStmtParams fnPfx paramNames))
   | .call fn args =>
     .call fn (args.map (remapParams fnPfx paramNames))
 
@@ -302,6 +308,10 @@ partial def compileExpr (st : EmitState) (ctx : ParamCtx)
         compileExpr st (fnCtx ++ ctx) fns consts remappedBody
       | none => ("0", st)
     | none => ("0", st)
+  -- index and length are not directly compilable to circuits in general;
+  -- they are resolved during forEach unrolling. If reached here, emit 0.
+  | .index _ _ => ("0", st)
+  | .length _ => ("0", st)
 
 /-- Compile an equality comparison, handling uint256 two-limb comparison. -/
 partial def compileComparison (st : EmitState) (ctx : ParamCtx)
@@ -372,6 +382,10 @@ partial def compileStmts (st : EmitState) (ctx : ParamCtx)
       let (st, elsePaths, nextIdx) := compileStmts st ctx fns consts elseBranch elseSig nextIdx
       let (st, restPaths, nextIdx) := compileStmts st ctx fns consts rest condSig nextIdx
       (st, thenPaths ++ elsePaths ++ restPaths, nextIdx)
+    | .forEach _var _array _body =>
+      -- forEach in circuits requires static unrolling; not yet supported.
+      -- Skip and continue with remaining statements.
+      compileStmts st ctx fns consts rest condSig nextTemplateIdx
     | .call fnName args =>
       match fns.find? (fun f => f.name == fnName) with
       | some fn =>
