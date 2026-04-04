@@ -8,7 +8,8 @@
     - transfer(to, amount)
 
   This constant is auto-discovered by the compiler when `--circom-output`
-  is passed, enabling Circom circuit generation for each binding.
+  or `--erc7730-output` is passed, enabling circuit and clear-signing
+  JSON generation for each binding.
 
   See `Contracts/ERC20/Display.lean` for the ERC-20 version.
 -/
@@ -38,19 +39,16 @@ intent_spec "Ledger" where
   predicate isMaxUint(v : uint256) :=
     v == MAX_UINT256
 
-  intent depositIntent(amount : uint256) where
-    emit "Deposit {amount} tokens" [amount : tokenAmount 18]
+  intent deposit(amount : uint256) where
+    emit "Deposit {amount:tokenAmount 18} tokens"
 
-  intent withdrawIntent(amount : uint256) where
-    emit "Withdraw {amount} tokens" [amount : tokenAmount 18]
+  intent withdraw(amount : uint256) where
+    emit "Withdraw {amount:tokenAmount 18} tokens"
 
-  intent transferIntent(to : address, amount : uint256) where
-    if isMaxUint(amount)
-    then { emit "Send all tokens to {to}" [to : address] }
-    else { emit "Send {amount} tokens to {to}" [amount : tokenAmount 18, to : address] }
-
-  bind "deposit" => depositIntent
-  bind "withdraw" => withdrawIntent
-  bind "transfer" => transferIntent
+  intent transfer(to : address, amount : uint256) where
+    when isMaxUint(amount) =>
+      emit "Send all tokens to {to:address}"
+    otherwise =>
+      emit "Send {amount:tokenAmount 18} tokens to {to:address}"
 
 end Contracts.Ledger

@@ -31,19 +31,16 @@ open Compiler.CompilationModel (ParamType)
     Read-only functions (`balanceOf`, `ownerOf`, `getApproved`, `isApprovedForAll`)
     and owner-only functions (`mint`) are not covered. -/
 intent_spec "ERC721" where
-  intent approveIntent(approved : address, tokenId : uint256) where
-    emit "Approve {approved} to transfer token #{tokenId}" [approved : address, tokenId : raw]
+  intent approve(approved : address, tokenId : uint256) where
+    emit "Approve {approved:address} to transfer token #{tokenId:raw}"
 
-  intent setApprovalForAllIntent(operator : address, approved : bool) where
-    if approved
-    then { emit "Approve {operator} to manage all your NFTs" [operator : address] }
-    else { emit "Revoke {operator} from managing your NFTs" [operator : address] }
+  intent setApprovalForAll(operator : address, approved : bool) where
+    when approved =>
+      emit "Approve {operator:address} to manage all your NFTs"
+    otherwise =>
+      emit "Revoke {operator:address} from managing your NFTs"
 
-  intent transferFromIntent(fromAddr : address, to : address, tokenId : uint256) where
-    emit "Transfer token #{tokenId} from {fromAddr} to {to}" [tokenId : raw, fromAddr : address, to : address]
-
-  bind "approve" => approveIntent
-  bind "setApprovalForAll" => setApprovalForAllIntent
-  bind "transferFrom" => transferFromIntent
+  intent transferFrom(fromAddr : address, to : address, tokenId : uint256) where
+    emit "Transfer token #{tokenId:raw} from {fromAddr:address} to {to:address}"
 
 end Contracts.ERC721

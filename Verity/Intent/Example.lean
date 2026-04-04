@@ -50,7 +50,7 @@ def erc20IntentSpec : IntentSpec := {
       expr := some (.eq (.param "v") (.param "MAX_UINT256"))
     },
     -- Intent: transfer(to: address, amount: uint256)
-    { name := "transferIntent"
+    { name := "transfer"
       params := [("to", .address), ("amount", .uint256)]
       returnKind := .void
       body := [
@@ -66,7 +66,7 @@ def erc20IntentSpec : IntentSpec := {
       ]
     },
     -- Intent: approve(spender: address, amount: uint256)
-    { name := "approveIntent"
+    { name := "approve"
       params := [("spender", .address), ("amount", .uint256)]
       returnKind := .void
       body := [
@@ -80,7 +80,7 @@ def erc20IntentSpec : IntentSpec := {
       ]
     },
     -- Intent: transferFrom(fromAddr: address, to: address, amount: uint256)
-    { name := "transferFromIntent"
+    { name := "transferFrom"
       params := [("fromAddr", .address), ("to", .address), ("amount", .uint256)]
       returnKind := .void
       body := [
@@ -98,9 +98,9 @@ def erc20IntentSpec : IntentSpec := {
   ]
 
   bindings := [
-    { functionName := "transfer",     intentFn := "transferIntent" },
-    { functionName := "approve",      intentFn := "approveIntent"  },
-    { functionName := "transferFrom", intentFn := "transferFromIntent" }
+    { functionName := "transfer",     intentFn := "transfer" },
+    { functionName := "approve",      intentFn := "approve"  },
+    { functionName := "transferFrom", intentFn := "transferFrom" }
   ]
 }
 
@@ -261,7 +261,7 @@ private def hasSubstr (haystack needle : String) : Bool :=
 -- Test: binding to missing ABI function is caught.
 #eval do
   let badSpec := { erc20IntentSpec with
-    bindings := [{ functionName := "nonexistent", intentFn := "transferIntent" }] }
+    bindings := [{ functionName := "nonexistent", intentFn := "transfer" }] }
   let errors := Validate.validate badSpec mockErc20Model
   match errors.find? (fun e => hasSubstr e "no matching function") with
   | some _ => IO.println "✓ Missing ABI function detected"
@@ -838,24 +838,23 @@ intent_spec "ERC20" where
   predicate isMaxUint(v : uint256) :=
     v == MAX_UINT256
 
-  intent transferIntent(to : address, amount : uint256) where
-    if isMaxUint(amount)
-    then { emit "Send all tokens to {to}" [to : address] }
-    else { emit "Send {amount} tokens to {to}" [amount : tokenAmount 18 "TOKEN", to : address] }
+  intent transfer(to : address, amount : uint256) where
+    when isMaxUint(amount) =>
+      emit "Send all tokens to {to:address}"
+    otherwise =>
+      emit "Send {amount:tokenAmount 18 \"TOKEN\"} tokens to {to:address}"
 
-  intent approveIntent(spender : address, amount : uint256) where
-    if isMaxUint(amount)
-    then { emit "Approve {spender} to spend unlimited tokens" [spender : address] }
-    else { emit "Approve {spender} to spend {amount} tokens" [spender : address, amount : tokenAmount 18 "TOKEN"] }
+  intent approve(spender : address, amount : uint256) where
+    when isMaxUint(amount) =>
+      emit "Approve {spender:address} to spend unlimited tokens"
+    otherwise =>
+      emit "Approve {spender:address} to spend {amount:tokenAmount 18 \"TOKEN\"} tokens"
 
-  intent transferFromIntent(fromAddr : address, to : address, amount : uint256) where
-    if isMaxUint(amount)
-    then { emit "Transfer all tokens from {fromAddr} to {to}" [fromAddr : address, to : address] }
-    else { emit "Transfer {amount} tokens from {fromAddr} to {to}" [amount : tokenAmount 18 "TOKEN", fromAddr : address, to : address] }
-
-  bind "transfer" => transferIntent
-  bind "approve" => approveIntent
-  bind "transferFrom" => transferFromIntent
+  intent transferFrom(fromAddr : address, to : address, amount : uint256) where
+    when isMaxUint(amount) =>
+      emit "Transfer all tokens from {fromAddr:address} to {to:address}"
+    otherwise =>
+      emit "Transfer {amount:tokenAmount 18 \"TOKEN\"} tokens from {fromAddr:address} to {to:address}"
 
 end dslErc20
 

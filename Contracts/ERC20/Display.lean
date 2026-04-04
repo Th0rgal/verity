@@ -8,7 +8,8 @@
     - transferFrom(fromAddr, to, amount)
 
   This constant is auto-discovered by the compiler when `--circom-output`
-  is passed, enabling Circom circuit generation for each binding.
+  or `--erc7730-output` is passed, enabling circuit and clear-signing
+  JSON generation for each binding.
 
   See `Verity/Intent/Example.lean` for the standalone version with
   evaluator smoke tests and circuit cross-validation.
@@ -41,23 +42,22 @@ intent_spec "ERC20" where
   predicate isMaxUint(v : uint256) :=
     v == MAX_UINT256
 
-  intent transferIntent(to : address, amount : uint256) where
-    if isMaxUint(amount)
-    then { emit "Send all tokens to {to}" [to : address] }
-    else { emit "Send {amount} tokens to {to}" [amount : tokenAmount 18, to : address] }
+  intent transfer(to : address, amount : uint256) where
+    when isMaxUint(amount) =>
+      emit "Send all tokens to {to:address}"
+    otherwise =>
+      emit "Send {amount:tokenAmount 18} tokens to {to:address}"
 
-  intent approveIntent(spender : address, amount : uint256) where
-    if isMaxUint(amount)
-    then { emit "Approve {spender} to spend unlimited tokens" [spender : address] }
-    else { emit "Approve {spender} to spend {amount} tokens" [spender : address, amount : tokenAmount 18] }
+  intent approve(spender : address, amount : uint256) where
+    when isMaxUint(amount) =>
+      emit "Approve {spender:address} to spend unlimited tokens"
+    otherwise =>
+      emit "Approve {spender:address} to spend {amount:tokenAmount 18} tokens"
 
-  intent transferFromIntent(fromAddr : address, to : address, amount : uint256) where
-    if isMaxUint(amount)
-    then { emit "Transfer all tokens from {fromAddr} to {to}" [fromAddr : address, to : address] }
-    else { emit "Transfer {amount} tokens from {fromAddr} to {to}" [amount : tokenAmount 18, fromAddr : address, to : address] }
-
-  bind "transfer" => transferIntent
-  bind "approve" => approveIntent
-  bind "transferFrom" => transferFromIntent
+  intent transferFrom(fromAddr : address, to : address, amount : uint256) where
+    when isMaxUint(amount) =>
+      emit "Transfer all tokens from {fromAddr:address} to {to:address}"
+    otherwise =>
+      emit "Transfer {amount:tokenAmount 18} tokens from {fromAddr:address} to {to:address}"
 
 end Contracts.ERC20

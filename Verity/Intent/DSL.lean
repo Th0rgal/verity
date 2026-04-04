@@ -5,7 +5,7 @@
     def intentSpec : IntentSpec := {
       contractName := "ERC20"
       fns := [
-        { name := "transferIntent"
+        { name := "transfer"
           params := [("to", .address), ("amount", .uint256)]
           returnKind := .void
           body := [
@@ -17,7 +17,7 @@
                                  { param := "to", format := .address }] }]
           ] }
       ]
-      bindings := [{ functionName := "transfer", intentFn := "transferIntent" }]
+      bindings := [{ functionName := "transfer", intentFn := "transfer" }]
     }
 
   Write:
@@ -27,12 +27,14 @@
       predicate isMaxUint(v : uint256) :=
         v == MAX_UINT256
 
-      intent transferIntent(to : address, amount : uint256) where
-        if isMaxUint(amount)
-        then emit "Send all tokens to {to}" [to : address]
-        else emit "Send {amount} tokens to {to}" [amount : tokenAmount 18, to : address]
+      intent transfer(to : address, amount : uint256) where
+        when isMaxUint(amount) =>
+          emit "Send all tokens to {to:address}"
+        otherwise =>
+          emit "Send {amount:tokenAmount 18} tokens to {to:address}"
 
-      bind "transfer" => transferIntent
+  Rule: `intent transfer(...)` implicitly binds to ABI function "transfer".
+  For renamed/multi-bound intents: `intent myFn(...) binds ["transfer"] where ...`
 -/
 import Verity.Intent.Types
 
@@ -44,13 +46,10 @@ open Compiler.CompilationModel (ParamType)
 /-! ## Syntax categories -/
 
 declare_syntax_cat intentParamType
-declare_syntax_cat intentFormat
 declare_syntax_cat intentParam
-declare_syntax_cat intentHole
 declare_syntax_cat intentExpr
 declare_syntax_cat intentStmt
 declare_syntax_cat intentDecl
-declare_syntax_cat intentBinding
 
 /-! ## Parameter types (ABI types) -/
 
@@ -61,21 +60,9 @@ syntax "address" : intentParamType
 syntax "bool" : intentParamType
 syntax "bytes32" : intentParamType
 
-/-! ## Format directives -/
-
-syntax "raw" : intentFormat
-syntax "address" : intentFormat
-syntax "tokenAmount" num : intentFormat
-syntax "tokenAmount" num str : intentFormat
-syntax "enum" str : intentFormat
-
 /-! ## Parameters: name : type -/
 
 syntax ident " : " intentParamType : intentParam
-
-/-! ## Holes in emit: param : format -/
-
-syntax ident " : " intentFormat : intentHole
 
 /-! ## Expressions -/
 
@@ -104,14 +91,17 @@ syntax:60 "!" intentExpr : intentExpr
 syntax:70 intentExpr "[" intentExpr "]" : intentExpr
 syntax:70 intentExpr ".length" : intentExpr
 
-/-! ## Statements -/
+/-! ## Statements
 
-syntax "emit " str " [" intentHole,* "]" : intentStmt
+Emit strings use inline typed placeholders: `{name:format}`.
+  Formats: `address`, `raw`, `tokenAmount N`, `tokenAmount N "SYM"`, `enum "Name"`.
+  Plain `{name}` defaults to `raw`.
+
+`when/otherwise` is sugar for conditional branching.
+-/
+
 syntax "emit " str : intentStmt
-syntax "if " intentExpr " then " intentStmt " else " intentStmt : intentStmt
-syntax "if " intentExpr
-       " then" " {" intentStmt,* "}"
-       " else" " {" intentStmt,* "}" : intentStmt
+syntax "when " intentExpr " => " intentStmt+ " otherwise " "=> " intentStmt+ : intentStmt
 syntax "for " ident " in " intentExpr " {" intentStmt,* "}" : intentStmt
 syntax ident "(" intentExpr,* ")" : intentStmt
 
@@ -120,16 +110,17 @@ syntax ident "(" intentExpr,* ")" : intentStmt
 syntax "const " ident " := " term : intentDecl
 syntax "enum " ident " {" (num " => " str),* "}" : intentDecl
 syntax "predicate " ident "(" intentParam,* ")" " := " intentExpr : intentDecl
-syntax "intent " ident "(" intentParam,* ")" " where " intentStmt,* : intentDecl
-syntax "bind " str " => " ident : intentBinding
+-- intent with implicit same-name binding
+syntax "intent " ident "(" intentParam,* ")" " where" intentStmt+ : intentDecl
+-- intent with explicit binds clause
+syntax "intent " ident "(" intentParam,* ")" " binds " "[" str,* "]" " where" intentStmt+ : intentDecl
 
 /-! ## Top-level command -/
 
 syntax (name := intentSpecCmd)
   (docComment)?
   "intent_spec " str " where"
-  intentDecl*
-  intentBinding* : command
+  intentDecl* : command
 
 /-! ## Macro expansion helpers -/
 
@@ -142,21 +133,6 @@ macro_rules
   | `(ipt! address)  => `(ParamType.address)
   | `(ipt! bool)     => `(ParamType.bool)
   | `(ipt! bytes32)  => `(ParamType.bytes32)
-
-/-- Expand an intentFormat to a Format term. -/
-scoped syntax "ifmt!" intentFormat : term
-macro_rules
-  | `(ifmt! raw)                  => `(Format.raw)
-  | `(ifmt! address)              => `(Format.address)
-  | `(ifmt! tokenAmount $n:num)   => `(Format.tokenAmount $n)
-  | `(ifmt! tokenAmount $n:num $s:str) => `(Format.tokenAmount $n (some $s))
-  | `(ifmt! enum $s:str)          => `(Format.enum $s)
-
-/-- Expand a hole to a Hole term. -/
-scoped syntax "ihole!" intentHole : term
-macro_rules
-  | `(ihole! $name:ident : $fmt:intentFormat) =>
-    `({ param := $(Lean.quote (toString name.getId)), format := ifmt! $fmt : Hole })
 
 /-- Expand an intentExpr to an Expr term. -/
 scoped syntax "iexpr!" intentExpr : term
@@ -186,23 +162,112 @@ macro_rules
   | `(iexpr! $a:intentExpr [ $i:intentExpr ]) => `(Expr.index  (iexpr! $a) (iexpr! $i))
   | `(iexpr! $a:intentExpr .length)            => `(Expr.length (iexpr! $a))
 
+/-! ## Inline placeholder parsing
+
+Parse `{name:format}` from emit strings at macro-expansion time.
+`{name}` without a format defaults to `raw`.
+-/
+
+/-- Parse a format specifier string into a Format syntax term. -/
+private def parseFormatSpec (spec : String) : Lean.MacroM (Lean.TSyntax `term) := do
+  let spec := spec.trim
+  if spec == "raw" || spec == "" then
+    `(Format.raw)
+  else if spec == "address" then
+    `(Format.address)
+  else if spec.startsWith "tokenAmount " then
+    let rest := (spec.drop 13).trim  -- "tokenAmount " is 13 chars
+    -- Check for optional symbol: `tokenAmount 18 "SYM"`
+    if let some qIdx := rest.toList.findIdx? (· == '"') then
+      let numStr := (rest.take qIdx).trim
+      let sym := ((rest.drop (qIdx + 1)).dropRight 1)
+      let nLit := Lean.Syntax.mkNumLit numStr
+      let sLit := Lean.Syntax.mkStrLit sym
+      `(Format.tokenAmount $nLit (some $sLit))
+    else
+      let nLit := Lean.Syntax.mkNumLit rest
+      `(Format.tokenAmount $nLit)
+  else if spec.startsWith "enum " then
+    let rest := (spec.drop 5).trim  -- "enum " is 5 chars
+    let name := if rest.startsWith "\"" then (rest.drop 1).dropRight 1 else rest
+    let sLit := Lean.Syntax.mkStrLit name
+    `(Format.enum $sLit)
+  else
+    Lean.Macro.throwError s!"unknown format specifier: {spec}"
+
+/-- Parse all `{name:format}` placeholders from a template string.
+    Returns the list of (param, formatSpec) pairs. -/
+private def parseInlinePlaceholders (s : String) : List (String × String) := Id.run do
+  let mut holes : List (String × String) := []
+  let mut i := 0
+  let chars := s.toList
+  while h : i < chars.length do
+    if chars[i] == '{' then
+      let mut j := i + 1
+      while j < chars.length && chars[j]! != '}' do
+        j := j + 1
+      if j < chars.length then
+        let content := (chars.drop (i + 1)).take (j - i - 1)
+        let contentStr := String.mk content
+        let (paramName, fmtSpec) :=
+          if let some colonIdx := contentStr.toList.findIdx? (· == ':') then
+            (contentStr.take colonIdx, (contentStr.drop (colonIdx + 1)).trim)
+          else
+            (contentStr, "")
+        holes := holes ++ [(paramName.trim, fmtSpec)]
+      i := j + 1
+    else
+      i := i + 1
+  return holes
+
+/-- Strip format specifiers from placeholders: `{name:format}` → `{name}`. -/
+private def stripFormats (s : String) : String := Id.run do
+  let mut result := ""
+  let mut i := 0
+  let chars := s.toList
+  while h : i < chars.length do
+    if chars[i] == '{' then
+      let mut j := i + 1
+      while j < chars.length && chars[j]! != '}' do
+        j := j + 1
+      if j < chars.length then
+        let content := (chars.drop (i + 1)).take (j - i - 1)
+        let contentStr := String.mk content
+        let paramName :=
+          if let some colonIdx := contentStr.toList.findIdx? (· == ':') then
+            contentStr.take colonIdx
+          else
+            contentStr
+        result := result ++ "{" ++ paramName.trim ++ "}"
+      i := j + 1
+    else
+      result := result.push chars[i]
+      i := i + 1
+  return result
+
+/-- Expand an emit statement with inline placeholders to a Stmt.emit term. -/
+private def expandEmit (txt : Lean.TSyntax `str) : Lean.MacroM (Lean.TSyntax `term) := do
+  let rawStr := txt.getString
+  let holes := parseInlinePlaceholders rawStr
+  let displayText := stripFormats rawStr
+  let displayLit := Lean.Syntax.mkStrLit displayText
+  let mut holeTerms : Array (Lean.TSyntax `term) := #[]
+  for (param, fmtSpec) in holes do
+    let paramLit := Lean.Syntax.mkStrLit param
+    let fmtTerm ← parseFormatSpec fmtSpec
+    holeTerms := holeTerms.push (← `(Hole.mk $paramLit $fmtTerm))
+  `(Stmt.emit (Template.mk $displayLit [ $[$holeTerms],* ]))
+
 /-- Expand a statement to a Stmt term. -/
 scoped syntax "istmt!" intentStmt : term
 macro_rules
-  -- emit with holes
-  | `(istmt! emit $txt:str [ $holes:intentHole,* ]) =>
-    let holeExprs := holes.getElems.map fun h => (⟨h.raw⟩ : Lean.TSyntax `intentHole)
-    `(Stmt.emit { text := $txt, holes := [ $[ ihole! $holeExprs ],* ] })
-  -- emit without holes
+  -- emit with inline placeholders
   | `(istmt! emit $txt:str) =>
-    `(Stmt.emit { text := $txt, holes := [] })
-  -- if/then/else single statements
-  | `(istmt! if $cond:intentExpr then $thenS:intentStmt else $elseS:intentStmt) =>
-    `(Stmt.ite (iexpr! $cond) [istmt! $thenS] [istmt! $elseS])
-  -- if/then/else blocks
-  | `(istmt! if $cond:intentExpr then { $thenSs:intentStmt,* } else { $elseSs:intentStmt,* }) =>
-    let thenExprs := thenSs.getElems.map fun s => (⟨s.raw⟩ : Lean.TSyntax `intentStmt)
-    let elseExprs := elseSs.getElems.map fun s => (⟨s.raw⟩ : Lean.TSyntax `intentStmt)
+    expandEmit txt
+  -- when/otherwise
+  | `(istmt! when $cond:intentExpr => $thenSs:intentStmt* otherwise => $elseSs:intentStmt*) => do
+    let thenExprs := thenSs.map fun s => (⟨s.raw⟩ : Lean.TSyntax `intentStmt)
+    let elseExprs := elseSs.map fun s => (⟨s.raw⟩ : Lean.TSyntax `intentStmt)
     `(Stmt.ite (iexpr! $cond) [ $[ istmt! $thenExprs ],* ] [ $[ istmt! $elseExprs ],* ])
   -- forEach
   | `(istmt! for $var:ident in $arr:intentExpr { $bodySs:intentStmt,* }) =>
@@ -222,59 +287,15 @@ macro_rules
   | `(iparam! $name:ident : $ty:intentParamType) =>
     `(($(Lean.quote (toString name.getId)), ipt! $ty))
 
-/-- Helper: expand a const declaration to a ConstDef term. -/
-scoped syntax "iconst!" "const " ident " := " term : term
-macro_rules
-  | `(iconst! const $name:ident := $val:term) =>
-    `({ name := $(Lean.quote (toString name.getId)), value := .intLit ($val : Int) : ConstDef })
-
-/-- Helper: expand an enum declaration. -/
-scoped syntax "ienum!" "enum " ident " {" (num " => " str),* "}" : term
-macro_rules
-  | `(ienum! enum $name:ident { $[$ns:num => $ss:str],* }) =>
-    `({ name := $(Lean.quote (toString name.getId)),
-        values := [ $[($ns, $ss)],* ] : EnumDef })
-
-/-- Helper: expand a predicate declaration to an FnDecl term. -/
-scoped syntax "ipred!" "predicate " ident "(" intentParam,* ")" " := " intentExpr : term
-macro_rules
-  | `(ipred! predicate $name:ident ( $params:intentParam,* ) := $body:intentExpr) =>
-    let paramExprs := params.getElems.map fun p => (⟨p.raw⟩ : Lean.TSyntax `intentParam)
-    `({ name := $(Lean.quote (toString name.getId)),
-        params := [ $[ iparam! $paramExprs ],* ],
-        returnKind := ReturnKind.bool,
-        expr := some (iexpr! $body) : FnDecl })
-
-/-- Helper: expand an intent declaration to an FnDecl term. -/
-scoped syntax "iintent!" "intent " ident "(" intentParam,* ")" " where " intentStmt,* : term
-macro_rules
-  | `(iintent! intent $name:ident ( $params:intentParam,* ) where $stmts:intentStmt,*) =>
-    let paramExprs := params.getElems.map fun p => (⟨p.raw⟩ : Lean.TSyntax `intentParam)
-    let stmtExprs := stmts.getElems.map fun s => (⟨s.raw⟩ : Lean.TSyntax `intentStmt)
-    `({ name := $(Lean.quote (toString name.getId)),
-        params := [ $[ iparam! $paramExprs ],* ],
-        returnKind := ReturnKind.void,
-        body := [ $[ istmt! $stmtExprs ],* ] : FnDecl })
-
-/-- Helper: expand a binding to an IntentBinding term. -/
-scoped syntax "ibind!" "bind " str " => " ident : term
-macro_rules
-  | `(ibind! bind $fnName:str => $intentFn:ident) =>
-    `({ functionName := $fnName,
-        intentFn := $(Lean.quote (toString intentFn.getId)) : IntentBinding })
-
 /-! ## Main command macro -/
-
--- We use `macro_rules` to match the `intent_spec` command and expand it.
--- The tricky part is separating decls into constants, enums, fns, and collecting bindings.
--- We do this by generating individual terms and relying on List.filterMap-style separation.
 
 private def mkConstList (decls : Array (Lean.TSyntax `intentDecl)) : Lean.MacroM (Array (Lean.TSyntax `term)) := do
   let mut result := #[]
   for d in decls do
     match d with
     | `(intentDecl| const $name:ident := $val:term) =>
-      result := result.push (← `(iconst! const $name := $val))
+      let nameStr := Lean.quote (toString name.getId)
+      result := result.push (← `(ConstDef.mk $nameStr (Expr.intLit ($val : Int))))
     | _ => pure ()
   return result
 
@@ -283,7 +304,8 @@ private def mkEnumList (decls : Array (Lean.TSyntax `intentDecl)) : Lean.MacroM 
   for d in decls do
     match d with
     | `(intentDecl| enum $name:ident { $[$ns:num => $ss:str],* }) =>
-      result := result.push (← `(ienum! enum $name { $[$ns => $ss],* }))
+      let nameStr := Lean.quote (toString name.getId)
+      result := result.push (← `(EnumDef.mk $nameStr [ $[($ns, $ss)],* ]))
     | _ => pure ()
   return result
 
@@ -292,30 +314,46 @@ private def mkFnList (decls : Array (Lean.TSyntax `intentDecl)) : Lean.MacroM (A
   for d in decls do
     match d with
     | `(intentDecl| predicate $name:ident ( $params:intentParam,* ) := $body:intentExpr) =>
-      result := result.push (← `(ipred! predicate $name ( $params,* ) := $body))
-    | `(intentDecl| intent $name:ident ( $params:intentParam,* ) where $stmts:intentStmt,*) =>
-      result := result.push (← `(iintent! intent $name ( $params,* ) where $stmts,*))
+      let nameStr := Lean.quote (toString name.getId)
+      let paramExprs := params.getElems.map fun p => (⟨p.raw⟩ : Lean.TSyntax `intentParam)
+      result := result.push (← `(FnDecl.mk $nameStr [ $[ iparam! $paramExprs ],* ] ReturnKind.bool [] (some (iexpr! $body))))
+    | `(intentDecl| intent $name:ident ( $params:intentParam,* ) where $stmts:intentStmt*) =>
+      let nameStr := Lean.quote (toString name.getId)
+      let paramExprs := params.getElems.map fun p => (⟨p.raw⟩ : Lean.TSyntax `intentParam)
+      let stmtExprs := stmts.map fun s => (⟨s.raw⟩ : Lean.TSyntax `intentStmt)
+      result := result.push (← `(FnDecl.mk $nameStr [ $[ iparam! $paramExprs ],* ] ReturnKind.void [ $[ istmt! $stmtExprs ],* ] none))
+    | `(intentDecl| intent $name:ident ( $params:intentParam,* ) binds [ $_:str ,* ] where $stmts:intentStmt*) =>
+      let nameStr := Lean.quote (toString name.getId)
+      let paramExprs := params.getElems.map fun p => (⟨p.raw⟩ : Lean.TSyntax `intentParam)
+      let stmtExprs := stmts.map fun s => (⟨s.raw⟩ : Lean.TSyntax `intentStmt)
+      result := result.push (← `(FnDecl.mk $nameStr [ $[ iparam! $paramExprs ],* ] ReturnKind.void [ $[ istmt! $stmtExprs ],* ] none))
     | _ => pure ()
   return result
 
-private def mkBindingList (bindings : Array (Lean.TSyntax `intentBinding)) : Lean.MacroM (Array (Lean.TSyntax `term)) := do
+/-- Collect bindings from intent declarations.
+    - `intent foo(...)` → implicit binding: `"foo" → "foo"`
+    - `intent foo(...) binds ["bar", "baz"]` → explicit: `"bar" → "foo"`, `"baz" → "foo"` -/
+private def mkBindingList (decls : Array (Lean.TSyntax `intentDecl)) : Lean.MacroM (Array (Lean.TSyntax `term)) := do
   let mut result := #[]
-  for b in bindings do
-    match b with
-    | `(intentBinding| bind $fnName:str => $intentFn:ident) =>
-      result := result.push (← `(ibind! bind $fnName => $intentFn))
+  for d in decls do
+    match d with
+    | `(intentDecl| intent $name:ident ( $_ ,* ) where $_ *) =>
+      let nameStr := Lean.quote (toString name.getId)
+      result := result.push (← `(IntentBinding.mk $nameStr $nameStr))
+    | `(intentDecl| intent $name:ident ( $_ ,* ) binds [ $fns:str ,* ] where $_ *) =>
+      let nameStr := Lean.quote (toString name.getId)
+      for fn in fns.getElems do
+        result := result.push (← `(IntentBinding.mk $fn $nameStr))
     | _ => pure ()
   return result
 
 macro_rules
-  | `(command| $[$doc?:docComment]? intent_spec $contractName:str where $decls:intentDecl* $bindings:intentBinding*) => do
+  | `(command| $[$doc?:docComment]? intent_spec $contractName:str where $decls:intentDecl*) => do
     let declArr : Array (Lean.TSyntax `intentDecl) := decls
-    let bindArr : Array (Lean.TSyntax `intentBinding) := bindings
     let constTerms ← mkConstList declArr
     let enumTerms ← mkEnumList declArr
     let fnTerms ← mkFnList declArr
-    let bindingTerms ← mkBindingList bindArr
-    -- Use mkIdent to avoid macro hygiene mangling the definition name and type
+    let bindingTerms ← mkBindingList declArr
     let specName := Lean.mkIdent `intentSpec
     let specType := Lean.mkIdent `IntentSpec
     `(command|
