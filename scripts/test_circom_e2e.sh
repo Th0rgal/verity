@@ -2,7 +2,7 @@
 # test_circom_e2e.sh — End-to-end test for the provable intent DSL Circom pipeline.
 #
 # This script validates the full pipeline:
-#   1. Generates Circom circuits from the ERC-20 IntentSpec (via Lean)
+#   1. Generates Circom circuits from the ERC-20, Ledger, and ERC-721 IntentSpecs (via Lean)
 #   2. Compiles circuits with the `circom` compiler
 #   3. Computes witness inputs (Poseidon commitments) with snarkjs/circomlibjs
 #   4. Generates witnesses and verifies R1CS constraint satisfaction

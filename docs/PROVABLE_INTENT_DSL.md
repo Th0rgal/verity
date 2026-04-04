@@ -29,7 +29,7 @@ to verified Groth16 proof:
 
 This script runs 26 tests across 5 pipeline stages (3 contracts, 9 circuits):
 
-1. **Generate** `.circom` files from the ERC-20 and Ledger `IntentSpec`s (via `lake env lean`)
+1. **Generate** `.circom` files from the ERC-20, Ledger, and ERC-721 `IntentSpec`s (via `lake env lean`)
 2. **Compile** circuits with `circom` (syntax check + constraint generation)
 3. **Compute** Poseidon commitment inputs using `circomlibjs`
 4. **Witness** generation and R1CS constraint verification with `snarkjs`
@@ -154,9 +154,9 @@ The `--erc7730-output` flag triggers:
 | Ledger Deposit | 528 | 1 param, unconditional |
 | Ledger Withdraw | 528 | 1 param, unconditional |
 | Ledger Transfer | 605 | 2 params, conditional |
-| ERC721 Approve | TBD | 2 params (addr+uint256), unconditional |
+| ERC721 Approve | 600 | 2 params (addr+uint256), unconditional |
 | ERC721 SetApprovalForAll | 507 | 2 params (addr+bool), conditional |
-| ERC721 TransferFrom | TBD | 3 params (addr+addr+uint256), unconditional |
+| ERC721 TransferFrom | 648 | 3 params (addr+addr+uint256), unconditional |
 
 All well within the estimated ~700-1,500 range from the design document. Unconditional
 circuits (deposit, withdraw) are smaller since they skip the IsEqual comparator. The

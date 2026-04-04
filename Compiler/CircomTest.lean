@@ -1,9 +1,9 @@
 /-
   Compiler.CircomTest: Regression tests for the Circom circuit generator.
 
-  Uses the ERC-20 example IntentSpec to generate Circom circuits and verify
-  key structural properties at build time. These tests catch regressions
-  in the circuit generator without requiring external tools (circom, snarkjs).
+  Uses the ERC-20, Ledger, and ERC-721 IntentSpecs to generate Circom circuits
+  and verify key structural properties at build time. These tests catch
+  regressions in the circuit generator without requiring external tools.
 
   IMPORTANT: The full Circom output is printed with header markers, because
   `scripts/test_circom_e2e.sh` parses this output to extract `.circom` files
