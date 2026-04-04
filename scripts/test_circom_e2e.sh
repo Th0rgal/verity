@@ -504,6 +504,29 @@ async function main() {
     fs.writeFileSync("erc721_transferFrom_99_input.json", JSON.stringify(input, null, 2));
     console.log("✓ Wrote erc721_transferFrom_99_input.json (tokenId=99, templateId=0)");
   }
+
+  // ---------- Negative test case: wrong output commitment ----------
+
+  // Case 14: transfer with WRONG outputCommitment — must fail witness generation
+  {
+    const selector = BigInt("2835717307");  // 0xa9059cbb
+    const to = BigInt("0xdead");
+    const amount_lo = BigInt(1000);
+    const amount_hi = BigInt(0);
+
+    const cdHash = F.toObject(poseidon([selector, to, amount_lo, amount_hi]));
+    // Correct templateId=1, but use a WRONG outputCommitment (just 12345)
+    const input = {
+      selector: selector.toString(),
+      calldataCommitment: cdHash.toString(),
+      outputCommitment: "12345",
+      to: to.toString(),
+      amount_lo: amount_lo.toString(),
+      amount_hi: amount_hi.toString()
+    };
+    fs.writeFileSync("negative_wrong_commitment_input.json", JSON.stringify(input, null, 2));
+    console.log("✓ Wrote negative_wrong_commitment_input.json (wrong outputCommitment)");
+  }
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
@@ -560,6 +583,28 @@ run_witness_test "erc721_approve_42"        "ERC721_approve.circom"          "er
 run_witness_test "setApproval_true"         "ERC721_setApprovalForAll.circom" "setApproval_true_input.json"
 run_witness_test "setApproval_false"        "ERC721_setApprovalForAll.circom" "setApproval_false_input.json"
 run_witness_test "erc721_transferFrom_99"   "ERC721_transferFrom.circom"     "erc721_transferFrom_99_input.json"
+
+# Negative test: wrong output commitment must fail witness generation
+run_negative_witness_test() {
+  local name="$1"
+  local circuit="$2"
+  local input="$3"
+
+  echo -n "  $name (expect FAIL) ... "
+
+  local wasm_dir="${circuit%.circom}_js"
+  local wasm_file="$wasm_dir/${circuit%.circom}.wasm"
+
+  if node "$wasm_dir/generate_witness.js" "$wasm_file" "$input" "${name}.wtns" 2>/dev/null; then
+    echo "FAIL (witness should have been rejected)"
+    FAIL=$((FAIL + 1))
+  else
+    echo "PASS (correctly rejected)"
+    PASS=$((PASS + 1))
+  fi
+}
+
+run_negative_witness_test "negative_wrong_commitment" "ERC20_transfer.circom" "negative_wrong_commitment_input.json"
 
 # ---- Step 5: Groth16 proof generation and verification ----
 echo ""

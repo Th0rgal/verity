@@ -9,6 +9,7 @@
 import Compiler.ERC7730
 import Verity.Intent.Example
 import Contracts.Ledger.Display
+import Contracts.ERC721.Display
 
 namespace Compiler.ERC7730Test
 
@@ -81,12 +82,31 @@ private def assertERC721Structure (json : String) : IO Unit := do
     throw (IO.userError "missing $schema field")
   unless hasSubstr json "\"display\"" do
     throw (IO.userError "missing display section")
+  -- Check all 3 selectors
+  unless hasSubstr json "0x095ea7b3" do
+    throw (IO.userError "missing approve selector 0x095ea7b3")
   unless hasSubstr json "0xa22cb465" do
     throw (IO.userError "missing setApprovalForAll selector 0xa22cb465")
+  unless hasSubstr json "0x23b872dd" do
+    throw (IO.userError "missing transferFrom selector 0x23b872dd")
+  -- Check function $id entries
+  unless hasSubstr json "\"approve\"" do
+    throw (IO.userError "missing approve $id")
   unless hasSubstr json "\"setApprovalForAll\"" do
     throw (IO.userError "missing setApprovalForAll $id")
+  unless hasSubstr json "\"transferFrom\"" do
+    throw (IO.userError "missing transferFrom $id")
+  -- Check intent strings
+  unless hasSubstr json "Approve {approved} to transfer token" do
+    throw (IO.userError "missing approve intent text")
+  unless hasSubstr json "Approve {operator} to manage all your NFTs" do
+    throw (IO.userError "missing setApprovalForAll intent text")
+  unless hasSubstr json "Transfer token #{tokenId}" do
+    throw (IO.userError "missing transferFrom intent text")
   unless hasSubstr json "\"addressName\"" do
-    throw (IO.userError "missing addressName format for operator")
+    throw (IO.userError "missing addressName format")
+  unless hasSubstr json "\"ERC721\"" do
+    throw (IO.userError "missing contract name in metadata")
 
 -- Test selectors matching the existing test matrix
 private def erc20Selectors : List (String × String) :=
@@ -96,7 +116,7 @@ private def ledgerSelectors : List (String × String) :=
   [("deposit", "b6b55f25"), ("withdraw", "2e1a7d4d"), ("transfer", "a9059cbb")]
 
 private def erc721Selectors : List (String × String) :=
-  [("setApprovalForAll", "a22cb465")]
+  [("approve", "095ea7b3"), ("setApprovalForAll", "a22cb465"), ("transferFrom", "23b872dd")]
 
 #eval do
   -- === ERC-20 ===
@@ -109,7 +129,7 @@ private def erc721Selectors : List (String × String) :=
   assertLedgerStructure ledgerJson
 
   -- === ERC-721 ===
-  let erc721Json := Compiler.ERC7730.emitERC7730Json boolIntentSpec erc721Selectors
+  let erc721Json := Compiler.ERC7730.emitERC7730Json Contracts.ERC721.intentSpec erc721Selectors
   assertERC721Structure erc721Json
 
   -- Verify empty selectors produce valid JSON (graceful degradation)

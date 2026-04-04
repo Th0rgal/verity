@@ -17,6 +17,7 @@ import Verity.Intent.Eval
 import Verity.Intent.Validate
 import Compiler.CompilationModel.Types
 import Contracts.ERC721.Display
+import Contracts.Ledger.Display
 
 namespace Verity.Intent.Example
 
@@ -630,5 +631,72 @@ Both are unconditional (single-template) functions.
       IO.println s!"✓ Circuit output: ERC-721 transferFrom(99) → templateIdx={co.templateIdx}, holes={repr co.holeValues}"
     | none => throw (IO.userError "evalIntentCircuitOutput returned none")
   | none => throw (IO.userError "binding not found")
+
+/-! ## Validation Tests for Ledger and ERC-721 Production IntentSpecs
+
+Validate the production intentSpecs against mock CompilationModels matching their ABIs.
+-/
+
+/-- Mock Ledger CompilationModel: deposit, withdraw, transfer. -/
+private def mockLedgerModel : CompilationModel := {
+  name := "Ledger"
+  fields := []
+  constructor := none
+  functions := [
+    { name := "deposit"
+      params := [⟨"amount", .uint256⟩]
+      returnType := none
+      body := [] },
+    { name := "withdraw"
+      params := [⟨"amount", .uint256⟩]
+      returnType := none
+      body := [] },
+    { name := "transfer"
+      params := [⟨"to", .address⟩, ⟨"amount", .uint256⟩]
+      returnType := none
+      body := [] }
+  ]
+}
+
+-- Test: Ledger intentSpec validates against its CompilationModel.
+#eval do
+  let errors := Validate.validate Contracts.Ledger.intentSpec mockLedgerModel
+  if errors.isEmpty then
+    IO.println "✓ Ledger intentSpec validates against mock CompilationModel"
+  else
+    for e in errors do
+      IO.println s!"✗ {e}"
+    throw (IO.userError "Ledger validation failed")
+
+/-- Mock ERC-721 CompilationModel: approve, setApprovalForAll, transferFrom. -/
+private def mockErc721Model : CompilationModel := {
+  name := "ERC721"
+  fields := []
+  constructor := none
+  functions := [
+    { name := "approve"
+      params := [⟨"approved", .address⟩, ⟨"tokenId", .uint256⟩]
+      returnType := none
+      body := [] },
+    { name := "setApprovalForAll"
+      params := [⟨"operator", .address⟩, ⟨"approved", .bool⟩]
+      returnType := none
+      body := [] },
+    { name := "transferFrom"
+      params := [⟨"fromAddr", .address⟩, ⟨"to", .address⟩, ⟨"tokenId", .uint256⟩]
+      returnType := none
+      body := [] }
+  ]
+}
+
+-- Test: ERC-721 intentSpec validates against its CompilationModel.
+#eval do
+  let errors := Validate.validate Contracts.ERC721.intentSpec mockErc721Model
+  if errors.isEmpty then
+    IO.println "✓ ERC-721 intentSpec validates against mock CompilationModel"
+  else
+    for e in errors do
+      IO.println s!"✗ {e}"
+    throw (IO.userError "ERC-721 validation failed")
 
 end Verity.Intent.Example

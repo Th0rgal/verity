@@ -27,7 +27,7 @@ to verified Groth16 proof:
 ./scripts/test_circom_e2e.sh
 ```
 
-This script runs 26 tests across 5 pipeline stages (3 contracts, 9 circuits):
+This script runs 27 tests across 5 pipeline stages (3 contracts, 9 circuits):
 
 1. **Generate** `.circom` files from the ERC-20, Ledger, and ERC-721 `IntentSpec`s (via `lake env lean`)
 2. **Compile** circuits with `circom` (syntax check + constraint generation)
@@ -65,7 +65,10 @@ This script runs 26 tests across 5 pipeline stages (3 contracts, 9 circuits):
 | `setApproval_false` | `setApprovalForAll(operator=0xbeef, approved=false)` | Revoke | else | 1 | PASS | PASS |
 | `erc721_transferFrom_99` | `transferFrom(from=0xcafe, to=0xdead, tokenId=99)` | Transfer token | — | 0 | PASS | PASS |
 
-All 26 tests pass: 13 witness verifications + 13 Groth16 proof verifications.
+All 27 tests pass: 14 witness tests (13 positive + 1 negative) + 13 Groth16 proof verifications.
+
+The negative test verifies that a wrong `outputCommitment` is correctly rejected
+during witness generation (the circuit constraint `outputCommitment === outHash.out` fails).
 
 ### What the Proof Proves
 
