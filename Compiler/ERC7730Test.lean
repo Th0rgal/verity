@@ -17,7 +17,8 @@ open Verity.Intent
 open Verity.Intent.Example
 
 private def hasSubstr (haystack needle : String) : Bool :=
-  (haystack.splitOn needle).length > 1
+  let parts := haystack.splitOn needle
+  parts.length > 1
 
 /-- Verify structural properties of the ERC-20 ERC-7730 JSON. -/
 private def assertERC20Structure (json : String) : IO Unit := do

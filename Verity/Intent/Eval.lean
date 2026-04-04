@@ -457,28 +457,37 @@ where
       (matching Circom's allHoleSignals = dedup(paths.flatMap(_.holeSignals))). -/
   collectAllHoleParamsFromAST (stmts : List Stmt) (fnParams : List (String × ParamType))
       : List (String × ParamType) :=
-    let allNames := dedup (collectHoleNamesFromStmts stmts)
+    let allNames := dedup (collectHoleNamesFromStmts (spec.fns.length + 1) stmts)
     allNames.filterMap fun name =>
       match fnParams.find? (fun (n, _) => n == name) with
       | some (_, ty) => some (name, ty)
       | none => none
 
-  /-- Recursively collect hole parameter names from all emit statements. -/
-  collectHoleNamesFromStmts : List Stmt → List String
+  /-- Recursively collect hole parameter names from all emit statements,
+      including those from inlined void helper call bodies.
+      `depth` bounds recursion into called functions to ensure termination. -/
+  collectHoleNamesFromStmts (depth : Nat) : List Stmt → List String
     | [] => []
     | .emit tmpl :: rest =>
-      tmpl.holes.map (·.param) ++ collectHoleNamesFromStmts rest
+      tmpl.holes.map (·.param) ++ collectHoleNamesFromStmts depth rest
     | .ite _ thenBr elseBr :: rest =>
-      collectHoleNamesFromStmts thenBr ++
-      collectHoleNamesFromStmts elseBr ++
-      collectHoleNamesFromStmts rest
+      collectHoleNamesFromStmts depth thenBr ++
+      collectHoleNamesFromStmts depth elseBr ++
+      collectHoleNamesFromStmts depth rest
     | .forEach _ _ body :: rest =>
-      collectHoleNamesFromStmts body ++
-      collectHoleNamesFromStmts rest
-    | .call _ _ :: rest =>
-      -- For simplicity, skip inlined call bodies in hole collection.
-      -- The top-level function's direct body covers the ERC-20 case.
-      collectHoleNamesFromStmts rest
+      collectHoleNamesFromStmts depth body ++
+      collectHoleNamesFromStmts depth rest
+    | .call fnName _args :: rest =>
+      let callHoles := match depth with
+        | 0 => []
+        | depth' + 1 =>
+          match findFn spec.fns fnName with
+          | some calledFn =>
+            if calledFn.returnKind == .void then
+              collectHoleNamesFromStmts depth' calledFn.body
+            else []
+          | none => []
+      callHoles ++ collectHoleNamesFromStmts depth rest
 
   /-- Resolve hole values from the environment to field elements. -/
   resolveHoleValuesForCircuit (env : Env) (holeParams : List (String × ParamType))

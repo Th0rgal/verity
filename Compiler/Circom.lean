@@ -282,13 +282,40 @@ partial def compileExpr (st : EmitState) (ctx : ParamCtx)
     let st := st.addLine s!"    {name} <== 1 - {sigA};"
     (name, st)
   | .lt a b =>
-    let (sigA, st) := compileExpr st ctx fns consts a
-    let (sigB, st) := compileExpr st ctx fns consts b
-    let (cmpName, st) := st.fresh "lt"
-    let st := st.addLine s!"    component {cmpName} = LessThan(252);"
-    let st := st.addLine s!"    {cmpName}.in[0] <== {sigA};"
-    let st := st.addLine s!"    {cmpName}.in[1] <== {sigB};"
-    (s!"{cmpName}.out", st)
+    let aIsUint256 := isUint256Expr ctx consts a
+    let bIsUint256 := isUint256Expr ctx consts b
+    if aIsUint256 || bIsUint256 then
+      -- uint256 less-than: compare hi limbs, then lo limbs if hi equal
+      -- result = hiLt + hiEq * loLt
+      let (aLo, aHi, st) := getUint256Signals st ctx consts a
+      let (bLo, bHi, st) := getUint256Signals st ctx consts b
+      let (hiLt, st) := st.fresh "hiLt"
+      let st := st.addLine s!"    component {hiLt} = LessThan(128);"
+      let st := st.addLine s!"    {hiLt}.in[0] <== {aHi};"
+      let st := st.addLine s!"    {hiLt}.in[1] <== {bHi};"
+      let (hiEq, st) := st.fresh "hiEq"
+      let st := st.addLine s!"    component {hiEq} = IsEqual();"
+      let st := st.addLine s!"    {hiEq}.in[0] <== {aHi};"
+      let st := st.addLine s!"    {hiEq}.in[1] <== {bHi};"
+      let (loLt, st) := st.fresh "loLt"
+      let st := st.addLine s!"    component {loLt} = LessThan(128);"
+      let st := st.addLine s!"    {loLt}.in[0] <== {aLo};"
+      let st := st.addLine s!"    {loLt}.in[1] <== {bLo};"
+      let (hiEqLoLt, st) := st.fresh "hiEqLoLt"
+      let st := st.addLine s!"    signal {hiEqLoLt};"
+      let st := st.addLine s!"    {hiEqLoLt} <== {hiEq}.out * {loLt}.out;"
+      let (result, st) := st.fresh "lt256"
+      let st := st.addLine s!"    signal {result};"
+      let st := st.addLine s!"    {result} <== {hiLt}.out + {hiEqLoLt};"
+      (result, st)
+    else
+      let (sigA, st) := compileExpr st ctx fns consts a
+      let (sigB, st) := compileExpr st ctx fns consts b
+      let (cmpName, st) := st.fresh "lt"
+      let st := st.addLine s!"    component {cmpName} = LessThan(252);"
+      let st := st.addLine s!"    {cmpName}.in[0] <== {sigA};"
+      let st := st.addLine s!"    {cmpName}.in[1] <== {sigB};"
+      (s!"{cmpName}.out", st)
   | .gt a b => compileExpr st ctx fns consts (.lt b a)
   | .le a b =>
     let (ltSig, st) := compileExpr st ctx fns consts (.lt b a)

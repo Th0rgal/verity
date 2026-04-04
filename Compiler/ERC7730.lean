@@ -150,7 +150,9 @@ def emitERC7730Json (spec : IntentSpec)
     (selectors : List (String × String)) : String :=
   let formatEntries := spec.bindings.filterMap fun binding =>
     match selectors.find? (fun (name, _) => name == binding.functionName) with
-    | some (_, hex) => renderFormatEntry spec binding ("0x" ++ hex)
+    | some (_, hex) =>
+      let selectorKey := if hex.startsWith "0x" then hex else "0x" ++ hex
+      renderFormatEntry spec binding selectorKey
     | none => none
   let formatsObj := jsonObject (formatEntries.map fun (sel, entry) => (sel, entry))
   let displayObj := jsonObject [("formats", formatsObj)]

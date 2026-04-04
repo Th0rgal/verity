@@ -98,8 +98,8 @@ private def stmtParamRefsOne : Stmt → List String
   | .emit tmpl => tmpl.holes.map (·.param)
   | .ite cond thenBr elseBr =>
     exprParamRefs cond ++ thenBr.flatMap stmtParamRefsOne ++ elseBr.flatMap stmtParamRefsOne
-  | .forEach _var array body =>
-    exprParamRefs array ++ body.flatMap stmtParamRefsOne
+  | .forEach var array body =>
+    exprParamRefs array ++ (body.flatMap stmtParamRefsOne).filter (· != var)
   | .call _ args => args.flatMap exprParamRefs
 
 /-- Validate that all param/constant references in a function resolve to either
