@@ -188,7 +188,16 @@ runs:
     - name: Prepare writable Lake root for sticky disks
       if: steps.persistence.outputs.use_sticky_disks == 'true'
       shell: bash
+      env:
+        USE_BUILD_STICKY: ${{ steps.persistence.outputs.use_build_sticky_disk }}
       run: |
+        mkdir -p .lake
+        # When build sticky disk is NOT requested but a previous job left
+        # .lake/build as a symlink, replace it with a real directory so
+        # tar extraction and lake commands work against local state.
+        if [ "$USE_BUILD_STICKY" != "true" ] && [ -L .lake/build ]; then
+          rm -f .lake/build
+        fi
         mkdir -p .lake/packages .lake/build
         chmod u+rwx .lake .lake/packages .lake/build
 
