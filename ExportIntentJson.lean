@@ -5,7 +5,7 @@
   so the frontend can evaluate intents without duplicating specs in TypeScript.
 
   Usage:
-    lake env lean Compiler/ExportIntentJson.lean
+    lake env lean ExportIntentJson.lean
 -/
 import Verity.Intent.Types
 import Verity.Intent.DSL
