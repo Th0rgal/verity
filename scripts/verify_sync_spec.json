@@ -233,7 +233,7 @@
     "lean-profile": 45,
     "foundry-gas-calibration": 15,
     "foundry": 15,
-    "foundry-patched": 25,
+    "foundry-patched": 45,
     "foundry-multi-seed": 25
   },
   "expected_job_strategy_fail_fast": {
