@@ -90,6 +90,7 @@ env:
   VERIFY_DISABLE_LAKE_CACHE_RESTORE: ${{ github.event_name == 'workflow_dispatch' && inputs.clean_build && 'true' || 'false' }}
   VERIFY_CACHE_BUCKET: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('ref-{0}', github.ref_name) }}
   VERIFY_MAIN_CACHE_BUCKET: ref-main
+  VERIFY_LOCAL_ARTIFACT_ROOT: /srv/verity-ci-cache/artifacts
 
 jobs:
   changes:
@@ -102,6 +103,10 @@ jobs:
       macro_fuzz: ${{ steps.effective.outputs.macro_fuzz }}
     steps:
       - uses: actions/checkout@v6
+
+      - name: Cleanup stale local artifacts
+        run: scripts/ci_local_persistence.sh cleanup --max-age-hours 24
+
       - uses: dorny/paths-filter@v4
         id: filter
         with:
@@ -300,7 +305,15 @@ jobs:
       - name: Package prepared Lean workspace build
         run: tar -hcf lean-workspace-build.tar .lake/build .lake/lakefile.olean .lake/lakefile.olean.trace
 
+      - name: Publish Lean workspace build locally
+        run: |
+          scripts/ci_local_persistence.sh publish \
+            --run-id "${{ github.run_id }}" \
+            --name lean-workspace-build \
+            --path lean-workspace-build.tar
+
       - name: Upload prepared Lean workspace build
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: lean-workspace-build
@@ -346,12 +359,23 @@ jobs:
           disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
           cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
-      - name: Download prepared Lean workspace build
+      - name: Restore Lean workspace build (local)
+        id: local-restore-build
+        continue-on-error: true
+        run: |
+          scripts/ci_local_persistence.sh fetch \
+            --run-id "${{ github.run_id }}" \
+            --name lean-workspace-build \
+            --timeout 30
+
+      - name: Download prepared Lean workspace build (fallback)
+        if: steps.local-restore-build.outcome != 'success'
         uses: actions/download-artifact@v7
         with:
           name: lean-workspace-build
 
-      - name: Restore prepared Lean workspace build
+      - name: Restore prepared Lean workspace build (fallback)
+        if: steps.local-restore-build.outcome != 'success'
         run: tar -xf lean-workspace-build.tar
 
       - name: Build macro round-trip fuzz executable
@@ -369,7 +393,15 @@ jobs:
       - name: Package macro-fuzz Lean workspace build
         run: tar -hcf lean-workspace-macro-fuzz-build.tar .lake/build .lake/lakefile.olean .lake/lakefile.olean.trace
 
+      - name: Publish macro-fuzz build locally
+        run: |
+          scripts/ci_local_persistence.sh publish \
+            --run-id "${{ github.run_id }}" \
+            --name lean-workspace-macro-fuzz-build \
+            --path lean-workspace-macro-fuzz-build.tar
+
       - name: Upload macro-fuzz Lean workspace build
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: lean-workspace-macro-fuzz-build
@@ -398,12 +430,23 @@ jobs:
           disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
           cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
-      - name: Download prepared Lean workspace build
+      - name: Restore Lean workspace build (local)
+        id: local-restore-build
+        continue-on-error: true
+        run: |
+          scripts/ci_local_persistence.sh fetch \
+            --run-id "${{ github.run_id }}" \
+            --name lean-workspace-build \
+            --timeout 30
+
+      - name: Download prepared Lean workspace build (fallback)
+        if: steps.local-restore-build.outcome != 'success'
         uses: actions/download-artifact@v7
         with:
           name: lean-workspace-build
 
-      - name: Restore prepared Lean workspace build
+      - name: Restore prepared Lean workspace build (fallback)
+        if: steps.local-restore-build.outcome != 'success'
         run: tar -xf lean-workspace-build.tar
 
       - name: Build split Lake packages independently
@@ -499,12 +542,23 @@ jobs:
           disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
           cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
-      - name: Download prepared Lean workspace build
+      - name: Restore macro-fuzz build (local)
+        id: local-restore-macro-fuzz
+        continue-on-error: true
+        run: |
+          scripts/ci_local_persistence.sh fetch \
+            --run-id "${{ github.run_id }}" \
+            --name lean-workspace-macro-fuzz-build \
+            --timeout 30
+
+      - name: Download prepared Lean workspace build (fallback)
+        if: steps.local-restore-macro-fuzz.outcome != 'success'
         uses: actions/download-artifact@v7
         with:
           name: lean-workspace-macro-fuzz-build
 
-      - name: Restore prepared Lean workspace build
+      - name: Restore prepared Lean workspace build (fallback)
+        if: steps.local-restore-macro-fuzz.outcome != 'success'
         run: tar -xf lean-workspace-macro-fuzz-build.tar
 
       - name: Run macro round-trip fuzz harness
@@ -602,12 +656,23 @@ jobs:
           fi
           cp -a "$RUNNER_TEMP/compiler-ccache-cache/." "$CCACHE_DIR/"
 
-      - name: Download prepared Lean workspace build
+      - name: Restore Lean workspace build (local)
+        id: local-restore-build
+        continue-on-error: true
+        run: |
+          scripts/ci_local_persistence.sh fetch \
+            --run-id "${{ github.run_id }}" \
+            --name lean-workspace-build \
+            --timeout 30
+
+      - name: Download prepared Lean workspace build (fallback)
+        if: steps.local-restore-build.outcome != 'success'
         uses: actions/download-artifact@v7
         with:
           name: lean-workspace-build
 
-      - name: Restore prepared Lean workspace build
+      - name: Restore prepared Lean workspace build (fallback)
+        if: steps.local-restore-build.outcome != 'success'
         run: tar -xf lean-workspace-build.tar
 
       - name: Reset ccache statistics
@@ -697,77 +762,6 @@ jobs:
           cp ./.lake/build/bin/verity-compiler-patched compiler/bin/
           cp ./.lake/build/bin/difftest-interpreter compiler/bin/
 
-      - name: Package compiler workspace build
-        run: tar -hcf lean-workspace-compiler-build.tar .lake/build
-
-      - name: Upload difftest interpreter
-        uses: actions/upload-artifact@v7
-        with:
-          name: difftest-interpreter
-          path: .lake/build/bin/difftest-interpreter
-
-      - name: Upload compiler binaries
-        uses: actions/upload-artifact@v7
-        with:
-          name: verity-compiler-binaries
-          path: compiler/bin
-          compression-level: 0
-
-      - name: Upload compiler workspace build
-        uses: actions/upload-artifact@v7
-        with:
-          name: lean-workspace-compiler-build
-          path: lean-workspace-compiler-build.tar
-          compression-level: 0
-
-  generate-yul:
-    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
-    timeout-minutes: 45
-    needs: [changes, checks, build, build-compiler-binaries]
-    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: recursive
-
-      - name: Setup Lean
-        uses: ./.github/actions/setup-lean
-        with:
-          cache-key-prefix: lake-compiler
-          use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
-          sticky-disk-key-prefix: verify-compiler
-          lake-packages-sticky-key: lake-packages-verify-compiler-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
-          lake-packages-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('lake-packages-verify-compiler-{0}-{1}-{2}-{3}-{4}', env.VERIFY_MAIN_CACHE_BUCKET, runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
-          disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
-          cache-primary-key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
-          cache-extra-restore-keys: |
-            lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
-
-      - name: Download prepared Lean workspace build
-        uses: actions/download-artifact@v7
-        with:
-          name: lean-workspace-build
-
-      - name: Restore prepared Lean workspace build
-        run: tar -xf lean-workspace-build.tar
-
-      - name: Download compiler workspace build
-        uses: actions/download-artifact@v7
-        with:
-          name: lean-workspace-compiler-build
-
-      - name: Restore compiler workspace build
-        run: tar -xf lean-workspace-compiler-build.tar
-
-      - name: Download compiler binaries
-        uses: actions/download-artifact@v7
-        with:
-          name: verity-compiler-binaries
-          path: compiler/bin
-
-      - name: Restore compiler executable bits
-        run: chmod +x compiler/bin/verity-compiler compiler/bin/verity-compiler-patched compiler/bin/difftest-interpreter
-
       - name: Generate Yul (all contracts + CryptoHash with linked libraries)
         run: |
           ./compiler/bin/verity-compiler \
@@ -775,60 +769,6 @@ jobs:
             --output compiler/yul \
             --link examples/external-libs/PoseidonT3.yul \
             --link examples/external-libs/PoseidonT4.yul
-
-      - name: Upload generated Yul
-        uses: actions/upload-artifact@v7
-        with:
-          name: generated-yul
-          path: compiler/yul
-
-  generate-yul-patched:
-    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
-    timeout-minutes: 45
-    needs: [changes, checks, build, build-compiler-binaries]
-    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: recursive
-
-      - name: Setup Lean
-        uses: ./.github/actions/setup-lean
-        with:
-          cache-key-prefix: lake-compiler
-          use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
-          sticky-disk-key-prefix: verify-compiler
-          lake-packages-sticky-key: lake-packages-verify-compiler-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
-          lake-packages-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('lake-packages-verify-compiler-{0}-{1}-{2}-{3}-{4}', env.VERIFY_MAIN_CACHE_BUCKET, runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
-          disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
-          cache-primary-key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
-          cache-extra-restore-keys: |
-            lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
-
-      - name: Download prepared Lean workspace build
-        uses: actions/download-artifact@v7
-        with:
-          name: lean-workspace-build
-
-      - name: Restore prepared Lean workspace build
-        run: tar -xf lean-workspace-build.tar
-
-      - name: Download compiler workspace build
-        uses: actions/download-artifact@v7
-        with:
-          name: lean-workspace-compiler-build
-
-      - name: Restore compiler workspace build
-        run: tar -xf lean-workspace-compiler-build.tar
-
-      - name: Download compiler binaries
-        uses: actions/download-artifact@v7
-        with:
-          name: verity-compiler-binaries
-          path: compiler/bin
-
-      - name: Restore compiler executable bits
-        run: chmod +x compiler/bin/verity-compiler compiler/bin/verity-compiler-patched compiler/bin/difftest-interpreter
 
       - name: Generate patched Yul + patch coverage report
         run: |
@@ -853,19 +793,122 @@ jobs:
             --output compiler/yul-patched \
             --enable-patches >/dev/null
 
+      - name: Save static gas report snapshot
+        run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv
+
+      - name: Save patched static gas report snapshot
+        run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv
+
+      - name: Package compiler workspace build
+        run: tar -hcf lean-workspace-compiler-build.tar .lake/build
+
+      - name: Publish compiler workspace build locally
+        run: |
+          scripts/ci_local_persistence.sh publish \
+            --run-id "${{ github.run_id }}" \
+            --name lean-workspace-compiler-build \
+            --path lean-workspace-compiler-build.tar
+
+      - name: Publish compiler binaries locally
+        run: |
+          scripts/ci_local_persistence.sh publish \
+            --run-id "${{ github.run_id }}" \
+            --name verity-compiler-binaries \
+            --path compiler/bin
+
+      - name: Publish difftest interpreter locally
+        run: |
+          mkdir -p /tmp/difftest-interpreter-artifact
+          cp .lake/build/bin/difftest-interpreter /tmp/difftest-interpreter-artifact/
+          scripts/ci_local_persistence.sh publish \
+            --run-id "${{ github.run_id }}" \
+            --name difftest-interpreter \
+            --path /tmp/difftest-interpreter-artifact
+
+      - name: Publish generated Yul locally
+        run: |
+          scripts/ci_local_persistence.sh publish \
+            --run-id "${{ github.run_id }}" \
+            --name generated-yul \
+            --path compiler/yul
+
+      - name: Publish patched Yul locally
+        run: |
+          scripts/ci_local_persistence.sh publish \
+            --run-id "${{ github.run_id }}" \
+            --name generated-yul-patched \
+            --path compiler/yul-patched
+
+      - name: Publish gas reports locally
+        run: |
+          mkdir -p /tmp/gas-reports
+          cp gas-report-static.tsv /tmp/gas-reports/
+          cp gas-report-static-patched.tsv /tmp/gas-reports/
+          cp compiler/patch-report.tsv /tmp/gas-reports/
+          scripts/ci_local_persistence.sh publish \
+            --run-id "${{ github.run_id }}" \
+            --name gas-reports \
+            --path /tmp/gas-reports
+
+      - name: Upload difftest interpreter
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: difftest-interpreter
+          path: .lake/build/bin/difftest-interpreter
+
+      - name: Upload compiler binaries
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: verity-compiler-binaries
+          path: compiler/bin
+          compression-level: 0
+
+      - name: Upload compiler workspace build
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: lean-workspace-compiler-build
+          path: lean-workspace-compiler-build.tar
+          compression-level: 0
+
+      - name: Upload generated Yul
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: generated-yul
+          path: compiler/yul
+
       - name: Upload patched Yul
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: generated-yul-patched
           path: compiler/yul-patched
 
       - name: Upload patch coverage report
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: patch-coverage-report
           path: compiler/patch-report.tsv
 
-  gas-report:
+      - name: Upload static gas report
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: static-gas-report
+          path: gas-report-static.tsv
+
+      - name: Upload patched static gas report
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: static-gas-report-patched
+          path: gas-report-static-patched.tsv
+
+  compiler-audits:
     runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: 45
     needs: [changes, checks, build, build-compiler-binaries]
@@ -888,114 +931,140 @@ jobs:
           cache-extra-restore-keys: |
             lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
-      - name: Download prepared Lean workspace build
+      - name: Restore Lean workspace build (local)
+        id: local-restore-build
+        continue-on-error: true
+        run: |
+          scripts/ci_local_persistence.sh fetch \
+            --run-id "${{ github.run_id }}" \
+            --name lean-workspace-build \
+            --timeout 30
+
+      - name: Download prepared Lean workspace build (fallback)
+        if: steps.local-restore-build.outcome != 'success'
         uses: actions/download-artifact@v7
         with:
           name: lean-workspace-build
 
-      - name: Restore prepared Lean workspace build
+      - name: Restore prepared Lean workspace build (fallback)
+        if: steps.local-restore-build.outcome != 'success'
         run: tar -xf lean-workspace-build.tar
 
-      - name: Download compiler workspace build
+      - name: Restore compiler workspace build (local)
+        id: local-restore-compiler-build
+        continue-on-error: true
+        run: |
+          scripts/ci_local_persistence.sh fetch \
+            --run-id "${{ github.run_id }}" \
+            --name lean-workspace-compiler-build \
+            --timeout 30
+
+      - name: Download compiler workspace build (fallback)
+        if: steps.local-restore-compiler-build.outcome != 'success'
         uses: actions/download-artifact@v7
         with:
           name: lean-workspace-compiler-build
 
-      - name: Restore compiler workspace build
+      - name: Restore compiler workspace build (fallback)
+        if: steps.local-restore-compiler-build.outcome != 'success'
         run: tar -xf lean-workspace-compiler-build.tar
 
-      - name: Save static gas report snapshot
-        run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv
+      - name: Restore generated Yul (local)
+        id: local-restore-yul
+        continue-on-error: true
+        run: |
+          source_dir="${VERIFY_LOCAL_ARTIFACT_ROOT}/${{ github.run_id }}/generated-yul"
+          if [ -f "$source_dir/.ready" ]; then
+            mkdir -p compiler/yul
+            cp -a "$source_dir/." compiler/yul/
+            rm -f compiler/yul/.ready
+          else
+            exit 1
+          fi
 
-      - name: Save patched static gas report snapshot
-        run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv
-
-      - name: Upload static gas report
-        uses: actions/upload-artifact@v7
-        with:
-          name: static-gas-report
-          path: gas-report-static.tsv
-
-      - name: Upload patched static gas report
-        uses: actions/upload-artifact@v7
-        with:
-          name: static-gas-report-patched
-          path: gas-report-static-patched.tsv
-
-  compiler-audits:
-    runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
-    timeout-minutes: 45
-    needs: [changes, checks, build, generate-yul, generate-yul-patched, gas-report, build-compiler-binaries]
-    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.generate-yul.result == 'success' && needs.generate-yul-patched.result == 'success' && needs.gas-report.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: recursive
-
-      - name: Setup Lean
-        uses: ./.github/actions/setup-lean
-        with:
-          cache-key-prefix: lake-compiler
-          use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
-          sticky-disk-key-prefix: verify-compiler
-          lake-packages-sticky-key: lake-packages-verify-compiler-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
-          lake-packages-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('lake-packages-verify-compiler-{0}-{1}-{2}-{3}-{4}', env.VERIFY_MAIN_CACHE_BUCKET, runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
-          disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
-          cache-primary-key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
-          cache-extra-restore-keys: |
-            lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
-
-      - name: Download prepared Lean workspace build
-        uses: actions/download-artifact@v7
-        with:
-          name: lean-workspace-build
-
-      - name: Restore prepared Lean workspace build
-        run: tar -xf lean-workspace-build.tar
-
-      - name: Download compiler workspace build
-        uses: actions/download-artifact@v7
-        with:
-          name: lean-workspace-compiler-build
-
-      - name: Restore compiler workspace build
-        run: tar -xf lean-workspace-compiler-build.tar
-
-      - name: Download generated Yul
+      - name: Download generated Yul (fallback)
+        if: steps.local-restore-yul.outcome != 'success'
         uses: actions/download-artifact@v7
         with:
           name: generated-yul
           path: compiler/yul
 
-      - name: Download patched Yul
+      - name: Restore patched Yul (local)
+        id: local-restore-yul-patched
+        continue-on-error: true
+        run: |
+          source_dir="${VERIFY_LOCAL_ARTIFACT_ROOT}/${{ github.run_id }}/generated-yul-patched"
+          if [ -f "$source_dir/.ready" ]; then
+            mkdir -p compiler/yul-patched
+            cp -a "$source_dir/." compiler/yul-patched/
+            rm -f compiler/yul-patched/.ready
+          else
+            exit 1
+          fi
+
+      - name: Download patched Yul (fallback)
+        if: steps.local-restore-yul-patched.outcome != 'success'
         uses: actions/download-artifact@v7
         with:
           name: generated-yul-patched
           path: compiler/yul-patched
 
-      - name: Download static gas report
+      - name: Restore gas reports (local)
+        id: local-restore-gas
+        continue-on-error: true
+        run: |
+          source_dir="${VERIFY_LOCAL_ARTIFACT_ROOT}/${{ github.run_id }}/gas-reports"
+          if [ -f "$source_dir/.ready" ]; then
+            cp "$source_dir/gas-report-static.tsv" .
+            cp "$source_dir/gas-report-static-patched.tsv" .
+            mkdir -p compiler
+            cp "$source_dir/patch-report.tsv" compiler/
+          else
+            exit 1
+          fi
+
+      - name: Download static gas report (fallback)
+        if: steps.local-restore-gas.outcome != 'success'
         uses: actions/download-artifact@v7
         with:
           name: static-gas-report
 
-      - name: Download patched static gas report
+      - name: Download patched static gas report (fallback)
+        if: steps.local-restore-gas.outcome != 'success'
         uses: actions/download-artifact@v7
         with:
           name: static-gas-report-patched
 
-      - name: Download patch coverage report
+      - name: Download patch coverage report (fallback)
+        if: steps.local-restore-gas.outcome != 'success'
         uses: actions/download-artifact@v7
         with:
           name: patch-coverage-report
           path: compiler
 
-      - name: Download compiler binaries
+      - name: Restore compiler binaries (local)
+        id: local-restore-binaries
+        continue-on-error: true
+        run: |
+          source_dir="${VERIFY_LOCAL_ARTIFACT_ROOT}/${{ github.run_id }}/verity-compiler-binaries"
+          if [ -f "$source_dir/.ready" ]; then
+            mkdir -p compiler/bin
+            cp -a "$source_dir/." compiler/bin/
+            rm -f compiler/bin/.ready
+            chmod +x compiler/bin/verity-compiler compiler/bin/verity-compiler-patched compiler/bin/difftest-interpreter
+          else
+            exit 1
+          fi
+
+      - name: Download compiler binaries (fallback)
+        if: steps.local-restore-binaries.outcome != 'success'
         uses: actions/download-artifact@v7
         with:
           name: verity-compiler-binaries
           path: compiler/bin
 
       - name: Restore compiler executable bits
+        if: steps.local-restore-binaries.outcome != 'success'
         run: chmod +x compiler/bin/verity-compiler compiler/bin/verity-compiler-patched compiler/bin/difftest-interpreter
 
       - name: Setup solc
@@ -1130,20 +1199,42 @@ jobs:
           cache-extra-restore-keys: |
             lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
-      - name: Download prepared Lean workspace build
+      - name: Restore Lean workspace build (local)
+        id: local-restore-build
+        continue-on-error: true
+        run: |
+          scripts/ci_local_persistence.sh fetch \
+            --run-id "${{ github.run_id }}" \
+            --name lean-workspace-build \
+            --timeout 30
+
+      - name: Download prepared Lean workspace build (fallback)
+        if: steps.local-restore-build.outcome != 'success'
         uses: actions/download-artifact@v7
         with:
           name: lean-workspace-build
 
-      - name: Restore prepared Lean workspace build
+      - name: Restore prepared Lean workspace build (fallback)
+        if: steps.local-restore-build.outcome != 'success'
         run: tar -xf lean-workspace-build.tar
 
-      - name: Download compiler workspace build
+      - name: Restore compiler workspace build (local)
+        id: local-restore-compiler-build
+        continue-on-error: true
+        run: |
+          scripts/ci_local_persistence.sh fetch \
+            --run-id "${{ github.run_id }}" \
+            --name lean-workspace-compiler-build \
+            --timeout 30
+
+      - name: Download compiler workspace build (fallback)
+        if: steps.local-restore-compiler-build.outcome != 'success'
         uses: actions/download-artifact@v7
         with:
           name: lean-workspace-compiler-build
 
-      - name: Restore compiler workspace build
+      - name: Restore compiler workspace build (fallback)
+        if: steps.local-restore-compiler-build.outcome != 'success'
         run: tar -xf lean-workspace-compiler-build.tar
 
       - name: Build compiler CLI regression executable
@@ -1187,20 +1278,34 @@ jobs:
   foundry-gas-calibration:
     runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: 15
-    needs: [changes, generate-yul, gas-report, build-compiler-binaries]
+    needs: [changes, build-compiler-binaries]
     if: needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     steps:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
 
-      - name: Download static gas report
+      - name: Restore gas reports (local)
+        id: local-restore-gas
+        continue-on-error: true
+        run: |
+          source_dir="${VERIFY_LOCAL_ARTIFACT_ROOT}/${{ github.run_id }}/gas-reports"
+          if [ -f "$source_dir/.ready" ]; then
+            cp "$source_dir/gas-report-static.tsv" .
+          else
+            exit 1
+          fi
+
+      - name: Download static gas report (fallback)
+        if: steps.local-restore-gas.outcome != 'success'
         uses: actions/download-artifact@v7
         with:
           name: static-gas-report
 
       - name: Setup Foundry environment
         uses: ./.github/actions/setup-foundry
+        with:
+          local-artifact-run-id: ${{ github.run_id }}
 
       - name: Check static-vs-foundry gas calibration
         env:
@@ -1214,13 +1319,13 @@ jobs:
 
   foundry:
     runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
-    timeout-minutes: 15
-    needs: [changes, generate-yul, build-compiler-binaries]
+    timeout-minutes: 30
+    needs: [changes, build-compiler-binaries]
     if: needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     strategy:
       fail-fast: false
       matrix:
-        shard_index: [0, 1, 2, 3, 4, 5, 6, 7]
+        shard_index: [0, 1, 2, 3]
     steps:
       - uses: actions/checkout@v6
         with:
@@ -1228,6 +1333,8 @@ jobs:
 
       - name: Setup Foundry environment
         uses: ./.github/actions/setup-foundry
+        with:
+          local-artifact-run-id: ${{ github.run_id }}
 
       - name: Run Foundry tests with seed 42
         env:
@@ -1236,36 +1343,58 @@ jobs:
           DIFFTEST_RANDOM_SMALL: "100"
           DIFFTEST_RANDOM_LARGE: "10000"
           DIFFTEST_RANDOM_SEED: "42"
-          DIFFTEST_SHARD_COUNT: "8"
+          DIFFTEST_SHARD_COUNT: "4"
           DIFFTEST_SHARD_INDEX: "${{ matrix.shard_index }}"
         run: |
-          echo "Running tests with seed 42 (shard ${{ matrix.shard_index }}/8)"
+          echo "Running tests with seed 42 (shard ${{ matrix.shard_index }}/4)"
           forge test
 
   foundry-patched:
     runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: 60
-    needs: [changes, generate-yul-patched, build-compiler-binaries]
+    needs: [changes, build-compiler-binaries]
     if: needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     steps:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
 
-      - name: Download prepared Lean workspace build
+      - name: Restore Lean workspace build (local)
+        id: local-restore-build
+        continue-on-error: true
+        run: |
+          scripts/ci_local_persistence.sh fetch \
+            --run-id "${{ github.run_id }}" \
+            --name lean-workspace-build \
+            --timeout 30
+
+      - name: Download prepared Lean workspace build (fallback)
+        if: steps.local-restore-build.outcome != 'success'
         uses: actions/download-artifact@v7
         with:
           name: lean-workspace-build
 
-      - name: Restore prepared Lean workspace build
+      - name: Restore prepared Lean workspace build (fallback)
+        if: steps.local-restore-build.outcome != 'success'
         run: tar -xf lean-workspace-build.tar
 
-      - name: Download compiler workspace build
+      - name: Restore compiler workspace build (local)
+        id: local-restore-compiler-build
+        continue-on-error: true
+        run: |
+          scripts/ci_local_persistence.sh fetch \
+            --run-id "${{ github.run_id }}" \
+            --name lean-workspace-compiler-build \
+            --timeout 30
+
+      - name: Download compiler workspace build (fallback)
+        if: steps.local-restore-compiler-build.outcome != 'success'
         uses: actions/download-artifact@v7
         with:
           name: lean-workspace-compiler-build
 
-      - name: Restore compiler workspace build
+      - name: Restore compiler workspace build (fallback)
+        if: steps.local-restore-compiler-build.outcome != 'success'
         run: tar -xf lean-workspace-compiler-build.tar
 
       - name: Setup Foundry environment
@@ -1273,6 +1402,7 @@ jobs:
         with:
           yul-artifact-name: generated-yul-patched
           yul-artifact-path: compiler/yul-patched
+          local-artifact-run-id: ${{ github.run_id }}
 
       - name: Run Foundry patched-Yul smoke tests
         env:
@@ -1290,7 +1420,7 @@ jobs:
   foundry-multi-seed:
     runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
     timeout-minutes: 25
-    needs: [changes, generate-yul, build-compiler-binaries]
+    needs: [changes, build-compiler-binaries]
     if: needs.changes.outputs.compiler == 'true' && github.event_name != 'pull_request'
     strategy:
       fail-fast: false
@@ -1303,6 +1433,8 @@ jobs:
 
       - name: Setup Foundry environment
         uses: ./.github/actions/setup-foundry
+        with:
+          local-artifact-run-id: ${{ github.run_id }}
 
       - name: Run tests with seed ${{ matrix.seed }}
         env:
@@ -1327,7 +1459,7 @@ jobs:
 
   failure-hints:
     runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
-    needs: [checks, build, prepare-macro-fuzz, build-audits, macro-fuzz, build-compiler-binaries, generate-yul, generate-yul-patched, gas-report, compiler-audits, compiler-regressions, foundry-gas-calibration, foundry, foundry-patched, foundry-multi-seed]
+    needs: [checks, build, prepare-macro-fuzz, build-audits, macro-fuzz, build-compiler-binaries, compiler-audits, compiler-regressions, foundry-gas-calibration, foundry, foundry-patched, foundry-multi-seed]
     if: always() && github.event_name == 'pull_request' && contains(join(needs.*.result, ','), 'failure')
     permissions:
       contents: read

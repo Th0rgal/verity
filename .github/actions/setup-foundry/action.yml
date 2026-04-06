@@ -11,6 +11,9 @@ inputs:
   download-yul:
     description: Whether to restore a Yul artifact for the job
     default: "true"
+  local-artifact-run-id:
+    description: GitHub run ID for local artifact fetch (empty disables local fetch)
+    default: ""
 
 runs:
   using: composite
@@ -26,14 +29,45 @@ runs:
         disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
         cache-primary-key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
-    - name: Download generated Yul
-      if: inputs.download-yul == 'true'
+    - name: Restore generated Yul (local)
+      id: local-yul
+      if: inputs.download-yul == 'true' && inputs.local-artifact-run-id != ''
+      continue-on-error: true
+      shell: bash
+      run: |
+        mkdir -p "${{ inputs.yul-artifact-path }}"
+        scripts/ci_local_persistence.sh fetch \
+          --run-id "${{ inputs.local-artifact-run-id }}" \
+          --name "${{ inputs.yul-artifact-name }}" \
+          --timeout 30
+        if [ -d "${{ inputs.yul-artifact-name }}" ]; then
+          cp -a "${{ inputs.yul-artifact-name }}/." "${{ inputs.yul-artifact-path }}/"
+        fi
+
+    - name: Download generated Yul (fallback)
+      if: inputs.download-yul == 'true' && (inputs.local-artifact-run-id == '' || steps.local-yul.outcome != 'success')
       uses: actions/download-artifact@v7
       with:
         name: ${{ inputs.yul-artifact-name }}
         path: ${{ inputs.yul-artifact-path }}
 
-    - name: Download difftest interpreter
+    - name: Restore difftest interpreter (local)
+      id: local-difftest
+      if: inputs.local-artifact-run-id != ''
+      continue-on-error: true
+      shell: bash
+      run: |
+        mkdir -p .lake/build/bin
+        scripts/ci_local_persistence.sh fetch \
+          --run-id "${{ inputs.local-artifact-run-id }}" \
+          --name "difftest-interpreter" \
+          --timeout 30
+        if [ -f "difftest-interpreter/difftest-interpreter" ]; then
+          cp -f "difftest-interpreter/difftest-interpreter" .lake/build/bin/
+        fi
+
+    - name: Download difftest interpreter (fallback)
+      if: inputs.local-artifact-run-id == '' || steps.local-difftest.outcome != 'success'
       uses: actions/download-artifact@v7
       with:
         name: difftest-interpreter
