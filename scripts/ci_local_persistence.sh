@@ -167,8 +167,11 @@ fetch_artifact() {
     tar -xf "$tarball"
     echo "Restored artifact '${name}' from local tarball"
   else
-    echo "::error::fetch: no tarball found in ${source_dir} and directory copy not yet supported"
-    return 1
+    # Directory artifact: copy contents into a local directory named after the artifact
+    mkdir -p "$name"
+    cp -a "$source_dir/." "$name/"
+    rm -f "$name/.ready"
+    echo "Restored artifact '${name}' from local directory"
   fi
 }
 
