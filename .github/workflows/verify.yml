@@ -86,7 +86,7 @@ env:
   SOLC_SHA256: "1274e5c4621ae478090c5a1f48466fd3c5f658ed9e14b15a0b213dc806215468"
   VERIFY_CLEAN_BUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.clean_build && 'true' || 'false' }}
   VERIFY_FORCE_FULL_RUN: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.force_full_run)) && 'true' || 'false' }}
-  VERIFY_USE_STICKY_DISKS: ${{ github.event_name == 'workflow_dispatch' && inputs.clean_build && 'false' || 'true' }}
+  VERIFY_USE_STICKY_DISKS: ${{ github.event_name == 'pull_request' && 'false' || (github.event_name == 'workflow_dispatch' && inputs.clean_build) && 'false' || 'true' }}
   VERIFY_DISABLE_LAKE_CACHE_RESTORE: ${{ github.event_name == 'workflow_dispatch' && inputs.clean_build && 'true' || 'false' }}
   VERIFY_CACHE_BUCKET: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('ref-{0}', github.ref_name) }}
   VERIFY_MAIN_CACHE_BUCKET: ref-main
@@ -326,7 +326,7 @@ jobs:
     needs: [changes, checks, build]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'
     env:
-      LEAN_NUM_THREADS: 12
+      LEAN_NUM_THREADS: 8
     steps:
       - uses: actions/checkout@v6
         with:
@@ -518,7 +518,7 @@ jobs:
     needs: [changes, checks, build]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.compiler == 'true'
     env:
-      LEAN_NUM_THREADS: 12
+      LEAN_NUM_THREADS: 8
       CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_NOHASHDIR: "true"
@@ -1111,7 +1111,7 @@ jobs:
     needs: [changes, checks, build, build-compiler-binaries]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
     env:
-      LEAN_NUM_THREADS: 12
+      LEAN_NUM_THREADS: 8
     steps:
       - uses: actions/checkout@v6
         with:
