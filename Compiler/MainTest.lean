@@ -13,7 +13,10 @@ import Compiler.TestModules
 namespace Compiler.MainTest
 
 private def contains (haystack needle : String) : Bool :=
-  if needle.isEmpty then true else (haystack.splitOn needle).length > 1
+  if needle.isEmpty then true
+  else
+    let parts := haystack.splitOn needle
+    parts.length > 1
 
 private unsafe def expectErrorContains (label : String) (args : List String) (needle : String) : IO Unit := do
   try
