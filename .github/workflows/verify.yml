@@ -770,6 +770,18 @@ jobs:
             --link examples/external-libs/PoseidonT3.yul \
             --link examples/external-libs/PoseidonT4.yul
 
+      - name: Pre-build LocalObligationMacroSmoke Yul (unpatched)
+        run: |
+          set -euo pipefail
+          artifact="compiler/yul/LocalObligationMacroSmoke.yul"
+          if [ -f "${artifact}" ]; then
+            exit 0
+          fi
+          lake build Contracts.LocalObligationMacroSmoke.LocalObligationMacroSmoke >/dev/null
+          ./compiler/bin/verity-compiler \
+            --module Contracts.LocalObligationMacroSmoke.LocalObligationMacroSmoke \
+            --output compiler/yul >/dev/null
+
       - name: Generate patched Yul + patch coverage report
         run: |
           ./compiler/bin/verity-compiler-patched \
