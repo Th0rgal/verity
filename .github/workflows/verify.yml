@@ -1244,7 +1244,7 @@ jobs:
 
   foundry-patched:
     runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
-    timeout-minutes: 45
+    timeout-minutes: 60
     needs: [changes, generate-yul-patched, build-compiler-binaries]
     if: needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     steps:
