@@ -661,6 +661,14 @@
         }
       },
       {
+        "name": "Download compiler binaries (fallback)",
+        "uses": "actions/download-artifact@v7",
+        "with": {
+          "name": "verity-compiler-binaries",
+          "path": "compiler/bin"
+        }
+      },
+      {
         "name": "Setup Foundry environment",
         "uses": "./.github/actions/setup-foundry"
       }
@@ -700,6 +708,14 @@
         "uses": "actions/checkout@v6",
         "with": {
           "submodules": "recursive"
+        }
+      },
+      {
+        "name": "Download compiler binaries (fallback)",
+        "uses": "actions/download-artifact@v7",
+        "with": {
+          "name": "verity-compiler-binaries",
+          "path": "compiler/bin"
         }
       },
       {
@@ -914,9 +930,15 @@
     "foundry-gas-calibration": [
       "static-gas-report"
     ],
+    "foundry": [
+      "verity-compiler-binaries"
+    ],
     "foundry-patched": [
       "lean-workspace-build",
       "lean-workspace-compiler-build"
+    ],
+    "foundry-multi-seed": [
+      "verity-compiler-binaries"
     ]
   },
   "expected_downloaded_artifact_paths": {
@@ -949,9 +971,15 @@
     "foundry-gas-calibration": [
       null
     ],
+    "foundry": [
+      "compiler/bin"
+    ],
     "foundry-patched": [
       null,
       null
+    ],
+    "foundry-multi-seed": [
+      "compiler/bin"
     ]
   }
 }

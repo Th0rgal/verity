@@ -549,6 +549,10 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                           'uses': './.github/actions/setup-foundry'}],
                              'foundry': [{'uses': 'actions/checkout@v6',
                                           'with': {'submodules': 'recursive'}},
+                                         {'name': 'Download compiler binaries (fallback)',
+                                          'uses': 'actions/download-artifact@v7',
+                                          'with': {'name': 'verity-compiler-binaries',
+                                                   'path': 'compiler/bin'}},
                                          {'name': 'Setup Foundry environment',
                                           'uses': './.github/actions/setup-foundry'}],
                              'foundry-patched': [{'uses': 'actions/checkout@v6',
@@ -565,6 +569,10 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                            'yul-artifact-path': 'compiler/yul-patched'}}],
                              'foundry-multi-seed': [{'uses': 'actions/checkout@v6',
                                                      'with': {'submodules': 'recursive'}},
+                                                    {'name': 'Download compiler binaries (fallback)',
+                                                     'uses': 'actions/download-artifact@v7',
+                                                     'with': {'name': 'verity-compiler-binaries',
+                                                              'path': 'compiler/bin'}},
                                                     {'name': 'Setup Foundry environment',
                                                      'uses': './.github/actions/setup-foundry'}],
                              'failure-hints': [{'name': 'Post CI failure hints',
@@ -906,7 +914,9 @@ SPEC['expected_downloaded_artifacts'] = {
     'compiler-audits': ['lean-workspace-build', 'lean-workspace-compiler-build', 'generated-yul', 'generated-yul-patched', 'static-gas-report', 'static-gas-report-patched', 'patch-coverage-report', 'verity-compiler-binaries'],
     'compiler-regressions': ['lean-workspace-build', 'lean-workspace-compiler-build'],
     'foundry-gas-calibration': ['static-gas-report'],
+    'foundry': ['verity-compiler-binaries'],
     'foundry-patched': ['lean-workspace-build', 'lean-workspace-compiler-build'],
+    'foundry-multi-seed': ['verity-compiler-binaries'],
 }
 
 SPEC['expected_downloaded_artifact_paths'] = {
@@ -917,7 +927,9 @@ SPEC['expected_downloaded_artifact_paths'] = {
     'compiler-audits': [None, None, 'compiler/yul', 'compiler/yul-patched', None, None, 'compiler', 'compiler/bin'],
     'compiler-regressions': [None, None],
     'foundry-gas-calibration': [None],
+    'foundry': ['compiler/bin'],
     'foundry-patched': [None, None],
+    'foundry-multi-seed': ['compiler/bin'],
 }
 
 
