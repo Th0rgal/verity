@@ -1,3 +1,5 @@
 {
-  "ignoreCommand": "bash scripts/vercel-ignore-draft-pr.sh"
+  "git": {
+    "deploymentEnabled": false
+  }
 }
