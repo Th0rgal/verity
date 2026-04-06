@@ -298,7 +298,7 @@ jobs:
           lake build PrintAxioms 2>&1 | tee -a lake-build.log
 
       - name: Package prepared Lean workspace build
-        run: tar -cf lean-workspace-build.tar .lake/build .lake/lakefile.olean .lake/lakefile.olean.trace
+        run: tar -hcf lean-workspace-build.tar .lake/build .lake/lakefile.olean .lake/lakefile.olean.trace
 
       - name: Upload prepared Lean workspace build
         uses: actions/upload-artifact@v7
@@ -367,7 +367,7 @@ jobs:
           exit 1
 
       - name: Package macro-fuzz Lean workspace build
-        run: tar -cf lean-workspace-macro-fuzz-build.tar .lake/build .lake/lakefile.olean .lake/lakefile.olean.trace
+        run: tar -hcf lean-workspace-macro-fuzz-build.tar .lake/build .lake/lakefile.olean .lake/lakefile.olean.trace
 
       - name: Upload macro-fuzz Lean workspace build
         uses: actions/upload-artifact@v7
@@ -698,7 +698,7 @@ jobs:
           cp ./.lake/build/bin/difftest-interpreter compiler/bin/
 
       - name: Package compiler workspace build
-        run: tar -cf lean-workspace-compiler-build.tar .lake/build
+        run: tar -hcf lean-workspace-compiler-build.tar .lake/build
 
       - name: Upload difftest interpreter
         uses: actions/upload-artifact@v7
