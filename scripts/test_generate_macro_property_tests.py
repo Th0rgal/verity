@@ -504,6 +504,73 @@ class RenderTests(unittest.TestCase):
         self.assertIn("string actual = abi.decode(ret, (string));", rendered)
         self.assertIn('assertEq(actual, "verity", "echoString should preserve the expected value");', rendered)
 
+    def test_render_return_storage_words_bytes32_param_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="StorageWordsSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "extSloadsLike",
+                    (gen.ParamDecl("slots", "Array Bytes32"),),
+                    "Array Uint256",
+                    body=("returnStorageWords slots",),
+                ),
+            ),
+            storage_slots={},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_ExtSloadsLike_ReturnsCanonicalStorageWords()", rendered)
+        self.assertIn("uint256[] memory actual = abi.decode(ret, (uint256[]));", rendered)
+        self.assertIn(
+            'assertEq(actual[0], uint256(bytes32(uint256(0xBEEF))), "extSloadsLike should return the canonical word for the configured input");',
+            rendered,
+        )
+
+    def test_render_return_storage_words_address_param_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="StorageWordsAddressSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "extSloadsLike",
+                    (gen.ParamDecl("slots", "Array Address"),),
+                    "Array Uint256",
+                    body=("returnStorageWords slots",),
+                ),
+            ),
+            storage_slots={},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_ExtSloadsLike_ReturnsCanonicalStorageWords()", rendered)
+        self.assertIn(
+            'assertEq(actual[0], uint256(uint160(alice)), "extSloadsLike should return the canonical word for the configured input");',
+            rendered,
+        )
+
+    def test_render_return_storage_words_bool_param_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="StorageWordsBoolSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "extSloadsLike",
+                    (gen.ParamDecl("slots", "Array Bool"),),
+                    "Array Uint256",
+                    body=("returnStorageWords slots",),
+                ),
+            ),
+            storage_slots={},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_ExtSloadsLike_ReturnsCanonicalStorageWords()", rendered)
+        self.assertIn(
+            'assertEq(actual[0], (true ? 1 : 0), "extSloadsLike should return the canonical word for the configured input");',
+            rendered,
+        )
+
     def test_render_msg_sender_return_infers_assertion(self) -> None:
         contract = gen.ContractDecl(
             name="StatelessSmoke",

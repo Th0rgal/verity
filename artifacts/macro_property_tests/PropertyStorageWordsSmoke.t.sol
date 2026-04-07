@@ -17,14 +17,15 @@ contract PropertyStorageWordsSmokeTest is YulTestBase {
         require(target != address(0), "Deploy failed");
     }
 
-    // Property 1: TODO decode and assert `extSloadsLike` result
-    function testTODO_ExtSloadsLike_DecodeAndAssert() public {
+    // Property 1: extSloadsLike returns the canonical storage words for the configured input slots
+    function testAuto_ExtSloadsLike_ReturnsCanonicalStorageWords() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("extSloadsLike(bytes32[])", _singletonBytes32Array(bytes32(uint256(0xBEEF)))));
         require(ok, "extSloadsLike reverted unexpectedly");
         require(ret.length >= 64, "extSloadsLike ABI dynamic return payload unexpectedly short");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        uint256[] memory actual = abi.decode(ret, (uint256[]));
+        assertEq(actual.length, 1, "extSloadsLike should return one word for the configured singleton input");
+        assertEq(actual[0], uint256(bytes32(uint256(0xBEEF))), "extSloadsLike should return the canonical word for the configured input");
     }
 
     function _singletonBytes32Array(bytes32 x) internal pure returns (bytes32[] memory arr) {
