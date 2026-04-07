@@ -54,6 +54,10 @@ MAPPING_WORD_READ_RE = re.compile(
     r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*getMappingWord\s+"
     r"([A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s+([0-9]+)$"
 )
+MAPPING_N_READ_RE = re.compile(
+    r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*getMappingN\s+"
+    r"([A-Za-z_][A-Za-z0-9_]*)\s+\[(.+)\]$"
+)
 NON_ZERO_REQUIRE_RE = re.compile(
     r'require\s+\(([A-Za-z_][A-Za-z0-9_]*)\s*!=\s*0\)\s+"[^"]+"$'
 )
@@ -801,6 +805,18 @@ def _parse_read_accessor(line: str) -> ReadAccessor | None:
             word_offset=int(mapping_word_match.group(4)),
         )
 
+    mapping_n_match = MAPPING_N_READ_RE.fullmatch(line)
+    if mapping_n_match:
+        keys = tuple(_split_top_level_csv(mapping_n_match.group(3)))
+        if not keys:
+            return None
+        return ReadAccessor(
+            var_name=mapping_n_match.group(1),
+            accessor="getMappingN",
+            storage_name=mapping_n_match.group(2),
+            key_names=keys,
+        )
+
     return None
 
 
@@ -813,6 +829,36 @@ def _mapping_key_expr(param: ParamDecl, value_expr: str) -> str:
     raise ValueError(f"unsupported Lean key type for generated mapping setup: {ty!r}")
 
 
+def _mapping_n_key_expr(
+    key_src: str,
+    fn: FunctionDecl,
+    param_examples: dict[str, str],
+) -> str:
+    params = {param.name: param for param in fn.params}
+    if key_src in params:
+        value_expr = param_examples.get(key_src)
+        if value_expr is None:
+            raise ValueError(f"missing example value for parameter '{key_src}' in function '{fn.name}'")
+        return _mapping_key_expr(params[key_src], value_expr)
+
+    address_word_match = re.fullmatch(r"addressToWord\s+([A-Za-z_][A-Za-z0-9_]*)", key_src)
+    if address_word_match:
+        inner_name = address_word_match.group(1)
+        param = params.get(inner_name)
+        value_expr = param_examples.get(inner_name)
+        if param is None or value_expr is None:
+            raise ValueError(
+                f"unsupported getMappingN key expression '{key_src}' in function '{fn.name}'"
+            )
+        if _normalize_type(param.lean_type) != "Address":
+            raise ValueError(
+                f"addressToWord key expression must reference an Address parameter, got {param.lean_type!r}"
+            )
+        return f"bytes32(uint256(uint160({value_expr})))"
+
+    raise ValueError(f"unsupported getMappingN key expression '{key_src}' in function '{fn.name}'")
+
+
 def _mapping_slot_expr(
     contract: ContractDecl,
     fn: FunctionDecl,
@@ -823,9 +869,12 @@ def _mapping_slot_expr(
     if slot is None:
         raise ValueError(f"unknown storage slot '{read.storage_name}' on contract '{contract.name}'")
 
-    params = {param.name: param for param in fn.params}
     key_exprs = []
     for key_name in read.key_names:
+        if read.accessor == "getMappingN":
+            key_exprs.append(_mapping_n_key_expr(key_name, fn, param_examples))
+            continue
+        params = {param.name: param for param in fn.params}
         param = params.get(key_name)
         if param is None:
             raise ValueError(f"unknown parameter '{key_name}' in function '{fn.name}'")
@@ -838,6 +887,11 @@ def _mapping_slot_expr(
         return f"_nestedMappingSlot({key_exprs[0]}, {key_exprs[1]}, {slot})"
     if read.accessor == "getMappingWord":
         return f"_mappingWordSlot({key_exprs[0]}, {slot}, {read.word_offset})"
+    if read.accessor == "getMappingN":
+        current = f"_mappingSlot({key_exprs[0]}, {slot})"
+        for key_expr in key_exprs[1:]:
+            current = f"keccak256(abi.encode({key_expr}, {current}))"
+        return current
     if read.accessor in {"getMapping", "getMappingUint", "getMappingAddr", "getMappingUintAddr"}:
         return f"_mappingSlot({key_exprs[0]}, {slot})"
     raise ValueError(f"unsupported accessor for mapping slot generation: {read.accessor!r}")
@@ -1296,7 +1350,15 @@ def _render_inferred_non_unit_test(contract: ContractDecl, fn: FunctionDecl, idx
                     f"{fn.name} reads the configured storage-array element",
                     "ReadsConfiguredStorageArrayElement",
                 )
-            if read.accessor in {"getMapping", "getMappingUint", "getMappingAddr", "getMappingUintAddr", "getMapping2", "getMappingWord"}:
+            if read.accessor in {
+                "getMapping",
+                "getMappingUint",
+                "getMappingAddr",
+                "getMappingUintAddr",
+                "getMapping2",
+                "getMappingWord",
+                "getMappingN",
+            }:
                 slot_expr = _mapping_slot_expr(contract, fn, read, param_examples)
                 return _render_decoded_assertion(
                     fn,
