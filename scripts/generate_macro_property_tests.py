@@ -528,7 +528,7 @@ def _split_prefix_expr(expr: str) -> tuple[str, list[str]] | None:
         current.append(ch)
     if current:
         parts.append("".join(current).strip())
-    if len(parts) < 3:
+    if len(parts) < 2:
         return None
     return parts[0], parts[1:]
 
@@ -562,6 +562,23 @@ def _split_top_level_csv(expr: str) -> list[str]:
 
 def _lookup_named_binding(contract: ContractDecl, name: str) -> ValueDecl | None:
     return contract.constants.get(name) or contract.immutables.get(name)
+
+
+def _choose_param_examples(fn: FunctionDecl) -> dict[str, str]:
+    examples = {param.name: _example_value(param.lean_type) for param in fn.params}
+    for line in fn.body:
+        cmp_match = re.search(
+            r"\b([A-Za-z_][A-Za-z0-9_]*)\s*>\s*([A-Za-z_][A-Za-z0-9_]*)\b",
+            line,
+        )
+        if cmp_match is None:
+            continue
+        lhs_name, rhs_name = cmp_match.groups()
+        params = {param.name: _normalize_type(param.lean_type) for param in fn.params}
+        if params.get(lhs_name) == "Uint256" and params.get(rhs_name) == "Uint256":
+            examples[lhs_name] = "uint256(2)"
+            examples[rhs_name] = "uint256(1)"
+    return examples
 
 
 def _resolve_named_value_expr(
@@ -635,17 +652,128 @@ def _resolve_value_expr(
             if inner is not None:
                 return f"address(uint160({inner}))"
 
+    if lean_type == "Bool":
+        infix_ops = {
+            "<": "<",
+            ">": ">",
+            "<=": "<=",
+            ">=": ">=",
+            "==": "==",
+            "!=": "!=",
+        }
+        for lean_op, sol_op in infix_ops.items():
+            cmp_match = re.fullmatch(rf"(.+)\s*{re.escape(lean_op)}\s*(.+)", expr)
+            if cmp_match is None:
+                continue
+            lhs_src, rhs_src = cmp_match.groups()
+            for operand_ty in ("Uint256", "Int256", "Address", "Bool"):
+                lhs = _resolve_value_expr(
+                    contract,
+                    lhs_src,
+                    operand_ty,
+                    constructor_examples,
+                    seen,
+                    local_values,
+                )
+                rhs = _resolve_value_expr(
+                    contract,
+                    rhs_src,
+                    operand_ty,
+                    constructor_examples,
+                    seen,
+                    local_values,
+                )
+                if lhs is not None and rhs is not None:
+                    return f"({lhs} {sol_op} {rhs})"
+
     op_parts = _split_prefix_expr(expr)
     if op_parts is not None:
         op, args = op_parts
-        op_map = {"add": "+", "sub": "-", "mul": "*", "div": "/"}
+        op_map = {
+            "add": "+",
+            "sub": "-",
+            "mul": "*",
+            "div": "/",
+            "mod": "%",
+            "bitAnd": "&",
+            "bitOr": "|",
+            "bitXor": "^",
+            "shl": "<<",
+            "shr": ">>",
+        }
         if op in op_map and len(args) == 2 and lean_type in {"Uint256", "Int256", "Uint8"}:
             lhs = _resolve_value_expr(
                 contract, args[0], lean_type, constructor_examples, seen, local_values
             )
             rhs = _resolve_value_expr(contract, args[1], lean_type, constructor_examples, seen, local_values)
             if lhs is not None and rhs is not None:
+                if op in {"shl", "shr"}:
+                    return f"({rhs} {op_map[op]} {lhs})"
                 return f"({lhs} {op_map[op]} {rhs})"
+        if op in {"min", "max"} and len(args) == 2 and lean_type in {"Uint256", "Int256", "Uint8"}:
+            lhs = _resolve_value_expr(
+                contract, args[0], lean_type, constructor_examples, seen, local_values
+            )
+            rhs = _resolve_value_expr(
+                contract, args[1], lean_type, constructor_examples, seen, local_values
+            )
+            if lhs is not None and rhs is not None:
+                cmp = "<" if op == "min" else ">"
+                return f"(({lhs} {cmp} {rhs}) ? {lhs} : {rhs})"
+        if op == "ite" and len(args) == 3:
+            cond = _resolve_value_expr(
+                contract, args[0], "Bool", constructor_examples, seen, local_values
+            )
+            then_expr = _resolve_value_expr(
+                contract, args[1], lean_type, constructor_examples, seen, local_values
+            )
+            else_expr = _resolve_value_expr(
+                contract, args[2], lean_type, constructor_examples, seen, local_values
+            )
+            if cond is not None and then_expr is not None and else_expr is not None:
+                return f"({cond} ? {then_expr} : {else_expr})"
+        if op == "mulDivDown" and len(args) == 3 and lean_type == "Uint256":
+            lhs = _resolve_value_expr(
+                contract, args[0], lean_type, constructor_examples, seen, local_values
+            )
+            mid = _resolve_value_expr(
+                contract, args[1], lean_type, constructor_examples, seen, local_values
+            )
+            rhs = _resolve_value_expr(
+                contract, args[2], lean_type, constructor_examples, seen, local_values
+            )
+            if lhs is not None and mid is not None and rhs is not None:
+                return f"(({lhs} * {mid}) / {rhs})"
+        if op == "mulDivUp" and len(args) == 3 and lean_type == "Uint256":
+            lhs = _resolve_value_expr(
+                contract, args[0], lean_type, constructor_examples, seen, local_values
+            )
+            mid = _resolve_value_expr(
+                contract, args[1], lean_type, constructor_examples, seen, local_values
+            )
+            rhs = _resolve_value_expr(
+                contract, args[2], lean_type, constructor_examples, seen, local_values
+            )
+            if lhs is not None and mid is not None and rhs is not None:
+                return f"((({lhs} * {mid}) + ({rhs} - 1)) / {rhs})"
+        if op == "wMulDown" and len(args) == 2 and lean_type == "Uint256":
+            lhs = _resolve_value_expr(
+                contract, args[0], lean_type, constructor_examples, seen, local_values
+            )
+            rhs = _resolve_value_expr(
+                contract, args[1], lean_type, constructor_examples, seen, local_values
+            )
+            if lhs is not None and rhs is not None:
+                return f"(({lhs} * {rhs}) / 1000000000000000000)"
+        if op == "wDivUp" and len(args) == 2 and lean_type == "Uint256":
+            lhs = _resolve_value_expr(
+                contract, args[0], lean_type, constructor_examples, seen, local_values
+            )
+            rhs = _resolve_value_expr(
+                contract, args[1], lean_type, constructor_examples, seen, local_values
+            )
+            if lhs is not None and rhs is not None:
+                return f"((({lhs} * 1000000000000000000) + ({rhs} - 1)) / {rhs})"
 
     return None
 
@@ -1297,7 +1425,7 @@ def _render_inferred_non_unit_test(contract: ContractDecl, fn: FunctionDecl, idx
     fn_camel = _fn_camel(fn.name)
     body = list(fn.body)
     ty = _normalize_type(fn.return_type)
-    param_examples = {param.name: _example_value(param.lean_type) for param in fn.params}
+    param_examples = _choose_param_examples(fn)
     constructor_examples = (
         {param.name: _example_value(param.lean_type) for param in contract.constructor.params}
         if contract.constructor is not None
@@ -1779,7 +1907,8 @@ def render_contract_test(contract: ContractDecl) -> str:
 
     for idx, fn in enumerate(contract.functions, start=1):
         sig = _sol_signature(fn)
-        call_args = [_example_value(p.lean_type) for p in fn.params]
+        call_examples = _choose_param_examples(fn)
+        call_args = [call_examples[p.name] for p in fn.params]
         for p in fn.params:
             p_ty = _normalize_type(p.lean_type)
             if p_ty == "Array Uint256":

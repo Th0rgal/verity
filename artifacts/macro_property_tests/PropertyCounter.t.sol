@@ -51,13 +51,13 @@ contract PropertyCounterTest is YulTestBase {
         uint256 actual = abi.decode(ret, (uint256));
         assertEq(actual, ((expected + uint256(1)) + uint256(1)), "previewAddTwice should preserve the inferred result");
     }
-    // Property 5: TODO decode and assert `previewOps` result
-    function testTODO_PreviewOps_DecodeAndAssert() public {
+    // Property 5: previewOps decodes and matches the inferred straight-line result
+    function testAuto_PreviewOps_ReturnsInferredStraightLineResult() public {
         vm.prank(alice);
-        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("previewOps(uint256,uint256,uint256)", uint256(1), uint256(1), uint256(1)));
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("previewOps(uint256,uint256,uint256)", uint256(2), uint256(1), uint256(1)));
         require(ok, "previewOps reverted unexpectedly");
         assertEq(ret.length, 32, "previewOps ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        uint256 actual = abi.decode(ret, (uint256));
+        assertEq(actual, ((uint256(2) > uint256(1)) ? (((((((((((((uint256(2) * uint256(1)) / uint256(1)) > ((uint256(2) * uint256(1)) % uint256(1))) ? ((uint256(2) * uint256(1)) / uint256(1)) : ((uint256(2) * uint256(1)) % uint256(1))) < (((((uint256(2) * uint256(1)) & 255) | (uint256(2) ^ uint256(1))) << 2) >> 1)) ? ((((uint256(2) * uint256(1)) / uint256(1)) > ((uint256(2) * uint256(1)) % uint256(1))) ? ((uint256(2) * uint256(1)) / uint256(1)) : ((uint256(2) * uint256(1)) % uint256(1))) : (((((uint256(2) * uint256(1)) & 255) | (uint256(2) ^ uint256(1))) << 2) >> 1)) * uint256(2)) / uint256(1)) * (((((((((uint256(2) * uint256(1)) / uint256(1)) > ((uint256(2) * uint256(1)) % uint256(1))) ? ((uint256(2) * uint256(1)) / uint256(1)) : ((uint256(2) * uint256(1)) % uint256(1))) < (((((uint256(2) * uint256(1)) & 255) | (uint256(2) ^ uint256(1))) << 2) >> 1)) ? ((((uint256(2) * uint256(1)) / uint256(1)) > ((uint256(2) * uint256(1)) % uint256(1))) ? ((uint256(2) * uint256(1)) / uint256(1)) : ((uint256(2) * uint256(1)) % uint256(1))) : (((((uint256(2) * uint256(1)) & 255) | (uint256(2) ^ uint256(1))) << 2) >> 1)) * uint256(1)) + (uint256(1) - 1)) / uint256(1))) / 1000000000000000000) * 1000000000000000000) + (uint256(1) - 1)) / uint256(1)) : ((((((((((((((uint256(2) * uint256(1)) / uint256(1)) > ((uint256(2) * uint256(1)) % uint256(1))) ? ((uint256(2) * uint256(1)) / uint256(1)) : ((uint256(2) * uint256(1)) % uint256(1))) < (((((uint256(2) * uint256(1)) & 255) | (uint256(2) ^ uint256(1))) << 2) >> 1)) ? ((((uint256(2) * uint256(1)) / uint256(1)) > ((uint256(2) * uint256(1)) % uint256(1))) ? ((uint256(2) * uint256(1)) / uint256(1)) : ((uint256(2) * uint256(1)) % uint256(1))) : (((((uint256(2) * uint256(1)) & 255) | (uint256(2) ^ uint256(1))) << 2) >> 1)) * uint256(2)) / uint256(1)) * (((((((((uint256(2) * uint256(1)) / uint256(1)) > ((uint256(2) * uint256(1)) % uint256(1))) ? ((uint256(2) * uint256(1)) / uint256(1)) : ((uint256(2) * uint256(1)) % uint256(1))) < (((((uint256(2) * uint256(1)) & 255) | (uint256(2) ^ uint256(1))) << 2) >> 1)) ? ((((uint256(2) * uint256(1)) / uint256(1)) > ((uint256(2) * uint256(1)) % uint256(1))) ? ((uint256(2) * uint256(1)) / uint256(1)) : ((uint256(2) * uint256(1)) % uint256(1))) : (((((uint256(2) * uint256(1)) & 255) | (uint256(2) ^ uint256(1))) << 2) >> 1)) * uint256(1)) + (uint256(1) - 1)) / uint256(1))) / 1000000000000000000) * 1000000000000000000) + (uint256(1) - 1)) / uint256(1)) - 1)), "previewOps should preserve the inferred result");
     }
 }

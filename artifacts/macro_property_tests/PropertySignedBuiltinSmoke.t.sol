@@ -134,22 +134,22 @@ contract PropertySignedBuiltinSmokeTest is YulTestBase {
         // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
         ret;
     }
-    // Property 14: TODO decode and assert `bitAndSignBit` result
-    function testTODO_BitAndSignBit_DecodeAndAssert() public {
+    // Property 14: bitAndSignBit decodes and matches the inferred straight-line result
+    function testAuto_BitAndSignBit_ReturnsInferredStraightLineResult() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("bitAndSignBit(int256,int256)", int256(1), int256(1)));
         require(ok, "bitAndSignBit reverted unexpectedly");
         assertEq(ret.length, 32, "bitAndSignBit ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        bool actual = abi.decode(ret, (bool));
+        assertEq(actual, ((int256(1) & int256(1)) < 0), "bitAndSignBit should preserve the inferred result");
     }
-    // Property 15: TODO decode and assert `minSignBit` result
-    function testTODO_MinSignBit_DecodeAndAssert() public {
+    // Property 15: minSignBit decodes and matches the inferred straight-line result
+    function testAuto_MinSignBit_ReturnsInferredStraightLineResult() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("minSignBit(int256)", int256(1)));
         require(ok, "minSignBit reverted unexpectedly");
         assertEq(ret.length, 32, "minSignBit ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        bool actual = abi.decode(ret, (bool));
+        assertEq(actual, (((int256(1) < 0) ? int256(1) : 0) < 0), "minSignBit should preserve the inferred result");
     }
 }
