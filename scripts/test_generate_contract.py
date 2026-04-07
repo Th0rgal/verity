@@ -437,6 +437,17 @@ class GenerateContractCompilerSpecGetterTests(unittest.TestCase):
         rendered = gen_compiler_spec(cfg)
         self.assertIn('Stmt.return (Expr.storage "totalSupply")', rendered)
 
+    def test_owner_predicate_uses_caller_comparison(self) -> None:
+        cfg = ContractConfig(
+            name="AuditDemo",
+            fields=[Field(name="owner", ty="address")],
+            functions=[Function(name="isOwner", params=[])],
+        )
+
+        rendered = gen_compiler_spec(cfg)
+        self.assertIn('Stmt.return (Expr.eq Expr.caller (Expr.storage "owner"))', rendered)
+        self.assertNotIn('Stmt.return (Expr.storage "owner")', rendered)
+
 
 class GenerateContractBasicProofScaffoldTests(unittest.TestCase):
     def test_basic_proof_scaffold_has_no_sorry(self) -> None:
@@ -540,6 +551,15 @@ class GenerateContractCompilerSpecMappingGetterTests(unittest.TestCase):
         )
         out = gen_compiler_spec(cfg)
         self.assertIn('Stmt.return (Expr.mapping "data" (Expr.param "id"))', out)
+
+    def test_unsupported_bool_mapping_predicate_fails_closed(self) -> None:
+        cfg = ContractConfig(
+            name="Demo",
+            fields=[Field(name="balances", ty="mapping")],
+            functions=[Function(name="hasBalance", params=[Param(name="account", ty="address")])],
+        )
+        err = self._assert_compiler_spec_error(cfg)
+        self.assertIn("Cannot infer legacy compiler body for predicate getter 'hasBalance'", err)
 
 
 if __name__ == "__main__":

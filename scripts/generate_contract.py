@@ -517,6 +517,20 @@ def _sender_address_predicate_target(fn: Function, fields: List[Field]) -> Field
     return target
 
 
+def _require_compiler_predicate_body_expr(fn: Function, fields: List[Field]) -> str:
+    """Resolve the legacy compiler-model body for supported inferred predicates."""
+    sender_target = _sender_address_predicate_target(fn, fields)
+    if sender_target is not None:
+        return f'Expr.eq Expr.caller (Expr.storage "{sender_target.name}")'
+    print(
+        f"Error: Cannot infer legacy compiler body for predicate getter '{fn.name}'. "
+        "Only zero-argument `is<Field>` sender predicates over address fields are "
+        "auto-lowered in compiler specs; implement this body manually if needed.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+
 def _needs_uint256_import(cfg: ContractConfig) -> bool:
     """Whether a module needs ``import Verity.EVM.Uint256``."""
     return (
@@ -1159,13 +1173,16 @@ def gen_compiler_spec(cfg: ContractConfig) -> str:
                 compiler_ret = "FieldType.address"
             else:
                 compiler_ret = "FieldType.uint256"  # Bool maps to uint256 at EVM level
-            target = _require_getter_target_field(fn, cfg.fields)
-            if target and target.is_mapping:
-                # Mapping getter: Expr.mapping with key param (see balanceOf in SimpleToken)
-                key_param = _require_mapping_getter_key_param(fn, target).name
-                body_expr = f'Expr.mapping "{target.name}" (Expr.param "{key_param}")'
+            if ret_type == "Bool":
+                body_expr = _require_compiler_predicate_body_expr(fn, cfg.fields)
             else:
-                body_expr = f'Expr.storage "{target.name}"'
+                target = _require_getter_target_field(fn, cfg.fields)
+                if target and target.is_mapping:
+                    # Mapping getter: Expr.mapping with key param (see balanceOf in SimpleToken)
+                    key_param = _require_mapping_getter_key_param(fn, target).name
+                    body_expr = f'Expr.mapping "{target.name}" (Expr.param "{key_param}")'
+                else:
+                    body_expr = f'Expr.storage "{target.name}"'
             func_strs.append(f"""    {{ name := "{fn.name}"
       params := {params_str}
       returnType := some {compiler_ret}
