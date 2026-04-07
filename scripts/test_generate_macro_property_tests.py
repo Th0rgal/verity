@@ -830,6 +830,51 @@ class RenderTests(unittest.TestCase):
             rendered,
         )
 
+    def test_render_preview_ops_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="Counter",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Counter/Counter.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "previewOps",
+                    (
+                        gen.ParamDecl("x", "Uint256"),
+                        gen.ParamDecl("y", "Uint256"),
+                        gen.ParamDecl("z", "Uint256"),
+                    ),
+                    "Uint256",
+                    body=(
+                        "let product := mul x y",
+                        "let quotient := div product z",
+                        "let remainder := mod product z",
+                        "let lowBits := bitAnd product 255",
+                        "let mixed := bitOr lowBits (bitXor x y)",
+                        "let shifted := shl 2 mixed",
+                        "let unshifted := shr 1 shifted",
+                        "let bounded := min (max quotient remainder) unshifted",
+                        "let scaledDown := mulDivDown bounded x z",
+                        "let scaledUp := mulDivUp bounded y z",
+                        "let wadDown := wMulDown scaledDown scaledUp",
+                        "let wadUp := wDivUp wadDown z",
+                        "let chosen := ite (x > y) wadUp (sub wadUp 1)",
+                        "return chosen",
+                    ),
+                ),
+            ),
+            storage_slots={},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_PreviewOps_ReturnsInferredStraightLineResult()", rendered)
+        self.assertIn(
+            'abi.encodeWithSignature("previewOps(uint256,uint256,uint256)", uint256(2), uint256(1), uint256(1))',
+            rendered,
+        )
+        self.assertNotIn("testTODO_PreviewOps_DecodeAndAssert", rendered)
+        self.assertIn("<< 2", rendered)
+        self.assertIn(">> 1", rendered)
+        self.assertIn("? ", rendered)
+
     def test_render_string_eq_predicate_infers_assertion(self) -> None:
         contract = gen.ContractDecl(
             name="StringEqSmoke",
