@@ -2122,15 +2122,26 @@ private def storageArrayUint256SmokeSpec : CompilationModel := {
   ]
 }
 
-private def storageArrayBoolRejectSpec : CompilationModel := {
-  name := "StorageArrayBoolReject"
+private def storageArrayBoolSmokeSpec : CompilationModel := {
+  name := "StorageArrayBoolSmoke"
   fields := [{ name := "flags", ty := FieldType.dynamicArray .bool, «slot» := some 9 }]
   «constructor» := none
   functions := [
+    { name := "firstFlag"
+      params := []
+      returnType := none
+      returns := [ParamType.bool]
+      body := [Stmt.return (Expr.storageArrayElement "flags" (Expr.literal 0))]
+    },
     { name := "pushFlag"
       params := [{ name := "flag", ty := ParamType.bool }]
       returnType := none
       body := [Stmt.storageArrayPush "flags" (Expr.param "flag"), Stmt.stop]
+    },
+    { name := "setFirstFlag"
+      params := [{ name := "flag", ty := ParamType.bool }]
+      returnType := none
+      body := [Stmt.setStorageArrayElement "flags" (Expr.literal 0) (Expr.param "flag"), Stmt.stop]
     }
   ]
 }
@@ -2780,10 +2791,14 @@ set_option maxRecDepth 4096 in
   expectTrue "setStorageArrayElement is tracked as reading state"
     (Compiler.CompilationModel.stmtReadsStateOrEnv
       (Stmt.setStorageArrayElement "queue" (Expr.literal 0) (Expr.literal 1)))
-  expectCompileErrorContains
-    "storage bool[] rejects packed element layouts until slot packing lands"
-    storageArrayBoolRejectSpec
-    "only one-storage-word elements (uint256, address, bytes32)"
+  let storageArrayBoolYul ← expectCompileToYul "storage bool[] smoke spec" storageArrayBoolSmokeSpec
+  expectTrue "storage bool[] reads reuse the checked storage helper"
+    (contains storageArrayBoolYul "function __verity_storage_array_element_checked(slot, index)")
+  expectTrue "storage bool[] push stores the incoming word and bumps length"
+    ((contains storageArrayBoolYul "mstore(0, 9)") &&
+      (contains storageArrayBoolYul "sstore(9, add(__array_len, 1))"))
+  expectTrue "storage bool[] indexed writes still guard bounds"
+    (contains storageArrayBoolYul "lt(__array_index, __array_len)")
   let envYul ← expectCompileToYul "env runtime smoke spec" envRuntimeSmokeSpec
   expectTrue "address(this) lowers to the Yul address builtin"
     (contains envYul "address()")

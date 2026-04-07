@@ -33,6 +33,9 @@ abbrev Uint256 := Verity.Core.Uint256
 @[simp] def wordToAddress (w : Uint256) : Address :=
   Verity.Core.Address.ofNat (w : Nat)
 
+@[simp] def boolToWord (b : Bool) : Uint256 :=
+  if b then 1 else 0
+
 @[simp] def isZeroAddress (a : Address) : Bool :=
   a == zeroAddress
 
@@ -395,6 +398,10 @@ instance : StorageArrayElem Uint256 where
 instance : StorageArrayElem Address where
   toWord value := addressToWord value
   fromWord value := wordToAddress value
+
+instance : StorageArrayElem Bool where
+  toWord value := boolToWord value
+  fromWord value := value != 0
 
 -- Storage dynamic-array operations (#1571)
 def getStorageArrayLength {α : Type} (s : StorageSlot (List α)) : Contract Uint256 :=

@@ -113,6 +113,20 @@ verity_contract StorageBytes32ArraySmoke where
   function pushDigest (digest : Bytes32) : Unit := do
     pushStorageArray digests digest
 
+verity_contract StorageBoolArraySmoke where
+  storage
+    flags : Array Bool := slot 0
+
+  function firstFlag () : Bool := do
+    let flag ← getStorageArrayElement flags 0
+    return flag
+
+  function pushFlag (flag : Bool) : Unit := do
+    pushStorageArray flags flag
+
+  function setFirstFlag (flag : Bool) : Unit := do
+    setStorageArrayElement flags 0 flag
+
 def storageAddressArrayExecutableReadsHead : Bool :=
   let seededState : Verity.ContractState :=
     { Verity.defaultState with
@@ -124,7 +138,7 @@ def storageAddressArrayExecutableReadsHead : Bool :=
         state.storageArray StorageAddressArraySmoke.owners.slot == [11, 17]
   | .revert _ _ => false
 
-example : storageAddressArrayExecutableReadsHead = true := by native_decide
+example : storageAddressArrayExecutableReadsHead = true := by decide
 
 def storageAddressArrayExecutablePushStoresWord : Bool :=
   match StorageAddressArraySmoke.pushOwner (19 : Address) Verity.defaultState with
@@ -132,7 +146,7 @@ def storageAddressArrayExecutablePushStoresWord : Bool :=
       state.storageArray StorageAddressArraySmoke.owners.slot == [19]
   | .revert _ _ => false
 
-example : storageAddressArrayExecutablePushStoresWord = true := by native_decide
+example : storageAddressArrayExecutablePushStoresWord = true := by decide
 
 def storageAddressArrayExecutableSetUpdatesHead : Bool :=
   let seededState : Verity.ContractState :=
@@ -144,7 +158,7 @@ def storageAddressArrayExecutableSetUpdatesHead : Bool :=
       state.storageArray StorageAddressArraySmoke.owners.slot == [29, 17]
   | .revert _ _ => false
 
-example : storageAddressArrayExecutableSetUpdatesHead = true := by native_decide
+example : storageAddressArrayExecutableSetUpdatesHead = true := by decide
 
 def storageBytes32ArrayExecutableReadsHead : Bool :=
   let seededState : Verity.ContractState :=
@@ -157,7 +171,40 @@ def storageBytes32ArrayExecutableReadsHead : Bool :=
         state.storageArray StorageBytes32ArraySmoke.digests.slot == [41, 43]
   | .revert _ _ => false
 
-example : storageBytes32ArrayExecutableReadsHead = true := by native_decide
+example : storageBytes32ArrayExecutableReadsHead = true := by decide
+
+def storageBoolArrayExecutableReadsHead : Bool :=
+  let seededState : Verity.ContractState :=
+    { Verity.defaultState with
+      storageArray := fun idx =>
+        if idx == StorageBoolArraySmoke.flags.slot then [0, 1] else [] }
+  match StorageBoolArraySmoke.firstFlag seededState with
+  | .success flag state =>
+      flag = false &&
+        state.storageArray StorageBoolArraySmoke.flags.slot == [0, 1]
+  | .revert _ _ => false
+
+example : storageBoolArrayExecutableReadsHead = true := by decide
+
+def storageBoolArrayExecutablePushStoresCanonicalWord : Bool :=
+  match StorageBoolArraySmoke.pushFlag true Verity.defaultState with
+  | .success () state =>
+      state.storageArray StorageBoolArraySmoke.flags.slot == [1]
+  | .revert _ _ => false
+
+example : storageBoolArrayExecutablePushStoresCanonicalWord = true := by decide
+
+def storageBoolArrayExecutableSetUpdatesHead : Bool :=
+  let seededState : Verity.ContractState :=
+    { Verity.defaultState with
+      storageArray := fun idx =>
+        if idx == StorageBoolArraySmoke.flags.slot then [0, 1] else [] }
+  match StorageBoolArraySmoke.setFirstFlag true seededState with
+  | .success () state =>
+      state.storageArray StorageBoolArraySmoke.flags.slot == [1, 1]
+  | .revert _ _ => false
+
+example : storageBoolArrayExecutableSetUpdatesHead = true := by decide
 
 /--
 error: field 'queue' is a storage dynamic array; use pushStorageArray/popStorageArray/setStorageArrayElement
@@ -1197,6 +1244,7 @@ end SpecGenSmoke
 #check_contract UintMapSmoke
 #check_contract Bytes32Smoke
 #check_contract StorageAddressArraySmoke
+#check_contract StorageBoolArraySmoke
 #check_contract StorageBytes32ArraySmoke
 #check_contract MappingWordSmoke
 #check_contract StorageWordsSmoke
