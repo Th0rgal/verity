@@ -226,7 +226,15 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                   'BUILD_CHANGED': '${{ steps.filter.outputs.build }}',
                                                   'COMPILER_CHANGED': '${{ steps.filter.outputs.compiler }}',
                                                   'MACRO_FUZZ_CHANGED': '${{ steps.filter.outputs.macro_fuzz }}'}}],
-                             'checks': [{'uses': 'actions/checkout@v6'},
+                             'checks': [{'name': 'Clear sticky remote refs before PR checkout',
+                                         'if': "github.event_name == 'pull_request'",
+                                         'run': 'if [ -d .git ]; then\n'
+                                                "  git for-each-ref --format='delete "
+                                                "%(refname)' refs/remotes/origin | git "
+                                                'update-ref --stdin || true\n'
+                                                '  rm -rf .git/refs/remotes/origin\n'
+                                                'fi'},
+                                        {'uses': 'actions/checkout@v6'},
                                         {'name': 'Run all checks', 'run': 'make check'}],
                              'timeout-watchdog': [{'name': 'Warn on timeout-risk trend',
                                                    'env': {'GH_TOKEN': '${{ github.token }}'},
