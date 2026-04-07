@@ -165,6 +165,7 @@ ALLOWLIST: set[str] = {
     "legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface_exceptMappingWrites",
     "legacyCompatibleExternalStmtList_of_compileSetStructMember2_ok",
     "interpretContract_correct_of_compiled_functions",
+    "interpretContract_correct_of_compiled_functions_except_mapping_writes_and_helper_ir_closed",
     "compile_preserves_semantics",
     "compile_preserves_semantics_except_mapping_writes",
     "compile_preserves_semantics_except_mapping_writes_stmtSafety",
@@ -217,6 +218,8 @@ ALLOWLIST: set[str] = {
     "compiledStmtStepWithHelpersAndHelperIR_internalCall",
     "evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed",
     "execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux",
+    # --- Contract feature fixtures ---
+    "literalMappingWrite_calldataFits",
     # --- Yul generation / Layer 3 proofs ---
     "yulCodegen_preserves_semantics",
     "stmt_and_stmts_equiv",

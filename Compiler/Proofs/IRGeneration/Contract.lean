@@ -719,6 +719,49 @@ theorem compile_ok_yields_internalFunctions_nil
       (ir := ir)
       (hcore := hcompile)
 
+theorem compile_ok_yields_internalFunctions_nil_except_mapping_writes
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpecExceptMappingWrites model selectors)
+    (ir : IRContract)
+    (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
+    ir.internalFunctions = [] := by
+  have hfallback :
+      pickUniqueFunctionByName "fallback" model.functions = Except.ok none :=
+    pickUniqueFunctionByName_eq_ok_none_of_absent
+      "fallback" model.functions hSupported.noFallback
+  have hreceive :
+      pickUniqueFunctionByName "receive" model.functions = Except.ok none :=
+    pickUniqueFunctionByName_eq_ok_none_of_absent
+      "receive" model.functions hSupported.noReceive
+  have hnoInternalFns :
+      model.functions.filter (·.isInternal) = [] :=
+    filterInternalFunctions_eq_nil_of_supported_except_mapping_writes model selectors hSupported
+  have harray : contractUsesArrayElement model = false :=
+    hSupported.contractUsesArrayElement_eq_false
+  have hstorageArray : contractUsesStorageArrayElement model = false :=
+    hSupported.contractUsesStorageArrayElement_eq_false
+  have hdynamicBytesEq : contractUsesDynamicBytesEq model = false :=
+    hSupported.contractUsesDynamicBytesEq_eq_false
+  unfold CompilationModel.compile at hcompile
+  simp only [bind, Except.bind] at hcompile
+  rcases hvalidate : validateCompileInputs model selectors with _ | validated
+  · simp [hvalidate] at hcompile
+  · simp [hvalidate] at hcompile
+    unfold compileValidatedCore at hcompile
+    rw [hSupported.normalizedFields, hfallback, hreceive, harray, hstorageArray,
+      hdynamicBytesEq, hnoInternalFns, hSupported.noConstructor] at hcompile
+    simp only [bind, Except.bind, pure, Except.pure, List.mapM_nil] at hcompile
+    rcases hmap :
+        ((model.functions.filter
+            (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors).mapM
+          (fun x => compileFunctionSpec model.fields model.events model.errors x.2 x.1) with _ | irFns
+    · simp [hmap] at hcompile
+    · simp [hmap, compileConstructor] at hcompile
+      injection hcompile with hir
+      cases hir
+      rfl
+
 -- NOTE: compileValidatedCore_ok_yields_supportedRuntimeHelperTableInterface and
 -- compile_ok_yields_supportedRuntimeHelperTableInterface are BLOCKED by missing
 -- DirectInternalHelperPerCalleeCompileCatalog infrastructure in GenericInduction.lean.
@@ -752,6 +795,40 @@ theorem compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList
           hbody.core.surfaceClosed
           hbody.state.surfaceClosed
           (SupportedBodyCallInterface.surfaceClosed hbody)
+          hbody.effects.surfaceClosed)
+      (hcompile := by
+        simpa [hSupported.noEvents, hSupported.noErrors] using hbodyCompile)
+  exact legacyCompatibleExternalStmtList_append _ _ hparams hbody
+
+theorem compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList_except_mapping_writes
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpecExceptMappingWrites model selectors)
+    (fn : FunctionSpec)
+    (sel : Nat)
+    (irFn : IRFunction)
+    (hfn : fn ∈ selectorDispatchedFunctions model)
+    (hcompileFn :
+      compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn) :
+    LegacyCompatibleExternalStmtList irFn.body := by
+  rcases Function.compileFunctionSpec_ok_components
+      model.fields model.events model.errors sel fn irFn hcompileFn with
+    ⟨returns, bodyStmts, _hvalidate, _hreturns, hbodyCompile, hirFn⟩
+  subst hirFn
+  have hparams :=
+    legacyCompatibleExternalStmtList_genParamLoads_of_supported
+      fn.params
+      (hSupported.selectorFunctionParamsSupported hfn)
+  have hbody :=
+    legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface_exceptMappingWrites
+      (hnoPacked := hSupported.noPackedFields)
+      (hsurface := by
+        let hbody := (hSupported.supportedFunctionOfSelectorDispatched hfn).body
+        exact stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites_eq_false_of_featureClosed
+          fn.body
+          hbody.core.surfaceClosed
+          hbody.state.surfaceClosed
+          (SupportedBodyCallInterface.surfaceClosed_exceptMappingWrites (hBody := hbody))
           hbody.effects.surfaceClosed)
       (hcompile := by
         simpa [hSupported.noEvents, hSupported.noErrors] using hbodyCompile)
@@ -795,6 +872,44 @@ private theorem compiled_functions_legacyCompatibleExternalBodies
             target
             hmemTail
 
+private theorem compiled_functions_legacyCompatibleExternalBodies_except_mapping_writes
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpecExceptMappingWrites model selectors) :
+    ∀ {entries irFns},
+      List.Forall₂
+        (fun (entry : FunctionSpec × Nat) irFn =>
+          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        entries
+        irFns →
+      (∀ entry ∈ entries, entry.1 ∈ selectorDispatchedFunctions model) →
+      ∀ irFn ∈ irFns, LegacyCompatibleExternalStmtList irFn.body
+  | [], [], .nil, _ => by
+      intro irFn hmem
+      cases hmem
+  | entry :: entries, irFn :: irFns, .cons hhead htail, hentries => by
+      intro target hmem
+      cases hmem with
+      | head =>
+          exact compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList_except_mapping_writes
+            (model := model)
+            (selectors := selectors)
+            (hSupported := hSupported)
+            (fn := entry.1)
+            (sel := entry.2)
+            (irFn := irFn)
+            (hfn := hentries entry (by simp))
+            (hcompileFn := hhead)
+      | tail _ hmemTail =>
+          exact compiled_functions_legacyCompatibleExternalBodies_except_mapping_writes
+            (model := model)
+            (selectors := selectors)
+            (hSupported := hSupported)
+            htail
+            (fun other hmemEntry => hentries other (by simp [hmemEntry]))
+            target
+            hmemTail
+
 theorem compile_ok_yields_legacyCompatibleExternalBodies
     (model : CompilationModel)
     (selectors : List Nat)
@@ -827,6 +942,38 @@ theorem compile_ok_yields_legacyCompatibleExternalBodies
     irFn
     hmem
 
+theorem compile_ok_yields_legacyCompatibleExternalBodies_except_mapping_writes
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpecExceptMappingWrites model selectors)
+    (ir : IRContract)
+    (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
+    LegacyCompatibleExternalBodies ir := by
+  have hcompiled :
+      List.Forall₂
+        (fun entry irFn =>
+          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        (SourceSemantics.selectorFunctionPairs model selectors)
+        ir.functions :=
+    compile_ok_yields_compiled_functions_except_mapping_writes
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (ir := ir)
+      (hcompile := hcompile)
+  intro irFn hmem
+  exact compiled_functions_legacyCompatibleExternalBodies_except_mapping_writes
+    (model := model)
+    (selectors := selectors)
+    (hSupported := hSupported)
+    hcompiled
+    (by
+      intro (entry : FunctionSpec × Nat) hentry
+      simpa [SourceSemantics.selectorFunctionPairs] using
+        (List.of_mem_zip hentry).1)
+    irFn
+    hmem
+
 theorem compile_ok_yields_legacyCompatibleRuntimeContract
     (model : CompilationModel)
     (selectors : List Nat)
@@ -842,6 +989,28 @@ theorem compile_ok_yields_legacyCompatibleRuntimeContract
       (ir := ir)
       (hcompile := hcompile),
     compile_ok_yields_legacyCompatibleExternalBodies
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (ir := ir)
+      (hcompile := hcompile)
+  ⟩
+
+theorem compile_ok_yields_legacyCompatibleRuntimeContract_except_mapping_writes
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpecExceptMappingWrites model selectors)
+    (ir : IRContract)
+    (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
+    LegacyCompatibleRuntimeContract ir := by
+  exact ⟨
+    compile_ok_yields_internalFunctions_nil_except_mapping_writes
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (ir := ir)
+      (hcompile := hcompile),
+    compile_ok_yields_legacyCompatibleExternalBodies_except_mapping_writes
       (model := model)
       (selectors := selectors)
       (hSupported := hSupported)
@@ -1377,6 +1546,94 @@ theorem compile_preserves_semantics_except_mapping_writes_stmtSafety
     (hcompiled := hcompiled)
     (hparamsSupported := hparamsSupported)
     (hfunction := hfunction)
+
+/-- Helper-aware compiled-side wrapper for the alternate singleton
+mapping-write whole-contract theorem. This keeps the widened Tier 2 theorem
+available on `interpretIRWithInternals` while the compiled-side retarget is
+factored behind a conservative-extension equality. -/
+theorem compile_preserves_semantics_except_mapping_writes_and_helper_ir
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpecExceptMappingWrites model selectors)
+    (ir : IRContract)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (hnoConflict : firstFieldWriteSlotConflict model.fields = none)
+    (hsafety :
+      ∀ fn ∈ selectorDispatchedFunctions model,
+        ∀ stmt ∈ fn.body, StmtMappingWriteSlotSafe model.fields stmt)
+    (htxNormalized : Function.TxContextNormalized tx)
+    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+    (hcompile : CompilationModel.compile model selectors = Except.ok ir)
+    (hhelperIR :
+      interpretIRWithInternals ir 0 tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld) =
+      interpretIR ir tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) :
+    FunctionBody.sourceResultMatchesIRResult
+      (supportedSourceContractSemanticsExceptMappingWrites model selectors hSupported tx initialWorld)
+      (interpretIRWithInternals ir 0 tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  have hlegacy :=
+    compile_preserves_semantics_except_mapping_writes_stmtSafety
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (ir := ir)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (hnoConflict := hnoConflict)
+      (hsafety := hsafety)
+      (htxNormalized := htxNormalized)
+      (hcalldataSizeFits := hcalldataSizeFits)
+      (hcompile := hcompile)
+  simpa [hhelperIR] using hlegacy
+
+/-- Closed helper-aware whole-contract theorem for the alternate singleton
+mapping-write surface. Successful compilation plus body-local slot safety now
+derives the runtime-compatibility witness needed to close the compiled-side
+retarget automatically. -/
+theorem compile_preserves_semantics_except_mapping_writes_and_helper_ir_supported
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpecExceptMappingWrites model selectors)
+    (ir : IRContract)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (hnoConflict : firstFieldWriteSlotConflict model.fields = none)
+    (hsafety :
+      ∀ fn ∈ selectorDispatchedFunctions model,
+        ∀ stmt ∈ fn.body, StmtMappingWriteSlotSafe model.fields stmt)
+    (htxNormalized : Function.TxContextNormalized tx)
+    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+    (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
+    FunctionBody.sourceResultMatchesIRResult
+      (supportedSourceContractSemanticsExceptMappingWrites model selectors hSupported tx initialWorld)
+      (interpretIRWithInternals ir 0 tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  exact compile_preserves_semantics_except_mapping_writes_and_helper_ir
+    (model := model)
+    (selectors := selectors)
+    (hSupported := hSupported)
+    (ir := ir)
+    (tx := tx)
+    (initialWorld := initialWorld)
+    (hnoConflict := hnoConflict)
+    (hsafety := hsafety)
+    (htxNormalized := htxNormalized)
+    (hcalldataSizeFits := hcalldataSizeFits)
+    (hcompile := hcompile)
+    (hhelperIR :=
+      interpretIRWithInternalsZeroConservativeExtensionGoal_closed
+        ir
+        (compile_ok_yields_legacyCompatibleRuntimeContract_except_mapping_writes
+          (model := model)
+          (selectors := selectors)
+          (hSupported := hSupported)
+          (ir := ir)
+          (hcompile := hcompile))
+        tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld))
 
 /-- Helper-proof-carrying whole-contract Layer 2 theorem.
 This theorem family is the intended stable public interface for the helper

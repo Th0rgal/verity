@@ -1601,6 +1601,39 @@ theorem stmtListCompiledLegacyCompatible_of_supportedContractSurface_exceptMappi
       exact
         legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface_exceptMappingWrites
           hnoPacked hstmtSurface hcompile
+
+/-- List-level legacy-compatibility witness for the alternate singleton
+mapping-write surface. This is the direct `compileStmtList` analogue of the
+single-statement theorem above. -/
+theorem legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface_exceptMappingWrites
+    {fields : List Field}
+    {inScopeNames : List String}
+    {stmts : List Stmt}
+    {bodyIR : List YulStmt}
+    (hnoPacked : ∀ field ∈ fields, field.packedBits = none)
+    (hsurface : stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites stmts = false)
+    (hcompile :
+      CompilationModel.compileStmtList
+        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR) :
+    LegacyCompatibleExternalStmtList bodyIR := by
+  match stmts with
+  | [] =>
+      simp [CompilationModel.compileStmtList] at hcompile
+      cases hcompile
+      exact .nil
+  | stmt :: rest =>
+      have hsplit := stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites_cons_inv hsurface
+      have hstmtSurface := hsplit.1
+      have hrestSurface := hsplit.2
+      rcases FunctionBody.compileStmtList_cons_ok_inv hcompile with
+        ⟨headIR, tailIR, hhead, htail, rfl⟩
+      exact legacyCompatibleExternalStmtList_append
+        (legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface_exceptMappingWrites
+          hnoPacked hstmtSurface hhead)
+        (legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface_exceptMappingWrites
+          hnoPacked hrestSurface htail)
+termination_by sizeOf stmts
+
 theorem stmtListHelperFreeCompiledLegacyCompatible_of_supportedContractSurface_exceptMappingWrites
     {fields : List Field}
     {scope : List String}
