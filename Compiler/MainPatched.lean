@@ -65,10 +65,7 @@ private def defaultRewriteBundleIdFor (cfg : CLIArgs) : String :=
       match Compiler.findParityPack? packId with
       | some pack => pack.rewriteBundleId
       | none => Compiler.Yul.foundationRewriteBundleId
-  | none =>
-      match cfg.backendProfile with
-      | .solidityParity => Compiler.Yul.foundationRewriteBundleId
-      | _ => Compiler.Yul.foundationRewriteBundleId
+  | none => Compiler.Yul.foundationRewriteBundleId
 
 private def requiredProofRefsFor (cfg : CLIArgs) : List Lean.Name :=
   match cfg.parityPackId with
