@@ -50,6 +50,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.Bytes32Smoke.spec
   , Contracts.Smoke.StorageArraySmoke.spec
   , Contracts.Smoke.StorageAddressArraySmoke.spec
+  , Contracts.Smoke.StorageBoolArraySmoke.spec
   , Contracts.Smoke.StorageBytes32ArraySmoke.spec
   , Contracts.Smoke.MappingWordSmoke.spec
   , Contracts.Smoke.StorageWordsSmoke.spec

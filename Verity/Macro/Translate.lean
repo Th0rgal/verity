@@ -202,10 +202,11 @@ private def storageTypeFromSyntax (ty : Term) : CommandElabM StorageType := do
     match elemTy with
     | .uint256 => pure .uint256
     | .address => pure .address
+    | .bool => pure .bool
     | .bytes32 => pure .bytes32
     | _ =>
         throwErrorAt ty
-          s!"storage dynamic arrays currently support only one-word elements (Uint256, Address, Bytes32) on the macro path, got {reprStr (ValueType.array elemTy)}"
+          s!"storage dynamic arrays currently support only one-word elements (Uint256, Address, Bool, Bytes32) on the macro path, got {reprStr (ValueType.array elemTy)}"
 
   let (arrowArgs, arrowResult) ← collectArrowChainTypes ty
   if !arrowArgs.isEmpty then
@@ -3522,7 +3523,7 @@ private def mkStorageDefCommand (field : StorageFieldDecl) : CommandElabM Cmd :=
     | .scalar .unit => throwError "storage field cannot be Unit"
     | .dynamicArray .uint256 => `(List Uint256)
     | .dynamicArray .address => `(List Address)
-    | .dynamicArray .bool => throwError "storage dynamic arrays currently support only Uint256 elements on the macro path"
+    | .dynamicArray .bool => `(List Bool)
     | .dynamicArray .uint8 => throwError "storage dynamic arrays currently support only Uint256 elements on the macro path"
     | .dynamicArray .bytes32 => `(List Uint256)
     | .mappingAddressToUint256 => `(Address → Uint256)

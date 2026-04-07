@@ -94,8 +94,8 @@ inductive StorageArrayElemType
   deriving Repr, BEq
 
 def storageArrayElemUsesOneStorageWord : StorageArrayElemType → Bool
-  | .uint256 | .address | .bytes32 => true
-  | .bool | .uint8 => false
+  | .uint256 | .address | .bool | .bytes32 => true
+  | .uint8 => false
 
 inductive FieldType
   | uint256

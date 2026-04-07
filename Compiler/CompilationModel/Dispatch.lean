@@ -172,7 +172,7 @@ private def validateCompileInputsBeforeFieldWriteConflict
       pure ()
   match firstUnsupportedStorageArrayElemType spec.fields with
   | some (fieldName, elemType) =>
-      throw s!"Compilation error: field '{fieldName}' uses unsupported storage dynamic array element type {repr elemType} in {spec.name} ({issue1571Ref}). This incremental lowering currently supports only one-storage-word elements (uint256, address, bytes32)."
+      throw s!"Compilation error: field '{fieldName}' uses unsupported storage dynamic array element type {repr elemType} in {spec.name} ({issue1571Ref}). This incremental lowering currently supports only one-storage-word elements (uint256, address, bool, bytes32)."
   | none =>
       pure ()
   firstInvalidStructField spec.fields
