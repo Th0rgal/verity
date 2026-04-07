@@ -2062,6 +2062,48 @@ private def addressArrayReturnSpec : CompilationModel := {
   ]
 }
 
+private def addressStorageWordReturnSpec : CompilationModel := {
+  name := "AddressStorageWordReturn"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "extSloadsLike"
+      params := [{ name := "slots", ty := ParamType.array ParamType.address }]
+      returnType := none
+      returns := [ParamType.array ParamType.uint256]
+      body := [Stmt.returnStorageWords "slots"]
+    }
+  ]
+}
+
+private def boolStorageWordReturnSpec : CompilationModel := {
+  name := "BoolStorageWordReturn"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "extSloadsLike"
+      params := [{ name := "slots", ty := ParamType.array ParamType.bool }]
+      returnType := none
+      returns := [ParamType.array ParamType.uint256]
+      body := [Stmt.returnStorageWords "slots"]
+    }
+  ]
+}
+
+private def bytesStorageWordReturnSpec : CompilationModel := {
+  name := "BytesStorageWordReturn"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "extSloadsLike"
+      params := [{ name := "slots", ty := ParamType.array ParamType.bytes }]
+      returnType := none
+      returns := [ParamType.array ParamType.uint256]
+      body := [Stmt.returnStorageWords "slots"]
+    }
+  ]
+}
+
 private def bytesArrayReturnSpec : CompilationModel := {
   name := "BytesArrayReturn"
   fields := []
@@ -2762,6 +2804,22 @@ set_option maxRecDepth 4096 in
     | .ok _ => true
     | .error _ => false
   expectTrue "address[] params can round-trip through returnArray" addressArrayReturnCompiled
+  let addressStorageWordReturnCompiled :=
+    match Compiler.CompilationModel.compile addressStorageWordReturnSpec
+        (selectorsFor addressStorageWordReturnSpec) with
+    | .ok _ => true
+    | .error _ => false
+  expectTrue "address[] params can drive returnStorageWords" addressStorageWordReturnCompiled
+  let boolStorageWordReturnCompiled :=
+    match Compiler.CompilationModel.compile boolStorageWordReturnSpec
+        (selectorsFor boolStorageWordReturnSpec) with
+    | .ok _ => true
+    | .error _ => false
+  expectTrue "bool[] params can drive returnStorageWords" boolStorageWordReturnCompiled
+  expectCompileErrorContains
+    "returnStorageWords still rejects bytes[] params until dynamic-element lowering lands"
+    bytesStorageWordReturnSpec
+    "requires an array parameter with single-word static elements"
   expectCompileErrorContains
     "returnArray rejects bytes[] params until dynamic-element lowering lands"
     bytesArrayReturnSpec

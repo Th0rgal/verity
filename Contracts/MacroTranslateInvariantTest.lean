@@ -294,6 +294,8 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.StorageBytes32ArraySmoke.spec
   , Contracts.Smoke.MappingWordSmoke.spec
   , Contracts.Smoke.StorageWordsSmoke.spec
+  , Contracts.Smoke.StorageWordsAddressSmoke.spec
+  , Contracts.Smoke.StorageWordsBoolSmoke.spec
   , Contracts.Smoke.CustomErrorSmoke.spec
   , Contracts.Smoke.SignedBuiltinSmoke.spec
   , Contracts.Smoke.StatelessSmoke.spec
@@ -359,6 +361,8 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("StorageBytes32ArraySmoke", ["firstDigest()", "pushDigest(bytes32)"])
   , ("MappingWordSmoke", ["setWord1(uint256,uint256)", "getWord1(uint256)", "isWord1NonZero(uint256)"])
   , ("StorageWordsSmoke", ["extSloadsLike(bytes32[])"])
+  , ("StorageWordsAddressSmoke", ["extSloadsLike(address[])"])
+  , ("StorageWordsBoolSmoke", ["extSloadsLike(bool[])"])
   , ("CustomErrorSmoke", ["echo(uint256)"])
   , ("SignedBuiltinSmoke", ["signedDiv(uint256,uint256)", "signedMod(uint256,uint256)", "signedLt(uint256,uint256)",
       "signedGt(uint256,uint256)", "arithmeticShift(uint256,uint256)", "signExtended()", "shiftedMask()",
@@ -424,6 +428,8 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("StorageBytes32ArraySmoke", ["0x8891c9a2", "0x689eb72c"])
   , ("MappingWordSmoke", ["0x60ab11c4", "0x8f8a322f", "0xea3aded7"])
   , ("StorageWordsSmoke", ["0x764fa434"])
+  , ("StorageWordsAddressSmoke", ["0x28054813"])
+  , ("StorageWordsBoolSmoke", ["0x873bc011"])
   , ("CustomErrorSmoke", ["0x6279e43c"])
   , ("SignedBuiltinSmoke", ["0x5aafa47b", "0x1c781eb5", "0x2ff7ce03", "0x5f28fa76", "0x49795601",
       "0xcc634d7f", "0x7c4ab1e5", "0x44b95b1e", "0x17ea5a3e", "0xf6814165", "0xae1a9a3e", "0x6622d274"])

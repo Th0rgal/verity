@@ -28,9 +28,7 @@ open Compiler
 open Compiler.Yul
 
 def isStorageWordArrayParam : ParamType → Bool
-  | ParamType.array ParamType.bytes32 => true
-  | ParamType.array ParamType.uint256 => true
-  | _ => false
+  | ty => isWordArrayParam ty
 
 mutual
 def validateStmtParamReferences (fnName : String) (params : List Param) :
@@ -57,7 +55,7 @@ def validateStmtParamReferences (fnName : String) (params : List Param) :
           if isStorageWordArrayParam ty then
             pure ()
           else
-            throw s!"Compilation error: function '{fnName}' returnStorageWords '{name}' requires bytes32[] or uint256[] parameter, got {repr ty}"
+            throw s!"Compilation error: function '{fnName}' returnStorageWords '{name}' requires an array parameter with single-word static elements, got {repr ty}"
       | none =>
           throw s!"Compilation error: function '{fnName}' returnStorageWords references unknown parameter '{name}'"
   | Stmt.ite _ thenBranch elseBranch => do

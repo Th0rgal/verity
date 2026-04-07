@@ -201,13 +201,41 @@ class RenderTests(unittest.TestCase):
         rendered = gen.render_contract_test(contract)
         self.assertIn('abi.encodeWithSignature("mystery(string)", "verity")', rendered)
 
-    def test_render_non_uint_array_fails_closed(self) -> None:
+    def test_render_address_array_param_adds_helper(self) -> None:
         contract = gen.ContractDecl(
             name="ArrayAddressConsumer",
             constructor=None,
             source=gen.ROOT / "Contracts/Sample/Sample.lean",
             functions=(
                 gen.FunctionDecl("consume", (gen.ParamDecl("values", "Array Address"),), "Unit"),
+            ),
+            storage_slots={},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("_singletonAddressArray", rendered)
+        self.assertIn('abi.encodeWithSignature("consume(address[])", _singletonAddressArray(alice))', rendered)
+
+    def test_render_bool_array_param_adds_helper(self) -> None:
+        contract = gen.ContractDecl(
+            name="ArrayBoolConsumer",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Sample/Sample.lean",
+            functions=(
+                gen.FunctionDecl("consume", (gen.ParamDecl("values", "Array Bool"),), "Unit"),
+            ),
+            storage_slots={},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("_singletonBoolArray", rendered)
+        self.assertIn('abi.encodeWithSignature("consume(bool[])", _singletonBoolArray(true))', rendered)
+
+    def test_render_dynamic_element_array_still_fails_closed(self) -> None:
+        contract = gen.ContractDecl(
+            name="ArrayBytesConsumer",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Sample/Sample.lean",
+            functions=(
+                gen.FunctionDecl("consume", (gen.ParamDecl("values", "Array Bytes"),), "Unit"),
             ),
             storage_slots={},
         )
