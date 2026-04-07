@@ -583,6 +583,19 @@ def _storage_word_expr(lean_ty: str, value_expr: str) -> str:
     raise ValueError(f"unsupported Lean type for generated storage write: {ty!r}")
 
 
+def _single_word_uint_expr(lean_ty: str, value_expr: str) -> str | None:
+    ty = _normalize_type(lean_ty)
+    if ty in {"Uint256", "Int256", "Uint8"}:
+        return f"uint256({value_expr})"
+    if ty == "Bool":
+        return f"({value_expr} ? 1 : 0)"
+    if ty == "Address":
+        return f"uint256(uint160({value_expr}))"
+    if ty == "Bytes32":
+        return f"uint256({value_expr})"
+    return None
+
+
 def _literal_expr(value: str, lean_ty: str) -> str | None:
     ty = _normalize_type(lean_ty)
     if ty in {"Uint256", "Int256", "Uint8"} and re.fullmatch(r"(0x[0-9A-Fa-f]+|[0-9]+)", value):
@@ -849,6 +862,28 @@ def _render_inferred_non_unit_test(contract: ContractDecl, fn: FunctionDecl, idx
                     f"{fn.name} returns the direct dynamic parameter payload",
                     "ReturnsDirectDynamicParam",
                 )
+
+        storage_words_match = re.fullmatch(r"returnStorageWords\s+([A-Za-z_][A-Za-z0-9_]*)", body[0])
+        if storage_words_match and ty == "Array Uint256":
+            returned_name = storage_words_match.group(1)
+            param_ty = param_types.get(returned_name)
+            example_expr = param_examples.get(returned_name)
+            if param_ty is not None and example_expr is not None and param_ty.startswith("Array "):
+                elem_ty = param_ty[len("Array ") :].strip()
+                expected_word_expr = _single_word_uint_expr(elem_ty, _example_value(elem_ty))
+                if expected_word_expr is not None:
+                    ret_assert = _return_shape_assertion(fn.return_type, fn.name)
+                    return f"""    // Property {idx}: {fn.name} returns the canonical storage words for the configured input slots
+    function testAuto_{fn_camel}_ReturnsCanonicalStorageWords() public {{
+        vm.prank(alice);
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature({encode_args}));
+        require(ok, \"{fn.name} reverted unexpectedly\");
+{ret_assert}
+        uint256[] memory actual = abi.decode(ret, (uint256[]));
+        assertEq(actual.length, 1, \"{fn.name} should return one word for the configured singleton input\");
+        assertEq(actual[0], {expected_word_expr}, \"{fn.name} should return the canonical word for the configured input\");
+    }}
+"""
 
         literal_match = re.fullmatch(r"return\s+(.+)", body[0])
         if literal_match:
