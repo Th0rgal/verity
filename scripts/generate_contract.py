@@ -543,7 +543,7 @@ def _storage_snapshot_scaffold(
         if field.is_mapping:
             helper_name = f"{field.name[0].upper()}{field.name[1:]}"
             key_expr = "42" if field.ty == "mapping_uint" else "alice"
-            before_name = f"{field.name}Before"
+            before_name = f"mapping{helper_name}Before"
             snapshot_lines.append(
                 f"        uint256 {before_name} = get{helper_name}FromStorage({key_expr});"
             )
