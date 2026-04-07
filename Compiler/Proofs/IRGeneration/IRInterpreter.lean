@@ -2642,6 +2642,8 @@ theorem execIRStmtsWithInternals_eq_execIRStmts_of_exprCompatibility
               cases hstep : execIRStmt fuel state (.funcDef name params rets body) <;>
                 simp only [ihRest]
 
+section
+set_option linter.unnecessarySimpa false
 /-- Single-statement compatibility now follows mechanically from the list theorem:
 a compatible stmt is just a compatible singleton stmt list. -/
 theorem execIRStmtWithInternals_eq_execIRStmt_of_exprCompatibility
@@ -2672,6 +2674,7 @@ theorem execIRStmtWithInternals_eq_execIRStmt_of_exprCompatibility
     cases hlegacy : execIRStmt fuel state stmt <;>
       simp only [execIRStmtsWithInternals, execIRStmts, hwith, hlegacy] at hsingleton ⊢ <;>
       simpa using hsingleton
+end
 
 /-- The remaining single-statement helper-free conservative-extension seam is now
 packaged as an explicit one-field interface: the real semantic work sits in
@@ -2846,6 +2849,8 @@ theorem execIRFunctionWithInternals_eq_execIRFunction_of_stmtListCompatibility
   rw [hstmtList hinternal (sizeOf fn.body + 1) stateWithParams fn.body hbody]
   cases execIRStmts (sizeOf fn.body + 1) stateWithParams fn.body <;> rfl
 
+section
+set_option linter.unnecessarySimpa false
 /-- The single-statement compatibility field is also just plumbing once the
 statement-list theorem is available: a compatible statement is exactly a
 singleton compatible statement list. This keeps the remaining blocker focused on
@@ -2877,6 +2882,7 @@ theorem execIRStmtWithInternals_eq_execIRStmt_of_stmtListCompatibility
     cases hlegacy : execIRStmt fuel state stmt <;>
       simp only [execIRStmtsWithInternals, execIRStmts, hwith, hlegacy] at hsingleton ⊢ <;>
       simpa using hsingleton
+end
 
 /-- The helper-free conservative-extension interface is now machine-assembled from
 the already-proved expr layer plus a single stmt compatibility theorem. This
