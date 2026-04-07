@@ -507,6 +507,16 @@ def _require_mapping_getter_key_param(fn: Function, target: Field) -> Param:
     return key_param
 
 
+def _sender_address_predicate_target(fn: Function, fields: List[Field]) -> Field | None:
+    """Return the address field for an inferred ``is<Field>`` sender predicate."""
+    if _getter_prefix(fn.name) != "is" or fn.params:
+        return None
+    target = _getter_target_field(fn, fields)
+    if target is None or target.ty != "address":
+        return None
+    return target
+
+
 def _needs_uint256_import(cfg: ContractConfig) -> bool:
     """Whether a module needs ``import Verity.EVM.Uint256``."""
     return (
@@ -535,14 +545,22 @@ def gen_example(cfg: ContractConfig) -> str:
         storage_lines.append(f"def {f.name} : {f.storage_kind} := ⟨{i}⟩")
 
     # Function stubs — infer storage-backed getter bodies where possible.
-    # "is"/"has"-prefix getters remain predicate TODO scaffolds.
+    # Unsupported boolean predicates remain explicit TODO scaffolds.
     func_lines = []
     for fn in cfg.functions:
         matched_prefix = _getter_prefix(fn.name)
         if matched_prefix is not None:
-            if matched_prefix in ("is", "has"):
+            predicate_target = _sender_address_predicate_target(fn, cfg.fields)
+            if predicate_target is not None:
                 ret_type = "Contract Bool"
-                body_lines = ["pure false  -- TODO: implement predicate (see OwnedCounter.lean)"]
+                body_lines = [
+                    "let sender ← msgSender",
+                    f"let currentValue ← getStorageAddr {predicate_target.name}",
+                    "return sender == currentValue",
+                ]
+            elif matched_prefix in ("is", "has"):
+                ret_type = "Contract Bool"
+                body_lines = ["pure false  -- TODO: implement predicate semantics for this getter"]
             else:
                 target = _require_getter_target_field(fn, cfg.fields)
                 ret_type = "Contract Address" if target.ty == "address" else "Contract Uint256"
@@ -610,8 +628,14 @@ def gen_spec(cfg: ContractConfig) -> str:
             param_part = f" {lean_params}" if lean_params else ""
             spec_defs.append(f"def {fn.name}_spec{param_part} (result : {ret_type}) (s : ContractState) : Prop :=")
             if ret_type == "Bool":
-                spec_defs.append("  -- Scaffold default: matches the generated placeholder implementation.")
-                spec_defs.append("  result = false")
+                predicate_target = _sender_address_predicate_target(fn, cfg.fields)
+                if predicate_target is not None:
+                    slot = _field_slot(cfg.fields, predicate_target)
+                    spec_defs.append("  -- Inferred predicate getter: returns whether sender matches the address-valued storage field.")
+                    spec_defs.append(f"  result = (s.sender == s.storageAddr {slot})")
+                else:
+                    spec_defs.append("  -- Scaffold default: matches the generated placeholder implementation.")
+                    spec_defs.append("  result = false")
             else:
                 target = _require_getter_target_field(fn, cfg.fields)
                 slot = _field_slot(cfg.fields, target)
@@ -899,6 +923,62 @@ def _gen_single_test(
 
     if is_getter:
         getter_prefix = _getter_prefix(fn.name)
+        predicate_target = _sender_address_predicate_target(fn, cfg.fields)
+        if predicate_target is not None:
+            target_slot = _field_slot(cfg.fields, predicate_target)
+            snapshot_lines: list[str] = []
+            assertion_lines: list[str] = []
+            for slot_idx, field in enumerate(cfg.fields):
+                if field.is_mapping:
+                    helper_name = f"{field.name[0].upper()}{field.name[1:]}"
+                    key_expr = "42" if field.ty == "mapping_uint" else "alice"
+                    before_name = f"{field.name}Before"
+                    snapshot_lines.append(
+                        f"        uint256 {before_name} = get{helper_name}FromStorage({key_expr});"
+                    )
+                    assertion_lines.append(
+                        f'        assertEq(get{helper_name}FromStorage({key_expr}), {before_name}, "{field.name} mapping entry unchanged by getter");'
+                    )
+                else:
+                    before_name = f"slot{slot_idx}Before"
+                    snapshot_lines.append(
+                        f"        uint256 {before_name} = readStorage({slot_idx});"
+                    )
+                    assertion_lines.append(
+                        f'        assertEq(readStorage({slot_idx}), {before_name}, "slot {slot_idx} unchanged by getter");'
+                    )
+
+            return f"""    //═══════════════════════════════════════════════════════════════════════
+    // Property {idx + 1}: {fn.name}_meets_spec
+    // Inferred predicate getter scaffold checks both matching and
+    // non-matching senders against the address-valued storage field.
+    //═══════════════════════════════════════════════════════════════════════
+
+    /// Property: {fn.name}_meets_spec
+    function testProperty_{camel}_MeetsSpec() public {{
+        vm.store(target, bytes32(uint256({target_slot})), bytes32(uint256(uint160(alice))));
+{chr(10).join(snapshot_lines)}
+
+        vm.prank(alice);
+        (bool ownerSuccess, bytes memory ownerRet) = target.call(
+            abi.encodeWithSignature({encode_args})
+        );
+        require(ownerSuccess, "{fn.name} owner call failed");
+        bool ownerDecoded = abi.decode(ownerRet, (bool));
+        assertTrue(ownerDecoded, "predicate getter should return true for matching sender");
+
+        vm.prank(bob);
+        (bool otherSuccess, bytes memory otherRet) = target.call(
+            abi.encodeWithSignature({encode_args})
+        );
+        require(otherSuccess, "{fn.name} non-owner call failed");
+        bool otherDecoded = abi.decode(otherRet, (bool));
+        assertFalse(otherDecoded, "predicate getter should return false for non-matching sender");
+
+{chr(10).join(assertion_lines)}
+    }}
+"""
+
         if getter_prefix in ("is", "has"):
             return f"""    //═══════════════════════════════════════════════════════════════════════
     // Property {idx + 1}: TODO_{fn.name}_meets_spec
