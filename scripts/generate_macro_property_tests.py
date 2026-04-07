@@ -20,6 +20,7 @@ from pathlib import Path
 from property_utils import ROOT
 
 CONTRACT_RE = re.compile(r"^\s*verity_contract\s+([A-Za-z_][A-Za-z0-9_]*)\s+where\s*$")
+CHECK_CONTRACT_RE = re.compile(r"^\s*#check_contract\s+([A-Za-z_][A-Za-z0-9_]*)\s*$")
 FUNCTION_RE = re.compile(
     r"^\s*function\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*:\s*(.+?)\s*:=\s*",
 )
@@ -371,12 +372,46 @@ def discover_macro_contract_sources(macro_dir: Path) -> list[Path]:
     return sorted(macro_dir.rglob("*.lean"))
 
 
+def _collect_guarded_negative_check_contracts(text: str) -> set[str]:
+    excluded: set[str] = set()
+    guard_pending = False
+    block_comment_depth = 0
+    for line in text.splitlines():
+        stripped = line.strip()
+        if block_comment_depth > 0:
+            block_comment_depth += stripped.count("/-")
+            block_comment_depth -= stripped.count("-/")
+            continue
+        if stripped.startswith("/-"):
+            block_comment_depth += stripped.count("/-")
+            block_comment_depth -= stripped.count("-/")
+            if block_comment_depth > 0 or stripped == "":
+                continue
+            if stripped.endswith("-/"):
+                continue
+        if stripped == "#guard_msgs in":
+            guard_pending = True
+            continue
+        if not guard_pending:
+            continue
+        if not stripped or stripped.startswith("--"):
+            continue
+        check_match = CHECK_CONTRACT_RE.match(stripped)
+        if check_match is not None:
+            excluded.add(check_match.group(1))
+        guard_pending = False
+    return excluded
+
+
 def collect_contracts(paths: list[Path]) -> dict[str, ContractDecl]:
     all_contracts: dict[str, ContractDecl] = {}
     for path in paths:
         text = path.read_text(encoding="utf-8")
         parsed = parse_contracts(text, path)
+        excluded = _collect_guarded_negative_check_contracts(text)
         for name, contract in parsed.items():
+            if name in excluded:
+                continue
             if name in all_contracts:
                 prev = all_contracts[name].source
                 raise ValueError(f"duplicate contract '{name}' in {prev} and {contract.source}")

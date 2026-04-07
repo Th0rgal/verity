@@ -140,6 +140,35 @@ class ParseContractsTests(unittest.TestCase):
         parsed = gen.parse_contracts(src, Path("dummy.lean"))
         self.assertEqual(sorted(parsed.keys()), ["HappyPath"])
 
+    def test_collect_contracts_ignores_guarded_check_contract_negative_fixture(self) -> None:
+        src = textwrap.dedent(
+            """
+            verity_contract HappyPath where
+              storage
+                counter : Uint256 := slot 0
+
+              function read () : Uint256 := do
+                return 0
+
+            verity_contract UnsafeBoundaryFixture where
+              storage
+
+              function preview () : Uint256 := do
+                return 1
+
+            /--
+            error: #check_contract failed for 'UnsafeBoundaryFixture'
+            -/
+            #guard_msgs in
+            #check_contract UnsafeBoundaryFixture
+            """
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            source = Path(tmpdir) / "dummy.lean"
+            source.write_text(src, encoding="utf-8")
+            parsed = gen.collect_contracts([source])
+        self.assertEqual(sorted(parsed.keys()), ["HappyPath"])
+
     def test_parse_contracts_stops_function_body_at_top_level_defs(self) -> None:
         src = textwrap.dedent(
             """
