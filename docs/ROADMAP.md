@@ -272,65 +272,40 @@ Reference docs:
 
 ---
 
-## Timeline & Milestones
+## Current Workstreams
 
-### Phase 1: Core Verification Complete (2-3 months)
+The older Phase 1 / Phase 2 / Phase 3 calendar framing is no longer accurate. The project is now organized around active workstreams rather than dated milestone buckets.
 
-**Milestone**: End-to-end verification with minimal trust assumptions
+### Completed Baseline
 
-**Work Items**:
-- ✅ Complete Layer 3 statement-level proofs (PR #42)
-- ✅ Function selector verification (PR #43, #46)
-- ✅ Ledger sum properties infrastructure (PR #47, #51)
-- ✅ Complete sum property proofs (Issue #65 - all 7/7 proven)
-- 🔄 Yul → EVM bridge investigation
+- Layer 1 is complete for the current contract set.
+- Layer 3 is complete at the current generic proof surface.
+- Layer 2 theorem shape is complete for the current supported fragment.
+- Ledger sum properties, selector trust reduction, ERC721 baseline support, and large differential/property test suites are already in place.
 
-**Success Metrics**:
-- Layer 3 preservation theorem proven
-- Zero unverified assumptions in EDSL → Yul chain
-- All addressable properties covered
+### Active Work
 
-### Phase 2: Production Readiness (3-6 months)
+1. **Layer 2 widening and completeness**
+   - Thread helper-aware proof reuse, storage/event/call coverage, and richer observables into the generic whole-contract theorem.
+   - Tracking: [#1630](https://github.com/Th0rgal/verity/issues/1630), [#1638](https://github.com/Th0rgal/verity/issues/1638)
 
-**Milestone**: First real-world verified contract deployment
+2. **Trust reduction**
+   - Continue the EVMYulLean bridge work and reduce remaining axiomatized / trusted boundaries.
+   - Tracking: [#1683](https://github.com/Th0rgal/verity/issues/1683)
 
-**Work Items**:
-- ~~Add ERC721 example contract~~ (done: 11 theorems)
-- Strengthen differential testing coverage (ongoing)
-- Comprehensive documentation and tutorials (1 month)
-- Performance optimization (ongoing)
+3. **Language and interop completeness**
+   - Close the remaining `verity_contract` EDSL gaps needed for production DeFi contracts.
+   - Tracking: [#1680](https://github.com/Th0rgal/verity/issues/1680), [#586](https://github.com/Th0rgal/verity/issues/586)
 
-**Success Metrics**:
-- At least one realistic contract fully verified
-- External contributors successfully verify contracts
-- CI runs complete in < 30 minutes
+4. **Documentation and artifact synchronization**
+   - Keep generated metrics, trust assumptions, parity profiles, and public docs aligned with the codebase.
+   - Tracking: [#1681](https://github.com/Th0rgal/verity/issues/1681), [#585](https://github.com/Th0rgal/verity/issues/585)
 
-### Phase 3: Ecosystem Growth (6-12 months)
+### Longer-Term Expansion
 
-**Milestone**: Community adoption and ecosystem maturity
-
-**Work Items**:
-- Add Governance and AMM contracts (2-3 months)
-- IDE integration (VS Code extension) (2 months)
-- Automated property extraction (2-3 months)
-- Integration with production smart contract tooling (ongoing)
-
-**Success Metrics**:
-- 10+ verified contracts in repository
-- Active external contributors
-- Production deployments using Verity verification
-
----
-
-## Open Questions
-
-1. **Should we prioritize Yul → EVM bridge or accept it as trust assumption?**
-   - Tradeoff: 1-3 months of effort vs. documented trust
-   - Recommendation: Start with documented trust (ledger sum properties now complete; revisit when resources allow)
-
-2. **Should we support multiple smart contract languages (Solidity, Vyper, Fe)?**
-   - Current: EDSL only
-   - Recommendation: After Phase 2, if community demand exists
+- Add larger verified example contracts such as governance and AMM systems.
+- Improve contributor UX with tutorials, proof-pattern guides, and better IDE/documentation integration.
+- Expand optimization, parity-pack, and artifact-generation workflows once the current verification/documentation baselines stay stable.
 
 ---
 
@@ -340,5 +315,5 @@ See [`CONTRIBUTING.md`](../CONTRIBUTING.md) for contribution guidelines and [`VE
 
 ---
 
-**Last Updated**: 2026-03-10
+**Last Updated**: 2026-04-07
 **Status**: Layer 1 is complete for the current contract set; Layer 2 now has a generic whole-contract theorem for the current supported fragment, with remaining [#1510](https://github.com/Th0rgal/verity/issues/1510) work focused on fragment widening and legacy bridge migration; Layer 3 is complete. Trust reduction 1/3 done. Sum properties complete (7/7 proven). CompilationModel now supports real-world contracts (loops, branching, events, multi-mappings, internal call mechanics, verified externs).
