@@ -33,10 +33,8 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                     'test/**',
                     'scripts/check_gas.py',
                     'scripts/check_patch_gas_delta.py',
-                    'scripts/check_parity_pack_metrics.py',
                     'scripts/check_selectors.py',
                     'scripts/check_yul.py',
-                    'scripts/generate_yul_identity_diff_report.py',
                     'scripts/keccak256.py',
                     'scripts/lean_cc_ccache_clang.sh',
                     'scripts/property_utils.py',
@@ -488,11 +486,7 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                   'uses': 'actions/download-artifact@v7',
                                                   'with': {'name': 'lean-workspace-compiler-build'}},
                                                  {'name': 'Setup solc',
-                                                  'uses': './.github/actions/setup-solc'},
-                                                 {'name': 'Upload parity-pack identity report',
-                                                  'uses': 'actions/upload-artifact@v7',
-                                                  'with': {'name': 'parity-pack-identity-report',
-                                                           'path': 'compiler/parity-pack-identity-report.json'}}],
+                                                  'uses': './.github/actions/setup-solc'}],
                              'compiler-regressions': [{'uses': 'actions/checkout@v6',
                                                        'with': {'submodules': 'recursive'}},
                                                       {'name': 'Setup Lean',
@@ -719,16 +713,7 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                           'packages/verity-examples/contracts.manifest '
                                           '--enable-patches --patch-max-iterations 2 > '
                                           'gas-report-static-patched.tsv'],
- 'expected_compiler_audit_commands': ['generate_yul_identity_diff_report.py --verity-dir '
-                                      'compiler/yul-parity-pack --solc-dir '
-                                      'compiler/yul-parity-reference --output '
-                                      'compiler/parity-pack-identity-report.json',
-                                      'check_parity_pack_metrics.py --report '
-                                      'compiler/parity-pack-identity-report.json '
-                                      '--max-only-in-verity 0 --max-only-in-solidity 0 '
-                                      '--max-hash-mismatch 940 --format markdown >> '
-                                      '"$GITHUB_STEP_SUMMARY"',
-                                      'check_gas.py coverage --dir compiler/yul --dir '
+ 'expected_compiler_audit_commands': ['check_gas.py coverage --dir compiler/yul --dir '
                                       'compiler/yul-patched',
                                       'keccak256.py --self-test',
                                       'check_selectors.py --check-fixtures',
@@ -740,8 +725,7 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                       'gas-report-static-patched.tsv --min-improved-contracts 0 '
                                       '--summary-markdown patch-gas-delta-summary.md >> '
                                       '"$GITHUB_STEP_SUMMARY"'],
- 'required_compiler_audit_run_commands': ['--parity-pack solc-0.8.33-o200-viair-false-evm-shanghai',
-                                          '--backend-profile solidity-parity'],
+ 'required_compiler_audit_run_commands': [],
  'expected_foundry': {'shards': 4, 'seed': 42},
  'expected_foundry_patched': {'seed': 42,
                               'shard_count': 1,
@@ -763,7 +747,6 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                              'patch-coverage-report',
                                                              'static-gas-report',
                                                              'static-gas-report-patched'],
-                                 'compiler-audits': ['parity-pack-identity-report'],
                                  'lean-profile': ['lean-perf-queue']},
  'expected_uploaded_artifact_paths': {'build': ['lean-workspace-build.tar'],
                                       'prepare-macro-fuzz': ['lean-workspace-macro-fuzz-build.tar'],
@@ -776,7 +759,6 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                                   'compiler/patch-report.tsv',
                                                                   'gas-report-static.tsv',
                                                                   'gas-report-static-patched.tsv'],
-                                      'compiler-audits': ['compiler/parity-pack-identity-report.json'],
                                       'lean-profile': ['lean-perf-queue.md']},
  'expected_downloaded_artifacts': {'prepare-macro-fuzz': ['lean-workspace-build'],
                                    'build-audits': ['lean-workspace-build'],
@@ -891,7 +873,6 @@ SPEC['expected_uploaded_artifacts'] = {
     'build-compiler-binaries': ['difftest-interpreter', 'verity-compiler-binaries', 'lean-workspace-compiler-build',
                                 'generated-yul', 'generated-yul-patched', 'patch-coverage-report',
                                 'static-gas-report', 'static-gas-report-patched'],
-    'compiler-audits': ['parity-pack-identity-report'],
     'lean-profile': ['lean-perf-queue'],
 }
 
@@ -902,7 +883,6 @@ SPEC['expected_uploaded_artifact_paths'] = {
     'build-compiler-binaries': ['.lake/build/bin/difftest-interpreter', 'compiler/bin', 'lean-workspace-compiler-build.tar',
                                 'compiler/yul', 'compiler/yul-patched', 'compiler/patch-report.tsv',
                                 'gas-report-static.tsv', 'gas-report-static-patched.tsv'],
-    'compiler-audits': ['compiler/parity-pack-identity-report.json'],
     'lean-profile': ['lean-perf-queue.md'],
 }
 
