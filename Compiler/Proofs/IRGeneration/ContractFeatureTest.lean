@@ -172,4 +172,42 @@ example
     (hcalldataSizeFits := literalMappingWrite_calldataFits)
     (hcompile := hcompile)
 
+example
+    (ir : IRContract)
+    (hcompile : CompilationModel.compile literalMappingWriteSpec [literalMappingWriteSelector] = Except.ok ir)
+    (hbodySafety :
+      ∀ stmt ∈ literalMappingWriteFunction.body,
+        StmtMappingWriteSlotSafe literalMappingWriteSpec.fields stmt) :
+    FunctionBody.sourceResultMatchesIRResult
+      (supportedSourceContractSemanticsExceptMappingWrites
+        literalMappingWriteSpec
+        [literalMappingWriteSelector]
+        literalMappingWrite_supported_spec
+        literalMappingWriteTx
+        Verity.defaultState)
+      (interpretIRWithInternals
+        ir
+        0
+        literalMappingWriteTx
+        (FunctionBody.initialIRStateForTx
+          literalMappingWriteSpec
+          literalMappingWriteTx
+          Verity.defaultState)) := by
+  exact Contract.compile_preserves_semantics_except_mapping_writes_and_helper_ir_supported
+    (model := literalMappingWriteSpec)
+    (selectors := [literalMappingWriteSelector])
+    (hSupported := literalMappingWrite_supported_spec)
+    (ir := ir)
+    (tx := literalMappingWriteTx)
+    (initialWorld := Verity.defaultState)
+    (hnoConflict := literalMappingWrite_noConflict)
+    (hsafety := by
+      intro fn hfn
+      simp [selectorDispatchedFunctions, literalMappingWriteSpec, literalMappingWriteFunction] at hfn
+      rcases hfn with ⟨rfl, _, _⟩
+      exact hbodySafety)
+    (htxNormalized := literalMappingWrite_txNormalized)
+    (hcalldataSizeFits := literalMappingWrite_calldataFits)
+    (hcompile := hcompile)
+
 end Compiler.Proofs.IRGeneration.ContractFeatureTest
