@@ -107,6 +107,7 @@ publish_artifact() {
   fi
 
   local target_dir="${ARTIFACT_ROOT}/${run_id}/${name}"
+  rm -rf "$target_dir"
   mkdir -p "$target_dir"
 
   if [ -f "$path" ]; then

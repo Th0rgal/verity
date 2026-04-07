@@ -830,12 +830,13 @@ jobs:
 
       - name: Publish difftest interpreter locally
         run: |
-          mkdir -p /tmp/difftest-interpreter-artifact
-          cp .lake/build/bin/difftest-interpreter /tmp/difftest-interpreter-artifact/
+          staging="${RUNNER_TEMP}/difftest-interpreter-artifact-${{ github.run_id }}"
+          mkdir -p "$staging"
+          cp .lake/build/bin/difftest-interpreter "$staging/"
           scripts/ci_local_persistence.sh publish \
             --run-id "${{ github.run_id }}" \
             --name difftest-interpreter \
-            --path /tmp/difftest-interpreter-artifact
+            --path "$staging"
 
       - name: Publish generated Yul locally
         run: |
@@ -853,14 +854,15 @@ jobs:
 
       - name: Publish gas reports locally
         run: |
-          mkdir -p /tmp/gas-reports
-          cp gas-report-static.tsv /tmp/gas-reports/
-          cp gas-report-static-patched.tsv /tmp/gas-reports/
-          cp compiler/patch-report.tsv /tmp/gas-reports/
+          staging="${RUNNER_TEMP}/gas-reports-${{ github.run_id }}"
+          mkdir -p "$staging"
+          cp gas-report-static.tsv "$staging/"
+          cp gas-report-static-patched.tsv "$staging/"
+          cp compiler/patch-report.tsv "$staging/"
           scripts/ci_local_persistence.sh publish \
             --run-id "${{ github.run_id }}" \
             --name gas-reports \
-            --path /tmp/gas-reports
+            --path "$staging"
 
       - name: Upload difftest interpreter
         continue-on-error: true
