@@ -143,6 +143,12 @@ class StructMemberLayout:
     packed_width: int | None = None
 
 
+@dataclass(frozen=True)
+class StraightLineExecutionResult:
+    return_values: tuple[str, ...]
+    return_types: tuple[str, ...]
+
+
 def _normalize_type(type_src: str) -> str:
     return " ".join(type_src.strip().split())
 
@@ -1313,6 +1319,312 @@ def _parse_read_accessor(line: str) -> ReadAccessor | None:
     return None
 
 
+def _parse_call_expr(expr: str) -> tuple[str, list[str]] | None:
+    expr = _strip_outer_parens(expr)
+    bare_name = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_]*)", expr)
+    if bare_name is not None:
+        return bare_name.group(1), []
+    return _split_prefix_expr(expr)
+
+
+def _find_contract_function(contract: ContractDecl, name: str) -> FunctionDecl | None:
+    for fn in contract.functions:
+        if fn.name == name:
+            return fn
+    return None
+
+
+def _execute_straight_line_function(
+    contract: ContractDecl,
+    fn: FunctionDecl,
+    constructor_examples: dict[str, str],
+    local_values: dict[str, str],
+    local_types: dict[str, str],
+    setup_lines: list[str],
+    pending_struct_slots: dict[str, list[str]],
+    storage_values: dict[str, str],
+    state: dict[str, int],
+    call_stack: tuple[str, ...] = (),
+) -> StraightLineExecutionResult | None:
+    if fn.name in call_stack:
+        return None
+
+    body_lines = list(fn.body)
+    return_ty = _normalize_type(fn.return_type)
+    final_line = None
+    if return_ty != "Unit":
+        if not body_lines:
+            return None
+        final_line = body_lines.pop()
+
+    param_examples = {param.name: local_values[param.name] for param in fn.params if param.name in local_values}
+    param_types = {param.name: _normalize_type(param.lean_type) for param in fn.params}
+
+    for line in body_lines:
+        if return_ty == "Unit" and line == "pure ()":
+            continue
+
+        read = _parse_read_accessor(line)
+        if read is not None:
+            if read.accessor in {"structMember", "structMember2"}:
+                expected_name = "expected" if state["seeded_reads"] == 0 else f"expected{state['seeded_reads']}"
+                read_ty = local_types.get(read.var_name, _normalize_type(fn.return_type))
+                if not _seed_struct_read_setup(
+                    contract,
+                    fn,
+                    read,
+                    read_ty,
+                    param_examples,
+                    expected_name,
+                    setup_lines,
+                    pending_struct_slots,
+                ):
+                    return None
+                local_values[read.var_name] = expected_name
+                local_types[read.var_name] = read_ty
+                state["seeded_reads"] += 1
+                continue
+            if read.accessor not in {"getStorage", "getStorageAddr"}:
+                return None
+            read_ty = _storage_read_type(contract, read)
+            if read_ty is None:
+                return None
+            stored_value = storage_values.get(read.storage_name)
+            if stored_value is None:
+                slot = contract.storage_slots.get(read.storage_name)
+                if slot is None:
+                    return None
+                expected_name = "expected" if state["seeded_reads"] == 0 else f"expected{state['seeded_reads']}"
+                setup_lines.append(f"{_sol_type(read_ty)} {expected_name} = {_example_value(read_ty)};")
+                setup_lines.append(
+                    f"vm.store(target, bytes32(uint256({slot})), {_storage_word_expr(read_ty, expected_name)});"
+                )
+                stored_value = expected_name
+                storage_values[read.storage_name] = stored_value
+                state["seeded_reads"] += 1
+            local_values[read.var_name] = stored_value
+            local_types[read.var_name] = read_ty
+            continue
+
+        let_match = re.fullmatch(r"let\s+(?:mut\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*:=\s*(.+)", line)
+        if let_match:
+            name, expr = let_match.groups()
+            target_ty = local_types.get(name, _normalize_type(fn.return_type))
+            resolved = _resolve_value_expr(
+                contract,
+                expr,
+                target_ty,
+                constructor_examples,
+                local_values=local_values,
+            )
+            if resolved is None:
+                return None
+            local_values[name] = resolved
+            local_types[name] = target_ty
+            continue
+
+        assign_match = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_]*)\s*:=\s*(.+)", line)
+        if assign_match:
+            name, expr = assign_match.groups()
+            target_ty = local_types.get(name)
+            if target_ty is None:
+                return None
+            resolved = _resolve_value_expr(
+                contract,
+                expr,
+                target_ty,
+                constructor_examples,
+                local_values=local_values,
+            )
+            if resolved is None:
+                return None
+            local_values[name] = resolved
+            continue
+
+        set_storage_match = re.fullmatch(r"setStorage\s+([A-Za-z_][A-Za-z0-9_]*)\s+(.+)", line)
+        if set_storage_match:
+            storage_name, expr = set_storage_match.groups()
+            storage_ty = contract.storage_types.get(storage_name)
+            if storage_ty is None:
+                return None
+            resolved = _resolve_value_expr(
+                contract,
+                expr,
+                _normalize_type(storage_ty),
+                constructor_examples,
+                local_values=local_values,
+            )
+            if resolved is None:
+                return None
+            storage_values[storage_name] = resolved
+            continue
+
+        tuple_call_match = re.fullmatch(r"let\s+\(([^)]+)\)\s*←\s*(.+)", line)
+        if tuple_call_match:
+            bound_names = [part.strip() for part in tuple_call_match.group(1).split(",") if part.strip()]
+            call = _parse_call_expr(tuple_call_match.group(2))
+            if call is None:
+                return None
+            helper_name, arg_exprs = call
+            helper_fn = _find_contract_function(contract, helper_name)
+            if helper_fn is None or len(helper_fn.params) != len(arg_exprs):
+                return None
+            callee_values: dict[str, str] = {}
+            callee_types = {_param.name: _normalize_type(_param.lean_type) for _param in helper_fn.params}
+            for param, arg_expr in zip(helper_fn.params, arg_exprs):
+                param_ty = _normalize_type(param.lean_type)
+                resolved = _resolve_value_expr(
+                    contract,
+                    arg_expr,
+                    param_ty,
+                    constructor_examples,
+                    local_values=local_values,
+                )
+                if resolved is None:
+                    return None
+                callee_values[param.name] = resolved
+            helper_result = _execute_straight_line_function(
+                contract,
+                helper_fn,
+                constructor_examples,
+                callee_values,
+                callee_types,
+                setup_lines,
+                pending_struct_slots,
+                storage_values,
+                state,
+                call_stack + (fn.name,),
+            )
+            if helper_result is None or len(helper_result.return_values) != len(bound_names):
+                return None
+            for bound_name, bound_ty, bound_value in zip(
+                bound_names, helper_result.return_types, helper_result.return_values
+            ):
+                local_values[bound_name] = bound_value
+                local_types[bound_name] = bound_ty
+            continue
+
+        call_bind_match = re.fullmatch(r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*(.+)", line)
+        if call_bind_match:
+            name, call_src = call_bind_match.groups()
+            call = _parse_call_expr(call_src)
+            if call is None:
+                return None
+            helper_name, arg_exprs = call
+            helper_fn = _find_contract_function(contract, helper_name)
+            if helper_fn is None or len(helper_fn.params) != len(arg_exprs):
+                return None
+            callee_values: dict[str, str] = {}
+            callee_types = {_param.name: _normalize_type(_param.lean_type) for _param in helper_fn.params}
+            for param, arg_expr in zip(helper_fn.params, arg_exprs):
+                param_ty = _normalize_type(param.lean_type)
+                resolved = _resolve_value_expr(
+                    contract,
+                    arg_expr,
+                    param_ty,
+                    constructor_examples,
+                    local_values=local_values,
+                )
+                if resolved is None:
+                    return None
+                callee_values[param.name] = resolved
+            helper_result = _execute_straight_line_function(
+                contract,
+                helper_fn,
+                constructor_examples,
+                callee_values,
+                callee_types,
+                setup_lines,
+                pending_struct_slots,
+                storage_values,
+                state,
+                call_stack + (fn.name,),
+            )
+            if helper_result is None or len(helper_result.return_values) != 1:
+                return None
+            local_values[name] = helper_result.return_values[0]
+            local_types[name] = helper_result.return_types[0]
+            continue
+
+        call = _parse_call_expr(line)
+        if call is not None:
+            helper_name, arg_exprs = call
+            helper_fn = _find_contract_function(contract, helper_name)
+            if helper_fn is None or len(helper_fn.params) != len(arg_exprs):
+                return None
+            callee_values: dict[str, str] = {}
+            callee_types = {_param.name: _normalize_type(_param.lean_type) for _param in helper_fn.params}
+            for param, arg_expr in zip(helper_fn.params, arg_exprs):
+                param_ty = _normalize_type(param.lean_type)
+                resolved = _resolve_value_expr(
+                    contract,
+                    arg_expr,
+                    param_ty,
+                    constructor_examples,
+                    local_values=local_values,
+                )
+                if resolved is None:
+                    return None
+                callee_values[param.name] = resolved
+            helper_result = _execute_straight_line_function(
+                contract,
+                helper_fn,
+                constructor_examples,
+                callee_values,
+                callee_types,
+                setup_lines,
+                pending_struct_slots,
+                storage_values,
+                state,
+                call_stack + (fn.name,),
+            )
+            if helper_result is None or helper_result.return_values:
+                return None
+            continue
+
+        return None
+
+    if return_ty == "Unit":
+        return StraightLineExecutionResult((), ())
+
+    if final_line is None:
+        return None
+    return_match = re.fullmatch(r"return\s+(.+)", final_line)
+    if return_match is None:
+        return None
+    return_expr = return_match.group(1).strip()
+    if return_ty.startswith("Tuple [") and return_ty.endswith("]"):
+        elems = _parse_tuple_elements(return_ty[len("Tuple [") : -1])
+        tuple_expr = _strip_outer_parens(return_expr)
+        tuple_parts = _split_top_level_csv(tuple_expr)
+        if len(tuple_parts) != len(elems):
+            return None
+        expected_exprs: list[str] = []
+        for elem_ty, elem_expr in zip(elems, tuple_parts):
+            resolved = _resolve_value_expr(
+                contract,
+                elem_expr,
+                elem_ty,
+                constructor_examples,
+                local_values=local_values,
+            )
+            if resolved is None:
+                return None
+            expected_exprs.append(resolved)
+        return StraightLineExecutionResult(tuple(expected_exprs), tuple(elems))
+
+    expected_expr = _resolve_value_expr(
+        contract,
+        return_expr,
+        return_ty,
+        constructor_examples,
+        local_values=local_values,
+    )
+    if expected_expr is None:
+        return None
+    return StraightLineExecutionResult((expected_expr,), (return_ty,))
+
+
 def _mapping_key_expr(param: ParamDecl, value_expr: str) -> str:
     ty = _normalize_type(param.lean_type)
     if ty == "Address":
@@ -1522,135 +1834,45 @@ def _infer_straight_line_non_unit_test(
     local_types = dict(param_types)
     setup_lines: list[str] = []
     pending_struct_slots: dict[str, list[str]] = {}
-    seeded_reads = 0
-
-    for line in fn.body[:-1]:
-        read = _parse_read_accessor(line)
-        if read is not None:
-            if read.accessor in {"structMember", "structMember2"}:
-                expected_name = "expected" if seeded_reads == 0 else f"expected{seeded_reads}"
-                read_ty = _normalize_type(fn.return_type)
-                if not _seed_struct_read_setup(
-                    contract,
-                    fn,
-                    read,
-                    read_ty,
-                    param_examples,
-                    expected_name,
-                    setup_lines,
-                    pending_struct_slots,
-                ):
-                    return None
-                local_values[read.var_name] = expected_name
-                local_types[read.var_name] = read_ty
-                seeded_reads += 1
-                continue
-            if read.accessor not in {"getStorage", "getStorageAddr"}:
-                return None
-            slot = contract.storage_slots.get(read.storage_name)
-            read_ty = _storage_read_type(contract, read)
-            if slot is None or read_ty is None:
-                return None
-            expected_name = "expected" if seeded_reads == 0 else f"expected{seeded_reads}"
-            setup_lines.append(f"{_sol_type(read_ty)} {expected_name} = {_example_value(read_ty)};")
-            setup_lines.append(
-                f"vm.store(target, bytes32(uint256({slot})), {_storage_word_expr(read_ty, expected_name)});"
-            )
-            local_values[read.var_name] = expected_name
-            local_types[read.var_name] = read_ty
-            seeded_reads += 1
-            continue
-
-        let_match = re.fullmatch(r"let\s+(?:mut\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*:=\s*(.+)", line)
-        if let_match:
-            name, expr = let_match.groups()
-            target_ty = local_types.get(name, _normalize_type(fn.return_type))
-            resolved = _resolve_value_expr(
-                contract,
-                expr,
-                target_ty,
-                constructor_examples,
-                local_values=local_values,
-            )
-            if resolved is None:
-                return None
-            local_values[name] = resolved
-            local_types[name] = target_ty
-            continue
-
-        assign_match = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_]*)\s*:=\s*(.+)", line)
-        if assign_match:
-            name, expr = assign_match.groups()
-            target_ty = local_types.get(name)
-            if target_ty is None:
-                return None
-            resolved = _resolve_value_expr(
-                contract,
-                expr,
-                target_ty,
-                constructor_examples,
-                local_values=local_values,
-            )
-            if resolved is None:
-                return None
-            local_values[name] = resolved
-            continue
-
+    execution = _execute_straight_line_function(
+        contract,
+        fn,
+        constructor_examples,
+        local_values,
+        local_types,
+        setup_lines,
+        pending_struct_slots,
+        {},
+        {"seeded_reads": 0},
+    )
+    if execution is None:
         return None
 
     _flush_pending_struct_slots(setup_lines, pending_struct_slots)
-
-    final_line = fn.body[-1]
-    return_match = re.fullmatch(r"return\s+(.+)", final_line)
-    if return_match is None:
-        return None
-
     return_ty = _normalize_type(fn.return_type)
-    return_expr = return_match.group(1).strip()
     if return_ty.startswith("Tuple [") and return_ty.endswith("]"):
         elems = _parse_tuple_elements(return_ty[len("Tuple [") : -1])
-        tuple_expr = _strip_outer_parens(return_expr)
-        tuple_parts = _split_top_level_csv(tuple_expr)
-        if len(tuple_parts) != len(elems):
+        if len(execution.return_values) != len(elems):
             return None
-        expected_exprs: list[str] = []
-        for elem_ty, elem_expr in zip(elems, tuple_parts):
-            resolved = _resolve_value_expr(
-                contract,
-                elem_expr,
-                elem_ty,
-                constructor_examples,
-                local_values=local_values,
-            )
-            if resolved is None:
-                return None
-            expected_exprs.append(resolved)
         return _render_inferred_tuple_return(
             fn,
             idx,
             encode_args,
             elems,
-            expected_exprs,
+            list(execution.return_values),
             setup_lines,
             f"{fn.name} decodes and matches the inferred tuple result",
             "ReturnsInferredTupleResult",
         )
 
-    expected_expr = _resolve_value_expr(
-        contract,
-        return_expr,
-        return_ty,
-        constructor_examples,
-        local_values=local_values,
-    )
-    if expected_expr is None:
+    if len(execution.return_values) != 1:
         return None
     return _render_inferred_scalar_return(
         fn,
         idx,
         encode_args,
         decoded_type,
-        expected_expr,
+        execution.return_values[0],
         setup_lines,
         f"{fn.name} decodes and matches the inferred straight-line result",
         "ReturnsInferredStraightLineResult",
