@@ -1,8 +1,10 @@
 # Yul Identity Checker
 
-Issue: [#967](https://github.com/Th0rgal/verity/issues/967)
+Issue: [#967](https://github.com/lfglabs-dev/verity/issues/967)
 
-This document defines the target workflow for checking AST-level identity between Verity-generated Yul and `solc`-generated Yul for pinned toolchain tuples.
+This document defines the workflow for checking AST-level identity between Verity-generated Yul and `solc`-generated Yul for pinned toolchain tuples.
+
+The checker sits at the plugin boundary: the core compiler provides the reporting scripts, while the selected external parity pack determines which tuple and rewrite bundle are being audited.
 
 ## Status
 

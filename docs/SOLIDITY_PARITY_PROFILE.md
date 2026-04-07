@@ -5,6 +5,15 @@ Roadmap extension: [#967](https://github.com/Th0rgal/verity/issues/967)
 
 This document defines the opt-in backend profile used for deterministic output-shape alignment with Solidity-style workflows.
 
+## Current Meaning
+
+After protocol-specific bundle extraction, backend profiles are only the core normalization surface:
+
+1. `semantic` keeps default codegen behavior.
+2. `solidity-parity-ordering` applies deterministic ordering only.
+3. `solidity-parity` enables the generic patch pipeline in `verity-compiler-patched`, but the core compiler still ships only the `foundation` rewrite bundle.
+4. Exact tuple-pinned parity requires `--parity-pack <id>` from an external plugin package.
+
 ## Profile Levels (v1)
 
 `v1` exposes three explicit levels:
@@ -22,7 +31,7 @@ All levels preserve Verity's semantic guarantees. Parity levels only normalize o
 |---|---|---|---|---|
 | `dispatch.selector.sort.asc` | Sort runtime dispatch `case` blocks by selector (ascending) | no | yes | yes |
 | `helpers.funcdef.sort.lex` | Sort compiler-generated/internal helper function declarations lexicographically by name | no | yes | yes |
-| `patch.pass.enable` | Enable deterministic expression patch pass | no (opt-in only) | no (opt-in only) | yes (forced on) |
+| `patch.pass.enable` | Enable the generic deterministic patch pipeline | no (opt-in only) | no (opt-in only) | yes (forced on) |
 
 ## Reproducibility Contract
 
@@ -36,13 +45,13 @@ For parity-pack mode, reproducibility is additionally keyed by the pack ID and c
 
 ## Non-Goals (v1)
 
-`v1` does not attempt full byte-for-byte `solc` output identity. In particular:
+`v1` does not attempt full byte-for-byte `solc` output identity on its own. In particular:
 
 - it does not rewrite all helper naming patterns to mirror `solc` internals;
 - it does not force ABI/content layout rewrites beyond documented deterministic normalizations;
 - it does not weaken verification constraints to chase shape parity.
 
-Future versions can add additional rules with explicit IDs and migration notes.
+Exact parity now comes from an external parity pack layered on top of this profile surface.
 
 ## Arithmetic Semantics (Invariant Across Profiles)
 

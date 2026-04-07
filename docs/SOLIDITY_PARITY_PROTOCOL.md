@@ -4,6 +4,14 @@ Issue: [#967](https://github.com/lfglabs-dev/verity/issues/967)
 
 This document defines the recommended protocol for proving Yul-output identity against `solc` for an existing Solidity contract while preserving Verity's default compiler behavior.
 
+## Proof Boundary
+
+The core compiler's claim is deliberately small:
+
+1. Verity ships a generic, proof-gated parity kernel: rewrite execution, proof allowlist enforcement, bundle lookup, and parity-pack lookup.
+2. Exact tuple-pinned parity for a concrete protocol comes from an external plugin package that registers a rewrite bundle and one or more parity packs.
+3. Protocol-specific rewrites are therefore outside the core compiler boundary by design.
+
 ## Goal
 
 For a pinned toolchain tuple, make Verity emit Yul that is AST-identical to `solc`, with all compatibility behavior explicit, deterministic, and proof-gated.
@@ -15,7 +23,7 @@ For a pinned toolchain tuple, make Verity emit Yul that is AST-identical to `sol
 3. Require proof-linked rewrite activation (fail closed if proof metadata/registry is invalid).
 4. Track any remaining non-identity gap as machine-checkable `unsupported` items.
 
-This is not a one-off Morpho patch path. Morpho is the current target corpus driving the first parity-pack iterations.
+This is not a one-off Morpho patch path. Morpho is one example plugin package built on top of the generic parity kernel.
 
 ## Inputs You Must Pin
 
@@ -38,7 +46,7 @@ Without pinning these, exact Yul identity is not a meaningful claim.
 3. Classify mismatch families.
    - Prefer family-level structural classes (ABI helper layout, memory copy helpers, allocation helpers, dispatcher shape) over per-function ad-hoc fixes.
    - Separate rename-only deltas from structural deltas.
-4. Implement compatibility rewrites in Verity.
+4. Implement compatibility rewrites in a plugin package.
    - Add rules in an explicit compat rewrite bundle in an external plugin package.
    - Keep rule scope tight (`ExprRule`/`StmtRule`/`BlockRule`/`ObjectRule` + `RewriteCtx` scope checks).
    - Attach proof references and pack allowlist membership.

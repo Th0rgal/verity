@@ -23,6 +23,16 @@ Verity is a **formally verified smart contract compiler** written in [Lean 4](ht
 
 **In short**: write a contract, state what it should do, prove it, compile it, and the compiler is proven to not break anything along the way.
 
+## Yul Parity Boundary
+
+Verity also ships a small, proof-gated Yul parity kernel for exact `solc`-identity work:
+
+- the core compiler keeps the generic patch engine, the `foundation` rewrite bundle, proof registry checks, and the parity-pack registry surface;
+- protocol-specific rewrite bundles and pinned parity packs are external plugin packages, not built into the compiler;
+- exact tuple-pinned parity claims therefore live at the plugin boundary, while the core compiler remains protocol-agnostic.
+
+Use [`docs/SOLIDITY_PARITY_PROTOCOL.md`](docs/SOLIDITY_PARITY_PROTOCOL.md) for the boundary, [`docs/PARITY_PACKS.md`](docs/PARITY_PACKS.md) for pack structure, and [`docs/REWRITE_RULES.md`](docs/REWRITE_RULES.md) for the proof-carrying rewrite model.
+
 ---
 
 ## How it works

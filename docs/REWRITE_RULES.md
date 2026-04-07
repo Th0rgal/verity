@@ -1,8 +1,19 @@
 # Rewrite Rules (Groundwork)
 
-Issue: [#967](https://github.com/Th0rgal/verity/issues/967)
+Issue: [#967](https://github.com/lfglabs-dev/verity/issues/967)
 
 This document defines the target authoring model for proof-carrying Yul subtree rewrites.
+
+## Boundary
+
+The core compiler owns the generic rewrite mechanism:
+
+1. typed rule kinds (`ExprRule`, `StmtRule`, `BlockRule`, `ObjectRule`);
+2. deterministic execution with explicit `RewriteCtx`;
+3. proof-allowlist enforcement and bundle lookup;
+4. the shipped `foundation` bundle.
+
+Protocol-specific compat rules belong in external plugin packages that extend the bundle registry.
 
 ## Status
 
@@ -20,7 +31,7 @@ Partially implemented:
    In compiler codegen, this defaults to the selected rewrite bundle proof allowlist, so rules with unregistered `proofId` fail closed even if metadata is non-empty.
 8. Rewrite bundles are now explicit and versioned (currently `foundation`), with bundle selection propagated by `PatchPassConfig.rewriteBundleId`.
    Object rules are now applied sequentially in deterministic priority order within each object-pass iteration (instead of first-match only), enabling chained compat transforms in one iteration.
-   Contract-specific compatibility bundles (e.g. `solc-compat-v0` for Morpho) have been extracted to external plugin packages (see `morpho-verity`). The core compiler ships only the `foundation` bundle.
+   Contract-specific compatibility bundles have been extracted to external plugin packages (see `morpho-verity`). The core compiler ships only the `foundation` bundle.
    External packages register their bundles by extending `allRewriteBundles` via plugin imports.
    Runtime codegen no longer has a separate backend-profile dispatch-helper outlining path; outlining is centralized in proof-gated object rules.
 9. Parity packs now require explicit pack-level proof composition metadata (`compositionProofRef`) and proof registry coverage (`requiredProofRefs`) against the selected rewrite bundle before `--parity-pack` selection is accepted.
