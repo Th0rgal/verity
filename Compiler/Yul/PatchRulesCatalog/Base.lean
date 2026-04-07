@@ -686,10 +686,25 @@ def foundationRewriteBundle : RewriteRuleBundle :=
     blockRules := foundationBlockPatchPack
     objectRules := foundationObjectPatchPack }
 
+private def upsertRewriteBundle (bundles : List RewriteRuleBundle) (bundle : RewriteRuleBundle) :
+    List RewriteRuleBundle :=
+  bundle :: bundles.filter (fun existing => existing.id != bundle.id)
+
+unsafe initialize rewriteBundleRegistry : IO.Ref (List RewriteRuleBundle) ←
+  IO.mkRef [foundationRewriteBundle]
+
+/-- Register a rewrite bundle from an imported plugin module. If another bundle with the same
+    ID is already present, the newly registered bundle takes precedence. -/
+def registerRewriteBundle (bundle : RewriteRuleBundle) : IO Unit :=
+  rewriteBundleRegistry.modify fun bundles => upsertRewriteBundle bundles bundle
+
 /-- Registry of all shipped rewrite bundles.
-    External parity packs should extend this list by importing their plugin module. -/
-def allRewriteBundles : List RewriteRuleBundle :=
-  [foundationRewriteBundle]
+    External parity packs extend this registry from their plugin module via
+    `initialize registerRewriteBundle ...`. -/
+unsafe def allRewriteBundles : List RewriteRuleBundle :=
+  match IO.unsafeIO rewriteBundleRegistry.get with
+  | .ok bundles => bundles
+  | .error _ => [foundationRewriteBundle]
 
 def supportedRewriteBundleIds : List String :=
   allRewriteBundles.map (·.id)

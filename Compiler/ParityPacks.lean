@@ -53,10 +53,24 @@ def ParityPack.proofCompositionValid (pack : ParityPack) : Bool :=
         isDeduped pack.requiredProofRefs &&
         containsAll pack.requiredProofRefs (Compiler.Yul.rewriteProofAllowlistForId pack.rewriteBundleId)
 
+private def upsertParityPack (packs : List ParityPack) (pack : ParityPack) : List ParityPack :=
+  pack :: packs.filter (fun existing => existing.id != pack.id)
+
+unsafe initialize parityPackRegistry : IO.Ref (List ParityPack) ←
+  IO.mkRef []
+
+/-- Register a parity pack from an imported plugin module. If another pack with the same ID is
+    already present, the newly registered pack takes precedence. -/
+def registerParityPack (pack : ParityPack) : IO Unit :=
+  parityPackRegistry.modify fun packs => upsertParityPack packs pack
+
 /-- Registry of all shipped parity packs.
-    External contract packs (e.g. Morpho) register their packs via plugin imports. -/
-def allParityPacks : List ParityPack :=
-  []
+    External contract packs (e.g. Morpho) extend this registry from their plugin module via
+    `initialize registerParityPack ...`. -/
+unsafe def allParityPacks : List ParityPack :=
+  match IO.unsafeIO parityPackRegistry.get with
+  | .ok packs => packs
+  | .error _ => []
 
 def supportedParityPackIds : List String :=
   allParityPacks.map (·.id)

@@ -283,6 +283,39 @@ unsafe def runTests : IO Unit := do
   expectErrorContains "unknown argument still reported" ["--definitely-unknown-flag"] "Unknown argument: --definitely-unknown-flag"
   expectTrue "shipped parity packs have proof composition metadata"
     Compiler.allParityPacksProofCompositionValid
+  let dynamicBundleId := "main-test.dynamic-bundle"
+  let dynamicBundle : Compiler.Yul.RewriteRuleBundle :=
+    { id := dynamicBundleId
+      exprRules := Compiler.Yul.foundationExprPatchPack
+      stmtRules := []
+      blockRules := []
+      objectRules := [] }
+  Compiler.Yul.registerRewriteBundle dynamicBundle
+  expectTrue "rewrite bundle registry accepts runtime plugin registration"
+    ((Compiler.Yul.findRewriteBundle? dynamicBundleId).map (·.id) == some dynamicBundleId)
+  let dynamicPackId := "main-test.dynamic-pack"
+  let dynamicPack : Compiler.ParityPack :=
+    { id := dynamicPackId
+      compat := {
+        solcVersion := "0.8.33"
+        solcCommit := "64118f21"
+        optimizerRuns := 200
+        viaIR := false
+        evmVersion := "shanghai"
+        metadataMode := "default"
+      }
+      backendProfile := .solidityParity
+      forcePatches := true
+      defaultPatchMaxIterations := 2
+      rewriteBundleId := dynamicBundleId
+      compositionProofRef := Compiler.Yul.proofRefName
+        "Compiler.Proofs.YulGeneration.PatchRulesProofs.foundation_patch_pack_obligations"
+      requiredProofRefs := Compiler.Yul.rewriteProofAllowlistForId dynamicBundleId }
+  Compiler.registerParityPack dynamicPack
+  expectTrue "parity pack registry accepts runtime plugin registration"
+    ((Compiler.findParityPack? dynamicPackId).map (·.id) == some dynamicPackId)
+  expectTrue "runtime-registered parity pack still respects proof composition checks"
+    dynamicPack.proofCompositionValid
   let invalidPack : Compiler.ParityPack :=
     { id := "invalid-proof-pack"
       compat := {
