@@ -23,14 +23,15 @@ contract PropertyTupleSmokeTest is YulTestBase {
         (bool ok,) = target.call(abi.encodeWithSignature("setFromPair((uint256,uint256))", abi.decode(abi.encode(uint256(1), uint256(1)), (uint256, uint256))));
         require(ok, "setFromPair reverted unexpectedly");
     }
-    // Property 2: TODO decode and assert `getPair` result
-    function testTODO_GetPair_DecodeAndAssert() public {
+    // Property 2: getPair decodes and matches the inferred tuple result
+    function testAuto_GetPair_ReturnsInferredTupleResult() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("getPair(uint256)", uint256(1)));
         require(ok, "getPair reverted unexpectedly");
         require(ret.length >= 64, "getPair ABI tuple return payload unexpectedly short");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        (uint256 actual0, uint256 actual1) = abi.decode(ret, (uint256, uint256));
+        assertEq(actual0, uint256(1), "getPair tuple element 0 should preserve the inferred result");
+        assertEq(actual1, uint256(1), "getPair tuple element 1 should preserve the inferred result");
     }
     // Property 3: processConfig has no unexpected revert
     function testAuto_ProcessConfig_NoUnexpectedRevert() public {
