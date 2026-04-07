@@ -717,45 +717,47 @@ def echoPairModelReturnsMultipleWords : Bool :=
 
 example : echoPairModelReturnsMultipleWords = true := by native_decide
 
+private def helperPairInternalModelName : String := "internal_helperPair"
+
 def storeHelperPairModelUsesInternalCallAssign : Bool :=
   match MacroTupleDestructuring.storeHelperPair_modelBody with
-  | [Stmt.internalCallAssign ["first", "second"] "helperPair" [Expr.param "seed"],
+  | [Stmt.internalCallAssign ["first", "second"] helperName [Expr.param "seed"],
       Stmt.setStorage "firstSlot" (Expr.localVar "first"),
       Stmt.setStorage "secondSlot" (Expr.localVar "second"),
       Stmt.stop] =>
-      true
+      helperName == helperPairInternalModelName
   | _ => false
 
 example : storeHelperPairModelUsesInternalCallAssign = true := by native_decide
 
 def storeHelperPairEqModelUsesInternalCallAssign : Bool :=
   match MacroTupleDestructuring.storeHelperPairEq_modelBody with
-  | [Stmt.internalCallAssign ["first", "second"] "helperPair" [Expr.param "seed"],
+  | [Stmt.internalCallAssign ["first", "second"] helperName [Expr.param "seed"],
       Stmt.setStorage "firstSlot" (Expr.localVar "first"),
       Stmt.setStorage "secondSlot" (Expr.localVar "second"),
       Stmt.stop] =>
-      true
+      helperName == helperPairInternalModelName
   | _ => false
 
 example : storeHelperPairEqModelUsesInternalCallAssign = true := by native_decide
 
 def storeHelperPairTailModelUsesHiddenDiscardTarget : Bool :=
   match MacroTupleDestructuring.storeHelperPairTail_modelBody with
-  | [Stmt.internalCallAssign ["__tuple_discard_0", "second"] "helperPair" [Expr.param "seed"],
+  | [Stmt.internalCallAssign ["__tuple_discard_0", "second"] helperName [Expr.param "seed"],
       Stmt.setStorage "secondSlot" (Expr.localVar "second"),
       Stmt.stop] =>
-      true
+      helperName == helperPairInternalModelName
   | _ => false
 
 example : storeHelperPairTailModelUsesHiddenDiscardTarget = true := by native_decide
 
 def storeHelperPairTailNameCollisionModelUsesFreshDiscardTarget : Bool :=
   match MacroTupleDestructuring.storeHelperPairTailNameCollision_modelBody with
-  | [Stmt.internalCallAssign ["__tuple_discard_0_1", "second"] "helperPair" [Expr.param "seed"],
+  | [Stmt.internalCallAssign ["__tuple_discard_0_1", "second"] helperName [Expr.param "seed"],
       Stmt.setStorage "firstSlot" (Expr.param "__tuple_discard_0"),
       Stmt.setStorage "secondSlot" (Expr.localVar "second"),
       Stmt.stop] =>
-      true
+      helperName == helperPairInternalModelName
   | _ => false
 
 example : storeHelperPairTailNameCollisionModelUsesFreshDiscardTarget = true := by native_decide
