@@ -16,7 +16,7 @@ Yul
 EVM Bytecode
 ```
 
-The repository currently has 0 `sorry` placeholders across the `Compiler/**/*.lean` and `Verity/**/*.lean` proof modules that participate in the verified compiler stack. Layer 2 (Source → IR) and Layer 3 (IR → Yul) proof scripts are fully discharged, and it now has 2 documented Lean axioms. See [AXIOMS.md](AXIOMS.md) for the exact list and current elimination plan.
+The repository currently has 0 `sorry` placeholders across the `Compiler/**/*.lean` and `Verity/**/*.lean` proof modules that participate in the verified compiler stack. Layer 2 (Source → IR) and Layer 3 (IR → Yul) proof scripts are fully discharged, and it now has 1 documented Lean axiom. See [AXIOMS.md](AXIOMS.md) for the exact list and current elimination plan.
 
 ## What's Verified
 
@@ -38,13 +38,13 @@ Current theorem totals, property-test coverage, and proof status live in [docs/V
 
 ### 2. Lean Axioms
 - **Role**: Bridge remaining proof obligations not yet fully discharged.
-- **Status**: 2 documented axioms in [AXIOMS.md](AXIOMS.md): the selector axiom and 1 mapping-slot range axiom. The Layer 2 generic body-simulation axiom has been eliminated, and the Layer 3 dispatch bridge remains an explicit theorem hypothesis rather than a Lean axiom.
+- **Status**: 1 documented axiom in [AXIOMS.md](AXIOMS.md): the mapping-slot range axiom. Selector computation is now kernel-computable, the Layer 2 generic body-simulation axiom has been eliminated, and the Layer 3 dispatch bridge remains an explicit theorem hypothesis rather than a Lean axiom.
 - **Mitigation**: CI axiom reporting and location checks enforce explicit tracking.
 
 ### 3. Keccak-based Selector Computation
 - **Role**: Function selector derivation (`bytes4(keccak256(signature))`).
-- **Status**: 1 axiom in `Compiler/Selectors.lean:41`.
-- **Mitigation**: CI cross-checks against `solc --hashes` and fixtures.
+- **Status**: kernel-computable in `Compiler/Selectors.lean` via the vendored unrolled Keccak engine in `Compiler/Keccak/`.
+- **Mitigation**: CI cross-checks against `solc --hashes`, selector fixtures, and fixed selector examples.
 
 ### 4. Linked Yul Libraries
 - **Role**: External functions injected at compile time (e.g., Poseidon hash).

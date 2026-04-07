@@ -226,7 +226,7 @@ The generic whole-contract theorem exists and its proof chain is complete:
 - **`interpretContract_correct_of_compiled_functions`** in [`Dispatch.lean`](../Compiler/Proofs/IRGeneration/Dispatch.lean), selector-dispatch preservation.
 - **`counter_supported_spec_compile_preserves_semantics`** in [`Contract.lean`](../Compiler/Proofs/IRGeneration/Contract.lean), the first direct consumer instantiating the generic theorem for an existing supported demo model, with no contract-specific body-simulation premise.
 
-The proof chain no longer depends on `supported_function_body_correct_from_exact_state`; that axiom has been deleted. The only remaining documented project axiom is the selector-level `keccak256_first_4_bytes` assumption in [`Compiler/Selector.lean`](../Compiler/Selector.lean), as tracked in [AXIOMS.md](../AXIOMS.md).
+The proof chain no longer depends on `supported_function_body_correct_from_exact_state`; that axiom has been deleted. Selector computation is now kernel-computable in [`Compiler/Selectors.lean`](../Compiler/Selectors.lean), and the only remaining documented project axiom is the mapping-slot range assumption in [`Compiler/Proofs/MappingSlot.lean`](../Compiler/Proofs/MappingSlot.lean), as tracked in [AXIOMS.md](../AXIOMS.md).
 
 - `Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics`
 

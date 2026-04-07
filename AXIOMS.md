@@ -13,35 +13,7 @@ Axioms are exceptional. When an axiom exists, it must have:
 
 ## Current Axioms
 
-### 1. `keccak256_first_4_bytes`
-
-**Location**: `Compiler/Selectors.lean:41`
-
-**Statement**:
-```lean
-axiom keccak256_first_4_bytes (sig : String) : Nat
-```
-
-**Purpose**:
-Computes function selectors (`bytes4(keccak256(signature))`) used in ABI dispatch.
-When a smart contract has multiple functions, the EVM uses the first 4 bytes of
-`keccak256("functionName(argTypes)")` to decide which function to call. This axiom
-tells Lean "trust the external keccak256 implementation for this computation."
-
-**Why this is currently an axiom**:
-Reimplementing and proving keccak256 correct inside Lean would be a large effort
-with little benefit — the real keccak256 is a well-tested cryptographic standard.
-Instead, Verity treats it as a black box and validates its outputs in CI.
-
-**Soundness controls**:
-
-- CI cross-checks selectors against `solc --hashes`.
-- CI runs selector fixture checks to detect regressions.
-- Compilation and tests fail if selector consistency drifts.
-
-**Risk**: Low.
-
-### 2. `solidityMappingSlot_lt_evmModulus`
+### 1. `solidityMappingSlot_lt_evmModulus`
 
 **Location**: `Compiler/Proofs/MappingSlot.lean:125`
 
@@ -68,7 +40,21 @@ FFI layer.
 
 **Risk**: Low.
 
-## Trusted Cryptographic Primitive (Non-Axiom)
+## Trusted Cryptographic Primitives (Non-Axiom)
+
+### Kernel-computable selector Keccak-256
+
+**Location**: `Compiler/Selectors.lean`, `Compiler/Keccak/*.lean`
+
+**Role**:
+Computes function selectors (`bytes4(keccak256(signature))`) inside Lean's
+kernel using a vendored unrolled Keccak-256 engine. This is now a definitional
+computation, not a Lean axiom.
+
+**Soundness controls**:
+- Fixed selector examples in `Compiler/Selectors.lean`.
+- CI cross-checks selectors against `solc --hashes`.
+- Selector fixture checks still run as defense in depth.
 
 ### `ffi.KEC` (keccak256 via FFI)
 
@@ -164,7 +150,7 @@ specification.
 
 ## Trust Summary
 
-- Active axioms: 2
+- Active axioms: 1
 - Production blockers from axioms: 0
 - Enforcement: `scripts/check_axioms.py` ensures this file tracks exact source locations.
 - All internal compiler functions are proven to terminate (no axioms involved).
@@ -177,4 +163,4 @@ Any commit that adds, removes, renames, or moves an axiom must update this file 
 
 If this file is stale, trust analysis is stale.
 
-**Last Updated**: 2026-03-29
+**Last Updated**: 2026-04-07

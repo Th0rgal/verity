@@ -1916,7 +1916,7 @@
       "status": "complete",
       "acceptance_criteria": [
         "Zero sorry in all 144 .lean source files",
-        "1 documented axiom: keccak256_first_4_bytes (Compiler/Selectors.lean:41)",
+        "1 documented axiom: solidityMappingSlot_lt_evmModulus (Compiler/Proofs/MappingSlot.lean:125)",
         "Zero native_decide in proof-critical paths (263 uses all in test files)",
         "Zero Decidable.decide patterns in proofs",
         "check_lean_hygiene.py passes (0 debug commands, 0 sorry, 0 native_decide in proofs)",
@@ -1961,14 +1961,14 @@
           {
             "name": "check_axiom_locations",
             "file": "scripts/check_axiom_locations.py",
-            "description": "Validates all axiom locations in AXIOMS.md match actual source; 1 axiom verified at Compiler/Selectors.lean:41"
+            "description": "Validates all axiom locations in AXIOMS.md match actual source; 1 axiom verified at Compiler/Proofs/MappingSlot.lean:125"
           }
         ]
       },
       "obligation_delta": {
         "removed_sorries": []
       },
-      "notes": "Codebase-level audit: zero sorry, 1 axiom (keccak256_first_4_bytes, CI-validated against solc), 263 native_decide all in test files (TypedIRTests.lean, MacroContracts.lean), zero in formal proof files. No sorry-equivalent patterns (Decidable.decide, admit, etc.) found. Documentation accurately reflects this state."
+      "notes": "Codebase-level audit: zero sorry, 1 axiom (solidityMappingSlot_lt_evmModulus), kernel-computable selector hashing with CI cross-checks against solc, 263 native_decide all in test files (TypedIRTests.lean, MacroContracts.lean), zero in formal proof files. No sorry-equivalent patterns (Decidable.decide, admit, etc.) found. Documentation accurately reflects this state."
     },
     "4.5": {
       "status": "complete",
@@ -2046,7 +2046,7 @@
     "4.6": {
       "status": "complete",
       "acceptance_criteria": [
-        "AXIOMS.md: 1 axiom documented (keccak256_first_4_bytes) with location, purpose, controls, risk",
+        "AXIOMS.md: 1 axiom documented (solidityMappingSlot_lt_evmModulus) with location, purpose, controls, risk",
         "TRUST_ASSUMPTIONS.md: 8 trusted components documented with verification chain and semantic caveats",
         "docs/ROADMAP.md: status tracked with milestone updates",
         "docs-site: 0 stale SpecCorrectness/SpecInterpreter references (17 fixed across 8 files)",

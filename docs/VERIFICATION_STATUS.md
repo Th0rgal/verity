@@ -159,7 +159,7 @@ Also note that the macro-generated `*_semantic_preservation` theorems are not co
 0 `sorry` remaining across `Compiler/**/*.lean` and `Verity/**/*.lean` proof modules.
 1878 theorems/lemmas (1263 public, 615 private) verified by `lake build PrintAxioms`.
 
-2 documented Lean axioms remain (1 selector axiom, 1 mapping-slot range axiom). The Layer 2 body-simulation axiom has been eliminated, and the Layer 3 dispatch bridge is tracked as an explicit theorem hypothesis rather than a Lean axiom.
+1 documented Lean axiom remains (the mapping-slot range axiom). Selector computation is now kernel-computable, the Layer 2 body-simulation axiom has been eliminated, and the Layer 3 dispatch bridge is tracked as an explicit theorem hypothesis rather than a Lean axiom.
 
 ## Differential Testing
 
