@@ -296,6 +296,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.StatelessSmoke.spec
   , Contracts.Smoke.MutabilitySmoke.spec
   , Contracts.Smoke.SpecialEntrypointSmoke.spec
+  , Contracts.Smoke.DirectHelperCallSmoke.spec
   , Contracts.Smoke.InitializerSmoke.spec
   , Contracts.Smoke.ConstantSmoke.spec
   , Contracts.Smoke.ImmutableSmoke.spec
@@ -360,6 +361,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("StatelessSmoke", ["echoWord(uint256)", "whoAmI()"])
   , ("MutabilitySmoke", ["deposit()", "currentOwner()"])
   , ("SpecialEntrypointSmoke", ["getReceiveCount()", "getFallbackCount()"])
+  , ("DirectHelperCallSmoke", ["runHelpers(uint256,uint256,uint256)", "snapshot()"])
   , ("InitializerSmoke", ["initOwner(address)", "upgradeToV2()"])
   , ("ConstantSmoke", ["feeOn(uint256)", "treasuryAddr()"])
   , ("ImmutableSmoke", ["supplyCap()", "treasuryAddr()", "shadowed(uint256)"])
@@ -419,6 +421,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("StatelessSmoke", ["0x26534f53", "0xda91254c"])
   , ("MutabilitySmoke", ["0xd0e30db0", "0xb387ef92"])
   , ("SpecialEntrypointSmoke", ["0x931999fb", "0x74b204a4"])
+  , ("DirectHelperCallSmoke", ["0xa392867e", "0x9711715a"])
   , ("InitializerSmoke", ["0x0d009297", "0xcc01053e"])
   , ("ConstantSmoke", ["0x9c421eb5", "0x30d9a62a"])
   , ("ImmutableSmoke", ["0x8f770ad0", "0x30d9a62a", "0x655b96ec"])
