@@ -60,7 +60,7 @@ contract PropertySignedBuiltinSmokeTest is YulTestBase {
         require(ok, "arithmeticShift reverted unexpectedly");
         assertEq(ret.length, 32, "arithmeticShift ABI return length mismatch (expected 32 bytes)");
         uint256 actual = abi.decode(ret, (uint256));
-        assertEq(actual, uint256(int256(uint256(1)) >> uint256(1)), "arithmeticShift should return the declared constant");
+        assertEq(actual, 0, "arithmeticShift should return the declared constant");
     }
     // Property 6: signExtended returns the declared constant or immutable value
     function testAuto_SignExtended_ReturnsDeclaredBinding() public {
@@ -105,7 +105,7 @@ contract PropertySignedBuiltinSmokeTest is YulTestBase {
         require(ok, "signedDivViaLocal reverted unexpectedly");
         assertEq(ret.length, 32, "signedDivViaLocal ABI return length mismatch (expected 32 bytes)");
         int256 actual = abi.decode(ret, (int256));
-        assertEq(actual, (int256(uint256(1)) / int256(1)), "signedDivViaLocal should preserve the inferred result");
+        assertEq(actual, (1 / int256(1)), "signedDivViaLocal should preserve the inferred result");
     }
     // Property 11: castToInt returns the declared constant result
     function testAuto_CastToInt_ReturnsDeclaredConstant() public {
@@ -114,7 +114,7 @@ contract PropertySignedBuiltinSmokeTest is YulTestBase {
         require(ok, "castToInt reverted unexpectedly");
         assertEq(ret.length, 32, "castToInt ABI return length mismatch (expected 32 bytes)");
         int256 actual = abi.decode(ret, (int256));
-        assertEq(actual, int256(uint256(1)), "castToInt should return the declared constant");
+        assertEq(actual, 1, "castToInt should return the declared constant");
     }
     // Property 12: castToUint returns the declared constant result
     function testAuto_CastToUint_ReturnsDeclaredConstant() public {
@@ -123,7 +123,7 @@ contract PropertySignedBuiltinSmokeTest is YulTestBase {
         require(ok, "castToUint reverted unexpectedly");
         assertEq(ret.length, 32, "castToUint ABI return length mismatch (expected 32 bytes)");
         uint256 actual = abi.decode(ret, (uint256));
-        assertEq(actual, uint256(int256(1)), "castToUint should return the declared constant");
+        assertEq(actual, 1, "castToUint should return the declared constant");
     }
     // Property 13: minusOne returns the declared constant or immutable value
     function testAuto_MinusOne_ReturnsDeclaredBinding() public {
@@ -141,7 +141,7 @@ contract PropertySignedBuiltinSmokeTest is YulTestBase {
         require(ok, "bitAndSignBit reverted unexpectedly");
         assertEq(ret.length, 32, "bitAndSignBit ABI return length mismatch (expected 32 bytes)");
         bool actual = abi.decode(ret, (bool));
-        assertEq(actual, ((int256(1) & int256(1)) < 0), "bitAndSignBit should return the declared constant");
+        assertEq(actual, (1 < 0), "bitAndSignBit should return the declared constant");
     }
     // Property 15: minSignBit returns the declared constant result
     function testAuto_MinSignBit_ReturnsDeclaredConstant() public {

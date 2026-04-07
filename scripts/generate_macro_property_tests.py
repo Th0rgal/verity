@@ -742,13 +742,25 @@ def _resolve_value_expr(
                     elif op == "mul":
                         folded = lhs_lit * rhs_lit
                     elif op == "div":
-                        if rhs_lit == 0:
-                            return None
-                        folded = lhs_lit // rhs_lit
+                        if lean_type == "Int256":
+                            divmod_result = _signed_divmod_literals(lhs_lit, rhs_lit)
+                            if divmod_result is None:
+                                return None
+                            folded = divmod_result[0]
+                        else:
+                            if rhs_lit == 0:
+                                return None
+                            folded = lhs_lit // rhs_lit
                     elif op == "mod":
-                        if rhs_lit == 0:
-                            return None
-                        folded = lhs_lit % rhs_lit
+                        if lean_type == "Int256":
+                            divmod_result = _signed_divmod_literals(lhs_lit, rhs_lit)
+                            if divmod_result is None:
+                                return None
+                            folded = divmod_result[1]
+                        else:
+                            if rhs_lit == 0:
+                                return None
+                            folded = lhs_lit % rhs_lit
                     elif op == "bitAnd":
                         folded = lhs_lit & rhs_lit
                     elif op == "bitOr":
@@ -973,6 +985,9 @@ def _parse_literal_int(value: str) -> int | None:
         return (1 << 255) - 1
     if value == "type(int256).min":
         return -(1 << 255)
+    cast_match = re.fullmatch(r"(?:u?int256)\((.+)\)", value)
+    if cast_match is not None:
+        return _parse_literal_int(cast_match.group(1))
     sign = -1 if value.startswith("-") else 1
     if value[:1] in {"-", "+"}:
         value = value[1:]
@@ -995,6 +1010,15 @@ def _format_int_literal(value: int) -> str:
     if value == (1 << 255) - 1:
         return "type(int256).max"
     return str(value) if value >= 0 else f"int256({value})"
+
+
+def _signed_divmod_literals(lhs: int, rhs: int) -> tuple[int, int] | None:
+    if rhs == 0:
+        return None
+    quotient_sign = -1 if (lhs < 0) ^ (rhs < 0) else 1
+    quotient = quotient_sign * (abs(lhs) // abs(rhs))
+    remainder = lhs - (quotient * rhs)
+    return quotient, remainder
 
 
 def _signextend_literal(byte_index: int, value: int) -> int:

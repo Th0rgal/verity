@@ -528,7 +528,7 @@ class RenderTests(unittest.TestCase):
         self.assertIn("function testAuto_SupplyCap_ReturnsDeclaredBinding()", rendered)
         self.assertIn("uint256 actual = abi.decode(ret, (uint256));", rendered)
         self.assertIn(
-            'assertEq(actual, (uint256(1) + 2), "supplyCap should preserve the expected value");',
+            'assertEq(actual, 3, "supplyCap should preserve the expected value");',
             rendered,
         )
 
@@ -741,7 +741,7 @@ class RenderTests(unittest.TestCase):
         self.assertIn("function testAuto_FeeOn_ReturnsInferredStraightLineResult()", rendered)
         self.assertIn("uint256 actual = abi.decode(ret, (uint256));", rendered)
         self.assertIn(
-            'assertEq(actual, ((uint256(1) * 30) / 10000), "feeOn should preserve the inferred result");',
+            'assertEq(actual, 0, "feeOn should preserve the inferred result");',
             rendered,
         )
 
@@ -871,8 +871,7 @@ class RenderTests(unittest.TestCase):
             rendered,
         )
         self.assertNotIn("testTODO_PreviewOps_DecodeAndAssert", rendered)
-        self.assertIn("<< 2", rendered)
-        self.assertIn(">> 1", rendered)
+        self.assertIn("(uint256(2) > uint256(1)) ? ", rendered)
         self.assertIn("? ", rendered)
 
     def test_render_signed_builtin_smoke_infers_assertions(self) -> None:
@@ -997,6 +996,41 @@ class RenderTests(unittest.TestCase):
             'assertEq(actual, int256(-1), "minusOne should preserve the expected value");',
             rendered,
         )
+
+    def test_render_signed_literal_div_mod_use_evm_rounding(self) -> None:
+        contract = gen.ContractDecl(
+            name="SignedLiteralMathSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl("truncDiv", (), "Int256", body=("return negativeDiv",)),
+                gen.FunctionDecl("truncMod", (), "Int256", body=("return negativeMod",)),
+            ),
+            storage_slots={},
+            constants={
+                "negativeThree": gen.ValueDecl("negativeThree", "Int256", "(toInt256 (sub 0 3))"),
+                "negativeDiv": gen.ValueDecl("negativeDiv", "Int256", "(div negativeThree 2)"),
+                "negativeMod": gen.ValueDecl("negativeMod", "Int256", "(mod negativeThree 2)"),
+            },
+        )
+        self.assertEqual(
+            gen._resolve_value_expr(contract, "(div negativeThree 2)", "Int256", {}),
+            "int256(-1)",
+        )
+        self.assertEqual(
+            gen._resolve_value_expr(contract, "(mod negativeThree 2)", "Int256", {}),
+            "int256(-1)",
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn(
+            'assertEq(actual, int256(-1), "truncDiv should preserve the expected value");',
+            rendered,
+        )
+        self.assertIn(
+            'assertEq(actual, int256(-1), "truncMod should preserve the expected value");',
+            rendered,
+        )
+        self.assertNotIn("int256(-2)", rendered)
 
     def test_render_string_eq_predicate_infers_assertion(self) -> None:
         contract = gen.ContractDecl(

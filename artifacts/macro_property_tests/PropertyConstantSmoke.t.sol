@@ -24,7 +24,7 @@ contract PropertyConstantSmokeTest is YulTestBase {
         require(ok, "feeOn reverted unexpectedly");
         assertEq(ret.length, 32, "feeOn ABI return length mismatch (expected 32 bytes)");
         uint256 actual = abi.decode(ret, (uint256));
-        assertEq(actual, ((uint256(1) * 30) / 10000), "feeOn should preserve the inferred result");
+        assertEq(actual, 0, "feeOn should preserve the inferred result");
     }
     // Property 2: treasuryAddr returns the declared constant or immutable value
     function testAuto_TreasuryAddr_ReturnsDeclaredBinding() public {

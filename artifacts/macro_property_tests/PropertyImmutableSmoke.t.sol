@@ -24,7 +24,7 @@ contract PropertyImmutableSmokeTest is YulTestBase {
         require(ok, "supplyCap reverted unexpectedly");
         assertEq(ret.length, 32, "supplyCap ABI return length mismatch (expected 32 bytes)");
         uint256 actual = abi.decode(ret, (uint256));
-        assertEq(actual, (uint256(1) + 2), "supplyCap should preserve the expected value");
+        assertEq(actual, 3, "supplyCap should preserve the expected value");
     }
     // Property 2: treasuryAddr returns the declared constant or immutable value
     function testAuto_TreasuryAddr_ReturnsDeclaredBinding() public {
