@@ -17,14 +17,17 @@ contract PropertyStorageBytes32ArraySmokeTest is YulTestBase {
         require(target != address(0), "Deploy failed");
     }
 
-    // Property 1: TODO decode and assert `firstDigest` result
-    function testTODO_FirstDigest_DecodeAndAssert() public {
+    // Property 1: firstDigest reads the configured storage-array element
+    function testAuto_FirstDigest_ReadsConfiguredStorageArrayElement() public {
+        bytes32 expected = bytes32(uint256(0xBEEF));
+        vm.store(target, bytes32(uint256(0)), bytes32(uint256(1)));
+        vm.store(target, bytes32(uint256(keccak256(abi.encode(uint256(0)))) + 0), expected);
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("firstDigest()"));
         require(ok, "firstDigest reverted unexpectedly");
         assertEq(ret.length, 32, "firstDigest ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        bytes32 actual = abi.decode(ret, (bytes32));
+        assertEq(actual, expected, "firstDigest should return the configured array element");
     }
     // Property 2: pushDigest has no unexpected revert
     function testAuto_PushDigest_NoUnexpectedRevert() public {
