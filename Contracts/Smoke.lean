@@ -138,7 +138,7 @@ def storageAddressArrayExecutableReadsHead : Bool :=
         state.storageArray StorageAddressArraySmoke.owners.slot == [11, 17]
   | .revert _ _ => false
 
-example : storageAddressArrayExecutableReadsHead = true := by native_decide
+example : storageAddressArrayExecutableReadsHead = true := by decide
 
 def storageAddressArrayExecutablePushStoresWord : Bool :=
   match StorageAddressArraySmoke.pushOwner (19 : Address) Verity.defaultState with
@@ -146,7 +146,7 @@ def storageAddressArrayExecutablePushStoresWord : Bool :=
       state.storageArray StorageAddressArraySmoke.owners.slot == [19]
   | .revert _ _ => false
 
-example : storageAddressArrayExecutablePushStoresWord = true := by native_decide
+example : storageAddressArrayExecutablePushStoresWord = true := by decide
 
 def storageAddressArrayExecutableSetUpdatesHead : Bool :=
   let seededState : Verity.ContractState :=
@@ -158,7 +158,7 @@ def storageAddressArrayExecutableSetUpdatesHead : Bool :=
       state.storageArray StorageAddressArraySmoke.owners.slot == [29, 17]
   | .revert _ _ => false
 
-example : storageAddressArrayExecutableSetUpdatesHead = true := by native_decide
+example : storageAddressArrayExecutableSetUpdatesHead = true := by decide
 
 def storageBytes32ArrayExecutableReadsHead : Bool :=
   let seededState : Verity.ContractState :=
@@ -171,7 +171,7 @@ def storageBytes32ArrayExecutableReadsHead : Bool :=
         state.storageArray StorageBytes32ArraySmoke.digests.slot == [41, 43]
   | .revert _ _ => false
 
-example : storageBytes32ArrayExecutableReadsHead = true := by native_decide
+example : storageBytes32ArrayExecutableReadsHead = true := by decide
 
 def storageBoolArrayExecutableReadsHead : Bool :=
   let seededState : Verity.ContractState :=
@@ -184,7 +184,7 @@ def storageBoolArrayExecutableReadsHead : Bool :=
         state.storageArray StorageBoolArraySmoke.flags.slot == [0, 1]
   | .revert _ _ => false
 
-example : storageBoolArrayExecutableReadsHead = true := by native_decide
+example : storageBoolArrayExecutableReadsHead = true := by decide
 
 def storageBoolArrayExecutablePushStoresCanonicalWord : Bool :=
   match StorageBoolArraySmoke.pushFlag true Verity.defaultState with
@@ -192,7 +192,7 @@ def storageBoolArrayExecutablePushStoresCanonicalWord : Bool :=
       state.storageArray StorageBoolArraySmoke.flags.slot == [1]
   | .revert _ _ => false
 
-example : storageBoolArrayExecutablePushStoresCanonicalWord = true := by native_decide
+example : storageBoolArrayExecutablePushStoresCanonicalWord = true := by decide
 
 def storageBoolArrayExecutableSetUpdatesHead : Bool :=
   let seededState : Verity.ContractState :=
@@ -204,7 +204,7 @@ def storageBoolArrayExecutableSetUpdatesHead : Bool :=
       state.storageArray StorageBoolArraySmoke.flags.slot == [1, 1]
   | .revert _ _ => false
 
-example : storageBoolArrayExecutableSetUpdatesHead = true := by native_decide
+example : storageBoolArrayExecutableSetUpdatesHead = true := by decide
 
 /--
 error: field 'queue' is a storage dynamic array; use pushStorageArray/popStorageArray/setStorageArrayElement
