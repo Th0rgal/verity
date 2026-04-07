@@ -53,64 +53,10 @@ def ParityPack.proofCompositionValid (pack : ParityPack) : Bool :=
         isDeduped pack.requiredProofRefs &&
         containsAll pack.requiredProofRefs (Compiler.Yul.rewriteProofAllowlistForId pack.rewriteBundleId)
 
-def solc_0_8_28_o200_viair_false_evm_shanghai : ParityPack :=
-  { id := "solc-0.8.28-o200-viair-false-evm-shanghai"
-    compat := {
-      solcVersion := "0.8.28"
-      solcCommit := "7893614a"
-      optimizerRuns := 200
-      viaIR := false
-      evmVersion := "shanghai"
-      metadataMode := "default"
-    }
-    backendProfile := .solidityParity
-    forcePatches := true
-    defaultPatchMaxIterations := 6
-    rewriteBundleId := Compiler.Yul.solcCompatRewriteBundleId
-    compositionProofRef := Compiler.Yul.proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_patch_pack_obligations"
-    requiredProofRefs := Compiler.Yul.solcCompatProofAllowlist
-  }
-
-def solc_0_8_33_o200_viair_false_evm_shanghai : ParityPack :=
-  { id := "solc-0.8.33-o200-viair-false-evm-shanghai"
-    compat := {
-      solcVersion := "0.8.33"
-      solcCommit := "64118f21"
-      optimizerRuns := 200
-      viaIR := false
-      evmVersion := "shanghai"
-      metadataMode := "default"
-    }
-    backendProfile := .solidityParity
-    forcePatches := true
-    defaultPatchMaxIterations := 6
-    rewriteBundleId := Compiler.Yul.solcCompatRewriteBundleId
-    compositionProofRef := Compiler.Yul.proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_patch_pack_obligations"
-    requiredProofRefs := Compiler.Yul.solcCompatProofAllowlist
-  }
-
-def solc_0_8_28_o999999_viair_true_evm_paris : ParityPack :=
-  { id := "solc-0.8.28-o999999-viair-true-evm-paris"
-    compat := {
-      solcVersion := "0.8.28"
-      solcCommit := "7893614a"
-      optimizerRuns := 999999
-      viaIR := true
-      evmVersion := "paris"
-      metadataMode := "none"
-    }
-    backendProfile := .solidityParity
-    forcePatches := true
-    defaultPatchMaxIterations := 6
-    rewriteBundleId := Compiler.Yul.solcCompatRewriteBundleId
-    compositionProofRef := Compiler.Yul.proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_patch_pack_obligations"
-    requiredProofRefs := Compiler.Yul.solcCompatProofAllowlist
-  }
-
+/-- Registry of all shipped parity packs.
+    External contract packs (e.g. Morpho) register their packs via plugin imports. -/
 def allParityPacks : List ParityPack :=
-  [solc_0_8_33_o200_viair_false_evm_shanghai,
-   solc_0_8_28_o200_viair_false_evm_shanghai,
-   solc_0_8_28_o999999_viair_true_evm_paris]
+  []
 
 def supportedParityPackIds : List String :=
   allParityPacks.map (·.id)

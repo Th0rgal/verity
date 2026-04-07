@@ -1,6 +1,6 @@
 # Solidity-to-Verity Yul Parity Protocol
 
-Issue: [#967](https://github.com/Th0rgal/verity/issues/967)
+Issue: [#967](https://github.com/lfglabs-dev/verity/issues/967)
 
 This document defines the recommended protocol for proving Yul-output identity against `solc` for an existing Solidity contract while preserving Verity's default compiler behavior.
 
@@ -39,7 +39,7 @@ Without pinning these, exact Yul identity is not a meaningful claim.
    - Prefer family-level structural classes (ABI helper layout, memory copy helpers, allocation helpers, dispatcher shape) over per-function ad-hoc fixes.
    - Separate rename-only deltas from structural deltas.
 4. Implement compatibility rewrites in Verity.
-   - Add rules in an explicit compat rewrite bundle (for example `solc-compat-v0`).
+   - Add rules in an explicit compat rewrite bundle in an external plugin package.
    - Keep rule scope tight (`ExprRule`/`StmtRule`/`BlockRule`/`ObjectRule` + `RewriteCtx` scope checks).
    - Attach proof references and pack allowlist membership.
 5. Enforce pack-level proof composition.

@@ -65,10 +65,7 @@ private def defaultRewriteBundleIdFor (cfg : CLIArgs) : String :=
       match Compiler.findParityPack? packId with
       | some pack => pack.rewriteBundleId
       | none => Compiler.Yul.foundationRewriteBundleId
-  | none =>
-      match cfg.backendProfile with
-      | .solidityParity => Compiler.Yul.solcCompatRewriteBundleId
-      | _ => Compiler.Yul.foundationRewriteBundleId
+  | none => Compiler.Yul.foundationRewriteBundleId
 
 private def requiredProofRefsFor (cfg : CLIArgs) : List Lean.Name :=
   match cfg.parityPackId with
@@ -83,14 +80,14 @@ example :
     defaultRewriteBundleIdFor
       { backendProfile := .solidityParity
         patchEnabled := true } =
-      Compiler.Yul.solcCompatRewriteBundleId := by
+      Compiler.Yul.foundationRewriteBundleId := by
   native_decide
 
 example :
     requiredProofRefsFor
       { backendProfile := .solidityParity
         patchEnabled := true } =
-      Compiler.Yul.solcCompatProofAllowlist := by
+      Compiler.Yul.foundationProofAllowlist := by
   native_decide
 
 private def parseBackendProfile (raw : String) : Option Compiler.BackendProfile :=

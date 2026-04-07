@@ -18,7 +18,7 @@ from property_utils import ROOT, report_errors, strip_lean_comments
 
 PATCH_RULES_DIR = ROOT / "Compiler" / "Yul" / "PatchRulesCatalog"
 PARITY_PACKS_PATH = ROOT / "Compiler" / "ParityPacks.lean"
-BUNDLES_TO_CHECK = ["foundationRewriteBundle", "solcCompatRewriteBundle"]
+BUNDLES_TO_CHECK = ["foundationRewriteBundle"]
 _DEF_STRING_RE = re.compile(r'^\s*def\s+([A-Za-z_][A-Za-z0-9_\']*)\s*:\s*String\s*:=\s*"([^"]*)"', re.MULTILINE)
 _DEF_NAME_RE = re.compile(r"^\s*def\s+([A-Za-z_][A-Za-z0-9_']*)\s*:\s*Lean\.Name\s*:=\s*``([A-Za-z0-9_.']+)", re.MULTILINE)
 _DEF_NAME_FROM_HELPER_RE = re.compile(

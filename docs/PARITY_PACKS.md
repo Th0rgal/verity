@@ -13,13 +13,11 @@ This document defines the proposed structure for versioned parity packs that tar
 | CLI | `--parity-pack <id>` selects a pack; cannot be combined with `--backend-profile` |
 | Registry | Hard validation in `Compiler/ParityPacks.lean`; fails closed on unknown/ambiguous tuples |
 | Patch pipeline | Two-stage typed pipeline: runtime-scoped `ExprRule`/`StmtRule`/`BlockRule` fixpoint pass, then `ObjectRule` pass over the full object |
-| Rewrite bundles | `foundation` (baseline) and `solc-compat-v0` (compatibility-only rewrites); 13 active rules, see [REWRITE_RULES.md](REWRITE_RULES.md) for the full list |
+| Rewrite bundles | `foundation` (baseline); contract-specific bundles (e.g. `solc-compat-v0`) are now external plugin packages |
 | Proof enforcement | Packs carry `compositionProofRef` + `requiredProofRefs`; fail-closed validation at selection time; proof registries propagate through CLI → codegen |
 | Pack metadata | `rewriteBundleId`, `metadataMode`, `patchMaxIterations` (default 6), and `RewriteCtx` scope/phase/iteration data threaded through execution |
 | Yul normalization | Switch zero-tags canonicalized to `case 0` (not `case 0x0`) for tokenization-level identity comparison |
-| Shipped packs | 3 pinned-solc packs (see [Implemented Packs](#implemented-packs) below); CI metric gates on `onlyInVerity`, `onlyInSolidity`, `hashMismatch` |
-
-Two rules (`solc-compat-prune-unreachable-helpers`, `solc-compat-outline-dispatch-helpers`) are implemented and tested but intentionally inactive in `solc-compat-v0` to preserve helper families needed for function-level identity comparison.
+| Shipped packs | No built-in packs; packs are registered by external plugin packages (e.g. `morpho-verity`) |
 
 **Not implemented:** unsupported manifest workflow.
 
@@ -40,9 +38,7 @@ Example: `solc-0.8.27-o200-viair-false-evm-shanghai`
 
 ## Implemented Packs
 
-1. `solc-0.8.28-o200-viair-false-evm-shanghai`
-2. `solc-0.8.33-o200-viair-false-evm-shanghai` (pinned-CI tuple)
-3. `solc-0.8.28-o999999-viair-true-evm-paris` (Morpho-focused tuple)
+No packs are currently shipped in the core compiler. Morpho-specific packs have been extracted to `morpho-verity`. External packages register packs by extending `allParityPacks` via plugin imports.
 
 ## Proposed Pack Contents
 

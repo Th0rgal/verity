@@ -81,7 +81,7 @@ structure PatchPassConfig where
   maxIterations : Nat := 2
   passPhase : PatchPhase := .postCodegen
   packId : String := ""
-  /-- Selected rewrite bundle ID (e.g., `foundation`, `solc-compat-v0`). -/
+  /-- Selected rewrite bundle ID (e.g., `foundation`). -/
   rewriteBundleId : String := "foundation"
   /-- Optional activation-time proof registry for fail-closed rule filtering.
       When non-empty, only rules whose `proofId` appears in this list can run. -/
