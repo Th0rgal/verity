@@ -1,6 +1,6 @@
 # Solidity-to-Verity Yul Parity Protocol
 
-Issue: [#967](https://github.com/Th0rgal/verity/issues/967)
+Issue: [#967](https://github.com/lfglabs-dev/verity/issues/967)
 
 This document defines the recommended protocol for proving Yul-output identity against `solc` for an existing Solidity contract while preserving Verity's default compiler behavior.
 
