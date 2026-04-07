@@ -161,7 +161,7 @@ class GenerateContractGetterPropertyScaffoldTests(unittest.TestCase):
             out,
         )
 
-    def test_predicate_getter_scaffold_stays_explicit_todo(self) -> None:
+    def test_owner_predicate_getter_scaffold_checks_matching_and_nonmatching_sender(self) -> None:
         cfg = ContractConfig(
             name="Demo",
             fields=[Field(name="owner", ty="address")],
@@ -170,10 +170,30 @@ class GenerateContractGetterPropertyScaffoldTests(unittest.TestCase):
 
         out = gen_property_tests(cfg)
         self.assertIn(
-            "function testTODO_IsOwner_GetterNeedsSpecAssertions() public {",
+            "function testProperty_IsOwner_MeetsSpec() public {",
             out,
         )
-        self.assertIn("Property TODO: isOwner_meets_spec", out)
+        self.assertIn("Property: isOwner_meets_spec", out)
+        self.assertIn("vm.prank(alice);", out)
+        self.assertIn("bool ownerDecoded = abi.decode(ownerRet, (bool));", out)
+        self.assertIn('assertTrue(ownerDecoded, "predicate getter should return true for matching sender");', out)
+        self.assertIn("vm.prank(bob);", out)
+        self.assertIn("bool otherDecoded = abi.decode(otherRet, (bool));", out)
+        self.assertIn('assertFalse(otherDecoded, "predicate getter should return false for non-matching sender");', out)
+
+    def test_unknown_predicate_getter_scaffold_stays_explicit_todo(self) -> None:
+        cfg = ContractConfig(
+            name="Demo",
+            fields=[Field(name="owner", ty="address")],
+            functions=[Function(name="hasAccess", params=[])],
+        )
+
+        out = gen_property_tests(cfg)
+        self.assertIn(
+            "function testTODO_HasAccess_GetterNeedsSpecAssertions() public {",
+            out,
+        )
+        self.assertIn("Property TODO: hasAccess_meets_spec", out)
         self.assertIn("revert(\"TODO: implement getter property assertions\");", out)
 
     def test_non_getter_scaffold_keeps_meets_spec_template(self) -> None:
@@ -230,6 +250,19 @@ class GenerateContractExampleGetterScaffoldTests(unittest.TestCase):
         self.assertIn("let currentValue ← getStorageAddr owner", out)
         self.assertIn("return currentValue", out)
 
+    def test_owner_predicate_getter_compares_sender_to_address_storage(self) -> None:
+        cfg = ContractConfig(
+            name="AuditDemo",
+            fields=[Field(name="owner", ty="address")],
+            functions=[Function(name="isOwner", params=[])],
+        )
+
+        out = gen_example(cfg)
+        self.assertIn("def isOwner : Contract Bool := do", out)
+        self.assertIn("let sender ← msgSender", out)
+        self.assertIn("let currentValue ← getStorageAddr owner", out)
+        self.assertIn("return sender == currentValue", out)
+
     def test_scalar_uint_getter_reads_uint_storage(self) -> None:
         cfg = ContractConfig(
             name="AuditDemo",
@@ -278,6 +311,17 @@ class GenerateContractSpecGetterTests(unittest.TestCase):
         out = gen_spec(cfg)
         self.assertIn("def getOwner_spec (result : Address) (s : ContractState) : Prop :=", out)
         self.assertIn("result = s.storageAddr 0", out)
+
+    def test_owner_predicate_spec_tracks_sender_equality(self) -> None:
+        cfg = ContractConfig(
+            name="AuditDemo",
+            fields=[Field(name="owner", ty="address")],
+            functions=[Function(name="isOwner", params=[])],
+        )
+
+        out = gen_spec(cfg)
+        self.assertIn("def isOwner_spec (result : Bool) (s : ContractState) : Prop :=", out)
+        self.assertIn("result = (s.sender == s.storageAddr 0)", out)
 
     def test_mapping_getter_spec_tracks_mapping_entry(self) -> None:
         cfg = ContractConfig(
