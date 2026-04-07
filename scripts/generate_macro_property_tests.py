@@ -1817,6 +1817,104 @@ def _render_mocked_external_read_assertion(
     )
 
 
+def _render_erc721_mint_assertion(
+    contract: ContractDecl,
+    fn: FunctionDecl,
+    idx: int,
+    encode_args: str,
+) -> str | None:
+    if _normalize_type(fn.return_type) != "Uint256":
+        return None
+    if len(fn.params) != 1 or _normalize_type(fn.params[0].lean_type) != "Address":
+        return None
+    if contract.storage_slots.get("owner") != 0:
+        return None
+
+    body = list(fn.body)
+    expected_body = [
+        "let sender ← msgSender",
+        "let currentOwner ← getStorageAddr owner",
+        'require (sender == currentOwner) "Caller is not the owner"',
+        'require (to != zeroAddress) "Invalid recipient"',
+        "let tokenId ← getStorage nextTokenId",
+        "let currentOwnerWord ← getMappingUint owners tokenId",
+        'require (currentOwnerWord == 0) "Token already minted"',
+        "let recipientBalance ← getMapping balances to",
+        'let newRecipientBalance ← requireSomeUint (safeAdd recipientBalance 1) "Balance overflow"',
+        "let currentSupply ← getStorage totalSupply",
+        'let newSupply ← requireSomeUint (safeAdd currentSupply 1) "Supply overflow"',
+        "setMappingUintAddr owners tokenId to",
+        "setMapping balances to newRecipientBalance",
+        "setStorage totalSupply newSupply",
+        "setStorage nextTokenId (add tokenId 1)",
+        "return tokenId",
+    ]
+    if body != expected_body:
+        return None
+
+    to_name = fn.params[0].name
+    owner_slot = contract.storage_slots.get("owner")
+    total_supply_slot = contract.storage_slots.get("totalSupply")
+    next_token_id_slot = contract.storage_slots.get("nextTokenId")
+    owners_slot = contract.storage_slots.get("owners")
+    balances_slot = contract.storage_slots.get("balances")
+    if None in {owner_slot, total_supply_slot, next_token_id_slot, owners_slot, balances_slot}:
+        return None
+
+    recipient = _example_value("Address")
+    minted_token_id = "uint256(1)"
+    current_supply = "uint256(2)"
+    recipient_balance = "uint256(3)"
+    new_supply = f"({current_supply} + 1)"
+    new_recipient_balance = f"({recipient_balance} + 1)"
+    setup_lines = [
+        f"address {to_name} = {recipient};",
+        "address expectedOwner = alice;",
+        f"uint256 mintedTokenId = {minted_token_id};",
+        f"uint256 currentSupply = {current_supply};",
+        f"uint256 recipientBalance = {recipient_balance};",
+        f"vm.store(target, bytes32(uint256({owner_slot})), bytes32(uint256(uint160(expectedOwner))));",
+        f"vm.store(target, bytes32(uint256({total_supply_slot})), bytes32(uint256(currentSupply)));",
+        f"vm.store(target, bytes32(uint256({next_token_id_slot})), bytes32(uint256(mintedTokenId)));",
+        f"vm.store(target, _mappingSlot(bytes32(uint256(uint160({to_name}))), {balances_slot}), bytes32(uint256(recipientBalance)));",
+    ]
+    assert_lines = [
+        'assertEq(actual, mintedTokenId, "mint should return the seeded next token id");',
+        "assertEq(",
+        f"    vm.load(target, _mappingSlot(bytes32(uint256(actual)), {owners_slot})),",
+        f"    bytes32(uint256(uint160({to_name}))),",
+        '    "mint should persist the new owner word"',
+        ");",
+        "assertEq(",
+        f"    vm.load(target, _mappingSlot(bytes32(uint256(uint160({to_name}))), {balances_slot})),",
+        f"    bytes32(uint256({new_recipient_balance})),",
+        '    "mint should increment the recipient balance"',
+        ");",
+        "assertEq(",
+        f"    vm.load(target, bytes32(uint256({total_supply_slot}))),",
+        f"    bytes32(uint256({new_supply})),",
+        '    "mint should increment totalSupply"',
+        ");",
+        "assertEq(",
+        f"    vm.load(target, bytes32(uint256({next_token_id_slot}))),",
+        "    bytes32(uint256(mintedTokenId + 1)),",
+        '    "mint should increment nextTokenId"',
+        ");",
+    ]
+    return _render_decoded_assertion(
+        fn,
+        idx,
+        encode_args,
+        _return_shape_assertion(fn.return_type, fn.name),
+        _sol_type(fn.return_type),
+        setup_lines,
+        f"{_sol_type(fn.return_type)} actual = abi.decode(ret, ({_sol_type(fn.return_type)}));",
+        assert_lines,
+        f"{fn.name} returns the minted token id and persists the success-path writes",
+        "ReturnsMintedTokenIdAndUpdatesState",
+    )
+
+
 def _infer_straight_line_non_unit_test(
     contract: ContractDecl,
     fn: FunctionDecl,
@@ -1891,6 +1989,10 @@ def _render_inferred_non_unit_test(contract: ContractDecl, fn: FunctionDecl, idx
     )
     decoded_type = _sol_type(fn.return_type)
     param_types = {param.name: _normalize_type(param.lean_type) for param in fn.params}
+
+    erc721_mint = _render_erc721_mint_assertion(contract, fn, idx, encode_args)
+    if erc721_mint is not None:
+        return erc721_mint
 
     if len(body) == 3 and ty == "Uint256":
         external_read_match = EXTERNAL_READ_RE.fullmatch(body[0])
