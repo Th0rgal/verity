@@ -23,23 +23,28 @@ contract PropertyStructMappingSmokeTest is YulTestBase {
         (bool ok,) = target.call(abi.encodeWithSignature("setPosition(address,uint256,uint256,address)", alice, uint256(1), uint256(1), alice));
         require(ok, "setPosition reverted unexpectedly");
     }
-    // Property 2: TODO decode and assert `totalPositionShares` result
-    function testTODO_TotalPositionShares_DecodeAndAssert() public {
+    // Property 2: totalPositionShares decodes and matches the inferred straight-line result
+    function testAuto_TotalPositionShares_ReturnsInferredStraightLineResult() public {
+        uint256 expected = uint256(1);
+        uint256 expected1 = uint256(1);
+        vm.store(target, _mappingSlot(bytes32(uint256(uint160(alice))), 0), bytes32(uint256(expected) | (uint256(expected1) << 128)));
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("totalPositionShares(address)", alice));
         require(ok, "totalPositionShares reverted unexpectedly");
         assertEq(ret.length, 32, "totalPositionShares ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        uint256 actual = abi.decode(ret, (uint256));
+        assertEq(actual, (expected + expected1), "totalPositionShares should preserve the inferred result");
     }
-    // Property 3: TODO decode and assert `delegateOf` result
-    function testTODO_DelegateOf_DecodeAndAssert() public {
+    // Property 3: delegateOf reads the configured struct member
+    function testAuto_DelegateOf_ReadsConfiguredStructMember() public {
+        address expected = alice;
+        vm.store(target, bytes32(uint256(_mappingSlot(bytes32(uint256(uint160(alice))), 0)) + 1), bytes32(uint256(uint160(expected))));
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("delegateOf(address)", alice));
         require(ok, "delegateOf reverted unexpectedly");
         assertEq(ret.length, 32, "delegateOf ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        address actual = abi.decode(ret, (address));
+        assertEq(actual, expected, "delegateOf should decode the configured struct member");
     }
     // Property 4: setApproval has no unexpected revert
     function testAuto_SetApproval_NoUnexpectedRevert() public {
@@ -47,22 +52,26 @@ contract PropertyStructMappingSmokeTest is YulTestBase {
         (bool ok,) = target.call(abi.encodeWithSignature("setApproval(address,address,uint256,uint256)", alice, alice, uint256(1), uint256(1)));
         require(ok, "setApproval reverted unexpectedly");
     }
-    // Property 5: TODO decode and assert `approvalOf` result
-    function testTODO_ApprovalOf_DecodeAndAssert() public {
+    // Property 5: approvalOf reads the configured struct member
+    function testAuto_ApprovalOf_ReadsConfiguredStructMember() public {
+        uint256 expected = uint256(1);
+        vm.store(target, _nestedMappingSlot(bytes32(uint256(uint160(alice))), bytes32(uint256(uint160(alice))), 1), bytes32(uint256(expected)));
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("approvalOf(address,address)", alice, alice));
         require(ok, "approvalOf reverted unexpectedly");
         assertEq(ret.length, 32, "approvalOf ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        uint256 actual = abi.decode(ret, (uint256));
+        assertEq(actual, expected, "approvalOf should decode the configured struct member");
     }
-    // Property 6: TODO decode and assert `approvalNonce` result
-    function testTODO_ApprovalNonce_DecodeAndAssert() public {
+    // Property 6: approvalNonce reads the configured struct member
+    function testAuto_ApprovalNonce_ReadsConfiguredStructMember() public {
+        uint256 expected = uint256(1);
+        vm.store(target, bytes32(uint256(_nestedMappingSlot(bytes32(uint256(uint160(alice))), bytes32(uint256(uint160(alice))), 1)) + 1), bytes32(uint256(expected)));
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("approvalNonce(address,address)", alice, alice));
         require(ok, "approvalNonce reverted unexpectedly");
         assertEq(ret.length, 32, "approvalNonce ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        uint256 actual = abi.decode(ret, (uint256));
+        assertEq(actual, expected, "approvalNonce should decode the configured struct member");
     }
 }
