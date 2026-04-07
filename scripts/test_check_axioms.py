@@ -102,25 +102,25 @@ class CheckAxiomsLocationTests(unittest.TestCase):
 class CheckAxiomsReportTests(unittest.TestCase):
     def test_parse_axiom_output(self) -> None:
         text = (
-            "'Foo.bar' depends on axioms: [propext, keccak256_first_4_bytes]\n"
+            "'Foo.bar' depends on axioms: [propext, solidityMappingSlot_lt_evmModulus]\n"
             "'Baz.qux' does not depend on any axioms\n"
         )
         self.assertEqual(
             check_axioms.parse_axiom_output(text),
             {
-                "Foo.bar": ["propext", "keccak256_first_4_bytes"],
+                "Foo.bar": ["propext", "solidityMappingSlot_lt_evmModulus"],
                 "Baz.qux": [],
             },
         )
 
     def test_classify_axioms_separates_forbidden_and_unexpected(self) -> None:
         axiom_map = {
-            "Foo.bar": ["propext", "keccak256_first_4_bytes", "mysteryAx"],
+            "Foo.bar": ["propext", "solidityMappingSlot_lt_evmModulus", "mysteryAx"],
             "Baz.qux": ["sorryAx"],
         }
         builtin, documented, forbidden, unexpected = check_axioms.classify_axioms(axiom_map)
         self.assertEqual(builtin, {"propext"})
-        self.assertEqual(documented, {"keccak256_first_4_bytes"})
+        self.assertEqual(documented, {"solidityMappingSlot_lt_evmModulus"})
         self.assertEqual(forbidden, {"sorryAx"})
         self.assertEqual(unexpected, {"mysteryAx": ["Foo.bar"]})
 
@@ -134,7 +134,7 @@ class CheckAxiomsReportTests(unittest.TestCase):
             try:
                 with redirect_stdout(stdout), redirect_stderr(stderr):
                     rc = check_axioms.run_report_check(
-                        "'Foo.bar' depends on axioms: [propext, keccak256_first_4_bytes]\n"
+                        "'Foo.bar' depends on axioms: [propext, solidityMappingSlot_lt_evmModulus]\n"
                     )
             finally:
                 if old_output is None:

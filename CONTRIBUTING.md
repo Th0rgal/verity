@@ -212,13 +212,14 @@ def execIRStmtFuel (fuel : Nat) : ... := ...
 All axioms **must** be documented inline **and** in AXIOMS.md:
 
 ```lean
-/-- AXIOM: keccak256 selector computation
+/-- AXIOM: explain the remaining trust boundary
 
-This is an axiom because Lean cannot natively compute keccak256.
-Validated by CI fixture checks against solc-computed selectors.
+Document why the declaration cannot yet be proved in Lean,
+what guards or regression checks keep it honest,
+and link to AXIOMS.md for the current trust story.
 See AXIOMS.md for full soundness justification.
 -/
-axiom keccak256_first_4_bytes (sig : String) : Nat
+axiom some_remaining_axiom : Prop
 ```
 
 ### Property Test Tags

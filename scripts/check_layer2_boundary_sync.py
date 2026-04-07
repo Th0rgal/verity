@@ -32,8 +32,8 @@ def normalize_ws(text: str) -> str:
 def expected_snippets() -> dict[str, list[str]]:
     return {
         "AXIOMS": [
-            "### 1. `keccak256_first_4_bytes`",
-            "- Active axioms: 2",
+            "### 1. `solidityMappingSlot_lt_evmModulus`",
+            "- Active axioms: 1",
         ],
         "COMPILER_PROOFS_README": [
             "`Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics`",
@@ -57,14 +57,14 @@ def expected_snippets() -> dict[str, list[str]]:
             "Layer 2: CompilationModel → IR        [GENERIC WHOLE-CONTRACT THEOREM]",
             "Layer 2 now has a generic whole-contract theorem for the explicit supported fragment.",
             "its function-level closure now runs by theorem rather than axiom",
-            "There are currently 2 documented Lean axioms in total: the selector axiom and 1 mapping-slot range axiom.",
+            "There is currently 1 documented Lean axiom in total: the mapping-slot range axiom.",
             "Layer 3 keeps its remaining dispatch bridge as an explicit theorem hypothesis rather than a Lean axiom.",
         ],
         "TRUST_ASSUMPTIONS": [
             "Layer 2: SUPPORTED-FRAGMENT GENERIC THEOREM — CompilationModel → IR",
             "A generic whole-contract theorem is proved for the current supported `CompilationModel` fragment.",
             "former generic body-simulation axiom has been eliminated",
-            "it now has 2 documented Lean axioms",
+            "it now has 1 documented Lean axiom",
             "explicit theorem hypothesis rather than a Lean axiom",
         ],
         "DOCS_SITE_COMPILER": [
@@ -91,7 +91,7 @@ def expected_snippets() -> dict[str, list[str]]:
         ],
         "LLMS": [
             "generic whole-contract CompilationModel -> IR theorem for the supported fragment",
-            "2 documented Lean axioms",
+            "1 documented Lean axiom",
         ],
     }
 

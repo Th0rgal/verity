@@ -1,6 +1,7 @@
 import Std
 import Compiler.CompilationModel
 import Compiler.Hex
+import Compiler.Selectors
 
 namespace Compiler.Selector
 
@@ -15,38 +16,8 @@ private def functionSignature (fn : FunctionSpec) : String :=
 private def externalFunctions (spec : CompilationModel) : List FunctionSpec :=
   spec.functions.filter (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)
 
-private def parseSelectorLine (line : String) : Option Nat :=
-  let trimmed := line.trim
-  parseHexNat? trimmed
-
-private def keccakScriptCandidates : List System.FilePath :=
-  [ "scripts/keccak256.py"
-  , "../scripts/keccak256.py"
-  , "../../scripts/keccak256.py"
-  ]
-
-private def keccakScriptPath : IO System.FilePath := do
-  for candidate in keccakScriptCandidates do
-    if ← candidate.pathExists then
-      return candidate
-  throw <| IO.userError
-    s!"Unable to locate keccak256.py (checked: {String.intercalate ", " (keccakScriptCandidates.map (·.toString))})"
-
 def runKeccak (sigs : List String) : IO (List Nat) := do
-  if sigs.isEmpty then
-    return []
-  let scriptPath ← keccakScriptPath
-  let args := #[scriptPath.toString] ++ sigs.toArray
-  let result ← IO.Process.output { cmd := "python3", args := args }
-  if result.exitCode != 0 then
-    throw (IO.userError s!"keccak256.py failed: {result.stderr}")
-  let lines := result.stdout.trim.splitOn "\n"
-  if lines.length != sigs.length then
-    throw (IO.userError s!"keccak256.py returned {lines.length} lines for {sigs.length} signatures: {result.stdout}")
-  let selectors := lines.filterMap parseSelectorLine
-  if selectors.length != sigs.length then
-    throw (IO.userError s!"Failed to parse selector output: {result.stdout}")
-  return selectors
+  pure <| sigs.map Compiler.keccak256_first_4_bytes
 
 /-- Compute Solidity-compatible selectors for external functions in a spec.
     Internal functions and special entrypoints (fallback/receive) are excluded
