@@ -296,6 +296,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.StatelessSmoke.spec
   , Contracts.Smoke.MutabilitySmoke.spec
   , Contracts.Smoke.SpecialEntrypointSmoke.spec
+  , Contracts.Smoke.DirectHelperCallSmoke.spec
   , Contracts.Smoke.InitializerSmoke.spec
   , Contracts.Smoke.ConstantSmoke.spec
   , Contracts.Smoke.ImmutableSmoke.spec
@@ -360,6 +361,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("StatelessSmoke", ["echoWord(uint256)", "whoAmI()"])
   , ("MutabilitySmoke", ["deposit()", "currentOwner()"])
   , ("SpecialEntrypointSmoke", ["getReceiveCount()", "getFallbackCount()"])
+  , ("DirectHelperCallSmoke", ["runHelpers(uint256,uint256,uint256)", "snapshot()"])
   , ("InitializerSmoke", ["initOwner(address)", "upgradeToV2()"])
   , ("ConstantSmoke", ["feeOn(uint256)", "treasuryAddr()"])
   , ("ImmutableSmoke", ["supplyCap()", "treasuryAddr()", "shadowed(uint256)"])
@@ -419,6 +421,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("StatelessSmoke", ["0x26534f53", "0xda91254c"])
   , ("MutabilitySmoke", ["0xd0e30db0", "0xb387ef92"])
   , ("SpecialEntrypointSmoke", ["0x931999fb", "0x74b204a4"])
+  , ("DirectHelperCallSmoke", ["0xa392867e", "0x9711715a"])
   , ("InitializerSmoke", ["0x0d009297", "0xcc01053e"])
   , ("ConstantSmoke", ["0x9c421eb5", "0x30d9a62a"])
   , ("ImmutableSmoke", ["0x8f770ad0", "0x30d9a62a", "0x655b96ec"])
@@ -563,6 +566,26 @@ private def checkSpecialEntrypointSmoke : IO Unit := do
   expectTrue "SpecialEntrypointSmoke: fallback entrypoint remains selector-free"
     fallbackFn.params.isEmpty
 
+private def checkDirectHelperCallSmoke : IO Unit := do
+  let functions := Contracts.Smoke.DirectHelperCallSmoke.spec.functions
+  let publicFns := functions.filter (fun fn => !fn.isInternal)
+  let internalFns := functions.filter (·.isInternal)
+  let runHelpers? := publicFns.find? (·.name == "runHelpers")
+  let runHelpers := runHelpers?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
+  expectTrue "DirectHelperCallSmoke: public entrypoints remain unchanged"
+    (publicFns.map (·.name) ==
+      ["addToTotal", "readTotalPlus", "pairWithTotal", "runHelpers", "snapshot"])
+  expectTrue "DirectHelperCallSmoke: helper-capable functions gain internal variants"
+    (internalFns.map (·.name) ==
+      ["internal_addToTotal", "internal_readTotalPlus", "internal_pairWithTotal",
+        "internal_runHelpers", "internal_snapshot"])
+  expectTrue "DirectHelperCallSmoke: single-return helper calls lower to Expr.internalCall"
+    (contains (reprStr runHelpers.body) "Expr.internalCall" &&
+      contains (reprStr runHelpers.body) "\"internal_readTotalPlus\"")
+  expectTrue "DirectHelperCallSmoke: tuple helper calls lower to Stmt.internalCallAssign"
+    (contains (reprStr runHelpers.body) "Stmt.internalCallAssign" &&
+      contains (reprStr runHelpers.body) "\"internal_pairWithTotal\"")
+
 private def checkSpec (spec : CompilationModel) : IO Unit := do
   let extFns := externalFunctions spec
   let fnNames := extFns.map (·.name)
@@ -681,6 +704,7 @@ private def checkSpec (spec : CompilationModel) : IO Unit := do
   checkSignedBuiltinSmoke
   checkLowLevelTryCatchSmoke
   checkSpecialEntrypointSmoke
+  checkDirectHelperCallSmoke
   for spec in macroSpecs do
     checkSpec spec
 

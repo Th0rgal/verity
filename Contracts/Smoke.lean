@@ -592,6 +592,79 @@ verity_contract TupleSmoke where
     let flag := cfg_2
     setMapping authorized owner flag
 
+verity_contract DirectHelperCallSmoke where
+  storage
+    total : Uint256 := slot 0
+    lastLeft : Uint256 := slot 1
+    lastRight : Uint256 := slot 2
+
+  function addToTotal (amount : Uint256) : Unit := do
+    let current ← getStorage total
+    setStorage total (add current amount)
+
+  function readTotalPlus (extra : Uint256) : Uint256 := do
+    let current ← getStorage total
+    return (add current extra)
+
+  function pairWithTotal (offset : Uint256) : Tuple [Uint256, Uint256] := do
+    let current ← getStorage total
+    return (current, add current offset)
+
+  function runHelpers (amount : Uint256, extra : Uint256, offset : Uint256) : Uint256 := do
+    addToTotal amount
+    let combined ← readTotalPlus extra
+    let (left, right) ← pairWithTotal offset
+    setStorage lastLeft left
+    setStorage lastRight right
+    return combined
+
+  function snapshot () : Tuple [Uint256, Uint256, Uint256] := do
+    let current ← getStorage total
+    let left ← getStorage lastLeft
+    let right ← getStorage lastRight
+    return (current, left, right)
+
+/--
+error: helper call 'consumePayload' uses a parameter or return type that direct macro helper lowering does not support yet; only static non-fallback/non-receive helpers can be lowered to internal specs
+-/
+#guard_msgs in
+verity_contract DirectHelperCallDynamicEffectRejected where
+  storage
+
+  function consumePayload (_payload : Bytes) : Unit := do
+    pure ()
+
+  function run (payload : Bytes) : Unit := do
+    consumePayload payload
+
+/--
+error: helper call 'measurePayload' uses a parameter or return type that direct macro helper lowering does not support yet; only static non-fallback/non-receive helpers can be lowered to internal specs
+-/
+#guard_msgs in
+verity_contract DirectHelperCallDynamicBindRejected where
+  storage
+
+  function measurePayload (_payload : Bytes) : Uint256 := do
+    return 0
+
+  function run (payload : Bytes) : Uint256 := do
+    let measured ← measurePayload payload
+    return measured
+
+/--
+error: helper call 'fanoutPayload' uses a parameter or return type that direct macro helper lowering does not support yet; only static non-fallback/non-receive helpers can be lowered to internal specs
+-/
+#guard_msgs in
+verity_contract DirectHelperCallDynamicTupleRejected where
+  storage
+
+  function fanoutPayload (_payload : Bytes) : Tuple [Uint256, Uint256] := do
+    return (0, 1)
+
+  function run (payload : Bytes) : Tuple [Uint256, Uint256] := do
+    let (left, right) ← fanoutPayload payload
+    return (left, right)
+
 verity_contract Uint8Smoke where
   storage
     sentinel : Uint256 := slot 0
@@ -1055,6 +1128,7 @@ end SpecGenSmoke
 #check_contract StatelessSmoke
 #check_contract SpecialEntrypointSmoke
 #check_contract TupleSmoke
+#check_contract DirectHelperCallSmoke
 #check_contract Uint8Smoke
 #check_contract AddressHelpersSmoke
 #check_contract ZeroAddressShadowSmoke

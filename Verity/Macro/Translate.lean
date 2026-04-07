@@ -1,6 +1,7 @@
 import Lean
 import Compiler.Modules.ERC20
 import Compiler.Modules.Precompiles
+import Compiler.CompilationModel.InternalNaming
 import Verity.Macro.Syntax
 
 namespace Verity.Macro
@@ -1161,6 +1162,53 @@ private def validateCustomErrorCall
     if customErrorRequiresDirectParamRef expectedTy then
       validateDirectParamCustomErrorArg arg fnName errorName params expectedTy argIdx
 
+private def matchLocalFunctionApp?
+    (functions : Array FunctionDecl)
+    (stx : Term) : Option (FunctionDecl × Array Term) :=
+  let stx := stripParens stx
+  let findFn := fun (fnName : String) (arity : Nat) =>
+    functions.find? fun fn => fn.name == fnName && fn.params.size == arity
+  match stx.raw with
+  | .node _ `Lean.Parser.Term.app args =>
+      match args.getD 0 Syntax.missing with
+      | .ident _ raw _ _ =>
+          let argTerms := (args.getD 1 Syntax.missing).getArgs.map (fun syn => ⟨syn⟩)
+          match findFn raw.toString argTerms.size with
+          | some fn => some (fn, argTerms)
+          | none => none
+      | _ => none
+  | .ident _ raw _ _ =>
+      match findFn raw.toString 0 with
+      | some fn => some (fn, #[])
+      | none => none
+  | _ => none
+
+private def internalHelperSpecName
+    (functions : Array FunctionDecl)
+    (fnName : String) : String :=
+  Compiler.CompilationModel.pickFreshName
+    (Compiler.CompilationModel.internalFunctionPrefix ++ fnName)
+    (functions.map (·.name)).toList
+
+private partial def hasDynamicInternalHelperType (ty : ValueType) : Bool :=
+  match ty with
+  | .string | .bytes | .array _ => true
+  | .tuple elemTys => elemTys.any hasDynamicInternalHelperType
+  | _ => false
+
+private def supportsInternalHelperSpec (fn : FunctionDecl) : Bool :=
+  fn.name != "fallback" &&
+    fn.name != "receive" &&
+    fn.params.all (fun param => !hasDynamicInternalHelperType param.ty) &&
+    !hasDynamicInternalHelperType fn.returnTy
+
+private def ensureSupportsInternalHelperSpec
+    (stx : Syntax)
+    (fn : FunctionDecl) : CommandElabM Unit := do
+  unless supportsInternalHelperSpec fn do
+    throwErrorAt stx
+      s!"helper call '{fn.name}' uses a parameter or return type that direct macro helper lowering does not support yet; only static non-fallback/non-receive helpers can be lowered to internal specs"
+
 mutual
 private partial def inferPureExprType
     (fields : Array StorageFieldDecl)
@@ -1363,6 +1411,7 @@ private partial def inferBindSourceType
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
     (externalDecls : Array ExternalDecl)
+    (functions : Array FunctionDecl)
     (params : Array ParamDecl)
     (locals : Array TypedLocal)
     (rhs : Term) : CommandElabM ValueType := do
@@ -1514,8 +1563,23 @@ private partial def inferBindSourceType
           pure .uint256
       | _ => throwErrorAt rhs "unsupported requireSomeUint source; expected safeAdd or safeSub"
   | _ =>
-      throwErrorAt rhs
-        "unsupported bind source; expected getStorage/getStorageAddr/getStorageArrayLength/getStorageArrayElement/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/getMappingN/structMember/structMember2/msgSender/msgValue/tload/ecrecover/ecmCall"
+      match matchLocalFunctionApp? functions rhs with
+      | some (fn, argTerms) =>
+          ensureSupportsInternalHelperSpec rhs fn
+          for arg in argTerms do
+            let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals arg
+          match fn.returnTy with
+          | .tuple _ =>
+              throwErrorAt rhs
+                s!"helper call '{fn.name}' returns multiple values; use tuple destructuring"
+          | .unit =>
+              throwErrorAt rhs
+                s!"helper call '{fn.name}' returns Unit and cannot be bound"
+          | retTy =>
+              pure retTy
+      | none =>
+          throwErrorAt rhs
+            "unsupported bind source; expected getStorage/getStorageAddr/getStorageArrayLength/getStorageArrayElement/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/getMappingN/structMember/structMember2/msgSender/msgValue/tload/ecrecover/ecmCall or a direct internal helper call"
 
 private partial def inferTupleSourceTypes?
     (fields : Array StorageFieldDecl)
@@ -1554,31 +1618,15 @@ private partial def inferTupleSourceTypes?
           requireWordLikeType key2 "structMembers2 key" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals key2)
           pure (some (Array.replicate memberNames.size .uint256))
       | other =>
-          let findFunction := fun (fnName : String) (arity : Nat) =>
-            functions.find? fun fn => fn.name == fnName && fn.params.size == arity
-          match other.raw with
-          | .node _ `Lean.Parser.Term.app args =>
-              match args.getD 0 Syntax.missing with
-              | .ident _ raw _ _ =>
-                  match findFunction raw.toString ((args.getD 1 Syntax.missing).getArgs.size) with
-                  | some fn =>
-                      match fn.returnTy with
-                      | .tuple elemTys =>
-                          let argTerms := (args.getD 1 Syntax.missing).getArgs.map (fun syn => ⟨syn⟩)
-                          for arg in argTerms do
-                            let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals arg
-                          pure (some elemTys.toArray)
-                      | _ => pure none
-                  | none => pure none
+          match matchLocalFunctionApp? functions other with
+          | some (fn, argTerms) =>
+              ensureSupportsInternalHelperSpec rhs fn
+              for arg in argTerms do
+                let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals arg
+              match fn.returnTy with
+              | .tuple elemTys => pure (some elemTys.toArray)
               | _ => pure none
-          | .ident _ raw _ _ =>
-              match findFunction raw.toString 0 with
-              | some fn =>
-                  match fn.returnTy with
-                  | .tuple elemTys => pure (some elemTys.toArray)
-                  | _ => pure none
-              | none => pure none
-          | _ => pure none
+          | none => pure none
 end
 
 mutual
@@ -2110,6 +2158,7 @@ private def tupleInternalCallAssignStmt?
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (functions : Array FunctionDecl)
     (params : Array ParamDecl)
     (locals : Array TypedLocal)
     (rhs : Term)
@@ -2126,24 +2175,16 @@ private def tupleInternalCallAssignStmt?
     (initialUsedNames, [])
   let targetNames := targetNamesRev.reverse
   let resultNameTerms := targetNames.toArray.map strTerm
-  match rhs.raw with
-  | .node _ `Lean.Parser.Term.app args =>
-      match args.getD 0 Syntax.missing with
-      | .ident _ raw _ _ =>
-          let argExprs ← (args.getD 1 Syntax.missing).getArgs.mapM
-            (translatePureExprWithTypes fields constDecls immutableDecls params locals ∘ fun syn => ⟨syn⟩)
-          pure (some (← `(Compiler.CompilationModel.Stmt.internalCallAssign
-            [ $[$resultNameTerms],* ]
-            $(strTerm raw.toString)
-            [ $[$argExprs],* ])))
-      | _ =>
-          pure none
-  | .ident _ raw _ _ =>
+  match matchLocalFunctionApp? functions rhs with
+  | some (fn, argTerms) =>
+      ensureSupportsInternalHelperSpec rhs fn
+      let argExprs ← argTerms.mapM
+        (translatePureExprWithTypes fields constDecls immutableDecls params locals)
       pure (some (← `(Compiler.CompilationModel.Stmt.internalCallAssign
         [ $[$resultNameTerms],* ]
-        $(strTerm raw.toString)
-        [])))
-  | _ =>
+        $(strTerm (internalHelperSpecName functions fn.name))
+        [ $[$argExprs],* ])))
+  | none =>
       pure none
 
 private def expectExprList
@@ -2162,6 +2203,7 @@ private def translateBindSource
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (functions : Array FunctionDecl)
     (params : Array ParamDecl)
     (locals : Array TypedLocal)
     (rhs : Term) : CommandElabM Term := do
@@ -2338,8 +2380,17 @@ private def translateBindSource
       `(Compiler.CompilationModel.Expr.tload
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals offset))
   | _ =>
-      throwErrorAt rhs
-        "unsupported bind source; expected getStorage/getStorageAddr/getStorageArrayLength/getStorageArrayElement/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/getMappingN/structMember/structMember2/msgSender/msgValue/tload/ecrecover"
+      match matchLocalFunctionApp? functions rhs with
+      | some (fn, argTerms) =>
+          ensureSupportsInternalHelperSpec rhs fn
+          let argExprs ← argTerms.mapM
+            (translatePureExprWithTypes fields constDecls immutableDecls params locals)
+          `(Compiler.CompilationModel.Expr.internalCall
+              $(strTerm (internalHelperSpecName functions fn.name))
+              [ $[$argExprs],* ])
+      | none =>
+          throwErrorAt rhs
+            "unsupported bind source; expected getStorage/getStorageAddr/getStorageArrayLength/getStorageArrayElement/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/getMappingN/structMember/structMember2/msgSender/msgValue/tload/ecrecover or a direct internal helper call"
 
 private def translateSafeRequireBind
     (fields : Array StorageFieldDecl)
@@ -2477,7 +2528,7 @@ private partial def validateDoElemExprTypes
           requireSupportedLocalBindingType name s!"local binding '{toString name.getId}'" ty
           pure <| locals.push (toString name.getId, ty)
       | `(doElem| let $name:ident ← $rhs:term) =>
-          let ty ← inferBindSourceType fields constDecls immutableDecls externalDecls params locals rhs
+          let ty ← inferBindSourceType fields constDecls immutableDecls externalDecls functions params locals rhs
           requireSupportedLocalBindingType name s!"local binding '{toString name.getId}'" ty
           pure <| locals.push (toString name.getId, ty)
       | `(doElem| $name:ident := $rhs:term) =>
@@ -2533,7 +2584,7 @@ private partial def validateDoElemExprTypes
           let _ ← validateDoElemsExprTypes ownerName fields constDecls immutableDecls externalDecls errorDecls functions params locals catchElems
           pure locals
       | `(doElem| $stmt:term) =>
-          validateEffectStmtExprTypes fields constDecls immutableDecls externalDecls params locals stmt
+          validateEffectStmtExprTypes fields constDecls immutableDecls externalDecls functions params locals stmt
           pure locals
       | _ => throwErrorAt elem "unsupported do element"
 
@@ -2542,6 +2593,7 @@ private partial def validateEffectStmtExprTypes
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
     (externalDecls : Array ExternalDecl)
+    (functions : Array FunctionDecl)
     (params : Array ParamDecl)
     (locals : Array TypedLocal)
     (stx : Term) : CommandElabM Unit := do
@@ -2631,8 +2683,18 @@ private partial def validateEffectStmtExprTypes
   | `(term| revertReturndata) =>
       pure ()
   | _ =>
-      let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals stx
-      pure ()
+      match matchLocalFunctionApp? functions stx with
+      | some (fn, argTerms) =>
+          ensureSupportsInternalHelperSpec stx fn
+          if fn.returnTy != .unit then
+            throwErrorAt stx
+              s!"helper call '{fn.name}' returns {renderValueType fn.returnTy}; use `let ... ← {fn.name} ...` or tuple destructuring"
+          for arg in argTerms do
+            let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals arg
+          pure ()
+      | none =>
+          let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals stx
+          pure ()
 end
 
 private def validateFunctionBodyExprTypes
@@ -3027,7 +3089,20 @@ private def translateEffectStmt
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals key2)
           $(strTerm memberName)
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value))
-  | _ => throwErrorAt stx "unsupported statement in do block"
+  | _ =>
+      match matchLocalFunctionApp? functions stx with
+      | some (fn, argTerms) =>
+          ensureSupportsInternalHelperSpec stx fn
+          if fn.returnTy != .unit then
+            throwErrorAt stx
+              s!"helper call '{fn.name}' returns {renderValueType fn.returnTy}; use `let ... ← {fn.name} ...` or tuple destructuring"
+          let argExprs ← argTerms.mapM
+            (translatePureExprWithTypes fields constDecls immutableDecls params locals)
+          `(Compiler.CompilationModel.Stmt.internalCall
+              $(strTerm (internalHelperSpecName functions fn.name))
+              [ $[$argExprs],* ])
+      | none =>
+          throwErrorAt stx "unsupported statement in do block"
 
 mutual
 private partial def translateDoElems
@@ -3101,7 +3176,7 @@ private partial def translateDoElem
                       pure (some (stmts, locals ++ typedPairs, mutableLocals))
                   | none => throwErrorAt rhs "unable to infer tuple local types"
               | none =>
-                      match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls params locals rhs names) with
+                      match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls functions params locals rhs names) with
                   | some stmt =>
                       let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls #[] functions params locals rhs
                       match valueTys with
@@ -3126,7 +3201,7 @@ private partial def translateDoElem
                       pure (some (stmts, locals ++ typedPairs, mutableLocals))
                   | none => throwErrorAt rhs "unable to infer tuple local types"
               | none =>
-                match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls params locals rhs names) with
+                match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls functions params locals rhs names) with
                 | some stmt =>
                     let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls #[] functions params locals rhs
                     match valueTys with
@@ -3155,7 +3230,7 @@ private partial def translateDoElem
       | some names =>
           ensureFreshLocalNames localNames names stx
           let rhs : Term := ⟨patDecl[2][0]⟩
-          match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls params locals rhs names) with
+          match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls functions params locals rhs names) with
           | some stmt =>
               let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls #[] functions params locals rhs
               match valueTys with
@@ -3222,11 +3297,11 @@ private partial def translateDoElem
               | some safeStmts => pure (safeStmts, locals.push (varName, .uint256), mutableLocals)
               | none =>
                   match (← translateERC20BindStmt? fields constDecls immutableDecls functions params locals varName rhs) with
-                  | some stmt =>
-                      pure (#[(stmt)], locals.push (varName, .uint256), mutableLocals)
-                  | none =>
-                      let rhsExpr ← translateBindSource fields constDecls immutableDecls params locals rhs
-                      let ty ← inferBindSourceType fields constDecls immutableDecls #[] params locals rhs
+              | some stmt =>
+                  pure (#[(stmt)], locals.push (varName, .uint256), mutableLocals)
+              | none =>
+                      let rhsExpr ← translateBindSource fields constDecls immutableDecls functions params locals rhs
+                      let ty ← inferBindSourceType fields constDecls immutableDecls #[] functions params locals rhs
                       pure
                         (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
                           locals.push (varName, ty),
@@ -3541,12 +3616,34 @@ private def mkSpecCommand
           body := [ $[$immutableInitTerms],* ]
         })
   let functionModelIds ← functions.mapM fun fn => mkSuffixedIdent fn.ident "_model"
+  let internalFunctionTerms ← functions.filterMapM fun fn => do
+    if supportsInternalHelperSpec fn then
+      let modelBodyName ← mkSuffixedIdent fn.ident "_modelBody"
+      let modelParams ← mkModelParamsTerm fn.params
+      let localObligationTerms ← fn.localObligations.mapM mkModelLocalObligationTerm
+      let payableTerm ← if fn.isPayable then `(true) else `(false)
+      let viewTerm ← if fn.isView then `(true) else `(false)
+      let returnTypeTerm ← modelReturnTypeTerm fn.returnTy
+      let returnsTerm ← modelReturnsTerm fn.returnTy
+      pure <| some (← `( ({
+        name := $(strTerm (internalHelperSpecName functions fn.name))
+        params := $modelParams
+        returnType := $returnTypeTerm
+        «returns» := $returnsTerm
+        isPayable := $payableTerm
+        isView := $viewTerm
+        localObligations := [ $[$localObligationTerms],* ]
+        body := $modelBodyName
+        isInternal := true
+      } : Compiler.CompilationModel.FunctionSpec) ))
+    else
+      pure none
   `(command| def spec : Compiler.CompilationModel.CompilationModel := {
     name := $(strTerm contractName)
     fields := [ $[$fieldTerms],* ]
     «errors» := [ $[$errorTerms],* ]
     «constructor» := $constructorTerm
-    functions := [ $[$functionModelIds],* ]
+    functions := [ $[$functionModelIds],*, $[$internalFunctionTerms],* ]
     «externals» := [ $[$externalTerms],* ]
   })
 
