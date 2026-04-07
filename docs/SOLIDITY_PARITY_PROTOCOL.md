@@ -39,7 +39,7 @@ Without pinning these, exact Yul identity is not a meaningful claim.
    - Prefer family-level structural classes (ABI helper layout, memory copy helpers, allocation helpers, dispatcher shape) over per-function ad-hoc fixes.
    - Separate rename-only deltas from structural deltas.
 4. Implement compatibility rewrites in Verity.
-   - Add rules in an explicit compat rewrite bundle (for example `solc-compat-v0`).
+   - Add rules in an explicit compat rewrite bundle in an external plugin package.
    - Keep rule scope tight (`ExprRule`/`StmtRule`/`BlockRule`/`ObjectRule` + `RewriteCtx` scope checks).
    - Attach proof references and pack allowlist membership.
 5. Enforce pack-level proof composition.

@@ -87,38 +87,4 @@ example :
     deployStillHasMarker && runtimeNoLongerHasMarker && runtimeMatchCount == 1 := by
   native_decide
 
-/-- Regression guard: active `solc-compat` object rewrites are included in emitted patch report manifests. -/
-example :
-    let contract : IRContract :=
-      { name := "ObjectManifestRegression"
-        deploy := []
-        constructorPayable := true
-        functions :=
-          [{ name := "f"
-             selector := 1
-             params := []
-             ret := .unit
-             payable := false
-             body := [.expr (.call "liveHelper" [])] }]
-        usesMapping := false
-        internalFunctions :=
-          [ .funcDef "liveHelper" [] [] [.leave]
-          , .funcDef "mappingSlot" ["baseSlot", "key"] ["slot"]
-              [ .expr (.call "mstore" [.lit 512, .ident "key"])
-              , .expr (.call "mstore" [.lit 544, .ident "baseSlot"])
-              , .assign "slot" (.call "keccak256" [.lit 512, .lit 64])
-              ]
-          ] }
-    let options : YulEmitOptions :=
-      { patchConfig :=
-          { enabled := true
-            maxIterations := 6
-            rewriteBundleId := Yul.solcCompatRewriteBundleId
-            requiredProofRefs := Yul.solcCompatProofAllowlist } }
-    let report := emitYulWithOptionsReport contract options
-    let hasMappingDropRule :=
-      report.2.manifest.any (fun entry => entry.patchName = "solc-compat-drop-unused-mapping-slot-helper")
-    hasMappingDropRule = true := by
-  native_decide
-
 end Compiler

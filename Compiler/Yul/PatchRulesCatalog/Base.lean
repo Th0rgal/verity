@@ -371,7 +371,7 @@ def pruneUnreachableTopLevelHelpers (stmts : List YulStmt) : List YulStmt × Nat
   else
     (prunedTopStmts, removed)
 
-private def solcCompatFunAliasTarget? (name : String) : Option String :=
+private def internalFunAliasTarget? (name : String) : Option String :=
   if name.startsWith "internal__" then
     some s!"fun_{name.drop 10}"
   else
@@ -382,11 +382,11 @@ private def renameTargetFor (renames : List (String × String)) (name : String) 
   | some entry => entry.snd
   | none => name
 
-private def solcCompatInternalFunRenameMap (stmts : List YulStmt) : List (String × String) :=
+private def internalFunRenameMap (stmts : List YulStmt) : List (String × String) :=
   let definedNames := topLevelFunctionDefs stmts |>.map Prod.fst
   definedNames.foldl
     (fun acc name =>
-      match solcCompatFunAliasTarget? name with
+      match internalFunAliasTarget? name with
       | none => acc
       | some target =>
           let targetAlreadyDefined := definedNames.any (fun seen => seen = target)
@@ -442,7 +442,7 @@ partial def renameCallsInStmts (renames : List (String × String)) : List YulStm
 end
 
 def canonicalizeInternalFunNames (stmts : List YulStmt) : List YulStmt × Nat :=
-  let renames := solcCompatInternalFunRenameMap stmts
+  let renames := internalFunRenameMap stmts
   if renames.isEmpty then
     (stmts, 0)
   else
@@ -657,205 +657,54 @@ def inlineRuntimeDispatchWrapperCalls (stmts : List YulStmt) : List YulStmt × N
   let helpers := topLevelZeroArityFunctionBodies stmts
   inlineDispatchWrapperCallsInStmts helpers stmts
 
-private def freshMappingSlotTemp (nextId : Nat) : String × Nat :=
-  (s!"__compat_mapping_slot_{nextId}", nextId + 1)
+/-- Typed rewrite-rule bundle, grouping expr/stmt/block/object rules under a versioned ID.
+    External parity packs (e.g. Morpho) register their own bundles via plugin imports. -/
+structure RewriteRuleBundle where
+  id : String
+  exprRules : List ExprPatchRule
+  stmtRules : List StmtPatchRule
+  blockRules : List BlockPatchRule
+  objectRules : List ObjectPatchRule
 
-mutual
+private def rewriteBundleProofAllowlist (bundle : RewriteRuleBundle) : List Lean.Name :=
+  let exprProofs := bundle.exprRules.map (fun rule => rule.proofId)
+  let stmtProofs := bundle.stmtRules.map (fun rule => rule.proofId)
+  let blockProofs := bundle.blockRules.map (fun rule => rule.proofId)
+  let objectProofs := bundle.objectRules.map (fun rule => rule.proofId)
+  let allProofs := exprProofs ++ stmtProofs ++ blockProofs ++ objectProofs
+  allProofs.foldl
+    (fun acc proofRef => if acc.any (fun seen => seen = proofRef) then acc else acc ++ [proofRef])
+    []
 
-private partial def inlineMappingSlotCallsInExpr
-    (nextId : Nat)
-    (expr : YulExpr) : List YulStmt × YulExpr × Nat × Nat
-  := match expr with
-    | .lit n => ([], .lit n, nextId, 0)
-    | .hex n => ([], .hex n, nextId, 0)
-    | .str s => ([], .str s, nextId, 0)
-    | .ident name => ([], .ident name, nextId, 0)
-    | .call "mappingSlot" [baseSlot, key] =>
-        let (basePrefix, baseSlot', nextAfterBase, baseRewrites) := inlineMappingSlotCallsInExpr nextId baseSlot
-        let (keyPrefix, key', nextAfterKey, keyRewrites) := inlineMappingSlotCallsInExpr nextAfterBase key
-        let (tmpName, nextAfterTmp) := freshMappingSlotTemp nextAfterKey
-        let preStmts :=
-          basePrefix ++
-            keyPrefix ++
-              [ .expr (.call "mstore" [.lit 512, key'])
-              , .expr (.call "mstore" [.lit 544, baseSlot'])
-              , .let_ tmpName (.call "keccak256" [.lit 512, .lit 64])
-              ]
-        (preStmts, .ident tmpName, nextAfterTmp, baseRewrites + keyRewrites + 1)
-    | .call func args =>
-        let (preStmts, args', nextId', rewrites) := inlineMappingSlotCallsInExprs nextId args
-        (preStmts, .call func args', nextId', rewrites)
+def foundationRewriteBundleId : String := "foundation"
 
-private partial def inlineMappingSlotCallsInExprs
-    (nextId : Nat)
-    (exprs : List YulExpr) : List YulStmt × List YulExpr × Nat × Nat
-  := match exprs with
-    | [] => ([], [], nextId, 0)
-    | expr :: rest =>
-        let (prefixHead, exprHead, nextAfterHead, rewritesHead) := inlineMappingSlotCallsInExpr nextId expr
-        let (prefixTail, exprTail, nextAfterTail, rewritesTail) := inlineMappingSlotCallsInExprs nextAfterHead rest
-        (prefixHead ++ prefixTail, exprHead :: exprTail, nextAfterTail, rewritesHead + rewritesTail)
+/-- Baseline, non-compat rewrite bundle. -/
+def foundationRewriteBundle : RewriteRuleBundle :=
+  { id := foundationRewriteBundleId
+    exprRules := foundationExprPatchPack
+    stmtRules := foundationStmtPatchPack
+    blockRules := foundationBlockPatchPack
+    objectRules := foundationObjectPatchPack }
 
-private partial def inlineMappingSlotCallsInStmt
-    (nextId : Nat)
-    (stmt : YulStmt) : List YulStmt × Nat × Nat
-  := match stmt with
-    | .comment text => ([.comment text], nextId, 0)
-    | .let_ name value =>
-        let (preStmts, value', nextId', rewrites) := inlineMappingSlotCallsInExpr nextId value
-        (preStmts ++ [.let_ name value'], nextId', rewrites)
-    | .letMany names value =>
-        let (preStmts, value', nextId', rewrites) := inlineMappingSlotCallsInExpr nextId value
-        (preStmts ++ [.letMany names value'], nextId', rewrites)
-    | .assign name value =>
-        let (preStmts, value', nextId', rewrites) := inlineMappingSlotCallsInExpr nextId value
-        (preStmts ++ [.assign name value'], nextId', rewrites)
-    | .expr value =>
-        let (preStmts, value', nextId', rewrites) := inlineMappingSlotCallsInExpr nextId value
-        (preStmts ++ [.expr value'], nextId', rewrites)
-    | .leave => ([.leave], nextId, 0)
-    | .if_ cond body =>
-        let (condPrefix, cond', nextAfterCond, condRewrites) := inlineMappingSlotCallsInExpr nextId cond
-        let (body', nextAfterBody, bodyRewrites) := inlineMappingSlotCallsInStmts nextAfterCond body
-        (condPrefix ++ [.if_ cond' body'], nextAfterBody, condRewrites + bodyRewrites)
-    | .for_ init cond post body =>
-        let (init', nextAfterInit, initRewrites) := inlineMappingSlotCallsInStmts nextId init
-        let (post', nextAfterPost, postRewrites) := inlineMappingSlotCallsInStmts nextAfterInit post
-        let (body', nextAfterBody, bodyRewrites) := inlineMappingSlotCallsInStmts nextAfterPost body
-        ([.for_ init' cond post' body'], nextAfterBody, initRewrites + postRewrites + bodyRewrites)
-    | .switch expr cases default =>
-        let (exprPrefix, expr', nextAfterExpr, exprRewrites) := inlineMappingSlotCallsInExpr nextId expr
-        let rec rewriteCases
-            (remaining : List (Nat × List YulStmt))
-            (nextIdCases : Nat)
-            (accCases : List (Nat × List YulStmt))
-            (accRewrites : Nat)
-            : List (Nat × List YulStmt) × Nat × Nat :=
-          match remaining with
-          | [] => (accCases.reverse, nextIdCases, accRewrites)
-          | (tag, body) :: rest =>
-              let (body', nextAfterBody, bodyRewrites) := inlineMappingSlotCallsInStmts nextIdCases body
-              rewriteCases rest nextAfterBody ((tag, body') :: accCases) (accRewrites + bodyRewrites)
-        let (cases', nextAfterCases, caseRewrites) := rewriteCases cases nextAfterExpr [] 0
-        let (default', nextAfterDefault, defaultRewrites) :=
-          match default with
-          | some body =>
-              let (body', nextBody, rewritten) := inlineMappingSlotCallsInStmts nextAfterCases body
-              (some body', nextBody, rewritten)
-          | none => (none, nextAfterCases, 0)
-        (exprPrefix ++ [.switch expr' cases' default'], nextAfterDefault, exprRewrites + caseRewrites + defaultRewrites)
-    | .block stmts =>
-        let (stmts', nextId', rewrites) := inlineMappingSlotCallsInStmts nextId stmts
-        ([.block stmts'], nextId', rewrites)
-    | .funcDef name params rets body =>
-        let (body', nextId', rewrites) := inlineMappingSlotCallsInStmts nextId body
-        ([.funcDef name params rets body'], nextId', rewrites)
+/-- Registry of all shipped rewrite bundles.
+    External parity packs should extend this list by importing their plugin module. -/
+def allRewriteBundles : List RewriteRuleBundle :=
+  [foundationRewriteBundle]
 
-private partial def inlineMappingSlotCallsInStmts
-    (nextId : Nat)
-    (stmts : List YulStmt) : List YulStmt × Nat × Nat
-  := match stmts with
-    | [] => ([], nextId, 0)
-    | stmt :: rest =>
-        let (stmt', nextAfterStmt, rewritesHead) := inlineMappingSlotCallsInStmt nextId stmt
-        let (rest', nextAfterRest, rewritesTail) := inlineMappingSlotCallsInStmts nextAfterStmt rest
-        (stmt' ++ rest', nextAfterRest, rewritesHead + rewritesTail)
+def supportedRewriteBundleIds : List String :=
+  allRewriteBundles.map (·.id)
 
-end
+def findRewriteBundle? (bundleId : String) : Option RewriteRuleBundle :=
+  allRewriteBundles.find? (fun bundle => bundle.id = bundleId)
 
-def inlineRuntimeMappingSlotCalls (stmts : List YulStmt) : List YulStmt × Nat :=
-  let (stmts', _, rewritten) := inlineMappingSlotCallsInStmts 0 stmts
-  (stmts', rewritten)
+def rewriteBundleForId (bundleId : String) : RewriteRuleBundle :=
+  match findRewriteBundle? bundleId with
+  | some bundle => bundle
+  | none => foundationRewriteBundle
 
-private def inlineKeccakMarketParamsLet?
-    (name : String)
-    (args : List YulExpr) : Option (List YulStmt) :=
-  match args with
-  | [loanToken, collateralToken, oracle, irm, lltv] =>
-      some
-        [ .expr (.call "mstore" [.lit 0, loanToken])
-        , .expr (.call "mstore" [.lit 32, collateralToken])
-        , .expr (.call "mstore" [.lit 64, oracle])
-        , .expr (.call "mstore" [.lit 96, irm])
-        , .expr (.call "mstore" [.lit 128, lltv])
-        , .let_ name (.call "keccak256" [.lit 0, .lit 160])
-        ]
-  | _ => none
+def rewriteProofAllowlistForId (bundleId : String) : List Lean.Name :=
+  rewriteBundleProofAllowlist (rewriteBundleForId bundleId)
 
-private def inlineKeccakMarketParamsAssign?
-    (name : String)
-    (args : List YulExpr) : Option (List YulStmt) :=
-  match args with
-  | [loanToken, collateralToken, oracle, irm, lltv] =>
-      some
-        [ .expr (.call "mstore" [.lit 0, loanToken])
-        , .expr (.call "mstore" [.lit 32, collateralToken])
-        , .expr (.call "mstore" [.lit 64, oracle])
-        , .expr (.call "mstore" [.lit 96, irm])
-        , .expr (.call "mstore" [.lit 128, lltv])
-        , .assign name (.call "keccak256" [.lit 0, .lit 160])
-        ]
-  | _ => none
-
-mutual
-
-partial def inlineKeccakMarketParamsCallsInStmt
-    (stmt : YulStmt) : List YulStmt × Nat
-  := match stmt with
-    | .comment text => ([.comment text], 0)
-    | .let_ name (.call "keccakMarketParams" args) =>
-        match inlineKeccakMarketParamsLet? name args with
-        | some stmts => (stmts, 1)
-        | none => ([stmt], 0)
-    | .let_ _ _ => ([stmt], 0)
-    | .letMany _ _ => ([stmt], 0)
-    | .assign name (.call "keccakMarketParams" args) =>
-        match inlineKeccakMarketParamsAssign? name args with
-        | some stmts => (stmts, 1)
-        | none => ([stmt], 0)
-    | .assign _ _ => ([stmt], 0)
-    | .expr _ => ([stmt], 0)
-    | .leave => ([stmt], 0)
-    | .if_ cond body =>
-        let (body', rewritten) := inlineKeccakMarketParamsCallsInStmts body
-        ([.if_ cond body'], rewritten)
-    | .for_ init cond post body =>
-        let (init', initRewrites) := inlineKeccakMarketParamsCallsInStmts init
-        let (post', postRewrites) := inlineKeccakMarketParamsCallsInStmts post
-        let (body', bodyRewrites) := inlineKeccakMarketParamsCallsInStmts body
-        ([.for_ init' cond post' body'], initRewrites + postRewrites + bodyRewrites)
-    | .switch expr cases default =>
-        let rewriteCase := fun (entry : Nat × List YulStmt) =>
-          let (tag, body) := entry
-          let (body', rewritten) := inlineKeccakMarketParamsCallsInStmts body
-          ((tag, body'), rewritten)
-        let rewrittenCases := cases.map rewriteCase
-        let cases' := rewrittenCases.map Prod.fst
-        let caseRewriteCount := rewrittenCases.foldl (fun acc entry => acc + entry.snd) 0
-        let (default', defaultRewriteCount) :=
-          match default with
-          | some body =>
-              let (body', rewritten) := inlineKeccakMarketParamsCallsInStmts body
-              (some body', rewritten)
-          | none => (none, 0)
-        ([.switch expr cases' default'], caseRewriteCount + defaultRewriteCount)
-    | .block stmts =>
-        let (stmts', rewritten) := inlineKeccakMarketParamsCallsInStmts stmts
-        ([.block stmts'], rewritten)
-    | .funcDef name params rets body =>
-        let (body', rewritten) := inlineKeccakMarketParamsCallsInStmts body
-        ([.funcDef name params rets body'], rewritten)
-
-partial def inlineKeccakMarketParamsCallsInStmts
-    (stmts : List YulStmt) : List YulStmt × Nat
-  := match stmts with
-    | [] => ([], 0)
-    | stmt :: rest =>
-        let (stmt', rewrittenHead) := inlineKeccakMarketParamsCallsInStmt stmt
-        let (rest', rewrittenTail) := inlineKeccakMarketParamsCallsInStmts rest
-        (stmt' ++ rest', rewrittenHead + rewrittenTail)
-
-end
-
-def inlineRuntimeKeccakMarketParamsCalls (stmts : List YulStmt) : List YulStmt × Nat :=
-  inlineKeccakMarketParamsCallsInStmts stmts
+/-- Activation-time proof allowlist for the shipped foundation patch packs. -/
+def foundationProofAllowlist : List Lean.Name :=
+  rewriteBundleProofAllowlist foundationRewriteBundle

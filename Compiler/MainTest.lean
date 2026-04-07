@@ -296,12 +296,12 @@ unsafe def runTests : IO Unit := do
       backendProfile := .solidityParity
       forcePatches := true
       defaultPatchMaxIterations := 2
-      rewriteBundleId := Compiler.Yul.solcCompatRewriteBundleId
+      rewriteBundleId := Compiler.Yul.foundationRewriteBundleId
       compositionProofRef := .anonymous
       requiredProofRefs := [] }
   expectTrue "parity pack proof composition rejects empty metadata" (!invalidPack.proofCompositionValid)
   let missingBundlePack := { invalidPack with
-    compositionProofRef := Compiler.Yul.proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_patch_pack_obligations"
+    compositionProofRef := Compiler.Yul.proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.foundation_patch_pack_obligations"
     requiredProofRefs := Compiler.Yul.foundationProofAllowlist
     rewriteBundleId := "missing-rewrite-bundle" }
   expectTrue "parity pack proof composition rejects unknown rewrite bundle IDs"

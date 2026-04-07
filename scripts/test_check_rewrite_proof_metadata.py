@@ -61,15 +61,7 @@ class RewriteProofMetadataTests(unittest.TestCase):
               exprRules := [exprRuleA]
               stmtRules := [stmtRuleA]
               blockRules := [blockRuleA]
-              objectRules := [ruleA]
-            }
-
-            def solcCompatRewriteBundle : RewriteRuleBundle := {
-              id := "solc"
-              exprRules := []
-              stmtRules := []
-              blockRules := []
-              objectRules := [ruleB]
+              objectRules := [ruleA, ruleB]
             }
             """,
             proofs_text="""
@@ -117,14 +109,6 @@ class RewriteProofMetadataTests(unittest.TestCase):
               blockRules := [blockRuleA]
               objectRules := [ruleA]
             }
-
-            def solcCompatRewriteBundle : RewriteRuleBundle := {
-              id := "solc"
-              exprRules := []
-              stmtRules := []
-              blockRules := []
-              objectRules := []
-            }
             """,
             proofs_text="""
             namespace Proofs
@@ -150,14 +134,6 @@ class RewriteProofMetadataTests(unittest.TestCase):
               exprRules := []
               stmtRules := []
               blockRules := []
-              objectRules := []
-            }
-
-            def solcCompatRewriteBundle : RewriteRuleBundle := {
-              id := "solc"
-              exprRules := []
-              stmtRules := []
-              blockRules := []
               objectRules := [badRule]
             }
             """
@@ -180,14 +156,6 @@ class RewriteProofMetadataTests(unittest.TestCase):
               blockRules := []
               objectRules := [badRule]
             }
-
-            def solcCompatRewriteBundle : RewriteRuleBundle := {
-              id := "solc"
-              exprRules := []
-              stmtRules := []
-              blockRules := []
-              objectRules := []
-            }
             """
         )
         errors = guard.check_active_object_rule_proofs(root / "PatchRules.lean", root)
@@ -198,14 +166,6 @@ class RewriteProofMetadataTests(unittest.TestCase):
             """
             def foundationRewriteBundle : RewriteRuleBundle := {
               id := "foundation"
-              exprRules := []
-              stmtRules := []
-              blockRules := []
-              objectRules := []
-            }
-
-            def solcCompatRewriteBundle : RewriteRuleBundle := {
-              id := "solc"
               exprRules := []
               stmtRules := []
               blockRules := []
@@ -226,14 +186,6 @@ class RewriteProofMetadataTests(unittest.TestCase):
 
             def foundationRewriteBundle : RewriteRuleBundle := {
               id := "foundation"
-              exprRules := []
-              stmtRules := []
-              blockRules := []
-              objectRules := []
-            }
-
-            def solcCompatRewriteBundle : RewriteRuleBundle := {
-              id := "solc"
               exprRules := []
               stmtRules := []
               blockRules := []
@@ -259,14 +211,6 @@ class RewriteProofMetadataTests(unittest.TestCase):
               blockRules := []
               objectRules := [ruleA]
             }
-
-            def solcCompatRewriteBundle : RewriteRuleBundle := {
-              id := "solc"
-              exprRules := []
-              stmtRules := []
-              blockRules := []
-              objectRules := []
-            }
             """,
             proofs_text="""
             namespace Proofs
@@ -282,14 +226,6 @@ class RewriteProofMetadataTests(unittest.TestCase):
             """
             def foundationRewriteBundle : RewriteRuleBundle := {
               id := "foundation"
-              exprRules := []
-              stmtRules := []
-              blockRules := []
-              objectRules := []
-            }
-
-            def solcCompatRewriteBundle : RewriteRuleBundle := {
-              id := "solc"
               exprRules := []
               stmtRules := []
               blockRules := []
@@ -321,14 +257,6 @@ class RewriteProofMetadataTests(unittest.TestCase):
               blockRules := []
               objectRules := []
             }
-
-            def solcCompatRewriteBundle : RewriteRuleBundle := {
-              id := "solc"
-              exprRules := []
-              stmtRules := []
-              blockRules := []
-              objectRules := []
-            }
             """,
             proofs_text="""
             namespace Proofs
@@ -353,14 +281,6 @@ class RewriteProofMetadataTests(unittest.TestCase):
             """
             def foundationRewriteBundle : RewriteRuleBundle := {
               id := "foundation"
-              exprRules := []
-              stmtRules := []
-              blockRules := []
-              objectRules := []
-            }
-
-            def solcCompatRewriteBundle : RewriteRuleBundle := {
-              id := "solc"
               exprRules := []
               stmtRules := []
               blockRules := []

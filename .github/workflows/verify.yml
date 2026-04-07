@@ -1084,46 +1084,8 @@ jobs:
       - name: Setup solc
         uses: ./.github/actions/setup-solc
 
-      - name: Generate parity-pack Yul (pinned solc tuple)
-        if: github.event_name != 'pull_request'
-        run: |
-          ./compiler/bin/verity-compiler-patched \
-            --manifest packages/verity-examples/contracts.manifest \
-            --parity-pack solc-0.8.33-o200-viair-false-evm-shanghai \
-            --output compiler/yul-parity-pack \
-            --link examples/external-libs/PoseidonT3.yul \
-            --link examples/external-libs/PoseidonT4.yul
-
-      - name: Generate parity-pack reference Yul (explicit profile + patch config)
-        if: github.event_name != 'pull_request'
-        run: |
-          ./compiler/bin/verity-compiler-patched \
-            --manifest packages/verity-examples/contracts.manifest \
-            --backend-profile solidity-parity \
-            --enable-patches \
-            --patch-max-iterations 6 \
-            --mapping-slot-scratch-base 512 \
-            --output compiler/yul-parity-reference \
-            --link examples/external-libs/PoseidonT3.yul \
-            --link examples/external-libs/PoseidonT4.yul
-
-      - name: Generate parity-pack identity diff report
-        if: github.event_name != 'pull_request'
-        run: |
-          python3 scripts/generate_yul_identity_diff_report.py \
-            --verity-dir compiler/yul-parity-pack \
-            --solc-dir compiler/yul-parity-reference \
-            --output compiler/parity-pack-identity-report.json
-
-      - name: Gate parity-pack metrics
-        if: github.event_name != 'pull_request'
-        run: |
-          python3 scripts/check_parity_pack_metrics.py \
-            --report compiler/parity-pack-identity-report.json \
-            --max-only-in-verity 0 \
-            --max-only-in-solidity 0 \
-            --max-hash-mismatch 940 \
-            --format markdown >> "$GITHUB_STEP_SUMMARY"
+      # Parity-pack CI steps removed: Morpho-specific parity packs extracted to morpho-verity.
+      # External parity packs should run their own CI identity checks.
 
       - name: Check static gas model coverage on generated Yul (baseline + patched)
         run: |
@@ -1181,12 +1143,7 @@ jobs:
               print(f"| `{patch}` | {total} | {contracts[patch]} |")
           PY
 
-      - name: Upload parity-pack identity report
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v7
-        with:
-          name: parity-pack-identity-report
-          path: compiler/parity-pack-identity-report.json
+      # Parity-pack identity report upload removed (see above).
 
   compiler-regressions:
     runs-on: [self-hosted, linux, x64, verity, build, cpu-8, mem-64g]
