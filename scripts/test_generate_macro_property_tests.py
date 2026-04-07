@@ -528,7 +528,7 @@ class RenderTests(unittest.TestCase):
         self.assertIn("function testAuto_SupplyCap_ReturnsDeclaredBinding()", rendered)
         self.assertIn("uint256 actual = abi.decode(ret, (uint256));", rendered)
         self.assertIn(
-            'assertEq(actual, (uint256(1) + 2), "supplyCap should preserve the expected value");',
+            'assertEq(actual, 3, "supplyCap should preserve the expected value");',
             rendered,
         )
 
@@ -741,7 +741,7 @@ class RenderTests(unittest.TestCase):
         self.assertIn("function testAuto_FeeOn_ReturnsInferredStraightLineResult()", rendered)
         self.assertIn("uint256 actual = abi.decode(ret, (uint256));", rendered)
         self.assertIn(
-            'assertEq(actual, ((uint256(1) * 30) / 10000), "feeOn should preserve the inferred result");',
+            'assertEq(actual, 0, "feeOn should preserve the inferred result");',
             rendered,
         )
 
@@ -871,9 +871,166 @@ class RenderTests(unittest.TestCase):
             rendered,
         )
         self.assertNotIn("testTODO_PreviewOps_DecodeAndAssert", rendered)
-        self.assertIn("<< 2", rendered)
-        self.assertIn(">> 1", rendered)
+        self.assertIn("(uint256(2) > uint256(1)) ? ", rendered)
         self.assertIn("? ", rendered)
+
+    def test_render_signed_builtin_smoke_infers_assertions(self) -> None:
+        contract = gen.ContractDecl(
+            name="SignedBuiltinSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "signedDiv",
+                    (
+                        gen.ParamDecl("lhs", "Uint256"),
+                        gen.ParamDecl("rhs", "Uint256"),
+                    ),
+                    "Uint256",
+                    body=("return (sdiv lhs rhs)",),
+                ),
+                gen.FunctionDecl(
+                    "signedMod",
+                    (
+                        gen.ParamDecl("lhs", "Uint256"),
+                        gen.ParamDecl("rhs", "Uint256"),
+                    ),
+                    "Uint256",
+                    body=("return (smod lhs rhs)",),
+                ),
+                gen.FunctionDecl(
+                    "signedLt",
+                    (
+                        gen.ParamDecl("lhs", "Uint256"),
+                        gen.ParamDecl("rhs", "Uint256"),
+                    ),
+                    "Bool",
+                    body=("return (slt lhs rhs)",),
+                ),
+                gen.FunctionDecl(
+                    "signedGt",
+                    (
+                        gen.ParamDecl("lhs", "Uint256"),
+                        gen.ParamDecl("rhs", "Uint256"),
+                    ),
+                    "Bool",
+                    body=("return (sgt lhs rhs)",),
+                ),
+                gen.FunctionDecl(
+                    "arithmeticShift",
+                    (
+                        gen.ParamDecl("shift", "Uint256"),
+                        gen.ParamDecl("value", "Uint256"),
+                    ),
+                    "Uint256",
+                    body=("return (sar shift value)",),
+                ),
+                gen.FunctionDecl("signExtended", (), "Uint256", body=("return extendedByte",)),
+                gen.FunctionDecl("shiftedMask", (), "Uint256", body=("return arithmeticShifted",)),
+                gen.FunctionDecl(
+                    "signedDivSurface",
+                    (
+                        gen.ParamDecl("lhs", "Int256"),
+                        gen.ParamDecl("rhs", "Int256"),
+                    ),
+                    "Int256",
+                    body=("return (lhs / rhs)",),
+                ),
+                gen.FunctionDecl(
+                    "signedModSurface",
+                    (
+                        gen.ParamDecl("lhs", "Int256"),
+                        gen.ParamDecl("rhs", "Int256"),
+                    ),
+                    "Int256",
+                    body=("return (lhs % rhs)",),
+                ),
+                gen.FunctionDecl(
+                    "signedDivViaLocal",
+                    (
+                        gen.ParamDecl("raw", "Uint256"),
+                        gen.ParamDecl("denom", "Int256"),
+                    ),
+                    "Int256",
+                    body=("let signedRaw := toInt256 raw", "return (signedRaw / denom)"),
+                ),
+                gen.FunctionDecl(
+                    "castToInt",
+                    (gen.ParamDecl("value", "Uint256"),),
+                    "Int256",
+                    body=("return (toInt256 value)",),
+                ),
+                gen.FunctionDecl(
+                    "castToUint",
+                    (gen.ParamDecl("value", "Int256"),),
+                    "Uint256",
+                    body=("return (toUint256 value)",),
+                ),
+                gen.FunctionDecl("minusOne", (), "Int256", body=("return negativeOne",)),
+            ),
+            storage_slots={},
+            constants={
+                "extendedByte": gen.ValueDecl("extendedByte", "Uint256", "(signextend 0 255)"),
+                "arithmeticShifted": gen.ValueDecl("arithmeticShifted", "Uint256", "(sar 255 (sub 0 1))"),
+                "negativeOne": gen.ValueDecl("negativeOne", "Int256", "(toInt256 (sub 0 1))"),
+            },
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertNotIn("testTODO_SignedDiv_DecodeAndAssert", rendered)
+        self.assertNotIn("testTODO_SignedGt_DecodeAndAssert", rendered)
+        self.assertNotIn("testTODO_SignExtended_DecodeAndAssert", rendered)
+        self.assertNotIn("testTODO_MinusOne_DecodeAndAssert", rendered)
+        self.assertIn(
+            'assertEq(actual, uint256(int256(uint256(1)) / int256(uint256(1))), "signedDiv should return the declared constant");',
+            rendered,
+        )
+        self.assertIn(
+            'assertEq(actual, (int256(uint256(1)) < int256(uint256(1))), "signedLt should return the declared constant");',
+            rendered,
+        )
+        self.assertIn(
+            'assertEq(actual, type(uint256).max, "signExtended should preserve the expected value");',
+            rendered,
+        )
+        self.assertIn(
+            'assertEq(actual, int256(-1), "minusOne should preserve the expected value");',
+            rendered,
+        )
+
+    def test_render_signed_literal_div_mod_use_evm_rounding(self) -> None:
+        contract = gen.ContractDecl(
+            name="SignedLiteralMathSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl("truncDiv", (), "Int256", body=("return negativeDiv",)),
+                gen.FunctionDecl("truncMod", (), "Int256", body=("return negativeMod",)),
+            ),
+            storage_slots={},
+            constants={
+                "negativeThree": gen.ValueDecl("negativeThree", "Int256", "(toInt256 (sub 0 3))"),
+                "negativeDiv": gen.ValueDecl("negativeDiv", "Int256", "(div negativeThree 2)"),
+                "negativeMod": gen.ValueDecl("negativeMod", "Int256", "(mod negativeThree 2)"),
+            },
+        )
+        self.assertEqual(
+            gen._resolve_value_expr(contract, "(div negativeThree 2)", "Int256", {}),
+            "int256(-1)",
+        )
+        self.assertEqual(
+            gen._resolve_value_expr(contract, "(mod negativeThree 2)", "Int256", {}),
+            "int256(-1)",
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn(
+            'assertEq(actual, int256(-1), "truncDiv should preserve the expected value");',
+            rendered,
+        )
+        self.assertIn(
+            'assertEq(actual, int256(-1), "truncMod should preserve the expected value");',
+            rendered,
+        )
+        self.assertNotIn("int256(-2)", rendered)
 
     def test_render_string_eq_predicate_infers_assertion(self) -> None:
         contract = gen.ContractDecl(
