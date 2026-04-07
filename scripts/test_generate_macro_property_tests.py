@@ -87,6 +87,35 @@ class ParseContractsTests(unittest.TestCase):
             ("let current ← getStorage storedData", "return current"),
         )
 
+    def test_parse_constants_and_immutables(self) -> None:
+        src = textwrap.dedent(
+            """
+            verity_contract Constantish where
+              storage
+
+              constants
+                treasury : Address := (wordToAddress 42)
+
+              immutables
+                paused : Bool := true
+
+              function treasuryAddr () : Address := do
+                return treasury
+            """
+        )
+        parsed = gen.parse_contracts(src, Path("dummy.lean"))
+        contract = parsed["Constantish"]
+        self.assertIn("treasury", contract.constants)
+        self.assertIn("paused", contract.immutables)
+        self.assertEqual(
+            gen._binding_type_and_expr(contract.constants["treasury"]),
+            ("Address", "(wordToAddress 42)"),
+        )
+        self.assertEqual(
+            gen._binding_type_and_expr(contract.immutables["paused"]),
+            ("Bool", "true"),
+        )
+
     def test_parse_contracts_ignores_guard_msgs_negative_fixtures(self) -> None:
         src = textwrap.dedent(
             """
@@ -407,6 +436,54 @@ class RenderTests(unittest.TestCase):
         self.assertIn("uint256 actual = abi.decode(ret, (uint256));", rendered)
         self.assertIn('assertEq(actual, uint256(1), "echoWord should preserve the expected value");', rendered)
 
+    def test_render_direct_constant_address_return_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="ConstantSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "treasuryAddr",
+                    (),
+                    "Address",
+                    body=("return treasury",),
+                ),
+            ),
+            storage_slots={},
+            constants={"treasury": gen.ValueDecl("treasury", "Address", "(wordToAddress 42)")},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_TreasuryAddr_ReturnsDeclaredBinding()", rendered)
+        self.assertIn("address actual = abi.decode(ret, (address));", rendered)
+        self.assertIn(
+            'assertEq(actual, address(uint160(42)), "treasuryAddr should preserve the expected value");',
+            rendered,
+        )
+
+    def test_render_direct_constructor_derived_immutable_return_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="ImmutableSmoke",
+            constructor=gen.ConstructorDecl(params=(gen.ParamDecl("seed", "Uint256"),)),
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "supplyCap",
+                    (),
+                    "Uint256",
+                    body=("return seededSupply",),
+                ),
+            ),
+            storage_slots={},
+            immutables={"seededSupply": gen.ValueDecl("seededSupply", "Uint256", "(add seed 2)")},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_SupplyCap_ReturnsDeclaredBinding()", rendered)
+        self.assertIn("uint256 actual = abi.decode(ret, (uint256));", rendered)
+        self.assertIn(
+            'assertEq(actual, (uint256(1) + 2), "supplyCap should preserve the expected value");',
+            rendered,
+        )
+
     def test_render_return_bytes_direct_param_infers_assertion(self) -> None:
         contract = gen.ContractDecl(
             name="StringSmoke",
@@ -446,6 +523,34 @@ class RenderTests(unittest.TestCase):
         self.assertIn("function testAuto_WhoAmI_ReturnsMsgSender()", rendered)
         self.assertIn("address actual = abi.decode(ret, (address));", rendered)
         self.assertIn('assertEq(actual, alice, "whoAmI should preserve the expected value");', rendered)
+
+    def test_render_typed_immutable_returns_infer_assertions(self) -> None:
+        contract = gen.ContractDecl(
+            name="TypedImmutableSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl("isPaused", (), "Bool", body=("return paused",)),
+                gen.FunctionDecl("feeScale", (), "Uint8", body=("return feeBps",)),
+                gen.FunctionDecl("domainSeparator", (), "Bytes32", body=("return domainTag",)),
+            ),
+            storage_slots={},
+            immutables={
+                "paused": gen.ValueDecl("paused", "Bool", "true"),
+                "feeBps": gen.ValueDecl("feeBps", "Uint8", "7"),
+                "domainTag": gen.ValueDecl("domainTag", "Bytes32", "42"),
+            },
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_IsPaused_ReturnsDeclaredBinding()", rendered)
+        self.assertIn('assertEq(actual, true, "isPaused should preserve the expected value");', rendered)
+        self.assertIn("function testAuto_FeeScale_ReturnsDeclaredBinding()", rendered)
+        self.assertIn('assertEq(actual, 7, "feeScale should preserve the expected value");', rendered)
+        self.assertIn("function testAuto_DomainSeparator_ReturnsDeclaredBinding()", rendered)
+        self.assertIn(
+            'assertEq(actual, bytes32(uint256(42)), "domainSeparator should preserve the expected value");',
+            rendered,
+        )
 
     def test_render_tuple_return_values_infers_assertion(self) -> None:
         contract = gen.ContractDecl(
