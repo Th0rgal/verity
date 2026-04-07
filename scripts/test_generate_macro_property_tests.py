@@ -981,6 +981,103 @@ class RenderTests(unittest.TestCase):
             rendered,
         )
 
+    def test_render_struct_member_getter_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="StructMappingSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "delegateOf",
+                    (gen.ParamDecl("user", "Address"),),
+                    "Address",
+                    body=('let delegate_ ← structMember "positions" user "delegate"', "return delegate_"),
+                ),
+            ),
+            storage_slots={"positions": 0},
+            storage_types={
+                "positions": "MappingStruct(Address,[supplyShares @word 0 packed(0,128), borrowShares @word 0 packed(128,128), delegate @word 1])"
+            },
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_DelegateOf_ReadsConfiguredStructMember()", rendered)
+        self.assertIn(
+            "vm.store(target, bytes32(uint256(_mappingSlot(bytes32(uint256(uint160(alice))), 0)) + 1), bytes32(uint256(uint160(expected))));",
+            rendered,
+        )
+        self.assertIn(
+            'assertEq(actual, expected, "delegateOf should decode the configured struct member");',
+            rendered,
+        )
+
+    def test_render_struct_member_straight_line_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="StructMappingSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "totalPositionShares",
+                    (gen.ParamDecl("user", "Address"),),
+                    "Uint256",
+                    body=(
+                        'let supply ← structMember "positions" user "supplyShares"',
+                        'let borrow ← structMember "positions" user "borrowShares"',
+                        "return (add supply borrow)",
+                    ),
+                ),
+            ),
+            storage_slots={"positions": 0},
+            storage_types={
+                "positions": "MappingStruct(Address,[supplyShares @word 0 packed(0,128), borrowShares @word 0 packed(128,128), delegate @word 1])"
+            },
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn(
+            "function testAuto_TotalPositionShares_ReturnsInferredStraightLineResult()",
+            rendered,
+        )
+        self.assertIn(
+            "vm.store(target, _mappingSlot(bytes32(uint256(uint160(alice))), 0), bytes32(uint256(expected) | (uint256(expected1) << 128)));",
+            rendered,
+        )
+        self.assertIn(
+            'assertEq(actual, (expected + expected1), "totalPositionShares should preserve the inferred result");',
+            rendered,
+        )
+
+    def test_render_nested_struct_member_getter_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="StructMappingSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "approvalOf",
+                    (
+                        gen.ParamDecl("owner", "Address"),
+                        gen.ParamDecl("spender", "Address"),
+                    ),
+                    "Uint256",
+                    body=('let amount ← structMember2 "approvals" owner spender "allowance"', "return amount"),
+                ),
+            ),
+            storage_slots={"approvals": 1},
+            storage_types={
+                "approvals": "MappingStruct2(Address,Address,[allowance @word 0 packed(0,128), nonce @word 1])"
+            },
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_ApprovalOf_ReadsConfiguredStructMember()", rendered)
+        self.assertIn(
+            "vm.store(target, _nestedMappingSlot(bytes32(uint256(uint160(alice))), bytes32(uint256(uint160(alice))), 1), bytes32(uint256(expected)));",
+            rendered,
+        )
+        self.assertIn(
+            'assertEq(actual, expected, "approvalOf should decode the configured struct member");',
+            rendered,
+        )
+
     def test_render_mapping_predicate_infers_assertion(self) -> None:
         contract = gen.ContractDecl(
             name="MappingWordSmoke",

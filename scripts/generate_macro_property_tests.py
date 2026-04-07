@@ -58,6 +58,14 @@ MAPPING_N_READ_RE = re.compile(
     r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*getMappingN\s+"
     r"([A-Za-z_][A-Za-z0-9_]*)\s+\[(.+)\]$"
 )
+STRUCT_MEMBER_READ_RE = re.compile(
+    r'let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*structMember\s+"([^"]+)"\s+'
+    r'([A-Za-z_][A-Za-z0-9_]*)\s+"([^"]+)"$'
+)
+STRUCT_MEMBER2_READ_RE = re.compile(
+    r'let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*structMember2\s+"([^"]+)"\s+'
+    r'([A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s+"([^"]+)"$'
+)
 NON_ZERO_REQUIRE_RE = re.compile(
     r'require\s+\(([A-Za-z_][A-Za-z0-9_]*)\s*!=\s*0\)\s+"[^"]+"$'
 )
@@ -118,6 +126,14 @@ class ReadAccessor:
     key_names: tuple[str, ...]
     word_offset: int = 0
     array_index: int | None = None
+    member_name: str | None = None
+
+
+@dataclass(frozen=True)
+class StructMemberLayout:
+    word_offset: int
+    packed_offset: int | None = None
+    packed_width: int | None = None
 
 
 def _normalize_type(type_src: str) -> str:
@@ -172,6 +188,7 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
     in_storage_block = False
     in_constants_block = False
     in_immutables_block = False
+    pending_storage_lines: list[str] = []
 
     def flush_function() -> None:
         nonlocal current_function, current_body
@@ -189,7 +206,7 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
         current_body = []
 
     def flush_current() -> None:
-        nonlocal current_name, current_constructor, current_storage_slots, current_storage_types, current_constants, current_immutables, current_functions, in_storage_block, in_constants_block, in_immutables_block
+        nonlocal current_name, current_constructor, current_storage_slots, current_storage_types, current_constants, current_immutables, current_functions, in_storage_block, in_constants_block, in_immutables_block, pending_storage_lines
         if current_name is None:
             return
         flush_function()
@@ -213,6 +230,7 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
         in_storage_block = False
         in_constants_block = False
         in_immutables_block = False
+        pending_storage_lines = []
 
     for line in text.splitlines():
         if line.strip() == "#guard_msgs in":
@@ -238,18 +256,21 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
             in_storage_block = True
             in_constants_block = False
             in_immutables_block = False
+            pending_storage_lines = []
             continue
 
         if line.strip() == "constants":
             in_storage_block = False
             in_constants_block = True
             in_immutables_block = False
+            pending_storage_lines = []
             continue
 
         if line.strip() == "immutables":
             in_storage_block = False
             in_constants_block = False
             in_immutables_block = True
+            pending_storage_lines = []
             continue
 
         ctor = CONSTRUCTOR_RE.match(line)
@@ -280,13 +301,24 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
             continue
 
         if in_storage_block:
-            sm = STORAGE_RE.match(line)
+            stripped = line.strip()
+            sm = STORAGE_RE.match(stripped)
             if sm:
                 current_storage_slots[sm.group(1)] = int(sm.group(3))
                 current_storage_types[sm.group(1)] = _normalize_type(sm.group(2))
+                pending_storage_lines = []
                 continue
-            if line.strip():
-                in_storage_block = False
+            if pending_storage_lines:
+                pending_storage_lines.append(stripped)
+                sm = STORAGE_RE.match(" ".join(pending_storage_lines))
+                if sm:
+                    current_storage_slots[sm.group(1)] = int(sm.group(3))
+                    current_storage_types[sm.group(1)] = _normalize_type(sm.group(2))
+                    pending_storage_lines = []
+                continue
+            if stripped:
+                pending_storage_lines = [stripped]
+                continue
 
         if in_constants_block:
             vm = VALUE_BINDING_RE.match(line)
@@ -695,6 +727,118 @@ def _storage_read_type(contract: ContractDecl, read: ReadAccessor) -> str | None
     return None
 
 
+def _parse_struct_member_layouts(storage_ty: str) -> dict[str, StructMemberLayout] | None:
+    ty = _normalize_type(storage_ty)
+    if ty.startswith("MappingStruct(") and ty.endswith(")"):
+        inner = ty[len("MappingStruct(") : -1]
+    elif ty.startswith("MappingStruct2(") and ty.endswith(")"):
+        inner = ty[len("MappingStruct2(") : -1]
+    else:
+        return None
+    parts = _split_top_level_csv(inner)
+    if not parts:
+        return None
+    members_src = parts[-1]
+    if not (members_src.startswith("[") and members_src.endswith("]")):
+        return None
+    layouts: dict[str, StructMemberLayout] = {}
+    member_specs = _split_top_level_csv(members_src[1:-1])
+    for spec in member_specs:
+        match = re.fullmatch(
+            r"([A-Za-z_][A-Za-z0-9_]*)\s+@word\s+([0-9]+)(?:\s+packed\(([0-9]+),([0-9]+)\))?",
+            spec.strip(),
+        )
+        if match is None:
+            return None
+        layouts[match.group(1)] = StructMemberLayout(
+            word_offset=int(match.group(2)),
+            packed_offset=int(match.group(3)) if match.group(3) is not None else None,
+            packed_width=int(match.group(4)) if match.group(4) is not None else None,
+        )
+    return layouts
+
+
+def _struct_member_layout(contract: ContractDecl, read: ReadAccessor) -> StructMemberLayout | None:
+    if read.member_name is None:
+        return None
+    storage_ty = contract.storage_types.get(read.storage_name)
+    if storage_ty is None:
+        return None
+    layouts = _parse_struct_member_layouts(storage_ty)
+    if layouts is None:
+        return None
+    return layouts.get(read.member_name)
+
+
+def _struct_member_slot_expr(
+    contract: ContractDecl,
+    fn: FunctionDecl,
+    read: ReadAccessor,
+    param_examples: dict[str, str],
+) -> str | None:
+    if read.accessor not in {"structMember", "structMember2"}:
+        return None
+    base_accessor = "getMapping2" if read.accessor == "structMember2" else "getMapping"
+    base_slot = _mapping_slot_expr(
+        contract,
+        fn,
+        ReadAccessor(
+            var_name=read.var_name,
+            accessor=base_accessor,
+            storage_name=read.storage_name,
+            key_names=read.key_names,
+        ),
+        param_examples,
+    )
+    layout = _struct_member_layout(contract, read)
+    if layout is None:
+        return None
+    if layout.word_offset == 0:
+        return base_slot
+    return f"bytes32(uint256({base_slot}) + {layout.word_offset})"
+
+
+def _flush_pending_struct_slots(
+    setup_lines: list[str],
+    pending_struct_slots: dict[str, list[str]],
+) -> None:
+    for slot_expr, terms in pending_struct_slots.items():
+        combined = " | ".join(terms)
+        setup_lines.append(f"vm.store(target, {slot_expr}, bytes32({combined}));")
+
+
+def _seed_struct_read_setup(
+    contract: ContractDecl,
+    fn: FunctionDecl,
+    read: ReadAccessor,
+    read_ty: str,
+    param_examples: dict[str, str],
+    expected_name: str,
+    setup_lines: list[str],
+    pending_struct_slots: dict[str, list[str]],
+) -> bool:
+    slot_expr = _struct_member_slot_expr(contract, fn, read, param_examples)
+    layout = _struct_member_layout(contract, read)
+    if slot_expr is None or layout is None:
+        return False
+    setup_lines.append(f"{_sol_type(read_ty)} {expected_name} = {_example_value(read_ty)};")
+    if layout.packed_offset is None:
+        if slot_expr in pending_struct_slots:
+            return False
+        setup_lines.append(f"vm.store(target, {slot_expr}, {_storage_word_expr(read_ty, expected_name)});")
+        return True
+    packed_value = _single_word_uint_expr(read_ty, expected_name)
+    if packed_value is None:
+        return False
+    shifted = (
+        packed_value
+        if layout.packed_offset == 0
+        else f"({packed_value} << {layout.packed_offset})"
+    )
+    pending_struct_slots.setdefault(slot_expr, []).append(shifted)
+    return True
+
+
 def _render_inferred_scalar_return(
     fn: FunctionDecl,
     idx: int,
@@ -815,6 +959,26 @@ def _parse_read_accessor(line: str) -> ReadAccessor | None:
             accessor="getMappingN",
             storage_name=mapping_n_match.group(2),
             key_names=keys,
+        )
+
+    struct_member_match = STRUCT_MEMBER_READ_RE.fullmatch(line)
+    if struct_member_match:
+        return ReadAccessor(
+            var_name=struct_member_match.group(1),
+            accessor="structMember",
+            storage_name=struct_member_match.group(2),
+            key_names=(struct_member_match.group(3),),
+            member_name=struct_member_match.group(4),
+        )
+
+    struct_member2_match = STRUCT_MEMBER2_READ_RE.fullmatch(line)
+    if struct_member2_match:
+        return ReadAccessor(
+            var_name=struct_member2_match.group(1),
+            accessor="structMember2",
+            storage_name=struct_member2_match.group(2),
+            key_names=(struct_member2_match.group(3), struct_member2_match.group(4)),
+            member_name=struct_member2_match.group(5),
         )
 
     return None
@@ -993,11 +1157,30 @@ def _infer_straight_line_non_unit_test(
     local_values = dict(param_examples)
     local_types = dict(param_types)
     setup_lines: list[str] = []
+    pending_struct_slots: dict[str, list[str]] = {}
     seeded_reads = 0
 
     for line in fn.body[:-1]:
         read = _parse_read_accessor(line)
         if read is not None:
+            if read.accessor in {"structMember", "structMember2"}:
+                expected_name = "expected" if seeded_reads == 0 else f"expected{seeded_reads}"
+                read_ty = _normalize_type(fn.return_type)
+                if not _seed_struct_read_setup(
+                    contract,
+                    fn,
+                    read,
+                    read_ty,
+                    param_examples,
+                    expected_name,
+                    setup_lines,
+                    pending_struct_slots,
+                ):
+                    return None
+                local_values[read.var_name] = expected_name
+                local_types[read.var_name] = read_ty
+                seeded_reads += 1
+                continue
             if read.accessor not in {"getStorage", "getStorageAddr"}:
                 return None
             slot = contract.storage_slots.get(read.storage_name)
@@ -1050,6 +1233,8 @@ def _infer_straight_line_non_unit_test(
             continue
 
         return None
+
+    _flush_pending_struct_slots(setup_lines, pending_struct_slots)
 
     final_line = fn.body[-1]
     return_match = re.fullmatch(r"return\s+(.+)", final_line)
@@ -1295,6 +1480,33 @@ def _render_inferred_non_unit_test(contract: ContractDecl, fn: FunctionDecl, idx
         if read and body[1] == f"return {read.var_name}":
             ret_assert = _return_shape_assertion(fn.return_type, fn.name)
             expected_expr = _example_value(fn.return_type)
+            if read.accessor in {"structMember", "structMember2"}:
+                setup_lines: list[str] = []
+                pending_struct_slots: dict[str, list[str]] = {}
+                if not _seed_struct_read_setup(
+                    contract,
+                    fn,
+                    read,
+                    _normalize_type(fn.return_type),
+                    param_examples,
+                    "expected",
+                    setup_lines,
+                    pending_struct_slots,
+                ):
+                    return None
+                _flush_pending_struct_slots(setup_lines, pending_struct_slots)
+                return _render_decoded_assertion(
+                    fn,
+                    idx,
+                    encode_args,
+                    ret_assert,
+                    decoded_type,
+                    setup_lines,
+                    f"{decoded_type} actual = abi.decode(ret, ({decoded_type}));",
+                    [f'assertEq(actual, expected, "{fn.name} should decode the configured struct member");'],
+                    f"{fn.name} reads the configured struct member",
+                    "ReadsConfiguredStructMember",
+                )
             if read.accessor in {"getStorage", "getStorageAddr"}:
                 slot = contract.storage_slots.get(read.storage_name)
                 if slot is None:
