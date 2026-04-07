@@ -366,12 +366,14 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("CustomErrorSmoke", ["echo(uint256)"])
   , ("SignedBuiltinSmoke", ["signedDiv(uint256,uint256)", "signedMod(uint256,uint256)", "signedLt(uint256,uint256)",
       "signedGt(uint256,uint256)", "arithmeticShift(uint256,uint256)", "signExtended()", "shiftedMask()",
-      "signedDivSurface(int256,int256)", "signedModSurface(int256,int256)", "castToInt(uint256)",
-      "castToUint(int256)", "minusOne()"])
+      "signedDivSurface(int256,int256)", "signedModSurface(int256,int256)", "signedDivViaLocal(uint256,int256)",
+      "castToInt(uint256)", "castToUint(int256)", "minusOne()", "bitAndSignBit(int256,int256)",
+      "minSignBit(int256)"])
   , ("StatelessSmoke", ["echoWord(uint256)", "whoAmI()"])
   , ("MutabilitySmoke", ["deposit()", "currentOwner()"])
   , ("SpecialEntrypointSmoke", ["getReceiveCount()", "getFallbackCount()"])
-  , ("DirectHelperCallSmoke", ["runHelpers(uint256,uint256,uint256)", "snapshot()"])
+  , ("DirectHelperCallSmoke", ["addToTotal(uint256)", "readTotalPlus(uint256)", "pairWithTotal(uint256)",
+      "runHelpers(uint256,uint256,uint256)", "snapshot()"])
   , ("InitializerSmoke", ["initOwner(address)", "upgradeToV2()"])
   , ("ConstantSmoke", ["feeOn(uint256)", "treasuryAddr()"])
   , ("ImmutableSmoke", ["supplyCap()", "treasuryAddr()", "shadowed(uint256)"])
@@ -432,11 +434,12 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("StorageWordsBoolSmoke", ["0x873bc011"])
   , ("CustomErrorSmoke", ["0x6279e43c"])
   , ("SignedBuiltinSmoke", ["0x5aafa47b", "0x1c781eb5", "0x2ff7ce03", "0x5f28fa76", "0x49795601",
-      "0xcc634d7f", "0x7c4ab1e5", "0x44b95b1e", "0x17ea5a3e", "0xf6814165", "0xae1a9a3e", "0x6622d274"])
+      "0xcc634d7f", "0x7c4ab1e5", "0x44b95b1e", "0x17ea5a3e", "0x6344ce8c", "0xf6814165", "0xae1a9a3e",
+      "0x6622d274", "0x176a2ce1", "0x504d2488"])
   , ("StatelessSmoke", ["0x26534f53", "0xda91254c"])
   , ("MutabilitySmoke", ["0xd0e30db0", "0xb387ef92"])
   , ("SpecialEntrypointSmoke", ["0x931999fb", "0x74b204a4"])
-  , ("DirectHelperCallSmoke", ["0xa392867e", "0x9711715a"])
+  , ("DirectHelperCallSmoke", ["0x623f577a", "0xe9696d56", "0xe176587e", "0xa392867e", "0x9711715a"])
   , ("InitializerSmoke", ["0x0d009297", "0xcc01053e"])
   , ("ConstantSmoke", ["0x9c421eb5", "0x30d9a62a"])
   , ("ImmutableSmoke", ["0x8f770ad0", "0x30d9a62a", "0x655b96ec"])
@@ -506,9 +509,12 @@ private def checkSignedBuiltinSmoke : IO Unit := do
   let shiftedMask? := functions.find? (·.name == "shiftedMask")
   let signedDivSurface? := functions.find? (·.name == "signedDivSurface")
   let signedModSurface? := functions.find? (·.name == "signedModSurface")
+  let signedDivViaLocal? := functions.find? (·.name == "signedDivViaLocal")
   let castToInt? := functions.find? (·.name == "castToInt")
   let castToUint? := functions.find? (·.name == "castToUint")
   let minusOne? := functions.find? (·.name == "minusOne")
+  let bitAndSignBit? := functions.find? (·.name == "bitAndSignBit")
+  let minSignBit? := functions.find? (·.name == "minSignBit")
   let signedDiv := signedDiv?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
   let signedMod := signedMod?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
   let signedLt := signedLt?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
@@ -518,9 +524,12 @@ private def checkSignedBuiltinSmoke : IO Unit := do
   let shiftedMask := shiftedMask?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
   let signedDivSurface := signedDivSurface?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
   let signedModSurface := signedModSurface?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
+  let signedDivViaLocal := signedDivViaLocal?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
   let castToInt := castToInt?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
   let castToUint := castToUint?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
   let minusOne := minusOne?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
+  let bitAndSignBit := bitAndSignBit?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
+  let minSignBit := minSignBit?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
   expectTrue "SignedBuiltinSmoke: signedDiv body uses Expr.sdiv"
     (bodyUsesSignedBuiltin signedDiv.body "Expr.sdiv")
   expectTrue "SignedBuiltinSmoke: signedMod body uses Expr.smod"
@@ -539,12 +548,20 @@ private def checkSignedBuiltinSmoke : IO Unit := do
     (bodyUsesSignedBuiltin signedDivSurface.body "Expr.sdiv")
   expectTrue "SignedBuiltinSmoke: signedModSurface lowers Int256 mod to Expr.smod"
     (bodyUsesSignedBuiltin signedModSurface.body "Expr.smod")
+  expectTrue "SignedBuiltinSmoke: signedDivViaLocal keeps the signed divide opcode after local rebinding"
+    (bodyUsesSignedBuiltin signedDivViaLocal.body "Expr.sdiv")
   expectTrue "SignedBuiltinSmoke: castToInt stays word-level in the model"
     (!bodyUsesSignedBuiltin castToInt.body "Expr.sdiv")
   expectTrue "SignedBuiltinSmoke: castToUint stays word-level in the model"
     (!bodyUsesSignedBuiltin castToUint.body "Expr.sdiv")
   expectTrue "SignedBuiltinSmoke: minusOne preserves Int256 constants as raw words"
     (!minusOne.body.isEmpty)
+  expectTrue "SignedBuiltinSmoke: bitAndSignBit keeps signed comparison over bitAnd"
+    (bodyUsesSignedBuiltin bitAndSignBit.body "Expr.bitAnd" &&
+      bodyUsesSignedBuiltin bitAndSignBit.body "Expr.lt")
+  expectTrue "SignedBuiltinSmoke: minSignBit keeps signed comparison over min"
+    (bodyUsesSignedBuiltin minSignBit.body "Expr.min" &&
+      bodyUsesSignedBuiltin minSignBit.body "Expr.lt")
 
 private def checkLowLevelTryCatchSmoke : IO Unit := do
   let functions := Contracts.Smoke.LowLevelTryCatchSmoke.spec.functions
