@@ -26,13 +26,13 @@ contract PropertyConstantSmokeTest is YulTestBase {
         // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
         ret;
     }
-    // Property 2: TODO decode and assert `treasuryAddr` result
-    function testTODO_TreasuryAddr_DecodeAndAssert() public {
+    // Property 2: treasuryAddr returns the declared constant or immutable value
+    function testAuto_TreasuryAddr_ReturnsDeclaredBinding() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("treasuryAddr()"));
         require(ok, "treasuryAddr reverted unexpectedly");
         assertEq(ret.length, 32, "treasuryAddr ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        address actual = abi.decode(ret, (address));
+        assertEq(actual, address(uint160(42)), "treasuryAddr should preserve the expected value");
     }
 }

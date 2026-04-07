@@ -17,31 +17,31 @@ contract PropertyTypedImmutableSmokeTest is YulTestBase {
         require(target != address(0), "Deploy failed");
     }
 
-    // Property 1: TODO decode and assert `isPaused` result
-    function testTODO_IsPaused_DecodeAndAssert() public {
+    // Property 1: isPaused returns the declared constant or immutable value
+    function testAuto_IsPaused_ReturnsDeclaredBinding() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("isPaused()"));
         require(ok, "isPaused reverted unexpectedly");
         assertEq(ret.length, 32, "isPaused ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        bool actual = abi.decode(ret, (bool));
+        assertEq(actual, true, "isPaused should preserve the expected value");
     }
-    // Property 2: TODO decode and assert `feeScale` result
-    function testTODO_FeeScale_DecodeAndAssert() public {
+    // Property 2: feeScale returns the declared constant or immutable value
+    function testAuto_FeeScale_ReturnsDeclaredBinding() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("feeScale()"));
         require(ok, "feeScale reverted unexpectedly");
         assertEq(ret.length, 32, "feeScale ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        uint8 actual = abi.decode(ret, (uint8));
+        assertEq(actual, 7, "feeScale should preserve the expected value");
     }
-    // Property 3: TODO decode and assert `domainSeparator` result
-    function testTODO_DomainSeparator_DecodeAndAssert() public {
+    // Property 3: domainSeparator returns the declared constant or immutable value
+    function testAuto_DomainSeparator_ReturnsDeclaredBinding() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("domainSeparator()"));
         require(ok, "domainSeparator reverted unexpectedly");
         assertEq(ret.length, 32, "domainSeparator ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        bytes32 actual = abi.decode(ret, (bytes32));
+        assertEq(actual, bytes32(uint256(42)), "domainSeparator should preserve the expected value");
     }
 }

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import argparse
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from property_utils import ROOT
@@ -27,6 +27,9 @@ CONSTRUCTOR_RE = re.compile(r"^\s*constructor\s*\(([^)]*)\)\s*:=\s*")
 PARAM_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+?)\s*$")
 STORAGE_RE = re.compile(
     r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+?)\s*:=\s*slot\s+([0-9]+)\s*$",
+)
+VALUE_BINDING_RE = re.compile(
+    r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+?)\s*:=\s*(.+?)\s*$",
 )
 STORAGE_READ_RE = re.compile(
     r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*(getStorage|getStorageAddr)\s+([A-Za-z_][A-Za-z0-9_]*)$"
@@ -78,12 +81,21 @@ class ConstructorDecl:
 
 
 @dataclass(frozen=True)
+class ValueDecl:
+    name: str
+    lean_type: str
+    expr: str
+
+
+@dataclass(frozen=True)
 class ContractDecl:
     name: str
     constructor: ConstructorDecl | None
     functions: tuple[FunctionDecl, ...]
     storage_slots: dict[str, int]
     source: Path
+    constants: dict[str, ValueDecl] = field(default_factory=dict)
+    immutables: dict[str, ValueDecl] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -137,11 +149,15 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
     current_name: str | None = None
     current_constructor: ConstructorDecl | None = None
     current_storage_slots: dict[str, int] = {}
+    current_constants: dict[str, ValueDecl] = {}
+    current_immutables: dict[str, ValueDecl] = {}
     current_functions: list[FunctionDecl] = []
     current_function: FunctionDecl | None = None
     current_body: list[str] = []
     guard_pending = False
     in_storage_block = False
+    in_constants_block = False
+    in_immutables_block = False
 
     def flush_function() -> None:
         nonlocal current_function, current_body
@@ -159,7 +175,7 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
         current_body = []
 
     def flush_current() -> None:
-        nonlocal current_name, current_constructor, current_storage_slots, current_functions, in_storage_block
+        nonlocal current_name, current_constructor, current_storage_slots, current_constants, current_immutables, current_functions, in_storage_block, in_constants_block, in_immutables_block
         if current_name is None:
             return
         flush_function()
@@ -169,12 +185,18 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
             functions=tuple(current_functions),
             storage_slots=dict(current_storage_slots),
             source=source,
+            constants=dict(current_constants),
+            immutables=dict(current_immutables),
         )
         current_name = None
         current_constructor = None
         current_storage_slots = {}
+        current_constants = {}
+        current_immutables = {}
         current_functions = []
         in_storage_block = False
+        in_constants_block = False
+        in_immutables_block = False
 
     for line in text.splitlines():
         if line.strip() == "#guard_msgs in":
@@ -198,6 +220,20 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
 
         if line.strip() == "storage":
             in_storage_block = True
+            in_constants_block = False
+            in_immutables_block = False
+            continue
+
+        if line.strip() == "constants":
+            in_storage_block = False
+            in_constants_block = True
+            in_immutables_block = False
+            continue
+
+        if line.strip() == "immutables":
+            in_storage_block = False
+            in_constants_block = False
+            in_immutables_block = True
             continue
 
         ctor = CONSTRUCTOR_RE.match(line)
@@ -207,6 +243,8 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
                 raise ValueError(f"duplicate constructor in contract '{current_name}'")
             current_constructor = ConstructorDecl(params=_split_params(ctor.group(1)))
             in_storage_block = False
+            in_constants_block = False
+            in_immutables_block = False
             continue
 
         fm = FUNCTION_RE.match(line)
@@ -221,6 +259,8 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
                 return_type=ret_ty,
             )
             in_storage_block = False
+            in_constants_block = False
+            in_immutables_block = False
             continue
 
         if in_storage_block:
@@ -230,6 +270,30 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
                 continue
             if line.strip():
                 in_storage_block = False
+
+        if in_constants_block:
+            vm = VALUE_BINDING_RE.match(line)
+            if vm:
+                current_constants[vm.group(1)] = ValueDecl(
+                    name=vm.group(1),
+                    lean_type=_normalize_type(vm.group(2)),
+                    expr=vm.group(3).strip(),
+                )
+                continue
+            if line.strip():
+                in_constants_block = False
+
+        if in_immutables_block:
+            vm = VALUE_BINDING_RE.match(line)
+            if vm:
+                current_immutables[vm.group(1)] = ValueDecl(
+                    name=vm.group(1),
+                    lean_type=_normalize_type(vm.group(2)),
+                    expr=vm.group(3).strip(),
+                )
+                continue
+            if line.strip():
+                in_immutables_block = False
 
         if current_function is not None and line.startswith("    "):
             stripped = line.strip()
@@ -368,6 +432,118 @@ def _sol_signature(fn: FunctionDecl) -> str:
 
 def _fn_camel(name: str) -> str:
     return name[:1].upper() + name[1:]
+
+
+def _binding_type_and_expr(binding: ValueDecl) -> tuple[str, str]:
+    return binding.lean_type, binding.expr
+
+
+def _strip_outer_parens(expr: str) -> str:
+    expr = expr.strip()
+    while expr.startswith("(") and expr.endswith(")"):
+        depth = 0
+        balanced = True
+        for i, ch in enumerate(expr):
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+                if depth == 0 and i != len(expr) - 1:
+                    balanced = False
+                    break
+        if not balanced or depth != 0:
+            break
+        expr = expr[1:-1].strip()
+    return expr
+
+
+def _split_prefix_expr(expr: str) -> tuple[str, list[str]] | None:
+    expr = _strip_outer_parens(expr)
+    parts = expr.split()
+    if len(parts) != 3:
+        return None
+    return parts[0], [parts[1], parts[2]]
+
+
+def _lookup_named_binding(contract: ContractDecl, name: str) -> ValueDecl | None:
+    return contract.constants.get(name) or contract.immutables.get(name)
+
+
+def _resolve_named_value_expr(
+    contract: ContractDecl,
+    name: str,
+    lean_type: str,
+    constructor_examples: dict[str, str],
+    seen: set[str] | None = None,
+) -> str | None:
+    binding = _lookup_named_binding(contract, name)
+    if binding is None:
+        return None
+    binding_ty, binding_expr = _binding_type_and_expr(binding)
+    return _resolve_value_expr(
+        contract,
+        binding_expr,
+        binding_ty or lean_type,
+        constructor_examples,
+        (seen or set()) | {name},
+    )
+
+
+def _resolve_value_expr(
+    contract: ContractDecl,
+    expr: str,
+    lean_type: str,
+    constructor_examples: dict[str, str],
+    seen: set[str] | None = None,
+) -> str | None:
+    seen = seen or set()
+    expr = _strip_outer_parens(expr)
+
+    literal = _literal_expr(expr, lean_type)
+    if literal is not None:
+        return literal
+
+    if expr in constructor_examples:
+        return constructor_examples[expr]
+
+    if expr in seen:
+        return None
+
+    binding = _lookup_named_binding(contract, expr)
+    if binding is not None:
+        binding_ty, binding_expr = _binding_type_and_expr(binding)
+        return _resolve_value_expr(
+            contract,
+            binding_expr,
+            binding_ty or lean_type,
+            constructor_examples,
+            seen | {expr},
+        )
+
+    if lean_type == "Address":
+        word_to_address = re.fullmatch(r"wordToAddress\s+(.+)", expr)
+        if word_to_address:
+            inner = _resolve_value_expr(
+                contract,
+                word_to_address.group(1),
+                "Uint256",
+                constructor_examples,
+                seen,
+            )
+            if inner is not None:
+                return f"address(uint160({inner}))"
+
+    op_parts = _split_prefix_expr(expr)
+    if op_parts is not None:
+        op, args = op_parts
+        op_map = {"add": "+", "sub": "-", "mul": "*", "div": "/"}
+        if op in op_map and lean_type in {"Uint256", "Int256", "Uint8"}:
+            lhs = _resolve_value_expr(contract, args[0], lean_type, constructor_examples, seen)
+            rhs = _resolve_value_expr(contract, args[1], lean_type, constructor_examples, seen)
+            if lhs is not None and rhs is not None:
+                return f"({lhs} {op_map[op]} {rhs})"
+
+    return None
 
 
 def _return_shape_assertion(lean_ty: str, fn_name: str) -> str:
@@ -587,6 +763,11 @@ def _render_inferred_non_unit_test(contract: ContractDecl, fn: FunctionDecl, idx
     body = list(fn.body)
     ty = _normalize_type(fn.return_type)
     param_examples = {param.name: _example_value(param.lean_type) for param in fn.params}
+    constructor_examples = (
+        {param.name: _example_value(param.lean_type) for param in contract.constructor.params}
+        if contract.constructor is not None
+        else {}
+    )
     decoded_type = _sol_type(fn.return_type)
     param_types = {param.name: _normalize_type(param.lean_type) for param in fn.params}
 
@@ -637,6 +818,22 @@ def _render_inferred_non_unit_test(contract: ContractDecl, fn: FunctionDecl, idx
                     param_examples[returned_name],
                     f"{fn.name} returns the direct parameter value",
                     "ReturnsDirectParam",
+                )
+            resolved_named_value = _resolve_named_value_expr(
+                contract,
+                returned_name,
+                ty,
+                constructor_examples,
+            )
+            if resolved_named_value is not None:
+                return _render_direct_return_assertion(
+                    fn,
+                    idx,
+                    encode_args,
+                    decoded_type,
+                    resolved_named_value,
+                    f"{fn.name} returns the declared constant or immutable value",
+                    "ReturnsDeclaredBinding",
                 )
 
         return_bytes_match = re.fullmatch(r"returnBytes\s+([A-Za-z_][A-Za-z0-9_]*)", body[0])
