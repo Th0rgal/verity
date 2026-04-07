@@ -592,6 +592,38 @@ verity_contract TupleSmoke where
     let flag := cfg_2
     setMapping authorized owner flag
 
+verity_contract DirectHelperCallSmoke where
+  storage
+    total : Uint256 := slot 0
+    lastLeft : Uint256 := slot 1
+    lastRight : Uint256 := slot 2
+
+  function addToTotal (amount : Uint256) : Unit := do
+    let current ← getStorage total
+    setStorage total (add current amount)
+
+  function readTotalPlus (extra : Uint256) : Uint256 := do
+    let current ← getStorage total
+    return (add current extra)
+
+  function pairWithTotal (offset : Uint256) : Tuple [Uint256, Uint256] := do
+    let current ← getStorage total
+    return (current, add current offset)
+
+  function runHelpers (amount : Uint256, extra : Uint256, offset : Uint256) : Uint256 := do
+    addToTotal amount
+    let combined ← readTotalPlus extra
+    let (left, right) ← pairWithTotal offset
+    setStorage lastLeft left
+    setStorage lastRight right
+    return combined
+
+  function snapshot () : Tuple [Uint256, Uint256, Uint256] := do
+    let current ← getStorage total
+    let left ← getStorage lastLeft
+    let right ← getStorage lastRight
+    return (current, left, right)
+
 verity_contract Uint8Smoke where
   storage
     sentinel : Uint256 := slot 0
@@ -1055,6 +1087,7 @@ end SpecGenSmoke
 #check_contract StatelessSmoke
 #check_contract SpecialEntrypointSmoke
 #check_contract TupleSmoke
+#check_contract DirectHelperCallSmoke
 #check_contract Uint8Smoke
 #check_contract AddressHelpersSmoke
 #check_contract ZeroAddressShadowSmoke

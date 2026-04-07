@@ -563,6 +563,26 @@ private def checkSpecialEntrypointSmoke : IO Unit := do
   expectTrue "SpecialEntrypointSmoke: fallback entrypoint remains selector-free"
     fallbackFn.params.isEmpty
 
+private def checkDirectHelperCallSmoke : IO Unit := do
+  let functions := Contracts.Smoke.DirectHelperCallSmoke.spec.functions
+  let publicFns := functions.filter (fun fn => !fn.isInternal)
+  let internalFns := functions.filter (·.isInternal)
+  let runHelpers? := publicFns.find? (·.name == "runHelpers")
+  let runHelpers := runHelpers?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
+  expectTrue "DirectHelperCallSmoke: public entrypoints remain unchanged"
+    (publicFns.map (·.name) ==
+      ["addToTotal", "readTotalPlus", "pairWithTotal", "runHelpers", "snapshot"])
+  expectTrue "DirectHelperCallSmoke: helper-capable functions gain internal variants"
+    (internalFns.map (·.name) ==
+      ["internal_addToTotal", "internal_readTotalPlus", "internal_pairWithTotal",
+        "internal_runHelpers", "internal_snapshot"])
+  expectTrue "DirectHelperCallSmoke: single-return helper calls lower to Expr.internalCall"
+    (contains (reprStr runHelpers.body) "Expr.internalCall" &&
+      contains (reprStr runHelpers.body) "\"internal_readTotalPlus\"")
+  expectTrue "DirectHelperCallSmoke: tuple helper calls lower to Stmt.internalCallAssign"
+    (contains (reprStr runHelpers.body) "Stmt.internalCallAssign" &&
+      contains (reprStr runHelpers.body) "\"internal_pairWithTotal\"")
+
 private def checkSpec (spec : CompilationModel) : IO Unit := do
   let extFns := externalFunctions spec
   let fnNames := extFns.map (·.name)
@@ -681,6 +701,7 @@ private def checkSpec (spec : CompilationModel) : IO Unit := do
   checkSignedBuiltinSmoke
   checkLowLevelTryCatchSmoke
   checkSpecialEntrypointSmoke
+  checkDirectHelperCallSmoke
   for spec in macroSpecs do
     checkSpec spec
 
