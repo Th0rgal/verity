@@ -1053,10 +1053,15 @@ private def requireSupportedReturnStorageWordsType
     (context : String)
     (ty : ValueType) : CommandElabM Unit := do
   match ty with
-  | .array .bytes32 | .array .uint256 => pure ()
+  | .array elemTy =>
+      if isSingleWordStaticValueType elemTy then
+        pure ()
+      else
+        throwErrorAt stx
+          s!"{context} requires an array with single-word static elements on the compilation-model path, got {renderValueType ty}"
   | _ =>
       throwErrorAt stx
-        s!"{context} requires an Array Bytes32 or Array Uint256 parameter on the compilation-model path, got {renderValueType ty}"
+        s!"{context} requires an Array parameter on the compilation-model path, got {renderValueType ty}"
 
 private def requireEqComparableTypes (stx : Syntax) (lhsTy rhsTy : ValueType) : CommandElabM Unit := do
   let bothWordLike := isWordLikeValueType lhsTy && isWordLikeValueType rhsTy

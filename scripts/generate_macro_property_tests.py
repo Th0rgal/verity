@@ -342,6 +342,10 @@ def _example_value(lean_ty: str) -> str:
         elem = ty[len("Array ") :].strip()
         if elem == "Uint256":
             return "_singletonUintArray(1)"
+        if elem == "Address":
+            return "_singletonAddressArray(alice)"
+        if elem == "Bool":
+            return "_singletonBoolArray(true)"
         if elem == "Bytes32":
             return "_singletonBytes32Array(bytes32(uint256(0xBEEF)))"
         raise ValueError(
@@ -910,6 +914,8 @@ def _render_inferred_non_unit_test(contract: ContractDecl, fn: FunctionDecl, idx
 def render_contract_test(contract: ContractDecl) -> str:
     tests: list[str] = []
     need_uint_array_helper = False
+    need_address_array_helper = False
+    need_bool_array_helper = False
     need_bytes32_array_helper = False
     set_up_line = f'target = deployYul("{contract.name}");'
     if contract.constructor is not None and contract.constructor.params:
@@ -918,6 +924,10 @@ def render_contract_test(contract: ContractDecl) -> str:
             p_ty = _normalize_type(p.lean_type)
             if p_ty == "Array Uint256":
                 need_uint_array_helper = True
+            if p_ty == "Array Address":
+                need_address_array_helper = True
+            if p_ty == "Array Bool":
+                need_bool_array_helper = True
             if p_ty == "Array Bytes32":
                 need_bytes32_array_helper = True
         set_up_line = (
@@ -933,6 +943,10 @@ def render_contract_test(contract: ContractDecl) -> str:
             p_ty = _normalize_type(p.lean_type)
             if p_ty == "Array Uint256":
                 need_uint_array_helper = True
+            if p_ty == "Array Address":
+                need_address_array_helper = True
+            if p_ty == "Array Bool":
+                need_bool_array_helper = True
             if p_ty == "Array Bytes32":
                 need_bytes32_array_helper = True
 
@@ -968,6 +982,20 @@ def render_contract_test(contract: ContractDecl) -> str:
         helper += """
     function _singletonUintArray(uint256 x) internal pure returns (uint256[] memory arr) {
         arr = new uint256[](1);
+        arr[0] = x;
+    }
+"""
+    if need_address_array_helper:
+        helper += """
+    function _singletonAddressArray(address x) internal pure returns (address[] memory arr) {
+        arr = new address[](1);
+        arr[0] = x;
+    }
+"""
+    if need_bool_array_helper:
+        helper += """
+    function _singletonBoolArray(bool x) internal pure returns (bool[] memory arr) {
+        arr = new bool[](1);
         arr[0] = x;
     }
 """

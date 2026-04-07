@@ -211,7 +211,7 @@ def arrayElementChecked {α : Type} (values : Array α) (index : Uint256) : Cont
 def returnArray {α : Type} (values : Array α) : Contract (Array α) := pure values
 def returnValues (_values : List Uint256) : Contract Unit := pure ()
 def returnBytes {α : Type} (value : α) : Contract α := pure value
-def returnStorageWords (_slots : Array Uint256) : Contract (Array Uint256) := pure #[]
+def returnStorageWords {α : Type} (_slots : Array α) : Contract (Array Uint256) := pure #[]
 def emit (name : String) (args : List Uint256) : Contract Unit := emitEvent name args
 def rawLog (topics : List Uint256) (dataOffset dataSize : Uint256) : Contract Unit := fun state =>
   if topics.length > 4 then
