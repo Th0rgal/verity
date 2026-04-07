@@ -101,6 +101,7 @@ class ContractDecl:
     functions: tuple[FunctionDecl, ...]
     storage_slots: dict[str, int]
     source: Path
+    storage_types: dict[str, str] = field(default_factory=dict)
     constants: dict[str, ValueDecl] = field(default_factory=dict)
     immutables: dict[str, ValueDecl] = field(default_factory=dict)
 
@@ -157,6 +158,7 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
     current_name: str | None = None
     current_constructor: ConstructorDecl | None = None
     current_storage_slots: dict[str, int] = {}
+    current_storage_types: dict[str, str] = {}
     current_constants: dict[str, ValueDecl] = {}
     current_immutables: dict[str, ValueDecl] = {}
     current_functions: list[FunctionDecl] = []
@@ -183,7 +185,7 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
         current_body = []
 
     def flush_current() -> None:
-        nonlocal current_name, current_constructor, current_storage_slots, current_constants, current_immutables, current_functions, in_storage_block, in_constants_block, in_immutables_block
+        nonlocal current_name, current_constructor, current_storage_slots, current_storage_types, current_constants, current_immutables, current_functions, in_storage_block, in_constants_block, in_immutables_block
         if current_name is None:
             return
         flush_function()
@@ -193,12 +195,14 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
             functions=tuple(current_functions),
             storage_slots=dict(current_storage_slots),
             source=source,
+            storage_types=dict(current_storage_types),
             constants=dict(current_constants),
             immutables=dict(current_immutables),
         )
         current_name = None
         current_constructor = None
         current_storage_slots = {}
+        current_storage_types = {}
         current_constants = {}
         current_immutables = {}
         current_functions = []
@@ -275,6 +279,7 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
             sm = STORAGE_RE.match(line)
             if sm:
                 current_storage_slots[sm.group(1)] = int(sm.group(3))
+                current_storage_types[sm.group(1)] = _normalize_type(sm.group(2))
                 continue
             if line.strip():
                 in_storage_block = False
@@ -467,10 +472,56 @@ def _strip_outer_parens(expr: str) -> str:
 
 def _split_prefix_expr(expr: str) -> tuple[str, list[str]] | None:
     expr = _strip_outer_parens(expr)
-    parts = expr.split()
-    if len(parts) != 3:
+    parts: list[str] = []
+    current: list[str] = []
+    depth = 0
+    for ch in expr:
+        if ch == "(":
+            depth += 1
+            current.append(ch)
+            continue
+        if ch == ")":
+            depth -= 1
+            current.append(ch)
+            continue
+        if ch == " " and depth == 0:
+            if current:
+                parts.append("".join(current).strip())
+                current = []
+            continue
+        current.append(ch)
+    if current:
+        parts.append("".join(current).strip())
+    if len(parts) < 3:
         return None
-    return parts[0], [parts[1], parts[2]]
+    return parts[0], parts[1:]
+
+
+def _split_top_level_csv(expr: str) -> list[str]:
+    parts: list[str] = []
+    current: list[str] = []
+    paren_depth = 0
+    bracket_depth = 0
+    for ch in expr:
+        if ch == "(":
+            paren_depth += 1
+        elif ch == ")":
+            paren_depth -= 1
+        elif ch == "[":
+            bracket_depth += 1
+        elif ch == "]":
+            bracket_depth -= 1
+        if ch == "," and paren_depth == 0 and bracket_depth == 0:
+            part = "".join(current).strip()
+            if part:
+                parts.append(part)
+            current = []
+            continue
+        current.append(ch)
+    tail = "".join(current).strip()
+    if tail:
+        parts.append(tail)
+    return parts
 
 
 def _lookup_named_binding(contract: ContractDecl, name: str) -> ValueDecl | None:
@@ -503,8 +554,10 @@ def _resolve_value_expr(
     lean_type: str,
     constructor_examples: dict[str, str],
     seen: set[str] | None = None,
+    local_values: dict[str, str] | None = None,
 ) -> str | None:
     seen = seen or set()
+    local_values = local_values or {}
     expr = _strip_outer_parens(expr)
 
     literal = _literal_expr(expr, lean_type)
@@ -513,6 +566,9 @@ def _resolve_value_expr(
 
     if expr in constructor_examples:
         return constructor_examples[expr]
+
+    if expr in local_values:
+        return local_values[expr]
 
     if expr in seen:
         return None
@@ -526,6 +582,7 @@ def _resolve_value_expr(
             binding_ty or lean_type,
             constructor_examples,
             seen | {expr},
+            local_values,
         )
 
     if lean_type == "Address":
@@ -537,6 +594,7 @@ def _resolve_value_expr(
                 "Uint256",
                 constructor_examples,
                 seen,
+                local_values,
             )
             if inner is not None:
                 return f"address(uint160({inner}))"
@@ -545,9 +603,11 @@ def _resolve_value_expr(
     if op_parts is not None:
         op, args = op_parts
         op_map = {"add": "+", "sub": "-", "mul": "*", "div": "/"}
-        if op in op_map and lean_type in {"Uint256", "Int256", "Uint8"}:
-            lhs = _resolve_value_expr(contract, args[0], lean_type, constructor_examples, seen)
-            rhs = _resolve_value_expr(contract, args[1], lean_type, constructor_examples, seen)
+        if op in op_map and len(args) == 2 and lean_type in {"Uint256", "Int256", "Uint8"}:
+            lhs = _resolve_value_expr(
+                contract, args[0], lean_type, constructor_examples, seen, local_values
+            )
+            rhs = _resolve_value_expr(contract, args[1], lean_type, constructor_examples, seen, local_values)
             if lhs is not None and rhs is not None:
                 return f"({lhs} {op_map[op]} {rhs})"
 
@@ -621,6 +681,67 @@ def _split_return_values(exprs_src: str) -> list[str]:
 
 def _matches_return_expr(line: str, expr: str) -> bool:
     return line in {f"return {expr}", f"return ({expr})"}
+
+
+def _storage_read_type(contract: ContractDecl, read: ReadAccessor) -> str | None:
+    if read.accessor == "getStorageAddr":
+        return "Address"
+    if read.accessor == "getStorage":
+        return contract.storage_types.get(read.storage_name)
+    return None
+
+
+def _render_inferred_scalar_return(
+    fn: FunctionDecl,
+    idx: int,
+    encode_args: str,
+    decoded_type: str,
+    expected_expr: str,
+    setup_lines: list[str],
+    summary: str,
+    suffix: str,
+) -> str:
+    return _render_decoded_assertion(
+        fn,
+        idx,
+        encode_args,
+        _return_shape_assertion(fn.return_type, fn.name),
+        decoded_type,
+        setup_lines,
+        f"{decoded_type} actual = abi.decode(ret, ({decoded_type}));",
+        [f'assertEq(actual, {expected_expr}, "{fn.name} should preserve the inferred result");'],
+        summary,
+        suffix,
+    )
+
+
+def _render_inferred_tuple_return(
+    fn: FunctionDecl,
+    idx: int,
+    encode_args: str,
+    elem_types: list[str],
+    expected_exprs: list[str],
+    setup_lines: list[str],
+    summary: str,
+    suffix: str,
+) -> str:
+    typed_vars = ", ".join(f"{_sol_type(elem_ty)} actual{i}" for i, elem_ty in enumerate(elem_types))
+    raw_types = ", ".join(_sol_type(elem_ty) for elem_ty in elem_types)
+    return _render_decoded_assertion(
+        fn,
+        idx,
+        encode_args,
+        _return_shape_assertion(fn.return_type, fn.name),
+        _sol_type(fn.return_type),
+        setup_lines,
+        f"({typed_vars}) = abi.decode(ret, ({raw_types}));",
+        [
+            f'assertEq(actual{i}, {expected_exprs[i]}, "{fn.name} tuple element {i} should preserve the inferred result");'
+            for i in range(len(elem_types))
+        ],
+        summary,
+        suffix,
+    )
 
 
 def _parse_read_accessor(line: str) -> ReadAccessor | None:
@@ -800,6 +921,137 @@ def _render_dynamic_param_compare_assertion(
         {assertion_expr}
     }}
 """
+
+
+def _infer_straight_line_non_unit_test(
+    contract: ContractDecl,
+    fn: FunctionDecl,
+    idx: int,
+    encode_args: str,
+    decoded_type: str,
+    param_examples: dict[str, str],
+    param_types: dict[str, str],
+    constructor_examples: dict[str, str],
+) -> str | None:
+    if not fn.body:
+        return None
+
+    local_values = dict(param_examples)
+    local_types = dict(param_types)
+    setup_lines: list[str] = []
+    seeded_reads = 0
+
+    for line in fn.body[:-1]:
+        read = _parse_read_accessor(line)
+        if read is not None:
+            if read.accessor not in {"getStorage", "getStorageAddr"}:
+                return None
+            slot = contract.storage_slots.get(read.storage_name)
+            read_ty = _storage_read_type(contract, read)
+            if slot is None or read_ty is None:
+                return None
+            expected_name = "expected" if seeded_reads == 0 else f"expected{seeded_reads}"
+            setup_lines.append(f"{_sol_type(read_ty)} {expected_name} = {_example_value(read_ty)};")
+            setup_lines.append(
+                f"vm.store(target, bytes32(uint256({slot})), {_storage_word_expr(read_ty, expected_name)});"
+            )
+            local_values[read.var_name] = expected_name
+            local_types[read.var_name] = read_ty
+            seeded_reads += 1
+            continue
+
+        let_match = re.fullmatch(r"let\s+(?:mut\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*:=\s*(.+)", line)
+        if let_match:
+            name, expr = let_match.groups()
+            target_ty = local_types.get(name, _normalize_type(fn.return_type))
+            resolved = _resolve_value_expr(
+                contract,
+                expr,
+                target_ty,
+                constructor_examples,
+                local_values=local_values,
+            )
+            if resolved is None:
+                return None
+            local_values[name] = resolved
+            local_types[name] = target_ty
+            continue
+
+        assign_match = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_]*)\s*:=\s*(.+)", line)
+        if assign_match:
+            name, expr = assign_match.groups()
+            target_ty = local_types.get(name)
+            if target_ty is None:
+                return None
+            resolved = _resolve_value_expr(
+                contract,
+                expr,
+                target_ty,
+                constructor_examples,
+                local_values=local_values,
+            )
+            if resolved is None:
+                return None
+            local_values[name] = resolved
+            continue
+
+        return None
+
+    final_line = fn.body[-1]
+    return_match = re.fullmatch(r"return\s+(.+)", final_line)
+    if return_match is None:
+        return None
+
+    return_ty = _normalize_type(fn.return_type)
+    return_expr = return_match.group(1).strip()
+    if return_ty.startswith("Tuple [") and return_ty.endswith("]"):
+        elems = _parse_tuple_elements(return_ty[len("Tuple [") : -1])
+        tuple_expr = _strip_outer_parens(return_expr)
+        tuple_parts = _split_top_level_csv(tuple_expr)
+        if len(tuple_parts) != len(elems):
+            return None
+        expected_exprs: list[str] = []
+        for elem_ty, elem_expr in zip(elems, tuple_parts):
+            resolved = _resolve_value_expr(
+                contract,
+                elem_expr,
+                elem_ty,
+                constructor_examples,
+                local_values=local_values,
+            )
+            if resolved is None:
+                return None
+            expected_exprs.append(resolved)
+        return _render_inferred_tuple_return(
+            fn,
+            idx,
+            encode_args,
+            elems,
+            expected_exprs,
+            setup_lines,
+            f"{fn.name} decodes and matches the inferred tuple result",
+            "ReturnsInferredTupleResult",
+        )
+
+    expected_expr = _resolve_value_expr(
+        contract,
+        return_expr,
+        return_ty,
+        constructor_examples,
+        local_values=local_values,
+    )
+    if expected_expr is None:
+        return None
+    return _render_inferred_scalar_return(
+        fn,
+        idx,
+        encode_args,
+        decoded_type,
+        expected_expr,
+        setup_lines,
+        f"{fn.name} decodes and matches the inferred straight-line result",
+        "ReturnsInferredStraightLineResult",
+    )
 
 
 def _render_inferred_non_unit_test(contract: ContractDecl, fn: FunctionDecl, idx: int, encode_args: str) -> str | None:
@@ -1209,6 +1461,19 @@ def _render_inferred_non_unit_test(contract: ContractDecl, fn: FunctionDecl, idx
                 f"{fn.name} decodes the configured secondary mapping value after the existence precondition",
                 "DecodesConfiguredSecondaryMapping",
             )
+
+    straight_line = _infer_straight_line_non_unit_test(
+        contract,
+        fn,
+        idx,
+        encode_args,
+        decoded_type,
+        param_examples,
+        param_types,
+        constructor_examples,
+    )
+    if straight_line is not None:
+        return straight_line
 
     return None
 

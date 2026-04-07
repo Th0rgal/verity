@@ -40,14 +40,16 @@ contract PropertyCounterTest is YulTestBase {
         uint256 actual = abi.decode(ret, (uint256));
         assertEq(actual, expected, "getCount should return storage slot 0");
     }
-    // Property 4: TODO decode and assert `previewAddTwice` result
-    function testTODO_PreviewAddTwice_DecodeAndAssert() public {
+    // Property 4: previewAddTwice decodes and matches the inferred straight-line result
+    function testAuto_PreviewAddTwice_ReturnsInferredStraightLineResult() public {
+        uint256 expected = uint256(1);
+        vm.store(target, bytes32(uint256(0)), bytes32(uint256(expected)));
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("previewAddTwice(uint256)", uint256(1)));
         require(ok, "previewAddTwice reverted unexpectedly");
         assertEq(ret.length, 32, "previewAddTwice ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        uint256 actual = abi.decode(ret, (uint256));
+        assertEq(actual, ((expected + uint256(1)) + uint256(1)), "previewAddTwice should preserve the inferred result");
     }
     // Property 5: TODO decode and assert `previewOps` result
     function testTODO_PreviewOps_DecodeAndAssert() public {

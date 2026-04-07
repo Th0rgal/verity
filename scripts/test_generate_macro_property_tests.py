@@ -82,6 +82,7 @@ class ParseContractsTests(unittest.TestCase):
         parsed = gen.parse_contracts(src, Path("dummy.lean"))
         contract = parsed["SimpleStorage"]
         self.assertEqual(contract.storage_slots, {"storedData": 0})
+        self.assertEqual(contract.storage_types, {"storedData": "Uint256"})
         self.assertEqual(
             contract.functions[0].body,
             ("let current ← getStorage storedData", "return current"),
@@ -686,6 +687,148 @@ class RenderTests(unittest.TestCase):
         self.assertIn("(uint256 actual0, uint256 actual1) = abi.decode(ret, (uint256, uint256));", rendered)
         self.assertIn('assertEq(actual0, uint256(1), "getPair tuple element 0 mismatch");', rendered)
         self.assertIn('assertEq(actual1, uint256(1), "getPair tuple element 1 mismatch");', rendered)
+
+    def test_render_tuple_return_literal_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="TupleSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "getPair",
+                    (gen.ParamDecl("key", "Uint256"),),
+                    "Tuple [Uint256, Uint256]",
+                    body=("return (key, key)",),
+                ),
+            ),
+            storage_slots={},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_GetPair_ReturnsInferredTupleResult()", rendered)
+        self.assertIn(
+            '(uint256 actual0, uint256 actual1) = abi.decode(ret, (uint256, uint256));',
+            rendered,
+        )
+        self.assertIn(
+            'assertEq(actual0, uint256(1), "getPair tuple element 0 should preserve the inferred result");',
+            rendered,
+        )
+        self.assertIn(
+            'assertEq(actual1, uint256(1), "getPair tuple element 1 should preserve the inferred result");',
+            rendered,
+        )
+
+    def test_render_nested_constant_arithmetic_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="ConstantSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "feeOn",
+                    (gen.ParamDecl("amount", "Uint256"),),
+                    "Uint256",
+                    body=("let fee := div (mul amount mintFeeBps) basisPoints", "return fee"),
+                ),
+            ),
+            storage_slots={},
+            constants={
+                "basisPoints": gen.ValueDecl("basisPoints", "Uint256", "10000"),
+                "mintFeeBps": gen.ValueDecl("mintFeeBps", "Uint256", "30"),
+            },
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_FeeOn_ReturnsInferredStraightLineResult()", rendered)
+        self.assertIn("uint256 actual = abi.decode(ret, (uint256));", rendered)
+        self.assertIn(
+            'assertEq(actual, ((uint256(1) * 30) / 10000), "feeOn should preserve the inferred result");',
+            rendered,
+        )
+
+    def test_render_storage_read_arithmetic_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="DirectHelperCallSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "readTotalPlus",
+                    (gen.ParamDecl("extra", "Uint256"),),
+                    "Uint256",
+                    body=("let current ← getStorage total", "return (add current extra)"),
+                ),
+            ),
+            storage_slots={"total": 0},
+            storage_types={"total": "Uint256"},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_ReadTotalPlus_ReturnsInferredStraightLineResult()", rendered)
+        self.assertIn("uint256 expected = uint256(1);", rendered)
+        self.assertIn("vm.store(target, bytes32(uint256(0)), bytes32(uint256(expected)));", rendered)
+        self.assertIn(
+            'assertEq(actual, (expected + uint256(1)), "readTotalPlus should preserve the inferred result");',
+            rendered,
+        )
+
+    def test_render_storage_read_tuple_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="DirectHelperCallSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "snapshot",
+                    (),
+                    "Tuple [Uint256, Uint256, Uint256]",
+                    body=(
+                        "let current ← getStorage total",
+                        "let left ← getStorage lastLeft",
+                        "let right ← getStorage lastRight",
+                        "return (current, left, right)",
+                    ),
+                ),
+            ),
+            storage_slots={"total": 0, "lastLeft": 1, "lastRight": 2},
+            storage_types={"total": "Uint256", "lastLeft": "Uint256", "lastRight": "Uint256"},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_Snapshot_ReturnsInferredTupleResult()", rendered)
+        self.assertIn("uint256 expected = uint256(1);", rendered)
+        self.assertIn("uint256 expected1 = uint256(1);", rendered)
+        self.assertIn("uint256 expected2 = uint256(1);", rendered)
+        self.assertIn(
+            'assertEq(actual2, expected2, "snapshot tuple element 2 should preserve the inferred result");',
+            rendered,
+        )
+
+    def test_render_mutating_accumulator_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="Counter",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Counter/Counter.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "previewAddTwice",
+                    (gen.ParamDecl("delta", "Uint256"),),
+                    "Uint256",
+                    body=(
+                        "let base ← getStorage count",
+                        "let mut acc := base",
+                        "acc := add acc delta",
+                        "acc := add acc delta",
+                        "return acc",
+                    ),
+                ),
+            ),
+            storage_slots={"count": 0},
+            storage_types={"count": "Uint256"},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_PreviewAddTwice_ReturnsInferredStraightLineResult()", rendered)
+        self.assertIn(
+            'assertEq(actual, ((expected + uint256(1)) + uint256(1)), "previewAddTwice should preserve the inferred result");',
+            rendered,
+        )
 
     def test_render_string_eq_predicate_infers_assertion(self) -> None:
         contract = gen.ContractDecl(

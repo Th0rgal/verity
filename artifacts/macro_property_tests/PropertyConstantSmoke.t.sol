@@ -17,14 +17,14 @@ contract PropertyConstantSmokeTest is YulTestBase {
         require(target != address(0), "Deploy failed");
     }
 
-    // Property 1: TODO decode and assert `feeOn` result
-    function testTODO_FeeOn_DecodeAndAssert() public {
+    // Property 1: feeOn decodes and matches the inferred straight-line result
+    function testAuto_FeeOn_ReturnsInferredStraightLineResult() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("feeOn(uint256)", uint256(1)));
         require(ok, "feeOn reverted unexpectedly");
         assertEq(ret.length, 32, "feeOn ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        uint256 actual = abi.decode(ret, (uint256));
+        assertEq(actual, ((uint256(1) * 30) / 10000), "feeOn should preserve the inferred result");
     }
     // Property 2: treasuryAddr returns the declared constant or immutable value
     function testAuto_TreasuryAddr_ReturnsDeclaredBinding() public {
