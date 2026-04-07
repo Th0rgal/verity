@@ -9,10 +9,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Th0rgal/verity/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
-  <a href="https://github.com/Th0rgal/verity"><img src="https://img.shields.io/badge/built%20with-Lean%204-blueviolet.svg" alt="Built with Lean 4"></a>
-  <a href="https://github.com/Th0rgal/verity/blob/main/docs/VERIFICATION_STATUS.md"><img src="https://img.shields.io/badge/verification%20status-live-brightgreen.svg" alt="Verification status"></a>
-  <a href="https://github.com/Th0rgal/verity/actions"><img src="https://img.shields.io/github/actions/workflow/status/Th0rgal/verity/verify.yml?label=verify" alt="Verify"></a>
+  <a href="https://github.com/lfglabs-dev/verity/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+  <a href="https://github.com/lfglabs-dev/verity"><img src="https://img.shields.io/badge/built%20with-Lean%204-blueviolet.svg" alt="Built with Lean 4"></a>
+  <a href="https://github.com/lfglabs-dev/verity/blob/main/docs/VERIFICATION_STATUS.md"><img src="https://img.shields.io/badge/verification%20status-live-brightgreen.svg" alt="Verification status"></a>
+  <a href="https://github.com/lfglabs-dev/verity/actions"><img src="https://img.shields.io/github/actions/workflow/status/lfglabs-dev/verity/verify.yml?label=verify" alt="Verify"></a>
 </p>
 
 ---
@@ -186,7 +186,7 @@ curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf 
 source ~/.elan/env
 
 # Clone and build; verifies the current proof set
-git clone https://github.com/Th0rgal/verity.git && cd verity
+git clone https://github.com/lfglabs-dev/verity.git && cd verity
 lake build
 
 # Compile contracts to Yul
@@ -271,9 +271,12 @@ verity/
 │   ├── Yul/             #   Yul code generation
 │   └── Modules/         #   External Call Modules (ECMs)
 ├── packages/            # Independent sub-packages (verity-edsl, verity-compiler, verity-examples)
+├── artifacts/           # Generated reports, macro property tests, compiled Yul output
+├── scripts/             # CI validation, metrics, and contract scaffolding helpers
 ├── test/                # Foundry tests
-├── artifacts/yul/       # Compiled Yul output
-└── scripts/             # CI validation scripts
+├── .github/             # Workflows, issue templates, and CI actions
+├── lib/                 # Pinned external dependencies for Foundry/tooling
+└── docs-site/           # Published documentation site sources
 ```
 
 ## License
