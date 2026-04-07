@@ -686,6 +686,31 @@ def _resolve_value_expr(
                 if lhs is not None and rhs is not None:
                     return f"({lhs} {sol_op} {rhs})"
 
+    if lean_type in {"Uint256", "Int256", "Uint8"}:
+        for lean_op, sol_op in {"/": "/", "%": "%"}.items():
+            math_match = re.fullmatch(rf"(.+)\s*{re.escape(lean_op)}\s*(.+)", expr)
+            if math_match is None:
+                continue
+            lhs_src, rhs_src = math_match.groups()
+            lhs = _resolve_value_expr(
+                contract,
+                lhs_src,
+                lean_type,
+                constructor_examples,
+                seen,
+                local_values,
+            )
+            rhs = _resolve_value_expr(
+                contract,
+                rhs_src,
+                lean_type,
+                constructor_examples,
+                seen,
+                local_values,
+            )
+            if lhs is not None and rhs is not None:
+                return f"({lhs} {sol_op} {rhs})"
+
     op_parts = _split_prefix_expr(expr)
     if op_parts is not None:
         op, args = op_parts
@@ -707,9 +732,87 @@ def _resolve_value_expr(
             )
             rhs = _resolve_value_expr(contract, args[1], lean_type, constructor_examples, seen, local_values)
             if lhs is not None and rhs is not None:
+                lhs_lit = _parse_literal_int(lhs)
+                rhs_lit = _parse_literal_int(rhs)
+                if lhs_lit is not None and rhs_lit is not None:
+                    if op == "add":
+                        folded = lhs_lit + rhs_lit
+                    elif op == "sub":
+                        folded = lhs_lit - rhs_lit
+                    elif op == "mul":
+                        folded = lhs_lit * rhs_lit
+                    elif op == "div":
+                        if rhs_lit == 0:
+                            return None
+                        folded = lhs_lit // rhs_lit
+                    elif op == "mod":
+                        if rhs_lit == 0:
+                            return None
+                        folded = lhs_lit % rhs_lit
+                    elif op == "bitAnd":
+                        folded = lhs_lit & rhs_lit
+                    elif op == "bitOr":
+                        folded = lhs_lit | rhs_lit
+                    elif op == "bitXor":
+                        folded = lhs_lit ^ rhs_lit
+                    elif op == "shl":
+                        folded = rhs_lit << lhs_lit
+                    else:
+                        folded = rhs_lit >> lhs_lit
+                    if lean_type in {"Uint256", "Uint8"}:
+                        return _format_uint_literal(folded)
+                    return _format_int_literal(folded)
                 if op in {"shl", "shr"}:
                     return f"({rhs} {op_map[op]} {lhs})"
                 return f"({lhs} {op_map[op]} {rhs})"
+        if op in {"sdiv", "smod"} and len(args) == 2 and lean_type == "Uint256":
+            lhs = _resolve_value_expr(
+                contract, args[0], "Uint256", constructor_examples, seen, local_values
+            )
+            rhs = _resolve_value_expr(
+                contract, args[1], "Uint256", constructor_examples, seen, local_values
+            )
+            if lhs is not None and rhs is not None:
+                sol_op = "/" if op == "sdiv" else "%"
+                return f"uint256(int256({lhs}) {sol_op} int256({rhs}))"
+        if op in {"slt", "sgt"} and len(args) == 2 and lean_type == "Bool":
+            lhs = _resolve_value_expr(
+                contract, args[0], "Uint256", constructor_examples, seen, local_values
+            )
+            rhs = _resolve_value_expr(
+                contract, args[1], "Uint256", constructor_examples, seen, local_values
+            )
+            if lhs is not None and rhs is not None:
+                sol_op = "<" if op == "slt" else ">"
+                return f"(int256({lhs}) {sol_op} int256({rhs}))"
+        if op == "sar" and len(args) == 2 and lean_type == "Uint256":
+            shift = _resolve_value_expr(
+                contract, args[0], "Uint256", constructor_examples, seen, local_values
+            )
+            value = _resolve_value_expr(
+                contract, args[1], "Uint256", constructor_examples, seen, local_values
+            )
+            if shift is not None and value is not None:
+                shift_lit = _parse_literal_int(shift)
+                value_lit = _parse_literal_int(value)
+                if shift_lit is not None and value_lit is not None:
+                    signed = value_lit % (1 << 256)
+                    if signed >= (1 << 255):
+                        signed -= 1 << 256
+                    return _format_uint_literal(signed >> shift_lit)
+                return f"uint256(int256({value}) >> {shift})"
+        if op == "signextend" and len(args) == 2 and lean_type == "Uint256":
+            byte_index = _resolve_value_expr(
+                contract, args[0], "Uint256", constructor_examples, seen, local_values
+            )
+            value = _resolve_value_expr(
+                contract, args[1], "Uint256", constructor_examples, seen, local_values
+            )
+            if byte_index is not None and value is not None:
+                byte_index_lit = _parse_literal_int(byte_index)
+                value_lit = _parse_literal_int(value)
+                if byte_index_lit is not None and value_lit is not None:
+                    return _format_uint_literal(_signextend_literal(byte_index_lit, value_lit))
         if op in {"min", "max"} and len(args) == 2 and lean_type in {"Uint256", "Int256", "Uint8"}:
             lhs = _resolve_value_expr(
                 contract, args[0], lean_type, constructor_examples, seen, local_values
@@ -774,6 +877,27 @@ def _resolve_value_expr(
             )
             if lhs is not None and rhs is not None:
                 return f"((({lhs} * 1000000000000000000) + ({rhs} - 1)) / {rhs})"
+        if op == "toInt256" and len(args) == 1 and lean_type == "Int256":
+            inner = _resolve_value_expr(
+                contract, args[0], "Uint256", constructor_examples, seen, local_values
+            )
+            if inner is not None:
+                inner_lit = _parse_literal_int(inner)
+                if inner_lit is not None:
+                    inner_lit %= 1 << 256
+                    if inner_lit >= (1 << 255):
+                        inner_lit -= 1 << 256
+                    return _format_int_literal(inner_lit)
+                return f"int256({inner})"
+        if op == "toUint256" and len(args) == 1 and lean_type == "Uint256":
+            inner = _resolve_value_expr(
+                contract, args[0], "Int256", constructor_examples, seen, local_values
+            )
+            if inner is not None:
+                inner_lit = _parse_literal_int(inner)
+                if inner_lit is not None:
+                    return _format_uint_literal(inner_lit)
+                return f"uint256({inner})"
 
     return None
 
@@ -830,13 +954,59 @@ def _single_word_uint_expr(lean_ty: str, value_expr: str) -> str | None:
 
 def _literal_expr(value: str, lean_ty: str) -> str | None:
     ty = _normalize_type(lean_ty)
-    if ty in {"Uint256", "Int256", "Uint8"} and re.fullmatch(r"(0x[0-9A-Fa-f]+|[0-9]+)", value):
+    if ty in {"Uint256", "Uint8"} and re.fullmatch(r"(0x[0-9A-Fa-f]+|[0-9]+)", value):
         return value
+    if ty == "Int256" and re.fullmatch(r"-?(0x[0-9A-Fa-f]+|[0-9]+)", value):
+        return value if not value.startswith("-") else f"int256({value})"
     if ty == "Bool" and value in {"true", "false"}:
         return value
     if ty == "Bytes32" and re.fullmatch(r"(0x[0-9A-Fa-f]+|[0-9]+)", value):
         return f"bytes32(uint256({value}))"
     return None
+
+
+def _parse_literal_int(value: str) -> int | None:
+    value = value.strip()
+    if value == "type(uint256).max":
+        return (1 << 256) - 1
+    if value == "type(int256).max":
+        return (1 << 255) - 1
+    if value == "type(int256).min":
+        return -(1 << 255)
+    sign = -1 if value.startswith("-") else 1
+    if value[:1] in {"-", "+"}:
+        value = value[1:]
+    if not value:
+        return None
+    try:
+        return sign * int(value, 0)
+    except ValueError:
+        return None
+
+
+def _format_uint_literal(value: int) -> str:
+    value %= 1 << 256
+    return "type(uint256).max" if value == (1 << 256) - 1 else str(value)
+
+
+def _format_int_literal(value: int) -> str:
+    if value == -(1 << 255):
+        return "type(int256).min"
+    if value == (1 << 255) - 1:
+        return "type(int256).max"
+    return str(value) if value >= 0 else f"int256({value})"
+
+
+def _signextend_literal(byte_index: int, value: int) -> int:
+    word = value % (1 << 256)
+    if byte_index >= 32:
+        return word
+    bit_index = (byte_index * 8) + 7
+    sign_bit = 1 << bit_index
+    mask = (1 << (bit_index + 1)) - 1
+    if word & sign_bit:
+        return word | ((1 << 256) - 1 - mask)
+    return word & mask
 
 
 def _split_return_values(exprs_src: str) -> list[str]:
@@ -1537,7 +1707,16 @@ def _render_inferred_non_unit_test(contract: ContractDecl, fn: FunctionDecl, idx
 
         literal_match = re.fullmatch(r"return\s+(.+)", body[0])
         if literal_match:
-            literal_expr = _literal_expr(literal_match.group(1).strip(), ty)
+            return_expr = literal_match.group(1).strip()
+            literal_expr = _literal_expr(return_expr, ty)
+            if literal_expr is None:
+                literal_expr = _resolve_value_expr(
+                    contract,
+                    return_expr,
+                    ty,
+                    constructor_examples,
+                    local_values=param_examples,
+                )
             if literal_expr is not None:
                 ret_assert = _return_shape_assertion(fn.return_type, fn.name)
                 return f"""    // Property {idx}: {fn.name} returns the declared constant result

@@ -875,6 +875,129 @@ class RenderTests(unittest.TestCase):
         self.assertIn(">> 1", rendered)
         self.assertIn("? ", rendered)
 
+    def test_render_signed_builtin_smoke_infers_assertions(self) -> None:
+        contract = gen.ContractDecl(
+            name="SignedBuiltinSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "signedDiv",
+                    (
+                        gen.ParamDecl("lhs", "Uint256"),
+                        gen.ParamDecl("rhs", "Uint256"),
+                    ),
+                    "Uint256",
+                    body=("return (sdiv lhs rhs)",),
+                ),
+                gen.FunctionDecl(
+                    "signedMod",
+                    (
+                        gen.ParamDecl("lhs", "Uint256"),
+                        gen.ParamDecl("rhs", "Uint256"),
+                    ),
+                    "Uint256",
+                    body=("return (smod lhs rhs)",),
+                ),
+                gen.FunctionDecl(
+                    "signedLt",
+                    (
+                        gen.ParamDecl("lhs", "Uint256"),
+                        gen.ParamDecl("rhs", "Uint256"),
+                    ),
+                    "Bool",
+                    body=("return (slt lhs rhs)",),
+                ),
+                gen.FunctionDecl(
+                    "signedGt",
+                    (
+                        gen.ParamDecl("lhs", "Uint256"),
+                        gen.ParamDecl("rhs", "Uint256"),
+                    ),
+                    "Bool",
+                    body=("return (sgt lhs rhs)",),
+                ),
+                gen.FunctionDecl(
+                    "arithmeticShift",
+                    (
+                        gen.ParamDecl("shift", "Uint256"),
+                        gen.ParamDecl("value", "Uint256"),
+                    ),
+                    "Uint256",
+                    body=("return (sar shift value)",),
+                ),
+                gen.FunctionDecl("signExtended", (), "Uint256", body=("return extendedByte",)),
+                gen.FunctionDecl("shiftedMask", (), "Uint256", body=("return arithmeticShifted",)),
+                gen.FunctionDecl(
+                    "signedDivSurface",
+                    (
+                        gen.ParamDecl("lhs", "Int256"),
+                        gen.ParamDecl("rhs", "Int256"),
+                    ),
+                    "Int256",
+                    body=("return (lhs / rhs)",),
+                ),
+                gen.FunctionDecl(
+                    "signedModSurface",
+                    (
+                        gen.ParamDecl("lhs", "Int256"),
+                        gen.ParamDecl("rhs", "Int256"),
+                    ),
+                    "Int256",
+                    body=("return (lhs % rhs)",),
+                ),
+                gen.FunctionDecl(
+                    "signedDivViaLocal",
+                    (
+                        gen.ParamDecl("raw", "Uint256"),
+                        gen.ParamDecl("denom", "Int256"),
+                    ),
+                    "Int256",
+                    body=("let signedRaw := toInt256 raw", "return (signedRaw / denom)"),
+                ),
+                gen.FunctionDecl(
+                    "castToInt",
+                    (gen.ParamDecl("value", "Uint256"),),
+                    "Int256",
+                    body=("return (toInt256 value)",),
+                ),
+                gen.FunctionDecl(
+                    "castToUint",
+                    (gen.ParamDecl("value", "Int256"),),
+                    "Uint256",
+                    body=("return (toUint256 value)",),
+                ),
+                gen.FunctionDecl("minusOne", (), "Int256", body=("return negativeOne",)),
+            ),
+            storage_slots={},
+            constants={
+                "extendedByte": gen.ValueDecl("extendedByte", "Uint256", "(signextend 0 255)"),
+                "arithmeticShifted": gen.ValueDecl("arithmeticShifted", "Uint256", "(sar 255 (sub 0 1))"),
+                "negativeOne": gen.ValueDecl("negativeOne", "Int256", "(toInt256 (sub 0 1))"),
+            },
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertNotIn("testTODO_SignedDiv_DecodeAndAssert", rendered)
+        self.assertNotIn("testTODO_SignedGt_DecodeAndAssert", rendered)
+        self.assertNotIn("testTODO_SignExtended_DecodeAndAssert", rendered)
+        self.assertNotIn("testTODO_MinusOne_DecodeAndAssert", rendered)
+        self.assertIn(
+            'assertEq(actual, uint256(int256(uint256(1)) / int256(uint256(1))), "signedDiv should return the declared constant");',
+            rendered,
+        )
+        self.assertIn(
+            'assertEq(actual, (int256(uint256(1)) < int256(uint256(1))), "signedLt should return the declared constant");',
+            rendered,
+        )
+        self.assertIn(
+            'assertEq(actual, type(uint256).max, "signExtended should preserve the expected value");',
+            rendered,
+        )
+        self.assertIn(
+            'assertEq(actual, int256(-1), "minusOne should preserve the expected value");',
+            rendered,
+        )
+
     def test_render_string_eq_predicate_infers_assertion(self) -> None:
         contract = gen.ContractDecl(
             name="StringEqSmoke",

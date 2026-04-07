@@ -17,139 +17,139 @@ contract PropertySignedBuiltinSmokeTest is YulTestBase {
         require(target != address(0), "Deploy failed");
     }
 
-    // Property 1: TODO decode and assert `signedDiv` result
-    function testTODO_SignedDiv_DecodeAndAssert() public {
+    // Property 1: signedDiv returns the declared constant result
+    function testAuto_SignedDiv_ReturnsDeclaredConstant() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("signedDiv(uint256,uint256)", uint256(1), uint256(1)));
         require(ok, "signedDiv reverted unexpectedly");
         assertEq(ret.length, 32, "signedDiv ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        uint256 actual = abi.decode(ret, (uint256));
+        assertEq(actual, uint256(int256(uint256(1)) / int256(uint256(1))), "signedDiv should return the declared constant");
     }
-    // Property 2: TODO decode and assert `signedMod` result
-    function testTODO_SignedMod_DecodeAndAssert() public {
+    // Property 2: signedMod returns the declared constant result
+    function testAuto_SignedMod_ReturnsDeclaredConstant() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("signedMod(uint256,uint256)", uint256(1), uint256(1)));
         require(ok, "signedMod reverted unexpectedly");
         assertEq(ret.length, 32, "signedMod ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        uint256 actual = abi.decode(ret, (uint256));
+        assertEq(actual, uint256(int256(uint256(1)) % int256(uint256(1))), "signedMod should return the declared constant");
     }
-    // Property 3: TODO decode and assert `signedLt` result
-    function testTODO_SignedLt_DecodeAndAssert() public {
+    // Property 3: signedLt returns the declared constant result
+    function testAuto_SignedLt_ReturnsDeclaredConstant() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("signedLt(uint256,uint256)", uint256(1), uint256(1)));
         require(ok, "signedLt reverted unexpectedly");
         assertEq(ret.length, 32, "signedLt ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        bool actual = abi.decode(ret, (bool));
+        assertEq(actual, (int256(uint256(1)) < int256(uint256(1))), "signedLt should return the declared constant");
     }
-    // Property 4: TODO decode and assert `signedGt` result
-    function testTODO_SignedGt_DecodeAndAssert() public {
+    // Property 4: signedGt returns the declared constant result
+    function testAuto_SignedGt_ReturnsDeclaredConstant() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("signedGt(uint256,uint256)", uint256(1), uint256(1)));
         require(ok, "signedGt reverted unexpectedly");
         assertEq(ret.length, 32, "signedGt ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        bool actual = abi.decode(ret, (bool));
+        assertEq(actual, (int256(uint256(1)) > int256(uint256(1))), "signedGt should return the declared constant");
     }
-    // Property 5: TODO decode and assert `arithmeticShift` result
-    function testTODO_ArithmeticShift_DecodeAndAssert() public {
+    // Property 5: arithmeticShift returns the declared constant result
+    function testAuto_ArithmeticShift_ReturnsDeclaredConstant() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("arithmeticShift(uint256,uint256)", uint256(1), uint256(1)));
         require(ok, "arithmeticShift reverted unexpectedly");
         assertEq(ret.length, 32, "arithmeticShift ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        uint256 actual = abi.decode(ret, (uint256));
+        assertEq(actual, uint256(int256(uint256(1)) >> uint256(1)), "arithmeticShift should return the declared constant");
     }
-    // Property 6: TODO decode and assert `signExtended` result
-    function testTODO_SignExtended_DecodeAndAssert() public {
+    // Property 6: signExtended returns the declared constant or immutable value
+    function testAuto_SignExtended_ReturnsDeclaredBinding() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("signExtended()"));
         require(ok, "signExtended reverted unexpectedly");
         assertEq(ret.length, 32, "signExtended ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        uint256 actual = abi.decode(ret, (uint256));
+        assertEq(actual, type(uint256).max, "signExtended should preserve the expected value");
     }
-    // Property 7: TODO decode and assert `shiftedMask` result
-    function testTODO_ShiftedMask_DecodeAndAssert() public {
+    // Property 7: shiftedMask returns the declared constant or immutable value
+    function testAuto_ShiftedMask_ReturnsDeclaredBinding() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("shiftedMask()"));
         require(ok, "shiftedMask reverted unexpectedly");
         assertEq(ret.length, 32, "shiftedMask ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        uint256 actual = abi.decode(ret, (uint256));
+        assertEq(actual, type(uint256).max, "shiftedMask should preserve the expected value");
     }
-    // Property 8: TODO decode and assert `signedDivSurface` result
-    function testTODO_SignedDivSurface_DecodeAndAssert() public {
+    // Property 8: signedDivSurface returns the declared constant result
+    function testAuto_SignedDivSurface_ReturnsDeclaredConstant() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("signedDivSurface(int256,int256)", int256(1), int256(1)));
         require(ok, "signedDivSurface reverted unexpectedly");
         assertEq(ret.length, 32, "signedDivSurface ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        int256 actual = abi.decode(ret, (int256));
+        assertEq(actual, (int256(1) / int256(1)), "signedDivSurface should return the declared constant");
     }
-    // Property 9: TODO decode and assert `signedModSurface` result
-    function testTODO_SignedModSurface_DecodeAndAssert() public {
+    // Property 9: signedModSurface returns the declared constant result
+    function testAuto_SignedModSurface_ReturnsDeclaredConstant() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("signedModSurface(int256,int256)", int256(1), int256(1)));
         require(ok, "signedModSurface reverted unexpectedly");
         assertEq(ret.length, 32, "signedModSurface ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        int256 actual = abi.decode(ret, (int256));
+        assertEq(actual, (int256(1) % int256(1)), "signedModSurface should return the declared constant");
     }
-    // Property 10: TODO decode and assert `signedDivViaLocal` result
-    function testTODO_SignedDivViaLocal_DecodeAndAssert() public {
+    // Property 10: signedDivViaLocal decodes and matches the inferred straight-line result
+    function testAuto_SignedDivViaLocal_ReturnsInferredStraightLineResult() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("signedDivViaLocal(uint256,int256)", uint256(1), int256(1)));
         require(ok, "signedDivViaLocal reverted unexpectedly");
         assertEq(ret.length, 32, "signedDivViaLocal ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        int256 actual = abi.decode(ret, (int256));
+        assertEq(actual, (int256(uint256(1)) / int256(1)), "signedDivViaLocal should preserve the inferred result");
     }
-    // Property 11: TODO decode and assert `castToInt` result
-    function testTODO_CastToInt_DecodeAndAssert() public {
+    // Property 11: castToInt returns the declared constant result
+    function testAuto_CastToInt_ReturnsDeclaredConstant() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("castToInt(uint256)", uint256(1)));
         require(ok, "castToInt reverted unexpectedly");
         assertEq(ret.length, 32, "castToInt ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        int256 actual = abi.decode(ret, (int256));
+        assertEq(actual, int256(uint256(1)), "castToInt should return the declared constant");
     }
-    // Property 12: TODO decode and assert `castToUint` result
-    function testTODO_CastToUint_DecodeAndAssert() public {
+    // Property 12: castToUint returns the declared constant result
+    function testAuto_CastToUint_ReturnsDeclaredConstant() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("castToUint(int256)", int256(1)));
         require(ok, "castToUint reverted unexpectedly");
         assertEq(ret.length, 32, "castToUint ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        uint256 actual = abi.decode(ret, (uint256));
+        assertEq(actual, uint256(int256(1)), "castToUint should return the declared constant");
     }
-    // Property 13: TODO decode and assert `minusOne` result
-    function testTODO_MinusOne_DecodeAndAssert() public {
+    // Property 13: minusOne returns the declared constant or immutable value
+    function testAuto_MinusOne_ReturnsDeclaredBinding() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("minusOne()"));
         require(ok, "minusOne reverted unexpectedly");
         assertEq(ret.length, 32, "minusOne ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        int256 actual = abi.decode(ret, (int256));
+        assertEq(actual, int256(-1), "minusOne should preserve the expected value");
     }
-    // Property 14: bitAndSignBit decodes and matches the inferred straight-line result
-    function testAuto_BitAndSignBit_ReturnsInferredStraightLineResult() public {
+    // Property 14: bitAndSignBit returns the declared constant result
+    function testAuto_BitAndSignBit_ReturnsDeclaredConstant() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("bitAndSignBit(int256,int256)", int256(1), int256(1)));
         require(ok, "bitAndSignBit reverted unexpectedly");
         assertEq(ret.length, 32, "bitAndSignBit ABI return length mismatch (expected 32 bytes)");
         bool actual = abi.decode(ret, (bool));
-        assertEq(actual, ((int256(1) & int256(1)) < 0), "bitAndSignBit should preserve the inferred result");
+        assertEq(actual, ((int256(1) & int256(1)) < 0), "bitAndSignBit should return the declared constant");
     }
-    // Property 15: minSignBit decodes and matches the inferred straight-line result
-    function testAuto_MinSignBit_ReturnsInferredStraightLineResult() public {
+    // Property 15: minSignBit returns the declared constant result
+    function testAuto_MinSignBit_ReturnsDeclaredConstant() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("minSignBit(int256)", int256(1)));
         require(ok, "minSignBit reverted unexpectedly");
         assertEq(ret.length, 32, "minSignBit ABI return length mismatch (expected 32 bytes)");
         bool actual = abi.decode(ret, (bool));
-        assertEq(actual, (((int256(1) < 0) ? int256(1) : 0) < 0), "minSignBit should preserve the inferred result");
+        assertEq(actual, (((int256(1) < 0) ? int256(1) : 0) < 0), "minSignBit should return the declared constant");
     }
 }
