@@ -153,11 +153,13 @@ class GenerateContractGetterPropertyScaffoldTests(unittest.TestCase):
         out = gen_property_tests(cfg)
         self.assertIn("function testProperty_GetBalance_MeetsSpec() public {", out)
         self.assertIn("setBalancesInStorage(alice, 1337);", out)
-        self.assertIn("uint256 balancesBefore = getBalancesFromStorage(alice);", out)
+        self.assertIn(
+            "uint256 mappingBalancesBefore = getBalancesFromStorage(alice);", out
+        )
         self.assertIn("abi.encodeWithSignature(\"getBalance(address)\", alice)", out)
         self.assertIn('assertEq(decoded, 1337, "getter should return seeded mapping entry");', out)
         self.assertIn(
-            'assertEq(getBalancesFromStorage(alice), balancesBefore, "balances mapping entry unchanged by getter");',
+            'assertEq(getBalancesFromStorage(alice), mappingBalancesBefore, "balances mapping entry unchanged by getter");',
             out,
         )
 
@@ -212,7 +214,51 @@ class GenerateContractGetterPropertyScaffoldTests(unittest.TestCase):
         self.assertIn("function testProperty_SetStoredValue_MeetsSpec() public {", out)
         self.assertIn("Property: setStoredValue_meets_spec", out)
         self.assertIn("assertEq(", out)
-        self.assertIn("scaffold default: slot 0 unchanged", out)
+        self.assertIn("slot 0 unchanged by scaffold default", out)
+
+    def test_non_getter_scaffold_snapshots_all_known_storage_surfaces(self) -> None:
+        cfg = ContractConfig(
+            name="Demo",
+            fields=[
+                Field(name="storedValue", ty="uint256"),
+                Field(name="balances", ty="mapping"),
+            ],
+            functions=[Function(name="touch", params=[])],
+        )
+
+        out = gen_property_tests(cfg)
+        self.assertIn("function testProperty_Touch_MeetsSpec() public {", out)
+        self.assertIn("uint256 slot0Before = readStorage(0);", out)
+        self.assertIn(
+            "uint256 mappingBalancesBefore = getBalancesFromStorage(alice);", out
+        )
+        self.assertIn(
+            'assertEq(readStorage(0), slot0Before, "slot 0 unchanged by scaffold default");',
+            out,
+        )
+        self.assertIn(
+            'assertEq(getBalancesFromStorage(alice), mappingBalancesBefore, "balances mapping entry unchanged by scaffold default");',
+            out,
+        )
+
+    def test_non_getter_scaffold_prefixes_mapping_snapshot_names(self) -> None:
+        cfg = ContractConfig(
+            name="Demo",
+            fields=[
+                Field(name="slot0", ty="mapping"),
+                Field(name="storedValue", ty="uint256"),
+            ],
+            functions=[Function(name="touch", params=[])],
+        )
+
+        out = gen_property_tests(cfg)
+        self.assertIn("uint256 mappingSlot0Before = getSlot0FromStorage(alice);", out)
+        self.assertIn(
+            'assertEq(getSlot0FromStorage(alice), mappingSlot0Before, "slot0 mapping entry unchanged by scaffold default");',
+            out,
+        )
+        self.assertIn("uint256 slot1Before = readStorage(1);", out)
+        self.assertEqual(out.count("uint256 slot0Before"), 0)
 
 
 class GenerateCompilationModelScaffoldTests(unittest.TestCase):
