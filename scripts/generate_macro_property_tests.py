@@ -34,6 +34,13 @@ VALUE_BINDING_RE = re.compile(
 STORAGE_READ_RE = re.compile(
     r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*(getStorage|getStorageAddr)\s+([A-Za-z_][A-Za-z0-9_]*)$"
 )
+STORAGE_ARRAY_LENGTH_RE = re.compile(
+    r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*getStorageArrayLength\s+([A-Za-z_][A-Za-z0-9_]*)$"
+)
+STORAGE_ARRAY_ELEMENT_RE = re.compile(
+    r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*getStorageArrayElement\s+"
+    r"([A-Za-z_][A-Za-z0-9_]*)\s+([0-9]+)$"
+)
 MAPPING_READ_RE = re.compile(
     r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*"
     r"(getMapping|getMappingUint|getMappingAddr|getMappingUintAddr)\s+"
@@ -105,6 +112,7 @@ class ReadAccessor:
     storage_name: str
     key_names: tuple[str, ...]
     word_offset: int = 0
+    array_index: int | None = None
 
 
 def _normalize_type(type_src: str) -> str:
@@ -625,6 +633,25 @@ def _parse_read_accessor(line: str) -> ReadAccessor | None:
             key_names=(),
         )
 
+    storage_array_length_match = STORAGE_ARRAY_LENGTH_RE.fullmatch(line)
+    if storage_array_length_match:
+        return ReadAccessor(
+            var_name=storage_array_length_match.group(1),
+            accessor="getStorageArrayLength",
+            storage_name=storage_array_length_match.group(2),
+            key_names=(),
+        )
+
+    storage_array_element_match = STORAGE_ARRAY_ELEMENT_RE.fullmatch(line)
+    if storage_array_element_match:
+        return ReadAccessor(
+            var_name=storage_array_element_match.group(1),
+            accessor="getStorageArrayElement",
+            storage_name=storage_array_element_match.group(2),
+            key_names=(),
+            array_index=int(storage_array_element_match.group(3)),
+        )
+
     mapping_match = MAPPING_READ_RE.fullmatch(line)
     if mapping_match:
         return ReadAccessor(
@@ -693,6 +720,10 @@ def _mapping_slot_expr(
     if read.accessor in {"getMapping", "getMappingUint", "getMappingAddr", "getMappingUintAddr"}:
         return f"_mappingSlot({key_exprs[0]}, {slot})"
     raise ValueError(f"unsupported accessor for mapping slot generation: {read.accessor!r}")
+
+
+def _storage_array_element_slot_expr(slot: int, index: int) -> str:
+    return f"bytes32(uint256(keccak256(abi.encode(uint256({slot})))) + {index})"
 
 
 def _render_decoded_assertion(
@@ -974,6 +1005,45 @@ def _render_inferred_non_unit_test(contract: ContractDecl, fn: FunctionDecl, idx
         assertEq(actual, expected, \"{fn.name} should return storage slot {slot}\");
     }}
 """
+            if read.accessor == "getStorageArrayLength":
+                slot = contract.storage_slots.get(read.storage_name)
+                if slot is None:
+                    return None
+                return _render_decoded_assertion(
+                    fn,
+                    idx,
+                    encode_args,
+                    ret_assert,
+                    decoded_type,
+                    [
+                        f"uint256 expected = {_example_value('Uint256')};",
+                        f"vm.store(target, bytes32(uint256({slot})), bytes32(expected));",
+                    ],
+                    f"{decoded_type} actual = abi.decode(ret, ({decoded_type}));",
+                    [f'assertEq(actual, expected, "{fn.name} should return the configured array length");'],
+                    f"{fn.name} reads the configured storage-array length",
+                    "ReadsConfiguredStorageArrayLength",
+                )
+            if read.accessor == "getStorageArrayElement":
+                slot = contract.storage_slots.get(read.storage_name)
+                if slot is None or read.array_index is None:
+                    return None
+                return _render_decoded_assertion(
+                    fn,
+                    idx,
+                    encode_args,
+                    ret_assert,
+                    decoded_type,
+                    [
+                        f"{decoded_type} expected = {expected_expr};",
+                        f"vm.store(target, bytes32(uint256({slot})), bytes32(uint256({read.array_index + 1})));",
+                        f"vm.store(target, {_storage_array_element_slot_expr(slot, read.array_index)}, {_storage_word_expr(fn.return_type, 'expected')});",
+                    ],
+                    f"{decoded_type} actual = abi.decode(ret, ({decoded_type}));",
+                    [f'assertEq(actual, expected, "{fn.name} should return the configured array element");'],
+                    f"{fn.name} reads the configured storage-array element",
+                    "ReadsConfiguredStorageArrayElement",
+                )
             if read.accessor in {"getMapping", "getMappingUint", "getMappingAddr", "getMappingUintAddr", "getMapping2", "getMappingWord"}:
                 slot_expr = _mapping_slot_expr(contract, fn, read, param_examples)
                 return _render_decoded_assertion(

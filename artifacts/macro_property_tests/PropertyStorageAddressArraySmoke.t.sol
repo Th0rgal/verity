@@ -17,23 +17,28 @@ contract PropertyStorageAddressArraySmokeTest is YulTestBase {
         require(target != address(0), "Deploy failed");
     }
 
-    // Property 1: TODO decode and assert `size` result
-    function testTODO_Size_DecodeAndAssert() public {
+    // Property 1: size reads the configured storage-array length
+    function testAuto_Size_ReadsConfiguredStorageArrayLength() public {
+        uint256 expected = uint256(1);
+        vm.store(target, bytes32(uint256(0)), bytes32(expected));
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("size()"));
         require(ok, "size reverted unexpectedly");
         assertEq(ret.length, 32, "size ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        uint256 actual = abi.decode(ret, (uint256));
+        assertEq(actual, expected, "size should return the configured array length");
     }
-    // Property 2: TODO decode and assert `firstOwner` result
-    function testTODO_FirstOwner_DecodeAndAssert() public {
+    // Property 2: firstOwner reads the configured storage-array element
+    function testAuto_FirstOwner_ReadsConfiguredStorageArrayElement() public {
+        address expected = alice;
+        vm.store(target, bytes32(uint256(0)), bytes32(uint256(1)));
+        vm.store(target, bytes32(uint256(keccak256(abi.encode(uint256(0)))) + 0), bytes32(uint256(uint160(expected))));
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("firstOwner()"));
         require(ok, "firstOwner reverted unexpectedly");
         assertEq(ret.length, 32, "firstOwner ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        address actual = abi.decode(ret, (address));
+        assertEq(actual, expected, "firstOwner should return the configured array element");
     }
     // Property 3: pushOwner has no unexpected revert
     function testAuto_PushOwner_NoUnexpectedRevert() public {

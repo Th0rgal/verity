@@ -403,6 +403,53 @@ class RenderTests(unittest.TestCase):
         self.assertIn("vm.store(target, bytes32(uint256(0)), bytes32(uint256(expected)));", rendered)
         self.assertIn('assertEq(actual, expected, "retrieve should return storage slot 0");', rendered)
 
+    def test_render_storage_array_length_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="StorageArraySmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "size",
+                    (),
+                    "Uint256",
+                    body=("let size ← getStorageArrayLength queue", "return size"),
+                ),
+            ),
+            storage_slots={"queue": 0},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_Size_ReadsConfiguredStorageArrayLength()", rendered)
+        self.assertIn("vm.store(target, bytes32(uint256(0)), bytes32(expected));", rendered)
+        self.assertIn('assertEq(actual, expected, "size should return the configured array length");', rendered)
+
+    def test_render_storage_array_element_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="StorageAddressArraySmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "firstOwner",
+                    (),
+                    "Address",
+                    body=("let owner ← getStorageArrayElement owners 0", "return owner"),
+                ),
+            ),
+            storage_slots={"owners": 3},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_FirstOwner_ReadsConfiguredStorageArrayElement()", rendered)
+        self.assertIn("vm.store(target, bytes32(uint256(3)), bytes32(uint256(1)));", rendered)
+        self.assertIn(
+            "vm.store(target, bytes32(uint256(keccak256(abi.encode(uint256(3)))) + 0), bytes32(uint256(uint160(expected))));",
+            rendered,
+        )
+        self.assertIn(
+            'assertEq(actual, expected, "firstOwner should return the configured array element");',
+            rendered,
+        )
+
     def test_render_constant_return_infers_assertion(self) -> None:
         contract = gen.ContractDecl(
             name="Uint8Smoke",

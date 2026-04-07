@@ -17,14 +17,17 @@ contract PropertyStorageBoolArraySmokeTest is YulTestBase {
         require(target != address(0), "Deploy failed");
     }
 
-    // Property 1: TODO decode and assert `firstFlag` result
-    function testTODO_FirstFlag_DecodeAndAssert() public {
+    // Property 1: firstFlag reads the configured storage-array element
+    function testAuto_FirstFlag_ReadsConfiguredStorageArrayElement() public {
+        bool expected = true;
+        vm.store(target, bytes32(uint256(0)), bytes32(uint256(1)));
+        vm.store(target, bytes32(uint256(keccak256(abi.encode(uint256(0)))) + 0), bytes32(uint256(expected ? 1 : 0)));
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("firstFlag()"));
         require(ok, "firstFlag reverted unexpectedly");
         assertEq(ret.length, 32, "firstFlag ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        bool actual = abi.decode(ret, (bool));
+        assertEq(actual, expected, "firstFlag should return the configured array element");
     }
     // Property 2: pushFlag has no unexpected revert
     function testAuto_PushFlag_NoUnexpectedRevert() public {
