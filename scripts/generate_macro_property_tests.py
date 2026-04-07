@@ -72,6 +72,13 @@ NON_ZERO_REQUIRE_RE = re.compile(
 BUILTIN_READ_RE = re.compile(
     r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*(msgSender|msgValue)$"
 )
+EXTERNAL_READ_RE = re.compile(
+    r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*(balanceOf|allowance|totalSupply)\s+(.+)$"
+)
+ORACLE_ECM_MODULE_RE = re.compile(
+    r"\(fun resultVar => Compiler\.Modules\.Oracle\.oracleReadUint256Module resultVar "
+    r"(0x[0-9A-Fa-f]+|[0-9]+)\s+([0-9]+)\)"
+)
 PARAM_COMPARE_RETURN_RE = re.compile(
     r"return\s+\(?([A-Za-z_][A-Za-z0-9_]*)\s*(==|!=)\s*([A-Za-z_][A-Za-z0-9_]*)\)?$"
 )
@@ -1463,6 +1470,41 @@ def _render_dynamic_param_compare_assertion(
 """
 
 
+def _render_mocked_external_read_assertion(
+    fn: FunctionDecl,
+    idx: int,
+    encode_args: str,
+    decoded_type: str,
+    setup_lines: list[str],
+    storage_slot: int | None,
+    summary: str,
+    suffix: str,
+) -> str:
+    assert_lines = [
+        f'assertEq(actual, expected, "{fn.name} should return the mocked external read");'
+    ]
+    if storage_slot is not None:
+        assert_lines.append(
+            "assertEq("
+            f"vm.load(target, bytes32(uint256({storage_slot}))), "
+            f"{_storage_word_expr(fn.return_type, 'expected')}, "
+            f'"{fn.name} should persist the mocked external read"'
+            ");"
+        )
+    return _render_decoded_assertion(
+        fn,
+        idx,
+        encode_args,
+        _return_shape_assertion(fn.return_type, fn.name),
+        decoded_type,
+        setup_lines,
+        f"{decoded_type} actual = abi.decode(ret, ({decoded_type}));",
+        assert_lines,
+        summary,
+        suffix,
+    )
+
+
 def _infer_straight_line_non_unit_test(
     contract: ContractDecl,
     fn: FunctionDecl,
@@ -1627,6 +1669,137 @@ def _render_inferred_non_unit_test(contract: ContractDecl, fn: FunctionDecl, idx
     )
     decoded_type = _sol_type(fn.return_type)
     param_types = {param.name: _normalize_type(param.lean_type) for param in fn.params}
+
+    if len(body) == 3 and ty == "Uint256":
+        external_read_match = EXTERNAL_READ_RE.fullmatch(body[0])
+        storage_match = re.fullmatch(
+            r"setStorage\s+([A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)",
+            body[1],
+        )
+        return_match = re.fullmatch(r"return\s+([A-Za-z_][A-Za-z0-9_]*)", body[2])
+        if (
+            external_read_match
+            and storage_match
+            and return_match
+            and storage_match.group(2) == external_read_match.group(1)
+            and return_match.group(1) == external_read_match.group(1)
+        ):
+            storage_slot = contract.storage_slots.get(storage_match.group(1))
+            if storage_slot is None:
+                return None
+            result_name, helper_name, args_src = external_read_match.groups()
+            args = args_src.split()
+            if helper_name == "balanceOf" and len(args) == 2:
+                token_arg = param_examples.get(args[0])
+                owner_arg = param_examples.get(args[1])
+                if token_arg is not None and owner_arg is not None:
+                    return _render_mocked_external_read_assertion(
+                        fn,
+                        idx,
+                        encode_args,
+                        decoded_type,
+                        [
+                            "uint256 expected = uint256(1);",
+                            "vm.mockCall("
+                            f"{token_arg}, "
+                            f'abi.encodeWithSignature("balanceOf(address)", {owner_arg}), '
+                            "abi.encode(expected)"
+                            ");",
+                        ],
+                        storage_slot,
+                        f"{fn.name} decodes the mocked ERC20 balance read",
+                        "ReturnsMockedBalanceRead",
+                    )
+            if helper_name == "allowance" and len(args) == 3:
+                token_arg = param_examples.get(args[0])
+                owner_arg = param_examples.get(args[1])
+                spender_arg = param_examples.get(args[2])
+                if token_arg is not None and owner_arg is not None and spender_arg is not None:
+                    return _render_mocked_external_read_assertion(
+                        fn,
+                        idx,
+                        encode_args,
+                        decoded_type,
+                        [
+                            "uint256 expected = uint256(1);",
+                            "vm.mockCall("
+                            f"{token_arg}, "
+                            f'abi.encodeWithSignature("allowance(address,address)", {owner_arg}, {spender_arg}), '
+                            "abi.encode(expected)"
+                            ");",
+                        ],
+                        storage_slot,
+                        f"{fn.name} decodes the mocked ERC20 allowance read",
+                        "ReturnsMockedAllowanceRead",
+                    )
+            if helper_name == "totalSupply" and len(args) == 1:
+                token_arg = param_examples.get(args[0])
+                if token_arg is not None:
+                    return _render_mocked_external_read_assertion(
+                        fn,
+                        idx,
+                        encode_args,
+                        decoded_type,
+                        [
+                            "uint256 expected = uint256(1);",
+                            "vm.mockCall("
+                            f"{token_arg}, "
+                            'abi.encodeWithSignature("totalSupply()"), '
+                            "abi.encode(expected)"
+                            ");",
+                        ],
+                        storage_slot,
+                        f"{fn.name} decodes the mocked ERC20 supply read",
+                        "ReturnsMockedSupplyRead",
+                    )
+
+    if len(body) == 5 and ty == "Uint256":
+        ecm_head_match = re.fullmatch(r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*ecmCall", body[0])
+        ecm_module_match = ORACLE_ECM_MODULE_RE.fullmatch(body[1])
+        storage_match = re.fullmatch(
+            r"setStorage\s+([A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)",
+            body[3],
+        )
+        return_match = re.fullmatch(r"return\s+([A-Za-z_][A-Za-z0-9_]*)", body[4])
+        if (
+            ecm_head_match
+            and ecm_module_match
+            and storage_match
+            and return_match
+            and storage_match.group(2) == ecm_head_match.group(1)
+            and return_match.group(1) == ecm_head_match.group(1)
+            and body[2].startswith("[")
+            and body[2].endswith("]")
+        ):
+            storage_slot = contract.storage_slots.get(storage_match.group(1))
+            if storage_slot is None:
+                return None
+            selector, static_arg_count = ecm_module_match.groups()
+            call_args = [arg.strip() for arg in _split_top_level_csv(body[2][1:-1]) if arg.strip()]
+            if len(call_args) == int(static_arg_count) + 1:
+                target_arg = param_examples.get(call_args[0])
+                static_args = [param_examples.get(arg) for arg in call_args[1:]]
+                if target_arg is not None and all(arg is not None for arg in static_args):
+                    joined_static_args = ", ".join(static_args)
+                    selector_expr = f"bytes4({selector})"
+                    mock_payload = (
+                        f"abi.encodeWithSelector({selector_expr}, {joined_static_args})"
+                        if joined_static_args
+                        else f"abi.encodeWithSelector({selector_expr})"
+                    )
+                    return _render_mocked_external_read_assertion(
+                        fn,
+                        idx,
+                        encode_args,
+                        decoded_type,
+                        [
+                            "uint256 expected = uint256(1);",
+                            f"vm.mockCall({target_arg}, {mock_payload}, abi.encode(expected));",
+                        ],
+                        storage_slot,
+                        f"{fn.name} decodes the mocked ECM oracle read",
+                        "ReturnsMockedEcmRead",
+                    )
 
     if len(body) == 1:
         compare_match = PARAM_COMPARE_RETURN_RE.fullmatch(body[0])

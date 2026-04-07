@@ -1032,6 +1032,112 @@ class RenderTests(unittest.TestCase):
         )
         self.assertNotIn("int256(-2)", rendered)
 
+    def test_render_erc20_helper_snapshot_reads_use_mocked_calls(self) -> None:
+        contract = gen.ContractDecl(
+            name="ERC20HelperSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "snapshotBalance",
+                    (
+                        gen.ParamDecl("token", "Address"),
+                        gen.ParamDecl("owner", "Address"),
+                    ),
+                    "Uint256",
+                    body=(
+                        "let balance ← balanceOf token owner",
+                        "setStorage lastBalance balance",
+                        "return balance",
+                    ),
+                ),
+                gen.FunctionDecl(
+                    "snapshotAllowance",
+                    (
+                        gen.ParamDecl("token", "Address"),
+                        gen.ParamDecl("owner", "Address"),
+                        gen.ParamDecl("spender", "Address"),
+                    ),
+                    "Uint256",
+                    body=(
+                        "let current ← allowance token owner spender",
+                        "setStorage lastAllowance current",
+                        "return current",
+                    ),
+                ),
+                gen.FunctionDecl(
+                    "snapshotSupply",
+                    (gen.ParamDecl("token", "Address"),),
+                    "Uint256",
+                    body=(
+                        "let supply ← totalSupply token",
+                        "setStorage lastSupply supply",
+                        "return supply",
+                    ),
+                ),
+            ),
+            storage_slots={"lastBalance": 0, "lastAllowance": 1, "lastSupply": 2},
+            storage_types={
+                "lastBalance": "Uint256",
+                "lastAllowance": "Uint256",
+                "lastSupply": "Uint256",
+            },
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertNotIn("testTODO_SnapshotBalance_DecodeAndAssert", rendered)
+        self.assertIn(
+            'vm.mockCall(alice, abi.encodeWithSignature("balanceOf(address)", alice), abi.encode(expected));',
+            rendered,
+        )
+        self.assertIn(
+            'vm.mockCall(alice, abi.encodeWithSignature("allowance(address,address)", alice, alice), abi.encode(expected));',
+            rendered,
+        )
+        self.assertIn(
+            'vm.mockCall(alice, abi.encodeWithSignature("totalSupply()"), abi.encode(expected));',
+            rendered,
+        )
+        self.assertIn(
+            'assertEq(vm.load(target, bytes32(uint256(2))), bytes32(uint256(expected)), "snapshotSupply should persist the mocked external read");',
+            rendered,
+        )
+
+    def test_render_generic_ecm_snapshot_read_uses_mocked_call(self) -> None:
+        contract = gen.ContractDecl(
+            name="GenericECMReadSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "snapshotQuote",
+                    (
+                        gen.ParamDecl("oracle", "Address"),
+                        gen.ParamDecl("asset", "Address"),
+                    ),
+                    "Uint256",
+                    body=(
+                        "let quote ← ecmCall",
+                        "(fun resultVar => Compiler.Modules.Oracle.oracleReadUint256Module resultVar 0x12345678 1)",
+                        "[oracle, asset]",
+                        "setStorage lastQuote quote",
+                        "return quote",
+                    ),
+                ),
+            ),
+            storage_slots={"lastQuote": 0},
+            storage_types={"lastQuote": "Uint256"},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertNotIn("testTODO_SnapshotQuote_DecodeAndAssert", rendered)
+        self.assertIn(
+            'vm.mockCall(alice, abi.encodeWithSelector(bytes4(0x12345678), alice), abi.encode(expected));',
+            rendered,
+        )
+        self.assertIn(
+            'assertEq(vm.load(target, bytes32(uint256(0))), bytes32(uint256(expected)), "snapshotQuote should persist the mocked external read");',
+            rendered,
+        )
+
     def test_render_string_eq_predicate_infers_assertion(self) -> None:
         contract = gen.ContractDecl(
             name="StringEqSmoke",
