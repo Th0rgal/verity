@@ -918,6 +918,69 @@ class RenderTests(unittest.TestCase):
         self.assertIn("vm.store(target, _mappingSlot(bytes32(uint256(uint256(1))), 0), bytes32(uint256(expected)));", rendered)
         self.assertIn('assertEq(actual, expected, "getValue should decode the configured mapping value");', rendered)
 
+    def test_render_mapping_n_getter_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="MappingChainSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "getApproval",
+                    (
+                        gen.ParamDecl("owner", "Address"),
+                        gen.ParamDecl("spender", "Address"),
+                        gen.ParamDecl("delegate_", "Address"),
+                    ),
+                    "Uint256",
+                    body=("let current ← getMappingN approvals [owner, spender, delegate_]", "return current"),
+                ),
+            ),
+            storage_slots={"approvals": 0},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_GetApproval_ReadsConfiguredMapping()", rendered)
+        self.assertIn(
+            "vm.store(target, keccak256(abi.encode(bytes32(uint256(uint160(alice))), keccak256(abi.encode(bytes32(uint256(uint160(alice))), _mappingSlot(bytes32(uint256(uint160(alice))), 0))))), bytes32(uint256(expected)));",
+            rendered,
+        )
+        self.assertIn(
+            'assertEq(actual, expected, "getApproval should decode the configured mapping value");',
+            rendered,
+        )
+
+    def test_render_mapping_n_address_to_word_keys_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="MixedMappingChainSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "getApproval",
+                    (
+                        gen.ParamDecl("owner", "Address"),
+                        gen.ParamDecl("tokenId", "Uint256"),
+                        gen.ParamDecl("delegate_", "Address"),
+                    ),
+                    "Uint256",
+                    body=(
+                        "let current ← getMappingN approvals [addressToWord owner, tokenId, addressToWord delegate_]",
+                        "return current",
+                    ),
+                ),
+            ),
+            storage_slots={"approvals": 0},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_GetApproval_ReadsConfiguredMapping()", rendered)
+        self.assertIn(
+            "vm.store(target, keccak256(abi.encode(bytes32(uint256(uint160(alice))), keccak256(abi.encode(bytes32(uint256(uint256(1))), _mappingSlot(bytes32(uint256(uint160(alice))), 0))))), bytes32(uint256(expected)));",
+            rendered,
+        )
+        self.assertIn(
+            'assertEq(actual, expected, "getApproval should decode the configured mapping value");',
+            rendered,
+        )
+
     def test_render_mapping_predicate_infers_assertion(self) -> None:
         contract = gen.ContractDecl(
             name="MappingWordSmoke",
