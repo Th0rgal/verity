@@ -84,6 +84,81 @@ verity_contract StorageArraySmoke where
   function push (value : Uint256) : Unit := do
     pushStorageArray queue value
 
+verity_contract StorageAddressArraySmoke where
+  storage
+    owners : Array Address := slot 0
+
+  function size () : Uint256 := do
+    let size ← getStorageArrayLength owners
+    return size
+
+  function firstOwner () : Address := do
+    let owner ← getStorageArrayElement owners 0
+    return owner
+
+  function pushOwner (owner : Address) : Unit := do
+    pushStorageArray owners owner
+
+  function replaceFirstOwner (owner : Address) : Unit := do
+    setStorageArrayElement owners 0 owner
+
+verity_contract StorageBytes32ArraySmoke where
+  storage
+    digests : Array Bytes32 := slot 0
+
+  function firstDigest () : Bytes32 := do
+    let digest ← getStorageArrayElement digests 0
+    return digest
+
+  function pushDigest (digest : Bytes32) : Unit := do
+    pushStorageArray digests digest
+
+def storageAddressArrayExecutableReadsHead : Bool :=
+  let seededState : Verity.ContractState :=
+    { Verity.defaultState with
+      storageArray := fun idx =>
+        if idx == StorageAddressArraySmoke.owners.slot then [11, 17] else [] }
+  match StorageAddressArraySmoke.firstOwner seededState with
+  | .success owner state =>
+      owner == (11 : Address) &&
+        state.storageArray StorageAddressArraySmoke.owners.slot == [11, 17]
+  | .revert _ _ => false
+
+example : storageAddressArrayExecutableReadsHead = true := by native_decide
+
+def storageAddressArrayExecutablePushStoresWord : Bool :=
+  match StorageAddressArraySmoke.pushOwner (19 : Address) Verity.defaultState with
+  | .success () state =>
+      state.storageArray StorageAddressArraySmoke.owners.slot == [19]
+  | .revert _ _ => false
+
+example : storageAddressArrayExecutablePushStoresWord = true := by native_decide
+
+def storageAddressArrayExecutableSetUpdatesHead : Bool :=
+  let seededState : Verity.ContractState :=
+    { Verity.defaultState with
+      storageArray := fun idx =>
+        if idx == StorageAddressArraySmoke.owners.slot then [11, 17] else [] }
+  match StorageAddressArraySmoke.replaceFirstOwner (29 : Address) seededState with
+  | .success () state =>
+      state.storageArray StorageAddressArraySmoke.owners.slot == [29, 17]
+  | .revert _ _ => false
+
+example : storageAddressArrayExecutableSetUpdatesHead = true := by native_decide
+
+def storageBytes32ArrayExecutableReadsHead : Bool :=
+  let seededState : Verity.ContractState :=
+    { Verity.defaultState with
+      storageArray := fun idx =>
+        if idx == StorageBytes32ArraySmoke.digests.slot then [41, 43] else [] }
+  match StorageBytes32ArraySmoke.firstDigest seededState with
+  | .success digest state =>
+      digest == 41 &&
+        state.storageArray StorageBytes32ArraySmoke.digests.slot == [41, 43]
+  | .revert _ _ => false
+
+example : storageBytes32ArrayExecutableReadsHead = true := by native_decide
+
 /--
 error: field 'queue' is a storage dynamic array; use pushStorageArray/popStorageArray/setStorageArrayElement
 -/
@@ -1121,6 +1196,8 @@ end SpecGenSmoke
 #check_contract Contracts.Counter
 #check_contract UintMapSmoke
 #check_contract Bytes32Smoke
+#check_contract StorageAddressArraySmoke
+#check_contract StorageBytes32ArraySmoke
 #check_contract MappingWordSmoke
 #check_contract StorageWordsSmoke
 #check_contract CustomErrorSmoke

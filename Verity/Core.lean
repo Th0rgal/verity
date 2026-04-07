@@ -384,24 +384,39 @@ private def storageArrayDropLast? : List Uint256 → Option (List Uint256)
       let updatedRest ← storageArrayDropLast? rest
       some (head :: updatedRest)
 
+class StorageArrayElem (α : Type) where
+  toWord : α → Uint256
+  fromWord : Uint256 → α
+
+instance : StorageArrayElem Uint256 where
+  toWord value := value
+  fromWord value := value
+
+instance : StorageArrayElem Address where
+  toWord value := addressToWord value
+  fromWord value := wordToAddress value
+
 -- Storage dynamic-array operations (#1571)
-def getStorageArrayLength (s : StorageSlot (List Uint256)) : Contract Uint256 :=
+def getStorageArrayLength {α : Type} (s : StorageSlot (List α)) : Contract Uint256 :=
   fun state => ContractResult.success (((state.storageArray s.slot).length : Nat) : Uint256) state
 
-def getStorageArrayElement (s : StorageSlot (List Uint256)) (index : Uint256) : Contract Uint256 :=
+def getStorageArrayElement {α : Type} [StorageArrayElem α]
+    (s : StorageSlot (List α)) (index : Uint256) : Contract α :=
   fun state =>
     match (state.storageArray s.slot)[index.val]? with
-    | some value => ContractResult.success value state
+    | some value => ContractResult.success (StorageArrayElem.fromWord value) state
     | none => ContractResult.revert "Storage array index out of bounds" state
 
-def pushStorageArray (s : StorageSlot (List Uint256)) (value : Uint256) : Contract Unit :=
+def pushStorageArray {α : Type} [StorageArrayElem α]
+    (s : StorageSlot (List α)) (value : α) : Contract Unit :=
   fun state =>
     let current := state.storageArray s.slot
     ContractResult.success () { state with
-      storageArray := fun slot => if slot == s.slot then current ++ [value] else state.storageArray slot
+      storageArray := fun slot =>
+        if slot == s.slot then current ++ [StorageArrayElem.toWord value] else state.storageArray slot
     }
 
-def popStorageArray (s : StorageSlot (List Uint256)) : Contract Unit :=
+def popStorageArray {α : Type} (s : StorageSlot (List α)) : Contract Unit :=
   fun state =>
     match storageArrayDropLast? (state.storageArray s.slot) with
     | some updated =>
@@ -410,39 +425,46 @@ def popStorageArray (s : StorageSlot (List Uint256)) : Contract Unit :=
         }
     | none => ContractResult.revert "Storage array pop on empty array" state
 
-def setStorageArrayElement (s : StorageSlot (List Uint256)) (index value : Uint256) : Contract Unit :=
+def setStorageArrayElement {α : Type} [StorageArrayElem α]
+    (s : StorageSlot (List α)) (index : Uint256) (value : α) : Contract Unit :=
   fun state =>
-    match storageArraySetAt (state.storageArray s.slot) index.val value with
+    match storageArraySetAt (state.storageArray s.slot) index.val (StorageArrayElem.toWord value) with
     | some updated =>
         ContractResult.success () { state with
           storageArray := fun slot => if slot == s.slot then updated else state.storageArray slot
         }
     | none => ContractResult.revert "Storage array index out of bounds" state
 
-@[simp] theorem getStorageArrayLength_run (s : StorageSlot (List Uint256)) (state : ContractState) :
+@[simp] theorem getStorageArrayLength_run {α : Type} (s : StorageSlot (List α)) (state : ContractState) :
   (getStorageArrayLength s).run state =
     ContractResult.success (((state.storageArray s.slot).length : Nat) : Uint256) state := rfl
 
-@[simp] theorem getStorageArrayElement_run_some (s : StorageSlot (List Uint256)) (index : Uint256)
+@[simp] theorem getStorageArrayElement_run_some {α : Type} [StorageArrayElem α]
+    (s : StorageSlot (List α)) (index : Uint256)
     (state : ContractState) (value : Uint256)
     (h : (state.storageArray s.slot)[index.val]? = some value) :
-    (getStorageArrayElement s index).run state = ContractResult.success value state := by
+    (getStorageArrayElement s index).run state =
+      ContractResult.success (StorageArrayElem.fromWord value) state := by
   simp [Contract.run, getStorageArrayElement, h]
 
-@[simp] theorem getStorageArrayElement_run_none (s : StorageSlot (List Uint256)) (index : Uint256)
+@[simp] theorem getStorageArrayElement_run_none {α : Type} [StorageArrayElem α]
+    (s : StorageSlot (List α)) (index : Uint256)
     (state : ContractState)
     (h : (state.storageArray s.slot)[index.val]? = none) :
     (getStorageArrayElement s index).run state =
       ContractResult.revert "Storage array index out of bounds" state := by
   simp [Contract.run, getStorageArrayElement, h]
 
-@[simp] theorem pushStorageArray_run (s : StorageSlot (List Uint256)) (value : Uint256)
+@[simp] theorem pushStorageArray_run {α : Type} [StorageArrayElem α]
+    (s : StorageSlot (List α)) (value : α)
     (state : ContractState) :
   (pushStorageArray s value).run state = ContractResult.success () { state with
-    storageArray := fun slot => if slot == s.slot then state.storageArray s.slot ++ [value] else state.storageArray slot
+    storageArray := fun slot =>
+      if slot == s.slot then state.storageArray s.slot ++ [StorageArrayElem.toWord value]
+      else state.storageArray slot
   } := rfl
 
-@[simp] theorem popStorageArray_run_some (s : StorageSlot (List Uint256)) (state : ContractState)
+@[simp] theorem popStorageArray_run_some {α : Type} (s : StorageSlot (List α)) (state : ContractState)
     (updated : List Uint256)
     (h : storageArrayDropLast? (state.storageArray s.slot) = some updated) :
     (popStorageArray s).run state = ContractResult.success () { state with
@@ -450,23 +472,25 @@ def setStorageArrayElement (s : StorageSlot (List Uint256)) (index value : Uint2
     } := by
   simp [Contract.run, popStorageArray, h]
 
-@[simp] theorem popStorageArray_run_none (s : StorageSlot (List Uint256)) (state : ContractState)
+@[simp] theorem popStorageArray_run_none {α : Type} (s : StorageSlot (List α)) (state : ContractState)
     (h : storageArrayDropLast? (state.storageArray s.slot) = none) :
     (popStorageArray s).run state =
       ContractResult.revert "Storage array pop on empty array" state := by
   simp [Contract.run, popStorageArray, h]
 
-@[simp] theorem setStorageArrayElement_run_some (s : StorageSlot (List Uint256))
-    (index value : Uint256) (state : ContractState) (updated : List Uint256)
-    (h : storageArraySetAt (state.storageArray s.slot) index.val value = some updated) :
+@[simp] theorem setStorageArrayElement_run_some {α : Type} [StorageArrayElem α]
+    (s : StorageSlot (List α))
+    (index : Uint256) (value : α) (state : ContractState) (updated : List Uint256)
+    (h : storageArraySetAt (state.storageArray s.slot) index.val (StorageArrayElem.toWord value) = some updated) :
     (setStorageArrayElement s index value).run state = ContractResult.success () { state with
       storageArray := fun slot => if slot == s.slot then updated else state.storageArray slot
     } := by
   simp [Contract.run, setStorageArrayElement, h]
 
-@[simp] theorem setStorageArrayElement_run_none (s : StorageSlot (List Uint256))
-    (index value : Uint256) (state : ContractState)
-    (h : storageArraySetAt (state.storageArray s.slot) index.val value = none) :
+@[simp] theorem setStorageArrayElement_run_none {α : Type} [StorageArrayElem α]
+    (s : StorageSlot (List α))
+    (index : Uint256) (value : α) (state : ContractState)
+    (h : storageArraySetAt (state.storageArray s.slot) index.val (StorageArrayElem.toWord value) = none) :
     (setStorageArrayElement s index value).run state =
       ContractResult.revert "Storage array index out of bounds" state := by
   simp [Contract.run, setStorageArrayElement, h]
