@@ -531,6 +531,36 @@ def _require_compiler_predicate_body_expr(fn: Function, fields: List[Field]) -> 
     sys.exit(1)
 
 
+def _storage_snapshot_scaffold(
+    fields: List[Field],
+    *,
+    context_label: str,
+) -> tuple[list[str], list[str]]:
+    """Return storage snapshot/assertion lines for known contract storage."""
+    snapshot_lines: list[str] = []
+    assertion_lines: list[str] = []
+    for slot_idx, field in enumerate(fields):
+        if field.is_mapping:
+            helper_name = f"{field.name[0].upper()}{field.name[1:]}"
+            key_expr = "42" if field.ty == "mapping_uint" else "alice"
+            before_name = f"{field.name}Before"
+            snapshot_lines.append(
+                f"        uint256 {before_name} = get{helper_name}FromStorage({key_expr});"
+            )
+            assertion_lines.append(
+                f'        assertEq(get{helper_name}FromStorage({key_expr}), {before_name}, "{field.name} mapping entry unchanged by {context_label}");'
+            )
+        else:
+            before_name = f"slot{slot_idx}Before"
+            snapshot_lines.append(
+                f"        uint256 {before_name} = readStorage({slot_idx});"
+            )
+            assertion_lines.append(
+                f'        assertEq(readStorage({slot_idx}), {before_name}, "slot {slot_idx} unchanged by {context_label}");'
+            )
+    return snapshot_lines, assertion_lines
+
+
 def _needs_uint256_import(cfg: ContractConfig) -> bool:
     """Whether a module needs ``import Verity.EVM.Uint256``."""
     return (
@@ -940,27 +970,10 @@ def _gen_single_test(
         predicate_target = _sender_address_predicate_target(fn, cfg.fields)
         if predicate_target is not None:
             target_slot = _field_slot(cfg.fields, predicate_target)
-            snapshot_lines: list[str] = []
-            assertion_lines: list[str] = []
-            for slot_idx, field in enumerate(cfg.fields):
-                if field.is_mapping:
-                    helper_name = f"{field.name[0].upper()}{field.name[1:]}"
-                    key_expr = "42" if field.ty == "mapping_uint" else "alice"
-                    before_name = f"{field.name}Before"
-                    snapshot_lines.append(
-                        f"        uint256 {before_name} = get{helper_name}FromStorage({key_expr});"
-                    )
-                    assertion_lines.append(
-                        f'        assertEq(get{helper_name}FromStorage({key_expr}), {before_name}, "{field.name} mapping entry unchanged by getter");'
-                    )
-                else:
-                    before_name = f"slot{slot_idx}Before"
-                    snapshot_lines.append(
-                        f"        uint256 {before_name} = readStorage({slot_idx});"
-                    )
-                    assertion_lines.append(
-                        f'        assertEq(readStorage({slot_idx}), {before_name}, "slot {slot_idx} unchanged by getter");'
-                    )
+            snapshot_lines, assertion_lines = _storage_snapshot_scaffold(
+                cfg.fields,
+                context_label="getter",
+            )
 
             return f"""    //═══════════════════════════════════════════════════════════════════════
     // Property {idx + 1}: {fn.name}_meets_spec
@@ -1033,27 +1046,10 @@ def _gen_single_test(
             decoded_ty = "uint256"
             decode_assertion = '        assertEq(decoded, 1337, "getter should return seeded uint256 slot");'
 
-        snapshot_lines: list[str] = []
-        assertion_lines: list[str] = []
-        for slot_idx, field in enumerate(cfg.fields):
-            if field.is_mapping:
-                helper_name = f"{field.name[0].upper()}{field.name[1:]}"
-                key_expr = "42" if field.ty == "mapping_uint" else "alice"
-                before_name = f"{field.name}Before"
-                snapshot_lines.append(
-                    f"        uint256 {before_name} = get{helper_name}FromStorage({key_expr});"
-                )
-                assertion_lines.append(
-                    f'        assertEq(get{helper_name}FromStorage({key_expr}), {before_name}, "{field.name} mapping entry unchanged by getter");'
-                )
-            else:
-                before_name = f"slot{slot_idx}Before"
-                snapshot_lines.append(
-                    f"        uint256 {before_name} = readStorage({slot_idx});"
-                )
-                assertion_lines.append(
-                    f'        assertEq(readStorage({slot_idx}), {before_name}, "slot {slot_idx} unchanged by getter");'
-                )
+        snapshot_lines, assertion_lines = _storage_snapshot_scaffold(
+            cfg.fields,
+            context_label="getter",
+        )
 
         return f"""    //═══════════════════════════════════════════════════════════════════════
     // Property {idx + 1}: {fn.name}_meets_spec
@@ -1078,6 +1074,15 @@ def _gen_single_test(
     }}
 """
     else:
+        snapshot_lines, assertion_lines = _storage_snapshot_scaffold(
+            cfg.fields,
+            context_label="scaffold default",
+        )
+        if not snapshot_lines:
+            snapshot_lines = ["        uint256 slot0Before = readStorage(0);"]
+            assertion_lines = [
+                '        assertEq(readStorage(0), slot0Before, "scaffold default: slot 0 unchanged (replace with real spec assertions)");'
+            ]
         return f"""    //═══════════════════════════════════════════════════════════════════════
     // Property {idx + 1}: {fn.name}_meets_spec
     // Theorem: {fn.name}({', '.join(p.solidity_type for p in fn.params)}) meets its formal specification
@@ -1085,7 +1090,7 @@ def _gen_single_test(
 
     /// Property: {fn.name}_meets_spec
     function testProperty_{camel}_MeetsSpec() public {{
-        uint256 slot0Before = readStorage(0);
+{chr(10).join(snapshot_lines)}
 
         vm.prank(alice);
         (bool success,) = target.call(
@@ -1094,11 +1099,7 @@ def _gen_single_test(
         require(success, "{fn.name} call failed");
 
         // Scaffold default matches `sameExceptEvents` in generated Lean spec.
-        assertEq(
-            readStorage(0),
-            slot0Before,
-            "scaffold default: slot 0 unchanged (replace with real spec assertions)"
-        );
+{chr(10).join(assertion_lines)}
     }}
 """
 

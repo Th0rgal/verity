@@ -212,7 +212,30 @@ class GenerateContractGetterPropertyScaffoldTests(unittest.TestCase):
         self.assertIn("function testProperty_SetStoredValue_MeetsSpec() public {", out)
         self.assertIn("Property: setStoredValue_meets_spec", out)
         self.assertIn("assertEq(", out)
-        self.assertIn("scaffold default: slot 0 unchanged", out)
+        self.assertIn("slot 0 unchanged by scaffold default", out)
+
+    def test_non_getter_scaffold_snapshots_all_known_storage_surfaces(self) -> None:
+        cfg = ContractConfig(
+            name="Demo",
+            fields=[
+                Field(name="storedValue", ty="uint256"),
+                Field(name="balances", ty="mapping"),
+            ],
+            functions=[Function(name="touch", params=[])],
+        )
+
+        out = gen_property_tests(cfg)
+        self.assertIn("function testProperty_Touch_MeetsSpec() public {", out)
+        self.assertIn("uint256 slot0Before = readStorage(0);", out)
+        self.assertIn("uint256 balancesBefore = getBalancesFromStorage(alice);", out)
+        self.assertIn(
+            'assertEq(readStorage(0), slot0Before, "slot 0 unchanged by scaffold default");',
+            out,
+        )
+        self.assertIn(
+            'assertEq(getBalancesFromStorage(alice), balancesBefore, "balances mapping entry unchanged by scaffold default");',
+            out,
+        )
 
 
 class GenerateCompilationModelScaffoldTests(unittest.TestCase):
