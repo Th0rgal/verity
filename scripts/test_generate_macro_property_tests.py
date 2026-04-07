@@ -801,6 +801,61 @@ class RenderTests(unittest.TestCase):
             rendered,
         )
 
+    def test_render_helper_call_chain_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="DirectHelperCallSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Smoke.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "addToTotal",
+                    (gen.ParamDecl("amount", "Uint256"),),
+                    "Unit",
+                    body=("let current ← getStorage total", "setStorage total (add current amount)"),
+                ),
+                gen.FunctionDecl(
+                    "readTotalPlus",
+                    (gen.ParamDecl("extra", "Uint256"),),
+                    "Uint256",
+                    body=("let current ← getStorage total", "return (add current extra)"),
+                ),
+                gen.FunctionDecl(
+                    "pairWithTotal",
+                    (gen.ParamDecl("offset", "Uint256"),),
+                    "Tuple [Uint256, Uint256]",
+                    body=("let current ← getStorage total", "return (current, add current offset)"),
+                ),
+                gen.FunctionDecl(
+                    "runHelpers",
+                    (
+                        gen.ParamDecl("amount", "Uint256"),
+                        gen.ParamDecl("extra", "Uint256"),
+                        gen.ParamDecl("offset", "Uint256"),
+                    ),
+                    "Uint256",
+                    body=(
+                        "addToTotal amount",
+                        "let combined ← readTotalPlus extra",
+                        "let (left, right) ← pairWithTotal offset",
+                        "setStorage lastLeft left",
+                        "setStorage lastRight right",
+                        "return combined",
+                    ),
+                ),
+            ),
+            storage_slots={"total": 0, "lastLeft": 1, "lastRight": 2},
+            storage_types={"total": "Uint256", "lastLeft": "Uint256", "lastRight": "Uint256"},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_RunHelpers_ReturnsInferredStraightLineResult()", rendered)
+        self.assertIn("uint256 expected = uint256(1);", rendered)
+        self.assertIn("vm.store(target, bytes32(uint256(0)), bytes32(uint256(expected)));", rendered)
+        self.assertIn(
+            'assertEq(actual, ((expected + uint256(1)) + uint256(1)), "runHelpers should preserve the inferred result");',
+            rendered,
+        )
+        self.assertNotIn("testTODO_RunHelpers_DecodeAndAssert", rendered)
+
     def test_render_mutating_accumulator_infers_assertion(self) -> None:
         contract = gen.ContractDecl(
             name="Counter",
