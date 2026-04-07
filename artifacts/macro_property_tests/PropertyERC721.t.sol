@@ -74,14 +74,43 @@ contract PropertyERC721Test is YulTestBase {
         (bool ok,) = target.call(abi.encodeWithSignature("setApprovalForAll(address,bool)", alice, true));
         require(ok, "setApprovalForAll reverted unexpectedly");
     }
-    // Property 7: TODO decode and assert `mint` result
-    function testTODO_Mint_DecodeAndAssert() public {
+    // Property 7: mint returns the minted token id and persists the success-path writes
+    function testAuto_Mint_ReturnsMintedTokenIdAndUpdatesState() public {
+        address to = alice;
+        address expectedOwner = alice;
+        uint256 mintedTokenId = uint256(1);
+        uint256 currentSupply = uint256(2);
+        uint256 recipientBalance = uint256(3);
+        vm.store(target, bytes32(uint256(0)), bytes32(uint256(uint160(expectedOwner))));
+        vm.store(target, bytes32(uint256(1)), bytes32(uint256(currentSupply)));
+        vm.store(target, bytes32(uint256(2)), bytes32(uint256(mintedTokenId)));
+        vm.store(target, _mappingSlot(bytes32(uint256(uint160(to))), 3), bytes32(uint256(recipientBalance)));
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("mint(address)", alice));
         require(ok, "mint reverted unexpectedly");
         assertEq(ret.length, 32, "mint ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        uint256 actual = abi.decode(ret, (uint256));
+        assertEq(actual, mintedTokenId, "mint should return the seeded next token id");
+        assertEq(
+            vm.load(target, _mappingSlot(bytes32(uint256(actual)), 4)),
+            bytes32(uint256(uint160(to))),
+            "mint should persist the new owner word"
+        );
+        assertEq(
+            vm.load(target, _mappingSlot(bytes32(uint256(uint160(to))), 3)),
+            bytes32(uint256((uint256(3) + 1))),
+            "mint should increment the recipient balance"
+        );
+        assertEq(
+            vm.load(target, bytes32(uint256(1))),
+            bytes32(uint256((uint256(2) + 1))),
+            "mint should increment totalSupply"
+        );
+        assertEq(
+            vm.load(target, bytes32(uint256(2))),
+            bytes32(uint256(mintedTokenId + 1)),
+            "mint should increment nextTokenId"
+        );
     }
     // Property 8: transferFrom has no unexpected revert
     function testAuto_TransferFrom_NoUnexpectedRevert() public {

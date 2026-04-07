@@ -1546,6 +1546,62 @@ class RenderTests(unittest.TestCase):
             rendered,
         )
 
+    def test_render_erc721_mint_infers_stateful_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="ERC721",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Sample/Sample.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "mint",
+                    (gen.ParamDecl("to", "Address"),),
+                    "Uint256",
+                    body=(
+                        "let sender ← msgSender",
+                        "let currentOwner ← getStorageAddr owner",
+                        'require (sender == currentOwner) "Caller is not the owner"',
+                        'require (to != zeroAddress) "Invalid recipient"',
+                        "let tokenId ← getStorage nextTokenId",
+                        "let currentOwnerWord ← getMappingUint owners tokenId",
+                        'require (currentOwnerWord == 0) "Token already minted"',
+                        "let recipientBalance ← getMapping balances to",
+                        'let newRecipientBalance ← requireSomeUint (safeAdd recipientBalance 1) "Balance overflow"',
+                        "let currentSupply ← getStorage totalSupply",
+                        'let newSupply ← requireSomeUint (safeAdd currentSupply 1) "Supply overflow"',
+                        "setMappingUintAddr owners tokenId to",
+                        "setMapping balances to newRecipientBalance",
+                        "setStorage totalSupply newSupply",
+                        "setStorage nextTokenId (add tokenId 1)",
+                        "return tokenId",
+                    ),
+                ),
+            ),
+            storage_slots={"owner": 0, "totalSupply": 1, "nextTokenId": 2, "balances": 3, "owners": 4},
+            storage_types={"owner": "Address", "totalSupply": "Uint256", "nextTokenId": "Uint256"},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_Mint_ReturnsMintedTokenIdAndUpdatesState()", rendered)
+        self.assertIn(
+            "vm.store(target, bytes32(uint256(2)), bytes32(uint256(mintedTokenId)));",
+            rendered,
+        )
+        self.assertIn(
+            "vm.store(target, _mappingSlot(bytes32(uint256(uint160(to))), 3), bytes32(uint256(recipientBalance)));",
+            rendered,
+        )
+        self.assertIn(
+            'assertEq(actual, mintedTokenId, "mint should return the seeded next token id");',
+            rendered,
+        )
+        self.assertIn(
+            '    "mint should persist the new owner word"',
+            rendered,
+        )
+        self.assertIn(
+            '    "mint should increment nextTokenId"',
+            rendered,
+        )
+
     def test_parse_tuple_params(self) -> None:
         out = gen._split_params("cfg : Tuple [Address, Uint256], amount : Uint256")
         self.assertEqual(
