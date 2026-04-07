@@ -952,6 +952,7 @@ verity_contract GenericECMWriteSmoke where
   function runEffect (lhs : Uint256, rhs : Uint256) : Unit := do
     ecmDo genericECMEffectDemoModule [lhs, rhs]
 
+set_option linter.unusedVariables false in
 verity_contract LowLevelTryCatchSmoke where
   storage
     lastOutcome : Uint256 := slot 0
@@ -1582,7 +1583,7 @@ example :
             (Compiler.CompilationModel.Expr.literal 0))
       , Compiler.CompilationModel.Stmt.ite
           (Compiler.CompilationModel.Expr.eq
-            (Compiler.CompilationModel.Expr.localVar "verity_try_success_1")
+          (Compiler.CompilationModel.Expr.localVar "verity_try_success_1")
             (Compiler.CompilationModel.Expr.literal 0))
           [ Compiler.CompilationModel.Stmt.setStorage
               "lastOutcome"
