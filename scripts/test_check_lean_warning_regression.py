@@ -43,7 +43,36 @@ class CheckLeanWarningRegressionScriptTests(unittest.TestCase):
             )
 
             self.assertEqual(proc.returncode, 0, proc.stderr)
-            self.assertIn("Lean warning non-regression check passed", proc.stdout)
+            self.assertIn("Lean warning baseline check passed", proc.stdout)
+
+    def test_rejects_stale_baseline_when_warnings_drop(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            log_path = root / "lake-build.log"
+            baseline_path = root / "lean_warning_baseline.json"
+            log_path.write_text("", encoding="utf-8")
+            baseline_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "total_warnings": 1,
+                        "by_file": {"Compiler/Main.lean": 1},
+                        "by_message": {"declaration uses 'sorry'": 1},
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            proc = subprocess.run(
+                [sys.executable, str(SCRIPT), "--log", str(log_path), "--baseline", str(baseline_path)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertNotEqual(proc.returncode, 0)
+            self.assertIn("Total Lean warnings drifted: observed 0, baseline 1", proc.stderr)
 
     def test_rejects_invalid_baseline_counter_shape(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

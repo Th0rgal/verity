@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Enforce Lean warning non-regression against a checked baseline artifact.
+"""Enforce Lean warning baseline sync against a checked artifact.
 
 Usage:
     python3 scripts/check_lean_warning_regression.py --log lake-build.log
@@ -151,24 +151,26 @@ def compare_against_baseline(
     baseline_by_message = normalize_counter_payload(baseline.get("by_message"))
 
     observed_total = int(sum(observed_by_file.values()))
-    if observed_total > baseline_total:
+    if observed_total != baseline_total:
         errors.append(
-            f"Total Lean warnings regressed: observed {observed_total}, baseline {baseline_total}"
+            f"Total Lean warnings drifted: observed {observed_total}, baseline {baseline_total}"
         )
 
-    for file_path, observed_count in sorted(observed_by_file.items()):
+    for file_path in sorted(set(observed_by_file) | set(baseline_by_file)):
+        observed_count = observed_by_file.get(file_path, 0)
         baseline_count = baseline_by_file.get(file_path, 0)
-        if observed_count > baseline_count:
+        if observed_count != baseline_count:
             errors.append(
-                f"Warning count regressed in {file_path}: observed {observed_count}, "
+                f"Warning count drifted in {file_path}: observed {observed_count}, "
                 f"baseline {baseline_count}"
             )
 
-    for message, observed_count in sorted(observed_by_message.items()):
+    for message in sorted(set(observed_by_message) | set(baseline_by_message)):
+        observed_count = observed_by_message.get(message, 0)
         baseline_count = baseline_by_message.get(message, 0)
-        if observed_count > baseline_count:
+        if observed_count != baseline_count:
             errors.append(
-                f"Warning type regressed ({message}): observed {observed_count}, "
+                f"Warning type drifted ({message}): observed {observed_count}, "
                 f"baseline {baseline_count}"
             )
 
@@ -202,12 +204,12 @@ def main(argv: list[str] | None = None) -> None:
     total = int(sum(by_file.values()))
     print(f"Lean warnings observed: {total}")
     if errors:
-        print("\nLean warning non-regression check failed:", file=sys.stderr)
+        print("\nLean warning baseline check failed:", file=sys.stderr)
         for err in errors:
             print(f"- {err}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Lean warning non-regression check passed against {args.baseline}")
+    print(f"Lean warning baseline check passed against {args.baseline}")
 
 
 if __name__ == "__main__":
