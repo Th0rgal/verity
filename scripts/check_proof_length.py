@@ -112,6 +112,7 @@ ALLOWLIST: set[str] = {
     "stmtListGenericCore_of_stmtListTerminalCore_of_scopeNamesIncluded",
     "stmtListGenericCore_of_supportedStmtList_of_surface",
     "stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites",
+    "stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites_stmtSafety",
     "stmtListGenericCore_singleton_requireLiteralGuardFamilyClause",
     "stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsupportedContractSurface",
     "stmtListScopeCore_of_unsupportedContractSurface_eq_false",
@@ -155,7 +156,9 @@ ALLOWLIST: set[str] = {
     "supported_function_body_correct_from_exact_state_generic",
     "supported_function_correct",
     "supported_function_correct_except_mapping_writes",
+    "supported_function_correct_except_mapping_writes_stmtSafety",
     "supported_function_correct_with_body_interface_except_mapping_writes",
+    "supported_function_correct_with_body_interface_except_mapping_writes_stmtSafety",
     # --- Legacy compatibility and dispatch ---
     "legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface",
     "legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields_resolved",
@@ -164,6 +167,7 @@ ALLOWLIST: set[str] = {
     "interpretContract_correct_of_compiled_functions",
     "compile_preserves_semantics",
     "compile_preserves_semantics_except_mapping_writes",
+    "compile_preserves_semantics_except_mapping_writes_stmtSafety",
     "initialIRStateForTx_matches_runtime",
     "resultsMatch_of_execResultsAligned",
     # --- Helper-aware theorem stack (Issue #1630 / PR #1633 / PR #1639) ---

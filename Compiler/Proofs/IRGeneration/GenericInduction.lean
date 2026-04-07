@@ -12755,6 +12755,328 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites
       exact stmtListGenericCore_of_supportedStmtList_append_of_surface_exceptMappingWrites
         hpfx hsfx ihPrefix ihSuffix hsurface
 
+/-- Body-local slot-safety witness for the singleton mapping-write statements
+that are admitted by the alternate Tier 2 fragment. Unlike
+`SupportedStmtListMappingWriteSlotSafety`, this predicate only talks about the
+statements that actually occur in one function body, making the alternate whole
+contract theorem practical to instantiate for concrete proof fixtures. -/
+def StmtMappingWriteSlotSafe (fields : List Field) : Stmt → Prop
+  | .setMappingUint fieldName key _ =>
+      ∃ slot,
+        findFieldSlot fields fieldName = some slot ∧
+        isMapping fields fieldName = true ∧
+        findFieldWriteSlots fields fieldName = some [slot] ∧
+        (∀ runtime keyNat,
+          SourceSemantics.evalExpr fields runtime key = some keyNat →
+            findResolvedFieldAtSlotCopy fields
+              (Compiler.Proofs.abstractMappingSlot slot keyNat) = none ∧
+            findDynamicArrayElementAtSlotCopy fields runtime.world
+              (Compiler.Proofs.abstractMappingSlot slot keyNat) = none)
+  | .setMappingChain fieldName keys _ =>
+      ∃ slot,
+        findFieldSlot fields fieldName = some slot ∧
+        isMapping fields fieldName = true ∧
+        findFieldWriteSlots fields fieldName = some [slot] ∧
+        (∀ runtime keyVals,
+          SourceSemantics.evalExprList fields runtime keys = some keyVals →
+            findResolvedFieldAtSlotCopy fields
+              (SourceSemantics.mappingSlotChain slot keyVals) = none ∧
+            findDynamicArrayElementAtSlotCopy fields runtime.world
+              (SourceSemantics.mappingSlotChain slot keyVals) = none)
+  | .setMapping fieldName key _ =>
+      ∃ slot,
+        findFieldSlot fields fieldName = some slot ∧
+        isMapping fields fieldName = true ∧
+        findFieldWriteSlots fields fieldName = some [slot] ∧
+        (∀ runtime keyNat,
+          SourceSemantics.evalExpr fields runtime key = some keyNat →
+            findResolvedFieldAtSlotCopy fields
+              (Compiler.Proofs.abstractMappingSlot slot keyNat) = none ∧
+            findDynamicArrayElementAtSlotCopy fields runtime.world
+              (Compiler.Proofs.abstractMappingSlot slot keyNat) = none)
+  | .setMappingWord fieldName key wordOffset _ =>
+      ∃ slot,
+        findFieldSlot fields fieldName = some slot ∧
+        isMapping fields fieldName = true ∧
+        findFieldWriteSlots fields fieldName = some [slot] ∧
+        (∀ runtime keyNat,
+          SourceSemantics.evalExpr fields runtime key = some keyNat →
+            findResolvedFieldAtSlotCopy fields
+              (mappingWordTargetSlot slot keyNat wordOffset) = none ∧
+            findDynamicArrayElementAtSlotCopy fields runtime.world
+              (mappingWordTargetSlot slot keyNat wordOffset) = none)
+  | .setMappingPackedWord fieldName key wordOffset _ _ =>
+      ∃ slot,
+        findFieldSlot fields fieldName = some slot ∧
+        isMapping fields fieldName = true ∧
+        findFieldWriteSlots fields fieldName = some [slot] ∧
+        (∀ runtime keyNat,
+          SourceSemantics.evalExpr fields runtime key = some keyNat →
+            findResolvedFieldAtSlotCopy fields
+              (mappingWordTargetSlot slot keyNat wordOffset) = none ∧
+            findDynamicArrayElementAtSlotCopy fields runtime.world
+              (mappingWordTargetSlot slot keyNat wordOffset) = none)
+  | .setStructMember fieldName key memberName _ =>
+      ∃ slot wordOffset members,
+        findFieldSlot fields fieldName = some slot ∧
+        findStructMembers fields fieldName = some members ∧
+        findStructMember members memberName =
+          some { name := memberName, wordOffset := wordOffset, packed := none } ∧
+        isMapping fields fieldName = true ∧
+        isMapping2 fields fieldName = false ∧
+        findFieldWriteSlots fields fieldName = some [slot] ∧
+        (∀ runtime keyNat,
+          SourceSemantics.evalExpr fields runtime key = some keyNat →
+            findResolvedFieldAtSlotCopy fields
+              (mappingWordTargetSlot slot keyNat wordOffset) = none ∧
+            findDynamicArrayElementAtSlotCopy fields runtime.world
+              (mappingWordTargetSlot slot keyNat wordOffset) = none)
+  | .setMapping2 fieldName key1 key2 _ =>
+      ∃ slot,
+        findFieldSlot fields fieldName = some slot ∧
+        isMapping2 fields fieldName = true ∧
+        findFieldWriteSlots fields fieldName = some [slot] ∧
+        (∀ runtime keyNat1 keyNat2,
+          SourceSemantics.evalExpr fields runtime key1 = some keyNat1 →
+          SourceSemantics.evalExpr fields runtime key2 = some keyNat2 →
+            findResolvedFieldAtSlotCopy fields
+              (Compiler.Proofs.abstractMappingSlot
+                (Compiler.Proofs.abstractMappingSlot slot keyNat1)
+                keyNat2) = none ∧
+            findDynamicArrayElementAtSlotCopy fields runtime.world
+              (Compiler.Proofs.abstractMappingSlot
+                (Compiler.Proofs.abstractMappingSlot slot keyNat1)
+                keyNat2) = none)
+  | .setMapping2Word fieldName key1 key2 wordOffset _ =>
+      ∃ slot,
+        findFieldSlot fields fieldName = some slot ∧
+        isMapping2 fields fieldName = true ∧
+        findFieldWriteSlots fields fieldName = some [slot] ∧
+        (∀ runtime keyNat1 keyNat2,
+          SourceSemantics.evalExpr fields runtime key1 = some keyNat1 →
+          SourceSemantics.evalExpr fields runtime key2 = some keyNat2 →
+            findResolvedFieldAtSlotCopy fields
+              (mapping2WordTargetSlot slot keyNat1 keyNat2 wordOffset) = none ∧
+            findDynamicArrayElementAtSlotCopy fields runtime.world
+              (mapping2WordTargetSlot slot keyNat1 keyNat2 wordOffset) = none)
+  | .setStructMember2 fieldName key1 key2 memberName _ =>
+      ∃ slot wordOffset members,
+        findFieldSlot fields fieldName = some slot ∧
+        findStructMembers fields fieldName = some members ∧
+        findStructMember members memberName =
+          some { name := memberName, wordOffset := wordOffset, packed := none } ∧
+        isMapping2 fields fieldName = true ∧
+        findFieldWriteSlots fields fieldName = some [slot] ∧
+        (∀ runtime keyNat1 keyNat2,
+          SourceSemantics.evalExpr fields runtime key1 = some keyNat1 →
+          SourceSemantics.evalExpr fields runtime key2 = some keyNat2 →
+            findResolvedFieldAtSlotCopy fields
+              (mapping2WordTargetSlot slot keyNat1 keyNat2 wordOffset) = none ∧
+            findDynamicArrayElementAtSlotCopy fields runtime.world
+              (mapping2WordTargetSlot slot keyNat1 keyNat2 wordOffset) = none)
+  | _ => True
+
+theorem stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites_stmtSafety
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (hSupported : SupportedStmtList fields scope stmts)
+    (hsafety : ∀ stmt ∈ stmts, StmtMappingWriteSlotSafe fields stmt)
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites stmts = false) :
+    StmtListGenericCore fields scope stmts := by
+  induction hSupported with
+  | compileCore hcore =>
+      exact stmtListGenericCore_of_stmtListCompileCore hcore
+  | terminalCore hterminal =>
+      exact stmtListGenericCore_of_stmtListTerminalCore hterminal
+  | setStorageSingleSlot hcore hinScope hfind =>
+      exact stmtListGenericCore_of_supportedStmtList_setStorageSingleSlot_of_surface
+        (fields := fields) hnoConflict hfind hcore hinScope
+  | setStorageAddrSingleSlot hcore hinScope hfind =>
+      exact stmtListGenericCore_of_supportedStmtList_setStorageAddrSingleSlot_of_surface
+        (fields := fields) hnoConflict hfind hcore hinScope
+  | mstoreSingle hcoreOffset hinScopeOffset hcoreValue hinScopeValue =>
+      exact stmtListGenericCore_of_supportedStmtList_mstoreSingle_of_surface
+        (fields := fields) hcoreOffset hinScopeOffset hcoreValue hinScopeValue
+  | tstoreSingle hcoreOffset hinScopeOffset hcoreValue hinScopeValue =>
+      exact stmtListGenericCore_of_supportedStmtList_tstoreSingle_of_surface
+        (fields := fields) hcoreOffset hinScopeOffset hcoreValue hinScopeValue
+  | letStorageField hfind hfieldInScope =>
+      exact stmtListGenericCore_of_supportedStmtList_letStorageField_of_surface
+        hnoConflict hfind hfieldInScope
+  | letStorageAddrField hfind hfieldInScope =>
+      exact stmtListGenericCore_of_supportedStmtList_letStorageAddrField_of_surface
+        hnoConflict hfind hfieldInScope
+  | letMappingField _ _ _ =>
+      exact False.elim
+        (false_of_supportedStmtList_letMappingField_surface_exceptMappingWrites hsurface)
+  | letMappingWordField _ _ _ =>
+      exact False.elim
+        (false_of_supportedStmtList_letMappingWordField_surface_exceptMappingWrites hsurface)
+  | letMappingUintField _ _ _ =>
+      exact False.elim
+        (false_of_supportedStmtList_letMappingUintField_surface_exceptMappingWrites hsurface)
+  | letMappingPackedWordField _ _ _ =>
+      exact False.elim
+        (false_of_supportedStmtList_letMappingPackedWordField_surface_exceptMappingWrites hsurface)
+  | letMapping2Field _ _ _ _ _ =>
+      exact False.elim
+        (false_of_supportedStmtList_letMapping2Field_surface_exceptMappingWrites hsurface)
+  | letMapping2WordField _ _ _ _ _ =>
+      exact False.elim
+        (false_of_supportedStmtList_letMapping2WordField_surface_exceptMappingWrites hsurface)
+  | letStructMemberField _ _ _ =>
+      exact False.elim
+        (false_of_supportedStmtList_letStructMemberField_surface_exceptMappingWrites hsurface)
+  | letStructMember2Field _ _ _ _ _ =>
+      exact False.elim
+        (false_of_supportedStmtList_letStructMember2Field_surface_exceptMappingWrites hsurface)
+  | setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot =>
+      rename_i scope fieldName key value slot0
+      rcases hsafety (.setMappingUint fieldName key value) (by simp) with ⟨slot, hfind, hm, hws, hss⟩
+      have hslotEq : slot = slot0 := by
+        rw [hslot] at hfind
+        injection hfind with hEq
+        exact hEq.symm
+      subst hslotEq
+      exact stmtListGenericCore_singleton_setMappingUintSingle_of_slotSafety
+        hkey hscopeKey hvalue hscopeValue hm hws hss
+  | setMappingChainSingle hkeys hscopeKeys hvalue hscopeValue hslot =>
+      rename_i scope fieldName keys value slot0
+      rcases hsafety (.setMappingChain fieldName keys value) (by simp) with ⟨slot, hfind, hm, hws, hss⟩
+      have hslotEq : slot = slot0 := by
+        rw [hslot] at hfind
+        injection hfind with hEq
+        exact hEq.symm
+      subst hslotEq
+      exact stmtListGenericCore_singleton_setMappingChainSingle_of_slotSafety
+        hkeys hscopeKeys hvalue hscopeValue hm hws hss
+  | setMappingSingle hkey hscopeKey hvalue hscopeValue hslot =>
+      rename_i scope fieldName key value slot0
+      rcases hsafety (.setMapping fieldName key value) (by simp) with ⟨slot, hfind, hm, hws, hss⟩
+      have hslotEq : slot = slot0 := by
+        rw [hslot] at hfind
+        injection hfind with hEq
+        exact hEq.symm
+      subst hslotEq
+      exact stmtListGenericCore_singleton_setMappingSingle_of_slotSafety
+        hkey hscopeKey hvalue hscopeValue hm hws hss
+  | setMappingWordSingle hkey hscopeKey hvalue hscopeValue hslot =>
+      rename_i scope fieldName key value wordOffset slot0
+      rcases hsafety (.setMappingWord fieldName key wordOffset value) (by simp) with ⟨slot, hfind, hm, hws, hss⟩
+      have hslotEq : slot = slot0 := by
+        rw [hslot] at hfind
+        injection hfind with hEq
+        exact hEq.symm
+      subst hslotEq
+      exact stmtListGenericCore_singleton_setMappingWordSingle_of_slotSafety
+        hkey hscopeKey hvalue hscopeValue hm hws hss
+  | setMappingPackedWordSingle hkey hscopeKey hvalue hscopeValue
+      hcompatValue hcompatPacked hcompatSlotWord hcompatSlotCleared hpacked hslot =>
+      rename_i scope fieldName key value wordOffset slot0 packed
+      rcases hsafety (.setMappingPackedWord fieldName key wordOffset packed value) (by simp) with
+        ⟨slot, hfind, hm, hws, hss⟩
+      have hslotEq : slot = slot0 := by
+        rw [hslot] at hfind
+        injection hfind with hEq
+        exact hEq.symm
+      subst hslotEq
+      exact stmtListGenericCore_singleton_setMappingPackedWordSingle_of_slotSafety
+        hkey hscopeKey hvalue hscopeValue
+        hcompatValue hcompatPacked hcompatSlotWord hcompatSlotCleared hpacked hm hws hss
+  | setStructMemberSingle hkey hscopeKey hvalue hscopeValue hslot hmembers hmember =>
+      rename_i scope fieldName memberName key value slot0 wordOffset0 members0
+      rcases hsafety (.setStructMember fieldName key memberName value) (by simp) with ⟨slot, wordOffset, members, hfind, hmembers',
+        hmember', hm, hnotm2, hws, hss⟩
+      have hslotEq : slot = slot0 := by
+        rw [hslot] at hfind
+        injection hfind with hEq
+        exact hEq.symm
+      have hmembersEq : members = members0 := by
+        rw [hmembers] at hmembers'
+        injection hmembers' with hEq
+        exact hEq.symm
+      subst hslotEq
+      subst hmembersEq
+      have hwordOffsetEq : wordOffset = wordOffset0 := by
+        rw [hmember] at hmember'
+        injection hmember' with hmemberEq
+        injection hmemberEq with _ hEq
+        exact hEq.symm
+      subst hwordOffsetEq
+      exact stmtListGenericCore_singleton_setStructMemberSingle_of_slotSafety
+        hkey hscopeKey hvalue hscopeValue hm hnotm2 hmembers hmember hws hss
+  | setMapping2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot =>
+      rename_i scope fieldName key1 key2 value slot0
+      rcases hsafety (.setMapping2 fieldName key1 key2 value) (by simp) with ⟨slot, hfind, hm, hws, hss⟩
+      have hslotEq : slot = slot0 := by
+        rw [hslot] at hfind
+        injection hfind with hEq
+        exact hEq.symm
+      subst hslotEq
+      exact stmtListGenericCore_singleton_setMapping2Single_of_slotSafety
+        hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hm hws hss
+  | setMapping2WordSingle hkey1 hscope1 hkey2 hscope2
+      hvalue hscopeValue hslot =>
+      rename_i scope fieldName key1 key2 value wordOffset slot0
+      rcases hsafety (.setMapping2Word fieldName key1 key2 wordOffset value) (by simp) with
+        ⟨slot, hfind, hm, hws, hss⟩
+      have hslotEq : slot = slot0 := by
+        rw [hslot] at hfind
+        injection hfind with hEq
+        exact hEq.symm
+      subst hslotEq
+      exact stmtListGenericCore_singleton_setMapping2WordSingle_of_slotSafety
+        hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hm hws hss
+  | setStructMember2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue
+      hslot hmembers hmember =>
+      rename_i scope fieldName memberName key1 key2 value slot0 wordOffset0 members0
+      rcases hsafety (.setStructMember2 fieldName key1 key2 memberName value) (by simp) with ⟨slot, wordOffset, members, hfind, hmembers',
+        hmember', hm, hws, hss⟩
+      have hslotEq : slot = slot0 := by
+        rw [hslot] at hfind
+        injection hfind with hEq
+        exact hEq.symm
+      have hmembersEq : members = members0 := by
+        rw [hmembers] at hmembers'
+        injection hmembers' with hEq
+        exact hEq.symm
+      subst hslotEq
+      subst hmembersEq
+      have hwordOffsetEq : wordOffset = wordOffset0 := by
+        rw [hmember] at hmember'
+        injection hmember' with hmemberEq
+        injection hmemberEq with _ hEq
+        exact hEq.symm
+      subst hwordOffsetEq
+      exact stmtListGenericCore_singleton_setStructMember2Single_of_slotSafety
+        hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hm hmembers hmember hws hss
+  | requireClause clause hsupportedRest ih =>
+      exact stmtListGenericCore_of_supportedStmtList_requireClause_of_surface_exceptMappingWrites
+        clause
+        (fun hrestSurface =>
+          ih
+            (fun stmt hmem => hsafety stmt (by simp [hmem]))
+            hrestSurface)
+        hsurface
+  | iteTerminal hcond hinScope hthen helse =>
+      exact stmtListGenericCore_of_supportedStmtList_iteTerminal_of_surface
+        hcond hinScope hthen helse
+  | append hpfx hsfx ihPrefix ihSuffix =>
+      exact stmtListGenericCore_of_supportedStmtList_append_of_surface_exceptMappingWrites
+        hpfx hsfx
+        (fun hpfxSurface =>
+          ihPrefix
+            (fun stmt hmem => hsafety stmt (by simp [hmem]))
+            hpfxSurface)
+        (fun hsfxSurface =>
+          ihSuffix
+            (fun stmt hmem => hsafety stmt (by simp [hmem]))
+            hsfxSurface)
+        hsurface
+
 /-- The current supported statement-list witness already suffices for the
 weaker helper-free source-step interface consumed by the exact helper-aware
 seam. This keeps helper-free reuse derivable directly from the proof-layer
@@ -12797,6 +13119,26 @@ theorem stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface_exceptMa
       hsafety
       hsurface)
 
+theorem stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface_exceptMappingWrites_stmtSafety
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (hSupported : SupportedStmtList fields scope stmts)
+    (hsafety : ∀ stmt ∈ stmts, StmtMappingWriteSlotSafe fields stmt)
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites stmts = false) :
+    StmtListHelperFreeStepInterface fields scope stmts :=
+  stmtListHelperFreeStepInterface_of_core
+    (stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites_stmtSafety
+      (fields := fields)
+      (scope := scope)
+      (stmts := stmts)
+      hnoConflict
+      hSupported
+      hsafety
+      hsurface)
+
 theorem stmtListHelperFreeStepInterface_of_supportedStmtList_of_featureClosed_exceptMappingWrites
     {fields : List Field}
     {scope : List String}
@@ -12814,6 +13156,31 @@ theorem stmtListHelperFreeStepInterface_of_supportedStmtList_of_featureClosed_ex
     stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites_eq_false_of_featureClosed
       stmts hcore hstate hcalls heffects
   stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface_exceptMappingWrites
+    (fields := fields)
+    (scope := scope)
+    (stmts := stmts)
+    hnoConflict
+    hSupported
+    hsafety
+    hsurface
+
+theorem stmtListHelperFreeStepInterface_of_supportedStmtList_of_featureClosed_exceptMappingWrites_stmtSafety
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (hSupported : SupportedStmtList fields scope stmts)
+    (hcore : stmtListTouchesUnsupportedCoreSurface stmts = false)
+    (hstate : stmtListTouchesUnsupportedStateSurfaceExceptMappingWrites stmts = false)
+    (hcalls : stmtListTouchesUnsupportedCallSurface stmts = false)
+    (heffects : stmtListTouchesUnsupportedEffectSurface stmts = false)
+    (hsafety : ∀ stmt ∈ stmts, StmtMappingWriteSlotSafe fields stmt) :
+    StmtListHelperFreeStepInterface fields scope stmts :=
+  have hsurface :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites stmts = false :=
+    stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites_eq_false_of_featureClosed
+      stmts hcore hstate hcalls heffects
+  stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface_exceptMappingWrites_stmtSafety
     (fields := fields)
     (scope := scope)
     (stmts := stmts)
@@ -12851,6 +13218,25 @@ theorem SupportedBodyInterfaceExceptMappingWrites.helperFreeStepInterface
     (hsafety : SupportedStmtListMappingWriteSlotSafety spec.fields) :
     StmtListHelperFreeStepInterface spec.fields (fn.params.map (·.name)) fn.body :=
   stmtListHelperFreeStepInterface_of_supportedStmtList_of_featureClosed_exceptMappingWrites
+    (fields := spec.fields)
+    (scope := fn.params.map (·.name))
+    (stmts := fn.body)
+    hnoConflict
+    hBody.stmtList
+    hBody.core.surfaceClosed
+    hBody.state.surfaceClosed
+    (SupportedBodyCallInterface.surfaceClosed_exceptMappingWrites (hBody := hBody))
+    hBody.effects.surfaceClosed
+    hsafety
+
+theorem SupportedBodyInterfaceExceptMappingWrites.helperFreeStepInterface_stmtSafety
+    {spec : CompilationModel}
+    {fn : FunctionSpec}
+    (hBody : SupportedBodyInterfaceExceptMappingWrites spec fn)
+    (hnoConflict : firstFieldWriteSlotConflict spec.fields = none)
+    (hsafety : ∀ stmt ∈ fn.body, StmtMappingWriteSlotSafe spec.fields stmt) :
+    StmtListHelperFreeStepInterface spec.fields (fn.params.map (·.name)) fn.body :=
+  stmtListHelperFreeStepInterface_of_supportedStmtList_of_featureClosed_exceptMappingWrites_stmtSafety
     (fields := spec.fields)
     (scope := fn.params.map (·.name))
     (stmts := fn.body)

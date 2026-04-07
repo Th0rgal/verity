@@ -33,6 +33,7 @@ import Verity.Proofs.Stdlib.Math
 import Compiler.Proofs.ArithmeticProfile
 import Compiler.Proofs.EndToEnd
 import Compiler.Proofs.IRGeneration.Contract
+import Compiler.Proofs.IRGeneration.ContractFeatureTest
 import Compiler.Proofs.IRGeneration.Dispatch
 import Compiler.Proofs.IRGeneration.Function
 import Compiler.Proofs.IRGeneration.FunctionBody
@@ -704,11 +705,13 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_legacyCompatibleRuntimeContract
 #print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic
 #print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic_except_mapping_writes
+#print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic_except_mapping_writes_stmtSafety
 #print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic_with_helper_proofs
 #print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir
 #print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir_of_bodyCallsDisjoint
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_except_mapping_writes
+#print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_except_mapping_writes_stmtSafety
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs_and_helper_ir
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs_and_helper_ir_goal
@@ -716,6 +719,14 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs_and_helper_ir_closed
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs_and_helper_ir_supported
 #print axioms Compiler.Proofs.IRGeneration.Contract.counter_supported_spec_compile_preserves_semantics
+
+-- Compiler/Proofs/IRGeneration/ContractFeatureTest.lean
+-- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.literalMappingWrite_noPackedFields  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.literalMappingWrite_noFallback  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.literalMappingWrite_noReceive  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.literalMappingWrite_noConflict  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.literalMappingWrite_txNormalized  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.literalMappingWrite_calldataFits  -- private
 
 -- Compiler/Proofs/IRGeneration/Dispatch.lean
 #print axioms Compiler.Proofs.IRGeneration.Dispatch.runtimeContractOfFunctions_internalFunctions
@@ -770,7 +781,9 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal_and_helper_ir
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal_and_helper_ir_of_bodyCallsDisjoint
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_body_interface_except_mapping_writes
+#print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_body_interface_except_mapping_writes_stmtSafety
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_except_mapping_writes
+#print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_except_mapping_writes_stmtSafety
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_goal
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs
 
@@ -1428,11 +1441,15 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_requireClause_of_surface_exceptMappingWrites  -- private
 #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_of_surface
 #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites
+#print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites_stmtSafety
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface_exceptMappingWrites
+#print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface_exceptMappingWrites_stmtSafety
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeStepInterface_of_supportedStmtList_of_featureClosed_exceptMappingWrites
+#print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeStepInterface_of_supportedStmtList_of_featureClosed_exceptMappingWrites_stmtSafety
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyInterface.helperFreeStepInterface
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyInterfaceExceptMappingWrites.helperFreeStepInterface
+#print axioms Compiler.Proofs.IRGeneration.SupportedBodyInterfaceExceptMappingWrites.helperFreeStepInterface_stmtSafety
 -- #print axioms Compiler.Proofs.IRGeneration.scopeNamesIncluded_foldl_stmtNextScope  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_requireClausesOnly  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_requireClausesThenReturnLiteral  -- private
@@ -2070,4 +2087,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1939 theorems/lemmas (1301 public, 638 private, 0 sorry'd)
+-- Total: 1953 theorems/lemmas (1309 public, 644 private, 0 sorry'd)
