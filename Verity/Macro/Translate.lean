@@ -1190,6 +1190,25 @@ private def internalHelperSpecName
     (Compiler.CompilationModel.internalFunctionPrefix ++ fnName)
     (functions.map (·.name)).toList
 
+private partial def hasDynamicInternalHelperType (ty : ValueType) : Bool :=
+  match ty with
+  | .string | .bytes | .array _ => true
+  | .tuple elemTys => elemTys.any hasDynamicInternalHelperType
+  | _ => false
+
+private def supportsInternalHelperSpec (fn : FunctionDecl) : Bool :=
+  fn.name != "fallback" &&
+    fn.name != "receive" &&
+    fn.params.all (fun param => !hasDynamicInternalHelperType param.ty) &&
+    !hasDynamicInternalHelperType fn.returnTy
+
+private def ensureSupportsInternalHelperSpec
+    (stx : Syntax)
+    (fn : FunctionDecl) : CommandElabM Unit := do
+  unless supportsInternalHelperSpec fn do
+    throwErrorAt stx
+      s!"helper call '{fn.name}' uses a parameter or return type that direct macro helper lowering does not support yet; only static non-fallback/non-receive helpers can be lowered to internal specs"
+
 mutual
 private partial def inferPureExprType
     (fields : Array StorageFieldDecl)
@@ -1546,6 +1565,7 @@ private partial def inferBindSourceType
   | _ =>
       match matchLocalFunctionApp? functions rhs with
       | some (fn, argTerms) =>
+          ensureSupportsInternalHelperSpec rhs fn
           for arg in argTerms do
             let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals arg
           match fn.returnTy with
@@ -1600,6 +1620,7 @@ private partial def inferTupleSourceTypes?
       | other =>
           match matchLocalFunctionApp? functions other with
           | some (fn, argTerms) =>
+              ensureSupportsInternalHelperSpec rhs fn
               for arg in argTerms do
                 let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals arg
               match fn.returnTy with
@@ -2156,6 +2177,7 @@ private def tupleInternalCallAssignStmt?
   let resultNameTerms := targetNames.toArray.map strTerm
   match matchLocalFunctionApp? functions rhs with
   | some (fn, argTerms) =>
+      ensureSupportsInternalHelperSpec rhs fn
       let argExprs ← argTerms.mapM
         (translatePureExprWithTypes fields constDecls immutableDecls params locals)
       pure (some (← `(Compiler.CompilationModel.Stmt.internalCallAssign
@@ -2360,6 +2382,7 @@ private def translateBindSource
   | _ =>
       match matchLocalFunctionApp? functions rhs with
       | some (fn, argTerms) =>
+          ensureSupportsInternalHelperSpec rhs fn
           let argExprs ← argTerms.mapM
             (translatePureExprWithTypes fields constDecls immutableDecls params locals)
           `(Compiler.CompilationModel.Expr.internalCall
@@ -2662,6 +2685,7 @@ private partial def validateEffectStmtExprTypes
   | _ =>
       match matchLocalFunctionApp? functions stx with
       | some (fn, argTerms) =>
+          ensureSupportsInternalHelperSpec stx fn
           if fn.returnTy != .unit then
             throwErrorAt stx
               s!"helper call '{fn.name}' returns {renderValueType fn.returnTy}; use `let ... ← {fn.name} ...` or tuple destructuring"
@@ -3068,6 +3092,7 @@ private def translateEffectStmt
   | _ =>
       match matchLocalFunctionApp? functions stx with
       | some (fn, argTerms) =>
+          ensureSupportsInternalHelperSpec stx fn
           if fn.returnTy != .unit then
             throwErrorAt stx
               s!"helper call '{fn.name}' returns {renderValueType fn.returnTy}; use `let ... ← {fn.name} ...` or tuple destructuring"
@@ -3551,18 +3576,6 @@ private def mkModelLocalObligationTerm (obligation : LocalObligationDecl) : Comm
       $(strTerm obligation.name)
       $(strTerm obligation.obligation)
       $proofStatusTerm)
-
-private partial def hasDynamicInternalHelperType (ty : ValueType) : Bool :=
-  match ty with
-  | .string | .bytes | .array _ => true
-  | .tuple elemTys => elemTys.any hasDynamicInternalHelperType
-  | _ => false
-
-private def supportsInternalHelperSpec (fn : FunctionDecl) : Bool :=
-  fn.name != "fallback" &&
-    fn.name != "receive" &&
-    fn.params.all (fun param => !hasDynamicInternalHelperType param.ty) &&
-    !hasDynamicInternalHelperType fn.returnTy
 
 private def mkSpecCommand
     (contractName : String)

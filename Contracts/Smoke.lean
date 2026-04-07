@@ -624,6 +624,47 @@ verity_contract DirectHelperCallSmoke where
     let right ← getStorage lastRight
     return (current, left, right)
 
+/--
+error: helper call 'consumePayload' uses a parameter or return type that direct macro helper lowering does not support yet; only static non-fallback/non-receive helpers can be lowered to internal specs
+-/
+#guard_msgs in
+verity_contract DirectHelperCallDynamicEffectRejected where
+  storage
+
+  function consumePayload (_payload : Bytes) : Unit := do
+    pure ()
+
+  function run (payload : Bytes) : Unit := do
+    consumePayload payload
+
+/--
+error: helper call 'measurePayload' uses a parameter or return type that direct macro helper lowering does not support yet; only static non-fallback/non-receive helpers can be lowered to internal specs
+-/
+#guard_msgs in
+verity_contract DirectHelperCallDynamicBindRejected where
+  storage
+
+  function measurePayload (_payload : Bytes) : Uint256 := do
+    return 0
+
+  function run (payload : Bytes) : Uint256 := do
+    let measured ← measurePayload payload
+    return measured
+
+/--
+error: helper call 'fanoutPayload' uses a parameter or return type that direct macro helper lowering does not support yet; only static non-fallback/non-receive helpers can be lowered to internal specs
+-/
+#guard_msgs in
+verity_contract DirectHelperCallDynamicTupleRejected where
+  storage
+
+  function fanoutPayload (_payload : Bytes) : Tuple [Uint256, Uint256] := do
+    return (0, 1)
+
+  function run (payload : Bytes) : Tuple [Uint256, Uint256] := do
+    let (left, right) ← fanoutPayload payload
+    return (left, right)
+
 verity_contract Uint8Smoke where
   storage
     sentinel : Uint256 := slot 0
