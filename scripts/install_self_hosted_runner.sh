@@ -146,14 +146,23 @@ install_runner_files() {
   "
 }
 
+installed_service_name() {
+  local runner_dir="$1"
+  if [ -f "$runner_dir/.service" ]; then
+    tr -d '\r\n' < "$runner_dir/.service"
+  fi
+}
+
 configure_runner() {
   local index="$1"
   local runner_dir="$RUNNER_ROOT/$index"
   local runner_name="${RUNNER_NAME_PREFIX}-${index}"
   local service_name="actions.runner.$(printf '%s' "${RUNNER_URL#https://github.com/}" | tr '/' '-').${runner_name}.service"
+  local installed_service_unit
   local labels_file="$runner_dir/.configured-labels"
   local labels
   labels="$(runner_labels_for_index "$index")"
+  installed_service_unit="$(installed_service_name "$runner_dir")"
 
   install_runner_files "$runner_dir"
 
@@ -165,7 +174,13 @@ configure_runner() {
 
   if [ -f "$runner_dir/.runner" ]; then
     if [ ! -f "$labels_file" ] || [ "$(cat "$labels_file")" != "$labels" ]; then
-      if systemctl list-unit-files "$service_name" >/dev/null 2>&1; then
+      if [ -n "$installed_service_unit" ] && systemctl list-unit-files "$installed_service_unit" >/dev/null 2>&1; then
+        (
+          cd "$runner_dir"
+          ./svc.sh stop || true
+          ./svc.sh uninstall || true
+        )
+      elif systemctl list-unit-files "$service_name" >/dev/null 2>&1; then
         systemctl stop "$service_name" || true
       fi
       sudo -u "$RUNNER_USER" bash -lc "
@@ -174,11 +189,13 @@ configure_runner() {
         ./config.sh remove --local
       "
     else
-      if systemctl list-unit-files "$service_name" >/dev/null 2>&1; then
+      if [ -n "$installed_service_unit" ] && systemctl list-unit-files "$installed_service_unit" >/dev/null 2>&1; then
         (
           cd "$runner_dir"
           ./svc.sh start
         )
+      elif systemctl list-unit-files "$service_name" >/dev/null 2>&1; then
+        systemctl start "$service_name" || true
       fi
       return
     fi
