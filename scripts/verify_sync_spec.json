@@ -656,7 +656,7 @@
         }
       },
       {
-        "name": "Download compiler binaries (fallback)",
+        "name": "Download compiler binaries",
         "uses": "actions/download-artifact@v7",
         "with": {
           "name": "verity-compiler-binaries",
@@ -706,7 +706,7 @@
         }
       },
       {
-        "name": "Download compiler binaries (fallback)",
+        "name": "Download compiler binaries",
         "uses": "actions/download-artifact@v7",
         "with": {
           "name": "verity-compiler-binaries",

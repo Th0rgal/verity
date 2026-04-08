@@ -1029,62 +1029,29 @@ jobs:
           name: generated-yul-patched
           path: compiler/yul-patched
 
-      - name: Restore gas reports (local)
-        id: local-restore-gas
-        continue-on-error: true
-        run: |
-          source_dir="${VERIFY_LOCAL_ARTIFACT_ROOT}/${{ github.run_id }}/gas-reports"
-          if [ -f "$source_dir/.ready" ]; then
-            cp "$source_dir/gas-report-static.tsv" .
-            cp "$source_dir/gas-report-static-patched.tsv" .
-            mkdir -p compiler
-            cp "$source_dir/patch-report.tsv" compiler/
-          else
-            exit 1
-          fi
-
-      - name: Download static gas report (fallback)
-        if: steps.local-restore-gas.outcome != 'success'
+      - name: Download static gas report
         uses: actions/download-artifact@v7
         with:
           name: static-gas-report
 
-      - name: Download patched static gas report (fallback)
-        if: steps.local-restore-gas.outcome != 'success'
+      - name: Download patched static gas report
         uses: actions/download-artifact@v7
         with:
           name: static-gas-report-patched
 
-      - name: Download patch coverage report (fallback)
-        if: steps.local-restore-gas.outcome != 'success'
+      - name: Download patch coverage report
         uses: actions/download-artifact@v7
         with:
           name: patch-coverage-report
           path: compiler
 
-      - name: Restore compiler binaries (local)
-        id: local-restore-binaries
-        continue-on-error: true
-        run: |
-          source_dir="${VERIFY_LOCAL_ARTIFACT_ROOT}/${{ github.run_id }}/verity-compiler-binaries"
-          if [ -f "$source_dir/.ready" ]; then
-            mkdir -p compiler/bin
-            cp -a "$source_dir/." compiler/bin/
-            rm -f compiler/bin/.ready
-            chmod +x compiler/bin/verity-compiler compiler/bin/verity-compiler-patched compiler/bin/difftest-interpreter
-          else
-            exit 1
-          fi
-
-      - name: Download compiler binaries (fallback)
-        if: steps.local-restore-binaries.outcome != 'success'
+      - name: Download compiler binaries
         uses: actions/download-artifact@v7
         with:
           name: verity-compiler-binaries
           path: compiler/bin
 
       - name: Restore compiler executable bits
-        if: steps.local-restore-binaries.outcome != 'success'
         run: chmod +x compiler/bin/verity-compiler compiler/bin/verity-compiler-patched compiler/bin/difftest-interpreter
 
       - name: Setup solc
@@ -1262,19 +1229,7 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Restore gas reports (local)
-        id: local-restore-gas
-        continue-on-error: true
-        run: |
-          source_dir="${VERIFY_LOCAL_ARTIFACT_ROOT}/${{ github.run_id }}/gas-reports"
-          if [ -f "$source_dir/.ready" ]; then
-            cp "$source_dir/gas-report-static.tsv" .
-          else
-            exit 1
-          fi
-
-      - name: Download static gas report (fallback)
-        if: steps.local-restore-gas.outcome != 'success'
+      - name: Download static gas report
         uses: actions/download-artifact@v7
         with:
           name: static-gas-report
@@ -1308,29 +1263,13 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Restore compiler binaries (local)
-        id: local-restore-binaries
-        continue-on-error: true
-        run: |
-          source_dir="${VERIFY_LOCAL_ARTIFACT_ROOT}/${{ github.run_id }}/verity-compiler-binaries"
-          if [ -f "$source_dir/.ready" ]; then
-            mkdir -p compiler/bin
-            cp -a "$source_dir/." compiler/bin/
-            rm -f compiler/bin/.ready
-            chmod +x compiler/bin/verity-compiler compiler/bin/verity-compiler-patched compiler/bin/difftest-interpreter
-          else
-            exit 1
-          fi
-
-      - name: Download compiler binaries (fallback)
-        if: steps.local-restore-binaries.outcome != 'success'
+      - name: Download compiler binaries
         uses: actions/download-artifact@v7
         with:
           name: verity-compiler-binaries
           path: compiler/bin
 
       - name: Restore compiler executable bits
-        if: steps.local-restore-binaries.outcome != 'success'
         run: chmod +x compiler/bin/verity-compiler compiler/bin/verity-compiler-patched compiler/bin/difftest-interpreter
 
       - name: Setup Foundry environment
@@ -1433,29 +1372,13 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Restore compiler binaries (local)
-        id: local-restore-binaries
-        continue-on-error: true
-        run: |
-          source_dir="${VERIFY_LOCAL_ARTIFACT_ROOT}/${{ github.run_id }}/verity-compiler-binaries"
-          if [ -f "$source_dir/.ready" ]; then
-            mkdir -p compiler/bin
-            cp -a "$source_dir/." compiler/bin/
-            rm -f compiler/bin/.ready
-            chmod +x compiler/bin/verity-compiler compiler/bin/verity-compiler-patched compiler/bin/difftest-interpreter
-          else
-            exit 1
-          fi
-
-      - name: Download compiler binaries (fallback)
-        if: steps.local-restore-binaries.outcome != 'success'
+      - name: Download compiler binaries
         uses: actions/download-artifact@v7
         with:
           name: verity-compiler-binaries
           path: compiler/bin
 
       - name: Restore compiler executable bits
-        if: steps.local-restore-binaries.outcome != 'success'
         run: chmod +x compiler/bin/verity-compiler compiler/bin/verity-compiler-patched compiler/bin/difftest-interpreter
 
       - name: Setup Foundry environment
