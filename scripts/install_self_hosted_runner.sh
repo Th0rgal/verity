@@ -33,7 +33,7 @@ runner_labels_for_index() {
       if [ "$RUNNER_COUNT" -eq 1 ]; then
         case "$1" in
           1)
-            printf '%s' "${RUNNER_LABELS_1:-verity,build,cpu-8,mem-64g}"
+            printf '%s' "${RUNNER_LABELS_1:-verity,fastlane,build,cpu-8,mem-64g}"
             ;;
           *)
             printf '%s' "${RUNNER_LABELS_EXTRA:-verity,build,build-heavy,cpu-8,mem-64g}"
@@ -151,6 +151,7 @@ configure_runner() {
   local runner_dir="$RUNNER_ROOT/$index"
   local runner_name="${RUNNER_NAME_PREFIX}-${index}"
   local service_name="actions.runner.$(printf '%s' "${RUNNER_URL#https://github.com/}" | tr '/' '-').${runner_name}.service"
+  local labels_file="$runner_dir/.configured-labels"
   local labels
   labels="$(runner_labels_for_index "$index")"
 
@@ -162,12 +163,30 @@ configure_runner() {
     return
   fi
 
+  if [ -f "$runner_dir/.runner" ]; then
+    if [ ! -f "$labels_file" ] || [ "$(cat "$labels_file")" != "$labels" ]; then
+      if systemctl list-unit-files "$service_name" >/dev/null 2>&1; then
+        systemctl stop "$service_name" || true
+      fi
+      sudo -u "$RUNNER_USER" bash -lc "
+        set -euo pipefail
+        cd '$runner_dir'
+        ./config.sh remove --local
+      "
+    else
+      if systemctl list-unit-files "$service_name" >/dev/null 2>&1; then
+        (
+          cd "$runner_dir"
+          ./svc.sh start
+        )
+      fi
+      return
+    fi
+  fi
+
   sudo -u "$RUNNER_USER" bash -lc "
     set -euo pipefail
     cd '$runner_dir'
-    if [ -f .runner ]; then
-      exit 0
-    fi
     ./config.sh \
       --unattended \
       --replace \
@@ -178,6 +197,8 @@ configure_runner() {
       --labels '$labels' \
       --work '_work'
   "
+  printf '%s\n' "$labels" > "$labels_file"
+  chown "$RUNNER_USER:$RUNNER_GROUP" "$labels_file"
 
   if ! systemctl list-unit-files "$service_name" >/dev/null 2>&1; then
     (
