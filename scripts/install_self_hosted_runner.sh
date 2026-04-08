@@ -121,6 +121,7 @@ install_runner_files() {
   local url="https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/${archive}"
 
   mkdir -p "$runner_dir"
+  chown -R "$RUNNER_USER:$RUNNER_GROUP" "$runner_dir"
   if [ -x "$runner_dir/bin/Runner.Listener" ]; then
     return
   fi
