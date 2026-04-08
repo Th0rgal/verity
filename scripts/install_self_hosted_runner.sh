@@ -30,6 +30,17 @@ fi
 runner_labels_for_index() {
   case "$RUNNER_PROFILE" in
     auto)
+      if [ "$RUNNER_COUNT" -eq 1 ]; then
+        case "$1" in
+          1)
+            printf '%s' "${RUNNER_LABELS_1:-verity,build,cpu-8,mem-64g}"
+            ;;
+          *)
+            printf '%s' "${RUNNER_LABELS_EXTRA:-verity,build,build-heavy,cpu-8,mem-64g}"
+            ;;
+        esac
+        return
+      fi
       case "$1" in
         1)
           printf '%s' "${RUNNER_LABELS_1:-verity,fastlane}"
