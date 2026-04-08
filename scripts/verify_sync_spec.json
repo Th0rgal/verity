@@ -358,7 +358,7 @@
         }
       },
       {
-        "name": "Download prepared Lean workspace build (fallback)",
+        "name": "Download prepared Lean workspace build",
         "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-build"
@@ -396,7 +396,7 @@
         }
       },
       {
-        "name": "Download prepared Lean workspace build (fallback)",
+        "name": "Download prepared Lean workspace build",
         "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-build"
@@ -449,7 +449,7 @@
         }
       },
       {
-        "name": "Download prepared Lean workspace build (fallback)",
+        "name": "Download prepared Lean workspace build",
         "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-build"
@@ -558,14 +558,14 @@
         }
       },
       {
-        "name": "Download prepared Lean workspace build (fallback)",
+        "name": "Download prepared Lean workspace build",
         "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-build"
         }
       },
       {
-        "name": "Download compiler workspace build (fallback)",
+        "name": "Download compiler workspace build",
         "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-compiler-build"
@@ -596,14 +596,14 @@
         }
       },
       {
-        "name": "Download prepared Lean workspace build (fallback)",
+        "name": "Download prepared Lean workspace build",
         "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-build"
         }
       },
       {
-        "name": "Download compiler workspace build (fallback)",
+        "name": "Download compiler workspace build",
         "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-compiler-build"
@@ -676,14 +676,14 @@
         }
       },
       {
-        "name": "Download prepared Lean workspace build (fallback)",
+        "name": "Download prepared Lean workspace build",
         "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-build"
         }
       },
       {
-        "name": "Download compiler workspace build (fallback)",
+        "name": "Download compiler workspace build",
         "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-compiler-build"

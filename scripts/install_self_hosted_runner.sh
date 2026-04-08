@@ -13,7 +13,7 @@ CACHE_ROOT="${CACHE_ROOT:-/srv/verity-ci-cache}"
 RUNNER_URL="${RUNNER_URL:-}"
 RUNNER_TOKEN="${RUNNER_TOKEN:-}"
 RUNNER_GROUP_NAME="${RUNNER_GROUP_NAME:-Default}"
-RUNNER_PROFILE="${RUNNER_PROFILE:-build}"
+RUNNER_PROFILE="${RUNNER_PROFILE:-auto}"
 RUNNER_NAME_PREFIX="${RUNNER_NAME_PREFIX:-$(hostname)-verity-${RUNNER_PROFILE}}"
 RUNNER_VERSION="${RUNNER_VERSION:-}"
 if [ -z "${RUNNER_COUNT:-}" ]; then
@@ -29,6 +29,19 @@ fi
 
 runner_labels_for_index() {
   case "$RUNNER_PROFILE" in
+    auto)
+      case "$1" in
+        1)
+          printf '%s' "${RUNNER_LABELS_1:-verity,fastlane}"
+          ;;
+        2)
+          printf '%s' "${RUNNER_LABELS_2:-verity,build,build-heavy,cpu-8,mem-64g}"
+          ;;
+        *)
+          printf '%s' "${RUNNER_LABELS_EXTRA:-verity,build,build-heavy,cpu-8,mem-64g}"
+          ;;
+      esac
+      ;;
     fastlane)
       case "$1" in
         1)
@@ -186,6 +199,6 @@ If RUNNER_URL and RUNNER_TOKEN were set, the runner services are now installed.
 Otherwise, rerun with:
   RUNNER_URL=https://github.com/<owner>/<repo> \\
   RUNNER_TOKEN=<registration-token> \\
-  RUNNER_PROFILE=fastlane|build \\
+  RUNNER_PROFILE=auto|fastlane|build \\
   $0
 EOF

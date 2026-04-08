@@ -104,9 +104,6 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Cleanup stale local artifacts
-        run: scripts/ci_local_persistence.sh cleanup --max-age-hours 24
-
       - uses: dorny/paths-filter@v4
         id: filter
         with:
@@ -280,6 +277,9 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Cleanup stale local artifacts
+        run: scripts/ci_local_persistence.sh cleanup --max-age-hours 24
+
       - name: Setup Lean
         id: setup-lean
         uses: ./.github/actions/setup-lean
@@ -319,7 +319,6 @@ jobs:
             --path lean-workspace-build.tar
 
       - name: Upload prepared Lean workspace build
-        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: lean-workspace-build
@@ -365,23 +364,12 @@ jobs:
           disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
           cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
-      - name: Restore Lean workspace build (local)
-        id: local-restore-build
-        continue-on-error: true
-        run: |
-          scripts/ci_local_persistence.sh fetch \
-            --run-id "${{ github.run_id }}" \
-            --name lean-workspace-build \
-            --timeout 30
-
-      - name: Download prepared Lean workspace build (fallback)
-        if: steps.local-restore-build.outcome != 'success'
+      - name: Download prepared Lean workspace build
         uses: actions/download-artifact@v7
         with:
           name: lean-workspace-build
 
-      - name: Restore prepared Lean workspace build (fallback)
-        if: steps.local-restore-build.outcome != 'success'
+      - name: Restore prepared Lean workspace build
         run: tar -xf lean-workspace-build.tar
 
       - name: Build macro round-trip fuzz executable
@@ -436,23 +424,12 @@ jobs:
           disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
           cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
-      - name: Restore Lean workspace build (local)
-        id: local-restore-build
-        continue-on-error: true
-        run: |
-          scripts/ci_local_persistence.sh fetch \
-            --run-id "${{ github.run_id }}" \
-            --name lean-workspace-build \
-            --timeout 30
-
-      - name: Download prepared Lean workspace build (fallback)
-        if: steps.local-restore-build.outcome != 'success'
+      - name: Download prepared Lean workspace build
         uses: actions/download-artifact@v7
         with:
           name: lean-workspace-build
 
-      - name: Restore prepared Lean workspace build (fallback)
-        if: steps.local-restore-build.outcome != 'success'
+      - name: Restore prepared Lean workspace build
         run: tar -xf lean-workspace-build.tar
 
       - name: Build split Lake packages independently
@@ -663,23 +640,12 @@ jobs:
           fi
           cp -a "$RUNNER_TEMP/compiler-ccache-cache/." "$CCACHE_DIR/"
 
-      - name: Restore Lean workspace build (local)
-        id: local-restore-build
-        continue-on-error: true
-        run: |
-          scripts/ci_local_persistence.sh fetch \
-            --run-id "${{ github.run_id }}" \
-            --name lean-workspace-build \
-            --timeout 30
-
-      - name: Download prepared Lean workspace build (fallback)
-        if: steps.local-restore-build.outcome != 'success'
+      - name: Download prepared Lean workspace build
         uses: actions/download-artifact@v7
         with:
           name: lean-workspace-build
 
-      - name: Restore prepared Lean workspace build (fallback)
-        if: steps.local-restore-build.outcome != 'success'
+      - name: Restore prepared Lean workspace build
         run: tar -xf lean-workspace-build.tar
 
       - name: Reset ccache statistics
@@ -872,14 +838,12 @@ jobs:
             --path "$staging"
 
       - name: Upload difftest interpreter
-        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: difftest-interpreter
           path: .lake/build/bin/difftest-interpreter
 
       - name: Upload compiler binaries
-        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: verity-compiler-binaries
@@ -887,7 +851,6 @@ jobs:
           compression-level: 0
 
       - name: Upload compiler workspace build
-        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: lean-workspace-compiler-build
@@ -895,35 +858,30 @@ jobs:
           compression-level: 0
 
       - name: Upload generated Yul
-        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: generated-yul
           path: compiler/yul
 
       - name: Upload patched Yul
-        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: generated-yul-patched
           path: compiler/yul-patched
 
       - name: Upload patch coverage report
-        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: patch-coverage-report
           path: compiler/patch-report.tsv
 
       - name: Upload static gas report
-        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: static-gas-report
           path: gas-report-static.tsv
 
       - name: Upload patched static gas report
-        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: static-gas-report-patched
@@ -952,42 +910,20 @@ jobs:
           cache-extra-restore-keys: |
             lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
-      - name: Restore Lean workspace build (local)
-        id: local-restore-build
-        continue-on-error: true
-        run: |
-          scripts/ci_local_persistence.sh fetch \
-            --run-id "${{ github.run_id }}" \
-            --name lean-workspace-build \
-            --timeout 30
-
-      - name: Download prepared Lean workspace build (fallback)
-        if: steps.local-restore-build.outcome != 'success'
+      - name: Download prepared Lean workspace build
         uses: actions/download-artifact@v7
         with:
           name: lean-workspace-build
 
-      - name: Restore prepared Lean workspace build (fallback)
-        if: steps.local-restore-build.outcome != 'success'
+      - name: Restore prepared Lean workspace build
         run: tar -xf lean-workspace-build.tar
 
-      - name: Restore compiler workspace build (local)
-        id: local-restore-compiler-build
-        continue-on-error: true
-        run: |
-          scripts/ci_local_persistence.sh fetch \
-            --run-id "${{ github.run_id }}" \
-            --name lean-workspace-compiler-build \
-            --timeout 30
-
-      - name: Download compiler workspace build (fallback)
-        if: steps.local-restore-compiler-build.outcome != 'success'
+      - name: Download compiler workspace build
         uses: actions/download-artifact@v7
         with:
           name: lean-workspace-compiler-build
 
-      - name: Restore compiler workspace build (fallback)
-        if: steps.local-restore-compiler-build.outcome != 'success'
+      - name: Restore compiler workspace build
         run: tar -xf lean-workspace-compiler-build.tar
 
       - name: Restore generated Yul (local)
@@ -1144,42 +1080,20 @@ jobs:
           cache-extra-restore-keys: |
             lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
-      - name: Restore Lean workspace build (local)
-        id: local-restore-build
-        continue-on-error: true
-        run: |
-          scripts/ci_local_persistence.sh fetch \
-            --run-id "${{ github.run_id }}" \
-            --name lean-workspace-build \
-            --timeout 30
-
-      - name: Download prepared Lean workspace build (fallback)
-        if: steps.local-restore-build.outcome != 'success'
+      - name: Download prepared Lean workspace build
         uses: actions/download-artifact@v7
         with:
           name: lean-workspace-build
 
-      - name: Restore prepared Lean workspace build (fallback)
-        if: steps.local-restore-build.outcome != 'success'
+      - name: Restore prepared Lean workspace build
         run: tar -xf lean-workspace-build.tar
 
-      - name: Restore compiler workspace build (local)
-        id: local-restore-compiler-build
-        continue-on-error: true
-        run: |
-          scripts/ci_local_persistence.sh fetch \
-            --run-id "${{ github.run_id }}" \
-            --name lean-workspace-compiler-build \
-            --timeout 30
-
-      - name: Download compiler workspace build (fallback)
-        if: steps.local-restore-compiler-build.outcome != 'success'
+      - name: Download compiler workspace build
         uses: actions/download-artifact@v7
         with:
           name: lean-workspace-compiler-build
 
-      - name: Restore compiler workspace build (fallback)
-        if: steps.local-restore-compiler-build.outcome != 'success'
+      - name: Restore compiler workspace build
         run: tar -xf lean-workspace-compiler-build.tar
 
       - name: Build compiler CLI regression executable
@@ -1302,42 +1216,20 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Restore Lean workspace build (local)
-        id: local-restore-build
-        continue-on-error: true
-        run: |
-          scripts/ci_local_persistence.sh fetch \
-            --run-id "${{ github.run_id }}" \
-            --name lean-workspace-build \
-            --timeout 30
-
-      - name: Download prepared Lean workspace build (fallback)
-        if: steps.local-restore-build.outcome != 'success'
+      - name: Download prepared Lean workspace build
         uses: actions/download-artifact@v7
         with:
           name: lean-workspace-build
 
-      - name: Restore prepared Lean workspace build (fallback)
-        if: steps.local-restore-build.outcome != 'success'
+      - name: Restore prepared Lean workspace build
         run: tar -xf lean-workspace-build.tar
 
-      - name: Restore compiler workspace build (local)
-        id: local-restore-compiler-build
-        continue-on-error: true
-        run: |
-          scripts/ci_local_persistence.sh fetch \
-            --run-id "${{ github.run_id }}" \
-            --name lean-workspace-compiler-build \
-            --timeout 30
-
-      - name: Download compiler workspace build (fallback)
-        if: steps.local-restore-compiler-build.outcome != 'success'
+      - name: Download compiler workspace build
         uses: actions/download-artifact@v7
         with:
           name: lean-workspace-compiler-build
 
-      - name: Restore compiler workspace build (fallback)
-        if: steps.local-restore-compiler-build.outcome != 'success'
+      - name: Restore compiler workspace build
         run: tar -xf lean-workspace-compiler-build.tar
 
       - name: Setup Foundry environment
