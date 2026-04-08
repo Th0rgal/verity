@@ -13,20 +13,44 @@ CACHE_ROOT="${CACHE_ROOT:-/srv/verity-ci-cache}"
 RUNNER_URL="${RUNNER_URL:-}"
 RUNNER_TOKEN="${RUNNER_TOKEN:-}"
 RUNNER_GROUP_NAME="${RUNNER_GROUP_NAME:-Default}"
-RUNNER_NAME_PREFIX="${RUNNER_NAME_PREFIX:-$(hostname)-verity}"
+RUNNER_PROFILE="${RUNNER_PROFILE:-build}"
+RUNNER_NAME_PREFIX="${RUNNER_NAME_PREFIX:-$(hostname)-verity-${RUNNER_PROFILE}}"
 RUNNER_VERSION="${RUNNER_VERSION:-}"
-RUNNER_COUNT="${RUNNER_COUNT:-2}"
-
-runner_labels_for_index() {
-  case "$1" in
-    1)
-      printf '%s' "${RUNNER_LABELS_1:-verity,build,build-heavy,cpu-8,mem-64g}"
-      ;;
-    2)
-      printf '%s' "${RUNNER_LABELS_2:-verity,build,build-heavy,cpu-8,mem-64g}"
+if [ -z "${RUNNER_COUNT:-}" ]; then
+  case "$RUNNER_PROFILE" in
+    fastlane)
+      RUNNER_COUNT=1
       ;;
     *)
-      printf '%s' "${RUNNER_LABELS_EXTRA:-verity,build,build-heavy,cpu-8,mem-64g}"
+      RUNNER_COUNT=2
+      ;;
+  esac
+fi
+
+runner_labels_for_index() {
+  case "$RUNNER_PROFILE" in
+    fastlane)
+      case "$1" in
+        1)
+          printf '%s' "${RUNNER_LABELS_1:-verity,fastlane}"
+          ;;
+        *)
+          printf '%s' "${RUNNER_LABELS_EXTRA:-verity,fastlane}"
+          ;;
+      esac
+      ;;
+    *)
+      case "$1" in
+        1)
+          printf '%s' "${RUNNER_LABELS_1:-verity,build,cpu-8,mem-64g}"
+          ;;
+        2)
+          printf '%s' "${RUNNER_LABELS_2:-verity,build,build-heavy,cpu-8,mem-64g}"
+          ;;
+        *)
+          printf '%s' "${RUNNER_LABELS_EXTRA:-verity,build,build-heavy,cpu-8,mem-64g}"
+          ;;
+      esac
       ;;
   esac
 }
@@ -155,11 +179,13 @@ cat <<EOF
 Host preparation is complete.
 Runner root: $RUNNER_ROOT
 Shared cache root: $CACHE_ROOT
+Runner profile: $RUNNER_PROFILE
 Runner version: $RUNNER_VERSION
 
 If RUNNER_URL and RUNNER_TOKEN were set, the runner services are now installed.
 Otherwise, rerun with:
   RUNNER_URL=https://github.com/<owner>/<repo> \\
   RUNNER_TOKEN=<registration-token> \\
+  RUNNER_PROFILE=fastlane|build \\
   $0
 EOF
