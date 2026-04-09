@@ -159,22 +159,22 @@
     "failure-hints": "always() && github.event_name == 'pull_request' && contains(join(needs.*.result, ','), 'failure')"
   },
   "expected_job_runs_on": {
-    "changes": "[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]",
-    "checks": "[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]",
-    "timeout-watchdog": "[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]",
-    "build": "[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]",
-    "prepare-macro-fuzz": "[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]",
-    "build-audits": "[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]",
-    "macro-fuzz": "[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]",
-    "build-compiler-binaries": "[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]",
-    "compiler-audits": "[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]",
-    "compiler-regressions": "[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]",
-    "lean-profile": "[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]",
-    "foundry-gas-calibration": "[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]",
-    "foundry": "[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]",
-    "foundry-patched": "[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]",
-    "foundry-multi-seed": "[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]",
-    "failure-hints": "[self-hosted, linux, x64, verity, build, cpu-8, mem-64g]"
+    "changes": "[self-hosted, linux, x64, verity, fastlane]",
+    "checks": "[self-hosted, linux, x64, verity, fastlane]",
+    "timeout-watchdog": "[self-hosted, linux, x64, verity, fastlane]",
+    "build": "[self-hosted, linux, x64, verity, build]",
+    "prepare-macro-fuzz": "[self-hosted, linux, x64, verity, build]",
+    "build-audits": "[self-hosted, linux, x64, verity, build]",
+    "macro-fuzz": "[self-hosted, linux, x64, verity, build]",
+    "build-compiler-binaries": "[self-hosted, linux, x64, verity, build]",
+    "compiler-audits": "[self-hosted, linux, x64, verity, build]",
+    "compiler-regressions": "[self-hosted, linux, x64, verity, build]",
+    "lean-profile": "[self-hosted, linux, x64, verity, build]",
+    "foundry-gas-calibration": "[self-hosted, linux, x64, verity, build]",
+    "foundry": "[self-hosted, linux, x64, verity, build]",
+    "foundry-patched": "[self-hosted, linux, x64, verity, build]",
+    "foundry-multi-seed": "[self-hosted, linux, x64, verity, build]",
+    "failure-hints": "[self-hosted, linux, x64, verity, fastlane]"
   },
   "expected_job_timeouts": {
     "changes": 5,
@@ -358,7 +358,7 @@
         }
       },
       {
-        "name": "Download prepared Lean workspace build (fallback)",
+        "name": "Download prepared Lean workspace build",
         "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-build"
@@ -396,7 +396,7 @@
         }
       },
       {
-        "name": "Download prepared Lean workspace build (fallback)",
+        "name": "Download prepared Lean workspace build",
         "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-build"
@@ -449,7 +449,7 @@
         }
       },
       {
-        "name": "Download prepared Lean workspace build (fallback)",
+        "name": "Download prepared Lean workspace build",
         "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-build"
@@ -558,14 +558,14 @@
         }
       },
       {
-        "name": "Download prepared Lean workspace build (fallback)",
+        "name": "Download prepared Lean workspace build",
         "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-build"
         }
       },
       {
-        "name": "Download compiler workspace build (fallback)",
+        "name": "Download compiler workspace build",
         "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-compiler-build"
@@ -596,14 +596,14 @@
         }
       },
       {
-        "name": "Download prepared Lean workspace build (fallback)",
+        "name": "Download prepared Lean workspace build",
         "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-build"
         }
       },
       {
-        "name": "Download compiler workspace build (fallback)",
+        "name": "Download compiler workspace build",
         "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-compiler-build"
@@ -656,7 +656,7 @@
         }
       },
       {
-        "name": "Download compiler binaries (fallback)",
+        "name": "Download compiler binaries",
         "uses": "actions/download-artifact@v7",
         "with": {
           "name": "verity-compiler-binaries",
@@ -676,14 +676,14 @@
         }
       },
       {
-        "name": "Download prepared Lean workspace build (fallback)",
+        "name": "Download prepared Lean workspace build",
         "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-build"
         }
       },
       {
-        "name": "Download compiler workspace build (fallback)",
+        "name": "Download compiler workspace build",
         "uses": "actions/download-artifact@v7",
         "with": {
           "name": "lean-workspace-compiler-build"
@@ -706,7 +706,7 @@
         }
       },
       {
-        "name": "Download compiler binaries (fallback)",
+        "name": "Download compiler binaries",
         "uses": "actions/download-artifact@v7",
         "with": {
           "name": "verity-compiler-binaries",

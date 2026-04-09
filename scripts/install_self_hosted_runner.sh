@@ -13,20 +13,68 @@ CACHE_ROOT="${CACHE_ROOT:-/srv/verity-ci-cache}"
 RUNNER_URL="${RUNNER_URL:-}"
 RUNNER_TOKEN="${RUNNER_TOKEN:-}"
 RUNNER_GROUP_NAME="${RUNNER_GROUP_NAME:-Default}"
-RUNNER_NAME_PREFIX="${RUNNER_NAME_PREFIX:-$(hostname)-verity}"
+RUNNER_PROFILE="${RUNNER_PROFILE:-auto}"
+RUNNER_NAME_PREFIX="${RUNNER_NAME_PREFIX:-$(hostname)-verity-${RUNNER_PROFILE}}"
 RUNNER_VERSION="${RUNNER_VERSION:-}"
-RUNNER_COUNT="${RUNNER_COUNT:-2}"
-
-runner_labels_for_index() {
-  case "$1" in
-    1)
-      printf '%s' "${RUNNER_LABELS_1:-verity,build,build-heavy,cpu-8,mem-64g}"
-      ;;
-    2)
-      printf '%s' "${RUNNER_LABELS_2:-verity,build,build-heavy,cpu-8,mem-64g}"
+if [ -z "${RUNNER_COUNT:-}" ]; then
+  case "$RUNNER_PROFILE" in
+    fastlane)
+      RUNNER_COUNT=1
       ;;
     *)
-      printf '%s' "${RUNNER_LABELS_EXTRA:-verity,build,build-heavy,cpu-8,mem-64g}"
+      RUNNER_COUNT=2
+      ;;
+  esac
+fi
+
+runner_labels_for_index() {
+  case "$RUNNER_PROFILE" in
+    auto)
+      if [ "$RUNNER_COUNT" -eq 1 ]; then
+        case "$1" in
+          1)
+            printf '%s' "${RUNNER_LABELS_1:-verity,fastlane,build,cpu-8,mem-64g}"
+            ;;
+          *)
+            printf '%s' "${RUNNER_LABELS_EXTRA:-verity,build,build-heavy,cpu-8,mem-64g}"
+            ;;
+        esac
+        return
+      fi
+      case "$1" in
+        1)
+          printf '%s' "${RUNNER_LABELS_1:-verity,fastlane}"
+          ;;
+        2)
+          printf '%s' "${RUNNER_LABELS_2:-verity,build,build-heavy,cpu-8,mem-64g}"
+          ;;
+        *)
+          printf '%s' "${RUNNER_LABELS_EXTRA:-verity,build,build-heavy,cpu-8,mem-64g}"
+          ;;
+      esac
+      ;;
+    fastlane)
+      case "$1" in
+        1)
+          printf '%s' "${RUNNER_LABELS_1:-verity,fastlane}"
+          ;;
+        *)
+          printf '%s' "${RUNNER_LABELS_EXTRA:-verity,fastlane}"
+          ;;
+      esac
+      ;;
+    *)
+      case "$1" in
+        1)
+          printf '%s' "${RUNNER_LABELS_1:-verity,build,cpu-8,mem-64g}"
+          ;;
+        2)
+          printf '%s' "${RUNNER_LABELS_2:-verity,build,build-heavy,cpu-8,mem-64g}"
+          ;;
+        *)
+          printf '%s' "${RUNNER_LABELS_EXTRA:-verity,build,build-heavy,cpu-8,mem-64g}"
+          ;;
+      esac
       ;;
   esac
 }
@@ -84,6 +132,7 @@ install_runner_files() {
   local url="https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/${archive}"
 
   mkdir -p "$runner_dir"
+  chown -R "$RUNNER_USER:$RUNNER_GROUP" "$runner_dir"
   if [ -x "$runner_dir/bin/Runner.Listener" ]; then
     return
   fi
@@ -97,13 +146,55 @@ install_runner_files() {
   "
 }
 
+installed_service_name() {
+  local runner_dir="$1"
+  if [ -f "$runner_dir/.service" ]; then
+    tr -d '\r\n' < "$runner_dir/.service"
+  fi
+}
+
+service_known_to_systemd() {
+  local service_name="$1"
+  [ -n "$service_name" ] || return 1
+  systemctl list-unit-files "$service_name" >/dev/null 2>&1 || systemctl status "$service_name" >/dev/null 2>&1
+}
+
+stop_runner_service_if_present() {
+  local runner_dir="$1"
+  local service_name="$2"
+  if service_known_to_systemd "$service_name"; then
+    (
+      cd "$runner_dir"
+      ./svc.sh stop || systemctl stop "$service_name" || true
+    )
+  fi
+}
+
+ensure_runner_service() {
+  local runner_dir="$1"
+  local service_name="$2"
+  if ! service_known_to_systemd "$service_name"; then
+    (
+      cd "$runner_dir"
+      ./svc.sh install "$RUNNER_USER"
+    )
+  fi
+  (
+    cd "$runner_dir"
+    ./svc.sh start
+  )
+}
+
 configure_runner() {
   local index="$1"
   local runner_dir="$RUNNER_ROOT/$index"
   local runner_name="${RUNNER_NAME_PREFIX}-${index}"
   local service_name="actions.runner.$(printf '%s' "${RUNNER_URL#https://github.com/}" | tr '/' '-').${runner_name}.service"
+  local installed_service_unit
+  local labels_file="$runner_dir/.configured-labels"
   local labels
   labels="$(runner_labels_for_index "$index")"
+  installed_service_unit="$(installed_service_name "$runner_dir")"
 
   install_runner_files "$runner_dir"
 
@@ -113,12 +204,44 @@ configure_runner() {
     return
   fi
 
+  if [ -f "$runner_dir/.runner" ]; then
+    if [ ! -f "$labels_file" ] || [ "$(cat "$labels_file")" != "$labels" ]; then
+      if [ -n "$installed_service_unit" ]; then
+        stop_runner_service_if_present "$runner_dir" "$installed_service_unit"
+      fi
+      if [ -n "$service_name" ] && [ "$service_name" != "$installed_service_unit" ]; then
+        stop_runner_service_if_present "$runner_dir" "$service_name"
+      fi
+      if [ -n "$installed_service_unit" ] && service_known_to_systemd "$installed_service_unit"; then
+        (
+          cd "$runner_dir"
+          ./svc.sh uninstall || true
+        )
+      elif [ -n "$service_name" ] && service_known_to_systemd "$service_name"; then
+        systemctl disable --now "$service_name" || true
+      fi
+      sudo -u "$RUNNER_USER" bash -lc "
+        set -euo pipefail
+        cd '$runner_dir'
+        ./config.sh remove --local
+      "
+    else
+      if [ -n "$installed_service_unit" ] && service_known_to_systemd "$installed_service_unit"; then
+        ensure_runner_service "$runner_dir" "$installed_service_unit"
+        return
+      fi
+      if [ -n "$service_name" ] && service_known_to_systemd "$service_name"; then
+        ensure_runner_service "$runner_dir" "$service_name"
+        return
+      fi
+      ensure_runner_service "$runner_dir" "$service_name"
+      return
+    fi
+  fi
+
   sudo -u "$RUNNER_USER" bash -lc "
     set -euo pipefail
     cd '$runner_dir'
-    if [ -f .runner ]; then
-      exit 0
-    fi
     ./config.sh \
       --unattended \
       --replace \
@@ -129,18 +252,10 @@ configure_runner() {
       --labels '$labels' \
       --work '_work'
   "
+  printf '%s\n' "$labels" > "$labels_file"
+  chown "$RUNNER_USER:$RUNNER_GROUP" "$labels_file"
 
-  if ! systemctl list-unit-files "$service_name" >/dev/null 2>&1; then
-    (
-      cd "$runner_dir"
-      ./svc.sh install "$RUNNER_USER"
-    )
-  fi
-
-  (
-    cd "$runner_dir"
-    ./svc.sh start
-  )
+  ensure_runner_service "$runner_dir" "$service_name"
 }
 
 install_packages
@@ -155,11 +270,13 @@ cat <<EOF
 Host preparation is complete.
 Runner root: $RUNNER_ROOT
 Shared cache root: $CACHE_ROOT
+Runner profile: $RUNNER_PROFILE
 Runner version: $RUNNER_VERSION
 
 If RUNNER_URL and RUNNER_TOKEN were set, the runner services are now installed.
 Otherwise, rerun with:
   RUNNER_URL=https://github.com/<owner>/<repo> \\
   RUNNER_TOKEN=<registration-token> \\
+  RUNNER_PROFILE=auto|fastlane|build \\
   $0
 EOF
