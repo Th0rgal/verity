@@ -12,25 +12,32 @@ inputs:
     description: Whether to restore a Yul artifact for the job
     default: "true"
   local-artifact-run-id:
-    description: GitHub run ID associated with uploaded artifacts (retained for workflow compatibility)
+    description: GitHub run ID associated with locally published CI artifacts
     default: ""
 
 runs:
   using: composite
   steps:
-    - name: Setup Lean
-      uses: ./.github/actions/setup-lean
-      with:
-        cache-key-prefix: lake-compiler
-        use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
-        sticky-disk-key-prefix: verify-compiler
-        lake-packages-sticky-key: lake-packages-verify-compiler-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
-        lake-packages-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('lake-packages-verify-compiler-{0}-{1}-{2}-{3}-{4}', env.VERIFY_MAIN_CACHE_BUCKET, runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
-        disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
-        cache-primary-key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+    - name: Restore generated Yul (local)
+      if: inputs.download-yul == 'true' && inputs.local-artifact-run-id != ''
+      id: local-restore-yul
+      continue-on-error: true
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        out_dir="${{ inputs.yul-artifact-path }}"
+        source_dir="${VERIFY_LOCAL_ARTIFACT_ROOT}/${{ inputs.local-artifact-run-id }}/${{ inputs.yul-artifact-name }}"
+        if [ ! -f "${source_dir}/.ready" ]; then
+          exit 1
+        fi
+
+        mkdir -p "${out_dir}"
+        cp -a "${source_dir}/." "${out_dir}/"
+        rm -f "${out_dir}/.ready"
 
     - name: Download generated Yul
-      if: inputs.download-yul == 'true'
+      if: inputs.download-yul == 'true' && steps.local-restore-yul.outcome != 'success'
       uses: actions/download-artifact@v7
       with:
         name: ${{ inputs.yul-artifact-name }}
@@ -60,7 +67,25 @@ runs:
           exit 1
         fi
 
+    - name: Restore difftest interpreter (local)
+      id: local-restore-difftest
+      if: inputs.local-artifact-run-id != ''
+      continue-on-error: true
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        source_dir="${VERIFY_LOCAL_ARTIFACT_ROOT}/${{ inputs.local-artifact-run-id }}/difftest-interpreter"
+        if [ ! -f "${source_dir}/.ready" ]; then
+          exit 1
+        fi
+
+        mkdir -p .lake/build/bin
+        cp -a "${source_dir}/." .lake/build/bin/
+        rm -f .lake/build/bin/.ready
+
     - name: Download difftest interpreter
+      if: steps.local-restore-difftest.outcome != 'success'
       uses: actions/download-artifact@v7
       with:
         name: difftest-interpreter
