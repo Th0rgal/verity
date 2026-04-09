@@ -144,4 +144,45 @@ theorem fullHelperAwareListWitness_of_allInterfaces_disjoint
       hresidual)
     hdisjoint
 
+/-- Fast-path for helper-free contracts: if the statement list doesn't touch
+the helper surface at all, all five interfaces are vacuously satisfied and we
+can go straight to the whole-list proof with just the helper-free step interface
+and legacy compatibility. -/
+theorem helperFreeContractWitness
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hhelperFree : StmtListHelperFreeStepInterface fields scope stmts)
+    (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false)
+    (hlegacy : StmtListHelperFreeCompiledLegacyCompatible fields scope stmts)
+    (hnoInternalFunctions : runtimeContract.internalFunctions = []) :
+    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts :=
+  let ⟨hcall, hassign, hexpr, hstruct⟩ :=
+    allHelperInterfacesSatisfied_of_helperSurfaceClosed hsurface
+  fullHelperAwareListWitness_of_allInterfaces
+    hhelperFree hcall hassign hexpr hstruct
+    (stmtListResidualHelperSurfaceStepInterface_of_helperSurfaceClosed hsurface)
+    hlegacy hnoInternalFunctions
+
+/-- Fast-path using disjoint-calls variant for helper-free contracts with
+non-empty internal function tables. -/
+theorem helperFreeContractWitness_disjoint
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hhelperFree : StmtListHelperFreeStepInterface fields scope stmts)
+    (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false)
+    (hdisjoint : StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields scope stmts) :
+    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts :=
+  let ⟨hcall, hassign, hexpr, hstruct⟩ :=
+    allHelperInterfacesSatisfied_of_helperSurfaceClosed hsurface
+  fullHelperAwareListWitness_of_allInterfaces_disjoint
+    hhelperFree hcall hassign hexpr hstruct
+    (stmtListResidualHelperSurfaceStepInterface_of_helperSurfaceClosed hsurface)
+    hdisjoint
+
 end Compiler.Proofs.HelperStepProofs
