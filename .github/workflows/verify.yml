@@ -838,12 +838,14 @@ jobs:
             --path "$staging"
 
       - name: Upload difftest interpreter
+        if: '!cancelled()'
         uses: actions/upload-artifact@v7
         with:
           name: difftest-interpreter
           path: .lake/build/bin/difftest-interpreter
 
       - name: Upload compiler binaries
+        if: '!cancelled()'
         uses: actions/upload-artifact@v7
         with:
           name: verity-compiler-binaries
@@ -851,6 +853,7 @@ jobs:
           compression-level: 0
 
       - name: Upload compiler workspace build
+        if: '!cancelled()'
         uses: actions/upload-artifact@v7
         with:
           name: lean-workspace-compiler-build
@@ -858,30 +861,35 @@ jobs:
           compression-level: 0
 
       - name: Upload generated Yul
+        if: '!cancelled()'
         uses: actions/upload-artifact@v7
         with:
           name: generated-yul
           path: compiler/yul
 
       - name: Upload patched Yul
+        if: '!cancelled()'
         uses: actions/upload-artifact@v7
         with:
           name: generated-yul-patched
           path: compiler/yul-patched
 
       - name: Upload patch coverage report
+        if: '!cancelled()'
         uses: actions/upload-artifact@v7
         with:
           name: patch-coverage-report
           path: compiler/patch-report.tsv
 
       - name: Upload static gas report
+        if: '!cancelled()'
         uses: actions/upload-artifact@v7
         with:
           name: static-gas-report
           path: gas-report-static.tsv
 
       - name: Upload patched static gas report
+        if: '!cancelled()'
         uses: actions/upload-artifact@v7
         with:
           name: static-gas-report-patched
