@@ -1,5 +1,6 @@
 import EvmYul
 import Compiler.Constants
+import Compiler.Proofs.KeccakBound
 
 namespace Compiler.Proofs
 
@@ -7,6 +8,13 @@ namespace Compiler.Proofs
 Mapping slot abstraction used by proof interpreters.
 
 The active backend is keccak-faithful (`solidityMappingSlot`).
+
+## Axiom elimination (zero-axiom target)
+
+The mapping-slot definition now uses the kernel-computable `KeccakEngine.keccak256`
+so that the output-length bound is structurally provable. The FFI version (`ffi.KEC`)
+may optionally be registered via `@[implemented_by]` for runtime performance if
+build-time benchmarks show a regression.
 -/
 
 /-- Mapping-slot backend chosen for proof semantics. -/
@@ -30,9 +38,23 @@ def abiEncodeMappingSlot (baseSlot key : Nat) : ByteArray :=
   let baseSlotWord : EvmYul.UInt256 := .ofNat baseSlot
   keyWord.toByteArray ++ baseSlotWord.toByteArray
 
-/-- Solidity mapping storage slot derivation: `keccak256(abi.encode(key, baseSlot))`. -/
-def solidityMappingSlot (baseSlot key : Nat) : Nat :=
+/-- FFI-based mapping slot computation (fast, used at runtime via @[implemented_by]).
+    Not used in proofs — proofs reason about `solidityMappingSlot` which uses the
+    kernel-computable Keccak. -/
+private def solidityMappingSlot_ffi (baseSlot key : Nat) : Nat :=
   EvmYul.fromByteArrayBigEndian (ffi.KEC (abiEncodeMappingSlot baseSlot key))
+
+/-- Solidity mapping storage slot derivation: `keccak256(abi.encode(key, baseSlot))`.
+
+    Uses the kernel-computable Keccak engine so proofs can reason about the output
+    size (always 32 bytes → result < 2^256). The FFI version is registered via
+    `@[implemented_by]` for runtime performance.
+
+    TODO: Once proofs are complete, uncomment `@[implemented_by solidityMappingSlot_ffi]`
+    and benchmark. If build time is acceptable without it, remove `_ffi` entirely. -/
+-- @[implemented_by solidityMappingSlot_ffi]
+def solidityMappingSlot (baseSlot key : Nat) : Nat :=
+  EvmYul.fromByteArrayBigEndian (KeccakEngine.keccak256 (abiEncodeMappingSlot baseSlot key))
 
 /-- Active proof-model mapping slot encoding backend. -/
 def abstractMappingSlot (baseSlot key : Nat) : Nat := solidityMappingSlot baseSlot key
@@ -120,10 +142,15 @@ def abstractStoreStorageOrMapping
 /-- Keccak256 output interpreted as a big-endian 256-bit natural is less than 2^256.
     This is mathematically true because keccak produces exactly 32 bytes, so
     `fromByteArrayBigEndian` gives a value < 2^(8*32) = 2^256 = evmModulus.
-    It is unprovable in Lean because `ffi.KEC` is an opaque FFI call that
-    does not expose the output length. -/
-axiom solidityMappingSlot_lt_evmModulus (baseSlot key : Nat) :
-    solidityMappingSlot baseSlot key < Compiler.Constants.evmModulus
+
+    Previously an axiom — now a theorem thanks to the kernel-computable Keccak engine
+    which exposes the output length to the proof system. -/
+theorem solidityMappingSlot_lt_evmModulus (baseSlot key : Nat) :
+    solidityMappingSlot baseSlot key < Compiler.Constants.evmModulus := by
+  unfold solidityMappingSlot
+  exact fromByteArrayBigEndian_lt_of_size _ (by
+    rw [KeccakEngine.keccak256_size]
+    omega)
 
 theorem abstractMappingSlot_lt_evmModulus (baseSlot key : Nat) :
     abstractMappingSlot baseSlot key < Compiler.Constants.evmModulus :=

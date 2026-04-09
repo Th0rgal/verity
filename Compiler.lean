@@ -25,6 +25,8 @@ import Compiler.Yul.Ast
 import Compiler.Yul.PrettyPrint
 import Compiler.Yul.PatchFramework
 import Compiler.Yul.PatchRules
+import Compiler.Keccak.SpongeProperties
+import Compiler.Proofs.KeccakBound
 import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.IRGeneration.Expr
 import Compiler.Proofs.IRGeneration.IRInterpreter

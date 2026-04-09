@@ -26,7 +26,7 @@ LEAN_BUILTIN_AXIOMS = frozenset([
 ])
 
 DOCUMENTED_AXIOMS = frozenset([
-    "solidityMappingSlot_lt_evmModulus",
+    # Zero project axioms — solidityMappingSlot_lt_evmModulus eliminated via kernel Keccak
 ])
 
 FORBIDDEN_AXIOMS = frozenset([
@@ -84,8 +84,7 @@ def run_location_check() -> int:
 
     text = axioms_md.read_text(encoding="utf-8")
     axiom_blocks = parse_axiom_entries(text)
-    if not axiom_blocks:
-        die("No axiom location entries found in AXIOMS.md")
+    # Zero axioms is valid — the project targets zero project-level axioms
 
     discovered_axioms = discover_repo_axioms()
     documented_names = {name for name, _, _ in axiom_blocks}

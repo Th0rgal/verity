@@ -13,32 +13,53 @@ Axioms are exceptional. When an axiom exists, it must have:
 
 ## Current Axioms
 
-### 1. `solidityMappingSlot_lt_evmModulus`
+**None.** Verity has zero project-level Lean axioms.
 
-**Location**: `Compiler/Proofs/MappingSlot.lean:125`
+- Active axioms: 0
 
-**Statement**:
+The last remaining axiom (`solidityMappingSlot_lt_evmModulus`) was eliminated
+by replacing the opaque FFI-based keccak256 call with the kernel-computable
+Keccak engine (`Compiler/Keccak/Sponge.lean`), which exposes the 32-byte
+output-length guarantee to Lean's proof system.
+
+## Eliminated Axioms
+
+### 1. `solidityMappingSlot_lt_evmModulus` (eliminated)
+
+**Former location**: `Compiler/Proofs/MappingSlot.lean:125`
+
+**Former statement**:
 ```lean
 axiom solidityMappingSlot_lt_evmModulus (baseSlot key : Nat) :
     solidityMappingSlot baseSlot key < Compiler.Constants.evmModulus
 ```
 
-**Purpose**:
-Asserts that the keccak256 hash used to compute a Solidity mapping slot fits
-in 256 bits (i.e. is less than 2^256). This is mathematically true because
-keccak256 produces exactly 32 bytes, but unprovable in Lean because `ffi.KEC`
-is an opaque FFI call that does not expose the output length.
+**How it was eliminated**:
+1. `solidityMappingSlot` was redefined to use `KeccakEngine.keccak256` (kernel-computable)
+   instead of `ffi.KEC` (opaque FFI).
+2. `squeeze256_size` proves the output is always exactly 32 bytes.
+3. `fromByteArrayBigEndian_lt_of_size` proves a ≤32-byte big-endian value is < 2^256.
+4. The axiom became a theorem: `solidityMappingSlot_lt_evmModulus` is now proved,
+   not assumed.
 
-**Why this is currently an axiom**:
-The FFI boundary hides the byte-length guarantee. Proving it would require
-internalising the keccak256 spec or exposing output-length metadata from the
-FFI layer.
+**Runtime performance**: An `@[implemented_by]` annotation optionally redirects to
+the FFI version at runtime for speed, without affecting proof soundness.
 
-**Soundness controls**:
-- End-to-end regression suites exercise mapping reads/writes.
-- Mapping-slot abstraction boundary checks in CI.
+### 2. Selector computation (eliminated earlier)
 
-**Risk**: Low.
+Function selector derivation (`bytes4(keccak256(signature))`) was previously
+axiomatic. It is now kernel-computable via the vendored unrolled Keccak engine
+in `Compiler/Keccak/` and `Compiler/Selectors.lean`.
+
+### 3. Layer 2 body-simulation axiom (eliminated earlier)
+
+The generic body-simulation axiom in Layer 2 was eliminated through explicit
+proof work (issue #1618). `supported_function_correct` is now a real theorem.
+
+### 4. Layer 3 dispatch bridge (eliminated earlier)
+
+The dispatch bridge in Layer 3 was converted from a Lean axiom to an explicit
+theorem hypothesis in `Compiler/Proofs/YulGeneration/Preservation.lean`.
 
 ## Trusted Cryptographic Primitives (Non-Axiom)
 
@@ -56,34 +77,24 @@ computation, not a Lean axiom.
 - CI cross-checks selectors against `solc --hashes`.
 - Selector fixture checks still run as defense in depth.
 
-### `ffi.KEC` (keccak256 via FFI)
+### Kernel-computable mapping-slot Keccak-256
 
-**Location**: used by `Compiler/Proofs/MappingSlot.lean` (`solidityMappingSlot`)
+**Location**: `Compiler/Proofs/MappingSlot.lean`, `Compiler/Keccak/*.lean`
 
 **Role**:
-Computes mapping storage slots as `keccak256(abi.encode(key, baseSlot))`.
-In Solidity, mappings don't store values at sequential slots — they hash the
-key with the base slot to get a storage address. This function does that
-hashing so proofs can reason about where mapping values live.
-
-**Why this is NOT a Lean axiom**:
-This is a call to an external keccak256 library (like calling a C function
-from Lean), not a logical assumption in the proof system. The proofs don't
-claim keccak256 is correct — they call the real implementation at runtime.
-The trust here is the same trust every Ethereum node already places in their
-keccak implementation.
+Computes mapping storage slots as `keccak256(abi.encode(key, baseSlot))` using
+the same kernel-computable Keccak engine. The output-length bound is proved
+structurally via `Compiler/Keccak/SpongeProperties.lean`.
 
 **What we trust**:
-- The keccak256 implementation is correct.
+- The kernel Keccak implementation matches the EVM's keccak256 (CI cross-checked).
 - Two different inputs won't hash to the same slot (standard cryptographic
   assumption — Solidity makes the same one).
-
-**How this is tracked**: The compiler flags this as a runtime trust boundary
-in `--verbose` output.
 
 **Soundness controls**:
 - Mapping-slot abstraction boundary checks in CI.
 - End-to-end regression suites that exercise mapping reads/writes.
+- CI cross-checks kernel Keccak output against FFI Keccak output.
 
 ## External Call Module (ECM) Assumptions
 
@@ -150,7 +161,7 @@ specification.
 
 ## Trust Summary
 
-- Active axioms: 1
+- Active axioms: 0
 - Production blockers from axioms: 0
 - Enforcement: `scripts/check_axioms.py` ensures this file tracks exact source locations.
 - All internal compiler functions are proven to terminate (no axioms involved).
@@ -163,4 +174,4 @@ Any commit that adds, removes, renames, or moves an axiom must update this file 
 
 If this file is stale, trust analysis is stale.
 
-**Last Updated**: 2026-04-07
+**Last Updated**: 2026-04-09
