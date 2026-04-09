@@ -1157,6 +1157,16 @@ jobs:
         with:
           name: static-gas-report
 
+      - name: Verify Lake package integrity
+        run: |
+          for pkg_git in .lake/packages/*/.git; do
+            pkg="$(dirname "$pkg_git")"
+            if ! git -C "$pkg" rev-parse HEAD >/dev/null 2>&1; then
+              echo "::warning::Removing corrupted Lake package: $pkg"
+              rm -rf "$pkg"
+            fi
+          done
+
       - name: Setup Foundry environment
         uses: ./.github/actions/setup-foundry
         with:
@@ -1195,6 +1205,16 @@ jobs:
 
       - name: Restore compiler executable bits
         run: chmod +x compiler/bin/verity-compiler compiler/bin/verity-compiler-patched compiler/bin/difftest-interpreter
+
+      - name: Verify Lake package integrity
+        run: |
+          for pkg_git in .lake/packages/*/.git; do
+            pkg="$(dirname "$pkg_git")"
+            if ! git -C "$pkg" rev-parse HEAD >/dev/null 2>&1; then
+              echo "::warning::Removing corrupted Lake package: $pkg"
+              rm -rf "$pkg"
+            fi
+          done
 
       - name: Setup Foundry environment
         uses: ./.github/actions/setup-foundry
@@ -1240,6 +1260,16 @@ jobs:
       - name: Restore compiler workspace build
         run: tar -xf lean-workspace-compiler-build.tar
 
+      - name: Verify Lake package integrity
+        run: |
+          for pkg_git in .lake/packages/*/.git; do
+            pkg="$(dirname "$pkg_git")"
+            if ! git -C "$pkg" rev-parse HEAD >/dev/null 2>&1; then
+              echo "::warning::Removing corrupted Lake package: $pkg"
+              rm -rf "$pkg"
+            fi
+          done
+
       - name: Setup Foundry environment
         uses: ./.github/actions/setup-foundry
         with:
@@ -1283,6 +1313,16 @@ jobs:
 
       - name: Restore compiler executable bits
         run: chmod +x compiler/bin/verity-compiler compiler/bin/verity-compiler-patched compiler/bin/difftest-interpreter
+
+      - name: Verify Lake package integrity
+        run: |
+          for pkg_git in .lake/packages/*/.git; do
+            pkg="$(dirname "$pkg_git")"
+            if ! git -C "$pkg" rev-parse HEAD >/dev/null 2>&1; then
+              echo "::warning::Removing corrupted Lake package: $pkg"
+              rm -rf "$pkg"
+            fi
+          done
 
       - name: Setup Foundry environment
         uses: ./.github/actions/setup-foundry

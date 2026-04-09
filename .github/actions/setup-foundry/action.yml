@@ -36,6 +36,15 @@ runs:
         cp -a "${source_dir}/." "${out_dir}/"
         rm -f "${out_dir}/.ready"
 
+        # Validate that .yul files were actually restored
+        shopt -s nullglob
+        restored_yul=("${out_dir}"/*.yul)
+        if [ "${#restored_yul[@]}" -eq 0 ]; then
+          echo "::warning::Local Yul cache had .ready sentinel but no .yul files — falling back to artifact download"
+          exit 1
+        fi
+        echo "Restored ${#restored_yul[@]} Yul files from local cache"
+
     - name: Download generated Yul
       if: inputs.download-yul == 'true' && steps.local-restore-yul.outcome != 'success'
       uses: actions/download-artifact@v7
@@ -83,6 +92,13 @@ runs:
         mkdir -p .lake/build/bin
         cp -a "${source_dir}/." .lake/build/bin/
         rm -f .lake/build/bin/.ready
+
+        # Validate that the interpreter binary was actually restored
+        if [ ! -f .lake/build/bin/difftest-interpreter ]; then
+          echo "::warning::Local difftest cache had .ready sentinel but no binary — falling back to artifact download"
+          exit 1
+        fi
+        echo "Restored difftest-interpreter from local cache"
 
     - name: Download difftest interpreter
       if: steps.local-restore-difftest.outcome != 'success'
