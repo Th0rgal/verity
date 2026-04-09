@@ -153,6 +153,38 @@ installed_service_name() {
   fi
 }
 
+service_known_to_systemd() {
+  local service_name="$1"
+  [ -n "$service_name" ] || return 1
+  systemctl list-unit-files "$service_name" >/dev/null 2>&1 || systemctl status "$service_name" >/dev/null 2>&1
+}
+
+stop_runner_service_if_present() {
+  local runner_dir="$1"
+  local service_name="$2"
+  if service_known_to_systemd "$service_name"; then
+    (
+      cd "$runner_dir"
+      ./svc.sh stop || systemctl stop "$service_name" || true
+    )
+  fi
+}
+
+ensure_runner_service() {
+  local runner_dir="$1"
+  local service_name="$2"
+  if ! service_known_to_systemd "$service_name"; then
+    (
+      cd "$runner_dir"
+      ./svc.sh install "$RUNNER_USER"
+    )
+  fi
+  (
+    cd "$runner_dir"
+    ./svc.sh start
+  )
+}
+
 configure_runner() {
   local index="$1"
   local runner_dir="$RUNNER_ROOT/$index"
@@ -174,14 +206,19 @@ configure_runner() {
 
   if [ -f "$runner_dir/.runner" ]; then
     if [ ! -f "$labels_file" ] || [ "$(cat "$labels_file")" != "$labels" ]; then
-      if [ -n "$installed_service_unit" ] && systemctl list-unit-files "$installed_service_unit" >/dev/null 2>&1; then
+      if [ -n "$installed_service_unit" ]; then
+        stop_runner_service_if_present "$runner_dir" "$installed_service_unit"
+      fi
+      if [ -n "$service_name" ] && [ "$service_name" != "$installed_service_unit" ]; then
+        stop_runner_service_if_present "$runner_dir" "$service_name"
+      fi
+      if [ -n "$installed_service_unit" ] && service_known_to_systemd "$installed_service_unit"; then
         (
           cd "$runner_dir"
-          ./svc.sh stop || true
           ./svc.sh uninstall || true
         )
-      elif systemctl list-unit-files "$service_name" >/dev/null 2>&1; then
-        systemctl stop "$service_name" || true
+      elif [ -n "$service_name" ] && service_known_to_systemd "$service_name"; then
+        systemctl disable --now "$service_name" || true
       fi
       sudo -u "$RUNNER_USER" bash -lc "
         set -euo pipefail
@@ -189,14 +226,15 @@ configure_runner() {
         ./config.sh remove --local
       "
     else
-      if [ -n "$installed_service_unit" ] && systemctl list-unit-files "$installed_service_unit" >/dev/null 2>&1; then
-        (
-          cd "$runner_dir"
-          ./svc.sh start
-        )
-      elif systemctl list-unit-files "$service_name" >/dev/null 2>&1; then
-        systemctl start "$service_name" || true
+      if [ -n "$installed_service_unit" ] && service_known_to_systemd "$installed_service_unit"; then
+        ensure_runner_service "$runner_dir" "$installed_service_unit"
+        return
       fi
+      if [ -n "$service_name" ] && service_known_to_systemd "$service_name"; then
+        ensure_runner_service "$runner_dir" "$service_name"
+        return
+      fi
+      ensure_runner_service "$runner_dir" "$service_name"
       return
     fi
   fi
@@ -217,17 +255,7 @@ configure_runner() {
   printf '%s\n' "$labels" > "$labels_file"
   chown "$RUNNER_USER:$RUNNER_GROUP" "$labels_file"
 
-  if ! systemctl list-unit-files "$service_name" >/dev/null 2>&1; then
-    (
-      cd "$runner_dir"
-      ./svc.sh install "$RUNNER_USER"
-    )
-  fi
-
-  (
-    cd "$runner_dir"
-    ./svc.sh start
-  )
+  ensure_runner_service "$runner_dir" "$service_name"
 }
 
 install_packages

@@ -36,11 +36,53 @@ runs:
         name: ${{ inputs.yul-artifact-name }}
         path: ${{ inputs.yul-artifact-path }}
 
+    - name: Normalize generated Yul artifact layout
+      if: inputs.download-yul == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        out_dir="${{ inputs.yul-artifact-path }}"
+        shopt -s nullglob
+        direct_yul=("${out_dir}"/*.yul)
+        if [ "${#direct_yul[@]}" -eq 0 ]; then
+          mapfile -t nested_yul < <(find "${out_dir}" -mindepth 2 -maxdepth 3 -type f -name '*.yul' | sort)
+          if [ "${#nested_yul[@]}" -gt 0 ]; then
+            for path in "${nested_yul[@]}"; do
+              mv "$path" "${out_dir}/$(basename "$path")"
+            done
+          fi
+        fi
+        direct_yul=("${out_dir}"/*.yul)
+        if [ "${#direct_yul[@]}" -eq 0 ]; then
+          echo "::error::No Yul files restored into ${out_dir}"
+          find "${out_dir}" -maxdepth 4 -print || true
+          exit 1
+        fi
+
     - name: Download difftest interpreter
       uses: actions/download-artifact@v7
       with:
         name: difftest-interpreter
         path: .lake/build/bin
+
+    - name: Normalize difftest interpreter artifact layout
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        interpreter_path=".lake/build/bin/difftest-interpreter"
+        if [ ! -f "$interpreter_path" ]; then
+          nested_path="$(find .lake/build/bin -mindepth 2 -maxdepth 3 -type f -name 'difftest-interpreter' | head -n 1 || true)"
+          if [ -n "$nested_path" ]; then
+            mv "$nested_path" "$interpreter_path"
+          fi
+        fi
+        if [ ! -f "$interpreter_path" ]; then
+          echo "::error::difftest-interpreter was not restored"
+          find .lake/build/bin -maxdepth 4 -print || true
+          exit 1
+        fi
 
     - name: Make difftest interpreter executable
       shell: bash
