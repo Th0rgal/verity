@@ -42,6 +42,7 @@ import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.IRGeneration.ParamLoading
 import Compiler.Proofs.IRGeneration.SourceSemantics
 import Compiler.Proofs.IRGeneration.SupportedSpec
+import Compiler.Proofs.KeccakBound
 import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 import Compiler.Proofs.YulGeneration.Builtins
@@ -1991,6 +1992,9 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.simpleStorage_noFallback  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.simpleStorage_noReceive  -- private
 
+-- Compiler/Proofs/KeccakBound.lean
+-- #print axioms Compiler.Proofs.fromByteArrayBigEndian_lt_of_size  -- sorry'd
+
 -- Compiler/Proofs/MappingSlot.lean
 #print axioms Compiler.Proofs.abstractMappingSlot_eq_solidity
 #print axioms Compiler.Proofs.abstractMappingTag_eq_zero
@@ -2002,6 +2006,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.abstractStoreMappingEntry_eq
 #print axioms Compiler.Proofs.abstractLoadStorageOrMapping_eq
 #print axioms Compiler.Proofs.abstractStoreStorageOrMapping_eq
+#print axioms Compiler.Proofs.solidityMappingSlot_lt_evmModulus
 #print axioms Compiler.Proofs.abstractMappingSlot_lt_evmModulus
 #print axioms Compiler.Proofs.solidityMappingSlot_add_lt_evmModulus
 #print axioms Compiler.Proofs.solidityMappingSlot_add_wordOffset_lt_evmModulus
@@ -2098,4 +2103,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1964 theorems/lemmas (1319 public, 645 private, 0 sorry'd)
+-- Total: 1966 theorems/lemmas (1320 public, 645 private, 1 sorry'd)

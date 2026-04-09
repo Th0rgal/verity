@@ -38,7 +38,7 @@ Current theorem totals, property-test coverage, and proof status live in [docs/V
 
 ### 2. Lean Axioms
 - **Role**: Bridge remaining proof obligations not yet fully discharged.
-- **Status**: 1 documented axiom in [AXIOMS.md](AXIOMS.md): the mapping-slot range axiom. Selector computation is now kernel-computable, the Layer 2 generic body-simulation axiom has been eliminated, and the Layer 3 dispatch bridge remains an explicit theorem hypothesis rather than a Lean axiom.
+- **Status**: 0 documented axioms in [AXIOMS.md](AXIOMS.md). The mapping-slot range axiom has been eliminated via the kernel-computable Keccak engine. Selector computation is kernel-computable, the Layer 2 generic body-simulation axiom has been eliminated, and the Layer 3 dispatch bridge remains an explicit theorem hypothesis rather than a Lean axiom.
 - **Mitigation**: CI axiom reporting and location checks enforce explicit tracking.
 
 ### 3. Keccak-based Selector Computation
@@ -110,5 +110,5 @@ High-level semantics can expose intermediate state in reverted computations. EVM
 
 ---
 
-**Last Updated**: 2026-04-07
+**Last Updated**: 2026-04-09
 **Maintainer Rule**: Update on every trust-boundary-relevant code change.
