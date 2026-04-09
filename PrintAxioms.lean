@@ -32,6 +32,8 @@ import Verity.Proofs.Stdlib.MappingAutomation
 import Verity.Proofs.Stdlib.Math
 import Compiler.Proofs.ArithmeticProfile
 import Compiler.Proofs.EndToEnd
+import Compiler.Proofs.EventSemantics
+import Compiler.Proofs.HelperStepProofs
 import Compiler.Proofs.IRGeneration.Contract
 import Compiler.Proofs.IRGeneration.ContractFeatureTest
 import Compiler.Proofs.IRGeneration.Dispatch
@@ -44,6 +46,7 @@ import Compiler.Proofs.IRGeneration.SourceSemantics
 import Compiler.Proofs.IRGeneration.SupportedSpec
 import Compiler.Proofs.KeccakBound
 import Compiler.Proofs.MappingSlot
+import Compiler.Proofs.StorageBounds
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 import Compiler.Proofs.YulGeneration.Builtins
 import Compiler.Proofs.YulGeneration.Equivalence
@@ -670,6 +673,23 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_general
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd
+
+-- Compiler/Proofs/EventSemantics.lean
+#print axioms Compiler.Proofs.EventSemantics.encodeEvents_append
+#print axioms Compiler.Proofs.EventSemantics.encodeEvents_length
+#print axioms Compiler.Proofs.EventSemantics.encodeEvents_nil
+#print axioms Compiler.Proofs.EventSemantics.encodeEvents_cons
+#print axioms Compiler.Proofs.EventSemantics.events_append_prefix
+#print axioms Compiler.Proofs.EventSemantics.events_update_preserves_storage
+#print axioms Compiler.Proofs.EventSemantics.events_update_preserves_storageArray
+#print axioms Compiler.Proofs.EventSemantics.emit_step_spec
+#print axioms Compiler.Proofs.EventSemantics.events_update_preserves_transientStorage
+#print axioms Compiler.Proofs.EventSemantics.events_update_preserves_sender
+
+-- Compiler/Proofs/HelperStepProofs.lean
+#print axioms Compiler.Proofs.HelperStepProofs.allHelperInterfacesSatisfied_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.HelperStepProofs.fullHelperAwareListWitness_of_allInterfaces
+#print axioms Compiler.Proofs.HelperStepProofs.fullHelperAwareListWitness_of_allInterfaces_disjoint
 
 -- Compiler/Proofs/IRGeneration/Contract.lean
 -- #print axioms Compiler.Proofs.IRGeneration.Contract.pickUniqueFunctionByName_eq_ok_none_of_absent  -- private
@@ -1993,7 +2013,11 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.simpleStorage_noReceive  -- private
 
 -- Compiler/Proofs/KeccakBound.lean
--- #print axioms Compiler.Proofs.fromByteArrayBigEndian_lt_of_size  -- sorry'd
+-- #print axioms Compiler.Proofs.ByteArray.toList.loop_length  -- private
+-- #print axioms Compiler.Proofs.ByteArray.toList_length  -- private
+-- #print axioms Compiler.Proofs.fromBytes'_lt  -- private
+-- #print axioms Compiler.Proofs.fromBytes'_lt_of_length_le  -- private
+#print axioms Compiler.Proofs.fromByteArrayBigEndian_lt_of_size
 
 -- Compiler/Proofs/MappingSlot.lean
 #print axioms Compiler.Proofs.abstractMappingSlot_eq_solidity
@@ -2010,6 +2034,16 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.abstractMappingSlot_lt_evmModulus
 #print axioms Compiler.Proofs.solidityMappingSlot_add_lt_evmModulus
 #print axioms Compiler.Proofs.solidityMappingSlot_add_wordOffset_lt_evmModulus
+
+-- Compiler/Proofs/StorageBounds.lean
+#print axioms Compiler.Proofs.StorageBounds.storageArray_element_val_lt
+#print axioms Compiler.Proofs.StorageBounds.storageArray_element_bounded
+#print axioms Compiler.Proofs.StorageBounds.storageArraySetAt_length
+#print axioms Compiler.Proofs.StorageBounds.storageArrayDropLast_length
+#print axioms Compiler.Proofs.StorageBounds.writeStorageArray_same_slot
+#print axioms Compiler.Proofs.StorageBounds.writeStorageArray_other_slot
+#print axioms Compiler.Proofs.StorageBounds.writeStorageArray_storage_unchanged
+#print axioms Compiler.Proofs.StorageBounds.writeStorageArray_events_unchanged
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.word_lt_uint256_size  -- private
@@ -2103,4 +2137,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1966 theorems/lemmas (1320 public, 645 private, 1 sorry'd)
+-- Total: 1991 theorems/lemmas (1342 public, 649 private, 0 sorry'd)

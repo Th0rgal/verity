@@ -27,7 +27,7 @@ namespace KeccakEngine
 -- has a statically-known size.
 theorem wordToBytesLE_size (word : BitVec 64) :
     (wordToBytesLE word).size = 8 := by
-  sorry
+  simp [wordToBytesLE]
 
 /-! ### Squeeze output size lemma -/
 
@@ -37,7 +37,7 @@ theorem wordToBytesLE_size (word : BitVec 64) :
 -- May need Array.size_append lemmas from Lean's standard library.
 theorem squeeze256_size (state : Array (BitVec 64)) :
     (squeeze256 state).size = 32 := by
-  sorry
+  simp [squeeze256, ByteArray.size, Array.size_append, wordToBytesLE_size]
 
 /-! ### Full keccak256 output size -/
 
@@ -47,7 +47,7 @@ theorem squeeze256_size (state : Array (BitVec 64)) :
 -- size is determined entirely by squeeze256_size.
 theorem keccak256_core_size (data : ByteArray) (variant : HashVariant) :
     (keccak256_core data variant).size = 32 := by
-  sorry
+  unfold keccak256_core; exact squeeze256_size _
 
 theorem keccak256_size (data : ByteArray) :
     (keccak256 data).size = 32 := by

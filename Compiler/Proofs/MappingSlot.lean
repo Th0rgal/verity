@@ -149,8 +149,7 @@ theorem solidityMappingSlot_lt_evmModulus (baseSlot key : Nat) :
     solidityMappingSlot baseSlot key < Compiler.Constants.evmModulus := by
   unfold solidityMappingSlot
   exact fromByteArrayBigEndian_lt_of_size _ (by
-    rw [KeccakEngine.keccak256_size]
-    omega)
+    rw [KeccakEngine.keccak256_size])
 
 theorem abstractMappingSlot_lt_evmModulus (baseSlot key : Nat) :
     abstractMappingSlot baseSlot key < Compiler.Constants.evmModulus :=

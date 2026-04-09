@@ -24,30 +24,61 @@ solidityMappingSlot_lt_evmModulus : solidityMappingSlot baseSlot key < evmModulu
 
 namespace Compiler.Proofs
 
+/-! ### ByteArray.toList length -/
+
+set_option maxHeartbeats 400000 in
+private theorem ByteArray.toList.loop_length (ba : ByteArray) (i : Nat) (acc : List UInt8)
+    (hi : i ≤ ba.size) :
+    (ByteArray.toList.loop ba i acc).length = (ba.size - i) + acc.length := by
+  induction i, acc using ByteArray.toList.loop.induct ba with
+  | case1 i acc hlt ih =>
+    unfold ByteArray.toList.loop
+    simp [hlt]
+    rw [ih (Nat.le_of_lt_succ (by omega))]
+    simp [List.length_cons]
+    omega
+  | case2 i acc hge =>
+    unfold ByteArray.toList.loop
+    simp [show ¬(i < ba.size) from hge]
+    omega
+
+private theorem ByteArray.toList_length (ba : ByteArray) : ba.toList.length = ba.size := by
+  unfold ByteArray.toList
+  rw [ByteArray.toList.loop_length ba 0 [] (Nat.zero_le _)]
+  simp
+
 /-! ### ByteArray big-endian bound -/
 
--- TODO: Prove that fromByteArrayBigEndian of a ≤32-byte array is < 2^256.
---
--- Proof strategy options (pick the one that works with EVMYulLean's definitions):
---
--- Option A: If fromByteArrayBigEndian unfolds to a foldl over bytes with
---   positional weights, prove by induction: each byte contributes < 256 * 2^(8*pos),
---   and the sum of all 32 positions < 2^256.
---
--- Option B: If fromByteArrayBigEndian is opaque in EVMYulLean, look for an
---   existing lemma in EVMYulLean like `fromByteArrayBigEndian_lt` or similar.
---   Check: `grep -r "fromByteArrayBigEndian.*lt\|fromByteArrayBigEndian.*bound"
---           .lake/packages/evmyul/ --include="*.lean"`
---
--- Option C (fallback): If both A and B fail, use native_decide on concrete
---   test vectors to validate, then use @[implemented_by] pattern as described
---   in the PR description.
---
--- IMPORTANT: Run `lake build` after each option to verify. Do NOT use sorry
--- in the final version.
+private theorem fromBytes'_lt (bs : List UInt8) :
+    EvmYul.fromBytes' bs < 2 ^ (8 * bs.length) := by
+  induction bs with
+  | nil => simp [EvmYul.fromBytes']
+  | cons b bs ih =>
+    unfold EvmYul.fromBytes'
+    have hb := b.toFin.isLt
+    simp only [List.length_cons, Nat.mul_succ, Nat.add_comm, Nat.pow_add]
+    have hsub :=
+      Nat.add_le_of_le_sub
+        (Nat.one_le_pow _ _ (by decide))
+        (Nat.le_sub_one_of_lt ih)
+    linarith
+
+private theorem fromBytes'_lt_of_length_le (bs : List UInt8) (n : Nat)
+    (h : bs.length ≤ n) :
+    EvmYul.fromBytes' bs < 2 ^ (8 * n) := by
+  calc EvmYul.fromBytes' bs
+      < 2 ^ (8 * bs.length) := fromBytes'_lt bs
+    _ ≤ 2 ^ (8 * n) := Nat.pow_le_pow_right (by omega) (Nat.mul_le_mul_left 8 h)
+
 theorem fromByteArrayBigEndian_lt_of_size (ba : ByteArray)
     (h : ba.size ≤ 32) :
     EvmYul.fromByteArrayBigEndian ba < Compiler.Constants.evmModulus := by
-  sorry
+  unfold EvmYul.fromByteArrayBigEndian EvmYul.fromBytesBigEndian Compiler.Constants.evmModulus
+  simp only [Function.comp]
+  show EvmYul.fromBytes' ba.toList.reverse < 2 ^ (8 * 32)
+  apply fromBytes'_lt_of_length_le
+  simp only [List.length_reverse]
+  rw [ByteArray.toList_length]
+  exact h
 
 end Compiler.Proofs
