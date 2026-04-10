@@ -40,6 +40,19 @@ abstract contract YulTestBase is Test {
         return "artifacts/yul";
     }
 
+    function _smokeYulDir() internal view returns (string memory) {
+        if (_usePatchedVerityCompiler()) {
+            if (vm.exists("compiler/yul-patched-smoke")) {
+                return "compiler/yul-patched-smoke";
+            }
+        } else {
+            if (vm.exists("compiler/yul-smoke")) {
+                return "compiler/yul-smoke";
+            }
+        }
+        return _yulDir();
+    }
+
     // Edge-case values matching Lean's edgeUint256Values and DiffTestConfig._edgeUintValues():
     //   [0, 1, 2, 2^128, 2^255, 2^256-2, 2^256-1]
     // Selectors 0-6 return these edge values (~7/16 probability);

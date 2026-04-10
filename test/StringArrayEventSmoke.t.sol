@@ -20,7 +20,7 @@ contract StringArrayEventSmokeTest is Test, YulTestBase {
         stringArrayEventSmoke = deployCompiledVerityModule(
             "Contracts.StringArrayEventSmoke",
             "StringArrayEventSmoke",
-            _yulDir()
+            _smokeYulDir()
         );
         referenceContract = new StringArrayEventSmokeReference();
     }
