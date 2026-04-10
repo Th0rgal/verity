@@ -57,18 +57,38 @@ abstract contract YulTestBase is Test {
         return prng % smallMod;
     }
 
+    function _solcPath() internal returns (string memory) {
+        // Try to detect solc location; vm.ffi may not inherit PATH
+        string[] memory which = new string[](3);
+        which[0] = "bash";
+        which[1] = "-c";
+        which[2] = "which solc 2>/dev/null || echo solc";
+        bytes memory out = vm.ffi(which);
+        return string(_trimBytes(out));
+    }
+
     function _compileYul(string memory path) internal returns (bytes memory) {
+        string memory solc = _solcPath();
         string[] memory cmds = new string[](3);
         cmds[0] = "bash";
         cmds[1] = "-c";
         cmds[2] = string.concat(
-            "solc --strict-assembly --bin ",
+            solc,
+            " --strict-assembly --bin ",
             path,
-            " | grep -E '^[0-9a-fA-F]+$' | tail -n 1"
+            " 2>/dev/null | grep -E '^[0-9a-fA-F]+$' | tail -n 1"
         );
         bytes memory out = vm.ffi(cmds);
         bytes memory trimmed = _trimBytes(out);
-        require(_isHexBytes(trimmed), string.concat("_compileYul: solc FFI returned non-hex output for ", path));
+        if (!_isHexBytes(trimmed)) {
+            // Retry with stderr captured for diagnostics
+            string[] memory dbg = new string[](3);
+            dbg[0] = "bash";
+            dbg[1] = "-c";
+            dbg[2] = string.concat(solc, " --strict-assembly --bin ", path, " 2>&1 || echo SOLC_EXIT=$?; echo PATH=$PATH; echo SOLC=", solc);
+            bytes memory dbgOut = vm.ffi(dbg);
+            revert(string.concat("_compileYul failed for ", path, ": ", string(dbgOut)));
+        }
         return vm.parseBytes(string.concat("0x", string(trimmed)));
     }
 
