@@ -1173,6 +1173,22 @@ jobs:
         with:
           local-artifact-run-id: ${{ github.run_id }}
 
+      - name: Verify solc can compile Yul artifacts
+        run: |
+          echo "solc path: $(which solc)"
+          echo "solc version: $(solc --version 2>&1 | grep -i version)"
+          for yul in compiler/yul/*.yul; do
+            hex=$(solc --strict-assembly --bin "$yul" 2>/dev/null | grep -E '^[0-9a-fA-F]+$' | tail -n 1)
+            if [ -z "$hex" ]; then
+              echo "FAIL: solc produced no hex for $yul"
+              echo "--- solc stderr ---"
+              solc --strict-assembly --bin "$yul" 2>&1 || true
+              echo "---"
+              exit 1
+            fi
+            echo "OK: $yul (${#hex} hex chars)"
+          done
+
       - name: Check static-vs-foundry gas calibration
         env:
           FOUNDRY_PROFILE: difftest
