@@ -60,7 +60,7 @@ abstract contract YulTestBase is Test {
     function _compileYul(string memory path) internal returns (bytes memory) {
         string[] memory cmds = new string[](3);
         cmds[0] = "bash";
-        cmds[1] = "-lc";
+        cmds[1] = "-c";
         cmds[2] = string.concat(
             "solc --strict-assembly --bin ",
             path,
@@ -68,10 +68,8 @@ abstract contract YulTestBase is Test {
         );
         bytes memory out = vm.ffi(cmds);
         bytes memory trimmed = _trimBytes(out);
-        if (_isHexBytes(trimmed)) {
-            return vm.parseBytes(string.concat("0x", string(trimmed)));
-        }
-        return trimmed;
+        require(_isHexBytes(trimmed), string.concat("_compileYul: solc FFI returned non-hex output for ", path));
+        return vm.parseBytes(string.concat("0x", string(trimmed)));
     }
 
     function _deploy(bytes memory bytecode) internal returns (address addr) {
