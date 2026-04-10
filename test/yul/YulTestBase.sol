@@ -57,39 +57,53 @@ abstract contract YulTestBase is Test {
         return prng % smallMod;
     }
 
-    function _solcPath() internal returns (string memory) {
-        // Try to detect solc location; vm.ffi may not inherit PATH
-        string[] memory which = new string[](3);
-        which[0] = "bash";
-        which[1] = "-c";
-        which[2] = "which solc 2>/dev/null || echo solc";
-        bytes memory out = vm.ffi(which);
-        return string(_trimBytes(out));
+    function _compileYul(string memory path) internal returns (bytes memory) {
+        string[] memory cmds = new string[](4);
+        cmds[0] = "solc";
+        cmds[1] = "--strict-assembly";
+        cmds[2] = "--bin";
+        cmds[3] = path;
+        bytes memory out = vm.ffi(cmds);
+        // solc output format: "======= ... =======\n\nBinary representation:\n<hex>\n"
+        // Extract the last non-empty line which should be the hex bytecode
+        bytes memory trimmed = _trimBytes(out);
+        bytes memory hexBytes = _extractLastHexLine(trimmed);
+        require(hexBytes.length > 0, string.concat("_compileYul: no hex bytecode in solc output for ", path));
+        return vm.parseBytes(string.concat("0x", string(hexBytes)));
     }
 
-    function _compileYul(string memory path) internal returns (bytes memory) {
-        string memory solc = _solcPath();
-        string[] memory cmds = new string[](3);
-        cmds[0] = "bash";
-        cmds[1] = "-c";
-        cmds[2] = string.concat(
-            solc,
-            " --strict-assembly --bin ",
-            path,
-            " 2>/dev/null | grep -E '^[0-9a-fA-F]+$' | tail -n 1"
-        );
-        bytes memory out = vm.ffi(cmds);
-        bytes memory trimmed = _trimBytes(out);
-        if (!_isHexBytes(trimmed)) {
-            // Retry with stderr captured for diagnostics
-            string[] memory dbg = new string[](3);
-            dbg[0] = "bash";
-            dbg[1] = "-c";
-            dbg[2] = string.concat(solc, " --strict-assembly --bin ", path, " 2>&1 || echo SOLC_EXIT=$?; echo PATH=$PATH; echo SOLC=", solc);
-            bytes memory dbgOut = vm.ffi(dbg);
-            revert(string.concat("_compileYul failed for ", path, ": ", string(dbgOut)));
+    function _extractLastHexLine(bytes memory input) internal pure returns (bytes memory) {
+        // Find the last line that is pure hex
+        uint256 end = input.length;
+        while (end > 0) {
+            // Find the start of the current line
+            uint256 lineEnd = end;
+            // Skip trailing whitespace/newlines
+            while (end > 0 && _isWhitespace(input[end - 1])) {
+                end--;
+            }
+            if (end == 0) break;
+            lineEnd = end;
+            // Find the start of this line
+            uint256 lineStart = end;
+            while (lineStart > 0 && !_isWhitespace(input[lineStart - 1])) {
+                lineStart--;
+            }
+            // Check if the line is all hex
+            bool allHex = lineEnd > lineStart;
+            for (uint256 i = lineStart; i < lineEnd && allHex; i++) {
+                if (!_isHexChar(input[i])) allHex = false;
+            }
+            if (allHex) {
+                bytes memory result = new bytes(lineEnd - lineStart);
+                for (uint256 i = 0; i < result.length; i++) {
+                    result[i] = input[lineStart + i];
+                }
+                return result;
+            }
+            end = lineStart;
         }
-        return vm.parseBytes(string.concat("0x", string(trimmed)));
+        return "";
     }
 
     function _deploy(bytes memory bytecode) internal returns (address addr) {
