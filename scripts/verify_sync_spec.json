@@ -514,6 +514,22 @@
         }
       },
       {
+        "name": "Upload smoke Yul",
+        "uses": "actions/upload-artifact@v7",
+        "with": {
+          "name": "generated-yul-smoke",
+          "path": "compiler/yul-smoke"
+        }
+      },
+      {
+        "name": "Upload patched smoke Yul",
+        "uses": "actions/upload-artifact@v7",
+        "with": {
+          "name": "generated-yul-patched-smoke",
+          "path": "compiler/yul-patched-smoke"
+        }
+      },
+      {
         "name": "Upload patch coverage report",
         "uses": "actions/upload-artifact@v7",
         "with": {
@@ -852,6 +868,8 @@
       "lean-workspace-compiler-build",
       "generated-yul",
       "generated-yul-patched",
+      "generated-yul-smoke",
+      "generated-yul-patched-smoke",
       "patch-coverage-report",
       "static-gas-report",
       "static-gas-report-patched"
@@ -876,6 +894,8 @@
       "lean-workspace-compiler-build.tar",
       "compiler/yul",
       "compiler/yul-patched",
+      "compiler/yul-smoke",
+      "compiler/yul-patched-smoke",
       "compiler/patch-report.tsv",
       "gas-report-static.tsv",
       "gas-report-static-patched.tsv"
@@ -915,14 +935,17 @@
       "static-gas-report"
     ],
     "foundry": [
-      "verity-compiler-binaries"
+      "verity-compiler-binaries",
+      "generated-yul-smoke"
     ],
     "foundry-patched": [
       "lean-workspace-build",
-      "lean-workspace-compiler-build"
+      "lean-workspace-compiler-build",
+      "generated-yul-patched-smoke"
     ],
     "foundry-multi-seed": [
-      "verity-compiler-binaries"
+      "verity-compiler-binaries",
+      "generated-yul-smoke"
     ]
   },
   "expected_downloaded_artifact_paths": {
@@ -956,14 +979,17 @@
       null
     ],
     "foundry": [
-      "compiler/bin"
+      "compiler/bin",
+      "compiler/yul-smoke"
     ],
     "foundry-patched": [
       null,
-      null
+      null,
+      "compiler/yul-patched-smoke"
     ],
     "foundry-multi-seed": [
-      "compiler/bin"
+      "compiler/bin",
+      "compiler/yul-smoke"
     ]
   }
 }

@@ -869,6 +869,8 @@ SPEC['expected_step_contracts']['build-compiler-binaries'] = [
     {'name': 'Upload compiler workspace build', 'uses': 'actions/upload-artifact@v7', 'with': {'name': 'lean-workspace-compiler-build', 'path': 'lean-workspace-compiler-build.tar', 'compression-level': '0'}},
     {'name': 'Upload generated Yul', 'uses': 'actions/upload-artifact@v7', 'with': {'name': 'generated-yul', 'path': 'compiler/yul'}},
     {'name': 'Upload patched Yul', 'uses': 'actions/upload-artifact@v7', 'with': {'name': 'generated-yul-patched', 'path': 'compiler/yul-patched'}},
+    {'name': 'Upload smoke Yul', 'uses': 'actions/upload-artifact@v7', 'with': {'name': 'generated-yul-smoke', 'path': 'compiler/yul-smoke'}},
+    {'name': 'Upload patched smoke Yul', 'uses': 'actions/upload-artifact@v7', 'with': {'name': 'generated-yul-patched-smoke', 'path': 'compiler/yul-patched-smoke'}},
     {'name': 'Upload patch coverage report', 'uses': 'actions/upload-artifact@v7', 'with': {'name': 'patch-coverage-report', 'path': 'compiler/patch-report.tsv'}},
     {'name': 'Upload static gas report', 'uses': 'actions/upload-artifact@v7', 'with': {'name': 'static-gas-report', 'path': 'gas-report-static.tsv'}},
     {'name': 'Upload patched static gas report', 'uses': 'actions/upload-artifact@v7', 'with': {'name': 'static-gas-report-patched', 'path': 'gas-report-static-patched.tsv'}},
@@ -879,7 +881,9 @@ SPEC['expected_uploaded_artifacts'] = {
     'prepare-macro-fuzz': ['lean-workspace-macro-fuzz-build'],
     'build-audits': ['axiom-dependency-report'],
     'build-compiler-binaries': ['difftest-interpreter', 'verity-compiler-binaries', 'lean-workspace-compiler-build',
-                                'generated-yul', 'generated-yul-patched', 'patch-coverage-report',
+                                'generated-yul', 'generated-yul-patched',
+                                'generated-yul-smoke', 'generated-yul-patched-smoke',
+                                'patch-coverage-report',
                                 'static-gas-report', 'static-gas-report-patched'],
     'lean-profile': ['lean-perf-queue'],
 }
@@ -889,7 +893,9 @@ SPEC['expected_uploaded_artifact_paths'] = {
     'prepare-macro-fuzz': ['lean-workspace-macro-fuzz-build.tar'],
     'build-audits': ['axiom-report.md\naxiom-report-raw.log'],
     'build-compiler-binaries': ['.lake/build/bin/difftest-interpreter', 'compiler/bin', 'lean-workspace-compiler-build.tar',
-                                'compiler/yul', 'compiler/yul-patched', 'compiler/patch-report.tsv',
+                                'compiler/yul', 'compiler/yul-patched',
+                                'compiler/yul-smoke', 'compiler/yul-patched-smoke',
+                                'compiler/patch-report.tsv',
                                 'gas-report-static.tsv', 'gas-report-static-patched.tsv'],
     'lean-profile': ['lean-perf-queue.md'],
 }
@@ -902,9 +908,9 @@ SPEC['expected_downloaded_artifacts'] = {
     'compiler-audits': ['lean-workspace-build', 'lean-workspace-compiler-build', 'generated-yul', 'generated-yul-patched', 'static-gas-report', 'static-gas-report-patched', 'patch-coverage-report', 'verity-compiler-binaries'],
     'compiler-regressions': ['lean-workspace-build', 'lean-workspace-compiler-build'],
     'foundry-gas-calibration': ['static-gas-report'],
-    'foundry': ['verity-compiler-binaries'],
-    'foundry-patched': ['lean-workspace-build', 'lean-workspace-compiler-build'],
-    'foundry-multi-seed': ['verity-compiler-binaries'],
+    'foundry': ['verity-compiler-binaries', 'generated-yul-smoke'],
+    'foundry-patched': ['lean-workspace-build', 'lean-workspace-compiler-build', 'generated-yul-patched-smoke'],
+    'foundry-multi-seed': ['verity-compiler-binaries', 'generated-yul-smoke'],
 }
 
 SPEC['expected_downloaded_artifact_paths'] = {
@@ -915,9 +921,9 @@ SPEC['expected_downloaded_artifact_paths'] = {
     'compiler-audits': [None, None, 'compiler/yul', 'compiler/yul-patched', None, None, 'compiler', 'compiler/bin'],
     'compiler-regressions': [None, None],
     'foundry-gas-calibration': [None],
-    'foundry': ['compiler/bin'],
-    'foundry-patched': [None, None],
-    'foundry-multi-seed': ['compiler/bin'],
+    'foundry': ['compiler/bin', 'compiler/yul-smoke'],
+    'foundry-patched': [None, None, 'compiler/yul-patched-smoke'],
+    'foundry-multi-seed': ['compiler/bin', 'compiler/yul-smoke'],
 }
 
 

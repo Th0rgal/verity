@@ -140,7 +140,7 @@ abstract contract YulTestBase is Test {
         if (vm.exists(artifactPath)) return;
         string[] memory cmds = new string[](3);
         cmds[0] = "bash";
-        cmds[1] = "-lc";
+        cmds[1] = "-c";
         cmds[2] = string.concat(
             "out='",
             outDir,
@@ -171,7 +171,7 @@ abstract contract YulTestBase is Test {
         if (vm.exists(artifactPath)) return;
         string[] memory cmds = new string[](3);
         cmds[0] = "bash";
-        cmds[1] = "-lc";
+        cmds[1] = "-c";
         cmds[2] = string.concat(
             "out='",
             outDir,
