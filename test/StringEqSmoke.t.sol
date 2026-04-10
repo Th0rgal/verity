@@ -26,7 +26,7 @@ contract StringEqSmokeTest is Test, YulTestBase {
         stringEqSmoke = deployCompiledVerityModule(
             "Contracts.StringEqSmoke",
             "StringEqSmoke",
-            "artifacts/test-string-eq-smoke"
+            _yulDir()
         );
         referenceContract = new StringEqSmokeReference();
     }

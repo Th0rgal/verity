@@ -26,7 +26,7 @@ contract BytesEqSmokeTest is Test, YulTestBase {
         bytesEqSmoke = deployCompiledVerityModule(
             "Contracts.BytesEqSmoke",
             "BytesEqSmoke",
-            "artifacts/test-bytes-eq-smoke"
+            _yulDir()
         );
         referenceContract = new BytesEqSmokeReference();
     }

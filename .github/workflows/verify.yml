@@ -743,17 +743,28 @@ jobs:
             --link examples/external-libs/PoseidonT3.yul \
             --link examples/external-libs/PoseidonT4.yul
 
-      - name: Pre-build LocalObligationMacroSmoke Yul (unpatched)
+      - name: Pre-build smoke test Yul artifacts (unpatched)
         run: |
           set -euo pipefail
-          artifact="compiler/yul/LocalObligationMacroSmoke.yul"
-          if [ -f "${artifact}" ]; then
-            exit 0
-          fi
-          lake build Contracts.LocalObligationMacroSmoke.LocalObligationMacroSmoke >/dev/null
-          ./compiler/bin/verity-compiler \
-            --module Contracts.LocalObligationMacroSmoke.LocalObligationMacroSmoke \
-            --output compiler/yul >/dev/null
+          smoke_modules=(
+            Contracts.LocalObligationMacroSmoke.LocalObligationMacroSmoke
+            Contracts.BytesEqSmoke
+            Contracts.Smoke.LowLevelTryCatchSmoke
+            Contracts.StringArrayErrorSmoke
+            Contracts.StringArrayEventSmoke
+            Contracts.StringEqSmoke
+            Contracts.StringErrorSmokeContract
+            Contracts.StringEventSmoke
+            Contracts.StringSmoke
+          )
+          # Build all modules in one lake invocation
+          lake build "${smoke_modules[@]}" >/dev/null
+          # Generate Yul for each module
+          for module in "${smoke_modules[@]}"; do
+            ./compiler/bin/verity-compiler \
+              --module "$module" \
+              --output compiler/yul >/dev/null
+          done
 
       - name: Generate patched Yul + patch coverage report
         run: |
@@ -765,18 +776,26 @@ jobs:
             --link examples/external-libs/PoseidonT3.yul \
             --link examples/external-libs/PoseidonT4.yul
 
-      - name: Pre-build patched LocalObligationMacroSmoke Yul for foundry-patched
+      - name: Pre-build patched smoke test Yul artifacts for foundry-patched
         run: |
           set -euo pipefail
-          artifact="compiler/yul-patched/LocalObligationMacroSmoke.yul"
-          if [ -f "${artifact}" ]; then
-            exit 0
-          fi
-          lake build Contracts.LocalObligationMacroSmoke.LocalObligationMacroSmoke >/dev/null
-          ./compiler/bin/verity-compiler-patched \
-            --module Contracts.LocalObligationMacroSmoke.LocalObligationMacroSmoke \
-            --output compiler/yul-patched \
-            --enable-patches >/dev/null
+          smoke_modules=(
+            Contracts.LocalObligationMacroSmoke.LocalObligationMacroSmoke
+            Contracts.BytesEqSmoke
+            Contracts.Smoke.LowLevelTryCatchSmoke
+            Contracts.StringArrayErrorSmoke
+            Contracts.StringArrayEventSmoke
+            Contracts.StringEqSmoke
+            Contracts.StringErrorSmokeContract
+            Contracts.StringEventSmoke
+            Contracts.StringSmoke
+          )
+          for module in "${smoke_modules[@]}"; do
+            ./compiler/bin/verity-compiler-patched \
+              --module "$module" \
+              --output compiler/yul-patched \
+              --enable-patches >/dev/null
+          done
 
       - name: Save static gas report snapshot
         run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv

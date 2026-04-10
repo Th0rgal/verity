@@ -124,13 +124,12 @@ abstract contract YulTestBase is Test {
         string memory outDir
     ) internal {
         string memory artifactPath = string.concat(outDir, "/", contractName, ".yul");
+        if (vm.exists(artifactPath)) return;
         string[] memory cmds = new string[](3);
         cmds[0] = "bash";
         cmds[1] = "-lc";
         cmds[2] = string.concat(
-            "artifact='",
-            artifactPath,
-            "'; out='",
+            "out='",
             outDir,
             "'; module='",
             moduleName,
@@ -143,8 +142,6 @@ abstract contract YulTestBase is Test {
             "'; ",
             "compiler=\"./.lake/build/bin/$compiler_name\"; ",
             "if [ ! -x \"$compiler\" ] && [ -x \"./compiler/bin/$compiler_name\" ]; then compiler=\"./compiler/bin/$compiler_name\"; fi; ",
-            "if [ -f \"$artifact\" ] && [ -x \"$compiler\" ] && [ \"$compiler\" -ot \"$artifact\" ] && ",
-            "! find Contracts Compiler Verity -name '*.lean' -newer \"$artifact\" -print -quit | grep -q .; then exit 0; fi; ",
             "mkdir -p \"$out\" && if [ -x \"$compiler\" ]; then lake build \"$module\" >/dev/null; else lake build \"$module\" \"$compiler_target\" >/dev/null; fi && ",
             "\"$compiler\" --module \"$module\" --output \"$out\" $compiler_args >/dev/null"
         );
@@ -158,13 +155,12 @@ abstract contract YulTestBase is Test {
         string memory outDir
     ) internal {
         string memory artifactPath = string.concat(outDir, "/", contractName, ".yul");
+        if (vm.exists(artifactPath)) return;
         string[] memory cmds = new string[](3);
         cmds[0] = "bash";
         cmds[1] = "-lc";
         cmds[2] = string.concat(
-            "artifact='",
-            artifactPath,
-            "'; out='",
+            "out='",
             outDir,
             "'; manifest='",
             manifestPath,
@@ -177,8 +173,6 @@ abstract contract YulTestBase is Test {
             "'; ",
             "compiler=\"./.lake/build/bin/$compiler_name\"; ",
             "if [ ! -x \"$compiler\" ] && [ -x \"./compiler/bin/$compiler_name\" ]; then compiler=\"./compiler/bin/$compiler_name\"; fi; ",
-            "if [ -f \"$artifact\" ] && [ -x \"$compiler\" ] && [ \"$compiler\" -ot \"$artifact\" ] && [ \"$manifest\" -ot \"$artifact\" ] && ",
-            "! find Contracts Compiler Verity -name '*.lean' -newer \"$artifact\" -print -quit | grep -q .; then exit 0; fi; ",
             "mkdir -p \"$out\" && set -- $(grep -vE '^[[:space:]]*($|#)' \"$manifest\") && if [ -x \"$compiler\" ]; then lake build \"$@\" >/dev/null; else lake build \"$@\" \"$compiler_target\" >/dev/null; fi && ",
             "\"$compiler\" --manifest \"$manifest\" --output \"$out\" $compiler_args >/dev/null"
         );
