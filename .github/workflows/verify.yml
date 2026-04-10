@@ -1159,6 +1159,7 @@ jobs:
 
       - name: Verify Lake package integrity
         run: |
+          shopt -s nullglob
           for pkg_git in .lake/packages/*/.git; do
             pkg="$(dirname "$pkg_git")"
             if ! git -C "$pkg" rev-parse HEAD >/dev/null 2>&1; then
@@ -1208,6 +1209,7 @@ jobs:
 
       - name: Verify Lake package integrity
         run: |
+          shopt -s nullglob
           for pkg_git in .lake/packages/*/.git; do
             pkg="$(dirname "$pkg_git")"
             if ! git -C "$pkg" rev-parse HEAD >/dev/null 2>&1; then
@@ -1262,6 +1264,7 @@ jobs:
 
       - name: Verify Lake package integrity
         run: |
+          shopt -s nullglob
           for pkg_git in .lake/packages/*/.git; do
             pkg="$(dirname "$pkg_git")"
             if ! git -C "$pkg" rev-parse HEAD >/dev/null 2>&1; then
@@ -1316,6 +1319,7 @@ jobs:
 
       - name: Verify Lake package integrity
         run: |
+          shopt -s nullglob
           for pkg_git in .lake/packages/*/.git; do
             pkg="$(dirname "$pkg_git")"
             if ! git -C "$pkg" rev-parse HEAD >/dev/null 2>&1; then
