@@ -279,6 +279,12 @@ verity/
 └── docs-site/           # Published documentation site sources
 ```
 
+## Support
+
+Verity is a public good. If you'd like to support the project, you can donate via Giveth:
+
+[verity: Smart Contracts Security for the Age of AI](https://giveth.io/project/verity:-smart-contracts-security-for-the-age-of-ai)
+
 ## License
 
 MIT - See [LICENSE.md](LICENSE.md).
