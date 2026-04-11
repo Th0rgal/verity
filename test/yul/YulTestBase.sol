@@ -225,18 +225,6 @@ abstract contract YulTestBase is Test {
         return out;
     }
 
-    function _isHexBytes(bytes memory input) internal pure returns (bool) {
-        if (input.length == 0) {
-            return false;
-        }
-        for (uint256 i = 0; i < input.length; i++) {
-            if (!_isHexChar(input[i])) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     function _isHexChar(bytes1 c) private pure returns (bool) {
         return (c >= 0x30 && c <= 0x39) || (c >= 0x41 && c <= 0x46) || (c >= 0x61 && c <= 0x66);
     }

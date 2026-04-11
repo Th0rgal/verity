@@ -1301,6 +1301,13 @@ jobs:
             mkdir -p compiler/yul-smoke
             cp -a "$source_dir/." compiler/yul-smoke/
             rm -f compiler/yul-smoke/.ready
+            shopt -s nullglob
+            restored_yul=(compiler/yul-smoke/*.yul)
+            if [ "${#restored_yul[@]}" -eq 0 ]; then
+              echo "::warning::Local smoke Yul cache had .ready but no .yul files — falling back"
+              exit 1
+            fi
+            echo "Restored ${#restored_yul[@]} smoke Yul files from local cache"
           else
             exit 1
           fi
@@ -1311,6 +1318,26 @@ jobs:
         with:
           name: generated-yul-smoke
           path: compiler/yul-smoke
+
+      - name: Validate smoke Yul artifacts
+        run: |
+          shopt -s nullglob
+          out_dir="compiler/yul-smoke"
+          direct_yul=("${out_dir}"/*.yul)
+          if [ "${#direct_yul[@]}" -eq 0 ]; then
+            mapfile -t nested_yul < <(find "${out_dir}" -mindepth 2 -maxdepth 3 -type f -name '*.yul' | sort)
+            if [ "${#nested_yul[@]}" -gt 0 ]; then
+              for path in "${nested_yul[@]}"; do
+                mv "$path" "${out_dir}/$(basename "$path")"
+              done
+            fi
+          fi
+          direct_yul=("${out_dir}"/*.yul)
+          if [ "${#direct_yul[@]}" -eq 0 ]; then
+            echo "::error::No smoke Yul files restored into ${out_dir}"
+            find "${out_dir}" -maxdepth 4 -print || true
+            exit 1
+          fi
 
       - name: Verify Lake package integrity
         run: |
@@ -1376,6 +1403,13 @@ jobs:
             mkdir -p compiler/yul-patched-smoke
             cp -a "$source_dir/." compiler/yul-patched-smoke/
             rm -f compiler/yul-patched-smoke/.ready
+            shopt -s nullglob
+            restored_yul=(compiler/yul-patched-smoke/*.yul)
+            if [ "${#restored_yul[@]}" -eq 0 ]; then
+              echo "::warning::Local patched smoke Yul cache had .ready but no .yul files — falling back"
+              exit 1
+            fi
+            echo "Restored ${#restored_yul[@]} patched smoke Yul files from local cache"
           else
             exit 1
           fi
@@ -1386,6 +1420,26 @@ jobs:
         with:
           name: generated-yul-patched-smoke
           path: compiler/yul-patched-smoke
+
+      - name: Validate patched smoke Yul artifacts
+        run: |
+          shopt -s nullglob
+          out_dir="compiler/yul-patched-smoke"
+          direct_yul=("${out_dir}"/*.yul)
+          if [ "${#direct_yul[@]}" -eq 0 ]; then
+            mapfile -t nested_yul < <(find "${out_dir}" -mindepth 2 -maxdepth 3 -type f -name '*.yul' | sort)
+            if [ "${#nested_yul[@]}" -gt 0 ]; then
+              for path in "${nested_yul[@]}"; do
+                mv "$path" "${out_dir}/$(basename "$path")"
+              done
+            fi
+          fi
+          direct_yul=("${out_dir}"/*.yul)
+          if [ "${#direct_yul[@]}" -eq 0 ]; then
+            echo "::error::No patched smoke Yul files restored into ${out_dir}"
+            find "${out_dir}" -maxdepth 4 -print || true
+            exit 1
+          fi
 
       - name: Verify Lake package integrity
         run: |
@@ -1451,6 +1505,13 @@ jobs:
             mkdir -p compiler/yul-smoke
             cp -a "$source_dir/." compiler/yul-smoke/
             rm -f compiler/yul-smoke/.ready
+            shopt -s nullglob
+            restored_yul=(compiler/yul-smoke/*.yul)
+            if [ "${#restored_yul[@]}" -eq 0 ]; then
+              echo "::warning::Local smoke Yul cache had .ready but no .yul files — falling back"
+              exit 1
+            fi
+            echo "Restored ${#restored_yul[@]} smoke Yul files from local cache"
           else
             exit 1
           fi
@@ -1461,6 +1522,26 @@ jobs:
         with:
           name: generated-yul-smoke
           path: compiler/yul-smoke
+
+      - name: Validate smoke Yul artifacts
+        run: |
+          shopt -s nullglob
+          out_dir="compiler/yul-smoke"
+          direct_yul=("${out_dir}"/*.yul)
+          if [ "${#direct_yul[@]}" -eq 0 ]; then
+            mapfile -t nested_yul < <(find "${out_dir}" -mindepth 2 -maxdepth 3 -type f -name '*.yul' | sort)
+            if [ "${#nested_yul[@]}" -gt 0 ]; then
+              for path in "${nested_yul[@]}"; do
+                mv "$path" "${out_dir}/$(basename "$path")"
+              done
+            fi
+          fi
+          direct_yul=("${out_dir}"/*.yul)
+          if [ "${#direct_yul[@]}" -eq 0 ]; then
+            echo "::error::No smoke Yul files restored into ${out_dir}"
+            find "${out_dir}" -maxdepth 4 -print || true
+            exit 1
+          fi
 
       - name: Verify Lake package integrity
         run: |
