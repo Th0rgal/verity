@@ -36,7 +36,7 @@ contract StringArrayErrorSmokeTest is Test, YulTestBase {
         stringArrayErrorSmoke = deployCompiledVerityModule(
             "Contracts.StringArrayErrorSmoke",
             "StringArrayErrorSmoke",
-            "artifacts/test-string-array-error-smoke"
+            _smokeYulDir()
         );
         referenceContract = new StringArrayErrorSmokeReference();
     }

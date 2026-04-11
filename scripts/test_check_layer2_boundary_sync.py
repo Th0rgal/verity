@@ -60,7 +60,7 @@ class Layer2BoundarySyncTests(unittest.TestCase):
     def test_missing_required_snippet_fails(self) -> None:
         rc, output = self._run_check(use_expected=False, add_forbidden=False)
         self.assertEqual(rc, 1)
-        self.assertIn("missing `### 1. `solidityMappingSlot_lt_evmModulus``", output)
+        self.assertIn("missing `### 1. `solidityMappingSlot_lt_evmModulus` (eliminated)`", output)
 
     def test_forbidden_overclaim_fails(self) -> None:
         rc, output = self._run_check(use_expected=True, add_forbidden=True)
@@ -74,7 +74,7 @@ class Layer2BoundarySyncTests(unittest.TestCase):
             target = root / check.TARGETS["ROOT_README"].relative_to(check.ROOT)
             target.write_text(
                 target.read_text(encoding="utf-8").replace(
-                    "There is currently 1 documented Lean axiom in total: the mapping-slot range axiom.",
+                    "There are currently 0 documented Lean axioms.",
                     "There are currently 2 documented Lean axioms in total: the selector axiom and 1 mapping-slot range axiom.",
                 ),
                 encoding="utf-8",
@@ -98,7 +98,7 @@ class Layer2BoundarySyncTests(unittest.TestCase):
                 check.TARGETS = old_targets
 
         self.assertEqual(rc, 1)
-        self.assertIn("missing `There is currently 1 documented Lean axiom in total", output)
+        self.assertIn("missing `There are currently 0 documented Lean axioms.", output)
 
     def test_compiler_proofs_readme_stale_axiom_wording_is_forbidden(self) -> None:
         forbidden = check.forbidden_snippets()

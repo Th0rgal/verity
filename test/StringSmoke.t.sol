@@ -30,7 +30,7 @@ contract StringSmokeTest is Test, YulTestBase {
         stringSmoke = deployCompiledVerityModule(
             "Contracts.StringSmoke",
             "StringSmoke",
-            "artifacts/test-string-smoke"
+            _smokeYulDir()
         );
         referenceContract = new StringSmokeReference();
     }

@@ -15,7 +15,9 @@ fs_permissions = [
   { access = "read-write", path = "./artifacts" },
   { access = "read-write", path = "./artifacts/test-string-smoke" },
   { access = "read", path = "./compiler/yul" },
-  { access = "read", path = "./compiler/yul-patched" }
+  { access = "read", path = "./compiler/yul-patched" },
+  { access = "read", path = "./compiler/yul-smoke" },
+  { access = "read", path = "./compiler/yul-patched-smoke" }
 ]
 
 # Testing profile: enables FFI for vm.ffi() calls (solc compilation, difftest-interpreter).

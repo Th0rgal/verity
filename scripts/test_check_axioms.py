@@ -115,12 +115,12 @@ class CheckAxiomsReportTests(unittest.TestCase):
 
     def test_classify_axioms_separates_forbidden_and_unexpected(self) -> None:
         axiom_map = {
-            "Foo.bar": ["propext", "solidityMappingSlot_lt_evmModulus", "mysteryAx"],
+            "Foo.bar": ["propext", "mysteryAx"],
             "Baz.qux": ["sorryAx"],
         }
         builtin, documented, forbidden, unexpected = check_axioms.classify_axioms(axiom_map)
         self.assertEqual(builtin, {"propext"})
-        self.assertEqual(documented, {"solidityMappingSlot_lt_evmModulus"})
+        self.assertEqual(documented, set())
         self.assertEqual(forbidden, {"sorryAx"})
         self.assertEqual(unexpected, {"mysteryAx": ["Foo.bar"]})
 
@@ -134,7 +134,7 @@ class CheckAxiomsReportTests(unittest.TestCase):
             try:
                 with redirect_stdout(stdout), redirect_stderr(stderr):
                     rc = check_axioms.run_report_check(
-                        "'Foo.bar' depends on axioms: [propext, solidityMappingSlot_lt_evmModulus]\n"
+                        "'Foo.bar' depends on axioms: [propext]\n"
                     )
             finally:
                 if old_output is None:

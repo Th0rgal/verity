@@ -40,7 +40,7 @@ contract LowLevelTryCatchSmokeTest is Test, YulTestBase {
         lowLevelTryCatchSmoke = deployCompiledVerityModule(
             "Contracts.Smoke.LowLevelTryCatchSmoke",
             "LowLevelTryCatchSmoke",
-            "artifacts/test-low-level-trycatch-smoke"
+            _smokeYulDir()
         );
         referenceContract = new LowLevelTryCatchSmokeReference();
     }

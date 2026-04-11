@@ -21,33 +21,21 @@ namespace KeccakEngine
 
 /-! ### Word-to-bytes size lemma -/
 
--- TODO: Prove that wordToBytesLE always produces exactly 8 bytes.
--- Proof strategy: unfold wordToBytesLE, it constructs a literal #[...] of 8 elements.
--- This should be provable by `rfl` or `simp [wordToBytesLE]` since the array literal
--- has a statically-known size.
 theorem wordToBytesLE_size (word : BitVec 64) :
     (wordToBytesLE word).size = 8 := by
-  sorry
+  simp [wordToBytesLE]
 
 /-! ### Squeeze output size lemma -/
 
--- TODO: Prove that squeeze256 always produces exactly 32 bytes.
--- Proof strategy: unfold squeeze256, it concatenates 4 × wordToBytesLE results.
--- Using wordToBytesLE_size (each is 8 bytes), 4 × 8 = 32.
--- May need Array.size_append lemmas from Lean's standard library.
 theorem squeeze256_size (state : Array (BitVec 64)) :
     (squeeze256 state).size = 32 := by
-  sorry
+  simp [squeeze256, ByteArray.size, Array.size_append, wordToBytesLE_size]
 
 /-! ### Full keccak256 output size -/
 
--- TODO: Prove that keccak256 always produces exactly 32 bytes.
--- Proof strategy: unfold keccak256 → keccak256_core → ... → squeeze256.
--- The sponge loop always ends with keccakF1600 → squeeze256, so the output
--- size is determined entirely by squeeze256_size.
 theorem keccak256_core_size (data : ByteArray) (variant : HashVariant) :
     (keccak256_core data variant).size = 32 := by
-  sorry
+  unfold keccak256_core; exact squeeze256_size _
 
 theorem keccak256_size (data : ByteArray) :
     (keccak256 data).size = 32 := by

@@ -48,11 +48,8 @@ private def solidityMappingSlot_ffi (baseSlot key : Nat) : Nat :=
 
     Uses the kernel-computable Keccak engine so proofs can reason about the output
     size (always 32 bytes → result < 2^256). The FFI version is registered via
-    `@[implemented_by]` for runtime performance.
-
-    TODO: Once proofs are complete, uncomment `@[implemented_by solidityMappingSlot_ffi]`
-    and benchmark. If build time is acceptable without it, remove `_ffi` entirely. -/
--- @[implemented_by solidityMappingSlot_ffi]
+    `@[implemented_by]` for runtime performance. -/
+@[implemented_by solidityMappingSlot_ffi]
 def solidityMappingSlot (baseSlot key : Nat) : Nat :=
   EvmYul.fromByteArrayBigEndian (KeccakEngine.keccak256 (abiEncodeMappingSlot baseSlot key))
 
@@ -149,8 +146,7 @@ theorem solidityMappingSlot_lt_evmModulus (baseSlot key : Nat) :
     solidityMappingSlot baseSlot key < Compiler.Constants.evmModulus := by
   unfold solidityMappingSlot
   exact fromByteArrayBigEndian_lt_of_size _ (by
-    rw [KeccakEngine.keccak256_size]
-    omega)
+    rw [KeccakEngine.keccak256_size])
 
 theorem abstractMappingSlot_lt_evmModulus (baseSlot key : Nat) :
     abstractMappingSlot baseSlot key < Compiler.Constants.evmModulus :=

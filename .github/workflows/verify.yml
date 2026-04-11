@@ -755,6 +755,27 @@ jobs:
             --module Contracts.LocalObligationMacroSmoke.LocalObligationMacroSmoke \
             --output compiler/yul >/dev/null
 
+      - name: Pre-build smoke test Yul artifacts (unpatched)
+        run: |
+          set -euo pipefail
+          smoke_modules=(
+            Contracts.BytesEqSmoke
+            Contracts.Smoke.LowLevelTryCatchSmoke
+            Contracts.StringArrayErrorSmoke
+            Contracts.StringArrayEventSmoke
+            Contracts.StringEqSmoke
+            Contracts.StringErrorSmokeContract
+            Contracts.StringEventSmoke
+            Contracts.StringSmoke
+          )
+          lake build "${smoke_modules[@]}" >/dev/null
+          mkdir -p compiler/yul-smoke
+          for module in "${smoke_modules[@]}"; do
+            ./compiler/bin/verity-compiler \
+              --module "$module" \
+              --output compiler/yul-smoke >/dev/null
+          done
+
       - name: Generate patched Yul + patch coverage report
         run: |
           ./compiler/bin/verity-compiler-patched \
@@ -772,11 +793,31 @@ jobs:
           if [ -f "${artifact}" ]; then
             exit 0
           fi
-          lake build Contracts.LocalObligationMacroSmoke.LocalObligationMacroSmoke >/dev/null
           ./compiler/bin/verity-compiler-patched \
             --module Contracts.LocalObligationMacroSmoke.LocalObligationMacroSmoke \
             --output compiler/yul-patched \
             --enable-patches >/dev/null
+
+      - name: Pre-build patched smoke test Yul artifacts for foundry-patched
+        run: |
+          set -euo pipefail
+          smoke_modules=(
+            Contracts.BytesEqSmoke
+            Contracts.Smoke.LowLevelTryCatchSmoke
+            Contracts.StringArrayErrorSmoke
+            Contracts.StringArrayEventSmoke
+            Contracts.StringEqSmoke
+            Contracts.StringErrorSmokeContract
+            Contracts.StringEventSmoke
+            Contracts.StringSmoke
+          )
+          mkdir -p compiler/yul-patched-smoke
+          for module in "${smoke_modules[@]}"; do
+            ./compiler/bin/verity-compiler-patched \
+              --module "$module" \
+              --output compiler/yul-patched-smoke \
+              --enable-patches >/dev/null
+          done
 
       - name: Save static gas report snapshot
         run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv
@@ -825,6 +866,20 @@ jobs:
             --name generated-yul-patched \
             --path compiler/yul-patched
 
+      - name: Publish smoke Yul locally
+        run: |
+          scripts/ci_local_persistence.sh publish \
+            --run-id "${{ github.run_id }}" \
+            --name generated-yul-smoke \
+            --path compiler/yul-smoke
+
+      - name: Publish patched smoke Yul locally
+        run: |
+          scripts/ci_local_persistence.sh publish \
+            --run-id "${{ github.run_id }}" \
+            --name generated-yul-patched-smoke \
+            --path compiler/yul-patched-smoke
+
       - name: Publish gas reports locally
         run: |
           staging="${RUNNER_TEMP}/gas-reports-${{ github.run_id }}"
@@ -838,12 +893,14 @@ jobs:
             --path "$staging"
 
       - name: Upload difftest interpreter
+        if: '!cancelled()'
         uses: actions/upload-artifact@v7
         with:
           name: difftest-interpreter
           path: .lake/build/bin/difftest-interpreter
 
       - name: Upload compiler binaries
+        if: '!cancelled()'
         uses: actions/upload-artifact@v7
         with:
           name: verity-compiler-binaries
@@ -851,6 +908,7 @@ jobs:
           compression-level: 0
 
       - name: Upload compiler workspace build
+        if: '!cancelled()'
         uses: actions/upload-artifact@v7
         with:
           name: lean-workspace-compiler-build
@@ -858,30 +916,49 @@ jobs:
           compression-level: 0
 
       - name: Upload generated Yul
+        if: '!cancelled()'
         uses: actions/upload-artifact@v7
         with:
           name: generated-yul
           path: compiler/yul
 
       - name: Upload patched Yul
+        if: '!cancelled()'
         uses: actions/upload-artifact@v7
         with:
           name: generated-yul-patched
           path: compiler/yul-patched
 
+      - name: Upload smoke Yul
+        if: '!cancelled()'
+        uses: actions/upload-artifact@v7
+        with:
+          name: generated-yul-smoke
+          path: compiler/yul-smoke
+
+      - name: Upload patched smoke Yul
+        if: '!cancelled()'
+        uses: actions/upload-artifact@v7
+        with:
+          name: generated-yul-patched-smoke
+          path: compiler/yul-patched-smoke
+
       - name: Upload patch coverage report
+        if: '!cancelled()'
         uses: actions/upload-artifact@v7
         with:
           name: patch-coverage-report
           path: compiler/patch-report.tsv
 
       - name: Upload static gas report
+        if: '!cancelled()'
         uses: actions/upload-artifact@v7
         with:
           name: static-gas-report
           path: gas-report-static.tsv
 
       - name: Upload patched static gas report
+        if: '!cancelled()'
         uses: actions/upload-artifact@v7
         with:
           name: static-gas-report-patched
@@ -1149,10 +1226,37 @@ jobs:
         with:
           name: static-gas-report
 
+      - name: Verify Lake package integrity
+        run: |
+          shopt -s nullglob
+          for pkg_git in .lake/packages/*/.git; do
+            pkg="$(dirname "$pkg_git")"
+            if ! git -C "$pkg" rev-parse HEAD >/dev/null 2>&1; then
+              echo "::warning::Removing corrupted Lake package: $pkg"
+              rm -rf "$pkg"
+            fi
+          done
+
       - name: Setup Foundry environment
         uses: ./.github/actions/setup-foundry
         with:
           local-artifact-run-id: ${{ github.run_id }}
+
+      - name: Verify solc can compile Yul artifacts
+        run: |
+          echo "solc path: $(which solc)"
+          echo "solc version: $(solc --version 2>&1 | grep -i version)"
+          for yul in compiler/yul/*.yul; do
+            hex=$(solc --strict-assembly --bin "$yul" 2>/dev/null | grep -E '^[0-9a-fA-F]+$' | tail -n 1)
+            if [ -z "$hex" ]; then
+              echo "FAIL: solc produced no hex for $yul"
+              echo "--- solc stderr ---"
+              solc --strict-assembly --bin "$yul" 2>&1 || true
+              echo "---"
+              exit 1
+            fi
+            echo "OK: $yul (${#hex} hex chars)"
+          done
 
       - name: Check static-vs-foundry gas calibration
         env:
@@ -1187,6 +1291,64 @@ jobs:
 
       - name: Restore compiler executable bits
         run: chmod +x compiler/bin/verity-compiler compiler/bin/verity-compiler-patched compiler/bin/difftest-interpreter
+
+      - name: Restore smoke Yul (local)
+        id: local-restore-yul-smoke
+        continue-on-error: true
+        run: |
+          source_dir="${VERIFY_LOCAL_ARTIFACT_ROOT}/${{ github.run_id }}/generated-yul-smoke"
+          if [ -f "$source_dir/.ready" ]; then
+            mkdir -p compiler/yul-smoke
+            cp -a "$source_dir/." compiler/yul-smoke/
+            rm -f compiler/yul-smoke/.ready
+            shopt -s nullglob
+            restored_yul=(compiler/yul-smoke/*.yul)
+            if [ "${#restored_yul[@]}" -eq 0 ]; then
+              echo "::warning::Local smoke Yul cache had .ready but no .yul files — falling back"
+              exit 1
+            fi
+            echo "Restored ${#restored_yul[@]} smoke Yul files from local cache"
+          else
+            exit 1
+          fi
+
+      - name: Download smoke Yul (fallback)
+        if: steps.local-restore-yul-smoke.outcome != 'success'
+        uses: actions/download-artifact@v7
+        with:
+          name: generated-yul-smoke
+          path: compiler/yul-smoke
+
+      - name: Validate smoke Yul artifacts
+        run: |
+          shopt -s nullglob
+          out_dir="compiler/yul-smoke"
+          direct_yul=("${out_dir}"/*.yul)
+          if [ "${#direct_yul[@]}" -eq 0 ]; then
+            mapfile -t nested_yul < <(find "${out_dir}" -mindepth 2 -maxdepth 3 -type f -name '*.yul' | sort)
+            if [ "${#nested_yul[@]}" -gt 0 ]; then
+              for path in "${nested_yul[@]}"; do
+                mv "$path" "${out_dir}/$(basename "$path")"
+              done
+            fi
+          fi
+          direct_yul=("${out_dir}"/*.yul)
+          if [ "${#direct_yul[@]}" -eq 0 ]; then
+            echo "::error::No smoke Yul files restored into ${out_dir}"
+            find "${out_dir}" -maxdepth 4 -print || true
+            exit 1
+          fi
+
+      - name: Verify Lake package integrity
+        run: |
+          shopt -s nullglob
+          for pkg_git in .lake/packages/*/.git; do
+            pkg="$(dirname "$pkg_git")"
+            if ! git -C "$pkg" rev-parse HEAD >/dev/null 2>&1; then
+              echo "::warning::Removing corrupted Lake package: $pkg"
+              rm -rf "$pkg"
+            fi
+          done
 
       - name: Setup Foundry environment
         uses: ./.github/actions/setup-foundry
@@ -1232,6 +1394,64 @@ jobs:
       - name: Restore compiler workspace build
         run: tar -xf lean-workspace-compiler-build.tar
 
+      - name: Restore patched smoke Yul (local)
+        id: local-restore-yul-patched-smoke
+        continue-on-error: true
+        run: |
+          source_dir="${VERIFY_LOCAL_ARTIFACT_ROOT}/${{ github.run_id }}/generated-yul-patched-smoke"
+          if [ -f "$source_dir/.ready" ]; then
+            mkdir -p compiler/yul-patched-smoke
+            cp -a "$source_dir/." compiler/yul-patched-smoke/
+            rm -f compiler/yul-patched-smoke/.ready
+            shopt -s nullglob
+            restored_yul=(compiler/yul-patched-smoke/*.yul)
+            if [ "${#restored_yul[@]}" -eq 0 ]; then
+              echo "::warning::Local patched smoke Yul cache had .ready but no .yul files — falling back"
+              exit 1
+            fi
+            echo "Restored ${#restored_yul[@]} patched smoke Yul files from local cache"
+          else
+            exit 1
+          fi
+
+      - name: Download patched smoke Yul (fallback)
+        if: steps.local-restore-yul-patched-smoke.outcome != 'success'
+        uses: actions/download-artifact@v7
+        with:
+          name: generated-yul-patched-smoke
+          path: compiler/yul-patched-smoke
+
+      - name: Validate patched smoke Yul artifacts
+        run: |
+          shopt -s nullglob
+          out_dir="compiler/yul-patched-smoke"
+          direct_yul=("${out_dir}"/*.yul)
+          if [ "${#direct_yul[@]}" -eq 0 ]; then
+            mapfile -t nested_yul < <(find "${out_dir}" -mindepth 2 -maxdepth 3 -type f -name '*.yul' | sort)
+            if [ "${#nested_yul[@]}" -gt 0 ]; then
+              for path in "${nested_yul[@]}"; do
+                mv "$path" "${out_dir}/$(basename "$path")"
+              done
+            fi
+          fi
+          direct_yul=("${out_dir}"/*.yul)
+          if [ "${#direct_yul[@]}" -eq 0 ]; then
+            echo "::error::No patched smoke Yul files restored into ${out_dir}"
+            find "${out_dir}" -maxdepth 4 -print || true
+            exit 1
+          fi
+
+      - name: Verify Lake package integrity
+        run: |
+          shopt -s nullglob
+          for pkg_git in .lake/packages/*/.git; do
+            pkg="$(dirname "$pkg_git")"
+            if ! git -C "$pkg" rev-parse HEAD >/dev/null 2>&1; then
+              echo "::warning::Removing corrupted Lake package: $pkg"
+              rm -rf "$pkg"
+            fi
+          done
+
       - name: Setup Foundry environment
         uses: ./.github/actions/setup-foundry
         with:
@@ -1275,6 +1495,64 @@ jobs:
 
       - name: Restore compiler executable bits
         run: chmod +x compiler/bin/verity-compiler compiler/bin/verity-compiler-patched compiler/bin/difftest-interpreter
+
+      - name: Restore smoke Yul (local)
+        id: local-restore-yul-smoke
+        continue-on-error: true
+        run: |
+          source_dir="${VERIFY_LOCAL_ARTIFACT_ROOT}/${{ github.run_id }}/generated-yul-smoke"
+          if [ -f "$source_dir/.ready" ]; then
+            mkdir -p compiler/yul-smoke
+            cp -a "$source_dir/." compiler/yul-smoke/
+            rm -f compiler/yul-smoke/.ready
+            shopt -s nullglob
+            restored_yul=(compiler/yul-smoke/*.yul)
+            if [ "${#restored_yul[@]}" -eq 0 ]; then
+              echo "::warning::Local smoke Yul cache had .ready but no .yul files — falling back"
+              exit 1
+            fi
+            echo "Restored ${#restored_yul[@]} smoke Yul files from local cache"
+          else
+            exit 1
+          fi
+
+      - name: Download smoke Yul (fallback)
+        if: steps.local-restore-yul-smoke.outcome != 'success'
+        uses: actions/download-artifact@v7
+        with:
+          name: generated-yul-smoke
+          path: compiler/yul-smoke
+
+      - name: Validate smoke Yul artifacts
+        run: |
+          shopt -s nullglob
+          out_dir="compiler/yul-smoke"
+          direct_yul=("${out_dir}"/*.yul)
+          if [ "${#direct_yul[@]}" -eq 0 ]; then
+            mapfile -t nested_yul < <(find "${out_dir}" -mindepth 2 -maxdepth 3 -type f -name '*.yul' | sort)
+            if [ "${#nested_yul[@]}" -gt 0 ]; then
+              for path in "${nested_yul[@]}"; do
+                mv "$path" "${out_dir}/$(basename "$path")"
+              done
+            fi
+          fi
+          direct_yul=("${out_dir}"/*.yul)
+          if [ "${#direct_yul[@]}" -eq 0 ]; then
+            echo "::error::No smoke Yul files restored into ${out_dir}"
+            find "${out_dir}" -maxdepth 4 -print || true
+            exit 1
+          fi
+
+      - name: Verify Lake package integrity
+        run: |
+          shopt -s nullglob
+          for pkg_git in .lake/packages/*/.git; do
+            pkg="$(dirname "$pkg_git")"
+            if ! git -C "$pkg" rev-parse HEAD >/dev/null 2>&1; then
+              echo "::warning::Removing corrupted Lake package: $pkg"
+              rm -rf "$pkg"
+            fi
+          done
 
       - name: Setup Foundry environment
         uses: ./.github/actions/setup-foundry

@@ -32,8 +32,8 @@ def normalize_ws(text: str) -> str:
 def expected_snippets() -> dict[str, list[str]]:
     return {
         "AXIOMS": [
-            "### 1. `solidityMappingSlot_lt_evmModulus`",
-            "- Active axioms: 1",
+            "### 1. `solidityMappingSlot_lt_evmModulus` (eliminated)",
+            "- Active axioms: 0",
         ],
         "COMPILER_PROOFS_README": [
             "`Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics`",
@@ -57,14 +57,14 @@ def expected_snippets() -> dict[str, list[str]]:
             "Layer 2: CompilationModel → IR        [GENERIC WHOLE-CONTRACT THEOREM]",
             "Layer 2 now has a generic whole-contract theorem for the explicit supported fragment.",
             "its function-level closure now runs by theorem rather than axiom",
-            "There is currently 1 documented Lean axiom in total: the mapping-slot range axiom.",
+            "There are currently 0 documented Lean axioms.",
             "Layer 3 keeps its remaining dispatch bridge as an explicit theorem hypothesis rather than a Lean axiom.",
         ],
         "TRUST_ASSUMPTIONS": [
             "Layer 2: SUPPORTED-FRAGMENT GENERIC THEOREM — CompilationModel → IR",
             "A generic whole-contract theorem is proved for the current supported `CompilationModel` fragment.",
             "former generic body-simulation axiom has been eliminated",
-            "it now has 1 documented Lean axiom",
+            "it now has 0 documented Lean axioms",
             "explicit theorem hypothesis rather than a Lean axiom",
         ],
         "DOCS_SITE_COMPILER": [
@@ -91,7 +91,7 @@ def expected_snippets() -> dict[str, list[str]]:
         ],
         "LLMS": [
             "generic whole-contract CompilationModel -> IR theorem for the supported fragment",
-            "1 documented Lean axiom",
+            "0 documented Lean axioms",
         ],
     }
 
@@ -106,6 +106,7 @@ def forbidden_snippets() -> dict[str, list[str]]:
             "### 2. `supported_function_body_correct_from_exact_state`",
             "supported_function_body_correct_from_exact_state",
             "- Active axioms: 3",
+            "- Active axioms: 1",
         ],
         "VERIFICATION_STATUS": [
             "## Layer 2: CompilationModel → IR — COMPLETE",
@@ -128,6 +129,7 @@ def forbidden_snippets() -> dict[str, list[str]]:
             "documented bridge axiom",
             "1 generic non-core Layer 2 axiom",
             "There are currently 4 documented Lean axioms in total",
+            "There is currently 1 documented Lean axiom in total",
         ],
         "TRUST_ASSUMPTIONS": [
             "FULLY VERIFIED — CompilationModel → IR",
@@ -138,6 +140,7 @@ def forbidden_snippets() -> dict[str, list[str]]:
             "2 documented axioms in [AXIOMS.md](AXIOMS.md): 1 selector axiom and 1 generic non-core Layer 2 axiom",
             "Layer 3: GENERIC SURFACE, 1 axiom — IR → Yul",
             "1 Layer 3 dispatch bridge axiom",
+            "it now has 1 documented Lean axiom",
         ],
         "DOCS_SITE_COMPILER": [
             "**Layer 2 framework proof**: `CompilationModel -> IR` preserves semantics.",
@@ -160,6 +163,7 @@ def forbidden_snippets() -> dict[str, list[str]]:
             "3 documented axioms",
             "4 documented axioms",
             "partial generic CompilationModel -> IR boundary",
+            "1 documented Lean axiom",
         ],
     }
 

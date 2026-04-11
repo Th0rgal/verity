@@ -40,6 +40,19 @@ abstract contract YulTestBase is Test {
         return "artifacts/yul";
     }
 
+    function _smokeYulDir() internal view returns (string memory) {
+        if (_usePatchedVerityCompiler()) {
+            if (vm.exists("compiler/yul-patched-smoke")) {
+                return "compiler/yul-patched-smoke";
+            }
+        } else {
+            if (vm.exists("compiler/yul-smoke")) {
+                return "compiler/yul-smoke";
+            }
+        }
+        return _yulDir();
+    }
+
     // Edge-case values matching Lean's edgeUint256Values and DiffTestConfig._edgeUintValues():
     //   [0, 1, 2, 2^128, 2^255, 2^256-2, 2^256-1]
     // Selectors 0-6 return these edge values (~7/16 probability);
@@ -58,20 +71,52 @@ abstract contract YulTestBase is Test {
     }
 
     function _compileYul(string memory path) internal returns (bytes memory) {
-        string[] memory cmds = new string[](3);
-        cmds[0] = "bash";
-        cmds[1] = "-lc";
-        cmds[2] = string.concat(
-            "solc --strict-assembly --bin ",
-            path,
-            " | grep -E '^[0-9a-fA-F]+$' | tail -n 1"
-        );
+        string[] memory cmds = new string[](4);
+        cmds[0] = "solc";
+        cmds[1] = "--strict-assembly";
+        cmds[2] = "--bin";
+        cmds[3] = path;
         bytes memory out = vm.ffi(cmds);
+        // solc output format: "======= ... =======\n\nBinary representation:\n<hex>\n"
+        // Extract the last non-empty line which should be the hex bytecode
         bytes memory trimmed = _trimBytes(out);
-        if (_isHexBytes(trimmed)) {
-            return vm.parseBytes(string.concat("0x", string(trimmed)));
+        bytes memory hexBytes = _extractLastHexLine(trimmed);
+        require(hexBytes.length > 0, string.concat("_compileYul: no hex bytecode in solc output for ", path));
+        return vm.parseBytes(string.concat("0x", string(hexBytes)));
+    }
+
+    function _extractLastHexLine(bytes memory input) internal pure returns (bytes memory) {
+        // Find the last line that is pure hex
+        uint256 end = input.length;
+        while (end > 0) {
+            // Find the start of the current line
+            uint256 lineEnd = end;
+            // Skip trailing whitespace/newlines
+            while (end > 0 && _isWhitespace(input[end - 1])) {
+                end--;
+            }
+            if (end == 0) break;
+            lineEnd = end;
+            // Find the start of this line
+            uint256 lineStart = end;
+            while (lineStart > 0 && !_isWhitespace(input[lineStart - 1])) {
+                lineStart--;
+            }
+            // Check if the line is all hex
+            bool allHex = lineEnd > lineStart;
+            for (uint256 i = lineStart; i < lineEnd && allHex; i++) {
+                if (!_isHexChar(input[i])) allHex = false;
+            }
+            if (allHex) {
+                bytes memory result = new bytes(lineEnd - lineStart);
+                for (uint256 i = 0; i < result.length; i++) {
+                    result[i] = input[lineStart + i];
+                }
+                return result;
+            }
+            end = lineStart;
         }
-        return trimmed;
+        return "";
     }
 
     function _deploy(bytes memory bytecode) internal returns (address addr) {
@@ -92,13 +137,12 @@ abstract contract YulTestBase is Test {
         string memory outDir
     ) internal {
         string memory artifactPath = string.concat(outDir, "/", contractName, ".yul");
+        if (vm.exists(artifactPath)) return;
         string[] memory cmds = new string[](3);
         cmds[0] = "bash";
-        cmds[1] = "-lc";
+        cmds[1] = "-c";
         cmds[2] = string.concat(
-            "artifact='",
-            artifactPath,
-            "'; out='",
+            "out='",
             outDir,
             "'; module='",
             moduleName,
@@ -111,8 +155,6 @@ abstract contract YulTestBase is Test {
             "'; ",
             "compiler=\"./.lake/build/bin/$compiler_name\"; ",
             "if [ ! -x \"$compiler\" ] && [ -x \"./compiler/bin/$compiler_name\" ]; then compiler=\"./compiler/bin/$compiler_name\"; fi; ",
-            "if [ -f \"$artifact\" ] && [ -x \"$compiler\" ] && [ \"$compiler\" -ot \"$artifact\" ] && ",
-            "! find Contracts Compiler Verity -name '*.lean' -newer \"$artifact\" -print -quit | grep -q .; then exit 0; fi; ",
             "mkdir -p \"$out\" && if [ -x \"$compiler\" ]; then lake build \"$module\" >/dev/null; else lake build \"$module\" \"$compiler_target\" >/dev/null; fi && ",
             "\"$compiler\" --module \"$module\" --output \"$out\" $compiler_args >/dev/null"
         );
@@ -126,13 +168,12 @@ abstract contract YulTestBase is Test {
         string memory outDir
     ) internal {
         string memory artifactPath = string.concat(outDir, "/", contractName, ".yul");
+        if (vm.exists(artifactPath)) return;
         string[] memory cmds = new string[](3);
         cmds[0] = "bash";
-        cmds[1] = "-lc";
+        cmds[1] = "-c";
         cmds[2] = string.concat(
-            "artifact='",
-            artifactPath,
-            "'; out='",
+            "out='",
             outDir,
             "'; manifest='",
             manifestPath,
@@ -145,8 +186,6 @@ abstract contract YulTestBase is Test {
             "'; ",
             "compiler=\"./.lake/build/bin/$compiler_name\"; ",
             "if [ ! -x \"$compiler\" ] && [ -x \"./compiler/bin/$compiler_name\" ]; then compiler=\"./compiler/bin/$compiler_name\"; fi; ",
-            "if [ -f \"$artifact\" ] && [ -x \"$compiler\" ] && [ \"$compiler\" -ot \"$artifact\" ] && [ \"$manifest\" -ot \"$artifact\" ] && ",
-            "! find Contracts Compiler Verity -name '*.lean' -newer \"$artifact\" -print -quit | grep -q .; then exit 0; fi; ",
             "mkdir -p \"$out\" && set -- $(grep -vE '^[[:space:]]*($|#)' \"$manifest\") && if [ -x \"$compiler\" ]; then lake build \"$@\" >/dev/null; else lake build \"$@\" \"$compiler_target\" >/dev/null; fi && ",
             "\"$compiler\" --manifest \"$manifest\" --output \"$out\" $compiler_args >/dev/null"
         );
@@ -184,18 +223,6 @@ abstract contract YulTestBase is Test {
             out[i] = input[start + i];
         }
         return out;
-    }
-
-    function _isHexBytes(bytes memory input) internal pure returns (bool) {
-        if (input.length == 0) {
-            return false;
-        }
-        for (uint256 i = 0; i < input.length; i++) {
-            if (!_isHexChar(input[i])) {
-                return false;
-            }
-        }
-        return true;
     }
 
     function _isHexChar(bytes1 c) private pure returns (bool) {
