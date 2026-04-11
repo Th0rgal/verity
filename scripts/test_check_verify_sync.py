@@ -1220,12 +1220,12 @@ class VerifySyncTests(unittest.TestCase):
         )
         rc, _, err = self._run_paths_check(
             workflow,
-            check_only_paths=["docs/**", "README.md", "AUDIT.md"],
+            check_only_paths=["docs/**", "README.md", "MISSING.md"],
             compiler_paths=["Compiler/**"],
         )
         self.assertEqual(rc, 1)
         self.assertIn(
-            "check_only_paths includes entries missing from on.push.paths: AUDIT.md",
+            "check_only_paths includes entries missing from on.push.paths: MISSING.md",
             err,
         )
 

@@ -42,7 +42,7 @@ class BridgeCoverageSyncTests(unittest.TestCase):
             ),
             encoding="utf-8",
         )
-        (root / "AUDIT.md").write_text(
+        (root / "TRUST_ASSUMPTIONS.md").write_text(
             "15 universal pure bridge theorems are now proven. "
             "All pure bridge cases are now covered by universal symbolic lemmas.\n",
             encoding="utf-8",
@@ -79,7 +79,7 @@ class BridgeCoverageSyncTests(unittest.TestCase):
             check.ROOT = root
             check.BRIDGE_LEMMAS = root / "Compiler" / "Proofs" / "YulGeneration" / "Backends" / "EvmYulLeanBridgeLemmas.lean"
             check.TARGET_FILES = {
-                "AUDIT": root / "AUDIT.md",
+                "TRUST_ASSUMPTIONS": root / "TRUST_ASSUMPTIONS.md",
                 "AXIOMS": root / "AXIOMS.md",
                 "ARITHMETIC_PROFILE": root / "docs" / "ARITHMETIC_PROFILE.md",
                 "INTERPRETER_FEATURE_MATRIX": root / "docs" / "INTERPRETER_FEATURE_MATRIX.md",
@@ -124,7 +124,7 @@ class BridgeCoverageSyncTests(unittest.TestCase):
         expected = check.expected_snippets(check.PURE_BUILTINS, [])
         self.assertIn(
             "All pure bridge cases are now covered by universal symbolic lemmas.",
-            expected["AUDIT"],
+            expected["TRUST_ASSUMPTIONS"],
         )
         self.assertIn(
             "concrete bridge smoke tests are no longer needed for any pure builtin",
