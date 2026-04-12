@@ -2,146 +2,54 @@
 
 > **For AI agents:** This file provides a complete overview. Add `.md` to any docs page URL to get raw markdown.
 
-## Project Overview
+## Overview
 
-Lean 4 EDSL for writing smart contracts with machine-checked proofs. Three-layer verified compilation pipeline: EDSL -> CompilationModel -> IR -> Yul -> EVM bytecode.
-
-**Core**: Models contract state, storage operations, and `require` guards using explicit success/revert result type (`ContractResult`).
-
-**Contracts**: 9 formally verified contracts (+ CryptoHash as unverified linker demo) covering correctness, conservation laws, and storage isolation.
-
-**Compiler**: Declarative `CompilationModel` DSL compiles to Yul. Layer 2 now has a generic whole-contract CompilationModel -> IR theorem for the supported fragment. Solidity-compatible function selectors via keccak256.
+Lean 4 framework for writing smart contracts with machine-checked proofs. Three-layer verified compilation: EDSL -> CompilationModel -> IR -> Yul -> EVM bytecode. Zero axioms, zero sorry.
 
 ## Quick Facts
 
+<!-- BEGIN GENERATED QUICK FACTS -->
 - **Language**: Lean 4.22.0
-- **Core Size**: 400 lines
-- **Verified Contracts**: SimpleStorage, Counter, Owned, SimpleToken, OwnedCounter, Ledger, SafeCounter, ReentrancyExample (+ CryptoHash as unverified linker demo)
-- **Theorems**: 273 across 10 categories, 273 fully proven; Layer 2 proof scripts contain `sorry` placeholders (being repaired after definition refactor)
-- **Axioms**: 0 documented Lean axioms (see AXIOMS.md). The former mapping-slot range axiom has been eliminated via the kernel-computable Keccak engine. Selector computation is kernel-computable, Layer 2's former generic body-simulation axiom has been eliminated, and Layer 3 keeps an explicit dispatch bridge hypothesis rather than a Lean axiom.
-- **Tests**: 478 Foundry tests, multi-seed differential testing (7 seeds), 8-shard parallel CI
+- **Core Size**: 635 lines
+- **Verified Contracts**: 11 (Counter, ERC20, ERC721, Ledger, LocalObligationMacroSmoke, Owned, OwnedCounter, ReentrancyExample, SafeCounter, SimpleStorage, SimpleToken)
+- **Theorems**: 277 across 11 categories, 277 fully proven
+- **Axioms**: 0 documented Lean axioms (see AXIOMS.md)
+- **Tests**: 520 Foundry tests, 239 property tests
 - **Build**: `lake build` verifies all proofs
-- **Repository**: https://github.com/Th0rgal/verity
+- **Repository**: https://github.com/lfglabs-dev/verity
+<!-- END GENERATED QUICK FACTS -->
 
-## Architecture
+## Verification Layers
 
-```
-Layer 1: EDSL -> CompilationModel bridge
-Contract proofs: human-readable spec theorems for each contract
-Layer 2: Compiler Proofs  — generic whole-contract CompilationModel -> IR theorem for supported fragment
-Layer 3: IR -> Yul        — Statement/expression equivalence proofs
-Trust:   Yul -> Bytecode  — Via solc (validated by differential testing)
-```
+- **Layer 1** (EDSL -> CompilationModel): Per-contract bridge theorems. Generic typed-IR core.
+- **Layer 2** (CompilationModel -> IR): Generic whole-contract theorem for the supported fragment. 0 axioms.
+- **Layer 3** (IR -> Yul): Generic statement/function equivalence. Dispatch bridge is an explicit hypothesis.
+- **External** (Yul -> bytecode): Trusted. Compiled by solc v0.8.33. Validated by differential testing.
 
-Layer 2 now has a generic whole-contract theorem for the explicit supported fragment. The compiler proves Layer 2 preservation automatically.
+## Trust Boundary
 
-## Key Design
+- **Verified**: EDSL -> CompilationModel -> IR -> Yul (3 layers, 0 axioms, 0 sorry)
+- **Trusted**: Yul -> bytecode (solc), Lean 4 kernel, EVM specification alignment
+- See [TRUST_ASSUMPTIONS.md](https://github.com/lfglabs-dev/verity/blob/main/TRUST_ASSUMPTIONS.md) and [AXIOMS.md](https://github.com/lfglabs-dev/verity/blob/main/AXIOMS.md)
+
+## Key Types
 
 ```lean
--- Contracts are functions: ContractState -> ContractResult
-inductive ContractResult (α : Type) where
-  | success : α → ContractState → ContractResult α
-  | revert : String → ContractState → ContractResult α
+-- Contracts are state-passing functions
+abbrev Contract a := ContractState -> ContractResult a
 
--- Custom bind short-circuits on revert
-def bind (x : Contract α) (f : α → Contract β) : Contract β :=
-  fun s => match x.run s with
-    | ContractResult.success a s' => (f a).run s'
-    | ContractResult.revert msg s' => ContractResult.revert msg s'
+inductive ContractResult (a : Type) where
+  | success : a -> ContractState -> ContractResult a
+  | revert : String -> ContractState -> ContractResult a
 ```
-
-## Theorem Breakdown
-
-| Contract | Count | Key Properties |
-|----------|-------|----------------|
-| SimpleStorage | 20 | Store/retrieve roundtrip, state isolation |
-| Counter | 28 | Arithmetic, composition, decrement-at-zero |
-| Owned | 23 | Access control, ownership transfer |
-| SimpleToken | 61 | Mint/transfer, supply conservation, storage isolation |
-| ERC20 | 19 | Foundation scaffold with initial spec/read-state proofs |
-| ERC721 | 11 | Foundation scaffold with ownership/approval read-state proofs |
-| OwnedCounter | 48 | Cross-pattern composition, lockout proofs |
-| Ledger | 33 | Deposit/withdraw/transfer, balance conservation |
-| SafeCounter | 25 | Overflow/underflow revert proofs |
-| ReentrancyExample | 5 | Reentrancy vulnerability proof, supply invariant |
-| Stdlib | 153 | safeMul/safeDiv correctness, automation lemmas |
-
-## Proof Techniques
-
-**Full unfolding**: Unfold entire operation chain with `simp only`, then apply guard conditions.
-
-**Private helpers**: Pre-compute exact result states when guards pass.
-
-**Conservation**: Use `List.countOcc` to account for duplicate addresses in exact sum equations.
-
-**No Mathlib**: Manual `Nat.*` lemma chains replace `omega`, `ring`, `linarith`.
-
-## CI Validation
-
-The GitHub Actions workflow validates:
-- All Lean proofs compile (`lake build`)
-- Expected `sorry` count matches baseline (0)
-- All axioms documented in AXIOMS.md
-- Property manifest in sync with Lean proofs
-- All manifest theorems have tests (or documented exclusions)
-- Storage layout consistency across EDSL/Spec/Compiler layers
-- Selector hashes match specs
-- Generated Yul compiles with solc (including CryptoHash with linked libraries)
-- Contract file structure and All.lean import validation
-- Foundry tests pass (8 shards, 7 seeds)
-
-## External Library Linking
-
-Use the Linker to inject production Yul libraries (Poseidon, Groth16, etc.) into compiled contracts. Prove properties against simple placeholders in Lean, then swap in real implementations at compile time.
-
-**Workflow**: EDSL placeholder (addition) → CompilationModel with `Expr.externalCall` → `--link lib.yul` at compile time → Yul with injected library functions.
-
-**Example**: CryptoHash contract demonstrates the full pattern:
-- EDSL: `Verity/Examples/CryptoHash.lean` (placeholder: `add a b`)
-- Spec: `Compiler/Specs.lean` → `cryptoHashSpec` (calls `PoseidonT3_hash`)
-- Library: `examples/external-libs/PoseidonT3.yul`
-- Compile: `lake exe verity-compiler --link examples/external-libs/PoseidonT3.yul --link examples/external-libs/PoseidonT4.yul`
-
-**Validation**: The Linker checks for duplicate names, builtin shadowing, unresolved external references, and call-site arity mismatches before injecting.
-
-**Trust model**: Linked libraries are outside the proof boundary. Proofs establish: "If the library behaves like the placeholder, the contract is correct."
 
 ## Documentation URLs
 
-- Main: https://verity.thomas.md/
-- Verification: https://verity.thomas.md/verification
-- Research: https://verity.thomas.md/research
-- Examples: https://verity.thomas.md/examples
-- Core: https://verity.thomas.md/core
-- Compiler: https://verity.thomas.md/compiler
-- Guides (First Contract): https://verity.thomas.md/guides/first-contract
-- Guides (Linking Libraries): https://verity.thomas.md/guides/linking-libraries
-- Guides (Debugging Proofs): https://verity.thomas.md/guides/debugging-proofs
-- Add a Contract: https://verity.thomas.md/add-contract
-
-Add `.md` to any URL for raw markdown (saves tokens).
-
-## Trust Assumptions
-
-See TRUST_ASSUMPTIONS.md for full analysis. Key trust boundaries:
-- **Verified**: EDSL -> CompilationModel -> IR -> Yul
-- **Trusted**: Yul -> Bytecode (via solc, validated by 90,000+ differential tests)
-- **Axioms**: 0 documented Lean axioms, with soundness justification in AXIOMS.md
-- **External**: Lean 4 kernel, EVM specification alignment
-
-## Known Limitations
-
-- Layer 2 proof scripts contain `sorry` placeholders (being repaired after a definition refactor); Layer 3 and contract-level proofs are fully discharged
-- Ledger sum properties proven in Conservation.lean (issue #65 resolved)
-- No gas modeling
-- Self-transfer handled via delta-zero pattern (not separate logic)
-
-## DSL Capabilities (CompilationModel)
-
-The CompilationModel DSL supports: if/else branching (`Stmt.ite`), bounded loops (`Stmt.forEach`), event emission (`Stmt.emit`), nested/double mappings (`Expr.mapping2`, `Stmt.setMapping2`), uint256-keyed mappings (`Expr.mappingUint`, `Stmt.setMappingUint`), internal function composition (`Stmt.internalCall`, `Expr.internalCall`), dynamic array/bytes parameters, and external library linking (`Expr.externalCall`).
-
-## What's Next
-
-1. EVMYulLean integration: upgrade Lean, replace Yul semantics (#294)
-2. ERC-20 standard token (#69)
-3. Address soundness: replace String with ByteArray (#253)
+- Main: https://veritylang.com/
+- Verification: https://veritylang.com/verification
+- Research: https://veritylang.com/research
+- Examples: https://veritylang.com/examples
+- Core: https://veritylang.com/core
+- Compiler: https://veritylang.com/compiler
+- Guides: https://veritylang.com/guides/first-contract
+- Add `.md` to any URL for raw markdown (saves tokens).

@@ -1,5 +1,7 @@
 # Verification Status
 
+For the full documentation, see [verity.thomas.md/verification](https://verity.thomas.md/verification).
+
 ## Architecture
 
 Verity implements a **three-layer verification stack** proving smart contracts correct from specification to Yul bytecode:
@@ -8,7 +10,7 @@ Verity implements a **three-layer verification stack** proving smart contracts c
 EDSL contracts (Lean)
     ↓ Layer 1: EDSL ≡ CompilationModel [PROVEN FOR CURRENT CONTRACTS; GENERIC CORE, CONTRACT BRIDGES]
 CompilationModel (declarative compiler-facing model)
-    ↓ Layer 2: CompilationModel → IR [GENERIC WHOLE-CONTRACT THEOREM, PROOF SCRIPTS WIP]
+    ↓ Layer 2: CompilationModel → IR [GENERIC WHOLE-CONTRACT THEOREM]
 Intermediate Representation (IR)
     ↓ Layer 3: IR → Yul [GENERIC SURFACE, EXPLICIT BRIDGE HYPOTHESIS]
 Yul (EVM Assembly)
@@ -195,4 +197,4 @@ See [`TRUST_ASSUMPTIONS.md`](../TRUST_ASSUMPTIONS.md) for the full trust model a
 
 ---
 
-**Last Updated**: 2026-03-30
+**Last Updated**: 2026-04-11

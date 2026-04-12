@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BRIDGE_LEMMAS = ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Backends" / "EvmYulLeanBridgeLemmas.lean"
 TARGET_FILES = {
-    "AUDIT": ROOT / "AUDIT.md",
+    "TRUST_ASSUMPTIONS": ROOT / "TRUST_ASSUMPTIONS.md",
     "AXIOMS": ROOT / "AXIOMS.md",
     "ARITHMETIC_PROFILE": ROOT / "docs" / "ARITHMETIC_PROFILE.md",
     "INTERPRETER_FEATURE_MATRIX": ROOT / "docs" / "INTERPRETER_FEATURE_MATRIX.md",
@@ -123,7 +123,7 @@ def expected_snippets(universal: list[str], remaining: list[str]) -> dict[str, l
     )
 
     return {
-        "AUDIT": [
+        "TRUST_ASSUMPTIONS": [
             f"{count} universal pure bridge theorems are now proven",
             audit_remaining,
         ],

@@ -5,7 +5,7 @@ description: Design decisions, iterations, and proof techniques
 
 # Research & Development
 
-**Compact core, built across 7 iterations.** See [VERIFICATION_STATUS.md](https://github.com/Th0rgal/verity/blob/main/docs/VERIFICATION_STATUS.md) for the current theorem totals, test counts, exclusions, and proof-status snapshot. [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md) remains the source of truth for documented axioms.
+**Compact core, built across 7 iterations.** See [/verification](/verification) for current theorem totals and proof status. [AXIOMS.md](https://github.com/lfglabs-dev/verity/blob/main/AXIOMS.md) remains the source of truth for documented axioms.
 
 ## Evolution
 
@@ -14,20 +14,6 @@ The project evolved in two phases:
 **Phase 1 (Iterations 1-7)**: Built 7 contracts on `StateM ContractState`. The core stayed intentionally small while storage types were added incrementally: `Nat -> Uint256` (iteration 1), `Nat -> Address` (iteration 3), `Nat -> Address -> Uint256` for mappings (iteration 6). Each addition was driven by a concrete example that needed it.
 
 **Phase 2 (Verification)**: Replaced `StateM` with custom `ContractResult` type (`success | revert`) to model `require` guards explicitly. This enabled proving properties like "mint reverts when caller is not owner." The core expanded to include proof automation lemmas and EVM context fields.
-
-## Progress and Roadmap (as of 2026-03-11)
-
-This is the single source of truth for progress, roadmap, and milestone updates.
-
-- **Contract-specific specification proofs**: Complete for all 8 verified contracts (7 compiler-spec contracts + ReentrancyExample).
-- **Layer 2 (CompilationModel → IR)**: Supported-fragment generic theorem in place. The compiler-level theorem lives in [`Compiler/Proofs/IRGeneration/Contract.lean`](https://github.com/Th0rgal/verity/blob/main/Compiler/Proofs/IRGeneration/Contract.lean). The compiler proves Layer 2 preservation automatically for supported contracts. [#1510](https://github.com/Th0rgal/verity/issues/1510) now tracks fragment widening.
-- **Layer 3 (IR → Yul)**: Complete — all 8 statement equivalence proofs + universal dispatcher proven (PR #42).
-
-Recent updates:
-- Layer 3 fully proven; all 8 statement equivalence proofs + universal dispatcher (PR #42).
-- Function selectors verified via keccak256 axiom + CI validation (PR #43, #46).
-- External cryptographic library linking support (PR #49).
-- Nested mapping encoding preserves tagged base slots so nested slots round‑trip without losing tags.
 
 ## Iterations
 
@@ -59,10 +45,10 @@ Recent updates:
 
 ## Arithmetic Semantics
 
-All core arithmetic is EVM‑compatible. `Uint256` wraps at `2^256`, so `+`, `-`, `*`, `/`, and `%` match EVM behavior by default.
+All core arithmetic is EVM-compatible. `Uint256` wraps at `2^256`, so `+`, `-`, `*`, `/`, and `%` match EVM behavior by default.
 
 Two approaches coexist for overflow safety:
-- **Counter**: Bare `add`/`sub` (modular arithmetic, EVM‑accurate)
+- **Counter**: Bare `add`/`sub` (modular arithmetic, EVM-accurate)
 - **SafeCounter / Ledger / SimpleToken**: `safeAdd`/`safeSub` from `Stdlib/Math.lean` return `Option`, reverting on overflow/underflow
 
 `MAX_UINT256 := 2^256 - 1`. Safe arithmetic checks this bound before returning `some`.
@@ -96,23 +82,6 @@ But `private theorem` isn't accessible from other files. Isolation proofs in sep
 - **List sum reasoning**: `omega` can't handle `List.sum` or `var * var`. Use explicit `Nat.add_assoc`/`add_comm`/`add_left_comm` chains
 - **No Mathlib**: `push_neg`, `set`, `ring`, `linarith` unavailable. Use `by_cases`, explicit witnesses, manual `Nat.*` lemma chains
 
-## Verification Structure
-
-Each contract has:
-- `Contracts/X/X.lean` — Implementation (EDSL)
-- `Contracts/X/Spec.lean` — Pre/postconditions for each operation
-- `Contracts/X/Invariants.lean` — State properties that should hold
-- `Contracts/X/SpecProofs.lean` — Contract-specific spec conformance and end-to-end proof layer
-- `Compiler/TypedIRCompilerCorrectness.lean` — Layer 1 typed-IR compilation correctness for the supported statement fragment
-- `Compiler/Proofs/IRGeneration/Contract.lean` — Generic whole-contract Layer 2 theorem for the current supported fragment
-
-Some contracts have additional proof files:
-- `Contracts/SimpleToken/SpecProofs.lean`: Supply and transfer reasoning
-- `Contracts/Ledger/SpecProofs.lean`: Balance accounting and conservation equations
-- `Contracts/OwnedCounter/SpecProofs.lean`: Cross-pattern ownership and counter invariants
-
-Conservation proofs use `List.countOcc` to account for duplicate addresses. For `NoDup` lists, transfer preserves exact sum. For general lists, exact equations with `countOcc` multipliers are proven.
-
 ## Known Limitations
 
 - **Self-transfer**: Modeled as a no-op; transfer theorems no longer require `sender != to`.
@@ -121,147 +90,18 @@ Conservation proofs use `List.countOcc` to account for duplicate addresses. For 
 - **No gas modeling**: EDSL models storage and control flow only; verification assumes infinite gas.
 - **Events**: The CompilationModel DSL supports event emission (`Stmt.emit`), but the EDSL core does not yet model events in proofs.
 - **Nested mappings**: The CompilationModel DSL supports double mappings (`mapping2`/`setMapping2`), but EDSL-level proofs for nested mapping semantics are still limited.
-- **Strings are still bounded today**: `String` flows through macro parsing, calldata, `returnBytes`, event payloads, custom errors, and direct parameter `==` / `!=` checks, but Solidity-style string storage/layout, dynamic linked externals, dynamic local aliases, and broader word-style operators still fail fast instead of pretending to be supported (see issue `#1159`).
 
 ## Compiler Development
 
-### Generic Compilation (Completed 2026-02-10)
+The compiler pipeline compiles declarative `CompilationModel` specs to Yul/EVM bytecode automatically, replacing the earlier manual IR approach.
 
-**Problem**: Manual IR translation for each contract (unmaintainable and repetitive).
+Key milestones:
+- **Generic compilation** (2026-02-10): All contracts compile from declarative specs. Zero manual IR.
+- **Differential testing** (2026-02-10): Random transaction generation + parallel execution on EDSL interpreter vs compiled EVM. Zero mismatches.
+- **CompilationModel expansion**: Loops, branching, arrays, events, multi-mappings, internal calls, verified extern linking.
+- **Layer 2**: Supported-fragment generic theorem in place. The compiler-level theorem lives in `Compiler/Proofs/IRGeneration/Contract.lean`. The compiler proves Layer 2 preservation automatically for supported contracts.
 
-**Solution**: Declarative contract specification DSL with automatic IR generation.
-
-**Result**: All 7 contracts compile automatically. Zero manual IR. Generated code is more optimized than manual translations.
-
-**Implementation** (as of 2026-02-13):
-- `Compiler/CompilationModel.lean`: DSL + automatic IR compiler
-  - Type-safe expression language (literals, storage, mappings, arithmetic, comparisons)
-  - Statement DSL (setStorage, setMapping, require, return)
-  - Automatic storage slot inference from field order
-  - Constructor parameter handling (bytecode argument loading)
-- `Compiler/Specs.lean`: All 7 contract specifications
-- `Compiler/Selector.lean`: Function selector computation (Solidity keccak256)
-- `Compiler/Main.lean`: New compilation entry point
-
-**Before**:
-```lean
-// Manual IR for each contract (long, repetitive)
-private def ownedContract : IRContract :=
-  let deployBody := [
-    stmtLet "argsOffset" (call "sub" [call "codesize" [], lit 32]),
-    stmtExpr (call "codecopy" [lit 0, ident "argsOffset", lit 32]),
-    stmtLet "initialOwner" (call "and" [call "mload" [lit 0], hex addressMask]),
-    sstoreSlot 0 (ident "initialOwner")
-  ]
-  // ... more manual Yul construction
-```
-
-**After**:
-```lean
-// Declarative spec (compact, declarative)
-def ownedSpec : CompilationModel := {
-  name := "Owned"
-  fields := [{ name := "owner", ty := FieldType.address }]
-  constructor := some {
-    params := [{ name := "initialOwner", ty := ParamType.address }]
-    body := [Stmt.setStorage "owner" (Expr.constructorArg 0)]
-  }
-  functions := [/* ... high-level DSL */]
-}
-```
-
-**Metrics**:
-- Manual IR eliminated in favor of generated IR from the spec
-- Time to add contract dropped significantly in practice
-- Test results: see [VERIFICATION_STATUS.md](https://github.com/Th0rgal/verity/blob/main/docs/VERIFICATION_STATUS.md) for the current proof and test status snapshot
-- Code quality: More concise, optimized (expression inlining)
-
-**Features Achieved**:
-- ✅ Automatic storage slot inference
-- ✅ Constructor parameter support
-- ✅ Function selector management
-- ✅ Type-safe DSL prevents errors
-- ✅ Code optimization
-
-**Usage**:
-```bash
-lake build verity-compiler    # Build compiler
-lake exe verity-compiler      # Generate all contracts
-FOUNDRY_PROFILE=difftest forge test
-```
-
-### Differential Testing (Completed 2026-02-10)
-
-**Problem**: No way to trust compiler correctness without formal proofs. Need high confidence that compiled EVM matches verified EDSL semantics.
-
-**Solution**: Random transaction generation + parallel execution on EDSL interpreter and compiled EVM bytecode.
-
-**Result**: default runs use 100 random transactions per contract, while CI scales the large suite to 10,000+ per contract. Zero mismatches detected so far.
-
-**Implementation** (as of 2026-02-13):
-- `Compiler/Interpreter.lean`: EDSL interpreter for differential testing
-  - Executes EDSL contracts on abstract state
-  - Returns JSON results for comparison with EVM
-  - Supports all 7 compiled contracts (Counter, SafeCounter, SimpleStorage, Ledger, Owned, OwnedCounter, SimpleToken)
-- `Compiler/RandomGen.lean`: Random transaction generator
-  - Generates random addresses, values, and function calls
-  - Contract-specific transaction generation (store/retrieve for SimpleStorage)
-- `test/DifferentialSimpleStorage.t.sol`: Foundry test harness
-  - Executes transactions on compiled EVM bytecode
-  - Calls EDSL interpreter via `vm.ffi`
-  - Compares: success/revert, return values, storage changes
-  - Tracks independent state for EVM and EDSL
-
-**Critical Fixes** (Bugbot second review):
-1. **EDSL State Independence**: Fixed bug where EVM results were fed back to EDSL state tracker, making tests always match. Added JSON parsing to maintain separate EDSL and EVM state.
-2. **Test Assertions**: Added `assertTrue` checks to prevent silent test failures.
-3. **Underflow Guards**: Added length guards to JSON parsing to prevent underflow reverts.
-4. **Clang Crash**: Removed `deriving Repr` to fix CI compilation crash (Lean generated overly complex C code).
-5. **Mapping Change De-duplication**: Mapping change keys are de-duplicated before comparison to avoid self-transfer double counting and reduce diff output size.
-
-**Test Results**:
-- 100/100 random transactions pass per contract in default runs
-- 10,000+ random transactions pass per contract in CI (large suite)
-- Large suite is sharded across 8 CI jobs to stay within per-test gas limits
-- Zero mismatches detected
-- Current Foundry and proof status is tracked in [VERIFICATION_STATUS.md](https://github.com/Th0rgal/verity/blob/main/docs/VERIFICATION_STATUS.md)
-- CI: All checks passing
-
-**Usage**:
-```bash
-lake build Compiler.Interpreter           # Build interpreter
-lake exe difftest-interpreter simpleStorage store 0 100  # Run single tx
-FOUNDRY_PROFILE=difftest forge test --match-contract Differential  # Run default (100) random tests
-# Scale the large suite (used in CI):
-FOUNDRY_PROFILE=difftest DIFFTEST_RANDOM_LARGE=10000 forge test --match-contract Differential
-# Shard the large suite (CI uses 8 shards):
-FOUNDRY_PROFILE=difftest DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_RANDOM_LARGE=10000 \
-  forge test --match-contract Differential
-```
-
-**Remaining Work**:
-
-**A. ~~Scale Differential Testing~~** (done: PR #307):
-- ~~Centralize the "random run" entrypoint so each harness can opt into the same seed/count knobs.~~
-- ~~Add adversarial patterns: boundary overflows, more edge cases.~~
-- ~~**Done when**: random harness setup is shared and parameterized across all 7 contracts.~~ All 7 differential tests now inherit `DifferentialTestBase` with shared utilities.
-
-**B. Property Extraction (Proofs → Tests)**:
-- Reduce exclusions. Add property tests contract‑by‑contract. Keep coverage script green.
-
-**C. Address Known Limitations (Core Modeling)**:
-- ~~Full "supply = sum balances" proof over a finite address set~~ (PR #47 foundation, PR #51 infrastructure; all 7/7 sum properties proven in `Conservation.lean`).
-- Extend storage semantics + proofs for nested mappings to support allowances (`approve`/`transferFrom`).
-
-**D. Reduce Remaining Trust Assumptions**:
-- Prove selector hashes in Lean (not just CI fixture checks).
-- Add a minimal Yul↔EVM semantic bridge lemma or mechanized model.
-
-**E. Documentation**:
-- ~~Add the 1‑page "add a contract" guide~~; done: see [Add a Contract](/add-contract).
-- Keep roadmap updates in sync with each milestone.
-
-See [`docs/ROADMAP.md`](https://github.com/Th0rgal/verity/blob/main/docs/ROADMAP.md) for the full roadmap and timeline.
+See [`docs/ROADMAP.md`](https://github.com/lfglabs-dev/verity/blob/main/docs/ROADMAP.md) for active workstreams and the full roadmap.
 
 ## Detailed Logs
 

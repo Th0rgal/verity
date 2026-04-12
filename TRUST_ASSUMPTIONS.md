@@ -8,7 +8,7 @@ This document states what Verity proves and what it still trusts.
 EDSL (Lean)
   ↓ [Layer 1: PROVEN FOR CURRENT CONTRACTS, generic core, contract bridges]
 CompilationModel
-  ↓ [Layer 2: SUPPORTED-FRAGMENT GENERIC THEOREM — CompilationModel → IR]
+  ↓ [Layer 2: SUPPORTED-FRAGMENT GENERIC THEOREM -- CompilationModel → IR]
 IR
   ↓ [Layer 3: GENERIC SURFACE, explicit bridge hypothesis, IR → Yul]
 Yul
@@ -58,7 +58,7 @@ Current theorem totals, property-test coverage, and proof status live in [docs/V
 
 ### 6. EVM/Yul Semantics and Gas
 - **Role**: Runtime execution model.
-- **Status**: 15 pure builtins bridged to EVMYulLean `UInt256` operations. Gas is not modeled.
+- **Status**: 15 pure builtins bridged to EVMYulLean `UInt256` operations; 15 universal pure bridge theorems are now proven in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`. All pure bridge cases are now covered by universal symbolic lemmas. Gas is not modeled.
 - **Implication**: Semantic correctness does not imply gas-safety.
 - **Proxy note**: `delegatecall`-based proxy / upgradeability flows still sit outside the current proof-interpreter model. Archive `--trust-report` and use `--deny-proxy-upgradeability` when proxy semantics must remain outside the selected verified subset (issue `#1420`).
 
