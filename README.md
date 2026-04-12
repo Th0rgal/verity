@@ -5,7 +5,7 @@
 <h1 align="center">Verity</h1>
 
 <p align="center">
-  <strong>Formally verified smart contracts. From spec to bytecode.</strong>
+  <strong>A formally verified smart contract compiler. Read the <a href="https://www.lfglabs.dev/verity">paper</a>.</strong>
 </p>
 
 <p align="center">
@@ -34,12 +34,7 @@ Every number above is extracted from the codebase and verified on every commit. 
 
 ## What is verified
 
-Verity proves that compilation preserves behavior at three stages. Each layer is a machine-checked Lean theorem:
-
-```
-EDSL (Lean)  -->  CompilationModel  -->  IR  -->  Yul  -->  EVM bytecode
-  Layer 1 [proven]     Layer 2 [proven]    Layer 3 [proven]   solc [trusted]
-```
+Verity proves that compilation preserves behavior at three stages. Each layer is a machine-checked Lean theorem.
 
 **Layer 1** (EDSL to CompilationModel): the `verity_contract` macro generates both an executable Lean program and a compiler-facing model from a single definition. Per-contract bridge theorems prove they agree.
 
@@ -93,7 +88,7 @@ Verity is complementary to these tools. It is for cases where you need mathemati
 
 | Resource | Description |
 |----------|-------------|
-| [verity.thomas.md](https://verity.thomas.md/) | Full documentation site |
+| [veritylang.com](https://veritylang.com/) | Full documentation site |
 | [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md) | Theorem counts, proof status, test coverage |
 | [TRUST_ASSUMPTIONS.md](TRUST_ASSUMPTIONS.md) | What is verified vs. what is trusted |
 | [AXIOMS.md](AXIOMS.md) | Documented axioms (currently 0) |
@@ -104,20 +99,3 @@ Verity is complementary to these tools. It is for cases where you need mathemati
 - [Verity: A Formally Verified Smart Contract Compiler](https://www.lfglabs.dev/verity)
 - [Verity Benchmark: AI-Driven Proof Generation](https://www.lfglabs.dev/verity-benchmark)
 - [What is a formal proof?](https://www.lfglabs.dev/what-is-a-formal-proof)
-
-## Project structure
-
-```
-verity/
-├── Verity/              # EDSL framework (core types, macro, stdlib)
-├── Contracts/           # Verified contract implementations + specs + proofs
-├── Compiler/            # Compilation pipeline + proofs (Layers 1-3)
-├── packages/            # Independent sub-packages
-├── test/                # Foundry tests
-├── scripts/             # CI validation and tooling
-└── docs-site/           # Published documentation site
-```
-
-## License
-
-MIT. See [LICENSE.md](LICENSE.md).

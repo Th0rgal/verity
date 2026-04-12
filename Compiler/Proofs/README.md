@@ -2,7 +2,7 @@
 
 Formal verification proofs for the Verity compiler pipeline: `EDSL -> CompilationModel -> IR -> Yul`.
 
-See [TRUST_ASSUMPTIONS.md](../../TRUST_ASSUMPTIONS.md) for the full trust boundary and [verity.thomas.md/verification](https://verity.thomas.md/verification) for proof status.
+See [TRUST_ASSUMPTIONS.md](../../TRUST_ASSUMPTIONS.md) for the full trust boundary and [veritylang.com/verification](https://veritylang.com/verification) for proof status.
 
 ## Verification Layers
 
@@ -58,4 +58,4 @@ lake build Contracts.SimpleStorage.Proofs     # Build one contract's proofs
 
 ## Proof Patterns
 
-See [verity.thomas.md/guides/debugging-proofs](https://verity.thomas.md/guides/debugging-proofs) for proof techniques and common tactics.
+See [veritylang.com/guides/debugging-proofs](https://veritylang.com/guides/debugging-proofs) for proof techniques and common tactics.

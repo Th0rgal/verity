@@ -45,11 +45,11 @@ inductive ContractResult (a : Type) where
 
 ## Documentation URLs
 
-- Main: https://verity.thomas.md/
-- Verification: https://verity.thomas.md/verification
-- Research: https://verity.thomas.md/research
-- Examples: https://verity.thomas.md/examples
-- Core: https://verity.thomas.md/core
-- Compiler: https://verity.thomas.md/compiler
-- Guides: https://verity.thomas.md/guides/first-contract
+- Main: https://veritylang.com/
+- Verification: https://veritylang.com/verification
+- Research: https://veritylang.com/research
+- Examples: https://veritylang.com/examples
+- Core: https://veritylang.com/core
+- Compiler: https://veritylang.com/compiler
+- Guides: https://veritylang.com/guides/first-contract
 - Add `.md` to any URL for raw markdown (saves tokens).
