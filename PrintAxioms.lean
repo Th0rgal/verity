@@ -2050,9 +2050,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapterCorrectness.lean
 #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let
-#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_empty_init
-#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist
-#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_halt
+#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let'
+#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.execYulFuel_stmts_nil
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.word_lt_uint256_size  -- private
@@ -2146,4 +2145,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1997 theorems/lemmas (1348 public, 649 private, 0 sorry'd)
+-- Total: 1996 theorems/lemmas (1347 public, 649 private, 0 sorry'd)
