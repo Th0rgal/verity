@@ -10,7 +10,7 @@
   ],
   "missing_expr_cases": [],
   "missing_stmt_cases": [],
-  "schema_version": 1,
+  "schema_version": 3,
   "status": "ok",
   "stmt_gap_messages": {},
   "stmt_gaps": [],
@@ -27,5 +27,36 @@
     "letMany",
     "let_",
     "switch"
-  ]
+  ],
+  "lookup_primop_mapped": [
+    "add", "sub", "mul", "div", "mod",
+    "sdiv", "smod",
+    "lt", "gt", "slt", "sgt", "eq", "iszero",
+    "and", "or", "xor", "not", "shl", "shr", "sar", "signextend",
+    "address", "caller", "callvalue", "calldataload", "calldatasize",
+    "timestamp", "number", "chainid", "blobbasefee",
+    "sload"
+  ],
+  "eval_pure_bridged": [
+    "add", "sub", "mul", "div", "mod",
+    "sdiv", "smod",
+    "lt", "gt", "slt", "sgt", "eq", "iszero",
+    "and", "or", "xor", "not", "shl", "shr", "sar", "signextend"
+  ],
+  "universal_bridge_lemmas": [
+    "add", "sub", "mul", "div", "mod",
+    "lt", "gt", "eq", "iszero",
+    "and", "or", "xor", "not", "shl", "shr"
+  ],
+  "concrete_bridge_tests": [
+    "sdiv", "smod", "slt", "sgt", "sar", "signextend"
+  ],
+  "concrete_test_count": 53,
+  "adapter_correctness_proofs": {
+    "file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapterCorrectness.lean",
+    "assign_to_let": "proven (assign_equiv_let, assign_equiv_let')",
+    "for_init_hoisting": "proven (for_init_hoist, for_init_hoist_halt, for_empty_init)"
+  },
+  "signed_bridge_lemma_status": "pending_phase3",
+  "signed_bridge_lemma_note": "Universal lemmas for sdiv/smod/slt/sgt/sar/signextend require proving equivalence between Verity Int256 two's-complement and EVMYulLean UInt256 abs/sgn/complement approaches. Tracked as Phase 3 work per issue #1722. Concrete native_decide tests cover all quadrants and critical boundaries (INT256_MIN/-1 overflow, saturated shifts, sign extension at multiple byte positions)."
 }

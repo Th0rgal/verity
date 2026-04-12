@@ -317,6 +317,31 @@ example : verityEvalWithContext "sdiv"
     [Compiler.Constants.evmModulus - 7, Compiler.Constants.evmModulus - 3] =
   bridgeEval "sdiv" [Compiler.Constants.evmModulus - 7, Compiler.Constants.evmModulus - 3] := by native_decide
 
+/-- sdiv: INT256_MIN / -1 = INT256_MIN (overflow: unique EVM edge case) -/
+example : verityEvalWithContext "sdiv"
+    [2^255, Compiler.Constants.evmModulus - 1] =
+  bridgeEval "sdiv" [2^255, Compiler.Constants.evmModulus - 1] := by native_decide
+
+/-- sdiv: INT256_MAX / 1 = INT256_MAX -/
+example : verityEvalWithContext "sdiv"
+    [2^255 - 1, 1] =
+  bridgeEval "sdiv" [2^255 - 1, 1] := by native_decide
+
+/-- sdiv: INT256_MIN / 1 = INT256_MIN -/
+example : verityEvalWithContext "sdiv"
+    [2^255, 1] =
+  bridgeEval "sdiv" [2^255, 1] := by native_decide
+
+/-- sdiv: -1 / -1 = 1 -/
+example : verityEvalWithContext "sdiv"
+    [Compiler.Constants.evmModulus - 1, Compiler.Constants.evmModulus - 1] =
+  bridgeEval "sdiv" [Compiler.Constants.evmModulus - 1, Compiler.Constants.evmModulus - 1] := by native_decide
+
+/-- sdiv: 0 / -1 = 0 -/
+example : verityEvalWithContext "sdiv"
+    [0, Compiler.Constants.evmModulus - 1] =
+  bridgeEval "sdiv" [0, Compiler.Constants.evmModulus - 1] := by native_decide
+
 /-- smod: 10 % 3 = 1 (positive % positive) -/
 example : verityEvalWithContext "smod" [10, 3] = bridgeEval "smod" [10, 3] := by native_decide
 
@@ -332,6 +357,21 @@ example : verityEvalWithContext "smod"
 example : verityEvalWithContext "smod"
     [10, Compiler.Constants.evmModulus - 3] =
   bridgeEval "smod" [10, Compiler.Constants.evmModulus - 3] := by native_decide
+
+/-- smod: -10 % -3 = -1 (negative % negative, sign follows dividend) -/
+example : verityEvalWithContext "smod"
+    [Compiler.Constants.evmModulus - 10, Compiler.Constants.evmModulus - 3] =
+  bridgeEval "smod" [Compiler.Constants.evmModulus - 10, Compiler.Constants.evmModulus - 3] := by native_decide
+
+/-- smod: INT256_MIN % -1 = 0 -/
+example : verityEvalWithContext "smod"
+    [2^255, Compiler.Constants.evmModulus - 1] =
+  bridgeEval "smod" [2^255, Compiler.Constants.evmModulus - 1] := by native_decide
+
+/-- smod: INT256_MIN % 1 = 0 -/
+example : verityEvalWithContext "smod"
+    [2^255, 1] =
+  bridgeEval "smod" [2^255, 1] := by native_decide
 
 -- ## Signed comparison builtins
 
@@ -351,6 +391,34 @@ example : verityEvalWithContext "slt"
     [0, Compiler.Constants.evmModulus - 1] =
   bridgeEval "slt" [0, Compiler.Constants.evmModulus - 1] := by native_decide
 
+/-- slt: -2 <s -1 = 1 (negative < negative, both in upper quadrant) -/
+example : verityEvalWithContext "slt"
+    [Compiler.Constants.evmModulus - 2, Compiler.Constants.evmModulus - 1] =
+  bridgeEval "slt" [Compiler.Constants.evmModulus - 2, Compiler.Constants.evmModulus - 1] := by native_decide
+
+/-- slt: -1 <s -2 = 0 (negative >= negative) -/
+example : verityEvalWithContext "slt"
+    [Compiler.Constants.evmModulus - 1, Compiler.Constants.evmModulus - 2] =
+  bridgeEval "slt" [Compiler.Constants.evmModulus - 1, Compiler.Constants.evmModulus - 2] := by native_decide
+
+/-- slt: INT256_MIN <s INT256_MAX = 1 (extreme boundary) -/
+example : verityEvalWithContext "slt"
+    [2^255, 2^255 - 1] =
+  bridgeEval "slt" [2^255, 2^255 - 1] := by native_decide
+
+/-- slt: INT256_MAX <s INT256_MIN = 0 -/
+example : verityEvalWithContext "slt"
+    [2^255 - 1, 2^255] =
+  bridgeEval "slt" [2^255 - 1, 2^255] := by native_decide
+
+/-- slt: INT256_MIN <s INT256_MIN = 0 (equal) -/
+example : verityEvalWithContext "slt"
+    [2^255, 2^255] =
+  bridgeEval "slt" [2^255, 2^255] := by native_decide
+
+/-- slt: 0 <s 0 = 0 (equal zero) -/
+example : verityEvalWithContext "slt" [0, 0] = bridgeEval "slt" [0, 0] := by native_decide
+
 /-- sgt: 5 >s 3 = 1 (positive > positive) -/
 example : verityEvalWithContext "sgt" [5, 3] = bridgeEval "sgt" [5, 3] := by native_decide
 
@@ -367,6 +435,29 @@ example : verityEvalWithContext "sgt"
     [Compiler.Constants.evmModulus - 1, 0] =
   bridgeEval "sgt" [Compiler.Constants.evmModulus - 1, 0] := by native_decide
 
+/-- sgt: -1 >s -2 = 1 (negative > negative) -/
+example : verityEvalWithContext "sgt"
+    [Compiler.Constants.evmModulus - 1, Compiler.Constants.evmModulus - 2] =
+  bridgeEval "sgt" [Compiler.Constants.evmModulus - 1, Compiler.Constants.evmModulus - 2] := by native_decide
+
+/-- sgt: -2 >s -1 = 0 (negative <= negative) -/
+example : verityEvalWithContext "sgt"
+    [Compiler.Constants.evmModulus - 2, Compiler.Constants.evmModulus - 1] =
+  bridgeEval "sgt" [Compiler.Constants.evmModulus - 2, Compiler.Constants.evmModulus - 1] := by native_decide
+
+/-- sgt: INT256_MAX >s INT256_MIN = 1 (extreme boundary) -/
+example : verityEvalWithContext "sgt"
+    [2^255 - 1, 2^255] =
+  bridgeEval "sgt" [2^255 - 1, 2^255] := by native_decide
+
+/-- sgt: INT256_MIN >s INT256_MAX = 0 -/
+example : verityEvalWithContext "sgt"
+    [2^255, 2^255 - 1] =
+  bridgeEval "sgt" [2^255, 2^255 - 1] := by native_decide
+
+/-- sgt: 0 >s 0 = 0 (equal zero) -/
+example : verityEvalWithContext "sgt" [0, 0] = bridgeEval "sgt" [0, 0] := by native_decide
+
 -- ## Signed shift and sign-extension builtins
 
 /-- sar: arithmetic shift right of 256 by 4 = 16 (positive value) -/
@@ -379,6 +470,31 @@ example : verityEvalWithContext "sar"
 
 /-- sar: shift by 0 is identity -/
 example : verityEvalWithContext "sar" [0, 42] = bridgeEval "sar" [0, 42] := by native_decide
+
+/-- sar: shift by 255 on positive value = 0 -/
+example : verityEvalWithContext "sar" [255, 2^255 - 1] =
+          bridgeEval "sar" [255, 2^255 - 1] := by native_decide
+
+/-- sar: shift by 255 on negative value = -1 (all-ones, sign-extending) -/
+example : verityEvalWithContext "sar"
+    [255, 2^255] =
+  bridgeEval "sar" [255, 2^255] := by native_decide
+
+/-- sar: shift by 256 on positive value = 0 (saturated shift) -/
+example : verityEvalWithContext "sar" [256, 42] =
+          bridgeEval "sar" [256, 42] := by native_decide
+
+/-- sar: shift by 256 on negative value = -1 (saturated shift) -/
+example : verityEvalWithContext "sar"
+    [256, Compiler.Constants.evmModulus - 1] =
+  bridgeEval "sar" [256, Compiler.Constants.evmModulus - 1] := by native_decide
+
+/-- sar: shift INT256_MIN by 1 = -2^254 -/
+example : verityEvalWithContext "sar" [1, 2^255] =
+          bridgeEval "sar" [1, 2^255] := by native_decide
+
+/-- sar: shift of 0 by any amount = 0 -/
+example : verityEvalWithContext "sar" [100, 0] = bridgeEval "sar" [100, 0] := by native_decide
 
 /-- signextend: extending byte 0 of 0x7F (positive, stays positive) -/
 example : verityEvalWithContext "signextend" [0, 0x7F] =
@@ -395,6 +511,34 @@ example : verityEvalWithContext "signextend" [31, 42] =
 /-- signextend: extending byte 32 is identity (>31 threshold) -/
 example : verityEvalWithContext "signextend" [32, 0x80] =
           bridgeEval "signextend" [32, 0x80] := by native_decide
+
+/-- signextend: byte 1 with 0x7FFF (bit 15 clear, positive) -/
+example : verityEvalWithContext "signextend" [1, 0x7FFF] =
+          bridgeEval "signextend" [1, 0x7FFF] := by native_decide
+
+/-- signextend: byte 1 with 0x8000 (bit 15 set, becomes negative) -/
+example : verityEvalWithContext "signextend" [1, 0x8000] =
+          bridgeEval "signextend" [1, 0x8000] := by native_decide
+
+/-- signextend: byte 15 with large positive value -/
+example : verityEvalWithContext "signextend" [15, 2^127 - 1] =
+          bridgeEval "signextend" [15, 2^127 - 1] := by native_decide
+
+/-- signextend: byte 15 with sign bit set at bit 127 -/
+example : verityEvalWithContext "signextend" [15, 2^127] =
+          bridgeEval "signextend" [15, 2^127] := by native_decide
+
+/-- signextend: byte 30 with large value (penultimate byte position) -/
+example : verityEvalWithContext "signextend" [30, 2^247] =
+          bridgeEval "signextend" [30, 2^247] := by native_decide
+
+/-- signextend: byte 0 of 0xFF (all bits set in byte 0, extends to all-ones) -/
+example : verityEvalWithContext "signextend" [0, 0xFF] =
+          bridgeEval "signextend" [0, 0xFF] := by native_decide
+
+/-- signextend: byte 0 of 0x00 (zero remains zero) -/
+example : verityEvalWithContext "signextend" [0, 0] =
+          bridgeEval "signextend" [0, 0] := by native_decide
 
 -- ## Scope boundary: state-dependent builtins fall through to none
 
@@ -465,11 +609,12 @@ example : (lowerStmts adapterSmokeStmts).isOk = true := by native_decide
 -- ## Summary output
 def main : IO Unit := do
   IO.println "✓ Unsigned arithmetic builtins: add, sub, mul, div, mod — universally bridged"
-  IO.println "✓ Signed arithmetic builtins: sdiv, smod — concrete bridge coverage"
+  IO.println "✓ Signed arithmetic builtins: sdiv, smod — concrete bridge (incl. INT256_MIN/-1 overflow)"
   IO.println "✓ Unsigned comparison builtins: lt, gt, eq, iszero — universally bridged"
-  IO.println "✓ Signed comparison builtins: slt, sgt — concrete bridge coverage"
+  IO.println "✓ Signed comparison builtins: slt, sgt — concrete bridge (incl. neg×neg, INT256_MIN/MAX)"
   IO.println "✓ Bitwise builtins: and, or, xor, not, shl, shr — universally bridged"
-  IO.println "✓ Signed shift/extension builtins: sar, signextend — concrete bridge coverage"
+  IO.println "✓ Signed shift: sar — concrete bridge (incl. saturated ≥256, INT256_MIN, sign-extend)"
+  IO.println "✓ Sign extension: signextend — concrete bridge (byte positions 0,1,15,30,31,32)"
   IO.println "✓ State-dependent builtins: sload, caller, calldataload, address, timestamp, number, chainid, blobbasefee — correctly handled"
   IO.println "✓ Verity-specific helpers: mappingSlot — correctly delegated"
   IO.println "✓ Adapter: all 11 statement types lower without error"
