@@ -16,14 +16,13 @@ from pathlib import Path
 
 from property_utils import ROOT
 
-ADAPTER_FILE = (
-    ROOT
-    / "Compiler"
-    / "Proofs"
-    / "YulGeneration"
-    / "Backends"
-    / "EvmYulLeanAdapter.lean"
+BACKENDS_DIR = (
+    ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Backends"
 )
+ADAPTER_FILE = BACKENDS_DIR / "EvmYulLeanAdapter.lean"
+BRIDGE_LEMMAS_FILE = BACKENDS_DIR / "EvmYulLeanBridgeLemmas.lean"
+BRIDGE_TEST_FILE = BACKENDS_DIR / "EvmYulLeanBridgeTest.lean"
+CORRECTNESS_FILE = BACKENDS_DIR / "EvmYulLeanAdapterCorrectness.lean"
 DEFAULT_OUTPUT = ROOT / "artifacts" / "evmyullean_adapter_report.json"
 
 EXPECTED_EXPR_CASES = ["lit", "hex", "str", "ident", "call"]
@@ -32,6 +31,24 @@ EXPECTED_STMT_CASES = ["comment", "let_", "assign", "expr", "if_", "for_", "swit
 CASE_RE = re.compile(r"^\s*\|\s*\.([A-Za-z0-9_']+)")
 GAP_RE = re.compile(r'\.error\s+"([^"]+)"')
 EVAL_STUB_RE = re.compile(r"def\s+evalBuiltinCallViaEvmYulLean[\s\S]*?:\s*Option\s+Nat\s*:=\s*none")
+
+# Regex for lookupPrimOp string-keyed match arms: | "name" => some .OP
+PRIMOP_RE = re.compile(r'^\s*\|\s*"([a-z0-9_]+)"\s+=>\s*some\s+\.', re.MULTILINE)
+
+# Regex for evalPureBuiltinViaEvmYulLean match arms: | "name", [args] => some (...)
+PURE_BRIDGE_RE = re.compile(r'^\s*\|\s*"([a-z0-9_]+)",\s*\[', re.MULTILINE)
+
+# Regex for universal bridge lemmas: theorem evalBuiltinCall_NAME_bridge
+BRIDGE_LEMMA_RE = re.compile(r'theorem\s+evalBuiltinCall_(\w+)_bridge\b')
+
+# Regex for concrete bridge test examples: verityEval* "NAME"
+BRIDGE_TEST_BUILTIN_RE = re.compile(r'verityEval\w*\s+"([a-z0-9_]+)"')
+
+# Count native_decide examples
+NATIVE_DECIDE_RE = re.compile(r'by\s+native_decide')
+
+# Regex for correctness theorems: theorem NAME (including names with apostrophes)
+CORRECTNESS_THEOREM_RE = re.compile(r"^(?:noncomputable\s+)?theorem\s+([\w']+)", re.MULTILINE)
 
 
 def _extract_block(text: str, start_marker: str, end_marker: str) -> list[str]:
@@ -89,6 +106,60 @@ def _parse_gap_messages(lines: list[str]) -> dict[str, list[str]]:
     return messages
 
 
+def _parse_lookup_primop(text: str) -> list[str]:
+    """Extract builtin names from lookupPrimOp match arms."""
+    try:
+        block = "\n".join(_extract_block(text, "def lookupPrimOp", "def evalPureBuiltinViaEvmYulLean"))
+    except ValueError:
+        return []
+    return sorted(set(PRIMOP_RE.findall(block)))
+
+
+def _parse_pure_bridge(text: str) -> list[str]:
+    """Extract builtin names from evalPureBuiltinViaEvmYulLean match arms."""
+    try:
+        block = "\n".join(_extract_block(text, "def evalPureBuiltinViaEvmYulLean", "def evalBuiltinCallViaEvmYulLean"))
+    except ValueError:
+        return []
+    return sorted(set(PURE_BRIDGE_RE.findall(block)))
+
+
+def _parse_bridge_lemmas() -> list[str]:
+    """Extract builtins with universal bridge lemmas from BridgeLemmas file."""
+    if not BRIDGE_LEMMAS_FILE.exists():
+        return []
+    text = BRIDGE_LEMMAS_FILE.read_text(encoding="utf-8")
+    return sorted(set(BRIDGE_LEMMA_RE.findall(text)))
+
+
+def _parse_bridge_tests() -> tuple[list[str], int]:
+    """Extract tested builtins and total test count from BridgeTest file."""
+    if not BRIDGE_TEST_FILE.exists():
+        return [], 0
+    text = BRIDGE_TEST_FILE.read_text(encoding="utf-8")
+    test_count = len(NATIVE_DECIDE_RE.findall(text))
+    builtins = sorted(set(BRIDGE_TEST_BUILTIN_RE.findall(text)))
+    return builtins, test_count
+
+
+def _parse_correctness_proofs() -> dict[str, object] | None:
+    """Parse adapter correctness proof theorems if the file exists."""
+    if not CORRECTNESS_FILE.exists():
+        return None
+    text = CORRECTNESS_FILE.read_text(encoding="utf-8")
+    theorems = sorted(set(CORRECTNESS_THEOREM_RE.findall(text)))
+    assign_thms = [t for t in theorems if "assign" in t]
+    for_thms = [t for t in theorems if "for_" in t or "for_init" in t or "for_empty" in t]
+    result: dict[str, object] = {
+        "file": str(CORRECTNESS_FILE.relative_to(ROOT)),
+    }
+    if assign_thms:
+        result["assign_to_let"] = f"proven ({', '.join(assign_thms)})"
+    if for_thms:
+        result["for_init_hoisting"] = f"proven ({', '.join(for_thms)})"
+    return result
+
+
 def build_report() -> dict[str, object]:
     if not ADAPTER_FILE.exists():
         raise FileNotFoundError(f"Missing adapter file: {ADAPTER_FILE.relative_to(ROOT)}")
@@ -115,8 +186,17 @@ def build_report() -> dict[str, object]:
     if missing_expr or missing_stmt or stmt_partial or stmt_gaps or eval_stub:
         status = "partial"
 
-    return {
-        "schema_version": 1,
+    # Schema v3: extract builtin bridge inventories
+    lookup_primop = _parse_lookup_primop(text)
+    eval_pure = _parse_pure_bridge(text)
+    universal_lemmas = _parse_bridge_lemmas()
+    tested_builtins, test_count = _parse_bridge_tests()
+    # Concrete-only = builtins tested but lacking universal lemmas
+    concrete_only = sorted(set(tested_builtins) - set(universal_lemmas))
+    correctness = _parse_correctness_proofs()
+
+    report: dict[str, object] = {
+        "schema_version": 3,
         "adapter_file": str(ADAPTER_FILE.relative_to(ROOT)),
         "status": status,
         "expr_supported": expr_supported,
@@ -128,6 +208,21 @@ def build_report() -> dict[str, object]:
         "missing_stmt_cases": missing_stmt,
         "eval_builtin_via_evmyullean": "stub-none" if eval_stub else "implemented",
     }
+
+    if lookup_primop:
+        report["lookup_primop_mapped"] = lookup_primop
+    if eval_pure:
+        report["eval_pure_bridged"] = eval_pure
+    if universal_lemmas:
+        report["universal_bridge_lemmas"] = universal_lemmas
+    if concrete_only:
+        report["concrete_bridge_tests"] = concrete_only
+    if test_count:
+        report["concrete_test_count"] = test_count
+    if correctness:
+        report["adapter_correctness_proofs"] = correctness
+
+    return report
 
 
 def write_report(path: Path, payload: dict[str, object]) -> None:
