@@ -47,6 +47,7 @@ import Compiler.Proofs.IRGeneration.SupportedSpec
 import Compiler.Proofs.KeccakBound
 import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.StorageBounds
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapterCorrectness
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 import Compiler.Proofs.YulGeneration.Builtins
 import Compiler.Proofs.YulGeneration.Equivalence
@@ -2047,6 +2048,12 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.StorageBounds.writeStorageArray_storage_unchanged
 #print axioms Compiler.Proofs.StorageBounds.writeStorageArray_events_unchanged
 
+-- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapterCorrectness.lean
+#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let
+#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_empty_init
+#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist
+#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_halt
+
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.word_lt_uint256_size  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_add_normalized  -- private
@@ -2139,4 +2146,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1993 theorems/lemmas (1344 public, 649 private, 0 sorry'd)
+-- Total: 1997 theorems/lemmas (1348 public, 649 private, 0 sorry'd)
