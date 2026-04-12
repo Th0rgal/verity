@@ -80,25 +80,45 @@ def lowerProgram (stmts : List YulStmt) : Except AdapterError EvmYul.Yul.Ast.Stm
     Returns `none` for Verity-specific helpers (e.g. `mappingSlot`) that
     have no direct EVMYulLean counterpart. -/
 def lookupPrimOp : String → Option (EvmYul.Operation .Yul)
-  | "add"          => some .ADD
-  | "sub"          => some .SUB
-  | "mul"          => some .MUL
-  | "div"          => some .DIV
-  | "mod"          => some .MOD
-  | "lt"           => some .LT
-  | "gt"           => some .GT
-  | "eq"           => some .EQ
-  | "iszero"       => some .ISZERO
-  | "and"          => some .AND
-  | "or"           => some .OR
-  | "xor"          => some .XOR
-  | "not"          => some .NOT
-  | "shl"          => some .SHL
-  | "shr"          => some .SHR
-  | "sload"        => some .SLOAD
-  | "caller"       => some .CALLER
-  | "calldataload" => some .CALLDATALOAD
-  | _              => none
+  -- Unsigned arithmetic
+  | "add"            => some .ADD
+  | "sub"            => some .SUB
+  | "mul"            => some .MUL
+  | "div"            => some .DIV
+  | "mod"            => some .MOD
+  -- Signed arithmetic
+  | "sdiv"           => some .SDIV
+  | "smod"           => some .SMOD
+  -- Comparison
+  | "lt"             => some .LT
+  | "gt"             => some .GT
+  | "slt"            => some .SLT
+  | "sgt"            => some .SGT
+  | "eq"             => some .EQ
+  | "iszero"         => some .ISZERO
+  -- Bitwise
+  | "and"            => some .AND
+  | "or"             => some .OR
+  | "xor"            => some .XOR
+  | "not"            => some .NOT
+  | "shl"            => some .SHL
+  | "shr"            => some .SHR
+  | "sar"            => some .SAR
+  | "signextend"     => some .SIGNEXTEND
+  -- Environment
+  | "address"        => some .ADDRESS
+  | "caller"         => some .CALLER
+  | "callvalue"      => some .CALLVALUE
+  | "calldataload"   => some .CALLDATALOAD
+  | "calldatasize"   => some .CALLDATASIZE
+  -- Block information
+  | "timestamp"      => some .TIMESTAMP
+  | "number"         => some .NUMBER
+  | "chainid"        => some .CHAINID
+  | "blobbasefee"    => some .BLOBBASEFEE
+  -- Storage
+  | "sload"          => some .SLOAD
+  | _                => none
 
 /-- Evaluate a pure arithmetic/comparison/bitwise builtin via EVMYulLean
     UInt256 operations. This covers the overlap set of builtins where both
@@ -115,22 +135,33 @@ def evalPureBuiltinViaEvmYulLean
   let u := EvmYul.UInt256.ofNat
   let toNat := EvmYul.UInt256.toNat
   match func, argVals with
-  | "add", [a, b]    => some (toNat (EvmYul.UInt256.add (u a) (u b)))
-  | "sub", [a, b]    => some (toNat (EvmYul.UInt256.sub (u a) (u b)))
-  | "mul", [a, b]    => some (toNat (EvmYul.UInt256.mul (u a) (u b)))
-  | "div", [a, b]    => some (toNat (EvmYul.UInt256.div (u a) (u b)))
-  | "mod", [a, b]    => some (toNat (EvmYul.UInt256.mod (u a) (u b)))
-  | "lt",  [a, b]    => some (if (u a) < (u b) then 1 else 0)
-  | "gt",  [a, b]    => some (if (u b) < (u a) then 1 else 0)
-  | "eq",  [a, b]    => some (if a % EvmYul.UInt256.size = b % EvmYul.UInt256.size then 1 else 0)
-  | "iszero", [a]    => some (if a % EvmYul.UInt256.size = 0 then 1 else 0)
-  | "and", [a, b]    => some (toNat (EvmYul.UInt256.land (u a) (u b)))
-  | "or",  [a, b]    => some (toNat (EvmYul.UInt256.lor (u a) (u b)))
-  | "xor", [a, b]    => some (toNat (EvmYul.UInt256.xor (u a) (u b)))
-  | "not", [a]       => some (toNat (EvmYul.UInt256.lnot (u a)))
-  | "shl", [s, v]    => some (toNat (EvmYul.UInt256.shiftLeft (u v) (u s)))
-  | "shr", [s, v]    => some (toNat (EvmYul.UInt256.shiftRight (u v) (u s)))
-  | _, _              => none
+  -- Unsigned arithmetic
+  | "add", [a, b]          => some (toNat (EvmYul.UInt256.add (u a) (u b)))
+  | "sub", [a, b]          => some (toNat (EvmYul.UInt256.sub (u a) (u b)))
+  | "mul", [a, b]          => some (toNat (EvmYul.UInt256.mul (u a) (u b)))
+  | "div", [a, b]          => some (toNat (EvmYul.UInt256.div (u a) (u b)))
+  | "mod", [a, b]          => some (toNat (EvmYul.UInt256.mod (u a) (u b)))
+  -- Signed arithmetic
+  | "sdiv", [a, b]         => some (toNat (EvmYul.UInt256.sdiv (u a) (u b)))
+  | "smod", [a, b]         => some (toNat (EvmYul.UInt256.smod (u a) (u b)))
+  -- Unsigned comparison
+  | "lt",  [a, b]          => some (if (u a) < (u b) then 1 else 0)
+  | "gt",  [a, b]          => some (if (u b) < (u a) then 1 else 0)
+  | "eq",  [a, b]          => some (if a % EvmYul.UInt256.size = b % EvmYul.UInt256.size then 1 else 0)
+  | "iszero", [a]          => some (if a % EvmYul.UInt256.size = 0 then 1 else 0)
+  -- Signed comparison
+  | "slt", [a, b]          => some (toNat (EvmYul.UInt256.slt (u a) (u b)))
+  | "sgt", [a, b]          => some (toNat (EvmYul.UInt256.sgt (u a) (u b)))
+  -- Bitwise
+  | "and", [a, b]          => some (toNat (EvmYul.UInt256.land (u a) (u b)))
+  | "or",  [a, b]          => some (toNat (EvmYul.UInt256.lor (u a) (u b)))
+  | "xor", [a, b]          => some (toNat (EvmYul.UInt256.xor (u a) (u b)))
+  | "not", [a]             => some (toNat (EvmYul.UInt256.lnot (u a)))
+  | "shl", [s, v]          => some (toNat (EvmYul.UInt256.shiftLeft (u v) (u s)))
+  | "shr", [s, v]          => some (toNat (EvmYul.UInt256.shiftRight (u v) (u s)))
+  | "sar", [s, v]          => some (toNat (EvmYul.UInt256.sar (u s) (u v)))
+  | "signextend", [b, v]   => some (toNat (EvmYul.UInt256.signextend (u b) (u v)))
+  | _, _                    => none
 
 /-- Full builtin bridge: delegates pure arithmetic/comparison/bitwise builtins
     to EVMYulLean UInt256 operations. State-dependent builtins (`sload`,

@@ -294,6 +294,108 @@ example (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (s
       evalPureBuiltinViaEvmYulLean "shr" [shift, value] := by
   exact evalBuiltinCall_shr_bridge storage sender selector calldata shift value
 
+-- ## Signed arithmetic builtins
+
+/-- sdiv: 7 / 3 = 2 (positive / positive) -/
+example : verityEvalWithContext "sdiv" [7, 3] = bridgeEval "sdiv" [7, 3] := by native_decide
+
+/-- sdiv: division by zero returns 0 -/
+example : verityEvalWithContext "sdiv" [7, 0] = bridgeEval "sdiv" [7, 0] := by native_decide
+
+/-- sdiv: -7 / 3 = -2 (negative / positive, encoded as two's complement) -/
+example : verityEvalWithContext "sdiv"
+    [Compiler.Constants.evmModulus - 7, 3] =
+  bridgeEval "sdiv" [Compiler.Constants.evmModulus - 7, 3] := by native_decide
+
+/-- sdiv: 7 / -3 = -2 (positive / negative) -/
+example : verityEvalWithContext "sdiv"
+    [7, Compiler.Constants.evmModulus - 3] =
+  bridgeEval "sdiv" [7, Compiler.Constants.evmModulus - 3] := by native_decide
+
+/-- sdiv: -7 / -3 = 2 (negative / negative) -/
+example : verityEvalWithContext "sdiv"
+    [Compiler.Constants.evmModulus - 7, Compiler.Constants.evmModulus - 3] =
+  bridgeEval "sdiv" [Compiler.Constants.evmModulus - 7, Compiler.Constants.evmModulus - 3] := by native_decide
+
+/-- smod: 10 % 3 = 1 (positive % positive) -/
+example : verityEvalWithContext "smod" [10, 3] = bridgeEval "smod" [10, 3] := by native_decide
+
+/-- smod: modulo by zero returns 0 -/
+example : verityEvalWithContext "smod" [10, 0] = bridgeEval "smod" [10, 0] := by native_decide
+
+/-- smod: -10 % 3 = -1 (negative % positive) -/
+example : verityEvalWithContext "smod"
+    [Compiler.Constants.evmModulus - 10, 3] =
+  bridgeEval "smod" [Compiler.Constants.evmModulus - 10, 3] := by native_decide
+
+/-- smod: 10 % -3 = 1 (positive % negative, sign follows dividend) -/
+example : verityEvalWithContext "smod"
+    [10, Compiler.Constants.evmModulus - 3] =
+  bridgeEval "smod" [10, Compiler.Constants.evmModulus - 3] := by native_decide
+
+-- ## Signed comparison builtins
+
+/-- slt: 3 <s 5 = 1 (positive < positive) -/
+example : verityEvalWithContext "slt" [3, 5] = bridgeEval "slt" [3, 5] := by native_decide
+
+/-- slt: 5 <s 3 = 0 (positive >= positive) -/
+example : verityEvalWithContext "slt" [5, 3] = bridgeEval "slt" [5, 3] := by native_decide
+
+/-- slt: -1 <s 0 = 1 (negative < non-negative) -/
+example : verityEvalWithContext "slt"
+    [Compiler.Constants.evmModulus - 1, 0] =
+  bridgeEval "slt" [Compiler.Constants.evmModulus - 1, 0] := by native_decide
+
+/-- slt: 0 <s -1 = 0 (non-negative >= negative) -/
+example : verityEvalWithContext "slt"
+    [0, Compiler.Constants.evmModulus - 1] =
+  bridgeEval "slt" [0, Compiler.Constants.evmModulus - 1] := by native_decide
+
+/-- sgt: 5 >s 3 = 1 (positive > positive) -/
+example : verityEvalWithContext "sgt" [5, 3] = bridgeEval "sgt" [5, 3] := by native_decide
+
+/-- sgt: 3 >s 5 = 0 (positive <= positive) -/
+example : verityEvalWithContext "sgt" [3, 5] = bridgeEval "sgt" [3, 5] := by native_decide
+
+/-- sgt: 0 >s -1 = 1 (non-negative > negative) -/
+example : verityEvalWithContext "sgt"
+    [0, Compiler.Constants.evmModulus - 1] =
+  bridgeEval "sgt" [0, Compiler.Constants.evmModulus - 1] := by native_decide
+
+/-- sgt: -1 >s 0 = 0 (negative <= non-negative) -/
+example : verityEvalWithContext "sgt"
+    [Compiler.Constants.evmModulus - 1, 0] =
+  bridgeEval "sgt" [Compiler.Constants.evmModulus - 1, 0] := by native_decide
+
+-- ## Signed shift and sign-extension builtins
+
+/-- sar: arithmetic shift right of 256 by 4 = 16 (positive value) -/
+example : verityEvalWithContext "sar" [4, 256] = bridgeEval "sar" [4, 256] := by native_decide
+
+/-- sar: arithmetic shift right of -1 by 1 = -1 (sign-preserving) -/
+example : verityEvalWithContext "sar"
+    [1, Compiler.Constants.evmModulus - 1] =
+  bridgeEval "sar" [1, Compiler.Constants.evmModulus - 1] := by native_decide
+
+/-- sar: shift by 0 is identity -/
+example : verityEvalWithContext "sar" [0, 42] = bridgeEval "sar" [0, 42] := by native_decide
+
+/-- signextend: extending byte 0 of 0x7F (positive, stays positive) -/
+example : verityEvalWithContext "signextend" [0, 0x7F] =
+          bridgeEval "signextend" [0, 0x7F] := by native_decide
+
+/-- signextend: extending byte 0 of 0x80 (bit 7 set, becomes negative) -/
+example : verityEvalWithContext "signextend" [0, 0x80] =
+          bridgeEval "signextend" [0, 0x80] := by native_decide
+
+/-- signextend: extending byte 31 or larger is identity -/
+example : verityEvalWithContext "signextend" [31, 42] =
+          bridgeEval "signextend" [31, 42] := by native_decide
+
+/-- signextend: extending byte 32 is identity (>31 threshold) -/
+example : verityEvalWithContext "signextend" [32, 0x80] =
+          bridgeEval "signextend" [32, 0x80] := by native_decide
+
 -- ## Scope boundary: state-dependent builtins fall through to none
 
 /-- sload: bridge returns none (state-dependent, delegated to Verity) -/
@@ -362,14 +464,16 @@ example : (lowerStmts adapterSmokeStmts).isOk = true := by native_decide
 
 -- ## Summary output
 def main : IO Unit := do
-  IO.println "✓ Arithmetic builtins: add, sub, mul, div — universally bridged"
-  IO.println "✓ Arithmetic builtins: mod — universally bridged"
-  IO.println "✓ Comparison builtins: lt, gt, eq, iszero — universally bridged"
-  IO.println "✓ Bitwise builtins: and, or, xor, shl, shr — universally bridged"
-  IO.println "✓ Bitwise builtin: not — concrete bridge coverage retained"
+  IO.println "✓ Unsigned arithmetic builtins: add, sub, mul, div, mod — universally bridged"
+  IO.println "✓ Signed arithmetic builtins: sdiv, smod — concrete bridge coverage"
+  IO.println "✓ Unsigned comparison builtins: lt, gt, eq, iszero — universally bridged"
+  IO.println "✓ Signed comparison builtins: slt, sgt — concrete bridge coverage"
+  IO.println "✓ Bitwise builtins: and, or, xor, not, shl, shr — universally bridged"
+  IO.println "✓ Signed shift/extension builtins: sar, signextend — concrete bridge coverage"
   IO.println "✓ State-dependent builtins: sload, caller, calldataload, address, timestamp, number, chainid, blobbasefee — correctly handled"
   IO.println "✓ Verity-specific helpers: mappingSlot — correctly delegated"
   IO.println "✓ Adapter: all 11 statement types lower without error"
+  IO.println "✓ PrimOp mapping: 31 builtins mapped via lookupPrimOp"
   IO.println "EVMYulLean bridge test: all checks passed"
 
 end Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeTest
