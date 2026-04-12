@@ -74,8 +74,8 @@ class Layer2BoundarySyncTests(unittest.TestCase):
             target = root / check.TARGETS["ROOT_README"].relative_to(check.ROOT)
             target.write_text(
                 target.read_text(encoding="utf-8").replace(
-                    "There are currently 0 documented Lean axioms.",
-                    "There are currently 2 documented Lean axioms in total: the selector axiom and 1 mapping-slot range axiom.",
+                    "0 axioms",
+                    "2 axioms",
                 ),
                 encoding="utf-8",
             )
@@ -98,7 +98,7 @@ class Layer2BoundarySyncTests(unittest.TestCase):
                 check.TARGETS = old_targets
 
         self.assertEqual(rc, 1)
-        self.assertIn("missing `There are currently 0 documented Lean axioms.", output)
+        self.assertIn("missing `0 axioms", output)
 
     def test_compiler_proofs_readme_stale_axiom_wording_is_forbidden(self) -> None:
         forbidden = check.forbidden_snippets()

@@ -17,7 +17,7 @@
 
 ---
 
-Verity is a **formally verified smart contract compiler** written in [Lean 4](https://lean-lang.org/). Write contracts in an embedded DSL, state what they should do, prove the specs hold, and compile to EVM bytecode — with machine-checked proofs that compilation preserves semantics.
+Verity is a formally verified smart contract compiler written in [Lean 4](https://lean-lang.org/). You write contracts in an embedded DSL, state what they should do, prove those properties hold, and compile to EVM bytecode. The compiler itself is proven to preserve semantics across three verified layers.
 
 <!-- BEGIN GENERATED STATS -->
 | Metric | Value |
@@ -30,10 +30,29 @@ Verity is a **formally verified smart contract compiler** written in [Lean 4](ht
 | Lean | 4.22.0 |
 <!-- END GENERATED STATS -->
 
+Every number above is extracted from the codebase and verified on every commit. `0 sorry` means no proof is left incomplete. `0 axioms` means no unproven assumptions remain in the compiler stack.
+
+## What is verified
+
+Verity proves that compilation preserves behavior at three stages. Each layer is a machine-checked Lean theorem:
+
+```
+EDSL (Lean)  -->  CompilationModel  -->  IR  -->  Yul  -->  EVM bytecode
+  Layer 1 [proven]     Layer 2 [proven]    Layer 3 [proven]   solc [trusted]
+```
+
+**Layer 1** (EDSL to CompilationModel): the `verity_contract` macro generates both an executable Lean program and a compiler-facing model from a single definition. Per-contract bridge theorems prove they agree.
+
+**Layer 2** (CompilationModel to IR): a generic whole-contract theorem covers the supported fragment with zero axioms. No per-contract proof effort needed.
+
+**Layer 3** (IR to Yul): all statement types are proven equivalent. The dispatch bridge is an explicit theorem hypothesis, not an axiom.
+
+The Yul-to-bytecode step is handled by `solc` (v0.8.33, pinned) and is not verified by Verity. See [TRUST_ASSUMPTIONS.md](TRUST_ASSUMPTIONS.md) for the complete trust boundary.
+
 ## How it works
 
 ```
-verity_contract Counter where     -- 1. Write a contract
+verity_contract Counter where
   storage count : Uint256 := slot 0
   function increment () : Unit := do
     let current <- getStorage count
@@ -41,20 +60,12 @@ verity_contract Counter where     -- 1. Write a contract
 ```
 
 ```lean
--- 2. Prove a spec
-theorem increment_meets_spec (s : ContractState) :
+theorem increment_correct (s : ContractState) :
     let s' := ((increment).run s).snd
     s'.storage 0 = add (s.storage 0) 1 := by rfl
 ```
 
-```
-EDSL (Lean)  ->  CompilationModel  ->  IR  ->  Yul  ->  EVM bytecode
-   Layer 1 [proven]    Layer 2 [proven]   Layer 3 [proven]   solc [trusted]
-```
-
-Layer 2 now has a generic whole-contract theorem for the explicit supported fragment. Layer 2: CompilationModel → IR        [GENERIC WHOLE-CONTRACT THEOREM] — its function-level closure now runs by theorem rather than axiom. There are currently 0 documented Lean axioms. Layer 3 keeps its remaining dispatch bridge as an explicit theorem hypothesis rather than a Lean axiom.
-
-See [TRUST_ASSUMPTIONS.md](TRUST_ASSUMPTIONS.md) and [AXIOMS.md](AXIOMS.md) for the full trust boundary.
+The proof passes by `rfl` (reflexivity): Lean's kernel evaluates both sides and confirms they are definitionally equal. No external solver, no bounded model checker, no trust in anything beyond Lean's type theory.
 
 ## Quick start
 
@@ -62,29 +73,37 @@ See [TRUST_ASSUMPTIONS.md](TRUST_ASSUMPTIONS.md) and [AXIOMS.md](AXIOMS.md) for 
 curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh
 source ~/.elan/env
 git clone https://github.com/lfglabs-dev/verity.git && cd verity
-lake build                        # verify all proofs
-lake exe verity-compiler --manifest packages/verity-examples/contracts.manifest
-FOUNDRY_PROFILE=difftest forge test
+lake build                        # verify all proofs (~20 min first build)
+make check                        # run full CI validation suite
+FOUNDRY_PROFILE=difftest forge test  # differential tests: EDSL vs EVM
 ```
 
 ## How Verity compares
 
 | | Certora | Halmos | Verity |
 |---|---|---|---|
-| **Approach** | Bounded model checking | Symbolic execution | Interactive theorem proving |
+| **Approach** | Bounded model checking | Symbolic execution | Theorem proving in Lean 4 |
+| **Proof scope** | Bounded (configurable depth) | Bounded (path explosion) | Unbounded (all inputs, all paths) |
 | **Compiler trust** | Trusts solc entirely | Trusts solc entirely | Verifies 3 compilation layers |
 | **Best for** | Production audits at scale | Bug-finding in Foundry | High-assurance contracts |
 
+Verity is complementary to these tools. It is for cases where you need mathematical certainty across all inputs and all execution paths.
+
 ## Documentation
 
-| Resource | Link |
-|----------|------|
-| Full docs site | [verity.thomas.md](https://verity.thomas.md/) |
-| Verification status | [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md) |
-| Trust boundaries | [TRUST_ASSUMPTIONS.md](TRUST_ASSUMPTIONS.md) |
-| Axioms | [AXIOMS.md](AXIOMS.md) |
-| Research | [lfglabs.dev/verity](https://www.lfglabs.dev/verity) |
-| Contributing | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Resource | Description |
+|----------|-------------|
+| [verity.thomas.md](https://verity.thomas.md/) | Full documentation site |
+| [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md) | Theorem counts, proof status, test coverage |
+| [TRUST_ASSUMPTIONS.md](TRUST_ASSUMPTIONS.md) | What is verified vs. what is trusted |
+| [AXIOMS.md](AXIOMS.md) | Documented axioms (currently 0) |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |
+
+### Research
+
+- [Verity: A Formally Verified Smart Contract Compiler](https://www.lfglabs.dev/verity)
+- [Verity Benchmark: AI-Driven Proof Generation](https://www.lfglabs.dev/verity-benchmark)
+- [What is a formal proof?](https://www.lfglabs.dev/what-is-a-formal-proof)
 
 ## Project structure
 
@@ -101,4 +120,4 @@ verity/
 
 ## License
 
-MIT — See [LICENSE.md](LICENSE.md).
+MIT. See [LICENSE.md](LICENSE.md).

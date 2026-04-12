@@ -36,8 +36,8 @@ def expected_snippets() -> dict[str, list[str]]:
             "- Active axioms: 0",
         ],
         "COMPILER_PROOFS_README": [
-            "`Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics`",
-            "The former exact-state body-simulation axiom in `Compiler.Proofs.IRGeneration.Function` has now been eliminated",
+            "Generic whole-contract theorem",
+            "0 sorry, 0 axioms",
         ],
         "GENERIC_PLAN": [
             "avoid any `post`/`hpost`/contract-specific bridge premise",
@@ -54,14 +54,12 @@ def expected_snippets() -> dict[str, list[str]]:
             "generic whole-contract `CompilationModel.compile` theorem is proved for the current supported fragment",
         ],
         "ROOT_README": [
-            "Layer 2: CompilationModel → IR        [GENERIC WHOLE-CONTRACT THEOREM]",
-            "Layer 2 now has a generic whole-contract theorem for the explicit supported fragment.",
-            "its function-level closure now runs by theorem rather than axiom",
-            "There are currently 0 documented Lean axioms.",
-            "Layer 3 keeps its remaining dispatch bridge as an explicit theorem hypothesis rather than a Lean axiom.",
+            "a generic whole-contract theorem covers the supported fragment with zero axioms",
+            "The dispatch bridge is an explicit theorem hypothesis, not an axiom.",
+            "0 axioms",
         ],
         "TRUST_ASSUMPTIONS": [
-            "Layer 2: SUPPORTED-FRAGMENT GENERIC THEOREM — CompilationModel → IR",
+            "Layer 2: SUPPORTED-FRAGMENT GENERIC THEOREM -- CompilationModel → IR",
             "A generic whole-contract theorem is proved for the current supported `CompilationModel` fragment.",
             "former generic body-simulation axiom has been eliminated",
             "it now has 0 documented Lean axioms",
@@ -90,7 +88,7 @@ def expected_snippets() -> dict[str, list[str]]:
             "`Compiler/Proofs/IRGeneration/Contract.lean`",
         ],
         "LLMS": [
-            "generic whole-contract CompilationModel -> IR theorem for the supported fragment",
+            "Generic whole-contract theorem for the supported fragment. 0 axioms.",
             "0 documented Lean axioms",
         ],
     }

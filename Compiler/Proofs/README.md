@@ -2,15 +2,15 @@
 
 Formal verification proofs for the Verity compiler pipeline: `EDSL -> CompilationModel -> IR -> Yul`.
 
-See [TRUST_ASSUMPTIONS.md](../../TRUST_ASSUMPTIONS.md) for the full trust boundary and [verity.thomas.md/verification](https://verity.thomas.md/verification) for the full proof status.
+See [TRUST_ASSUMPTIONS.md](../../TRUST_ASSUMPTIONS.md) for the full trust boundary and [verity.thomas.md/verification](https://verity.thomas.md/verification) for proof status.
 
 ## Verification Layers
 
-- **Layer 1: EDSL = CompilationModel** — Frontend semantic bridge. Generic typed-IR core in [`TypedIRCompilerCorrectness.lean`](../../Compiler/TypedIRCompilerCorrectness.lean), contract-level bridges still per-contract.
-- **Layer 2: CompilationModel -> IR** — Generic whole-contract theorem in [`Contract.lean`](IRGeneration/Contract.lean). 0 sorry, 0 axioms.
-- **Layer 3: IR -> Yul** — Generic statement/function equivalence in [`Preservation.lean`](YulGeneration/Preservation.lean). 1 documented bridge hypothesis.
+- **Layer 1: EDSL = CompilationModel** -- Frontend semantic bridge. Generic typed-IR core in [`TypedIRCompilerCorrectness.lean`](../../Compiler/TypedIRCompilerCorrectness.lean); contract-level bridges are per-contract.
+- **Layer 2: CompilationModel -> IR** -- Generic whole-contract theorem in [`Contract.lean`](IRGeneration/Contract.lean). 0 sorry, 0 axioms.
+- **Layer 3: IR -> Yul** -- Generic statement/function equivalence in [`Preservation.lean`](YulGeneration/Preservation.lean). Dispatch bridge is an explicit theorem hypothesis.
 
-This branch now includes the generic compiler-level theorem `Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics`, rooted at successful `CompilationModel.compile` for an explicit supported whole-contract fragment. The former exact-state body-simulation axiom in `Compiler.Proofs.IRGeneration.Function` has now been eliminated.
+All three layers carry zero project-specific axioms.
 
 ## Key Files
 
@@ -25,25 +25,29 @@ This branch now includes the generic compiler-level theorem `Compiler.Proofs.IRG
 | [`YulGeneration/StatementEquivalence.lean`](YulGeneration/StatementEquivalence.lean) | All 8 Yul statement types proven |
 | [`YulGeneration/Preservation.lean`](YulGeneration/Preservation.lean) | IR -> Yul codegen preservation |
 
-## Tracking
-
-- Theorem shape: [#1510](https://github.com/Th0rgal/verity/issues/1510)
-- Axiom elimination: [#1618](https://github.com/Th0rgal/verity/issues/1618)
-- Layer 2 completeness: [#1630](https://github.com/Th0rgal/verity/issues/1630)
-- Machine-readable boundary: [`artifacts/layer2_boundary_catalog.json`](../../artifacts/layer2_boundary_catalog.json)
-- Plan: [`docs/GENERIC_LAYER2_PLAN.md`](../../docs/GENERIC_LAYER2_PLAN.md)
-
 ## Layer 2 Boundary Status
 
-The `SupportedSpec` split is now explicit and auditable: global invariants, feature-local body interfaces, and the current `calls.helpers` helper boundary all appear in `artifacts/layer2_boundary_catalog.json`.
+The `SupportedSpec` split and current boundary are recorded in [`artifacts/layer2_boundary_catalog.json`](../../artifacts/layer2_boundary_catalog.json). The `calls.helpers` sub-interface tracks internal helper call coverage.
 
-The intended compiled-side compatibility subset is the legacy-compatible external-body Yul subset `LegacyCompatibleExternalStmtList`. The compiled-side retarget theorem is `InterpretIRWithInternalsZeroConservativeExtensionGoal`, decomposed via `InterpretIRWithInternalsZeroConservativeExtensionDispatchGoal` and `interpretIRWithInternalsZeroConservativeExtensionGoal_of_dispatchGoal`. The proof further factors through `InterpretIRWithInternalsZeroConservativeExtensionStmtSubgoals` and `interpretIRWithInternalsZeroConservativeExtensionInterfaces_of_stmtSubgoals`. The helper-free conservative-extension goal is now closed: `interpretIRWithInternalsZeroConservativeExtensionGoal_closed`.
+**What is proved:**
+- Generic whole-contract theorem for the supported fragment
+- The helper-free conservative-extension goal is now closed: `interpretIRWithInternalsZeroConservativeExtensionGoal_closed`
+- Conservative-extension decomposition: `InterpretIRWithInternalsZeroConservativeExtensionGoal`, `InterpretIRWithInternalsZeroConservativeExtensionDispatchGoal`, `InterpretIRWithInternalsZeroConservativeExtensionStmtSubgoals`
+- Lift theorems: `interpretIRWithInternalsZeroConservativeExtensionGoal_of_dispatchGoal`, `interpretIRWithInternalsZeroConservativeExtensionInterfaces_of_stmtSubgoals`
+- Helper-aware theorem variants: `compile_preserves_semantics_with_helper_proofs_and_helper_ir_goal`, `compile_preserves_semantics_with_helper_proofs_and_helper_ir_closed`
+- Expr-statement builtin classification via `exprStmtUsesDedicatedBuiltinSemantics`, with direct helper-free lemmas for `stop`, `mstore`, `revert`, `return`, and mapping-slot `sstore`
+- The helper-aware compiled target provides total fuel-indexed helper-aware IR semantics
+- The legacy-compatible external-body Yul subset witness is derived from the supported body interface
 
-`IRInterpreter.lean` classifies dedicated expr-statement builtin cases through `exprStmtUsesDedicatedBuiltinSemantics` and provides direct helper-free lemmas for `stop`, `mstore`, `revert`, `return`, and mapping-slot `sstore`.
+**Remaining work ([#1638](https://github.com/lfglabs-dev/verity/issues/1638)):**
+- Thread summary-soundness evidence through the helper-aware body goal `SupportedFunctionBodyWithHelpersIRPreservationGoal` and the exact helper-rich target `SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal`
+- Widen the supported fragment beyond the current `SupportedStmtList` closure
 
-`Contract.lean` exposes `compile_preserves_semantics_with_helper_proofs_and_helper_ir_goal` and the closed form `compile_preserves_semantics_with_helper_proofs_and_helper_ir_closed`. The helper-aware compiled target remains available as total fuel-indexed helper-aware IR semantics.
+## Tracking
 
-The remaining blocker is summary-soundness evidence threaded through the exact helper-aware compiled induction seam, past the transitional `SupportedFunctionBodyWithHelpersIRPreservationGoal` and then through the exact target `SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal`. The later widening boundary remains tracked in [#1638](https://github.com/Th0rgal/verity/issues/1638).
+- Layer 2 completeness: [#1630](https://github.com/lfglabs-dev/verity/issues/1630)
+- Machine-readable boundary: [`artifacts/layer2_boundary_catalog.json`](../../artifacts/layer2_boundary_catalog.json)
+- Plan: [`docs/GENERIC_LAYER2_PLAN.md`](../../docs/GENERIC_LAYER2_PLAN.md)
 
 ## Build
 

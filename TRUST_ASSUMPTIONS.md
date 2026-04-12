@@ -8,7 +8,7 @@ This document states what Verity proves and what it still trusts.
 EDSL (Lean)
   ↓ [Layer 1: PROVEN FOR CURRENT CONTRACTS, generic core, contract bridges]
 CompilationModel
-  ↓ [Layer 2: SUPPORTED-FRAGMENT GENERIC THEOREM — CompilationModel → IR]
+  ↓ [Layer 2: SUPPORTED-FRAGMENT GENERIC THEOREM -- CompilationModel → IR]
 IR
   ↓ [Layer 3: GENERIC SURFACE, explicit bridge hypothesis, IR → Yul]
 Yul

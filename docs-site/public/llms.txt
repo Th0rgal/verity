@@ -2,15 +2,9 @@
 
 > **For AI agents:** This file provides a complete overview. Add `.md` to any docs page URL to get raw markdown.
 
-## Project Overview
+## Overview
 
-Lean 4 EDSL for writing smart contracts with machine-checked proofs. Three-layer verified compilation pipeline: EDSL -> CompilationModel -> IR -> Yul -> EVM bytecode.
-
-**Core**: Models contract state, storage operations, and `require` guards using explicit success/revert result type (`ContractResult`).
-
-**Contracts**: Formally verified contracts covering correctness, conservation laws, and storage isolation.
-
-**Compiler**: Declarative `CompilationModel` DSL compiles to Yul. Layer 2 now has a generic whole-contract CompilationModel -> IR theorem for the supported fragment. Solidity-compatible function selectors via keccak256.
+Lean 4 framework for writing smart contracts with machine-checked proofs. Three-layer verified compilation: EDSL -> CompilationModel -> IR -> Yul -> EVM bytecode. Zero axioms, zero sorry.
 
 ## Quick Facts
 
@@ -25,37 +19,29 @@ Lean 4 EDSL for writing smart contracts with machine-checked proofs. Three-layer
 - **Repository**: https://github.com/lfglabs-dev/verity
 <!-- END GENERATED QUICK FACTS -->
 
-## Architecture
+## Verification Layers
 
-```
-Layer 1: EDSL -> CompilationModel bridge
-Contract proofs: human-readable spec theorems for each contract
-Layer 2: Compiler Proofs  -- generic whole-contract CompilationModel -> IR theorem for supported fragment
-Layer 3: IR -> Yul        -- Statement/expression equivalence proofs
-Trust:   Yul -> Bytecode  -- Via solc (validated by differential testing)
-```
+- **Layer 1** (EDSL -> CompilationModel): Per-contract bridge theorems. Generic typed-IR core.
+- **Layer 2** (CompilationModel -> IR): Generic whole-contract theorem for the supported fragment. 0 axioms.
+- **Layer 3** (IR -> Yul): Generic statement/function equivalence. Dispatch bridge is an explicit hypothesis.
+- **External** (Yul -> bytecode): Trusted. Compiled by solc v0.8.33. Validated by differential testing.
 
-## Key Design
-
-```lean
--- Contracts are functions: ContractState -> ContractResult
-inductive ContractResult (α : Type) where
-  | success : α → ContractState → ContractResult α
-  | revert : String → ContractState → ContractResult α
-
--- Custom bind short-circuits on revert
-def bind (x : Contract α) (f : α → Contract β) : Contract β :=
-  fun s => match x.run s with
-    | ContractResult.success a s' => (f a).run s'
-    | ContractResult.revert msg s' => ContractResult.revert msg s'
-```
-
-## Trust Assumptions
+## Trust Boundary
 
 - **Verified**: EDSL -> CompilationModel -> IR -> Yul (3 layers, 0 axioms, 0 sorry)
-- **Trusted**: Yul -> Bytecode (via solc, validated by differential tests)
-- **External**: Lean 4 kernel, EVM specification alignment
+- **Trusted**: Yul -> bytecode (solc), Lean 4 kernel, EVM specification alignment
 - See [TRUST_ASSUMPTIONS.md](https://github.com/lfglabs-dev/verity/blob/main/TRUST_ASSUMPTIONS.md) and [AXIOMS.md](https://github.com/lfglabs-dev/verity/blob/main/AXIOMS.md)
+
+## Key Types
+
+```lean
+-- Contracts are state-passing functions
+abbrev Contract a := ContractState -> ContractResult a
+
+inductive ContractResult (a : Type) where
+  | success : a -> ContractState -> ContractResult a
+  | revert : String -> ContractState -> ContractResult a
+```
 
 ## Documentation URLs
 
@@ -65,9 +51,5 @@ def bind (x : Contract α) (f : α → Contract β) : Contract β :=
 - Examples: https://verity.thomas.md/examples
 - Core: https://verity.thomas.md/core
 - Compiler: https://verity.thomas.md/compiler
-- Guides (First Contract): https://verity.thomas.md/guides/first-contract
-- Guides (Linking Libraries): https://verity.thomas.md/guides/linking-libraries
-- Guides (Debugging Proofs): https://verity.thomas.md/guides/debugging-proofs
-- Add a Contract: https://verity.thomas.md/add-contract
-
-Add `.md` to any URL for raw markdown (saves tokens).
+- Guides: https://verity.thomas.md/guides/first-contract
+- Add `.md` to any URL for raw markdown (saves tokens).
