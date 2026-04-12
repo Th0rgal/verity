@@ -99,3 +99,9 @@ Verity is complementary to these tools. It is for cases where you need mathemati
 - [Verity: A Formally Verified Smart Contract Compiler](https://www.lfglabs.dev/verity)
 - [Verity Benchmark: AI-Driven Proof Generation](https://www.lfglabs.dev/verity-benchmark)
 - [What is a formal proof?](https://www.lfglabs.dev/what-is-a-formal-proof)
+
+## Support
+
+Verity is a public good. If you'd like to support the project, you can donate via Giveth:
+
+[verity: Smart Contracts Security for the Age of AI](https://giveth.io/project/verity:-smart-contracts-security-for-the-age-of-ai)
