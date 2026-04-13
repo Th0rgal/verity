@@ -788,13 +788,13 @@ private theorem toNat_fromBool (b : Bool) :
   cases b <;> simp [EvmYul.UInt256.fromBool, Bool.toUInt256, EvmYul.UInt256.toNat,
     EvmYul.UInt256.ofNat, Id.run, Fin.ofNat, EvmYul.UInt256.size]
 
+set_option maxHeartbeats 4000000 in
 /-- The Verity signed-less-than semantics agree with EVMYulLean's `sltBool`
     when both sides operate on the same reduced values `a % M` and `b % M`.
 
     We prove this by case-splitting on the sign bits of both operands.
     In each of the 4 cases, the `Int` comparison from Verity and the
     case-split comparison from EVMYulLean yield the same `Bool`/`Prop`. -/
-set_option maxHeartbeats 4000000 in
 private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
     (if Verity.Core.Int256.toInt
           (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (a % evmModulus))) <
@@ -875,9 +875,9 @@ private theorem bridge_eval_slt_normalized (a b : Nat) :
       (EvmYul.UInt256.ofNat b))) = _
   simp [EvmYul.UInt256.slt, EvmYul.UInt256.fromBool, toNat_fromBool]
 
+set_option maxHeartbeats 4000000 in
 /-- Universal bridge theorem for `slt`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
-set_option maxHeartbeats 4000000 in
 @[simp] theorem evalBuiltinCall_slt_bridge
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCall storage sender selector calldata "slt" [a, b] =
@@ -892,9 +892,9 @@ set_option maxHeartbeats 4000000 in
   simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_slt_bridge]
 
+set_option maxHeartbeats 4000000 in
 /-- The Verity signed-greater-than semantics agree with EVMYulLean's `sgtBool`.
     `sgt(a, b)` is equivalent to `slt(b, a)`, so we reuse the slt equivalence. -/
-set_option maxHeartbeats 4000000 in
 private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
     (if Verity.Core.Int256.toInt
           (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (b % evmModulus))) <
@@ -922,18 +922,18 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
     · intro h; exact Int.ofNat_lt.mpr h
   · -- a non-negative, b negative: a > b, so sgt = true
     have hb' : b % 2 ^ 256 ≥ 2 ^ 255 := Nat.not_lt.mp hb
-    simp [ha, hb, show ¬(a % 2 ^ 256 ≥ 2 ^ 255) from Nat.not_le_of_lt ha]
+    simp
     have hab : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     omega
   · -- a negative, b non-negative: a < b, so sgt = false
     have ha' : a % 2 ^ 256 ≥ 2 ^ 255 := Nat.not_lt.mp ha
-    simp [ha, hb, Nat.not_le_of_lt hb]
+    simp
     have hab : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     omega
   · -- Both negative
     have ha' : a % 2 ^ 256 ≥ 2 ^ 255 := Nat.not_lt.mp ha
     have hb' : b % 2 ^ 256 ≥ 2 ^ 255 := Nat.not_lt.mp hb
-    simp [ha, hb, ha', hb']
+    simp
     constructor
     · intro h; omega
     · intro h; omega
@@ -957,9 +957,9 @@ private theorem bridge_eval_sgt_normalized (a b : Nat) :
       (EvmYul.UInt256.ofNat b))) = _
   simp [EvmYul.UInt256.sgt, EvmYul.UInt256.fromBool, toNat_fromBool]
 
+set_option maxHeartbeats 4000000 in
 /-- Universal bridge theorem for `sgt`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
-set_option maxHeartbeats 4000000 in
 @[simp] theorem evalBuiltinCall_sgt_bridge
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCall storage sender selector calldata "sgt" [a, b] =
