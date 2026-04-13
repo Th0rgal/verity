@@ -133,4 +133,52 @@ def mkFrameDefCommand
 
   pure #[frameCmd, frameRflCmd]
 
+/-- Count how many effect annotations are active on a function declaration. -/
+def effectAnnotationCount (fnDecl : FunctionDecl) : Nat :=
+  (if fnDecl.isView then 1 else 0) +
+  (if fnDecl.noExternalCalls then 1 else 0) +
+  (if !fnDecl.modifies.isEmpty then 1 else 0)
+
+/-- Auto-generated `_effects` conjunction theorem for functions with multiple
+    effect annotations (#1729, Axis 3 Step 1d).  Bundles all individual effect
+    theorems (`_is_view`, `_no_calls`, `_modifies`) into a single `And` fact so
+    downstream proofs can obtain all guarantees in one `exact`. -/
+def mkEffectsTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do
+  let effectsName ← mkSuffixedIdent fnDecl.ident "_effects"
+  let modelName ← mkSuffixedIdent fnDecl.ident "_model"
+  -- Collect conjunct terms and proof terms for each active annotation
+  let mut conjuncts : Array Term := #[]
+  let mut proofs : Array Term := #[]
+  if fnDecl.isView then
+    let viewName ← mkSuffixedIdent fnDecl.ident "_is_view"
+    conjuncts := conjuncts.push (← `(
+        (Compiler.CompilationModel.FunctionSpec.isView
+          ($modelName : Compiler.CompilationModel.FunctionSpec)) = true))
+    proofs := proofs.push (← `($viewName))
+  if fnDecl.noExternalCalls then
+    let noCallsName ← mkSuffixedIdent fnDecl.ident "_no_calls"
+    conjuncts := conjuncts.push (← `(
+        (Compiler.CompilationModel.FunctionSpec.noExternalCalls
+          ($modelName : Compiler.CompilationModel.FunctionSpec)) = true))
+    proofs := proofs.push (← `($noCallsName))
+  if !fnDecl.modifies.isEmpty then
+    let modifiesName ← mkSuffixedIdent fnDecl.ident "_modifies"
+    let fieldTerms : Array Term := fnDecl.modifies.map fun ident => strTermPublic (toString ident.getId)
+    conjuncts := conjuncts.push (← `(
+        (Compiler.CompilationModel.FunctionSpec.modifies
+          ($modelName : Compiler.CompilationModel.FunctionSpec)) = [ $[$fieldTerms],* ]))
+    proofs := proofs.push (← `($modifiesName))
+  -- Build right-nested And: P₁ ∧ P₂ ∧ ... ∧ Pn
+  -- For n=2: And.intro p₁ p₂
+  -- For n=3: And.intro p₁ (And.intro p₂ p₃)
+  let mut propTerm := conjuncts[conjuncts.size - 1]!
+  for i in List.range (conjuncts.size - 1) |>.reverse do
+    propTerm ← `($(conjuncts[i]!) ∧ $propTerm)
+  let mut proofTerm := proofs[proofs.size - 1]!
+  for i in List.range (proofs.size - 1) |>.reverse do
+    proofTerm ← `(And.intro $(proofs[i]!) $proofTerm)
+  `(command|
+    @[simp] theorem $effectsName :
+        $propTerm := $proofTerm)
+
 end Verity.Macro

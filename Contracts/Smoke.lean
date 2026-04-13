@@ -1680,4 +1680,31 @@ verity_contract NoExternalCallsSmoke where
   function setOwner (newOwner : Address) : Unit := do
     setStorageAddr owner newOwner
 
+-- #1729, Axis 3 Step 1d: smoke test for annotation composition (_effects theorem)
+verity_contract EffectCompositionSmoke where
+  storage
+    counter : Uint256 := slot 0
+    owner : Address := slot 1
+    balances : Address → Uint256 := slot 2
+
+  -- view + no_external_calls: _effects bundles _is_view ∧ _no_calls
+  function view no_external_calls getCounter () : Uint256 := do
+    let current ← getStorage counter
+    return current
+
+  -- no_external_calls + modifies: _effects bundles _no_calls ∧ _modifies
+  function no_external_calls increment () modifies(counter) : Unit := do
+    let current ← getStorage counter
+    setStorage counter (add current 1)
+
+  -- Single annotation only (no _effects expected)
+  function no_external_calls setOwner (newOwner : Address) : Unit := do
+    setStorageAddr owner newOwner
+
+  -- No annotations at all
+  function deposit (amount : Uint256) : Unit := do
+    let sender ← msgSender
+    let balance ← getMapping balances sender
+    setMapping balances sender (add balance amount)
+
 end Contracts.Smoke

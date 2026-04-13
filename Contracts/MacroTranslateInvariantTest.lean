@@ -324,6 +324,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.LocalObligationRequiredForUnsafeConstructorBoundary.spec
   , Contracts.Smoke.ModifiesSmoke.spec
   , Contracts.Smoke.NoExternalCallsSmoke.spec
+  , Contracts.Smoke.EffectCompositionSmoke.spec
   ]
 
 private def functionSignature (fn : FunctionSpec) : String :=
@@ -405,6 +406,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("LocalObligationRequiredForUnsafeConstructorBoundary", ["noop()"])
   , ("ModifiesSmoke", ["increment()", "transferOwnership(address)", "deposit(uint256)", "getCounter()"])
   , ("NoExternalCallsSmoke", ["increment()", "getCounter()", "setOwner(address)"])
+  , ("EffectCompositionSmoke", ["getCounter()", "increment()", "setOwner(address)", "deposit(uint256)"])
   ]
 
 private def expectedExternalSelectors : List (String × List String) :=
@@ -469,6 +471,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("LocalObligationRequiredForUnsafeConstructorBoundary", ["0x5dfc2e4a"])
   , ("ModifiesSmoke", ["0xd09de08a", "0xf2fde38b", "0xb6b55f25", "0x8ada066e"])
   , ("NoExternalCallsSmoke", ["0xd09de08a", "0x8ada066e", "0x13af4035"])
+  , ("EffectCompositionSmoke", ["0x8ada066e", "0xd09de08a", "0x13af4035", "0xb6b55f25"])
   ]
 
 private def expectedFor
@@ -519,6 +522,14 @@ private def checkMutabilitySmoke : IO Unit := do
   -- Verify auto-generated _no_calls theorem exists (#1729, Axis 3 Step 1c).
   let _ := @Contracts.Smoke.NoExternalCallsSmoke.increment_no_calls
   let _ := @Contracts.Smoke.NoExternalCallsSmoke.getCounter_no_calls
+  -- Verify auto-generated _effects conjunction theorem exists (#1729, Axis 3 Step 1d).
+  -- getCounter has view + no_external_calls → _effects bundles both
+  let _ := @Contracts.Smoke.EffectCompositionSmoke.getCounter_effects
+  -- increment has no_external_calls + modifies → _effects bundles both
+  let _ := @Contracts.Smoke.EffectCompositionSmoke.increment_effects
+  -- Also verify the existing NoExternalCallsSmoke.getCounter gets _effects
+  -- (it has view + no_external_calls)
+  let _ := @Contracts.Smoke.NoExternalCallsSmoke.getCounter_effects
 
 private def checkSignedBuiltinSmoke : IO Unit := do
   let functions := Contracts.Smoke.SignedBuiltinSmoke.spec.functions

@@ -79,6 +79,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.LowLevelTryCatchSmoke.spec
   , Contracts.Smoke.ModifiesSmoke.spec
   , Contracts.Smoke.NoExternalCallsSmoke.spec
+  , Contracts.Smoke.EffectCompositionSmoke.spec
   ]
 
 private structure FuzzRng where

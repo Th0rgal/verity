@@ -71,6 +71,12 @@ def elabVerityContract : CommandElab := fun stx => do
         for cmd in frameCmds do
           elabCommand cmd
 
+    -- Emit per-function _effects conjunction theorem when multiple effect
+    -- annotations are active on the same function (#1729, Axis 3 Step 1d).
+    for fn in functions do
+      if effectAnnotationCount fn ≥ 2 then
+        elabCommand (← mkEffectsTheoremCommand fn)
+
     elabCommand (← `(end $contractName))
   catch err =>
     elabCommand (← `(end $contractName))
