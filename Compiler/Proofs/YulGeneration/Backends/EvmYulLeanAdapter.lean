@@ -99,8 +99,8 @@ def lookupPrimOp : String → Option (EvmYul.Operation .Yul)
   | "sgt"            => some .SGT
   | "eq"             => some .EQ
   | "iszero"         => some .ISZERO
+  -- Bitwise / byte extraction
   | "byte"           => some .BYTE
-  -- Bitwise
   | "and"            => some .AND
   | "or"             => some .OR
   | "xor"            => some .XOR
@@ -159,8 +159,8 @@ def evalPureBuiltinViaEvmYulLean
   -- Signed comparison
   | "slt", [a, b]          => some (toNat (EvmYul.UInt256.slt (u a) (u b)))
   | "sgt", [a, b]          => some (toNat (EvmYul.UInt256.sgt (u a) (u b)))
+  -- Bitwise / byte extraction
   | "byte", [i, x]         => some (toNat (EvmYul.UInt256.byteAt (u i) (u x)))
-  -- Bitwise
   | "and", [a, b]          => some (toNat (EvmYul.UInt256.land (u a) (u b)))
   | "or",  [a, b]          => some (toNat (EvmYul.UInt256.lor (u a) (u b)))
   | "xor", [a, b]          => some (toNat (EvmYul.UInt256.xor (u a) (u b)))

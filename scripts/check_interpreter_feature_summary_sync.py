@@ -70,9 +70,31 @@ def expected_summary_rows(matrix: dict) -> list[str]:
     if builtins_proved + builtins_remaining != len(builtin_features):
         raise ValueError("builtin_features contains non-boolean agreement_proved values")
 
+    # Concrete-only builtins: bridge supported but not yet universally proved
+    concrete_only = [
+        entry for entry in builtin_features
+        if entry.get("agreement_proved") is False and entry.get("evmyullean_bridge") == "supported"
+    ]
+    # Delegated builtins: remain on the Verity evaluation path
+    delegated = [
+        entry for entry in builtin_features
+        if entry.get("agreement_proved") is False and entry.get("evmyullean_bridge") == "delegated"
+    ]
+    if len(concrete_only) + len(delegated) != builtins_remaining:
+        raise ValueError("builtin_features has unproved entries that are neither concrete-only nor delegated")
+
+    concrete_count = len(concrete_only)
+    delegated_count = len(delegated)
+    if concrete_count > 0:
+        concrete_names = ", ".join(f"`{e['feature']}`" for e in concrete_only)
+        partial_cell = f"{concrete_count} ({concrete_names} — concrete-only)"
+    else:
+        partial_cell = "0"
+    not_modeled_cell = f"{delegated_count} (delegated)"
+
     expr_cells = summarize(expr_features)
     stmt_cells = summarize(stmt_features)
-    builtin_row = f"| Builtins (agreement) | {builtins_proved} | 0 | 0 | {builtins_remaining} (delegated) |"
+    builtin_row = f"| Builtins (agreement) | {builtins_proved} | 0 | {partial_cell} | {not_modeled_cell} |"
     return [
         f"| Expression features | {' | '.join(expr_cells)} |",
         f"| Statement features | {' | '.join(stmt_cells)} |",
