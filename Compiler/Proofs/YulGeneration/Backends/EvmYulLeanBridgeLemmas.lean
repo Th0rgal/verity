@@ -651,6 +651,7 @@ private theorem verity_eval_sgt_normalized
             then 1 else 0) := by
   simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
+set_option maxHeartbeats 400000 in
 private theorem bridge_eval_sgt_normalized (a b : Nat) :
     evalPureBuiltinViaEvmYulLean "sgt" [a, b] =
       some (if EvmYul.UInt256.sgtBool (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b)
