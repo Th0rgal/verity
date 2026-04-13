@@ -543,6 +543,112 @@ EVMYulLean UInt256 semantics on all inputs. -/
   simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_shr_bridge]
 
+/-! ## Addmod / Mulmod Bridge Lemmas
+
+These are ternary operations with a conditional on the modulus being zero.
+The key proof obligation is showing that the intermediate result is already
+< UInt256.size when the modulus is nonzero, so the outer `% size` is a no-op. -/
+
+private theorem verity_eval_addmod_normalized
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b n : Nat) :
+    evalBuiltinCall storage sender selector calldata "addmod" [a, b, n] =
+      (if n % evmModulus = 0 then some 0 else some (((a % evmModulus) + (b % evmModulus)) % (n % evmModulus))) := by
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
+
+private theorem eq0_true_of_mod_zero (n : Nat) (hn : n % EvmYul.UInt256.size = 0) :
+    EvmYul.UInt256.eq0 (EvmYul.UInt256.ofNat n) = true := by
+  have h0 : EvmYul.UInt256.ofNat n = ⟨0⟩ := by
+    ext; exact Fin.ext hn
+  simp [EvmYul.UInt256.eq0, h0]
+
+private theorem eq0_false_of_mod_ne_zero (n : Nat) (hn : ¬ n % EvmYul.UInt256.size = 0) :
+    EvmYul.UInt256.eq0 (EvmYul.UInt256.ofNat n) = false := by
+  -- By contradiction: if eq0 were true, then ofNat n = ⟨0⟩, so n%S = 0
+  cases h : EvmYul.UInt256.eq0 (EvmYul.UInt256.ofNat n)
+  · rfl
+  · -- eq0 = true means (ofNat n == ⟨0⟩) = true
+    exfalso
+    simp [EvmYul.UInt256.eq0] at h
+    exact hn (congrArg (fun u => u.val.val) h)
+
+private theorem bridge_eval_addmod_normalized (a b n : Nat) :
+    evalPureBuiltinViaEvmYulLean "addmod" [a, b, n] =
+      (if n % EvmYul.UInt256.size = 0 then some 0 else
+        some (((a % EvmYul.UInt256.size) + (b % EvmYul.UInt256.size)) % (n % EvmYul.UInt256.size))) := by
+  change some (EvmYul.UInt256.toNat (EvmYul.UInt256.addMod (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b) (EvmYul.UInt256.ofNat n))) = _
+  by_cases hn : n % EvmYul.UInt256.size = 0
+  · -- n ≡ 0 (mod size): ofNat n = ⟨0⟩, eq0 succeeds, result is 0
+    have h0 : EvmYul.UInt256.ofNat n = ⟨0⟩ := by
+      ext; exact Fin.ext hn
+    simp [hn, EvmYul.UInt256.addMod, h0, EvmYul.UInt256.eq0, EvmYul.UInt256.toNat]
+  · -- n ≢ 0 (mod size): eq0 fails, compute the modular sum
+    have heq0 := eq0_false_of_mod_ne_zero n hn
+    simp only [hn, ite_false, EvmYul.UInt256.addMod, heq0, EvmYul.UInt256.toNat,
+      EvmYul.UInt256.ofNat, Id.run]
+    -- Goal: ((a % S + b % S) % (n % S)) % S = (a % S + b % S) % (n % S)
+    congr 1
+    rw [Nat.mod_eq_of_lt]
+    exact Nat.lt_of_lt_of_le (Nat.mod_lt _ (Nat.pos_of_ne_zero hn))
+      (Nat.le_of_lt (Nat.mod_lt n (by simp [EvmYul.UInt256.size])))
+
+private theorem verity_eval_mulmod_normalized
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b n : Nat) :
+    evalBuiltinCall storage sender selector calldata "mulmod" [a, b, n] =
+      (if n % evmModulus = 0 then some 0 else some (((a % evmModulus) * (b % evmModulus)) % (n % evmModulus))) := by
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
+
+private theorem mulMod_toNat (a b n : Nat) :
+    EvmYul.UInt256.toNat (EvmYul.UInt256.mulMod (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b) (EvmYul.UInt256.ofNat n)) =
+      if n % EvmYul.UInt256.size = 0 then 0 else
+        ((a % EvmYul.UInt256.size) * (b % EvmYul.UInt256.size)) % (n % EvmYul.UInt256.size) := by
+  simp only [EvmYul.UInt256.mulMod, eq0_ofNat]
+  by_cases hn : n % EvmYul.UInt256.size = 0
+  · simp [hn, EvmYul.UInt256.toNat]
+  · simp [hn, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat, Id.run]
+    rw [Nat.mod_eq_of_lt]
+    exact Nat.lt_of_lt_of_le (Nat.mod_lt _ (Nat.pos_of_ne_zero hn))
+      (Nat.le_of_lt (Nat.mod_lt n (by simp [EvmYul.UInt256.size])))
+
+private theorem bridge_eval_mulmod_normalized (a b n : Nat) :
+    evalPureBuiltinViaEvmYulLean "mulmod" [a, b, n] =
+      (if n % EvmYul.UInt256.size = 0 then some 0 else
+        some (((a % EvmYul.UInt256.size) * (b % EvmYul.UInt256.size)) % (n % EvmYul.UInt256.size))) := by
+  show some (EvmYul.UInt256.toNat (EvmYul.UInt256.mulMod (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b) (EvmYul.UInt256.ofNat n))) = _
+  rw [mulMod_toNat]
+  split <;> simp_all
+
+/-- Universal bridge theorem for `addmod`: Verity builtin semantics agree with
+EVMYulLean UInt256 semantics on all inputs. -/
+@[simp] theorem evalBuiltinCall_addmod_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b n : Nat) :
+    evalBuiltinCall storage sender selector calldata "addmod" [a, b, n] =
+      evalPureBuiltinViaEvmYulLean "addmod" [a, b, n] := by
+  rw [verity_eval_addmod_normalized, bridge_eval_addmod_normalized]
+  simp [EvmYul.UInt256.size, evmModulus]
+
+/-- Universal bridge theorem for `mulmod`: Verity builtin semantics agree with
+EVMYulLean UInt256 semantics on all inputs. -/
+@[simp] theorem evalBuiltinCall_mulmod_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b n : Nat) :
+    evalBuiltinCall storage sender selector calldata "mulmod" [a, b, n] =
+      evalPureBuiltinViaEvmYulLean "mulmod" [a, b, n] := by
+  rw [verity_eval_mulmod_normalized, bridge_eval_mulmod_normalized]
+  simp [EvmYul.UInt256.size, evmModulus]
+
+@[simp] theorem evalBuiltinCallWithBackend_evmYulLean_addmod_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b n : Nat) :
+    evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "addmod" [a, b, n] =
+      evalBuiltinCall storage sender selector calldata "addmod" [a, b, n] := by
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_addmod_bridge]
+
+@[simp] theorem evalBuiltinCallWithBackend_evmYulLean_mulmod_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b n : Nat) :
+    evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "mulmod" [a, b, n] =
+      evalBuiltinCall storage sender selector calldata "mulmod" [a, b, n] := by
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_mulmod_bridge]
+
 
 /-! ## Remaining Builtin Bridge Lemmas — Status
 
@@ -554,8 +660,7 @@ iteration to debug:
 - `set_option maxHeartbeats` propagation through cascading error recovery
 - UInt256 LT instance reduction through Fin/structure wrappers
 
-**New pure builtins** (addmod, mulmod, exp, byte):
-- Ternary ops (addmod, mulmod) need `Fin.val` intermediate proofs
+**New pure builtins** (exp, byte):
 - `exp` needs modular exponentiation equivalence (`Nat.pow` vs `UInt256.pow`)
 - `byte` needs shift/mask equivalence proof
 

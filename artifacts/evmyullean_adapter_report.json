@@ -6,10 +6,8 @@
   },
   "adapter_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean",
   "concrete_bridge_tests": [
-    "addmod",
     "byte",
     "exp",
-    "mulmod",
     "sar",
     "sdiv",
     "sgt",
@@ -112,6 +110,7 @@
   ],
   "universal_bridge_lemmas": [
     "add",
+    "addmod",
     "and",
     "div",
     "eq",
@@ -120,6 +119,7 @@
     "lt",
     "mod",
     "mul",
+    "mulmod",
     "not",
     "or",
     "shl",
