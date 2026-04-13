@@ -832,7 +832,8 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
   all_goals simp_all
   all_goals (try (have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)))
   all_goals (try (have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)))
-  all_goals omega
+  -- After simp_all, remaining if-then-else needs split before omega
+  all_goals (first | omega | (split <;> omega))
 
 set_option maxHeartbeats 4000000 in
 private theorem verity_eval_slt_normalized
@@ -898,7 +899,8 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
   all_goals simp_all
   all_goals (try (have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)))
   all_goals (try (have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)))
-  all_goals omega
+  -- After simp_all, remaining if-then-else needs split before omega
+  all_goals (first | omega | (split <;> omega))
 
 set_option maxHeartbeats 4000000 in
 private theorem verity_eval_sgt_normalized
