@@ -152,7 +152,7 @@ Legend: **ok** = supported, **rev** = reverts (not modeled), **nop** = no-op (co
 
 Legend: **ok** = native evaluation, **del** = delegated to Verity path (bridge returns `none`), **concrete** = evaluated via EVMYulLean but validated by concrete `native_decide` tests only (universal proof pending).
 
-18/36 builtins have universal bridge agreement proofs between Verity and EVMYulLean evaluation paths. 18 are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, and none still require concrete-only regression coverage. 7 additional builtins (`exp`, `sdiv`, `smod`, `slt`, `sgt`, `sar`, `signextend`) are evaluated via EVMYulLean and validated by concrete `native_decide` bridge tests, with universal proofs pending. The remaining 11 are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.
+18/36 builtins have universal bridge agreement proofs between Verity and EVMYulLean evaluation paths. 18 are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, while `exp`, `sdiv`, `smod`, `slt`, `sgt`, `sar`, and `signextend` collectively are currently guarded by concrete regression checks. 7 additional builtins (`exp`, `sdiv`, `smod`, `slt`, `sgt`, `sar`, `signextend`) are evaluated via EVMYulLean and validated by concrete `native_decide` bridge tests, with universal proofs pending. The remaining 11 are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.
 
 ---
 
