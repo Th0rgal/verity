@@ -58,17 +58,16 @@ keys); `getVar` returns the *first* match. EVMYulLean's Finmap is a map
 /-- Convert Verity variable bindings to EVMYulLean VarStore.
     Uses foldl so that the first (most recent) binding for each variable wins,
     matching Verity's `getVar` shadowing semantics. -/
-def varsToVarStore (vars : List (String × Nat)) : VarStore :=
-  let empty : Finmap (fun _ : Identifier => Literal) := ⟨0, Multiset.nodupKeys_nil⟩
-  vars.foldl (init := empty) fun (store : VarStore) (name, val) =>
-    if (store.lookup name).isSome then store
-    else store.insert name (natToUInt256 val)
+noncomputable def varsToVarStore (vars : List (String × Nat)) : VarStore :=
+  vars.foldl (init := (∅ : Finmap (fun _ : Identifier => Literal)))
+    fun store (name, val) =>
+      if (Finmap.lookup name store).isSome then store
+      else Finmap.insert name (natToUInt256 val) store
 
 /-- Convert EVMYulLean VarStore back to Verity variable bindings.
     Order is not preserved (Finmap has no canonical ordering). -/
-def varStoreToVars (store : VarStore) : List (String × Nat) :=
-  let entries : Multiset (Σ _ : Identifier, Literal) := store.entries
-  entries.toList.map fun ⟨name, val⟩ => (name, uint256ToNat val)
+noncomputable def varStoreToVars (store : VarStore) : List (String × Nat) :=
+  (Finmap.entries store).toList.map fun ⟨name, val⟩ => (name, uint256ToNat val)
 
 /-! ## Storage Bridge
 

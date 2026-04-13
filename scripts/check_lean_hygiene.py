@@ -65,30 +65,41 @@ def main() -> None:
 
     # Check 3: Fixed sorry baseline after the merged proof-reduction pass.
     # Allowed sorry locations are pinned to specific infrastructure files
-    # so that a sorry in a real proof cannot be masked by removing a stub.
-    ALLOWED_SORRY_FILES = {
-        "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean",  # Phase 2 proof obligations
+    # with per-file count caps so that extra sorrys cannot be added silently.
+    ALLOWED_SORRY_FILES: dict[str, int] = {
+        "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean": 2,  # Phase 2 proof obligations
     }
     sorry_count = 0
     sorry_locations: list[str] = []
     unexpected_sorry_locations: list[str] = []
+    sorry_per_file: dict[str, int] = {}
     for lean_file in ROOT.rglob("*.lean"):
         if ".lake" in str(lean_file):
             continue
         rel = lean_file.relative_to(ROOT)
+        rel_str = str(rel)
         scrubbed_lines = scrub_lean_code(lean_file.read_text(encoding="utf-8")).splitlines()
         for i, line in enumerate(scrubbed_lines, 1):
             if SORRY_RE.search(line):
                 sorry_count += 1
                 loc = f"{rel}:{i}"
                 sorry_locations.append(loc)
-                if str(rel) not in ALLOWED_SORRY_FILES:
+                if rel_str not in ALLOWED_SORRY_FILES:
                     unexpected_sorry_locations.append(loc)
+                else:
+                    sorry_per_file[rel_str] = sorry_per_file.get(rel_str, 0) + 1
 
     if unexpected_sorry_locations:
         errors.append(
             f"Found sorry in non-allowlisted files: {unexpected_sorry_locations}"
         )
+
+    for path, expected_cap in ALLOWED_SORRY_FILES.items():
+        actual = sorry_per_file.get(path, 0)
+        if actual > expected_cap:
+            errors.append(
+                f"{path}: found {actual} sorry (cap is {expected_cap})"
+            )
 
     # Check 4: No native_decide in proof files (except tests/profiles)
     # native_decide bypasses the kernel and is acceptable in:

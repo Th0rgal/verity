@@ -52,7 +52,11 @@ BRIDGE_EVAL_RE = re.compile(r'bridgeEval\s+"([a-z0-9_]+)"')
 NATIVE_DECIDE_RE = re.compile(r'by\s+native_decide')
 
 # Regex for correctness theorems: theorem NAME (including names with apostrophes)
-CORRECTNESS_THEOREM_RE = re.compile(r"^(?:noncomputable\s+)?theorem\s+([\w']+)", re.MULTILINE)
+# Handles optional attributes (@[simp], @[ext], etc.) and modifiers before theorem.
+CORRECTNESS_THEOREM_RE = re.compile(
+    r"^(?:@\[[^\]]*\]\s*)*(?:(?:noncomputable|private|protected)\s+)*theorem\s+([\w']+)",
+    re.MULTILINE,
+)
 
 
 def _extract_block(text: str, start_marker: str, end_marker: str) -> list[str]:
