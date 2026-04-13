@@ -1,7 +1,8 @@
 {
   "adapter_correctness_proofs": {
     "assign_to_let": "proven (assign_equiv_let, assign_equiv_let')",
-    "file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapterCorrectness.lean"
+    "file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapterCorrectness.lean",
+    "for_init_hoisting": "proven (for_init_hoist, for_init_hoist_return, for_init_hoist_revert, for_init_hoist_stop)"
   },
   "adapter_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean",
   "concrete_bridge_tests": [

@@ -2052,6 +2052,10 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let
 #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let'
 #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.execYulFuel_stmts_nil
+#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist
+#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_revert
+#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_return
+#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_stop
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.word_lt_uint256_size  -- private
