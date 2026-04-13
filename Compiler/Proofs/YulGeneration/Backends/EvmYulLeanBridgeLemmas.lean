@@ -825,43 +825,16 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
   -- Unfold sltBool; uint256_lt_val converts UInt256 LT to Nat LT for omega
   simp only [EvmYul.UInt256.sltBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
     Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_lt_val, Fin.val]
-  -- Case split on sign bits; provide explicit ≤/¬≤ for if-then-else reduction
+  -- Case split on sign bits; use simp_all to reduce all if-then-else branches
   by_cases ha : a % 2 ^ 256 < 2 ^ 255 <;> by_cases hb : b % 2 ^ 256 < 2 ^ 255
-  · -- Both non-negative
-    have hna : ¬(2 ^ 255 ≤ a % 2 ^ 256) := Nat.not_le_of_lt ha
-    have hnb : ¬(2 ^ 255 ≤ b % 2 ^ 256) := Nat.not_le_of_lt hb
-    simp only [show ¬(a % 2 ^ 256 ≥ 2 ^ 255) from hna,
-               show ¬(b % 2 ^ 256 ≥ 2 ^ 255) from hnb,
-               ite_false, decide_false, Bool.false_and, Bool.false_or]
-    have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
-    have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
-    omega
-  · -- a non-negative, b negative
-    have hna : ¬(2 ^ 255 ≤ a % 2 ^ 256) := Nat.not_le_of_lt ha
-    have hpb : 2 ^ 255 ≤ b % 2 ^ 256 := Nat.le_of_not_lt hb
-    simp only [show ¬(a % 2 ^ 256 ≥ 2 ^ 255) from hna,
-               show (b % 2 ^ 256 ≥ 2 ^ 255) from hpb,
-               ite_true, ite_false, decide_true, decide_false,
-               Bool.true_or, Bool.false_and]
-    have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
-    have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
-    omega
-  · -- a negative, b non-negative
-    have hpa : 2 ^ 255 ≤ a % 2 ^ 256 := Nat.le_of_not_lt ha
-    have hnb : ¬(2 ^ 255 ≤ b % 2 ^ 256) := Nat.not_le_of_lt hb
-    simp only [show (a % 2 ^ 256 ≥ 2 ^ 255) from hpa,
-               show ¬(b % 2 ^ 256 ≥ 2 ^ 255) from hnb,
-               ite_true, ite_false, decide_true, decide_false,
-               Bool.true_and, Bool.false_or]
-    have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
-    omega
-  · -- Both negative
-    have hpa : 2 ^ 255 ≤ a % 2 ^ 256 := Nat.le_of_not_lt ha
-    have hpb : 2 ^ 255 ≤ b % 2 ^ 256 := Nat.le_of_not_lt hb
-    simp only [show (a % 2 ^ 256 ≥ 2 ^ 255) from hpa,
-               show (b % 2 ^ 256 ≥ 2 ^ 255) from hpb,
-               ite_true, decide_true, Bool.true_and, Bool.true_or]
-    omega
+  all_goals (try (have : ¬(2 ^ 255 ≤ a % 2 ^ 256) := by omega))
+  all_goals (try (have : 2 ^ 255 ≤ a % 2 ^ 256 := by omega))
+  all_goals (try (have : ¬(2 ^ 255 ≤ b % 2 ^ 256) := by omega))
+  all_goals (try (have : 2 ^ 255 ≤ b % 2 ^ 256 := by omega))
+  all_goals (try (have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)))
+  all_goals (try (have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)))
+  all_goals simp_all
+  all_goals omega
 
 set_option maxHeartbeats 4000000 in
 private theorem verity_eval_slt_normalized
@@ -923,43 +896,16 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
   -- Unfold sgtBool; uint256_gt_val/uint256_lt_val convert UInt256 GT/LT to Nat LT
   simp only [EvmYul.UInt256.sgtBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
     Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_gt_val, uint256_lt_val, Fin.val]
-  -- Case split on sign bits; provide explicit ≤/¬≤ for if-then-else reduction
+  -- Case split on sign bits; use simp_all to reduce all if-then-else branches
   by_cases ha : a % 2 ^ 256 < 2 ^ 255 <;> by_cases hb : b % 2 ^ 256 < 2 ^ 255
-  · -- Both non-negative
-    have hna : ¬(2 ^ 255 ≤ a % 2 ^ 256) := Nat.not_le_of_lt ha
-    have hnb : ¬(2 ^ 255 ≤ b % 2 ^ 256) := Nat.not_le_of_lt hb
-    simp only [show ¬(a % 2 ^ 256 ≥ 2 ^ 255) from hna,
-               show ¬(b % 2 ^ 256 ≥ 2 ^ 255) from hnb,
-               ite_false, decide_false, Bool.false_and, Bool.false_or]
-    have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
-    have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
-    omega
-  · -- a non-negative, b negative: a > b, so sgt = true
-    have hna : ¬(2 ^ 255 ≤ a % 2 ^ 256) := Nat.not_le_of_lt ha
-    have hpb : 2 ^ 255 ≤ b % 2 ^ 256 := Nat.le_of_not_lt hb
-    simp only [show ¬(a % 2 ^ 256 ≥ 2 ^ 255) from hna,
-               show (b % 2 ^ 256 ≥ 2 ^ 255) from hpb,
-               ite_true, ite_false, decide_true, decide_false,
-               Bool.true_or, Bool.false_and]
-    have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
-    have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
-    omega
-  · -- a negative, b non-negative: a < b, so sgt = false
-    have hpa : 2 ^ 255 ≤ a % 2 ^ 256 := Nat.le_of_not_lt ha
-    have hnb : ¬(2 ^ 255 ≤ b % 2 ^ 256) := Nat.not_le_of_lt hb
-    simp only [show (a % 2 ^ 256 ≥ 2 ^ 255) from hpa,
-               show ¬(b % 2 ^ 256 ≥ 2 ^ 255) from hnb,
-               ite_true, ite_false, decide_true, decide_false,
-               Bool.true_and, Bool.false_or]
-    have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
-    omega
-  · -- Both negative
-    have hpa : 2 ^ 255 ≤ a % 2 ^ 256 := Nat.le_of_not_lt ha
-    have hpb : 2 ^ 255 ≤ b % 2 ^ 256 := Nat.le_of_not_lt hb
-    simp only [show (a % 2 ^ 256 ≥ 2 ^ 255) from hpa,
-               show (b % 2 ^ 256 ≥ 2 ^ 255) from hpb,
-               ite_true, decide_true, Bool.true_and, Bool.true_or]
-    omega
+  all_goals (try (have : ¬(2 ^ 255 ≤ a % 2 ^ 256) := by omega))
+  all_goals (try (have : 2 ^ 255 ≤ a % 2 ^ 256 := by omega))
+  all_goals (try (have : ¬(2 ^ 255 ≤ b % 2 ^ 256) := by omega))
+  all_goals (try (have : 2 ^ 255 ≤ b % 2 ^ 256 := by omega))
+  all_goals (try (have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)))
+  all_goals (try (have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)))
+  all_goals simp_all
+  all_goals omega
 
 set_option maxHeartbeats 4000000 in
 private theorem verity_eval_sgt_normalized
