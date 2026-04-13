@@ -771,4 +771,18 @@ EVMYulLean UInt256 semantics on all inputs. -/
   congr 1
   exact sgt_result_equiv (a % evmModulus) (b % evmModulus) ha_lt hb_lt
 
+@[simp] theorem evalBuiltinCallWithBackend_evmYulLean_slt_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "slt" [a, b] =
+      evalBuiltinCall storage sender selector calldata "slt" [a, b] := by
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_slt_bridge]
+
+@[simp] theorem evalBuiltinCallWithBackend_evmYulLean_sgt_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "sgt" [a, b] =
+      evalBuiltinCall storage sender selector calldata "sgt" [a, b] := by
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_sgt_bridge]
+
 end Compiler.Proofs.YulGeneration.Backends
