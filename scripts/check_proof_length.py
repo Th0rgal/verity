@@ -238,8 +238,6 @@ ALLOWLIST: set[str] = {
     "safeDiv_result_le_numerator",
     # --- Misc ---
     "findUniqueInternalFunction",
-    # --- EVMYulLean bridge ---
-    "bridge_eval_byte_normalized",
 }
 
 # Directories containing proof files to scan.
