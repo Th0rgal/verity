@@ -2099,6 +2099,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_not_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_shl_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_shr_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_slt_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_sgt_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_add_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_sub_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_mul_bridge
