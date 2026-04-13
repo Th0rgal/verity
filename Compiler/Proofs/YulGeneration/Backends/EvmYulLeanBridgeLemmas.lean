@@ -724,16 +724,17 @@ private theorem bridge_eval_byte_normalized (i x : Nat) :
     -- Unfold byteAt and eliminate the if with if_neg
     unfold EvmYul.UInt256.byteAt
     rw [if_neg (show ¬(EvmYul.UInt256.ofNat i > (⟨31⟩ : EvmYul.UInt256)) from hle')]
-    -- byteAt's else branch uses >>> and &&& operators (typeclass notation).
-    -- Convert these to direct function calls via show/change.
+    -- Convert >>> and &&& (typeclass notation) to direct function calls
     show some (EvmYul.UInt256.toNat
         (EvmYul.UInt256.land
           (EvmYul.UInt256.shiftRight (EvmYul.UInt256.ofNat x)
             (EvmYul.UInt256.ofNat ((31 - (EvmYul.UInt256.ofNat i).toNat) * 8)))
           ⟨255⟩)) = _
-    simp [hgt, EvmYul.UInt256.shiftRight, EvmYul.UInt256.land,
-      EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat, Id.run,
-      hguard, Nat.shiftRight_eq_div_pow, Fin.land, Nat.and_two_pow_sub_one_eq_mod]
+    -- Unfold shiftRight and eliminate its inner if with hguard
+    unfold EvmYul.UInt256.shiftRight
+    rw [if_neg hguard]
+    simp [hgt, EvmYul.UInt256.land, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat, Id.run,
+      Nat.shiftRight_eq_div_pow, Fin.land, Nat.and_two_pow_sub_one_eq_mod]
 
 /-- Universal bridge theorem for `byte`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
