@@ -788,16 +788,12 @@ private theorem toNat_fromBool (b : Bool) :
   cases b <;> simp [EvmYul.UInt256.fromBool, Bool.toUInt256, EvmYul.UInt256.toNat,
     EvmYul.UInt256.ofNat, Id.run, Fin.ofNat, EvmYul.UInt256.size]
 
-/-- UInt256 `<` reduces to Nat `<` on the underlying Fin values.
-    The standalone LT instance defines `lt a b := a.val < b.val` (Fin LT = Nat LT). -/
-@[simp] private theorem uint256_lt_val (a b : EvmYul.UInt256) :
-    (a < b) ↔ (a.val.val < b.val.val) := Iff.rfl
+/-- UInt256 `≤` reduces to Nat `≤` on underlying Fin values (definitionally). -/
+private theorem uint256_le_iff (a b : EvmYul.UInt256) :
+    (a ≤ b) ↔ (a.val.val ≤ b.val.val) := Iff.rfl
 
-@[simp] private theorem uint256_gt_val (a b : EvmYul.UInt256) :
-    (a > b) ↔ (b.val.val < a.val.val) :=
-  uint256_lt_val b a
-
-set_option maxHeartbeats 4000000 in
+set_option maxHeartbeats 8000000 in
+set_option linter.unusedSimpArgs false in
 /-- The Verity signed-less-than semantics agree with EVMYulLean's `sltBool`
     when both sides operate on the same reduced values `a % M` and `b % M`.
 
@@ -820,27 +816,27 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
     Verity.Core.UINT256_MODULUS, hma, hmb]
+  -- Unfold sltBool; lt_iff_le_not_le converts Preorder LT to LE conjunction;
+  -- uint256_le_iff then reduces UInt256 LE to Nat LE for omega
   simp only [EvmYul.UInt256.sltBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
-    Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_lt_val, Fin.val]
+    Id.run, Fin.ofNat, EvmYul.UInt256.size, lt_iff_le_not_le, uint256_le_iff, Fin.val]
   by_cases ha : a % 2 ^ 256 < 2 ^ 255 <;> by_cases hb : b % 2 ^ 256 < 2 ^ 255
   · -- Both non-negative
-    simp [ha, hb, Nat.not_le_of_lt]
+    simp [ha, hb]
+    have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
+    have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     omega
   · -- a non-negative, b negative
-    have hb' : b % 2 ^ 256 ≥ 2 ^ 255 := Nat.not_lt.mp hb
-    simp [ha, hb, Nat.not_le_of_lt ha, show ¬(a % 2 ^ 256 ≥ 2 ^ 255) from Nat.not_le_of_lt ha]
+    simp [ha, hb]
     have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     omega
   · -- a negative, b non-negative
-    have ha' : a % 2 ^ 256 ≥ 2 ^ 255 := Nat.not_lt.mp ha
-    simp [ha, hb, show ¬(b % 2 ^ 256 ≥ 2 ^ 255) from Nat.not_le_of_lt hb]
+    simp [ha, hb]
     have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     omega
   · -- Both negative
-    have ha' : a % 2 ^ 256 ≥ 2 ^ 255 := Nat.not_lt.mp ha
-    have hb' : b % 2 ^ 256 ≥ 2 ^ 255 := Nat.not_lt.mp hb
-    simp [ha, hb, ha', hb']
+    simp [ha, hb]
     omega
 
 set_option maxHeartbeats 4000000 in
@@ -879,7 +875,8 @@ EVMYulLean UInt256 semantics on all inputs. -/
   simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_slt_bridge]
 
-set_option maxHeartbeats 4000000 in
+set_option maxHeartbeats 8000000 in
+set_option linter.unusedSimpArgs false in
 /-- The Verity signed-greater-than semantics agree with EVMYulLean's `sgtBool`.
     `sgt(a, b)` is equivalent to `slt(b, a)`, so we reuse the slt equivalence. -/
 private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
@@ -899,26 +896,28 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
     Verity.Core.UINT256_MODULUS, hma, hmb]
+  -- Unfold sgtBool; lt_iff_le_not_le converts Preorder LT/GT to LE conjunction;
+  -- uint256_le_iff then reduces UInt256 LE to Nat LE for omega
   simp only [EvmYul.UInt256.sgtBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
-    Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_gt_val, uint256_lt_val, Fin.val]
+    Id.run, Fin.ofNat, EvmYul.UInt256.size, gt_iff_lt, lt_iff_le_not_le,
+    uint256_le_iff, Fin.val]
   by_cases ha : a % 2 ^ 256 < 2 ^ 255 <;> by_cases hb : b % 2 ^ 256 < 2 ^ 255
   · -- Both non-negative
-    simp [ha, hb, Nat.not_le_of_lt]
+    simp [ha, hb]
+    have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
+    have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     omega
   · -- a non-negative, b negative: a > b, so sgt = true
-    have hb' : b % 2 ^ 256 ≥ 2 ^ 255 := Nat.not_lt.mp hb
-    simp [ha, hb, Nat.not_le_of_lt ha, show ¬(a % 2 ^ 256 ≥ 2 ^ 255) from Nat.not_le_of_lt ha]
+    simp [ha, hb]
+    have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     omega
   · -- a negative, b non-negative: a < b, so sgt = false
-    have ha' : a % 2 ^ 256 ≥ 2 ^ 255 := Nat.not_lt.mp ha
-    simp [ha, hb, show ¬(b % 2 ^ 256 ≥ 2 ^ 255) from Nat.not_le_of_lt hb]
+    simp [ha, hb]
     have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     omega
   · -- Both negative
-    have ha' : a % 2 ^ 256 ≥ 2 ^ 255 := Nat.not_lt.mp ha
-    have hb' : b % 2 ^ 256 ≥ 2 ^ 255 := Nat.not_lt.mp hb
-    simp [ha, hb, ha', hb']
+    simp [ha, hb]
     omega
 
 set_option maxHeartbeats 4000000 in
