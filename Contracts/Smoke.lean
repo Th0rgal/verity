@@ -897,7 +897,7 @@ verity_contract ExternalCallSmoke where
   linked_externals
     external echo(Uint256) -> (Uint256)
 
-  function storeEcho (next : Uint256) : Unit := do
+  function allow_post_interaction_writes storeEcho (next : Uint256) : Unit := do
     let echoed := externalCall "echo" [next]
     setStorage echoedValue echoed
 
@@ -920,17 +920,17 @@ verity_contract ERC20HelperSmoke where
   function approveTokens (token : Address, spender : Address, amount : Uint256) : Unit := do
     safeApprove token spender amount
 
-  function snapshotBalance (token : Address, owner : Address) : Uint256 := do
+  function allow_post_interaction_writes snapshotBalance (token : Address, owner : Address) : Uint256 := do
     let balance ← balanceOf token owner
     setStorage lastBalance balance
     return balance
 
-  function snapshotAllowance (token : Address, owner : Address, spender : Address) : Uint256 := do
+  function allow_post_interaction_writes snapshotAllowance (token : Address, owner : Address, spender : Address) : Uint256 := do
     let current ← allowance token owner spender
     setStorage lastAllowance current
     return current
 
-  function snapshotSupply (token : Address) : Uint256 := do
+  function allow_post_interaction_writes snapshotSupply (token : Address) : Uint256 := do
     let supply ← totalSupply token
     setStorage lastSupply supply
     return supply
@@ -939,7 +939,7 @@ verity_contract GenericECMReadSmoke where
   storage
     lastQuote : Uint256 := slot 0
 
-  function snapshotQuote (oracle : Address, asset : Address) : Uint256 := do
+  function allow_post_interaction_writes snapshotQuote (oracle : Address, asset : Address) : Uint256 := do
     let quote ← ecmCall
       (fun resultVar => Compiler.Modules.Oracle.oracleReadUint256Module resultVar 0x12345678 1)
       [oracle, asset]
@@ -1706,5 +1706,51 @@ verity_contract EffectCompositionSmoke where
     let sender ← msgSender
     let balance ← getMapping balances sender
     setMapping balances sender (add balance amount)
+
+-- #1728, Axis 2 Step 2a: smoke test for CEI enforcement
+verity_contract CEISmoke where
+  storage
+    counter : Uint256 := slot 0
+    balances : Address → Uint256 := slot 1
+  linked_externals
+    external echo(Uint256) -> (Uint256)
+
+  -- CEI-compliant: effects before interactions (no external calls here)
+  function increment () : Unit := do
+    let current ← getStorage counter
+    setStorage counter (add current 1)
+
+  -- CEI-compliant: no state writes at all (view-like)
+  function getCounter () : Uint256 := do
+    let current ← getStorage counter
+    return current
+
+  -- CEI-compliant: effects before interaction
+  function updateThenCall (next : Uint256) : Uint256 := do
+    setStorage counter next
+    let echoed := externalCall "echo" [next]
+    return echoed
+
+  -- Opted out with allow_post_interaction_writes: writes after call
+  function allow_post_interaction_writes callThenUpdate (next : Uint256) : Unit := do
+    let echoed := externalCall "echo" [next]
+    setStorage counter echoed
+
+-- CEI violation test: this contract compiles but #check_contract rejects it
+verity_contract CEIViolationRejected where
+  storage
+    result : Uint256 := slot 0
+  linked_externals
+    external echo(Uint256) -> (Uint256)
+
+  function callThenStore (x : Uint256) : Unit := do
+    let echoed := externalCall "echo" [x]
+    setStorage result echoed
+
+/--
+error: #check_contract failed for 'Contracts.Smoke.CEIViolationRejected': Compilation error: function 'callThenStore' violates CEI (Checks-Effects-Interactions) ordering: state write after external call. Reorder state writes before external calls, or annotate with allow_post_interaction_writes to opt out (Issue #1728 (CEI enforcement — Checks-Effects-Interactions ordering))
+-/
+#guard_msgs in
+#check_contract CEIViolationRejected
 
 end Contracts.Smoke

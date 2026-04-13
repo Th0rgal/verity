@@ -66,6 +66,20 @@ def mkNoCallsTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do
         (Compiler.CompilationModel.FunctionSpec.noExternalCalls
           ($modelName : Compiler.CompilationModel.FunctionSpec)) = true := rfl)
 
+/-- Auto-generated `_cei_compliant` theorem for functions that pass CEI
+    (Checks-Effects-Interactions) validation without opting out.
+    Emits a `@[simp]` lemma stating the model's `allowPostInteractionWrites`
+    flag is `false`, certifying that the function was compiler-verified for
+    CEI compliance.  Only called when `!fnDecl.allowPostInteractionWrites` and
+    the function body passed CEI analysis.  (#1728, Axis 2 Step 2a) -/
+def mkCEICompliantTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do
+  let ceiName ← mkSuffixedIdent fnDecl.ident "_cei_compliant"
+  let modelName ← mkSuffixedIdent fnDecl.ident "_model"
+  `(command|
+    @[simp] theorem $ceiName :
+        (Compiler.CompilationModel.FunctionSpec.allowPostInteractionWrites
+          ($modelName : Compiler.CompilationModel.FunctionSpec)) = false := rfl)
+
 /-- Auto-generated `_modifies` theorem for functions with a `modifies(...)` annotation
     (#1729, Axis 3 Step 1b).  Records the declared modifies set as a `@[simp]` fact. -/
 def mkModifiesTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do

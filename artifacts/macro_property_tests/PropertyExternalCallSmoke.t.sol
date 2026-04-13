@@ -17,13 +17,7 @@ contract PropertyExternalCallSmokeTest is YulTestBase {
         require(target != address(0), "Deploy failed");
     }
 
-    // Property 1: storeEcho has no unexpected revert
-    function testAuto_StoreEcho_NoUnexpectedRevert() public {
-        vm.prank(alice);
-        (bool ok,) = target.call(abi.encodeWithSignature("storeEcho(uint256)", uint256(1)));
-        require(ok, "storeEcho reverted unexpectedly");
-    }
-    // Property 2: getEchoedValue reads storage slot 0 and decodes the result
+    // Property 1: getEchoedValue reads storage slot 0 and decodes the result
     function testAuto_GetEchoedValue_ReadsConfiguredStorage() public {
         uint256 expected = uint256(1);
         vm.store(target, bytes32(uint256(0)), bytes32(uint256(expected)));

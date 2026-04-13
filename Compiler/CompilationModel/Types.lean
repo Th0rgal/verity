@@ -450,6 +450,10 @@ structure FunctionSpec where
       compiler validates that the body contains no external call statements
       and emits a `_no_calls` theorem.  (#1729, Axis 3 Step 1c) -/
   noExternalCalls : Bool := false
+  /-- Whether this function is annotated `allow_post_interaction_writes`.
+      When true, CEI enforcement is bypassed for this function.
+      (#1728, Axis 2 Step 2a) -/
+  allowPostInteractionWrites : Bool := false
   /-- Whether this is an internal-only function (not exposed via selector dispatch) -/
   isInternal : Bool := false
   /-- Local proof obligations that isolate unsafe/assembly-shaped trust

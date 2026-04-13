@@ -532,6 +532,81 @@ termination_by ss => sizeOf ss
 decreasing_by all_goals simp_wf; all_goals omega
 end
 
+/-- Check whether a single statement is a direct persistent-storage write.
+    This covers all `setStorage*`, `setMapping*`, `storageArray*`, `setStructMember*`,
+    and `tstore` constructors.  Events, local variables, and memory writes are NOT
+    considered persistent state writes for CEI purposes.
+    (#1728, Axis 2 Step 2a) -/
+def stmtIsPersistentWrite : Stmt → Bool
+  | Stmt.setStorage _ _ | Stmt.setStorageAddr _ _
+  | Stmt.storageArrayPush _ _ | Stmt.storageArrayPop _ | Stmt.setStorageArrayElement _ _ _
+  | Stmt.setMapping _ _ _ | Stmt.setMappingWord _ _ _ _ | Stmt.setMappingPackedWord _ _ _ _ _ | Stmt.setMappingUint _ _ _
+  | Stmt.setMappingChain _ _ _
+  | Stmt.setMapping2 _ _ _ _ | Stmt.setMapping2Word _ _ _ _ _
+  | Stmt.setStructMember _ _ _ _ | Stmt.setStructMember2 _ _ _ _ _
+  | Stmt.tstore _ _ => true
+  | _ => false
+
+/-- Check whether a single statement directly performs an external call
+    (excluding expressions nested inside it — only `externalCallBind` and `ecm`).
+    (#1728, Axis 2 Step 2a) -/
+def stmtIsDirectExternalCall : Stmt → Bool
+  | Stmt.externalCallBind _ _ _ => true
+  | Stmt.ecm _ _ => true
+  | _ => false
+
+mutual
+/-- CEI analysis: walk a statement list sequentially and return a descriptive
+    violation string if a persistent-storage write occurs after any statement
+    that is or contains an external call.  Returns `none` if compliant.
+    For `ite`, each branch is checked independently AND if either branch contains
+    an external call, subsequent statements must not write state.
+    For `forEach`, the body is checked and if it contains an external call the
+    loop is treated as an interaction for subsequent statements.
+    (#1728, Axis 2 Step 2a) -/
+def stmtListCEIViolation : List Stmt → Bool → Option String
+  | [], _ => none
+  | s :: rest, seenCall =>
+      -- First, check for CEI violation within this statement itself
+      match stmtInternalCEIViolation s with
+      | some msg => some msg
+      | none =>
+          -- If we've seen an external call and this statement writes state, violation
+          if seenCall && stmtIsPersistentWrite s then
+            some "state write after external call"
+          else
+            let newSeenCall := seenCall || stmtContainsExternalCall s
+            stmtListCEIViolation rest newSeenCall
+termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+/-- Check for CEI violations within a single compound statement (ite, forEach).
+    Returns a descriptive string if a violation is found within the statement's
+    own nested structure. -/
+def stmtInternalCEIViolation : Stmt → Option String
+  | Stmt.ite _ thenBranch elseBranch =>
+      match stmtListCEIViolation thenBranch false with
+      | some msg => some s!"in if-then branch: {msg}"
+      | none =>
+          match stmtListCEIViolation elseBranch false with
+          | some msg => some s!"in if-else branch: {msg}"
+          | none => none
+  | Stmt.forEach _ _ body =>
+      -- In a loop, if the body has both an external call and a state write,
+      -- a second iteration would violate CEI even if the first doesn't
+      let bodyHasCall := body.any stmtContainsExternalCall
+      let bodyHasWrite := body.any stmtIsPersistentWrite
+      if bodyHasCall && bodyHasWrite then
+        some "loop body contains both external call and state write (subsequent iterations would violate CEI)"
+      else
+        match stmtListCEIViolation body false with
+        | some msg => some s!"in loop body: {msg}"
+        | none => none
+  | _ => none
+termination_by s => sizeOf s
+decreasing_by all_goals simp_wf; all_goals omega
+end
+
 def validateFunctionSpec (spec : FunctionSpec) : Except String Unit := do
   let unsafeBoundaryMechanics := collectUnsafeBoundaryMechanicsFromStmts spec.body
   if !unsafeBoundaryMechanics.isEmpty && spec.localObligations.isEmpty then
@@ -562,6 +637,12 @@ def validateFunctionSpec (spec : FunctionSpec) : Except String Unit := do
   -- Validate no_external_calls annotation: reject external call statements
   if spec.noExternalCalls && spec.body.any stmtContainsExternalCall then
     throw s!"Compilation error: function '{spec.name}' is annotated no_external_calls but contains external call statements"
+  -- CEI enforcement: reject state writes after external calls unless opted out (#1728, Axis 2 Step 2a)
+  if !spec.allowPostInteractionWrites then
+    match stmtListCEIViolation spec.body false with
+    | some violation =>
+        throw s!"Compilation error: function '{spec.name}' violates CEI (Checks-Effects-Interactions) ordering: {violation}. Reorder state writes before external calls, or annotate with allow_post_interaction_writes to opt out ({issue1728Ref})"
+    | none => pure ()
   validateFunctionIdentifierReferences spec
 
 mutual

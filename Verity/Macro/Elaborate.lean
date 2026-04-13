@@ -77,6 +77,12 @@ def elabVerityContract : CommandElab := fun stx => do
       if effectAnnotationCount fn ≥ 2 then
         elabCommand (← mkEffectsTheoremCommand fn)
 
+    -- Emit per-function _cei_compliant theorem for functions that pass CEI
+    -- validation without opting out (#1728, Axis 2 Step 2a).
+    for fn in functions do
+      if !fn.allowPostInteractionWrites then
+        elabCommand (← mkCEICompliantTheoremCommand fn)
+
     elabCommand (← `(end $contractName))
   catch err =>
     elabCommand (← `(end $contractName))

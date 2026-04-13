@@ -325,6 +325,8 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.ModifiesSmoke.spec
   , Contracts.Smoke.NoExternalCallsSmoke.spec
   , Contracts.Smoke.EffectCompositionSmoke.spec
+  , Contracts.Smoke.CEISmoke.spec
+  , Contracts.Smoke.CEIViolationRejected.spec
   ]
 
 private def functionSignature (fn : FunctionSpec) : String :=
@@ -407,6 +409,8 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("ModifiesSmoke", ["increment()", "transferOwnership(address)", "deposit(uint256)", "getCounter()"])
   , ("NoExternalCallsSmoke", ["increment()", "getCounter()", "setOwner(address)"])
   , ("EffectCompositionSmoke", ["getCounter()", "increment()", "setOwner(address)", "deposit(uint256)"])
+  , ("CEISmoke", ["increment()", "getCounter()", "updateThenCall(uint256)", "callThenUpdate(uint256)"])
+  , ("CEIViolationRejected", ["callThenStore(uint256)"])
   ]
 
 private def expectedExternalSelectors : List (String × List String) :=
@@ -472,6 +476,8 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("ModifiesSmoke", ["0xd09de08a", "0xf2fde38b", "0xb6b55f25", "0x8ada066e"])
   , ("NoExternalCallsSmoke", ["0xd09de08a", "0x8ada066e", "0x13af4035"])
   , ("EffectCompositionSmoke", ["0x8ada066e", "0xd09de08a", "0x13af4035", "0xb6b55f25"])
+  , ("CEISmoke", ["0xd09de08a", "0x8ada066e", "0x8c468aed", "0x4955cfdb"])
+  , ("CEIViolationRejected", ["0xe4fccc26"])
   ]
 
 private def expectedFor
@@ -484,6 +490,8 @@ private def expectedCompileCheckedError? (contractName : String) : Option String
       some "uses low-level/assembly mechanic(s) calldataload without any local_obligations entry"
   | "LocalObligationRequiredForUnsafeConstructorBoundary" =>
       some "constructor uses low-level/assembly mechanic(s) mstore without any local_obligations entry"
+  | "CEIViolationRejected" =>
+      some "violates CEI (Checks-Effects-Interactions) ordering"
   | _ => none
 
 -- Regression: `verity_contract` elaboration emits field-level findIdx simp lemmas.
@@ -530,6 +538,12 @@ private def checkMutabilitySmoke : IO Unit := do
   -- Also verify the existing NoExternalCallsSmoke.getCounter gets _effects
   -- (it has view + no_external_calls)
   let _ := @Contracts.Smoke.NoExternalCallsSmoke.getCounter_effects
+  -- Verify auto-generated _cei_compliant theorem exists (#1728, Axis 2 Step 2a).
+  -- All functions that don't have allow_post_interaction_writes get _cei_compliant
+  let _ := @Contracts.Smoke.CEISmoke.increment_cei_compliant
+  let _ := @Contracts.Smoke.CEISmoke.getCounter_cei_compliant
+  let _ := @Contracts.Smoke.CEISmoke.updateThenCall_cei_compliant
+  -- callThenUpdate has allow_post_interaction_writes so no _cei_compliant theorem
 
 private def checkSignedBuiltinSmoke : IO Unit := do
   let functions := Contracts.Smoke.SignedBuiltinSmoke.spec.functions

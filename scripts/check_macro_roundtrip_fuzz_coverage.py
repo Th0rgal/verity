@@ -18,6 +18,7 @@ EXCLUDED_CONTRACTS = {
     "StringEqSmoke",  # Direct string equality lowering still depends on ABI-dynamic string inputs, which this numeric-only fuzz harness does not model
     "LocalObligationRequiredForUnsafeFunctionBoundary",  # Intentionally fails compilation (#guard_msgs negative test)
     "LocalObligationRequiredForUnsafeConstructorBoundary",  # Intentionally fails compilation (#guard_msgs negative test)
+    "CEIViolationRejected",  # Intentionally fails compilation (CEI violation #guard_msgs negative test)
 }
 
 CONTRACT_RE = re.compile(r"\bverity_contract\s+([A-Za-z_][A-Za-z0-9_]*)\s+where\b")
