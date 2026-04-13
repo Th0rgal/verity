@@ -34,7 +34,7 @@ def compileInternalFunction (fields : List Field) (events : List EventDef) (erro
   let usedNames := paramNames ++ collectStmtListBindNames spec.body
   let retNames := freshInternalRetNames returns usedNames
   let bodyStmts ← compileStmtList fields events errors .calldata retNames true
-    (paramNames ++ retNames) spec.body
+    (paramNames ++ retNames) [] spec.body
   pure (YulStmt.funcDef (internalFunctionYulName spec.name) paramNames retNames bodyStmts)
 
 -- Compile function spec to IR function
@@ -45,7 +45,7 @@ def compileFunctionSpec (fields : List Field) (events : List EventDef) (errors :
   let returns ← functionReturns spec
   let paramLoads := genParamLoads spec.params
   let bodyStmts ← compileStmtList fields events errors .calldata [] false
-    (spec.params.map (·.name)) spec.body
+    (spec.params.map (·.name)) [] spec.body
   let allStmts := paramLoads ++ bodyStmts
   let retType := match returns with
     | [single] => single.toIRType
@@ -62,7 +62,7 @@ def compileFunctionSpec (fields : List Field) (events : List EventDef) (errors :
 private def compileSpecialEntrypoint (fields : List Field) (events : List EventDef)
     (errors : List ErrorDef) (spec : FunctionSpec) :
     Except String IREntrypoint := do
-  let bodyChunks ← compileStmtList fields events errors .calldata [] false [] spec.body
+  let bodyChunks ← compileStmtList fields events errors .calldata [] false [] [] spec.body
   pure {
     payable := spec.isPayable
     body := bodyChunks
@@ -88,7 +88,7 @@ def compileConstructor (fields : List Field) (events : List EventDef) (errors : 
   | none => return []
   | some spec =>
     let argLoads := genConstructorArgLoads spec.params
-    let bodyChunks ← compileStmtList fields events errors .memory [] false [] spec.body
+    let bodyChunks ← compileStmtList fields events errors .memory [] false [] [] spec.body
     return argLoads ++ bodyChunks
 
 -- Main compilation function

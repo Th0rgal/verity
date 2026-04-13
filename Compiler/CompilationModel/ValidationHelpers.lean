@@ -116,7 +116,7 @@ def collectExprNames : Expr → List String
   | Expr.ite cond thenVal elseVal => collectExprNames cond ++ collectExprNames thenVal ++ collectExprNames elseVal
   | Expr.adtConstruct _ _ args => collectExprListNames args
   | Expr.adtTag _ field => [field]
-  | Expr.adtField _ _ _ source => collectExprNames source
+  | Expr.adtField _ _ _ _ _ => []
 termination_by expr => sizeOf expr
 decreasing_by
   all_goals simp_wf

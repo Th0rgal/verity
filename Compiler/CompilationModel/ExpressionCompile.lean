@@ -391,13 +391,26 @@ def compileExpr (fields : List Field)
         YulExpr.call "mul" [condBool, thenExpr],
         YulExpr.call "mul" [condNeg, elseExpr]
       ])
-  -- ADT expressions: compilation deferred to Step 5d (Yul lowering)
+  -- ADT expressions: storage-backed tagged unions (#1727 Steps 5c/5d)
   | Expr.adtConstruct adtName variantName _args =>
-      throw s!"Compilation error: ADT construct '{adtName}.{variantName}' is not yet supported (Step 5d)"
-  | Expr.adtTag adtName field =>
-      throw s!"Compilation error: ADT tag read '{adtName}' on field '{field}' is not yet supported (Step 5d)"
-  | Expr.adtField adtName variantName fieldName _source =>
-      throw s!"Compilation error: ADT field read '{adtName}.{variantName}.{fieldName}' is not yet supported (Step 5d)"
+      throw s!"Compilation error: ADT construct '{adtName}.{variantName}' cannot be used in expression position. ADT construction expands to multiple sstores and must be compiled at the statement level."
+  | Expr.adtTag _adtName storageField =>
+      -- Tag byte: sload(baseSlot) & 0xFF
+      match findFieldSlot fields storageField with
+      | some baseSlot =>
+          pure (YulExpr.call "and" [
+            YulExpr.call "sload" [YulExpr.lit baseSlot],
+            YulExpr.lit 0xFF
+          ])
+      | none => throw s!"Compilation error: unknown storage field '{storageField}' for ADT tag read"
+  | Expr.adtField _adtName _variantName _fieldName fieldIndex storageField =>
+      -- Field read: sload(baseSlot + fieldIndex + 1)
+      match findFieldSlot fields storageField with
+      | some baseSlot =>
+          pure (YulExpr.call "sload" [
+            YulExpr.call "add" [YulExpr.lit baseSlot, YulExpr.lit (fieldIndex + 1)]
+          ])
+      | none => throw s!"Compilation error: unknown storage field '{storageField}' for ADT field read"
 end
 
 -- Compile require condition to a "failure" predicate to avoid double-negation.

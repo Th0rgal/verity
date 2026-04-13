@@ -45,8 +45,8 @@ partial def exprContainsCallLike (expr : Expr) : Bool :=
       exprContainsCallLike cond || exprContainsCallLike thenVal || exprContainsCallLike elseVal
   | Expr.adtConstruct _ _ args =>
       exprListContainsCallLike args
-  | Expr.adtField _ _ _ source =>
-      exprContainsCallLike source
+  | Expr.adtField _ _ _ _ _ =>
+      false
   | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
   | Expr.blockNumber | Expr.blobbasefee
@@ -134,8 +134,8 @@ def exprContainsUnsafeLogicalCallLike (expr : Expr) : Bool :=
       exprContainsUnsafeLogicalCallLike elseVal
   | Expr.adtConstruct _ _ args =>
       exprListAnyUnsafeLogicalCallLike args
-  | Expr.adtField _ _ _ source =>
-      exprContainsUnsafeLogicalCallLike source
+  | Expr.adtField _ _ _ _ _ =>
+      false
   | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
   | Expr.blockNumber | Expr.blobbasefee

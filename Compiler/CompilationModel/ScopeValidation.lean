@@ -224,8 +224,8 @@ def validateScopedExprIdentifiers
       validateScopedExprIdentifiersList context params paramScope dynamicParams localScope constructorArgCount args
   | Expr.adtTag _ _ =>
       pure ()
-  | Expr.adtField _ _ _ source =>
-      validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount source
+  | Expr.adtField _ _ _ _ _ =>
+      pure ()
   | Expr.literal _ | Expr.storage _ | Expr.storageAddr _ | Expr.caller | Expr.contractAddress | Expr.chainid
   | Expr.msgValue | Expr.blockTimestamp | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize =>

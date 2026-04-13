@@ -144,7 +144,7 @@ def exprUsesArrayElement : Expr → Bool
   | Expr.ite cond thenVal elseVal =>
       exprUsesArrayElement cond || exprUsesArrayElement thenVal || exprUsesArrayElement elseVal
   | Expr.adtConstruct _ _ args => exprListUsesArrayElement args
-  | Expr.adtField _ _ _ source => exprUsesArrayElement source
+  | Expr.adtField _ _ _ _ _ => false
   -- Leaf expressions: no sub-expressions that could contain arrayElement.
   | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
@@ -287,7 +287,7 @@ def exprUsesStorageArrayElement : Expr → Bool
   | Expr.ite cond thenVal elseVal =>
       exprUsesStorageArrayElement cond || exprUsesStorageArrayElement thenVal || exprUsesStorageArrayElement elseVal
   | Expr.adtConstruct _ _ args => exprListUsesStorageArrayElement args
-  | Expr.adtField _ _ _ source => exprUsesStorageArrayElement source
+  | Expr.adtField _ _ _ _ _ => false
   | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
   | Expr.blockNumber | Expr.blobbasefee
@@ -425,7 +425,7 @@ def exprUsesDynamicBytesEq : Expr → Bool
   | Expr.ite cond thenVal elseVal =>
       exprUsesDynamicBytesEq cond || exprUsesDynamicBytesEq thenVal || exprUsesDynamicBytesEq elseVal
   | Expr.adtConstruct _ _ args => exprListUsesDynamicBytesEq args
-  | Expr.adtField _ _ _ source => exprUsesDynamicBytesEq source
+  | Expr.adtField _ _ _ _ _ => false
   | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
   | Expr.blockNumber | Expr.blobbasefee

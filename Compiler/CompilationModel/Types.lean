@@ -396,9 +396,11 @@ inductive Expr
   /-- Read the tag byte of an ADT value: `adtTag adtName field`.
       Returns the 0-based tag index. (#1727 Step 5b) -/
   | adtTag (adtName field : String)
-  /-- Read a field from an ADT value: `adtField adtName variantName fieldName source`.
-      `source` identifies the storage location being read from. (#1727 Step 5b) -/
-  | adtField (adtName variantName fieldName : String) (source : Expr)
+  /-- Read a field from an ADT value stored in contract storage.
+      `storageField` names the contract storage field holding the ADT.
+      `fieldIndex` is the 0-based index within the variant's field list,
+      pre-resolved at IR construction time. (#1727 Steps 5b/5c) -/
+  | adtField (adtName variantName fieldName : String) (fieldIndex : Nat) (storageField : String)
   deriving Repr
 
 inductive Stmt

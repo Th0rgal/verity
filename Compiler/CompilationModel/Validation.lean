@@ -265,7 +265,7 @@ def exprReadsStateOrEnv : Expr → Bool
   | Expr.ite cond thenVal elseVal =>
       exprReadsStateOrEnv cond || exprReadsStateOrEnv thenVal || exprReadsStateOrEnv elseVal
   | Expr.adtConstruct _ _ _ | Expr.adtTag _ _ => true
-  | Expr.adtField _ _ _ source => true || exprReadsStateOrEnv source
+  | Expr.adtField _ _ _ _ _ => true
 
 mutual
 def exprWritesState : Expr → Bool
