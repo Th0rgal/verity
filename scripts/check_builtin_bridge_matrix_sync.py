@@ -31,10 +31,10 @@ PROVED_BUILTINS = [
     "shl",
     "shr",
     "byte",
+    "sdiv",
 ]
 CONCRETE_ONLY_BUILTINS = [
     "exp",
-    "sdiv",
     "smod",
     "sar",
     "signextend",

@@ -8,7 +8,6 @@
   "concrete_bridge_tests": [
     "exp",
     "sar",
-    "sdiv",
     "signextend",
     "smod"
   ],
@@ -120,6 +119,7 @@
     "mulmod",
     "not",
     "or",
+    "sdiv",
     "sgt",
     "shl",
     "shr",

@@ -2145,6 +2145,11 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_sgt_normalized  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_sgt_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_sgt_bridge
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_sdiv_normalized  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_sdiv_normalized  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_sdiv_eq_evmyullean_sdiv  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_sdiv_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_sdiv_bridge
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.callvalue_bridge
@@ -2196,4 +2201,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 2044 theorems/lemmas (1373 public, 671 private, 0 sorry'd)
+-- Total: 2049 theorems/lemmas (1375 public, 674 private, 0 sorry'd)

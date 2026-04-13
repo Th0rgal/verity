@@ -939,15 +939,81 @@ EVMYulLean UInt256 semantics on all inputs. -/
   simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_sgt_bridge]
 
+/-! ## Signed Division Bridge Lemma (sdiv)
+
+Both Verity and EVMYulLean implement EVM signed division with two's complement.
+The proof strategy follows the slt/sgt pattern: unfold both sides' definitions,
+then split on sign bits (whether `a % 2^256 ≥ 2^255` and `b % 2^256 ≥ 2^255`).
+In each case, both sides perform the same unsigned division and apply the same
+sign correction.
+
+Verity uses `Int256.div` which goes through `signedAbsNat` (Int.natAbs) + `ofInt`.
+EVMYulLean uses `UInt256.sdiv` which does case-splits with `abs` + unsigned `/`
+and `⟨val * -1⟩` for negation. -/
+
+set_option maxHeartbeats 4000000 in
+private theorem verity_eval_sdiv_normalized
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "sdiv" [a, b] =
+      some (Verity.Core.Int256.div
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (a % evmModulus)))
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (b % evmModulus)))).toUint256.val := by
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
+
+private theorem bridge_eval_sdiv_normalized (a b : Nat) :
+    evalPureBuiltinViaEvmYulLean "sdiv" [a, b] =
+      some (EvmYul.UInt256.toNat (EvmYul.UInt256.sdiv (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b))) := by
+  rfl
+
+set_option maxHeartbeats 32000000 in
+/-- The Verity signed-division semantics agree with EVMYulLean's `UInt256.sdiv`
+    when both sides operate on the same reduced values `a % M` and `b % M`. -/
+private theorem verity_sdiv_eq_evmyullean_sdiv (a b : Nat) :
+    (Verity.Core.Int256.div
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (a % evmModulus)))
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (b % evmModulus)))).toUint256.val =
+    EvmYul.UInt256.toNat (EvmYul.UInt256.sdiv (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b)) := by
+  have hma : a % evmModulus % Verity.Core.UINT256_MODULUS = a % evmModulus := by
+    simp [evmModulus, Verity.Core.UINT256_MODULUS]
+  have hmb : b % evmModulus % Verity.Core.UINT256_MODULUS = b % evmModulus := by
+    simp [evmModulus, Verity.Core.UINT256_MODULUS]
+  simp only [
+    Verity.Core.Int256.div, Verity.Core.Int256.toUint256,
+    Verity.Core.Int256.ofUint256, Verity.Core.Int256.toInt,
+    Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
+    Verity.Core.Int256.ofInt, Verity.Core.Int256.signedAbsNat,
+    Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
+    Verity.Core.UINT256_MODULUS, evmModulus, hma, hmb,
+    EvmYul.UInt256.sdiv, EvmYul.UInt256.abs, EvmYul.UInt256.toNat,
+    EvmYul.UInt256.ofNat, Id.run, Fin.ofNat, Fin.val,
+    EvmYul.UInt256.size, int_natCast_emod]
+  split_ifs <;> simp_all [evmModulus] <;> norm_cast <;> omega
+
+set_option maxHeartbeats 4000000 in
+/-- Universal bridge theorem for `sdiv`: Verity builtin semantics agree with
+EVMYulLean UInt256 semantics on all inputs. -/
+@[simp] theorem evalBuiltinCall_sdiv_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "sdiv" [a, b] =
+      evalPureBuiltinViaEvmYulLean "sdiv" [a, b] := by
+  rw [verity_eval_sdiv_normalized, bridge_eval_sdiv_normalized,
+    verity_sdiv_eq_evmyullean_sdiv]
+
+@[simp] theorem evalBuiltinCallWithBackend_evmYulLean_sdiv_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "sdiv" [a, b] =
+      evalBuiltinCall storage sender selector calldata "sdiv" [a, b] := by
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_sdiv_bridge]
+
 /-! ## Remaining Builtin Bridge Lemmas — Status
 
 Universal bridge proofs for the following builtins require local `lake build`
 iteration to debug:
 
-**Signed arithmetic** (sdiv, smod, sar, signextend):
+**Signed arithmetic** (smod, sar, signextend):
 - Two's complement arithmetic with absolute values and sign functions
 - Complex conditional logic in the EVMYulLean definitions
-- `sdiv` needs 4-case sign-bit analysis + `Fin` negation equivalence
 
 **New pure builtins** (exp):
 - `exp` needs modular exponentiation equivalence (`Nat.pow` vs `UInt256.pow`)

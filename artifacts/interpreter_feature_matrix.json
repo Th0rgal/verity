@@ -713,13 +713,13 @@
       "agreement_proved": true
     },
     {
-      "feature": "exp",
+      "feature": "sdiv",
       "verity_path": "supported",
       "evmyullean_bridge": "supported",
-      "agreement_proved": false
+      "agreement_proved": true
     },
     {
-      "feature": "sdiv",
+      "feature": "exp",
       "verity_path": "supported",
       "evmyullean_bridge": "supported",
       "agreement_proved": false
