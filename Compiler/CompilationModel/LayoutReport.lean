@@ -101,8 +101,12 @@ where
     let fieldsJson :=
       (spec.fields.zip effectiveFields).zipIdx.map fun ((declaredField, effectiveField), idx) =>
         fieldJson declaredField effectiveField idx
+    let nsField := match spec.storageNamespace with
+      | some ns => jsonNat ns
+      | none => "null"
     jsonObject [
       ("contract", jsonString spec.name),
+      ("storageNamespace", nsField),
       ("fields", jsonArray fieldsJson),
       ("reservedSlotRanges", jsonArray (spec.reservedSlotRanges.map reservedSlotRangeJson)),
       ("slotAliasRanges", jsonArray (spec.slotAliasRanges.map slotAliasRangeJson))

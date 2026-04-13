@@ -3762,7 +3762,8 @@ private def mkSpecCommand
     (immutableDecls : Array ImmutableDecl)
     (externalDecls : Array ExternalDecl)
     (ctor : Option ConstructorDecl)
-    (functions : Array FunctionDecl) : CommandElabM Cmd := do
+    (functions : Array FunctionDecl)
+    (storageNamespace : Option Nat) : CommandElabM Cmd := do
   let immutableFields := immutableDecls.zipIdx.map (fun (imm, idx) => immutableStorageFieldDecl fields imm idx)
   let allFields := fields ++ immutableFields
   let fieldTerms ← allFields.mapM mkModelFieldTerm
@@ -3829,6 +3830,9 @@ private def mkSpecCommand
       } : Compiler.CompilationModel.FunctionSpec) ))
     else
       pure none
+  let namespaceTerm ← match storageNamespace with
+    | some ns => `(some $(natTerm ns))
+    | none => `(none)
   `(command| def spec : Compiler.CompilationModel.CompilationModel := {
     name := $(strTerm contractName)
     fields := [ $[$fieldTerms],* ]
@@ -3836,6 +3840,7 @@ private def mkSpecCommand
     «constructor» := $constructorTerm
     functions := [ $[$functionModelIds],*, $[$internalFunctionTerms],* ]
     «externals» := [ $[$externalTerms],* ]
+    storageNamespace := $namespaceTerm
   })
 
 private def mkFindIdxFieldSimpCommands
@@ -3932,7 +3937,7 @@ def computeStorageNamespace (contractName : String) : Nat :=
 def parseContractSyntax
     (stx : Syntax)
     : CommandElabM
-        (Ident × Array NewtypeDecl × Array StorageFieldDecl × Array ErrorDecl × Array ConstantDecl × Array ImmutableDecl × Array ExternalDecl × Option ConstructorDecl × Array FunctionDecl) := do
+        (Ident × Array NewtypeDecl × Array StorageFieldDecl × Array ErrorDecl × Array ConstantDecl × Array ImmutableDecl × Array ExternalDecl × Option ConstructorDecl × Array FunctionDecl × Option Nat) := do
   match stx with
   | `(command| verity_contract $contractName:ident where $[types $[$newtypeDecls:verityNewtype]*]? $[storage_namespace%$nsKw]? storage $[$storageFields:verityStorageField]* $[errors $[$errorDecls:verityError]*]? $[constants $[$constantDecls:verityConstant]*]? $[immutables $[$immutableDecls:verityImmutable]*]? $[linked_externals $[$externalDecls:verityExternal]*]? $[$ctor:verityConstructor]? $[$entrypoints:veritySpecialEntrypoint]* $[$functions:verityFunction]*) =>
       -- Parse newtypes first — they are needed by all downstream type resolution
@@ -3976,6 +3981,9 @@ def parseContractSyntax
       let parsedFields ← storageFields.mapM (parseStorageField parsedNewtypes)
       let parsedFields := parsedFields.map fun field =>
         { field with slotNum := field.slotNum + namespaceOffset }
+      -- Compute the Option Nat for the spec's storageNamespace field (#1730, Axis 4 Step 4d)
+      let namespaceOpt : Option Nat :=
+        if nsKw.isSome then some namespaceOffset else none
       pure
         ( contractName
         , parsedNewtypes
@@ -3986,6 +3994,7 @@ def parseContractSyntax
         , parsedExternals
         , (← ctor.mapM (parseConstructor parsedNewtypes))
         , (← entrypoints.mapM parseSpecialEntrypoint) ++ (← functions.mapM (parseFunction parsedNewtypes))
+        , namespaceOpt
         )
   | _ => throwErrorAt stx "invalid verity_contract declaration"
 
@@ -4228,8 +4237,9 @@ def mkSpecCommandPublic
     (immutableDecls : Array ImmutableDecl)
     (externalDecls : Array ExternalDecl)
     (ctor : Option ConstructorDecl)
-    (functions : Array FunctionDecl) : CommandElabM Cmd :=
-  mkSpecCommand contractName fields errorDecls constDecls immutableDecls externalDecls ctor functions
+    (functions : Array FunctionDecl)
+    (storageNamespace : Option Nat) : CommandElabM Cmd :=
+  mkSpecCommand contractName fields errorDecls constDecls immutableDecls externalDecls ctor functions storageNamespace
 
 def mkFindIdxFieldSimpCommandsPublic
     (contractIdent : Ident)

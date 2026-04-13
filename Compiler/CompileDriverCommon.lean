@@ -225,8 +225,10 @@ def compileSpecsWithOptions
         match abiOutDir with
         | some dir =>
             Compiler.ABI.writeContractABIFile dir spec
+            Compiler.ABI.writeContractStorageLayoutFile dir spec
             if verbose then
               IO.println s!"✓ Wrote ABI {dir}/{spec.name}.abi.json"
+              IO.println s!"✓ Wrote storage layout {dir}/{spec.name}.storage.json"
         | none => pure ()
         patchRows := (contract.name, patchReport) :: patchRows
         if verbose then

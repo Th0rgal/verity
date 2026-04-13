@@ -126,4 +126,43 @@ def writeContractABIFile (outDir : String) (spec : CompilationModel) : IO Unit :
   let path := s!"{outDir}/{spec.name}.abi.json"
   IO.FS.writeFile path (emitContractABIJson spec)
 
+/-- Render the storage layout for a contract as a JSON object.
+    Includes EIP-7201 namespace when present (#1730, Axis 4 Step 4d).
+    The output is a JSON object with `"contract"`, `"storageNamespace"`,
+    and `"fields"` keys. -/
+def emitContractStorageLayoutJson (spec : CompilationModel) : String :=
+  let nsTerm := match spec.storageNamespace with
+    | some ns => jsonString (toString ns)
+    | none => "null"
+  let fieldEntries := renderFields spec.fields 0
+  "{" ++ joinJsonFields [
+    s!"\"contract\": {jsonString spec.name}",
+    s!"\"storageNamespace\": {nsTerm}",
+    s!"\"fields\": [{String.intercalate ", " fieldEntries}]"
+  ] ++ "}\n"
+where
+  renderFieldType : FieldType → String
+    | .uint256 => "uint256"
+    | .address => "address"
+    | .dynamicArray _ => "uint256[]"
+    | .mappingTyped _ => "mapping"
+    | .mappingStruct _ _ => "mapping"
+    | .mappingStruct2 _ _ _ => "mapping"
+  renderFields (fields : List Field) (idx : Nat) : List String :=
+    match fields with
+    | [] => []
+    | f :: rest =>
+        let slot := f.slot.getD idx
+        let entry := "{" ++ joinJsonFields [
+          s!"\"name\": {jsonString f.name}",
+          s!"\"slot\": {toString slot}",
+          s!"\"type\": {jsonString (renderFieldType f.ty)}"
+        ] ++ "}"
+        entry :: renderFields rest (idx + 1)
+
+def writeContractStorageLayoutFile (outDir : String) (spec : CompilationModel) : IO Unit := do
+  IO.FS.createDirAll outDir
+  let path := s!"{outDir}/{spec.name}.storage.json"
+  IO.FS.writeFile path (emitContractStorageLayoutJson spec)
+
 end Compiler.ABI

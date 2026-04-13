@@ -498,6 +498,11 @@ structure CompilationModel where
   events : List EventDef := []  -- Event definitions (#153)
   errors : List ErrorDef := []  -- Custom errors (#586)
   externals : List ExternalFunction := []  -- External function declarations (#184)
+  /-- EIP-7201 storage namespace offset.  When `some n`, every user-declared
+      `slot k` was already shifted by `n` during macro elaboration.  The value
+      is `keccak256("{ContractName}.storage.v0")` as a 256-bit Nat.
+      (#1730, Axis 4 Step 4d) -/
+  storageNamespace : Option Nat := none
   deriving Repr
 
 /-!

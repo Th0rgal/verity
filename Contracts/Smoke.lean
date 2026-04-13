@@ -1849,6 +1849,11 @@ verity_contract NamespacedStorageSmoke where
 example : NamespacedStorageSmoke.balance.slot ≠ 0 := by decide
 example : NamespacedStorageSmoke.owner.slot ≠ 1 := by decide
 
+-- Verify storageNamespace flows into the CompilationModel spec (#1730, Axis 4 Step 4d).
+-- Namespaced contracts carry `some ns`; non-namespaced carry `none`.
+example : NamespacedStorageSmoke.spec.storageNamespace.isSome = true := rfl
+example : Contracts.Counter.spec.storageNamespace.isNone = true := rfl
+
 -- CEI violation test: this contract compiles but #check_contract rejects it
 verity_contract CEIViolationRejected where
   storage
