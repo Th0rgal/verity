@@ -169,6 +169,9 @@ def validateInteropStmt (context : String) : Stmt → Except String Unit
       validateInteropStmtList context body
   | Stmt.unsafeBlock _ body =>
       validateInteropStmtList context body
+  | Stmt.matchAdt _ scrutinee branches => do
+      validateInteropExpr context scrutinee
+      validateInteropMatchBranches context branches
   | Stmt.emit _ args =>
       validateInteropExprList context args
   | Stmt.internalCall _ args =>
@@ -196,6 +199,14 @@ def validateInteropStmtList (context : String) : List Stmt → Except String Uni
       validateInteropStmt context s
       validateInteropStmtList context ss
 termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def validateInteropMatchBranches (context : String) : List (String × List String × List Stmt) → Except String Unit
+  | [] => pure ()
+  | (_, _, body) :: rest => do
+      validateInteropStmtList context body
+      validateInteropMatchBranches context rest
+termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 

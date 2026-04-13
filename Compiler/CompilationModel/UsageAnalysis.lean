@@ -11,6 +11,8 @@ def collectStmtBindNames : Stmt → List String
       varName :: collectStmtListBindNames body
   | Stmt.unsafeBlock _ body =>
       collectStmtListBindNames body
+  | Stmt.matchAdt _ _ branches =>
+      collectMatchBranchBindNames branches
   | Stmt.internalCallAssign names _ _ => names
   | Stmt.externalCallBind resultVars _ _ => resultVars
   | Stmt.ecm mod _ => mod.resultVars
@@ -36,6 +38,13 @@ def collectStmtListBindNames : List Stmt → List String
       collectStmtBindNames stmt ++ collectStmtListBindNames rest
 termination_by ss => sizeOf ss
 decreasing_by all_goals simp_wf; all_goals omega
+
+def collectMatchBranchBindNames : List (String × List String × List Stmt) → List String
+  | [] => []
+  | (_, varNames, body) :: rest =>
+      varNames ++ collectStmtListBindNames body ++ collectMatchBranchBindNames rest
+termination_by bs => sizeOf bs
+decreasing_by all_goals simp_wf; all_goals omega
 end
 
 mutual
@@ -47,6 +56,8 @@ def collectStmtAssignedNames : Stmt → List String
       collectStmtListAssignedNames body
   | Stmt.unsafeBlock _ body =>
       collectStmtListAssignedNames body
+  | Stmt.matchAdt _ _ branches =>
+      collectMatchBranchAssignedNames branches
   | Stmt.letVar _ _ | Stmt.setStorage _ _ | Stmt.setStorageAddr _ _
   | Stmt.storageArrayPush _ _ | Stmt.storageArrayPop _ | Stmt.setStorageArrayElement _ _ _
   | Stmt.return _
@@ -68,6 +79,13 @@ def collectStmtListAssignedNames : List Stmt → List String
   | stmt :: rest =>
       collectStmtAssignedNames stmt ++ collectStmtListAssignedNames rest
 termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def collectMatchBranchAssignedNames : List (String × List String × List Stmt) → List String
+  | [] => []
+  | (_, _, body) :: rest =>
+      collectStmtListAssignedNames body ++ collectMatchBranchAssignedNames rest
+termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 
@@ -125,11 +143,14 @@ def exprUsesArrayElement : Expr → Bool
       exprUsesArrayElement a
   | Expr.ite cond thenVal elseVal =>
       exprUsesArrayElement cond || exprUsesArrayElement thenVal || exprUsesArrayElement elseVal
+  | Expr.adtConstruct _ _ args => exprListUsesArrayElement args
+  | Expr.adtField _ _ _ source => exprUsesArrayElement source
   -- Leaf expressions: no sub-expressions that could contain arrayElement.
   | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
   | Expr.blockNumber | Expr.blobbasefee
-  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _ =>
+  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _
+  | Expr.adtTag _ _ =>
       false
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega
@@ -175,6 +196,9 @@ def stmtUsesArrayElement : Stmt → Bool
       exprUsesArrayElement count || stmtListUsesArrayElement body
   | Stmt.unsafeBlock _ body =>
       stmtListUsesArrayElement body
+  | Stmt.matchAdt _ scrutinee branches =>
+      exprUsesArrayElement scrutinee ||
+        matchBranchesUseArrayElement branches
   | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args =>
       exprListUsesArrayElement args
   | Stmt.rawLog topics dataOffset dataSize =>
@@ -194,6 +218,13 @@ def stmtListUsesArrayElement : List Stmt → Bool
   | [] => false
   | s :: ss => stmtUsesArrayElement s || stmtListUsesArrayElement ss
 termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def matchBranchesUseArrayElement : List (String × List String × List Stmt) → Bool
+  | [] => false
+  | (_, _, body) :: rest =>
+      stmtListUsesArrayElement body || matchBranchesUseArrayElement rest
+termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 
@@ -255,11 +286,13 @@ def exprUsesStorageArrayElement : Expr → Bool
       exprUsesStorageArrayElement a
   | Expr.ite cond thenVal elseVal =>
       exprUsesStorageArrayElement cond || exprUsesStorageArrayElement thenVal || exprUsesStorageArrayElement elseVal
+  | Expr.adtConstruct _ _ args => exprListUsesStorageArrayElement args
+  | Expr.adtField _ _ _ source => exprUsesStorageArrayElement source
   | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
   | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _
-  | Expr.arrayElement _ _ =>
+  | Expr.arrayElement _ _ | Expr.adtTag _ _ =>
       false
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega
@@ -305,6 +338,9 @@ def stmtUsesStorageArrayElement : Stmt → Bool
       exprUsesStorageArrayElement count || stmtListUsesStorageArrayElement body
   | Stmt.unsafeBlock _ body =>
       stmtListUsesStorageArrayElement body
+  | Stmt.matchAdt _ scrutinee branches =>
+      exprUsesStorageArrayElement scrutinee ||
+        matchBranchesUseStorageArrayElement branches
   | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args | Stmt.externalCallBind _ _ args =>
       exprListUsesStorageArrayElement args
   | Stmt.rawLog topics dataOffset dataSize =>
@@ -321,6 +357,13 @@ def stmtListUsesStorageArrayElement : List Stmt → Bool
   | [] => false
   | s :: ss => stmtUsesStorageArrayElement s || stmtListUsesStorageArrayElement ss
 termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def matchBranchesUseStorageArrayElement : List (String × List String × List Stmt) → Bool
+  | [] => false
+  | (_, _, body) :: rest =>
+      stmtListUsesStorageArrayElement body || matchBranchesUseStorageArrayElement rest
+termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 
@@ -381,10 +424,13 @@ def exprUsesDynamicBytesEq : Expr → Bool
       exprUsesDynamicBytesEq a
   | Expr.ite cond thenVal elseVal =>
       exprUsesDynamicBytesEq cond || exprUsesDynamicBytesEq thenVal || exprUsesDynamicBytesEq elseVal
+  | Expr.adtConstruct _ _ args => exprListUsesDynamicBytesEq args
+  | Expr.adtField _ _ _ source => exprUsesDynamicBytesEq source
   | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
   | Expr.blockNumber | Expr.blobbasefee
-  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _ =>
+  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _
+  | Expr.adtTag _ _ =>
       false
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega
@@ -428,6 +474,9 @@ def stmtUsesDynamicBytesEq : Stmt → Bool
       exprUsesDynamicBytesEq count || stmtListUsesDynamicBytesEq body
   | Stmt.unsafeBlock _ body =>
       stmtListUsesDynamicBytesEq body
+  | Stmt.matchAdt _ scrutinee branches =>
+      exprUsesDynamicBytesEq scrutinee ||
+        matchBranchesUseDynamicBytesEq branches
   | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args
   | Stmt.externalCallBind _ _ args
   | Stmt.ecm _ args =>
@@ -444,6 +493,13 @@ def stmtListUsesDynamicBytesEq : List Stmt → Bool
   | [] => false
   | s :: ss => stmtUsesDynamicBytesEq s || stmtListUsesDynamicBytesEq ss
 termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def matchBranchesUseDynamicBytesEq : List (String × List String × List Stmt) → Bool
+  | [] => false
+  | (_, _, body) :: rest =>
+      stmtListUsesDynamicBytesEq body || matchBranchesUseDynamicBytesEq rest
+termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 

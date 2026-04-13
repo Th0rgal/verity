@@ -319,6 +319,9 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
       let sizeExpr ← compileExpr fields dynamicSource dataSize
       let logFn := s!"log{topics.length}"
       pure [YulStmt.expr (YulExpr.call logFn ([offsetExpr, sizeExpr] ++ topicExprs))]
+  -- ADT pattern match: compilation deferred to Step 5d (Yul lowering)
+  | Stmt.matchAdt adtName _scrutinee _branches =>
+      throw s!"Compilation error: ADT match on '{adtName}' is not yet supported (Step 5d)"
 end
 
 end Compiler.CompilationModel

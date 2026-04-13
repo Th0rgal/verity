@@ -47,6 +47,8 @@ def validateCustomErrorArgShapesInStmt (fnName : String) (params : List Param)
       validateCustomErrorArgShapesInStmtList fnName params errors body
   | Stmt.unsafeBlock _ body =>
       validateCustomErrorArgShapesInStmtList fnName params errors body
+  | Stmt.matchAdt _ _ branches =>
+      validateCustomErrorArgShapesInMatchBranches fnName params errors branches
   | _ => pure ()
 termination_by s => sizeOf s
 decreasing_by all_goals simp_wf; all_goals omega
@@ -58,6 +60,15 @@ def validateCustomErrorArgShapesInStmtList (fnName : String) (params : List Para
       validateCustomErrorArgShapesInStmt fnName params errors s
       validateCustomErrorArgShapesInStmtList fnName params errors ss
 termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def validateCustomErrorArgShapesInMatchBranches (fnName : String) (params : List Param)
+    (errors : List ErrorDef) : List (String × List String × List Stmt) → Except String Unit
+  | [] => pure ()
+  | (_, _, body) :: rest => do
+      validateCustomErrorArgShapesInStmtList fnName params errors body
+      validateCustomErrorArgShapesInMatchBranches fnName params errors rest
+termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 
@@ -201,6 +212,9 @@ partial def validateEventArgShapesInStmt (fnName : String) (params : List Param)
       body.forM (validateEventArgShapesInStmt fnName params events)
   | Stmt.unsafeBlock _ body =>
       body.forM (validateEventArgShapesInStmt fnName params events)
+  | Stmt.matchAdt _ _ branches => do
+      for (_, _, body) in branches do
+        body.forM (validateEventArgShapesInStmt fnName params events)
   | _ => pure ()
 
 def validateEventArgShapesInFunction (spec : FunctionSpec) (events : List EventDef) :

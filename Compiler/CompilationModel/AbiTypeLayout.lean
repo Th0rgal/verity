@@ -17,6 +17,7 @@ mutual
     | ParamType.bytes => true
     | ParamType.fixedArray elemTy _ => isDynamicParamType elemTy
     | ParamType.tuple elemTys => isDynamicParamTypeList elemTys
+    | ParamType.adt _ => false  -- ADTs are statically-sized tagged unions
   termination_by ty => sizeOf ty
 
   private def isDynamicParamTypeList : List ParamType → Bool
@@ -43,6 +44,7 @@ mutual
         if isDynamicParamType elemTy then 32 else n * paramHeadSize elemTy
     | ParamType.tuple elemTys =>
         if isDynamicParamTypeList elemTys then 32 else paramHeadSizeList elemTys
+    | ParamType.adt _ => 32  -- ADTs encoded as a single 256-bit word (tag + fields)
   termination_by ty => sizeOf ty
 
   private def paramHeadSizeList : List ParamType → Nat

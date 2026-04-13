@@ -391,6 +391,13 @@ def compileExpr (fields : List Field)
         YulExpr.call "mul" [condBool, thenExpr],
         YulExpr.call "mul" [condNeg, elseExpr]
       ])
+  -- ADT expressions: compilation deferred to Step 5d (Yul lowering)
+  | Expr.adtConstruct adtName variantName _args =>
+      throw s!"Compilation error: ADT construct '{adtName}.{variantName}' is not yet supported (Step 5d)"
+  | Expr.adtTag adtName field =>
+      throw s!"Compilation error: ADT tag read '{adtName}' on field '{field}' is not yet supported (Step 5d)"
+  | Expr.adtField adtName variantName fieldName _source =>
+      throw s!"Compilation error: ADT field read '{adtName}.{variantName}.{fieldName}' is not yet supported (Step 5d)"
 end
 
 -- Compile require condition to a "failure" predicate to avoid double-negation.

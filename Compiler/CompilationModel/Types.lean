@@ -162,12 +162,13 @@ inductive ParamType
   | array (elemType : ParamType)           -- Dynamic array: uint256[], address[]
   | fixedArray (elemType : ParamType) (size : Nat)  -- Fixed array: uint256[3]
   | bytes                                  -- Dynamic bytes
+  | adt (name : String)                    -- User-defined ADT (#1727 Step 5b)
   deriving Repr, BEq
 
 structure Param where
   name : String
   ty : ParamType
-  deriving Repr
+  deriving Repr, BEq
 
 -- Convert to IR types
 def ParamType.toIRType : ParamType → IRType
@@ -182,6 +183,7 @@ def ParamType.toIRType : ParamType → IRType
   | array _ => IRType.uint256  -- Arrays are represented as calldata offsets
   | fixedArray _ _ => IRType.uint256
   | bytes => IRType.uint256
+  | adt _ => IRType.uint256  -- ADTs are represented as storage offsets
 
 def Param.toIRParam (p : Param) : IRParam :=
   { name := p.name, ty := p.ty.toIRType }
@@ -243,6 +245,28 @@ structure LocalObligation where
   /-- Proof-accounting status for this local boundary. -/
   proofStatus : Compiler.ProofStatus := .assumed
   deriving Repr
+
+/-!
+### ADT Type Definitions (#1727, Phase 5 Step 5b)
+
+IR-level representation of user-defined algebraic data types (tagged unions).
+Each variant carries a tag byte and typed fields.
+-/
+
+/-- A single variant of an ADT at the IR level.
+    `tag` is the 0-based index used for storage encoding. -/
+structure AdtVariant where
+  name : String
+  tag : Nat
+  fields : List Param
+  deriving Repr, BEq
+
+/-- A user-defined algebraic data type at the IR level.
+    Storage layout: tag byte (1 slot) + max-width fields in consecutive slots. -/
+structure AdtTypeDef where
+  name : String
+  variants : List AdtVariant
+  deriving Repr, BEq
 
 /-!
 ## Function Body DSL
@@ -366,6 +390,15 @@ inductive Expr
       Both branches are eagerly evaluated; `cond` is evaluated twice.
       For complex conditions with side effects, bind to a local variable first. -/
   | ite (cond thenVal elseVal : Expr)
+  /-- Construct an ADT value: `adtConstruct adtName variantName args`.
+      Produces the tagged-union encoding for the given variant. (#1727 Step 5b) -/
+  | adtConstruct (adtName variantName : String) (args : List Expr)
+  /-- Read the tag byte of an ADT value: `adtTag adtName field`.
+      Returns the 0-based tag index. (#1727 Step 5b) -/
+  | adtTag (adtName field : String)
+  /-- Read a field from an ADT value: `adtField adtName variantName fieldName source`.
+      `source` identifies the storage location being read from. (#1727 Step 5b) -/
+  | adtField (adtName variantName fieldName : String) (source : Expr)
   deriving Repr
 
 inductive Stmt
@@ -432,6 +465,11 @@ inductive Stmt
       Marks a region where restricted operations (Step 6b) are permitted.
       The reason string is preserved for trust reporting (Step 6c). -/
   | unsafeBlock (reason : String) (body : List Stmt)
+  /-- Pattern match on an ADT value: `matchAdt adtName scrutinee branches`.
+      Each branch is `(variantName, boundVarNames, body)`.
+      Compiles to `YulStmt.switch` on the tag byte. (#1727 Step 5b) -/
+  | matchAdt (adtName : String) (scrutinee : Expr)
+      (branches : List (String × List String × List Stmt))
   deriving Repr
 
 structure FunctionSpec where
@@ -502,6 +540,8 @@ structure CompilationModel where
   events : List EventDef := []  -- Event definitions (#153)
   errors : List ErrorDef := []  -- Custom errors (#586)
   externals : List ExternalFunction := []  -- External function declarations (#184)
+  /-- User-defined algebraic data types (tagged unions). (#1727 Step 5b) -/
+  adtTypes : List AdtTypeDef := []
   /-- EIP-7201 storage namespace offset.  When `some n`, every user-declared
       `slot k` was already shifted by `n` during macro elaboration.  The value
       is `keccak256("{ContractName}.storage.v0")` as a 256-bit Nat.

@@ -40,6 +40,7 @@ mutual
     | ParamType.bytes => true
     | ParamType.fixedArray elemTy _ => isDynamicParamTypeForScope elemTy
     | ParamType.tuple elemTys => paramTypeListAnyDynamicForScope elemTys
+    | ParamType.adt _ => false
 termination_by ty => sizeOf ty
 decreasing_by all_goals simp_wf; all_goals omega
 
@@ -219,6 +220,12 @@ def validateScopedExprIdentifiers
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount cond
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount thenVal
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount elseVal
+  | Expr.adtConstruct _ _ args =>
+      validateScopedExprIdentifiersList context params paramScope dynamicParams localScope constructorArgCount args
+  | Expr.adtTag _ _ =>
+      pure ()
+  | Expr.adtField _ _ _ source =>
+      validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount source
   | Expr.literal _ | Expr.storage _ | Expr.storageAddr _ | Expr.caller | Expr.contractAddress | Expr.chainid
   | Expr.msgValue | Expr.blockTimestamp | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize =>
@@ -315,6 +322,10 @@ def validateScopedStmtIdentifiers
   | Stmt.unsafeBlock _ body => do
       let _ ← validateScopedStmtListIdentifiers context params paramScope dynamicParams localScope constructorArgCount body
       pure localScope
+  | Stmt.matchAdt _ scrutinee branches => do
+      validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount scrutinee
+      validateScopedMatchBranches context params paramScope dynamicParams localScope constructorArgCount branches
+      pure localScope
   | Stmt.internalCall _ args => do
       validateScopedExprIdentifiersList context params paramScope dynamicParams localScope constructorArgCount args
       pure localScope
@@ -355,6 +366,18 @@ def validateScopedStmtListIdentifiers
       let nextScope ← validateScopedStmtIdentifiers context params paramScope dynamicParams localScope constructorArgCount stmt
       validateScopedStmtListIdentifiers context params paramScope dynamicParams nextScope constructorArgCount rest
 termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def validateScopedMatchBranches
+    (context : String) (params : List Param) (paramScope : List String) (dynamicParams : List String)
+    (localScope : List String) (constructorArgCount : Option Nat) :
+    List (String × List String × List Stmt) → Except String Unit
+  | [] => pure ()
+  | (_, varNames, body) :: rest => do
+      let branchScope := varNames.reverse ++ localScope
+      let _ ← validateScopedStmtListIdentifiers context params paramScope dynamicParams branchScope constructorArgCount body
+      validateScopedMatchBranches context params paramScope dynamicParams localScope constructorArgCount rest
+termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 

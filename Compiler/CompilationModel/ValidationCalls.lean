@@ -211,6 +211,9 @@ def validateInternalCallShapesInStmt
       validateInternalCallShapesInStmtList functions callerName body
   | Stmt.unsafeBlock _ body =>
       validateInternalCallShapesInStmtList functions callerName body
+  | Stmt.matchAdt _ scrutinee branches => do
+      validateInternalCallShapesInExpr functions callerName scrutinee
+      validateInternalCallShapesInMatchBranches functions callerName branches
   | Stmt.emit _ args =>
       validateInternalCallShapesInExprList functions callerName args
   | Stmt.returnValues values =>
@@ -265,6 +268,16 @@ def validateInternalCallShapesInStmtList
       validateInternalCallShapesInStmt functions callerName s
       validateInternalCallShapesInStmtList functions callerName ss
 termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def validateInternalCallShapesInMatchBranches
+    (functions : List FunctionSpec) (callerName : String) :
+    List (String × List String × List Stmt) → Except String Unit
+  | [] => pure ()
+  | (_, _, body) :: rest => do
+      validateInternalCallShapesInStmtList functions callerName body
+      validateInternalCallShapesInMatchBranches functions callerName rest
+termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 
@@ -426,6 +439,9 @@ def validateExternalCallTargetsInStmt
       validateExternalCallTargetsInStmtList externals context body
   | Stmt.unsafeBlock _ body =>
       validateExternalCallTargetsInStmtList externals context body
+  | Stmt.matchAdt _ scrutinee branches => do
+      validateExternalCallTargetsInExpr externals context scrutinee
+      validateExternalCallTargetsInMatchBranches externals context branches
   | Stmt.emit _ args =>
       validateExternalCallTargetsInExprList externals context args
   | Stmt.internalCall _ args =>
@@ -472,6 +488,16 @@ def validateExternalCallTargetsInStmtList
       validateExternalCallTargetsInStmtList externals context ss
 termination_by ss => sizeOf ss
 decreasing_by all_goals simp_wf; all_goals omega
+
+def validateExternalCallTargetsInMatchBranches
+    (externals : List ExternalFunction) (context : String) :
+    List (String × List String × List Stmt) → Except String Unit
+  | [] => pure ()
+  | (_, _, body) :: rest => do
+      validateExternalCallTargetsInStmtList externals context body
+      validateExternalCallTargetsInMatchBranches externals context rest
+termination_by bs => sizeOf bs
+decreasing_by all_goals simp_wf; all_goals omega
 end
 
 def validateExternalCallTargetsInFunction
@@ -491,6 +517,7 @@ def supportedCustomErrorParamType : ParamType → Bool
   | ParamType.array elemTy => supportedCustomErrorParamType elemTy
   | ParamType.fixedArray elemTy _ => supportedCustomErrorParamType elemTy
   | ParamType.tuple elemTys => supportedCustomErrorParamTypes elemTys
+  | ParamType.adt _ => false
 termination_by ty => sizeOf ty
 decreasing_by
   all_goals simp_wf

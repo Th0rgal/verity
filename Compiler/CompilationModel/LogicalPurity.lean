@@ -43,10 +43,15 @@ partial def exprContainsCallLike (expr : Expr) : Bool :=
       exprContainsCallLike a
   | Expr.ite cond thenVal elseVal =>
       exprContainsCallLike cond || exprContainsCallLike thenVal || exprContainsCallLike elseVal
+  | Expr.adtConstruct _ _ args =>
+      exprListContainsCallLike args
+  | Expr.adtField _ _ _ source =>
+      exprContainsCallLike source
   | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
   | Expr.blockNumber | Expr.blobbasefee
-  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _ =>
+  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _
+  | Expr.adtTag _ _ =>
       false
 partial def exprListContainsCallLike : List Expr → Bool
   | [] => false
@@ -127,10 +132,15 @@ def exprContainsUnsafeLogicalCallLike (expr : Expr) : Bool :=
       exprContainsUnsafeLogicalCallLike cond ||
       exprContainsUnsafeLogicalCallLike thenVal ||
       exprContainsUnsafeLogicalCallLike elseVal
+  | Expr.adtConstruct _ _ args =>
+      exprListAnyUnsafeLogicalCallLike args
+  | Expr.adtField _ _ _ source =>
+      exprContainsUnsafeLogicalCallLike source
   | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
   | Expr.blockNumber | Expr.blobbasefee
-  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _ =>
+  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _
+  | Expr.adtTag _ _ =>
       false
 termination_by sizeOf expr
 decreasing_by all_goals simp_wf; all_goals omega
@@ -188,6 +198,9 @@ def stmtContainsUnsafeLogicalCallLike : Stmt → Bool
       exprContainsUnsafeLogicalCallLike count || stmtListAnyUnsafeLogicalCallLike body
   | Stmt.unsafeBlock _ body =>
       stmtListAnyUnsafeLogicalCallLike body
+  | Stmt.matchAdt _ scrutinee branches =>
+      exprContainsUnsafeLogicalCallLike scrutinee ||
+      matchBranchesAnyUnsafeLogicalCallLike branches
   | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args =>
       exprListAnyUnsafeLogicalCallLike args
   | Stmt.rawLog topics dataOffset dataSize =>
@@ -199,6 +212,13 @@ def stmtContainsUnsafeLogicalCallLike : Stmt → Bool
   | Stmt.ecm _ args =>
       exprListAnyUnsafeLogicalCallLike args
 termination_by s => sizeOf s
+decreasing_by all_goals simp_wf; all_goals omega
+
+def matchBranchesAnyUnsafeLogicalCallLike : List (String × List String × List Stmt) → Bool
+  | [] => false
+  | (_, _, body) :: rest =>
+      stmtListAnyUnsafeLogicalCallLike body || matchBranchesAnyUnsafeLogicalCallLike rest
+termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 
 def stmtListAnyUnsafeLogicalCallLike : List Stmt → Bool

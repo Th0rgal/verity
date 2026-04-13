@@ -250,6 +250,13 @@ partial def compileUnindexedAbiEncode
             ])
           ], YulExpr.call "add" [YulExpr.lit 32, YulExpr.ident paddedName])
 
+  | ParamType.adt _ =>
+      -- ADTs are encoded as a single 256-bit word (tag + packed fields)
+      let loaded := dynamicWordLoad dynamicSource srcBase
+      pure ([
+        YulStmt.expr (YulExpr.call "mstore" [dstBase, loaded])
+      ], YulExpr.lit 32)
+
 def revertWithCustomError (dynamicSource : DynamicDataSource)
     (errorDef : ErrorDef) (sourceArgs : List Expr) (args : List YulExpr) :
     Except String (List YulStmt) := do
@@ -279,7 +286,8 @@ def revertWithCustomError (dynamicSource : DynamicDataSource)
   let argsWithHeadOffsets := attachOffsets argsWithSources 4
   let argStores ← argsWithHeadOffsets.zipIdx.mapM fun ((ty, srcExpr, argExpr, headOffset), idx) => do
     match ty with
-    | ParamType.uint256 | ParamType.int256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 =>
+    | ParamType.uint256 | ParamType.int256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32
+    | ParamType.adt _ =>
         let encoded ← encodeStaticCustomErrorArg errorDef.name ty argExpr
         pure [YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit headOffset, encoded])]
     | ParamType.tuple _ | ParamType.fixedArray _ _ =>

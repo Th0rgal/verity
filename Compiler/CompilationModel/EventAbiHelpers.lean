@@ -198,5 +198,11 @@ partial def compileIndexedInPlaceEncoding
               YulStmt.assign outLenName (YulExpr.call "add" [YulExpr.ident outLenName, elemEncodedLen])
             ] ++ restStmts)
       pure (initStmts ++ (← goTuple elemTys 0 0), YulExpr.ident outLenName)
+  | ParamType.adt _ =>
+      -- ADTs are encoded as a single 256-bit word (tag + packed fields)
+      let loaded := dynamicWordLoad dynamicSource srcBase
+      pure ([
+        YulStmt.expr (YulExpr.call "mstore" [dstBase, loaded])
+      ], YulExpr.lit 32)
 
 end Compiler.CompilationModel

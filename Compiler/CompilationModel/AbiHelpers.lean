@@ -56,6 +56,7 @@ mutual
     | ParamType.array t => paramTypeToSolidityString t ++ "[]"
     | ParamType.fixedArray t n => paramTypeToSolidityString t ++ "[" ++ toString n ++ "]"
     | ParamType.bytes => "bytes"
+    | ParamType.adt name => name
 
   private def paramTypeListToSolidityStrings : List ParamType → List String
     | [] => []

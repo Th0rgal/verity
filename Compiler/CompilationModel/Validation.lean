@@ -65,6 +65,8 @@ def validateStmtParamReferences (fnName : String) (params : List Param) :
       validateStmtParamReferencesInList fnName params body
   | Stmt.unsafeBlock _ body => do
       validateStmtParamReferencesInList fnName params body
+  | Stmt.matchAdt _ _ branches =>
+      validateStmtParamReferencesInBranches fnName params branches
   | _ => pure ()
 termination_by s => sizeOf s
 decreasing_by all_goals simp_wf; all_goals omega
@@ -76,6 +78,15 @@ def validateStmtParamReferencesInList (fnName : String) (params : List Param) :
       validateStmtParamReferences fnName params s
       validateStmtParamReferencesInList fnName params ss
 termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def validateStmtParamReferencesInBranches (fnName : String) (params : List Param) :
+    List (String × List String × List Stmt) → Except String Unit
+  | [] => pure ()
+  | (_, _, body) :: rest => do
+      validateStmtParamReferencesInList fnName params body
+      validateStmtParamReferencesInBranches fnName params rest
+termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 
@@ -143,6 +154,8 @@ def validateReturnShapesInStmt (fnName : String) (params : List Param)
       validateReturnShapesInStmtList fnName params expectedReturns isInternal body
   | Stmt.unsafeBlock _ body =>
       validateReturnShapesInStmtList fnName params expectedReturns isInternal body
+  | Stmt.matchAdt _ _ branches =>
+      validateReturnShapesInBranches fnName params expectedReturns isInternal branches
   | _ => pure ()
 termination_by s => sizeOf s
 decreasing_by all_goals simp_wf; all_goals omega
@@ -154,6 +167,16 @@ def validateReturnShapesInStmtList (fnName : String)
       validateReturnShapesInStmt fnName params expectedReturns isInternal s
       validateReturnShapesInStmtList fnName params expectedReturns isInternal ss
 termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def validateReturnShapesInBranches (fnName : String)
+    (params : List Param) (expectedReturns : List ParamType) (isInternal : Bool) :
+    List (String × List String × List Stmt) → Except String Unit
+  | [] => pure ()
+  | (_, _, body) :: rest => do
+      validateReturnShapesInStmtList fnName params expectedReturns isInternal body
+      validateReturnShapesInBranches fnName params expectedReturns isInternal rest
+termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 
@@ -177,9 +200,18 @@ mutual
         stmtListAlwaysReturnsOrReverts thenBranch && stmtListAlwaysReturnsOrReverts elseBranch
     | Stmt.unsafeBlock _ body =>
         stmtListAlwaysReturnsOrReverts body
+    | Stmt.matchAdt _ _ branches =>
+        matchBranchesAllReturnOrRevert branches
     | _ =>
         false
   termination_by s => sizeOf s
+  decreasing_by all_goals simp_wf; all_goals omega
+
+  private def matchBranchesAllReturnOrRevert : List (String × List String × List Stmt) → Bool
+    | [] => true
+    | (_, _, body) :: rest =>
+        stmtListAlwaysReturnsOrReverts body && matchBranchesAllReturnOrRevert rest
+  termination_by bs => sizeOf bs
   decreasing_by all_goals simp_wf; all_goals omega
 end
 
@@ -232,6 +264,8 @@ def exprReadsStateOrEnv : Expr → Bool
       exprReadsStateOrEnv a
   | Expr.ite cond thenVal elseVal =>
       exprReadsStateOrEnv cond || exprReadsStateOrEnv thenVal || exprReadsStateOrEnv elseVal
+  | Expr.adtConstruct _ _ _ | Expr.adtTag _ _ => true
+  | Expr.adtField _ _ _ source => true || exprReadsStateOrEnv source
 
 mutual
 def exprWritesState : Expr → Bool
@@ -342,6 +376,9 @@ def stmtWritesState : Stmt → Bool
   | Stmt.externalCallBind _ _ _ => true
   | Stmt.ecm mod args =>
       mod.writesState || exprListWritesState args
+  | Stmt.matchAdt _ scrutinee branches =>
+      exprWritesState scrutinee ||
+        matchBranchesWriteState branches
 termination_by s => sizeOf s
 decreasing_by all_goals simp_wf; all_goals omega
 
@@ -349,6 +386,13 @@ def stmtListWritesState : List Stmt → Bool
   | [] => false
   | s :: ss => stmtWritesState s || stmtListWritesState ss
 termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def matchBranchesWriteState : List (String × List String × List Stmt) → Bool
+  | [] => false
+  | (_, _, body) :: rest =>
+      stmtListWritesState body || matchBranchesWriteState rest
+termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 
@@ -371,6 +415,8 @@ def stmtWrittenFields : Stmt → List String
       stmtListWrittenFields body
   | Stmt.unsafeBlock _ body =>
       stmtListWrittenFields body
+  | Stmt.matchAdt _ _ branches =>
+      matchBranchesWrittenFields branches
   | _ => []
 termination_by s => sizeOf s
 decreasing_by all_goals simp_wf; all_goals omega
@@ -379,6 +425,13 @@ def stmtListWrittenFields : List Stmt → List String
   | [] => []
   | s :: ss => stmtWrittenFields s ++ stmtListWrittenFields ss
 termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def matchBranchesWrittenFields : List (String × List String × List Stmt) → List String
+  | [] => []
+  | (_, _, body) :: rest =>
+      stmtListWrittenFields body ++ matchBranchesWrittenFields rest
+termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 
@@ -480,6 +533,9 @@ def stmtContainsExternalCall : Stmt → Bool
       exprContainsExternalCall count || stmtListContainsExternalCall body
   | Stmt.unsafeBlock _ body =>
       stmtListContainsExternalCall body
+  | Stmt.matchAdt _ scrutinee branches =>
+      exprContainsExternalCall scrutinee ||
+        matchBranchesContainExternalCall branches
   | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args =>
       args.any exprContainsExternalCall
   | _ => false
@@ -490,6 +546,13 @@ def stmtListContainsExternalCall : List Stmt → Bool
   | [] => false
   | s :: ss => stmtContainsExternalCall s || stmtListContainsExternalCall ss
 termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def matchBranchesContainExternalCall : List (String × List String × List Stmt) → Bool
+  | [] => false
+  | (_, _, body) :: rest =>
+      stmtListContainsExternalCall body || matchBranchesContainExternalCall rest
+termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 
@@ -536,6 +599,9 @@ def stmtReadsStateOrEnv : Stmt → Bool
   | Stmt.internalCall _ _ | Stmt.internalCallAssign _ _ _
   | Stmt.externalCallBind _ _ _ => true
   | Stmt.ecm mod args => mod.readsState || mod.writesState || args.any exprReadsStateOrEnv
+  | Stmt.matchAdt _ scrutinee branches =>
+      exprReadsStateOrEnv scrutinee ||
+        matchBranchesReadStateOrEnv branches
 termination_by s => sizeOf s
 decreasing_by all_goals simp_wf; all_goals omega
 
@@ -543,6 +609,13 @@ def stmtListReadsStateOrEnv : List Stmt → Bool
   | [] => false
   | s :: ss => stmtReadsStateOrEnv s || stmtListReadsStateOrEnv ss
 termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def matchBranchesReadStateOrEnv : List (String × List String × List Stmt) → Bool
+  | [] => false
+  | (_, _, body) :: rest =>
+      stmtListReadsStateOrEnv body || matchBranchesReadStateOrEnv rest
+termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 
@@ -620,8 +693,19 @@ def stmtInternalCEIViolation : Stmt → Option String
       match stmtListCEIViolation body false with
       | some msg => some s!"in unsafe block: {msg}"
       | none => none
+  | Stmt.matchAdt _ _ branches =>
+      matchBranchesCEIViolation branches
   | _ => none
 termination_by s => sizeOf s
+decreasing_by all_goals simp_wf; all_goals omega
+
+def matchBranchesCEIViolation : List (String × List String × List Stmt) → Option String
+  | [] => none
+  | (variantName, _, body) :: rest =>
+      match stmtListCEIViolation body false with
+      | some msg => some s!"in match branch '{variantName}': {msg}"
+      | none => matchBranchesCEIViolation rest
+termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 
@@ -683,6 +767,8 @@ def validateNoRuntimeReturnsInConstructorStmt : Stmt → Except String Unit
       validateNoRuntimeReturnsInConstructorStmtList body
   | Stmt.unsafeBlock _ body =>
       validateNoRuntimeReturnsInConstructorStmtList body
+  | Stmt.matchAdt _ _ branches =>
+      validateNoRuntimeReturnsInConstructorBranches branches
   | _ => pure ()
 termination_by s => sizeOf s
 decreasing_by all_goals simp_wf; all_goals omega
@@ -693,6 +779,15 @@ def validateNoRuntimeReturnsInConstructorStmtList : List Stmt → Except String 
       validateNoRuntimeReturnsInConstructorStmt s
       validateNoRuntimeReturnsInConstructorStmtList ss
 termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def validateNoRuntimeReturnsInConstructorBranches :
+    List (String × List String × List Stmt) → Except String Unit
+  | [] => pure ()
+  | (_, _, body) :: rest => do
+      validateNoRuntimeReturnsInConstructorStmtList body
+      validateNoRuntimeReturnsInConstructorBranches rest
+termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 

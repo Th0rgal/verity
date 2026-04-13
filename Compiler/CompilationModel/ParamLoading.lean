@@ -146,6 +146,9 @@ def genParamLoadBodyFrom
               staticLoads ++ firstAlias
         | ParamType.bytes | ParamType.string =>
           genDynamicParamLoads loadWord sizeExpr headSize baseOffset param.name param.ty headOffset
+        | ParamType.adt _ =>
+          -- ADTs are loaded as a single 256-bit word (tag + packed fields)
+          genScalarLoad loadWord param.name param.ty headOffset
       stmts ++
         genParamLoadBodyFrom loadWord sizeExpr headSize baseOffset rest
           (headOffset + paramHeadSize param.ty)

@@ -114,6 +114,9 @@ def collectExprNames : Expr → List String
   | Expr.min a b => collectExprNames a ++ collectExprNames b
   | Expr.max a b => collectExprNames a ++ collectExprNames b
   | Expr.ite cond thenVal elseVal => collectExprNames cond ++ collectExprNames thenVal ++ collectExprNames elseVal
+  | Expr.adtConstruct _ _ args => collectExprListNames args
+  | Expr.adtTag _ field => [field]
+  | Expr.adtField _ _ _ source => collectExprNames source
 termination_by expr => sizeOf expr
 decreasing_by
   all_goals simp_wf
@@ -172,6 +175,8 @@ def collectStmtNames : Stmt → List String
       varName :: collectExprNames count ++ collectStmtListNames body
   | Stmt.unsafeBlock _ body =>
       collectStmtListNames body
+  | Stmt.matchAdt _ scrutinee branches =>
+      collectExprNames scrutinee ++ collectMatchBranchNames branches
   | Stmt.emit eventName args => eventName :: collectExprListNames args
   | Stmt.internalCall functionName args => functionName :: collectExprListNames args
   | Stmt.internalCallAssign names functionName args =>
@@ -183,6 +188,15 @@ def collectStmtNames : Stmt → List String
   | Stmt.ecm mod args =>
       mod.resultVars ++ collectExprListNames args
 termination_by stmt => sizeOf stmt
+decreasing_by
+  all_goals simp_wf
+  all_goals omega
+
+def collectMatchBranchNames : List (String × List String × List Stmt) → List String
+  | [] => []
+  | (_, varNames, body) :: rest =>
+      varNames ++ collectStmtListNames body ++ collectMatchBranchNames rest
+termination_by bs => sizeOf bs
 decreasing_by
   all_goals simp_wf
   all_goals omega
