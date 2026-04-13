@@ -132,10 +132,10 @@ Legend: **ok** = supported, **rev** = reverts (not modeled), **nop** = no-op (co
 | `shr` | ok | ok | yes |
 | `byte` | ok | ok | yes |
 | `exp` | ok | ok | concrete |
-| `sdiv` | ok | ok | yes |
+| `sdiv` | ok | ok | concrete |
 | `smod` | ok | ok | concrete |
-| `slt` | ok | ok | yes |
-| `sgt` | ok | ok | yes |
+| `slt` | ok | ok | concrete |
+| `sgt` | ok | ok | concrete |
 | `sar` | ok | ok | concrete |
 | `signextend` | ok | ok | concrete |
 | `sload` | ok | del | -- |
@@ -152,7 +152,7 @@ Legend: **ok** = supported, **rev** = reverts (not modeled), **nop** = no-op (co
 
 Legend: **ok** = native evaluation, **del** = delegated to Verity path (bridge returns `none`), **concrete** = evaluated via EVMYulLean but validated by concrete `native_decide` tests only (universal proof pending).
 
-21/36 builtins have universal bridge agreement proofs between Verity and EVMYulLean evaluation paths. 21 are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, while `exp`, `smod`, `sar`, and `signextend` collectively are currently guarded by concrete regression checks. 4 additional builtins (`exp`, `smod`, `sar`, `signextend`) are evaluated via EVMYulLean and validated by concrete `native_decide` bridge tests, with universal proofs pending. The remaining 11 are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.
+18/36 builtins have universal bridge agreement proofs between Verity and EVMYulLean evaluation paths. 18 are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, and none still require concrete-only regression coverage. 7 additional builtins (`exp`, `sdiv`, `smod`, `slt`, `sgt`, `sar`, `signextend`) are evaluated via EVMYulLean and validated by concrete `native_decide` bridge tests, with universal proofs pending. The remaining 11 are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.
 
 ---
 
@@ -162,7 +162,7 @@ Legend: **ok** = native evaluation, **del** = delegated to Verity path (bridge r
 |---|---|---|---|---|
 | Expression features | 24 | 1 (`externalCall`) | 5 (`blockNumber`, `contractAddress`, `chainid`, `mload`, `returndataOptionalBoolAt`) | 4 (`keccak256`, `call`, `staticcall`, `delegatecall`) |
 | Statement features | 25 | 0 | 1 (`mstore`) | 6 (`calldatacopy`, `returndataCopy`, `revertReturndata`, `rawLog`, `externalCallBind`, `ecm`) |
-| Builtins (agreement) | 21 | 0 | 4 (`exp`, `smod`, `sar`, `signextend` — concrete-only) | 11 (delegated) |
+| Builtins (agreement) | 18 | 0 | 7 (`exp`, `sdiv`, `smod`, `slt`, `sgt`, `sar`, `signextend` — concrete-only) | 11 (delegated) |
 
 Proof-boundary features split across two buckets. Partially modeled features currently include runtime introspection (`blockNumber`, `contractAddress`, `chainid`) and single-word linear-memory forms (`mload`, `mstore`, `returndataOptionalBoolAt`). Fully not-modeled features currently include `keccak256`, low-level call / returndata plumbing (`call`, `staticcall`, `delegatecall`, `calldatacopy`, `returndataCopy`, `revertReturndata`), event emission (`rawLog`), and external call modules (`externalCallBind`, `ecm`). These features are still compiler-supported and are validated by differential testing (70,000+ test vectors against actual EVM execution).
 

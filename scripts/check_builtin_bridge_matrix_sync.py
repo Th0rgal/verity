@@ -20,8 +20,6 @@ PROVED_BUILTINS = [
     "mulmod",
     "lt",
     "gt",
-    "slt",
-    "sgt",
     "eq",
     "iszero",
     "and",
@@ -31,11 +29,13 @@ PROVED_BUILTINS = [
     "shl",
     "shr",
     "byte",
-    "sdiv",
 ]
 CONCRETE_ONLY_BUILTINS = [
     "exp",
+    "sdiv",
     "smod",
+    "slt",
+    "sgt",
     "sar",
     "signextend",
 ]
