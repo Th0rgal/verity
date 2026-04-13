@@ -819,19 +819,26 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
     simp [evmModulus, Verity.Core.UINT256_MODULUS]
   have hmb : b % evmModulus % Verity.Core.UINT256_MODULUS = b % evmModulus := by
     simp [evmModulus, Verity.Core.UINT256_MODULUS]
-  -- Unfold both sides completely.
+  -- Phase 1: Unfold definitions but keep EvmYul.UInt256.size opaque so
+  -- int_natCast_emod can rewrite ↑a % ↑UInt256.size to ↑(a % UInt256.size).
+  -- This ensures Int and Nat sides use the same modular expressions.
   simp only [Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
     Verity.Core.UINT256_MODULUS, evmModulus, hma, hmb,
     EvmYul.UInt256.sltBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
-    Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_lt_val, Fin.val]
+    Id.run, Fin.ofNat, uint256_lt_val, Fin.val, int_natCast_emod]
+  -- Phase 2: Now unfold UInt256.size to the literal.
+  simp only [EvmYul.UInt256.size]
   -- Case-split on sign bits.
   by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
   by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
-  all_goals (try simp_all [EvmYul.UInt256.size, Int.ofNat_lt, not_lt])
-  -- norm_cast bridges ↑a % (M : Int) to ↑(a % M) and ↑x < ↑y to x < y
-  all_goals (try norm_cast)
+  -- Use simp_all only to prevent @[simp] Int.ofNat_emod from
+  -- rewriting ↑(a % M) back to ↑a % ↑M (which breaks omega).
+  all_goals simp_all only [EvmYul.UInt256.size, Int.ofNat_lt, not_lt,
+    ite_true, ite_false, ite_not, decide_true, decide_false,
+    Bool.true_and, Bool.false_and, Bool.true_or, Bool.false_or,
+    ge_iff_le, not_le, Int.ofNat_le, Int.ofNat_nonneg]
   all_goals omega
 
 set_option maxHeartbeats 4000000 in
@@ -885,19 +892,25 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
     simp [evmModulus, Verity.Core.UINT256_MODULUS]
   have hmb : b % evmModulus % Verity.Core.UINT256_MODULUS = b % evmModulus := by
     simp [evmModulus, Verity.Core.UINT256_MODULUS]
-  -- Unfold both sides completely.
+  -- Phase 1: Unfold definitions but keep EvmYul.UInt256.size opaque so
+  -- int_natCast_emod can rewrite ↑a % ↑UInt256.size to ↑(a % UInt256.size).
   simp only [Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
     Verity.Core.UINT256_MODULUS, evmModulus, hma, hmb,
     EvmYul.UInt256.sgtBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
-    Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_gt_val, uint256_lt_val, Fin.val]
+    Id.run, Fin.ofNat, uint256_gt_val, uint256_lt_val, Fin.val, int_natCast_emod]
+  -- Phase 2: Now unfold UInt256.size to the literal.
+  simp only [EvmYul.UInt256.size]
   -- Case-split on sign bits.
   by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
   by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
-  all_goals (try simp_all [EvmYul.UInt256.size, Int.ofNat_lt, not_lt])
-  -- norm_cast bridges ↑a % (M : Int) to ↑(a % M) and ↑x < ↑y to x < y
-  all_goals (try norm_cast)
+  -- Use simp_all only to prevent @[simp] Int.ofNat_emod from
+  -- rewriting ↑(a % M) back to ↑a % ↑M (which breaks omega).
+  all_goals simp_all only [EvmYul.UInt256.size, Int.ofNat_lt, not_lt,
+    ite_true, ite_false, ite_not, decide_true, decide_false,
+    Bool.true_and, Bool.false_and, Bool.true_or, Bool.false_or,
+    ge_iff_le, not_le, Int.ofNat_le, Int.ofNat_nonneg]
   all_goals omega
 
 set_option maxHeartbeats 4000000 in
