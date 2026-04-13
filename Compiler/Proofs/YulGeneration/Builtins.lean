@@ -9,6 +9,21 @@ namespace Compiler.Proofs.YulGeneration
 open Compiler.Proofs
 export Compiler.Constants (evmModulus selectorModulus selectorShift)
 
+/-- Auxiliary loop for modular exponentiation via repeated squaring. -/
+private def modPowAux (m b : Nat) : Nat → Nat → Nat
+  | 0, acc => acc % m
+  | e + 1, acc =>
+    let acc' := if (e + 1) % 2 = 1 then (acc * b) % m else acc
+    modPowAux m ((b * b) % m) ((e + 1) / 2) acc'
+  decreasing_by exact Nat.div_lt_self (by omega) (by omega)
+
+/-- Modular exponentiation via repeated squaring.
+    `natModPow base exp modulus` computes `(base ^ exp) % modulus` without
+    materialising the full power, keeping intermediates bounded by `modulus²`. -/
+def natModPow (base exp modulus : Nat) : Nat :=
+  if modulus ≤ 1 then 0
+  else modPowAux modulus (base % modulus) exp 1
+
 def selectorWord (selector : Nat) : Nat :=
   (selector % selectorModulus) * (2 ^ selectorShift)
 
@@ -189,7 +204,7 @@ def evalBuiltinCallWithContext
     | _ => none
   else if func = "exp" then
     match argVals with
-    | [a, b] => some ((toWord a ^ toWord b) % evmModulus)
+    | [a, b] => some (natModPow (toWord a) (toWord b) evmModulus)
     | _ => none
   else if func = "byte" then
     match argVals with
