@@ -68,7 +68,6 @@ def main() -> None:
     # with per-file count caps so that extra sorrys cannot be added silently.
     ALLOWED_SORRY_FILES: dict[str, int] = {
         "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean": 1,  # Phase 2: storageLookup_projectStorage
-        "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean": 1,  # byte bridge: Ord-derived GT needs local iteration
     }
     sorry_count = 0
     sorry_locations: list[str] = []

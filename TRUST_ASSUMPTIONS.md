@@ -16,7 +16,7 @@ Yul
 EVM Bytecode
 ```
 
-The repository currently has 2 `sorry` placeholders across the `Compiler/**/*.lean` and `Verity/**/*.lean` proof modules that participate in the verified compiler stack. Layer 2 (Source → IR) and Layer 3 (IR → Yul) proof scripts are fully discharged, and it now has 0 documented Lean axioms. See [AXIOMS.md](AXIOMS.md) for details.
+The repository currently has 1 `sorry` placeholder across the `Compiler/**/*.lean` and `Verity/**/*.lean` proof modules that participate in the verified compiler stack. Layer 2 (Source → IR) and Layer 3 (IR → Yul) proof scripts are fully discharged, and it now has 0 documented Lean axioms. See [AXIOMS.md](AXIOMS.md) for details.
 
 ## What's Verified
 
@@ -58,7 +58,7 @@ Current theorem totals, property-test coverage, and proof status live in [docs/V
 
 ### 6. EVM/Yul Semantics and Gas
 - **Role**: Runtime execution model.
-- **Status**: 18 pure builtins bridged to EVMYulLean `UInt256` operations; 18 universal pure bridge theorems are now proven in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` (15 unsigned arithmetic/bitwise + addmod + mulmod + byte). All pure bridge cases are now covered by universal symbolic lemmas. Note: the byte bridge lemma (`bridge_eval_byte_normalized`) uses a `sorry` stub pending local `lake build` iteration for Ord-derived GT. Remaining builtins (exp, signed) are validated by concrete `native_decide` tests. Gas is not modeled.
+- **Status**: 18 pure builtins bridged to EVMYulLean `UInt256` operations; 18 universal pure bridge theorems are now proven in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` (15 unsigned arithmetic/bitwise + addmod + mulmod + byte). All pure bridge cases are now covered by universal symbolic lemmas. Remaining builtins (exp, signed) are validated by concrete `native_decide` tests. Gas is not modeled.
 - **Implication**: Semantic correctness does not imply gas-safety.
 - **Proxy note**: `delegatecall`-based proxy / upgradeability flows still sit outside the current proof-interpreter model. Archive `--trust-report` and use `--deny-proxy-upgradeability` when proxy semantics must remain outside the selected verified subset (issue `#1420`).
 
