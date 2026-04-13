@@ -788,6 +788,25 @@ private theorem toNat_fromBool (b : Bool) :
   cases b <;> simp [EvmYul.UInt256.fromBool, Bool.toUInt256, EvmYul.UInt256.toNat,
     EvmYul.UInt256.ofNat, Id.run, Fin.ofNat, EvmYul.UInt256.size]
 
+/-- UInt256 `<` reduces to Nat `<` on the underlying Fin values.
+    This is needed because simp-unfolding `sltBool`/`sgtBool` exposes
+    UInt256 `<` as a `Prop` that omega cannot directly handle.
+
+    UInt256's Preorder instance defines `lt a b := a ≤ b ∧ ¬(b ≤ a)` where
+    `a ≤ b := a.val ≤ b.val` (Fin LE, which is Nat LE on `.val`).
+    We convert to the equivalent `a.val.val < b.val.val`. -/
+@[simp] private theorem uint256_lt_val (a b : EvmYul.UInt256) :
+    (a < b) ↔ (a.val.val < b.val.val) := by
+  cases a with | mk va => cases b with | mk vb =>
+  rw [show (⟨va⟩ : EvmYul.UInt256) < ⟨vb⟩ ↔ va ≤ vb ∧ ¬(vb ≤ va) from lt_iff_le_not_le]
+  -- Fin LE unfolds to Nat LE on .val
+  change (va.val ≤ vb.val ∧ ¬(vb.val ≤ va.val)) ↔ (va.val < vb.val)
+  omega
+
+@[simp] private theorem uint256_gt_val (a b : EvmYul.UInt256) :
+    (a > b) ↔ (b.val.val < a.val.val) :=
+  uint256_lt_val b a
+
 set_option maxHeartbeats 4000000 in
 /-- The Verity signed-less-than semantics agree with EVMYulLean's `sltBool`
     when both sides operate on the same reduced values `a % M` and `b % M`.
@@ -803,58 +822,36 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
       then (1 : Nat) else 0) =
     (if EvmYul.UInt256.sltBool (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b)
       then (1 : Nat) else 0) := by
-  -- Reduce Verity's side: Int256.toInt(Int256.ofUint256(Uint256.ofNat(x % M)))
-  -- = if (x % M % M) < 2^255 then (x % M % M) else (x % M % M) - 2^256
-  -- Since x % M < 2^256 = M, we have x % M % M = x % M
   have hma : a % evmModulus % Verity.Core.UINT256_MODULUS = a % evmModulus := by
     simp [evmModulus, Verity.Core.UINT256_MODULUS]
   have hmb : b % evmModulus % Verity.Core.UINT256_MODULUS = b % evmModulus := by
     simp [evmModulus, Verity.Core.UINT256_MODULUS]
-  -- Reduce EVMYulLean's side: UInt256.ofNat a has .toNat = a % size
-  -- sltBool case-splits on toNat ≥ 2^255
-  -- Note: UInt256.ofNat n = ⟨Fin.ofNat size n⟩, and (Fin.ofNat size n).val = n % size
   simp only [Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
     Verity.Core.UINT256_MODULUS, hma, hmb]
   simp only [EvmYul.UInt256.sltBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
-    Id.run, Fin.ofNat, EvmYul.UInt256.size]
-  -- Both sides now reduce to case-splits on a % 2^256 ≥ 2^255 and b % 2^256 ≥ 2^255,
-  -- with comparisons on a % 2^256 and b % 2^256.
-  -- The Int comparison `↑(a%M) - ↑M < ↑(b%M) - ↑M` simplifies to `a%M < b%M` etc.
-  -- Case split on the sign bits
+    Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_lt_val, Fin.val]
   by_cases ha : a % 2 ^ 256 < 2 ^ 255 <;> by_cases hb : b % 2 ^ 256 < 2 ^ 255
-  · -- Both non-negative: Verity compares Int.ofNat values, EVMYulLean compares unsigned
+  · -- Both non-negative
     simp [ha, hb, Nat.not_le_of_lt]
-    -- Both sides reduce to: a % 2^256 < b % 2^256
-    -- Verity: Int.ofNat (a%M) < Int.ofNat (b%M) ↔ a%M < b%M
-    constructor
-    · intro h; exact Int.ofNat_lt.mp h
-    · intro h; exact Int.ofNat_lt.mpr h
-  · -- a non-negative, b negative: Verity says ¬(a < b) since a ≥ 0 > b
-    -- EVMYulLean says false
+    omega
+  · -- a non-negative, b negative
     have hb' : b % 2 ^ 256 ≥ 2 ^ 255 := Nat.not_lt.mp hb
     simp [ha, hb, Nat.not_le_of_lt ha, show ¬(a % 2 ^ 256 ≥ 2 ^ 255) from Nat.not_le_of_lt ha]
-    -- Verity: Int.ofNat (a%M) < Int.ofNat (b%M) - 2^256
-    -- Since a%M ≥ 0 and b%M - 2^256 < 0, this is false
-    have hab : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
-    have hbb : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
+    have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
+    have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     omega
-  · -- a negative, b non-negative: Verity says a < b, EVMYulLean says true
+  · -- a negative, b non-negative
     have ha' : a % 2 ^ 256 ≥ 2 ^ 255 := Nat.not_lt.mp ha
     simp [ha, hb, show ¬(b % 2 ^ 256 ≥ 2 ^ 255) from Nat.not_le_of_lt hb]
-    have hab : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
+    have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     omega
-  · -- Both negative: Verity compares a%M - 2^256 < b%M - 2^256, which is a%M < b%M
-    -- EVMYulLean compares a < b (unsigned), same thing on reduced values
+  · -- Both negative
     have ha' : a % 2 ^ 256 ≥ 2 ^ 255 := Nat.not_lt.mp ha
     have hb' : b % 2 ^ 256 ≥ 2 ^ 255 := Nat.not_lt.mp hb
     simp [ha, hb, ha', hb']
-    -- Both sides: a%M < b%M
-    -- Verity: (↑(a%M) - ↑M) < (↑(b%M) - ↑M) ↔ a%M < b%M
-    constructor
-    · intro h; omega
-    · intro h; omega
+    omega
 
 set_option maxHeartbeats 4000000 in
 private theorem verity_eval_slt_normalized
@@ -913,30 +910,26 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
     Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
     Verity.Core.UINT256_MODULUS, hma, hmb]
   simp only [EvmYul.UInt256.sgtBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
-    Id.run, Fin.ofNat, EvmYul.UInt256.size]
+    Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_gt_val, uint256_lt_val, Fin.val]
   by_cases ha : a % 2 ^ 256 < 2 ^ 255 <;> by_cases hb : b % 2 ^ 256 < 2 ^ 255
   · -- Both non-negative
     simp [ha, hb, Nat.not_le_of_lt]
-    constructor
-    · intro h; exact Int.ofNat_lt.mp h
-    · intro h; exact Int.ofNat_lt.mpr h
+    omega
   · -- a non-negative, b negative: a > b, so sgt = true
     have hb' : b % 2 ^ 256 ≥ 2 ^ 255 := Nat.not_lt.mp hb
-    simp
-    have hab : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
+    simp [ha, hb, Nat.not_le_of_lt ha, show ¬(a % 2 ^ 256 ≥ 2 ^ 255) from Nat.not_le_of_lt ha]
+    have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     omega
   · -- a negative, b non-negative: a < b, so sgt = false
     have ha' : a % 2 ^ 256 ≥ 2 ^ 255 := Nat.not_lt.mp ha
-    simp
-    have hab : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
+    simp [ha, hb, show ¬(b % 2 ^ 256 ≥ 2 ^ 255) from Nat.not_le_of_lt hb]
+    have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     omega
   · -- Both negative
     have ha' : a % 2 ^ 256 ≥ 2 ^ 255 := Nat.not_lt.mp ha
     have hb' : b % 2 ^ 256 ≥ 2 ^ 255 := Nat.not_lt.mp hb
-    simp
-    constructor
-    · intro h; omega
-    · intro h; omega
+    simp [ha, hb, ha', hb']
+    omega
 
 set_option maxHeartbeats 4000000 in
 private theorem verity_eval_sgt_normalized
@@ -982,6 +975,7 @@ iteration to debug:
 **Signed arithmetic** (sdiv, smod, sar, signextend):
 - Two's complement arithmetic with absolute values and sign functions
 - Complex conditional logic in the EVMYulLean definitions
+- `sdiv` needs 4-case sign-bit analysis + `Fin` negation equivalence
 
 **New pure builtins** (exp):
 - `exp` needs modular exponentiation equivalence (`Nat.pow` vs `UInt256.pow`)
