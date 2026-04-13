@@ -695,11 +695,64 @@ private theorem verity_eval_byte_normalized
        else some ((x % evmModulus / 2 ^ ((31 - i % evmModulus) * 8)) % 256)) := by
   simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
+set_option maxHeartbeats 16000000 in
 private theorem bridge_eval_byte_normalized (i x : Nat) :
     evalPureBuiltinViaEvmYulLean "byte" [i, x] =
       (if i % EvmYul.UInt256.size > 31 then some 0
        else some ((x % EvmYul.UInt256.size / 2 ^ ((31 - i % EvmYul.UInt256.size) * 8)) % 256)) := by
-  sorry
+  change some (EvmYul.UInt256.toNat
+      (EvmYul.UInt256.byteAt (EvmYul.UInt256.ofNat i) (EvmYul.UInt256.ofNat x))) = _
+  by_cases hgt : i % EvmYul.UInt256.size > 31
+  · -- pos case: i % size > 31, so byteAt returns 0
+    have hgt' : EvmYul.UInt256.ofNat i > (⟨31⟩ : EvmYul.UInt256) := by
+      show (31 : Fin EvmYul.UInt256.size) < (EvmYul.UInt256.ofNat i).val
+      show (31 : Nat) < i % EvmYul.UInt256.size
+      exact hgt
+    simp [hgt, EvmYul.UInt256.byteAt, hgt', EvmYul.UInt256.toNat]
+  · -- neg case: ¬(i % size > 31), so byteAt computes the byte
+    have hle' : ¬(EvmYul.UInt256.ofNat i > (⟨31⟩ : EvmYul.UInt256)) := by
+      show ¬((31 : Fin EvmYul.UInt256.size) < (EvmYul.UInt256.ofNat i).val)
+      show ¬((31 : Nat) < i % EvmYul.UInt256.size)
+      exact hgt
+    have hshift_small : (31 - i % EvmYul.UInt256.size) * 8 < EvmYul.UInt256.size := by
+      unfold EvmYul.UInt256.size; omega
+    have hguard : ¬ 256 ≤ (EvmYul.UInt256.ofNat
+        ((31 - (EvmYul.UInt256.ofNat i).toNat) * 8)).val := by
+      change ¬ 256 ≤ ((31 - i % EvmYul.UInt256.size) * 8) % EvmYul.UInt256.size
+      rw [Nat.mod_eq_of_lt hshift_small]; omega
+    -- Unfold byteAt and eliminate its if
+    unfold EvmYul.UInt256.byteAt
+    rw [if_neg (show ¬(EvmYul.UInt256.ofNat i > (⟨31⟩ : EvmYul.UInt256)) from hle')]
+    -- Convert typeclass notation (>>> and &&&) to direct function calls
+    show some (EvmYul.UInt256.toNat
+        (EvmYul.UInt256.land
+          (EvmYul.UInt256.shiftRight (EvmYul.UInt256.ofNat x)
+            (EvmYul.UInt256.ofNat ((31 - (EvmYul.UInt256.ofNat i).toNat) * 8)))
+          ⟨255⟩)) = _
+    -- Unfold shiftRight and eliminate its inner if
+    unfold EvmYul.UInt256.shiftRight
+    rw [if_neg hguard]
+    -- Reduce all UInt256/Fin operations to Nat level
+    -- Key addition: Fin.shiftRight + Fin.ofNat to reduce Fin-level >>> to Nat >>>
+    simp only [hgt, ite_false, EvmYul.UInt256.land, EvmYul.UInt256.toNat,
+      EvmYul.UInt256.ofNat, Id.run, Fin.land, Fin.shiftRight, Fin.ofNat,
+      Nat.shiftRight_eq_div_pow]
+    -- Goal should now be pure Nat with redundant % size operations
+    -- Simplify: (31 - i%s)*8 % s = (31 - i%s)*8  (since < s)
+    rw [Nat.mod_eq_of_lt hshift_small]
+    -- Simplify: 255 % s = 255
+    rw [show (255 : Nat) % EvmYul.UInt256.size = 255 from by unfold EvmYul.UInt256.size; omega]
+    -- Simplify: (x%s / 2^k) % s = x%s / 2^k  (div result < s since input < s)
+    have hdiv_lt : x % EvmYul.UInt256.size / 2 ^ ((31 - i % EvmYul.UInt256.size) * 8) <
+        EvmYul.UInt256.size :=
+      Nat.lt_of_le_of_lt (Nat.div_le_self _ _)
+        (Nat.mod_lt x (by unfold EvmYul.UInt256.size; omega))
+    rw [Nat.mod_eq_of_lt hdiv_lt]
+    -- Apply nat_land_0xFF: Nat.land n 255 = n % 256
+    rw [nat_land_0xFF]
+    -- Final: (x%s / 2^k) % 256 % s = (x%s / 2^k) % 256
+    exact Nat.mod_eq_of_lt (Nat.lt_trans (Nat.mod_lt _ (by omega : (0:Nat) < 256))
+      (by unfold EvmYul.UInt256.size; omega))
 
 /-- Universal bridge theorem for `byte`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
