@@ -2115,22 +2115,6 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_not_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_shl_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_shr_bridge
--- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_toNat_ofNat  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_toNat_ofNat_of_lt  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_lt_iff  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_gt_iff  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.sltBool_ofNat_of_lt  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.sgtBool_ofNat_of_lt  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.slt_result_equiv  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_slt_normalized  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_slt_normalized  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_slt_bridge
--- #print axioms Compiler.Proofs.YulGeneration.Backends.sgt_result_equiv  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_sgt_normalized  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_sgt_normalized  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_sgt_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_slt_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_sgt_bridge
 
 -- Compiler/Proofs/YulGeneration/Builtins.lean
 #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_callvalue_nil
@@ -2166,4 +2150,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 2017 theorems/lemmas (1355 public, 662 private, 0 sorry'd)
+-- Total: 2001 theorems/lemmas (1351 public, 650 private, 0 sorry'd)
