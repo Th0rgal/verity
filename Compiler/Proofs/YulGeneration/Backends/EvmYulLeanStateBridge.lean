@@ -57,17 +57,26 @@ keys); `getVar` returns the *first* match. EVMYulLean's Finmap is a map
 
 /-- Convert Verity variable bindings to EVMYulLean VarStore.
     Uses foldl so that the first (most recent) binding for each variable wins,
-    matching Verity's `getVar` shadowing semantics. -/
-noncomputable def varsToVarStore (vars : List (String × Nat)) : VarStore :=
+    matching Verity's `getVar` shadowing semantics.
+
+    Note: We use the expanded Finmap type rather than the VarStore abbrev
+    throughout this definition because Lean 4's unifier does not always
+    unfold abbrevs when matching against Finmap's universe-polymorphic
+    structure.  The result is still VarStore-compatible since VarStore is
+    a transparent abbreviation. -/
+noncomputable def varsToVarStore (vars : List (String × Nat)) :
+    Finmap (fun _ : Identifier => Literal) :=
   vars.foldl (init := (∅ : Finmap (fun _ : Identifier => Literal)))
     fun store (name, val) =>
-      if (Finmap.lookup name store).isSome then store
-      else Finmap.insert name (natToUInt256 val) store
+      let id : Identifier := name
+      if (Finmap.lookup id store).isSome then store
+      else Finmap.insert id (natToUInt256 val) store
 
 /-- Convert EVMYulLean VarStore back to Verity variable bindings.
     Order is not preserved (Finmap has no canonical ordering). -/
-noncomputable def varStoreToVars (store : VarStore) : List (String × Nat) :=
-  (Finmap.entries store).toList.map fun ⟨name, val⟩ => (name, uint256ToNat val)
+noncomputable def varStoreToVars (store : Finmap (fun _ : Identifier => Literal)) :
+    List (String × Nat) :=
+  store.entries.toList.map fun ⟨name, val⟩ => ((name : String), uint256ToNat val)
 
 /-! ## Storage Bridge
 
