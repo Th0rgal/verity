@@ -983,10 +983,10 @@ private theorem verity_sdiv_eq_evmyullean_sdiv (a b : Nat) :
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Int256.ofInt, Verity.Core.Int256.signedAbsNat,
     Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
-    Verity.Core.UINT256_MODULUS, evmModulus, hma, hmb,
+    Verity.Core.UINT256_MODULUS, evmModulus, hma,
     EvmYul.UInt256.sdiv, EvmYul.UInt256.abs, EvmYul.UInt256.toNat,
-    EvmYul.UInt256.ofNat, Id.run, Fin.ofNat, Fin.val,
-    EvmYul.UInt256.size, int_natCast_emod]
+    EvmYul.UInt256.ofNat, Id.run, Fin.ofNat,
+    EvmYul.UInt256.size]
   split_ifs <;> simp_all [evmModulus] <;> norm_cast <;> omega
 
 set_option maxHeartbeats 4000000 in
