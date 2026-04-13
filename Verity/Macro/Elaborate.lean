@@ -32,6 +32,9 @@ def elabVerityContract : CommandElab := fun stx => do
     for imm in immutableDecls.zipIdx do
       elabCommand (← mkStorageDefCommandPublic (immutableStorageFieldDecl fields imm.1 imm.2))
 
+    -- Emit storageNamespace : Nat for the contract (#1730, Axis 4 Step 4a).
+    elabCommand (← mkStorageNamespaceCommand (toString contractName.getId))
+
     for fn in functions do
       let fnCmds ← mkFunctionCommandsPublic fields constDecls immutableDecls functions fn
       for cmd in fnCmds do

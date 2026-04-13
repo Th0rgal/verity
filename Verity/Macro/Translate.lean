@@ -2,6 +2,7 @@ import Lean
 import Compiler.Modules.ERC20
 import Compiler.Modules.Precompiles
 import Compiler.CompilationModel.InternalNaming
+import Compiler.Keccak.Sponge
 import Verity.Macro.Syntax
 
 namespace Verity.Macro
@@ -3974,6 +3975,26 @@ def mkStorageDefCommandPublic (field : StorageFieldDecl) : CommandElabM Cmd :=
 
 def mkConstantDefCommandPublic (constant : ConstantDecl) : CommandElabM Cmd :=
   mkConstantDefCommand constant
+
+/-- Convert a big-endian `ByteArray` to a `Nat`, treating byte 0 as most
+    significant.  Used for storage namespace computation (#1730, Axis 4). -/
+private def byteArrayToNatBE (ba : ByteArray) : Nat :=
+  ba.foldl (fun acc byte => acc * 256 + byte.toNat) 0
+
+/-- Compute the storage namespace for a contract.
+    `storageNamespace("Foo") = keccak256("Foo.storage.v0")` as a 256-bit Nat.
+    The result can be used as a base offset so different contracts never collide
+    in the shared 2^256 storage address space.
+    (#1730, Axis 4 Step 4a) -/
+def computeStorageNamespace (contractName : String) : Nat :=
+  byteArrayToNatBE (KeccakEngine.keccak256_str s!"{contractName}.storage.v0")
+
+/-- Generate a `def storageNamespace : Nat := <keccak-value>` command for
+    the current contract.  (#1730, Axis 4 Step 4a) -/
+def mkStorageNamespaceCommand (contractName : String) : CommandElabM Cmd := do
+  let ns := computeStorageNamespace contractName
+  let id : Ident := mkIdent (Name.mkSimple "storageNamespace")
+  `(command| def $id : Nat := $(natTerm ns))
 
 def validateConstantDeclsPublic (constDecls : Array ConstantDecl) : CommandElabM Unit := do
   for constant in constDecls do

@@ -1274,8 +1274,6 @@ end SpecGenSmoke
 #check_contract ZeroAddressShadowSmoke
 #check_contract StructMappingSmoke
 #check_contract ExternalCallSmoke
-#check_contract RolesSmoke
-#check_contract NewtypeSmoke
 #check_contract Contracts.Vault
 
 example : TupleSmoke.setFromPair = (TupleSmoke.setFromPair : (Uint256 × Uint256) → Verity.Contract Unit) := rfl
@@ -1814,6 +1812,14 @@ verity_contract NewtypeSmoke where
   function getNextTokenId () : Uint256 := do
     let current ← getStorage nextTokenId
     return current
+
+#check_contract RolesSmoke
+#check_contract NewtypeSmoke
+
+-- Every contract emits a storageNamespace : Nat definition (#1730, Axis 4 Step 4a).
+-- Verify a few representative contracts have it and it is a Nat.
+example : Contracts.Counter.storageNamespace = Contracts.Counter.storageNamespace := rfl
+example : NewtypeSmoke.storageNamespace = NewtypeSmoke.storageNamespace := rfl
 
 -- CEI violation test: this contract compiles but #check_contract rejects it
 verity_contract CEIViolationRejected where
