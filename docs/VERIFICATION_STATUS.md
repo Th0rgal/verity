@@ -78,7 +78,8 @@ Tracking:
 **Current boundary**:
 - Generic: supported statement-list compilation and the whole-contract theorem itself
 - Proved generically: initial-state normalization between `withTransactionContext` and `initialIRStateForTx`, under explicit transaction-context normalization hypotheses
-- No Lean axioms remain in Layer 2; 1 `sorry` placeholder remains: in the EVMYulLean state bridge scaffolding (`EvmYulLeanStateBridge.lean` — `storageLookup_projectStorage`, a Phase 2 proof obligation requiring `Batteries.RBMap.find?_insert` lemmas)
+- No Lean axioms remain in Layer 2; 0 `sorry` placeholders remain. The `storageLookup_projectStorage` proof (previously a sorry) is now complete, using `Batteries.RBMap.find?_insert` lemmas with an injectivity argument over in-range storage slots.
+- 5 stateful environment-reading builtins now have bridge proofs connecting Verity's `evalBuiltinCallWithContext` to the EVMYulLean state constructed by `toSharedState`: `callvalue`, `timestamp`, `number`, `caller` (requires valid address hypothesis), and `address` (requires valid address hypothesis)
 - Additional explicit precondition: the generic theorem surface now requires the observed transaction-context fields (`sender`, `thisAddress`, `msgValue`, `blockTimestamp`, `blockNumber`, `chainId`) to already fit the bounded source-side `Address`/`Uint256` domains
 - Outside the current generic theorem or current proof model: events/logs, proxy/delegatecall upgradeability, linked externals, local unsafe obligations, and other trust-surfaced features not captured by the current supported whole-contract fragment
 
@@ -158,7 +159,7 @@ Also note that the macro-generated `*_semantic_preservation` theorems are not co
 
 **Proof-Only Properties (22 exclusions)**: Internal proof machinery that cannot be tested in Foundry.
 
-1 `sorry` remaining across `Compiler/**/*.lean` and `Verity/**/*.lean` proof modules.
+0 `sorry` remaining across `Compiler/**/*.lean` and `Verity/**/*.lean` proof modules.
 1878 theorems/lemmas (1263 public, 615 private) verified by `lake build PrintAxioms`.
 
 0 documented Lean axioms remain. The former mapping-slot range axiom has been eliminated via the kernel-computable Keccak engine. Selector computation is kernel-computable, the Layer 2 body-simulation axiom has been eliminated, and the Layer 3 dispatch bridge is tracked as an explicit theorem hypothesis rather than a Lean axiom.

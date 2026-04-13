@@ -2133,7 +2133,17 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_byte_bridge
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean
--- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.storageLookup_projectStorage  -- sorry'd
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.callvalue_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.timestamp_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.number_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.caller_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.address_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256_injective
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.compare_natToUInt256_self
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.compare_natToUInt256_ne
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.foldl_insert_find_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.foldl_insert_find
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.storageLookup_projectStorage
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.uint256_roundtrip
 
 -- Compiler/Proofs/YulGeneration/Builtins.lean
@@ -2170,4 +2180,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 2018 theorems/lemmas (1358 public, 659 private, 1 sorry'd)
+-- Total: 2028 theorems/lemmas (1369 public, 659 private, 0 sorry'd)

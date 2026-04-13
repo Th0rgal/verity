@@ -67,7 +67,6 @@ def main() -> None:
     # Allowed sorry locations are pinned to specific infrastructure files
     # with per-file count caps so that extra sorrys cannot be added silently.
     ALLOWED_SORRY_FILES: dict[str, int] = {
-        "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean": 1,  # Phase 2: storageLookup_projectStorage
     }
     sorry_count = 0
     sorry_locations: list[str] = []

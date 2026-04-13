@@ -32,6 +32,7 @@ import EvmYul.SharedState
 import EvmYul.State.Account
 import EvmYul.UInt256
 import EvmYul.Maps.StorageMap
+import Batteries.Data.RBMap.Lemmas
 
 namespace Compiler.Proofs.YulGeneration.Backends.StateBridge
 
@@ -222,7 +223,172 @@ def extractStorage (sharedState : SharedState .Yul) (addr : AccountAddress) :
       | none => 0
     | none => 0
 
-/-! ## Bridge Proofs -/
+/-! ## Environment Field Bridge Proofs
+
+These theorems prove that Verity's `evalBuiltinCallWithContext` agrees with the
+corresponding field extraction from the EVMYulLean state constructed by
+`toSharedState`. Each theorem connects a stateful builtin's Verity semantics
+to the state bridge.
+
+The proof pattern is uniform:
+1. Unfold the Verity builtin to `some (field % evmModulus)`
+2. Unfold the bridge to `natToUInt256 field`
+3. Show `uint256ToNat (natToUInt256 field) = field % UInt256.size = field % evmModulus`
+   since `UInt256.size = evmModulus`. -/
+
+/-- The `callvalue` builtin reads `msgValue` from Verity's state.
+    The state bridge stores `natToUInt256 state.msgValue` in `execEnv.weiValue`.
+    These agree modulo `evmModulus`. -/
+theorem callvalue_bridge (state : YulState) (observableSlots : List Nat) :
+    evalBuiltinCallWithContext state.storage state.sender state.msgValue
+      state.thisAddress state.blockTimestamp state.blockNumber state.chainId
+      state.blobBaseFee state.selector state.calldata "callvalue" [] =
+    some (uint256ToNat (toSharedState state observableSlots).executionEnv.weiValue) := by
+  simp [evalBuiltinCallWithContext, toSharedState, uint256ToNat, natToUInt256,
+    UInt256.toNat, UInt256.ofNat, Id.run, evmModulus, UInt256.size]
+
+/-- The `timestamp` builtin reads `blockTimestamp` from Verity's state.
+    The state bridge stores `state.blockTimestamp` in the block header's
+    `timestamp` field. EVMYulLean converts this to `UInt256.ofNat`. -/
+theorem timestamp_bridge (state : YulState) (observableSlots : List Nat) :
+    evalBuiltinCallWithContext state.storage state.sender state.msgValue
+      state.thisAddress state.blockTimestamp state.blockNumber state.chainId
+      state.blobBaseFee state.selector state.calldata "timestamp" [] =
+    some (uint256ToNat (UInt256.ofNat
+      (toSharedState state observableSlots).executionEnv.header.timestamp)) := by
+  simp [evalBuiltinCallWithContext, toSharedState, mkBlockHeader, uint256ToNat,
+    UInt256.toNat, UInt256.ofNat, Id.run, evmModulus, UInt256.size]
+
+/-- The `number` builtin reads `blockNumber` from Verity's state.
+    The state bridge stores `state.blockNumber` in the block header's
+    `number` field. EVMYulLean converts this to `UInt256.ofNat`. -/
+theorem number_bridge (state : YulState) (observableSlots : List Nat) :
+    evalBuiltinCallWithContext state.storage state.sender state.msgValue
+      state.thisAddress state.blockTimestamp state.blockNumber state.chainId
+      state.blobBaseFee state.selector state.calldata "number" [] =
+    some (uint256ToNat (UInt256.ofNat
+      (toSharedState state observableSlots).executionEnv.header.number)) := by
+  simp [evalBuiltinCallWithContext, toSharedState, mkBlockHeader, uint256ToNat,
+    UInt256.toNat, UInt256.ofNat, Id.run, evmModulus, UInt256.size]
+
+/-- The `caller` builtin reads `sender` from Verity's state.
+    The state bridge stores `natToAddress state.sender` in `execEnv.source`.
+    EVMYulLean's CALLER extracts `source` as `UInt256.ofNat (Fin.val source)`.
+
+    Since `natToAddress n = ⟨n % 2^160, _⟩`, the EVMYulLean side returns
+    `UInt256.ofNat (n % 2^160)`. Verity returns `sender` (no modular reduction
+    in `evalBuiltinCallWithContext`). Agreement requires the hypothesis that
+    `sender < evmModulus` (it's an Ethereum address, so `< 2^160 < 2^256`). -/
+theorem caller_bridge (state : YulState) (observableSlots : List Nat)
+    (hSender : state.sender < 2 ^ 160) :
+    evalBuiltinCallWithContext state.storage state.sender state.msgValue
+      state.thisAddress state.blockTimestamp state.blockNumber state.chainId
+      state.blobBaseFee state.selector state.calldata "caller" [] =
+    some (uint256ToNat (UInt256.ofNat
+      (toSharedState state observableSlots).executionEnv.source.val)) := by
+  simp only [evalBuiltinCallWithContext, toSharedState, natToAddress,
+    uint256ToNat, UInt256.toNat, UInt256.ofNat, Id.run]
+  congr 1
+  rw [Nat.mod_eq_of_lt hSender]
+  exact (Nat.mod_eq_of_lt (by unfold UInt256.size; omega : state.sender < UInt256.size)).symm
+
+/-- The `address` builtin reads `thisAddress` from Verity's state.
+    The state bridge stores `natToAddress state.thisAddress` in `execEnv.codeOwner`.
+    EVMYulLean's ADDRESS extracts `codeOwner` as `UInt256.ofNat (Fin.val codeOwner)`.
+
+    Agreement requires `thisAddress < 2^160` (valid Ethereum address). -/
+theorem address_bridge (state : YulState) (observableSlots : List Nat)
+    (hAddr : state.thisAddress < 2 ^ 160) :
+    evalBuiltinCallWithContext state.storage state.sender state.msgValue
+      state.thisAddress state.blockTimestamp state.blockNumber state.chainId
+      state.blobBaseFee state.selector state.calldata "address" [] =
+    some (uint256ToNat (UInt256.ofNat
+      (toSharedState state observableSlots).executionEnv.codeOwner.val)) := by
+  simp only [evalBuiltinCallWithContext, toSharedState, natToAddress,
+    uint256ToNat, UInt256.toNat, UInt256.ofNat, Id.run, evmModulus, UInt256.size]
+  congr 1
+  rw [Nat.mod_eq_of_lt hAddr]
+  exact Nat.mod_eq_of_lt (by omega : state.thisAddress < 2 ^ 256)
+
+/-! ## Storage Bridge Proofs -/
+
+/-- `natToUInt256` is injective on values below `UInt256.size`.
+    Since `UInt256.ofNat n = ⟨⟨n % size, _⟩⟩`, when `n < size` we have
+    `n % size = n`, so the Fin value is exactly `n`. -/
+theorem natToUInt256_injective {a b : Nat}
+    (ha : a < UInt256.size) (hb : b < UInt256.size)
+    (h : natToUInt256 a = natToUInt256 b) : a = b := by
+  simp only [natToUInt256, UInt256.ofNat, Id.run] at h
+  have ha' := Nat.mod_eq_of_lt ha
+  have hb' := Nat.mod_eq_of_lt hb
+  have : a % UInt256.size = b % UInt256.size :=
+    congrArg (fun u => u.val.val) h
+  omega
+
+/-- `compare` on `UInt256` returns `.eq` for equal values.
+    UInt256 derives `Ord` which delegates to `Fin.compare`, which
+    delegates to `Nat.compare`. -/
+theorem compare_natToUInt256_self (n : Nat) :
+    compare (natToUInt256 n) (natToUInt256 n) = Ordering.eq := by
+  simp [compare_eq_iff_eq]
+
+/-- Distinct in-range Nats map to UInt256s with `compare ≠ .eq`. -/
+theorem compare_natToUInt256_ne {a b : Nat}
+    (ha : a < UInt256.size) (hb : b < UInt256.size) (hab : a ≠ b) :
+    compare (natToUInt256 a) (natToUInt256 b) ≠ Ordering.eq := by
+  intro heq
+  apply hab
+  apply natToUInt256_injective ha hb
+  exact of_compare_eq_eq heq
+
+/-- Helper: folding inserts over a list of slots that does NOT contain `slot`
+    preserves whatever `find?` value the accumulator had for `natToUInt256 slot`. -/
+theorem foldl_insert_find_not_mem (storage : Nat → Nat)
+    (slots : List Nat) (slot : Nat) (hNotMem : slot ∉ slots)
+    (hRange : ∀ s ∈ slots, s < UInt256.size)
+    (hSlotRange : slot < UInt256.size)
+    (acc : EvmYul.Storage) :
+    (slots.foldl (fun m s => m.insert (natToUInt256 s) (natToUInt256 (storage s))) acc).find?
+      (natToUInt256 slot) = acc.find? (natToUInt256 slot) := by
+  induction slots generalizing acc with
+  | nil => rfl
+  | cons hd tl ih =>
+    simp only [List.foldl_cons]
+    have hNotMemTl : slot ∉ tl := fun h => hNotMem (List.mem_cons_of_mem _ h)
+    have hne : hd ≠ slot := fun h => hNotMem (h ▸ List.mem_cons_self _ _)
+    have hd_range : hd < UInt256.size := hRange hd (List.mem_cons_self _ _)
+    rw [ih hNotMemTl (fun s hs => hRange s (List.mem_cons_of_mem _ hs))]
+    exact Batteries.RBMap.find?_insert_of_ne
+      (compare_natToUInt256_ne hSlotRange hd_range (Ne.symm hne))
+
+/-- Helper: after folding a suffix of slots into an accumulator, if `slot`
+    is in that suffix, then the accumulated map contains the right value.
+
+    This generalizes `storageLookup_projectStorage` to work with any
+    accumulator (not just `empty`), which is needed for the induction. -/
+theorem foldl_insert_find (storage : Nat → Nat)
+    (slots : List Nat) (slot : Nat) (hSlot : slot ∈ slots)
+    (hRange : ∀ s ∈ slots, s < UInt256.size)
+    (acc : EvmYul.Storage) :
+    (slots.foldl (fun m s => m.insert (natToUInt256 s) (natToUInt256 (storage s))) acc).find?
+      (natToUInt256 slot) = some (natToUInt256 (storage slot)) := by
+  induction slots generalizing acc with
+  | nil => exact absurd hSlot (List.not_mem_nil _)
+  | cons hd tl ih =>
+    simp only [List.foldl_cons]
+    cases List.mem_cons.mp hSlot with
+    | inl heq =>
+      subst heq
+      by_cases hmem : slot ∈ tl
+      · -- slot also appears later in tl; the last insert wins with same value
+        exact ih hmem (fun s hs => hRange s (List.mem_cons_of_mem _ hs)) _
+      · -- slot not in tl: the fold over tl preserves the inserted value
+        have hSlotRange : slot < UInt256.size := hRange slot (List.mem_cons_self _ _)
+        rw [foldl_insert_find_not_mem storage tl slot hmem
+          (fun s hs => hRange s (List.mem_cons_of_mem _ hs)) hSlotRange]
+        exact Batteries.RBMap.find?_insert_of_eq (compare_natToUInt256_self slot)
+    | inr hmem =>
+      exact ih hmem (fun s hs => hRange s (List.mem_cons_of_mem _ hs)) _
 
 /-- Storage lookup commutes: reading a slot from the projected storage
     yields the same value as reading it from Verity's storage function.
@@ -230,19 +396,15 @@ def extractStorage (sharedState : SharedState .Yul) (addr : AccountAddress) :
     The `hRange` hypothesis ensures `natToUInt256` is injective on the
     slot list (EVM storage slots are always < 2^256). Without it, two
     distinct Nat slots could collide under modular reduction and the
-    last-write-wins semantics of `foldl` would make the theorem false.
-
-    Proof strategy (requires `Batteries.Data.RBMap.Lemmas` for `find?_insert`):
-    1. Induction on `slots` with generalized accumulator
-    2. When `slot = head`: insert puts the right value; show rest preserves it
-       using `find?_insert_of_ne` (injectivity from `hRange` ensures no collision)
-    3. When `slot ∈ tail`: use IH with updated accumulator -/
+    last-write-wins semantics of `foldl` would make the theorem false. -/
 theorem storageLookup_projectStorage (storage : Nat → Nat)
     (slots : List Nat) (slot : Nat) (hSlot : slot ∈ slots)
     (hRange : ∀ s ∈ slots, s < UInt256.size) :
     uint256ToNat (storageLookup (projectStorage storage slots) (natToUInt256 slot)) =
       storage slot % UInt256.size := by
-  sorry
+  simp only [storageLookup, projectStorage]
+  rw [foldl_insert_find storage slots slot hSlot hRange]
+  simp only [uint256ToNat, natToUInt256, UInt256.toNat, UInt256.ofNat, Id.run]
 
 /-- Nat→UInt256→Nat round-trip for values in range.
     Proof: `ofNat n = ⟨Fin.ofNat _ n⟩ = ⟨⟨n % size, _⟩⟩`, and
