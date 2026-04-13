@@ -568,11 +568,11 @@ private theorem uint256_toNat_ofNat_of_lt (a : Nat) (ha : a < EvmYul.UInt256.siz
     EvmYul.UInt256.toNat (EvmYul.UInt256.ofNat a) = a := by
   rw [uint256_toNat_ofNat, Nat.mod_eq_of_lt ha]
 
+set_option maxHeartbeats 400000 in
 /-- `sltBool` on reduced inputs: unfold to pure Nat case analysis.
     After unfolding sltBool and reducing toNat, the `a < b` comparison
     on UInt256 is definitionally `(Fin.ofNat _ a).val < (Fin.ofNat _ b).val`
     which is `a % size < b % size`. With bounds, this reduces to `a < b`. -/
-set_option maxHeartbeats 400000 in
 private theorem sltBool_ofNat_of_lt (a b : Nat)
     (ha : a < EvmYul.UInt256.size) (hb : b < EvmYul.UInt256.size) :
     EvmYul.UInt256.sltBool (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b) =
@@ -585,10 +585,10 @@ private theorem sltBool_ofNat_of_lt (a b : Nat)
   simp only [ge_iff_le, EvmYul.UInt256.ofNat, Id.run, Fin.ofNat,
     Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb]
   by_cases ha255 : 2 ^ 255 ≤ a <;> by_cases hb255 : 2 ^ 255 ≤ b <;>
-    simp_all [Decidable.decide_eq_true_eq]
+    simp_all [decide_eq_true_eq]
 
-/-- `sgtBool` on reduced inputs: unfold to pure Nat case analysis. -/
 set_option maxHeartbeats 400000 in
+/-- `sgtBool` on reduced inputs: unfold to pure Nat case analysis. -/
 private theorem sgtBool_ofNat_of_lt (a b : Nat)
     (ha : a < EvmYul.UInt256.size) (hb : b < EvmYul.UInt256.size) :
     EvmYul.UInt256.sgtBool (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b) =
@@ -601,7 +601,7 @@ private theorem sgtBool_ofNat_of_lt (a b : Nat)
   simp only [ge_iff_le, GT.gt, EvmYul.UInt256.ofNat, Id.run, Fin.ofNat,
     Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb]
   by_cases ha255 : 2 ^ 255 ≤ a <;> by_cases hb255 : 2 ^ 255 ≤ b <;>
-    simp_all [Decidable.decide_eq_true_eq]
+    simp_all [decide_eq_true_eq]
 
 /-- Helper: Verity's signed less-than result matches EVMYulLean's sltBool
     when both operate on reduced (< evmModulus) values. -/
