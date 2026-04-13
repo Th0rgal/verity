@@ -236,6 +236,8 @@ ALLOWLIST: set[str] = {
     "sub_add_cancel_of_lt",
     "sub_add_cancel_left",
     "safeDiv_result_le_numerator",
+    # --- EVMYulLean bridge proofs (multi-layer UInt256→Fin→Nat reduction) ---
+    "bridge_eval_byte_normalized",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
