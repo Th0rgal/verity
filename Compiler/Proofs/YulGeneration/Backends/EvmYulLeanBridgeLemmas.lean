@@ -789,21 +789,9 @@ private theorem toNat_fromBool (b : Bool) :
     EvmYul.UInt256.ofNat, Id.run, Fin.ofNat, EvmYul.UInt256.size]
 
 /-- UInt256 `<` reduces to Nat `<` on the underlying Fin values.
-    This is needed because simp-unfolding `sltBool`/`sgtBool` exposes
-    UInt256 `<` as a `Prop` that omega cannot directly handle.
-
-    UInt256's Preorder instance defines `lt a b := a ≤ b ∧ ¬(b ≤ a)` where
-    `a ≤ b := a.val ≤ b.val` (Fin LE, which is Nat LE on `.val`).
-    We convert to the equivalent `a.val.val < b.val.val`. -/
+    The standalone LT instance defines `lt a b := a.val < b.val` (Fin LT = Nat LT). -/
 @[simp] private theorem uint256_lt_val (a b : EvmYul.UInt256) :
-    (a < b) ↔ (a.val.val < b.val.val) := by
-  -- Preorder lt unfolds to: a ≤ b ∧ ¬(b ≤ a)
-  -- UInt256 LE unfolds to: a.val ≤ b.val  (Fin LE = Nat LE on .val)
-  -- Use rfl-based Preorder lemma, then reduce LE to Nat
-  rw [show (a < b) = (a ≤ b ∧ ¬(b ≤ a)) from rfl]
-  rw [show (a ≤ b) = (a.val.val ≤ b.val.val) from rfl]
-  rw [show (b ≤ a) = (b.val.val ≤ a.val.val) from rfl]
-  omega
+    (a < b) ↔ (a.val.val < b.val.val) := Iff.rfl
 
 @[simp] private theorem uint256_gt_val (a b : EvmYul.UInt256) :
     (a > b) ↔ (b.val.val < a.val.val) :=
