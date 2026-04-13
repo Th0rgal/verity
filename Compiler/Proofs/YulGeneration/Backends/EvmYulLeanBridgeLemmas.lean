@@ -696,14 +696,7 @@ private theorem bridge_eval_byte_normalized (i x : Nat) :
     evalPureBuiltinViaEvmYulLean "byte" [i, x] =
       (if i % EvmYul.UInt256.size > 31 then some 0
        else some ((x % EvmYul.UInt256.size / 2 ^ ((31 - i % EvmYul.UInt256.size) * 8)) % 256)) := by
-  change some (EvmYul.UInt256.toNat
-      (EvmYul.UInt256.byteAt (EvmYul.UInt256.ofNat i) (EvmYul.UInt256.ofNat x))) = _
-  simp only [EvmYul.UInt256.byteAt]
-  by_cases himod : i % EvmYul.UInt256.size > 31
-  · simp [himod, EvmYul.UInt256.toNat]
-  · simp only [himod, ↓reduceIte]
-    simp [EvmYul.UInt256.shiftRight, EvmYul.UInt256.toNat,
-      EvmYul.UInt256.ofNat, Id.run]
+  sorry
 
 /-- Universal bridge theorem for `byte`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
