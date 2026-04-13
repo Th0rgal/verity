@@ -535,178 +535,24 @@ EVMYulLean UInt256 semantics on all inputs. -/
   simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_shr_bridge]
 
-/-! ## Signed Builtin Bridge Lemmas
+/-! ## Signed Builtin Bridge Lemmas — Status
 
-The following bridge lemmas establish equivalence between Verity's signed
-integer operations (via `Int256.toInt`) and EVMYulLean's `UInt256` signed
-operations. Both use the same 2^255 threshold for sign detection but
-implement the logic differently:
-- Verity converts to `Int` and uses `Int` comparison
-- EVMYulLean case-splits on the MSB and uses unsigned comparison -/
+Universal bridge lemmas for signed builtins (slt, sgt, sdiv, smod, sar, signextend)
+require proving equivalence between:
+- Verity's `Int256.toInt` (converts to Lean `Int`, uses `Int` arithmetic)
+- EVMYulLean's `UInt256` signed operations (case-splits on MSB, uses unsigned arithmetic)
 
-/-- Helper: Verity's signed less-than result matches EVMYulLean's sltBool
-    when both operate on reduced (< evmModulus) values. Uses case analysis
-    on the 2^255 threshold that both systems share for sign detection. -/
-private theorem slt_result_equiv (a b : Nat) (ha : a < evmModulus) (hb : b < evmModulus) :
-    (if Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat a)) <
-        Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat b))
-      then (1 : Nat) else 0) =
-    (if EvmYul.UInt256.sltBool (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b)
-      then 1 else 0) := by
-  -- Derive UInt256.size-based bounds for Fin.ofNat reduction
-  have ha_s : a < EvmYul.UInt256.size := by
-    unfold EvmYul.UInt256.size; unfold evmModulus at ha; exact ha
-  have hb_s : b < EvmYul.UInt256.size := by
-    unfold EvmYul.UInt256.size; unfold evmModulus at hb; exact hb
-  -- Reduce Verity side: Int256.toInt case-splits on signBit = 2^255
-  simp only [Verity.Core.Uint256.ofNat, Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
-    Verity.Core.Int256.signBit, Verity.Core.Int256.modulus, Verity.Core.Uint256.modulus,
-    Verity.Core.UINT256_MODULUS, Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb]
-  -- Reduce EVMYulLean side: sltBool case-splits on toNat ≥ 2^255
-  simp only [EvmYul.UInt256.sltBool, EvmYul.UInt256.ofNat, EvmYul.UInt256.toNat, Id.run,
-    Nat.mod_eq_of_lt ha_s, Nat.mod_eq_of_lt hb_s]
-  by_cases ha255 : a < 2 ^ 255 <;> by_cases hb255 : b < 2 ^ 255
-  · -- Both positive: Int.ofNat comparison ↔ Nat comparison
-    simp only [ha255, hb255, ite_true, ite_false, decide_eq_true_eq]
-    simp [Int.ofNat_lt]
-  · -- a positive, b negative: signed(a) ≥ 0 > signed(b) so a is not less
-    have hb_ge : 2 ^ 255 ≤ b := Nat.le_of_not_lt hb255
-    simp only [ha255, Nat.not_lt_of_le hb_ge, ite_true, ite_false]
-    split <;> omega
-  · -- a negative, b positive: signed(a) < 0 ≤ signed(b) so a is less
-    have ha_ge : 2 ^ 255 ≤ a := Nat.le_of_not_lt ha255
-    simp only [Nat.not_lt_of_le ha_ge, hb255, ite_true, ite_false]
-    split <;> omega
-  · -- Both negative: Int subtraction preserves ordering
-    have ha_ge : 2 ^ 255 ≤ a := Nat.le_of_not_lt ha255
-    have hb_ge : 2 ^ 255 ≤ b := Nat.le_of_not_lt hb255
-    simp only [Nat.not_lt_of_le ha_ge, Nat.not_lt_of_le hb_ge, ite_true, ite_false,
-      decide_eq_true_eq]
-    simp [Int.sub_lt_sub_iff_right, Int.ofNat_lt]
+Key challenge: the proof must bridge Prop-based `if` (Verity's `Int` comparison)
+with Bool-based `if` (EVMYulLean's `sltBool`/`sgtBool`) — these are structurally
+different in Lean 4 (`ite` vs `Bool.casesOn`). Additionally, reducing
+`evalPureBuiltinViaEvmYulLean` for builtins deep in the string-matching chain
+requires high heartbeat limits (4M+), and `EvmYul.UInt256.ofNat` mod-reduction
+needs careful handling of `evmModulus` vs `UInt256.size` equivalence.
 
-set_option maxHeartbeats 4000000 in
-private theorem verity_eval_slt_normalized
-    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
-    evalBuiltinCall storage sender selector calldata "slt" [a, b] =
-      some (if Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (a % evmModulus))) <
-              Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (b % evmModulus)))
-            then 1 else 0) := by
-  simp [evalBuiltinCall, evalBuiltinCallWithContext]
+Concrete bridge tests (96 examples in EvmYulLeanBridgeTest.lean) validate these
+builtins at critical boundary values including INT256_MIN/MAX edges.
 
-set_option maxHeartbeats 400000 in
-private theorem bridge_eval_slt_normalized (a b : Nat) :
-    evalPureBuiltinViaEvmYulLean "slt" [a, b] =
-      some (if EvmYul.UInt256.sltBool (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b)
-            then 1 else 0) := by
-  simp [evalPureBuiltinViaEvmYulLean, EvmYul.UInt256.slt, EvmYul.UInt256.fromBool,
-    EvmYul.UInt256.toNat, Bool.toUInt256, EvmYul.UInt256.ofNat, Id.run]
-  split <;> simp_all
-
-/-- Universal bridge theorem for `slt`: Verity builtin semantics agree with
-EVMYulLean UInt256 semantics on all inputs. This is the first signed builtin
-bridge lemma, proving that Verity's Int256-based signed comparison agrees
-with EVMYulLean's MSB-based case analysis. -/
-@[simp] theorem evalBuiltinCall_slt_bridge
-    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
-    evalBuiltinCall storage sender selector calldata "slt" [a, b] =
-      evalPureBuiltinViaEvmYulLean "slt" [a, b] := by
-  rw [verity_eval_slt_normalized, bridge_eval_slt_normalized]
-  have ha_lt : a % evmModulus < evmModulus := Nat.mod_lt _ (by simp [evmModulus])
-  have hb_lt : b % evmModulus < evmModulus := Nat.mod_lt _ (by simp [evmModulus])
-  have hmod_a : EvmYul.UInt256.ofNat a = EvmYul.UInt256.ofNat (a % evmModulus) := by
-    simp [EvmYul.UInt256.ofNat, Id.run, EvmYul.UInt256.size, evmModulus, Nat.mod_mod_of_dvd]
-  have hmod_b : EvmYul.UInt256.ofNat b = EvmYul.UInt256.ofNat (b % evmModulus) := by
-    simp [EvmYul.UInt256.ofNat, Id.run, EvmYul.UInt256.size, evmModulus, Nat.mod_mod_of_dvd]
-  rw [hmod_a, hmod_b]
-  congr 1
-  exact slt_result_equiv (a % evmModulus) (b % evmModulus) ha_lt hb_lt
-
-/-- Helper: Verity's signed greater-than result matches EVMYulLean's sgtBool
-    when both operate on reduced (< evmModulus) values. -/
-private theorem sgt_result_equiv (a b : Nat) (ha : a < evmModulus) (hb : b < evmModulus) :
-    (if Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat b)) <
-        Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat a))
-      then (1 : Nat) else 0) =
-    (if EvmYul.UInt256.sgtBool (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b)
-      then 1 else 0) := by
-  -- Derive UInt256.size-based bounds for Fin.ofNat reduction
-  have ha_s : a < EvmYul.UInt256.size := by
-    unfold EvmYul.UInt256.size; unfold evmModulus at ha; exact ha
-  have hb_s : b < EvmYul.UInt256.size := by
-    unfold EvmYul.UInt256.size; unfold evmModulus at hb; exact hb
-  -- Reduce Verity side: Int256.toInt case-splits on signBit = 2^255
-  simp only [Verity.Core.Uint256.ofNat, Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
-    Verity.Core.Int256.signBit, Verity.Core.Int256.modulus, Verity.Core.Uint256.modulus,
-    Verity.Core.UINT256_MODULUS, Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb]
-  -- Reduce EVMYulLean side: sgtBool case-splits on toNat ≥ 2^255
-  simp only [EvmYul.UInt256.sgtBool, EvmYul.UInt256.ofNat, EvmYul.UInt256.toNat, Id.run,
-    Nat.mod_eq_of_lt ha_s, Nat.mod_eq_of_lt hb_s]
-  by_cases ha255 : a < 2 ^ 255 <;> by_cases hb255 : b < 2 ^ 255
-  · -- Both positive: Int.ofNat comparison ↔ Nat comparison
-    simp only [ha255, hb255, ite_true, ite_false, decide_eq_true_eq]
-    simp [Int.ofNat_lt]
-  · -- a positive, b negative: signed(a) ≥ 0 > signed(b), so a > b
-    have hb_ge : 2 ^ 255 ≤ b := Nat.le_of_not_lt hb255
-    simp only [ha255, Nat.not_lt_of_le hb_ge, ite_true, ite_false]
-    split <;> omega
-  · -- a negative, b positive: signed(a) < 0 ≤ signed(b), so ¬(a > b)
-    have ha_ge : 2 ^ 255 ≤ a := Nat.le_of_not_lt ha255
-    simp only [Nat.not_lt_of_le ha_ge, hb255, ite_true, ite_false]
-    split <;> omega
-  · -- Both negative: Int subtraction preserves ordering
-    have ha_ge : 2 ^ 255 ≤ a := Nat.le_of_not_lt ha255
-    have hb_ge : 2 ^ 255 ≤ b := Nat.le_of_not_lt hb255
-    simp only [Nat.not_lt_of_le ha_ge, Nat.not_lt_of_le hb_ge, ite_true, ite_false,
-      decide_eq_true_eq]
-    simp [Int.sub_lt_sub_iff_right, Int.ofNat_lt]
-
-set_option maxHeartbeats 4000000 in
-private theorem verity_eval_sgt_normalized
-    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
-    evalBuiltinCall storage sender selector calldata "sgt" [a, b] =
-      some (if Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (b % evmModulus))) <
-              Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (a % evmModulus)))
-            then 1 else 0) := by
-  simp [evalBuiltinCall, evalBuiltinCallWithContext]
-
-set_option maxHeartbeats 400000 in
-private theorem bridge_eval_sgt_normalized (a b : Nat) :
-    evalPureBuiltinViaEvmYulLean "sgt" [a, b] =
-      some (if EvmYul.UInt256.sgtBool (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b)
-            then 1 else 0) := by
-  simp [evalPureBuiltinViaEvmYulLean, EvmYul.UInt256.sgt, EvmYul.UInt256.fromBool,
-    EvmYul.UInt256.toNat, Bool.toUInt256, EvmYul.UInt256.ofNat, Id.run]
-  split <;> simp_all
-
-/-- Universal bridge theorem for `sgt`: Verity builtin semantics agree with
-EVMYulLean UInt256 semantics on all inputs. -/
-@[simp] theorem evalBuiltinCall_sgt_bridge
-    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
-    evalBuiltinCall storage sender selector calldata "sgt" [a, b] =
-      evalPureBuiltinViaEvmYulLean "sgt" [a, b] := by
-  rw [verity_eval_sgt_normalized, bridge_eval_sgt_normalized]
-  have ha_lt : a % evmModulus < evmModulus := Nat.mod_lt _ (by simp [evmModulus])
-  have hb_lt : b % evmModulus < evmModulus := Nat.mod_lt _ (by simp [evmModulus])
-  have hmod_a : EvmYul.UInt256.ofNat a = EvmYul.UInt256.ofNat (a % evmModulus) := by
-    simp [EvmYul.UInt256.ofNat, Id.run, EvmYul.UInt256.size, evmModulus, Nat.mod_mod_of_dvd]
-  have hmod_b : EvmYul.UInt256.ofNat b = EvmYul.UInt256.ofNat (b % evmModulus) := by
-    simp [EvmYul.UInt256.ofNat, Id.run, EvmYul.UInt256.size, evmModulus, Nat.mod_mod_of_dvd]
-  rw [hmod_a, hmod_b]
-  congr 1
-  exact sgt_result_equiv (a % evmModulus) (b % evmModulus) ha_lt hb_lt
-
-@[simp] theorem evalBuiltinCallWithBackend_evmYulLean_slt_bridge
-    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
-    evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "slt" [a, b] =
-      evalBuiltinCall storage sender selector calldata "slt" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
-    evalBuiltinCall_slt_bridge]
-
-@[simp] theorem evalBuiltinCallWithBackend_evmYulLean_sgt_bridge
-    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
-    evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "sgt" [a, b] =
-      evalBuiltinCall storage sender selector calldata "sgt" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
-    evalBuiltinCall_sgt_bridge]
+Universal proofs are deferred to a follow-up with local Lean development
+to iterate on the proof strategy. See issue #1722 Phase 3. -/
 
 end Compiler.Proofs.YulGeneration.Backends
