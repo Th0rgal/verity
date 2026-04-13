@@ -798,8 +798,7 @@ private theorem toNat_fromBool (b : Bool) :
     (a > b) ↔ (b.val.val < a.val.val) :=
   uint256_lt_val b a
 
-set_option maxHeartbeats 8000000 in
-set_option linter.unusedSimpArgs false in
+set_option maxHeartbeats 16000000 in
 /-- The Verity signed-less-than semantics agree with EVMYulLean's `sltBool`
     when both sides operate on the same reduced values `a % M` and `b % M`.
 
@@ -825,28 +824,12 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
   -- Unfold sltBool; uint256_lt_val converts UInt256 LT to Nat LT for omega
   simp only [EvmYul.UInt256.sltBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
     Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_lt_val, Fin.val]
-  by_cases ha : a % 2 ^ 256 < 2 ^ 255 <;> by_cases hb : b % 2 ^ 256 < 2 ^ 255
-  · -- Both non-negative
-    simp [ha, hb, Nat.not_le_of_lt]
-    have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
-    have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
-    omega
-  · -- a non-negative, b negative
-    have hb' : 2 ^ 255 ≤ b % 2 ^ 256 := Nat.le_of_not_lt hb
-    simp [ha, hb, hb', Nat.not_le_of_lt]
-    have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
-    have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
-    omega
-  · -- a negative, b non-negative
-    have ha' : 2 ^ 255 ≤ a % 2 ^ 256 := Nat.le_of_not_lt ha
-    simp [ha, hb, ha', Nat.not_le_of_lt]
-    have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
-    omega
-  · -- Both negative
-    have ha' : 2 ^ 255 ≤ a % 2 ^ 256 := Nat.le_of_not_lt ha
-    have hb' : 2 ^ 255 ≤ b % 2 ^ 256 := Nat.le_of_not_lt hb
-    simp [ha, hb, ha', hb']
-    omega
+  -- Split all if-then-else expressions from both sides, then close with omega
+  have haM : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
+  have hbM : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
+  repeat split
+  all_goals simp_all
+  all_goals omega
 
 set_option maxHeartbeats 4000000 in
 private theorem verity_eval_slt_normalized
@@ -884,8 +867,7 @@ EVMYulLean UInt256 semantics on all inputs. -/
   simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_slt_bridge]
 
-set_option maxHeartbeats 8000000 in
-set_option linter.unusedSimpArgs false in
+set_option maxHeartbeats 16000000 in
 /-- The Verity signed-greater-than semantics agree with EVMYulLean's `sgtBool`.
     `sgt(a, b)` is equivalent to `slt(b, a)`, so we reuse the slt equivalence. -/
 private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
@@ -896,7 +878,6 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
       then (1 : Nat) else 0) =
     (if EvmYul.UInt256.sgtBool (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b)
       then (1 : Nat) else 0) := by
-  -- sgtBool(a, b) is the same 4-case analysis as sltBool(b, a)
   have hma : a % evmModulus % Verity.Core.UINT256_MODULUS = a % evmModulus := by
     simp [evmModulus, Verity.Core.UINT256_MODULUS]
   have hmb : b % evmModulus % Verity.Core.UINT256_MODULUS = b % evmModulus := by
@@ -908,28 +889,12 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
   -- Unfold sgtBool; uint256_gt_val/uint256_lt_val convert UInt256 GT/LT to Nat LT
   simp only [EvmYul.UInt256.sgtBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
     Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_gt_val, uint256_lt_val, Fin.val]
-  by_cases ha : a % 2 ^ 256 < 2 ^ 255 <;> by_cases hb : b % 2 ^ 256 < 2 ^ 255
-  · -- Both non-negative
-    simp [ha, hb, Nat.not_le_of_lt]
-    have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
-    have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
-    omega
-  · -- a non-negative, b negative: a > b, so sgt = true
-    have hb' : 2 ^ 255 ≤ b % 2 ^ 256 := Nat.le_of_not_lt hb
-    simp [ha, hb, hb', Nat.not_le_of_lt]
-    have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
-    have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
-    omega
-  · -- a negative, b non-negative: a < b, so sgt = false
-    have ha' : 2 ^ 255 ≤ a % 2 ^ 256 := Nat.le_of_not_lt ha
-    simp [ha, hb, ha', Nat.not_le_of_lt]
-    have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
-    omega
-  · -- Both negative
-    have ha' : 2 ^ 255 ≤ a % 2 ^ 256 := Nat.le_of_not_lt ha
-    have hb' : 2 ^ 255 ≤ b % 2 ^ 256 := Nat.le_of_not_lt hb
-    simp [ha, hb, ha', hb']
-    omega
+  -- Split all if-then-else expressions from both sides, then close with omega
+  have haM : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
+  have hbM : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
+  repeat split
+  all_goals simp_all
+  all_goals omega
 
 set_option maxHeartbeats 4000000 in
 private theorem verity_eval_sgt_normalized
