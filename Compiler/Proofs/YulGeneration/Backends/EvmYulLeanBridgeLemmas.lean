@@ -833,7 +833,13 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
   -- check) and the outer comparison, introducing hypotheses that match the
   -- literal forms already present in the goal.
   simp only [EvmYul.UInt256.size]
-  split_ifs <;> simp_all [evmModulus] <;> omega
+  -- Case-split on sign bits.
+  by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
+  by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
+  -- Disable @[simp] Int.natCast_emod (renamed from ofNat_emod in Lean 4.22.0)
+  -- which rewrites ↑(a%M) → ↑a % ↑M, breaking omega's Int/Nat bridge.
+  all_goals simp_all [-Int.natCast_emod, Int.ofNat_lt, not_lt, int_natCast_emod]
+  all_goals omega
 
 set_option maxHeartbeats 4000000 in
 private theorem verity_eval_slt_normalized
@@ -899,7 +905,13 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
   -- check) and the outer comparison, introducing hypotheses that match the
   -- literal forms already present in the goal.
   simp only [EvmYul.UInt256.size]
-  split_ifs <;> simp_all [evmModulus] <;> omega
+  -- Case-split on sign bits.
+  by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
+  by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
+  -- Disable @[simp] Int.natCast_emod (renamed from ofNat_emod in Lean 4.22.0)
+  -- which rewrites ↑(a%M) → ↑a % ↑M, breaking omega's Int/Nat bridge.
+  all_goals simp_all [-Int.natCast_emod, Int.ofNat_lt, not_lt, int_natCast_emod]
+  all_goals omega
 
 set_option maxHeartbeats 4000000 in
 private theorem verity_eval_sgt_normalized
