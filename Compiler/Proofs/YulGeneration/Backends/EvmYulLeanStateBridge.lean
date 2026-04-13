@@ -59,14 +59,16 @@ keys); `getVar` returns the *first* match. EVMYulLean's Finmap is a map
     Uses foldl so that the first (most recent) binding for each variable wins,
     matching Verity's `getVar` shadowing semantics. -/
 def varsToVarStore (vars : List (String × Nat)) : VarStore :=
-  vars.foldl (init := (∅ : VarStore)) fun store (name, val) =>
-    if (Finmap.lookup name store).isSome then store
-    else Finmap.insert name (natToUInt256 val) store
+  let empty : Finmap (fun _ : Identifier => Literal) := ⟨0, Multiset.nodupKeys_nil⟩
+  vars.foldl (init := empty) fun (store : VarStore) (name, val) =>
+    if (store.lookup name).isSome then store
+    else store.insert name (natToUInt256 val)
 
 /-- Convert EVMYulLean VarStore back to Verity variable bindings.
     Order is not preserved (Finmap has no canonical ordering). -/
 def varStoreToVars (store : VarStore) : List (String × Nat) :=
-  store.entries.val.toList.map fun ⟨name, val⟩ => (name, uint256ToNat val)
+  let entries : Multiset (Σ _ : Identifier, Literal) := store.entries
+  entries.toList.map fun ⟨name, val⟩ => (name, uint256ToNat val)
 
 /-! ## Storage Bridge
 
@@ -162,11 +164,12 @@ def toSharedState (state : YulState) (observableSlots : List Nat) :
     SharedState .Yul :=
   let addr := natToAddress state.thisAddress
   let storage := projectStorage state.storage observableSlots
+  let emptyCode : Yul.Ast.contractCode .Yul := Inhabited.default
   let account : Account .Yul :=
     { nonce := ⟨0⟩
       balance := ⟨0⟩
       storage := storage
-      code := (default : Yul.Ast.contractCode .Yul)
+      code := emptyCode
       tstorage := Batteries.RBMap.empty }
   let accountMap : AccountMap .Yul :=
     (Batteries.RBMap.empty).insert addr account
@@ -176,7 +179,7 @@ def toSharedState (state : YulState) (observableSlots : List Nat) :
       source := natToAddress state.sender
       weiValue := natToUInt256 state.msgValue
       calldata := calldataToByteArray state.selector state.calldata
-      code := (default : Yul.Ast.contractCode .Yul)
+      code := emptyCode
       gasPrice := 0
       header := mkBlockHeader state
       depth := 0
@@ -187,7 +190,7 @@ def toSharedState (state : YulState) (observableSlots : List Nat) :
     σ₀ := Batteries.RBMap.empty
     totalGasUsedInBlock := 0
     transactionReceipts := #[]
-    substate := default
+    substate := Inhabited.default
     executionEnv := execEnv
     blocks := #[]
     genesisBlockHeader := mkBlockHeader state

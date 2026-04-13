@@ -72,19 +72,32 @@ def get_core_line_count() -> int:
     return len(core.read_text(encoding="utf-8").splitlines())
 
 
-def get_sorry_count() -> int:
-    """Count sorry statements in Lean proof files."""
+def get_sorry_count() -> tuple[int, int]:
+    """Count sorry statements in Lean proof files.
+
+    Returns (total_sorry, proof_sorry) where proof_sorry excludes sorrys in
+    infrastructure scaffolding files that don't affect contract theorem proofs.
+    """
+    # Infrastructure files whose sorrys are Phase 2 proof obligations,
+    # not regressions in contract theorem proofs.
+    INFRASTRUCTURE_FILES = {
+        "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean",
+    }
     matcher = re.compile(r"\bsorry\b")
-    count = 0
+    total = 0
+    proof_sorry = 0
     for directory in [ROOT / "Compiler", ROOT / "Verity"]:
         if not directory.exists():
             continue
         for lean in directory.rglob("*.lean"):
+            rel = str(lean.relative_to(ROOT))
             text = scrub_lean_code(lean.read_text(encoding="utf-8"))
             for line in text.splitlines():
                 if matcher.search(line):
-                    count += 1
-    return count
+                    total += 1
+                    if rel not in INFRASTRUCTURE_FILES:
+                        proof_sorry += 1
+    return total, proof_sorry
 
 
 def get_contract_count() -> int:
@@ -134,7 +147,7 @@ def collect_metrics() -> dict[str, Any]:
     axiom_count = get_axiom_count()
     test_count, suite_count = get_test_counts()
     core_lines = get_core_line_count()
-    sorry_count = get_sorry_count()
+    sorry_count, proof_sorry_count = get_sorry_count()
     exclusion_count = get_exclusion_count()
     covered_count, coverage_pct = get_covered_count(total_theorems)
     stdlib_count = per_contract.get("Stdlib", 0)
@@ -148,7 +161,7 @@ def collect_metrics() -> dict[str, Any]:
             "covered": covered_count,
             "coverage_percent": coverage_pct,
             "excluded": exclusion_count,
-            "proven": total_theorems,
+            "proven": total_theorems - proof_sorry_count,
             "stdlib": stdlib_count,
             "non_stdlib_total": total_theorems - stdlib_count,
         },

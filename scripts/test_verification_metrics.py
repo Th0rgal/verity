@@ -53,7 +53,9 @@ class VerificationMetricsTests(unittest.TestCase):
             try:
                 verification_metrics.ROOT = root
                 self.assertEqual(verification_metrics.get_axiom_count(), 1)
-                self.assertEqual(verification_metrics.get_sorry_count(), 1)
+                total_sorry, proof_sorry = verification_metrics.get_sorry_count()
+                self.assertEqual(total_sorry, 1)
+                self.assertEqual(proof_sorry, 1)
             finally:
                 verification_metrics.ROOT = old_root
 

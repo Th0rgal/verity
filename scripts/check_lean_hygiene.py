@@ -64,10 +64,14 @@ def main() -> None:
         )
 
     # Check 3: Fixed sorry baseline after the merged proof-reduction pass.
-    # 2 sorry stubs in EvmYulLeanStateBridge.lean (Phase 2 proof obligations).
-    expected_sorry = 2
+    # Allowed sorry locations are pinned to specific infrastructure files
+    # so that a sorry in a real proof cannot be masked by removing a stub.
+    ALLOWED_SORRY_FILES = {
+        "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean",  # Phase 2 proof obligations
+    }
     sorry_count = 0
     sorry_locations: list[str] = []
+    unexpected_sorry_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):
         if ".lake" in str(lean_file):
             continue
@@ -76,11 +80,14 @@ def main() -> None:
         for i, line in enumerate(scrubbed_lines, 1):
             if SORRY_RE.search(line):
                 sorry_count += 1
-                sorry_locations.append(f"{rel}:{i}")
+                loc = f"{rel}:{i}"
+                sorry_locations.append(loc)
+                if str(rel) not in ALLOWED_SORRY_FILES:
+                    unexpected_sorry_locations.append(loc)
 
-    if sorry_count != expected_sorry:
+    if unexpected_sorry_locations:
         errors.append(
-            f"Expected {expected_sorry} sorry, found {sorry_count}: {sorry_locations}"
+            f"Found sorry in non-allowlisted files: {unexpected_sorry_locations}"
         )
 
     # Check 4: No native_decide in proof files (except tests/profiles)
@@ -109,7 +116,7 @@ def main() -> None:
     print(
         f"Lean hygiene check passed "
         f"(0 debug commands in proofs, {unsafe_count} allowUnsafeReducibility, "
-        f"{sorry_count} sorry (expected {expected_sorry}), "
+        f"{sorry_count} sorry ({sorry_count - len(unexpected_sorry_locations)} allowed, {len(unexpected_sorry_locations)} unexpected), "
         f"0 native_decide in proofs)."
     )
 
