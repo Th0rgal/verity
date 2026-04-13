@@ -334,6 +334,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.UnsafeBlockSmoke.spec
   , Contracts.Smoke.UnsafeGatingAccepted.spec
   , Contracts.Smoke.UnsafeGatingRejected.spec
+  , Contracts.Smoke.AdtSmoke.spec
   ]
 
 private def functionSignature (fn : FunctionSpec) : String :=
@@ -425,6 +426,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("UnsafeBlockSmoke", ["incrementUnsafe()", "getCounter()"])
   , ("UnsafeGatingAccepted", ["writeMem()"])
   , ("UnsafeGatingRejected", ["noop()"])
+  , ("AdtSmoke", ["increment()"])
   ]
 
 private def expectedExternalSelectors : List (String × List String) :=
@@ -499,6 +501,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("UnsafeBlockSmoke", ["0x87a993fd", "0x8ada066e"])
   , ("UnsafeGatingAccepted", ["0x68236256"])
   , ("UnsafeGatingRejected", ["0x5dfc2e4a"])
+  , ("AdtSmoke", ["0xd09de08a"])
   ]
 
 private def expectedFor
@@ -589,6 +592,9 @@ private def checkMutabilitySmoke : IO Unit := do
   let _ := @Contracts.Smoke.NewtypeSmoke.mint_cei_compliant
   let _ := @Contracts.Smoke.NewtypeSmoke.setMinter_cei_compliant
   let _ := @Contracts.Smoke.NewtypeSmoke.getNextTokenId_cei_compliant
+  -- Verify AdtSmoke generates standard _cei_compliant theorems (#1727, Axis 1 Step 5a).
+  -- ADTs are parsed; functions compile normally.
+  let _ := @Contracts.Smoke.AdtSmoke.increment_cei_compliant
   -- Verify NamespacedStorageSmoke generates standard _cei_compliant theorems (#1730, Axis 4 Step 4b).
   let _ := @Contracts.Smoke.NamespacedStorageSmoke.deposit_cei_compliant
   let _ := @Contracts.Smoke.NamespacedStorageSmoke.getOwner_cei_compliant

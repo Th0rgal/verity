@@ -1854,6 +1854,25 @@ example : NamespacedStorageSmoke.owner.slot ≠ 1 := by decide
 example : NamespacedStorageSmoke.spec.storageNamespace.isSome = true := rfl
 example : Contracts.Counter.spec.storageNamespace.isNone = true := rfl
 
+-- ADT (inductive) section smoke test (#1727, Axis 1 Step 5a)
+-- Declares algebraic data types with typed variant fields.
+-- At this step the ADTs are parsed and validated but not yet used in IR
+-- generation (that is Step 5b).
+verity_contract AdtSmoke where
+  types
+    TokenId : Uint256
+  inductive
+    OptionalUint := | Some(value : Uint256) | None
+    Result := | Ok(amount : Uint256, recipient : Address) | Err(code : Uint256)
+  storage
+    counter : Uint256 := slot 0
+
+  function increment () : Unit := do
+    let current ← getStorage counter
+    setStorage counter (add current 1)
+
+#check_contract AdtSmoke
+
 -- Unsafe block smoke test (#1424, Phase 6 Step 6a).
 -- `unsafe "reason" do` wraps a block of statements; Step 6a is the transparent
 -- wrapper (validation/compilation recurse into the body unchanged).

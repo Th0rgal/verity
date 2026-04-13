@@ -19,6 +19,8 @@ declare_syntax_cat verityInitGuard
 declare_syntax_cat verityModifies
 declare_syntax_cat verityRequiresRole
 declare_syntax_cat verityNewtype
+declare_syntax_cat verityAdtVariant
+declare_syntax_cat verityAdtDecl
 declare_syntax_cat veritySpecialEntrypoint
 declare_syntax_cat verityFunction
 
@@ -43,6 +45,9 @@ syntax "cei_safe" : verityMutability
 syntax "modifies(" sepBy(ident, ",") ")" : verityModifies
 syntax "requires(" ident ")" : verityRequiresRole
 syntax ident " : " term:max : verityNewtype
+syntax "| " ident "(" sepBy(verityParam, ",") ")" : verityAdtVariant
+syntax "| " ident : verityAdtVariant
+syntax ident " := " verityAdtVariant+ : verityAdtDecl
 syntax "initializer(" ident ")" : verityInitGuard
 syntax "reinitializer(" ident ", " num ")" : verityInitGuard
 syntax "ecmCall " term:max ppSpace term:max : term
@@ -61,6 +66,7 @@ syntax "function " verityMutability* ident " (" sepBy(verityParam, ",") ")" (ppS
 syntax (name := verityContractCmd)
   "verity_contract " ident " where "
   ("types " verityNewtype+)?
+  ("inductive " verityAdtDecl+)?
   ("storage_namespace ")?
   "storage " verityStorageField*
   ("errors " verityError+)?

@@ -13,7 +13,7 @@ set_option hygiene false
 
 @[command_elab verityContractCmd]
 def elabVerityContract : CommandElab := fun stx => do
-  let (contractName, _newtypeDecls, fields, errorDecls, constDecls, immutableDecls, externalDecls, ctor, functions, storageNamespace) ← parseContractSyntax stx
+  let (contractName, _newtypeDecls, _adtDecls, fields, errorDecls, constDecls, immutableDecls, externalDecls, ctor, functions, storageNamespace) ← parseContractSyntax stx
 
   validateGeneratedDefNamesPublic fields constDecls functions
   validateConstantDeclsPublic constDecls

@@ -97,6 +97,23 @@ structure NewtypeDecl where
   name : String
   baseType : ValueType
 
+/-- A single variant (constructor) of a user-defined algebraic data type.
+    E.g. `| Ok(value : Uint256)` or `| None`.
+    (#1727, Axis 1 Step 5a) -/
+structure AdtVariantDecl where
+  ident : Ident
+  name : String
+  fields : Array ParamDecl
+
+/-- A user-defined algebraic data type (tagged union) declared in the `inductive` section.
+    E.g. `Result := | Ok(value : Uint256) | Err(code : Uint256)`.
+    At the EVM level, ADTs use max-width tagged union encoding.
+    (#1727, Axis 1 Step 5a) -/
+structure AdtDecl where
+  ident : Ident
+  name : String
+  variants : Array AdtVariantDecl
+
 structure LocalObligationDecl where
   ident : Ident
   name : String
@@ -461,6 +478,34 @@ private def parseNewtype (stx : Syntax) : CommandElabM NewtypeDecl := do
         baseType := baseType
       }
   | _ => throwErrorAt stx "invalid type declaration"
+
+/-- Parse a single ADT variant: `| Name(field1 : Type1, field2 : Type2)` or `| Name`.
+    (#1727, Axis 1 Step 5a) -/
+private def parseAdtVariant (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM AdtVariantDecl := do
+  match stx with
+  | `(verityAdtVariant| | $name:ident ($[$params:verityParam],*)) =>
+      let parsedParams ← params.mapM (parseParam newtypes)
+      pure { ident := name, name := toString name.getId, fields := parsedParams }
+  | `(verityAdtVariant| | $name:ident) =>
+      pure { ident := name, name := toString name.getId, fields := #[] }
+  | _ => throwErrorAt stx "invalid ADT variant declaration"
+
+/-- Parse a full ADT declaration: `Name := | Variant1(...) | Variant2(...)`.
+    (#1727, Axis 1 Step 5a) -/
+private def parseAdtDecl (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM AdtDecl := do
+  match stx with
+  | `(verityAdtDecl| $name:ident := $[$variants:verityAdtVariant]*) =>
+      let parsedVariants ← variants.mapM (parseAdtVariant newtypes)
+      if parsedVariants.isEmpty then
+        throwErrorAt name s!"ADT '{toString name.getId}' must have at least one variant"
+      -- Validate: no duplicate variant names within this ADT
+      let mut seenVariantNames : Array String := #[]
+      for v in parsedVariants do
+        if seenVariantNames.contains v.name then
+          throwErrorAt v.ident s!"duplicate variant name '{v.name}' in ADT '{toString name.getId}'"
+        seenVariantNames := seenVariantNames.push v.name
+      pure { ident := name, name := toString name.getId, variants := parsedVariants }
+  | _ => throwErrorAt stx "invalid ADT declaration"
 
 private def parseError (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM ErrorDecl := do
   match stx with
@@ -3949,9 +3994,9 @@ def computeStorageNamespace (contractName : String) : Nat :=
 def parseContractSyntax
     (stx : Syntax)
     : CommandElabM
-        (Ident × Array NewtypeDecl × Array StorageFieldDecl × Array ErrorDecl × Array ConstantDecl × Array ImmutableDecl × Array ExternalDecl × Option ConstructorDecl × Array FunctionDecl × Option Nat) := do
+        (Ident × Array NewtypeDecl × Array AdtDecl × Array StorageFieldDecl × Array ErrorDecl × Array ConstantDecl × Array ImmutableDecl × Array ExternalDecl × Option ConstructorDecl × Array FunctionDecl × Option Nat) := do
   match stx with
-  | `(command| verity_contract $contractName:ident where $[types $[$newtypeDecls:verityNewtype]*]? $[storage_namespace%$nsKw]? storage $[$storageFields:verityStorageField]* $[errors $[$errorDecls:verityError]*]? $[constants $[$constantDecls:verityConstant]*]? $[immutables $[$immutableDecls:verityImmutable]*]? $[linked_externals $[$externalDecls:verityExternal]*]? $[$ctor:verityConstructor]? $[$entrypoints:veritySpecialEntrypoint]* $[$functions:verityFunction]*) =>
+  | `(command| verity_contract $contractName:ident where $[types $[$newtypeDecls:verityNewtype]*]? $[inductive $[$adtDecls:verityAdtDecl]*]? $[storage_namespace%$nsKw]? storage $[$storageFields:verityStorageField]* $[errors $[$errorDecls:verityError]*]? $[constants $[$constantDecls:verityConstant]*]? $[immutables $[$immutableDecls:verityImmutable]*]? $[linked_externals $[$externalDecls:verityExternal]*]? $[$ctor:verityConstructor]? $[$entrypoints:veritySpecialEntrypoint]* $[$functions:verityFunction]*) =>
       -- Parse newtypes first — they are needed by all downstream type resolution
       let parsedNewtypes ←
         match newtypeDecls with
@@ -3968,6 +4013,20 @@ def parseContractSyntax
       for nt in parsedNewtypes do
         if builtinTypeNames.contains nt.name then
           throwErrorAt nt.ident s!"type name '{nt.name}' shadows a built-in type"
+      -- Parse ADT declarations (#1727, Axis 1 Step 5a)
+      let parsedAdts ←
+        match adtDecls with
+        | some decls => decls.mapM (parseAdtDecl parsedNewtypes)
+        | none => pure #[]
+      -- Validate: no duplicate ADT names
+      for adt in parsedAdts do
+        if seenNames.contains adt.name then
+          throwErrorAt adt.ident s!"duplicate type name '{adt.name}'"
+        seenNames := seenNames.push adt.name
+      -- Validate: ADT names don't shadow built-in types
+      for adt in parsedAdts do
+        if builtinTypeNames.contains adt.name then
+          throwErrorAt adt.ident s!"ADT name '{adt.name}' shadows a built-in type"
       -- Compute namespace offset (#1730, Axis 4 Step 4b): when `storage_namespace`
       -- is present, every user-declared slot N becomes (namespaceBase + N).
       let namespaceOffset : Nat :=
@@ -3999,6 +4058,7 @@ def parseContractSyntax
       pure
         ( contractName
         , parsedNewtypes
+        , parsedAdts
         , parsedFields
         , parsedErrors
         , parsedConstants
