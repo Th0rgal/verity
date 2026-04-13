@@ -813,23 +813,21 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
     simp [evmModulus, Verity.Core.UINT256_MODULUS]
   have hmb : b % evmModulus % Verity.Core.UINT256_MODULUS = b % evmModulus := by
     simp [evmModulus, Verity.Core.UINT256_MODULUS]
-  -- Unfold both sides; use EvmYul.UInt256.size (not 2^256) to avoid simp
-  -- computing Nat.pow to a literal that mismatches by_cases hypotheses.
+  -- Unfold both sides completely.  After simp, Fin.ofNat computes 2^256
+  -- to the decimal literal matching EvmYul.UInt256.size.  We include
+  -- evmModulus so the ↑evmModulus Int coercion also reduces.
   simp only [Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
     Verity.Core.UINT256_MODULUS, evmModulus, hma, hmb,
     EvmYul.UInt256.sltBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
     Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_lt_val, Fin.val]
-  -- After simp, everything uses the literal UInt256.size value.
-  -- Use the literal in by_cases to match the goal terms exactly.
+  -- Case-split on sign bits; use EvmYul.UInt256.size to match goal literals.
   by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
   by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
-  all_goals simp_all [EvmYul.UInt256.size]
-  all_goals (try (have : a % EvmYul.UInt256.size < EvmYul.UInt256.size :=
-    Nat.mod_lt _ (by decide)))
-  all_goals (try (have : b % EvmYul.UInt256.size < EvmYul.UInt256.size :=
-    Nat.mod_lt _ (by decide)))
+  -- simp_all with all modulus-related definitions to unify Int/Nat forms
+  all_goals simp_all [EvmYul.UInt256.size, evmModulus,
+    Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS]
   all_goals omega
 
 set_option maxHeartbeats 4000000 in
@@ -883,23 +881,21 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
     simp [evmModulus, Verity.Core.UINT256_MODULUS]
   have hmb : b % evmModulus % Verity.Core.UINT256_MODULUS = b % evmModulus := by
     simp [evmModulus, Verity.Core.UINT256_MODULUS]
-  -- Unfold both sides; use EvmYul.UInt256.size (not 2^256) to avoid simp
-  -- computing Nat.pow to a literal that mismatches by_cases hypotheses.
+  -- Unfold both sides completely.  After simp, Fin.ofNat computes 2^256
+  -- to the decimal literal matching EvmYul.UInt256.size.  We include
+  -- evmModulus so the ↑evmModulus Int coercion also reduces.
   simp only [Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
     Verity.Core.UINT256_MODULUS, evmModulus, hma, hmb,
     EvmYul.UInt256.sgtBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
     Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_gt_val, uint256_lt_val, Fin.val]
-  -- After simp, everything uses the literal UInt256.size value.
-  -- Use the literal in by_cases to match the goal terms exactly.
+  -- Case-split on sign bits; use EvmYul.UInt256.size to match goal literals.
   by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
   by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
-  all_goals simp_all [EvmYul.UInt256.size]
-  all_goals (try (have : a % EvmYul.UInt256.size < EvmYul.UInt256.size :=
-    Nat.mod_lt _ (by decide)))
-  all_goals (try (have : b % EvmYul.UInt256.size < EvmYul.UInt256.size :=
-    Nat.mod_lt _ (by decide)))
+  -- simp_all with all modulus-related definitions to unify Int/Nat forms
+  all_goals simp_all [EvmYul.UInt256.size, evmModulus,
+    Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS]
   all_goals omega
 
 set_option maxHeartbeats 4000000 in
