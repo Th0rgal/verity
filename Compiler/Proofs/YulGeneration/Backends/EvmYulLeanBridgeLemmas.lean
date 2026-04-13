@@ -833,12 +833,9 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
   -- Case-split on sign bits.
   by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
   by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
-  -- Use simp_all only to prevent @[simp] Int.ofNat_emod from
-  -- rewriting ↑(a % M) back to ↑a % ↑M (which breaks omega).
-  all_goals simp_all only [EvmYul.UInt256.size, Int.ofNat_lt, not_lt,
-    ite_true, ite_false, ite_not, decide_true, decide_false,
-    Bool.true_and, Bool.false_and, Bool.true_or, Bool.false_or,
-    ge_iff_le, not_le, Int.ofNat_le, Int.ofNat_nonneg]
+  -- Disable @[simp] Int.ofNat_emod which rewrites ↑(a % M) → ↑a % ↑M,
+  -- undoing the int_natCast_emod bridge and breaking omega.
+  all_goals simp_all [-Int.ofNat_emod, EvmYul.UInt256.size, Int.ofNat_lt, not_lt]
   all_goals omega
 
 set_option maxHeartbeats 4000000 in
@@ -905,12 +902,9 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
   -- Case-split on sign bits.
   by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
   by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
-  -- Use simp_all only to prevent @[simp] Int.ofNat_emod from
-  -- rewriting ↑(a % M) back to ↑a % ↑M (which breaks omega).
-  all_goals simp_all only [EvmYul.UInt256.size, Int.ofNat_lt, not_lt,
-    ite_true, ite_false, ite_not, decide_true, decide_false,
-    Bool.true_and, Bool.false_and, Bool.true_or, Bool.false_or,
-    ge_iff_le, not_le, Int.ofNat_le, Int.ofNat_nonneg]
+  -- Disable @[simp] Int.ofNat_emod which rewrites ↑(a % M) → ↑a % ↑M,
+  -- undoing the int_natCast_emod bridge and breaking omega.
+  all_goals simp_all [-Int.ofNat_emod, EvmYul.UInt256.size, Int.ofNat_lt, not_lt]
   all_goals omega
 
 set_option maxHeartbeats 4000000 in
