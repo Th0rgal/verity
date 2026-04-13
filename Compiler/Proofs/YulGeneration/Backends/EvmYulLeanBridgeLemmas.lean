@@ -595,22 +595,18 @@ private theorem bridge_eval_addmod_normalized (a b n : Nat) :
     have hn0 : (EvmYul.UInt256.ofNat n).val ≠ 0 := by
       intro hc; exact hn (congrArg Fin.val hc)
     have heq0 := eq0_false_of_val_ne_zero _ hn0
-    -- Unfold addMod and substitute eq0 result
     simp only [EvmYul.UInt256.addMod, heq0]
-    -- Goal has `if false = true then ... else ofNat (Nat.mod ...)`.
-    -- Reduce the if-then-else and normalize all UInt256 operations
     have hft : ¬(false = true) := by decide
     simp only [if_neg hft]
-    -- Now goal is: some (toNat (ofNat (Nat.mod (...)))) = some (... % ...)
-    -- Use full simp to normalize Fin/Nat operations, then close with mod bound
-    suffices h : ((a % EvmYul.UInt256.size) + (b % EvmYul.UInt256.size)) %
+    simp [EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat, Id.run, hn]
+    -- Goal has Nat.mod (.mod) and HMod.hMod (%) which are definitionally equal.
+    -- Use change to normalize to % notation so Nat.mod_eq_of_lt can match.
+    change (a % EvmYul.UInt256.size + b % EvmYul.UInt256.size) %
         (n % EvmYul.UInt256.size) % EvmYul.UInt256.size =
-        ((a % EvmYul.UInt256.size) + (b % EvmYul.UInt256.size)) %
-        (n % EvmYul.UInt256.size) by
-      simp [EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat, Id.run, hn, h]
+      (a % EvmYul.UInt256.size + b % EvmYul.UInt256.size) % (n % EvmYul.UInt256.size)
     exact Nat.mod_eq_of_lt (Nat.lt_of_lt_of_le (Nat.mod_lt _
       (Nat.pos_of_ne_zero hn)) (Nat.le_of_lt (Nat.mod_lt n
-      (by simp [EvmYul.UInt256.size]))))
+      (by omega))))
 
 private theorem verity_eval_mulmod_normalized
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b n : Nat) :
@@ -632,17 +628,13 @@ private theorem bridge_eval_mulmod_normalized (a b n : Nat) :
   · have hn0 : (EvmYul.UInt256.ofNat n).val ≠ 0 := by
       intro hc; exact hn (congrArg Fin.val hc)
     have heq0 := eq0_false_of_val_ne_zero _ hn0
-    -- Unfold mulMod and substitute eq0 result
-    simp only [EvmYul.UInt256.mulMod, heq0]
-    -- Reduce the if-then-else and normalize all UInt256 operations
-    have hft : ¬(false = true) := by decide
-    simp only [if_neg hft]
-    -- Now goal is: some (toNat (ofNat (Nat.mod (...)))) = some (... % ...)
-    suffices h : ((a % EvmYul.UInt256.size) * (b % EvmYul.UInt256.size)) %
-        (n % EvmYul.UInt256.size) % EvmYul.UInt256.size =
-        ((a % EvmYul.UInt256.size) * (b % EvmYul.UInt256.size)) %
-        (n % EvmYul.UInt256.size) by
-      simp [EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat, Id.run, hn, h]
+    -- Compute mulMod in the non-zero case (following the mod proof pattern)
+    rw [show EvmYul.UInt256.mulMod (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b)
+          (EvmYul.UInt256.ofNat n) =
+        EvmYul.UInt256.ofNat (Nat.mod ((EvmYul.UInt256.ofNat a).val * (EvmYul.UInt256.ofNat b).val)
+          (EvmYul.UInt256.ofNat n).toNat) from by
+      simp [EvmYul.UInt256.mulMod, heq0]]
+    simp [hn, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat, Id.run]
     exact Nat.mod_eq_of_lt (Nat.lt_of_lt_of_le (Nat.mod_lt _
       (Nat.pos_of_ne_zero hn)) (Nat.le_of_lt (Nat.mod_lt n
       (by simp [EvmYul.UInt256.size]))))
