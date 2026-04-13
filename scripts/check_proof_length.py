@@ -238,9 +238,6 @@ ALLOWLIST: set[str] = {
     "safeDiv_result_le_numerator",
     # --- EVMYulLean bridge proofs (multi-layer UInt256→Fin→Nat reduction) ---
     "bridge_eval_byte_normalized",
-    # 4-case sign-bit analysis for two's complement signed comparison
-    "verity_slt_eq_evmyullean_sltBool",
-    "verity_sgt_eq_evmyullean_sgtBool",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
