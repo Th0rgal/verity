@@ -555,38 +555,53 @@ private theorem verity_eval_addmod_normalized
       (if n % evmModulus = 0 then some 0 else some (((a % evmModulus) + (b % evmModulus)) % (n % evmModulus))) := by
   simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
-private theorem eq0_true_of_mod_zero (n : Nat) (hn : n % EvmYul.UInt256.size = 0) :
-    EvmYul.UInt256.eq0 (EvmYul.UInt256.ofNat n) = true := by
-  have h0 : EvmYul.UInt256.ofNat n = ⟨0⟩ := by
-    ext; exact Fin.ext hn
-  simp [EvmYul.UInt256.eq0, h0]
+private theorem eq0_true_of_val_eq_zero (x : EvmYul.UInt256) (h : x.val = 0) :
+    EvmYul.UInt256.eq0 x = true := by
+  have hx : x = ⟨0⟩ := by cases x; exact congrArg EvmYul.UInt256.mk h
+  subst hx; decide
 
-private theorem eq0_false_of_mod_ne_zero (n : Nat) (hn : ¬ n % EvmYul.UInt256.size = 0) :
-    EvmYul.UInt256.eq0 (EvmYul.UInt256.ofNat n) = false := by
-  -- By contradiction: if eq0 were true, then ofNat n = ⟨0⟩, so n%S = 0
-  cases h : EvmYul.UInt256.eq0 (EvmYul.UInt256.ofNat n)
-  · rfl
-  · -- eq0 = true means (ofNat n == ⟨0⟩) = true
-    exfalso
-    simp [EvmYul.UInt256.eq0] at h
-    exact hn (congrArg (fun u => u.val.val) h)
+private theorem eq0_false_of_val_ne_zero (x : EvmYul.UInt256) (h : x.val ≠ 0) :
+    EvmYul.UInt256.eq0 x = false := by
+  cases hb : EvmYul.UInt256.eq0 x with
+  | false => rfl
+  | true =>
+    exfalso; apply h
+    -- From hb we know eq0 x = true, i.e., x == ⟨0⟩ = true
+    -- We need to show x.val = 0
+    -- Prove x = ⟨0⟩ first, then extract .val
+    -- Use the fact that eq0 ⟨v⟩ = true implies ⟨v⟩ = ⟨0⟩ for the specific val
+    -- Since we can't unfold derived BEq easily, use native_decide on the contrapositive:
+    -- If x.val ≠ 0 then eq0 x = false. We have eq0 x = true. Contradiction.
+    -- But this is circular. Instead, unfold eq0 step by step.
+    -- eq0 x = (x == ⟨0⟩). The BEq instance for UInt256 (derived) compares .val.
+    -- So (x == ⟨0⟩) = (x.val == 0) at the Fin level.
+    -- And Fin's BEq compares .val at Nat level.
+    -- So (x == ⟨0⟩) = true implies x.val.val = 0, hence x.val = 0.
+    change EvmYul.UInt256.val x = (0 : Fin EvmYul.UInt256.size)
+    simp only [EvmYul.UInt256.eq0] at hb
+    -- hb : (x == ⟨0⟩) = true where == is BEq UInt256
+    -- After destructuring x, the BEq should compute
+    obtain ⟨v⟩ := x
+    simp_all
 
 private theorem bridge_eval_addmod_normalized (a b n : Nat) :
     evalPureBuiltinViaEvmYulLean "addmod" [a, b, n] =
       (if n % EvmYul.UInt256.size = 0 then some 0 else
         some (((a % EvmYul.UInt256.size) + (b % EvmYul.UInt256.size)) % (n % EvmYul.UInt256.size))) := by
-  change some (EvmYul.UInt256.toNat (EvmYul.UInt256.addMod (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b) (EvmYul.UInt256.ofNat n))) = _
+  change some (EvmYul.UInt256.toNat (EvmYul.UInt256.addMod
+      (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b) (EvmYul.UInt256.ofNat n))) = _
   by_cases hn : n % EvmYul.UInt256.size = 0
-  · -- n ≡ 0 (mod size): ofNat n = ⟨0⟩, eq0 succeeds, result is 0
-    have h0 : EvmYul.UInt256.ofNat n = ⟨0⟩ := by
-      ext; exact Fin.ext hn
-    simp [hn, EvmYul.UInt256.addMod, h0, EvmYul.UInt256.eq0, EvmYul.UInt256.toNat]
+  · -- n ≡ 0 (mod size): eq0 succeeds, result is 0
+    have hn0 : (EvmYul.UInt256.ofNat n).val = 0 := Fin.ext hn
+    have heq0 := eq0_true_of_val_eq_zero _ hn0
+    simp only [EvmYul.UInt256.addMod, heq0, ite_true]
+    simp [hn, EvmYul.UInt256.toNat]
   · -- n ≢ 0 (mod size): eq0 fails, compute the modular sum
-    have heq0 := eq0_false_of_mod_ne_zero n hn
-    simp only [hn, ite_false, EvmYul.UInt256.addMod, heq0, EvmYul.UInt256.toNat,
-      EvmYul.UInt256.ofNat, Id.run]
-    -- Goal: ((a % S + b % S) % (n % S)) % S = (a % S + b % S) % (n % S)
-    congr 1
+    have hn0 : (EvmYul.UInt256.ofNat n).val ≠ 0 := by
+      intro hc; exact hn (congrArg Fin.val hc)
+    have heq0 := eq0_false_of_val_ne_zero _ hn0
+    simp only [EvmYul.UInt256.addMod, heq0, ite_false]
+    simp [hn, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat, Id.run]
     rw [Nat.mod_eq_of_lt]
     exact Nat.lt_of_lt_of_le (Nat.mod_lt _ (Nat.pos_of_ne_zero hn))
       (Nat.le_of_lt (Nat.mod_lt n (by simp [EvmYul.UInt256.size])))
@@ -597,25 +612,24 @@ private theorem verity_eval_mulmod_normalized
       (if n % evmModulus = 0 then some 0 else some (((a % evmModulus) * (b % evmModulus)) % (n % evmModulus))) := by
   simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
-private theorem mulMod_toNat (a b n : Nat) :
-    EvmYul.UInt256.toNat (EvmYul.UInt256.mulMod (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b) (EvmYul.UInt256.ofNat n)) =
-      if n % EvmYul.UInt256.size = 0 then 0 else
-        ((a % EvmYul.UInt256.size) * (b % EvmYul.UInt256.size)) % (n % EvmYul.UInt256.size) := by
-  simp only [EvmYul.UInt256.mulMod, eq0_ofNat]
-  by_cases hn : n % EvmYul.UInt256.size = 0
-  · simp [hn, EvmYul.UInt256.toNat]
-  · simp [hn, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat, Id.run]
-    rw [Nat.mod_eq_of_lt]
-    exact Nat.lt_of_lt_of_le (Nat.mod_lt _ (Nat.pos_of_ne_zero hn))
-      (Nat.le_of_lt (Nat.mod_lt n (by simp [EvmYul.UInt256.size])))
-
 private theorem bridge_eval_mulmod_normalized (a b n : Nat) :
     evalPureBuiltinViaEvmYulLean "mulmod" [a, b, n] =
       (if n % EvmYul.UInt256.size = 0 then some 0 else
         some (((a % EvmYul.UInt256.size) * (b % EvmYul.UInt256.size)) % (n % EvmYul.UInt256.size))) := by
-  show some (EvmYul.UInt256.toNat (EvmYul.UInt256.mulMod (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b) (EvmYul.UInt256.ofNat n))) = _
-  rw [mulMod_toNat]
-  split <;> simp_all
+  change some (EvmYul.UInt256.toNat (EvmYul.UInt256.mulMod
+      (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b) (EvmYul.UInt256.ofNat n))) = _
+  by_cases hn : n % EvmYul.UInt256.size = 0
+  · have hn0 : (EvmYul.UInt256.ofNat n).val = 0 := Fin.ext hn
+    have heq0 := eq0_true_of_val_eq_zero _ hn0
+    simp [hn, EvmYul.UInt256.mulMod, heq0, EvmYul.UInt256.toNat]
+  · have hn0 : (EvmYul.UInt256.ofNat n).val ≠ 0 := by
+      intro hc; exact hn (congrArg Fin.val hc)
+    have heq0 := eq0_false_of_val_ne_zero _ hn0
+    simp [hn, EvmYul.UInt256.mulMod, heq0, EvmYul.UInt256.toNat,
+      EvmYul.UInt256.ofNat, Id.run]
+    rw [Nat.mod_eq_of_lt]
+    exact Nat.lt_of_lt_of_le (Nat.mod_lt _ (Nat.pos_of_ne_zero hn))
+      (Nat.le_of_lt (Nat.mod_lt n (by simp [EvmYul.UInt256.size])))
 
 /-- Universal bridge theorem for `addmod`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/

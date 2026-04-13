@@ -2117,11 +2117,10 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_shl_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_shr_bridge
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_addmod_normalized  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.eq0_true_of_mod_zero  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.eq0_false_of_mod_ne_zero  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.eq0_true_of_val_eq_zero  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.eq0_false_of_val_ne_zero  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_addmod_normalized  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_mulmod_normalized  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.mulMod_toNat  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_mulmod_normalized  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_addmod_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_mulmod_bridge
@@ -2166,4 +2165,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 2014 theorems/lemmas (1356 public, 657 private, 1 sorry'd)
+-- Total: 2013 theorems/lemmas (1356 public, 656 private, 1 sorry'd)
