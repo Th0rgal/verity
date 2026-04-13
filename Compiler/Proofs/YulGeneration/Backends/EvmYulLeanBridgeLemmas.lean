@@ -820,10 +820,8 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
   simp only [Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
-    Verity.Core.UINT256_MODULUS, hma, hmb]
-  -- Unfold sltBool. Use `show EvmYul.UInt256.size = 2 ^ 256 from rfl` instead of
-  -- bare `EvmYul.UInt256.size` so the modulus is `2 ^ 256` (matching Verity's side),
-  -- not the literal decimal that `EvmYul.UInt256.size` unfolds to.
+    Verity.Core.UINT256_MODULUS, evmModulus, hma, hmb]
+  -- Unfold sltBool; normalize UInt256.size to 2^256 to match Verity's side
   simp only [EvmYul.UInt256.sltBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
     Id.run, Fin.ofNat, show EvmYul.UInt256.size = 2 ^ 256 from rfl,
     uint256_lt_val, Fin.val]
@@ -832,7 +830,7 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
   all_goals simp_all
   all_goals (try (have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)))
   all_goals (try (have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)))
-  -- After simp_all, remaining if-then-else needs split before omega
+  -- After simp_all reduces if-then-else, split any remaining ite and close with omega
   all_goals (first | omega | (split <;> omega))
 
 set_option maxHeartbeats 4000000 in
@@ -889,8 +887,8 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
   simp only [Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
-    Verity.Core.UINT256_MODULUS, hma, hmb]
-  -- Unfold sgtBool. Use `show ... = 2 ^ 256 from rfl` to keep modulus as 2^256.
+    Verity.Core.UINT256_MODULUS, evmModulus, hma, hmb]
+  -- Unfold sgtBool; normalize UInt256.size to 2^256 to match Verity's side
   simp only [EvmYul.UInt256.sgtBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
     Id.run, Fin.ofNat, show EvmYul.UInt256.size = 2 ^ 256 from rfl,
     uint256_gt_val, uint256_lt_val, Fin.val]
@@ -899,7 +897,7 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
   all_goals simp_all
   all_goals (try (have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)))
   all_goals (try (have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)))
-  -- After simp_all, remaining if-then-else needs split before omega
+  -- After simp_all reduces if-then-else, split any remaining ite and close with omega
   all_goals (first | omega | (split <;> omega))
 
 set_option maxHeartbeats 4000000 in
