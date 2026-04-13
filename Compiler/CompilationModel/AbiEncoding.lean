@@ -265,6 +265,10 @@ partial def compileUnindexedAbiEncode
       let totalBytes := 32 * (1 + maxFields)
       pure (tagStore :: fieldStores, YulExpr.lit totalBytes)
 
+  | ParamType.newtypeOf _ baseType =>
+      -- Newtypes erased to base type (#1727 Step 3b)
+      compileUnindexedAbiEncode dynamicSource baseType srcBase dstBase stem
+
 def revertWithCustomError (dynamicSource : DynamicDataSource)
     (errorDef : ErrorDef) (sourceArgs : List Expr) (args : List YulExpr) :
     Except String (List YulStmt) := do
@@ -297,6 +301,10 @@ def revertWithCustomError (dynamicSource : DynamicDataSource)
     | ParamType.uint256 | ParamType.int256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32
     | ParamType.adt _ _ =>
         let encoded ← encodeStaticCustomErrorArg errorDef.name ty argExpr
+        pure [YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit headOffset, encoded])]
+    | ParamType.newtypeOf _ baseType =>
+        -- Newtypes erased to base type (#1727 Step 3b)
+        let encoded ← encodeStaticCustomErrorArg errorDef.name baseType argExpr
         pure [YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit headOffset, encoded])]
     | ParamType.tuple _ | ParamType.fixedArray _ _ =>
         match srcExpr with

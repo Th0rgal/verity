@@ -59,13 +59,13 @@ SAFE BY DEFAULT (compiler enforces)
 
 | Step | Feature | Effort | Detail |
 |---|---|---|---|
-| 3a | `types` section in grammar | 1 week | Add to `Macro/Syntax.lean`; parse `TypeName : BaseType` entries |
-| 3b | `ParamType.newtypeOf` | 1 week | Extend `ParamType` inductive; update `valueTypeFromSyntax` to resolve user-defined types |
-| 3c | Type checking + Yul erasure | 1 week | Reject mismatched newtype operations at elaboration; compile to base type (zero overhead) |
+| 3a | `types` section in grammar | 1 week | Add to `Macro/Syntax.lean`; parse `TypeName : BaseType` entries — **done** (dc4b40d2) |
+| 3b | `ParamType.newtypeOf` + `ValueType.newtype` | 1 week | Extend `ParamType` inductive with `newtypeOf` constructor; add `ValueType.newtype`; wire through all exhaustive pattern matches across 11 files — **done** |
+| 3c | Type checking + Yul erasure | 1 week | Newtypes erased to base type at every Yul boundary (zero overhead); `#check_contract NewtypeSmoke` passes — **done** |
 
-**Key insight from research**: `ParamType` is a closed inductive with 11 variants and `valueTypeFromSyntax` only accepts fixed identifiers. Custom types cannot be done at contract level today — this is a necessary language change.
+**Key insight from research**: `ParamType` is a closed inductive with 13 variants (including `adt` and `newtypeOf`) and `valueTypeFromSyntax` resolves user-defined type names via `NewtypeDecl` lookup. The `newtypeOf` constructor is erased to `baseType` at every compilation boundary.
 
-**Files touched**: `Macro/Syntax.lean`, `CompilationModel/Types.lean`, `Macro/Translate.lean`, `Macro/Elaborate.lean`, `CompilationModel/Compile.lean`
+**Files touched**: `CompilationModel/Types.lean`, `CompilationModel/AbiTypeLayout.lean`, `CompilationModel/AbiHelpers.lean`, `CompilationModel/AbiEncoding.lean`, `CompilationModel/ParamLoading.lean`, `CompilationModel/EventAbiHelpers.lean`, `CompilationModel/ScopeValidation.lean`, `CompilationModel/ValidationCalls.lean`, `Compiler/ABI.lean`, `Compiler/TypedIRCompiler.lean`, `Verity/Macro/Translate.lean`
 **Estimated total**: 2–3 weeks
 
 ### Phase 4: Namespaced Storage (Axis 4, #1730)

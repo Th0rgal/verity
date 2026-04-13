@@ -30,6 +30,7 @@ inductive ValueType where
   | array (elemTy : ValueType)
   | tuple (elemTys : List ValueType)
   | unit
+  | newtype (name : String) (baseType : ValueType)  -- Semantic newtype; erased to baseType (#1727 Steps 3b/3c)
   deriving Repr, BEq
 
 inductive MappingKeyType where
@@ -226,10 +227,10 @@ private partial def valueTypeFromSyntax (newtypes : Array NewtypeDecl) (ty : Ter
       pure (.tuple elems.toList)
   | `(term| Unit) => pure .unit
   | `(term| $id:ident) =>
-      -- Try resolving as a user-defined newtype (#1727, Axis 1 Step 3a)
+      -- Try resolving as a user-defined newtype (#1727, Axis 1 Steps 3a/3b)
       let tyName := toString id.getId
       match newtypes.find? (fun nt => nt.name == tyName) with
-      | some nt => pure nt.baseType
+      | some nt => pure (.newtype nt.name nt.baseType)
       | none => throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Int256, Uint8, Address, Bytes32, Bool, String, Bytes, Array <type>, Tuple [...], Unit, or a user-defined type from the `types` section"
   | _ =>
       throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Int256, Uint8, Address, Bytes32, Bool, String, Bytes, Array <type>, Tuple [...], Unit, or a user-defined type from the `types` section"
@@ -338,6 +339,7 @@ private def modelFieldTypeTerm (ty : StorageType) : CommandElabM Term :=
   | .scalar (.array _) => throwError "storage fields cannot be Array; use mapping encodings"
   | .scalar (.tuple _) => throwError "storage fields cannot be Tuple; use mapping encodings"
   | .scalar .unit => throwError "storage fields cannot be Unit"
+  | .scalar (.newtype _ baseType) => modelFieldTypeTerm (.scalar baseType)  -- Erased to base type
   | .dynamicArray .uint256 => `(Compiler.CompilationModel.FieldType.dynamicArray Compiler.CompilationModel.StorageArrayElemType.uint256)
   | .dynamicArray .address => `(Compiler.CompilationModel.FieldType.dynamicArray Compiler.CompilationModel.StorageArrayElemType.address)
   | .dynamicArray .bool => `(Compiler.CompilationModel.FieldType.dynamicArray Compiler.CompilationModel.StorageArrayElemType.bool)
@@ -384,6 +386,9 @@ private partial def modelParamTypeTerm (ty : ValueType) : CommandElabM Term :=
       let elemTerms ← elemTys.mapM modelParamTypeTerm
       `(Compiler.CompilationModel.ParamType.tuple [ $[$elemTerms.toArray],* ])
   | .unit => throwError "function parameters cannot be Unit"
+  | .newtype name baseType => do
+      let baseTerm ← modelParamTypeTerm baseType
+      `(Compiler.CompilationModel.ParamType.newtypeOf $(Lean.quote name) $baseTerm)
 
 private def modelReturnTypeTerm (ty : ValueType) : CommandElabM Term :=
   match ty with
@@ -398,6 +403,7 @@ private def modelReturnTypeTerm (ty : ValueType) : CommandElabM Term :=
   | .bytes => `(none)
   | .array _ => `(none)
   | .tuple _ => `(none)
+  | .newtype _ baseType => modelReturnTypeTerm baseType
 
 private partial def modelReturnsTerm (ty : ValueType) : CommandElabM Term :=
   match ty with
@@ -415,6 +421,9 @@ private partial def modelReturnsTerm (ty : ValueType) : CommandElabM Term :=
   | .tuple elemTys => do
       let elemTerms ← elemTys.mapM modelParamTypeTerm
       `([ $[$elemTerms.toArray],* ])
+  | .newtype name baseType => do
+      let baseTerm ← modelParamTypeTerm baseType
+      `([Compiler.CompilationModel.ParamType.newtypeOf $(Lean.quote name) $baseTerm])
 
 mutual
 private partial def mkTupleContractType (elemTys : List ValueType) : CommandElabM Term := do
@@ -439,6 +448,7 @@ private partial def contractValueTypeTerm (ty : ValueType) : CommandElabM Term :
       `(Array $(← contractValueTypeTerm elemTy))
   | .tuple elemTys => mkTupleContractType elemTys
   | .unit => `(Unit)
+  | .newtype _ baseType => contractValueTypeTerm baseType  -- Erased to base type at contract level
 end
 
 private def parseStorageField (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM StorageFieldDecl := do
@@ -802,6 +812,7 @@ private def validateImmutableBodyType
 
 private def externalExecutableWordType? : ValueType → Bool
   | .uint256 | .int256 | .uint8 | .address | .bytes32 | .bool => true
+  | .newtype _ baseType => externalExecutableWordType? baseType
   | _ => false
 
 private def validateExternalExecutableType
@@ -1123,14 +1134,17 @@ private def typedLocalNames (locals : Array TypedLocal) : Array String :=
 
 private def isSignedWordValueType : ValueType → Bool
   | .int256 => true
+  | .newtype _ baseType => isSignedWordValueType baseType
   | _ => false
 
 private def isWordLikeValueType : ValueType → Bool
   | .uint256 | .int256 | .uint8 | .address | .bytes32 => true
+  | .newtype _ baseType => isWordLikeValueType baseType
   | _ => false
 
 private def isSingleWordStaticValueType : ValueType → Bool
   | .bool => true
+  | .newtype _ baseType => isSingleWordStaticValueType baseType
   | ty => isWordLikeValueType ty
 
 private def classifyWordArithmeticResultType
@@ -1329,6 +1343,7 @@ private def requireDeclaredValueType
 private partial def localBindingUsesDynamicData : ValueType → Bool
   | .string | .bytes | .array _ => true
   | .tuple elemTys => elemTys.any localBindingUsesDynamicData
+  | .newtype _ baseType => localBindingUsesDynamicData baseType
   | .uint256 | .int256 | .uint8 | .address | .bytes32 | .bool | .unit => false
 
 private def requireSupportedLocalBindingType
@@ -1341,6 +1356,7 @@ private def requireSupportedLocalBindingType
 
 private def customErrorRequiresDirectParamRef : ValueType → Bool
   | .uint256 | .int256 | .uint8 | .address | .bool | .bytes32 => false
+  | .newtype _ baseType => customErrorRequiresDirectParamRef baseType
   | _ => true
 
 private def directParamRefName? (stx : Term) : Option String :=
@@ -1643,6 +1659,8 @@ private partial def inferBindSourceType
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
       | .scalar .uint256 => pure .uint256
+      | .scalar (.newtype ntName (.uint256)) => pure (.newtype ntName .uint256)
+      | .scalar (.newtype _ (.address)) => throwErrorAt rhs s!"field '{f.name}' is Address-based newtype; use getStorageAddr"
       | .scalar .address => throwErrorAt rhs s!"field '{f.name}' is Address; use getStorageAddr"
       | .scalar .bool => throwErrorAt rhs s!"field '{f.name}' is Bool; encode as Uint256 and use getStorage"
       | .dynamicArray _ => throwErrorAt rhs s!"field '{f.name}' is a storage dynamic array; use getStorageArrayLength/getStorageArrayElement"
@@ -1653,6 +1671,8 @@ private partial def inferBindSourceType
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
       | .scalar .address => pure .address
+      | .scalar (.newtype ntName (.address)) => pure (.newtype ntName .address)
+      | .scalar (.newtype _ (.uint256)) => throwErrorAt rhs s!"field '{f.name}' is Uint256-based newtype; use getStorage"
       | .scalar .uint256 => throwErrorAt rhs s!"field '{f.name}' is Uint256; use getStorage"
       | .scalar .bool => throwErrorAt rhs s!"field '{f.name}' is Bool; use getStorage"
       | .dynamicArray _ => throwErrorAt rhs s!"field '{f.name}' is a storage dynamic array; use getStorageArrayLength/getStorageArrayElement"
@@ -2517,9 +2537,11 @@ private def translateBindSource
   | `(term| getStorage $field:ident) =>
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
-      | .scalar .uint256 => `(Compiler.CompilationModel.Expr.storage $(strTerm f.name))
+      | .scalar .uint256 | .scalar (.newtype _ .uint256) =>
+          `(Compiler.CompilationModel.Expr.storage $(strTerm f.name))
       | .scalar .bool => throwErrorAt rhs s!"field '{f.name}' is Bool; encode as Uint256 and use getStorage"
-      | .scalar .address => throwErrorAt rhs s!"field '{f.name}' is Address; use getStorageAddr"
+      | .scalar .address | .scalar (.newtype _ .address) =>
+          throwErrorAt rhs s!"field '{f.name}' is Address; use getStorageAddr"
       | .scalar .unit => throwErrorAt rhs "invalid field type"
       | .dynamicArray _ => throwErrorAt rhs s!"field '{f.name}' is a storage dynamic array; use getStorageArrayLength/getStorageArrayElement"
       | .mappingStruct _ _ | .mappingStruct2 _ _ _ =>
@@ -2528,8 +2550,10 @@ private def translateBindSource
   | `(term| getStorageAddr $field:ident) =>
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
-      | .scalar .address => `(Compiler.CompilationModel.Expr.storageAddr $(strTerm f.name))
-      | .scalar .uint256 => throwErrorAt rhs s!"field '{f.name}' is Uint256; use getStorage"
+      | .scalar .address | .scalar (.newtype _ .address) =>
+          `(Compiler.CompilationModel.Expr.storageAddr $(strTerm f.name))
+      | .scalar .uint256 | .scalar (.newtype _ .uint256) =>
+          throwErrorAt rhs s!"field '{f.name}' is Uint256; use getStorage"
       | .scalar .bool => throwErrorAt rhs s!"field '{f.name}' is Bool; use getStorage"
       | .scalar .unit => throwErrorAt rhs "invalid field type"
       | .dynamicArray _ => throwErrorAt rhs s!"field '{f.name}' is a storage dynamic array; use getStorageArrayLength/getStorageArrayElement"
@@ -3865,6 +3889,12 @@ private def mkStorageDefCommand (field : StorageFieldDecl) : CommandElabM Cmd :=
     | .scalar (.array _) => throwError "storage field cannot be Array; use mapping encodings"
     | .scalar (.tuple _) => throwError "storage field cannot be Tuple; use mapping encodings"
     | .scalar .unit => throwError "storage field cannot be Unit"
+    | .scalar (.newtype _ baseType) =>
+        -- Newtypes erased to base type for storage (#1727 Step 3b)
+        match baseType with
+        | .uint256 => `(Uint256)
+        | .address => `(Address)
+        | _ => throwError "storage field with newtype base type not supported; use Uint256 or Address"
     | .dynamicArray .uint256 => `(List Uint256)
     | .dynamicArray .address => `(List Address)
     | .dynamicArray .bool => `(List Bool)

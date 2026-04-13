@@ -163,6 +163,7 @@ inductive ParamType
   | fixedArray (elemType : ParamType) (size : Nat)  -- Fixed array: uint256[3]
   | bytes                                  -- Dynamic bytes
   | adt (name : String) (maxFields : Nat)  -- User-defined ADT; maxFields = max variant field count (#1727 Steps 5b/5e)
+  | newtypeOf (name : String) (baseType : ParamType)  -- Semantic newtype; erased to baseType at Yul level (zero overhead) (#1727 Steps 3b/3c)
   deriving Repr, BEq
 
 structure Param where
@@ -184,6 +185,7 @@ def ParamType.toIRType : ParamType → IRType
   | fixedArray _ _ => IRType.uint256
   | bytes => IRType.uint256
   | adt _ _ => IRType.uint256  -- ADTs are represented as storage offsets
+  | newtypeOf _ baseType => baseType.toIRType  -- Erased to base type
 
 def Param.toIRParam (p : Param) : IRParam :=
   { name := p.name, ty := p.ty.toIRType }

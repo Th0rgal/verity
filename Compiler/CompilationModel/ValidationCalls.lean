@@ -540,6 +540,7 @@ def supportedCustomErrorParamType : ParamType → Bool
   | ParamType.fixedArray elemTy _ => supportedCustomErrorParamType elemTy
   | ParamType.tuple elemTys => supportedCustomErrorParamTypes elemTys
   | ParamType.adt _ _ => false
+  | ParamType.newtypeOf _ baseType => supportedCustomErrorParamType baseType
 termination_by ty => sizeOf ty
 decreasing_by
   all_goals simp_wf

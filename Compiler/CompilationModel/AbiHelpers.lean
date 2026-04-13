@@ -59,6 +59,7 @@ mutual
     | ParamType.adt _name maxFields =>
         -- ABI-encoded as static tuple: (uint8, uint256, ..., uint256)
         "(" ++ String.intercalate "," ("uint8" :: List.replicate maxFields "uint256") ++ ")"
+    | ParamType.newtypeOf _ baseType => paramTypeToSolidityString baseType  -- Erased to base type
 
   private def paramTypeListToSolidityStrings : List ParamType → List String
     | [] => []

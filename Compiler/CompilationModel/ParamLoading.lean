@@ -111,6 +111,53 @@ private partial def genStaticTypeLoads
       go elemTys 0 offset
   | _ => []
 
+-- Generate loading stmts for a single param by type. Recurses on ParamType for newtypeOf unwrapping.
+private def genSingleParamLoad
+    (loadWord : YulExpr → YulExpr) (sizeExpr : YulExpr)
+    (headSize : Nat) (baseOffset : Nat) (name : String) (ty : ParamType) (headOffset : Nat) :
+    List YulStmt :=
+  match ty with
+  | ParamType.uint256 | ParamType.int256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 =>
+    genScalarLoad loadWord name ty headOffset
+  | ParamType.tuple elemTypes =>
+    if isDynamicParamType ty then
+      genDynamicParamLoads loadWord sizeExpr headSize baseOffset name ty headOffset
+    else
+      genStaticTypeLoads loadWord name (ParamType.tuple elemTypes) headOffset
+  | ParamType.array _ =>
+    genDynamicParamLoads loadWord sizeExpr headSize baseOffset name ty headOffset
+  | ParamType.fixedArray _ n =>
+    -- Static fixed arrays are decoded inline recursively (including nested tuple members).
+    -- For scalar element arrays we preserve `<name>` as an alias to `<name>_0`.
+    if isDynamicParamType ty then
+      genDynamicParamLoads loadWord sizeExpr headSize baseOffset name ty headOffset
+    else
+      let staticLoads := genStaticTypeLoads loadWord name ty headOffset
+      if n == 0 then staticLoads else
+        let firstAlias := match ty with
+          | ParamType.fixedArray elemTy _ =>
+              if isScalarParamType elemTy then
+                [YulStmt.let_ name (YulExpr.ident s!"{name}_0")]
+              else
+                []
+          | _ => []
+        staticLoads ++ firstAlias
+  | ParamType.bytes | ParamType.string =>
+    genDynamicParamLoads loadWord sizeExpr headSize baseOffset name ty headOffset
+  | ParamType.adt _ maxFields =>
+    -- ADTs: decode (uint8 tag, uint256 field0, ..., uint256 fieldN) from calldata
+    -- Tag word: load first word and mask to uint8
+    let tagLoad := [YulStmt.let_ name (YulExpr.call "and" [
+      loadWord (YulExpr.lit headOffset), YulExpr.lit 255
+    ])]
+    -- Field words: load consecutive 32-byte words
+    let fieldLoads := (List.range maxFields).map fun i =>
+      YulStmt.let_ s!"{name}_f{i}" (loadWord (YulExpr.lit (headOffset + (i + 1) * 32)))
+    tagLoad ++ fieldLoads
+  | ParamType.newtypeOf _ baseType =>
+    -- Newtypes are erased to their base type at Yul level (#1727 Step 3b)
+    genSingleParamLoad loadWord sizeExpr headSize baseOffset name baseType headOffset
+
 def genParamLoadBodyFrom
     (loadWord : YulExpr → YulExpr) (sizeExpr : YulExpr)
     (headSize : Nat) (baseOffset : Nat) (params : List Param) (headOffset : Nat) :
@@ -118,44 +165,7 @@ def genParamLoadBodyFrom
   match params with
   | [] => []
   | param :: rest =>
-      let stmts := match param.ty with
-        | ParamType.uint256 | ParamType.int256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 =>
-          genScalarLoad loadWord param.name param.ty headOffset
-        | ParamType.tuple elemTypes =>
-          if isDynamicParamType param.ty then
-            genDynamicParamLoads loadWord sizeExpr headSize baseOffset param.name param.ty headOffset
-          else
-            genStaticTypeLoads loadWord param.name (ParamType.tuple elemTypes) headOffset
-        | ParamType.array _ =>
-          genDynamicParamLoads loadWord sizeExpr headSize baseOffset param.name param.ty headOffset
-        | ParamType.fixedArray _ n =>
-          -- Static fixed arrays are decoded inline recursively (including nested tuple members).
-          -- For scalar element arrays we preserve `<name>` as an alias to `<name>_0`.
-          if isDynamicParamType param.ty then
-            genDynamicParamLoads loadWord sizeExpr headSize baseOffset param.name param.ty headOffset
-          else
-            let staticLoads := genStaticTypeLoads loadWord param.name param.ty headOffset
-            if n == 0 then staticLoads else
-              let firstAlias := match param.ty with
-                | ParamType.fixedArray elemTy _ =>
-                    if isScalarParamType elemTy then
-                      [YulStmt.let_ param.name (YulExpr.ident s!"{param.name}_0")]
-                    else
-                      []
-                | _ => []
-              staticLoads ++ firstAlias
-        | ParamType.bytes | ParamType.string =>
-          genDynamicParamLoads loadWord sizeExpr headSize baseOffset param.name param.ty headOffset
-        | ParamType.adt _ maxFields =>
-          -- ADTs: decode (uint8 tag, uint256 field0, ..., uint256 fieldN) from calldata
-          -- Tag word: load first word and mask to uint8
-          let tagLoad := [YulStmt.let_ param.name (YulExpr.call "and" [
-            loadWord (YulExpr.lit headOffset), YulExpr.lit 255
-          ])]
-          -- Field words: load consecutive 32-byte words
-          let fieldLoads := (List.range maxFields).map fun i =>
-            YulStmt.let_ s!"{param.name}_f{i}" (loadWord (YulExpr.lit (headOffset + (i + 1) * 32)))
-          tagLoad ++ fieldLoads
+      let stmts := genSingleParamLoad loadWord sizeExpr headSize baseOffset param.name param.ty headOffset
       stmts ++
         genParamLoadBodyFrom loadWord sizeExpr headSize baseOffset rest
           (headOffset + paramHeadSize param.ty)

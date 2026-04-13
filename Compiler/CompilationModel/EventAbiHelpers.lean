@@ -210,5 +210,8 @@ partial def compileIndexedInPlaceEncoding
         YulStmt.expr (YulExpr.call "mstore" [dstOff, dynamicWordLoad dynamicSource srcOff])
       let totalBytes := 32 * (1 + maxFields)
       pure (tagStore :: fieldStores, YulExpr.lit totalBytes)
+  | ParamType.newtypeOf _ baseType =>
+      -- Newtypes erased to base type (#1727 Step 3b)
+      compileIndexedInPlaceEncoding dynamicSource baseType srcBase dstBase stem
 
 end Compiler.CompilationModel

@@ -22,6 +22,8 @@ private def abiTypeString : ParamType → String
   | .tuple _ => "tuple"
   | .array t => abiTypeString t ++ "[]"
   | .fixedArray t n => abiTypeString t ++ "[" ++ toString n ++ "]"
+  | .adt _ _ => "tuple"  -- ADTs are ABI-encoded as static tuples
+  | .newtypeOf _ baseType => abiTypeString baseType  -- Erased to base type
 
 -- Uses `fieldTypeToParamType` from CompilationModel (shared, not duplicated).
 -- Uses `isInteropEntrypointName` from CompilationModel for consistent filtering.
