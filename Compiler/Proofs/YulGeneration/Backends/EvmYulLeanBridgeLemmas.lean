@@ -828,16 +828,12 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
     Verity.Core.UINT256_MODULUS, evmModulus, hma, hmb,
     EvmYul.UInt256.sltBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
     Id.run, Fin.ofNat, uint256_lt_val, Fin.val, int_natCast_emod]
-  -- Phase 2: Now unfold UInt256.size to the literal.
+  -- Phase 2: Unfold UInt256.size to the literal, then split all if-then-else
+  -- branches. split_ifs decomposes both the nested ifs from toInt (sign-bit
+  -- check) and the outer comparison, introducing hypotheses that match the
+  -- literal forms already present in the goal.
   simp only [EvmYul.UInt256.size]
-  -- Case-split on sign bits.
-  by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
-  by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
-  -- Disable @[simp] Int.natCast_emod (which rewrites ↑(a%M) → ↑a % ↑M),
-  -- keeping casts in ↑(a%M) form so omega can bridge Int/Nat.
-  all_goals simp_all [-Int.natCast_emod, EvmYul.UInt256.size, evmModulus,
-    Verity.Core.UINT256_MODULUS, Int.ofNat_lt, not_lt, int_natCast_emod]
-  all_goals omega
+  split_ifs <;> omega
 
 set_option maxHeartbeats 4000000 in
 private theorem verity_eval_slt_normalized
@@ -898,16 +894,12 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
     Verity.Core.UINT256_MODULUS, evmModulus, hma, hmb,
     EvmYul.UInt256.sgtBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
     Id.run, Fin.ofNat, uint256_gt_val, uint256_lt_val, Fin.val, int_natCast_emod]
-  -- Phase 2: Now unfold UInt256.size to the literal.
+  -- Phase 2: Unfold UInt256.size to the literal, then split all if-then-else
+  -- branches. split_ifs decomposes both the nested ifs from toInt (sign-bit
+  -- check) and the outer comparison, introducing hypotheses that match the
+  -- literal forms already present in the goal.
   simp only [EvmYul.UInt256.size]
-  -- Case-split on sign bits.
-  by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
-  by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
-  -- Disable @[simp] Int.natCast_emod (which rewrites ↑(a%M) → ↑a % ↑M),
-  -- keeping casts in ↑(a%M) form so omega can bridge Int/Nat.
-  all_goals simp_all [-Int.natCast_emod, EvmYul.UInt256.size, evmModulus,
-    Verity.Core.UINT256_MODULUS, Int.ofNat_lt, not_lt, int_natCast_emod]
-  all_goals omega
+  split_ifs <;> omega
 
 set_option maxHeartbeats 4000000 in
 private theorem verity_eval_sgt_normalized
