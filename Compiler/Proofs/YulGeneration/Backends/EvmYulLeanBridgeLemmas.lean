@@ -827,21 +827,25 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
     Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_lt_val, Fin.val]
   by_cases ha : a % 2 ^ 256 < 2 ^ 255 <;> by_cases hb : b % 2 ^ 256 < 2 ^ 255
   · -- Both non-negative
-    simp [ha, hb]
+    simp [ha, hb, Nat.not_le_of_lt]
     have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     omega
   · -- a non-negative, b negative
-    simp [ha, hb]
+    have hb' : 2 ^ 255 ≤ b % 2 ^ 256 := Nat.le_of_not_lt hb
+    simp [ha, hb, hb', Nat.not_le_of_lt]
     have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     omega
   · -- a negative, b non-negative
-    simp [ha, hb]
+    have ha' : 2 ^ 255 ≤ a % 2 ^ 256 := Nat.le_of_not_lt ha
+    simp [ha, hb, ha', Nat.not_le_of_lt]
     have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     omega
   · -- Both negative
-    simp [ha, hb]
+    have ha' : 2 ^ 255 ≤ a % 2 ^ 256 := Nat.le_of_not_lt ha
+    have hb' : 2 ^ 255 ≤ b % 2 ^ 256 := Nat.le_of_not_lt hb
+    simp [ha, hb, ha', hb']
     omega
 
 set_option maxHeartbeats 4000000 in
@@ -906,21 +910,25 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
     Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_gt_val, uint256_lt_val, Fin.val]
   by_cases ha : a % 2 ^ 256 < 2 ^ 255 <;> by_cases hb : b % 2 ^ 256 < 2 ^ 255
   · -- Both non-negative
-    simp [ha, hb]
+    simp [ha, hb, Nat.not_le_of_lt]
     have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     omega
   · -- a non-negative, b negative: a > b, so sgt = true
-    simp [ha, hb]
+    have hb' : 2 ^ 255 ≤ b % 2 ^ 256 := Nat.le_of_not_lt hb
+    simp [ha, hb, hb', Nat.not_le_of_lt]
     have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     have : b % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     omega
   · -- a negative, b non-negative: a < b, so sgt = false
-    simp [ha, hb]
+    have ha' : 2 ^ 255 ≤ a % 2 ^ 256 := Nat.le_of_not_lt ha
+    simp [ha, hb, ha', Nat.not_le_of_lt]
     have : a % 2 ^ 256 < 2 ^ 256 := Nat.mod_lt _ (by omega)
     omega
   · -- Both negative
-    simp [ha, hb]
+    have ha' : 2 ^ 255 ≤ a % 2 ^ 256 := Nat.le_of_not_lt ha
+    have hb' : 2 ^ 255 ≤ b % 2 ^ 256 := Nat.le_of_not_lt hb
+    simp [ha, hb, ha', hb']
     omega
 
 set_option maxHeartbeats 4000000 in
