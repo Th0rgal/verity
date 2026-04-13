@@ -583,7 +583,15 @@ private theorem uint256_toNat_ofNat_of_lt (a : Nat) (ha : a < EvmYul.UInt256.siz
     EvmYul.UInt256.toNat (EvmYul.UInt256.ofNat a) = a := by
   rw [uint256_toNat_ofNat, Nat.mod_eq_of_lt ha]
 
-set_option maxHeartbeats 400000 in
+/-- UInt256 `<` reduces to Nat `<` on `.val.val`. -/
+private theorem uint256_lt_iff (a b : EvmYul.UInt256) :
+    (a < b) = (a.val.val < b.val.val) := by rfl
+
+/-- UInt256 `>` reduces to Nat `>` on `.val.val`. -/
+private theorem uint256_gt_iff (a b : EvmYul.UInt256) :
+    (a > b) = (b.val.val < a.val.val) := by rfl
+
+set_option maxHeartbeats 800000 in
 /-- `sltBool` on reduced inputs: unfold to pure Nat case analysis. -/
 private theorem sltBool_ofNat_of_lt (a b : Nat)
     (ha : a < EvmYul.UInt256.size) (hb : b < EvmYul.UInt256.size) :
@@ -595,11 +603,11 @@ private theorem sltBool_ofNat_of_lt (a b : Nat)
   unfold EvmYul.UInt256.sltBool
   rw [uint256_toNat_ofNat_of_lt a ha, uint256_toNat_ofNat_of_lt b hb]
   simp only [ge_iff_le, EvmYul.UInt256.ofNat, Id.run, Fin.ofNat,
-    Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb]
+    Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb, uint256_lt_iff]
   by_cases ha255 : 2 ^ 255 ≤ a <;> by_cases hb255 : 2 ^ 255 ≤ b <;>
     simp_all [decide_eq_true_eq]
 
-set_option maxHeartbeats 400000 in
+set_option maxHeartbeats 800000 in
 /-- `sgtBool` on reduced inputs: unfold to pure Nat case analysis. -/
 private theorem sgtBool_ofNat_of_lt (a b : Nat)
     (ha : a < EvmYul.UInt256.size) (hb : b < EvmYul.UInt256.size) :
@@ -611,7 +619,7 @@ private theorem sgtBool_ofNat_of_lt (a b : Nat)
   unfold EvmYul.UInt256.sgtBool
   rw [uint256_toNat_ofNat_of_lt a ha, uint256_toNat_ofNat_of_lt b hb]
   simp only [ge_iff_le, GT.gt, EvmYul.UInt256.ofNat, Id.run, Fin.ofNat,
-    Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb]
+    Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb, uint256_lt_iff, uint256_gt_iff]
   by_cases ha255 : 2 ^ 255 ≤ a <;> by_cases hb255 : 2 ^ 255 ≤ b <;>
     simp_all [decide_eq_true_eq]
 
