@@ -2117,6 +2117,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_shr_bridge
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_toNat_ofNat  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_toNat_ofNat_of_lt  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_lt_iff  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_gt_iff  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.sltBool_ofNat_of_lt  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.sgtBool_ofNat_of_lt  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.slt_result_equiv  -- private
@@ -2162,4 +2164,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 2013 theorems/lemmas (1353 public, 660 private, 0 sorry'd)
+-- Total: 2015 theorems/lemmas (1353 public, 662 private, 0 sorry'd)
