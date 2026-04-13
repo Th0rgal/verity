@@ -695,7 +695,7 @@ private theorem verity_eval_byte_normalized
        else some ((x % evmModulus / 2 ^ ((31 - i % evmModulus) * 8)) % 256)) := by
   simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
-set_option maxHeartbeats 8000000 in
+set_option maxHeartbeats 16000000 in
 set_option linter.unusedSimpArgs false in
 private theorem bridge_eval_byte_normalized (i x : Nat) :
     evalPureBuiltinViaEvmYulLean "byte" [i, x] =
@@ -703,29 +703,25 @@ private theorem bridge_eval_byte_normalized (i x : Nat) :
        else some ((x % EvmYul.UInt256.size / 2 ^ ((31 - i % EvmYul.UInt256.size) * 8)) % 256)) := by
   change some (EvmYul.UInt256.toNat
       (EvmYul.UInt256.byteAt (EvmYul.UInt256.ofNat i) (EvmYul.UInt256.ofNat x))) = _
-  simp only [EvmYul.UInt256.byteAt]
-  by_cases himod : i % EvmYul.UInt256.size > 31
-  · simp [himod, EvmYul.UInt256.toNat]
-  · simp only [himod, ↓reduceIte]
-    have hile31 : i % EvmYul.UInt256.size ≤ 31 := Nat.not_lt.mp himod
+  by_cases hgt : i % EvmYul.UInt256.size > 31
+  · have hgt' : EvmYul.UInt256.ofNat i > (⟨31⟩ : EvmYul.UInt256) := by
+      show (31 : Fin EvmYul.UInt256.size) < (EvmYul.UInt256.ofNat i).val
+      show (31 : Nat) < i % EvmYul.UInt256.size
+      exact hgt
+    simp [hgt, EvmYul.UInt256.byteAt, hgt', EvmYul.UInt256.toNat]
+  · have hle' : ¬(EvmYul.UInt256.ofNat i > (⟨31⟩ : EvmYul.UInt256)) := by
+      show ¬((31 : Fin EvmYul.UInt256.size) < (EvmYul.UInt256.ofNat i).val)
+      show ¬((31 : Nat) < i % EvmYul.UInt256.size)
+      exact hgt
     have hshift_small : (31 - i % EvmYul.UInt256.size) * 8 < EvmYul.UInt256.size := by
       unfold EvmYul.UInt256.size; omega
     have hguard : ¬ 256 ≤ (EvmYul.UInt256.ofNat
         ((31 - (EvmYul.UInt256.ofNat i).toNat) * 8)).val := by
       change ¬ 256 ≤ ((31 - i % EvmYul.UInt256.size) * 8) % EvmYul.UInt256.size
       rw [Nat.mod_eq_of_lt hshift_small]; omega
-    have hshift_mod : ((31 - i % EvmYul.UInt256.size) * 8) % EvmYul.UInt256.size =
-        (31 - i % EvmYul.UInt256.size) * 8 := Nat.mod_eq_of_lt hshift_small
-    have h0xFF_mod : (0xFF : Nat) % EvmYul.UInt256.size = 0xFF := by
-      unfold EvmYul.UInt256.size; omega
-    have hdiv_mod : x % EvmYul.UInt256.size /
-        2 ^ ((31 - i % EvmYul.UInt256.size) * 8) % EvmYul.UInt256.size =
-        x % EvmYul.UInt256.size / 2 ^ ((31 - i % EvmYul.UInt256.size) * 8) :=
-      Nat.mod_eq_of_lt (Nat.lt_of_le_of_lt (Nat.div_le_self _ _)
-        (Nat.mod_lt _ (by unfold EvmYul.UInt256.size; omega)))
-    simp [EvmYul.UInt256.shiftRight, EvmYul.UInt256.land, EvmYul.UInt256.toNat,
-      EvmYul.UInt256.ofNat, Id.run, hguard, Nat.shiftRight_eq_div_pow,
-      Fin.land, nat_land_0xFF, hshift_mod, h0xFF_mod, hdiv_mod]
+    simp [hgt, EvmYul.UInt256.byteAt, hle', EvmYul.UInt256.shiftRight,
+      EvmYul.UInt256.land, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat, Id.run,
+      hguard, Nat.shiftRight_eq_div_pow, Fin.land, Nat.and_two_pow_sub_one_eq_mod]
 
 /-- Universal bridge theorem for `byte`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
