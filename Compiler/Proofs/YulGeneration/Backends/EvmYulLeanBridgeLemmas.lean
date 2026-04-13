@@ -595,17 +595,18 @@ private theorem bridge_eval_addmod_normalized (a b n : Nat) :
     have hn0 : (EvmYul.UInt256.ofNat n).val ≠ 0 := by
       intro hc; exact hn (congrArg Fin.val hc)
     have heq0 := eq0_false_of_val_ne_zero _ hn0
+    -- Unfold addMod and substitute eq0 result
     simp only [EvmYul.UInt256.addMod, heq0]
-    -- After simp, the goal should be:
-    -- some (x % (n % size) % size) = some (x % (n % size))
-    -- where x = (a % size) + (b % size). Use Nat.mod_eq_of_lt to eliminate outer % size.
-    simp only [hn, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat, Id.run, ite_false]
-    have hns : 0 < n % EvmYul.UInt256.size := Nat.pos_of_ne_zero hn
-    have hlt : ((a % EvmYul.UInt256.size) + (b % EvmYul.UInt256.size)) %
-        (n % EvmYul.UInt256.size) < EvmYul.UInt256.size :=
-      Nat.lt_of_lt_of_le (Nat.mod_lt _ hns)
-        (Nat.le_of_lt (Nat.mod_lt n (by simp [EvmYul.UInt256.size])))
-    rw [Nat.mod_eq_of_lt hlt]
+    -- Goal has `if false = true then ... else ofNat (Nat.mod ...)`.
+    -- Reduce the if-then-else: false = true is decidably false
+    have hft : ¬(false = true) := by decide
+    simp only [if_neg hft, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat, Id.run]
+    -- Now goal has Fin.ofNat and Nat.mod; normalize with full simp
+    simp [hn]
+    -- Goal: (a % S + b % S) % (n % S) % S = (a % S + b % S) % (n % S)
+    exact Nat.mod_eq_of_lt (Nat.lt_of_lt_of_le (Nat.mod_lt _
+      (Nat.pos_of_ne_zero hn)) (Nat.le_of_lt (Nat.mod_lt n
+      (by simp [EvmYul.UInt256.size]))))
 
 private theorem verity_eval_mulmod_normalized
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b n : Nat) :
@@ -627,14 +628,17 @@ private theorem bridge_eval_mulmod_normalized (a b n : Nat) :
   · have hn0 : (EvmYul.UInt256.ofNat n).val ≠ 0 := by
       intro hc; exact hn (congrArg Fin.val hc)
     have heq0 := eq0_false_of_val_ne_zero _ hn0
+    -- Unfold mulMod and substitute eq0 result
     simp only [EvmYul.UInt256.mulMod, heq0]
-    simp only [hn, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat, Id.run, ite_false]
-    have hns : 0 < n % EvmYul.UInt256.size := Nat.pos_of_ne_zero hn
-    have hlt : ((a % EvmYul.UInt256.size) * (b % EvmYul.UInt256.size)) %
-        (n % EvmYul.UInt256.size) < EvmYul.UInt256.size :=
-      Nat.lt_of_lt_of_le (Nat.mod_lt _ hns)
-        (Nat.le_of_lt (Nat.mod_lt n (by simp [EvmYul.UInt256.size])))
-    rw [Nat.mod_eq_of_lt hlt]
+    -- Reduce the if-then-else: false = true is decidably false
+    have hft : ¬(false = true) := by decide
+    simp only [if_neg hft, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat, Id.run]
+    -- Now goal has Fin.ofNat and Nat.mod; normalize with full simp
+    simp [hn]
+    -- Goal: (a % S * (b % S)) % (n % S) % S = (a % S * (b % S)) % (n % S)
+    exact Nat.mod_eq_of_lt (Nat.lt_of_lt_of_le (Nat.mod_lt _
+      (Nat.pos_of_ne_zero hn)) (Nat.le_of_lt (Nat.mod_lt n
+      (by simp [EvmYul.UInt256.size]))))
 
 /-- Universal bridge theorem for `addmod`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
