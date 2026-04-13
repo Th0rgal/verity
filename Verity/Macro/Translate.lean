@@ -3916,12 +3916,25 @@ private def mkFindIdxParamSimpCommands
     cmds := cmds ++ fnCmds
   pure cmds
 
+/-- Convert a big-endian `ByteArray` to a `Nat`, treating byte 0 as most
+    significant.  Used for storage namespace computation (#1730, Axis 4). -/
+private def byteArrayToNatBE (ba : ByteArray) : Nat :=
+  ba.foldl (fun acc byte => acc * 256 + byte.toNat) 0
+
+/-- Compute the storage namespace for a contract.
+    `storageNamespace("Foo") = keccak256("Foo.storage.v0")` as a 256-bit Nat.
+    The result can be used as a base offset so different contracts never collide
+    in the shared 2^256 storage address space.
+    (#1730, Axis 4 Step 4a) -/
+def computeStorageNamespace (contractName : String) : Nat :=
+  byteArrayToNatBE (KeccakEngine.keccak256_str s!"{contractName}.storage.v0")
+
 def parseContractSyntax
     (stx : Syntax)
     : CommandElabM
         (Ident × Array NewtypeDecl × Array StorageFieldDecl × Array ErrorDecl × Array ConstantDecl × Array ImmutableDecl × Array ExternalDecl × Option ConstructorDecl × Array FunctionDecl) := do
   match stx with
-  | `(command| verity_contract $contractName:ident where $[types $[$newtypeDecls:verityNewtype]*]? storage $[$storageFields:verityStorageField]* $[errors $[$errorDecls:verityError]*]? $[constants $[$constantDecls:verityConstant]*]? $[immutables $[$immutableDecls:verityImmutable]*]? $[linked_externals $[$externalDecls:verityExternal]*]? $[$ctor:verityConstructor]? $[$entrypoints:veritySpecialEntrypoint]* $[$functions:verityFunction]*) =>
+  | `(command| verity_contract $contractName:ident where $[types $[$newtypeDecls:verityNewtype]*]? $[storage_namespace%$nsKw]? storage $[$storageFields:verityStorageField]* $[errors $[$errorDecls:verityError]*]? $[constants $[$constantDecls:verityConstant]*]? $[immutables $[$immutableDecls:verityImmutable]*]? $[linked_externals $[$externalDecls:verityExternal]*]? $[$ctor:verityConstructor]? $[$entrypoints:veritySpecialEntrypoint]* $[$functions:verityFunction]*) =>
       -- Parse newtypes first — they are needed by all downstream type resolution
       let parsedNewtypes ←
         match newtypeDecls with
@@ -3938,6 +3951,11 @@ def parseContractSyntax
       for nt in parsedNewtypes do
         if builtinTypeNames.contains nt.name then
           throwErrorAt nt.ident s!"type name '{nt.name}' shadows a built-in type"
+      -- Compute namespace offset (#1730, Axis 4 Step 4b): when `storage_namespace`
+      -- is present, every user-declared slot N becomes (namespaceBase + N).
+      let namespaceOffset : Nat :=
+        if nsKw.isSome then computeStorageNamespace (toString contractName.getId)
+        else 0
       let parsedErrors ←
         match errorDecls with
         | some decls => decls.mapM (parseError parsedNewtypes)
@@ -3954,10 +3972,14 @@ def parseContractSyntax
         match externalDecls with
         | some decls => decls.mapM (parseExternal parsedNewtypes)
         | none => pure #[]
+      -- Apply namespace offset to parsed storage fields (#1730, Axis 4 Step 4b)
+      let parsedFields ← storageFields.mapM (parseStorageField parsedNewtypes)
+      let parsedFields := parsedFields.map fun field =>
+        { field with slotNum := field.slotNum + namespaceOffset }
       pure
         ( contractName
         , parsedNewtypes
-        , (← storageFields.mapM (parseStorageField parsedNewtypes))
+        , parsedFields
         , parsedErrors
         , parsedConstants
         , parsedImmutables
@@ -3975,19 +3997,6 @@ def mkStorageDefCommandPublic (field : StorageFieldDecl) : CommandElabM Cmd :=
 
 def mkConstantDefCommandPublic (constant : ConstantDecl) : CommandElabM Cmd :=
   mkConstantDefCommand constant
-
-/-- Convert a big-endian `ByteArray` to a `Nat`, treating byte 0 as most
-    significant.  Used for storage namespace computation (#1730, Axis 4). -/
-private def byteArrayToNatBE (ba : ByteArray) : Nat :=
-  ba.foldl (fun acc byte => acc * 256 + byte.toNat) 0
-
-/-- Compute the storage namespace for a contract.
-    `storageNamespace("Foo") = keccak256("Foo.storage.v0")` as a 256-bit Nat.
-    The result can be used as a base offset so different contracts never collide
-    in the shared 2^256 storage address space.
-    (#1730, Axis 4 Step 4a) -/
-def computeStorageNamespace (contractName : String) : Nat :=
-  byteArrayToNatBE (KeccakEngine.keccak256_str s!"{contractName}.storage.v0")
 
 /-- Generate a `def storageNamespace : Nat := <keccak-value>` command for
     the current contract.  (#1730, Axis 4 Step 4a) -/

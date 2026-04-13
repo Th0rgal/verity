@@ -60,6 +60,7 @@ syntax "function " verityMutability* ident " (" sepBy(verityParam, ",") ")" (ppS
 syntax (name := verityContractCmd)
   "verity_contract " ident " where "
   ("types " verityNewtype+)?
+  ("storage_namespace ")?
   "storage " verityStorageField*
   ("errors " verityError+)?
   ("constants " verityConstant+)?

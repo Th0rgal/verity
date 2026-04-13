@@ -1821,6 +1821,34 @@ verity_contract NewtypeSmoke where
 example : Contracts.Counter.storageNamespace = Contracts.Counter.storageNamespace := rfl
 example : NewtypeSmoke.storageNamespace = NewtypeSmoke.storageNamespace := rfl
 
+-- Namespaced storage smoke test (#1730, Axis 4 Step 4b).
+-- When `storage_namespace` is present, user-declared slot numbers are offset
+-- by keccak256("{ContractName}.storage.v0") so different contracts never collide.
+verity_contract NamespacedStorageSmoke where
+  storage_namespace
+  storage
+    balance : Uint256 := slot 0
+    owner : Address := slot 1
+
+  constructor (initialOwner : Address) := do
+    setStorageAddr owner initialOwner
+
+  function deposit (amount : Uint256) : Unit := do
+    let current ← getStorage balance
+    setStorage balance (add current amount)
+
+  function getOwner () : Address := do
+    let addr ← getStorageAddr owner
+    return addr
+
+#check_contract NamespacedStorageSmoke
+
+-- Verify that NamespacedStorageSmoke's storage slots differ from
+-- non-namespaced contracts: slot 0 is offset by the namespace base.
+-- The slot values embed the keccak-based namespace offset.
+example : NamespacedStorageSmoke.balance.slot ≠ 0 := by decide
+example : NamespacedStorageSmoke.owner.slot ≠ 1 := by decide
+
 -- CEI violation test: this contract compiles but #check_contract rejects it
 verity_contract CEIViolationRejected where
   storage
