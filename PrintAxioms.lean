@@ -2099,6 +2099,14 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_not_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_shl_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_shr_bridge
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.slt_result_equiv  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_slt_normalized  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_slt_normalized  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_slt_bridge
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.sgt_result_equiv  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_sgt_normalized  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_sgt_normalized  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_sgt_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_add_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_sub_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_mul_bridge
@@ -2114,6 +2122,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_not_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_shl_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_shr_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_slt_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_sgt_bridge
 
 -- Compiler/Proofs/YulGeneration/Builtins.lean
 #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_callvalue_nil

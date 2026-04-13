@@ -8,9 +8,7 @@
   "concrete_bridge_tests": [
     "sar",
     "sdiv",
-    "sgt",
     "signextend",
-    "slt",
     "smod"
   ],
   "concrete_test_count": 96,
@@ -110,8 +108,10 @@
     "mul",
     "not",
     "or",
+    "sgt",
     "shl",
     "shr",
+    "slt",
     "sub",
     "xor"
   ]
