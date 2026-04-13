@@ -2138,6 +2138,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.number_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.caller_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.address_bridge
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.ordering_then_eq  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.UInt256_compare_eq_fin  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.UInt256_eq_of_compare_eq
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256_injective
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.compare_natToUInt256_ne
@@ -2180,4 +2182,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 2028 theorems/lemmas (1369 public, 659 private, 0 sorry'd)
+-- Total: 2030 theorems/lemmas (1369 public, 661 private, 0 sorry'd)
