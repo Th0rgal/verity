@@ -833,7 +833,7 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
   -- check) and the outer comparison, introducing hypotheses that match the
   -- literal forms already present in the goal.
   simp only [EvmYul.UInt256.size]
-  split_ifs <;> omega
+  split_ifs <;> simp_all [evmModulus] <;> omega
 
 set_option maxHeartbeats 4000000 in
 private theorem verity_eval_slt_normalized
@@ -899,7 +899,7 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
   -- check) and the outer comparison, introducing hypotheses that match the
   -- literal forms already present in the goal.
   simp only [EvmYul.UInt256.size]
-  split_ifs <;> omega
+  split_ifs <;> simp_all [evmModulus] <;> omega
 
 set_option maxHeartbeats 4000000 in
 private theorem verity_eval_sgt_normalized
