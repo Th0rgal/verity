@@ -23,6 +23,8 @@ PURE_BUILTINS = [
     "mul",
     "div",
     "mod",
+    "addmod",
+    "mulmod",
     "lt",
     "gt",
     "eq",
@@ -33,6 +35,7 @@ PURE_BUILTINS = [
     "not",
     "shl",
     "shr",
+    "byte",
 ]
 
 
@@ -98,13 +101,14 @@ def expected_snippets(universal: list[str], remaining: list[str]) -> dict[str, l
         if not remaining
         else f"concrete bridge smoke tests for {remaining_codes}"
     )
+    total = len(PURE_BUILTINS)
     arithmetic_summary = (
-        "15/15 pure EVMYulLean-backed builtins have universal bridge lemmas."
+        f"{total}/{total} pure EVMYulLean-backed builtins have universal bridge lemmas."
         if not remaining
         else (
-            f"{count}/15 pure EVMYulLean-backed builtins have universal bridge lemmas; {remaining_codes} still relies on concrete smoke tests."
+            f"{count}/{total} pure EVMYulLean-backed builtins have universal bridge lemmas; {remaining_codes} still relies on concrete smoke tests."
             if len(remaining) == 1
-            else f"{count}/15 pure EVMYulLean-backed builtins have universal bridge lemmas; {plain_code_subject(remaining)} still rely on concrete smoke tests."
+            else f"{count}/{total} pure EVMYulLean-backed builtins have universal bridge lemmas; {plain_code_subject(remaining)} still rely on concrete smoke tests."
         )
     )
     interpreter_remaining = (

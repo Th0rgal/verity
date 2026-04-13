@@ -40,7 +40,7 @@ Wrapping semantics are **proven** (not assumed) across all three verification la
 | EVMYulLean bridge tests | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean` | Regression vectors for the universal pure-builtin bridge lemmas |
 
 The EVMYulLean bridge validates that Verity's `Nat`-modular arithmetic agrees with EVMYulLean's `Fin`-based `UInt256` operations. Current coverage is fully symbolic:
-- universal bridge lemmas for 15 pure builtins: `add`, `sub`, `mul`, `div`, `mod`, `lt`, `gt`, `eq`, `iszero`, `and`, `or`, `xor`, `not`, `shl`, and `shr`
+- universal bridge lemmas for 18 pure builtins: `add`, `sub`, `mul`, `div`, `mod`, `addmod`, `mulmod`, `lt`, `gt`, `eq`, `iszero`, `and`, `or`, `xor`, `not`, `shl`, `shr`, and `byte`
 - concrete bridge smoke tests are no longer needed for any pure builtin
 
 ### Higher-Level Expression Operators
@@ -109,7 +109,7 @@ The arithmetic model is invariant across profiles. See [`docs/SOLIDITY_PARITY_PR
 - **Gas semantics**: proofs establish result correctness, not gas cost or bounded liveness.
 - **Compiler-layer overflow detection**: the compiler does not insert overflow checks. Use EDSL `safeAdd`/`safeSub`/`safeMul` for checked behavior.
 - **Cryptographic primitives**: keccak256 is axiomatized (see [`AXIOMS.md`](../AXIOMS.md)).
-- **Universal bridge equivalence**: 15/15 pure EVMYulLean-backed builtins have universal bridge lemmas. All 8 higher-level expression operators also have proven compilation correctness.
+- **Universal bridge equivalence**: 18/18 pure EVMYulLean-backed builtins have universal bridge lemmas. All 8 higher-level expression operators also have proven compilation correctness.
 
 ## Auditor Checklist
 

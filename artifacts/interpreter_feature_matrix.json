@@ -623,6 +623,18 @@
       "agreement_proved": true
     },
     {
+      "feature": "addmod",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
+      "feature": "mulmod",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
       "feature": "lt",
       "verity_path": "supported",
       "evmyullean_bridge": "supported",
@@ -678,6 +690,12 @@
     },
     {
       "feature": "shr",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
+      "feature": "byte",
       "verity_path": "supported",
       "evmyullean_bridge": "supported",
       "agreement_proved": true

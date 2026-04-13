@@ -28,6 +28,8 @@ class BridgeCoverageSyncTests(unittest.TestCase):
                 @[simp] theorem evalBuiltinCall_mul_bridge := by
                 @[simp] theorem evalBuiltinCall_div_bridge := by
                 @[simp] theorem evalBuiltinCall_mod_bridge := by
+                @[simp] theorem evalBuiltinCall_addmod_bridge := by
+                @[simp] theorem evalBuiltinCall_mulmod_bridge := by
                 @[simp] theorem evalBuiltinCall_lt_bridge := by
                 @[simp] theorem evalBuiltinCall_gt_bridge := by
                 @[simp] theorem evalBuiltinCall_eq_bridge := by
@@ -38,18 +40,19 @@ class BridgeCoverageSyncTests(unittest.TestCase):
                 @[simp] theorem evalBuiltinCall_not_bridge := by
                 @[simp] theorem evalBuiltinCall_shl_bridge := by
                 @[simp] theorem evalBuiltinCall_shr_bridge := by
+                @[simp] theorem evalBuiltinCall_byte_bridge := by
                 """
             ),
             encoding="utf-8",
         )
         (root / "TRUST_ASSUMPTIONS.md").write_text(
-            "15 universal pure bridge theorems are now proven. "
+            "18 universal pure bridge theorems are now proven. "
             "All pure bridge cases are now covered by universal symbolic lemmas.\n",
             encoding="utf-8",
         )
         (root / "AXIOMS.md").write_text(
-            "The EVMYulLean bridge currently has universal equivalence lemmas for 15 of them "
-            "(`add`, `sub`, `mul`, `div`, `mod`, `lt`, `gt`, `eq`, `iszero`, `and`, `or`, `xor`, `not`, `shl`, `shr`) "
+            "The EVMYulLean bridge currently has universal equivalence lemmas for 18 of them "
+            "(`add`, `sub`, `mul`, `div`, `mod`, `addmod`, `mulmod`, `lt`, `gt`, `eq`, `iszero`, `and`, `or`, `xor`, `not`, `shl`, `shr`, `byte`) "
             "with no remaining pure builtins relying only on concrete bridge checks.\n",
             encoding="utf-8",
         )
@@ -58,7 +61,7 @@ class BridgeCoverageSyncTests(unittest.TestCase):
         arithmetic_path.write_text(arithmetic_profile, encoding="utf-8")
         interpreter = root / "docs" / "INTERPRETER_FEATURE_MATRIX.md"
         interpreter.write_text(
-            "15 are discharged by universal symbolic lemmas, and none still require concrete-only regression coverage.\n",
+            "18 are discharged by universal symbolic lemmas, and none still require concrete-only regression coverage.\n",
             encoding="utf-8",
         )
         end_to_end = root / "Compiler" / "Proofs" / "EndToEnd.lean"
@@ -99,14 +102,15 @@ class BridgeCoverageSyncTests(unittest.TestCase):
     def test_matching_bridge_docs_pass(self) -> None:
         rc, output = self._run_check(
             arithmetic_profile=(
-                "universal bridge lemmas for 15 pure builtins: `add`, `sub`, `mul`, `div`, `mod`, "
-                "`lt`, `gt`, `eq`, `iszero`, `and`, `or`, `xor`, `not`, `shl`, and `shr`\n"
+                "universal bridge lemmas for 18 pure builtins: `add`, `sub`, `mul`, `div`, `mod`, "
+                "`addmod`, `mulmod`, `lt`, `gt`, `eq`, `iszero`, `and`, `or`, `xor`, `not`, `shl`, "
+                "`shr`, and `byte`\n"
                 "concrete bridge smoke tests are no longer needed for any pure builtin\n"
-                "15/15 pure EVMYulLean-backed builtins have universal bridge lemmas.\n"
+                "18/18 pure EVMYulLean-backed builtins have universal bridge lemmas.\n"
             )
         )
         self.assertEqual(rc, 0, output)
-        self.assertIn("15/15 pure builtins universally bridged", output)
+        self.assertIn("18/18 pure builtins universally bridged", output)
 
     def test_stale_bridge_docs_fail(self) -> None:
         rc, output = self._run_check(
@@ -131,7 +135,7 @@ class BridgeCoverageSyncTests(unittest.TestCase):
             expected["ARITHMETIC_PROFILE"],
         )
         self.assertIn(
-            "15/15 pure EVMYulLean-backed builtins have universal bridge lemmas.",
+            "18/18 pure EVMYulLean-backed builtins have universal bridge lemmas.",
             expected["ARITHMETIC_PROFILE"],
         )
         self.assertIn(

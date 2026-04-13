@@ -16,6 +16,8 @@ PURE_BUILTINS = [
     "mul",
     "div",
     "mod",
+    "addmod",
+    "mulmod",
     "lt",
     "gt",
     "eq",
@@ -26,6 +28,7 @@ PURE_BUILTINS = [
     "not",
     "shl",
     "shr",
+    "byte",
 ]
 DELEGATED_BUILTINS = [
     "sload",
