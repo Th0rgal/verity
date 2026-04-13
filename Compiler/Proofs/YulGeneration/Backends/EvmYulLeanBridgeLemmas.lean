@@ -833,9 +833,10 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
   -- Case-split on sign bits.
   by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
   by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
-  -- Disable @[simp] Int.ofNat_emod which rewrites ↑(a % M) → ↑a % ↑M,
-  -- undoing the int_natCast_emod bridge and breaking omega.
-  all_goals simp_all [-Int.ofNat_emod, EvmYul.UInt256.size, Int.ofNat_lt, not_lt]
+  -- Disable @[simp] Int.ofNat_emod which rewrites ↑(a % M) → ↑a % ↑M.
+  -- Include evmModulus to ensure hma/hmb residuals are fully unfolded.
+  all_goals simp_all [-Int.ofNat_emod, EvmYul.UInt256.size, evmModulus,
+    Verity.Core.UINT256_MODULUS, Int.ofNat_lt, not_lt, int_natCast_emod]
   all_goals omega
 
 set_option maxHeartbeats 4000000 in
@@ -902,9 +903,10 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
   -- Case-split on sign bits.
   by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
   by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
-  -- Disable @[simp] Int.ofNat_emod which rewrites ↑(a % M) → ↑a % ↑M,
-  -- undoing the int_natCast_emod bridge and breaking omega.
-  all_goals simp_all [-Int.ofNat_emod, EvmYul.UInt256.size, Int.ofNat_lt, not_lt]
+  -- Disable @[simp] Int.ofNat_emod which rewrites ↑(a % M) → ↑a % ↑M.
+  -- Include evmModulus to ensure hma/hmb residuals are fully unfolded.
+  all_goals simp_all [-Int.ofNat_emod, EvmYul.UInt256.size, evmModulus,
+    Verity.Core.UINT256_MODULUS, Int.ofNat_lt, not_lt, int_natCast_emod]
   all_goals omega
 
 set_option maxHeartbeats 4000000 in
