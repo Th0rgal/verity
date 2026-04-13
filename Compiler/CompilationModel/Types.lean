@@ -462,6 +462,10 @@ structure FunctionSpec where
       safety via a machine-checked proof obligation.  CEI enforcement is bypassed
       and a proof obligation is generated.  (#1728, Axis 2 Step 2b) -/
   ceiSafe : Bool := false
+  /-- Storage field name used as access-control role when annotated `requires(field)`.
+      A `require(caller == roleHolder)` check is auto-injected at the start of the
+      function body.  (#1728, Axis 2 Step 2c) -/
+  requiresRole : Option String := none
   /-- Whether this is an internal-only function (not exposed via selector dispatch) -/
   isInternal : Bool := false
   /-- Local proof obligations that isolate unsafe/assembly-shaped trust

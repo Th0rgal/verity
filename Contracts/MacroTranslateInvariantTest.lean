@@ -327,6 +327,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.EffectCompositionSmoke.spec
   , Contracts.Smoke.CEISmoke.spec
   , Contracts.Smoke.CEILadderSmoke.spec
+  , Contracts.Smoke.RolesSmoke.spec
   , Contracts.Smoke.CEIViolationRejected.spec
   ]
 
@@ -412,6 +413,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("EffectCompositionSmoke", ["getCounter()", "increment()", "setOwner(address)", "deposit(uint256)"])
   , ("CEISmoke", ["increment()", "getCounter()", "updateThenCall(uint256)", "callThenUpdate(uint256)"])
   , ("CEILadderSmoke", ["callThenStoreGuarded(uint256)", "callThenStoreProved(uint256)", "storeThenCall(uint256)", "increment()"])
+  , ("RolesSmoke", ["setCounter(uint256)", "getCounter()"])
   , ("CEIViolationRejected", ["callThenStore(uint256)"])
   ]
 
@@ -480,6 +482,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("EffectCompositionSmoke", ["0x8ada066e", "0xd09de08a", "0x13af4035", "0xb6b55f25"])
   , ("CEISmoke", ["0xd09de08a", "0x8ada066e", "0x8c468aed", "0x4955cfdb"])
   , ("CEILadderSmoke", ["0xaf0ac94c", "0xe9ab4836", "0xb6fbe456", "0xd09de08a"])
+  , ("RolesSmoke", ["0x8bb5d9c3", "0x8ada066e"])
   , ("CEIViolationRejected", ["0xe4fccc26"])
   ]
 
@@ -558,6 +561,12 @@ private def checkMutabilitySmoke : IO Unit := do
   let _ := @Contracts.Smoke.CEILadderSmoke.increment_cei_compliant
   -- callThenStoreGuarded does NOT get _cei_compliant (it uses nonreentrant instead)
   -- callThenStoreProved does NOT get _cei_compliant (it uses cei_safe instead)
+
+  -- Verify auto-generated _requires_role theorem (#1728, Axis 2 Step 2c).
+  -- setCounter has requires(admin) → _requires_role theorem
+  let _ := @Contracts.Smoke.RolesSmoke.setCounter_requires_role
+  -- getCounter has no requires → gets normal _cei_compliant
+  let _ := @Contracts.Smoke.RolesSmoke.getCounter_cei_compliant
 
 private def checkSignedBuiltinSmoke : IO Unit := do
   let functions := Contracts.Smoke.SignedBuiltinSmoke.spec.functions

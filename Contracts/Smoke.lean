@@ -1766,6 +1766,24 @@ verity_contract CEILadderSmoke where
     let current ← getStorage counter
     setStorage counter (add current 1)
 
+-- Roles / requires(field) smoke test (#1728, Axis 2 Step 2c)
+verity_contract RolesSmoke where
+  storage
+    admin : Address := slot 0
+    counter : Uint256 := slot 1
+
+  constructor (initialAdmin : Address) := do
+    setStorageAddr admin initialAdmin
+
+  -- requires(admin) auto-injects: require(caller == admin) "Access denied: caller is not admin"
+  function setCounter (value : Uint256) requires(admin) : Unit := do
+    setStorage counter value
+
+  -- Normal function without access control
+  function getCounter () : Uint256 := do
+    let current ← getStorage counter
+    return current
+
 -- CEI violation test: this contract compiles but #check_contract rejects it
 verity_contract CEIViolationRejected where
   storage

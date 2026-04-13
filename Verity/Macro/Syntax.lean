@@ -17,6 +17,7 @@ declare_syntax_cat verityConstructor
 declare_syntax_cat verityMutability
 declare_syntax_cat verityInitGuard
 declare_syntax_cat verityModifies
+declare_syntax_cat verityRequiresRole
 declare_syntax_cat veritySpecialEntrypoint
 declare_syntax_cat verityFunction
 
@@ -39,6 +40,7 @@ syntax "allow_post_interaction_writes" : verityMutability
 syntax "nonreentrant(" ident ")" : verityMutability
 syntax "cei_safe" : verityMutability
 syntax "modifies(" sepBy(ident, ",") ")" : verityModifies
+syntax "requires(" ident ")" : verityRequiresRole
 syntax "initializer(" ident ")" : verityInitGuard
 syntax "reinitializer(" ident ", " num ")" : verityInitGuard
 syntax "ecmCall " term:max ppSpace term:max : term
@@ -51,7 +53,7 @@ syntax "constructor " "(" sepBy(verityParam, ",") ")" (ppSpace verityLocalObliga
 syntax "constructor " "(" sepBy(verityParam, ",") ")" " payable" (ppSpace verityLocalObligations)? " := " term : verityConstructor
 syntax "receive" (ppSpace verityLocalObligations)? " := " term : veritySpecialEntrypoint
 syntax "fallback" (ppSpace verityLocalObligations)? " := " term : veritySpecialEntrypoint
-syntax "function " verityMutability* ident " (" sepBy(verityParam, ",") ")" (ppSpace verityInitGuard)? (ppSpace verityModifies)? (ppSpace verityLocalObligations)? " : " term " := " term : verityFunction
+syntax "function " verityMutability* ident " (" sepBy(verityParam, ",") ")" (ppSpace verityInitGuard)? (ppSpace verityRequiresRole)? (ppSpace verityModifies)? (ppSpace verityLocalObligations)? " : " term " := " term : verityFunction
 
 syntax (name := verityContractCmd)
   "verity_contract " ident " where "

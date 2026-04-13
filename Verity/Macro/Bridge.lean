@@ -102,6 +102,17 @@ def mkCEISafeTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do
         (Compiler.CompilationModel.FunctionSpec.ceiSafe
           ($modelName : Compiler.CompilationModel.FunctionSpec)) = true := rfl)
 
+/-- Auto-generated `_requires_role` theorem for functions with a `requires(field)` annotation
+    (#1728, Axis 2 Step 2c).  Records the role field name as a `@[simp]` fact, certifying
+    that the function has an access-control guard for the named role. -/
+def mkRequiresRoleTheoremCommand (fnDecl : FunctionDecl) (roleFieldName : String) : CommandElabM Cmd := do
+  let requiresRoleName ← mkSuffixedIdent fnDecl.ident "_requires_role"
+  let modelName ← mkSuffixedIdent fnDecl.ident "_model"
+  `(command|
+    @[simp] theorem $requiresRoleName :
+        (Compiler.CompilationModel.FunctionSpec.requiresRole
+          ($modelName : Compiler.CompilationModel.FunctionSpec)) = some $(strTermPublic roleFieldName) := rfl)
+
 /-- Auto-generated `_modifies` theorem for functions with a `modifies(...)` annotation
     (#1729, Axis 3 Step 1b).  Records the declared modifies set as a `@[simp]` fact. -/
 def mkModifiesTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do

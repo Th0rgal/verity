@@ -98,6 +98,14 @@ def elabVerityContract : CommandElab := fun stx => do
       if fn.ceiSafe then
         elabCommand (← mkCEISafeTheoremCommand fn)
 
+    -- Emit per-function _requires_role theorem for functions with requires(field).
+    -- (#1728, Axis 2 Step 2c — access control)
+    for fn in functions do
+      match fn.requiresRole with
+      | some roleIdent =>
+          elabCommand (← mkRequiresRoleTheoremCommand fn (toString roleIdent.getId))
+      | none => pure ()
+
     elabCommand (← `(end $contractName))
   catch err =>
     elabCommand (← `(end $contractName))

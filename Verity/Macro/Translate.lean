@@ -119,6 +119,11 @@ structure FunctionDecl where
       and a proof obligation is generated.
       (#1728, Axis 2 Step 2b — Lean proof rung) -/
   ceiSafe : Bool := false
+  /-- When `some fieldIdent`, the function is annotated `requires(field)`.
+      The named Address-typed storage field is an access-control role.
+      A `require(caller == roleHolder)` check is auto-injected at the start
+      of the function body.  (#1728, Axis 2 Step 2c) -/
+  requiresRole : Option Ident := none
   initGuard? : Option InitGuardDecl := none
   /-- Storage field names declared via `modifies(field1, field2)`.
       When non-empty, the compiler validates that the function body only
@@ -604,13 +609,20 @@ private def parseSpecialEntrypoint (stx : Syntax) : CommandElabM FunctionDecl :=
 
 private def parseFunction (stx : Syntax) : CommandElabM FunctionDecl := do
   match stx with
-  | `(verityFunction| function $[$mods:verityMutability]* $name:ident ($[$params:verityParam],*) $[$guard?:verityInitGuard]? $[$modifiesClause?:verityModifies]? $[$localObligations?:verityLocalObligations]? : $retTy:term := $body:term) => do
+  | `(verityFunction| function $[$mods:verityMutability]* $name:ident ($[$params:verityParam],*) $[$guard?:verityInitGuard]? $[$requiresRoleClause?:verityRequiresRole]? $[$modifiesClause?:verityModifies]? $[$localObligations?:verityLocalObligations]? : $retTy:term := $body:term) => do
       let mut_ ← parseMutabilityModifiers mods stx
       let parsedParams ← params.mapM parseParam
       let parsedReturnTy ← valueTypeFromSyntax retTy
       let parsedGuard? ←
         match guard? with
         | some guard => pure (some (← parseInitGuard guard))
+        | none => pure none
+      let parsedRequiresRole ←
+        match requiresRoleClause? with
+        | some roleClause =>
+            match roleClause with
+            | `(verityRequiresRole| requires($roleField:ident)) => pure (some roleField)
+            | _ => throwErrorAt roleClause "invalid requires annotation"
         | none => pure none
       let parsedModifies ←
         match modifiesClause? with
@@ -631,6 +643,7 @@ private def parseFunction (stx : Syntax) : CommandElabM FunctionDecl := do
         allowPostInteractionWrites := mut_.allowPostInteractionWrites
         nonReentrantLock := mut_.nonReentrantLock
         ceiSafe := mut_.ceiSafe
+        requiresRole := parsedRequiresRole
         initGuard? := parsedGuard?
         modifies := parsedModifies
         localObligations := parsedLocalObligations
@@ -840,6 +853,62 @@ private def mkInitGuardedBody
                   require ($currentVersion < $(initGuardVersionTerm version)) $message
                   setStorage $field.ident $(initGuardVersionTerm version)
                   $[$elems:doElem]*)
+      | _ => throwErrorAt fn.body "function body must be a do block"
+
+/-- Resolve the storage field referenced by a `requires(role)` annotation.
+    The role must be an Address-typed scalar storage field. -/
+private def resolveRoleField
+    (fields : Array StorageFieldDecl) (roleIdent : Ident) (fnIdent : Ident)
+    : CommandElabM StorageFieldDecl := do
+  let roleName := toString roleIdent.getId
+  match fields.find? (fun f => f.name == roleName) with
+  | none =>
+      throwErrorAt roleIdent s!"function '{toString fnIdent.getId}': requires references unknown storage field '{roleName}'; known fields: {(fields.map (·.name)).toList}"
+  | some field =>
+      match field.ty with
+      | .scalar .address => pure field
+      | _ => throwErrorAt roleIdent s!"function '{toString fnIdent.getId}': requires({roleName}) must reference an Address-typed storage field, but '{roleName}' has a different type"
+
+/-- Generate IR-level prelude statements for a `requires(role)` annotation.
+    Injects `Stmt.require (Expr.eq Expr.caller (Expr.storage roleField)) "Access denied: only role"`.
+    (#1728, Axis 2 Step 2c) -/
+private def roleGuardPreludeStmtTerms
+    (fields : Array StorageFieldDecl)
+    (fn : FunctionDecl) : CommandElabM (Array Term) := do
+  match fn.requiresRole with
+  | none => pure #[]
+  | some roleIdent =>
+      let field ← resolveRoleField fields roleIdent fn.ident
+      let message := strTerm s!"Access denied: caller is not {field.name}"
+      pure #[
+        ← `(Compiler.CompilationModel.Stmt.require
+              (Compiler.CompilationModel.Expr.eq
+                (Compiler.CompilationModel.Expr.caller)
+                (Compiler.CompilationModel.Expr.storage $(strTerm field.name)))
+              $message)
+      ]
+
+/-- Transform the source-level do-block body to inject a role access control check
+    at the start.  Injects `let __sender ← msgSender; let __roleHolder ← getStorageAddr field;
+    require (__sender == __roleHolder) "Access denied: caller is not role"`.
+    (#1728, Axis 2 Step 2c) -/
+private def mkRoleGuardedBody
+    (fields : Array StorageFieldDecl)
+    (fn : FunctionDecl) : CommandElabM Term := do
+  match fn.requiresRole with
+  | none => pure fn.body
+  | some roleIdent =>
+      let field ← resolveRoleField fields roleIdent fn.ident
+      let senderVar := mkIdent (Name.mkSimple s!"__verity_role_sender_{field.name}")
+      let holderVar := mkIdent (Name.mkSimple s!"__verity_role_holder_{field.name}")
+      let message := strTerm s!"Access denied: caller is not {field.name}"
+      match fn.body with
+      | `(term| do $[$elems:doElem]*) =>
+          `(do
+              let $senderVar ← msgSender
+              let $holderVar ← getStorageAddr $field.ident
+              require ($senderVar == $holderVar) $message
+              $[$elems:doElem]*)
       | _ => throwErrorAt fn.body "function body must be a do block"
 
 private def mkImmutableBoundBody
@@ -3484,7 +3553,8 @@ private def translateBodyToStmtTerms
   match fn.body with
   | `(term| do $[$elems:doElem]*) =>
       let guardPrelude ← initGuardPreludeStmtTerms fields fn
-      let stmts := guardPrelude ++ (← translateDoElems fields constDecls immutableDecls functions fn.params #[] #[] elems).1
+      let rolePrelude ← roleGuardPreludeStmtTerms fields fn
+      let stmts := guardPrelude ++ rolePrelude ++ (← translateDoElems fields constDecls immutableDecls functions fn.params #[] #[] elems).1
       let mut stmts := stmts
       if fn.returnTy == .unit then
         stmts := stmts.push (← `(Compiler.CompilationModel.Stmt.stop))
@@ -3702,6 +3772,9 @@ private def mkSpecCommand
         | some lockIdent => `(some $(strTerm (toString lockIdent.getId)))
         | none => `(none)
       let ceiSafeTerm ← if fn.ceiSafe then `(true) else `(false)
+      let requiresRoleTerm ← match fn.requiresRole with
+        | some roleIdent => `(some $(strTerm (toString roleIdent.getId)))
+        | none => `(none)
       let returnTypeTerm ← modelReturnTypeTerm fn.returnTy
       let returnsTerm ← modelReturnsTerm fn.returnTy
       pure <| some (← `( ({
@@ -3715,6 +3788,7 @@ private def mkSpecCommand
         allowPostInteractionWrites := $allowPostInteractionWritesTerm
         nonReentrantLock := $nonReentrantLockTerm
         ceiSafe := $ceiSafeTerm
+        requiresRole := $requiresRoleTerm
         localObligations := [ $[$localObligationTerms],* ]
         body := $modelBodyName
         isInternal := true
@@ -4021,7 +4095,9 @@ def mkFunctionCommandsPublic
     (functions : Array FunctionDecl)
     (fn : FunctionDecl) : CommandElabM (Array Cmd) := do
   let fnType ← mkContractFnType fn.params fn.returnTy
-  let fnGuardedBody ← mkInitGuardedBody fields fn
+  let fnRoleGuardedBody ← mkRoleGuardedBody fields fn
+  let fnDecl := { fn with body := fnRoleGuardedBody }
+  let fnGuardedBody ← mkInitGuardedBody fields fnDecl
   let fnBody ← mkImmutableBoundBody fields immutableDecls fn fnGuardedBody
   let fnValue ← mkContractFnValue fn.params fnBody
   let modelBodyName ← mkSuffixedIdent fn.ident "_modelBody"
@@ -4037,6 +4113,9 @@ def mkFunctionCommandsPublic
     | some lockIdent => `(some $(strTerm (toString lockIdent.getId)))
     | none => `(none)
   let ceiSafeTerm ← if fn.ceiSafe then `(true) else `(false)
+  let requiresRoleTerm ← match fn.requiresRole with
+    | some roleIdent => `(some $(strTerm (toString roleIdent.getId)))
+    | none => `(none)
   let modifiesTerms : Array Term := fn.modifies.map fun ident => strTerm (toString ident.getId)
   let returnTypeTerm ← modelReturnTypeTerm fn.returnTy
   let returnsTerm ← modelReturnsTerm fn.returnTy
@@ -4054,6 +4133,7 @@ def mkFunctionCommandsPublic
     allowPostInteractionWrites := $allowPostInteractionWritesTerm
     nonReentrantLock := $nonReentrantLockTerm
     ceiSafe := $ceiSafeTerm
+    requiresRole := $requiresRoleTerm
     modifies := [ $[$modifiesTerms],* ]
     localObligations := [ $[$localObligationTerms],* ]
     body := $modelBodyName

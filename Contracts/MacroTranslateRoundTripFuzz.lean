@@ -82,6 +82,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.EffectCompositionSmoke.spec
   , Contracts.Smoke.CEISmoke.spec
   , Contracts.Smoke.CEILadderSmoke.spec
+  , Contracts.Smoke.RolesSmoke.spec
   ]
 
 private structure FuzzRng where
