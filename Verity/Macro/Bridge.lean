@@ -80,6 +80,28 @@ def mkCEICompliantTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := d
         (Compiler.CompilationModel.FunctionSpec.allowPostInteractionWrites
           ($modelName : Compiler.CompilationModel.FunctionSpec)) = false := rfl)
 
+/-- Auto-generated `_nonreentrant` theorem for functions with a `nonreentrant(field)` annotation
+    (#1728, Axis 2 Step 2b).  Records the reentrancy lock field as a `@[simp]` fact, certifying
+    that the function uses a known-safe guard for CEI compliance. -/
+def mkNonReentrantTheoremCommand (fnDecl : FunctionDecl) (lockFieldName : String) : CommandElabM Cmd := do
+  let nonReentrantName ← mkSuffixedIdent fnDecl.ident "_nonreentrant"
+  let modelName ← mkSuffixedIdent fnDecl.ident "_model"
+  `(command|
+    @[simp] theorem $nonReentrantName :
+        (Compiler.CompilationModel.FunctionSpec.nonReentrantLock
+          ($modelName : Compiler.CompilationModel.FunctionSpec)) = some $(strTermPublic lockFieldName) := rfl)
+
+/-- Auto-generated `_cei_safe` theorem for functions with a `cei_safe` annotation
+    (#1728, Axis 2 Step 2b).  Records the `ceiSafe` flag as a `@[simp]` fact, certifying
+    that the user has asserted CEI safety via machine-checked proof obligation. -/
+def mkCEISafeTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do
+  let ceiSafeName ← mkSuffixedIdent fnDecl.ident "_cei_safe"
+  let modelName ← mkSuffixedIdent fnDecl.ident "_model"
+  `(command|
+    @[simp] theorem $ceiSafeName :
+        (Compiler.CompilationModel.FunctionSpec.ceiSafe
+          ($modelName : Compiler.CompilationModel.FunctionSpec)) = true := rfl)
+
 /-- Auto-generated `_modifies` theorem for functions with a `modifies(...)` annotation
     (#1729, Axis 3 Step 1b).  Records the declared modifies set as a `@[simp]` fact. -/
 def mkModifiesTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do

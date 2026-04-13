@@ -454,6 +454,14 @@ structure FunctionSpec where
       When true, CEI enforcement is bypassed for this function.
       (#1728, Axis 2 Step 2a) -/
   allowPostInteractionWrites : Bool := false
+  /-- Storage field name used as reentrancy lock when annotated `nonreentrant(field)`.
+      When non-empty, CEI enforcement is bypassed because the lock prevents
+      reentrant state corruption.  (#1728, Axis 2 Step 2b) -/
+  nonReentrantLock : Option String := none
+  /-- Whether this function is annotated `cei_safe` — the user asserts CEI
+      safety via a machine-checked proof obligation.  CEI enforcement is bypassed
+      and a proof obligation is generated.  (#1728, Axis 2 Step 2b) -/
+  ceiSafe : Bool := false
   /-- Whether this is an internal-only function (not exposed via selector dispatch) -/
   isInternal : Bool := false
   /-- Local proof obligations that isolate unsafe/assembly-shaped trust

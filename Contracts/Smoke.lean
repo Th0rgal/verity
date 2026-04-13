@@ -1736,6 +1736,36 @@ verity_contract CEISmoke where
     let echoed := externalCall "echo" [next]
     setStorage counter echoed
 
+-- #1728, Axis 2 Step 2b: smoke test for CEI escalation ladder (nonreentrant, cei_safe)
+verity_contract CEILadderSmoke where
+  storage
+    counter : Uint256 := slot 0
+    lock : Uint256 := slot 1
+    balances : Address → Uint256 := slot 2
+  linked_externals
+    external echo(Uint256) -> (Uint256)
+
+  -- Rung 3 (known-safe guard): nonreentrant bypasses CEI (write after call ok)
+  function nonreentrant(lock) callThenStoreGuarded (x : Uint256) : Unit := do
+    let echoed := externalCall "echo" [x]
+    setStorage counter echoed
+
+  -- Rung 2 (Lean proof): cei_safe bypasses CEI with proof obligation
+  function cei_safe callThenStoreProved (x : Uint256) : Unit := do
+    let echoed := externalCall "echo" [x]
+    setStorage counter echoed
+
+  -- Normal function: CEI-compliant (effects before interactions), gets _cei_compliant
+  function storeThenCall (x : Uint256) : Uint256 := do
+    setStorage counter x
+    let echoed := externalCall "echo" [x]
+    return echoed
+
+  -- Normal function: no external calls at all, gets _cei_compliant
+  function increment () : Unit := do
+    let current ← getStorage counter
+    setStorage counter (add current 1)
+
 -- CEI violation test: this contract compiles but #check_contract rejects it
 verity_contract CEIViolationRejected where
   storage

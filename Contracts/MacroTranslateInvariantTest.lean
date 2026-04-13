@@ -326,6 +326,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.NoExternalCallsSmoke.spec
   , Contracts.Smoke.EffectCompositionSmoke.spec
   , Contracts.Smoke.CEISmoke.spec
+  , Contracts.Smoke.CEILadderSmoke.spec
   , Contracts.Smoke.CEIViolationRejected.spec
   ]
 
@@ -410,6 +411,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("NoExternalCallsSmoke", ["increment()", "getCounter()", "setOwner(address)"])
   , ("EffectCompositionSmoke", ["getCounter()", "increment()", "setOwner(address)", "deposit(uint256)"])
   , ("CEISmoke", ["increment()", "getCounter()", "updateThenCall(uint256)", "callThenUpdate(uint256)"])
+  , ("CEILadderSmoke", ["callThenStoreGuarded(uint256)", "callThenStoreProved(uint256)", "storeThenCall(uint256)", "increment()"])
   , ("CEIViolationRejected", ["callThenStore(uint256)"])
   ]
 
@@ -477,6 +479,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("NoExternalCallsSmoke", ["0xd09de08a", "0x8ada066e", "0x13af4035"])
   , ("EffectCompositionSmoke", ["0x8ada066e", "0xd09de08a", "0x13af4035", "0xb6b55f25"])
   , ("CEISmoke", ["0xd09de08a", "0x8ada066e", "0x8c468aed", "0x4955cfdb"])
+  , ("CEILadderSmoke", ["0xaf0ac94c", "0xe9ab4836", "0xb6fbe456", "0xd09de08a"])
   , ("CEIViolationRejected", ["0xe4fccc26"])
   ]
 
@@ -544,6 +547,17 @@ private def checkMutabilitySmoke : IO Unit := do
   let _ := @Contracts.Smoke.CEISmoke.getCounter_cei_compliant
   let _ := @Contracts.Smoke.CEISmoke.updateThenCall_cei_compliant
   -- callThenUpdate has allow_post_interaction_writes so no _cei_compliant theorem
+
+  -- Verify auto-generated _nonreentrant and _cei_safe theorems (#1728, Axis 2 Step 2b).
+  -- callThenStoreGuarded has nonreentrant(lock) → _nonreentrant theorem
+  let _ := @Contracts.Smoke.CEILadderSmoke.callThenStoreGuarded_nonreentrant
+  -- callThenStoreProved has cei_safe → _cei_safe theorem
+  let _ := @Contracts.Smoke.CEILadderSmoke.callThenStoreProved_cei_safe
+  -- storeThenCall and increment are default CEI-compliant → _cei_compliant
+  let _ := @Contracts.Smoke.CEILadderSmoke.storeThenCall_cei_compliant
+  let _ := @Contracts.Smoke.CEILadderSmoke.increment_cei_compliant
+  -- callThenStoreGuarded does NOT get _cei_compliant (it uses nonreentrant instead)
+  -- callThenStoreProved does NOT get _cei_compliant (it uses cei_safe instead)
 
 private def checkSignedBuiltinSmoke : IO Unit := do
   let functions := Contracts.Smoke.SignedBuiltinSmoke.spec.functions

@@ -36,6 +36,8 @@ syntax "payable" : verityMutability
 syntax "view" : verityMutability
 syntax "no_external_calls" : verityMutability
 syntax "allow_post_interaction_writes" : verityMutability
+syntax "nonreentrant(" ident ")" : verityMutability
+syntax "cei_safe" : verityMutability
 syntax "modifies(" sepBy(ident, ",") ")" : verityModifies
 syntax "initializer(" ident ")" : verityInitGuard
 syntax "reinitializer(" ident ", " num ")" : verityInitGuard

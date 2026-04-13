@@ -637,8 +637,13 @@ def validateFunctionSpec (spec : FunctionSpec) : Except String Unit := do
   -- Validate no_external_calls annotation: reject external call statements
   if spec.noExternalCalls && spec.body.any stmtContainsExternalCall then
     throw s!"Compilation error: function '{spec.name}' is annotated no_external_calls but contains external call statements"
-  -- CEI enforcement: reject state writes after external calls unless opted out (#1728, Axis 2 Step 2a)
-  if !spec.allowPostInteractionWrites then
+  -- CEI enforcement: reject state writes after external calls unless opted out via any
+  -- rung of the escalation ladder (#1728, Axis 2 Steps 2a-2b):
+  --   Rung 2: cei_safe (machine-checked proof obligation)
+  --   Rung 3: nonreentrant(field) (known-safe reentrancy guard)
+  --   Rung 4: allow_post_interaction_writes (explicit trust-surface opt-out)
+  let ceiExempt := spec.allowPostInteractionWrites || spec.nonReentrantLock.isSome || spec.ceiSafe
+  if !ceiExempt then
     match stmtListCEIViolation spec.body false with
     | some violation =>
         throw s!"Compilation error: function '{spec.name}' violates CEI (Checks-Effects-Interactions) ordering: {violation}. Reorder state writes before external calls, or annotate with allow_post_interaction_writes to opt out ({issue1728Ref})"

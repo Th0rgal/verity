@@ -77,11 +77,26 @@ def elabVerityContract : CommandElab := fun stx => do
       if effectAnnotationCount fn ≥ 2 then
         elabCommand (← mkEffectsTheoremCommand fn)
 
-    -- Emit per-function _cei_compliant theorem for functions that pass CEI
-    -- validation without opting out (#1728, Axis 2 Step 2a).
+    -- Emit per-function _cei_compliant theorem for functions that use default
+    -- CEI enforcement (rung 1) — i.e. not opted out via any escalation rung.
+    -- (#1728, Axis 2 Step 2a)
     for fn in functions do
-      if !fn.allowPostInteractionWrites then
+      if !fn.allowPostInteractionWrites && fn.nonReentrantLock.isNone && !fn.ceiSafe then
         elabCommand (← mkCEICompliantTheoremCommand fn)
+
+    -- Emit per-function _nonreentrant theorem for functions with nonreentrant(field).
+    -- (#1728, Axis 2 Step 2b — known-safe guard rung)
+    for fn in functions do
+      match fn.nonReentrantLock with
+      | some lockIdent =>
+          elabCommand (← mkNonReentrantTheoremCommand fn (toString lockIdent.getId))
+      | none => pure ()
+
+    -- Emit per-function _cei_safe theorem for functions with cei_safe annotation.
+    -- (#1728, Axis 2 Step 2b — Lean proof rung)
+    for fn in functions do
+      if fn.ceiSafe then
+        elabCommand (← mkCEISafeTheoremCommand fn)
 
     elabCommand (← `(end $contractName))
   catch err =>

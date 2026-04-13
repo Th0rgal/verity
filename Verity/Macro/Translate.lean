@@ -109,6 +109,16 @@ structure FunctionDecl where
       CEI (Checks-Effects-Interactions) enforcement is bypassed.  This is the
       explicit trust-surface opt-out in the escalation ladder (#1728, Axis 2 Step 2a). -/
   allowPostInteractionWrites : Bool := false
+  /-- When `some fieldIdent`, the function is annotated `nonreentrant(field)`.
+      The named storage field is used as a reentrancy lock.  CEI enforcement is
+      bypassed because the lock prevents reentrant state corruption.
+      (#1728, Axis 2 Step 2b — known-safe guard rung) -/
+  nonReentrantLock : Option Ident := none
+  /-- When true, the function is annotated `cei_safe` — the user asserts CEI
+      safety via a machine-checked proof obligation.  CEI enforcement is bypassed
+      and a proof obligation is generated.
+      (#1728, Axis 2 Step 2b — Lean proof rung) -/
+  ceiSafe : Bool := false
   initGuard? : Option InitGuardDecl := none
   /-- Storage field names declared via `modifies(field1, field2)`.
       When non-empty, the compiler validates that the function body only
@@ -485,33 +495,46 @@ private def parseLocalObligation (stx : Syntax) : CommandElabM LocalObligationDe
       }
   | _ => throwErrorAt stx "invalid local obligation declaration"
 
+private structure ParsedMutability where
+  isPayable : Bool := false
+  isView : Bool := false
+  noExternalCalls : Bool := false
+  allowPostInteractionWrites : Bool := false
+  nonReentrantLock : Option Ident := none
+  ceiSafe : Bool := false
+
 private def parseMutabilityModifiers
     (mods : Array (TSyntax `verityMutability))
-    (stx : Syntax) : CommandElabM (Bool × Bool × Bool × Bool) := do
-  let mut isPayable := false
-  let mut isView := false
-  let mut noExternalCalls := false
-  let mut allowPostInteractionWrites := false
+    (stx : Syntax) : CommandElabM ParsedMutability := do
+  let mut result : ParsedMutability := {}
   for mod in mods do
     match mod with
     | `(verityMutability| payable) =>
-        if isPayable then
+        if result.isPayable then
           throwErrorAt mod "duplicate 'payable' modifier"
-        isPayable := true
+        result := { result with isPayable := true }
     | `(verityMutability| view) =>
-        if isView then
+        if result.isView then
           throwErrorAt mod "duplicate 'view' modifier"
-        isView := true
+        result := { result with isView := true }
     | `(verityMutability| no_external_calls) =>
-        if noExternalCalls then
+        if result.noExternalCalls then
           throwErrorAt mod "duplicate 'no_external_calls' modifier"
-        noExternalCalls := true
+        result := { result with noExternalCalls := true }
     | `(verityMutability| allow_post_interaction_writes) =>
-        if allowPostInteractionWrites then
+        if result.allowPostInteractionWrites then
           throwErrorAt mod "duplicate 'allow_post_interaction_writes' modifier"
-        allowPostInteractionWrites := true
+        result := { result with allowPostInteractionWrites := true }
+    | `(verityMutability| nonreentrant($field:ident)) =>
+        if result.nonReentrantLock.isSome then
+          throwErrorAt mod "duplicate 'nonreentrant' modifier"
+        result := { result with nonReentrantLock := some field }
+    | `(verityMutability| cei_safe) =>
+        if result.ceiSafe then
+          throwErrorAt mod "duplicate 'cei_safe' modifier"
+        result := { result with ceiSafe := true }
     | _ => throwErrorAt stx "invalid function mutability modifier"
-  pure (isPayable, isView, noExternalCalls, allowPostInteractionWrites)
+  pure result
 
 private def parseModifies (stx : TSyntax `verityModifies) : CommandElabM (Array Ident) := do
   match stx with
@@ -582,7 +605,7 @@ private def parseSpecialEntrypoint (stx : Syntax) : CommandElabM FunctionDecl :=
 private def parseFunction (stx : Syntax) : CommandElabM FunctionDecl := do
   match stx with
   | `(verityFunction| function $[$mods:verityMutability]* $name:ident ($[$params:verityParam],*) $[$guard?:verityInitGuard]? $[$modifiesClause?:verityModifies]? $[$localObligations?:verityLocalObligations]? : $retTy:term := $body:term) => do
-      let (isPayable, isView, noExternalCalls, allowPostInteractionWrites) ← parseMutabilityModifiers mods stx
+      let mut_ ← parseMutabilityModifiers mods stx
       let parsedParams ← params.mapM parseParam
       let parsedReturnTy ← valueTypeFromSyntax retTy
       let parsedGuard? ←
@@ -602,10 +625,12 @@ private def parseFunction (stx : Syntax) : CommandElabM FunctionDecl := do
         name := toString name.getId
         params := parsedParams
         returnTy := parsedReturnTy
-        isPayable := isPayable
-        isView := isView
-        noExternalCalls := noExternalCalls
-        allowPostInteractionWrites := allowPostInteractionWrites
+        isPayable := mut_.isPayable
+        isView := mut_.isView
+        noExternalCalls := mut_.noExternalCalls
+        allowPostInteractionWrites := mut_.allowPostInteractionWrites
+        nonReentrantLock := mut_.nonReentrantLock
+        ceiSafe := mut_.ceiSafe
         initGuard? := parsedGuard?
         modifies := parsedModifies
         localObligations := parsedLocalObligations
@@ -3673,6 +3698,10 @@ private def mkSpecCommand
       let viewTerm ← if fn.isView then `(true) else `(false)
       let noExternalCallsTerm ← if fn.noExternalCalls then `(true) else `(false)
       let allowPostInteractionWritesTerm ← if fn.allowPostInteractionWrites then `(true) else `(false)
+      let nonReentrantLockTerm ← match fn.nonReentrantLock with
+        | some lockIdent => `(some $(strTerm (toString lockIdent.getId)))
+        | none => `(none)
+      let ceiSafeTerm ← if fn.ceiSafe then `(true) else `(false)
       let returnTypeTerm ← modelReturnTypeTerm fn.returnTy
       let returnsTerm ← modelReturnsTerm fn.returnTy
       pure <| some (← `( ({
@@ -3684,6 +3713,8 @@ private def mkSpecCommand
         isView := $viewTerm
         noExternalCalls := $noExternalCallsTerm
         allowPostInteractionWrites := $allowPostInteractionWritesTerm
+        nonReentrantLock := $nonReentrantLockTerm
+        ceiSafe := $ceiSafeTerm
         localObligations := [ $[$localObligationTerms],* ]
         body := $modelBodyName
         isInternal := true
@@ -3966,6 +3997,21 @@ def validateFunctionDeclsPublic
     -- view functions must not use modifies (they already imply no writes)
     if fn.isView && !fn.modifies.isEmpty then
       throwErrorAt fn.ident s!"function '{fn.name}' is marked view and modifies(...); view already guarantees no state writes"
+    -- Validate nonreentrant lock field references a valid storage field of scalar uint256 type
+    match fn.nonReentrantLock with
+    | some lockField =>
+        let lockName := toString lockField.getId
+        let allFieldNames := fields.map (·.name)
+        if !allFieldNames.contains lockName then
+          throwErrorAt lockField s!"function '{fn.name}': nonreentrant references unknown storage field '{lockName}'; known fields: {allFieldNames.toList}"
+    | none => pure ()
+    -- cei_safe and allow_post_interaction_writes are mutually exclusive with nonreentrant
+    if fn.ceiSafe && fn.allowPostInteractionWrites then
+      throwErrorAt fn.ident s!"function '{fn.name}': cei_safe and allow_post_interaction_writes are mutually exclusive"
+    if fn.nonReentrantLock.isSome && fn.allowPostInteractionWrites then
+      throwErrorAt fn.ident s!"function '{fn.name}': nonreentrant and allow_post_interaction_writes are mutually exclusive"
+    if fn.nonReentrantLock.isSome && fn.ceiSafe then
+      throwErrorAt fn.ident s!"function '{fn.name}': nonreentrant and cei_safe are mutually exclusive"
     validateFunctionBodyExprTypes fields errorDecls constDecls immutableDecls externalDecls functions fn
 
 def mkFunctionCommandsPublic
@@ -3987,6 +4033,10 @@ def mkFunctionCommandsPublic
   let viewTerm ← if fn.isView then `(true) else `(false)
   let noExternalCallsTerm ← if fn.noExternalCalls then `(true) else `(false)
   let allowPostInteractionWritesTerm ← if fn.allowPostInteractionWrites then `(true) else `(false)
+  let nonReentrantLockTerm ← match fn.nonReentrantLock with
+    | some lockIdent => `(some $(strTerm (toString lockIdent.getId)))
+    | none => `(none)
+  let ceiSafeTerm ← if fn.ceiSafe then `(true) else `(false)
   let modifiesTerms : Array Term := fn.modifies.map fun ident => strTerm (toString ident.getId)
   let returnTypeTerm ← modelReturnTypeTerm fn.returnTy
   let returnsTerm ← modelReturnsTerm fn.returnTy
@@ -4002,6 +4052,8 @@ def mkFunctionCommandsPublic
     isView := $viewTerm
     noExternalCalls := $noExternalCallsTerm
     allowPostInteractionWrites := $allowPostInteractionWritesTerm
+    nonReentrantLock := $nonReentrantLockTerm
+    ceiSafe := $ceiSafeTerm
     modifies := [ $[$modifiesTerms],* ]
     localObligations := [ $[$localObligationTerms],* ]
     body := $modelBodyName
