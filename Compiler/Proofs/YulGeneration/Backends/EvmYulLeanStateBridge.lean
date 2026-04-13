@@ -312,6 +312,35 @@ theorem address_bridge (state : YulState) (observableSlots : List Nat)
 
 /-! ## Storage Bridge Proofs -/
 
+/-- `TransCmp` instance for `UInt256`'s derived `compare`.
+    `UInt256` derives `Ord` which compares via the `Fin` field.
+    `Fin n` has `TransOrd` and `LawfulEqOrd` in Lean 4's Std library.
+
+    We prove this by destructuring `UInt256` to its `Fin` field and
+    delegating to `Fin`'s `TransCmp` instance. -/
+instance instTransCmpUInt256 : Std.TransCmp (α := UInt256) compare where
+  eq_swap {a b} := by
+    cases a; cases b; exact Std.OrientedCmp.eq_swap (α := Fin UInt256.size)
+  isLE_trans {a b c} hab hbc := by
+    cases a; cases b; cases c
+    exact Std.TransCmp.isLE_trans (α := Fin UInt256.size) hab hbc
+
+/-- `compare` on `UInt256` returning `.eq` implies equality.
+    Proved by destructuring to `Fin` and using `Fin`'s `LawfulEqOrd`. -/
+theorem UInt256_eq_of_compare_eq {u v : UInt256}
+    (h : compare u v = Ordering.eq) : u = v := by
+  -- Derived Ord on single-field structures like UInt256 compares the field
+  -- directly: compare (mk a) (mk b) = compare a b (on Fin UInt256.size).
+  -- This is a definitional reduction in Lean 4.
+  cases u with | mk uv =>
+  cases v with | mk vv =>
+  -- After cases, h : compare (UInt256.mk uv) (UInt256.mk vv) = .eq
+  -- which definitionally reduces to compare uv vv = .eq
+  -- Use Fin's LawfulEqOrd to get uv = vv, then wrap in mk
+  have heq : uv = vv := Std.LawfulEqCmp.eq_of_compare h
+  subst heq
+  rfl
+
 /-- `natToUInt256` is injective on values below `UInt256.size`.
     Since `UInt256.ofNat n = ⟨⟨n % size, _⟩⟩`, when `n < size` we have
     `n % size = n`, so the Fin value is exactly `n`. -/
@@ -319,27 +348,16 @@ theorem natToUInt256_injective {a b : Nat}
     (ha : a < UInt256.size) (hb : b < UInt256.size)
     (h : natToUInt256 a = natToUInt256 b) : a = b := by
   simp only [natToUInt256, UInt256.ofNat, Id.run] at h
-  have ha' := Nat.mod_eq_of_lt ha
-  have hb' := Nat.mod_eq_of_lt hb
   have : a % UInt256.size = b % UInt256.size :=
     congrArg (fun u => u.val.val) h
   omega
-
-/-- `compare` on `UInt256` returns `.eq` for equal values.
-    UInt256 derives `Ord` which delegates to `Fin.compare`, which
-    delegates to `Nat.compare`. -/
-theorem compare_natToUInt256_self (n : Nat) :
-    compare (natToUInt256 n) (natToUInt256 n) = Ordering.eq := by
-  simp [compare_eq_iff_eq]
 
 /-- Distinct in-range Nats map to UInt256s with `compare ≠ .eq`. -/
 theorem compare_natToUInt256_ne {a b : Nat}
     (ha : a < UInt256.size) (hb : b < UInt256.size) (hab : a ≠ b) :
     compare (natToUInt256 a) (natToUInt256 b) ≠ Ordering.eq := by
   intro heq
-  apply hab
-  apply natToUInt256_injective ha hb
-  exact of_compare_eq_eq heq
+  exact hab (natToUInt256_injective ha hb (UInt256_eq_of_compare_eq heq))
 
 /-- Helper: folding inserts over a list of slots that does NOT contain `slot`
     preserves whatever `find?` value the accumulator had for `natToUInt256 slot`. -/
@@ -358,7 +376,7 @@ theorem foldl_insert_find_not_mem (storage : Nat → Nat)
     have hne : hd ≠ slot := fun h => hNotMem (h ▸ List.mem_cons_self _ _)
     have hd_range : hd < UInt256.size := hRange hd (List.mem_cons_self _ _)
     rw [ih hNotMemTl (fun s hs => hRange s (List.mem_cons_of_mem _ hs))]
-    exact Batteries.RBMap.find?_insert_of_ne
+    exact Batteries.RBMap.find?_insert_of_ne _
       (compare_natToUInt256_ne hSlotRange hd_range (Ne.symm hne))
 
 /-- Helper: after folding a suffix of slots into an accumulator, if `slot`
@@ -373,7 +391,7 @@ theorem foldl_insert_find (storage : Nat → Nat)
     (slots.foldl (fun m s => m.insert (natToUInt256 s) (natToUInt256 (storage s))) acc).find?
       (natToUInt256 slot) = some (natToUInt256 (storage slot)) := by
   induction slots generalizing acc with
-  | nil => exact absurd hSlot (List.not_mem_nil _)
+  | nil => exact absurd hSlot List.not_mem_nil
   | cons hd tl ih =>
     simp only [List.foldl_cons]
     cases List.mem_cons.mp hSlot with
@@ -386,7 +404,7 @@ theorem foldl_insert_find (storage : Nat → Nat)
         have hSlotRange : slot < UInt256.size := hRange slot (List.mem_cons_self _ _)
         rw [foldl_insert_find_not_mem storage tl slot hmem
           (fun s hs => hRange s (List.mem_cons_of_mem _ hs)) hSlotRange]
-        exact Batteries.RBMap.find?_insert_of_eq (compare_natToUInt256_self slot)
+        exact Batteries.RBMap.find?_insert_of_eq _ Std.ReflCmp.compare_self
     | inr hmem =>
       exact ih hmem (fun s hs => hRange s (List.mem_cons_of_mem _ hs)) _
 
@@ -404,7 +422,7 @@ theorem storageLookup_projectStorage (storage : Nat → Nat)
       storage slot % UInt256.size := by
   simp only [storageLookup, projectStorage]
   rw [foldl_insert_find storage slots slot hSlot hRange]
-  simp only [uint256ToNat, natToUInt256, UInt256.toNat, UInt256.ofNat, Id.run]
+  simp only [uint256ToNat, natToUInt256, UInt256.toNat, UInt256.ofNat, Id.run, Fin.val_ofNat]
 
 /-- Nat→UInt256→Nat round-trip for values in range.
     Proof: `ofNat n = ⟨Fin.ofNat _ n⟩ = ⟨⟨n % size, _⟩⟩`, and
