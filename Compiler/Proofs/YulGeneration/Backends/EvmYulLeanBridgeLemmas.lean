@@ -721,9 +721,16 @@ private theorem bridge_eval_byte_normalized (i x : Nat) :
         ((31 - (EvmYul.UInt256.ofNat i).toNat) * 8)).val := by
       change ¬ 256 ≤ ((31 - i % EvmYul.UInt256.size) * 8) % EvmYul.UInt256.size
       rw [Nat.mod_eq_of_lt hshift_small]; omega
-    -- Stage 1: unfold byteAt and eliminate the if using hle' (keep ofNat unexpanded)
-    simp only [EvmYul.UInt256.byteAt, hle', ite_false]
-    -- Stage 2: simplify the else-branch arithmetic
+    -- Unfold byteAt and eliminate the if with if_neg
+    unfold EvmYul.UInt256.byteAt
+    rw [if_neg (show ¬(EvmYul.UInt256.ofNat i > (⟨31⟩ : EvmYul.UInt256)) from hle')]
+    -- byteAt's else branch uses >>> and &&& operators (typeclass notation).
+    -- Convert these to direct function calls via show/change.
+    show some (EvmYul.UInt256.toNat
+        (EvmYul.UInt256.land
+          (EvmYul.UInt256.shiftRight (EvmYul.UInt256.ofNat x)
+            (EvmYul.UInt256.ofNat ((31 - (EvmYul.UInt256.ofNat i).toNat) * 8)))
+          ⟨255⟩)) = _
     simp [hgt, EvmYul.UInt256.shiftRight, EvmYul.UInt256.land,
       EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat, Id.run,
       hguard, Nat.shiftRight_eq_div_pow, Fin.land, Nat.and_two_pow_sub_one_eq_mod]
