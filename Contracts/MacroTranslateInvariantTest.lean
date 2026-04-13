@@ -332,6 +332,8 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.NamespacedStorageSmoke.spec
   , Contracts.Smoke.CEIViolationRejected.spec
   , Contracts.Smoke.UnsafeBlockSmoke.spec
+  , Contracts.Smoke.UnsafeGatingAccepted.spec
+  , Contracts.Smoke.UnsafeGatingRejected.spec
   ]
 
 private def functionSignature (fn : FunctionSpec) : String :=
@@ -421,6 +423,8 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("NamespacedStorageSmoke", ["deposit(uint256)", "getOwner()"])
   , ("CEIViolationRejected", ["callThenStore(uint256)"])
   , ("UnsafeBlockSmoke", ["incrementUnsafe()", "getCounter()"])
+  , ("UnsafeGatingAccepted", ["writeMem()"])
+  , ("UnsafeGatingRejected", ["noop()"])
   ]
 
 private def expectedExternalSelectors : List (String × List String) :=
@@ -493,6 +497,8 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("NamespacedStorageSmoke", ["0xb6b55f25", "0x893d20e8"])
   , ("CEIViolationRejected", ["0xe4fccc26"])
   , ("UnsafeBlockSmoke", ["0x87a993fd", "0x8ada066e"])
+  , ("UnsafeGatingAccepted", ["0x68236256"])
+  , ("UnsafeGatingRejected", ["0x5dfc2e4a"])
   ]
 
 private def expectedFor
@@ -502,11 +508,13 @@ private def expectedFor
 private def expectedCompileCheckedError? (contractName : String) : Option String :=
   match contractName with
   | "LocalObligationRequiredForUnsafeFunctionBoundary" =>
-      some "uses low-level/assembly mechanic(s) calldataload without any local_obligations entry"
+      some "uses low-level/assembly mechanic(s) calldataload outside an unsafe block without any local_obligations entry"
   | "LocalObligationRequiredForUnsafeConstructorBoundary" =>
-      some "constructor uses low-level/assembly mechanic(s) mstore without any local_obligations entry"
+      some "constructor uses low-level/assembly mechanic(s) mstore outside an unsafe block without any local_obligations entry"
   | "CEIViolationRejected" =>
       some "violates CEI (Checks-Effects-Interactions) ordering"
+  | "UnsafeGatingRejected" =>
+      some "constructor uses low-level/assembly mechanic(s) mstore outside an unsafe block without any local_obligations entry"
   | _ => none
 
 -- Regression: `verity_contract` elaboration emits field-level findIdx simp lemmas.

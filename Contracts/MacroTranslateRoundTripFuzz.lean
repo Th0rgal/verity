@@ -86,6 +86,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.NewtypeSmoke.spec
   , Contracts.Smoke.NamespacedStorageSmoke.spec
   , Contracts.Smoke.UnsafeBlockSmoke.spec
+  , Contracts.Smoke.UnsafeGatingAccepted.spec
   ]
 
 private structure FuzzRng where

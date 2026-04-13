@@ -626,9 +626,12 @@ decreasing_by all_goals simp_wf; all_goals omega
 end
 
 def validateFunctionSpec (spec : FunctionSpec) : Except String Unit := do
-  let unsafeBoundaryMechanics := collectUnsafeBoundaryMechanicsFromStmts spec.body
-  if !unsafeBoundaryMechanics.isEmpty && spec.localObligations.isEmpty then
-    throw s!"Compilation error: function '{spec.name}' uses low-level/assembly mechanic(s) {String.intercalate ", " unsafeBoundaryMechanics} without any local_obligations entry ({issue1424Ref}). Add local_obligations [...] to make the trust boundary explicit."
+  -- Check for unsafe boundary mechanics outside `unsafe "reason" do` blocks.
+  -- Mechanics inside `unsafe` blocks are documented by the reason string and
+  -- do not independently require `local_obligations` (#1728, Phase 6 Step 6b).
+  let unguardedMechanics := collectUnguardedUnsafeBoundaryMechanicsFromStmts spec.body
+  if !unguardedMechanics.isEmpty && spec.localObligations.isEmpty then
+    throw s!"Compilation error: function '{spec.name}' uses low-level/assembly mechanic(s) {String.intercalate ", " unguardedMechanics} outside an unsafe block without any local_obligations entry ({issue1424Ref}). Wrap the low-level code in `unsafe \"reason\" do` or add local_obligations [...] to make the trust boundary explicit."
   if spec.isPayable && (spec.isView || spec.isPure) then
     throw s!"Compilation error: function '{spec.name}' cannot be both payable and view/pure ({issue586Ref})"
   if spec.isView && spec.isPure then
@@ -697,9 +700,9 @@ def validateConstructorSpec (ctor : Option ConstructorSpec) : Except String Unit
   match ctor with
   | none => pure ()
   | some spec =>
-      let unsafeBoundaryMechanics := collectUnsafeBoundaryMechanicsFromStmts spec.body
-      if !unsafeBoundaryMechanics.isEmpty && spec.localObligations.isEmpty then
-        throw s!"Compilation error: constructor uses low-level/assembly mechanic(s) {String.intercalate ", " unsafeBoundaryMechanics} without any local_obligations entry ({issue1424Ref}). Add local_obligations [...] to make the trust boundary explicit."
+      let unguardedMechanics := collectUnguardedUnsafeBoundaryMechanicsFromStmts spec.body
+      if !unguardedMechanics.isEmpty && spec.localObligations.isEmpty then
+        throw s!"Compilation error: constructor uses low-level/assembly mechanic(s) {String.intercalate ", " unguardedMechanics} outside an unsafe block without any local_obligations entry ({issue1424Ref}). Wrap the low-level code in `unsafe \"reason\" do` or add local_obligations [...] to make the trust boundary explicit."
       if spec.body.any stmtContainsUnsafeLogicalCallLike then
         throw s!"Compilation error: constructor uses Expr.logicalAnd/Expr.logicalOr/Expr.ite or arithmetic helpers (mulDivUp/wDivUp/min/max) with call-like operand(s) that would be duplicated in Yul output ({issue748Ref}). Move call-like expressions into Stmt.letVar before combining."
       spec.body.forM validateNoRuntimeReturnsInConstructorStmt

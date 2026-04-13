@@ -1113,7 +1113,7 @@ verity_contract LocalObligationRequiredForUnsafeFunctionBoundary where
     return head
 
 /--
-error: #check_contract failed for 'Contracts.Smoke.LocalObligationRequiredForUnsafeFunctionBoundary': Compilation error: function 'preview' uses low-level/assembly mechanic(s) calldataload without any local_obligations entry (Issue #1424 (controlled unsafe/assembly escape hatches)). Add local_obligations [...] to make the trust boundary explicit.
+error: #check_contract failed for 'Contracts.Smoke.LocalObligationRequiredForUnsafeFunctionBoundary': Compilation error: function 'preview' uses low-level/assembly mechanic(s) calldataload outside an unsafe block without any local_obligations entry (Issue #1424 (controlled unsafe/assembly escape hatches)). Wrap the low-level code in `unsafe "reason" do` or add local_obligations [...] to make the trust boundary explicit.
 -/
 #guard_msgs in
 #check_contract LocalObligationRequiredForUnsafeFunctionBoundary
@@ -1129,7 +1129,7 @@ verity_contract LocalObligationRequiredForUnsafeConstructorBoundary where
     pure ()
 
 /--
-error: #check_contract failed for 'Contracts.Smoke.LocalObligationRequiredForUnsafeConstructorBoundary': Compilation error: constructor uses low-level/assembly mechanic(s) mstore without any local_obligations entry (Issue #1424 (controlled unsafe/assembly escape hatches)). Add local_obligations [...] to make the trust boundary explicit.
+error: #check_contract failed for 'Contracts.Smoke.LocalObligationRequiredForUnsafeConstructorBoundary': Compilation error: constructor uses low-level/assembly mechanic(s) mstore outside an unsafe block without any local_obligations entry (Issue #1424 (controlled unsafe/assembly escape hatches)). Wrap the low-level code in `unsafe "reason" do` or add local_obligations [...] to make the trust boundary explicit.
 -/
 #guard_msgs in
 #check_contract LocalObligationRequiredForUnsafeConstructorBoundary
@@ -1871,6 +1871,38 @@ verity_contract UnsafeBlockSmoke where
     return current
 
 #check_contract UnsafeBlockSmoke
+
+-- Unsafe gating positive test (#1728, Phase 6 Step 6b).
+-- Low-level mstore inside `unsafe` block passes #check_contract
+-- WITHOUT requiring local_obligations.
+verity_contract UnsafeGatingAccepted where
+  storage
+    counter : Uint256 := slot 0
+
+  function writeMem () : Unit := do
+    unsafe "manual memory write for packed encoding" do
+      mstore 0 1
+    pure ()
+
+#check_contract UnsafeGatingAccepted
+
+-- Unsafe gating negative test (#1728, Phase 6 Step 6b).
+-- Low-level mstore OUTSIDE unsafe block (and no local_obligations) is rejected.
+verity_contract UnsafeGatingRejected where
+  storage
+
+  constructor () := do
+    mstore 0 1
+    pure ()
+
+  function noop () : Unit := do
+    pure ()
+
+/--
+error: #check_contract failed for 'Contracts.Smoke.UnsafeGatingRejected': Compilation error: constructor uses low-level/assembly mechanic(s) mstore outside an unsafe block without any local_obligations entry (Issue #1424 (controlled unsafe/assembly escape hatches)). Wrap the low-level code in `unsafe "reason" do` or add local_obligations [...] to make the trust boundary explicit.
+-/
+#guard_msgs in
+#check_contract UnsafeGatingRejected
 
 -- CEI violation test: this contract compiles but #check_contract rejects it
 verity_contract CEIViolationRejected where

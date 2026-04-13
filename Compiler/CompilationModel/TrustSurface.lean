@@ -283,6 +283,78 @@ private def isUnsafeBoundaryMechanic (mechanic : String) : Bool :=
 def collectUnsafeBoundaryMechanicsFromStmts (stmts : List Stmt) : List String :=
   dedupPreserve ((collectLowLevelMechanicsFromStmts stmts).filter isUnsafeBoundaryMechanic)
 
+/-- Like `collectLowLevelStmtMechanics` but skips `unsafeBlock` bodies —
+    returns only mechanics that appear *outside* any `unsafe` wrapper. -/
+private partial def collectUnguardedLowLevelStmtMechanics : Stmt → List String
+  | .letVar _ value
+  | .assignVar _ value
+  | .setStorage _ value
+  | .setStorageAddr _ value
+  | .storageArrayPush _ value
+  | .return value
+  | .require value _ =>
+      collectLowLevelExprMechanics value
+  | .setStorageArrayElement _ index value =>
+      collectLowLevelExprMechanics index ++ collectLowLevelExprMechanics value
+  | .storageArrayPop _ =>
+      []
+  | .requireError cond _ args =>
+      collectLowLevelExprMechanics cond ++ args.flatMap collectLowLevelExprMechanics
+  | .revertError _ args =>
+      args.flatMap collectLowLevelExprMechanics
+  | .mstore offset value =>
+      ["mstore"] ++ collectLowLevelExprMechanics offset ++ collectLowLevelExprMechanics value
+  | .tstore offset value =>
+      ["tstore"] ++ collectLowLevelExprMechanics offset ++ collectLowLevelExprMechanics value
+  | .calldatacopy destOffset sourceOffset size =>
+      ["calldatacopy"] ++ collectLowLevelExprMechanics destOffset ++
+        collectLowLevelExprMechanics sourceOffset ++ collectLowLevelExprMechanics size
+  | .returndataCopy destOffset sourceOffset size =>
+      ["returndataCopy"] ++ collectLowLevelExprMechanics destOffset ++ collectLowLevelExprMechanics sourceOffset ++ collectLowLevelExprMechanics size
+  | .revertReturndata =>
+      ["revertReturndata"]
+  | .setMapping _ key value
+  | .setMappingWord _ key _ value
+  | .setMappingPackedWord _ key _ _ value
+  | .setMappingUint _ key value
+  | .setStructMember _ key _ value =>
+      collectLowLevelExprMechanics key ++ collectLowLevelExprMechanics value
+  | .setMappingChain _ keys value =>
+      keys.flatMap collectLowLevelExprMechanics ++ collectLowLevelExprMechanics value
+  | .setMapping2 _ key1 key2 value
+  | .setMapping2Word _ key1 key2 _ value
+  | .setStructMember2 _ key1 key2 _ value =>
+      collectLowLevelExprMechanics key1 ++ collectLowLevelExprMechanics key2 ++ collectLowLevelExprMechanics value
+  | .ite cond thenBr elseBr =>
+      collectLowLevelExprMechanics cond ++ thenBr.flatMap collectUnguardedLowLevelStmtMechanics ++ elseBr.flatMap collectUnguardedLowLevelStmtMechanics
+  | .forEach _ count body =>
+      collectLowLevelExprMechanics count ++ body.flatMap collectUnguardedLowLevelStmtMechanics
+  | .unsafeBlock _ _ =>
+      []
+  | .emit _ args
+  | .internalCall _ args
+  | .externalCallBind _ _ args
+  | .returnValues args
+  | .ecm _ args
+  | .internalCallAssign _ _ args =>
+      args.flatMap collectLowLevelExprMechanics
+  | .rawLog topics dataOffset dataSize =>
+      topics.flatMap collectLowLevelExprMechanics ++ collectLowLevelExprMechanics dataOffset ++ collectLowLevelExprMechanics dataSize
+  | .returnArray _
+  | .returnBytes _
+  | .returnStorageWords _
+  | .stop =>
+      []
+
+private def collectUnguardedLowLevelMechanicsFromStmts (stmts : List Stmt) : List String :=
+  dedupPreserve (stmts.flatMap collectUnguardedLowLevelStmtMechanics)
+
+/-- Collect unsafe boundary mechanics that appear *outside* any `unsafe "reason" do` block.
+    Operations inside `unsafe` blocks are considered documented and do not require
+    `local_obligations`. -/
+def collectUnguardedUnsafeBoundaryMechanicsFromStmts (stmts : List Stmt) : List String :=
+  dedupPreserve ((collectUnguardedLowLevelMechanicsFromStmts stmts).filter isUnsafeBoundaryMechanic)
+
 private def isLinearMemoryMechanic (mechanic : String) : Bool :=
   match mechanic with
   | "mload" | "mstore" | "calldatacopy" | "returndataCopy" | "returndataOptionalBoolAt" => true
