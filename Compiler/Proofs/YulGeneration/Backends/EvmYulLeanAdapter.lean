@@ -86,6 +86,9 @@ def lookupPrimOp : String → Option (EvmYul.Operation .Yul)
   | "mul"            => some .MUL
   | "div"            => some .DIV
   | "mod"            => some .MOD
+  | "addmod"         => some .ADDMOD
+  | "mulmod"         => some .MULMOD
+  | "exp"            => some .EXP
   -- Signed arithmetic
   | "sdiv"           => some .SDIV
   | "smod"           => some .SMOD
@@ -96,6 +99,7 @@ def lookupPrimOp : String → Option (EvmYul.Operation .Yul)
   | "sgt"            => some .SGT
   | "eq"             => some .EQ
   | "iszero"         => some .ISZERO
+  | "byte"           => some .BYTE
   -- Bitwise
   | "and"            => some .AND
   | "or"             => some .OR
@@ -141,6 +145,9 @@ def evalPureBuiltinViaEvmYulLean
   | "mul", [a, b]          => some (toNat (EvmYul.UInt256.mul (u a) (u b)))
   | "div", [a, b]          => some (toNat (EvmYul.UInt256.div (u a) (u b)))
   | "mod", [a, b]          => some (toNat (EvmYul.UInt256.mod (u a) (u b)))
+  | "addmod", [a, b, n]    => some (toNat (EvmYul.UInt256.addMod (u a) (u b) (u n)))
+  | "mulmod", [a, b, n]    => some (toNat (EvmYul.UInt256.mulMod (u a) (u b) (u n)))
+  | "exp", [a, b]          => some (toNat (EvmYul.UInt256.exp (u a) (u b)))
   -- Signed arithmetic
   | "sdiv", [a, b]         => some (toNat (EvmYul.UInt256.sdiv (u a) (u b)))
   | "smod", [a, b]         => some (toNat (EvmYul.UInt256.smod (u a) (u b)))
@@ -152,6 +159,7 @@ def evalPureBuiltinViaEvmYulLean
   -- Signed comparison
   | "slt", [a, b]          => some (toNat (EvmYul.UInt256.slt (u a) (u b)))
   | "sgt", [a, b]          => some (toNat (EvmYul.UInt256.sgt (u a) (u b)))
+  | "byte", [i, x]         => some (toNat (EvmYul.UInt256.byteAt (u i) (u x)))
   -- Bitwise
   | "and", [a, b]          => some (toNat (EvmYul.UInt256.land (u a) (u b)))
   | "or",  [a, b]          => some (toNat (EvmYul.UInt256.lor (u a) (u b)))

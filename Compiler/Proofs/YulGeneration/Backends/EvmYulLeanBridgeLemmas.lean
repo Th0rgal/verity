@@ -544,17 +544,23 @@ EVMYulLean UInt256 semantics on all inputs. -/
     evalBuiltinCall_shr_bridge]
 
 
-/-! ## Signed Builtin Bridge Lemmas — Status
+/-! ## Remaining Builtin Bridge Lemmas — Status
 
-Universal bridge proofs for signed builtins (slt, sgt, sdiv, smod, sar, signextend)
-require local `lake build` iteration to debug Lean 4.22-specific issues:
+Universal bridge proofs for the following builtins require local `lake build`
+iteration to debug:
+
+**Signed builtins** (slt, sgt, sdiv, smod, sar, signextend):
 - `omega` cannot handle `Int.ofNat` goals with large constants (2^255, 2^256)
 - `set_option maxHeartbeats` propagation through cascading error recovery
 - UInt256 LT instance reduction through Fin/structure wrappers
 
-These builtins are validated by 96 concrete `native_decide` bridge tests
-in `EvmYulLeanBridgeTest.lean` covering all critical boundary values
-(INT256_MIN, INT256_MAX, zero, -1, cross-quadrant comparisons, etc.).
+**New pure builtins** (addmod, mulmod, exp, byte):
+- Ternary ops (addmod, mulmod) need `Fin.val` intermediate proofs
+- `exp` needs modular exponentiation equivalence (`Nat.pow` vs `UInt256.pow`)
+- `byte` needs shift/mask equivalence proof
+
+All these builtins are validated by concrete `native_decide` bridge tests
+in `EvmYulLeanBridgeTest.lean` covering critical boundary values.
 
 Phase 3 of issue #1722 will address universal proofs once local build
 infrastructure is available. -/

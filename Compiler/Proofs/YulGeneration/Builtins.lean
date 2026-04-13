@@ -169,6 +169,36 @@ def evalBuiltinCallWithContext
           (Verity.Core.Uint256.ofNat (byteIdx % evmModulus))
           (Verity.Core.Uint256.ofNat (value % evmModulus))).val
     | _ => none
+  else if func = "addmod" then
+    match argVals with
+    | [a, b, n] =>
+        let a := toWord a
+        let b := toWord b
+        let n := toWord n
+        if n = 0 then some 0
+        else some ((a + b) % n)
+    | _ => none
+  else if func = "mulmod" then
+    match argVals with
+    | [a, b, n] =>
+        let a := toWord a
+        let b := toWord b
+        let n := toWord n
+        if n = 0 then some 0
+        else some ((a * b) % n)
+    | _ => none
+  else if func = "exp" then
+    match argVals with
+    | [a, b] => some ((toWord a ^ toWord b) % evmModulus)
+    | _ => none
+  else if func = "byte" then
+    match argVals with
+    | [i, x] =>
+        let i := toWord i
+        let x := toWord x
+        if i > 31 then some 0
+        else some ((x / (2 ^ ((31 - i) * 8))) % 256)
+    | _ => none
   else if func = "caller" then
     match argVals with
     | [] => some sender

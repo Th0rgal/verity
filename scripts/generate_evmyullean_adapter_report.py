@@ -26,7 +26,7 @@ CORRECTNESS_FILE = BACKENDS_DIR / "EvmYulLeanAdapterCorrectness.lean"
 DEFAULT_OUTPUT = ROOT / "artifacts" / "evmyullean_adapter_report.json"
 
 EXPECTED_EXPR_CASES = ["lit", "hex", "str", "ident", "call"]
-EXPECTED_STMT_CASES = ["comment", "let_", "assign", "expr", "if_", "for_", "switch", "block", "funcDef"]
+EXPECTED_STMT_CASES = ["comment", "let_", "letMany", "assign", "expr", "leave", "if_", "for_", "switch", "block", "funcDef"]
 
 CASE_RE = re.compile(r"^\s*\|\s*\.([A-Za-z0-9_']+)")
 GAP_RE = re.compile(r'\.error\s+"([^"]+)"')

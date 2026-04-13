@@ -606,19 +606,83 @@ private def adapterSmokeStmts : List YulStmt := [
 /-- All 11 statement types lower successfully via the adapter. -/
 example : (lowerStmts adapterSmokeStmts).isOk = true := by native_decide
 
+-- ## addmod builtins
+
+/-- addmod: (3 + 5) % 4 = 0 -/
+example : verityEval "addmod" [3, 5, 4] = bridgeEval "addmod" [3, 5, 4] := by native_decide
+
+/-- addmod: (10 + 10) % 8 = 4 -/
+example : verityEval "addmod" [10, 10, 8] = bridgeEval "addmod" [10, 10, 8] := by native_decide
+
+/-- addmod: modulus 0 returns 0 -/
+example : verityEval "addmod" [10, 10, 0] = bridgeEval "addmod" [10, 10, 0] := by native_decide
+
+/-- addmod: max + 1 wraps correctly -/
+example : verityEval "addmod" [Compiler.Constants.evmModulus - 1, 2, 5] =
+          bridgeEval "addmod" [Compiler.Constants.evmModulus - 1, 2, 5] := by native_decide
+
+-- ## mulmod builtins
+
+/-- mulmod: (3 * 5) % 7 = 1 -/
+example : verityEval "mulmod" [3, 5, 7] = bridgeEval "mulmod" [3, 5, 7] := by native_decide
+
+/-- mulmod: (10 * 10) % 8 = 4 -/
+example : verityEval "mulmod" [10, 10, 8] = bridgeEval "mulmod" [10, 10, 8] := by native_decide
+
+/-- mulmod: modulus 0 returns 0 -/
+example : verityEval "mulmod" [10, 10, 0] = bridgeEval "mulmod" [10, 10, 0] := by native_decide
+
+/-- mulmod: large product wraps correctly -/
+example : verityEval "mulmod" [Compiler.Constants.evmModulus - 1, 2, 5] =
+          bridgeEval "mulmod" [Compiler.Constants.evmModulus - 1, 2, 5] := by native_decide
+
+-- ## exp builtins
+
+/-- exp: 2^10 = 1024 -/
+example : verityEval "exp" [2, 10] = bridgeEval "exp" [2, 10] := by native_decide
+
+/-- exp: anything^0 = 1 -/
+example : verityEval "exp" [42, 0] = bridgeEval "exp" [42, 0] := by native_decide
+
+/-- exp: 0^1 = 0 -/
+example : verityEval "exp" [0, 1] = bridgeEval "exp" [0, 1] := by native_decide
+
+/-- exp: 1^large = 1 -/
+example : verityEval "exp" [1, 9999] = bridgeEval "exp" [1, 9999] := by native_decide
+
+-- ## byte builtins
+
+/-- byte: extract byte 31 (least significant byte) of 0xFF = 0xFF -/
+example : verityEval "byte" [31, 0xFF] = bridgeEval "byte" [31, 0xFF] := by native_decide
+
+/-- byte: extract byte 30 of 0xFF00 = 0xFF -/
+example : verityEval "byte" [30, 0xFF00] = bridgeEval "byte" [30, 0xFF00] := by native_decide
+
+/-- byte: index 0 of small number = 0 -/
+example : verityEval "byte" [0, 0xFF] = bridgeEval "byte" [0, 0xFF] := by native_decide
+
+/-- byte: index > 31 returns 0 -/
+example : verityEval "byte" [32, 0xFFFFFFFF] = bridgeEval "byte" [32, 0xFFFFFFFF] := by native_decide
+
+/-- byte: index 0 returns most significant byte -/
+example : verityEval "byte" [0, 0] = bridgeEval "byte" [0, 0] := by native_decide
+
 -- ## Summary output
 def main : IO Unit := do
   IO.println "✓ Unsigned arithmetic builtins: add, sub, mul, div, mod — universally bridged"
+  IO.println "✓ Modular arithmetic builtins: addmod, mulmod — concrete bridge"
+  IO.println "✓ Exponentiation: exp — concrete bridge"
   IO.println "✓ Signed arithmetic builtins: sdiv, smod — concrete bridge (incl. INT256_MIN/-1 overflow)"
   IO.println "✓ Unsigned comparison builtins: lt, gt, eq, iszero — universally bridged"
   IO.println "✓ Signed comparison builtins: slt, sgt — concrete bridge (incl. neg×neg, INT256_MIN/MAX)"
   IO.println "✓ Bitwise builtins: and, or, xor, not, shl, shr — universally bridged"
+  IO.println "✓ Byte extraction: byte — concrete bridge"
   IO.println "✓ Signed shift: sar — concrete bridge (incl. saturated ≥256, INT256_MIN, sign-extend)"
   IO.println "✓ Sign extension: signextend — concrete bridge (byte positions 0,1,15,30,31,32)"
   IO.println "✓ State-dependent builtins: sload, caller, calldataload, address, timestamp, number, chainid, blobbasefee — correctly handled"
   IO.println "✓ Verity-specific helpers: mappingSlot — correctly delegated"
   IO.println "✓ Adapter: all 11 statement types lower without error"
-  IO.println "✓ PrimOp mapping: 31 builtins mapped via lookupPrimOp"
+  IO.println "✓ PrimOp mapping: 35 builtins mapped via lookupPrimOp"
   IO.println "EVMYulLean bridge test: all checks passed"
 
 end Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeTest
