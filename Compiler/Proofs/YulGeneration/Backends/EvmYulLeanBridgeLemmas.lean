@@ -819,24 +819,19 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
     simp [evmModulus, Verity.Core.UINT256_MODULUS]
   have hmb : b % evmModulus % Verity.Core.UINT256_MODULUS = b % evmModulus := by
     simp [evmModulus, Verity.Core.UINT256_MODULUS]
-  -- Unfold both sides completely.  After simp, Fin.ofNat computes 2^256
-  -- to the decimal literal matching EvmYul.UInt256.size.  We include
-  -- evmModulus so the ↑evmModulus Int coercion also reduces.
+  -- Unfold both sides completely.
   simp only [Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
     Verity.Core.UINT256_MODULUS, evmModulus, hma, hmb,
     EvmYul.UInt256.sltBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
-    Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_lt_val, Fin.val,
-    int_natCast_emod]
-  -- Case-split on sign bits; use EvmYul.UInt256.size to match goal literals.
+    Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_lt_val, Fin.val]
+  -- Case-split on sign bits.
   by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
   by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
-  -- simp_all may close some goals and simplify others; try because some
-  -- goals may already be in normal form after int_natCast_emod
-  all_goals (try simp_all [EvmYul.UInt256.size, evmModulus,
-    Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS,
-    Int.ofNat_lt, Int.ofNat_nonneg, not_lt, int_natCast_emod])
+  all_goals (try simp_all [EvmYul.UInt256.size, Int.ofNat_lt, not_lt])
+  -- norm_cast bridges ↑a % (M : Int) to ↑(a % M) and ↑x < ↑y to x < y
+  all_goals (try norm_cast)
   all_goals omega
 
 set_option maxHeartbeats 4000000 in
@@ -890,24 +885,19 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
     simp [evmModulus, Verity.Core.UINT256_MODULUS]
   have hmb : b % evmModulus % Verity.Core.UINT256_MODULUS = b % evmModulus := by
     simp [evmModulus, Verity.Core.UINT256_MODULUS]
-  -- Unfold both sides completely.  After simp, Fin.ofNat computes 2^256
-  -- to the decimal literal matching EvmYul.UInt256.size.  We include
-  -- evmModulus so the ↑evmModulus Int coercion also reduces.
+  -- Unfold both sides completely.
   simp only [Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
     Verity.Core.UINT256_MODULUS, evmModulus, hma, hmb,
     EvmYul.UInt256.sgtBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
-    Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_gt_val, uint256_lt_val, Fin.val,
-    int_natCast_emod]
-  -- Case-split on sign bits; use EvmYul.UInt256.size to match goal literals.
+    Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_gt_val, uint256_lt_val, Fin.val]
+  -- Case-split on sign bits.
   by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
   by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
-  -- simp_all may close some goals and simplify others; try because some
-  -- goals may already be in normal form after int_natCast_emod
-  all_goals (try simp_all [EvmYul.UInt256.size, evmModulus,
-    Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS,
-    Int.ofNat_lt, Int.ofNat_nonneg, not_lt, int_natCast_emod])
+  all_goals (try simp_all [EvmYul.UInt256.size, Int.ofNat_lt, not_lt])
+  -- norm_cast bridges ↑a % (M : Int) to ↑(a % M) and ↑x < ↑y to x < y
+  all_goals (try norm_cast)
   all_goals omega
 
 set_option maxHeartbeats 4000000 in
