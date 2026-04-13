@@ -647,6 +647,18 @@
       "agreement_proved": true
     },
     {
+      "feature": "slt",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
+      "feature": "sgt",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
       "feature": "eq",
       "verity_path": "supported",
       "evmyullean_bridge": "supported",
@@ -714,18 +726,6 @@
     },
     {
       "feature": "smod",
-      "verity_path": "supported",
-      "evmyullean_bridge": "supported",
-      "agreement_proved": false
-    },
-    {
-      "feature": "slt",
-      "verity_path": "supported",
-      "evmyullean_bridge": "supported",
-      "agreement_proved": false
-    },
-    {
-      "feature": "sgt",
       "verity_path": "supported",
       "evmyullean_bridge": "supported",
       "agreement_proved": false

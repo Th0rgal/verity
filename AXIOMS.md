@@ -146,13 +146,13 @@ scoped to contracts that use the module.
 
 ## Non-Axiom: Arithmetic
 
-All 18 low-level EVM arithmetic builtins are **proven correct** — not assumed.
+All 20 low-level EVM arithmetic builtins are **proven correct** — not assumed.
 The proofs show that Verity's arithmetic matches EVM arithmetic (wrapping at
 2^256) for *all* possible inputs, not just test cases. The EVMYulLean bridge
-currently has universal equivalence lemmas for 18 of them (`add`, `sub`, `mul`,
-`div`, `mod`, `addmod`, `mulmod`, `lt`, `gt`, `eq`, `iszero`, `and`, `or`,
-`xor`, `not`, `shl`, `shr`, `byte`), while `exp`, `sdiv`, `smod`, `slt`,
-`sgt`, `sar`, and `signextend` are covered by concrete bridge checks.
+currently has universal equivalence lemmas for 20 of them (`add`, `sub`, `mul`,
+`div`, `mod`, `addmod`, `mulmod`, `lt`, `gt`, `slt`, `sgt`, `eq`, `iszero`, `and`, `or`,
+`xor`, `not`, `shl`, `shr`, `byte`), while `exp`, `sdiv`, `smod`, `sar`, and
+`signextend` are covered by concrete bridge checks.
 
 Additionally, 8 higher-level expression operators have proven compilation
 correctness in the `ExprCompileCore` fragment: `min`, `max`, `ceilDiv`, `ite`
