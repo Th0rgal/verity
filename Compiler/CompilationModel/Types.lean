@@ -428,6 +428,10 @@ inductive Stmt
       This generic variant delegates validation, compilation, and state analysis
       to the module's metadata and compile function. See Compiler.ECM (#964). -/
   | ecm (mod : ECM.ExternalCallModule) (args : List Expr)
+  /-- Unsafe block: `unsafe "reason" do body`.
+      Marks a region where restricted operations (Step 6b) are permitted.
+      The reason string is preserved for trust reporting (Step 6c). -/
+  | unsafeBlock (reason : String) (body : List Stmt)
   deriving Repr
 
 structure FunctionSpec where

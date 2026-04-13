@@ -1854,6 +1854,24 @@ example : NamespacedStorageSmoke.owner.slot ≠ 1 := by decide
 example : NamespacedStorageSmoke.spec.storageNamespace.isSome = true := rfl
 example : Contracts.Counter.spec.storageNamespace.isNone = true := rfl
 
+-- Unsafe block smoke test (#1424, Phase 6 Step 6a).
+-- `unsafe "reason" do` wraps a block of statements; Step 6a is the transparent
+-- wrapper (validation/compilation recurse into the body unchanged).
+verity_contract UnsafeBlockSmoke where
+  storage
+    counter : Uint256 := slot 0
+
+  function incrementUnsafe () : Unit := do
+    unsafe "demo: testing unsafe block syntax" do
+      let current ← getStorage counter
+      setStorage counter (add current 1)
+
+  function getCounter () : Uint256 := do
+    let current ← getStorage counter
+    return current
+
+#check_contract UnsafeBlockSmoke
+
 -- CEI violation test: this contract compiles but #check_contract rejects it
 verity_contract CEIViolationRejected where
   storage

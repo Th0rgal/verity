@@ -312,6 +312,9 @@ def validateScopedStmtIdentifiers
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount count
       let _ ← validateScopedStmtListIdentifiers context params paramScope dynamicParams (varName :: localScope) constructorArgCount body
       pure localScope
+  | Stmt.unsafeBlock _ body => do
+      let _ ← validateScopedStmtListIdentifiers context params paramScope dynamicParams localScope constructorArgCount body
+      pure localScope
   | Stmt.internalCall _ args => do
       validateScopedExprIdentifiersList context params paramScope dynamicParams localScope constructorArgCount args
       pure localScope

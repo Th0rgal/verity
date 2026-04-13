@@ -331,6 +331,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.NewtypeSmoke.spec
   , Contracts.Smoke.NamespacedStorageSmoke.spec
   , Contracts.Smoke.CEIViolationRejected.spec
+  , Contracts.Smoke.UnsafeBlockSmoke.spec
   ]
 
 private def functionSignature (fn : FunctionSpec) : String :=
@@ -419,6 +420,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("NewtypeSmoke", ["mint(uint256,uint256)", "setMinter(address)", "getNextTokenId()"])
   , ("NamespacedStorageSmoke", ["deposit(uint256)", "getOwner()"])
   , ("CEIViolationRejected", ["callThenStore(uint256)"])
+  , ("UnsafeBlockSmoke", ["incrementUnsafe()", "getCounter()"])
   ]
 
 private def expectedExternalSelectors : List (String × List String) :=
@@ -490,6 +492,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("NewtypeSmoke", ["0x1b2ef1ca", "0xfca3b5aa", "0xcaa0f92a"])
   , ("NamespacedStorageSmoke", ["0xb6b55f25", "0x893d20e8"])
   , ("CEIViolationRejected", ["0xe4fccc26"])
+  , ("UnsafeBlockSmoke", ["0x87a993fd", "0x8ada066e"])
   ]
 
 private def expectedFor

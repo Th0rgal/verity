@@ -170,6 +170,8 @@ def collectStmtNames : Stmt → List String
       collectExprNames cond ++ collectStmtListNames thenBranch ++ collectStmtListNames elseBranch
   | Stmt.forEach varName count body =>
       varName :: collectExprNames count ++ collectStmtListNames body
+  | Stmt.unsafeBlock _ body =>
+      collectStmtListNames body
   | Stmt.emit eventName args => eventName :: collectExprListNames args
   | Stmt.internalCall functionName args => functionName :: collectExprListNames args
   | Stmt.internalCallAssign names functionName args =>

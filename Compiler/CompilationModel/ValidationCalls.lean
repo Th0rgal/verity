@@ -209,6 +209,8 @@ def validateInternalCallShapesInStmt
   | Stmt.forEach _ count body => do
       validateInternalCallShapesInExpr functions callerName count
       validateInternalCallShapesInStmtList functions callerName body
+  | Stmt.unsafeBlock _ body =>
+      validateInternalCallShapesInStmtList functions callerName body
   | Stmt.emit _ args =>
       validateInternalCallShapesInExprList functions callerName args
   | Stmt.returnValues values =>
@@ -421,6 +423,8 @@ def validateExternalCallTargetsInStmt
       validateExternalCallTargetsInStmtList externals context elseBranch
   | Stmt.forEach _ count body => do
       validateExternalCallTargetsInExpr externals context count
+      validateExternalCallTargetsInStmtList externals context body
+  | Stmt.unsafeBlock _ body =>
       validateExternalCallTargetsInStmtList externals context body
   | Stmt.emit _ args =>
       validateExternalCallTargetsInExprList externals context args

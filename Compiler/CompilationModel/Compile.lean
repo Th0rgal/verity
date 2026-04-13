@@ -179,6 +179,10 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
       let postStmts := [YulStmt.assign varName (YulExpr.call "add" [YulExpr.ident varName, YulExpr.lit 1])]
       pure [YulStmt.for_ initStmts condExpr postStmts bodyStmts]
 
+  | Stmt.unsafeBlock _ body => do
+      -- Unsafe block: transparent wrapper, compile inner body directly (#1728, Axis 6 Step 6a)
+      compileStmtList fields events errors dynamicSource internalRetNames isInternal inScopeNames body
+
   | Stmt.emit eventName args => do
       compileEmit fields events dynamicSource eventName args
 

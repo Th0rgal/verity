@@ -2759,6 +2759,9 @@ private partial def validateDoElemExprTypes
           validateTryCatchHandlerDoesNotUsePayload handler payloadName? catchElems
           let _ ← validateDoElemsExprTypes ownerName fields constDecls immutableDecls externalDecls errorDecls functions params locals catchElems
           pure locals
+      | `(doElem| unsafe $_reason:str do $body:doSeq) =>
+          validateDoSeqExprTypes ownerName fields constDecls immutableDecls externalDecls errorDecls functions params locals body
+          pure locals
       | `(doElem| $stmt:term) =>
           validateEffectStmtExprTypes fields constDecls immutableDecls externalDecls functions params locals stmt
           pure locals
@@ -3571,6 +3574,15 @@ private partial def translateDoElem
             (#[(← `(Compiler.CompilationModel.Stmt.revertError
                     $(strTerm (toString errorName.getId))
                     [ $[$argExprs],* ]))],
+              locals,
+              mutableLocals)
+      | `(doElem| unsafe $reason:str do $body:doSeq) =>
+          let bodyStmts ← translateDoSeqToStmtTerms fields constDecls immutableDecls functions params locals mutableLocals body
+          let reasonStr := reason.getString
+          pure
+            (#[(← `(Compiler.CompilationModel.Stmt.unsafeBlock
+                    $(Lean.Quote.quote reasonStr)
+                    [ $[$bodyStmts],* ]))],
               locals,
               mutableLocals)
       | `(doElem| $stmt:term) =>

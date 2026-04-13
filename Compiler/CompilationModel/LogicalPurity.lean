@@ -186,6 +186,8 @@ def stmtContainsUnsafeLogicalCallLike : Stmt → Bool
       stmtListAnyUnsafeLogicalCallLike elseBranch
   | Stmt.forEach _ count body =>
       exprContainsUnsafeLogicalCallLike count || stmtListAnyUnsafeLogicalCallLike body
+  | Stmt.unsafeBlock _ body =>
+      stmtListAnyUnsafeLogicalCallLike body
   | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args =>
       exprListAnyUnsafeLogicalCallLike args
   | Stmt.rawLog topics dataOffset dataSize =>

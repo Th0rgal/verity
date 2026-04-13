@@ -186,6 +186,8 @@ private partial def collectLowLevelStmtMechanics : Stmt → List String
       collectLowLevelExprMechanics cond ++ thenBr.flatMap collectLowLevelStmtMechanics ++ elseBr.flatMap collectLowLevelStmtMechanics
   | .forEach _ count body =>
       collectLowLevelExprMechanics count ++ body.flatMap collectLowLevelStmtMechanics
+  | .unsafeBlock _ body =>
+      body.flatMap collectLowLevelStmtMechanics
   | .emit _ args
   | .internalCall _ args
   | .externalCallBind _ _ args
@@ -244,6 +246,8 @@ private partial def collectAxiomatizedStmtPrimitives : Stmt → List String
         elseBr.flatMap collectAxiomatizedStmtPrimitives
   | .forEach _ count body =>
       collectAxiomatizedExprPrimitives count ++ body.flatMap collectAxiomatizedStmtPrimitives
+  | .unsafeBlock _ body =>
+      body.flatMap collectAxiomatizedStmtPrimitives
   | .emit _ args
   | .internalCall _ args
   | .externalCallBind _ _ args
@@ -399,6 +403,8 @@ private partial def collectEventEmissionStmtMechanics : Stmt → List String
         elseBr.flatMap collectEventEmissionStmtMechanics
   | .forEach _ count body =>
       collectEventEmissionExprMechanics count ++ body.flatMap collectEventEmissionStmtMechanics
+  | .unsafeBlock _ body =>
+      body.flatMap collectEventEmissionStmtMechanics
   | .emit _ args
   | .internalCall _ args
   | .externalCallBind _ _ args
@@ -554,6 +560,8 @@ private partial def collectRuntimeIntrospectionStmtMechanics : Stmt → List Str
         elseBr.flatMap collectRuntimeIntrospectionStmtMechanics
   | .forEach _ count body =>
       collectRuntimeIntrospectionExprMechanics count ++ body.flatMap collectRuntimeIntrospectionStmtMechanics
+  | .unsafeBlock _ body =>
+      body.flatMap collectRuntimeIntrospectionStmtMechanics
   | .emit _ args
   | .internalCall _ args
   | .returnValues args
@@ -692,6 +700,8 @@ private partial def collectExternalStmtNames : Stmt → List String
       collectExternalExprNames cond ++ thenBr.flatMap collectExternalStmtNames ++ elseBr.flatMap collectExternalStmtNames
   | .forEach _ count body =>
       collectExternalExprNames count ++ body.flatMap collectExternalStmtNames
+  | .unsafeBlock _ body =>
+      body.flatMap collectExternalStmtNames
   | .emit _ args
   | .internalCall _ args
   | .returnValues args
@@ -747,6 +757,8 @@ private partial def collectUsedEcmModulesInStmt : Stmt → List ECM.ExternalCall
   | .ite _ thenBr elseBr =>
       thenBr.flatMap collectUsedEcmModulesInStmt ++ elseBr.flatMap collectUsedEcmModulesInStmt
   | .forEach _ _ body =>
+      body.flatMap collectUsedEcmModulesInStmt
+  | .unsafeBlock _ body =>
       body.flatMap collectUsedEcmModulesInStmt
   | _ =>
       []

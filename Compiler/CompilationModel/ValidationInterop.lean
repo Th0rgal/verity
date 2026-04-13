@@ -167,6 +167,8 @@ def validateInteropStmt (context : String) : Stmt → Except String Unit
   | Stmt.forEach _ count body => do
       validateInteropExpr context count
       validateInteropStmtList context body
+  | Stmt.unsafeBlock _ body =>
+      validateInteropStmtList context body
   | Stmt.emit _ args =>
       validateInteropExprList context args
   | Stmt.internalCall _ args =>

@@ -9,6 +9,8 @@ def collectStmtBindNames : Stmt → List String
       collectStmtListBindNames thenBranch ++ collectStmtListBindNames elseBranch
   | Stmt.forEach varName _ body =>
       varName :: collectStmtListBindNames body
+  | Stmt.unsafeBlock _ body =>
+      collectStmtListBindNames body
   | Stmt.internalCallAssign names _ _ => names
   | Stmt.externalCallBind resultVars _ _ => resultVars
   | Stmt.ecm mod _ => mod.resultVars
@@ -42,6 +44,8 @@ def collectStmtAssignedNames : Stmt → List String
   | Stmt.ite _ thenBranch elseBranch =>
       collectStmtListAssignedNames thenBranch ++ collectStmtListAssignedNames elseBranch
   | Stmt.forEach _ _ body =>
+      collectStmtListAssignedNames body
+  | Stmt.unsafeBlock _ body =>
       collectStmtListAssignedNames body
   | Stmt.letVar _ _ | Stmt.setStorage _ _ | Stmt.setStorageAddr _ _
   | Stmt.storageArrayPush _ _ | Stmt.storageArrayPop _ | Stmt.setStorageArrayElement _ _ _
@@ -169,6 +173,8 @@ def stmtUsesArrayElement : Stmt → Bool
       exprUsesArrayElement cond || stmtListUsesArrayElement thenBranch || stmtListUsesArrayElement elseBranch
   | Stmt.forEach _ count body =>
       exprUsesArrayElement count || stmtListUsesArrayElement body
+  | Stmt.unsafeBlock _ body =>
+      stmtListUsesArrayElement body
   | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args =>
       exprListUsesArrayElement args
   | Stmt.rawLog topics dataOffset dataSize =>
@@ -297,6 +303,8 @@ def stmtUsesStorageArrayElement : Stmt → Bool
       exprUsesStorageArrayElement cond || stmtListUsesStorageArrayElement thenBranch || stmtListUsesStorageArrayElement elseBranch
   | Stmt.forEach _ count body =>
       exprUsesStorageArrayElement count || stmtListUsesStorageArrayElement body
+  | Stmt.unsafeBlock _ body =>
+      stmtListUsesStorageArrayElement body
   | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args | Stmt.externalCallBind _ _ args =>
       exprListUsesStorageArrayElement args
   | Stmt.rawLog topics dataOffset dataSize =>
@@ -418,6 +426,8 @@ def stmtUsesDynamicBytesEq : Stmt → Bool
       exprUsesDynamicBytesEq cond || stmtListUsesDynamicBytesEq thenBranch || stmtListUsesDynamicBytesEq elseBranch
   | Stmt.forEach _ count body =>
       exprUsesDynamicBytesEq count || stmtListUsesDynamicBytesEq body
+  | Stmt.unsafeBlock _ body =>
+      stmtListUsesDynamicBytesEq body
   | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args
   | Stmt.externalCallBind _ _ args
   | Stmt.ecm _ args =>

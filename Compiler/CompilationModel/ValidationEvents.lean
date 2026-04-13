@@ -45,6 +45,8 @@ def validateCustomErrorArgShapesInStmt (fnName : String) (params : List Param)
       validateCustomErrorArgShapesInStmtList fnName params errors elseBranch
   | Stmt.forEach _ _ body =>
       validateCustomErrorArgShapesInStmtList fnName params errors body
+  | Stmt.unsafeBlock _ body =>
+      validateCustomErrorArgShapesInStmtList fnName params errors body
   | _ => pure ()
 termination_by s => sizeOf s
 decreasing_by all_goals simp_wf; all_goals omega
@@ -196,6 +198,8 @@ partial def validateEventArgShapesInStmt (fnName : String) (params : List Param)
       thenBranch.forM (validateEventArgShapesInStmt fnName params events)
       elseBranch.forM (validateEventArgShapesInStmt fnName params events)
   | Stmt.forEach _ _ body =>
+      body.forM (validateEventArgShapesInStmt fnName params events)
+  | Stmt.unsafeBlock _ body =>
       body.forM (validateEventArgShapesInStmt fnName params events)
   | _ => pure ()
 

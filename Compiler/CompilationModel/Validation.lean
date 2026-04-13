@@ -63,6 +63,8 @@ def validateStmtParamReferences (fnName : String) (params : List Param) :
       validateStmtParamReferencesInList fnName params elseBranch
   | Stmt.forEach _ _ body => do
       validateStmtParamReferencesInList fnName params body
+  | Stmt.unsafeBlock _ body => do
+      validateStmtParamReferencesInList fnName params body
   | _ => pure ()
 termination_by s => sizeOf s
 decreasing_by all_goals simp_wf; all_goals omega
@@ -139,6 +141,8 @@ def validateReturnShapesInStmt (fnName : String) (params : List Param)
       validateReturnShapesInStmtList fnName params expectedReturns isInternal elseBranch
   | Stmt.forEach _ _ body =>
       validateReturnShapesInStmtList fnName params expectedReturns isInternal body
+  | Stmt.unsafeBlock _ body =>
+      validateReturnShapesInStmtList fnName params expectedReturns isInternal body
   | _ => pure ()
 termination_by s => sizeOf s
 decreasing_by all_goals simp_wf; all_goals omega
@@ -171,6 +175,8 @@ mutual
         true
     | Stmt.ite _ thenBranch elseBranch =>
         stmtListAlwaysReturnsOrReverts thenBranch && stmtListAlwaysReturnsOrReverts elseBranch
+    | Stmt.unsafeBlock _ body =>
+        stmtListAlwaysReturnsOrReverts body
     | _ =>
         false
   termination_by s => sizeOf s
@@ -329,6 +335,8 @@ def stmtWritesState : Stmt → Bool
       exprWritesState cond || stmtListWritesState thenBranch || stmtListWritesState elseBranch
   | Stmt.forEach _ count body =>
       exprWritesState count || stmtListWritesState body
+  | Stmt.unsafeBlock _ body =>
+      stmtListWritesState body
   | Stmt.emit _ _ | Stmt.rawLog _ _ _
   | Stmt.internalCall _ _ | Stmt.internalCallAssign _ _ _
   | Stmt.externalCallBind _ _ _ => true
@@ -360,6 +368,8 @@ def stmtWrittenFields : Stmt → List String
   | Stmt.ite _ thenBranch elseBranch =>
       stmtListWrittenFields thenBranch ++ stmtListWrittenFields elseBranch
   | Stmt.forEach _ _ body =>
+      stmtListWrittenFields body
+  | Stmt.unsafeBlock _ body =>
       stmtListWrittenFields body
   | _ => []
 termination_by s => sizeOf s
@@ -468,6 +478,8 @@ def stmtContainsExternalCall : Stmt → Bool
       exprContainsExternalCall cond || stmtListContainsExternalCall thenBranch || stmtListContainsExternalCall elseBranch
   | Stmt.forEach _ count body =>
       exprContainsExternalCall count || stmtListContainsExternalCall body
+  | Stmt.unsafeBlock _ body =>
+      stmtListContainsExternalCall body
   | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args =>
       args.any exprContainsExternalCall
   | _ => false
@@ -517,6 +529,8 @@ def stmtReadsStateOrEnv : Stmt → Bool
       exprReadsStateOrEnv cond || stmtListReadsStateOrEnv thenBranch || stmtListReadsStateOrEnv elseBranch
   | Stmt.forEach _ count body =>
       exprReadsStateOrEnv count || stmtListReadsStateOrEnv body
+  | Stmt.unsafeBlock _ body =>
+      stmtListReadsStateOrEnv body
   | Stmt.rawLog topics dataOffset dataSize =>
       topics.any exprReadsStateOrEnv || exprReadsStateOrEnv dataOffset || exprReadsStateOrEnv dataSize
   | Stmt.internalCall _ _ | Stmt.internalCallAssign _ _ _
@@ -602,6 +616,10 @@ def stmtInternalCEIViolation : Stmt → Option String
         match stmtListCEIViolation body false with
         | some msg => some s!"in loop body: {msg}"
         | none => none
+  | Stmt.unsafeBlock _ body =>
+      match stmtListCEIViolation body false with
+      | some msg => some s!"in unsafe block: {msg}"
+      | none => none
   | _ => none
 termination_by s => sizeOf s
 decreasing_by all_goals simp_wf; all_goals omega
@@ -659,6 +677,8 @@ def validateNoRuntimeReturnsInConstructorStmt : Stmt → Except String Unit
       validateNoRuntimeReturnsInConstructorStmtList thenBranch
       validateNoRuntimeReturnsInConstructorStmtList elseBranch
   | Stmt.forEach _ _ body =>
+      validateNoRuntimeReturnsInConstructorStmtList body
+  | Stmt.unsafeBlock _ body =>
       validateNoRuntimeReturnsInConstructorStmtList body
   | _ => pure ()
 termination_by s => sizeOf s
