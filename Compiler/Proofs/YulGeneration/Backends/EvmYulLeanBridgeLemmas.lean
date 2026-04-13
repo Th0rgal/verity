@@ -797,10 +797,12 @@ private theorem toNat_fromBool (b : Bool) :
     We convert to the equivalent `a.val.val < b.val.val`. -/
 @[simp] private theorem uint256_lt_val (a b : EvmYul.UInt256) :
     (a < b) ↔ (a.val.val < b.val.val) := by
-  cases a with | mk va => cases b with | mk vb =>
-  rw [show (⟨va⟩ : EvmYul.UInt256) < ⟨vb⟩ ↔ va ≤ vb ∧ ¬(vb ≤ va) from lt_iff_le_not_le]
-  -- Fin LE unfolds to Nat LE on .val
-  change (va.val ≤ vb.val ∧ ¬(vb.val ≤ va.val)) ↔ (va.val < vb.val)
+  -- Preorder lt unfolds to: a ≤ b ∧ ¬(b ≤ a)
+  -- UInt256 LE unfolds to: a.val ≤ b.val  (Fin LE = Nat LE on .val)
+  -- Use rfl-based Preorder lemma, then reduce LE to Nat
+  rw [show (a < b) = (a ≤ b ∧ ¬(b ≤ a)) from rfl]
+  rw [show (a ≤ b) = (a.val.val ≤ b.val.val) from rfl]
+  rw [show (b ≤ a) = (b.val.val ≤ a.val.val) from rfl]
   omega
 
 @[simp] private theorem uint256_gt_val (a b : EvmYul.UInt256) :
