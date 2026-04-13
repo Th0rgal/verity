@@ -104,10 +104,11 @@ def expected_doc_snippets(builtin_features: list[dict]) -> list[str]:
     proved = sum(1 for entry in builtin_features if entry["agreement_proved"])
     concrete_only = len(CONCRETE_ONLY_BUILTINS)
     delegated = len(DELEGATED_BUILTINS)
+    concrete_names = ", ".join(f"`{b}`" for b in CONCRETE_ONLY_BUILTINS)
     return [
         f"{proved}/{total} builtins have universal bridge agreement proofs between Verity and EVMYulLean evaluation paths.",
         f"{proved} are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`",
-        f"{concrete_only} additional builtins",
+        f"{concrete_only} additional builtins ({concrete_names}) are evaluated via EVMYulLean and validated by concrete",
         f"The remaining {delegated} are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.",
         "| `address` | ok | del | -- |",
         "| `timestamp` | ok | del | -- |",

@@ -80,9 +80,8 @@ def get_sorry_count() -> tuple[int, int]:
     """
     # Infrastructure files whose sorrys are Phase 2 proof obligations,
     # not regressions in contract theorem proofs.
-    INFRASTRUCTURE_FILES = {
-        "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean",
-    }
+    # (Currently empty — all bridge sorrys have been discharged.)
+    INFRASTRUCTURE_FILES: set[str] = set()
     matcher = re.compile(r"\bsorry\b")
     total = 0
     proof_sorry = 0
