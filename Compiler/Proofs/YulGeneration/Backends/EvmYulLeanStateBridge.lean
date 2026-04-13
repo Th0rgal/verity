@@ -279,6 +279,7 @@ theorem number_bridge (state : YulState) (observableSlots : List Nat) :
     `UInt256.ofNat (n % 2^160)`. Verity returns `sender` (no modular reduction
     in `evalBuiltinCallWithContext`). Agreement requires the hypothesis that
     `sender < evmModulus` (it's an Ethereum address, so `< 2^160 < 2^256`). -/
+set_option maxHeartbeats 8000000 in
 theorem caller_bridge (state : YulState) (observableSlots : List Nat)
     (hSender : state.sender < 2 ^ 160) :
     evalBuiltinCallWithContext state.storage state.sender state.msgValue
@@ -286,17 +287,16 @@ theorem caller_bridge (state : YulState) (observableSlots : List Nat)
       state.blobBaseFee state.selector state.calldata "caller" [] =
     some (uint256ToNat (UInt256.ofNat
       (toSharedState state observableSlots).executionEnv.source.val)) := by
-  simp only [evalBuiltinCallWithContext, toSharedState, natToAddress,
-    uint256ToNat, UInt256.toNat, UInt256.ofNat, Id.run]
-  congr 1
-  rw [Nat.mod_eq_of_lt hSender]
-  exact (Nat.mod_eq_of_lt (by unfold UInt256.size; omega : state.sender < UInt256.size)).symm
+  simp [evalBuiltinCallWithContext, toSharedState, natToAddress,
+    uint256ToNat, UInt256.toNat, UInt256.ofNat, Id.run, evmModulus, UInt256.size,
+    Nat.mod_eq_of_lt hSender, Nat.mod_eq_of_lt (show state.sender < 2 ^ 256 by omega)]
 
 /-- The `address` builtin reads `thisAddress` from Verity's state.
     The state bridge stores `natToAddress state.thisAddress` in `execEnv.codeOwner`.
     EVMYulLean's ADDRESS extracts `codeOwner` as `UInt256.ofNat (Fin.val codeOwner)`.
 
     Agreement requires `thisAddress < 2^160` (valid Ethereum address). -/
+set_option maxHeartbeats 8000000 in
 theorem address_bridge (state : YulState) (observableSlots : List Nat)
     (hAddr : state.thisAddress < 2 ^ 160) :
     evalBuiltinCallWithContext state.storage state.sender state.msgValue
@@ -304,39 +304,55 @@ theorem address_bridge (state : YulState) (observableSlots : List Nat)
       state.blobBaseFee state.selector state.calldata "address" [] =
     some (uint256ToNat (UInt256.ofNat
       (toSharedState state observableSlots).executionEnv.codeOwner.val)) := by
-  simp only [evalBuiltinCallWithContext, toSharedState, natToAddress,
-    uint256ToNat, UInt256.toNat, UInt256.ofNat, Id.run, evmModulus, UInt256.size]
-  congr 1
-  rw [Nat.mod_eq_of_lt hAddr]
-  exact Nat.mod_eq_of_lt (by omega : state.thisAddress < 2 ^ 256)
+  simp [evalBuiltinCallWithContext, toSharedState, natToAddress,
+    uint256ToNat, UInt256.toNat, UInt256.ofNat, Id.run, evmModulus, UInt256.size,
+    Nat.mod_eq_of_lt hAddr, Nat.mod_eq_of_lt (show state.thisAddress < 2 ^ 256 by omega)]
 
 /-! ## Storage Bridge Proofs -/
+
+/-- The derived `Ord` for `UInt256` generates
+    `compare (mk a) (mk b) = Ordering.then (compare a b) .eq`
+    rather than `compare a b` directly. This helper reduces the
+    `Ordering.then` wrapper so we can delegate to `Fin`'s instances. -/
+private theorem ordering_then_eq (o : Ordering) : o.then .eq = o := by
+  cases o <;> rfl
+
+/-- The derived `Ord` on `UInt256` (a single-field structure wrapping `Fin`)
+    satisfies `compare (mk a) (mk b) = compare a b` on `Fin UInt256.size`.
+
+    Lean 4's `deriving Ord` generates `Ordering.then (compare a b) .eq`,
+    which we reduce via `ordering_then_eq`. -/
+private theorem UInt256_compare_eq_fin (a b : Fin UInt256.size) :
+    @compare UInt256 _ (UInt256.mk a) (UInt256.mk b) = @compare (Fin UInt256.size) _ a b := by
+  -- The derived Ord generates: Ordering.then (compare a b) .eq
+  -- We reduce this to compare a b by simplifying the Ordering.then wrapper.
+  -- Use `change` to assert the definitional form, then apply ordering_then_eq.
+  change (compare a b).then .eq = compare a b
+  exact ordering_then_eq _
 
 /-- `TransCmp` instance for `UInt256`'s derived `compare`.
     `UInt256` derives `Ord` which compares via the `Fin` field.
     `Fin n` has `TransOrd` and `LawfulEqOrd` in Lean 4's Std library.
 
-    We prove this by destructuring `UInt256` to its `Fin` field and
-    delegating to `Fin`'s `TransCmp` instance. -/
+    We bridge the derived Ord (which wraps in `Ordering.then ... .eq`)
+    to `Fin`'s `TransCmp` instance. -/
 instance instTransCmpUInt256 : Std.TransCmp (α := UInt256) compare where
   eq_swap {a b} := by
-    cases a; cases b; exact Std.OrientedCmp.eq_swap (α := Fin UInt256.size)
+    cases a with | mk va => cases b with | mk vb =>
+    simp only [UInt256_compare_eq_fin]
+    exact Std.OrientedCmp.eq_swap
   isLE_trans {a b c} hab hbc := by
-    cases a; cases b; cases c
-    exact Std.TransCmp.isLE_trans (α := Fin UInt256.size) hab hbc
+    cases a with | mk va => cases b with | mk vb => cases c with | mk vc =>
+    simp only [UInt256_compare_eq_fin] at hab hbc ⊢
+    exact Std.TransCmp.isLE_trans hab hbc
 
 /-- `compare` on `UInt256` returning `.eq` implies equality.
-    Proved by destructuring to `Fin` and using `Fin`'s `LawfulEqOrd`. -/
+    Proved by reducing to `Fin`'s compare and using `LawfulEqOrd`. -/
 theorem UInt256_eq_of_compare_eq {u v : UInt256}
     (h : compare u v = Ordering.eq) : u = v := by
-  -- Derived Ord on single-field structures like UInt256 compares the field
-  -- directly: compare (mk a) (mk b) = compare a b (on Fin UInt256.size).
-  -- This is a definitional reduction in Lean 4.
   cases u with | mk uv =>
   cases v with | mk vv =>
-  -- After cases, h : compare (UInt256.mk uv) (UInt256.mk vv) = .eq
-  -- which definitionally reduces to compare uv vv = .eq
-  -- Use Fin's LawfulEqOrd to get uv = vv, then wrap in mk
+  rw [UInt256_compare_eq_fin] at h
   have heq : uv = vv := Std.LawfulEqCmp.eq_of_compare h
   subst heq
   rfl
@@ -347,10 +363,11 @@ theorem UInt256_eq_of_compare_eq {u v : UInt256}
 theorem natToUInt256_injective {a b : Nat}
     (ha : a < UInt256.size) (hb : b < UInt256.size)
     (h : natToUInt256 a = natToUInt256 b) : a = b := by
-  simp only [natToUInt256, UInt256.ofNat, Id.run] at h
-  have : a % UInt256.size = b % UInt256.size :=
-    congrArg (fun u => u.val.val) h
-  omega
+  -- Unfold the full chain to expose the modular arithmetic
+  have hval : a % UInt256.size = b % UInt256.size := by
+    have := congrArg (fun u => u.val.val) h
+    simpa [natToUInt256, UInt256.ofNat, Id.run, Fin.ofNat] using this
+  rwa [Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb] at hval
 
 /-- Distinct in-range Nats map to UInt256s with `compare ≠ .eq`. -/
 theorem compare_natToUInt256_ne {a b : Nat}
@@ -373,8 +390,8 @@ theorem foldl_insert_find_not_mem (storage : Nat → Nat)
   | cons hd tl ih =>
     simp only [List.foldl_cons]
     have hNotMemTl : slot ∉ tl := fun h => hNotMem (List.mem_cons_of_mem _ h)
-    have hne : hd ≠ slot := fun h => hNotMem (h ▸ List.mem_cons_self _ _)
-    have hd_range : hd < UInt256.size := hRange hd (List.mem_cons_self _ _)
+    have hne : hd ≠ slot := fun h => hNotMem (h ▸ List.mem_cons_self)
+    have hd_range : hd < UInt256.size := hRange hd (List.mem_cons_self)
     rw [ih hNotMemTl (fun s hs => hRange s (List.mem_cons_of_mem _ hs))]
     exact Batteries.RBMap.find?_insert_of_ne _
       (compare_natToUInt256_ne hSlotRange hd_range (Ne.symm hne))
@@ -401,7 +418,7 @@ theorem foldl_insert_find (storage : Nat → Nat)
       · -- slot also appears later in tl; the last insert wins with same value
         exact ih hmem (fun s hs => hRange s (List.mem_cons_of_mem _ hs)) _
       · -- slot not in tl: the fold over tl preserves the inserted value
-        have hSlotRange : slot < UInt256.size := hRange slot (List.mem_cons_self _ _)
+        have hSlotRange : slot < UInt256.size := hRange slot (List.mem_cons_self)
         rw [foldl_insert_find_not_mem storage tl slot hmem
           (fun s hs => hRange s (List.mem_cons_of_mem _ hs)) hSlotRange]
         exact Batteries.RBMap.find?_insert_of_eq _ Std.ReflCmp.compare_self
