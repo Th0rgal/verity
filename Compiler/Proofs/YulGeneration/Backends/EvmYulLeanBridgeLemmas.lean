@@ -754,7 +754,7 @@ private theorem bridge_eval_byte_normalized (i x : Nat) :
     have hmod256_lt_size : (x % EvmYul.UInt256.size / 2 ^ ((31 - i % EvmYul.UInt256.size) * 8)) %
         256 < EvmYul.UInt256.size :=
       Nat.lt_trans (Nat.mod_lt _ (by omega)) (by unfold EvmYul.UInt256.size; omega)
-    exact Nat.mod_eq_of_lt hmod256_lt_size
+    rw [Nat.mod_eq_of_lt hmod256_lt_size]
 
 /-- Universal bridge theorem for `byte`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
