@@ -41,10 +41,14 @@ PURE_BRIDGE_RE = re.compile(r'^\s*\|\s*"([a-z0-9_]+)",\s*\[', re.MULTILINE)
 # Regex for universal bridge lemmas: theorem evalBuiltinCall_NAME_bridge
 BRIDGE_LEMMA_RE = re.compile(r'theorem\s+evalBuiltinCall_(\w+)_bridge\b')
 
-# Regex for concrete bridge test examples: verityEval* "NAME"
-BRIDGE_TEST_BUILTIN_RE = re.compile(r'verityEval\w*\s+"([a-z0-9_]+)"')
+# Regex to extract individual examples (multi-line, split on `example`)
+EXAMPLE_SPLIT_RE = re.compile(r'\bexample\b')
 
-# Count native_decide examples
+# Regex for builtins in bridge equivalence tests (both verityEval and bridgeEval present)
+VERITY_EVAL_RE = re.compile(r'verityEval\w*\s+"([a-z0-9_]+)"')
+BRIDGE_EVAL_RE = re.compile(r'bridgeEval\s+"([a-z0-9_]+)"')
+
+# Count native_decide occurrences
 NATIVE_DECIDE_RE = re.compile(r'by\s+native_decide')
 
 # Regex for correctness theorems: theorem NAME (including names with apostrophes)
@@ -133,13 +137,27 @@ def _parse_bridge_lemmas() -> list[str]:
 
 
 def _parse_bridge_tests() -> tuple[list[str], int]:
-    """Extract tested builtins and total test count from BridgeTest file."""
+    """Extract builtins with bridge equivalence tests and their count.
+
+    Only counts examples where both verityEval* and bridgeEval appear in the
+    same example block (actual bridge equivalence assertions), excluding
+    context-only tests and bridge-returns-none boundary checks.
+    """
     if not BRIDGE_TEST_FILE.exists():
         return [], 0
     text = BRIDGE_TEST_FILE.read_text(encoding="utf-8")
-    test_count = len(NATIVE_DECIDE_RE.findall(text))
-    builtins = sorted(set(BRIDGE_TEST_BUILTIN_RE.findall(text)))
-    return builtins, test_count
+    # Split into individual example blocks
+    blocks = EXAMPLE_SPLIT_RE.split(text)[1:]  # skip preamble before first example
+    builtins: set[str] = set()
+    bridge_test_count = 0
+    for block in blocks:
+        # Only count blocks that have both verityEval and bridgeEval (true equivalence)
+        verity_matches = VERITY_EVAL_RE.findall(block)
+        bridge_matches = BRIDGE_EVAL_RE.findall(block)
+        if verity_matches and bridge_matches and NATIVE_DECIDE_RE.search(block):
+            bridge_test_count += 1
+            builtins.update(verity_matches)
+    return sorted(builtins), bridge_test_count
 
 
 def _parse_correctness_proofs() -> dict[str, object] | None:

@@ -5,20 +5,14 @@
   },
   "adapter_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean",
   "concrete_bridge_tests": [
-    "address",
-    "blobbasefee",
-    "callvalue",
-    "chainid",
-    "number",
     "sar",
     "sdiv",
     "sgt",
     "signextend",
     "slt",
-    "smod",
-    "timestamp"
+    "smod"
   ],
-  "concrete_test_count": 112,
+  "concrete_test_count": 96,
   "eval_builtin_via_evmyullean": "implemented",
   "eval_pure_bridged": [
     "add",
