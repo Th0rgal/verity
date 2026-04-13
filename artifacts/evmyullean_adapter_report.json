@@ -6,7 +6,6 @@
   },
   "adapter_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean",
   "concrete_bridge_tests": [
-    "byte",
     "exp",
     "sar",
     "sdiv",
@@ -112,6 +111,7 @@
     "add",
     "addmod",
     "and",
+    "byte",
     "div",
     "eq",
     "gt",

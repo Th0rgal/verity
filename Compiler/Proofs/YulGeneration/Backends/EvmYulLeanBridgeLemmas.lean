@@ -674,6 +674,114 @@ EVMYulLean UInt256 semantics on all inputs. -/
     evalBuiltinCall_mulmod_bridge]
 
 
+/-! ## Byte Bridge Lemma
+
+The `byte` opcode extracts a single byte from a 256-bit word.
+- Verity: `(x / 2^((31 - i) * 8)) % 256`
+- EVMYulLean: `(x >>> ofNat((31 - i.toNat) * 8)) &&& 0xFF`
+
+The proof uses `Nat.shiftRight_eq_div_pow` (shift = division by power of 2)
+and `Nat.and_two_pow_sub_one_eq_mod` (AND with 2^k-1 = mod 2^k). -/
+
+set_option maxHeartbeats 4000000 in
+private theorem verity_eval_byte_normalized
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (i x : Nat) :
+    evalBuiltinCall storage sender selector calldata "byte" [i, x] =
+      (if i % evmModulus > 31 then some 0
+       else some ((x % evmModulus / 2 ^ ((31 - i % evmModulus) * 8)) % 256)) := by
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
+
+/-- Bridge byte: normalize the EVMYulLean `byteAt` to the canonical form.
+    When i ≤ 31: toNat (byteAt (ofNat i) (ofNat x)) =
+      (x % size / 2^((31 - i % size) * 8)) % 256 -/
+set_option maxHeartbeats 4000000 in
+private theorem bridge_eval_byte_normalized (i x : Nat) :
+    evalPureBuiltinViaEvmYulLean "byte" [i, x] =
+      (if i % EvmYul.UInt256.size > 31 then some 0
+       else some ((x % EvmYul.UInt256.size / 2 ^ ((31 - i % EvmYul.UInt256.size) * 8)) % 256)) := by
+  -- Unfold to expose byteAt
+  change some (EvmYul.UInt256.toNat
+      (EvmYul.UInt256.byteAt (EvmYul.UInt256.ofNat i) (EvmYul.UInt256.ofNat x))) = _
+  simp only [EvmYul.UInt256.byteAt]
+  -- Case split on whether index > 31
+  by_cases hi : (EvmYul.UInt256.ofNat i) > ⟨31⟩
+  · -- Index > 31: both sides return 0
+    have himod : i % EvmYul.UInt256.size > 31 := by
+      change (⟨31, by decide⟩ : Fin EvmYul.UInt256.size) < (EvmYul.UInt256.ofNat i).val at hi
+      change 31 < i % EvmYul.UInt256.size at hi
+      exact hi
+    simp [hi, himod, EvmYul.UInt256.toNat]
+  · -- Index ≤ 31: unfold shift + AND
+    have himod : ¬ (i % EvmYul.UInt256.size > 31) := by
+      push_neg at hi ⊢
+      change (EvmYul.UInt256.ofNat i).val ≤ (⟨31, by decide⟩ : Fin EvmYul.UInt256.size) at hi
+      change i % EvmYul.UInt256.size ≤ 31
+      exact hi
+    simp only [hi, ↓reduceIte, himod]
+    -- Now goal is: toNat ((ofNat x) >>> shift &&& ⟨0xFF⟩) =
+    --              (x % size / 2^((31 - i % size) * 8)) % 256
+    -- The shift amount is (31 - (ofNat i).toNat) * 8
+    -- (ofNat i).toNat = i % size, and since i % size ≤ 31, the shift ≤ 248 < 256
+    have hile31 : i % EvmYul.UInt256.size ≤ 31 := Nat.not_lt.mp himod
+    have hshift_lt : ((31 - i % EvmYul.UInt256.size) * 8) % EvmYul.UInt256.size < 256 := by
+      have h1 : (31 - i % EvmYul.UInt256.size) * 8 ≤ 248 := by omega
+      have h2 : 248 < EvmYul.UInt256.size := by unfold EvmYul.UInt256.size; omega
+      rw [Nat.mod_eq_of_lt (by omega : (31 - i % EvmYul.UInt256.size) * 8 < EvmYul.UInt256.size)]
+      omega
+    -- Unfold toNat, shiftRight, land through the UInt256 structure
+    simp only [EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat, Id.run]
+    -- The shift value is small enough that shiftRight doesn't zero out
+    simp only [EvmYul.UInt256.shiftRight, EvmYul.UInt256.land]
+    -- The shift amount as a Fin value
+    have hshift_val : (Fin.ofNat EvmYul.UInt256.size ((31 - (Fin.ofNat EvmYul.UInt256.size i).val) * 8)).val =
+        (31 - i % EvmYul.UInt256.size) * 8 := by
+      simp only [Fin.ofNat, Fin.val]
+      rw [Nat.mod_eq_of_lt (by omega : (31 - i % EvmYul.UInt256.size) * 8 < EvmYul.UInt256.size)]
+    -- The shift is < 256
+    have hshift_bound : ¬ (256 ≤ (Fin.ofNat EvmYul.UInt256.size ((31 - (Fin.ofNat EvmYul.UInt256.size i).val) * 8)).val) := by
+      rw [hshift_val]; omega
+    simp only [hshift_bound, ↓reduceIte]
+    -- Now we need: Fin.land (shifted_fin) (0xFF_fin) = ...
+    -- Fin.land reduces to Nat.land on .val, and the result is taken mod size
+    -- Nat.shiftRight_eq_div_pow: n >>> k = n / 2^k
+    -- Nat.and_two_pow_sub_one_eq_mod: n &&& (2^k - 1) = n % 2^k
+    simp only [Fin.land, Fin.ofNat, Fin.val]
+    -- Goal should now involve Nat.land of shifted values
+    rw [Nat.shiftRight_eq_div_pow]
+    -- AND with 0xFF = 255 = 2^8 - 1
+    have h0xFF : (0xFF : Nat) % EvmYul.UInt256.size = 0xFF := by
+      unfold EvmYul.UInt256.size; omega
+    rw [h0xFF]
+    -- Nat.land x 255 = x % 256 (since 255 = 2^8 - 1)
+    have hand_mod : ∀ n : Nat, Nat.land n 255 = n % 256 := by
+      intro n
+      have h255 : (255 : Nat) = 2^8 - 1 := by omega
+      rw [h255]
+      exact Nat.and_two_pow_sub_one_eq_mod n 8
+    rw [hand_mod]
+    -- Both sides should now match after simplifying shift amount
+    congr 1; congr 1; congr 1
+    · -- Mod by size on div result is a no-op: (x % size / 2^k) < size
+      rw [Nat.mod_eq_of_lt]
+      exact Nat.lt_of_le_of_lt (Nat.div_le_self _ _) (Nat.mod_lt _ (by unfold EvmYul.UInt256.size; omega))
+    · rw [hshift_val]
+
+/-- Universal bridge theorem for `byte`: Verity builtin semantics agree with
+EVMYulLean UInt256 semantics on all inputs. -/
+@[simp] theorem evalBuiltinCall_byte_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (i x : Nat) :
+    evalBuiltinCall storage sender selector calldata "byte" [i, x] =
+      evalPureBuiltinViaEvmYulLean "byte" [i, x] := by
+  rw [verity_eval_byte_normalized, bridge_eval_byte_normalized]
+  simp [EvmYul.UInt256.size, evmModulus]
+
+@[simp] theorem evalBuiltinCallWithBackend_evmYulLean_byte_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (i x : Nat) :
+    evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "byte" [i, x] =
+      evalBuiltinCall storage sender selector calldata "byte" [i, x] := by
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_byte_bridge]
+
 /-! ## Remaining Builtin Bridge Lemmas — Status
 
 Universal bridge proofs for the following builtins require local `lake build`
@@ -684,9 +792,8 @@ iteration to debug:
 - `set_option maxHeartbeats` propagation through cascading error recovery
 - UInt256 LT instance reduction through Fin/structure wrappers
 
-**New pure builtins** (exp, byte):
+**New pure builtins** (exp):
 - `exp` needs modular exponentiation equivalence (`Nat.pow` vs `UInt256.pow`)
-- `byte` needs shift/mask equivalence proof
 
 All these builtins are validated by concrete `native_decide` bridge tests
 in `EvmYulLeanBridgeTest.lean` covering critical boundary values.

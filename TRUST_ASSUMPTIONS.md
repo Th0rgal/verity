@@ -58,7 +58,7 @@ Current theorem totals, property-test coverage, and proof status live in [docs/V
 
 ### 6. EVM/Yul Semantics and Gas
 - **Role**: Runtime execution model.
-- **Status**: 15 pure builtins bridged to EVMYulLean `UInt256` operations; 15 universal pure bridge theorems are now proven in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`. All pure bridge cases are now covered by universal symbolic lemmas. Gas is not modeled.
+- **Status**: 18 pure builtins bridged to EVMYulLean `UInt256` operations; 18 universal pure bridge theorems are now proven in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` (15 unsigned arithmetic/bitwise + addmod + mulmod + byte). Remaining builtins (exp, signed) are validated by concrete `native_decide` tests. Gas is not modeled.
 - **Implication**: Semantic correctness does not imply gas-safety.
 - **Proxy note**: `delegatecall`-based proxy / upgradeability flows still sit outside the current proof-interpreter model. Archive `--trust-report` and use `--deny-proxy-upgradeability` when proxy semantics must remain outside the selected verified subset (issue `#1420`).
 
@@ -110,5 +110,5 @@ High-level semantics can expose intermediate state in reverted computations. EVM
 
 ---
 
-**Last Updated**: 2026-04-09
+**Last Updated**: 2026-04-13
 **Maintainer Rule**: Update on every trust-boundary-relevant code change.
