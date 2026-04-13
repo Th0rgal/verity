@@ -10,6 +10,14 @@ private theorem word_lt_uint256_size (x : Nat) :
     x % EvmYul.UInt256.size < 2 ^ 256 := by
   simpa [EvmYul.UInt256.size] using Nat.mod_lt x (by decide : 0 < EvmYul.UInt256.size)
 
+/-- `UInt256.ofNat` is invariant under reduction modulo `evmModulus`,
+    since `UInt256.size = evmModulus`. -/
+private theorem uint256_ofNat_mod_evmModulus (n : Nat) :
+    EvmYul.UInt256.ofNat n = EvmYul.UInt256.ofNat (n % evmModulus) := by
+  simp only [EvmYul.UInt256.ofNat, Id.run]
+  congr 1; ext
+  simp only [Fin.ofNat, EvmYul.UInt256.size, evmModulus, Nat.mod_mod]
+
 private theorem verity_eval_add_normalized
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCall storage sender selector calldata "add" [a, b] =
@@ -654,12 +662,12 @@ private theorem verity_eval_slt_normalized
             then 1 else 0) := by
   simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
-set_option maxHeartbeats 400000 in
+set_option maxHeartbeats 8000000 in
 private theorem bridge_eval_slt_normalized (a b : Nat) :
     evalPureBuiltinViaEvmYulLean "slt" [a, b] =
       some (if EvmYul.UInt256.sltBool (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b)
             then 1 else 0) := by
-  simp [evalPureBuiltinViaEvmYulLean, EvmYul.UInt256.slt, EvmYul.UInt256.fromBool,
+  simp only [evalPureBuiltinViaEvmYulLean, EvmYul.UInt256.slt, EvmYul.UInt256.fromBool,
     EvmYul.UInt256.toNat, Bool.toUInt256, EvmYul.UInt256.ofNat, Id.run]
   split <;> simp_all
 
@@ -672,11 +680,7 @@ EVMYulLean UInt256 semantics on all inputs. -/
   rw [verity_eval_slt_normalized, bridge_eval_slt_normalized]
   have ha_lt : a % evmModulus < evmModulus := Nat.mod_lt _ (by simp [evmModulus])
   have hb_lt : b % evmModulus < evmModulus := Nat.mod_lt _ (by simp [evmModulus])
-  have hmod_a : EvmYul.UInt256.ofNat a = EvmYul.UInt256.ofNat (a % evmModulus) := by
-    simp [EvmYul.UInt256.ofNat, Id.run, EvmYul.UInt256.size, evmModulus, Nat.mod_mod_of_dvd]
-  have hmod_b : EvmYul.UInt256.ofNat b = EvmYul.UInt256.ofNat (b % evmModulus) := by
-    simp [EvmYul.UInt256.ofNat, Id.run, EvmYul.UInt256.size, evmModulus, Nat.mod_mod_of_dvd]
-  rw [hmod_a, hmod_b]
+  rw [uint256_ofNat_mod_evmModulus a, uint256_ofNat_mod_evmModulus b]
   congr 1
   exact slt_result_equiv (a % evmModulus) (b % evmModulus) ha_lt hb_lt
 
@@ -735,12 +739,12 @@ private theorem verity_eval_sgt_normalized
             then 1 else 0) := by
   simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
-set_option maxHeartbeats 400000 in
+set_option maxHeartbeats 8000000 in
 private theorem bridge_eval_sgt_normalized (a b : Nat) :
     evalPureBuiltinViaEvmYulLean "sgt" [a, b] =
       some (if EvmYul.UInt256.sgtBool (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b)
             then 1 else 0) := by
-  simp [evalPureBuiltinViaEvmYulLean, EvmYul.UInt256.sgt, EvmYul.UInt256.fromBool,
+  simp only [evalPureBuiltinViaEvmYulLean, EvmYul.UInt256.sgt, EvmYul.UInt256.fromBool,
     EvmYul.UInt256.toNat, Bool.toUInt256, EvmYul.UInt256.ofNat, Id.run]
   split <;> simp_all
 
@@ -753,11 +757,7 @@ EVMYulLean UInt256 semantics on all inputs. -/
   rw [verity_eval_sgt_normalized, bridge_eval_sgt_normalized]
   have ha_lt : a % evmModulus < evmModulus := Nat.mod_lt _ (by simp [evmModulus])
   have hb_lt : b % evmModulus < evmModulus := Nat.mod_lt _ (by simp [evmModulus])
-  have hmod_a : EvmYul.UInt256.ofNat a = EvmYul.UInt256.ofNat (a % evmModulus) := by
-    simp [EvmYul.UInt256.ofNat, Id.run, EvmYul.UInt256.size, evmModulus, Nat.mod_mod_of_dvd]
-  have hmod_b : EvmYul.UInt256.ofNat b = EvmYul.UInt256.ofNat (b % evmModulus) := by
-    simp [EvmYul.UInt256.ofNat, Id.run, EvmYul.UInt256.size, evmModulus, Nat.mod_mod_of_dvd]
-  rw [hmod_a, hmod_b]
+  rw [uint256_ofNat_mod_evmModulus a, uint256_ofNat_mod_evmModulus b]
   congr 1
   exact sgt_result_equiv (a % evmModulus) (b % evmModulus) ha_lt hb_lt
 
