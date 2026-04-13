@@ -798,6 +798,12 @@ private theorem toNat_fromBool (b : Bool) :
     (a > b) ↔ (b.val.val < a.val.val) :=
   uint256_lt_val b a
 
+/-- For Nat values cast to Int, Int emod equals cast of Nat mod.
+    This is key for bridging Verity's Int arithmetic with EVMYulLean's Nat arithmetic. -/
+private theorem int_natCast_emod (a M : Nat) :
+    (↑a : Int) % (↑M : Int) = ↑(a % M) := by
+  omega
+
 set_option maxHeartbeats 16000000 in
 /-- The Verity signed-less-than semantics agree with EVMYulLean's `sltBool`
     when both sides operate on the same reduced values `a % M` and `b % M`. -/
@@ -822,15 +828,15 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
     Verity.Core.UINT256_MODULUS, evmModulus, hma, hmb,
     EvmYul.UInt256.sltBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
     Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_lt_val, Fin.val]
+  -- Rewrite ↑a % ↑M to ↑(a % M) so Int/Nat sides agree structurally
+  simp only [int_natCast_emod]
   -- Case-split on sign bits; use EvmYul.UInt256.size to match goal literals.
   by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
   by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
   -- simp_all with modulus definitions + Int↔Nat cast lemmas
   all_goals simp_all [EvmYul.UInt256.size, evmModulus,
     Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS,
-    Int.ofNat_lt, Int.ofNat_nonneg, not_lt]
-  -- norm_cast normalizes remaining ↑a % M to ↑(a % M) and ↑x < ↑y to x < y
-  all_goals (try norm_cast)
+    Int.ofNat_lt, Int.ofNat_nonneg, not_lt, int_natCast_emod]
   all_goals omega
 
 set_option maxHeartbeats 4000000 in
@@ -893,15 +899,15 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
     Verity.Core.UINT256_MODULUS, evmModulus, hma, hmb,
     EvmYul.UInt256.sgtBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
     Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_gt_val, uint256_lt_val, Fin.val]
+  -- Rewrite ↑a % ↑M to ↑(a % M) so Int/Nat sides agree structurally
+  simp only [int_natCast_emod]
   -- Case-split on sign bits; use EvmYul.UInt256.size to match goal literals.
   by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
   by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
   -- simp_all with modulus definitions + Int↔Nat cast lemmas
   all_goals simp_all [EvmYul.UInt256.size, evmModulus,
     Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS,
-    Int.ofNat_lt, Int.ofNat_nonneg, not_lt]
-  -- norm_cast normalizes remaining ↑a % M to ↑(a % M) and ↑x < ↑y to x < y
-  all_goals (try norm_cast)
+    Int.ofNat_lt, Int.ofNat_nonneg, not_lt, int_natCast_emod]
   all_goals omega
 
 set_option maxHeartbeats 4000000 in
