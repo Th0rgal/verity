@@ -271,6 +271,7 @@ theorem number_bridge (state : YulState) (observableSlots : List Nat) :
   simp [evalBuiltinCallWithContext, toSharedState, mkBlockHeader, uint256ToNat,
     UInt256.toNat, UInt256.ofNat, Id.run, evmModulus, UInt256.size]
 
+set_option maxHeartbeats 8000000 in
 /-- The `caller` builtin reads `sender` from Verity's state.
     The state bridge stores `natToAddress state.sender` in `execEnv.source`.
     EVMYulLean's CALLER extracts `source` as `UInt256.ofNat (Fin.val source)`.
@@ -279,7 +280,6 @@ theorem number_bridge (state : YulState) (observableSlots : List Nat) :
     `UInt256.ofNat (n % 2^160)`. Verity returns `sender` (no modular reduction
     in `evalBuiltinCallWithContext`). Agreement requires the hypothesis that
     `sender < evmModulus` (it's an Ethereum address, so `< 2^160 < 2^256`). -/
-set_option maxHeartbeats 8000000 in
 theorem caller_bridge (state : YulState) (observableSlots : List Nat)
     (hSender : state.sender < 2 ^ 160) :
     evalBuiltinCallWithContext state.storage state.sender state.msgValue
@@ -288,15 +288,15 @@ theorem caller_bridge (state : YulState) (observableSlots : List Nat)
     some (uint256ToNat (UInt256.ofNat
       (toSharedState state observableSlots).executionEnv.source.val)) := by
   simp [evalBuiltinCallWithContext, toSharedState, natToAddress,
-    uint256ToNat, UInt256.toNat, UInt256.ofNat, Id.run, evmModulus, UInt256.size,
-    Nat.mod_eq_of_lt hSender, Nat.mod_eq_of_lt (show state.sender < 2 ^ 256 by omega)]
+    uint256ToNat, UInt256.toNat, UInt256.ofNat, Id.run, evmModulus, UInt256.size]
+  omega
 
+set_option maxHeartbeats 8000000 in
 /-- The `address` builtin reads `thisAddress` from Verity's state.
     The state bridge stores `natToAddress state.thisAddress` in `execEnv.codeOwner`.
     EVMYulLean's ADDRESS extracts `codeOwner` as `UInt256.ofNat (Fin.val codeOwner)`.
 
     Agreement requires `thisAddress < 2^160` (valid Ethereum address). -/
-set_option maxHeartbeats 8000000 in
 theorem address_bridge (state : YulState) (observableSlots : List Nat)
     (hAddr : state.thisAddress < 2 ^ 160) :
     evalBuiltinCallWithContext state.storage state.sender state.msgValue
@@ -305,8 +305,8 @@ theorem address_bridge (state : YulState) (observableSlots : List Nat)
     some (uint256ToNat (UInt256.ofNat
       (toSharedState state observableSlots).executionEnv.codeOwner.val)) := by
   simp [evalBuiltinCallWithContext, toSharedState, natToAddress,
-    uint256ToNat, UInt256.toNat, UInt256.ofNat, Id.run, evmModulus, UInt256.size,
-    Nat.mod_eq_of_lt hAddr, Nat.mod_eq_of_lt (show state.thisAddress < 2 ^ 256 by omega)]
+    uint256ToNat, UInt256.toNat, UInt256.ofNat, Id.run, evmModulus, UInt256.size]
+  omega
 
 /-! ## Storage Bridge Proofs -/
 
