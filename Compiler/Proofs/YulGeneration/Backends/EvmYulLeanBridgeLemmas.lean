@@ -815,34 +815,26 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
       then (1 : Nat) else 0) =
     (if EvmYul.UInt256.sltBool (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b)
       then (1 : Nat) else 0) := by
-  -- Unify Verity's evmModulus/UINT256_MODULUS with EVMYulLean's UInt256.size
-  -- so both sides use the same symbolic modulus before int_natCast_emod fires.
-  have hmod_v : (evmModulus : Nat) = EvmYul.UInt256.size := by
-    simp [evmModulus, EvmYul.UInt256.size]
-  have hmod_u : Verity.Core.UINT256_MODULUS = EvmYul.UInt256.size := by
-    simp [Verity.Core.UINT256_MODULUS, EvmYul.UInt256.size]
-  have hma : a % EvmYul.UInt256.size % EvmYul.UInt256.size = a % EvmYul.UInt256.size :=
-    Nat.mod_eq_of_lt (Nat.mod_lt a (by simp [EvmYul.UInt256.size]))
-  have hmb : b % EvmYul.UInt256.size % EvmYul.UInt256.size = b % EvmYul.UInt256.size :=
-    Nat.mod_eq_of_lt (Nat.mod_lt b (by simp [EvmYul.UInt256.size]))
-  -- Phase 1: Unfold definitions, rewriting evmModulus/UINT256_MODULUS to
-  -- UInt256.size via hmod_v/hmod_u. Keep UInt256.size opaque so
-  -- int_natCast_emod matches ↑a % ↑UInt256.size → ↑(a % UInt256.size).
+  have hma : a % evmModulus % Verity.Core.UINT256_MODULUS = a % evmModulus := by
+    simp [evmModulus, Verity.Core.UINT256_MODULUS]
+  have hmb : b % evmModulus % Verity.Core.UINT256_MODULUS = b % evmModulus := by
+    simp [evmModulus, Verity.Core.UINT256_MODULUS]
+  -- Phase 1: Unfold definitions but keep EvmYul.UInt256.size opaque so
+  -- int_natCast_emod can rewrite ↑a % ↑UInt256.size to ↑(a % UInt256.size).
+  -- This ensures Int and Nat sides use the same modular expressions.
   simp only [Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
-    hmod_v, hmod_u, hma, hmb,
+    Verity.Core.UINT256_MODULUS, evmModulus, hma, hmb,
     EvmYul.UInt256.sltBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
     Id.run, Fin.ofNat, uint256_lt_val, Fin.val, int_natCast_emod]
-  -- Phase 2: Unfold UInt256.size to the literal.
+  -- Phase 2: Unfold UInt256.size to the literal, then split all if-then-else
+  -- branches. split_ifs decomposes both the nested ifs from toInt (sign-bit
+  -- check) and the outer comparison, introducing hypotheses that match the
+  -- literal forms already present in the goal.
   simp only [EvmYul.UInt256.size]
-  -- Case-split on sign bits.
-  by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
-  by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
-  -- Disable @[simp] Int.natCast_emod (renamed from ofNat_emod in Lean 4.22.0)
-  -- which rewrites ↑(a%M) → ↑a % ↑M, breaking omega's Int/Nat bridge.
-  all_goals simp_all [-Int.natCast_emod, int_natCast_emod]
-  all_goals omega
+  -- Decompose all if-then-else branches, then normalize Int↔Nat casts.
+  split_ifs <;> simp_all [evmModulus] <;> norm_cast <;> omega
 
 set_option maxHeartbeats 4000000 in
 private theorem verity_eval_slt_normalized
@@ -891,33 +883,25 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
       then (1 : Nat) else 0) =
     (if EvmYul.UInt256.sgtBool (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b)
       then (1 : Nat) else 0) := by
-  -- Unify Verity's evmModulus/UINT256_MODULUS with EVMYulLean's UInt256.size
-  have hmod_v : (evmModulus : Nat) = EvmYul.UInt256.size := by
-    simp [evmModulus, EvmYul.UInt256.size]
-  have hmod_u : Verity.Core.UINT256_MODULUS = EvmYul.UInt256.size := by
-    simp [Verity.Core.UINT256_MODULUS, EvmYul.UInt256.size]
-  have hma : a % EvmYul.UInt256.size % EvmYul.UInt256.size = a % EvmYul.UInt256.size :=
-    Nat.mod_eq_of_lt (Nat.mod_lt a (by simp [EvmYul.UInt256.size]))
-  have hmb : b % EvmYul.UInt256.size % EvmYul.UInt256.size = b % EvmYul.UInt256.size :=
-    Nat.mod_eq_of_lt (Nat.mod_lt b (by simp [EvmYul.UInt256.size]))
-  -- Phase 1: Unfold definitions, rewriting evmModulus/UINT256_MODULUS to
-  -- UInt256.size via hmod_v/hmod_u. Keep UInt256.size opaque so
-  -- int_natCast_emod matches ↑a % ↑UInt256.size → ↑(a % UInt256.size).
+  have hma : a % evmModulus % Verity.Core.UINT256_MODULUS = a % evmModulus := by
+    simp [evmModulus, Verity.Core.UINT256_MODULUS]
+  have hmb : b % evmModulus % Verity.Core.UINT256_MODULUS = b % evmModulus := by
+    simp [evmModulus, Verity.Core.UINT256_MODULUS]
+  -- Phase 1: Unfold definitions but keep EvmYul.UInt256.size opaque so
+  -- int_natCast_emod can rewrite ↑a % ↑UInt256.size to ↑(a % UInt256.size).
   simp only [Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
-    hmod_v, hmod_u, hma, hmb,
+    Verity.Core.UINT256_MODULUS, evmModulus, hma, hmb,
     EvmYul.UInt256.sgtBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
     Id.run, Fin.ofNat, uint256_gt_val, uint256_lt_val, Fin.val, int_natCast_emod]
-  -- Phase 2: Unfold UInt256.size to the literal.
+  -- Phase 2: Unfold UInt256.size to the literal, then split all if-then-else
+  -- branches. split_ifs decomposes both the nested ifs from toInt (sign-bit
+  -- check) and the outer comparison, introducing hypotheses that match the
+  -- literal forms already present in the goal.
   simp only [EvmYul.UInt256.size]
-  -- Case-split on sign bits.
-  by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
-  by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
-  -- Disable @[simp] Int.natCast_emod (renamed from ofNat_emod in Lean 4.22.0)
-  -- which rewrites ↑(a%M) → ↑a % ↑M, breaking omega's Int/Nat bridge.
-  all_goals simp_all [-Int.natCast_emod, int_natCast_emod]
-  all_goals omega
+  -- Decompose all if-then-else branches, then normalize Int↔Nat casts.
+  split_ifs <;> simp_all [evmModulus] <;> norm_cast <;> omega
 
 set_option maxHeartbeats 4000000 in
 private theorem verity_eval_sgt_normalized
