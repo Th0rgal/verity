@@ -55,4 +55,71 @@ def mkViewTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do
         (Compiler.CompilationModel.FunctionSpec.isView
           ($modelName : Compiler.CompilationModel.FunctionSpec)) = true := rfl)
 
+/-- Auto-generated `_modifies` theorem for functions with a `modifies(...)` annotation
+    (#1729, Axis 3 Step 1b).  Records the declared modifies set as a `@[simp]` fact. -/
+def mkModifiesTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do
+  let modifiesName ← mkSuffixedIdent fnDecl.ident "_modifies"
+  let modelName ← mkSuffixedIdent fnDecl.ident "_model"
+  let fieldTerms : Array Term := fnDecl.modifies.map fun ident => strTermPublic (toString ident.getId)
+  `(command|
+    @[simp] theorem $modifiesName :
+        (Compiler.CompilationModel.FunctionSpec.modifies
+          ($modelName : Compiler.CompilationModel.FunctionSpec)) = [ $[$fieldTerms],* ] := rfl)
+
+/-- Build a single frame-condition conjunct for a storage field that is NOT
+    in the modifies set.  The conjunct depends on the field's storage type. -/
+private def mkFieldFrameConjunct (field : StorageFieldDecl) : CommandElabM Term := do
+  let slotLit : Term := ⟨Syntax.mkNumLit (toString field.slotNum)⟩
+  match field.ty with
+  | .scalar _ =>
+      -- For scalar uint256 (or any scalar): s'.storage slot = s.storage slot
+      -- For scalar address: s'.storageAddr slot = s.storageAddr slot
+      -- We use the right accessor based on the scalar type
+      match field.ty with
+      | .scalar .address =>
+          `(Verity.Specs.sameStorageAddrSlot $slotLit s s')
+      | _ =>
+          `(Verity.Specs.sameStorageSlot $slotLit s s')
+  | .dynamicArray _ =>
+      -- storageArray slot is unchanged
+      `(s'.storageArray $slotLit = s.storageArray $slotLit)
+  | .mappingAddressToUint256 | .mappingChain _ | .mappingStruct _ _ =>
+      -- ∀ k, s'.storageMap slot k = s.storageMap slot k
+      `(∀ k, s'.storageMap $slotLit k = s.storageMap $slotLit k)
+  | .mappingUintToUint256 =>
+      `(∀ k, s'.storageMapUint $slotLit k = s.storageMapUint $slotLit k)
+  | .mapping2AddressToAddressToUint256 | .mappingStruct2 _ _ _ =>
+      `(∀ k1 k2, s'.storageMap2 $slotLit k1 k2 = s.storageMap2 $slotLit k1 k2)
+
+/-- Auto-generate a `_frame` definition and `_frame_rfl` lemma for functions
+    with `modifies(...)`.  The frame is a conjunction of "unchanged" predicates
+    for every storage field NOT in the declared modifies set, plus `sameContext`.
+    (#1729, Axis 3 Step 1b) -/
+def mkFrameDefCommand
+    (fields : Array StorageFieldDecl)
+    (fnDecl : FunctionDecl) : CommandElabM (Array Cmd) := do
+  let frameName ← mkSuffixedIdent fnDecl.ident "_frame"
+  let frameRflName ← mkSuffixedIdent fnDecl.ident "_frame_rfl"
+  let modifiesNames := fnDecl.modifies.map fun ident => toString ident.getId
+  let unmodifiedFields := fields.filter fun f => !modifiesNames.contains f.name
+
+  -- Build the conjunction: sameContext ∧ field1_unchanged ∧ field2_unchanged ∧ ...
+  let mut body : Term ← `(Verity.Specs.sameContext s s')
+  for field in unmodifiedFields do
+    let conjunct ← mkFieldFrameConjunct field
+    body ← `($body ∧ $conjunct)
+
+  let frameCmd : Cmd ← `(command|
+    /-- Auto-generated frame condition: fields not in `modifies(...)` are unchanged. -/
+    def $frameName (s s' : Verity.ContractState) : Prop :=
+      $body)
+
+  let frameRflCmd : Cmd ← `(command|
+    @[simp] theorem $frameRflName (s : Verity.ContractState) : $frameName s s := by
+      unfold $frameName
+      simp [Verity.Specs.sameContext, Verity.Specs.sameStorageSlot,
+            Verity.Specs.sameStorageAddrSlot])
+
+  pure #[frameCmd, frameRflCmd]
+
 end Verity.Macro

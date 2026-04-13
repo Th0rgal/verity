@@ -57,6 +57,15 @@ def elabVerityContract : CommandElab := fun stx => do
       if fn.isView then
         elabCommand (← mkViewTheoremCommand fn)
 
+    -- Emit per-function _modifies theorem and _frame definition for
+    -- functions with modifies(...) annotation (#1729, Axis 3 Step 1b).
+    for fn in functions do
+      if !fn.modifies.isEmpty then
+        elabCommand (← mkModifiesTheoremCommand fn)
+        let frameCmds ← mkFrameDefCommand fields fn
+        for cmd in frameCmds do
+          elabCommand cmd
+
     elabCommand (← `(end $contractName))
   catch err =>
     elabCommand (← `(end $contractName))

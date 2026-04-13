@@ -345,6 +345,34 @@ decreasing_by all_goals simp_wf; all_goals omega
 end
 
 mutual
+/-- Collect the set of storage field names written by a statement.
+    Returns a list of field name strings found in `setStorage`, `setStorageAddr`,
+    `setMapping*`, `storageArray*`, and `setStructMember*` constructors.
+    Used by `modifies(...)` validation (#1729, Axis 3 Step 1b). -/
+def stmtWrittenFields : Stmt → List String
+  | Stmt.setStorage field _ | Stmt.setStorageAddr field _
+  | Stmt.storageArrayPush field _ | Stmt.storageArrayPop field | Stmt.setStorageArrayElement field _ _
+  | Stmt.setMapping field _ _ | Stmt.setMappingWord field _ _ _ | Stmt.setMappingPackedWord field _ _ _ _
+  | Stmt.setMappingUint field _ _
+  | Stmt.setMappingChain field _ _
+  | Stmt.setMapping2 field _ _ _ | Stmt.setMapping2Word field _ _ _ _
+  | Stmt.setStructMember field _ _ _ | Stmt.setStructMember2 field _ _ _ _ => [field]
+  | Stmt.ite _ thenBranch elseBranch =>
+      stmtListWrittenFields thenBranch ++ stmtListWrittenFields elseBranch
+  | Stmt.forEach _ _ body =>
+      stmtListWrittenFields body
+  | _ => []
+termination_by s => sizeOf s
+decreasing_by all_goals simp_wf; all_goals omega
+
+def stmtListWrittenFields : List Stmt → List String
+  | [] => []
+  | s :: ss => stmtWrittenFields s ++ stmtListWrittenFields ss
+termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+end
+
+mutual
 def stmtReadsStateOrEnv : Stmt → Bool
   | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value |
     Stmt.return value | Stmt.require value _ =>
@@ -416,6 +444,12 @@ def validateFunctionSpec (spec : FunctionSpec) : Except String Unit := do
   if !returns.isEmpty && !stmtListAlwaysReturnsOrReverts spec.body then
     throw s!"Compilation error: function '{spec.name}' declares return values but not all control-flow paths end in return/revert ({issue738Ref})"
   spec.body.forM (validateStmtParamReferences spec.name spec.params)
+  -- Validate modifies annotation: if declared, every written field must be in the set
+  if !spec.modifies.isEmpty then
+    let writtenFields := (stmtListWrittenFields spec.body).eraseDups
+    for field in writtenFields do
+      if !spec.modifies.contains field then
+        throw s!"Compilation error: function '{spec.name}' is annotated modifies({String.intercalate ", " spec.modifies}) but writes to undeclared field '{field}'"
   validateFunctionIdentifierReferences spec
 
 mutual

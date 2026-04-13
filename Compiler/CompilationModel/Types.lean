@@ -442,6 +442,10 @@ structure FunctionSpec where
   /-- Whether this entrypoint is ABI-marked as `pure` (no state/environment reads intent). -/
   isPure : Bool := false
   body : List Stmt
+  /-- Storage field names declared in `modifies(...)`.  When non-empty the
+      compiler validates that the body only writes to these fields and emits
+      a frame theorem for all other fields.  (#1729, Axis 3 Step 1b) -/
+  modifies : List String := []
   /-- Whether this is an internal-only function (not exposed via selector dispatch) -/
   isInternal : Bool := false
   /-- Local proof obligations that isolate unsafe/assembly-shaped trust

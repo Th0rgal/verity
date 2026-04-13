@@ -1628,4 +1628,36 @@ example :
   simpa using Contracts.ERC721.getApproved_semantic_preservation
 
 
+-- #1729, Axis 3 Step 1b: smoke test for modifies(...) annotation
+verity_contract ModifiesSmoke where
+  storage
+    counter : Uint256 := slot 0
+    owner : Address := slot 1
+    balances : Address → Uint256 := slot 2
+
+  constructor (initialOwner : Address) := do
+    setStorageAddr owner initialOwner
+
+  -- Only modifies `counter`; owner and balances are untouched
+  function increment () modifies(counter) : Unit := do
+    let current ← getStorage counter
+    setStorage counter (add current 1)
+
+  -- Modifies `owner` only
+  function transferOwnership (newOwner : Address) modifies(owner) : Unit := do
+    setStorageAddr owner newOwner
+
+  -- Modifies both counter and balances
+  function deposit (amount : Uint256) modifies(counter, balances) : Unit := do
+    let sender ← msgSender
+    let current ← getStorage counter
+    setStorage counter (add current 1)
+    let balance ← getMapping balances sender
+    setMapping balances sender (add balance amount)
+
+  -- View function (no modifies needed)
+  function view getCounter () : Uint256 := do
+    let current ← getStorage counter
+    return current
+
 end Contracts.Smoke

@@ -322,6 +322,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.LowLevelTryCatchSmoke.spec
   , Contracts.Smoke.LocalObligationRequiredForUnsafeFunctionBoundary.spec
   , Contracts.Smoke.LocalObligationRequiredForUnsafeConstructorBoundary.spec
+  , Contracts.Smoke.ModifiesSmoke.spec
   ]
 
 private def functionSignature (fn : FunctionSpec) : String :=
@@ -401,6 +402,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("LowLevelTryCatchSmoke", ["catchFailure()", "skipCatchOnSuccess()", "catchFailureWithShadowedParam(uint256)"])
   , ("LocalObligationRequiredForUnsafeFunctionBoundary", ["preview()"])
   , ("LocalObligationRequiredForUnsafeConstructorBoundary", ["noop()"])
+  , ("ModifiesSmoke", ["increment()", "transferOwnership(address)", "deposit(uint256)", "getCounter()"])
   ]
 
 private def expectedExternalSelectors : List (String × List String) :=
@@ -463,6 +465,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("LowLevelTryCatchSmoke", ["0x42d9c6d1", "0xdaf546c4", "0xa4660933"])
   , ("LocalObligationRequiredForUnsafeFunctionBoundary", ["0xefae2305"])
   , ("LocalObligationRequiredForUnsafeConstructorBoundary", ["0x5dfc2e4a"])
+  , ("ModifiesSmoke", ["0xd09de08a", "0xf2fde38b", "0xb6b55f25", "0x8ada066e"])
   ]
 
 private def expectedFor
@@ -500,6 +503,16 @@ private def checkMutabilitySmoke : IO Unit := do
   -- Verify auto-generated _is_view theorem exists (#1729, Axis 3 Step 1a).
   -- This line would fail to compile if the theorem were missing.
   let _ := @Contracts.Smoke.MutabilitySmoke.currentOwner_is_view
+  -- Verify auto-generated modifies/frame artifacts exist (#1729, Axis 3 Step 1b).
+  let _ := @Contracts.Smoke.ModifiesSmoke.increment_modifies
+  let _ := @Contracts.Smoke.ModifiesSmoke.increment_frame
+  let _ := @Contracts.Smoke.ModifiesSmoke.increment_frame_rfl
+  let _ := @Contracts.Smoke.ModifiesSmoke.transferOwnership_modifies
+  let _ := @Contracts.Smoke.ModifiesSmoke.transferOwnership_frame
+  let _ := @Contracts.Smoke.ModifiesSmoke.transferOwnership_frame_rfl
+  let _ := @Contracts.Smoke.ModifiesSmoke.deposit_modifies
+  let _ := @Contracts.Smoke.ModifiesSmoke.deposit_frame
+  let _ := @Contracts.Smoke.ModifiesSmoke.deposit_frame_rfl
 
 private def checkSignedBuiltinSmoke : IO Unit := do
   let functions := Contracts.Smoke.SignedBuiltinSmoke.spec.functions

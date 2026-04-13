@@ -105,6 +105,10 @@ structure FunctionDecl where
   isPayable : Bool := false
   isView : Bool := false
   initGuard? : Option InitGuardDecl := none
+  /-- Storage field names declared via `modifies(field1, field2)`.
+      When non-empty, the compiler validates that the function body only
+      writes to fields in this set and auto-generates a `_frame` theorem. -/
+  modifies : Array Ident := #[]
   localObligations : Array LocalObligationDecl := #[]
   body : Term
 
@@ -494,6 +498,20 @@ private def parseMutabilityModifiers
     | _ => throwErrorAt stx "invalid function mutability modifier"
   pure (isPayable, isView)
 
+private def parseModifies (stx : TSyntax `verityModifies) : CommandElabM (Array Ident) := do
+  match stx with
+  | `(verityModifies| modifies($[$fields:ident],*)) =>
+      let result := fields
+      -- Check for duplicates
+      let mut seen : Array String := #[]
+      for f in result do
+        let s := toString f.getId
+        if seen.contains s then
+          throwErrorAt f s!"duplicate field '{s}' in modifies annotation"
+        seen := seen.push s
+      pure result
+  | _ => throwErrorAt stx "invalid modifies annotation"
+
 private def parseInitGuard (stx : TSyntax `verityInitGuard) : CommandElabM InitGuardDecl := do
   match stx with
   | `(verityInitGuard| initializer($field:ident)) =>
@@ -548,7 +566,7 @@ private def parseSpecialEntrypoint (stx : Syntax) : CommandElabM FunctionDecl :=
 
 private def parseFunction (stx : Syntax) : CommandElabM FunctionDecl := do
   match stx with
-  | `(verityFunction| function $[$mods:verityMutability]* $name:ident ($[$params:verityParam],*) $[$guard?:verityInitGuard]? $[$localObligations?:verityLocalObligations]? : $retTy:term := $body:term) => do
+  | `(verityFunction| function $[$mods:verityMutability]* $name:ident ($[$params:verityParam],*) $[$guard?:verityInitGuard]? $[$modifiesClause?:verityModifies]? $[$localObligations?:verityLocalObligations]? : $retTy:term := $body:term) => do
       let (isPayable, isView) ← parseMutabilityModifiers mods stx
       let parsedParams ← params.mapM parseParam
       let parsedReturnTy ← valueTypeFromSyntax retTy
@@ -556,6 +574,10 @@ private def parseFunction (stx : Syntax) : CommandElabM FunctionDecl := do
         match guard? with
         | some guard => pure (some (← parseInitGuard guard))
         | none => pure none
+      let parsedModifies ←
+        match modifiesClause? with
+        | some modClause => parseModifies modClause
+        | none => pure #[]
       let parsedLocalObligations ←
         match localObligations? with
         | some obligations => parseLocalObligations obligations
@@ -568,6 +590,7 @@ private def parseFunction (stx : Syntax) : CommandElabM FunctionDecl := do
         isPayable := isPayable
         isView := isView
         initGuard? := parsedGuard?
+        modifies := parsedModifies
         localObligations := parsedLocalObligations
         body := body
       }
@@ -3913,6 +3936,15 @@ def validateFunctionDeclsPublic
   | none => pure ()
   for fn in functions do
     validateLocalObligationDecls s!"function '{fn.name}'" fn.localObligations
+    -- Validate modifies field names exist in the storage section
+    for modField in fn.modifies do
+      let modName := toString modField.getId
+      let allFieldNames := fields.map (·.name)
+      if !allFieldNames.contains modName then
+        throwErrorAt modField s!"function '{fn.name}': modifies references unknown storage field '{modName}'; known fields: {allFieldNames.toList}"
+    -- view functions must not use modifies (they already imply no writes)
+    if fn.isView && !fn.modifies.isEmpty then
+      throwErrorAt fn.ident s!"function '{fn.name}' is marked view and modifies(...); view already guarantees no state writes"
     validateFunctionBodyExprTypes fields errorDecls constDecls immutableDecls externalDecls functions fn
 
 def mkFunctionCommandsPublic
@@ -3932,6 +3964,7 @@ def mkFunctionCommandsPublic
   let localObligationTerms ← fn.localObligations.mapM mkModelLocalObligationTerm
   let payableTerm ← if fn.isPayable then `(true) else `(false)
   let viewTerm ← if fn.isView then `(true) else `(false)
+  let modifiesTerms : Array Term := fn.modifies.map fun ident => strTerm (toString ident.getId)
   let returnTypeTerm ← modelReturnTypeTerm fn.returnTy
   let returnsTerm ← modelReturnsTerm fn.returnTy
 
@@ -3944,6 +3977,7 @@ def mkFunctionCommandsPublic
     «returns» := $returnsTerm
     isPayable := $payableTerm
     isView := $viewTerm
+    modifies := [ $[$modifiesTerms],* ]
     localObligations := [ $[$localObligationTerms],* ]
     body := $modelBodyName
   })
