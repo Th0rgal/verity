@@ -34,6 +34,7 @@ syntax ident " := " ident ppSpace str : verityLocalObligation
 syntax "local_obligations " "[" sepBy(verityLocalObligation, ",") "]" : verityLocalObligations
 syntax "payable" : verityMutability
 syntax "view" : verityMutability
+syntax "no_external_calls" : verityMutability
 syntax "modifies(" sepBy(ident, ",") ")" : verityModifies
 syntax "initializer(" ident ")" : verityInitGuard
 syntax "reinitializer(" ident ", " num ")" : verityInitGuard

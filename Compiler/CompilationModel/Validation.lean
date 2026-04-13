@@ -373,6 +373,115 @@ decreasing_by all_goals simp_wf; all_goals omega
 end
 
 mutual
+/-- Check whether an expression contains an external call (call, staticcall, delegatecall,
+    or externalCall).  Used by `no_external_calls` validation (#1729, Axis 3 Step 1c). -/
+def exprContainsExternalCall : Expr → Bool
+  | Expr.call _ _ _ _ _ _ _ | Expr.staticcall _ _ _ _ _ _
+  | Expr.delegatecall _ _ _ _ _ _ | Expr.externalCall _ _ => true
+  | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
+  | Expr.mod a b | Expr.smod a b
+  | Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b | Expr.sar a b
+  | Expr.lt a b | Expr.gt a b | Expr.slt a b | Expr.sgt a b | Expr.eq a b
+  | Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b
+  | Expr.ceilDiv a b =>
+      exprContainsExternalCall a || exprContainsExternalCall b
+  | Expr.mulDivDown a b c | Expr.mulDivUp a b c =>
+      exprContainsExternalCall a || exprContainsExternalCall b || exprContainsExternalCall c
+  | Expr.bitNot a | Expr.logicalNot a =>
+      exprContainsExternalCall a
+  | Expr.ite cond thenVal elseVal =>
+      exprContainsExternalCall cond || exprContainsExternalCall thenVal || exprContainsExternalCall elseVal
+  | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _ | Expr.mappingUint _ key
+  | Expr.structMember _ key _ =>
+      exprContainsExternalCall key
+  | Expr.mappingChain _ keys =>
+      exprListContainsExternalCall keys
+  | Expr.mapping2 _ key1 key2 | Expr.mapping2Word _ key1 key2 _
+  | Expr.structMember2 _ key1 key2 _ =>
+      exprContainsExternalCall key1 || exprContainsExternalCall key2
+  | Expr.mload offset | Expr.tload offset | Expr.calldataload offset
+  | Expr.returndataOptionalBoolAt offset =>
+      exprContainsExternalCall offset
+  | Expr.keccak256 offset size =>
+      exprContainsExternalCall offset || exprContainsExternalCall size
+  | _ => false
+termination_by e => sizeOf e
+decreasing_by all_goals simp_wf; all_goals omega
+
+def exprListContainsExternalCall : List Expr → Bool
+  | [] => false
+  | e :: es => exprContainsExternalCall e || exprListContainsExternalCall es
+termination_by es => sizeOf es
+decreasing_by all_goals simp_wf; all_goals omega
+end
+
+mutual
+/-- Check whether a statement contains an external call (externalCallBind, ecm, or
+    an expression with call/staticcall/delegatecall/externalCall).
+    Used by `no_external_calls` validation (#1729, Axis 3 Step 1c). -/
+def stmtContainsExternalCall : Stmt → Bool
+  | Stmt.externalCallBind _ _ _ => true
+  | Stmt.ecm _ _ => true
+  | Stmt.letVar _ value | Stmt.assignVar _ value =>
+      exprContainsExternalCall value
+  | Stmt.setStorage _ value | Stmt.setStorageAddr _ value | Stmt.require value _ =>
+      exprContainsExternalCall value
+  | Stmt.requireError cond _ args =>
+      exprContainsExternalCall cond || args.any exprContainsExternalCall
+  | Stmt.revertError _ args =>
+      args.any exprContainsExternalCall
+  | Stmt.return value =>
+      exprContainsExternalCall value
+  | Stmt.returnValues values =>
+      values.any exprContainsExternalCall
+  | Stmt.storageArrayPush _ value =>
+      exprContainsExternalCall value
+  | Stmt.setStorageArrayElement _ index value =>
+      exprContainsExternalCall index || exprContainsExternalCall value
+  | Stmt.setMapping _ key value | Stmt.setMappingUint _ key value =>
+      exprContainsExternalCall key || exprContainsExternalCall value
+  | Stmt.setMappingWord _ key _ value =>
+      exprContainsExternalCall key || exprContainsExternalCall value
+  | Stmt.setMappingPackedWord _ key _ _ value =>
+      exprContainsExternalCall key || exprContainsExternalCall value
+  | Stmt.setMappingChain _ keys value =>
+      keys.any exprContainsExternalCall || exprContainsExternalCall value
+  | Stmt.setMapping2 _ key1 key2 value =>
+      exprContainsExternalCall key1 || exprContainsExternalCall key2 || exprContainsExternalCall value
+  | Stmt.setMapping2Word _ key1 key2 _ value =>
+      exprContainsExternalCall key1 || exprContainsExternalCall key2 || exprContainsExternalCall value
+  | Stmt.setStructMember _ key _ value =>
+      exprContainsExternalCall key || exprContainsExternalCall value
+  | Stmt.setStructMember2 _ key1 key2 _ value =>
+      exprContainsExternalCall key1 || exprContainsExternalCall key2 || exprContainsExternalCall value
+  | Stmt.emit _ args =>
+      args.any exprContainsExternalCall
+  | Stmt.rawLog topics dataOffset dataSize =>
+      topics.any exprContainsExternalCall || exprContainsExternalCall dataOffset || exprContainsExternalCall dataSize
+  | Stmt.tstore offset value | Stmt.mstore offset value =>
+      exprContainsExternalCall offset || exprContainsExternalCall value
+  | Stmt.calldatacopy destOffset sourceOffset size =>
+      exprContainsExternalCall destOffset || exprContainsExternalCall sourceOffset || exprContainsExternalCall size
+  | Stmt.returndataCopy destOffset sourceOffset size =>
+      exprContainsExternalCall destOffset || exprContainsExternalCall sourceOffset || exprContainsExternalCall size
+  | Stmt.ite cond thenBranch elseBranch =>
+      exprContainsExternalCall cond || stmtListContainsExternalCall thenBranch || stmtListContainsExternalCall elseBranch
+  | Stmt.forEach _ count body =>
+      exprContainsExternalCall count || stmtListContainsExternalCall body
+  | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args =>
+      args.any exprContainsExternalCall
+  | _ => false
+termination_by s => sizeOf s
+decreasing_by all_goals simp_wf; all_goals omega
+
+def stmtListContainsExternalCall : List Stmt → Bool
+  | [] => false
+  | s :: ss => stmtContainsExternalCall s || stmtListContainsExternalCall ss
+termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+end
+
+mutual
 def stmtReadsStateOrEnv : Stmt → Bool
   | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value |
     Stmt.return value | Stmt.require value _ =>
@@ -450,6 +559,9 @@ def validateFunctionSpec (spec : FunctionSpec) : Except String Unit := do
     for field in writtenFields do
       if !spec.modifies.contains field then
         throw s!"Compilation error: function '{spec.name}' is annotated modifies({String.intercalate ", " spec.modifies}) but writes to undeclared field '{field}'"
+  -- Validate no_external_calls annotation: reject external call statements
+  if spec.noExternalCalls && spec.body.any stmtContainsExternalCall then
+    throw s!"Compilation error: function '{spec.name}' is annotated no_external_calls but contains external call statements"
   validateFunctionIdentifierReferences spec
 
 mutual

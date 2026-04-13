@@ -104,6 +104,7 @@ structure FunctionDecl where
   returnTy : ValueType
   isPayable : Bool := false
   isView : Bool := false
+  noExternalCalls : Bool := false
   initGuard? : Option InitGuardDecl := none
   /-- Storage field names declared via `modifies(field1, field2)`.
       When non-empty, the compiler validates that the function body only
@@ -482,9 +483,10 @@ private def parseLocalObligation (stx : Syntax) : CommandElabM LocalObligationDe
 
 private def parseMutabilityModifiers
     (mods : Array (TSyntax `verityMutability))
-    (stx : Syntax) : CommandElabM (Bool × Bool) := do
+    (stx : Syntax) : CommandElabM (Bool × Bool × Bool) := do
   let mut isPayable := false
   let mut isView := false
+  let mut noExternalCalls := false
   for mod in mods do
     match mod with
     | `(verityMutability| payable) =>
@@ -495,8 +497,12 @@ private def parseMutabilityModifiers
         if isView then
           throwErrorAt mod "duplicate 'view' modifier"
         isView := true
+    | `(verityMutability| no_external_calls) =>
+        if noExternalCalls then
+          throwErrorAt mod "duplicate 'no_external_calls' modifier"
+        noExternalCalls := true
     | _ => throwErrorAt stx "invalid function mutability modifier"
-  pure (isPayable, isView)
+  pure (isPayable, isView, noExternalCalls)
 
 private def parseModifies (stx : TSyntax `verityModifies) : CommandElabM (Array Ident) := do
   match stx with
@@ -567,7 +573,7 @@ private def parseSpecialEntrypoint (stx : Syntax) : CommandElabM FunctionDecl :=
 private def parseFunction (stx : Syntax) : CommandElabM FunctionDecl := do
   match stx with
   | `(verityFunction| function $[$mods:verityMutability]* $name:ident ($[$params:verityParam],*) $[$guard?:verityInitGuard]? $[$modifiesClause?:verityModifies]? $[$localObligations?:verityLocalObligations]? : $retTy:term := $body:term) => do
-      let (isPayable, isView) ← parseMutabilityModifiers mods stx
+      let (isPayable, isView, noExternalCalls) ← parseMutabilityModifiers mods stx
       let parsedParams ← params.mapM parseParam
       let parsedReturnTy ← valueTypeFromSyntax retTy
       let parsedGuard? ←
@@ -589,6 +595,7 @@ private def parseFunction (stx : Syntax) : CommandElabM FunctionDecl := do
         returnTy := parsedReturnTy
         isPayable := isPayable
         isView := isView
+        noExternalCalls := noExternalCalls
         initGuard? := parsedGuard?
         modifies := parsedModifies
         localObligations := parsedLocalObligations
@@ -3964,6 +3971,7 @@ def mkFunctionCommandsPublic
   let localObligationTerms ← fn.localObligations.mapM mkModelLocalObligationTerm
   let payableTerm ← if fn.isPayable then `(true) else `(false)
   let viewTerm ← if fn.isView then `(true) else `(false)
+  let noExternalCallsTerm ← if fn.noExternalCalls then `(true) else `(false)
   let modifiesTerms : Array Term := fn.modifies.map fun ident => strTerm (toString ident.getId)
   let returnTypeTerm ← modelReturnTypeTerm fn.returnTy
   let returnsTerm ← modelReturnsTerm fn.returnTy
@@ -3977,6 +3985,7 @@ def mkFunctionCommandsPublic
     «returns» := $returnsTerm
     isPayable := $payableTerm
     isView := $viewTerm
+    noExternalCalls := $noExternalCallsTerm
     modifies := [ $[$modifiesTerms],* ]
     localObligations := [ $[$localObligationTerms],* ]
     body := $modelBodyName

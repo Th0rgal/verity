@@ -446,6 +446,10 @@ structure FunctionSpec where
       compiler validates that the body only writes to these fields and emits
       a frame theorem for all other fields.  (#1729, Axis 3 Step 1b) -/
   modifies : List String := []
+  /-- Whether this function is annotated `no_external_calls`.  When true the
+      compiler validates that the body contains no external call statements
+      and emits a `_no_calls` theorem.  (#1729, Axis 3 Step 1c) -/
+  noExternalCalls : Bool := false
   /-- Whether this is an internal-only function (not exposed via selector dispatch) -/
   isInternal : Bool := false
   /-- Local proof obligations that isolate unsafe/assembly-shaped trust

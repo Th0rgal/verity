@@ -323,6 +323,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.LocalObligationRequiredForUnsafeFunctionBoundary.spec
   , Contracts.Smoke.LocalObligationRequiredForUnsafeConstructorBoundary.spec
   , Contracts.Smoke.ModifiesSmoke.spec
+  , Contracts.Smoke.NoExternalCallsSmoke.spec
   ]
 
 private def functionSignature (fn : FunctionSpec) : String :=
@@ -403,6 +404,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("LocalObligationRequiredForUnsafeFunctionBoundary", ["preview()"])
   , ("LocalObligationRequiredForUnsafeConstructorBoundary", ["noop()"])
   , ("ModifiesSmoke", ["increment()", "transferOwnership(address)", "deposit(uint256)", "getCounter()"])
+  , ("NoExternalCallsSmoke", ["increment()", "getCounter()", "setOwner(address)"])
   ]
 
 private def expectedExternalSelectors : List (String × List String) :=
@@ -466,6 +468,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("LocalObligationRequiredForUnsafeFunctionBoundary", ["0xefae2305"])
   , ("LocalObligationRequiredForUnsafeConstructorBoundary", ["0x5dfc2e4a"])
   , ("ModifiesSmoke", ["0xd09de08a", "0xf2fde38b", "0xb6b55f25", "0x8ada066e"])
+  , ("NoExternalCallsSmoke", ["0xd09de08a", "0x8ada066e", "0x13af4035"])
   ]
 
 private def expectedFor
@@ -513,6 +516,9 @@ private def checkMutabilitySmoke : IO Unit := do
   let _ := @Contracts.Smoke.ModifiesSmoke.deposit_modifies
   let _ := @Contracts.Smoke.ModifiesSmoke.deposit_frame
   let _ := @Contracts.Smoke.ModifiesSmoke.deposit_frame_rfl
+  -- Verify auto-generated _no_calls theorem exists (#1729, Axis 3 Step 1c).
+  let _ := @Contracts.Smoke.NoExternalCallsSmoke.increment_no_calls
+  let _ := @Contracts.Smoke.NoExternalCallsSmoke.getCounter_no_calls
 
 private def checkSignedBuiltinSmoke : IO Unit := do
   let functions := Contracts.Smoke.SignedBuiltinSmoke.spec.functions

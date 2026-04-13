@@ -1660,4 +1660,24 @@ verity_contract ModifiesSmoke where
     let current ← getStorage counter
     return current
 
+-- #1729, Axis 3 Step 1c: smoke test for no_external_calls annotation
+verity_contract NoExternalCallsSmoke where
+  storage
+    counter : Uint256 := slot 0
+    owner : Address := slot 1
+
+  -- Pure arithmetic, no external calls
+  function no_external_calls increment () : Unit := do
+    let current ← getStorage counter
+    setStorage counter (add current 1)
+
+  -- Read-only with no_external_calls
+  function view no_external_calls getCounter () : Uint256 := do
+    let current ← getStorage counter
+    return current
+
+  -- Regular function without the annotation (for comparison)
+  function setOwner (newOwner : Address) : Unit := do
+    setStorageAddr owner newOwner
+
 end Contracts.Smoke

@@ -55,6 +55,17 @@ def mkViewTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do
         (Compiler.CompilationModel.FunctionSpec.isView
           ($modelName : Compiler.CompilationModel.FunctionSpec)) = true := rfl)
 
+/-- Auto-generated `_no_calls` theorem for functions with a `no_external_calls` annotation
+    (#1729, Axis 3 Step 1c).  Emits a `@[simp]` lemma stating the model's
+    `noExternalCalls` flag is `true`.  Only called when `fnDecl.noExternalCalls`. -/
+def mkNoCallsTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do
+  let noCallsName ← mkSuffixedIdent fnDecl.ident "_no_calls"
+  let modelName ← mkSuffixedIdent fnDecl.ident "_model"
+  `(command|
+    @[simp] theorem $noCallsName :
+        (Compiler.CompilationModel.FunctionSpec.noExternalCalls
+          ($modelName : Compiler.CompilationModel.FunctionSpec)) = true := rfl)
+
 /-- Auto-generated `_modifies` theorem for functions with a `modifies(...)` annotation
     (#1729, Axis 3 Step 1b).  Records the declared modifies set as a `@[simp]` fact. -/
 def mkModifiesTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do
