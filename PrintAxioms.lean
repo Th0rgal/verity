@@ -49,6 +49,7 @@ import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.StorageBounds
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapterCorrectness
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanStateBridge
 import Compiler.Proofs.YulGeneration.Builtins
 import Compiler.Proofs.YulGeneration.Equivalence
 
@@ -2116,6 +2117,10 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_shl_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_shr_bridge
 
+-- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.storageLookup_projectStorage  -- sorry'd
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.uint256_roundtrip  -- sorry'd
+
 -- Compiler/Proofs/YulGeneration/Builtins.lean
 #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_callvalue_nil
 #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_callvalue_context
@@ -2150,4 +2155,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 2001 theorems/lemmas (1351 public, 650 private, 0 sorry'd)
+-- Total: 2003 theorems/lemmas (1351 public, 650 private, 2 sorry'd)
