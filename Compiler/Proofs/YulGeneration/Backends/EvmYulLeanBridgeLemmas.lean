@@ -832,10 +832,11 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
   -- Case-split on sign bits; use EvmYul.UInt256.size to match goal literals.
   by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
   by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
-  -- simp_all with modulus definitions + Int↔Nat cast lemmas
-  all_goals simp_all [EvmYul.UInt256.size, evmModulus,
+  -- simp_all may close some goals and simplify others; try because some
+  -- goals may already be in normal form after int_natCast_emod
+  all_goals (try simp_all [EvmYul.UInt256.size, evmModulus,
     Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS,
-    Int.ofNat_lt, Int.ofNat_nonneg, not_lt, int_natCast_emod]
+    Int.ofNat_lt, Int.ofNat_nonneg, not_lt, int_natCast_emod])
   all_goals omega
 
 set_option maxHeartbeats 4000000 in
@@ -902,10 +903,11 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
   -- Case-split on sign bits; use EvmYul.UInt256.size to match goal literals.
   by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
   by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
-  -- simp_all with modulus definitions + Int↔Nat cast lemmas
-  all_goals simp_all [EvmYul.UInt256.size, evmModulus,
+  -- simp_all may close some goals and simplify others; try because some
+  -- goals may already be in normal form after int_natCast_emod
+  all_goals (try simp_all [EvmYul.UInt256.size, evmModulus,
     Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS,
-    Int.ofNat_lt, Int.ofNat_nonneg, not_lt, int_natCast_emod]
+    Int.ofNat_lt, Int.ofNat_nonneg, not_lt, int_natCast_emod])
   all_goals omega
 
 set_option maxHeartbeats 4000000 in
