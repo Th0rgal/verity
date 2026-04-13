@@ -560,14 +560,11 @@ private theorem uint256_toNat_ofNat_of_lt (a : Nat) (ha : a < EvmYul.UInt256.siz
     EvmYul.UInt256.toNat (EvmYul.UInt256.ofNat a) = a := by
   rw [uint256_toNat_ofNat, Nat.mod_eq_of_lt ha]
 
-/-- `UInt256.ofNat a < UInt256.ofNat b ↔ a % size < b % size`, since LT on
-    UInt256 compares the underlying Fin values. -/
-private theorem uint256_lt_ofNat_iff (a b : Nat) :
-    EvmYul.UInt256.ofNat a < EvmYul.UInt256.ofNat b ↔
-    a % EvmYul.UInt256.size < b % EvmYul.UInt256.size := by
-  simp [EvmYul.UInt256.ofNat, Id.run, LT.lt, EvmYul.instLTUInt256, Fin.ofNat, Fin.lt]
-
-/-- Characterize `sltBool` on `ofNat` values with reduced inputs. -/
+/-- `sltBool` on reduced inputs: unfold to pure Nat case analysis.
+    After unfolding sltBool and reducing toNat, the `a < b` comparison
+    on UInt256 is definitionally `(Fin.ofNat _ a).val < (Fin.ofNat _ b).val`
+    which is `a % size < b % size`. With bounds, this reduces to `a < b`. -/
+set_option maxHeartbeats 400000 in
 private theorem sltBool_ofNat_of_lt (a b : Nat)
     (ha : a < EvmYul.UInt256.size) (hb : b < EvmYul.UInt256.size) :
     EvmYul.UInt256.sltBool (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b) =
@@ -577,22 +574,13 @@ private theorem sltBool_ofNat_of_lt (a b : Nat)
       if b ≥ 2 ^ 255 then false else decide (a < b) := by
   unfold EvmYul.UInt256.sltBool
   rw [uint256_toNat_ofNat_of_lt a ha, uint256_toNat_ofNat_of_lt b hb]
-  simp only [ge_iff_le]
-  by_cases ha255 : 2 ^ 255 ≤ a <;> by_cases hb255 : 2 ^ 255 ≤ b
-  · simp only [ha255, hb255, ite_true]
-    rw [show (EvmYul.UInt256.ofNat a < EvmYul.UInt256.ofNat b) =
-        (a % EvmYul.UInt256.size < b % EvmYul.UInt256.size) from
-      propext (uint256_lt_ofNat_iff a b)]
-    simp [Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb]
-  · simp [ha255, hb255]
-  · simp [ha255, hb255]
-  · simp only [ha255, hb255, ite_false, ite_true]
-    rw [show (EvmYul.UInt256.ofNat a < EvmYul.UInt256.ofNat b) =
-        (a % EvmYul.UInt256.size < b % EvmYul.UInt256.size) from
-      propext (uint256_lt_ofNat_iff a b)]
-    simp [Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb]
+  simp only [ge_iff_le, EvmYul.UInt256.ofNat, Id.run, Fin.ofNat,
+    Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb]
+  by_cases ha255 : 2 ^ 255 ≤ a <;> by_cases hb255 : 2 ^ 255 ≤ b <;>
+    simp_all [Decidable.decide_eq_true_eq]
 
-/-- Characterize `sgtBool` on `ofNat` values with reduced inputs. -/
+/-- `sgtBool` on reduced inputs: unfold to pure Nat case analysis. -/
+set_option maxHeartbeats 400000 in
 private theorem sgtBool_ofNat_of_lt (a b : Nat)
     (ha : a < EvmYul.UInt256.size) (hb : b < EvmYul.UInt256.size) :
     EvmYul.UInt256.sgtBool (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b) =
@@ -602,20 +590,10 @@ private theorem sgtBool_ofNat_of_lt (a b : Nat)
       if b ≥ 2 ^ 255 then true else decide (a > b) := by
   unfold EvmYul.UInt256.sgtBool
   rw [uint256_toNat_ofNat_of_lt a ha, uint256_toNat_ofNat_of_lt b hb]
-  simp only [ge_iff_le, GT.gt]
-  by_cases ha255 : 2 ^ 255 ≤ a <;> by_cases hb255 : 2 ^ 255 ≤ b
-  · simp only [ha255, hb255, ite_true]
-    rw [show (EvmYul.UInt256.ofNat b < EvmYul.UInt256.ofNat a) =
-        (b % EvmYul.UInt256.size < a % EvmYul.UInt256.size) from
-      propext (uint256_lt_ofNat_iff b a)]
-    simp [Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb]
-  · simp [ha255, hb255]
-  · simp [ha255, hb255]
-  · simp only [ha255, hb255, ite_false, ite_true]
-    rw [show (EvmYul.UInt256.ofNat b < EvmYul.UInt256.ofNat a) =
-        (b % EvmYul.UInt256.size < a % EvmYul.UInt256.size) from
-      propext (uint256_lt_ofNat_iff b a)]
-    simp [Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb]
+  simp only [ge_iff_le, GT.gt, EvmYul.UInt256.ofNat, Id.run, Fin.ofNat,
+    Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb]
+  by_cases ha255 : 2 ^ 255 ≤ a <;> by_cases hb255 : 2 ^ 255 ≤ b <;>
+    simp_all [Decidable.decide_eq_true_eq]
 
 /-- Helper: Verity's signed less-than result matches EVMYulLean's sltBool
     when both operate on reduced (< evmModulus) values. -/
@@ -636,28 +614,36 @@ private theorem slt_result_equiv (a b : Nat) (ha : a < evmModulus) (hb : b < evm
   -- Reduce EVMYulLean side using the characterization lemma
   rw [sltBool_ofNat_of_lt a b ha_s hb_s]
   -- Now both sides are pure Nat case-splits on the 2^255 threshold
+  -- Verity: if a < 2^255 then (if b < 2^255 then ite (↑a < ↑b) 1 0 else ite (↑a < ↑b - ↑mod) 1 0)
+  --         else (if b < 2^255 then ite (↑a - ↑mod < ↑b) 1 0 else ite (↑a - ↑mod < ↑b - ↑mod) 1 0)
+  -- EVMYulLean: if 2^255 ≤ a then (if 2^255 ≤ b then ite (decide (a<b)) 1 0 else 1) else (if 2^255 ≤ b then 0 else ite (decide (a<b)) 1 0)
   by_cases ha255 : a < 2 ^ 255 <;> by_cases hb255 : b < 2 ^ 255
-  · -- Both positive: both reduce to (a < b)
-    have : ¬(2 ^ 255 ≤ a) := Nat.not_le_of_lt ha255
-    have : ¬(2 ^ 255 ≤ b) := Nat.not_le_of_lt hb255
-    simp_all [decide_eq_true_eq, Int.ofNat_lt]
-  · -- a positive, b negative: Verity says not-less (a ≥ 0 > b), EVMYulLean says false
+  · -- Both positive: Int.ofNat a < Int.ofNat b ↔ a < b
+    have hna : ¬(2 ^ 255 ≤ a) := Nat.not_le_of_lt ha255
+    have hnb : ¬(2 ^ 255 ≤ b) := Nat.not_le_of_lt hb255
+    simp only [ha255, hb255, hna, hnb, ite_true, ite_false, ge_iff_le, decide_eq_true_eq]
+    congr 1
+    constructor <;> intro h <;> omega
+  · -- a positive, b negative: a ≥ 0 > b - modulus, so ¬(a < b_signed)
     have hb_ge : 2 ^ 255 ≤ b := Nat.le_of_not_lt hb255
-    have : ¬(2 ^ 255 ≤ a) := Nat.not_le_of_lt ha255
-    simp_all
-    omega
-  · -- a negative, b positive: Verity says less (a < 0 ≤ b), EVMYulLean says true
+    have hna : ¬(2 ^ 255 ≤ a) := Nat.not_le_of_lt ha255
+    simp only [ha255, Nat.not_lt_of_le hb_ge, hna, hb_ge, ite_true, ite_false, ge_iff_le]
+    have : ¬(Int.ofNat a < Int.ofNat b - Int.ofNat evmModulus) := by
+      simp only [not_lt]; omega
+    simp [this]
+  · -- a negative, b positive: a - modulus < 0 ≤ b, so a_signed < b_signed
     have ha_ge : 2 ^ 255 ≤ a := Nat.le_of_not_lt ha255
-    have : ¬(2 ^ 255 ≤ b) := Nat.not_le_of_lt hb255
-    simp_all
-    omega
-  · -- Both negative: (a - modulus < b - modulus) iff (a < b)
+    have hnb : ¬(2 ^ 255 ≤ b) := Nat.not_le_of_lt hb255
+    simp only [Nat.not_lt_of_le ha_ge, hb255, ha_ge, hnb, ite_true, ite_false, ge_iff_le]
+    have : Int.ofNat a - Int.ofNat evmModulus < Int.ofNat b := by omega
+    simp [this]
+  · -- Both negative: (a - mod < b - mod) ↔ (a < b)
     have ha_ge : 2 ^ 255 ≤ a := Nat.le_of_not_lt ha255
     have hb_ge : 2 ^ 255 ≤ b := Nat.le_of_not_lt hb255
-    simp_all [decide_eq_true_eq]
-    constructor
-    · intro h; omega
-    · intro h; omega
+    simp only [Nat.not_lt_of_le ha_ge, Nat.not_lt_of_le hb_ge, ha_ge, hb_ge,
+      ite_true, ite_false, ge_iff_le, decide_eq_true_eq]
+    congr 1
+    constructor <;> intro h <;> omega
 
 set_option maxHeartbeats 4000000 in
 private theorem verity_eval_slt_normalized
@@ -706,35 +692,39 @@ private theorem sgt_result_equiv (a b : Nat) (ha : a < evmModulus) (hb : b < evm
     unfold EvmYul.UInt256.size; unfold evmModulus at ha; exact ha
   have hb_s : b < EvmYul.UInt256.size := by
     unfold EvmYul.UInt256.size; unfold evmModulus at hb; exact hb
-  -- Reduce Verity side
+  -- Reduce Verity side (note: sgt compares b < a, i.e., Int256(b) < Int256(a))
   simp only [Verity.Core.Uint256.ofNat, Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus, Verity.Core.Uint256.modulus,
     Verity.Core.UINT256_MODULUS, Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb]
   -- Reduce EVMYulLean side using the characterization lemma
   rw [sgtBool_ofNat_of_lt a b ha_s hb_s]
-  -- Now both sides are pure Nat case-splits on the 2^255 threshold
   by_cases ha255 : a < 2 ^ 255 <;> by_cases hb255 : b < 2 ^ 255
-  · -- Both positive: both reduce to (b < a)
-    have : ¬(2 ^ 255 ≤ a) := Nat.not_le_of_lt ha255
-    have : ¬(2 ^ 255 ≤ b) := Nat.not_le_of_lt hb255
-    simp_all [decide_eq_true_eq, Int.ofNat_lt, GT.gt]
-  · -- a positive, b negative: Verity says greater (a ≥ 0 > b), EVMYulLean says true
+  · -- Both positive: Int.ofNat b < Int.ofNat a ↔ b < a (i.e., a > b)
+    have hna : ¬(2 ^ 255 ≤ a) := Nat.not_le_of_lt ha255
+    have hnb : ¬(2 ^ 255 ≤ b) := Nat.not_le_of_lt hb255
+    simp only [ha255, hb255, hna, hnb, ite_true, ite_false, ge_iff_le, decide_eq_true_eq, GT.gt]
+    congr 1
+    constructor <;> intro h <;> omega
+  · -- a positive, b negative: sgt(a,b) = true (a > b signed)
     have hb_ge : 2 ^ 255 ≤ b := Nat.le_of_not_lt hb255
-    have : ¬(2 ^ 255 ≤ a) := Nat.not_le_of_lt ha255
-    simp_all
-    omega
-  · -- a negative, b positive: Verity says not-greater (a < 0 ≤ b), EVMYulLean says false
+    have hna : ¬(2 ^ 255 ≤ a) := Nat.not_le_of_lt ha255
+    simp only [ha255, Nat.not_lt_of_le hb_ge, hna, hb_ge, ite_true, ite_false, ge_iff_le]
+    have : Int.ofNat b - Int.ofNat evmModulus < Int.ofNat a := by omega
+    simp [this]
+  · -- a negative, b positive: sgt(a,b) = false (a < b signed)
     have ha_ge : 2 ^ 255 ≤ a := Nat.le_of_not_lt ha255
-    have : ¬(2 ^ 255 ≤ b) := Nat.not_le_of_lt hb255
-    simp_all
-    omega
-  · -- Both negative: (b - modulus < a - modulus) iff (b < a)
+    have hnb : ¬(2 ^ 255 ≤ b) := Nat.not_le_of_lt hb255
+    simp only [Nat.not_lt_of_le ha_ge, hb255, ha_ge, hnb, ite_true, ite_false, ge_iff_le]
+    have : ¬(Int.ofNat b < Int.ofNat a - Int.ofNat evmModulus) := by
+      simp only [not_lt]; omega
+    simp [this]
+  · -- Both negative: (b - mod < a - mod) ↔ (b < a) i.e. (a > b)
     have ha_ge : 2 ^ 255 ≤ a := Nat.le_of_not_lt ha255
     have hb_ge : 2 ^ 255 ≤ b := Nat.le_of_not_lt hb255
-    simp_all [decide_eq_true_eq, GT.gt]
-    constructor
-    · intro h; omega
-    · intro h; omega
+    simp only [Nat.not_lt_of_le ha_ge, Nat.not_lt_of_le hb_ge, ha_ge, hb_ge,
+      ite_true, ite_false, ge_iff_le, decide_eq_true_eq, GT.gt]
+    congr 1
+    constructor <;> intro h <;> omega
 
 set_option maxHeartbeats 4000000 in
 private theorem verity_eval_sgt_normalized
