@@ -238,9 +238,13 @@ theorem storageLookup_projectStorage (storage : Nat → Nat)
       storage slot % UInt256.size := by
   sorry
 
-/-- Nat→UInt256→Nat round-trip for values in range. -/
+/-- Nat→UInt256→Nat round-trip for values in range.
+    Proof: `ofNat n = ⟨Fin.ofNat _ n⟩ = ⟨⟨n % size, _⟩⟩`, and
+    `toNat` extracts `.val.val`, so the goal reduces to `n % size = n`
+    which follows from `Nat.mod_eq_of_lt h`. -/
 theorem uint256_roundtrip (n : Nat) (h : n < UInt256.size) :
     uint256ToNat (natToUInt256 n) = n := by
-  sorry
+  simp only [uint256ToNat, natToUInt256, UInt256.toNat, UInt256.ofNat, Id.run]
+  exact Nat.mod_eq_of_lt h
 
 end Compiler.Proofs.YulGeneration.Backends.StateBridge
