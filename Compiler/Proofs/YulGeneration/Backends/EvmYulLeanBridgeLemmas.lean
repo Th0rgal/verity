@@ -966,6 +966,7 @@ private theorem bridge_eval_sdiv_normalized (a b : Nat) :
   rfl
 
 set_option maxHeartbeats 32000000 in
+set_option linter.unusedSimpArgs false in
 /-- The Verity signed-division semantics agree with EVMYulLean's `UInt256.sdiv`
     when both sides operate on the same reduced values `a % M` and `b % M`. -/
 private theorem verity_sdiv_eq_evmyullean_sdiv (a b : Nat) :
@@ -983,10 +984,10 @@ private theorem verity_sdiv_eq_evmyullean_sdiv (a b : Nat) :
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Int256.ofInt, Verity.Core.Int256.signedAbsNat,
     Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
-    Verity.Core.UINT256_MODULUS, evmModulus, hma,
+    Verity.Core.UINT256_MODULUS, evmModulus, hma, hmb,
     EvmYul.UInt256.sdiv, EvmYul.UInt256.abs, EvmYul.UInt256.toNat,
-    EvmYul.UInt256.ofNat, Id.run, Fin.ofNat,
-    EvmYul.UInt256.size]
+    EvmYul.UInt256.ofNat, Id.run, Fin.ofNat, Fin.val,
+    EvmYul.UInt256.size, int_natCast_emod]
   split_ifs <;> simp_all [evmModulus] <;> norm_cast <;> omega
 
 set_option maxHeartbeats 4000000 in
