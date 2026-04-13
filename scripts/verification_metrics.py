@@ -82,6 +82,7 @@ def get_sorry_count() -> tuple[int, int]:
     # not regressions in contract theorem proofs.
     INFRASTRUCTURE_FILES = {
         "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean",
+        "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean",
     }
     matcher = re.compile(r"\bsorry\b")
     total = 0
