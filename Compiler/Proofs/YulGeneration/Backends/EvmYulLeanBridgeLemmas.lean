@@ -827,9 +827,8 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
     Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
     Verity.Core.UINT256_MODULUS, evmModulus, hma, hmb,
     EvmYul.UInt256.sltBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
-    Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_lt_val, Fin.val]
-  -- Rewrite ↑a % ↑M to ↑(a % M) so Int/Nat sides agree structurally
-  simp only [int_natCast_emod]
+    Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_lt_val, Fin.val,
+    int_natCast_emod]
   -- Case-split on sign bits; use EvmYul.UInt256.size to match goal literals.
   by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
   by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
@@ -898,9 +897,8 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
     Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
     Verity.Core.UINT256_MODULUS, evmModulus, hma, hmb,
     EvmYul.UInt256.sgtBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
-    Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_gt_val, uint256_lt_val, Fin.val]
-  -- Rewrite ↑a % ↑M to ↑(a % M) so Int/Nat sides agree structurally
-  simp only [int_natCast_emod]
+    Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_gt_val, uint256_lt_val, Fin.val,
+    int_natCast_emod]
   -- Case-split on sign bits; use EvmYul.UInt256.size to match goal literals.
   by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
   by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
