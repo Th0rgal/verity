@@ -56,7 +56,9 @@ mutual
     | ParamType.array t => paramTypeToSolidityString t ++ "[]"
     | ParamType.fixedArray t n => paramTypeToSolidityString t ++ "[" ++ toString n ++ "]"
     | ParamType.bytes => "bytes"
-    | ParamType.adt name => name
+    | ParamType.adt _name maxFields =>
+        -- ABI-encoded as static tuple: (uint8, uint256, ..., uint256)
+        "(" ++ String.intercalate "," ("uint8" :: List.replicate maxFields "uint256") ++ ")"
 
   private def paramTypeListToSolidityStrings : List ParamType → List String
     | [] => []

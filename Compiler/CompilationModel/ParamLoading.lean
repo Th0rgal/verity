@@ -146,9 +146,16 @@ def genParamLoadBodyFrom
               staticLoads ++ firstAlias
         | ParamType.bytes | ParamType.string =>
           genDynamicParamLoads loadWord sizeExpr headSize baseOffset param.name param.ty headOffset
-        | ParamType.adt _ =>
-          -- ADTs are loaded as a single 256-bit word (tag + packed fields)
-          genScalarLoad loadWord param.name param.ty headOffset
+        | ParamType.adt _ maxFields =>
+          -- ADTs: decode (uint8 tag, uint256 field0, ..., uint256 fieldN) from calldata
+          -- Tag word: load first word and mask to uint8
+          let tagLoad := [YulStmt.let_ param.name (YulExpr.call "and" [
+            loadWord (YulExpr.lit headOffset), YulExpr.lit 255
+          ])]
+          -- Field words: load consecutive 32-byte words
+          let fieldLoads := (List.range maxFields).map fun i =>
+            YulStmt.let_ s!"{param.name}_f{i}" (loadWord (YulExpr.lit (headOffset + (i + 1) * 32)))
+          tagLoad ++ fieldLoads
       stmts ++
         genParamLoadBodyFrom loadWord sizeExpr headSize baseOffset rest
           (headOffset + paramHeadSize param.ty)

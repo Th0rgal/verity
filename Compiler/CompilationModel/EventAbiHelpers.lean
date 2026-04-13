@@ -198,11 +198,17 @@ partial def compileIndexedInPlaceEncoding
               YulStmt.assign outLenName (YulExpr.call "add" [YulExpr.ident outLenName, elemEncodedLen])
             ] ++ restStmts)
       pure (initStmts ++ (← goTuple elemTys 0 0), YulExpr.ident outLenName)
-  | ParamType.adt _ =>
-      -- ADTs are encoded as a single 256-bit word (tag + packed fields)
-      let loaded := dynamicWordLoad dynamicSource srcBase
-      pure ([
-        YulStmt.expr (YulExpr.call "mstore" [dstBase, loaded])
-      ], YulExpr.lit 32)
+  | ParamType.adt _ maxFields =>
+      -- ADTs: ABI-encode as (uint8 tag, uint256 field0, ..., uint256 fieldN)
+      let tagLoaded := dynamicWordLoad dynamicSource srcBase
+      let tagStore := YulStmt.expr (YulExpr.call "mstore" [
+        dstBase, YulExpr.call "and" [tagLoaded, YulExpr.lit 0xFF]
+      ])
+      let fieldStores := (List.range maxFields).map fun i =>
+        let srcOff := YulExpr.call "add" [srcBase, YulExpr.lit ((i + 1) * 32)]
+        let dstOff := YulExpr.call "add" [dstBase, YulExpr.lit ((i + 1) * 32)]
+        YulStmt.expr (YulExpr.call "mstore" [dstOff, dynamicWordLoad dynamicSource srcOff])
+      let totalBytes := 32 * (1 + maxFields)
+      pure (tagStore :: fieldStores, YulExpr.lit totalBytes)
 
 end Compiler.CompilationModel

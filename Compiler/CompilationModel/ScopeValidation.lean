@@ -40,7 +40,7 @@ mutual
     | ParamType.bytes => true
     | ParamType.fixedArray elemTy _ => isDynamicParamTypeForScope elemTy
     | ParamType.tuple elemTys => paramTypeListAnyDynamicForScope elemTys
-    | ParamType.adt _ => false
+    | ParamType.adt _ _ => false
 termination_by ty => sizeOf ty
 decreasing_by all_goals simp_wf; all_goals omega
 
