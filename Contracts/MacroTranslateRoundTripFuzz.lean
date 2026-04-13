@@ -73,6 +73,8 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.ZeroAddressShadowSmoke.spec
   , Contracts.Smoke.StructMappingSmoke.spec
   , Contracts.Smoke.ExternalCallSmoke.spec
+  , Contracts.Smoke.TryExternalCallSmoke.spec
+  , Contracts.Smoke.ExternalCallMultiReturn.spec
   , Contracts.Smoke.ERC20HelperSmoke.spec
   , Contracts.Smoke.GenericECMReadSmoke.spec
   , Contracts.Smoke.GenericECMWriteSmoke.spec

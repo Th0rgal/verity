@@ -364,7 +364,7 @@ theorem: richer returns, logs, typed errors, and raw external effect hooks. -/
 def stmtTouchesUnsupportedEffectSurface : Stmt → Bool
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
   | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _
-  | .externalCallBind _ _ _ | .ecm _ _ => true
+  | .externalCallBind _ _ _ | .tryExternalCallBind _ _ _ _ | .ecm _ _ => true
   | .letVar _ _ | .assignVar _ _ | .setStorage _ _ | .setStorageAddr _ _
   | .require _ _ | .return _ | .mstore _ _ | .tstore _ _ | .stop
   | .setMapping _ _ _ | .setMappingWord _ _ _ _
@@ -422,7 +422,7 @@ def stmtTouchesUnsupportedCoreSurface : Stmt → Bool
   | .returnBytes _ | .returnStorageWords _ | .calldatacopy _ _ _
   | .returndataCopy _ _ _ | .revertReturndata
   | .emit _ _ | .internalCall _ _ | .internalCallAssign _ _ _
-  | .rawLog _ _ _ | .externalCallBind _ _ _ | .ecm _ _ => false
+  | .rawLog _ _ _ | .externalCallBind _ _ _ | .tryExternalCallBind _ _ _ _ | .ecm _ _ => false
 
 /-- State/layout-rich statement surfaces still outside the current whole-contract
 theorem. -/
@@ -446,7 +446,7 @@ def stmtTouchesUnsupportedStateSurface : Stmt → Bool
   | .returnBytes _ | .returnStorageWords _ | .calldatacopy _ _ _
   | .returndataCopy _ _ _ | .revertReturndata
   | .emit _ _ | .internalCall _ _ | .internalCallAssign _ _ _
-  | .rawLog _ _ _ | .externalCallBind _ _ _ | .ecm _ _ => false
+  | .rawLog _ _ _ | .externalCallBind _ _ _ | .tryExternalCallBind _ _ _ _ | .ecm _ _ => false
   | .ite cond thenBranch elseBranch =>
       exprTouchesUnsupportedStateSurface cond ||
         stmtListTouchesUnsupportedStateSurface thenBranch ||
@@ -492,7 +492,7 @@ def stmtTouchesUnsupportedCallSurface : Stmt → Bool
       exprTouchesUnsupportedCallSurface cond
   | .internalCall _ _ | .internalCallAssign _ _ _ => true
   | .calldatacopy _ _ _
-  | .returndataCopy _ _ _ | .revertReturndata | .externalCallBind _ _ _
+  | .returndataCopy _ _ _ | .revertReturndata | .externalCallBind _ _ _ | .tryExternalCallBind _ _ _ _
   | .ecm _ _ => true
   | .stop | .storageArrayPop _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
@@ -530,7 +530,7 @@ def stmtTouchesUnsupportedHelperSurface : Stmt → Bool
       exprTouchesUnsupportedHelperSurface cond
   | .internalCall _ _ | .internalCallAssign _ _ _ => true
   | .stop | .calldatacopy _ _ _
-  | .returndataCopy _ _ _ | .revertReturndata | .externalCallBind _ _ _
+  | .returndataCopy _ _ _ | .revertReturndata | .externalCallBind _ _ _ | .tryExternalCallBind _ _ _ _
   | .ecm _ _ | .storageArrayPop _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
   | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _ => false
@@ -570,7 +570,7 @@ def stmtTouchesInternalHelperSurface : Stmt → Bool
       exprTouchesInternalHelperSurface cond
   | .internalCall _ _ | .internalCallAssign _ _ _ => true
   | .stop | .calldatacopy _ _ _
-  | .returndataCopy _ _ _ | .revertReturndata | .externalCallBind _ _ _
+  | .returndataCopy _ _ _ | .revertReturndata | .externalCallBind _ _ _ | .tryExternalCallBind _ _ _ _
   | .ecm _ _ | .storageArrayPop _ | .requireError _ _ _
   | .revertError _ _ | .returnValues _ | .returnArray _
   | .returnBytes _ | .returnStorageWords _ | .emit _ _
@@ -638,7 +638,7 @@ def stmtTouchesExprInternalHelperSurface : Stmt → Bool
       exprTouchesInternalHelperSurface count
   | .internalCall _ _ | .internalCallAssign _ _ _ | .stop
   | .calldatacopy _ _ _ | .returndataCopy _ _ _
-  | .revertReturndata | .externalCallBind _ _ _ | .ecm _ _
+  | .revertReturndata | .externalCallBind _ _ _ | .tryExternalCallBind _ _ _ _ | .ecm _ _
   | .storageArrayPop _ | .requireError _ _ _
   | .revertError _ _ | .returnValues _ | .returnArray _
   | .returnBytes _ | .returnStorageWords _ | .emit _ _
@@ -657,7 +657,7 @@ def stmtTouchesStructuralInternalHelperSurface : Stmt → Bool
   | .return _ | .internalCall _ _ | .internalCallAssign _ _ _
   | .stop | .setStorageAddr _ _ | .mstore _ _ | .tstore _ _
   | .calldatacopy _ _ _ | .returndataCopy _ _ _
-  | .revertReturndata | .externalCallBind _ _ _ | .ecm _ _
+  | .revertReturndata | .externalCallBind _ _ _ | .tryExternalCallBind _ _ _ _ | .ecm _ _
   | .setMapping _ _ _ | .setMappingWord _ _ _ _
   | .setMappingPackedWord _ _ _ _ _ | .setMapping2 _ _ _ _
   | .setMapping2Word _ _ _ _ _ | .setMappingUint _ _ _
@@ -692,7 +692,7 @@ def stmtTouchesUnsupportedForeignSurface : Stmt → Bool
         exprTouchesUnsupportedForeignSurface value
   | .require cond _ | .return cond =>
       exprTouchesUnsupportedForeignSurface cond
-  | .externalCallBind _ _ _ | .ecm _ _ => true
+  | .externalCallBind _ _ _ | .tryExternalCallBind _ _ _ _ | .ecm _ _ => true
   | .stop
   | .internalCall _ _ | .internalCallAssign _ _ _
   | .calldatacopy _ _ _ | .returndataCopy _ _ _ | .revertReturndata
@@ -733,7 +733,7 @@ def stmtTouchesUnsupportedLowLevelSurface : Stmt → Bool
   | .calldatacopy _ _ _
   | .returndataCopy _ _ _ | .revertReturndata => true
   | .stop
-  | .internalCall _ _ | .internalCallAssign _ _ _ | .externalCallBind _ _ _
+  | .internalCall _ _ | .internalCallAssign _ _ _ | .externalCallBind _ _ _ | .tryExternalCallBind _ _ _ _
   | .ecm _ _ | .storageArrayPop _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
   | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _ => false
@@ -958,7 +958,7 @@ mutual
     | .requireError cond _ args =>
         exprInternalHelperCallNames cond ++ exprListInternalHelperCallNames args
     | .revertError _ args | .emit _ args | .returnValues args
-    | .externalCallBind _ _ args | .ecm _ args =>
+    | .externalCallBind _ _ args | .tryExternalCallBind _ _ _ args | .ecm _ args =>
         exprListInternalHelperCallNames args
     | .mstore offset value | .tstore offset value =>
         exprInternalHelperCallNames offset ++ exprInternalHelperCallNames value
@@ -1011,7 +1011,7 @@ mutual
     | .requireError cond _ args =>
         exprInternalHelperCallNames cond ++ exprListInternalHelperCallNames args
     | .revertError _ args | .emit _ args | .returnValues args
-    | .externalCallBind _ _ args | .ecm _ args =>
+    | .externalCallBind _ _ args | .tryExternalCallBind _ _ _ args | .ecm _ args =>
         exprListInternalHelperCallNames args
     | .mstore offset value | .tstore offset value =>
         exprInternalHelperCallNames offset ++ exprInternalHelperCallNames value

@@ -180,6 +180,8 @@ def validateInteropStmt (context : String) : Stmt → Except String Unit
       validateInteropExprList context args
   | Stmt.externalCallBind _ _ args =>
       validateInteropExprList context args
+  | Stmt.tryExternalCallBind _ _ _ args =>
+      validateInteropExprList context args
   | Stmt.returnValues values =>
       validateInteropExprList context values
   | Stmt.rawLog topics dataOffset dataSize => do

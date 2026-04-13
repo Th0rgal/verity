@@ -254,6 +254,8 @@ def validateInternalCallShapesInStmt
       validateInternalCallShapesInExpr functions callerName dataSize
   | Stmt.externalCallBind _resultVars _ args =>
       validateInternalCallShapesInExprList functions callerName args
+  | Stmt.tryExternalCallBind _ _resultVars _ args =>
+      validateInternalCallShapesInExprList functions callerName args
   | Stmt.ecm _ args =>
       validateInternalCallShapesInExprList functions callerName args
   | _ =>
@@ -467,6 +469,26 @@ def validateExternalCallTargetsInStmt
                 else
                   checkDuplicateVars (name :: seen) rest
           checkDuplicateVars [] resultVars
+  | Stmt.tryExternalCallBind successVar resultVars externalName args => do
+      validateExternalCallTargetsInExprList externals context args
+      match externals.find? (fun ext => ext.name == externalName) with
+      | none =>
+          throw s!"Compilation error: {context} uses Stmt.tryExternalCallBind with unknown external function '{externalName}'."
+      | some ext => do
+          if args.length != ext.params.length then
+            throw s!"Compilation error: {context} calls external function '{externalName}' with {args.length} args, expected {ext.params.length}."
+          let returns ← externalFunctionReturns ext
+          if returns.length != resultVars.length then
+            throw s!"Compilation error: {context} binds {resultVars.length} values from external function '{externalName}', but it returns {returns.length}."
+          let allVars := successVar :: resultVars
+          let rec checkDuplicateTryVars (seen : List String) : List String → Except String Unit
+            | [] => pure ()
+            | name :: rest =>
+                if seen.contains name then
+                  throw s!"Compilation error: {context} uses Stmt.tryExternalCallBind with duplicate result variable '{name}'."
+                else
+                  checkDuplicateTryVars (name :: seen) rest
+          checkDuplicateTryVars [] allVars
   | Stmt.returnValues values =>
       validateExternalCallTargetsInExprList externals context values
   | Stmt.rawLog topics dataOffset dataSize => do

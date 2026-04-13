@@ -3225,6 +3225,7 @@ private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux
   | .emit _ _ => simp [execStmtWithHelpers, execStmt]
   | .rawLog _ _ _ => simp [execStmtWithHelpers, execStmt]
   | .externalCallBind _ _ _ => simp [execStmtWithHelpers, execStmt]
+  | .tryExternalCallBind _ _ _ _ => simp [execStmtWithHelpers, execStmt]
   | .ecm _ _ => simp [execStmtWithHelpers, execStmt]
   | .forEach _ _ _ =>
       simp only [stmtTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface

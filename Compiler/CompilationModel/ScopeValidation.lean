@@ -340,6 +340,9 @@ def validateScopedStmtIdentifiers
   | Stmt.externalCallBind resultVars _ args => do
       validateScopedExprIdentifiersList context params paramScope dynamicParams localScope constructorArgCount args
       pure (resultVars.reverse ++ localScope)
+  | Stmt.tryExternalCallBind successVar resultVars _ args => do
+      validateScopedExprIdentifiersList context params paramScope dynamicParams localScope constructorArgCount args
+      pure ((successVar :: resultVars).reverse ++ localScope)
   | Stmt.ecm mod args => do
       if args.length != mod.numArgs then
         throw s!"Compilation error: {context} uses ECM '{mod.name}' with {args.length} arguments but it expects {mod.numArgs}"

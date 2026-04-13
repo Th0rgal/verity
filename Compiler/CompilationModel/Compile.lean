@@ -202,6 +202,12 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
         pure [YulStmt.expr (YulExpr.call externalName argExprs)]
       else
         pure [YulStmt.letMany resultVars (YulExpr.call externalName argExprs)]
+  -- Try-call variant: calls {externalName}_try which returns (success, result...)
+  -- instead of reverting on failure. (#1727, Axis 1 Step 5f)
+  | Stmt.tryExternalCallBind successVar resultVars externalName args => do
+      let argExprs ← compileExprList fields dynamicSource args
+      let tryFnName := s!"{externalName}_try"
+      pure [YulStmt.letMany (successVar :: resultVars) (YulExpr.call tryFnName argExprs)]
   -- NOTE: safeTransfer, safeTransferFrom, externalCallWithReturn, callback, ecrecover
   -- have been removed. Use Stmt.ecm with the appropriate module from Compiler/Modules/.
   | Stmt.ecm mod args => do

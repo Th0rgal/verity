@@ -193,7 +193,7 @@ private partial def collectLowLevelStmtMechanics : Stmt → List String
         branches.flatMap fun (_, _, body) => body.flatMap collectLowLevelStmtMechanics
   | .emit _ args
   | .internalCall _ args
-  | .externalCallBind _ _ args
+  | .externalCallBind _ _ args | .tryExternalCallBind _ _ _ args
   | .returnValues args
   | .ecm _ args
   | .internalCallAssign _ _ args =>
@@ -256,7 +256,7 @@ private partial def collectAxiomatizedStmtPrimitives : Stmt → List String
         branches.flatMap fun (_, _, body) => body.flatMap collectAxiomatizedStmtPrimitives
   | .emit _ args
   | .internalCall _ args
-  | .externalCallBind _ _ args
+  | .externalCallBind _ _ args | .tryExternalCallBind _ _ _ args
   | .returnValues args
   | .ecm _ args
   | .internalCallAssign _ _ args =>
@@ -342,7 +342,7 @@ private partial def collectUnguardedLowLevelStmtMechanics : Stmt → List String
         branches.flatMap fun (_, _, body) => body.flatMap collectUnguardedLowLevelStmtMechanics
   | .emit _ args
   | .internalCall _ args
-  | .externalCallBind _ _ args
+  | .externalCallBind _ _ args | .tryExternalCallBind _ _ _ args
   | .returnValues args
   | .ecm _ args
   | .internalCallAssign _ _ args =>
@@ -515,7 +515,7 @@ private partial def collectEventEmissionStmtMechanics : Stmt → List String
         branches.flatMap fun (_, _, body) => body.flatMap collectEventEmissionStmtMechanics
   | .emit _ args
   | .internalCall _ args
-  | .externalCallBind _ _ args
+  | .externalCallBind _ _ args | .tryExternalCallBind _ _ _ args
   | .returnValues args
   | .ecm _ args
   | .internalCallAssign _ _ args =>
@@ -679,7 +679,7 @@ private partial def collectRuntimeIntrospectionStmtMechanics : Stmt → List Str
   | .ecm _ args
   | .internalCallAssign _ _ args =>
       args.flatMap collectRuntimeIntrospectionExprMechanics
-  | .externalCallBind _ _ args =>
+  | .externalCallBind _ _ args | .tryExternalCallBind _ _ _ args =>
       args.flatMap collectRuntimeIntrospectionExprMechanics
   | .rawLog topics dataOffset dataSize =>
       topics.flatMap collectRuntimeIntrospectionExprMechanics ++
@@ -823,6 +823,8 @@ private partial def collectExternalStmtNames : Stmt → List String
   | .internalCallAssign _ _ args =>
       args.flatMap collectExternalExprNames
   | .externalCallBind _ externalName args =>
+      externalName :: args.flatMap collectExternalExprNames
+  | .tryExternalCallBind _ _ externalName args =>
       externalName :: args.flatMap collectExternalExprNames
   | .rawLog topics dataOffset dataSize =>
       topics.flatMap collectExternalExprNames ++ collectExternalExprNames dataOffset ++ collectExternalExprNames dataSize

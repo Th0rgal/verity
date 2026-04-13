@@ -185,6 +185,8 @@ def collectStmtNames : Stmt → List String
       collectExprListNames topics ++ collectExprNames dataOffset ++ collectExprNames dataSize
   | Stmt.externalCallBind resultVars externalName args =>
       resultVars ++ externalName :: collectExprListNames args
+  | Stmt.tryExternalCallBind successVar resultVars externalName args =>
+      successVar :: resultVars ++ externalName :: collectExprListNames args
   | Stmt.ecm mod args =>
       mod.resultVars ++ collectExprListNames args
 termination_by stmt => sizeOf stmt

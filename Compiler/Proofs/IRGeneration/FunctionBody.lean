@@ -7844,7 +7844,7 @@ private theorem compileStmt_ok_any_scope_aux
       | requireError | revertError | «return» | returnValues | returnArray
       | returnBytes | returnStorageWords | mstore | tstore | calldatacopy
       | returndataCopy | revertReturndata | stop | emit | internalCall
-      | internalCallAssign | externalCallBind | ecm | rawLog =>
+      | internalCallAssign | externalCallBind | tryExternalCallBind | ecm | rawLog =>
           simp only [CompilationModel.compileStmt] at hok ⊢; exact hok
     · -- compileStmtList part
       intro stmts scope1 scope2 hlt hok

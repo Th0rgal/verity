@@ -1574,7 +1574,7 @@ theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractS
   | returndataCopy _ _ _ | revertReturndata | stop
   | ite _ _ _ | forEach _ _ _ | emit _ _
   | internalCall _ _ | internalCallAssign _ _ _ | rawLog _ _ _
-  | externalCallBind _ _ _ | ecm _ _ =>
+  | externalCallBind _ _ _ | tryExternalCallBind _ _ _ _ | ecm _ _ =>
       exact legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface
         hnoPacked
         (by simpa [stmtTouchesUnsupportedContractSurfaceExceptMappingWrites] using hsurface)
@@ -3113,7 +3113,7 @@ theorem stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsuppo
       | returnBytes _ | returnStorageWords _ | calldatacopy _ _ _
       | returndataCopy _ _ _ | revertReturndata | forEach _ _ _
       | emit _ _ | internalCall _ _ | internalCallAssign _ _ _
-      | rawLog _ _ _ | externalCallBind _ _ _ | ecm _ _ =>
+      | rawLog _ _ _ | externalCallBind _ _ _ | tryExternalCallBind _ _ _ _ | ecm _ _ =>
           simp [stmtTouchesUnsupportedContractSurface] at hstmtSurface
 
 private theorem stmtTouchesUnsupportedContractSurface_of_stmtListTouchesUnsupportedContractSurface_append_cons

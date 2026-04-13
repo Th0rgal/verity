@@ -207,7 +207,7 @@ def stmtContainsUnsafeLogicalCallLike : Stmt → Bool
       exprListAnyUnsafeLogicalCallLike topics ||
       exprContainsUnsafeLogicalCallLike dataOffset ||
       exprContainsUnsafeLogicalCallLike dataSize
-  | Stmt.externalCallBind _ _ args =>
+  | Stmt.externalCallBind _ _ args | Stmt.tryExternalCallBind _ _ _ args =>
       exprListAnyUnsafeLogicalCallLike args
   | Stmt.ecm _ args =>
       exprListAnyUnsafeLogicalCallLike args

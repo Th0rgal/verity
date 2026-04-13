@@ -459,6 +459,15 @@ inductive Stmt
       (resultVars : List String)  -- local vars to bind return values to
       (externalName : String)     -- name of the external function declaration
       (args : List Expr)          -- call arguments
+  /-- Perform an external call without auto-reverting on failure.
+      Binds a success flag (0/1) to `successVar` and return values to `resultVars`.
+      The caller is responsible for checking the success flag and handling failures.
+      (#1727, Axis 1 Step 5f) -/
+  | tryExternalCallBind
+      (successVar : String)       -- local var bound to success flag (0 = failure, 1 = success)
+      (resultVars : List String)  -- local vars to bind return values to (only valid if success == 1)
+      (externalName : String)     -- name of the external function declaration
+      (args : List Expr)          -- call arguments
   /-- Invoke an External Call Module with the given arguments.
       This generic variant delegates validation, compilation, and state analysis
       to the module's metadata and compile function. See Compiler.ECM (#964). -/

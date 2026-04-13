@@ -905,6 +905,22 @@ verity_contract ExternalCallSmoke where
     let current ← getStorage echoedValue
     return current
 
+-- tryExternalCall smoke: single-return external with success flag (#1727, Axis 1 Step 5f)
+verity_contract TryExternalCallSmoke where
+  storage
+    lastResult : Uint256 := slot 0
+    callSucceeded : Uint256 := slot 1
+  linked_externals
+    external echo(Uint256) -> (Uint256)
+
+  function allow_post_interaction_writes tryEcho (x : Uint256) : Unit := do
+    let (success, result) ← tryExternalCall "echo" [x]
+    if success then
+      setStorage lastResult result
+      setStorage callSucceeded 1
+    else
+      setStorage callSucceeded 0
+
 verity_contract ERC20HelperSmoke where
   storage
     lastBalance : Uint256 := slot 0
@@ -1038,14 +1054,20 @@ verity_contract ExternalCallUnsupportedType where
   function noop () : Unit := do
     pure ()
 
-/--
-error: linked external 'fanout' currently supports at most one return value; statement-style external bindings are not exposed from verity_contract yet
--/
-#guard_msgs in
-verity_contract ExternalCallUnsupportedMultiReturn where
+-- Multi-return externals are now allowed (Step 5f); use tryExternalCall
+-- to call them with a success flag.
+verity_contract ExternalCallMultiReturn where
   storage
+    lastValue : Uint256 := slot 0
   linked_externals
     external fanout(Uint256) -> (Uint256, Address)
+
+  function allow_post_interaction_writes callFanout (x : Uint256) : Unit := do
+    let (success, value, _addr) ← tryExternalCall "fanout" [x]
+    if success then
+      setStorage lastValue value
+    else
+      pure ()
 
   function noop () : Unit := do
     pure ()
@@ -1274,6 +1296,8 @@ end SpecGenSmoke
 #check_contract ZeroAddressShadowSmoke
 #check_contract StructMappingSmoke
 #check_contract ExternalCallSmoke
+#check_contract TryExternalCallSmoke
+#check_contract ExternalCallMultiReturn
 #check_contract Contracts.Vault
 
 example : TupleSmoke.setFromPair = (TupleSmoke.setFromPair : (Uint256 × Uint256) → Verity.Contract Unit) := rfl

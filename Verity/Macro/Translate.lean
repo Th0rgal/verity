@@ -1599,7 +1599,8 @@ private partial def inferPureExprType
       | some ext =>
           match ext.returnTys.toList with
           | [retTy] => pure retTy
-          | _ => pure .uint256
+          | [] => throwErrorAt name s!"externalCall '{extName}' returns no values; use `let success ← tryExternalCall \"{extName}\" [...]` instead"
+          | _ => throwErrorAt name s!"externalCall '{extName}' returns {ext.returnTys.size} values; use `let (success, ...) ← tryExternalCall \"{extName}\" [...]` for multi-return"
       | none => pure .uint256
   | `(term| structMember $field:term $key:term $member:term) => do
       let fieldName := ← expectStringOrIdent field
@@ -1776,6 +1777,22 @@ private partial def inferBindSourceType
               (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x)
       | _ => throwErrorAt args "expected list literal [..]"
       pure .uint256
+  | `(term| tryExternalCall $name:term $args:term) => do
+      let extName := ← expectStringOrIdent name
+      match stripParens args with
+      | `(term| [ $[$xs],* ]) =>
+          for x in xs do
+            requireWordLikeType x s!"tryExternalCall '{extName}' argument"
+              (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x)
+      | _ => throwErrorAt args "expected list literal [..]"
+      match externalDecls.find? (fun ext => ext.name == extName) with
+      | some ext =>
+          if ext.returnTys.size > 0 then
+            throwErrorAt rhs s!"tryExternalCall '{extName}' returns {ext.returnTys.size} value(s); use tuple destructuring: `let (success, ...) ← tryExternalCall ...`"
+          -- Zero-return external: success flag only
+          pure .bool
+      | none =>
+          throwErrorAt rhs s!"unknown external function '{extName}'"
   | `(term| requireSomeUint $optExpr:term $_msg:term) =>
       match stripParens optExpr with
       | `(term| safeAdd $a:term $b:term) | `(term| safeSub $a:term $b:term) => do
@@ -1838,6 +1855,23 @@ private partial def inferTupleSourceTypes?
           requireWordLikeType key1 "structMembers2 key" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals key1)
           requireWordLikeType key2 "structMembers2 key" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals key2)
           pure (some (Array.replicate memberNames.size .uint256))
+      | `(term| tryExternalCall $name:term $args:term) =>
+          let extName := ← expectStringOrIdent name
+          match stripParens args with
+          | `(term| [ $[$xs],* ]) =>
+              for x in xs do
+                requireWordLikeType x s!"tryExternalCall '{extName}' argument"
+                  (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x)
+          | _ => throwErrorAt args "expected list literal [..]"
+          match externalDecls.find? (fun ext => ext.name == extName) with
+          | some ext =>
+              -- tryExternalCall returns (success : Bool, result₁ : T₁, ..., resultₙ : Tₙ)
+              pure (some (#[.bool] ++ ext.returnTys))
+          | none =>
+              -- When called from translation path with empty externalDecls, return none
+              -- to let the tryExternalCallBindStmt? helper handle translation.
+              -- The validation path (with real externalDecls) catches actual errors.
+              pure none
       | other =>
           match matchLocalFunctionApp? functions other with
           | some (fn, argTerms) =>
@@ -2408,6 +2442,56 @@ private def tupleInternalCallAssignStmt?
   | none =>
       pure none
 
+/-- Try to translate a tuple‐destructured `tryExternalCall "name" [args]` RHS into
+    a `Stmt.tryExternalCallBind` term.  Returns `none` when the RHS is not a
+    `tryExternalCall` application.  Returns the statement term and the inferred
+    types for each bound name (Bool for success flag, Uint256 for all result
+    vars — precise return types require external decl lookup which happens in
+    the validation pass).  (#1727, Axis 1 Step 5f) -/
+private def tryExternalCallBindStmt?
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (rhs : Term)
+    (names : Array (Option String)) : CommandElabM (Option (Term × Array ValueType)) := do
+  let rhs := stripParens rhs
+  match rhs with
+  | `(term| tryExternalCall $name:term $args:term) =>
+      let extName := ← expectStringOrIdent name
+      let argExprs ← match stripParens args with
+        | `(term| [ $[$xs],* ]) =>
+            xs.mapM (translatePureExprWithTypes fields constDecls immutableDecls params locals)
+        | _ => throwErrorAt args "expected list literal [..]"
+      -- names[0] is the success flag, names[1..] are result vars
+      let initialUsedNames := (params.toList.map (fun p => p.name)) ++ (typedLocalNames locals).toList ++ (names.filterMap id).toList
+      let (_, targetNamesRev) := names.toList.zipIdx.foldl
+        (fun (acc : List String × List String) (name?, idx) =>
+          let (usedNames, targetNamesRev) := acc
+          let targetName := match name? with
+            | some name => name
+            | none => freshDiscardName usedNames idx
+          (targetName :: usedNames, targetName :: targetNamesRev))
+        (initialUsedNames, [])
+      let targetNames := targetNamesRev.reverse
+      let successVar := match targetNames.head? with
+        | some n => n
+        | none => "_try_success"
+      let resultVars := targetNames.drop 1
+      let successVarTerm := strTerm successVar
+      let resultVarTerms := resultVars.toArray.map strTerm
+      let stmt ← `(Compiler.CompilationModel.Stmt.tryExternalCallBind
+          $successVarTerm
+          [ $[$resultVarTerms],* ]
+          $(strTerm extName)
+          [ $[$argExprs],* ])
+      -- Types: Bool for success, Uint256 for each result var (conservative default;
+      -- the validation pass with real externalDecls checks the exact types).
+      let tys := #[ValueType.bool] ++ Array.replicate resultVars.length .uint256
+      pure (some (stmt, tys))
+  | _ => pure none
+
 private def expectExprList
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
@@ -2898,7 +2982,8 @@ private partial def validateEffectStmtExprTypes
       requireSupportedReturnStorageWordsType name "returnStorageWords" ty
   | `(term| internalCall $_fnName:term $args:term)
     | `(term| internalCallAssign $_names:term $_fnName:term $args:term)
-    | `(term| externalCallBind $_names:term $_fnName:term $args:term) =>
+    | `(term| externalCallBind $_names:term $_fnName:term $args:term)
+    | `(term| tryExternalCallBind $_successVar:term $_names:term $_fnName:term $args:term) =>
       match stripParens args with
       | `(term| [ $[$xs],* ]) =>
           for x in xs do
@@ -3408,7 +3493,12 @@ private partial def translateDoElem
                           let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
                           pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
                       | none => throwErrorAt rhs "unable to infer tuple local types"
-                  | none => throwErrorAt rhs "tuple destructuring currently requires a tuple literal, tuple-typed parameter, structMembers/structMembers2 source, or internal helper call"
+                  | none =>
+                      match (← tryExternalCallBindStmt? fields constDecls immutableDecls params locals rhs names) with
+                      | some (stmt, tys) =>
+                          let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                          pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
+                      | none => throwErrorAt rhs "tuple destructuring currently requires a tuple literal, tuple-typed parameter, structMembers/structMembers2 source, internal helper call, or tryExternalCall"
           | _ =>
               match (← tupleLiteralOrStructValueExprs? fields constDecls immutableDecls params locals rhs) with
               | some valueExprs =>
@@ -3434,6 +3524,11 @@ private partial def translateDoElem
                         pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
                     | none => throwErrorAt rhs "unable to infer tuple local types"
                 | none =>
+                  match (← tryExternalCallBindStmt? fields constDecls immutableDecls params locals rhs names) with
+                  | some (stmt, tys) =>
+                      let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                      pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
+                  | none =>
                   let valueExprs ← tupleValueExprs fields constDecls immutableDecls params locals rhs
                   if names.size != valueExprs.size then
                     throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueExprs.size} values"
@@ -3462,7 +3557,12 @@ private partial def translateDoElem
                   let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
                   pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
               | none => throwErrorAt rhs "unable to infer tuple local types"
-          | none => throwErrorAt rhs "tuple bind sources must be internal helper calls"
+          | none =>
+              match (← tryExternalCallBindStmt? fields constDecls immutableDecls params locals rhs names) with
+              | some (stmt, tys) =>
+                  let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                  pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
+              | none => throwErrorAt rhs "tuple bind sources must be internal helper calls or tryExternalCall"
       | none => pure none
     else
       pure none
@@ -3514,6 +3614,19 @@ private partial def translateDoElem
                         (Compiler.Modules.Precompiles.ecrecoverModule $(strTerm varName))
                         [$hashExpr, $vExpr, $rExpr, $sExpr]))],
                   locals.push (varName, .address),
+                  mutableLocals)
+          | `(term| tryExternalCall $extName:term $args:term) =>
+              -- Zero-return tryExternalCall: `let success ← tryExternalCall "fn" [args]`
+              -- produces Stmt.tryExternalCallBind successVar [] externalName args
+              let targetFn := ← expectStringOrIdent extName
+              let argExprs ← expectExprList fields constDecls immutableDecls params locals args
+              pure
+                (#[(← `(Compiler.CompilationModel.Stmt.tryExternalCallBind
+                        $(strTerm varName)
+                        []
+                        $(strTerm targetFn)
+                        [ $[$argExprs],* ]))],
+                  locals.push (varName, .bool),
                   mutableLocals)
           | _ =>
               let safeBind? ← translateSafeRequireBind fields constDecls immutableDecls params locals varName rhs
@@ -4200,9 +4313,9 @@ def validateExternalDeclsPublic
     if seenNames.contains ext.name then
       throwErrorAt ext.ident
         s!"duplicate external declaration '{ext.name}'"
-    if ext.returnTys.size > 1 then
-      throwErrorAt ext.ident
-        s!"linked external '{ext.name}' currently supports at most one return value; statement-style external bindings are not exposed from verity_contract yet"
+    -- Multi-return externals are allowed; the auto-revert expression form (externalCall)
+    -- only supports single-return, but tryExternalCall supports any return count.
+    -- (#1727, Axis 1 Step 5f)
     for paramTy in ext.params do
       validateExternalExecutableType ext.ident ext.name paramTy "parameter"
     for returnTy in ext.returnTys do

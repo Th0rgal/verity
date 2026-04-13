@@ -373,7 +373,7 @@ def stmtWritesState : Stmt → Bool
       stmtListWritesState body
   | Stmt.emit _ _ | Stmt.rawLog _ _ _
   | Stmt.internalCall _ _ | Stmt.internalCallAssign _ _ _
-  | Stmt.externalCallBind _ _ _ => true
+  | Stmt.externalCallBind _ _ _ | Stmt.tryExternalCallBind _ _ _ _ => true
   | Stmt.ecm mod args =>
       mod.writesState || exprListWritesState args
   | Stmt.matchAdt _ scrutinee branches =>
@@ -483,7 +483,7 @@ mutual
     an expression with call/staticcall/delegatecall/externalCall).
     Used by `no_external_calls` validation (#1729, Axis 3 Step 1c). -/
 def stmtContainsExternalCall : Stmt → Bool
-  | Stmt.externalCallBind _ _ _ => true
+  | Stmt.externalCallBind _ _ _ | Stmt.tryExternalCallBind _ _ _ _ => true
   | Stmt.ecm _ _ => true
   | Stmt.letVar _ value | Stmt.assignVar _ value =>
       exprContainsExternalCall value
@@ -597,7 +597,7 @@ def stmtReadsStateOrEnv : Stmt → Bool
   | Stmt.rawLog topics dataOffset dataSize =>
       topics.any exprReadsStateOrEnv || exprReadsStateOrEnv dataOffset || exprReadsStateOrEnv dataSize
   | Stmt.internalCall _ _ | Stmt.internalCallAssign _ _ _
-  | Stmt.externalCallBind _ _ _ => true
+  | Stmt.externalCallBind _ _ _ | Stmt.tryExternalCallBind _ _ _ _ => true
   | Stmt.ecm mod args => mod.readsState || mod.writesState || args.any exprReadsStateOrEnv
   | Stmt.matchAdt _ scrutinee branches =>
       exprReadsStateOrEnv scrutinee ||
@@ -638,7 +638,7 @@ def stmtIsPersistentWrite : Stmt → Bool
     (excluding expressions nested inside it — only `externalCallBind` and `ecm`).
     (#1728, Axis 2 Step 2a) -/
 def stmtIsDirectExternalCall : Stmt → Bool
-  | Stmt.externalCallBind _ _ _ => true
+  | Stmt.externalCallBind _ _ _ | Stmt.tryExternalCallBind _ _ _ _ => true
   | Stmt.ecm _ _ => true
   | _ => false
 

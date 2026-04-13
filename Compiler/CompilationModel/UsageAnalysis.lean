@@ -15,6 +15,7 @@ def collectStmtBindNames : Stmt → List String
       collectMatchBranchBindNames branches
   | Stmt.internalCallAssign names _ _ => names
   | Stmt.externalCallBind resultVars _ _ => resultVars
+  | Stmt.tryExternalCallBind successVar resultVars _ _ => successVar :: resultVars
   | Stmt.ecm mod _ => mod.resultVars
   -- Statements that never bind new names.
   | Stmt.assignVar _ _ | Stmt.setStorage _ _ | Stmt.setStorageAddr _ _
@@ -69,7 +70,7 @@ def collectStmtAssignedNames : Stmt → List String
   | Stmt.returnValues _ | Stmt.returnArray _ | Stmt.returnBytes _ | Stmt.returnStorageWords _
   | Stmt.mstore _ _ | Stmt.tstore _ _ | Stmt.calldatacopy _ _ _ | Stmt.returndataCopy _ _ _ | Stmt.revertReturndata | Stmt.stop
   | Stmt.emit _ _ | Stmt.internalCall _ _ | Stmt.internalCallAssign _ _ _
-  | Stmt.rawLog _ _ _ | Stmt.externalCallBind _ _ _ | Stmt.ecm _ _ =>
+  | Stmt.rawLog _ _ _ | Stmt.externalCallBind _ _ _ | Stmt.tryExternalCallBind _ _ _ _ | Stmt.ecm _ _ =>
       []
 termination_by s => sizeOf s
 decreasing_by all_goals simp_wf; all_goals omega
@@ -203,7 +204,7 @@ def stmtUsesArrayElement : Stmt → Bool
       exprListUsesArrayElement args
   | Stmt.rawLog topics dataOffset dataSize =>
       exprListUsesArrayElement topics || exprUsesArrayElement dataOffset || exprUsesArrayElement dataSize
-  | Stmt.externalCallBind _ _ args =>
+  | Stmt.externalCallBind _ _ args | Stmt.tryExternalCallBind _ _ _ args =>
       exprListUsesArrayElement args
   | Stmt.ecm _ args =>
       exprListUsesArrayElement args
@@ -341,7 +342,8 @@ def stmtUsesStorageArrayElement : Stmt → Bool
   | Stmt.matchAdt _ scrutinee branches =>
       exprUsesStorageArrayElement scrutinee ||
         matchBranchesUseStorageArrayElement branches
-  | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args | Stmt.externalCallBind _ _ args =>
+  | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args
+  | Stmt.externalCallBind _ _ args | Stmt.tryExternalCallBind _ _ _ args =>
       exprListUsesStorageArrayElement args
   | Stmt.rawLog topics dataOffset dataSize =>
       exprListUsesStorageArrayElement topics || exprUsesStorageArrayElement dataOffset || exprUsesStorageArrayElement dataSize
@@ -478,7 +480,7 @@ def stmtUsesDynamicBytesEq : Stmt → Bool
       exprUsesDynamicBytesEq scrutinee ||
         matchBranchesUseDynamicBytesEq branches
   | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args
-  | Stmt.externalCallBind _ _ args
+  | Stmt.externalCallBind _ _ args | Stmt.tryExternalCallBind _ _ _ args
   | Stmt.ecm _ args =>
       exprListUsesDynamicBytesEq args
   | Stmt.rawLog topics dataOffset dataSize =>
