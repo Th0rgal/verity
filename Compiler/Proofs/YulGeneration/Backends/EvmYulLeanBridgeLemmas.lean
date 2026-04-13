@@ -825,9 +825,13 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
   -- Case-split on sign bits; use EvmYul.UInt256.size to match goal literals.
   by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
   by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
-  -- simp_all with all modulus-related definitions to unify Int/Nat forms
+  -- simp_all with modulus definitions + Int↔Nat bridging lemmas:
+  -- Int.ofNat_lt converts ↑a < ↑b to a < b (both-positive and both-negative cases)
+  -- Int.sub_lt_sub_iff_right cancels ↑M subtraction in both-negative case
+  -- Int.ofNat_nonneg establishes ↑a ≥ 0 for mixed-sign cases
   all_goals simp_all [EvmYul.UInt256.size, evmModulus,
-    Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS]
+    Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS,
+    Int.ofNat_lt, Int.sub_lt_sub_iff_right, Int.ofNat_nonneg, not_lt]
   all_goals omega
 
 set_option maxHeartbeats 4000000 in
@@ -893,9 +897,10 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
   -- Case-split on sign bits; use EvmYul.UInt256.size to match goal literals.
   by_cases ha : a % EvmYul.UInt256.size < 2 ^ 255 <;>
   by_cases hb : b % EvmYul.UInt256.size < 2 ^ 255
-  -- simp_all with all modulus-related definitions to unify Int/Nat forms
+  -- simp_all with modulus definitions + Int↔Nat bridging lemmas
   all_goals simp_all [EvmYul.UInt256.size, evmModulus,
-    Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS]
+    Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS,
+    Int.ofNat_lt, Int.sub_lt_sub_iff_right, Int.ofNat_nonneg, not_lt]
   all_goals omega
 
 set_option maxHeartbeats 4000000 in
