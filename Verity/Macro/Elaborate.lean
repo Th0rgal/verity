@@ -52,6 +52,11 @@ def elabVerityContract : CommandElab := fun stx => do
     for fn in functions do
       elabCommand (← mkSemanticBridgeCommand contractName fields fn)
 
+    -- Emit per-function _is_view theorems for view functions (#1729, Axis 3 Step 1a).
+    for fn in functions do
+      if fn.isView then
+        elabCommand (← mkViewTheoremCommand fn)
+
     elabCommand (← `(end $contractName))
   catch err =>
     elabCommand (← `(end $contractName))
