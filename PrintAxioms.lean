@@ -2138,8 +2138,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.number_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.caller_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.address_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.UInt256_eq_of_compare_eq
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256_injective
-#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.compare_natToUInt256_self
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.compare_natToUInt256_ne
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.foldl_insert_find_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.foldl_insert_find
