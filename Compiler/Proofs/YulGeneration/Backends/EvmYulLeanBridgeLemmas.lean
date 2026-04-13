@@ -828,9 +828,9 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
   -- simp_all with modulus definitions + Int↔Nat cast lemmas
   all_goals simp_all [EvmYul.UInt256.size, evmModulus,
     Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS,
-    Int.ofNat_lt, Int.sub_lt_sub_iff_right, Int.ofNat_nonneg, not_lt]
-  -- push_cast normalizes remaining ↑a % ↑M to ↑(a % M), ↑x < ↑y to x < y
-  all_goals (try push_cast)
+    Int.ofNat_lt, Int.ofNat_nonneg, not_lt]
+  -- norm_cast normalizes remaining ↑a % M to ↑(a % M) and ↑x < ↑y to x < y
+  all_goals (try norm_cast)
   all_goals omega
 
 set_option maxHeartbeats 4000000 in
@@ -899,9 +899,9 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
   -- simp_all with modulus definitions + Int↔Nat cast lemmas
   all_goals simp_all [EvmYul.UInt256.size, evmModulus,
     Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS,
-    Int.ofNat_lt, Int.sub_lt_sub_iff_right, Int.ofNat_nonneg, not_lt]
-  -- push_cast normalizes remaining ↑a % ↑M to ↑(a % M), ↑x < ↑y to x < y
-  all_goals (try push_cast)
+    Int.ofNat_lt, Int.ofNat_nonneg, not_lt]
+  -- norm_cast normalizes remaining ↑a % M to ↑(a % M) and ↑x < ↑y to x < y
+  all_goals (try norm_cast)
   all_goals omega
 
 set_option maxHeartbeats 4000000 in
