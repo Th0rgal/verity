@@ -683,6 +683,10 @@ The `byte` opcode extracts a single byte from a 256-bit word.
 The proof uses `Nat.shiftRight_eq_div_pow` (shift = division by power of 2)
 and `Nat.and_two_pow_sub_one_eq_mod` (AND with 2^k-1 = mod 2^k). -/
 
+private theorem nat_land_0xFF (n : Nat) : Nat.land n 255 = n % 256 := by
+  rw [show (255 : Nat) = 2 ^ 8 - 1 from by omega]
+  exact Nat.and_two_pow_sub_one_eq_mod n 8
+
 set_option maxHeartbeats 4000000 in
 private theorem verity_eval_byte_normalized
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (i x : Nat) :
@@ -691,15 +695,36 @@ private theorem verity_eval_byte_normalized
        else some ((x % evmModulus / 2 ^ ((31 - i % evmModulus) * 8)) % 256)) := by
   simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
-/- Bridge byte: normalize the EVMYulLean `byteAt` to the canonical form.
-   This proof requires local `lake build` iteration to fully discharge due to
-   Ord-derived LT/GT instances on UInt256 and Fin-level bitwise reasoning.
-   Correctness is validated by concrete native_decide tests in BridgeTest.lean. -/
+set_option maxHeartbeats 8000000 in
 private theorem bridge_eval_byte_normalized (i x : Nat) :
     evalPureBuiltinViaEvmYulLean "byte" [i, x] =
       (if i % EvmYul.UInt256.size > 31 then some 0
        else some ((x % EvmYul.UInt256.size / 2 ^ ((31 - i % EvmYul.UInt256.size) * 8)) % 256)) := by
-  sorry
+  change some (EvmYul.UInt256.toNat
+      (EvmYul.UInt256.byteAt (EvmYul.UInt256.ofNat i) (EvmYul.UInt256.ofNat x))) = _
+  simp only [EvmYul.UInt256.byteAt]
+  by_cases himod : i % EvmYul.UInt256.size > 31
+  · simp [himod, EvmYul.UInt256.toNat]
+  · simp only [himod, ↓reduceIte]
+    have hile31 : i % EvmYul.UInt256.size ≤ 31 := Nat.not_lt.mp himod
+    have hshift_small : (31 - i % EvmYul.UInt256.size) * 8 < EvmYul.UInt256.size := by
+      unfold EvmYul.UInt256.size; omega
+    have hguard : ¬ 256 ≤ (EvmYul.UInt256.ofNat
+        ((31 - (EvmYul.UInt256.ofNat i).toNat) * 8)).val := by
+      change ¬ 256 ≤ ((31 - i % EvmYul.UInt256.size) * 8) % EvmYul.UInt256.size
+      rw [Nat.mod_eq_of_lt hshift_small]; omega
+    have hshift_mod : ((31 - i % EvmYul.UInt256.size) * 8) % EvmYul.UInt256.size =
+        (31 - i % EvmYul.UInt256.size) * 8 := Nat.mod_eq_of_lt hshift_small
+    have h0xFF_mod : (0xFF : Nat) % EvmYul.UInt256.size = 0xFF := by
+      unfold EvmYul.UInt256.size; omega
+    have hdiv_mod : x % EvmYul.UInt256.size /
+        2 ^ ((31 - i % EvmYul.UInt256.size) * 8) % EvmYul.UInt256.size =
+        x % EvmYul.UInt256.size / 2 ^ ((31 - i % EvmYul.UInt256.size) * 8) :=
+      Nat.mod_eq_of_lt (Nat.lt_of_le_of_lt (Nat.div_le_self _ _)
+        (Nat.mod_lt _ (by unfold EvmYul.UInt256.size; omega)))
+    simp [EvmYul.UInt256.shiftRight, EvmYul.UInt256.land, EvmYul.UInt256.toNat,
+      EvmYul.UInt256.ofNat, Id.run, hguard, Nat.shiftRight_eq_div_pow,
+      Fin.land, nat_land_0xFF, hshift_mod, h0xFF_mod, hdiv_mod]
 
 /-- Universal bridge theorem for `byte`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
@@ -721,11 +746,6 @@ EVMYulLean UInt256 semantics on all inputs. -/
 
 Universal bridge proofs for the following builtins require local `lake build`
 iteration to debug:
-
-**Byte builtin** (byte):
-- Ord-derived GT/LT instances on UInt256 produce non-trivial comparison goals
-- Fin-level bitwise shift/AND reasoning through multiple structure wrappers
-- Validated by concrete `native_decide` tests in BridgeTest.lean
 
 **Signed builtins** (slt, sgt, sdiv, smod, sar, signextend):
 - `omega` cannot handle `Int.ofNat` goals with large constants (2^255, 2^256)
