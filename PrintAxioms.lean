@@ -2126,7 +2126,6 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_mulmod_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_addmod_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_mulmod_bridge
--- #print axioms Compiler.Proofs.YulGeneration.Backends.nat_land_0xFF  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_byte_normalized  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_byte_normalized  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_byte_bridge
@@ -2170,4 +2169,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 2018 theorems/lemmas (1358 public, 659 private, 1 sorry'd)
+-- Total: 2017 theorems/lemmas (1358 public, 658 private, 1 sorry'd)
