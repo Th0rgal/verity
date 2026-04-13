@@ -330,6 +330,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.RolesSmoke.spec
   , Contracts.Smoke.NewtypeSmoke.spec
   , Contracts.Smoke.NamespacedStorageSmoke.spec
+  , Contracts.Smoke.CustomNamespacedSmoke.spec
   , Contracts.Smoke.CEIViolationRejected.spec
   , Contracts.Smoke.UnsafeBlockSmoke.spec
   , Contracts.Smoke.UnsafeGatingAccepted.spec
@@ -422,6 +423,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("RolesSmoke", ["setCounter(uint256)", "getCounter()"])
   , ("NewtypeSmoke", ["mint(uint256,uint256)", "setMinter(address)", "getNextTokenId()"])
   , ("NamespacedStorageSmoke", ["deposit(uint256)", "getOwner()"])
+  , ("CustomNamespacedSmoke", ["deposit(uint256)", "getOwner()"])
   , ("CEIViolationRejected", ["callThenStore(uint256)"])
   , ("UnsafeBlockSmoke", ["incrementUnsafe()", "getCounter()"])
   , ("UnsafeGatingAccepted", ["writeMem()"])
@@ -497,6 +499,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("RolesSmoke", ["0x8bb5d9c3", "0x8ada066e"])
   , ("NewtypeSmoke", ["0x1b2ef1ca", "0xfca3b5aa", "0xcaa0f92a"])
   , ("NamespacedStorageSmoke", ["0xb6b55f25", "0x893d20e8"])
+  , ("CustomNamespacedSmoke", ["0xb6b55f25", "0x893d20e8"])
   , ("CEIViolationRejected", ["0xe4fccc26"])
   , ("UnsafeBlockSmoke", ["0x87a993fd", "0x8ada066e"])
   , ("UnsafeGatingAccepted", ["0x68236256"])
@@ -598,6 +601,9 @@ private def checkMutabilitySmoke : IO Unit := do
   -- Verify NamespacedStorageSmoke generates standard _cei_compliant theorems (#1730, Axis 4 Step 4b).
   let _ := @Contracts.Smoke.NamespacedStorageSmoke.deposit_cei_compliant
   let _ := @Contracts.Smoke.NamespacedStorageSmoke.getOwner_cei_compliant
+  -- Verify CustomNamespacedSmoke generates standard _cei_compliant theorems (#1730, Axis 4 Step 4c).
+  let _ := @Contracts.Smoke.CustomNamespacedSmoke.deposit_cei_compliant
+  let _ := @Contracts.Smoke.CustomNamespacedSmoke.getOwner_cei_compliant
 
 private def checkSignedBuiltinSmoke : IO Unit := do
   let functions := Contracts.Smoke.SignedBuiltinSmoke.spec.functions

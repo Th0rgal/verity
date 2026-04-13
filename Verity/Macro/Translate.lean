@@ -3996,7 +3996,7 @@ def parseContractSyntax
     : CommandElabM
         (Ident × Array NewtypeDecl × Array AdtDecl × Array StorageFieldDecl × Array ErrorDecl × Array ConstantDecl × Array ImmutableDecl × Array ExternalDecl × Option ConstructorDecl × Array FunctionDecl × Option Nat) := do
   match stx with
-  | `(command| verity_contract $contractName:ident where $[types $[$newtypeDecls:verityNewtype]*]? $[inductive $[$adtDecls:verityAdtDecl]*]? $[storage_namespace%$nsKw]? storage $[$storageFields:verityStorageField]* $[errors $[$errorDecls:verityError]*]? $[constants $[$constantDecls:verityConstant]*]? $[immutables $[$immutableDecls:verityImmutable]*]? $[linked_externals $[$externalDecls:verityExternal]*]? $[$ctor:verityConstructor]? $[$entrypoints:veritySpecialEntrypoint]* $[$functions:verityFunction]*) =>
+  | `(command| verity_contract $contractName:ident where $[types $[$newtypeDecls:verityNewtype]*]? $[inductive $[$adtDecls:verityAdtDecl]*]? $[$nsSpec:verityNamespaceSpec]? storage $[$storageFields:verityStorageField]* $[errors $[$errorDecls:verityError]*]? $[constants $[$constantDecls:verityConstant]*]? $[immutables $[$immutableDecls:verityImmutable]*]? $[linked_externals $[$externalDecls:verityExternal]*]? $[$ctor:verityConstructor]? $[$entrypoints:veritySpecialEntrypoint]* $[$functions:verityFunction]*) =>
       -- Parse newtypes first — they are needed by all downstream type resolution
       let parsedNewtypes ←
         match newtypeDecls with
@@ -4027,11 +4027,25 @@ def parseContractSyntax
       for adt in parsedAdts do
         if builtinTypeNames.contains adt.name then
           throwErrorAt adt.ident s!"ADT name '{adt.name}' shadows a built-in type"
-      -- Compute namespace offset (#1730, Axis 4 Step 4b): when `storage_namespace`
+      -- Compute namespace offset (#1730, Axis 4 Steps 4b/4c): when `storage_namespace`
       -- is present, every user-declared slot N becomes (namespaceBase + N).
+      -- With `storage_namespace "custom"`, the custom string replaces the default
+      -- "{ContractName}.storage.v0" key.
       let namespaceOffset : Nat :=
-        if nsKw.isSome then computeStorageNamespace (toString contractName.getId)
-        else 0
+        match nsSpec with
+        | some spec =>
+            -- Extract optional custom namespace string from the syntax node.
+            -- `storage_namespace` alone → default; `storage_namespace "key"` → custom.
+            let args := spec.raw.getArgs
+            if h : args.size > 1 then
+              match args[1].isStrLit? with
+              | some customKey =>
+                  byteArrayToNatBE (KeccakEngine.keccak256_str customKey)
+              | none =>
+                  computeStorageNamespace (toString contractName.getId)
+            else
+              computeStorageNamespace (toString contractName.getId)
+        | none => 0
       let parsedErrors ←
         match errorDecls with
         | some decls => decls.mapM (parseError parsedNewtypes)
@@ -4054,7 +4068,7 @@ def parseContractSyntax
         { field with slotNum := field.slotNum + namespaceOffset }
       -- Compute the Option Nat for the spec's storageNamespace field (#1730, Axis 4 Step 4d)
       let namespaceOpt : Option Nat :=
-        if nsKw.isSome then some namespaceOffset else none
+        if nsSpec.isSome then some namespaceOffset else none
       pure
         ( contractName
         , parsedNewtypes

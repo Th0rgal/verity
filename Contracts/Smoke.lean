@@ -1854,6 +1854,32 @@ example : NamespacedStorageSmoke.owner.slot ≠ 1 := by decide
 example : NamespacedStorageSmoke.spec.storageNamespace.isSome = true := rfl
 example : Contracts.Counter.spec.storageNamespace.isNone = true := rfl
 
+-- Custom namespace override (#1730, Axis 4 Step 4c)
+-- Uses `storage_namespace "custom.v0"` instead of the default contract-name-based key.
+-- The keccak256 is computed on the literal string "custom.v0".
+verity_contract CustomNamespacedSmoke where
+  storage_namespace "custom.v0"
+  storage
+    balance : Uint256 := slot 0
+    owner : Address := slot 1
+
+  function deposit (amount : Uint256) : Unit := do
+    let current ← getStorage balance
+    setStorage balance (add current amount)
+
+  function getOwner () : Address := do
+    let addr ← getStorageAddr owner
+    return addr
+
+#check_contract CustomNamespacedSmoke
+
+-- Verify custom namespace: slots are offset (nonzero) and differ from the
+-- default-namespaced contract (which uses keccak256("NamespacedStorageSmoke.storage.v0")).
+example : CustomNamespacedSmoke.balance.slot ≠ 0 := by decide
+example : CustomNamespacedSmoke.owner.slot ≠ 1 := by decide
+example : CustomNamespacedSmoke.balance.slot ≠ NamespacedStorageSmoke.balance.slot := by decide
+example : CustomNamespacedSmoke.spec.storageNamespace.isSome = true := rfl
+
 -- ADT (inductive) section smoke test (#1727, Axis 1 Step 5a)
 -- Declares algebraic data types with typed variant fields.
 -- At this step the ADTs are parsed and validated but not yet used in IR
