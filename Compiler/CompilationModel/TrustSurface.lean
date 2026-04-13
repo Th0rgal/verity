@@ -355,6 +355,28 @@ private def collectUnguardedLowLevelMechanicsFromStmts (stmts : List Stmt) : Lis
 def collectUnguardedUnsafeBoundaryMechanicsFromStmts (stmts : List Stmt) : List String :=
   dedupPreserve ((collectUnguardedLowLevelMechanicsFromStmts stmts).filter isUnsafeBoundaryMechanic)
 
+/-- Collect `unsafe "reason" do` block reason strings from a statement, recursing into branches. -/
+private partial def collectUnsafeBlockReasonsInStmt : Stmt → List String
+  | .unsafeBlock reason body =>
+      [reason] ++ body.flatMap collectUnsafeBlockReasonsInStmt
+  | .ite _ thenBr elseBr =>
+      thenBr.flatMap collectUnsafeBlockReasonsInStmt ++ elseBr.flatMap collectUnsafeBlockReasonsInStmt
+  | .forEach _ _ body =>
+      body.flatMap collectUnsafeBlockReasonsInStmt
+  | _ => []
+
+private def collectUnsafeBlockReasonsFromStmts (stmts : List Stmt) : List String :=
+  stmts.flatMap collectUnsafeBlockReasonsInStmt
+
+/-- Collect all `unsafe "reason" do` block reasons used by a spec. -/
+def collectUnsafeBlockReasons (spec : CompilationModel) : List String :=
+  let stmtsFromFn (fn : FunctionSpec) := fn.body
+  let stmtsFromCtor : List Stmt := match spec.constructor with
+    | some ctor => ctor.body
+    | none => []
+  let allStmts := stmtsFromCtor ++ spec.functions.flatMap stmtsFromFn
+  collectUnsafeBlockReasonsFromStmts allStmts
+
 private def isLinearMemoryMechanic (mechanic : String) : Bool :=
   match mechanic with
   | "mload" | "mstore" | "calldatacopy" | "returndataCopy" | "returndataOptionalBoolAt" => true
@@ -1026,6 +1048,7 @@ private structure UsageSiteSummary where
   externals : List ExternalFunction
   modules : List ECM.ExternalCallModule
   localObligations : List LocalObligation
+  unsafeBlocks : List String
 
 private def ecmAxiomsFromModules (modules : List ECM.ExternalCallModule) : List (String × String) :=
   modules.flatMap (fun mod => mod.axioms.map (fun assumption => (mod.name, assumption)))
@@ -1041,7 +1064,8 @@ private def siteHasTrustSurface
     !(collectAxiomatizedPrimitivesFromStmts stmts).isEmpty ||
     !(collectUsedExternalAssumptionsFromStmts externals stmts).isEmpty ||
     !(collectUsedEcmModulesFromStmts stmts).isEmpty ||
-    !(collectLocalObligationsFromStmts localObligations stmts).isEmpty
+    !(collectLocalObligationsFromStmts localObligations stmts).isEmpty ||
+    !(collectUnsafeBlockReasonsFromStmts stmts).isEmpty
 
 private def usageSiteSummary
     (spec : CompilationModel)
@@ -1057,6 +1081,7 @@ private def usageSiteSummary
   let siteExternals := collectUsedExternalAssumptionsFromStmts spec.externals stmts
   let siteModules := collectUsedEcmModulesFromStmts stmts
   let siteLocalObligations := collectLocalObligationsFromStmts localObligations stmts
+  let siteUnsafeBlocks := collectUnsafeBlockReasonsFromStmts stmts
   { kind := kind
     name := name
     mechanics := mechanics
@@ -1066,7 +1091,8 @@ private def usageSiteSummary
     primitives := primitives
     externals := siteExternals
     modules := siteModules
-    localObligations := siteLocalObligations }
+    localObligations := siteLocalObligations
+    unsafeBlocks := siteUnsafeBlocks }
 
 private def collectUsageSiteSummaries (spec : CompilationModel) : List UsageSiteSummary :=
   let constructorSites :=
@@ -1101,6 +1127,7 @@ private def usageSitesJson (spec : CompilationModel) : String :=
       ("axiomatizedPrimitives", jsonArray (site.primitives.map jsonString)),
       ("proofStatus", proofStatusJsonForSite site.primitives site.externals site.modules site.localObligations),
       ("localObligations", jsonArray (site.localObligations.map localObligationJson)),
+      ("unsafeBlocks", jsonArray (site.unsafeBlocks.map jsonString)),
       ("hasUncheckedDependencies",
         if hasUncheckedDependenciesForSite site.externals site.modules then "true" else "false"),
       ("externalAssumptions", jsonObject [
@@ -1270,6 +1297,10 @@ def emitVerboseUsageSiteLines (specs : List CompilationModel) : List String :=
                   else
                     modAcc ++ assumptionLines)
                 []
+            let unsafeBlockLines :=
+              if site.unsafeBlocks.isEmpty then [] else
+                [s!"    unsafe blocks: {site.unsafeBlocks.length}"] ++
+                site.unsafeBlocks.map (fun reason => s!"    [unsafe] \"{reason}\"")
             let localObligationLines :=
               site.localObligations.map
                 (fun obligation =>
@@ -1290,6 +1321,7 @@ def emitVerboseUsageSiteLines (specs : List CompilationModel) : List String :=
               uncheckedLines ++
               externalAssumptionLines ++
               ecmAxiomLines ++
+              unsafeBlockLines ++
               localObligationLines)
           []
       acc ++ siteLines)
@@ -1462,6 +1494,23 @@ def hasAssumedDependencies (spec : CompilationModel) : Bool :=
     (collectUsedExternalAssumptions spec)
     (collectUsedEcmModules spec)
 
+/-- Render localized unsafe-block lines for `--deny-unsafe` diagnostics. -/
+def emitUnsafeBlockUsageSiteLines (specs : List CompilationModel) : List String :=
+  specs.foldl
+    (fun acc spec =>
+      let siteLines :=
+        (collectUsageSiteSummaries spec).foldl
+          (fun siteAcc site =>
+            if site.unsafeBlocks.isEmpty then
+              siteAcc
+            else
+              siteAcc ++
+                site.unsafeBlocks.map (fun reason =>
+                  s!"- {spec.name} [{site.kind}:{site.name}]: unsafe \"{reason}\""))
+          []
+      acc ++ siteLines)
+    []
+
 /-- Render the machine-readable trust report consumed by CLI/tests. -/
 def emitTrustReportJson (specs : List CompilationModel) : String :=
   jsonObject [
@@ -1478,6 +1527,7 @@ where
       ("partiallyModeledRuntimeIntrospection", jsonArray ((collectRuntimeIntrospectionMechanics spec).map jsonString)),
       ("axiomatizedPrimitives", jsonArray ((collectAxiomatizedPrimitives spec).map jsonString)),
       ("localObligations", jsonArray ((collectLocalObligations spec).map localObligationJson)),
+      ("unsafeBlocks", jsonArray ((collectUnsafeBlockReasons spec).map jsonString)),
       ("proofStatus", proofStatusJson spec),
       ("hasUncheckedDependencies", if hasUncheckedDependencies spec then "true" else "false"),
       ("proofBoundary", jsonObject [

@@ -537,6 +537,24 @@ private def localObligationTrustSurfaceSpec : CompilationModel := {
   ]
 }
 
+private def unsafeBlockTrustSurfaceSpec : CompilationModel := {
+  name := "UnsafeBlockTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "exerciseUnsafe"
+      params := []
+      returnType := none
+      body := [
+        Stmt.unsafeBlock "manual memory write for packed encoding" [
+          Stmt.mstore (Expr.literal 0) (Expr.literal 1)
+        ],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
 private def ecrecoverTrustSurfaceSpec : CompilationModel := {
   name := "EcrecoverTrustSurface"
   fields := []
@@ -1677,6 +1695,42 @@ unsafe def runTests : IO Unit := do
   if !deniedProxyUpgradeabilityTrustReportWritten then
     throw (IO.userError "✗ denied proxy-upgradeability compile still writes trust report file")
   IO.println "✓ denied proxy-upgradeability compile still writes trust report file"
+
+  -- deny-unsafe: reject contracts with unsafe blocks
+  let deniedUnsafeTrustReportPath := s!"{trustReportDir}/trust-report-denied-unsafe.json"
+  expectFailureContains
+    "compileSpecsWithOptions rejects unsafe blocks when deny flag enabled"
+    (compileSpecsWithOptions
+      [unsafeBlockTrustSurfaceSpec] outDir false [] {} none (some deniedUnsafeTrustReportPath) none none false false false false false false false false false none none false true)
+    "Unsafe blocks remain:\n- UnsafeBlockTrustSurface [function:exerciseUnsafe]: unsafe \"manual memory write for packed encoding\""
+  let deniedUnsafeTrustReportWritten ← fileExists deniedUnsafeTrustReportPath
+  if !deniedUnsafeTrustReportWritten then
+    throw (IO.userError "✗ denied unsafe-block compile still writes trust report file")
+  IO.println "✓ denied unsafe-block compile still writes trust report file"
+
+  -- deny-unsafe passes for contracts without unsafe blocks
+  let denyUnsafeOkOutDir := s!"/tmp/compile-driver-deny-unsafe-ok-{nonce}"
+  compileSpecsWithOptions
+    [abiSmokeSpec] denyUnsafeOkOutDir false [] {} none none none none false false false false false false false false false none none false true
+  let denyUnsafeOkArtifactWritten ← fileExists s!"{denyUnsafeOkOutDir}/AbiSmoke.yul"
+  if !denyUnsafeOkArtifactWritten then
+    throw (IO.userError "✗ compileSpecsWithOptions allows contracts without unsafe blocks under deny-unsafe gate")
+  IO.println "✓ compileSpecsWithOptions allows contracts without unsafe blocks under deny-unsafe gate"
+
+  -- trust report JSON includes unsafeBlocks field
+  let unsafeTrustReportDir := s!"/tmp/compile-driver-unsafe-trust-report-{nonce}"
+  let unsafeTrustReportPath := s!"{unsafeTrustReportDir}/trust-report-unsafe.json"
+  IO.FS.createDirAll unsafeTrustReportDir
+  let unsafeOutDir := s!"/tmp/compile-driver-unsafe-out-{nonce}"
+  compileSpecsWithOptions
+    [unsafeBlockTrustSurfaceSpec] unsafeOutDir false [] {} none (some unsafeTrustReportPath) none none
+  let unsafeTrustReportWritten ← fileExists unsafeTrustReportPath
+  if !unsafeTrustReportWritten then
+    throw (IO.userError "✗ trust report file should exist for unsafe block spec")
+  expectFileContains
+    "trust report JSON includes unsafeBlocks for contracts with unsafe blocks"
+    unsafeTrustReportPath
+    ["\"unsafeBlocks\":[\"manual memory write for packed encoding\"]"]
 
   compileSpecsWithOptions [abiSmokeSpec] outDir false [] { patchConfig := { enabled := true } } (some patchReportPath) none none none
   let writtenPatchReport ← fileExists patchReportPath
