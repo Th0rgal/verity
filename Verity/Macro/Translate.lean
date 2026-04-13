@@ -87,6 +87,15 @@ structure ExternalDecl where
   params : Array ValueType
   returnTys : Array ValueType
 
+/-- A user-defined semantic newtype declared in the `types` section.
+    At the language level the type is distinct from its base type; at the
+    EVM/Yul level it is erased to the base type (zero overhead).
+    (#1727, Axis 1 Step 3a) -/
+structure NewtypeDecl where
+  ident : Ident
+  name : String
+  baseType : ValueType
+
 structure LocalObligationDecl where
   ident : Ident
   name : String
@@ -176,7 +185,7 @@ private def natFromSyntax (stx : Syntax) : CommandElabM Nat :=
   | some n => pure n
   | none => throwErrorAt stx "expected natural literal"
 
-private partial def valueTypeFromSyntax (ty : Term) : CommandElabM ValueType := do
+private partial def valueTypeFromSyntax (newtypes : Array NewtypeDecl) (ty : Term) : CommandElabM ValueType := do
   match ty with
   | `(term| Uint256) => pure .uint256
   | `(term| Int256) => pure .int256
@@ -187,20 +196,27 @@ private partial def valueTypeFromSyntax (ty : Term) : CommandElabM ValueType := 
   | `(term| String) => pure .string
   | `(term| Bytes) => pure .bytes
   | `(term| Array $elemTy:term) =>
-      let elem ← valueTypeFromSyntax elemTy
+      let elem ← valueTypeFromSyntax newtypes elemTy
       match elem with
       | .unit => throwErrorAt ty "unsupported type '{ty}'; Array Unit is not allowed"
       | .array _ => throwErrorAt ty "unsupported type '{ty}'; nested arrays are not supported"
       | _ => pure (.array elem)
   | `(term| Tuple [ $[$elemTys:term],* ]) =>
-      let elems ← elemTys.mapM valueTypeFromSyntax
+      let elems ← elemTys.mapM (valueTypeFromSyntax newtypes)
       if elems.size < 2 then
         throwErrorAt ty "tuple types must have at least 2 elements"
       pure (.tuple elems.toList)
   | `(term| Unit) => pure .unit
-  | _ => throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Int256, Uint8, Address, Bytes32, Bool, String, Bytes, Array <type>, Tuple [...], or Unit"
+  | `(term| $id:ident) =>
+      -- Try resolving as a user-defined newtype (#1727, Axis 1 Step 3a)
+      let tyName := toString id.getId
+      match newtypes.find? (fun nt => nt.name == tyName) with
+      | some nt => pure nt.baseType
+      | none => throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Int256, Uint8, Address, Bytes32, Bool, String, Bytes, Array <type>, Tuple [...], Unit, or a user-defined type from the `types` section"
+  | _ =>
+      throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Int256, Uint8, Address, Bytes32, Bool, String, Bytes, Array <type>, Tuple [...], Unit, or a user-defined type from the `types` section"
 
-private def storageTypeFromSyntax (ty : Term) : CommandElabM StorageType := do
+private def storageTypeFromSyntax (newtypes : Array NewtypeDecl) (ty : Term) : CommandElabM StorageType := do
   let keyTypeFromSyntax (stx : Term) : CommandElabM MappingKeyType := do
     match stx with
     | `(term| Address) => pure .address
@@ -256,7 +272,7 @@ private def storageTypeFromSyntax (ty : Term) : CommandElabM StorageType := do
         (← keyTypeFromSyntax innerKey)
         ((← members.mapM structMemberFromSyntax).toList)
   | _ => do
-      let vt ← valueTypeFromSyntax ty
+      let vt ← valueTypeFromSyntax newtypes ty
       match vt with
       | .array elemTy => pure (.dynamicArray (← storageArrayElemTypeFromValueType elemTy))
       | .tuple _ => throwErrorAt ty "storage fields cannot be Tuple; use mapping encodings"
@@ -407,73 +423,90 @@ private partial def contractValueTypeTerm (ty : ValueType) : CommandElabM Term :
   | .unit => `(Unit)
 end
 
-private def parseStorageField (stx : Syntax) : CommandElabM StorageFieldDecl := do
+private def parseStorageField (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM StorageFieldDecl := do
   match stx with
   | `(verityStorageField| $name:ident : $ty:term := slot $slotNum:num) =>
       pure {
         ident := name
         name := toString name.getId
-        ty := ← storageTypeFromSyntax ty
+        ty := ← storageTypeFromSyntax newtypes ty
         slotNum := ← natFromSyntax slotNum
       }
   | _ => throwErrorAt stx "invalid storage field declaration"
 
-private def parseParam (stx : Syntax) : CommandElabM ParamDecl := do
+private def parseParam (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM ParamDecl := do
   match stx with
   | `(verityParam| $name:ident : $ty:term) =>
       pure {
         ident := name
         name := toString name.getId
-        ty := ← valueTypeFromSyntax ty
+        ty := ← valueTypeFromSyntax newtypes ty
       }
   | _ => throwErrorAt stx "invalid parameter declaration"
 
-private def parseError (stx : Syntax) : CommandElabM ErrorDecl := do
+private def parseNewtype (stx : Syntax) : CommandElabM NewtypeDecl := do
+  match stx with
+  | `(verityNewtype| $name:ident : $ty:term) =>
+      let baseType ← valueTypeFromSyntax #[] ty
+      -- Validate: newtypes must be based on scalar types (not arrays, tuples, or unit)
+      match baseType with
+      | .array _ => throwErrorAt ty "newtype base type must be a scalar type, not an array"
+      | .tuple _ => throwErrorAt ty "newtype base type must be a scalar type, not a tuple"
+      | .unit => throwErrorAt ty "newtype base type must be a scalar type, not Unit"
+      | _ => pure ()
+      pure {
+        ident := name
+        name := toString name.getId
+        baseType := baseType
+      }
+  | _ => throwErrorAt stx "invalid type declaration"
+
+private def parseError (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM ErrorDecl := do
   match stx with
   | `(verityError| error $name:ident ($[$params:term],*)) =>
       pure {
         ident := name
         name := toString name.getId
-        params := ← params.mapM valueTypeFromSyntax
+        params := ← params.mapM (valueTypeFromSyntax newtypes)
       }
   | _ => throwErrorAt stx "invalid custom error declaration"
 
-private def parseConstant (stx : Syntax) : CommandElabM ConstantDecl := do
+private def parseConstant (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM ConstantDecl := do
   match stx with
   | `(verityConstant| $name:ident : $ty:term := $body:term) =>
       pure {
         ident := name
         name := toString name.getId
-        ty := ← valueTypeFromSyntax ty
+        ty := ← valueTypeFromSyntax newtypes ty
         body := body
       }
   | _ => throwErrorAt stx "invalid constant declaration"
 
-private def parseImmutable (stx : Syntax) : CommandElabM ImmutableDecl := do
+private def parseImmutable (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM ImmutableDecl := do
   match stx with
   | `(verityImmutable| $name:ident : $ty:term := $body:term) =>
       pure {
         ident := name
         name := toString name.getId
-        ty := ← valueTypeFromSyntax ty
+        ty := ← valueTypeFromSyntax newtypes ty
         body := body
       }
   | _ => throwErrorAt stx "invalid immutable declaration"
 
-private def parseExternal (stx : Syntax) : CommandElabM ExternalDecl := do
+private def parseExternal (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM ExternalDecl := do
   match stx with
   | `(verityExternal| external $name:ident ($[$params:term],*) -> ($[$returnTys:term],*)) =>
       pure {
         ident := name
         name := toString name.getId
-        params := ← params.mapM valueTypeFromSyntax
-        returnTys := ← returnTys.mapM valueTypeFromSyntax
+        params := ← params.mapM (valueTypeFromSyntax newtypes)
+        returnTys := ← returnTys.mapM (valueTypeFromSyntax newtypes)
       }
   | `(verityExternal| external $name:ident ($[$params:term],*)) =>
       pure {
         ident := name
         name := toString name.getId
-        params := ← params.mapM valueTypeFromSyntax
+        params := ← params.mapM (valueTypeFromSyntax newtypes)
         returnTys := #[]
       }
   | _ => throwErrorAt stx "invalid external declaration"
@@ -607,12 +640,12 @@ private def parseSpecialEntrypoint (stx : Syntax) : CommandElabM FunctionDecl :=
       }
   | _ => throwErrorAt stx "invalid special entrypoint declaration"
 
-private def parseFunction (stx : Syntax) : CommandElabM FunctionDecl := do
+private def parseFunction (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM FunctionDecl := do
   match stx with
   | `(verityFunction| function $[$mods:verityMutability]* $name:ident ($[$params:verityParam],*) $[$guard?:verityInitGuard]? $[$requiresRoleClause?:verityRequiresRole]? $[$modifiesClause?:verityModifies]? $[$localObligations?:verityLocalObligations]? : $retTy:term := $body:term) => do
       let mut_ ← parseMutabilityModifiers mods stx
-      let parsedParams ← params.mapM parseParam
-      let parsedReturnTy ← valueTypeFromSyntax retTy
+      let parsedParams ← params.mapM (parseParam newtypes)
+      let parsedReturnTy ← valueTypeFromSyntax newtypes retTy
       let parsedGuard? ←
         match guard? with
         | some guard => pure (some (← parseInitGuard guard))
@@ -651,30 +684,30 @@ private def parseFunction (stx : Syntax) : CommandElabM FunctionDecl := do
       }
   | _ => throwErrorAt stx "invalid function declaration"
 
-private def parseConstructor (stx : Syntax) : CommandElabM ConstructorDecl := do
+private def parseConstructor (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM ConstructorDecl := do
   match stx with
   | `(verityConstructor| constructor ($[$params:verityParam],*) payable local_obligations [ $[$obligations:verityLocalObligation],* ] := $body:term) =>
       pure {
-        params := ← params.mapM parseParam
+        params := ← params.mapM (parseParam newtypes)
         isPayable := true
         localObligations := ← obligations.mapM parseLocalObligation
         body := body
       }
   | `(verityConstructor| constructor ($[$params:verityParam],*) payable := $body:term) =>
       pure {
-        params := ← params.mapM parseParam
+        params := ← params.mapM (parseParam newtypes)
         isPayable := true
         body := body
       }
   | `(verityConstructor| constructor ($[$params:verityParam],*) local_obligations [ $[$obligations:verityLocalObligation],* ] := $body:term) =>
       pure {
-        params := ← params.mapM parseParam
+        params := ← params.mapM (parseParam newtypes)
         localObligations := ← obligations.mapM parseLocalObligation
         body := body
       }
   | `(verityConstructor| constructor ($[$params:verityParam],*) := $body:term) =>
       pure {
-        params := ← params.mapM parseParam
+        params := ← params.mapM (parseParam newtypes)
         body := body
       }
   | _ => throwErrorAt stx "invalid constructor declaration"
@@ -3885,34 +3918,51 @@ private def mkFindIdxParamSimpCommands
 def parseContractSyntax
     (stx : Syntax)
     : CommandElabM
-        (Ident × Array StorageFieldDecl × Array ErrorDecl × Array ConstantDecl × Array ImmutableDecl × Array ExternalDecl × Option ConstructorDecl × Array FunctionDecl) := do
+        (Ident × Array NewtypeDecl × Array StorageFieldDecl × Array ErrorDecl × Array ConstantDecl × Array ImmutableDecl × Array ExternalDecl × Option ConstructorDecl × Array FunctionDecl) := do
   match stx with
-  | `(command| verity_contract $contractName:ident where storage $[$storageFields:verityStorageField]* $[errors $[$errorDecls:verityError]*]? $[constants $[$constantDecls:verityConstant]*]? $[immutables $[$immutableDecls:verityImmutable]*]? $[linked_externals $[$externalDecls:verityExternal]*]? $[$ctor:verityConstructor]? $[$entrypoints:veritySpecialEntrypoint]* $[$functions:verityFunction]*) =>
+  | `(command| verity_contract $contractName:ident where $[types $[$newtypeDecls:verityNewtype]*]? storage $[$storageFields:verityStorageField]* $[errors $[$errorDecls:verityError]*]? $[constants $[$constantDecls:verityConstant]*]? $[immutables $[$immutableDecls:verityImmutable]*]? $[linked_externals $[$externalDecls:verityExternal]*]? $[$ctor:verityConstructor]? $[$entrypoints:veritySpecialEntrypoint]* $[$functions:verityFunction]*) =>
+      -- Parse newtypes first — they are needed by all downstream type resolution
+      let parsedNewtypes ←
+        match newtypeDecls with
+        | some decls => decls.mapM parseNewtype
+        | none => pure #[]
+      -- Validate: no duplicate type names
+      let mut seenNames : Array String := #[]
+      for nt in parsedNewtypes do
+        if seenNames.contains nt.name then
+          throwErrorAt nt.ident s!"duplicate type name '{nt.name}'"
+        seenNames := seenNames.push nt.name
+      -- Validate: type names don't shadow built-in types
+      let builtinTypeNames := #["Uint256", "Int256", "Uint8", "Address", "Bytes32", "Bool", "String", "Bytes", "Unit", "Array", "Tuple"]
+      for nt in parsedNewtypes do
+        if builtinTypeNames.contains nt.name then
+          throwErrorAt nt.ident s!"type name '{nt.name}' shadows a built-in type"
       let parsedErrors ←
         match errorDecls with
-        | some decls => decls.mapM parseError
+        | some decls => decls.mapM (parseError parsedNewtypes)
         | none => pure #[]
       let parsedConstants ←
         match constantDecls with
-        | some decls => decls.mapM parseConstant
+        | some decls => decls.mapM (parseConstant parsedNewtypes)
         | none => pure #[]
       let parsedImmutables ←
         match immutableDecls with
-        | some decls => decls.mapM parseImmutable
+        | some decls => decls.mapM (parseImmutable parsedNewtypes)
         | none => pure #[]
       let parsedExternals ←
         match externalDecls with
-        | some decls => decls.mapM parseExternal
+        | some decls => decls.mapM (parseExternal parsedNewtypes)
         | none => pure #[]
       pure
         ( contractName
-        , (← storageFields.mapM parseStorageField)
+        , parsedNewtypes
+        , (← storageFields.mapM (parseStorageField parsedNewtypes))
         , parsedErrors
         , parsedConstants
         , parsedImmutables
         , parsedExternals
-        , (← ctor.mapM parseConstructor)
-        , (← entrypoints.mapM parseSpecialEntrypoint) ++ (← functions.mapM parseFunction)
+        , (← ctor.mapM (parseConstructor parsedNewtypes))
+        , (← entrypoints.mapM parseSpecialEntrypoint) ++ (← functions.mapM (parseFunction parsedNewtypes))
         )
   | _ => throwErrorAt stx "invalid verity_contract declaration"
 

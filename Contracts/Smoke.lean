@@ -1274,6 +1274,8 @@ end SpecGenSmoke
 #check_contract ZeroAddressShadowSmoke
 #check_contract StructMappingSmoke
 #check_contract ExternalCallSmoke
+#check_contract RolesSmoke
+#check_contract NewtypeSmoke
 #check_contract Contracts.Vault
 
 example : TupleSmoke.setFromPair = (TupleSmoke.setFromPair : (Uint256 × Uint256) → Verity.Contract Unit) := rfl
@@ -1782,6 +1784,35 @@ verity_contract RolesSmoke where
   -- Normal function without access control
   function getCounter () : Uint256 := do
     let current ← getStorage counter
+    return current
+
+-- Newtype smoke test (#1727, Axis 1 Step 3a)
+-- Declares semantic newtypes that are erased to base types at EVM level
+verity_contract NewtypeSmoke where
+  types
+    TokenId : Uint256
+    Amount : Uint256
+    Owner : Address
+  storage
+    nextTokenId : Uint256 := slot 0
+    totalSupply : Uint256 := slot 1
+    minter : Address := slot 2
+
+  constructor (initialMinter : Address) := do
+    setStorageAddr minter initialMinter
+
+  -- Newtypes are erased to their base types: TokenId → Uint256, Amount → Uint256
+  function mint (id : TokenId, amount : Amount) : Unit := do
+    setStorage nextTokenId id
+    let current ← getStorage totalSupply
+    setStorage totalSupply (add current amount)
+
+  -- Owner erases to Address
+  function setMinter (newMinter : Owner) : Unit := do
+    setStorageAddr minter newMinter
+
+  function getNextTokenId () : Uint256 := do
+    let current ← getStorage nextTokenId
     return current
 
 -- CEI violation test: this contract compiles but #check_contract rejects it

@@ -328,6 +328,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.CEISmoke.spec
   , Contracts.Smoke.CEILadderSmoke.spec
   , Contracts.Smoke.RolesSmoke.spec
+  , Contracts.Smoke.NewtypeSmoke.spec
   , Contracts.Smoke.CEIViolationRejected.spec
   ]
 
@@ -414,6 +415,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("CEISmoke", ["increment()", "getCounter()", "updateThenCall(uint256)", "callThenUpdate(uint256)"])
   , ("CEILadderSmoke", ["callThenStoreGuarded(uint256)", "callThenStoreProved(uint256)", "storeThenCall(uint256)", "increment()"])
   , ("RolesSmoke", ["setCounter(uint256)", "getCounter()"])
+  , ("NewtypeSmoke", ["mint(uint256,uint256)", "setMinter(address)", "getNextTokenId()"])
   , ("CEIViolationRejected", ["callThenStore(uint256)"])
   ]
 
@@ -483,6 +485,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("CEISmoke", ["0xd09de08a", "0x8ada066e", "0x8c468aed", "0x4955cfdb"])
   , ("CEILadderSmoke", ["0xaf0ac94c", "0xe9ab4836", "0xb6fbe456", "0xd09de08a"])
   , ("RolesSmoke", ["0x8bb5d9c3", "0x8ada066e"])
+  , ("NewtypeSmoke", ["0x1b2ef1ca", "0xfca3b5aa", "0xcaa0f92a"])
   , ("CEIViolationRejected", ["0xe4fccc26"])
   ]
 
@@ -567,6 +570,11 @@ private def checkMutabilitySmoke : IO Unit := do
   let _ := @Contracts.Smoke.RolesSmoke.setCounter_requires_role
   -- getCounter has no requires → gets normal _cei_compliant
   let _ := @Contracts.Smoke.RolesSmoke.getCounter_cei_compliant
+  -- Verify NewtypeSmoke generates standard _cei_compliant theorems (#1727, Axis 1 Step 3a).
+  -- Newtypes are erased — functions compile with base types.
+  let _ := @Contracts.Smoke.NewtypeSmoke.mint_cei_compliant
+  let _ := @Contracts.Smoke.NewtypeSmoke.setMinter_cei_compliant
+  let _ := @Contracts.Smoke.NewtypeSmoke.getNextTokenId_cei_compliant
 
 private def checkSignedBuiltinSmoke : IO Unit := do
   let functions := Contracts.Smoke.SignedBuiltinSmoke.spec.functions
