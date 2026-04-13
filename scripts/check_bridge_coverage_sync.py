@@ -25,8 +25,13 @@ PURE_BUILTINS = [
     "mod",
     "addmod",
     "mulmod",
+    "exp",
+    "sdiv",
+    "smod",
     "lt",
     "gt",
+    "slt",
+    "sgt",
     "eq",
     "iszero",
     "and",
@@ -35,6 +40,8 @@ PURE_BUILTINS = [
     "not",
     "shl",
     "shr",
+    "sar",
+    "signextend",
     "byte",
 ]
 

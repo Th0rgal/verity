@@ -381,8 +381,7 @@ smaller pieces before they can be re-stated without timeout.
 
 See: `ArithmeticProfile.lean` and
 `YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` for the current
-replacement coverage: universal bridge lemmas for all pure bridged
-builtins.
+replacement coverage: universal bridge lemmas for all pure bridged builtins except `exp`, `sdiv`, `smod`, `slt`, `sgt`, `sar`, and `signextend`, plus concrete smoke tests for `exp`, `sdiv`, `smod`, `slt`, `sgt`, `sar`, and `signextend`.
 -/
 
 end Compiler.Proofs.EndToEnd
