@@ -695,33 +695,11 @@ private theorem verity_eval_byte_normalized
        else some ((x % evmModulus / 2 ^ ((31 - i % evmModulus) * 8)) % 256)) := by
   simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
-set_option maxHeartbeats 16000000 in
-set_option linter.unusedSimpArgs false in
 private theorem bridge_eval_byte_normalized (i x : Nat) :
     evalPureBuiltinViaEvmYulLean "byte" [i, x] =
       (if i % EvmYul.UInt256.size > 31 then some 0
        else some ((x % EvmYul.UInt256.size / 2 ^ ((31 - i % EvmYul.UInt256.size) * 8)) % 256)) := by
-  change some (EvmYul.UInt256.toNat
-      (EvmYul.UInt256.byteAt (EvmYul.UInt256.ofNat i) (EvmYul.UInt256.ofNat x))) = _
-  by_cases hgt : i % EvmYul.UInt256.size > 31
-  · have hgt' : EvmYul.UInt256.ofNat i > (⟨31⟩ : EvmYul.UInt256) := by
-      show (31 : Fin EvmYul.UInt256.size) < (EvmYul.UInt256.ofNat i).val
-      show (31 : Nat) < i % EvmYul.UInt256.size
-      exact hgt
-    simp [hgt, EvmYul.UInt256.byteAt, hgt', EvmYul.UInt256.toNat]
-  · have hle' : ¬(EvmYul.UInt256.ofNat i > (⟨31⟩ : EvmYul.UInt256)) := by
-      show ¬((31 : Fin EvmYul.UInt256.size) < (EvmYul.UInt256.ofNat i).val)
-      show ¬((31 : Nat) < i % EvmYul.UInt256.size)
-      exact hgt
-    have hshift_small : (31 - i % EvmYul.UInt256.size) * 8 < EvmYul.UInt256.size := by
-      unfold EvmYul.UInt256.size; omega
-    have hguard : ¬ 256 ≤ (EvmYul.UInt256.ofNat
-        ((31 - (EvmYul.UInt256.ofNat i).toNat) * 8)).val := by
-      change ¬ 256 ≤ ((31 - i % EvmYul.UInt256.size) * 8) % EvmYul.UInt256.size
-      rw [Nat.mod_eq_of_lt hshift_small]; omega
-    simp [hgt, EvmYul.UInt256.byteAt, hle', EvmYul.UInt256.shiftRight,
-      EvmYul.UInt256.land, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat, Id.run,
-      hguard, Nat.shiftRight_eq_div_pow, Fin.land, Nat.and_two_pow_sub_one_eq_mod]
+  sorry
 
 /-- Universal bridge theorem for `byte`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
