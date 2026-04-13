@@ -31,6 +31,7 @@ inductive ValueType where
   | tuple (elemTys : List ValueType)
   | unit
   | newtype (name : String) (baseType : ValueType)  -- Semantic newtype; erased to baseType (#1727 Steps 3b/3c)
+  | adt (name : String) (maxFields : Nat)  -- User-defined ADT (tagged union); maxFields = max variant field count (#1727 Step 5b)
   deriving Repr, BEq
 
 inductive MappingKeyType where
@@ -204,7 +205,7 @@ private def natFromSyntax (stx : Syntax) : CommandElabM Nat :=
   | some n => pure n
   | none => throwErrorAt stx "expected natural literal"
 
-private partial def valueTypeFromSyntax (newtypes : Array NewtypeDecl) (ty : Term) : CommandElabM ValueType := do
+private partial def valueTypeFromSyntax (newtypes : Array NewtypeDecl) (adtDecls : Array AdtDecl) (ty : Term) : CommandElabM ValueType := do
   match ty with
   | `(term| Uint256) => pure .uint256
   | `(term| Int256) => pure .int256
@@ -215,27 +216,33 @@ private partial def valueTypeFromSyntax (newtypes : Array NewtypeDecl) (ty : Ter
   | `(term| String) => pure .string
   | `(term| Bytes) => pure .bytes
   | `(term| Array $elemTy:term) =>
-      let elem ← valueTypeFromSyntax newtypes elemTy
+      let elem ← valueTypeFromSyntax newtypes adtDecls elemTy
       match elem with
       | .unit => throwErrorAt ty "unsupported type '{ty}'; Array Unit is not allowed"
       | .array _ => throwErrorAt ty "unsupported type '{ty}'; nested arrays are not supported"
       | _ => pure (.array elem)
   | `(term| Tuple [ $[$elemTys:term],* ]) =>
-      let elems ← elemTys.mapM (valueTypeFromSyntax newtypes)
+      let elems ← elemTys.mapM (valueTypeFromSyntax newtypes adtDecls)
       if elems.size < 2 then
         throwErrorAt ty "tuple types must have at least 2 elements"
       pure (.tuple elems.toList)
   | `(term| Unit) => pure .unit
   | `(term| $id:ident) =>
-      -- Try resolving as a user-defined newtype (#1727, Axis 1 Steps 3a/3b)
       let tyName := toString id.getId
+      -- Try resolving as a user-defined newtype (#1727, Axis 1 Steps 3a/3b)
       match newtypes.find? (fun nt => nt.name == tyName) with
       | some nt => pure (.newtype nt.name nt.baseType)
-      | none => throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Int256, Uint8, Address, Bytes32, Bool, String, Bytes, Array <type>, Tuple [...], Unit, or a user-defined type from the `types` section"
+      | none =>
+        -- Try resolving as a user-defined ADT (#1727, Axis 1 Step 5b)
+        match adtDecls.find? (fun a => a.name == tyName) with
+        | some decl =>
+            let maxFields := decl.variants.foldl (fun acc v => max acc v.fields.size) 0
+            pure (.adt decl.name maxFields)
+        | none => throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Int256, Uint8, Address, Bytes32, Bool, String, Bytes, Array <type>, Tuple [...], Unit, or a user-defined type from the `types` or `inductive` section"
   | _ =>
-      throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Int256, Uint8, Address, Bytes32, Bool, String, Bytes, Array <type>, Tuple [...], Unit, or a user-defined type from the `types` section"
+      throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Int256, Uint8, Address, Bytes32, Bool, String, Bytes, Array <type>, Tuple [...], Unit, or a user-defined type from the `types` or `inductive` section"
 
-private def storageTypeFromSyntax (newtypes : Array NewtypeDecl) (ty : Term) : CommandElabM StorageType := do
+private def storageTypeFromSyntax (newtypes : Array NewtypeDecl) (adtDecls : Array AdtDecl := #[]) (ty : Term) : CommandElabM StorageType := do
   let keyTypeFromSyntax (stx : Term) : CommandElabM MappingKeyType := do
     match stx with
     | `(term| Address) => pure .address
@@ -291,7 +298,7 @@ private def storageTypeFromSyntax (newtypes : Array NewtypeDecl) (ty : Term) : C
         (← keyTypeFromSyntax innerKey)
         ((← members.mapM structMemberFromSyntax).toList)
   | _ => do
-      let vt ← valueTypeFromSyntax newtypes ty
+      let vt ← valueTypeFromSyntax newtypes adtDecls ty
       match vt with
       | .array elemTy => pure (.dynamicArray (← storageArrayElemTypeFromValueType elemTy))
       | .tuple _ => throwErrorAt ty "storage fields cannot be Tuple; use mapping encodings"
@@ -340,6 +347,7 @@ private def modelFieldTypeTerm (ty : StorageType) : CommandElabM Term :=
   | .scalar (.tuple _) => throwError "storage fields cannot be Tuple; use mapping encodings"
   | .scalar .unit => throwError "storage fields cannot be Unit"
   | .scalar (.newtype _ baseType) => modelFieldTypeTerm (.scalar baseType)  -- Erased to base type
+  | .scalar (.adt _ _) => `(Compiler.CompilationModel.FieldType.uint256)  -- ADT stored as tag (uint256 slot)
   | .dynamicArray .uint256 => `(Compiler.CompilationModel.FieldType.dynamicArray Compiler.CompilationModel.StorageArrayElemType.uint256)
   | .dynamicArray .address => `(Compiler.CompilationModel.FieldType.dynamicArray Compiler.CompilationModel.StorageArrayElemType.address)
   | .dynamicArray .bool => `(Compiler.CompilationModel.FieldType.dynamicArray Compiler.CompilationModel.StorageArrayElemType.bool)
@@ -389,6 +397,8 @@ private partial def modelParamTypeTerm (ty : ValueType) : CommandElabM Term :=
   | .newtype name baseType => do
       let baseTerm ← modelParamTypeTerm baseType
       `(Compiler.CompilationModel.ParamType.newtypeOf $(Lean.quote name) $baseTerm)
+  | .adt name maxFields => do
+      `(Compiler.CompilationModel.ParamType.adt $(Lean.quote name) $(Lean.quote maxFields))
 
 private def modelReturnTypeTerm (ty : ValueType) : CommandElabM Term :=
   match ty with
@@ -404,6 +414,7 @@ private def modelReturnTypeTerm (ty : ValueType) : CommandElabM Term :=
   | .array _ => `(none)
   | .tuple _ => `(none)
   | .newtype _ baseType => modelReturnTypeTerm baseType
+  | .adt _ _ => `(none)  -- ADTs are not directly returnable as single FieldType
 
 private partial def modelReturnsTerm (ty : ValueType) : CommandElabM Term :=
   match ty with
@@ -424,6 +435,8 @@ private partial def modelReturnsTerm (ty : ValueType) : CommandElabM Term :=
   | .newtype name baseType => do
       let baseTerm ← modelParamTypeTerm baseType
       `([Compiler.CompilationModel.ParamType.newtypeOf $(Lean.quote name) $baseTerm])
+  | .adt name maxFields => do
+      `([Compiler.CompilationModel.ParamType.adt $(Lean.quote name) $(Lean.quote maxFields)])
 
 mutual
 private partial def mkTupleContractType (elemTys : List ValueType) : CommandElabM Term := do
@@ -449,33 +462,34 @@ private partial def contractValueTypeTerm (ty : ValueType) : CommandElabM Term :
   | .tuple elemTys => mkTupleContractType elemTys
   | .unit => `(Unit)
   | .newtype _ baseType => contractValueTypeTerm baseType  -- Erased to base type at contract level
+  | .adt _ _ => `(Uint256)  -- ADTs represented as tag value at contract level
 end
 
-private def parseStorageField (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM StorageFieldDecl := do
+private def parseStorageField (newtypes : Array NewtypeDecl) (adtDecls : Array AdtDecl := #[]) (stx : Syntax) : CommandElabM StorageFieldDecl := do
   match stx with
   | `(verityStorageField| $name:ident : $ty:term := slot $slotNum:num) =>
       pure {
         ident := name
         name := toString name.getId
-        ty := ← storageTypeFromSyntax newtypes ty
+        ty := ← storageTypeFromSyntax newtypes adtDecls ty
         slotNum := ← natFromSyntax slotNum
       }
   | _ => throwErrorAt stx "invalid storage field declaration"
 
-private def parseParam (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM ParamDecl := do
+private def parseParam (newtypes : Array NewtypeDecl) (adtDecls : Array AdtDecl) (stx : Syntax) : CommandElabM ParamDecl := do
   match stx with
   | `(verityParam| $name:ident : $ty:term) =>
       pure {
         ident := name
         name := toString name.getId
-        ty := ← valueTypeFromSyntax newtypes ty
+        ty := ← valueTypeFromSyntax newtypes adtDecls ty
       }
   | _ => throwErrorAt stx "invalid parameter declaration"
 
 private def parseNewtype (stx : Syntax) : CommandElabM NewtypeDecl := do
   match stx with
   | `(verityNewtype| $name:ident : $ty:term) =>
-      let baseType ← valueTypeFromSyntax #[] ty
+      let baseType ← valueTypeFromSyntax #[] #[] ty
       -- Validate: newtypes must be based on scalar types (not arrays, tuples, or unit)
       match baseType with
       | .array _ => throwErrorAt ty "newtype base type must be a scalar type, not an array"
@@ -494,7 +508,7 @@ private def parseNewtype (stx : Syntax) : CommandElabM NewtypeDecl := do
 private def parseAdtVariant (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM AdtVariantDecl := do
   match stx with
   | `(verityAdtVariant| | $name:ident ($[$params:verityParam],*)) =>
-      let parsedParams ← params.mapM (parseParam newtypes)
+      let parsedParams ← params.mapM (parseParam newtypes #[])
       pure { ident := name, name := toString name.getId, fields := parsedParams }
   | `(verityAdtVariant| | $name:ident) =>
       pure { ident := name, name := toString name.getId, fields := #[] }
@@ -523,7 +537,7 @@ private def parseError (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandEl
       pure {
         ident := name
         name := toString name.getId
-        params := ← params.mapM (valueTypeFromSyntax newtypes)
+        params := ← params.mapM (valueTypeFromSyntax newtypes #[])
       }
   | _ => throwErrorAt stx "invalid custom error declaration"
 
@@ -533,7 +547,7 @@ private def parseConstant (newtypes : Array NewtypeDecl) (stx : Syntax) : Comman
       pure {
         ident := name
         name := toString name.getId
-        ty := ← valueTypeFromSyntax newtypes ty
+        ty := ← valueTypeFromSyntax newtypes #[] ty
         body := body
       }
   | _ => throwErrorAt stx "invalid constant declaration"
@@ -544,7 +558,7 @@ private def parseImmutable (newtypes : Array NewtypeDecl) (stx : Syntax) : Comma
       pure {
         ident := name
         name := toString name.getId
-        ty := ← valueTypeFromSyntax newtypes ty
+        ty := ← valueTypeFromSyntax newtypes #[] ty
         body := body
       }
   | _ => throwErrorAt stx "invalid immutable declaration"
@@ -555,14 +569,14 @@ private def parseExternal (newtypes : Array NewtypeDecl) (stx : Syntax) : Comman
       pure {
         ident := name
         name := toString name.getId
-        params := ← params.mapM (valueTypeFromSyntax newtypes)
-        returnTys := ← returnTys.mapM (valueTypeFromSyntax newtypes)
+        params := ← params.mapM (valueTypeFromSyntax newtypes #[])
+        returnTys := ← returnTys.mapM (valueTypeFromSyntax newtypes #[])
       }
   | `(verityExternal| external $name:ident ($[$params:term],*)) =>
       pure {
         ident := name
         name := toString name.getId
-        params := ← params.mapM (valueTypeFromSyntax newtypes)
+        params := ← params.mapM (valueTypeFromSyntax newtypes #[])
         returnTys := #[]
       }
   | _ => throwErrorAt stx "invalid external declaration"
@@ -696,12 +710,12 @@ private def parseSpecialEntrypoint (stx : Syntax) : CommandElabM FunctionDecl :=
       }
   | _ => throwErrorAt stx "invalid special entrypoint declaration"
 
-private def parseFunction (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM FunctionDecl := do
+private def parseFunction (newtypes : Array NewtypeDecl) (adtDecls : Array AdtDecl := #[]) (stx : Syntax) : CommandElabM FunctionDecl := do
   match stx with
   | `(verityFunction| function $[$mods:verityMutability]* $name:ident ($[$params:verityParam],*) $[$guard?:verityInitGuard]? $[$requiresRoleClause?:verityRequiresRole]? $[$modifiesClause?:verityModifies]? $[$localObligations?:verityLocalObligations]? : $retTy:term := $body:term) => do
       let mut_ ← parseMutabilityModifiers mods stx
-      let parsedParams ← params.mapM (parseParam newtypes)
-      let parsedReturnTy ← valueTypeFromSyntax newtypes retTy
+      let parsedParams ← params.mapM (parseParam newtypes adtDecls)
+      let parsedReturnTy ← valueTypeFromSyntax newtypes adtDecls retTy
       let parsedGuard? ←
         match guard? with
         | some guard => pure (some (← parseInitGuard guard))
@@ -744,26 +758,26 @@ private def parseConstructor (newtypes : Array NewtypeDecl) (stx : Syntax) : Com
   match stx with
   | `(verityConstructor| constructor ($[$params:verityParam],*) payable local_obligations [ $[$obligations:verityLocalObligation],* ] := $body:term) =>
       pure {
-        params := ← params.mapM (parseParam newtypes)
+        params := ← params.mapM (parseParam newtypes #[])
         isPayable := true
         localObligations := ← obligations.mapM parseLocalObligation
         body := body
       }
   | `(verityConstructor| constructor ($[$params:verityParam],*) payable := $body:term) =>
       pure {
-        params := ← params.mapM (parseParam newtypes)
+        params := ← params.mapM (parseParam newtypes #[])
         isPayable := true
         body := body
       }
   | `(verityConstructor| constructor ($[$params:verityParam],*) local_obligations [ $[$obligations:verityLocalObligation],* ] := $body:term) =>
       pure {
-        params := ← params.mapM (parseParam newtypes)
+        params := ← params.mapM (parseParam newtypes #[])
         localObligations := ← obligations.mapM parseLocalObligation
         body := body
       }
   | `(verityConstructor| constructor ($[$params:verityParam],*) := $body:term) =>
       pure {
-        params := ← params.mapM (parseParam newtypes)
+        params := ← params.mapM (parseParam newtypes #[])
         body := body
       }
   | _ => throwErrorAt stx "invalid constructor declaration"
@@ -1344,6 +1358,7 @@ private partial def localBindingUsesDynamicData : ValueType → Bool
   | .string | .bytes | .array _ => true
   | .tuple elemTys => elemTys.any localBindingUsesDynamicData
   | .newtype _ baseType => localBindingUsesDynamicData baseType
+  | .adt _ _ => false  -- ADTs are stored as tag + fixed-width slots, not dynamic
   | .uint256 | .int256 | .uint8 | .address | .bytes32 | .bool | .unit => false
 
 private def requireSupportedLocalBindingType
@@ -3895,6 +3910,7 @@ private def mkStorageDefCommand (field : StorageFieldDecl) : CommandElabM Cmd :=
         | .uint256 => `(Uint256)
         | .address => `(Address)
         | _ => throwError "storage field with newtype base type not supported; use Uint256 or Address"
+    | .scalar (.adt _ _) => `(Uint256)  -- ADTs stored as tag value in storage (#1727 Step 5b)
     | .dynamicArray .uint256 => `(List Uint256)
     | .dynamicArray .address => `(List Address)
     | .dynamicArray .bool => `(List Bool)
@@ -3954,6 +3970,23 @@ private def mkModelLocalObligationTerm (obligation : LocalObligationDecl) : Comm
       $(strTerm obligation.obligation)
       $proofStatusTerm)
 
+private def mkAdtVariantTerm (variant : AdtVariantDecl) (tag : Nat) : CommandElabM Term := do
+  let fieldTerms ← variant.fields.mapM fun p => do
+    let tyTerm ← modelParamTypeTerm p.ty
+    `(Compiler.CompilationModel.Param.mk $(strTerm p.name) $tyTerm)
+  `(Compiler.CompilationModel.AdtVariant.mk
+      $(strTerm variant.name)
+      $(natTerm tag)
+      [ $[$fieldTerms],* ])
+
+private def mkAdtTypeDefTerm (adt : AdtDecl) : CommandElabM Term := do
+  let mut variantTerms : Array Term := #[]
+  for (variant, idx) in adt.variants.zipIdx do
+    variantTerms := variantTerms.push (← mkAdtVariantTerm variant idx)
+  `(Compiler.CompilationModel.AdtTypeDef.mk
+      $(strTerm adt.name)
+      [ $[$variantTerms],* ])
+
 private def mkSpecCommand
     (contractName : String)
     (fields : Array StorageFieldDecl)
@@ -3963,6 +3996,7 @@ private def mkSpecCommand
     (externalDecls : Array ExternalDecl)
     (ctor : Option ConstructorDecl)
     (functions : Array FunctionDecl)
+    (adtDecls : Array AdtDecl)
     (storageNamespace : Option Nat) : CommandElabM Cmd := do
   let immutableFields := immutableDecls.zipIdx.map (fun (imm, idx) => immutableStorageFieldDecl fields imm idx)
   let allFields := fields ++ immutableFields
@@ -4030,6 +4064,7 @@ private def mkSpecCommand
       } : Compiler.CompilationModel.FunctionSpec) ))
     else
       pure none
+  let adtTypeTerms ← adtDecls.mapM mkAdtTypeDefTerm
   let namespaceTerm ← match storageNamespace with
     | some ns => `(some $(natTerm ns))
     | none => `(none)
@@ -4040,6 +4075,7 @@ private def mkSpecCommand
     «constructor» := $constructorTerm
     functions := [ $[$functionModelIds],*, $[$internalFunctionTerms],* ]
     «externals» := [ $[$externalTerms],* ]
+    adtTypes := [ $[$adtTypeTerms],* ]
     storageNamespace := $namespaceTerm
   })
 
@@ -4206,7 +4242,7 @@ def parseContractSyntax
         | some decls => decls.mapM (parseExternal parsedNewtypes)
         | none => pure #[]
       -- Apply namespace offset to parsed storage fields (#1730, Axis 4 Step 4b)
-      let parsedFields ← storageFields.mapM (parseStorageField parsedNewtypes)
+      let parsedFields ← storageFields.mapM (parseStorageField parsedNewtypes parsedAdts)
       let parsedFields := parsedFields.map fun field =>
         { field with slotNum := field.slotNum + namespaceOffset }
       -- Compute the Option Nat for the spec's storageNamespace field (#1730, Axis 4 Step 4d)
@@ -4222,7 +4258,7 @@ def parseContractSyntax
         , parsedImmutables
         , parsedExternals
         , (← ctor.mapM (parseConstructor parsedNewtypes))
-        , (← entrypoints.mapM parseSpecialEntrypoint) ++ (← functions.mapM (parseFunction parsedNewtypes))
+        , (← entrypoints.mapM parseSpecialEntrypoint) ++ (← functions.mapM (parseFunction parsedNewtypes parsedAdts))
         , namespaceOpt
         )
   | _ => throwErrorAt stx "invalid verity_contract declaration"
@@ -4467,8 +4503,9 @@ def mkSpecCommandPublic
     (externalDecls : Array ExternalDecl)
     (ctor : Option ConstructorDecl)
     (functions : Array FunctionDecl)
+    (adtDecls : Array AdtDecl)
     (storageNamespace : Option Nat) : CommandElabM Cmd :=
-  mkSpecCommand contractName fields errorDecls constDecls immutableDecls externalDecls ctor functions storageNamespace
+  mkSpecCommand contractName fields errorDecls constDecls immutableDecls externalDecls ctor functions adtDecls storageNamespace
 
 def mkFindIdxFieldSimpCommandsPublic
     (contractIdent : Ident)

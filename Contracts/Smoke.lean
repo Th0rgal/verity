@@ -1905,10 +1905,10 @@ example : CustomNamespacedSmoke.owner.slot ≠ 1 := by decide
 example : CustomNamespacedSmoke.balance.slot ≠ NamespacedStorageSmoke.balance.slot := by decide
 example : CustomNamespacedSmoke.spec.storageNamespace.isSome = true := rfl
 
--- ADT (inductive) section smoke test (#1727, Axis 1 Step 5a)
+-- ADT (inductive) section smoke test (#1727, Axis 1 Steps 5a/5b)
 -- Declares algebraic data types with typed variant fields.
--- At this step the ADTs are parsed and validated but not yet used in IR
--- generation (that is Step 5b).
+-- ADT type definitions flow through to ContractSpec.adtTypes.
+-- ADT-typed storage fields are represented as Uint256 (tag value) at the EVM level.
 verity_contract AdtSmoke where
   types
     TokenId : Uint256
@@ -1917,12 +1917,18 @@ verity_contract AdtSmoke where
     Result := | Ok(amount : Uint256, recipient : Address) | Err(code : Uint256)
   storage
     counter : Uint256 := slot 0
+    result : OptionalUint := slot 1
 
   function increment () : Unit := do
     let current ← getStorage counter
     setStorage counter (add current 1)
 
 #check_contract AdtSmoke
+
+-- Verify ADT type definitions flow through to spec (#1727, Step 5b plumbing)
+example : AdtSmoke.spec.adtTypes.length = 2 := rfl
+example : AdtSmoke.spec.adtTypes.map (·.name) = ["OptionalUint", "Result"] := rfl
+example : (AdtSmoke.spec.adtTypes.map (·.variants.length)) = [2, 2] := rfl
 
 -- Unsafe block smoke test (#1424, Phase 6 Step 6a).
 -- `unsafe "reason" do` wraps a block of statements; Step 6a is the transparent
