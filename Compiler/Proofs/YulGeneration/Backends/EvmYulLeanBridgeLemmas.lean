@@ -788,9 +788,15 @@ private theorem toNat_fromBool (b : Bool) :
   cases b <;> simp [EvmYul.UInt256.fromBool, Bool.toUInt256, EvmYul.UInt256.toNat,
     EvmYul.UInt256.ofNat, Id.run, Fin.ofNat, EvmYul.UInt256.size]
 
-/-- UInt256 `≤` reduces to Nat `≤` on underlying Fin values (definitionally). -/
-private theorem uint256_le_iff (a b : EvmYul.UInt256) :
-    (a ≤ b) ↔ (a.val.val ≤ b.val.val) := Iff.rfl
+/-- UInt256 `<` reduces to Nat `<` on underlying Fin values.
+    The standalone LT instance (lt a b := a.val < b.val) is the active one,
+    NOT the Preorder-derived one (a ≤ b ∧ ¬b ≤ a). -/
+@[simp] private theorem uint256_lt_val (a b : EvmYul.UInt256) :
+    (a < b) ↔ (a.val.val < b.val.val) := Iff.rfl
+
+@[simp] private theorem uint256_gt_val (a b : EvmYul.UInt256) :
+    (a > b) ↔ (b.val.val < a.val.val) :=
+  uint256_lt_val b a
 
 set_option maxHeartbeats 8000000 in
 set_option linter.unusedSimpArgs false in
@@ -816,10 +822,9 @@ private theorem verity_slt_eq_evmyullean_sltBool (a b : Nat) :
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
     Verity.Core.UINT256_MODULUS, hma, hmb]
-  -- Unfold sltBool; lt_iff_le_not_le converts Preorder LT to LE conjunction;
-  -- uint256_le_iff then reduces UInt256 LE to Nat LE for omega
+  -- Unfold sltBool; uint256_lt_val converts UInt256 LT to Nat LT for omega
   simp only [EvmYul.UInt256.sltBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
-    Id.run, Fin.ofNat, EvmYul.UInt256.size, lt_iff_le_not_le, uint256_le_iff, Fin.val]
+    Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_lt_val, Fin.val]
   by_cases ha : a % 2 ^ 256 < 2 ^ 255 <;> by_cases hb : b % 2 ^ 256 < 2 ^ 255
   · -- Both non-negative
     simp [ha, hb]
@@ -896,11 +901,9 @@ private theorem verity_sgt_eq_evmyullean_sgtBool (a b : Nat) :
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
     Verity.Core.UINT256_MODULUS, hma, hmb]
-  -- Unfold sgtBool; lt_iff_le_not_le converts Preorder LT/GT to LE conjunction;
-  -- uint256_le_iff then reduces UInt256 LE to Nat LE for omega
+  -- Unfold sgtBool; uint256_gt_val/uint256_lt_val convert UInt256 GT/LT to Nat LT
   simp only [EvmYul.UInt256.sgtBool, EvmYul.UInt256.toNat, EvmYul.UInt256.ofNat,
-    Id.run, Fin.ofNat, EvmYul.UInt256.size, gt_iff_lt, lt_iff_le_not_le,
-    uint256_le_iff, Fin.val]
+    Id.run, Fin.ofNat, EvmYul.UInt256.size, uint256_gt_val, uint256_lt_val, Fin.val]
   by_cases ha : a % 2 ^ 256 < 2 ^ 255 <;> by_cases hb : b % 2 ^ 256 < 2 ^ 255
   · -- Both non-negative
     simp [ha, hb]
