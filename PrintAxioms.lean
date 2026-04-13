@@ -2131,6 +2131,17 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_byte_normalized  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_byte_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_byte_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_sload
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_caller
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_address
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_callvalue
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_timestamp
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_number
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_chainid
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_blobbasefee
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_calldataload
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_calldatasize
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_mappingSlot
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.callvalue_bridge
@@ -2182,4 +2193,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 2030 theorems/lemmas (1369 public, 661 private, 0 sorry'd)
+-- Total: 2041 theorems/lemmas (1380 public, 661 private, 0 sorry'd)

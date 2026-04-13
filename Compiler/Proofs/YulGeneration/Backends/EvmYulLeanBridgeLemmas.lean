@@ -772,6 +772,117 @@ EVMYulLean UInt256 semantics on all inputs. -/
   simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_byte_bridge]
 
+/-! ## State-dependent Builtin Fallthrough Lemmas
+
+The EVMYulLean pure bridge intentionally returns `none` for state-dependent
+builtins (`sload`, `caller`, `address`, etc.) because they require full
+Yul state reconstruction. These lemmas prove that the fallthrough works
+correctly: calling `evalBuiltinCallViaEvmYulLean` for a state-dependent
+builtin yields `none`, so the dispatcher can fall back to Verity's path.
+
+These are key building blocks for Phase 4 (retargeting the theorem stack),
+where we need to prove that composing the pure bridge with the Verity
+fallback covers all builtins. -/
+
+/-- `evalPureBuiltinViaEvmYulLean` returns `none` for `sload`. -/
+@[simp] theorem evalPureBuiltinViaEvmYulLean_sload (args : List Nat) :
+    evalPureBuiltinViaEvmYulLean "sload" args = none := by
+  cases args with
+  | nil => rfl
+  | cons a t => cases t with
+    | nil => rfl
+    | cons b t2 => rfl
+
+/-- `evalPureBuiltinViaEvmYulLean` returns `none` for `caller`. -/
+@[simp] theorem evalPureBuiltinViaEvmYulLean_caller (args : List Nat) :
+    evalPureBuiltinViaEvmYulLean "caller" args = none := by
+  cases args with
+  | nil => rfl
+  | cons a t => cases t with
+    | nil => rfl
+    | cons b t2 => rfl
+
+/-- `evalPureBuiltinViaEvmYulLean` returns `none` for `address`. -/
+@[simp] theorem evalPureBuiltinViaEvmYulLean_address (args : List Nat) :
+    evalPureBuiltinViaEvmYulLean "address" args = none := by
+  cases args with
+  | nil => rfl
+  | cons a t => cases t with
+    | nil => rfl
+    | cons b t2 => rfl
+
+/-- `evalPureBuiltinViaEvmYulLean` returns `none` for `callvalue`. -/
+@[simp] theorem evalPureBuiltinViaEvmYulLean_callvalue (args : List Nat) :
+    evalPureBuiltinViaEvmYulLean "callvalue" args = none := by
+  cases args with
+  | nil => rfl
+  | cons a t => cases t with
+    | nil => rfl
+    | cons b t2 => rfl
+
+/-- `evalPureBuiltinViaEvmYulLean` returns `none` for `timestamp`. -/
+@[simp] theorem evalPureBuiltinViaEvmYulLean_timestamp (args : List Nat) :
+    evalPureBuiltinViaEvmYulLean "timestamp" args = none := by
+  cases args with
+  | nil => rfl
+  | cons a t => cases t with
+    | nil => rfl
+    | cons b t2 => rfl
+
+/-- `evalPureBuiltinViaEvmYulLean` returns `none` for `number`. -/
+@[simp] theorem evalPureBuiltinViaEvmYulLean_number (args : List Nat) :
+    evalPureBuiltinViaEvmYulLean "number" args = none := by
+  cases args with
+  | nil => rfl
+  | cons a t => cases t with
+    | nil => rfl
+    | cons b t2 => rfl
+
+/-- `evalPureBuiltinViaEvmYulLean` returns `none` for `chainid`. -/
+@[simp] theorem evalPureBuiltinViaEvmYulLean_chainid (args : List Nat) :
+    evalPureBuiltinViaEvmYulLean "chainid" args = none := by
+  cases args with
+  | nil => rfl
+  | cons a t => cases t with
+    | nil => rfl
+    | cons b t2 => rfl
+
+/-- `evalPureBuiltinViaEvmYulLean` returns `none` for `blobbasefee`. -/
+@[simp] theorem evalPureBuiltinViaEvmYulLean_blobbasefee (args : List Nat) :
+    evalPureBuiltinViaEvmYulLean "blobbasefee" args = none := by
+  cases args with
+  | nil => rfl
+  | cons a t => cases t with
+    | nil => rfl
+    | cons b t2 => rfl
+
+/-- `evalPureBuiltinViaEvmYulLean` returns `none` for `calldataload`. -/
+@[simp] theorem evalPureBuiltinViaEvmYulLean_calldataload (args : List Nat) :
+    evalPureBuiltinViaEvmYulLean "calldataload" args = none := by
+  cases args with
+  | nil => rfl
+  | cons a t => cases t with
+    | nil => rfl
+    | cons b t2 => rfl
+
+/-- `evalPureBuiltinViaEvmYulLean` returns `none` for `calldatasize`. -/
+@[simp] theorem evalPureBuiltinViaEvmYulLean_calldatasize (args : List Nat) :
+    evalPureBuiltinViaEvmYulLean "calldatasize" args = none := by
+  cases args with
+  | nil => rfl
+  | cons a t => cases t with
+    | nil => rfl
+    | cons b t2 => rfl
+
+/-- `evalPureBuiltinViaEvmYulLean` returns `none` for `mappingSlot`. -/
+@[simp] theorem evalPureBuiltinViaEvmYulLean_mappingSlot (args : List Nat) :
+    evalPureBuiltinViaEvmYulLean "mappingSlot" args = none := by
+  cases args with
+  | nil => rfl
+  | cons a t => cases t with
+    | nil => rfl
+    | cons b t2 => rfl
+
 /-! ## Remaining Builtin Bridge Lemmas — Status
 
 Universal bridge proofs for the following builtins require local `lake build`
