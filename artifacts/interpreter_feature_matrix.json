@@ -701,6 +701,48 @@
       "agreement_proved": true
     },
     {
+      "feature": "exp",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": false
+    },
+    {
+      "feature": "sdiv",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": false
+    },
+    {
+      "feature": "smod",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": false
+    },
+    {
+      "feature": "slt",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": false
+    },
+    {
+      "feature": "sgt",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": false
+    },
+    {
+      "feature": "sar",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": false
+    },
+    {
+      "feature": "signextend",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": false
+    },
+    {
       "feature": "sload",
       "verity_path": "supported",
       "evmyullean_bridge": "delegated",
@@ -714,6 +756,12 @@
     },
     {
       "feature": "address",
+      "verity_path": "supported",
+      "evmyullean_bridge": "delegated",
+      "agreement_proved": false
+    },
+    {
+      "feature": "callvalue",
       "verity_path": "supported",
       "evmyullean_bridge": "delegated",
       "agreement_proved": false
@@ -737,6 +785,24 @@
       "agreement_proved": false
     },
     {
+      "feature": "calldatasize",
+      "verity_path": "supported",
+      "evmyullean_bridge": "delegated",
+      "agreement_proved": false
+    },
+    {
+      "feature": "number",
+      "verity_path": "supported",
+      "evmyullean_bridge": "delegated",
+      "agreement_proved": false
+    },
+    {
+      "feature": "blobbasefee",
+      "verity_path": "supported",
+      "evmyullean_bridge": "delegated",
+      "agreement_proved": false
+    },
+    {
       "feature": "mappingSlot",
       "verity_path": "supported",
       "evmyullean_bridge": "delegated",
@@ -748,6 +814,7 @@
     "unsupported": "Not handled; causes revert or returns none",
     "fallback_zero": "Returns 0 (feature not modeled in this interpreter)",
     "no_op": "Silently ignored (safe because the feature is a codegen concern, not a semantic one)",
+    "concrete_only": "Evaluated via EVMYulLean but universal proof pending; validated by concrete native_decide tests",
     "delegated": "Handled by the Verity-native path; EVMYulLean bridge returns none",
     "n/a": "Feature does not exist at this layer of the pipeline"
   },

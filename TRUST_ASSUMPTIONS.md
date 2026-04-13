@@ -16,7 +16,7 @@ Yul
 EVM Bytecode
 ```
 
-The repository currently has 1 `sorry` placeholder across the `Compiler/**/*.lean` and `Verity/**/*.lean` proof modules that participate in the verified compiler stack. Layer 2 (Source → IR) and Layer 3 (IR → Yul) proof scripts are fully discharged, and it now has 0 documented Lean axioms. See [AXIOMS.md](AXIOMS.md) for details.
+The repository currently has 1 `sorry` placeholder across the `Compiler/**/*.lean` and `Verity/**/*.lean` proof modules that participate in the verified compiler stack (`storageLookup_projectStorage` in `EvmYulLeanStateBridge.lean`). Layer 2 (Source → IR) and Layer 3 (IR → Yul) proof scripts are fully discharged, and it now has 0 documented Lean axioms. See [AXIOMS.md](AXIOMS.md) for details.
 
 ## What's Verified
 

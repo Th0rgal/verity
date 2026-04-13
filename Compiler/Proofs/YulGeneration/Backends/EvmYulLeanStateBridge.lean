@@ -222,18 +222,24 @@ def extractStorage (sharedState : SharedState .Yul) (addr : AccountAddress) :
       | none => 0
     | none => 0
 
-/-! ## Bridge Proof Obligations (Phase 2)
-
-The following theorems need to be proven to complete the state bridge.
-They are stated here as `sorry`-stubs to document the proof obligations
-and enable downstream code to type-check against the expected signatures.
-
-These will be proven as part of Phase 2 of issue #1722. -/
+/-! ## Bridge Proofs -/
 
 /-- Storage lookup commutes: reading a slot from the projected storage
-    yields the same value as reading it from Verity's storage function. -/
+    yields the same value as reading it from Verity's storage function.
+
+    The `hRange` hypothesis ensures `natToUInt256` is injective on the
+    slot list (EVM storage slots are always < 2^256). Without it, two
+    distinct Nat slots could collide under modular reduction and the
+    last-write-wins semantics of `foldl` would make the theorem false.
+
+    Proof strategy (requires `Batteries.Data.RBMap.Lemmas` for `find?_insert`):
+    1. Induction on `slots` with generalized accumulator
+    2. When `slot = head`: insert puts the right value; show rest preserves it
+       using `find?_insert_of_ne` (injectivity from `hRange` ensures no collision)
+    3. When `slot ∈ tail`: use IH with updated accumulator -/
 theorem storageLookup_projectStorage (storage : Nat → Nat)
-    (slots : List Nat) (slot : Nat) (hSlot : slot ∈ slots) :
+    (slots : List Nat) (slot : Nat) (hSlot : slot ∈ slots)
+    (hRange : ∀ s ∈ slots, s < UInt256.size) :
     uint256ToNat (storageLookup (projectStorage storage slots) (natToUInt256 slot)) =
       storage slot % UInt256.size := by
   sorry

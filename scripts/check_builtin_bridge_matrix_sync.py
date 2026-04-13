@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 FEATURE_MATRIX = ROOT / "artifacts" / "interpreter_feature_matrix.json"
 TARGET_DOC = ROOT / "docs" / "INTERPRETER_FEATURE_MATRIX.md"
-PURE_BUILTINS = [
+PROVED_BUILTINS = [
     "add",
     "sub",
     "mul",
@@ -30,13 +30,27 @@ PURE_BUILTINS = [
     "shr",
     "byte",
 ]
+CONCRETE_ONLY_BUILTINS = [
+    "exp",
+    "sdiv",
+    "smod",
+    "slt",
+    "sgt",
+    "sar",
+    "signextend",
+]
+PURE_BUILTINS = PROVED_BUILTINS + CONCRETE_ONLY_BUILTINS
 DELEGATED_BUILTINS = [
     "sload",
     "caller",
     "address",
+    "callvalue",
     "timestamp",
     "chainid",
     "calldataload",
+    "calldatasize",
+    "number",
+    "blobbasefee",
     "mappingSlot",
 ]
 EXPECTED_BUILTINS = PURE_BUILTINS + DELEGATED_BUILTINS
@@ -64,16 +78,19 @@ def validate_builtin_features(matrix: dict) -> list[dict]:
 
     for entry in builtin_features:
         feature = entry["feature"]
-        if feature in PURE_BUILTINS:
-            if entry.get("verity_path") != "supported":
-                raise ValueError(f"{feature} should have verity_path=supported")
+        if entry.get("verity_path") != "supported":
+            raise ValueError(f"{feature} should have verity_path=supported")
+        if feature in PROVED_BUILTINS:
             if entry.get("evmyullean_bridge") != "supported":
                 raise ValueError(f"{feature} should have evmyullean_bridge=supported")
             if entry.get("agreement_proved") is not True:
                 raise ValueError(f"{feature} should have agreement_proved=true")
-        else:
-            if entry.get("verity_path") != "supported":
-                raise ValueError(f"{feature} should have verity_path=supported")
+        elif feature in CONCRETE_ONLY_BUILTINS:
+            if entry.get("evmyullean_bridge") != "supported":
+                raise ValueError(f"{feature} should have evmyullean_bridge=supported")
+            if entry.get("agreement_proved") is not False:
+                raise ValueError(f"{feature} should have agreement_proved=false (concrete-only)")
+        elif feature in DELEGATED_BUILTINS:
             if entry.get("evmyullean_bridge") != "delegated":
                 raise ValueError(f"{feature} should have evmyullean_bridge=delegated")
             if entry.get("agreement_proved") is not False:
@@ -85,11 +102,13 @@ def validate_builtin_features(matrix: dict) -> list[dict]:
 def expected_doc_snippets(builtin_features: list[dict]) -> list[str]:
     total = len(builtin_features)
     proved = sum(1 for entry in builtin_features if entry["agreement_proved"])
-    remaining = total - proved
+    concrete_only = len(CONCRETE_ONLY_BUILTINS)
+    delegated = len(DELEGATED_BUILTINS)
     return [
-        f"{proved}/{total} builtins have bridge agreement coverage between Verity and EVMYulLean evaluation paths.",
-        f"{proved} are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, and none still require concrete-only regression coverage.",
-        f"The remaining {remaining} are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.",
+        f"{proved}/{total} builtins have universal bridge agreement proofs between Verity and EVMYulLean evaluation paths.",
+        f"{proved} are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`",
+        f"{concrete_only} additional builtins",
+        f"The remaining {delegated} are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.",
         "| `address` | ok | del | -- |",
         "| `timestamp` | ok | del | -- |",
     ]
@@ -126,8 +145,9 @@ def main() -> int:
     proved = sum(1 for entry in builtin_features if entry["agreement_proved"])
     print(
         "builtin bridge matrix sync passed: "
-        f"{proved}/{len(builtin_features)} builtins covered; delegated remainder: "
-        f"{', '.join(DELEGATED_BUILTINS)}"
+        f"{proved}/{len(builtin_features)} builtins proved; "
+        f"concrete-only: {', '.join(CONCRETE_ONLY_BUILTINS)}; "
+        f"delegated: {', '.join(DELEGATED_BUILTINS)}"
     )
     return 0
 

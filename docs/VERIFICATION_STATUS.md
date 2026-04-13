@@ -78,7 +78,7 @@ Tracking:
 **Current boundary**:
 - Generic: supported statement-list compilation and the whole-contract theorem itself
 - Proved generically: initial-state normalization between `withTransactionContext` and `initialIRStateForTx`, under explicit transaction-context normalization hypotheses
-- No Lean axioms remain in Layer 2; 1 `sorry` placeholder remains: one in the EVMYulLean state bridge scaffolding (`storageLookup_projectStorage`, Phase 2 proof obligation)
+- No Lean axioms remain in Layer 2; 1 `sorry` placeholder remains: in the EVMYulLean state bridge scaffolding (`EvmYulLeanStateBridge.lean` — `storageLookup_projectStorage`, a Phase 2 proof obligation requiring `Batteries.RBMap.find?_insert` lemmas)
 - Additional explicit precondition: the generic theorem surface now requires the observed transaction-context fields (`sender`, `thisAddress`, `msgValue`, `blockTimestamp`, `blockNumber`, `chainId`) to already fit the bounded source-side `Address`/`Uint256` domains
 - Outside the current generic theorem or current proof model: events/logs, proxy/delegatecall upgradeability, linked externals, local unsafe obligations, and other trust-surfaced features not captured by the current supported whole-contract fragment
 

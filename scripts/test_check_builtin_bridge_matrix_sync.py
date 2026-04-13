@@ -56,7 +56,15 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
                 "evmyullean_bridge": "supported",
                 "agreement_proved": True,
             }
-            for feature in check.PURE_BUILTINS
+            for feature in check.PROVED_BUILTINS
+        ] + [
+            {
+                "feature": feature,
+                "verity_path": "supported",
+                "evmyullean_bridge": "supported",
+                "agreement_proved": False,
+            }
+            for feature in check.CONCRETE_ONLY_BUILTINS
         ] + [
             {
                 "feature": feature,
@@ -81,7 +89,15 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
                 "evmyullean_bridge": "supported",
                 "agreement_proved": True,
             }
-            for feature in check.PURE_BUILTINS
+            for feature in check.PROVED_BUILTINS
+        ] + [
+            {
+                "feature": feature,
+                "verity_path": "supported",
+                "evmyullean_bridge": "supported",
+                "agreement_proved": False,
+            }
+            for feature in check.CONCRETE_ONLY_BUILTINS
         ] + [
             {
                 "feature": feature,
@@ -96,9 +112,10 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
             doc_text=(
                 "| `address` | ok | del | -- |\n"
                 "| `timestamp` | ok | del | -- |\n"
-                "15/20 builtins have bridge agreement coverage between Verity and EVMYulLean evaluation paths.\n"
-                "15 are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, and none still require concrete-only regression coverage.\n"
-                "The remaining 5 are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.\n"
+                "15/30 builtins have universal bridge agreement proofs between Verity and EVMYulLean evaluation paths.\n"
+                "15 are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`\n"
+                "5 additional builtins\n"
+                "The remaining 10 are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.\n"
             ),
         )
         self.assertEqual(rc, 1)
