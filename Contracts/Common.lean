@@ -22,6 +22,8 @@ macro_rules
           let _ := $_module
           let _ := $_args
           pure ())
+  | `(doElem| unsafe $_reason:str do $body:doSeq) =>
+      `(doElem| do $body)
   | `(doElem| tryCatch $attempt:term (fun $name:ident => do $[$elems:doElem]*)) => do
       let tryCatchFn := Lean.mkIdentFrom attempt `_root_.Contracts.tryCatchWord
       `(doElem| $tryCatchFn:ident $attempt (fun $name => do $[$elems:doElem]*))
@@ -252,6 +254,8 @@ private def externalCallStubWord (name : String) (args : List Uint256) : Uint256
   | _, _ => args.foldl add name.length
 def externalCallWords {α : Type} [ExternalResult α] (name : String) (args : List Uint256) : α :=
   ExternalResult.fromWord (externalCallStubWord name args)
+def tryExternalCallWords {α : Type} [Inhabited α] (_name : String) (_args : List Uint256) : Contract (Bool × α) :=
+  pure (false, default)
 private def erc20ReadStubWord (name : String) (args : List Uint256) : Uint256 :=
   externalCallStubWord name args
 macro_rules
@@ -259,6 +263,10 @@ macro_rules
       `(externalCallWords $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ])
   | `(term| externalCall $name:str [ $[$args:term],* ]) =>
       `(externalCallWords $name [ $[ExternalArg.toWord $args],* ])
+  | `(term| tryExternalCall $name:str [ $[$args:term],* ]) =>
+      `(tryExternalCallWords $name [ $[ExternalArg.toWord $args],* ])
+  | `(term| tryExternalCall $name:ident [ $[$args:term],* ]) =>
+      `(tryExternalCallWords $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ])
 def getMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset : Uint256) :
     Contract Uint256 := pure 0
 def setMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset _value : Uint256) :

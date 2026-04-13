@@ -1063,9 +1063,10 @@ verity_contract ExternalCallMultiReturn where
     external fanout(Uint256) -> (Uint256, Address)
 
   function allow_post_interaction_writes callFanout (x : Uint256) : Unit := do
-    let (success, value, _addr) ← tryExternalCall "fanout" [x]
+    let (success, value, addr) ← tryExternalCall "fanout" [x]
     if success then
       setStorage lastValue value
+      setStorage lastValue addr
     else
       pure ()
 
