@@ -157,6 +157,7 @@ def _parse_bridge_tests() -> tuple[list[str], int]:
         if verity_matches and bridge_matches and NATIVE_DECIDE_RE.search(block):
             bridge_test_count += 1
             builtins.update(verity_matches)
+            builtins.update(bridge_matches)
     return sorted(builtins), bridge_test_count
 
 
