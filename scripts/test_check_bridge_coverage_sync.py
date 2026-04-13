@@ -30,9 +30,6 @@ class BridgeCoverageSyncTests(unittest.TestCase):
                 @[simp] theorem evalBuiltinCall_mod_bridge := by
                 @[simp] theorem evalBuiltinCall_addmod_bridge := by
                 @[simp] theorem evalBuiltinCall_mulmod_bridge := by
-                @[simp] theorem evalBuiltinCall_exp_bridge := by
-                @[simp] theorem evalBuiltinCall_sdiv_bridge := by
-                @[simp] theorem evalBuiltinCall_smod_bridge := by
                 @[simp] theorem evalBuiltinCall_lt_bridge := by
                 @[simp] theorem evalBuiltinCall_gt_bridge := by
                 @[simp] theorem evalBuiltinCall_slt_bridge := by
@@ -45,8 +42,6 @@ class BridgeCoverageSyncTests(unittest.TestCase):
                 @[simp] theorem evalBuiltinCall_not_bridge := by
                 @[simp] theorem evalBuiltinCall_shl_bridge := by
                 @[simp] theorem evalBuiltinCall_shr_bridge := by
-                @[simp] theorem evalBuiltinCall_sar_bridge := by
-                @[simp] theorem evalBuiltinCall_signextend_bridge := by
                 @[simp] theorem evalBuiltinCall_byte_bridge := by
                 """
             ),
@@ -54,13 +49,14 @@ class BridgeCoverageSyncTests(unittest.TestCase):
         )
         (root / "TRUST_ASSUMPTIONS.md").write_text(
             "20 universal pure bridge theorems are now proven. "
-            "All pure bridge cases are now covered by universal symbolic lemmas.\n",
+            "The remaining pure bridge cases (`exp`, `sdiv`, `smod`, `sar`, and `signextend`) "
+            "are still covered by concrete regression checks.\n",
             encoding="utf-8",
         )
         (root / "AXIOMS.md").write_text(
             "The EVMYulLean bridge currently has universal equivalence lemmas for 20 of them "
             "(`add`, `sub`, `mul`, `div`, `mod`, `addmod`, `mulmod`, `lt`, `gt`, `slt`, `sgt`, `eq`, `iszero`, `and`, `or`, `xor`, `not`, `shl`, `shr`, `byte`) "
-            "with no remaining pure builtins relying only on concrete bridge checks.\n",
+            "while `exp`, `sdiv`, `smod`, `sar`, and `signextend` are covered by concrete bridge checks.\n",
             encoding="utf-8",
         )
         arithmetic_path = root / "docs" / "ARITHMETIC_PROFILE.md"
@@ -68,13 +64,17 @@ class BridgeCoverageSyncTests(unittest.TestCase):
         arithmetic_path.write_text(arithmetic_profile, encoding="utf-8")
         interpreter = root / "docs" / "INTERPRETER_FEATURE_MATRIX.md"
         interpreter.write_text(
-            "20 are discharged by universal symbolic lemmas, and none still require concrete-only regression coverage.\n",
+            "20 are discharged by universal symbolic lemmas, "
+            "while `exp`, `sdiv`, `smod`, `sar`, and `signextend` collectively "
+            "are currently guarded by concrete regression checks.\n",
             encoding="utf-8",
         )
         end_to_end = root / "Compiler" / "Proofs" / "EndToEnd.lean"
         end_to_end.parent.mkdir(parents=True, exist_ok=True)
         end_to_end.write_text(
-            "replacement coverage: universal bridge lemmas for all pure bridged builtins.\n",
+            "replacement coverage: universal bridge lemmas for all pure bridged builtins "
+            "except `exp`, `sdiv`, `smod`, `sar`, and `signextend`, "
+            "plus concrete smoke tests for `exp`, `sdiv`, `smod`, `sar`, and `signextend`.\n",
             encoding="utf-8",
         )
 
@@ -112,12 +112,13 @@ class BridgeCoverageSyncTests(unittest.TestCase):
                 "universal bridge lemmas for 20 pure builtins: `add`, `sub`, `mul`, `div`, `mod`, "
                 "`addmod`, `mulmod`, `lt`, `gt`, `slt`, `sgt`, `eq`, `iszero`, `and`, `or`, `xor`, `not`, `shl`, "
                 "`shr`, and `byte`\n"
-                "concrete bridge smoke tests are no longer needed for any pure builtin\n"
-                "20/20 pure EVMYulLean-backed builtins have universal bridge lemmas.\n"
+                "concrete bridge smoke tests for `exp`, `sdiv`, `smod`, `sar`, and `signextend`\n"
+                "20/25 pure EVMYulLean-backed builtins have universal bridge lemmas; "
+                "`exp`, `sdiv`, `smod`, `sar`, and `signextend` collectively still rely on concrete smoke tests.\n"
             )
         )
         self.assertEqual(rc, 0, output)
-        self.assertIn("20/20 pure builtins universally bridged", output)
+        self.assertIn("20/25 pure builtins universally bridged", output)
 
     def test_stale_bridge_docs_fail(self) -> None:
         rc, output = self._run_check(
@@ -142,7 +143,7 @@ class BridgeCoverageSyncTests(unittest.TestCase):
             expected["ARITHMETIC_PROFILE"],
         )
         self.assertIn(
-            "20/20 pure EVMYulLean-backed builtins have universal bridge lemmas.",
+            "25/25 pure EVMYulLean-backed builtins have universal bridge lemmas.",
             expected["ARITHMETIC_PROFILE"],
         )
         self.assertIn(
