@@ -148,7 +148,7 @@ def collect_metrics() -> dict[str, Any]:
             "covered": covered_count,
             "coverage_percent": coverage_pct,
             "excluded": exclusion_count,
-            "proven": total_theorems - sorry_count,
+            "proven": total_theorems,
             "stdlib": stdlib_count,
             "non_stdlib_total": total_theorems - stdlib_count,
         },

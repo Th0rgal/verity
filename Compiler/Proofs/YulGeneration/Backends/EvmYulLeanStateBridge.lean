@@ -56,11 +56,12 @@ keys); `getVar` returns the *first* match. EVMYulLean's Finmap is a map
 (unique keys). The bridge takes the most recent binding for each variable. -/
 
 /-- Convert Verity variable bindings to EVMYulLean VarStore.
-    Takes the first (most recent) binding for each variable name. -/
+    Uses foldl so that the first (most recent) binding for each variable wins,
+    matching Verity's `getVar` shadowing semantics. -/
 def varsToVarStore (vars : List (String × Nat)) : VarStore :=
-  vars.foldr (init := Finmap.empty) fun (name, val) store =>
-    if store.lookup name |>.isSome then store
-    else store.insert name (natToUInt256 val)
+  vars.foldl (init := (∅ : VarStore)) fun store (name, val) =>
+    if (Finmap.lookup name store).isSome then store
+    else Finmap.insert name (natToUInt256 val) store
 
 /-- Convert EVMYulLean VarStore back to Verity variable bindings.
     Order is not preserved (Finmap has no canonical ordering). -/
@@ -104,7 +105,11 @@ Maps Verity's flat YulState fields to EVMYulLean's `ExecutionEnv .Yul`. -/
 def natToAddress (n : Nat) : AccountAddress :=
   ⟨n % (2 ^ 160), Nat.mod_lt _ (by decide)⟩
 
-/-- Create a minimal EVMYulLean BlockHeader from Verity's block fields. -/
+/-- Create a minimal EVMYulLean BlockHeader from Verity's block fields.
+    Fields not modeled by Verity (e.g. baseFeePerGas, gasLimit) are set to
+    default zero values. Note: Verity's `blobBaseFee` is the blob gas price,
+    which in EVMYulLean is derived from `excessBlobGas` via `getBlobGasprice`;
+    the reverse mapping is not straightforward, so it is left as 0 here. -/
 def mkBlockHeader (state : YulState) : BlockHeader :=
   { parentHash := ⟨0⟩
     ommersHash := ⟨0⟩
@@ -121,7 +126,7 @@ def mkBlockHeader (state : YulState) : BlockHeader :=
     extraData := ByteArray.empty
     nonce := ⟨0, by decide⟩
     prevRandao := ⟨0⟩
-    baseFeePerGas := state.blobBaseFee
+    baseFeePerGas := 0
     parentBeaconBlockRoot := ByteArray.empty
     withdrawalsRoot := ByteArray.empty
     blobGasUsed := ⟨0, by decide⟩
@@ -133,14 +138,14 @@ def mkBlockHeader (state : YulState) : BlockHeader :=
 def calldataToByteArray (selector : Nat) (calldata : List Nat) : ByteArray :=
   -- 4 bytes for selector + 32 bytes per word
   let selectorBytes : ByteArray := Id.run do
-    let mut arr := ByteArray.mkEmpty 4
+    let mut arr := ByteArray.emptyWithCapacity 4
     arr := arr.push (UInt8.ofNat (selector / 2^24 % 256))
     arr := arr.push (UInt8.ofNat (selector / 2^16 % 256))
     arr := arr.push (UInt8.ofNat (selector / 2^8 % 256))
     arr := arr.push (UInt8.ofNat (selector % 256))
     arr
   let wordBytes (w : Nat) : ByteArray := Id.run do
-    let mut arr := ByteArray.mkEmpty 32
+    let mut arr := ByteArray.emptyWithCapacity 32
     for i in List.range 32 do
       arr := arr.push (UInt8.ofNat (w / 2^((31 - i) * 8) % 256))
     arr
@@ -161,7 +166,7 @@ def toSharedState (state : YulState) (observableSlots : List Nat) :
     { nonce := ⟨0⟩
       balance := ⟨0⟩
       storage := storage
-      code := default
+      code := (default : Yul.Ast.contractCode .Yul)
       tstorage := Batteries.RBMap.empty }
   let accountMap : AccountMap .Yul :=
     (Batteries.RBMap.empty).insert addr account
@@ -171,7 +176,7 @@ def toSharedState (state : YulState) (observableSlots : List Nat) :
       source := natToAddress state.sender
       weiValue := natToUInt256 state.msgValue
       calldata := calldataToByteArray state.selector state.calldata
-      code := default
+      code := (default : Yul.Ast.contractCode .Yul)
       gasPrice := 0
       header := mkBlockHeader state
       depth := 0
