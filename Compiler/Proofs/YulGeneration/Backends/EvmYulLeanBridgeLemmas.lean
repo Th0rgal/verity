@@ -606,7 +606,7 @@ private theorem bridge_eval_addmod_normalized (a b n : Nat) :
       (a % EvmYul.UInt256.size + b % EvmYul.UInt256.size) % (n % EvmYul.UInt256.size)
     exact Nat.mod_eq_of_lt (Nat.lt_of_lt_of_le (Nat.mod_lt _
       (Nat.pos_of_ne_zero hn)) (Nat.le_of_lt (Nat.mod_lt n
-      (NeZero.pos))))
+      (by unfold EvmYul.UInt256.size; simp)))))
 
 private theorem verity_eval_mulmod_normalized
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b n : Nat) :
@@ -639,7 +639,7 @@ private theorem bridge_eval_mulmod_normalized (a b n : Nat) :
       (a % EvmYul.UInt256.size * (b % EvmYul.UInt256.size)) % (n % EvmYul.UInt256.size)
     exact Nat.mod_eq_of_lt (Nat.lt_of_lt_of_le (Nat.mod_lt _
       (Nat.pos_of_ne_zero hn)) (Nat.le_of_lt (Nat.mod_lt n
-      (NeZero.pos))))
+      (by unfold EvmYul.UInt256.size; simp)))))
 
 /-- Universal bridge theorem for `addmod`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
