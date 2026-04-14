@@ -41,6 +41,7 @@ Wrapping semantics are **proven** (not assumed) across all three verification la
 
 The EVMYulLean bridge validates that Verity's `Nat`-modular arithmetic agrees with EVMYulLean's `Fin`-based `UInt256` operations. Current coverage:
 - universal bridge lemmas for 25 pure builtins: `add`, `sub`, `mul`, `div`, `mod`, `addmod`, `mulmod`, `exp`, `sdiv`, `smod`, `lt`, `gt`, `slt`, `sgt`, `eq`, `iszero`, `and`, `or`, `xor`, `not`, `shl`, `shr`, `sar`, `signextend`, and `byte`
+- context-lifted bridge theorems for all 25 pure builtins at the `evalBuiltinCallWithBackendContext` level (the Phase 4 backend-retargeting surface)
 - concrete bridge smoke tests are no longer needed for any pure builtin
 
 ### Higher-Level Expression Operators
@@ -109,7 +110,7 @@ The arithmetic model is invariant across profiles. See [`docs/SOLIDITY_PARITY_PR
 - **Gas semantics**: proofs establish result correctness, not gas cost or bounded liveness.
 - **Compiler-layer overflow detection**: the compiler does not insert overflow checks. Use EDSL `safeAdd`/`safeSub`/`safeMul` for checked behavior.
 - **Cryptographic primitives**: keccak256 is axiomatized (see [`AXIOMS.md`](../AXIOMS.md)).
-- **Universal bridge equivalence**: 25/25 pure EVMYulLean-backed builtins have universal bridge lemmas (20 fully proven, 5 with sorry-dependent core equivalences). All 8 higher-level expression operators also have proven compilation correctness.
+- **Universal bridge equivalence**: 25/25 pure EVMYulLean-backed builtins have universal bridge lemmas (20 fully proven, 5 with sorry-dependent core equivalences). All 25 also have context-lifted backend bridge theorems for Phase 4 retargeting. All 8 higher-level expression operators also have proven compilation correctness.
 
 ## Auditor Checklist
 
