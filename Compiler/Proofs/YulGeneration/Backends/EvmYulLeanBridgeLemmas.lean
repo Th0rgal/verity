@@ -821,22 +821,22 @@ private theorem bridge_eval_sgt_normalized (a b : Nat) :
 
 -- Helper: Int.ofNat preserves strict ordering on Nats
 private theorem int_ofNat_lt_iff {a b : Nat} : Int.ofNat a < Int.ofNat b ↔ a < b := by
-  constructor <;> intro h <;> omega
+  exact_mod_cast Iff.rfl
 
 -- Helper: shifting both sides of Int < by the same Nat value preserves ordering
 private theorem int_sub_lt_sub_iff (a b M : Nat) :
     (Int.ofNat a - Int.ofNat M < Int.ofNat b - Int.ofNat M) ↔ (a < b) := by
-  constructor <;> intro h <;> omega
+  constructor <;> intro h <;> (push_cast at *; omega)
 
 -- Helper: negative two's complement value (≥ 2^255) wrapped by -M is less than positive value (< 2^255)
 private theorem int_neg_lt_pos_evm (a b : Nat) (haM : a < evmModulus) (hb : b < 2 ^ 255) :
     Int.ofNat a - Int.ofNat evmModulus < Int.ofNat b := by
-  unfold evmModulus; omega
+  unfold evmModulus; push_cast; omega
 
 -- Helper: positive value (< 2^255) is never less than negative two's complement value wrapped by -M
 private theorem int_pos_not_lt_neg_evm (a b : Nat) (ha : a < 2 ^ 255) (hbM : b < evmModulus) :
     ¬ (Int.ofNat a < Int.ofNat b - Int.ofNat evmModulus) := by
-  unfold evmModulus; omega
+  unfold evmModulus; push_cast; omega
 
 set_option maxHeartbeats 32000000 in
 /-- Core lemma: Verity's Int256-based signed comparison agrees with EVMYulLean's
