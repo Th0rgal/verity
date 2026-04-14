@@ -159,9 +159,8 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean"
     )
 
-    # The 5 pinned theorem names that are allowed to contain sorry
+    # The 4 pinned theorem names that are allowed to contain sorry
     PINNED_THEOREMS = [
-        "exp_natModPow_eq_uint256Exp",
         "sdiv_int256_eq_uint256Sdiv",
         "smod_int256_eq_uint256Smod",
         "sar_int256_eq_uint256Sar",
@@ -182,7 +181,7 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         self._make_bridge_file(self.PINNED_THEOREMS)
         rc, output = self._run_main()
         self.assertEqual(rc, 0, output)
-        self.assertIn("5 sorry", output)
+        self.assertIn("4 sorry", output)
 
     def test_sorry_in_pinned_theorems_within_cap(self) -> None:
         self._make_bridge_file(self.PINNED_THEOREMS[:3])
@@ -191,12 +190,12 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         self.assertIn("3 sorry", output)
 
     def test_sorry_exceeding_cap_fails(self) -> None:
-        # 5 pinned + 1 extra = 6 sorrys, cap is 5
+        # 4 pinned + 1 extra = 5 sorrys, cap is 4
         extra = self.PINNED_THEOREMS + ["extra_fake_theorem"]
         self._make_bridge_file(extra)
         rc, output = self._run_main()
         self.assertNotEqual(rc, 0)
-        self.assertIn("found 6 sorry (cap is 5)", output)
+        self.assertIn("found 5 sorry (cap is 4)", output)
 
     def test_sorry_in_non_pinned_theorem_fails(self) -> None:
         # Replace one pinned theorem with an unpinned one

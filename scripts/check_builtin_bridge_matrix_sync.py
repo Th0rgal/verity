@@ -38,7 +38,7 @@ PROVED_BUILTINS = [
     "byte",
 ]
 # Builtins whose bridge theorems transitively depend on sorry'd core lemmas.
-ADMITTED_BUILTINS = ["exp", "sdiv", "smod", "sar", "signextend"]
+ADMITTED_BUILTINS = ["sdiv", "smod", "sar", "signextend"]
 CONCRETE_ONLY_BUILTINS: list[str] = []
 PURE_BUILTINS = PROVED_BUILTINS + CONCRETE_ONLY_BUILTINS
 DELEGATED_BUILTINS = [

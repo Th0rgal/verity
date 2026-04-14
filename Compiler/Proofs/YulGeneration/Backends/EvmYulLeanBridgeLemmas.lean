@@ -1003,18 +1003,82 @@ private theorem bridge_eval_exp_normalized (a b : Nat) :
         (EvmYul.UInt256.exp (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b))) := by
   rfl
 
+/-- Generalized loop invariant: Verity's `modPowAux` agrees with EVMYulLean's
+`UInt256.powAux` when the accumulator and base agree modulo `evmModulus`.
+Proved by strong induction on the exponent `e`. -/
+private theorem modPowAux_eq_toNat_powAux (e : Nat) (acc base : Nat)
+    (hacc : acc < evmModulus) (hbase : base < evmModulus) :
+    modPowAux evmModulus base e acc =
+    EvmYul.UInt256.toNat (EvmYul.UInt256.powAux
+      ⟨⟨acc, by rw [EvmYul.UInt256.size]; exact hacc⟩⟩
+      ⟨⟨base, by rw [EvmYul.UInt256.size]; exact hbase⟩⟩ e) := by
+  induction e using Nat.strongRecOn generalizing acc base with
+  | _ e ih =>
+    match e with
+    | 0 =>
+      simp [modPowAux, EvmYul.UInt256.powAux]
+      rw [EvmYul.UInt256.toNat]
+      simp [Nat.mod_eq_of_lt hacc]
+    | e + 1 =>
+      simp only [modPowAux, EvmYul.UInt256.powAux]
+      have hdiv : (e + 1) / 2 < e + 1 := Nat.div_lt_self (by omega) (by omega)
+      -- Both branches recurse with base' = (base * base) % evmModulus
+      -- and exponent' = (e + 1) / 2
+      have hbase2 : (base * base) % evmModulus < evmModulus :=
+        Nat.mod_lt _ (by unfold evmModulus; omega)
+      -- UInt256 multiplication result equals Nat multiplication mod evmModulus
+      have hmul_base : (⟨⟨base, by rw [EvmYul.UInt256.size]; exact hbase⟩⟩ : EvmYul.UInt256) *
+          ⟨⟨base, by rw [EvmYul.UInt256.size]; exact hbase⟩⟩ =
+          ⟨⟨(base * base) % evmModulus, by rw [EvmYul.UInt256.size]; exact hbase2⟩⟩ := by
+        simp [HMul.hMul, Mul.mul, EvmYul.UInt256.mul, Fin.mul, EvmYul.UInt256.size]
+        congr 1
+      -- The odd/even check is the same for both: (e + 1) % 2 = 1
+      by_cases hodd : (e + 1) % 2 = 1
+      · -- Odd case: accumulator gets multiplied by base
+        simp [hodd, beq_iff_eq]
+        have hacc2 : (acc * base) % evmModulus < evmModulus :=
+          Nat.mod_lt _ (by unfold evmModulus; omega)
+        have hmul_acc : (⟨⟨acc, by rw [EvmYul.UInt256.size]; exact hacc⟩⟩ : EvmYul.UInt256) *
+            ⟨⟨base, by rw [EvmYul.UInt256.size]; exact hbase⟩⟩ =
+            ⟨⟨(acc * base) % evmModulus, by rw [EvmYul.UInt256.size]; exact hacc2⟩⟩ := by
+          simp [HMul.hMul, Mul.mul, EvmYul.UInt256.mul, Fin.mul, EvmYul.UInt256.size]
+          congr 1
+        rw [hmul_acc, hmul_base]
+        exact ih _ hdiv (acc * base % evmModulus) (base * base % evmModulus) hacc2 hbase2
+      · -- Even case: accumulator unchanged
+        have heven : (e + 1) % 2 ≠ 1 := hodd
+        have heven0 : (e + 1) % 2 = 0 := by omega
+        simp [heven0, beq_iff_eq]
+        rw [hmul_base]
+        exact ih _ hdiv acc (base * base % evmModulus) hacc hbase2
+
 /-- Core exp equivalence: Verity's `natModPow` agrees with EVMYulLean's `UInt256.exp`
 on all inputs. Both implement modular exponentiation via repeated squaring.
 
-**Status**: sorry — requires induction proof matching two different loop structures
-(Verity's `modPowAux` vs EVMYulLean's `powAux`). The equivalence is validated by
-concrete tests in `EvmYulLeanBridgeTest.lean`. -/
+**Status**: proof via `modPowAux_eq_toNat_powAux` induction. -/
 private theorem exp_natModPow_eq_uint256Exp (a b : Nat)
     (ha : a < evmModulus) (hb : b < evmModulus) :
     natModPow a b evmModulus =
     EvmYul.UInt256.toNat (EvmYul.UInt256.exp ⟨⟨a, by rw [EvmYul.UInt256.size]; exact ha⟩⟩
                                                ⟨⟨b, by rw [EvmYul.UInt256.size]; exact hb⟩⟩) := by
-  sorry
+  unfold natModPow
+  have hmod : ¬(evmModulus ≤ 1) := by unfold evmModulus; omega
+  simp [hmod]
+  unfold EvmYul.UInt256.exp EvmYul.UInt256.pow
+  have hbase : a % evmModulus < evmModulus := Nat.mod_lt a (by unfold evmModulus; omega)
+  have h1 : (1 : Nat) < evmModulus := by unfold evmModulus; omega
+  have hacc : (1 : Nat) < evmModulus := h1
+  -- Align the initial state: modPowAux evmModulus (a % evmModulus) b 1
+  -- with powAux ⟨1⟩ ⟨a⟩ b.val
+  -- Note: b.val = b since b < evmModulus, so Fin.val is just b
+  -- ⟨1⟩ has toNat = 1, and (a % evmModulus) = a since a < evmModulus
+  have ha_mod : a % evmModulus = a := Nat.mod_eq_of_lt ha
+  rw [ha_mod]
+  have hbase' : a < evmModulus := ha
+  -- The UInt256 ⟨1⟩ = ⟨⟨1, _⟩⟩ and the Fin b = ⟨b, _⟩
+  -- We need to show the powAux call matches
+  show modPowAux evmModulus a b 1 = _
+  exact modPowAux_eq_toNat_powAux b 1 a hacc hbase'
 
 /-- Universal bridge theorem for `exp`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
@@ -1812,7 +1876,7 @@ path and must fall through to the Verity path. -/
 /-! ## Composite Backend Equivalence Theorem
 
 This is the key Phase 4 composition lemma. For any pure builtin `func` in the
-set of 25 universally-bridged builtins (20 fully proven, 5 with sorry-dependent
+set of 25 universally-bridged builtins (21 fully proven, 4 with sorry-dependent
 core equivalences), all with context-lifted bridge theorems, the EVMYulLean
 backend agrees with the Verity backend
 (represented by `evalBuiltinCallWithContext`).
@@ -1825,7 +1889,7 @@ We provide `evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge` which
 composites all 25 per-builtin bridges into a single result: for any function
 in the bridged set, the backends produce the same result with arbitrary context. -/
 
-/-- For any of the 25 bridged pure builtins (20 fully proven, 5 sorry-dependent),
+/-- For any of the 25 bridged pure builtins (21 fully proven, 4 sorry-dependent),
     the EVMYulLean backend agrees with the Verity backend at the
     `evalBuiltinCallWithBackendContext` level. This factors through the individual
     `evalBuiltinCallWithBackendContext_evmYulLean_*_bridge` lemmas and is the
