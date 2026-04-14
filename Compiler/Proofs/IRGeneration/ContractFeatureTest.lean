@@ -227,6 +227,62 @@ private theorem constructorOnly_noConflict :
     firstFieldWriteSlotConflict constructorOnlySpec.fields = none := by
   native_decide
 
+private theorem constructorOnly_compileConstructor :
+    ∃ bodyStmts,
+      compileConstructor
+          constructorOnlySpec.fields
+          constructorOnlySpec.events
+          constructorOnlySpec.errors
+          constructorOnlySpec.constructor =
+        Except.ok (genConstructorArgLoads constructorOnlyCtor.params ++ bodyStmts) ∧
+      compileStmtList
+          constructorOnlySpec.fields
+          constructorOnlySpec.events
+          constructorOnlySpec.errors
+          .memory
+          []
+          false
+          []
+          constructorOnlyCtor.body =
+        Except.ok bodyStmts := by
+  rcases Function.compileConstructor_ok_components
+      constructorOnlySpec.fields
+      constructorOnlySpec.events
+      constructorOnlySpec.errors
+      constructorOnlyCtor
+      (genConstructorArgLoads constructorOnlyCtor.params ++
+        match compileStmtList
+            constructorOnlySpec.fields
+            constructorOnlySpec.events
+            constructorOnlySpec.errors
+            .memory
+            []
+            false
+            []
+            constructorOnlyCtor.body with
+         | .ok body => body
+         | .error _ => [])
+      (by rfl) with ⟨bodyStmts, hbodyCompile, hdeploy⟩
+  refine ⟨bodyStmts, ?_, hbodyCompile⟩
+  exact Function.compileConstructor_some_ok_of_body
+    constructorOnlySpec.fields
+    constructorOnlySpec.events
+    constructorOnlySpec.errors
+    constructorOnlyCtor
+    bodyStmts
+    hbodyCompile
+
+example :
+    ∃ bodyStmts,
+      compileConstructor
+          constructorOnlySpec.fields
+          constructorOnlySpec.events
+          constructorOnlySpec.errors
+          constructorOnlySpec.constructor =
+        Except.ok (genConstructorArgLoads constructorOnlyCtor.params ++ bodyStmts) := by
+  rcases constructorOnly_compileConstructor with ⟨bodyStmts, hdeploy, _⟩
+  exact ⟨bodyStmts, hdeploy⟩
+
 example
     (ir : IRContract)
     (hcompile : CompilationModel.compile literalMappingWriteSpec [literalMappingWriteSelector] = Except.ok ir)

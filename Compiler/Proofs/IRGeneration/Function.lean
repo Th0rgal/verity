@@ -260,6 +260,33 @@ theorem compileFunctionSpec_ok_components
         exact ⟨by simpa using hvalidate, by simpa using hreturns,
           by simpa using hbody, hEq.symm⟩
 
+theorem compileConstructor_some_ok_of_body
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (ctor : ConstructorSpec) (bodyStmts : List YulStmt)
+    (hbody :
+      compileStmtList fields events errors .memory [] false [] ctor.body = Except.ok bodyStmts) :
+    compileConstructor fields events errors (some ctor) =
+      Except.ok (genConstructorArgLoads ctor.params ++ bodyStmts) := by
+  simp [CompilationModel.compileConstructor, hbody]
+
+theorem compileConstructor_ok_components
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (ctor : ConstructorSpec) (deployStmts : List YulStmt)
+    (hcompile :
+      compileConstructor fields events errors (some ctor) = Except.ok deployStmts) :
+    ∃ bodyStmts,
+      compileStmtList fields events errors .memory [] false [] ctor.body = Except.ok bodyStmts ∧
+      deployStmts = genConstructorArgLoads ctor.params ++ bodyStmts := by
+  cases hbody :
+      compileStmtList fields events errors .memory [] false [] ctor.body with
+  | error err =>
+      simp [CompilationModel.compileConstructor, hbody] at hcompile
+  | ok bodyStmts =>
+      have hEq :
+          deployStmts = genConstructorArgLoads ctor.params ++ bodyStmts := by
+        simpa [CompilationModel.compileConstructor, hbody] using hcompile.symm
+      exact ⟨bodyStmts, by simpa using hbody, hEq⟩
+
 theorem exec_compiledFunctionIR_of_body
     (state : IRState) (selector : Nat) (spec : FunctionSpec)
     (returns : List ParamType) (bodyStmts : List YulStmt)

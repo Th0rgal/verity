@@ -762,6 +762,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorOnly_txNormalized  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorOnly_calldataFits  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorOnly_noConflict  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorOnly_compileConstructor  -- private
 
 -- Compiler/Proofs/IRGeneration/Dispatch.lean
 #print axioms Compiler.Proofs.IRGeneration.Dispatch.runtimeContractOfFunctions_internalFunctions
@@ -795,6 +796,8 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_ok_params
 #print axioms Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_ok_selector
 #print axioms Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_ok_components
+#print axioms Compiler.Proofs.IRGeneration.Function.compileConstructor_some_ok_of_body
+#print axioms Compiler.Proofs.IRGeneration.Function.compileConstructor_ok_components
 #print axioms Compiler.Proofs.IRGeneration.Function.exec_compiledFunctionIR_of_body
 #print axioms Compiler.Proofs.IRGeneration.Function.exec_compiledFunctionIR_of_body_extraFuel
 #print axioms Compiler.Proofs.IRGeneration.Function.interpretFunction_eq_execResultToIRResult_of_body
@@ -2163,4 +2166,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 2013 theorems/lemmas (1348 public, 665 private, 0 sorry'd)
+-- Total: 2016 theorems/lemmas (1350 public, 666 private, 0 sorry'd)
