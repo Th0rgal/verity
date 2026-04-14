@@ -1904,6 +1904,8 @@ example : CustomNamespacedSmoke.balance.slot ≠ 0 := by decide
 example : CustomNamespacedSmoke.owner.slot ≠ 1 := by decide
 example : CustomNamespacedSmoke.balance.slot ≠ NamespacedStorageSmoke.balance.slot := by decide
 example : CustomNamespacedSmoke.spec.storageNamespace.isSome = true := rfl
+-- Verify the exported storageNamespace constant matches the spec value (not the default contract name hash).
+example : CustomNamespacedSmoke.storageNamespace = CustomNamespacedSmoke.spec.storageNamespace.get! := rfl
 
 -- ADT (inductive) section smoke test (#1727, Axis 1 Steps 5a/5b)
 -- Declares algebraic data types with typed variant fields.

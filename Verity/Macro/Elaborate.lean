@@ -33,7 +33,8 @@ def elabVerityContract : CommandElab := fun stx => do
       elabCommand (← mkStorageDefCommandPublic (immutableStorageFieldDecl fields imm.1 imm.2))
 
     -- Emit storageNamespace : Nat for the contract (#1730, Axis 4 Step 4a).
-    elabCommand (← mkStorageNamespaceCommand (toString contractName.getId))
+    -- Use the resolved namespace from parseContractSyntax to respect custom keys.
+    elabCommand (← mkStorageNamespaceCommand (toString contractName.getId) storageNamespace)
 
     for fn in functions do
       let fnCmds ← mkFunctionCommandsPublic fields constDecls immutableDecls functions fn

@@ -356,6 +356,8 @@ def compileMatchAdtBranches (fields : List Field) (events : List EventDef)
   | [] => pure []
   | (variantName, boundVarNames, body) :: rest => do
       let variant ← lookupAdtVariant def_ variantName
+      if boundVarNames.length != variant.fields.length then
+        throw s!"Compilation error: match branch '{variantName}' of ADT '{def_.name}' binds {boundVarNames.length} variables, but the variant has {variant.fields.length} fields"
       -- Bind each variable to sload(baseSlot + 1 + idx)
       let fieldBindings := boundVarNames.zipIdx.map fun (varName, idx) =>
         YulStmt.let_ varName (compileAdtFieldRead (YulExpr.lit baseSlot) idx)

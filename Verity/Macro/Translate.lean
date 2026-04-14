@@ -4275,9 +4275,11 @@ def mkConstantDefCommandPublic (constant : ConstantDecl) : CommandElabM Cmd :=
   mkConstantDefCommand constant
 
 /-- Generate a `def storageNamespace : Nat := <keccak-value>` command for
-    the current contract.  (#1730, Axis 4 Step 4a) -/
-def mkStorageNamespaceCommand (contractName : String) : CommandElabM Cmd := do
-  let ns := computeStorageNamespace contractName
+    the current contract.  Uses the resolved namespace value from
+    `parseContractSyntax` to respect custom `storage_namespace "key"`.
+    (#1730, Axis 4 Step 4a) -/
+def mkStorageNamespaceCommand (contractName : String) (resolvedNamespace : Option Nat := none) : CommandElabM Cmd := do
+  let ns := resolvedNamespace.getD (computeStorageNamespace contractName)
   let id : Ident := mkIdent (Name.mkSimple "storageNamespace")
   `(command| def $id : Nat := $(natTerm ns))
 
