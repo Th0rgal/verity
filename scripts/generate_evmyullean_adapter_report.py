@@ -116,19 +116,13 @@ def _parse_gap_messages(lines: list[str]) -> dict[str, list[str]]:
 
 def _parse_lookup_primop(text: str) -> list[str]:
     """Extract builtin names from lookupPrimOp match arms."""
-    try:
-        block = "\n".join(_extract_block(text, "def lookupPrimOp", "def evalPureBuiltinViaEvmYulLean"))
-    except ValueError:
-        return []
+    block = "\n".join(_extract_block(text, "def lookupPrimOp", "def evalPureBuiltinViaEvmYulLean"))
     return sorted(set(PRIMOP_RE.findall(block)))
 
 
 def _parse_pure_bridge(text: str) -> list[str]:
     """Extract builtin names from evalPureBuiltinViaEvmYulLean match arms."""
-    try:
-        block = "\n".join(_extract_block(text, "def evalPureBuiltinViaEvmYulLean", "def evalBuiltinCallViaEvmYulLean"))
-    except ValueError:
-        return []
+    block = "\n".join(_extract_block(text, "def evalPureBuiltinViaEvmYulLean", "def evalBuiltinCallViaEvmYulLean"))
     return sorted(set(PURE_BRIDGE_RE.findall(block)))
 
 
