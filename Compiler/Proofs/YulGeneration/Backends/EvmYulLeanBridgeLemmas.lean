@@ -845,6 +845,7 @@ private theorem int_pos_not_lt_neg_evm (a b : Nat) (_ha : a < 2 ^ 255) (hbM : b 
   omega
 
 set_option maxHeartbeats 32000000 in
+set_option maxRecDepth 2048 in
 /-- Core lemma: Verity's Int256-based signed comparison agrees with EVMYulLean's
 sign-bit case analysis for all inputs in [0, evmModulus).
 
@@ -869,14 +870,14 @@ private theorem slt_int256_eq_sltBool (a b : Nat) (ha : a < evmModulus) (hb : b 
   · simp only [ha255, show ¬(2 ^ 255 ≤ a) from Nat.not_le_of_lt ha255,
                hb255, show ¬(2 ^ 255 ≤ b) from Nat.not_le_of_lt hb255,
                ite_true, ite_false, int_ofNat_lt_iff]
-    simp only [decide_eq_true_eq]; split_ifs <;> simp_all [LT.lt, LE.le] <;> omega
+    split_ifs <;> simp_all [LT.lt, LE.le] <;> omega
   -- Case 2: a positive, b negative (a < 2^255, b ≥ 2^255)
   -- slt(pos, neg) = 0: positive is never less than negative
   · have hb_ge : 2 ^ 255 ≤ b := Nat.not_lt.mp hb255
     simp only [ha255, show ¬(2 ^ 255 ≤ a) from Nat.not_le_of_lt ha255,
                hb255, hb_ge, ite_true, ite_false]
     rw [if_neg (int_pos_not_lt_neg_evm a b ha255 hb)]
-    simp only [decide_eq_true_eq]; split_ifs <;> simp_all [LT.lt, LE.le] <;> omega
+    split_ifs <;> simp_all [LT.lt, LE.le] <;> omega
   -- Case 3: a negative, b positive (a ≥ 2^255, b < 2^255)
   -- slt(neg, pos) = 1: negative is always less than positive
   · have ha_ge : 2 ^ 255 ≤ a := Nat.not_lt.mp ha255
@@ -884,14 +885,14 @@ private theorem slt_int256_eq_sltBool (a b : Nat) (ha : a < evmModulus) (hb : b 
                hb255, show ¬(2 ^ 255 ≤ b) from Nat.not_le_of_lt hb255,
                ite_true, ite_false]
     rw [if_pos (int_neg_lt_pos_evm a b ha hb255)]
-    simp only [decide_eq_true_eq]; split_ifs <;> simp_all [LT.lt, LE.le] <;> omega
+    split_ifs <;> simp_all [LT.lt, LE.le] <;> omega
   -- Case 4: both negative (a ≥ 2^255, b ≥ 2^255)
   -- Int subtraction cancels: (↑a - ↑M < ↑b - ↑M) ↔ (a < b)
   · have ha_ge : 2 ^ 255 ≤ a := Nat.not_lt.mp ha255
     have hb_ge : 2 ^ 255 ≤ b := Nat.not_lt.mp hb255
     simp only [ha255, ha_ge, hb255, hb_ge, ite_true, ite_false,
                int_sub_lt_sub_iff]
-    simp only [decide_eq_true_eq]; split_ifs <;> simp_all [LT.lt, LE.le] <;> omega
+    split_ifs <;> simp_all [LT.lt, LE.le] <;> omega
 
 /-- Universal bridge theorem for `slt`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
@@ -926,6 +927,7 @@ EVMYulLean UInt256 semantics on all inputs. -/
     evalBuiltinCall_slt_bridge]
 
 set_option maxHeartbeats 32000000 in
+set_option maxRecDepth 2048 in
 /-- Core lemma: Verity's Int256-based signed greater-than agrees with EVMYulLean's
 sign-bit case analysis for all inputs in [0, evmModulus). Same structure as
 `slt_int256_eq_sltBool` but for `sgt`/`sgtBool`. -/
@@ -945,14 +947,14 @@ private theorem sgt_int256_eq_sgtBool (a b : Nat) (ha : a < evmModulus) (hb : b 
   · simp only [ha255, show ¬(2 ^ 255 ≤ a) from Nat.not_le_of_lt ha255,
                hb255, show ¬(2 ^ 255 ≤ b) from Nat.not_le_of_lt hb255,
                ite_true, ite_false, int_ofNat_lt_iff]
-    simp only [decide_eq_true_eq]; split_ifs <;> simp_all [LT.lt, LE.le] <;> omega
+    split_ifs <;> simp_all [LT.lt, LE.le] <;> omega
   -- Case 2: a positive, b negative (a < 2^255, b ≥ 2^255)
   -- sgt(pos, neg) = 1: positive is always greater than negative
   · have hb_ge : 2 ^ 255 ≤ b := Nat.not_lt.mp hb255
     simp only [ha255, show ¬(2 ^ 255 ≤ a) from Nat.not_le_of_lt ha255,
                hb255, hb_ge, ite_true, ite_false]
     rw [if_pos (int_neg_lt_pos_evm b a hb ha255)]
-    simp only [decide_eq_true_eq]; split_ifs <;> simp_all [LT.lt, LE.le] <;> omega
+    split_ifs <;> simp_all [LT.lt, LE.le] <;> omega
   -- Case 3: a negative, b positive (a ≥ 2^255, b < 2^255)
   -- sgt(neg, pos) = 0: negative is never greater than positive
   · have ha_ge : 2 ^ 255 ≤ a := Nat.not_lt.mp ha255
@@ -960,14 +962,14 @@ private theorem sgt_int256_eq_sgtBool (a b : Nat) (ha : a < evmModulus) (hb : b 
                hb255, show ¬(2 ^ 255 ≤ b) from Nat.not_le_of_lt hb255,
                ite_true, ite_false]
     rw [if_neg (int_pos_not_lt_neg_evm b a hb255 ha)]
-    simp only [decide_eq_true_eq]; split_ifs <;> simp_all [LT.lt, LE.le] <;> omega
+    split_ifs <;> simp_all [LT.lt, LE.le] <;> omega
   -- Case 4: both negative (a ≥ 2^255, b ≥ 2^255)
   -- Int subtraction cancels: (↑b - ↑M < ↑a - ↑M) ↔ (b < a)
   · have ha_ge : 2 ^ 255 ≤ a := Nat.not_lt.mp ha255
     have hb_ge : 2 ^ 255 ≤ b := Nat.not_lt.mp hb255
     simp only [ha255, ha_ge, hb255, hb_ge, ite_true, ite_false,
                int_sub_lt_sub_iff]
-    simp only [decide_eq_true_eq]; split_ifs <;> simp_all [LT.lt, LE.le] <;> omega
+    split_ifs <;> simp_all [LT.lt, LE.le] <;> omega
 
 /-- Universal bridge theorem for `sgt`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
