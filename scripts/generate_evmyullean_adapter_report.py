@@ -278,17 +278,22 @@ def build_report() -> dict[str, object]:
     if missing_expr or missing_stmt or stmt_partial or stmt_gaps or eval_stub:
         status = "partial"
 
-    # Schema v3: extract builtin bridge inventories
+    # Schema v4: extract builtin bridge inventories
     lookup_primop = _parse_lookup_primop(text)
     eval_pure = _parse_pure_bridge(text)
     universal_lemmas, admitted_lemmas = _parse_bridge_lemmas()
     tested_builtins, test_count = _parse_bridge_tests()
-    # Concrete-only = builtins tested but lacking universal lemmas
+    if test_count > 0 and not tested_builtins:
+        raise ValueError(
+            "Bridge test parser found concrete bridge examples but credited no builtins; "
+            "expected a non-empty concrete bridge inventory"
+        )
+    # Concrete-only = concretely tested builtins still lacking universal lemmas
     concrete_only = sorted(set(tested_builtins) - set(universal_lemmas))
     correctness = _parse_correctness_proofs()
 
     report: dict[str, object] = {
-        "schema_version": 3,
+        "schema_version": 4,
         "adapter_file": str(ADAPTER_FILE.relative_to(ROOT)),
         "status": status,
         "expr_supported": expr_supported,
@@ -301,7 +306,7 @@ def build_report() -> dict[str, object]:
         "eval_builtin_via_evmyullean": "stub-none" if eval_stub else "implemented",
     }
 
-    # Always emit schema-v3 inventory keys so that parser drift (yielding
+    # Always emit schema inventory keys so that parser drift (yielding
     # empty lists) causes a visible diff in the artifact rather than silently
     # dropping coverage sections that --check would then accept.
     report["admitted_bridge_lemmas"] = admitted_lemmas
@@ -311,7 +316,8 @@ def build_report() -> dict[str, object]:
     report["lookup_primop_mapped"] = lookup_primop
     report["eval_pure_bridged"] = eval_pure
     report["universal_bridge_lemmas"] = universal_lemmas
-    report["concrete_bridge_tests"] = concrete_only
+    report["concrete_bridge_tests"] = tested_builtins
+    report["concrete_only_bridge_tests"] = concrete_only
     report["concrete_test_count"] = test_count
     report["adapter_correctness_proofs"] = correctness
 

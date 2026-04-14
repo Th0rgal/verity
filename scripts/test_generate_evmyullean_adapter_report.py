@@ -295,6 +295,29 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             "fully_proven_bridge_lemmas must equal universal minus admitted",
         )
 
+    def test_concrete_bridge_inventory_preserved_when_universal_lemmas_exist(self) -> None:
+        report = gen.build_report()
+        concrete = set(report["concrete_bridge_tests"])
+        universal = set(report["universal_bridge_lemmas"])
+        concrete_only = set(report["concrete_only_bridge_tests"])
+
+        self.assertTrue(concrete, "concrete bridge inventory should list the tested builtins")
+        self.assertEqual(
+            concrete_only,
+            concrete - universal,
+            "concrete_only_bridge_tests must equal concrete_bridge_tests minus universal_bridge_lemmas",
+        )
+        self.assertGreaterEqual(
+            report["concrete_test_count"],
+            len(concrete),
+            "concrete test count should cover at least the distinct concretely tested builtins",
+        )
+
+    def test_nonzero_bridge_test_count_requires_nonempty_inventory(self) -> None:
+        with patch.object(gen, "_parse_bridge_tests", return_value=([], 1)):
+            with self.assertRaisesRegex(ValueError, "credited no builtins"):
+                gen.build_report()
+
 
 if __name__ == "__main__":
     unittest.main()
