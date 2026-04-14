@@ -870,17 +870,21 @@ private theorem slt_int256_eq_sltBool (a b : Nat) (ha : a < evmModulus) (hb : b 
      then (1 : Nat) else 0) =
     (EvmYul.UInt256.toNat
       (EvmYul.UInt256.slt ⟨⟨a, ha⟩⟩ ⟨⟨b, hb⟩⟩)) := by
-  -- Unfold both sides to Nat-level arithmetic
-  unfold EvmYul.UInt256.slt EvmYul.UInt256.sltBool EvmYul.UInt256.fromBool
-  simp only [EvmYul.UInt256.toNat, ge_iff_le, Bool.toUInt256, EvmYul.UInt256.ofNat, Id.run]
+  -- Unfold slt to fromBool (sltBool ...) then rewrite toNat via toNat_fromBool
+  -- BEFORE unfolding sltBool, keeping if-branches as Nat 1/0 (not UInt256 structs)
+  unfold EvmYul.UInt256.slt
+  rw [toNat_fromBool]
+  -- Now unfold sltBool: Bool-valued sign-bit case analysis
+  unfold EvmYul.UInt256.sltBool
+  simp only [EvmYul.UInt256.toNat, ge_iff_le]
+  -- Reduce UInt256 < to Nat <
+  have ha' : a < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact ha
+  have hb' : b < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact hb
+  simp only [uint256_lt_iff_nat_lt ha' hb']
   -- Unfold Verity side
   simp only [Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS]
-  -- Reduce UInt256 < to Nat < before case analysis
-  have ha' : a < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact ha
-  have hb' : b < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact hb
-  simp only [uint256_lt_iff_nat_lt ha' hb']
   -- Case split on sign bits, then close each case
   by_cases haSign : a < 2 ^ 255 <;> by_cases hbSign : b < 2 ^ 255 <;>
     simp_all [evmModulus, EvmYul.UInt256.size] <;> omega
@@ -928,17 +932,21 @@ private theorem sgt_int256_eq_sgtBool (a b : Nat) (ha : a < evmModulus) (hb : b 
      then (1 : Nat) else 0) =
     (EvmYul.UInt256.toNat
       (EvmYul.UInt256.sgt ⟨⟨a, ha⟩⟩ ⟨⟨b, hb⟩⟩)) := by
-  -- Unfold both sides to Nat-level arithmetic
-  unfold EvmYul.UInt256.sgt EvmYul.UInt256.sgtBool EvmYul.UInt256.fromBool
-  simp only [EvmYul.UInt256.toNat, ge_iff_le, GT.gt, Bool.toUInt256, EvmYul.UInt256.ofNat, Id.run]
+  -- Unfold sgt to fromBool (sgtBool ...) then rewrite toNat via toNat_fromBool
+  -- BEFORE unfolding sgtBool, keeping if-branches as Nat 1/0 (not UInt256 structs)
+  unfold EvmYul.UInt256.sgt
+  rw [toNat_fromBool]
+  -- Now unfold sgtBool: Bool-valued sign-bit case analysis
+  unfold EvmYul.UInt256.sgtBool
+  simp only [EvmYul.UInt256.toNat, ge_iff_le, GT.gt]
+  -- Reduce UInt256 < to Nat <
+  have ha' : a < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact ha
+  have hb' : b < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact hb
+  simp only [uint256_lt_iff_nat_lt hb' ha']
   -- Unfold Verity side
   simp only [Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS]
-  -- Reduce UInt256 < to Nat < before case analysis
-  have ha' : a < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact ha
-  have hb' : b < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact hb
-  simp only [uint256_lt_iff_nat_lt hb' ha']
   -- Case split on sign bits, then close each case
   by_cases haSign : a < 2 ^ 255 <;> by_cases hbSign : b < 2 ^ 255 <;>
     simp_all [evmModulus, EvmYul.UInt256.size] <;> omega
@@ -1060,21 +1068,10 @@ private theorem bridge_eval_sdiv_normalized (a b : Nat) :
     semantics of EVMYulLean's `⟨v.val * (-1)⟩` negation via Fin multiplication. -/
 private theorem fin_val_mul_neg1 (n x : Nat) (hn : 0 < n) (hx : x < n) (hxpos : 0 < x) :
     (x * (n - 1)) % n = n - x := by
-  -- x * (n - 1) + x = x * n, so x*(n-1) % n = (x*n - x) % n = n - x
-  have h1le : 1 ≤ n := hn
-  have hadd : x * (n - 1) + x = x * n := by
-    calc x * (n - 1) + x
-        = x * (n - 1) + x * 1 := by rw [Nat.mul_one]
-      _ = x * (n - 1 + 1) := by rw [← Nat.left_distrib]
-      _ = x * n := by rw [Nat.sub_add_cancel h1le]
-  -- x * (n - 1) ≡ -x ≡ n - x (mod n)
-  have hmod : (x * (n - 1) + x) % n = 0 := by
-    rw [hadd, Nat.mul_comm]; exact Nat.mul_mod_right n x
-  have hxmod : x % n = x := Nat.mod_eq_of_lt hx
-  rw [Nat.add_mod, hxmod] at hmod
-  have hrem_lt : x * (n - 1) % n < n := Nat.mod_lt _ hn
-  -- (rem + x) % n = 0 with rem < n and x < n ⟹ rem + x = n ⟹ rem = n - x
-  omega
+  -- x * (n - 1) = (x - 1) * n + (n - x), with n - x < n
+  have hdiv : x * (n - 1) = (x - 1) * n + (n - x) := by omega
+  rw [hdiv]
+  exact Nat.mul_add_mod_of_lt (by omega)
 
 set_option maxHeartbeats 32000000 in
 set_option maxRecDepth 2048 in
