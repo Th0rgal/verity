@@ -827,21 +827,21 @@ private theorem int_ofNat_lt_iff {a b : Nat} : Int.ofNat a < Int.ofNat b ↔ a <
 -- Helper: shifting both sides of Int < by the same Nat value preserves ordering
 private theorem int_sub_lt_sub_iff (a b M : Nat) :
     (Int.ofNat a - Int.ofNat M < Int.ofNat b - Int.ofNat M) ↔ (a < b) := by
-  rw [Int.sub_lt_sub_iff_right]
+  rw [sub_lt_sub_iff_right]
   exact Int.ofNat_lt
 
 -- Helper: negative two's complement value (≥ 2^255) wrapped by -M is less than positive value (< 2^255)
-private theorem int_neg_lt_pos_evm (a b : Nat) (haM : a < evmModulus) (hb : b < 2 ^ 255) :
+private theorem int_neg_lt_pos_evm (a b : Nat) (haM : a < evmModulus) (_hb : b < 2 ^ 255) :
     Int.ofNat a - Int.ofNat evmModulus < Int.ofNat b := by
   have h1 : Int.ofNat a < Int.ofNat evmModulus := Int.ofNat_lt.mpr haM
-  have h2 : (0 : Int) ≤ Int.ofNat b := Int.ofNat_nonneg b
+  have h2 : (0 : Int) ≤ Int.ofNat b := Int.natCast_nonneg b
   omega
 
 -- Helper: positive value (< 2^255) is never less than negative two's complement value wrapped by -M
-private theorem int_pos_not_lt_neg_evm (a b : Nat) (ha : a < 2 ^ 255) (hbM : b < evmModulus) :
+private theorem int_pos_not_lt_neg_evm (a b : Nat) (_ha : a < 2 ^ 255) (hbM : b < evmModulus) :
     ¬ (Int.ofNat a < Int.ofNat b - Int.ofNat evmModulus) := by
   have h1 : Int.ofNat b < Int.ofNat evmModulus := Int.ofNat_lt.mpr hbM
-  have h2 : (0 : Int) ≤ Int.ofNat a := Int.ofNat_nonneg a
+  have h2 : (0 : Int) ≤ Int.ofNat a := Int.natCast_nonneg a
   omega
 
 set_option maxHeartbeats 32000000 in
@@ -863,13 +863,13 @@ private theorem slt_int256_eq_sltBool (a b : Nat) (ha : a < evmModulus) (hb : b 
   unfold EvmYul.UInt256.slt EvmYul.UInt256.sltBool EvmYul.UInt256.fromBool Bool.toUInt256
   unfold EvmYul.UInt256.toNat EvmYul.UInt256.ofNat Id.run
   simp only [Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
-    Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS, EvmYul.UInt256.size, evmModulus]
+    Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS, EvmYul.UInt256.size]
   by_cases ha255 : a < 2 ^ 255 <;> by_cases hb255 : b < 2 ^ 255
   -- Case 1: both positive (a < 2^255, b < 2^255)
   · simp only [ha255, show ¬(2 ^ 255 ≤ a) from Nat.not_le_of_lt ha255,
                hb255, show ¬(2 ^ 255 ≤ b) from Nat.not_le_of_lt hb255,
                ite_true, ite_false, int_ofNat_lt_iff]
-    split_ifs <;> simp_all
+    split_ifs <;> simp_all <;> omega
   -- Case 2: a positive, b negative (a < 2^255, b ≥ 2^255)
   -- slt(pos, neg) = 0: positive is never less than negative
   · have hb_ge : 2 ^ 255 ≤ b := Nat.not_lt.mp hb255
@@ -891,7 +891,7 @@ private theorem slt_int256_eq_sltBool (a b : Nat) (ha : a < evmModulus) (hb : b 
     have hb_ge : 2 ^ 255 ≤ b := Nat.not_lt.mp hb255
     simp only [ha255, ha_ge, hb255, hb_ge, ite_true, ite_false,
                int_sub_lt_sub_iff]
-    split_ifs <;> simp_all
+    split_ifs <;> simp_all <;> omega
 
 /-- Universal bridge theorem for `slt`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
@@ -932,13 +932,13 @@ private theorem sgt_int256_eq_sgtBool (a b : Nat) (ha : a < evmModulus) (hb : b 
   unfold EvmYul.UInt256.sgt EvmYul.UInt256.sgtBool EvmYul.UInt256.fromBool Bool.toUInt256
   unfold EvmYul.UInt256.toNat EvmYul.UInt256.ofNat Id.run
   simp only [Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
-    Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS, EvmYul.UInt256.size, evmModulus]
+    Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS, EvmYul.UInt256.size]
   by_cases ha255 : a < 2 ^ 255 <;> by_cases hb255 : b < 2 ^ 255
   -- Case 1: both positive (a < 2^255, b < 2^255)
   · simp only [ha255, show ¬(2 ^ 255 ≤ a) from Nat.not_le_of_lt ha255,
                hb255, show ¬(2 ^ 255 ≤ b) from Nat.not_le_of_lt hb255,
                ite_true, ite_false, int_ofNat_lt_iff]
-    split_ifs <;> simp_all
+    split_ifs <;> simp_all <;> omega
   -- Case 2: a positive, b negative (a < 2^255, b ≥ 2^255)
   -- sgt(pos, neg) = 1: positive is always greater than negative
   · have hb_ge : 2 ^ 255 ≤ b := Nat.not_lt.mp hb255
@@ -960,7 +960,7 @@ private theorem sgt_int256_eq_sgtBool (a b : Nat) (ha : a < evmModulus) (hb : b 
     have hb_ge : 2 ^ 255 ≤ b := Nat.not_lt.mp hb255
     simp only [ha255, ha_ge, hb255, hb_ge, ite_true, ite_false,
                int_sub_lt_sub_iff]
-    split_ifs <;> simp_all
+    split_ifs <;> simp_all <;> omega
 
 /-- Universal bridge theorem for `sgt`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
