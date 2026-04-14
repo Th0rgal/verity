@@ -869,7 +869,9 @@ private theorem slt_int256_eq_sltBool (a b : Nat) (ha : a < evmModulus) (hb : b 
   · simp only [ha255, show ¬(2 ^ 255 ≤ a) from Nat.not_le_of_lt ha255,
                hb255, show ¬(2 ^ 255 ≤ b) from Nat.not_le_of_lt hb255,
                ite_true, ite_false, int_ofNat_lt_iff]
-    split_ifs <;> simp_all <;> omega
+    -- After simp, both sides are `if (a < b) then 1 else 0` at Nat level;
+    -- the EVMYulLean side wraps as `Fin`, but < is definitionally the same.
+    rfl
   -- Case 2: a positive, b negative (a < 2^255, b ≥ 2^255)
   -- slt(pos, neg) = 0: positive is never less than negative
   · have hb_ge : 2 ^ 255 ≤ b := Nat.not_lt.mp hb255
@@ -891,7 +893,8 @@ private theorem slt_int256_eq_sltBool (a b : Nat) (ha : a < evmModulus) (hb : b 
     have hb_ge : 2 ^ 255 ≤ b := Nat.not_lt.mp hb255
     simp only [ha255, ha_ge, hb255, hb_ge, ite_true, ite_false,
                int_sub_lt_sub_iff]
-    split_ifs <;> simp_all <;> omega
+    -- After simp, both sides are `if (a < b) then 1 else 0` at Nat level
+    rfl
 
 /-- Universal bridge theorem for `slt`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
@@ -938,7 +941,7 @@ private theorem sgt_int256_eq_sgtBool (a b : Nat) (ha : a < evmModulus) (hb : b 
   · simp only [ha255, show ¬(2 ^ 255 ≤ a) from Nat.not_le_of_lt ha255,
                hb255, show ¬(2 ^ 255 ≤ b) from Nat.not_le_of_lt hb255,
                ite_true, ite_false, int_ofNat_lt_iff]
-    split_ifs <;> simp_all <;> omega
+    rfl
   -- Case 2: a positive, b negative (a < 2^255, b ≥ 2^255)
   -- sgt(pos, neg) = 1: positive is always greater than negative
   · have hb_ge : 2 ^ 255 ≤ b := Nat.not_lt.mp hb255
@@ -960,7 +963,7 @@ private theorem sgt_int256_eq_sgtBool (a b : Nat) (ha : a < evmModulus) (hb : b 
     have hb_ge : 2 ^ 255 ≤ b := Nat.not_lt.mp hb255
     simp only [ha255, ha_ge, hb255, hb_ge, ite_true, ite_false,
                int_sub_lt_sub_iff]
-    split_ifs <;> simp_all <;> omega
+    rfl
 
 /-- Universal bridge theorem for `sgt`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
