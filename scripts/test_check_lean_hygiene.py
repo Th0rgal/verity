@@ -289,6 +289,25 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         self.assertNotEqual(rc, 0)
         self.assertIn("non-allowlisted", output)
 
+    def test_sorry_in_abbrev_after_pinned_theorem_fails(self) -> None:
+        """A sorry in an `abbrev` block must not be attributed to the prior theorem."""
+        bridge = self.root / Path(self.BRIDGE_PATH)
+        bridge.parent.mkdir(parents=True, exist_ok=True)
+        lines = []
+        for thm in self.PINNED_THEOREMS[:-1]:
+            lines.append(f"private theorem {thm} (a b : Nat) : True := by")
+            lines.append("  sorry")
+        lines.append("")
+        lines.append(f"private theorem {self.PINNED_THEOREMS[-1]} (a b : Nat) : True := by")
+        lines.append("  exact trivial")
+        lines.append("")
+        lines.append("abbrev helper : True := by")
+        lines.append("  sorry")
+        bridge.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        rc, output = self._run_main()
+        self.assertNotEqual(rc, 0)
+        self.assertIn("non-allowlisted", output)
+
     def test_no_sorry_passes(self) -> None:
         rc, output = self._run_main()
         self.assertEqual(rc, 0, output)

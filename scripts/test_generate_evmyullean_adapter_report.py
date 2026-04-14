@@ -102,6 +102,21 @@ class ParseBridgeLemmasTests(unittest.TestCase):
             all_lemmas, admitted = gen._parse_bridge_lemmas()
         self.assertEqual(admitted, [])
 
+    def test_ignores_bridge_theorem_names_inside_comments(self) -> None:
+        """Commented theorem names must not count as universal bridge lemmas."""
+        p = self._write_lemma_file("""\
+            /-
+            theorem evalBuiltinCall_fake_bridge := by
+              exact trivial
+            -/
+            @[simp] theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+        """)
+        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+            all_lemmas, admitted = gen._parse_bridge_lemmas()
+        self.assertEqual(all_lemmas, ["add"])
+        self.assertEqual(admitted, [])
+
     def test_missing_file_raises(self) -> None:
         with patch.object(gen, "BRIDGE_LEMMAS_FILE", Path("/nonexistent/BridgeLemmas.lean")):
             with self.assertRaises(FileNotFoundError):

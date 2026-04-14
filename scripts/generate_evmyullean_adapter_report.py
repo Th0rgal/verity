@@ -176,8 +176,8 @@ def _parse_bridge_lemmas() -> tuple[list[str], list[str]]:
     if not BRIDGE_LEMMAS_FILE.exists():
         raise FileNotFoundError(f"Bridge lemmas file not found: {BRIDGE_LEMMAS_FILE}")
     text = BRIDGE_LEMMAS_FILE.read_text(encoding="utf-8")
-    all_lemmas = sorted(set(BRIDGE_LEMMA_RE.findall(text)))
     code = _strip_lean_comments(text)
+    all_lemmas = sorted(set(BRIDGE_LEMMA_RE.findall(code)))
 
     # Find sorry-dependent builtins by scanning line-by-line: after a sorry,
     # the next evalBuiltinCall_*_bridge theorem inherits the admission.

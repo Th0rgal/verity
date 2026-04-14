@@ -26,7 +26,7 @@ THEOREM_RE = re.compile(
 # the sorry is outside any allowlisted declaration (e.g. in an example
 # block) and should not be attributed to the prior theorem.
 BOUNDARY_RE = re.compile(
-    r"^\s*(?:example|instance|structure|class|inductive|section|namespace|end)\b"
+    r"^\s*(?:example|instance|abbrev|opaque|structure|class|inductive|section|namespace|end)\b"
     r"|^\s*#"
 )
 
