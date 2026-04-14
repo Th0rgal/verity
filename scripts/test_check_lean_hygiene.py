@@ -207,7 +207,7 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         self.assertIn("rogue_theorem_xyz", output)
 
     def test_sorry_swap_detected(self) -> None:
-        # Same count (5), but one theorem swapped — must fail
+        # Same count (4), but one theorem swapped — must fail
         swapped = self.PINNED_THEOREMS[:4] + ["different_sorry_theorem"]
         self._make_bridge_file(swapped)
         rc, output = self._run_main()
@@ -232,6 +232,25 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         lean_file.write_text('def msg := "sorry not sorry"\n', encoding="utf-8")
         rc, output = self._run_main()
         self.assertEqual(rc, 0, output)
+
+    def test_sorry_in_example_after_pinned_theorem_fails(self) -> None:
+        """A sorry in an `example` block must not be attributed to the prior theorem."""
+        bridge = self.root / Path(self.BRIDGE_PATH)
+        bridge.parent.mkdir(parents=True, exist_ok=True)
+        # Write 3 pinned theorems (under cap of 4), then an example with sorry.
+        # The example sorry must NOT be attributed to signextend_uint256_eq.
+        lines = []
+        for thm in self.PINNED_THEOREMS[:3]:
+            lines.append(f"private theorem {thm} (a b : Nat) : True := by")
+            lines.append("  sorry")
+        lines.append("")
+        lines.append("example : True := by")
+        lines.append("  sorry")
+        bridge.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        rc, output = self._run_main()
+        # The example sorry has no enclosing theorem → flagged as unexpected
+        self.assertNotEqual(rc, 0)
+        self.assertIn("non-allowlisted", output)
 
     def test_no_sorry_passes(self) -> None:
         rc, output = self._run_main()

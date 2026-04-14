@@ -21,14 +21,29 @@ SORRY_RE = re.compile(r"\bsorry\b")
 THEOREM_RE = re.compile(
     r"(?:private\s+)?(?:theorem|lemma|def)\s+(\w+)"
 )
+# Declaration-boundary keywords that start a new scope.  If the backward
+# scan from a sorry hits one of these before finding a theorem/lemma/def,
+# the sorry is outside any allowlisted declaration (e.g. in an example
+# block) and should not be attributed to the prior theorem.
+BOUNDARY_RE = re.compile(
+    r"^\s*(?:example|instance|structure|class|inductive|section|namespace|end)\b"
+    r"|^\s*#"
+)
 
 
 def _find_enclosing_theorem(lines: list[str], sorry_idx: int) -> str | None:
-    """Scan backwards from *sorry_idx* to find the enclosing theorem name."""
+    """Scan backwards from *sorry_idx* to find the enclosing theorem name.
+
+    Stops at declaration boundaries (``example``, ``instance``, ``#``-commands,
+    etc.) so that a ``sorry`` in a later block is not misattributed to a prior
+    pinned theorem.
+    """
     for j in range(sorry_idx, -1, -1):
         m = THEOREM_RE.search(lines[j])
         if m:
             return m.group(1)
+        if BOUNDARY_RE.match(lines[j]):
+            return None
     return None
 
 
@@ -109,6 +124,9 @@ def main() -> None:
                     thm = _find_enclosing_theorem(scrubbed_lines, i - 1)
                     if thm:
                         sorry_theorems_per_file.setdefault(rel_str, set()).add(thm)
+                    else:
+                        # sorry not inside any theorem/lemma/def — flag it
+                        unexpected_sorry_locations.append(loc)
 
     if unexpected_sorry_locations:
         errors.append(
