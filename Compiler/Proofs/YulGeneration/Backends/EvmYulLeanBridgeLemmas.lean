@@ -1665,6 +1665,61 @@ stack to EVMYulLean). -/
   rw [← evalBuiltinCall_byte_bridge storage sender selector calldata i x]
   simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
+@[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_exp_bridge
+    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
+    (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "exp" [a, b] =
+    evalBuiltinCallWithContext storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "exp" [a, b] := by
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_exp_bridge storage sender selector calldata a b]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
+
+@[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_sdiv_bridge
+    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
+    (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "sdiv" [a, b] =
+    evalBuiltinCallWithContext storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "sdiv" [a, b] := by
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_sdiv_bridge storage sender selector calldata a b]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
+
+@[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_smod_bridge
+    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
+    (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "smod" [a, b] =
+    evalBuiltinCallWithContext storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "smod" [a, b] := by
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_smod_bridge storage sender selector calldata a b]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
+
+@[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_sar_bridge
+    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
+    (calldata : List Nat) (shift value : Nat) :
+    evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "sar" [shift, value] =
+    evalBuiltinCallWithContext storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "sar" [shift, value] := by
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_sar_bridge storage sender selector calldata shift value]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
+
+@[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_signextend_bridge
+    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
+    (calldata : List Nat) (byteIdx value : Nat) :
+    evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "signextend" [byteIdx, value] =
+    evalBuiltinCallWithContext storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "signextend" [byteIdx, value] := by
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_signextend_bridge storage sender selector calldata byteIdx value]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
+
 /-! ## State-dependent Fallthrough at evalBuiltinCallWithBackendContext Level
 
 These lift the `evalPureBuiltinViaEvmYulLean_*` fallthrough lemmas up to the
@@ -1758,7 +1813,8 @@ path and must fall through to the Verity path. -/
 
 This is the key Phase 4 composition lemma. For any pure builtin `func` in the
 set of 25 universally-bridged builtins (20 fully proven, 5 with sorry-dependent
-core equivalences), the EVMYulLean backend agrees with the Verity backend
+core equivalences), all with context-lifted bridge theorems, the EVMYulLean
+backend agrees with the Verity backend
 (represented by `evalBuiltinCallWithContext`).
 
 The theorem is structured as a disjunction: either `func` matches one of the
