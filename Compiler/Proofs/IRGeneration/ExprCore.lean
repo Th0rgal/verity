@@ -34,7 +34,9 @@ def exprBoundNames : Expr → List String
   | .delegatecall gas target inOffset inSize outOffset outSize =>
       exprBoundNames gas ++ exprBoundNames target ++ exprBoundNames inOffset ++
         exprBoundNames inSize ++ exprBoundNames outOffset ++ exprBoundNames outSize
-  | .externalCall _ args | .internalCall _ args => exprListBoundNames args
+  | .externalCall _ args | .internalCall _ args | .adtConstruct _ _ args => exprListBoundNames args
+  | .adtTag _ field => [field]
+  | .adtField _ _ _ _ storageField => [storageField]
   | .arrayElement name index => name :: exprBoundNames index
   | .arrayLength name => [name]
   | .storageArrayLength name => [name]
