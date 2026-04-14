@@ -145,13 +145,26 @@ def _parse_bridge_lemmas() -> tuple[list[str], list[str]]:
     # Detect both standalone `sorry` and inline `by sorry` / `:= sorry` forms.
     admitted: set[str] = set()
     sorry_pending = False
+    in_docstring = False
     sorry_re = re.compile(r'\bsorry\b')
     comment_re = re.compile(r'^\s*--')
-    docstring_re = re.compile(r'^\s*/--')
+    docstring_open_re = re.compile(r'^\s*(/--|/-!)')
     status_re = re.compile(r'\*\*Status\*\*')
     for line in text.splitlines():
-        # Skip comments, doc comments, and markdown status annotations
-        if comment_re.match(line) or docstring_re.match(line) or status_re.search(line):
+        stripped = line.strip()
+        # Track multi-line doc comment blocks (/-- ... -/ and /-! ... -/)
+        if not in_docstring and docstring_open_re.match(line):
+            in_docstring = True
+            # Check if doc comment closes on the same line
+            if stripped.endswith("-/") and stripped != "/--" and stripped != "/-!":
+                in_docstring = False
+            continue
+        if in_docstring:
+            if "-/" in line:
+                in_docstring = False
+            continue
+        # Skip single-line comments and markdown status annotations
+        if comment_re.match(line) or status_re.search(line):
             continue
         if sorry_re.search(line):
             sorry_pending = True
