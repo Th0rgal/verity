@@ -159,10 +159,10 @@ def _parse_bridge_tests() -> tuple[list[str], int]:
     return sorted(builtins), bridge_test_count
 
 
-def _parse_correctness_proofs() -> dict[str, object] | None:
-    """Parse adapter correctness proof theorems if the file exists."""
+def _parse_correctness_proofs() -> dict[str, object]:
+    """Parse adapter correctness proof theorems."""
     if not CORRECTNESS_FILE.exists():
-        return None
+        raise FileNotFoundError(f"Correctness proof file not found: {CORRECTNESS_FILE}")
     text = CORRECTNESS_FILE.read_text(encoding="utf-8")
     theorems = sorted(set(CORRECTNESS_THEOREM_RE.findall(text)))
     assign_thms = [t for t in theorems if "assign" in t]
@@ -226,18 +226,15 @@ def build_report() -> dict[str, object]:
         "eval_builtin_via_evmyullean": "stub-none" if eval_stub else "implemented",
     }
 
-    if lookup_primop:
-        report["lookup_primop_mapped"] = lookup_primop
-    if eval_pure:
-        report["eval_pure_bridged"] = eval_pure
-    if universal_lemmas:
-        report["universal_bridge_lemmas"] = universal_lemmas
-    if concrete_only:
-        report["concrete_bridge_tests"] = concrete_only
-    if test_count:
-        report["concrete_test_count"] = test_count
-    if correctness:
-        report["adapter_correctness_proofs"] = correctness
+    # Always emit schema-v3 inventory keys so that parser drift (yielding
+    # empty lists) causes a visible diff in the artifact rather than silently
+    # dropping coverage sections that --check would then accept.
+    report["lookup_primop_mapped"] = lookup_primop
+    report["eval_pure_bridged"] = eval_pure
+    report["universal_bridge_lemmas"] = universal_lemmas
+    report["concrete_bridge_tests"] = concrete_only
+    report["concrete_test_count"] = test_count
+    report["adapter_correctness_proofs"] = correctness
 
     return report
 

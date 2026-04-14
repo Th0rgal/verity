@@ -100,7 +100,12 @@ def storageLookup (s : EvmYul.Storage) (slot : UInt256) : UInt256 :=
 def storageWrite (s : EvmYul.Storage) (slot val : UInt256) : EvmYul.Storage :=
   s.insert slot val
 
-/-- Project a finite set of Verity storage slots into an EVMYulLean Storage map. -/
+/-- Project a finite set of Verity storage slots into an EVMYulLean Storage map.
+
+**Range precondition**: Callers must ensure all slots satisfy `slot < UInt256.size`
+(equivalently `slot < 2^256`). Without this, distinct `Nat` slots differing by
+multiples of `2^256` alias to the same RBMap key via `natToUInt256`. The
+`storageLookup_projectStorage` theorem enforces this via its `hRange` hypothesis. -/
 def projectStorage (storage : Nat → Nat) (slots : List Nat) : EvmYul.Storage :=
   slots.foldl (init := Batteries.RBMap.empty) fun acc slot =>
     let key := natToUInt256 slot
@@ -212,7 +217,11 @@ def toSharedState (state : YulState) (observableSlots : List Nat) :
     H_return := ByteArray.empty }
 
 /-- Extract observable storage from an EVMYulLean state for the contract
-    at the given address. Returns the Verity-style storage function. -/
+    at the given address. Returns the Verity-style storage function.
+
+**Range note**: `natToUInt256` reduces `slot` modulo `2^256`, so queries
+at `slot >= 2^256` alias onto low-bit keys. Bridge equivalence proofs
+should carry an in-range hypothesis (`slot < UInt256.size`). -/
 def extractStorage (sharedState : SharedState .Yul) (addr : AccountAddress) :
     Nat → Nat :=
   fun slot =>
