@@ -1684,21 +1684,23 @@ path and must fall through to the Verity path. -/
 /-! ## Composite Backend Equivalence Theorem
 
 This is the key Phase 4 composition lemma. For any pure builtin `func` in the
-set of 18 universally-proved builtins, the EVMYulLean backend agrees with the
-Verity backend (represented by `evalBuiltinCallWithContext`).
+set of 25 universally-bridged builtins (18 fully proven, 7 with sorry-dependent
+core equivalences), the EVMYulLean backend agrees with the Verity backend
+(represented by `evalBuiltinCallWithContext`).
 
 The theorem is structured as a disjunction: either `func` matches one of the
-18 proven pure builtins (and the backends agree), or `func` is a state-dependent
+25 bridged pure builtins (and the backends agree), or `func` is a state-dependent
 builtin (and `.evmYulLean` returns `none`), or `func` is unknown.
 
 We provide `evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge` which
-composites all 18 per-builtin bridges into a single result: for any function
-in the proven set, the backends produce the same result with arbitrary context. -/
+composites all 25 per-builtin bridges into a single result: for any function
+in the bridged set, the backends produce the same result with arbitrary context. -/
 
-/-- For any of the 18 proven pure builtins, the EVMYulLean backend agrees with
-    the Verity backend at the `evalBuiltinCallWithBackendContext` level.
-    This factors through the individual `evalBuiltinCallWithBackendContext_evmYulLean_*_bridge`
-    lemmas and is the primary rewrite target for Phase 4 retargeting. -/
+/-- For any of the 25 bridged pure builtins (18 fully proven, 7 sorry-dependent),
+    the EVMYulLean backend agrees with the Verity backend at the
+    `evalBuiltinCallWithBackendContext` level. This factors through the individual
+    `evalBuiltinCallWithBackendContext_evmYulLean_*_bridge` lemmas and is the
+    primary rewrite target for Phase 4 retargeting. -/
 theorem evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
     (calldata : List Nat) (func : String) (argVals : List Nat)
