@@ -220,6 +220,11 @@ ALLOWLIST: set[str] = {
     "execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux",
     # --- Contract feature fixtures ---
     "literalMappingWrite_calldataFits",
+    # Constructor-body bridge and its focused fixture for issue #1723.
+    "supported_constructor_body_correct_with_body_interface",
+    "constructorOnly_noConflict",
+    # Call-surface decomposition kept as one structural recursion proof.
+    "stmtOrListTouchesUnsupportedCallSurface_eq_featureOr",
     # --- Yul generation / Layer 3 proofs ---
     "yulCodegen_preserves_semantics",
     "stmt_and_stmts_equiv",

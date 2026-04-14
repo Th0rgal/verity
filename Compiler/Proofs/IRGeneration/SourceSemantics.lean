@@ -1645,6 +1645,10 @@ def interpretFunction (spec : CompilationModel) (fn : FunctionSpec)
       | .return value state => successResult spec state.world (some value)
       | .revert => revertedResult spec worldWithTx
 
+def interpretConstructor (spec : CompilationModel) (ctor : ConstructorSpec)
+    (tx : IRTransaction) (initialWorld : Verity.ContractState) : SourceContractResult :=
+  interpretFunction spec (constructorAsFunctionSpec ctor) tx initialWorld
+
 def interpretContract (spec : CompilationModel) (selectors : List Nat)
     (tx : IRTransaction) (initialWorld : Verity.ContractState) : SourceContractResult :=
   match findFunctionBySelector spec selectors tx.functionSelector with
@@ -2276,6 +2280,14 @@ def interpretFunctionWithHelpers
       | .stop state => successResult spec state.world none
       | .return value state => successResult spec state.world (some value)
       | .revert => revertedResult spec worldWithTx
+
+def interpretConstructorWithHelpers
+    (spec : CompilationModel)
+    (fuel : Nat)
+    (ctor : ConstructorSpec)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState) : SourceContractResult :=
+  interpretFunctionWithHelpers spec fuel (constructorAsFunctionSpec ctor) tx initialWorld
 
 def interpretContractWithHelpers
     (spec : CompilationModel)

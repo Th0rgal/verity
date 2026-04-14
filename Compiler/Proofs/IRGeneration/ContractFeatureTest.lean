@@ -126,6 +126,85 @@ private def literalMappingWriteTx : IRTransaction :=
     functionSelector := literalMappingWriteSelector
     args := [23] }
 
+private def constructorOnlyCtor : ConstructorSpec :=
+  { params := [{ name := "initialOwner", ty := .address }]
+    body := [Stmt.setStorageAddr "owner" (.param "initialOwner"), .stop] }
+
+private def constructorBodyFunction : FunctionSpec :=
+  constructorAsFunctionSpec constructorOnlyCtor
+
+private def constructorOnlyOwnerField : Field :=
+  { name := "owner", ty := .address }
+
+private def constructorOnlySpec : CompilationModel :=
+  { name := "ConstructorOnly"
+    fields := [constructorOnlyOwnerField]
+    constructor := some constructorOnlyCtor
+    functions := [] }
+
+private theorem constructorOnly_owner_resolved :
+    findFieldWithResolvedSlot constructorOnlySpec.fields "owner" =
+      some ({ name := "owner", ty := FieldType.address }, 0) := by
+  rfl
+
+private def constructorOnlySupported :
+    SupportedConstructor constructorOnlySpec constructorOnlyCtor :=
+  { params :=
+      { namesNodup := by decide
+        supported := by
+          intro param hparam
+          simp [constructorOnlyCtor] at hparam
+          rcases hparam with rfl
+          trivial }
+    body :=
+      { stmtList :=
+          .append
+            (.setStorageAddrSingleSlot
+              (fieldName := "owner")
+              (slot := 0)
+              (.param "initialOwner")
+              (by
+                intro name hname
+                simpa [FunctionBody.exprBoundNamesInScope, FunctionBody.exprBoundNames,
+                  constructorAsFunctionSpec, constructorOnlyCtor] using hname)
+              (by
+                simpa [constructorOnlySpec, constructorOnlyOwnerField] using
+                  (findFieldWithResolvedSlot_cons constructorOnlyOwnerField [] "owner")))
+            (.terminalCore (.stop .nil))
+        core := { surfaceClosed := by decide }
+        state := { surfaceClosed := by decide }
+        calls :=
+          { helpers :=
+              { helperRank := 0
+                callNamesNodup := helperCallNames_nodup _
+                summaryOf := by
+                  intro calleeName hmem
+                  exfalso
+                  simpa [helperCallNames, constructorAsFunctionSpec, constructorOnlyCtor,
+                    stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
+                    exprInternalHelperCallNames] using hmem
+                calleeRanksDecrease := by
+                  intro calleeName hmem
+                  exfalso
+                  simpa [helperCallNames, constructorAsFunctionSpec, constructorOnlyCtor,
+                    stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
+                    exprInternalHelperCallNames] using hmem
+                exprCallsPreserveWorld := by
+                  intro calleeName hmem
+                  exfalso
+                  simpa [exprHelperCallNames, constructorAsFunctionSpec, constructorOnlyCtor,
+                    stmtListExprHelperCallNames, stmtExprHelperCallNames,
+                    exprInternalHelperCallNames] using hmem }
+            foreign := by decide
+            lowLevel := by decide }
+        effects := { surfaceClosed := by decide }
+        noLocalObligations := rfl } }
+
+private def constructorOnlyTx : IRTransaction :=
+  { sender := 7
+    functionSelector := 0
+    args := [11] }
+
 private theorem literalMappingWrite_txNormalized :
     Function.TxContextNormalized literalMappingWriteTx := by
   simp [Function.TxContextNormalized, literalMappingWriteTx, Compiler.Constants.addressModulus,
@@ -134,6 +213,19 @@ private theorem literalMappingWrite_txNormalized :
 private theorem literalMappingWrite_calldataFits :
     Function.TxCalldataSizeFitsEvm literalMappingWriteTx := by
   simp [Function.TxCalldataSizeFitsEvm, literalMappingWriteTx, Compiler.Constants.evmModulus]
+
+private theorem constructorOnly_txNormalized :
+    Function.TxContextNormalized constructorOnlyTx := by
+  simp [Function.TxContextNormalized, constructorOnlyTx, Compiler.Constants.addressModulus,
+    Compiler.Constants.evmModulus]
+
+private theorem constructorOnly_calldataFits :
+    Function.TxCalldataSizeFitsEvm constructorOnlyTx := by
+  simp [Function.TxCalldataSizeFitsEvm, constructorOnlyTx, Compiler.Constants.evmModulus]
+
+private theorem constructorOnly_noConflict :
+    firstFieldWriteSlotConflict constructorOnlySpec.fields = none := by
+  native_decide
 
 example
     (ir : IRContract)
@@ -209,5 +301,75 @@ example
     (htxNormalized := literalMappingWrite_txNormalized)
     (hcalldataSizeFits := literalMappingWrite_calldataFits)
     (hcompile := hcompile)
+
+example :
+    FunctionBody.sourceResultMatchesIRResult
+      (SourceSemantics.interpretConstructorWithHelpers
+        constructorOnlySpec
+        0
+        constructorOnlyCtor
+        constructorOnlyTx
+        Verity.defaultState)
+      (Function.execResultToIRResult
+        (FunctionBody.initialIRStateForTx constructorOnlySpec constructorOnlyTx Verity.defaultState)
+        (execIRStmts
+          (sizeOf
+            (match compileStmtList
+                constructorOnlySpec.fields [] [] .calldata [] false
+                ["initialOwner"]
+                [Stmt.setStorageAddr "owner" (.param "initialOwner"), .stop] with
+             | .ok body => body
+             | .error _ => []) + 1)
+          (ParamLoading.applyBindingsToIRState
+            (FunctionBody.initialIRStateForTx constructorOnlySpec constructorOnlyTx Verity.defaultState)
+            [("initialOwner", Compiler.Constants.addressMask &&& 11)])
+          (match compileStmtList
+              constructorOnlySpec.fields [] [] .calldata [] false
+              ["initialOwner"]
+              [Stmt.setStorageAddr "owner" (.param "initialOwner"), .stop] with
+           | .ok body => body
+           | .error _ => []))) := by
+  have hbodyCompile :
+      compileStmtList constructorOnlySpec.fields constructorOnlySpec.events constructorOnlySpec.errors
+        .calldata [] false (constructorOnlyCtor.params.map (·.name)) constructorOnlyCtor.body =
+      Except.ok
+        (match compileStmtList constructorOnlySpec.fields [] [] .calldata [] false
+            (constructorOnlyCtor.params.map (·.name)) constructorOnlyCtor.body with
+         | .ok body => body
+         | .error _ => []) := by
+    rfl
+  have hbind :
+      SourceSemantics.bindSupportedParams
+        [{ name := "initialOwner", ty := .address }]
+        constructorOnlyTx.args =
+      some [("initialOwner", Compiler.Constants.addressMask &&& 11)] := by
+    native_decide
+  simpa [constructorOnlySpec, constructorOnlyTx, constructorOnlySupported, Function.execResultToIRResult] using
+    Function.supported_constructor_body_correct_with_body_interface
+      (model := constructorOnlySpec)
+      (ctor := constructorOnlyCtor)
+      (helperFuel := 0)
+      (hnormalized := rfl)
+      (hnoEvents := rfl)
+      (hnoErrors := rfl)
+      (hSupported := constructorOnlySupported)
+      (hnoConflict := constructorOnly_noConflict)
+      (hsafety := by
+        intro stmt hmem
+        simp [constructorOnlyCtor] at hmem
+        rcases hmem with rfl | rfl
+        · simp [StmtMappingWriteSlotSafe]
+        · simp [StmtMappingWriteSlotSafe])
+      (tx := constructorOnlyTx)
+      (initialWorld := Verity.defaultState)
+      (bindings := [("initialOwner", Compiler.Constants.addressMask &&& 11)])
+      (bodyStmts := match compileStmtList constructorOnlySpec.fields [] [] .calldata [] false
+          (constructorOnlyCtor.params.map (·.name)) constructorOnlyCtor.body with
+        | .ok body => body
+        | .error _ => [])
+      (hbodyCompile := hbodyCompile)
+      (hbind := hbind)
+      (htxNormalized := constructorOnly_txNormalized)
+      (hcalldataSizeFits := constructorOnly_calldataFits)
 
 end Compiler.Proofs.IRGeneration.ContractFeatureTest
