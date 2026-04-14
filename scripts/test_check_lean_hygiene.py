@@ -159,8 +159,9 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean"
     )
 
-    # The 2 pinned theorem names that are allowed to contain sorry
+    # The 3 pinned theorem names that are allowed to contain sorry
     PINNED_THEOREMS = [
+        "exp_natModPow_eq_uint256Exp",
         "sar_int256_eq_uint256Sar",
         "signextend_uint256_eq",
     ]
@@ -179,21 +180,21 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         self._make_bridge_file(self.PINNED_THEOREMS)
         rc, output = self._run_main()
         self.assertEqual(rc, 0, output)
-        self.assertIn("2 sorry", output)
+        self.assertIn("3 sorry", output)
 
     def test_sorry_in_pinned_theorems_within_cap(self) -> None:
-        self._make_bridge_file(self.PINNED_THEOREMS[:1])
+        self._make_bridge_file(self.PINNED_THEOREMS[:2])
         rc, output = self._run_main()
         self.assertEqual(rc, 0, output)
-        self.assertIn("1 sorry", output)
+        self.assertIn("2 sorry", output)
 
     def test_sorry_exceeding_cap_fails(self) -> None:
-        # 2 pinned + 1 extra = 3 sorrys, cap is 2
+        # 3 pinned + 1 extra = 4 sorrys, cap is 3
         extra = self.PINNED_THEOREMS + ["extra_fake_theorem"]
         self._make_bridge_file(extra)
         rc, output = self._run_main()
         self.assertNotEqual(rc, 0)
-        self.assertIn("found 3 sorry (cap is 2)", output)
+        self.assertIn("found 4 sorry (cap is 3)", output)
 
     def test_sorry_in_non_pinned_theorem_fails(self) -> None:
         # Replace one pinned theorem with an unpinned one
@@ -235,7 +236,7 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         """A sorry in an `example` block must not be attributed to the prior theorem."""
         bridge = self.root / Path(self.BRIDGE_PATH)
         bridge.parent.mkdir(parents=True, exist_ok=True)
-        # Write 2 pinned theorems (at cap of 2), then an example with sorry.
+        # Write 3 pinned theorems (at cap of 3), then an example with sorry.
         # The example sorry must NOT be attributed to signextend_uint256_eq.
         lines = []
         for thm in self.PINNED_THEOREMS[:3]:

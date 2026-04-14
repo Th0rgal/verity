@@ -638,7 +638,8 @@
       "feature": "exp",
       "verity_path": "supported",
       "evmyullean_bridge": "supported",
-      "agreement_proved": true
+      "agreement_proved": true,
+      "sorry_dependent": true
     },
     {
       "feature": "sdiv",

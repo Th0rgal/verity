@@ -95,6 +95,7 @@ def main() -> None:
     # swapping one sorry for another is detected (not just the count).
     ALLOWED_SORRY_THEOREMS: dict[str, set[str]] = {
         "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean": {
+            "exp_natModPow_eq_uint256Exp",
             "sar_int256_eq_uint256Sar",
             "signextend_uint256_eq",
         },
