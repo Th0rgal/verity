@@ -907,8 +907,9 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "add" [a, b] =
     evalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "add" [a, b] := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
-    evalBuiltinCall_add_bridge, evalBuiltinCallWithContext]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_add_bridge storage sender selector calldata a b]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_sub_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -917,8 +918,9 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "sub" [a, b] =
     evalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "sub" [a, b] := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
-    evalBuiltinCall_sub_bridge, evalBuiltinCallWithContext]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_sub_bridge storage sender selector calldata a b]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_mul_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -927,8 +929,9 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "mul" [a, b] =
     evalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "mul" [a, b] := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
-    evalBuiltinCall_mul_bridge, evalBuiltinCallWithContext]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_mul_bridge storage sender selector calldata a b]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_div_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -937,8 +940,9 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "div" [a, b] =
     evalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "div" [a, b] := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
-    evalBuiltinCall_div_bridge, evalBuiltinCallWithContext]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_div_bridge storage sender selector calldata a b]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_mod_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -947,8 +951,9 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "mod" [a, b] =
     evalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "mod" [a, b] := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
-    evalBuiltinCall_mod_bridge, evalBuiltinCallWithContext]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_mod_bridge storage sender selector calldata a b]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_eq_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -957,8 +962,9 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "eq" [a, b] =
     evalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "eq" [a, b] := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
-    evalBuiltinCall_eq_bridge, evalBuiltinCallWithContext]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_eq_bridge storage sender selector calldata a b]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_iszero_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -967,8 +973,9 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "iszero" [a] =
     evalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "iszero" [a] := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
-    evalBuiltinCall_iszero_bridge, evalBuiltinCallWithContext]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_iszero_bridge storage sender selector calldata a]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_lt_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -977,8 +984,9 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "lt" [a, b] =
     evalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "lt" [a, b] := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
-    evalBuiltinCall_lt_bridge, evalBuiltinCallWithContext]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_lt_bridge storage sender selector calldata a b]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_gt_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -987,8 +995,9 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "gt" [a, b] =
     evalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "gt" [a, b] := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
-    evalBuiltinCall_gt_bridge, evalBuiltinCallWithContext]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_gt_bridge storage sender selector calldata a b]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_and_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -997,8 +1006,9 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "and" [a, b] =
     evalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "and" [a, b] := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
-    evalBuiltinCall_and_bridge, evalBuiltinCallWithContext]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_and_bridge storage sender selector calldata a b]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_or_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -1007,8 +1017,9 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "or" [a, b] =
     evalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "or" [a, b] := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
-    evalBuiltinCall_or_bridge, evalBuiltinCallWithContext]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_or_bridge storage sender selector calldata a b]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_xor_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -1017,8 +1028,9 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "xor" [a, b] =
     evalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "xor" [a, b] := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
-    evalBuiltinCall_xor_bridge, evalBuiltinCallWithContext]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_xor_bridge storage sender selector calldata a b]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_not_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -1027,8 +1039,9 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "not" [a] =
     evalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "not" [a] := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
-    evalBuiltinCall_not_bridge, evalBuiltinCallWithContext]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_not_bridge storage sender selector calldata a]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_shl_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -1037,8 +1050,9 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "shl" [a, b] =
     evalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "shl" [a, b] := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
-    evalBuiltinCall_shl_bridge, evalBuiltinCallWithContext]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_shl_bridge storage sender selector calldata a b]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_shr_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -1047,8 +1061,9 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "shr" [a, b] =
     evalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "shr" [a, b] := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
-    evalBuiltinCall_shr_bridge, evalBuiltinCallWithContext]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_shr_bridge storage sender selector calldata a b]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_addmod_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -1057,8 +1072,9 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "addmod" [a, b, c] =
     evalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "addmod" [a, b, c] := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
-    evalBuiltinCall_addmod_bridge, evalBuiltinCallWithContext]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_addmod_bridge storage sender selector calldata a b c]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_mulmod_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -1067,8 +1083,9 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "mulmod" [a, b, c] =
     evalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "mulmod" [a, b, c] := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
-    evalBuiltinCall_mulmod_bridge, evalBuiltinCallWithContext]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_mulmod_bridge storage sender selector calldata a b c]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_byte_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -1077,8 +1094,9 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "byte" [i, x] =
     evalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "byte" [i, x] := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
-    evalBuiltinCall_byte_bridge, evalBuiltinCallWithContext]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_byte_bridge storage sender selector calldata i x]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 /-! ## Remaining Builtin Bridge Lemmas — Status
 
