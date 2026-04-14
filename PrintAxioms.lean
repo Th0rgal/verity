@@ -2155,9 +2155,6 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_sdiv_normalized  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_sdiv_normalized  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.fin_val_mul_neg1  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.abs_val_eq_neg1_mul  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.int256_natAbs_neg  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.int256_natAbs_nonneg  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.sdiv_int256_eq_uint256Sdiv  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_sdiv_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_sdiv_bridge
@@ -2270,4 +2267,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 2118 theorems/lemmas (1426 public, 692 private, 0 sorry'd)
+-- Total: 2115 theorems/lemmas (1426 public, 689 private, 0 sorry'd)
