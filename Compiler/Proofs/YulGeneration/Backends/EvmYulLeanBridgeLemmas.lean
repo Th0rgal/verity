@@ -849,27 +849,21 @@ private theorem toNat_fromBool (b : Bool) :
     EvmYul.UInt256.toNat (Bool.toUInt256 b) = if b then 1 else 0 := by
   cases b <;> rfl
 
-/-- Reduce `UInt256` `<` to `Nat` `<` on concrete constructors.  Handles
-    whichever `LT` instance Lean selects (direct or `Preorder`-derived). -/
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 2048 in
+/-- Reduce `UInt256` `<` to `Nat` `<` on concrete constructors.  The direct `LT`
+    instance forwards to `Fin.lt` which is definitionally `Nat.lt`. -/
 private theorem uint256_lt_iff_nat_lt {a b : Nat}
     (ha : a < EvmYul.UInt256.size) (hb : b < EvmYul.UInt256.size) :
-    ((⟨⟨a, ha⟩⟩ : EvmYul.UInt256) < ⟨⟨b, hb⟩⟩) ↔ (a < b) := by
-  constructor <;> intro h
-  · -- UInt256 lt → Nat lt (works for both LT instances)
-    revert h; simp only [LT.lt, LE.le]; omega
-  · -- Nat lt → UInt256 lt
-    revert h; simp only [LT.lt, LE.le]; omega
+    ((⟨⟨a, ha⟩⟩ : EvmYul.UInt256) < ⟨⟨b, hb⟩⟩) ↔ (a < b) :=
+  Iff.rfl
 
+set_option maxHeartbeats 32000000 in
+set_option maxRecDepth 2048 in
 /-- Core lemma: Verity's Int256-based signed comparison agrees with EVMYulLean's
 sign-bit case analysis for all inputs in [0, evmModulus).
 
 The proof works by case-splitting on the sign bits of both operands and
 showing that Verity's `Int.ofNat - Int.ofNat modulus` representation agrees
 with EVMYulLean's `sltBool` sign-bit dispatch in all four quadrants. -/
-set_option maxHeartbeats 32000000 in
-set_option maxRecDepth 2048 in
 private theorem slt_int256_eq_sltBool (a b : Nat) (ha : a < evmModulus) (hb : b < evmModulus) :
     (if Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 ⟨a, ha⟩) <
         Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 ⟨b, hb⟩)
@@ -923,11 +917,11 @@ EVMYulLean UInt256 semantics on all inputs. -/
   simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_slt_bridge]
 
+set_option maxHeartbeats 32000000 in
+set_option maxRecDepth 2048 in
 /-- Core lemma: Verity's Int256-based signed greater-than agrees with EVMYulLean's
 sign-bit case analysis for all inputs in [0, evmModulus). Same structure as
 `slt_int256_eq_sltBool` but for `sgt`/`sgtBool`. -/
-set_option maxHeartbeats 32000000 in
-set_option maxRecDepth 2048 in
 private theorem sgt_int256_eq_sgtBool (a b : Nat) (ha : a < evmModulus) (hb : b < evmModulus) :
     (if Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 ⟨b, hb⟩) <
         Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 ⟨a, ha⟩)
@@ -1067,26 +1061,23 @@ private theorem bridge_eval_sdiv_normalized (a b : Nat) :
 private theorem fin_val_mul_neg1 (n x : Nat) (hn : 0 < n) (hx : x < n) (hxpos : 0 < x) :
     (x * (n - 1)) % n = n - x := by
   -- x * (n - 1) + x = x * n, so x*(n-1) % n = (x*n - x) % n = n - x
+  have h1le : 1 ≤ n := hn
   have hadd : x * (n - 1) + x = x * n := by
     calc x * (n - 1) + x
         = x * (n - 1) + x * 1 := by rw [Nat.mul_one]
       _ = x * (n - 1 + 1) := by rw [← Nat.left_distrib]
-      _ = x * n := by rw [Nat.succ_pred_eq_of_pos hn]
+      _ = x * n := by rw [Nat.sub_add_cancel h1le]
   -- x * (n - 1) ≡ -x ≡ n - x (mod n)
-  have hmod : (x * (n - 1) + x) % n = 0 := by rw [hadd, Nat.mul_mod_right]
-  have hlt : n - x < n := Nat.sub_lt hn hxpos
+  have hmod : (x * (n - 1) + x) % n = 0 := by
+    rw [hadd, Nat.mul_comm]; exact Nat.mul_mod_right n x
   have hxmod : x % n = x := Nat.mod_eq_of_lt hx
   rw [Nat.add_mod, hxmod] at hmod
-  -- hmod : (x * (n - 1) % n + x) % n = 0
-  -- Since x*(n-1) % n < n and x < n, the sum < 2n.
-  -- (a + x) % n = 0 with a < n and x < n means a + x = n (since a + x < 2n and a + x ≥ x > 0)
   have hrem_lt : x * (n - 1) % n < n := Nat.mod_lt _ hn
-  have hsum_lt : x * (n - 1) % n + x < 2 * n := by omega
-  have hsum_pos : 0 < x * (n - 1) % n + x := by omega
-  -- (a + x) % n = 0 means n | (a + x). With 0 < a + x < 2n, must have a + x = n.
-  have hsum_eq : x * (n - 1) % n + x = n := by omega
+  -- (rem + x) % n = 0 with rem < n and x < n ⟹ rem + x = n ⟹ rem = n - x
   omega
 
+set_option maxHeartbeats 32000000 in
+set_option maxRecDepth 2048 in
 /-- Core sdiv equivalence: Verity's `Int256.div` agrees with EVMYulLean's `UInt256.sdiv`.
 
 Both implement signed division by:
@@ -1097,8 +1088,6 @@ Both implement signed division by:
 
 The proof unfolds both sides, case-splits on signs, reduces EVMYulLean's Fin
 arithmetic to Nat, then closes with omega. -/
-set_option maxHeartbeats 32000000 in
-set_option maxRecDepth 2048 in
 private theorem sdiv_int256_eq_uint256Sdiv (a b : Nat)
     (ha : a < evmModulus) (hb : b < evmModulus) :
     (Verity.Core.Int256.div
