@@ -1413,6 +1413,10 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_letStorageField  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_letStorageAddrField  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_letStorageAddrField  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_assignStorageField  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_assignStorageField  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_assignStorageAddrField  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_assignStorageAddrField  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_iteTerminal  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_setStorage_singleSlot  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_setStorageAddr_singleSlot  -- private
@@ -1434,6 +1438,8 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_singleton_stmt_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_letStorageField_of_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_letStorageAddrField_of_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_assignStorageField_of_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_assignStorageAddrField_of_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_iteTerminal_of_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMappingField_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMappingField_surface_exceptMappingWrites  -- private
@@ -1893,6 +1899,8 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListTerminalCore_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_letStorageField_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_letStorageAddrField_helperSurfaceClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_assignStorageField_helperSurfaceClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_assignStorageAddrField_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_setStorageAddrSingleSlot_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_mstoreSingle_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_tstoreSingle_helperSurfaceClosed  -- private
@@ -2143,8 +2151,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
-
--- Compiler/Proofs/YulGeneration/Semantics.lean
-#print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
-#print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 1998 theorems/lemmas (1349 public, 649 private, 0 sorry'd)
+-- Total: 2001 theorems/lemmas (1344 public, 657 private, 0 sorry'd)
