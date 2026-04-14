@@ -155,50 +155,68 @@ class UnsafeReducibilityTests(HygieneFixtureTestBase):
 class SorryAllowlistTests(HygieneFixtureTestBase):
     """Check 3: sorry allowlist enforcement."""
 
-    def test_sorry_in_allowlisted_file_within_cap(self) -> None:
-        allowed = (
-            self.root
-            / "Compiler"
-            / "Proofs"
-            / "YulGeneration"
-            / "Backends"
-            / "EvmYulLeanBridgeLemmas.lean"
-        )
-        allowed.parent.mkdir(parents=True, exist_ok=True)
-        allowed.write_text("sorry\nsorry\nsorry\n", encoding="utf-8")
+    BRIDGE_PATH = (
+        "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean"
+    )
+
+    # The 5 pinned theorem names that are allowed to contain sorry
+    PINNED_THEOREMS = [
+        "exp_natModPow_eq_uint256Exp",
+        "sdiv_int256_eq_uint256Sdiv",
+        "smod_int256_eq_uint256Smod",
+        "sar_int256_eq_uint256Sar",
+        "signextend_uint256_eq",
+    ]
+
+    def _make_bridge_file(self, theorems: list[str]) -> None:
+        """Write a bridge lemmas file with sorry'd theorems."""
+        bridge = self.root / self.BRIDGE_PATH.replace("/", "/")
+        for part in self.BRIDGE_PATH.split("/"):
+            pass
+        bridge = self.root / Path(self.BRIDGE_PATH)
+        bridge.parent.mkdir(parents=True, exist_ok=True)
+        lines = []
+        for thm in theorems:
+            lines.append(f"private theorem {thm} (a b : Nat) : True := by")
+            lines.append("  sorry")
+        bridge.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    def test_sorry_in_pinned_theorems_passes(self) -> None:
+        self._make_bridge_file(self.PINNED_THEOREMS)
+        rc, output = self._run_main()
+        self.assertEqual(rc, 0, output)
+        self.assertIn("5 sorry", output)
+
+    def test_sorry_in_pinned_theorems_within_cap(self) -> None:
+        self._make_bridge_file(self.PINNED_THEOREMS[:3])
         rc, output = self._run_main()
         self.assertEqual(rc, 0, output)
         self.assertIn("3 sorry", output)
 
-    def test_sorry_in_allowlisted_file_exceeding_cap(self) -> None:
-        allowed = (
-            self.root
-            / "Compiler"
-            / "Proofs"
-            / "YulGeneration"
-            / "Backends"
-            / "EvmYulLeanBridgeLemmas.lean"
-        )
-        allowed.parent.mkdir(parents=True, exist_ok=True)
-        # Write 6 sorrys, cap is 5
-        allowed.write_text("\n".join(["sorry"] * 6) + "\n", encoding="utf-8")
+    def test_sorry_exceeding_cap_fails(self) -> None:
+        # 5 pinned + 1 extra = 6 sorrys, cap is 5
+        extra = self.PINNED_THEOREMS + ["extra_fake_theorem"]
+        self._make_bridge_file(extra)
         rc, output = self._run_main()
         self.assertNotEqual(rc, 0)
         self.assertIn("found 6 sorry (cap is 5)", output)
 
-    def test_sorry_exactly_at_cap(self) -> None:
-        allowed = (
-            self.root
-            / "Compiler"
-            / "Proofs"
-            / "YulGeneration"
-            / "Backends"
-            / "EvmYulLeanBridgeLemmas.lean"
-        )
-        allowed.parent.mkdir(parents=True, exist_ok=True)
-        allowed.write_text("\n".join(["sorry"] * 5) + "\n", encoding="utf-8")
+    def test_sorry_in_non_pinned_theorem_fails(self) -> None:
+        # Replace one pinned theorem with an unpinned one
+        swapped = self.PINNED_THEOREMS[:4] + ["rogue_theorem_xyz"]
+        self._make_bridge_file(swapped)
         rc, output = self._run_main()
-        self.assertEqual(rc, 0, output)
+        self.assertNotEqual(rc, 0)
+        self.assertIn("non-pinned theorems", output)
+        self.assertIn("rogue_theorem_xyz", output)
+
+    def test_sorry_swap_detected(self) -> None:
+        # Same count (5), but one theorem swapped — must fail
+        swapped = self.PINNED_THEOREMS[:4] + ["different_sorry_theorem"]
+        self._make_bridge_file(swapped)
+        rc, output = self._run_main()
+        self.assertNotEqual(rc, 0)
+        self.assertIn("different_sorry_theorem", output)
 
     def test_sorry_in_non_allowlisted_file_fails(self) -> None:
         rogue = self.root / "Compiler" / "Rogue.lean"

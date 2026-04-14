@@ -18,6 +18,18 @@ import re
 from property_utils import ROOT, report_errors, scrub_lean_code
 
 SORRY_RE = re.compile(r"\bsorry\b")
+THEOREM_RE = re.compile(
+    r"(?:private\s+)?(?:theorem|lemma|def)\s+(\w+)"
+)
+
+
+def _find_enclosing_theorem(lines: list[str], sorry_idx: int) -> str | None:
+    """Scan backwards from *sorry_idx* to find the enclosing theorem name."""
+    for j in range(sorry_idx, -1, -1):
+        m = THEOREM_RE.search(lines[j])
+        if m:
+            return m.group(1)
+    return None
 
 
 def line_starts_with_command(line: str, cmd: str) -> bool:
@@ -64,15 +76,22 @@ def main() -> None:
         )
 
     # Check 3: Fixed sorry baseline after the merged proof-reduction pass.
-    # Allowed sorry locations are pinned to specific infrastructure files
-    # with per-file count caps so that extra sorrys cannot be added silently.
-    ALLOWED_SORRY_FILES: dict[str, int] = {
-        "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean": 5,
+    # Each allowed sorry is pinned to a specific theorem name so that
+    # swapping one sorry for another is detected (not just the count).
+    ALLOWED_SORRY_THEOREMS: dict[str, set[str]] = {
+        "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean": {
+            "exp_natModPow_eq_uint256Exp",
+            "sdiv_int256_eq_uint256Sdiv",
+            "smod_int256_eq_uint256Smod",
+            "sar_int256_eq_uint256Sar",
+            "signextend_uint256_eq",
+        },
     }
     sorry_count = 0
     sorry_locations: list[str] = []
     unexpected_sorry_locations: list[str] = []
     sorry_per_file: dict[str, int] = {}
+    sorry_theorems_per_file: dict[str, set[str]] = {}
     for lean_file in ROOT.rglob("*.lean"):
         if ".lake" in str(lean_file):
             continue
@@ -84,21 +103,32 @@ def main() -> None:
                 sorry_count += 1
                 loc = f"{rel}:{i}"
                 sorry_locations.append(loc)
-                if rel_str not in ALLOWED_SORRY_FILES:
+                if rel_str not in ALLOWED_SORRY_THEOREMS:
                     unexpected_sorry_locations.append(loc)
                 else:
                     sorry_per_file[rel_str] = sorry_per_file.get(rel_str, 0) + 1
+                    thm = _find_enclosing_theorem(scrubbed_lines, i - 1)
+                    if thm:
+                        sorry_theorems_per_file.setdefault(rel_str, set()).add(thm)
 
     if unexpected_sorry_locations:
         errors.append(
             f"Found sorry in non-allowlisted files: {unexpected_sorry_locations}"
         )
 
-    for path, expected_cap in ALLOWED_SORRY_FILES.items():
+    for path, allowed_thms in ALLOWED_SORRY_THEOREMS.items():
         actual = sorry_per_file.get(path, 0)
-        if actual > expected_cap:
+        if actual > len(allowed_thms):
             errors.append(
-                f"{path}: found {actual} sorry (cap is {expected_cap})"
+                f"{path}: found {actual} sorry (cap is {len(allowed_thms)})"
+            )
+        found_thms = sorry_theorems_per_file.get(path, set())
+        unexpected_thms = found_thms - allowed_thms
+        if unexpected_thms:
+            errors.append(
+                f"{path}: sorry in non-pinned theorems: "
+                f"{sorted(unexpected_thms)} "
+                f"(allowed: {sorted(allowed_thms)})"
             )
 
     # Check 4: No native_decide in proof files (except tests/profiles)
