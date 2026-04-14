@@ -1711,16 +1711,18 @@ theorem evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
 /-! ## Remaining Core Equivalence Proofs — Status
 
 All 25 pure builtins now have universal bridge theorems
-(`evalBuiltinCall_*_bridge`). Five core equivalence lemmas still use
-`sorry` pending local `lake build` iteration:
+(`evalBuiltinCall_*_bridge`). Seven core equivalence lemmas still use
+`sorry` pending fundamentally different proof strategies:
 
+- `slt_int256_eq_sltBool` — phased intermediate lemmas for UInt256 struct ordering
+- `sgt_int256_eq_sgtBool` — phased intermediate lemmas for UInt256 struct ordering
 - `exp_natModPow_eq_uint256Exp` — induction on repeated-squaring loops
 - `sdiv_int256_eq_uint256Sdiv` — Int sign-magnitude ↔ UInt256 sign-bit split
 - `smod_int256_eq_uint256Smod` — Int remainder sign ↔ sgn/abs decomposition
 - `sar_int256_eq_uint256Sar` — Int.fdiv ↔ complement-shift-complement
 - `signextend_uint256_eq` — Nat bit-mask ↔ UInt256 shift operations
 
-All five are validated by concrete `native_decide` bridge tests in
+All seven are validated by concrete `native_decide` bridge tests in
 `EvmYulLeanBridgeTest.lean` covering critical boundary values.
 
 **State-dependent builtin notes**:

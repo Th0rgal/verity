@@ -80,10 +80,38 @@ def extract_universal_builtins(text: str) -> list[str]:
     return [name for name in PURE_BUILTINS if name in found]
 
 
-def expected_snippets(universal: list[str], remaining: list[str]) -> dict[str, list[str]]:
+def extract_admitted_builtins(text: str) -> list[str]:
+    """Detect bridge builtins whose core lemma depends on sorry."""
+    admitted: set[str] = set()
+    sorry_pending = False
+    bridge_re = re.compile(r"@\[simp\]\s+theorem\s+evalBuiltinCall_([A-Za-z0-9]+)_bridge\b")
+    for line in text.splitlines():
+        if re.match(r"^\s+sorry\b", line):
+            sorry_pending = True
+        if sorry_pending:
+            m = bridge_re.search(line)
+            if m:
+                admitted.add(m.group(1))
+                sorry_pending = False
+    return [name for name in PURE_BUILTINS if name in admitted]
+
+
+def _admitted_qualifier(admitted: list[str]) -> str:
+    """Return a parenthetical qualifier for sorry-dependent lemmas, or empty string."""
+    if not admitted:
+        return ""
+    n = len(admitted)
+    proven = len(PURE_BUILTINS) - n
+    return f" ({proven} fully proven, {n} with sorry-dependent core equivalences)"
+
+
+def expected_snippets(
+    universal: list[str], remaining: list[str], *, admitted: list[str] | None = None,
+) -> dict[str, list[str]]:
     count = len(universal)
     universal_codes = code_list(universal)
     remaining_codes = code_list(remaining)
+    qualifier = _admitted_qualifier(admitted or [])
 
     audit_remaining = (
         "All pure bridge cases are now covered by universal symbolic lemmas."
@@ -110,7 +138,7 @@ def expected_snippets(universal: list[str], remaining: list[str]) -> dict[str, l
     )
     total = len(PURE_BUILTINS)
     arithmetic_summary = (
-        f"{total}/{total} pure EVMYulLean-backed builtins have universal bridge lemmas."
+        f"{total}/{total} pure EVMYulLean-backed builtins have universal bridge lemmas{qualifier}."
         if not remaining
         else (
             f"{count}/{total} pure EVMYulLean-backed builtins have universal bridge lemmas; {remaining_codes} still relies on concrete smoke tests."
@@ -135,7 +163,7 @@ def expected_snippets(universal: list[str], remaining: list[str]) -> dict[str, l
 
     return {
         "TRUST_ASSUMPTIONS": [
-            f"{count} universal pure bridge theorems are now proven",
+            f"{count} universal pure bridge theorems{qualifier}",
             audit_remaining,
         ],
         "AXIOMS": [
@@ -163,9 +191,11 @@ def main() -> int:
         print(f"Missing: {BRIDGE_LEMMAS.relative_to(ROOT)}", file=sys.stderr)
         return 1
 
-    universal = extract_universal_builtins(BRIDGE_LEMMAS.read_text(encoding="utf-8"))
+    lemma_text = BRIDGE_LEMMAS.read_text(encoding="utf-8")
+    universal = extract_universal_builtins(lemma_text)
     remaining = [name for name in PURE_BUILTINS if name not in universal]
-    expected = expected_snippets(universal, remaining)
+    admitted = extract_admitted_builtins(lemma_text)
+    expected = expected_snippets(universal, remaining, admitted=admitted)
 
     for label, path in TARGET_FILES.items():
         if not path.exists():
@@ -183,10 +213,12 @@ def main() -> int:
             print(error, file=sys.stderr)
         return 1
 
+    admitted_str = f"; admitted (sorry-dependent): {', '.join(admitted)}" if admitted else ""
     print(
         "bridge coverage sync passed: "
         f"{len(universal)}/{len(PURE_BUILTINS)} pure builtins universally bridged; "
         f"remaining concrete-only: {', '.join(remaining) if remaining else 'none'}"
+        f"{admitted_str}"
     )
     return 0
 
