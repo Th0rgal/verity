@@ -41,4 +41,18 @@ def mkSemanticBridgeCommand
         $modelBodyName := by
       simpa using $bridgeName)
 
+/-- Auto-generated `_is_view` theorem for view functions (#1729, Axis 3 Step 1a).
+    Emits a `@[simp]` lemma stating the model's `isView` flag is `true`, making this
+    fact available to downstream proof automation. Only called when `fnDecl.isView`. -/
+def mkViewTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do
+  let viewName ← mkSuffixedIdent fnDecl.ident "_is_view"
+  let modelName ← mkSuffixedIdent fnDecl.ident "_model"
+  `(command|
+    /-- Auto-generated: this function is declared `view` and its model
+        records that intent. The corresponding `stmtWritesState` validation
+        guarantees the body contains no state-writing statements. -/
+    @[simp] theorem $viewName :
+        (Compiler.CompilationModel.FunctionSpec.isView
+          ($modelName : Compiler.CompilationModel.FunctionSpec)) = true := rfl)
+
 end Verity.Macro
