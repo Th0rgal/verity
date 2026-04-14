@@ -988,7 +988,7 @@ private def roleGuardPreludeStmtTerms
         ← `(Compiler.CompilationModel.Stmt.require
               (Compiler.CompilationModel.Expr.eq
                 (Compiler.CompilationModel.Expr.caller)
-                (Compiler.CompilationModel.Expr.storage $(strTerm field.name)))
+                (Compiler.CompilationModel.Expr.storageAddr $(strTerm field.name)))
               $message)
       ]
 
@@ -4044,6 +4044,7 @@ private def mkSpecCommand
       let requiresRoleTerm ← match fn.requiresRole with
         | some roleIdent => `(some $(strTerm (toString roleIdent.getId)))
         | none => `(none)
+      let internalModifiesTerms : Array Term := fn.modifies.map fun ident => strTerm (toString ident.getId)
       let returnTypeTerm ← modelReturnTypeTerm fn.returnTy
       let returnsTerm ← modelReturnsTerm fn.returnTy
       pure <| some (← `( ({
@@ -4058,6 +4059,7 @@ private def mkSpecCommand
         nonReentrantLock := $nonReentrantLockTerm
         ceiSafe := $ceiSafeTerm
         requiresRole := $requiresRoleTerm
+        modifies := [ $[$internalModifiesTerms],* ]
         localObligations := [ $[$localObligationTerms],* ]
         body := $modelBodyName
         isInternal := true
@@ -4334,6 +4336,16 @@ def validateGeneratedDefNamesPublic
        , s!"{fn.name}_model"
        , s!"{fn.name}_bridge"
        , s!"{fn.name}_semantic_preservation"
+       , s!"{fn.name}_is_view"
+       , s!"{fn.name}_no_calls"
+       , s!"{fn.name}_modifies"
+       , s!"{fn.name}_frame"
+       , s!"{fn.name}_frame_rfl"
+       , s!"{fn.name}_effects"
+       , s!"{fn.name}_cei_compliant"
+       , s!"{fn.name}_nonreentrant"
+       , s!"{fn.name}_cei_safe"
+       , s!"{fn.name}_requires_role"
        ]
     for helperName in helperNames do
       if storageNames.contains helperName then

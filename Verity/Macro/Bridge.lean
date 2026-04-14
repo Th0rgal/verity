@@ -141,10 +141,10 @@ private def mkFieldFrameConjunct (field : StorageFieldDecl) : CommandElabM Term 
   | .dynamicArray _ =>
       -- storageArray slot is unchanged
       `(s'.storageArray $slotLit = s.storageArray $slotLit)
-  | .mappingAddressToUint256 | .mappingChain _ | .mappingStruct _ _ =>
+  | .mappingAddressToUint256 | .mappingChain _ | .mappingStruct .address _ =>
       -- ∀ k, s'.storageMap slot k = s.storageMap slot k
       `(∀ k, s'.storageMap $slotLit k = s.storageMap $slotLit k)
-  | .mappingUintToUint256 =>
+  | .mappingUintToUint256 | .mappingStruct .uint256 _ =>
       `(∀ k, s'.storageMapUint $slotLit k = s.storageMapUint $slotLit k)
   | .mapping2AddressToAddressToUint256 | .mappingStruct2 _ _ _ =>
       `(∀ k1 k2, s'.storageMap2 $slotLit k1 k2 = s.storageMap2 $slotLit k1 k2)

@@ -445,17 +445,19 @@ def exprContainsExternalCall : Expr → Bool
   | Expr.mod a b | Expr.smod a b
   | Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b | Expr.sar a b
   | Expr.lt a b | Expr.gt a b | Expr.slt a b | Expr.sgt a b | Expr.eq a b
+  | Expr.ge a b | Expr.le a b | Expr.signextend a b
+  | Expr.logicalAnd a b | Expr.logicalOr a b
   | Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b
   | Expr.ceilDiv a b =>
       exprContainsExternalCall a || exprContainsExternalCall b
   | Expr.mulDivDown a b c | Expr.mulDivUp a b c =>
       exprContainsExternalCall a || exprContainsExternalCall b || exprContainsExternalCall c
-  | Expr.bitNot a | Expr.logicalNot a =>
+  | Expr.bitNot a | Expr.logicalNot a | Expr.extcodesize a =>
       exprContainsExternalCall a
   | Expr.ite cond thenVal elseVal =>
       exprContainsExternalCall cond || exprContainsExternalCall thenVal || exprContainsExternalCall elseVal
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _ | Expr.mappingUint _ key
-  | Expr.structMember _ key _ =>
+  | Expr.structMember _ key _ | Expr.arrayElement _ key | Expr.storageArrayElement _ key =>
       exprContainsExternalCall key
   | Expr.mappingChain _ keys =>
       exprListContainsExternalCall keys
@@ -467,6 +469,8 @@ def exprContainsExternalCall : Expr → Bool
       exprContainsExternalCall offset
   | Expr.keccak256 offset size =>
       exprContainsExternalCall offset || exprContainsExternalCall size
+  | Expr.internalCall _ args | Expr.adtConstruct _ _ args =>
+      exprListContainsExternalCall args
   | _ => false
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega
@@ -619,10 +623,12 @@ termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 
-/-- Check whether a single statement is a direct persistent-storage write.
+mutual
+/-- Check whether a single statement contains a persistent-storage write (recursively).
     This covers all `setStorage*`, `setMapping*`, `storageArray*`, `setStructMember*`,
-    and `tstore` constructors.  Events, local variables, and memory writes are NOT
-    considered persistent state writes for CEI purposes.
+    and `tstore` constructors, and recurses into `ite`, `forEach`, `unsafeBlock`, and
+    `matchAdt` to detect nested writes.  Events, local variables, and memory writes are
+    NOT considered persistent state writes for CEI purposes.
     (#1728, Axis 2 Step 2a) -/
 def stmtIsPersistentWrite : Stmt → Bool
   | Stmt.setStorage _ _ | Stmt.setStorageAddr _ _
@@ -632,15 +638,31 @@ def stmtIsPersistentWrite : Stmt → Bool
   | Stmt.setMapping2 _ _ _ _ | Stmt.setMapping2Word _ _ _ _ _
   | Stmt.setStructMember _ _ _ _ | Stmt.setStructMember2 _ _ _ _ _
   | Stmt.tstore _ _ => true
+  | Stmt.ite _ thenBranch elseBranch =>
+      stmtListContainsPersistentWrite thenBranch || stmtListContainsPersistentWrite elseBranch
+  | Stmt.forEach _ _ body =>
+      stmtListContainsPersistentWrite body
+  | Stmt.unsafeBlock _ body =>
+      stmtListContainsPersistentWrite body
+  | Stmt.matchAdt _ _ branches =>
+      matchBranchesPersistentWrite branches
   | _ => false
+termination_by s => sizeOf s
+decreasing_by all_goals simp_wf; all_goals omega
 
-/-- Check whether a single statement directly performs an external call
-    (excluding expressions nested inside it — only `externalCallBind` and `ecm`).
-    (#1728, Axis 2 Step 2a) -/
-def stmtIsDirectExternalCall : Stmt → Bool
-  | Stmt.externalCallBind _ _ _ | Stmt.tryExternalCallBind _ _ _ _ => true
-  | Stmt.ecm _ _ => true
-  | _ => false
+def stmtListContainsPersistentWrite : List Stmt → Bool
+  | [] => false
+  | s :: rest => stmtIsPersistentWrite s || stmtListContainsPersistentWrite rest
+termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def matchBranchesPersistentWrite : List (String × List String × List Stmt) → Bool
+  | [] => false
+  | (_, _, body) :: rest =>
+      stmtListContainsPersistentWrite body || matchBranchesPersistentWrite rest
+termination_by bs => sizeOf bs
+decreasing_by all_goals simp_wf; all_goals omega
+end
 
 mutual
 /-- CEI analysis: walk a statement list sequentially and return a descriptive
@@ -654,31 +676,34 @@ mutual
 def stmtListCEIViolation : List Stmt → Bool → Option String
   | [], _ => none
   | s :: rest, seenCall =>
-      -- First, check for CEI violation within this statement itself
-      match stmtInternalCEIViolation s with
+      -- First, check for CEI violation within this statement itself (propagating seenCall)
+      match stmtInternalCEIViolation s seenCall with
       | some msg => some msg
       | none =>
-          -- If we've seen an external call and this statement writes state, violation
-          if seenCall && stmtIsPersistentWrite s then
+          -- Update seenCall: current stmt may contain an external call
+          let newSeenCall := seenCall || stmtContainsExternalCall s
+          -- Check with newSeenCall so a stmt that both calls and writes is caught
+          if newSeenCall && stmtIsPersistentWrite s then
             some "state write after external call"
           else
-            let newSeenCall := seenCall || stmtContainsExternalCall s
             stmtListCEIViolation rest newSeenCall
 termination_by ss => sizeOf ss
 decreasing_by all_goals simp_wf; all_goals omega
 
 /-- Check for CEI violations within a single compound statement (ite, forEach).
+    Accepts `seenCall` from the enclosing context so that an external call before
+    an `ite` correctly flags writes inside either branch.
     Returns a descriptive string if a violation is found within the statement's
     own nested structure. -/
-def stmtInternalCEIViolation : Stmt → Option String
-  | Stmt.ite _ thenBranch elseBranch =>
-      match stmtListCEIViolation thenBranch false with
+def stmtInternalCEIViolation : Stmt → Bool → Option String
+  | Stmt.ite _ thenBranch elseBranch, seenCall =>
+      match stmtListCEIViolation thenBranch seenCall with
       | some msg => some s!"in if-then branch: {msg}"
       | none =>
-          match stmtListCEIViolation elseBranch false with
+          match stmtListCEIViolation elseBranch seenCall with
           | some msg => some s!"in if-else branch: {msg}"
           | none => none
-  | Stmt.forEach _ _ body =>
+  | Stmt.forEach _ _ body, seenCall =>
       -- In a loop, if the body has both an external call and a state write,
       -- a second iteration would violate CEI even if the first doesn't
       let bodyHasCall := body.any stmtContainsExternalCall
@@ -686,25 +711,25 @@ def stmtInternalCEIViolation : Stmt → Option String
       if bodyHasCall && bodyHasWrite then
         some "loop body contains both external call and state write (subsequent iterations would violate CEI)"
       else
-        match stmtListCEIViolation body false with
+        match stmtListCEIViolation body seenCall with
         | some msg => some s!"in loop body: {msg}"
         | none => none
-  | Stmt.unsafeBlock _ body =>
-      match stmtListCEIViolation body false with
+  | Stmt.unsafeBlock _ body, seenCall =>
+      match stmtListCEIViolation body seenCall with
       | some msg => some s!"in unsafe block: {msg}"
       | none => none
-  | Stmt.matchAdt _ _ branches =>
-      matchBranchesCEIViolation branches
-  | _ => none
+  | Stmt.matchAdt _ _ branches, seenCall =>
+      matchBranchesCEIViolation branches seenCall
+  | _, _ => none
 termination_by s => sizeOf s
 decreasing_by all_goals simp_wf; all_goals omega
 
-def matchBranchesCEIViolation : List (String × List String × List Stmt) → Option String
-  | [] => none
-  | (variantName, _, body) :: rest =>
-      match stmtListCEIViolation body false with
+def matchBranchesCEIViolation : List (String × List String × List Stmt) → Bool → Option String
+  | [], _ => none
+  | (variantName, _, body) :: rest, seenCall =>
+      match stmtListCEIViolation body seenCall with
       | some msg => some s!"in match branch '{variantName}': {msg}"
-      | none => matchBranchesCEIViolation rest
+      | none => matchBranchesCEIViolation rest seenCall
 termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end

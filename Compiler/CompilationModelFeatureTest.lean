@@ -233,7 +233,7 @@ verity_contract MacroExternal where
   linked_externals
     external echo(Uint256) -> (Uint256)
 
-  function storeEcho (next : Uint256) : Unit := do
+  function allow_post_interaction_writes storeEcho (next : Uint256) : Unit := do
     let echoed := externalCall "echo" [next]
     setStorage echoedValue echoed
 
