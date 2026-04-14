@@ -215,14 +215,21 @@ def _parse_correctness_proofs() -> dict[str, object]:
         )
     assign_thms = [t for t in theorems if "assign" in t]
     for_thms = [t for t in theorems if "for_" in t or "for_init" in t or "for_empty" in t]
-    result: dict[str, object] = {
+    if not assign_thms:
+        raise ValueError(
+            f"Missing assign/let correctness theorem family in {CORRECTNESS_FILE.relative_to(ROOT)} "
+            f"— expected theorem names containing 'assign'"
+        )
+    if not for_thms:
+        raise ValueError(
+            f"Missing for-init-hoisting correctness theorem family in {CORRECTNESS_FILE.relative_to(ROOT)} "
+            f"— expected theorem names containing 'for_' or 'for_init'"
+        )
+    return {
         "file": str(CORRECTNESS_FILE.relative_to(ROOT)),
+        "assign_to_let": f"proven ({', '.join(assign_thms)})",
+        "for_init_hoisting": f"proven ({', '.join(for_thms)})",
     }
-    if assign_thms:
-        result["assign_to_let"] = f"proven ({', '.join(assign_thms)})"
-    if for_thms:
-        result["for_init_hoisting"] = f"proven ({', '.join(for_thms)})"
-    return result
 
 
 def build_report() -> dict[str, object]:

@@ -8,7 +8,9 @@
   "admitted_bridge_lemmas": [
     "exp",
     "sar",
-    "signextend"
+    "sdiv",
+    "signextend",
+    "smod"
   ],
   "concrete_bridge_tests": [],
   "concrete_test_count": 123,
@@ -62,12 +64,10 @@
     "mulmod",
     "not",
     "or",
-    "sdiv",
     "sgt",
     "shl",
     "shr",
     "slt",
-    "smod",
     "sub",
     "xor"
   ],

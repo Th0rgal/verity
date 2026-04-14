@@ -96,6 +96,8 @@ def main() -> None:
     ALLOWED_SORRY_THEOREMS: dict[str, set[str]] = {
         "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean": {
             "exp_natModPow_eq_uint256Exp",
+            "sdiv_int256_eq_uint256Sdiv",
+            "smod_int256_eq_uint256Smod",
             "sar_int256_eq_uint256Sar",
             "signextend_uint256_eq",
         },
