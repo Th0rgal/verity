@@ -3832,6 +3832,11 @@ def validateGeneratedDefNamesPublic
        , s!"{fn.name}_bridge"
        , s!"{fn.name}_semantic_preservation"
        ]
+    let helperNames :=
+      if fn.isView then
+        helperNames.push s!"{fn.name}_is_view"
+      else
+        helperNames
     for helperName in helperNames do
       if storageNames.contains helperName then
         throwErrorAt fn.ident

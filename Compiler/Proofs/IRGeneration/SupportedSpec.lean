@@ -2697,6 +2697,8 @@ private theorem exprListTouchesUnsupportedCallSurface_eq_featureOr
       rw [exprTouchesUnsupportedCallSurface_eq_featureOr, ih]
       simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
 
+mutual
+
 private theorem stmtTouchesUnsupportedCallSurface_eq_featureOr
     (stmt : Stmt) :
     stmtTouchesUnsupportedCallSurface stmt =
@@ -2738,8 +2740,6 @@ private theorem stmtTouchesUnsupportedCallSurface_eq_featureOr
         stmtTouchesUnsupportedLowLevelSurface,
         exprTouchesUnsupportedCallSurface_eq_featureOr,
         Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
-termination_by sizeOf stmt
-decreasing_by all_goals (subst_vars; simp_wf; simp_all [List.cons.sizeOf_spec]; omega)
 
 theorem stmtListTouchesUnsupportedCallSurface_eq_featureOr
     (stmts : List Stmt) :
@@ -2757,8 +2757,8 @@ theorem stmtListTouchesUnsupportedCallSurface_eq_featureOr
         List.any_cons]
       rw [stmtTouchesUnsupportedCallSurface_eq_featureOr, ih]
       simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
-termination_by sizeOf stmts
-decreasing_by all_goals (subst_vars; simp_wf; simp_all [List.cons.sizeOf_spec]; omega)
+
+end
 
 
 private theorem exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed
