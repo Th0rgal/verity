@@ -849,6 +849,19 @@ private theorem toNat_fromBool (b : Bool) :
     EvmYul.UInt256.toNat (Bool.toUInt256 b) = if b then 1 else 0 := by
   cases b <;> rfl
 
+/-- Reduce `UInt256` `<` to `Nat` `<` on concrete constructors.  Handles
+    whichever `LT` instance Lean selects (direct or `Preorder`-derived). -/
+set_option maxHeartbeats 4000000 in
+set_option maxRecDepth 2048 in
+private theorem uint256_lt_iff_nat_lt {a b : Nat}
+    (ha : a < EvmYul.UInt256.size) (hb : b < EvmYul.UInt256.size) :
+    ((⟨⟨a, ha⟩⟩ : EvmYul.UInt256) < ⟨⟨b, hb⟩⟩) ↔ (a < b) := by
+  constructor <;> intro h
+  · -- UInt256 lt → Nat lt (works for both LT instances)
+    revert h; simp only [LT.lt, LE.le]; omega
+  · -- Nat lt → UInt256 lt
+    revert h; simp only [LT.lt, LE.le]; omega
+
 /-- Core lemma: Verity's Int256-based signed comparison agrees with EVMYulLean's
 sign-bit case analysis for all inputs in [0, evmModulus).
 
@@ -870,6 +883,10 @@ private theorem slt_int256_eq_sltBool (a b : Nat) (ha : a < evmModulus) (hb : b 
   simp only [Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS]
+  -- Reduce UInt256 < to Nat < before case analysis
+  have ha' : a < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact ha
+  have hb' : b < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact hb
+  simp only [uint256_lt_iff_nat_lt ha' hb']
   -- Case split on sign bits, then close each case
   by_cases haSign : a < 2 ^ 255 <;> by_cases hbSign : b < 2 ^ 255 <;>
     simp_all [evmModulus, EvmYul.UInt256.size] <;> omega
@@ -924,6 +941,10 @@ private theorem sgt_int256_eq_sgtBool (a b : Nat) (ha : a < evmModulus) (hb : b 
   simp only [Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS]
+  -- Reduce UInt256 < to Nat < before case analysis
+  have ha' : a < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact ha
+  have hb' : b < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact hb
+  simp only [uint256_lt_iff_nat_lt hb' ha']
   -- Case split on sign bits, then close each case
   by_cases haSign : a < 2 ^ 255 <;> by_cases hbSign : b < 2 ^ 255 <;>
     simp_all [evmModulus, EvmYul.UInt256.size] <;> omega
@@ -1045,9 +1066,26 @@ private theorem bridge_eval_sdiv_normalized (a b : Nat) :
     semantics of EVMYulLean's `⟨v.val * (-1)⟩` negation via Fin multiplication. -/
 private theorem fin_val_mul_neg1 (n x : Nat) (hn : 0 < n) (hx : x < n) (hxpos : 0 < x) :
     (x * (n - 1)) % n = n - x := by
-  rw [show x * (n - 1) = (x - 1) * n + (n - x) from by omega]
-  rw [Nat.add_mul_mod_self_left]
-  exact Nat.mod_eq_of_lt (by omega)
+  -- x * (n - 1) + x = x * n, so x*(n-1) % n = (x*n - x) % n = n - x
+  have hadd : x * (n - 1) + x = x * n := by
+    calc x * (n - 1) + x
+        = x * (n - 1) + x * 1 := by rw [Nat.mul_one]
+      _ = x * (n - 1 + 1) := by rw [← Nat.left_distrib]
+      _ = x * n := by rw [Nat.succ_pred_eq_of_pos hn]
+  -- x * (n - 1) ≡ -x ≡ n - x (mod n)
+  have hmod : (x * (n - 1) + x) % n = 0 := by rw [hadd, Nat.mul_mod_right]
+  have hlt : n - x < n := Nat.sub_lt hn hxpos
+  have hxmod : x % n = x := Nat.mod_eq_of_lt hx
+  rw [Nat.add_mod, hxmod] at hmod
+  -- hmod : (x * (n - 1) % n + x) % n = 0
+  -- Since x*(n-1) % n < n and x < n, the sum < 2n.
+  -- (a + x) % n = 0 with a < n and x < n means a + x = n (since a + x < 2n and a + x ≥ x > 0)
+  have hrem_lt : x * (n - 1) % n < n := Nat.mod_lt _ hn
+  have hsum_lt : x * (n - 1) % n + x < 2 * n := by omega
+  have hsum_pos : 0 < x * (n - 1) % n + x := by omega
+  -- (a + x) % n = 0 means n | (a + x). With 0 < a + x < 2n, must have a + x = n.
+  have hsum_eq : x * (n - 1) % n + x = n := by omega
+  omega
 
 /-- Core sdiv equivalence: Verity's `Int256.div` agrees with EVMYulLean's `UInt256.sdiv`.
 
