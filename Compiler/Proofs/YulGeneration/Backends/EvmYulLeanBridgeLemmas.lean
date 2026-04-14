@@ -839,7 +839,27 @@ private theorem slt_int256_eq_sltBool (a b : Nat) (ha : a < evmModulus) (hb : b 
   unfold EvmYul.UInt256.toNat EvmYul.UInt256.ofNat Id.run
   simp only [Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.modulus, EvmYul.UInt256.size]
-  split_ifs <;> simp_all [evmModulus] <;> push_cast <;> omega
+  by_cases ha255 : a < 2 ^ 255 <;> by_cases hb255 : b < 2 ^ 255
+  -- Case 1: both positive (a < 2^255, b < 2^255)
+  · simp only [show ¬(2 ^ 255 ≤ a) from Nat.not_le_of_lt ha255,
+               show ¬(2 ^ 255 ≤ b) from Nat.not_le_of_lt hb255, ite_false]
+    split_ifs <;> simp_all [evmModulus] <;> omega
+  -- Case 2: a positive, b negative (a < 2^255, b ≥ 2^255)
+  · have hb_ge : 2 ^ 255 ≤ b := Nat.not_lt.mp hb255
+    simp only [show ¬(2 ^ 255 ≤ a) from Nat.not_le_of_lt ha255,
+               show (2 ^ 255 ≤ b) from hb_ge, ite_true, ite_false]
+    split_ifs <;> simp_all [evmModulus] <;> push_cast <;> omega
+  -- Case 3: a negative, b positive (a ≥ 2^255, b < 2^255)
+  · have ha_ge : 2 ^ 255 ≤ a := Nat.not_lt.mp ha255
+    simp only [show (2 ^ 255 ≤ a) from ha_ge,
+               show ¬(2 ^ 255 ≤ b) from Nat.not_le_of_lt hb255, ite_true, ite_false]
+    split_ifs <;> simp_all [evmModulus] <;> push_cast <;> omega
+  -- Case 4: both negative (a ≥ 2^255, b ≥ 2^255)
+  · have ha_ge : 2 ^ 255 ≤ a := Nat.not_lt.mp ha255
+    have hb_ge : 2 ^ 255 ≤ b := Nat.not_lt.mp hb255
+    simp only [show (2 ^ 255 ≤ a) from ha_ge,
+               show (2 ^ 255 ≤ b) from hb_ge, ite_true]
+    split_ifs <;> simp_all [evmModulus] <;> push_cast <;> omega
 
 /-- Universal bridge theorem for `slt`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
@@ -854,9 +874,11 @@ EVMYulLean UInt256 semantics on all inputs. -/
   have ha' : a % evmModulus < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact ha
   have hb' : b % evmModulus < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact hb
   rw [show EvmYul.UInt256.ofNat a = (⟨⟨a % evmModulus, ha'⟩⟩ : EvmYul.UInt256)
-      from by ext; simp [EvmYul.UInt256.ofNat, Id.run, EvmYul.UInt256.size, evmModulus]]
+      from by simp only [EvmYul.UInt256.ofNat, Id.run]; congr 1;
+              exact Fin.ext (by simp [Fin.ofNat, EvmYul.UInt256.size, evmModulus])]
   rw [show EvmYul.UInt256.ofNat b = (⟨⟨b % evmModulus, hb'⟩⟩ : EvmYul.UInt256)
-      from by ext; simp [EvmYul.UInt256.ofNat, Id.run, EvmYul.UInt256.size, evmModulus]]
+      from by simp only [EvmYul.UInt256.ofNat, Id.run]; congr 1;
+              exact Fin.ext (by simp [Fin.ofNat, EvmYul.UInt256.size, evmModulus])]
   exact slt_int256_eq_sltBool (a % evmModulus) (b % evmModulus) ha hb
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_slt_bridge
@@ -881,7 +903,27 @@ private theorem sgt_int256_eq_sgtBool (a b : Nat) (ha : a < evmModulus) (hb : b 
   unfold EvmYul.UInt256.toNat EvmYul.UInt256.ofNat Id.run
   simp only [Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.modulus, EvmYul.UInt256.size]
-  split_ifs <;> simp_all [evmModulus] <;> push_cast <;> omega
+  by_cases ha255 : a < 2 ^ 255 <;> by_cases hb255 : b < 2 ^ 255
+  -- Case 1: both positive (a < 2^255, b < 2^255)
+  · simp only [show ¬(2 ^ 255 ≤ a) from Nat.not_le_of_lt ha255,
+               show ¬(2 ^ 255 ≤ b) from Nat.not_le_of_lt hb255, ite_false]
+    split_ifs <;> simp_all [evmModulus] <;> omega
+  -- Case 2: a positive, b negative (a < 2^255, b ≥ 2^255)
+  · have hb_ge : 2 ^ 255 ≤ b := Nat.not_lt.mp hb255
+    simp only [show ¬(2 ^ 255 ≤ a) from Nat.not_le_of_lt ha255,
+               show (2 ^ 255 ≤ b) from hb_ge, ite_true, ite_false]
+    split_ifs <;> simp_all [evmModulus] <;> push_cast <;> omega
+  -- Case 3: a negative, b positive (a ≥ 2^255, b < 2^255)
+  · have ha_ge : 2 ^ 255 ≤ a := Nat.not_lt.mp ha255
+    simp only [show (2 ^ 255 ≤ a) from ha_ge,
+               show ¬(2 ^ 255 ≤ b) from Nat.not_le_of_lt hb255, ite_true, ite_false]
+    split_ifs <;> simp_all [evmModulus] <;> push_cast <;> omega
+  -- Case 4: both negative (a ≥ 2^255, b ≥ 2^255)
+  · have ha_ge : 2 ^ 255 ≤ a := Nat.not_lt.mp ha255
+    have hb_ge : 2 ^ 255 ≤ b := Nat.not_lt.mp hb255
+    simp only [show (2 ^ 255 ≤ a) from ha_ge,
+               show (2 ^ 255 ≤ b) from hb_ge, ite_true]
+    split_ifs <;> simp_all [evmModulus] <;> push_cast <;> omega
 
 /-- Universal bridge theorem for `sgt`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
@@ -896,9 +938,11 @@ EVMYulLean UInt256 semantics on all inputs. -/
   have ha' : a % evmModulus < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact ha
   have hb' : b % evmModulus < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact hb
   rw [show EvmYul.UInt256.ofNat a = (⟨⟨a % evmModulus, ha'⟩⟩ : EvmYul.UInt256)
-      from by ext; simp [EvmYul.UInt256.ofNat, Id.run, EvmYul.UInt256.size, evmModulus]]
+      from by simp only [EvmYul.UInt256.ofNat, Id.run]; congr 1;
+              exact Fin.ext (by simp [Fin.ofNat, EvmYul.UInt256.size, evmModulus])]
   rw [show EvmYul.UInt256.ofNat b = (⟨⟨b % evmModulus, hb'⟩⟩ : EvmYul.UInt256)
-      from by ext; simp [EvmYul.UInt256.ofNat, Id.run, EvmYul.UInt256.size, evmModulus]]
+      from by simp only [EvmYul.UInt256.ofNat, Id.run]; congr 1;
+              exact Fin.ext (by simp [Fin.ofNat, EvmYul.UInt256.size, evmModulus])]
   exact sgt_int256_eq_sgtBool (a % evmModulus) (b % evmModulus) ha hb
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_sgt_bridge
