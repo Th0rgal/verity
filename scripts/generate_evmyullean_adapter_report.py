@@ -129,7 +129,7 @@ def _parse_pure_bridge(text: str) -> list[str]:
 def _parse_bridge_lemmas() -> list[str]:
     """Extract builtins with universal bridge lemmas from BridgeLemmas file."""
     if not BRIDGE_LEMMAS_FILE.exists():
-        return []
+        raise FileNotFoundError(f"Bridge lemmas file not found: {BRIDGE_LEMMAS_FILE}")
     text = BRIDGE_LEMMAS_FILE.read_text(encoding="utf-8")
     return sorted(set(BRIDGE_LEMMA_RE.findall(text)))
 
@@ -142,7 +142,7 @@ def _parse_bridge_tests() -> tuple[list[str], int]:
     context-only tests and bridge-returns-none boundary checks.
     """
     if not BRIDGE_TEST_FILE.exists():
-        return [], 0
+        raise FileNotFoundError(f"Bridge test file not found: {BRIDGE_TEST_FILE}")
     text = BRIDGE_TEST_FILE.read_text(encoding="utf-8")
     # Split into individual example blocks
     blocks = EXAMPLE_SPLIT_RE.split(text)[1:]  # skip preamble before first example
