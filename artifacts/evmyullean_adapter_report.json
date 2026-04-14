@@ -51,6 +51,26 @@
     "lit",
     "str"
   ],
+  "fully_proven_bridge_lemmas": [
+    "add",
+    "addmod",
+    "and",
+    "byte",
+    "div",
+    "eq",
+    "gt",
+    "iszero",
+    "lt",
+    "mod",
+    "mul",
+    "mulmod",
+    "not",
+    "or",
+    "shl",
+    "shr",
+    "sub",
+    "xor"
+  ],
   "lookup_primop_mapped": [
     "add",
     "addmod",

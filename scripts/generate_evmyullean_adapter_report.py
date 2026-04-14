@@ -250,6 +250,9 @@ def build_report() -> dict[str, object]:
     # empty lists) causes a visible diff in the artifact rather than silently
     # dropping coverage sections that --check would then accept.
     report["admitted_bridge_lemmas"] = admitted_lemmas
+    report["fully_proven_bridge_lemmas"] = sorted(
+        set(universal_lemmas) - set(admitted_lemmas)
+    )
     report["lookup_primop_mapped"] = lookup_primop
     report["eval_pure_bridged"] = eval_pure
     report["universal_bridge_lemmas"] = universal_lemmas

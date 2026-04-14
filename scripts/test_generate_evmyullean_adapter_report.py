@@ -218,6 +218,17 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             f"Admitted lemmas not in universal set: {admitted - universal}",
         )
 
+    def test_fully_proven_equals_universal_minus_admitted(self) -> None:
+        report = gen.build_report()
+        universal = set(report["universal_bridge_lemmas"])
+        admitted = set(report["admitted_bridge_lemmas"])
+        fully_proven = set(report["fully_proven_bridge_lemmas"])
+        self.assertEqual(
+            fully_proven,
+            universal - admitted,
+            "fully_proven_bridge_lemmas must equal universal minus admitted",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
