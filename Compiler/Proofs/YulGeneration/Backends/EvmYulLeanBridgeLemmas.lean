@@ -844,19 +844,49 @@ private theorem int_pos_not_lt_neg_evm (a b : Nat) (_ha : a < 2 ^ 255) (hbM : b 
   have h2 : (0 : Int) ≤ Int.ofNat a := Int.natCast_nonneg a
   omega
 
+/-- Helper: `UInt256.toNat (Bool.toUInt256 b) = if b then 1 else 0`. -/
+private theorem toNat_fromBool (b : Bool) :
+    EvmYul.UInt256.toNat (Bool.toUInt256 b) = if b then 1 else 0 := by
+  cases b <;> rfl
+
+/-- Helper: `UInt256.sltBool` on raw `Fin` structs reduces to Nat comparisons
+on the underlying values and the sign-bit threshold `2^255`. -/
+private theorem sltBool_val (a b : Nat) (ha : a < EvmYul.UInt256.size) (hb : b < EvmYul.UInt256.size) :
+    EvmYul.UInt256.sltBool ⟨⟨a, ha⟩⟩ ⟨⟨b, hb⟩⟩ =
+      (if a ≥ 2 ^ 255 then
+        if b ≥ 2 ^ 255 then a < b else true
+       else
+        if b ≥ 2 ^ 255 then false else a < b) := by
+  simp only [EvmYul.UInt256.sltBool, EvmYul.UInt256.toNat, ge_iff_le,
+    LT.lt, LE.le, Fin.lt, Fin.le]
+
 /-- Core lemma: Verity's Int256-based signed comparison agrees with EVMYulLean's
 sign-bit case analysis for all inputs in [0, evmModulus).
 
-**Status**: sorry — requires phased intermediate lemmas to bridge UInt256 struct
-ordering (`LT.lt`/`LE.le`) to Nat ordering within CI's recursion depth limits.
-The equivalence is validated by concrete tests in `EvmYulLeanBridgeTest.lean`. -/
+The proof works by case-splitting on the sign bits of both operands and
+showing that Verity's `Int.ofNat - Int.ofNat modulus` representation agrees
+with EVMYulLean's `sltBool` sign-bit dispatch in all four quadrants. -/
+set_option maxHeartbeats 8000000 in
+set_option maxRecDepth 2048 in
 private theorem slt_int256_eq_sltBool (a b : Nat) (ha : a < evmModulus) (hb : b < evmModulus) :
     (if Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 ⟨a, ha⟩) <
         Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 ⟨b, hb⟩)
      then (1 : Nat) else 0) =
     (EvmYul.UInt256.toNat
       (EvmYul.UInt256.slt ⟨⟨a, ha⟩⟩ ⟨⟨b, hb⟩⟩)) := by
-  sorry
+  -- Unfold EVMYulLean side to Bool-level
+  show _ = EvmYul.UInt256.toNat (EvmYul.UInt256.fromBool (EvmYul.UInt256.sltBool ⟨⟨a, ha⟩⟩ ⟨⟨b, hb⟩⟩))
+  rw [toNat_fromBool]
+  have haS : a < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact ha
+  have hbS : b < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact hb
+  rw [sltBool_val a b haS hbS]
+  -- Unfold Verity side: Int256.toInt / ofUint256
+  simp only [Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
+    Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
+    Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS]
+  -- Now both sides are `if` expressions on `a < 2^255`, `b < 2^255`, etc.
+  -- Case split on sign bits
+  by_cases haSign : a < 2 ^ 255 <;> by_cases hbSign : b < 2 ^ 255 <;> simp_all <;> omega
 
 /-- Universal bridge theorem for `slt`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
@@ -890,20 +920,39 @@ EVMYulLean UInt256 semantics on all inputs. -/
   simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_slt_bridge]
 
+/-- Helper: `UInt256.sgtBool` on raw `Fin` structs reduces to Nat comparisons. -/
+private theorem sgtBool_val (a b : Nat) (ha : a < EvmYul.UInt256.size) (hb : b < EvmYul.UInt256.size) :
+    EvmYul.UInt256.sgtBool ⟨⟨a, ha⟩⟩ ⟨⟨b, hb⟩⟩ =
+      (if a ≥ 2 ^ 255 then
+        if b ≥ 2 ^ 255 then a > b else false
+       else
+        if b ≥ 2 ^ 255 then true else a > b) := by
+  simp only [EvmYul.UInt256.sgtBool, EvmYul.UInt256.toNat, ge_iff_le,
+    GT.gt, LT.lt, LE.le, Fin.lt, Fin.le]
+
 /-- Core lemma: Verity's Int256-based signed greater-than agrees with EVMYulLean's
 sign-bit case analysis for all inputs in [0, evmModulus). Same structure as
-`slt_int256_eq_sltBool` but for `sgt`/`sgtBool`.
-
-**Status**: sorry — requires phased intermediate lemmas to bridge UInt256 struct
-ordering (`LT.lt`/`LE.le`) to Nat ordering within CI's recursion depth limits.
-The equivalence is validated by concrete tests in `EvmYulLeanBridgeTest.lean`. -/
+`slt_int256_eq_sltBool` but for `sgt`/`sgtBool`. -/
+set_option maxHeartbeats 8000000 in
+set_option maxRecDepth 2048 in
 private theorem sgt_int256_eq_sgtBool (a b : Nat) (ha : a < evmModulus) (hb : b < evmModulus) :
     (if Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 ⟨b, hb⟩) <
         Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 ⟨a, ha⟩)
      then (1 : Nat) else 0) =
     (EvmYul.UInt256.toNat
       (EvmYul.UInt256.sgt ⟨⟨a, ha⟩⟩ ⟨⟨b, hb⟩⟩)) := by
-  sorry
+  -- Unfold EVMYulLean side to Bool-level
+  show _ = EvmYul.UInt256.toNat (EvmYul.UInt256.fromBool (EvmYul.UInt256.sgtBool ⟨⟨a, ha⟩⟩ ⟨⟨b, hb⟩⟩))
+  rw [toNat_fromBool]
+  have haS : a < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact ha
+  have hbS : b < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact hb
+  rw [sgtBool_val a b haS hbS]
+  -- Unfold Verity side
+  simp only [Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
+    Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
+    Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS]
+  -- Case split on sign bits and close with omega
+  by_cases haSign : a < 2 ^ 255 <;> by_cases hbSign : b < 2 ^ 255 <;> simp_all <;> omega
 
 /-- Universal bridge theorem for `sgt`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
@@ -1684,7 +1733,7 @@ path and must fall through to the Verity path. -/
 /-! ## Composite Backend Equivalence Theorem
 
 This is the key Phase 4 composition lemma. For any pure builtin `func` in the
-set of 25 universally-bridged builtins (18 fully proven, 7 with sorry-dependent
+set of 25 universally-bridged builtins (20 fully proven, 5 with sorry-dependent
 core equivalences), the EVMYulLean backend agrees with the Verity backend
 (represented by `evalBuiltinCallWithContext`).
 
@@ -1696,7 +1745,7 @@ We provide `evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge` which
 composites all 25 per-builtin bridges into a single result: for any function
 in the bridged set, the backends produce the same result with arbitrary context. -/
 
-/-- For any of the 25 bridged pure builtins (18 fully proven, 7 sorry-dependent),
+/-- For any of the 25 bridged pure builtins (20 fully proven, 5 sorry-dependent),
     the EVMYulLean backend agrees with the Verity backend at the
     `evalBuiltinCallWithBackendContext` level. This factors through the individual
     `evalBuiltinCallWithBackendContext_evmYulLean_*_bridge` lemmas and is the
@@ -1713,18 +1762,16 @@ theorem evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
 /-! ## Remaining Core Equivalence Proofs — Status
 
 All 25 pure builtins now have universal bridge theorems
-(`evalBuiltinCall_*_bridge`). Seven core equivalence lemmas still use
+(`evalBuiltinCall_*_bridge`). Five core equivalence lemmas still use
 `sorry` pending fundamentally different proof strategies:
 
-- `slt_int256_eq_sltBool` — phased intermediate lemmas for UInt256 struct ordering
-- `sgt_int256_eq_sgtBool` — phased intermediate lemmas for UInt256 struct ordering
 - `exp_natModPow_eq_uint256Exp` — induction on repeated-squaring loops
 - `sdiv_int256_eq_uint256Sdiv` — Int sign-magnitude ↔ UInt256 sign-bit split
 - `smod_int256_eq_uint256Smod` — Int remainder sign ↔ sgn/abs decomposition
 - `sar_int256_eq_uint256Sar` — Int.fdiv ↔ complement-shift-complement
 - `signextend_uint256_eq` — Nat bit-mask ↔ UInt256 shift operations
 
-All seven are validated by concrete `native_decide` bridge tests in
+All five are validated by concrete `native_decide` bridge tests in
 `EvmYulLeanBridgeTest.lean` covering critical boundary values.
 
 **State-dependent builtin notes**:

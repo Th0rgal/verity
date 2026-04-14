@@ -180,11 +180,11 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
             / "EvmYulLeanBridgeLemmas.lean"
         )
         allowed.parent.mkdir(parents=True, exist_ok=True)
-        # Write 8 sorrys, cap is 7
-        allowed.write_text("\n".join(["sorry"] * 8) + "\n", encoding="utf-8")
+        # Write 6 sorrys, cap is 5
+        allowed.write_text("\n".join(["sorry"] * 6) + "\n", encoding="utf-8")
         rc, output = self._run_main()
         self.assertNotEqual(rc, 0)
-        self.assertIn("found 8 sorry (cap is 7)", output)
+        self.assertIn("found 6 sorry (cap is 5)", output)
 
     def test_sorry_exactly_at_cap(self) -> None:
         allowed = (
@@ -196,7 +196,7 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
             / "EvmYulLeanBridgeLemmas.lean"
         )
         allowed.parent.mkdir(parents=True, exist_ok=True)
-        allowed.write_text("\n".join(["sorry"] * 7) + "\n", encoding="utf-8")
+        allowed.write_text("\n".join(["sorry"] * 5) + "\n", encoding="utf-8")
         rc, output = self._run_main()
         self.assertEqual(rc, 0, output)
 

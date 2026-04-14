@@ -80,7 +80,7 @@ def get_sorry_count() -> tuple[int, int]:
     """
     # Infrastructure files whose sorrys are Phase 2 proof obligations,
     # not regressions in contract theorem proofs.  Bridge lemma sorrys
-    # (exp/sdiv/smod/slt/sgt/sar/signextend core equivalences) live in
+    # (exp/sdiv/smod/sar/signextend core equivalences) live in
     # EvmYulLeanBridgeLemmas.lean and are not reachable from contract proofs.
     INFRASTRUCTURE_FILES: set[str] = {
         "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean",

@@ -9,9 +9,7 @@
     "exp",
     "sar",
     "sdiv",
-    "sgt",
     "signextend",
-    "slt",
     "smod"
   ],
   "concrete_bridge_tests": [],
@@ -66,8 +64,10 @@
     "mulmod",
     "not",
     "or",
+    "sgt",
     "shl",
     "shr",
+    "slt",
     "sub",
     "xor"
   ],
