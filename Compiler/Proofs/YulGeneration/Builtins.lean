@@ -278,8 +278,22 @@ def evalBuiltinCallWithBackendContext
   | .verity =>
       evalBuiltinCallWithContext storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata func argVals
   | .evmYulLean =>
-      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean
-        storage sender selector calldata func argVals
+      let toWord (x : Nat) : Nat := x % evmModulus
+      if func = "callvalue" then
+        match argVals with
+        | [] => some (toWord msgValue)
+        | _ => none
+      else if func = "timestamp" then
+        match argVals with
+        | [] => some (toWord blockTimestamp)
+        | _ => none
+      else if func = "number" then
+        match argVals with
+        | [] => some (toWord blockNumber)
+        | _ => none
+      else
+        Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean
+          storage sender selector calldata func argVals
 
 def evalBuiltinCallWithBackend
     (backend : BuiltinBackend)

@@ -748,6 +748,24 @@
       "agreement_proved": true
     },
     {
+      "feature": "callvalue",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
+      "feature": "timestamp",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
+      "feature": "number",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
       "feature": "sload",
       "verity_path": "supported",
       "evmyullean_bridge": "delegated",
@@ -766,18 +784,6 @@
       "agreement_proved": false
     },
     {
-      "feature": "callvalue",
-      "verity_path": "supported",
-      "evmyullean_bridge": "delegated",
-      "agreement_proved": false
-    },
-    {
-      "feature": "timestamp",
-      "verity_path": "supported",
-      "evmyullean_bridge": "delegated",
-      "agreement_proved": false
-    },
-    {
       "feature": "chainid",
       "verity_path": "supported",
       "evmyullean_bridge": "delegated",
@@ -791,12 +797,6 @@
     },
     {
       "feature": "calldatasize",
-      "verity_path": "supported",
-      "evmyullean_bridge": "delegated",
-      "agreement_proved": false
-    },
-    {
-      "feature": "number",
       "verity_path": "supported",
       "evmyullean_bridge": "delegated",
       "agreement_proved": false

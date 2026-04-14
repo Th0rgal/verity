@@ -36,6 +36,9 @@ PROVED_BUILTINS = [
     "sar",
     "signextend",
     "byte",
+    "callvalue",
+    "timestamp",
+    "number",
 ]
 # Builtins whose bridge theorems transitively depend on sorry'd core lemmas.
 ADMITTED_BUILTINS = ["exp", "sdiv", "smod", "sar", "signextend"]
@@ -45,12 +48,9 @@ DELEGATED_BUILTINS = [
     "sload",
     "caller",
     "address",
-    "callvalue",
-    "timestamp",
     "chainid",
     "calldataload",
     "calldatasize",
-    "number",
     "blobbasefee",
     "mappingSlot",
 ]
@@ -139,7 +139,7 @@ def expected_doc_snippets(builtin_features: list[dict]) -> list[str]:
     snippets.extend([
         f"The remaining {delegated} are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.",
         "| `address` | ok | del | -- |",
-        "| `timestamp` | ok | del | -- |",
+        "| `timestamp` | ok | ok | yes |",
     ])
     return snippets
 
