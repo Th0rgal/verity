@@ -1821,19 +1821,20 @@ The theorem is structured as a disjunction: either `func` matches one of the
 25 bridged pure builtins (and the backends agree), or `func` is a state-dependent
 builtin (and `.evmYulLean` returns `none`), or `func` is unknown.
 
-We provide `evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge` which
-composites all 25 per-builtin bridges into a single result: for any function
-in the bridged set, the backends produce the same result with arbitrary context. -/
+We provide `evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge` as the
+backend-routing simplification theorem: for any function and arguments, the
+`.evmYulLean` backend reduces to `evalBuiltinCallViaEvmYulLean` with arbitrary
+context. Callers can then apply the per-builtin bridge lemmas separately when
+the builtin is known to be in the bridged pure fragment. -/
 
-/-- For any of the 25 bridged pure builtins (22 fully proven, 3 sorry-dependent),
-    the EVMYulLean backend agrees with the Verity backend at the
-    `evalBuiltinCallWithBackendContext` level. This factors through the individual
-    `evalBuiltinCallWithBackendContext_evmYulLean_*_bridge` lemmas and is the
-    primary rewrite target for Phase 4 retargeting. -/
+/-- Simplify the `.evmYulLean` backend branch of
+    `evalBuiltinCallWithBackendContext` to `evalBuiltinCallViaEvmYulLean`.
+    This theorem is unconditional; per-builtin bridge lemmas are applied after
+    this routing rewrite when the builtin is known to lie in the bridged pure
+    fragment. -/
 theorem evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
-    (calldata : List Nat) (func : String) (argVals : List Nat)
-    (_hpure : evalPureBuiltinViaEvmYulLean func argVals ≠ none) :
+    (calldata : List Nat) (func : String) (argVals : List Nat) :
     evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata func argVals =
     evalBuiltinCallViaEvmYulLean storage sender selector calldata func argVals := by
