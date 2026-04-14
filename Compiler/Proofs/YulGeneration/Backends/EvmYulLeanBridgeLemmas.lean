@@ -848,12 +848,12 @@ private theorem slt_int256_eq_sltBool (a b : Nat) (ha : a < evmModulus) (hb : b 
   · have hb_ge : 2 ^ 255 ≤ b := Nat.not_lt.mp hb255
     simp only [show ¬(2 ^ 255 ≤ a) from Nat.not_le_of_lt ha255,
                show (2 ^ 255 ≤ b) from hb_ge, ite_true, ite_false]
-    split_ifs <;> simp_all <;> push_cast <;> omega
+    split_ifs <;> simp_all [evmModulus] <;> push_cast <;> omega
   -- Case 3: a negative, b positive (a ≥ 2^255, b < 2^255)
   · have ha_ge : 2 ^ 255 ≤ a := Nat.not_lt.mp ha255
     simp only [show (2 ^ 255 ≤ a) from ha_ge,
                show ¬(2 ^ 255 ≤ b) from Nat.not_le_of_lt hb255, ite_true, ite_false]
-    split_ifs <;> simp_all <;> push_cast <;> omega
+    split_ifs <;> simp_all [evmModulus] <;> push_cast <;> omega
   -- Case 4: both negative (a ≥ 2^255, b ≥ 2^255)
   -- Int subtraction cancels: (↑a - ↑M < ↑b - ↑M) ↔ (a < b)
   · have ha_ge : 2 ^ 255 ≤ a := Nat.not_lt.mp ha255
@@ -861,10 +861,13 @@ private theorem slt_int256_eq_sltBool (a b : Nat) (ha : a < evmModulus) (hb : b 
     simp only [show (2 ^ 255 ≤ a) from ha_ge,
                show (2 ^ 255 ≤ b) from hb_ge, ite_true]
     have int_sub_cancel : ∀ (x y M : Nat),
-        (Int.ofNat x - Int.ofNat M < Int.ofNat y - Int.ofNat M) ↔ (x < y) := by
-      intros; omega
+        ((x : Int) - (M : Int) < (y : Int) - (M : Int)) ↔ (x < y) := by
+      intros x y M
+      constructor
+      · intro h; omega
+      · intro h; omega
     simp only [int_sub_cancel]
-    split_ifs <;> simp_all
+    split_ifs <;> simp_all [evmModulus]
 
 /-- Universal bridge theorem for `slt`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
@@ -915,12 +918,12 @@ private theorem sgt_int256_eq_sgtBool (a b : Nat) (ha : a < evmModulus) (hb : b 
   · have hb_ge : 2 ^ 255 ≤ b := Nat.not_lt.mp hb255
     simp only [show ¬(2 ^ 255 ≤ a) from Nat.not_le_of_lt ha255,
                show (2 ^ 255 ≤ b) from hb_ge, ite_true, ite_false]
-    split_ifs <;> simp_all <;> push_cast <;> omega
+    split_ifs <;> simp_all [evmModulus] <;> push_cast <;> omega
   -- Case 3: a negative, b positive (a ≥ 2^255, b < 2^255)
   · have ha_ge : 2 ^ 255 ≤ a := Nat.not_lt.mp ha255
     simp only [show (2 ^ 255 ≤ a) from ha_ge,
                show ¬(2 ^ 255 ≤ b) from Nat.not_le_of_lt hb255, ite_true, ite_false]
-    split_ifs <;> simp_all <;> push_cast <;> omega
+    split_ifs <;> simp_all [evmModulus] <;> push_cast <;> omega
   -- Case 4: both negative (a ≥ 2^255, b ≥ 2^255)
   -- Int subtraction cancels: (↑b - ↑M < ↑a - ↑M) ↔ (b < a)
   · have ha_ge : 2 ^ 255 ≤ a := Nat.not_lt.mp ha255
@@ -928,10 +931,13 @@ private theorem sgt_int256_eq_sgtBool (a b : Nat) (ha : a < evmModulus) (hb : b 
     simp only [show (2 ^ 255 ≤ a) from ha_ge,
                show (2 ^ 255 ≤ b) from hb_ge, ite_true]
     have int_sub_cancel : ∀ (x y M : Nat),
-        (Int.ofNat x - Int.ofNat M < Int.ofNat y - Int.ofNat M) ↔ (x < y) := by
-      intros; omega
+        ((x : Int) - (M : Int) < (y : Int) - (M : Int)) ↔ (x < y) := by
+      intros x y M
+      constructor
+      · intro h; omega
+      · intro h; omega
     simp only [int_sub_cancel]
-    split_ifs <;> simp_all
+    split_ifs <;> simp_all [evmModulus]
 
 /-- Universal bridge theorem for `sgt`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
