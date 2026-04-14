@@ -1999,4 +1999,316 @@ error: #check_contract failed for 'Contracts.Smoke.CEIViolationRejected': Compil
 #guard_msgs in
 #check_contract CEIViolationRejected
 
+-- ════════════════════════════════════════════════════════════════════════════
+-- Stress-test contracts: edge-case coverage for Language Design Axes (#1731)
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- CEI edge case 1: write after external call, inside an if-branch — should detect
+verity_contract CEIWriteInBranchAfterCall where
+  storage
+    counter : Uint256 := slot 0
+  linked_externals
+    external echo(Uint256) -> (Uint256)
+
+  -- Call then conditional write: CEI violation
+  function callThenConditionalWrite (x : Uint256) : Unit := do
+    let echoed := externalCall "echo" [x]
+    if echoed != 0 then
+      setStorage counter echoed
+    else
+      pure ()
+
+/--
+error: #check_contract failed for 'Contracts.Smoke.CEIWriteInBranchAfterCall': Compilation error: function 'callThenConditionalWrite' violates CEI (Checks-Effects-Interactions) ordering: in if-then branch: state write after external call. Reorder state writes before external calls, or annotate with allow_post_interaction_writes to opt out (Issue #1728 (CEI enforcement — Checks-Effects-Interactions ordering))
+-/
+#guard_msgs in
+#check_contract CEIWriteInBranchAfterCall
+
+-- CEI edge case 2: call at top level, write after — same as CEIViolationRejected but
+-- with the write in both branches of an if (to test compound-statement propagation)
+verity_contract CEICallBothBranchesWrite where
+  storage
+    counter : Uint256 := slot 0
+  linked_externals
+    external echo(Uint256) -> (Uint256)
+
+  function callThenBranchWrite (x : Uint256) : Unit := do
+    let echoed := externalCall "echo" [x]
+    if echoed != 0 then
+      setStorage counter echoed
+    else
+      setStorage counter 0
+
+/--
+error: #check_contract failed for 'Contracts.Smoke.CEICallBothBranchesWrite': Compilation error: function 'callThenBranchWrite' violates CEI (Checks-Effects-Interactions) ordering: in if-then branch: state write after external call. Reorder state writes before external calls, or annotate with allow_post_interaction_writes to opt out (Issue #1728 (CEI enforcement — Checks-Effects-Interactions ordering))
+-/
+#guard_msgs in
+#check_contract CEICallBothBranchesWrite
+
+-- Modifies + roles: combined annotation
+verity_contract ModifiesRolesSmoke where
+  storage
+    admin : Address := slot 0
+    counter : Uint256 := slot 1
+    flag : Uint256 := slot 2
+
+  constructor (initialAdmin : Address) := do
+    setStorageAddr admin initialAdmin
+
+  -- Combines requires(admin), modifies(counter), and no_external_calls
+  function no_external_calls setCounter (value : Uint256) requires(admin) modifies(counter) : Unit := do
+    setStorage counter value
+
+  -- Combines requires(admin) and modifies(counter, flag)
+  function setCounterAndFlag (value : Uint256, flagValue : Uint256) requires(admin) modifies(counter, flag) : Unit := do
+    setStorage counter value
+    setStorage flag flagValue
+
+  function view getCounter () : Uint256 := do
+    let current ← getStorage counter
+    return current
+
+#check_contract ModifiesRolesSmoke
+
+-- Modifies + namespace: namespaced storage with modifies annotations
+verity_contract ModifiesNamespaceSmoke where
+  storage_namespace
+  storage
+    counter : Uint256 := slot 0
+    owner : Address := slot 1
+
+  constructor (initialOwner : Address) := do
+    setStorageAddr owner initialOwner
+
+  function increment () modifies(counter) : Unit := do
+    let current ← getStorage counter
+    setStorage counter (add current 1)
+
+  function transferOwnership (newOwner : Address) modifies(owner) : Unit := do
+    setStorageAddr owner newOwner
+
+  function view getCounter () : Uint256 := do
+    let current ← getStorage counter
+    return current
+
+#check_contract ModifiesNamespaceSmoke
+
+-- Verify namespaced modifies slots are actually offset
+example : ModifiesNamespaceSmoke.counter.slot ≠ 0 := by decide
+example : ModifiesNamespaceSmoke.owner.slot ≠ 1 := by decide
+
+-- ADT edge case: single variant (no branching needed)
+verity_contract AdtSingleVariant where
+  inductive
+    Sentinel := | Active
+  storage
+    tag : Sentinel := slot 0
+
+  function store () : Unit := do
+    setStorage tag 0
+
+#check_contract AdtSingleVariant
+
+-- ADT edge case: variant with zero fields vs variant with multiple fields
+verity_contract AdtMixedFieldCounts where
+  inductive
+    Maybe := | Nothing | Just(value : Uint256)
+    Pair := | MkPair(fst : Uint256, snd : Uint256)
+  storage
+    result : Maybe := slot 0
+
+  function clear () : Unit := do
+    setStorage result 0
+
+  function set (value : Uint256) : Unit := do
+    setStorage result value
+
+#check_contract AdtMixedFieldCounts
+
+-- Verify ADT spec plumbing for mixed field counts
+example : AdtMixedFieldCounts.spec.adtTypes.length = 2 := rfl
+example : AdtMixedFieldCounts.spec.adtTypes.map (·.name) = ["Maybe", "Pair"] := rfl
+
+-- Newtype + modifies: newtypes used in function params with modifies annotation
+verity_contract NewtypeModifiesSmoke where
+  types
+    TokenId : Uint256
+    Amount : Uint256
+  storage
+    nextTokenId : Uint256 := slot 0
+    totalMinted : Uint256 := slot 1
+
+  function mint (id : TokenId, amount : Amount) modifies(nextTokenId, totalMinted) : Unit := do
+    setStorage nextTokenId id
+    let current ← getStorage totalMinted
+    setStorage totalMinted (add current amount)
+
+  function view getNextId () : Uint256 := do
+    let current ← getStorage nextTokenId
+    return current
+
+#check_contract NewtypeModifiesSmoke
+
+-- Newtype + namespace combo
+verity_contract NewtypeNamespaceSmoke where
+  types
+    TokenId : Uint256
+  storage_namespace "newtype.ns.v0"
+  storage
+    nextId : Uint256 := slot 0
+
+  function setId (id : TokenId) : Unit := do
+    setStorage nextId id
+
+  function view getId () : Uint256 := do
+    let current ← getStorage nextId
+    return current
+
+#check_contract NewtypeNamespaceSmoke
+
+-- Verify namespace offset applies
+example : NewtypeNamespaceSmoke.nextId.slot ≠ 0 := by decide
+
+-- Unsafe block + CEI: write after unsafe block that has a call — should detect
+verity_contract UnsafeCEIViolation where
+  storage
+    counter : Uint256 := slot 0
+  linked_externals
+    external echo(Uint256) -> (Uint256)
+
+  function unsafeCallThenWrite (x : Uint256) : Unit := do
+    let echoed := externalCall "echo" [x]
+    unsafe "test: write inside unsafe after call" do
+      setStorage counter echoed
+
+/--
+error: #check_contract failed for 'Contracts.Smoke.UnsafeCEIViolation': Compilation error: function 'unsafeCallThenWrite' violates CEI (Checks-Effects-Interactions) ordering: in unsafe block: state write after external call. Reorder state writes before external calls, or annotate with allow_post_interaction_writes to opt out (Issue #1728 (CEI enforcement — Checks-Effects-Interactions ordering))
+-/
+#guard_msgs in
+#check_contract UnsafeCEIViolation
+
+-- Unsafe block + CEI: write inside unsafe before call — should pass
+verity_contract UnsafeCEICompliant where
+  storage
+    counter : Uint256 := slot 0
+  linked_externals
+    external echo(Uint256) -> (Uint256)
+
+  function writeBeforeUnsafeCall (x : Uint256) : Uint256 := do
+    setStorage counter x
+    unsafe "test: call inside unsafe after write" do
+      let echoed := externalCall "echo" [x]
+      return echoed
+
+#check_contract UnsafeCEICompliant
+
+-- Roles + CEI combo: role guard with CEI-compliant external call
+verity_contract RolesCEISmoke where
+  storage
+    admin : Address := slot 0
+    counter : Uint256 := slot 1
+  linked_externals
+    external echo(Uint256) -> (Uint256)
+
+  constructor (initialAdmin : Address) := do
+    setStorageAddr admin initialAdmin
+
+  -- CEI compliant: write, then call
+  function setAndCall (value : Uint256) requires(admin) : Uint256 := do
+    setStorage counter value
+    let echoed := externalCall "echo" [value]
+    return echoed
+
+  function view getCounter () : Uint256 := do
+    let current ← getStorage counter
+    return current
+
+#check_contract RolesCEISmoke
+
+-- Nonreentrant + modifies: combined annotations
+verity_contract NonreentrantModifiesSmoke where
+  storage
+    lock : Uint256 := slot 0
+    counter : Uint256 := slot 1
+    balance : Uint256 := slot 2
+  linked_externals
+    external echo(Uint256) -> (Uint256)
+
+  -- nonreentrant bypasses CEI; modifies annotates fields
+  function nonreentrant(lock) deposit (amount : Uint256) modifies(counter, balance) : Unit := do
+    let echoed := externalCall "echo" [amount]
+    let current ← getStorage counter
+    setStorage counter (add current 1)
+    let bal ← getStorage balance
+    setStorage balance (add bal echoed)
+
+  function view getBalance () : Uint256 := do
+    let bal ← getStorage balance
+    return bal
+
+#check_contract NonreentrantModifiesSmoke
+
+-- Multiple ADTs + newtype in same contract
+verity_contract AdtNewtypeCombo where
+  types
+    TokenId : Uint256
+    Owner : Address
+  inductive
+    Status := | Active | Paused | Deprecated
+    OptionalId := | SomeId(id : Uint256) | NoId
+  storage
+    contractStatus : Status := slot 0
+    lastTokenId : OptionalId := slot 1
+
+  function pause () : Unit := do
+    setStorage contractStatus 1
+
+  function unpause () : Unit := do
+    setStorage contractStatus 0
+
+  function setLastId (id : TokenId) : Unit := do
+    setStorage lastTokenId id
+
+#check_contract AdtNewtypeCombo
+
+-- Verify ADT spec for 3-variant enum
+example : AdtNewtypeCombo.spec.adtTypes.length = 2 := rfl
+example : AdtNewtypeCombo.spec.adtTypes.map (·.name) = ["Status", "OptionalId"] := rfl
+-- Status has 3 variants: Active(0), Paused(1), Deprecated(2); OptionalId has 2
+example : AdtNewtypeCombo.spec.adtTypes.map (·.variants.length) = [3, 2] := rfl
+
+-- Full combo: namespace + newtype + modifies + roles + CEI
+verity_contract FullComboSmoke where
+  types
+    Amount : Uint256
+  inductive
+    TokenStatus := | Active | Frozen
+  storage_namespace "fullcombo.v0"
+  storage
+    admin : Address := slot 0
+    balance : Uint256 := slot 1
+    status : TokenStatus := slot 2
+
+  constructor (initialAdmin : Address) := do
+    setStorageAddr admin initialAdmin
+
+  function no_external_calls deposit (amount : Amount) requires(admin) modifies(balance) : Unit := do
+    let current ← getStorage balance
+    setStorage balance (add current amount)
+
+  function no_external_calls freeze () requires(admin) modifies(status) : Unit := do
+    setStorage status 1
+
+  function view no_external_calls getBalance () : Uint256 := do
+    let current ← getStorage balance
+    return current
+
+#check_contract FullComboSmoke
+
+-- Verify combo properties
+example : FullComboSmoke.balance.slot ≠ 1 := by decide  -- namespaced
+example : FullComboSmoke.spec.storageNamespace.isSome = true := rfl
+example : FullComboSmoke.spec.adtTypes.length = 1 := rfl
+example : FullComboSmoke.spec.adtTypes.map (·.name) = ["TokenStatus"] := rfl
+
 end Contracts.Smoke

@@ -2552,7 +2552,7 @@ private def translateBindSource
   | `(term| getStorage $field:ident) =>
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
-      | .scalar .uint256 | .scalar (.newtype _ .uint256) =>
+      | .scalar .uint256 | .scalar (.newtype _ .uint256) | .scalar (.adt _ _) =>
           `(Compiler.CompilationModel.Expr.storage $(strTerm f.name))
       | .scalar .bool => throwErrorAt rhs s!"field '{f.name}' is Bool; encode as Uint256 and use getStorage"
       | .scalar .address | .scalar (.newtype _ .address) =>
@@ -3181,7 +3181,7 @@ private def translateEffectStmt
   | `(term| setStorage $field:ident $value) =>
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
-      | .scalar .uint256 =>
+      | .scalar .uint256 | .scalar (.adt _ _) =>
           `(Compiler.CompilationModel.Stmt.setStorage $(strTerm f.name) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value))
       | .scalar .address =>
           throwErrorAt stx s!"field '{f.name}' is Address-valued; use setStorageAddr"

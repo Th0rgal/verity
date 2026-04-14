@@ -338,6 +338,20 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.UnsafeGatingAccepted.spec
   , Contracts.Smoke.UnsafeGatingRejected.spec
   , Contracts.Smoke.AdtSmoke.spec
+  , Contracts.Smoke.CEIWriteInBranchAfterCall.spec
+  , Contracts.Smoke.CEICallBothBranchesWrite.spec
+  , Contracts.Smoke.ModifiesRolesSmoke.spec
+  , Contracts.Smoke.ModifiesNamespaceSmoke.spec
+  , Contracts.Smoke.AdtSingleVariant.spec
+  , Contracts.Smoke.AdtMixedFieldCounts.spec
+  , Contracts.Smoke.NewtypeModifiesSmoke.spec
+  , Contracts.Smoke.NewtypeNamespaceSmoke.spec
+  , Contracts.Smoke.UnsafeCEIViolation.spec
+  , Contracts.Smoke.UnsafeCEICompliant.spec
+  , Contracts.Smoke.RolesCEISmoke.spec
+  , Contracts.Smoke.NonreentrantModifiesSmoke.spec
+  , Contracts.Smoke.AdtNewtypeCombo.spec
+  , Contracts.Smoke.FullComboSmoke.spec
   ]
 
 private def functionSignature (fn : FunctionSpec) : String :=
@@ -433,6 +447,20 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("UnsafeGatingAccepted", ["writeMem()"])
   , ("UnsafeGatingRejected", ["noop()"])
   , ("AdtSmoke", ["increment()"])
+  , ("CEIWriteInBranchAfterCall", ["callThenConditionalWrite(uint256)"])
+  , ("CEICallBothBranchesWrite", ["callThenBranchWrite(uint256)"])
+  , ("ModifiesRolesSmoke", ["setCounter(uint256)", "setCounterAndFlag(uint256,uint256)", "getCounter()"])
+  , ("ModifiesNamespaceSmoke", ["increment()", "transferOwnership(address)", "getCounter()"])
+  , ("AdtSingleVariant", ["store()"])
+  , ("AdtMixedFieldCounts", ["clear()", "set(uint256)"])
+  , ("NewtypeModifiesSmoke", ["mint(uint256,uint256)", "getNextId()"])
+  , ("NewtypeNamespaceSmoke", ["setId(uint256)", "getId()"])
+  , ("UnsafeCEIViolation", ["unsafeCallThenWrite(uint256)"])
+  , ("UnsafeCEICompliant", ["writeBeforeUnsafeCall(uint256)"])
+  , ("RolesCEISmoke", ["setAndCall(uint256)", "getCounter()"])
+  , ("NonreentrantModifiesSmoke", ["deposit(uint256)", "getBalance()"])
+  , ("AdtNewtypeCombo", ["pause()", "unpause()", "setLastId(uint256)"])
+  , ("FullComboSmoke", ["deposit(uint256)", "freeze()", "getBalance()"])
   ]
 
 private def expectedExternalSelectors : List (String × List String) :=
@@ -511,6 +539,20 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("UnsafeGatingAccepted", ["0x68236256"])
   , ("UnsafeGatingRejected", ["0x5dfc2e4a"])
   , ("AdtSmoke", ["0xd09de08a"])
+  , ("CEIWriteInBranchAfterCall", ["0x15e5e135"])
+  , ("CEICallBothBranchesWrite", ["0xfc58b77d"])
+  , ("ModifiesRolesSmoke", ["0x8bb5d9c3", "0xeb00a438", "0x8ada066e"])
+  , ("ModifiesNamespaceSmoke", ["0xd09de08a", "0xf2fde38b", "0x8ada066e"])
+  , ("AdtSingleVariant", ["0x975057e7"])
+  , ("AdtMixedFieldCounts", ["0x52efea6e", "0x60fe47b1"])
+  , ("NewtypeModifiesSmoke", ["0x1b2ef1ca", "0xbc968326"])
+  , ("NewtypeNamespaceSmoke", ["0xd0e0ba95", "0x5d1ca631"])
+  , ("UnsafeCEIViolation", ["0x20c925f7"])
+  , ("UnsafeCEICompliant", ["0x9a92630e"])
+  , ("RolesCEISmoke", ["0xdc957d7d", "0x8ada066e"])
+  , ("NonreentrantModifiesSmoke", ["0xb6b55f25", "0x12065fe0"])
+  , ("AdtNewtypeCombo", ["0x8456cb59", "0x3f4ba83a", "0x1a27e85f"])
+  , ("FullComboSmoke", ["0xb6b55f25", "0x62a5af3b", "0x12065fe0"])
   ]
 
 private def expectedFor
@@ -527,6 +569,12 @@ private def expectedCompileCheckedError? (contractName : String) : Option String
       some "violates CEI (Checks-Effects-Interactions) ordering"
   | "UnsafeGatingRejected" =>
       some "constructor uses low-level/assembly mechanic(s) mstore outside an unsafe block without any local_obligations entry"
+  | "CEIWriteInBranchAfterCall" =>
+      some "violates CEI (Checks-Effects-Interactions) ordering"
+  | "CEICallBothBranchesWrite" =>
+      some "violates CEI (Checks-Effects-Interactions) ordering"
+  | "UnsafeCEIViolation" =>
+      some "violates CEI (Checks-Effects-Interactions) ordering"
   | _ => none
 
 -- Regression: `verity_contract` elaboration emits field-level findIdx simp lemmas.
@@ -610,6 +658,58 @@ private def checkMutabilitySmoke : IO Unit := do
   -- Verify CustomNamespacedSmoke generates standard _cei_compliant theorems (#1730, Axis 4 Step 4c).
   let _ := @Contracts.Smoke.CustomNamespacedSmoke.deposit_cei_compliant
   let _ := @Contracts.Smoke.CustomNamespacedSmoke.getOwner_cei_compliant
+
+  -- ── Stress-test contracts: theorem existence checks ──
+  -- ModifiesRolesSmoke: combined requires(admin) + modifies + no_external_calls
+  let _ := @Contracts.Smoke.ModifiesRolesSmoke.setCounter_requires_role
+  let _ := @Contracts.Smoke.ModifiesRolesSmoke.setCounter_modifies
+  let _ := @Contracts.Smoke.ModifiesRolesSmoke.setCounter_frame
+  let _ := @Contracts.Smoke.ModifiesRolesSmoke.setCounter_frame_rfl
+  let _ := @Contracts.Smoke.ModifiesRolesSmoke.setCounter_no_calls
+  let _ := @Contracts.Smoke.ModifiesRolesSmoke.setCounter_effects
+  let _ := @Contracts.Smoke.ModifiesRolesSmoke.setCounterAndFlag_requires_role
+  let _ := @Contracts.Smoke.ModifiesRolesSmoke.setCounterAndFlag_modifies
+  let _ := @Contracts.Smoke.ModifiesRolesSmoke.setCounterAndFlag_frame
+  let _ := @Contracts.Smoke.ModifiesRolesSmoke.setCounterAndFlag_frame_rfl
+  let _ := @Contracts.Smoke.ModifiesRolesSmoke.getCounter_is_view
+  let _ := @Contracts.Smoke.ModifiesRolesSmoke.getCounter_cei_compliant
+  -- ModifiesNamespaceSmoke: namespaced storage + modifies
+  let _ := @Contracts.Smoke.ModifiesNamespaceSmoke.increment_modifies
+  let _ := @Contracts.Smoke.ModifiesNamespaceSmoke.increment_frame
+  let _ := @Contracts.Smoke.ModifiesNamespaceSmoke.increment_frame_rfl
+  let _ := @Contracts.Smoke.ModifiesNamespaceSmoke.transferOwnership_modifies
+  let _ := @Contracts.Smoke.ModifiesNamespaceSmoke.transferOwnership_frame
+  let _ := @Contracts.Smoke.ModifiesNamespaceSmoke.transferOwnership_frame_rfl
+  let _ := @Contracts.Smoke.ModifiesNamespaceSmoke.getCounter_is_view
+  -- NewtypeModifiesSmoke: newtypes + modifies
+  let _ := @Contracts.Smoke.NewtypeModifiesSmoke.mint_modifies
+  let _ := @Contracts.Smoke.NewtypeModifiesSmoke.mint_frame_rfl
+  let _ := @Contracts.Smoke.NewtypeModifiesSmoke.getNextId_is_view
+  -- UnsafeCEICompliant: write before call in unsafe block passes CEI
+  let _ := @Contracts.Smoke.UnsafeCEICompliant.writeBeforeUnsafeCall_cei_compliant
+  -- RolesCEISmoke: roles + CEI
+  let _ := @Contracts.Smoke.RolesCEISmoke.setAndCall_requires_role
+  let _ := @Contracts.Smoke.RolesCEISmoke.setAndCall_cei_compliant
+  let _ := @Contracts.Smoke.RolesCEISmoke.getCounter_is_view
+  -- NonreentrantModifiesSmoke: nonreentrant + modifies
+  let _ := @Contracts.Smoke.NonreentrantModifiesSmoke.deposit_nonreentrant
+  let _ := @Contracts.Smoke.NonreentrantModifiesSmoke.deposit_modifies
+  let _ := @Contracts.Smoke.NonreentrantModifiesSmoke.deposit_frame
+  let _ := @Contracts.Smoke.NonreentrantModifiesSmoke.deposit_frame_rfl
+  let _ := @Contracts.Smoke.NonreentrantModifiesSmoke.getBalance_is_view
+  -- FullComboSmoke: namespace + newtype + ADT + modifies + roles + no_external_calls
+  let _ := @Contracts.Smoke.FullComboSmoke.deposit_requires_role
+  let _ := @Contracts.Smoke.FullComboSmoke.deposit_modifies
+  let _ := @Contracts.Smoke.FullComboSmoke.deposit_frame
+  let _ := @Contracts.Smoke.FullComboSmoke.deposit_frame_rfl
+  let _ := @Contracts.Smoke.FullComboSmoke.deposit_no_calls
+  let _ := @Contracts.Smoke.FullComboSmoke.deposit_effects
+  let _ := @Contracts.Smoke.FullComboSmoke.freeze_requires_role
+  let _ := @Contracts.Smoke.FullComboSmoke.freeze_modifies
+  let _ := @Contracts.Smoke.FullComboSmoke.freeze_no_calls
+  let _ := @Contracts.Smoke.FullComboSmoke.getBalance_is_view
+  let _ := @Contracts.Smoke.FullComboSmoke.getBalance_no_calls
+  let _ := @Contracts.Smoke.FullComboSmoke.getBalance_effects
 
 private def checkSignedBuiltinSmoke : IO Unit := do
   let functions := Contracts.Smoke.SignedBuiltinSmoke.spec.functions

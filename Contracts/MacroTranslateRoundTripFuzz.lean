@@ -91,6 +91,20 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.UnsafeBlockSmoke.spec
   , Contracts.Smoke.UnsafeGatingAccepted.spec
   , Contracts.Smoke.AdtSmoke.spec
+  , Contracts.Smoke.ModifiesRolesSmoke.spec
+  , Contracts.Smoke.ModifiesNamespaceSmoke.spec
+  , Contracts.Smoke.AdtSingleVariant.spec
+  , Contracts.Smoke.AdtMixedFieldCounts.spec
+  , Contracts.Smoke.NewtypeModifiesSmoke.spec
+  , Contracts.Smoke.NewtypeNamespaceSmoke.spec
+  , Contracts.Smoke.UnsafeCEICompliant.spec
+  , Contracts.Smoke.RolesCEISmoke.spec
+  , Contracts.Smoke.NonreentrantModifiesSmoke.spec
+  , Contracts.Smoke.AdtNewtypeCombo.spec
+  , Contracts.Smoke.FullComboSmoke.spec
+  , Contracts.Smoke.CEIWriteInBranchAfterCall.spec
+  , Contracts.Smoke.CEICallBothBranchesWrite.spec
+  , Contracts.Smoke.UnsafeCEIViolation.spec
   ]
 
 private structure FuzzRng where
