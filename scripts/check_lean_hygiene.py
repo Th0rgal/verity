@@ -107,6 +107,7 @@ def main() -> None:
     unexpected_sorry_locations: list[str] = []
     sorry_per_file: dict[str, int] = {}
     sorry_theorems_per_file: dict[str, set[str]] = {}
+    sorry_counts_per_theorem: dict[str, dict[str, int]] = {}
     for lean_file in ROOT.rglob("*.lean"):
         if ".lake" in str(lean_file):
             continue
@@ -125,6 +126,8 @@ def main() -> None:
                     thm = _find_enclosing_theorem(scrubbed_lines, i - 1)
                     if thm:
                         sorry_theorems_per_file.setdefault(rel_str, set()).add(thm)
+                        theorem_counts = sorry_counts_per_theorem.setdefault(rel_str, {})
+                        theorem_counts[thm] = theorem_counts.get(thm, 0) + 1
                     else:
                         # sorry not inside any theorem/lemma/def — flag it
                         unexpected_sorry_locations.append(loc)
@@ -147,6 +150,16 @@ def main() -> None:
                 f"{path}: sorry in non-pinned theorems: "
                 f"{sorted(unexpected_thms)} "
                 f"(allowed: {sorted(allowed_thms)})"
+            )
+        duplicate_thms = sorted(
+            theorem
+            for theorem, count in sorry_counts_per_theorem.get(path, {}).items()
+            if count > 1
+        )
+        if duplicate_thms:
+            errors.append(
+                f"{path}: multiple sorry in pinned theorems: {duplicate_thms} "
+                f"(expected at most 1 per theorem)"
             )
 
     # Check 4: No native_decide in proof files (except tests/profiles)

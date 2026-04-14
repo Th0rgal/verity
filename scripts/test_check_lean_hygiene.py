@@ -206,6 +206,20 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         self.assertNotEqual(rc, 0)
         self.assertIn("found 6 sorry (cap is 5)", output)
 
+    def test_duplicate_sorry_in_pinned_theorem_within_cap_still_fails(self) -> None:
+        duplicate_within_cap = [
+            self.PINNED_THEOREMS[0],
+            self.PINNED_THEOREMS[0],
+            self.PINNED_THEOREMS[1],
+            self.PINNED_THEOREMS[2],
+            self.PINNED_THEOREMS[3],
+        ]
+        self._make_bridge_file(duplicate_within_cap)
+        rc, output = self._run_main()
+        self.assertNotEqual(rc, 0)
+        self.assertIn("multiple sorry in pinned theorems", output)
+        self.assertIn(self.PINNED_THEOREMS[0], output)
+
     def test_sorry_in_non_pinned_theorem_fails(self) -> None:
         # Replace one pinned theorem with an unpinned one
         swapped = self.PINNED_THEOREMS[:2] + ["rogue_theorem_xyz"]
