@@ -206,6 +206,10 @@ class BridgeCoverageSyncTests(unittest.TestCase):
         q = check._admitted_qualifier(["exp", "slt", "sgt"])
         self.assertEqual(q, " (22 fully proven, 3 with sorry-dependent core equivalences)")
 
+    def test_admitted_qualifier_uses_count_parameter(self) -> None:
+        q = check._admitted_qualifier(["exp", "slt"], count=20)
+        self.assertEqual(q, " (18 fully proven, 2 with sorry-dependent core equivalences)")
+
     def test_admitted_qualifier_empty_when_none(self) -> None:
         self.assertEqual(check._admitted_qualifier([]), "")
 

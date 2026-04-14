@@ -121,12 +121,12 @@ def extract_admitted_builtins(text: str) -> list[str]:
     return [name for name in PURE_BUILTINS if name in admitted]
 
 
-def _admitted_qualifier(admitted: list[str]) -> str:
+def _admitted_qualifier(admitted: list[str], *, count: int | None = None) -> str:
     """Return a parenthetical qualifier for sorry-dependent lemmas, or empty string."""
     if not admitted:
         return ""
     n = len(admitted)
-    proven = len(PURE_BUILTINS) - n
+    proven = (count if count is not None else len(PURE_BUILTINS)) - n
     return f" ({proven} fully proven, {n} with sorry-dependent core equivalences)"
 
 
@@ -136,7 +136,7 @@ def expected_snippets(
     count = len(universal)
     universal_codes = code_list(universal)
     remaining_codes = code_list(remaining)
-    qualifier = _admitted_qualifier(admitted or [])
+    qualifier = _admitted_qualifier(admitted or [], count=count)
 
     audit_remaining = (
         "All pure bridge cases are now covered by universal symbolic lemmas."
