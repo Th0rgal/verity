@@ -61,6 +61,33 @@ class ParseBridgeLemmasTests(unittest.TestCase):
         self.assertEqual(len(all_lemmas), 2)
         self.assertEqual(admitted, [])
 
+    def test_detects_inline_by_sorry(self) -> None:
+        """Inline ``by sorry`` on the same line should be detected."""
+        p = self._write_lemma_file("""\
+            private theorem exp_core := by sorry
+
+            @[simp] theorem evalBuiltinCall_exp_bridge := by
+              exact exp_core
+
+            @[simp] theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+        """)
+        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+            all_lemmas, admitted = gen._parse_bridge_lemmas()
+        self.assertEqual(admitted, ["exp"])
+
+    def test_ignores_sorry_in_comments(self) -> None:
+        """Sorry in comments or doc comments should not trigger detection."""
+        p = self._write_lemma_file("""\
+            -- sorry this is a comment
+            /-- **Status**: sorry — needs proof -/
+            @[simp] theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+        """)
+        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+            all_lemmas, admitted = gen._parse_bridge_lemmas()
+        self.assertEqual(admitted, [])
+
     def test_missing_file_raises(self) -> None:
         with patch.object(gen, "BRIDGE_LEMMAS_FILE", Path("/nonexistent/BridgeLemmas.lean")):
             with self.assertRaises(FileNotFoundError):

@@ -131,8 +131,9 @@ def _parse_bridge_lemmas() -> tuple[list[str], list[str]]:
 
     Returns (all_lemmas, admitted_lemmas) where admitted_lemmas lists builtins
     whose bridge theorems transitively depend on ``sorry``'d helper lemmas.
-    Detection: scan forward from each bare ``sorry`` line to the next
-    ``evalBuiltinCall_NAME_bridge`` theorem and mark that builtin as admitted.
+    Detection: scan forward from each ``sorry`` occurrence (standalone or inline
+    ``by sorry``) to the next ``evalBuiltinCall_NAME_bridge`` theorem and mark
+    that builtin as admitted.  Comments and doc comments are ignored.
     """
     if not BRIDGE_LEMMAS_FILE.exists():
         raise FileNotFoundError(f"Bridge lemmas file not found: {BRIDGE_LEMMAS_FILE}")
@@ -141,10 +142,18 @@ def _parse_bridge_lemmas() -> tuple[list[str], list[str]]:
 
     # Find sorry-dependent builtins by scanning line-by-line: after a sorry,
     # the next evalBuiltinCall_*_bridge theorem inherits the admission.
+    # Detect both standalone `sorry` and inline `by sorry` / `:= sorry` forms.
     admitted: set[str] = set()
     sorry_pending = False
+    sorry_re = re.compile(r'\bsorry\b')
+    comment_re = re.compile(r'^\s*--')
+    docstring_re = re.compile(r'^\s*/--')
+    status_re = re.compile(r'\*\*Status\*\*')
     for line in text.splitlines():
-        if re.match(r'^\s+sorry\b', line):
+        # Skip comments, doc comments, and markdown status annotations
+        if comment_re.match(line) or docstring_re.match(line) or status_re.search(line):
+            continue
+        if sorry_re.search(line):
             sorry_pending = True
         if sorry_pending:
             m = BRIDGE_LEMMA_RE.search(line)

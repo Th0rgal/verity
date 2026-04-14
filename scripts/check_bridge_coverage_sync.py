@@ -81,12 +81,24 @@ def extract_universal_builtins(text: str) -> list[str]:
 
 
 def extract_admitted_builtins(text: str) -> list[str]:
-    """Detect bridge builtins whose core lemma depends on sorry."""
+    """Detect bridge builtins whose core lemma depends on sorry.
+
+    Detects both standalone ``sorry`` lines and inline ``by sorry`` /
+    ``:= sorry`` forms, while ignoring sorry mentions in comments, doc
+    comments, and markdown status annotations.
+    """
     admitted: set[str] = set()
     sorry_pending = False
     bridge_re = re.compile(r"@\[simp\]\s+theorem\s+evalBuiltinCall_([A-Za-z0-9]+)_bridge\b")
+    sorry_re = re.compile(r"\bsorry\b")
+    comment_re = re.compile(r"^\s*--")
+    docstring_re = re.compile(r"^\s*/--")
+    status_re = re.compile(r"\*\*Status\*\*")
     for line in text.splitlines():
-        if re.match(r"^\s+sorry\b", line):
+        # Skip comments, doc comments, and markdown status annotations
+        if comment_re.match(line) or docstring_re.match(line) or status_re.search(line):
+            continue
+        if sorry_re.search(line):
             sorry_pending = True
         if sorry_pending:
             m = bridge_re.search(line)
