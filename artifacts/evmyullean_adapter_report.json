@@ -5,13 +5,6 @@
     "for_init_hoisting": "proven (for_init_hoist, for_init_hoist_return, for_init_hoist_revert, for_init_hoist_stop)"
   },
   "adapter_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean",
-  "concrete_bridge_tests": [
-    "exp",
-    "sar",
-    "sdiv",
-    "signextend",
-    "smod"
-  ],
   "concrete_test_count": 123,
   "eval_builtin_via_evmyullean": "implemented",
   "eval_pure_bridged": [
@@ -112,6 +105,7 @@
     "byte",
     "div",
     "eq",
+    "exp",
     "gt",
     "iszero",
     "lt",
@@ -120,10 +114,14 @@
     "mulmod",
     "not",
     "or",
+    "sar",
+    "sdiv",
     "sgt",
     "shl",
     "shr",
+    "signextend",
     "slt",
+    "smod",
     "sub",
     "xor"
   ]

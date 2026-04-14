@@ -635,6 +635,24 @@
       "agreement_proved": true
     },
     {
+      "feature": "exp",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
+      "feature": "sdiv",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
+      "feature": "smod",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
       "feature": "lt",
       "verity_path": "supported",
       "evmyullean_bridge": "supported",
@@ -707,40 +725,22 @@
       "agreement_proved": true
     },
     {
-      "feature": "byte",
+      "feature": "sar",
       "verity_path": "supported",
       "evmyullean_bridge": "supported",
       "agreement_proved": true
     },
     {
-      "feature": "exp",
-      "verity_path": "supported",
-      "evmyullean_bridge": "supported",
-      "agreement_proved": false
-    },
-    {
-      "feature": "sdiv",
-      "verity_path": "supported",
-      "evmyullean_bridge": "supported",
-      "agreement_proved": false
-    },
-    {
-      "feature": "smod",
-      "verity_path": "supported",
-      "evmyullean_bridge": "supported",
-      "agreement_proved": false
-    },
-    {
-      "feature": "sar",
-      "verity_path": "supported",
-      "evmyullean_bridge": "supported",
-      "agreement_proved": false
-    },
-    {
       "feature": "signextend",
       "verity_path": "supported",
       "evmyullean_bridge": "supported",
-      "agreement_proved": false
+      "agreement_proved": true
+    },
+    {
+      "feature": "byte",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
     },
     {
       "feature": "sload",

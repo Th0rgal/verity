@@ -1001,6 +1001,313 @@ EVMYulLean UInt256 semantics on all inputs. -/
   simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_sgt_bridge]
 
+/-! ## Exp Bridge Proof
+
+The `exp` bridge connects Verity's `natModPow` (repeated-squaring on Nat)
+with EVMYulLean's `UInt256.pow` (repeated-squaring on Fin 2^256).
+Both implement binary exponentiation but differ in representation:
+Verity uses explicit `% modulus` while EVMYulLean uses implicit Fin wrapping.
+
+The core equivalence requires showing both repeated-squaring loops compute
+the same result. This needs an induction proof matching the loop invariants. -/
+
+private theorem verity_eval_exp_normalized
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "exp" [a, b] =
+      some (natModPow (a % evmModulus) (b % evmModulus) evmModulus) := by
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
+
+private theorem bridge_eval_exp_normalized (a b : Nat) :
+    evalPureBuiltinViaEvmYulLean "exp" [a, b] =
+      some (EvmYul.UInt256.toNat
+        (EvmYul.UInt256.exp (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b))) := by
+  rfl
+
+/-- Core exp equivalence: Verity's `natModPow` agrees with EVMYulLean's `UInt256.exp`
+on all inputs. Both implement modular exponentiation via repeated squaring.
+
+**Status**: sorry — requires induction proof matching two different loop structures
+(Verity's `modPowAux` vs EVMYulLean's `powAux`). The equivalence is validated by
+concrete tests in `EvmYulLeanBridgeTest.lean`. -/
+private theorem exp_natModPow_eq_uint256Exp (a b : Nat)
+    (ha : a < evmModulus) (hb : b < evmModulus) :
+    natModPow a b evmModulus =
+    EvmYul.UInt256.toNat (EvmYul.UInt256.exp ⟨⟨a, by rw [EvmYul.UInt256.size]; exact ha⟩⟩
+                                               ⟨⟨b, by rw [EvmYul.UInt256.size]; exact hb⟩⟩) := by
+  sorry
+
+/-- Universal bridge theorem for `exp`: Verity builtin semantics agree with
+EVMYulLean UInt256 semantics on all inputs. -/
+@[simp] theorem evalBuiltinCall_exp_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "exp" [a, b] =
+      evalPureBuiltinViaEvmYulLean "exp" [a, b] := by
+  rw [verity_eval_exp_normalized, bridge_eval_exp_normalized]
+  have ha : a % evmModulus < evmModulus := Nat.mod_lt a (by unfold evmModulus; omega)
+  have hb : b % evmModulus < evmModulus := Nat.mod_lt b (by unfold evmModulus; omega)
+  congr 1
+  have ha' : a % evmModulus < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact ha
+  have hb' : b % evmModulus < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact hb
+  rw [show EvmYul.UInt256.ofNat a = (⟨⟨a % evmModulus, ha'⟩⟩ : EvmYul.UInt256)
+      from by simp only [EvmYul.UInt256.ofNat, Id.run]; congr 1]
+  rw [show EvmYul.UInt256.ofNat b = (⟨⟨b % evmModulus, hb'⟩⟩ : EvmYul.UInt256)
+      from by simp only [EvmYul.UInt256.ofNat, Id.run]; congr 1]
+  exact exp_natModPow_eq_uint256Exp (a % evmModulus) (b % evmModulus) ha hb
+
+@[simp] theorem evalBuiltinCallWithBackend_evmYulLean_exp_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "exp" [a, b] =
+      evalBuiltinCall storage sender selector calldata "exp" [a, b] := by
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_exp_bridge]
+
+/-! ## Sdiv Bridge Proof
+
+The `sdiv` bridge connects Verity's `Int256.div` (sign-magnitude division via Int)
+with EVMYulLean's `UInt256.sdiv` (sign-bit case-split with abs/negate). Both
+implement EVM SDIV: signed division with truncation toward zero, where
+`sdiv(MIN_INT256, -1) = MIN_INT256`. -/
+
+private theorem verity_eval_sdiv_normalized
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "sdiv" [a, b] =
+      some (Verity.Core.Int256.div
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (a % evmModulus)))
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (b % evmModulus)))).toUint256.val := by
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
+
+private theorem bridge_eval_sdiv_normalized (a b : Nat) :
+    evalPureBuiltinViaEvmYulLean "sdiv" [a, b] =
+      some (EvmYul.UInt256.toNat
+        (EvmYul.UInt256.sdiv (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b))) := by
+  rfl
+
+/-- Core sdiv equivalence: Verity's `Int256.div` agrees with EVMYulLean's `UInt256.sdiv`.
+
+**Status**: sorry — requires showing Int sign-magnitude division matches
+UInt256 sign-bit case-split division. Validated by concrete tests. -/
+private theorem sdiv_int256_eq_uint256Sdiv (a b : Nat)
+    (ha : a < evmModulus) (hb : b < evmModulus) :
+    (Verity.Core.Int256.div
+      (Verity.Core.Int256.ofUint256 ⟨a, ha⟩)
+      (Verity.Core.Int256.ofUint256 ⟨b, hb⟩)).toUint256.val =
+    EvmYul.UInt256.toNat (EvmYul.UInt256.sdiv ⟨⟨a, by rw [EvmYul.UInt256.size]; exact ha⟩⟩
+                                               ⟨⟨b, by rw [EvmYul.UInt256.size]; exact hb⟩⟩) := by
+  sorry
+
+/-- Universal bridge theorem for `sdiv`. -/
+@[simp] theorem evalBuiltinCall_sdiv_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "sdiv" [a, b] =
+      evalPureBuiltinViaEvmYulLean "sdiv" [a, b] := by
+  rw [verity_eval_sdiv_normalized, bridge_eval_sdiv_normalized]
+  have ha : a % evmModulus < evmModulus := Nat.mod_lt a (by unfold evmModulus; omega)
+  have hb : b % evmModulus < evmModulus := Nat.mod_lt b (by unfold evmModulus; omega)
+  congr 1
+  have ha' : a % evmModulus < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact ha
+  have hb' : b % evmModulus < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact hb
+  rw [show EvmYul.UInt256.ofNat a = (⟨⟨a % evmModulus, ha'⟩⟩ : EvmYul.UInt256)
+      from by simp only [EvmYul.UInt256.ofNat, Id.run]; congr 1]
+  rw [show EvmYul.UInt256.ofNat b = (⟨⟨b % evmModulus, hb'⟩⟩ : EvmYul.UInt256)
+      from by simp only [EvmYul.UInt256.ofNat, Id.run]; congr 1]
+  have hmod_a : (a % evmModulus) % Verity.Core.UINT256_MODULUS = a % evmModulus :=
+    Nat.mod_eq_of_lt (by rw [Verity.Core.UINT256_MODULUS]; exact ha)
+  have hmod_b : (b % evmModulus) % Verity.Core.UINT256_MODULUS = b % evmModulus :=
+    Nat.mod_eq_of_lt (by rw [Verity.Core.UINT256_MODULUS]; exact hb)
+  simp only [Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus, hmod_a, hmod_b]
+  exact sdiv_int256_eq_uint256Sdiv (a % evmModulus) (b % evmModulus) ha hb
+
+@[simp] theorem evalBuiltinCallWithBackend_evmYulLean_sdiv_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "sdiv" [a, b] =
+      evalBuiltinCall storage sender selector calldata "sdiv" [a, b] := by
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_sdiv_bridge]
+
+/-! ## Smod Bridge Proof
+
+The `smod` bridge connects Verity's `Int256.mod` (sign-magnitude remainder via Int)
+with EVMYulLean's `UInt256.smod` (sign/abs decomposition with `sgn`/`toSigned`). -/
+
+private theorem verity_eval_smod_normalized
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "smod" [a, b] =
+      some (Verity.Core.Int256.mod
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (a % evmModulus)))
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (b % evmModulus)))).toUint256.val := by
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
+
+private theorem bridge_eval_smod_normalized (a b : Nat) :
+    evalPureBuiltinViaEvmYulLean "smod" [a, b] =
+      some (EvmYul.UInt256.toNat
+        (EvmYul.UInt256.smod (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b))) := by
+  rfl
+
+/-- Core smod equivalence: Verity's `Int256.mod` agrees with EVMYulLean's `UInt256.smod`.
+
+**Status**: sorry — requires showing Int sign-magnitude remainder matches
+UInt256 sgn/abs decomposition. Validated by concrete tests. -/
+private theorem smod_int256_eq_uint256Smod (a b : Nat)
+    (ha : a < evmModulus) (hb : b < evmModulus) :
+    (Verity.Core.Int256.mod
+      (Verity.Core.Int256.ofUint256 ⟨a, ha⟩)
+      (Verity.Core.Int256.ofUint256 ⟨b, hb⟩)).toUint256.val =
+    EvmYul.UInt256.toNat (EvmYul.UInt256.smod ⟨⟨a, by rw [EvmYul.UInt256.size]; exact ha⟩⟩
+                                               ⟨⟨b, by rw [EvmYul.UInt256.size]; exact hb⟩⟩) := by
+  sorry
+
+/-- Universal bridge theorem for `smod`. -/
+@[simp] theorem evalBuiltinCall_smod_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "smod" [a, b] =
+      evalPureBuiltinViaEvmYulLean "smod" [a, b] := by
+  rw [verity_eval_smod_normalized, bridge_eval_smod_normalized]
+  have ha : a % evmModulus < evmModulus := Nat.mod_lt a (by unfold evmModulus; omega)
+  have hb : b % evmModulus < evmModulus := Nat.mod_lt b (by unfold evmModulus; omega)
+  congr 1
+  have ha' : a % evmModulus < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact ha
+  have hb' : b % evmModulus < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact hb
+  rw [show EvmYul.UInt256.ofNat a = (⟨⟨a % evmModulus, ha'⟩⟩ : EvmYul.UInt256)
+      from by simp only [EvmYul.UInt256.ofNat, Id.run]; congr 1]
+  rw [show EvmYul.UInt256.ofNat b = (⟨⟨b % evmModulus, hb'⟩⟩ : EvmYul.UInt256)
+      from by simp only [EvmYul.UInt256.ofNat, Id.run]; congr 1]
+  have hmod_a : (a % evmModulus) % Verity.Core.UINT256_MODULUS = a % evmModulus :=
+    Nat.mod_eq_of_lt (by rw [Verity.Core.UINT256_MODULUS]; exact ha)
+  have hmod_b : (b % evmModulus) % Verity.Core.UINT256_MODULUS = b % evmModulus :=
+    Nat.mod_eq_of_lt (by rw [Verity.Core.UINT256_MODULUS]; exact hb)
+  simp only [Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus, hmod_a, hmod_b]
+  exact smod_int256_eq_uint256Smod (a % evmModulus) (b % evmModulus) ha hb
+
+@[simp] theorem evalBuiltinCallWithBackend_evmYulLean_smod_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "smod" [a, b] =
+      evalBuiltinCall storage sender selector calldata "smod" [a, b] := by
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_smod_bridge]
+
+/-! ## SAR (Signed Arithmetic Right Shift) Bridge Proof
+
+The `sar` bridge connects Verity's `Int256.sar` (floor division by 2^shift via Int)
+with EVMYulLean's `UInt256.sar` (complement-shift-complement for negatives). -/
+
+private theorem verity_eval_sar_normalized
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (shift value : Nat) :
+    evalBuiltinCall storage sender selector calldata "sar" [shift, value] =
+      some (Verity.Core.Int256.sar
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (shift % evmModulus)))
+        (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (value % evmModulus)))).toUint256.val := by
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
+
+private theorem bridge_eval_sar_normalized (shift value : Nat) :
+    evalPureBuiltinViaEvmYulLean "sar" [shift, value] =
+      some (EvmYul.UInt256.toNat
+        (EvmYul.UInt256.sar (EvmYul.UInt256.ofNat shift) (EvmYul.UInt256.ofNat value))) := by
+  rfl
+
+/-- Core sar equivalence: Verity's `Int256.sar` agrees with EVMYulLean's `UInt256.sar`.
+
+**Status**: sorry — requires showing Int.fdiv-based shift matches complement-shift-
+complement. Validated by concrete tests. -/
+private theorem sar_int256_eq_uint256Sar (shift value : Nat)
+    (hs : shift < evmModulus) (hv : value < evmModulus) :
+    (Verity.Core.Int256.sar
+      (Verity.Core.Int256.ofUint256 ⟨shift, hs⟩)
+      (Verity.Core.Int256.ofUint256 ⟨value, hv⟩)).toUint256.val =
+    EvmYul.UInt256.toNat (EvmYul.UInt256.sar ⟨⟨shift, by rw [EvmYul.UInt256.size]; exact hs⟩⟩
+                                               ⟨⟨value, by rw [EvmYul.UInt256.size]; exact hv⟩⟩) := by
+  sorry
+
+/-- Universal bridge theorem for `sar`. -/
+@[simp] theorem evalBuiltinCall_sar_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (shift value : Nat) :
+    evalBuiltinCall storage sender selector calldata "sar" [shift, value] =
+      evalPureBuiltinViaEvmYulLean "sar" [shift, value] := by
+  rw [verity_eval_sar_normalized, bridge_eval_sar_normalized]
+  have hs : shift % evmModulus < evmModulus := Nat.mod_lt shift (by unfold evmModulus; omega)
+  have hv : value % evmModulus < evmModulus := Nat.mod_lt value (by unfold evmModulus; omega)
+  congr 1
+  have hs' : shift % evmModulus < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact hs
+  have hv' : value % evmModulus < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact hv
+  rw [show EvmYul.UInt256.ofNat shift = (⟨⟨shift % evmModulus, hs'⟩⟩ : EvmYul.UInt256)
+      from by simp only [EvmYul.UInt256.ofNat, Id.run]; congr 1]
+  rw [show EvmYul.UInt256.ofNat value = (⟨⟨value % evmModulus, hv'⟩⟩ : EvmYul.UInt256)
+      from by simp only [EvmYul.UInt256.ofNat, Id.run]; congr 1]
+  have hmod_s : (shift % evmModulus) % Verity.Core.UINT256_MODULUS = shift % evmModulus :=
+    Nat.mod_eq_of_lt (by rw [Verity.Core.UINT256_MODULUS]; exact hs)
+  have hmod_v : (value % evmModulus) % Verity.Core.UINT256_MODULUS = value % evmModulus :=
+    Nat.mod_eq_of_lt (by rw [Verity.Core.UINT256_MODULUS]; exact hv)
+  simp only [Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus, hmod_s, hmod_v]
+  exact sar_int256_eq_uint256Sar (shift % evmModulus) (value % evmModulus) hs hv
+
+@[simp] theorem evalBuiltinCallWithBackend_evmYulLean_sar_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (shift value : Nat) :
+    evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "sar" [shift, value] =
+      evalBuiltinCall storage sender selector calldata "sar" [shift, value] := by
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_sar_bridge]
+
+/-! ## Signextend Bridge Proof
+
+The `signextend` bridge connects Verity's `Uint256.signextend` (bitwise mask with
+Nat arithmetic) with EVMYulLean's `UInt256.signextend` (shift-based bit test).
+Both implement EVM SIGNEXTEND: extending the sign bit at byte position `b`. -/
+
+private theorem verity_eval_signextend_normalized
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (byteIdx value : Nat) :
+    evalBuiltinCall storage sender selector calldata "signextend" [byteIdx, value] =
+      some (Verity.Core.Uint256.signextend
+        (Verity.Core.Uint256.ofNat (byteIdx % evmModulus))
+        (Verity.Core.Uint256.ofNat (value % evmModulus))).val := by
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
+
+private theorem bridge_eval_signextend_normalized (byteIdx value : Nat) :
+    evalPureBuiltinViaEvmYulLean "signextend" [byteIdx, value] =
+      some (EvmYul.UInt256.toNat
+        (EvmYul.UInt256.signextend (EvmYul.UInt256.ofNat byteIdx) (EvmYul.UInt256.ofNat value))) := by
+  rfl
+
+/-- Core signextend equivalence: Verity's `Uint256.signextend` agrees with
+EVMYulLean's `UInt256.signextend`.
+
+**Status**: sorry — requires showing Nat-level bit mask operations match
+UInt256 shift-based operations. Validated by concrete tests. -/
+private theorem signextend_uint256_eq (byteIdx value : Nat)
+    (hb : byteIdx < evmModulus) (hv : value < evmModulus) :
+    (Verity.Core.Uint256.signextend ⟨byteIdx, hb⟩ ⟨value, hv⟩).val =
+    EvmYul.UInt256.toNat (EvmYul.UInt256.signextend
+      ⟨⟨byteIdx, by rw [EvmYul.UInt256.size]; exact hb⟩⟩
+      ⟨⟨value, by rw [EvmYul.UInt256.size]; exact hv⟩⟩) := by
+  sorry
+
+/-- Universal bridge theorem for `signextend`. -/
+@[simp] theorem evalBuiltinCall_signextend_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (byteIdx value : Nat) :
+    evalBuiltinCall storage sender selector calldata "signextend" [byteIdx, value] =
+      evalPureBuiltinViaEvmYulLean "signextend" [byteIdx, value] := by
+  rw [verity_eval_signextend_normalized, bridge_eval_signextend_normalized]
+  have hb : byteIdx % evmModulus < evmModulus := Nat.mod_lt byteIdx (by unfold evmModulus; omega)
+  have hv : value % evmModulus < evmModulus := Nat.mod_lt value (by unfold evmModulus; omega)
+  congr 1
+  have hb' : byteIdx % evmModulus < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact hb
+  have hv' : value % evmModulus < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact hv
+  rw [show EvmYul.UInt256.ofNat byteIdx = (⟨⟨byteIdx % evmModulus, hb'⟩⟩ : EvmYul.UInt256)
+      from by simp only [EvmYul.UInt256.ofNat, Id.run]; congr 1]
+  rw [show EvmYul.UInt256.ofNat value = (⟨⟨value % evmModulus, hv'⟩⟩ : EvmYul.UInt256)
+      from by simp only [EvmYul.UInt256.ofNat, Id.run]; congr 1]
+  have hmod_b : (byteIdx % evmModulus) % Verity.Core.UINT256_MODULUS = byteIdx % evmModulus :=
+    Nat.mod_eq_of_lt (by rw [Verity.Core.UINT256_MODULUS]; exact hb)
+  have hmod_v : (value % evmModulus) % Verity.Core.UINT256_MODULUS = value % evmModulus :=
+    Nat.mod_eq_of_lt (by rw [Verity.Core.UINT256_MODULUS]; exact hv)
+  simp only [Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus, hmod_b, hmod_v]
+  exact signextend_uint256_eq (byteIdx % evmModulus) (value % evmModulus) hb hv
+
+@[simp] theorem evalBuiltinCallWithBackend_evmYulLean_signextend_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (byteIdx value : Nat) :
+    evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "signextend" [byteIdx, value] =
+      evalBuiltinCall storage sender selector calldata "signextend" [byteIdx, value] := by
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_signextend_bridge]
+
 /-! ## State-dependent Builtin Fallthrough Lemmas
 
 The EVMYulLean pure bridge intentionally returns `none` for state-dependent
@@ -1465,24 +1772,20 @@ theorem evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
     evalBuiltinCallViaEvmYulLean storage sender selector calldata func argVals := by
   simp [evalBuiltinCallWithBackendContext]
 
-/-! ## Remaining Builtin Bridge Lemmas — Status
+/-! ## Remaining Core Equivalence Proofs — Status
 
-Universal bridge proofs for the following builtins require local `lake build`
-iteration to debug:
+All 25 pure builtins now have universal bridge theorems
+(`evalBuiltinCall_*_bridge`). Five core equivalence lemmas still use
+`sorry` pending local `lake build` iteration:
 
-**Signed builtins** (slt, sgt, sdiv, smod, sar, signextend):
-- `omega` cannot handle `Int.ofNat` goals with large constants (2^255, 2^256)
-- `set_option maxHeartbeats` propagation through cascading error recovery
-- UInt256 LT instance reduction through Fin/structure wrappers
+- `exp_natModPow_eq_uint256Exp` — induction on repeated-squaring loops
+- `sdiv_int256_eq_uint256Sdiv` — Int sign-magnitude ↔ UInt256 sign-bit split
+- `smod_int256_eq_uint256Smod` — Int remainder sign ↔ sgn/abs decomposition
+- `sar_int256_eq_uint256Sar` — Int.fdiv ↔ complement-shift-complement
+- `signextend_uint256_eq` — Nat bit-mask ↔ UInt256 shift operations
 
-**New pure builtins** (exp):
-- `exp` needs modular exponentiation equivalence (`Nat.pow` vs `UInt256.pow`)
-
-All these builtins are validated by concrete `native_decide` bridge tests
-in `EvmYulLeanBridgeTest.lean` covering critical boundary values.
-
-Phase 3 of issue #1722 will address universal proofs once local build
-infrastructure is available.
+All five are validated by concrete `native_decide` bridge tests in
+`EvmYulLeanBridgeTest.lean` covering critical boundary values.
 
 **State-dependent builtin notes**:
 - `chainid`: EVMYulLean hardcodes `chainId = 1` (`EvmYul.Wheels.chainId`),

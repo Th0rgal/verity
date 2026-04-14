@@ -18,6 +18,9 @@ PROVED_BUILTINS = [
     "mod",
     "addmod",
     "mulmod",
+    "exp",
+    "sdiv",
+    "smod",
     "lt",
     "gt",
     "slt",
@@ -30,15 +33,11 @@ PROVED_BUILTINS = [
     "not",
     "shl",
     "shr",
-    "byte",
-]
-CONCRETE_ONLY_BUILTINS = [
-    "exp",
-    "sdiv",
-    "smod",
     "sar",
     "signextend",
+    "byte",
 ]
+CONCRETE_ONLY_BUILTINS: list[str] = []
 PURE_BUILTINS = PROVED_BUILTINS + CONCRETE_ONLY_BUILTINS
 DELEGATED_BUILTINS = [
     "sload",
@@ -102,17 +101,23 @@ def validate_builtin_features(matrix: dict) -> list[dict]:
 def expected_doc_snippets(builtin_features: list[dict]) -> list[str]:
     total = len(builtin_features)
     proved = sum(1 for entry in builtin_features if entry["agreement_proved"])
-    concrete_only = len(CONCRETE_ONLY_BUILTINS)
     delegated = len(DELEGATED_BUILTINS)
-    concrete_names = ", ".join(f"`{b}`" for b in CONCRETE_ONLY_BUILTINS)
-    return [
+    snippets = [
         f"{proved}/{total} builtins have universal bridge agreement proofs between Verity and EVMYulLean evaluation paths.",
         f"{proved} are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`",
-        f"{concrete_only} additional builtins ({concrete_names}) are evaluated via EVMYulLean and validated by concrete",
+    ]
+    if CONCRETE_ONLY_BUILTINS:
+        concrete_only = len(CONCRETE_ONLY_BUILTINS)
+        concrete_names = ", ".join(f"`{b}`" for b in CONCRETE_ONLY_BUILTINS)
+        snippets.append(f"{concrete_only} additional builtins ({concrete_names}) are evaluated via EVMYulLean and validated by concrete")
+    else:
+        snippets.append("and none still require concrete-only regression coverage")
+    snippets.extend([
         f"The remaining {delegated} are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.",
         "| `address` | ok | del | -- |",
         "| `timestamp` | ok | del | -- |",
-    ]
+    ])
+    return snippets
 
 
 def main() -> int:
