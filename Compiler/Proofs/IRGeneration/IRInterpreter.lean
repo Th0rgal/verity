@@ -3802,8 +3802,9 @@ theorem compileInternalFunction_output_shape
     {fields : List CompilationModel.Field}
     {events : List CompilationModel.EventDef}
     {errors : List CompilationModel.ErrorDef}
+    {adtTypes : List CompilationModel.AdtTypeDef}
     {spec : CompilationModel.FunctionSpec} {stmt : YulStmt}
-    (hok : CompilationModel.compileInternalFunction fields events errors spec = Except.ok stmt) :
+    (hok : CompilationModel.compileInternalFunction fields events errors adtTypes spec = Except.ok stmt) :
     ∃ retNames bodyStmts,
       stmt = YulStmt.funcDef
         (CompilationModel.internalFunctionYulName spec.name)
@@ -3838,9 +3839,10 @@ theorem findInternalFunction?_of_compileInternalFunction_mem
     {fields : List CompilationModel.Field}
     {events : List CompilationModel.EventDef}
     {errors : List CompilationModel.ErrorDef}
+    {adtTypes : List CompilationModel.AdtTypeDef}
     {spec : CompilationModel.FunctionSpec} {compiledStmt : YulStmt}
     {contract : IRContract}
-    (hok : CompilationModel.compileInternalFunction fields events errors spec = Except.ok compiledStmt)
+    (hok : CompilationModel.compileInternalFunction fields events errors adtTypes spec = Except.ok compiledStmt)
     (hmem : compiledStmt ∈ contract.internalFunctions) :
     (findInternalFunction? contract (CompilationModel.internalFunctionYulName spec.name)).isSome = true := by
   obtain ⟨retNames, bodyStmts, hshape⟩ := compileInternalFunction_output_shape hok
@@ -3855,9 +3857,10 @@ theorem findInternalFunction?_exact_of_compileInternalFunction_mem_unique
     {fields : List CompilationModel.Field}
     {events : List CompilationModel.EventDef}
     {errors : List CompilationModel.ErrorDef}
+    {adtTypes : List CompilationModel.AdtTypeDef}
     {spec : CompilationModel.FunctionSpec} {compiledStmt : YulStmt}
     {contract : IRContract}
-    (hok : CompilationModel.compileInternalFunction fields events errors spec = Except.ok compiledStmt)
+    (hok : CompilationModel.compileInternalFunction fields events errors adtTypes spec = Except.ok compiledStmt)
     (hmem : compiledStmt ∈ contract.internalFunctions)
     (hunique : ∀ stmt ∈ contract.internalFunctions,
       ∀ p r b, irInternalFunctionDefOfStmt? stmt =

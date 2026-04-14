@@ -47,6 +47,7 @@ mutual
         let fieldComponents := List.range maxFields |>.map fun i =>
           renderParam s!"field{i}" .uint256 none
         some ("[" ++ String.intercalate ", " (tagComponent :: fieldComponents) ++ "]")
+    | .newtypeOf _ baseType => abiComponents? baseType
     | .array t => abiComponents? t
     | .fixedArray t _ => abiComponents? t
     | _ => none

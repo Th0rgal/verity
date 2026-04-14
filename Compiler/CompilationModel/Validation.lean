@@ -309,6 +309,7 @@ def exprWritesState : Expr → Bool
   | Expr.dynamicBytesEq _ _ =>
       false
   | Expr.externalCall _ _ | Expr.internalCall _ _ => true
+  | Expr.adtConstruct _ _ args => exprListWritesState args
   | Expr.extcodesize addr =>
       exprWritesState addr
   | Expr.storageArrayLength _ =>
@@ -637,7 +638,7 @@ def stmtIsPersistentWrite : Stmt → Bool
   | Stmt.setMappingChain _ _ _
   | Stmt.setMapping2 _ _ _ _ | Stmt.setMapping2Word _ _ _ _ _
   | Stmt.setStructMember _ _ _ _ | Stmt.setStructMember2 _ _ _ _ _
-  | Stmt.tstore _ _ => true
+  => true
   | Stmt.ite _ thenBranch elseBranch =>
       stmtListContainsPersistentWrite thenBranch || stmtListContainsPersistentWrite elseBranch
   | Stmt.forEach _ _ body =>
