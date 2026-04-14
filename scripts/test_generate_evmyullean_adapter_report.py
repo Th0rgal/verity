@@ -168,6 +168,21 @@ class ParseBridgeTestsTests(unittest.TestCase):
         self.assertEqual(count, 0)
         self.assertEqual(builtins, [])
 
+    def test_mismatched_builtins_not_counted(self) -> None:
+        """A block where verity and bridge sides test different builtins
+        should not credit either builtin (only the intersection counts)."""
+        p = self._write_test_file("""\
+            -- preamble
+            example := verityEvalBuiltin "add" [1, 2] = bridgeEval "sub" [1, 2] := by native_decide
+        """)
+        with patch.object(gen, "BRIDGE_TEST_FILE", p):
+            builtins, count = gen._parse_bridge_tests()
+        # The block still counts as a bridge test (both sides present)
+        self.assertEqual(count, 1)
+        # But neither builtin is credited because they don't match
+        self.assertNotIn("add", builtins)
+        self.assertNotIn("sub", builtins)
+
     def test_missing_file_raises(self) -> None:
         with patch.object(gen, "BRIDGE_TEST_FILE", Path("/nonexistent/BridgeTest.lean")):
             with self.assertRaises(FileNotFoundError):

@@ -170,9 +170,6 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
 
     def _make_bridge_file(self, theorems: list[str]) -> None:
         """Write a bridge lemmas file with sorry'd theorems."""
-        bridge = self.root / self.BRIDGE_PATH.replace("/", "/")
-        for part in self.BRIDGE_PATH.split("/"):
-            pass
         bridge = self.root / Path(self.BRIDGE_PATH)
         bridge.parent.mkdir(parents=True, exist_ok=True)
         lines = []

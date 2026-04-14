@@ -196,8 +196,9 @@ def _parse_bridge_tests() -> tuple[list[str], int]:
         bridge_matches = BRIDGE_EVAL_RE.findall(block)
         if verity_matches and bridge_matches and NATIVE_DECIDE_RE.search(block):
             bridge_test_count += 1
-            builtins.update(verity_matches)
-            builtins.update(bridge_matches)
+            # Only count builtins that appear on both sides of the bridge
+            common = set(verity_matches) & set(bridge_matches)
+            builtins.update(common)
     return sorted(builtins), bridge_test_count
 
 
