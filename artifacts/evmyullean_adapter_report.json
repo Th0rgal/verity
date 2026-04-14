@@ -14,7 +14,7 @@
     "slt",
     "smod"
   ],
-  "concrete_test_count": 113,
+  "concrete_test_count": 123,
   "eval_builtin_via_evmyullean": "implemented",
   "eval_pure_bridged": [
     "add",

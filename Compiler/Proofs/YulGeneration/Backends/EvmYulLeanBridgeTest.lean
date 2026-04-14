@@ -373,6 +373,11 @@ example : verityEvalWithContext "smod"
     [2^255, 1] =
   bridgeEval "smod" [2^255, 1] := by native_decide
 
+/-- smod: 0 % -1 = 0 -/
+example : verityEvalWithContext "smod"
+    [0, Compiler.Constants.evmModulus - 1] =
+  bridgeEval "smod" [0, Compiler.Constants.evmModulus - 1] := by native_decide
+
 -- ## Signed comparison builtins
 
 /-- slt: 3 <s 5 = 1 (positive < positive) -/
@@ -496,6 +501,15 @@ example : verityEvalWithContext "sar" [1, 2^255] =
 /-- sar: shift of 0 by any amount = 0 -/
 example : verityEvalWithContext "sar" [100, 0] = bridgeEval "sar" [100, 0] := by native_decide
 
+/-- sar: shift by 257 (beyond saturated, same as 256: positive → 0) -/
+example : verityEvalWithContext "sar" [257, 42] =
+          bridgeEval "sar" [257, 42] := by native_decide
+
+/-- sar: shift by 257 (beyond saturated, same as 256: negative → -1) -/
+example : verityEvalWithContext "sar"
+    [257, Compiler.Constants.evmModulus - 1] =
+  bridgeEval "sar" [257, Compiler.Constants.evmModulus - 1] := by native_decide
+
 /-- signextend: extending byte 0 of 0x7F (positive, stays positive) -/
 example : verityEvalWithContext "signextend" [0, 0x7F] =
           bridgeEval "signextend" [0, 0x7F] := by native_decide
@@ -539,6 +553,14 @@ example : verityEvalWithContext "signextend" [0, 0xFF] =
 /-- signextend: byte 0 of 0x00 (zero remains zero) -/
 example : verityEvalWithContext "signextend" [0, 0] =
           bridgeEval "signextend" [0, 0] := by native_decide
+
+/-- signextend: byte 7 (64-bit boundary) with sign bit set at bit 63 -/
+example : verityEvalWithContext "signextend" [7, 2^63] =
+          bridgeEval "signextend" [7, 2^63] := by native_decide
+
+/-- signextend: byte 7 (64-bit boundary) without sign bit -/
+example : verityEvalWithContext "signextend" [7, 2^63 - 1] =
+          bridgeEval "signextend" [7, 2^63 - 1] := by native_decide
 
 -- ## Scope boundary: state-dependent builtins fall through to none
 
@@ -649,6 +671,23 @@ example : verityEval "exp" [0, 1] = bridgeEval "exp" [0, 1] := by native_decide
 
 /-- exp: 1^large = 1 -/
 example : verityEval "exp" [1, 9999] = bridgeEval "exp" [1, 9999] := by native_decide
+
+/-- exp: 0^0 = 1 (EVM specification: EXPMOD(0,0,p) = 1) -/
+example : verityEval "exp" [0, 0] = bridgeEval "exp" [0, 0] := by native_decide
+
+/-- exp: 2^255 (largest power of 2 that fits in int256 positive range) -/
+example : verityEval "exp" [2, 255] = bridgeEval "exp" [2, 255] := by native_decide
+
+/-- exp: 2^256 ≡ 0 (mod 2^256) — wraps to zero -/
+example : verityEval "exp" [2, 256] = bridgeEval "exp" [2, 256] := by native_decide
+
+/-- exp: large base, small exponent -/
+example : verityEval "exp" [Compiler.Constants.evmModulus - 1, 2] =
+          bridgeEval "exp" [Compiler.Constants.evmModulus - 1, 2] := by native_decide
+
+/-- exp: base wraps in uint256 domain (2^256 ≡ 0, so 0^2 = 0) -/
+example : verityEval "exp" [Compiler.Constants.evmModulus, 2] =
+          bridgeEval "exp" [Compiler.Constants.evmModulus, 2] := by native_decide
 
 -- ## byte builtins
 
