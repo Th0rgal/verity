@@ -772,6 +772,140 @@ EVMYulLean UInt256 semantics on all inputs. -/
   simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_byte_bridge]
 
+/-! ## Signed Comparison Bridge Proofs (slt, sgt)
+
+These proofs bridge between Verity's `Int256.toInt`-based signed comparison
+(which interprets unsigned values as signed via two's complement and uses
+`Int.<`) and EVMYulLean's `sltBool`/`sgtBool` (which case-split on the sign bit
+`2^255` and compare unsigned values directly in each quadrant). -/
+
+/-- Helper: Verity's signed less-than on raw Nat inputs reduces to a comparison
+via `Int256.toInt`. This normalizes `evalBuiltinCallWithContext` for `slt`. -/
+set_option maxHeartbeats 4000000 in
+private theorem verity_eval_slt_normalized
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "slt" [a, b] =
+      some (if Verity.Core.Int256.toInt
+              (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (a % evmModulus))) <
+            Verity.Core.Int256.toInt
+              (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (b % evmModulus)))
+           then 1 else 0) := by
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
+
+/-- Helper: EVMYulLean's slt reduces to a Bool-valued sign-bit case split. -/
+private theorem bridge_eval_slt_normalized (a b : Nat) :
+    evalPureBuiltinViaEvmYulLean "slt" [a, b] =
+      some (EvmYul.UInt256.toNat
+        (EvmYul.UInt256.slt (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b))) := by
+  rfl
+
+/-- Helper: Verity's signed greater-than on raw Nat inputs reduces to a comparison
+via `Int256.toInt`. This normalizes `evalBuiltinCallWithContext` for `sgt`. -/
+set_option maxHeartbeats 4000000 in
+private theorem verity_eval_sgt_normalized
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "sgt" [a, b] =
+      some (if Verity.Core.Int256.toInt
+              (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (b % evmModulus))) <
+            Verity.Core.Int256.toInt
+              (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (a % evmModulus)))
+           then 1 else 0) := by
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
+
+/-- Helper: EVMYulLean's sgt reduces to a Nat value. -/
+private theorem bridge_eval_sgt_normalized (a b : Nat) :
+    evalPureBuiltinViaEvmYulLean "sgt" [a, b] =
+      some (EvmYul.UInt256.toNat
+        (EvmYul.UInt256.sgt (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b))) := by
+  rfl
+
+/-- Core lemma: Verity's Int256-based signed comparison agrees with EVMYulLean's
+sign-bit case analysis for all inputs in [0, evmModulus).
+
+The proof proceeds by case-splitting on the sign bit of each operand:
+- Both positive (< 2^255): signed order = unsigned order
+- Both negative (≥ 2^255): signed order = unsigned order (both shifted by -2^256)
+- Negative/positive: negative < positive unconditionally
+- Positive/negative: positive ≥ negative unconditionally -/
+set_option maxHeartbeats 32000000 in
+private theorem slt_int256_eq_sltBool (a b : Nat) (ha : a < evmModulus) (hb : b < evmModulus) :
+    (if Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 ⟨a, ha⟩) <
+        Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 ⟨b, hb⟩)
+     then (1 : Nat) else 0) =
+    (EvmYul.UInt256.toNat
+      (EvmYul.UInt256.slt ⟨⟨a, ha⟩⟩ ⟨⟨b, hb⟩⟩)) := by
+  unfold Verity.Core.Int256.toInt Verity.Core.Int256.ofUint256
+  unfold EvmYul.UInt256.slt EvmYul.UInt256.sltBool EvmYul.UInt256.fromBool Bool.toUInt256
+  unfold EvmYul.UInt256.toNat EvmYul.UInt256.ofNat Id.run
+  simp only [Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
+    Verity.Core.Uint256.modulus, EvmYul.UInt256.size]
+  split_ifs <;> simp_all [evmModulus] <;> omega
+
+/-- Universal bridge theorem for `slt`: Verity builtin semantics agree with
+EVMYulLean UInt256 semantics on all inputs. -/
+@[simp] theorem evalBuiltinCall_slt_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "slt" [a, b] =
+      evalPureBuiltinViaEvmYulLean "slt" [a, b] := by
+  rw [verity_eval_slt_normalized, bridge_eval_slt_normalized]
+  have ha : a % evmModulus < evmModulus := Nat.mod_lt a (by unfold evmModulus; omega)
+  have hb : b % evmModulus < evmModulus := Nat.mod_lt b (by unfold evmModulus; omega)
+  congr 1
+  conv_rhs =>
+    rw [show EvmYul.UInt256.ofNat a = ⟨⟨a % evmModulus, by rw [EvmYul.UInt256.size]; exact ha⟩⟩
+        from by simp [EvmYul.UInt256.ofNat, Id.run, EvmYul.UInt256.size, evmModulus]]
+    rw [show EvmYul.UInt256.ofNat b = ⟨⟨b % evmModulus, by rw [EvmYul.UInt256.size]; exact hb⟩⟩
+        from by simp [EvmYul.UInt256.ofNat, Id.run, EvmYul.UInt256.size, evmModulus]]
+  exact slt_int256_eq_sltBool (a % evmModulus) (b % evmModulus) ha hb
+
+@[simp] theorem evalBuiltinCallWithBackend_evmYulLean_slt_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "slt" [a, b] =
+      evalBuiltinCall storage sender selector calldata "slt" [a, b] := by
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_slt_bridge]
+
+/-- Core lemma: Verity's Int256-based signed greater-than agrees with EVMYulLean's
+sign-bit case analysis for all inputs in [0, evmModulus). Same structure as
+`slt_int256_eq_sltBool` but for `sgt`/`sgtBool`. -/
+set_option maxHeartbeats 32000000 in
+private theorem sgt_int256_eq_sgtBool (a b : Nat) (ha : a < evmModulus) (hb : b < evmModulus) :
+    (if Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 ⟨b, hb⟩) <
+        Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 ⟨a, ha⟩)
+     then (1 : Nat) else 0) =
+    (EvmYul.UInt256.toNat
+      (EvmYul.UInt256.sgt ⟨⟨a, ha⟩⟩ ⟨⟨b, hb⟩⟩)) := by
+  unfold Verity.Core.Int256.toInt Verity.Core.Int256.ofUint256
+  unfold EvmYul.UInt256.sgt EvmYul.UInt256.sgtBool EvmYul.UInt256.fromBool Bool.toUInt256
+  unfold EvmYul.UInt256.toNat EvmYul.UInt256.ofNat Id.run
+  simp only [Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
+    Verity.Core.Uint256.modulus, EvmYul.UInt256.size]
+  split_ifs <;> simp_all [evmModulus] <;> omega
+
+/-- Universal bridge theorem for `sgt`: Verity builtin semantics agree with
+EVMYulLean UInt256 semantics on all inputs. -/
+@[simp] theorem evalBuiltinCall_sgt_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "sgt" [a, b] =
+      evalPureBuiltinViaEvmYulLean "sgt" [a, b] := by
+  rw [verity_eval_sgt_normalized, bridge_eval_sgt_normalized]
+  have ha : a % evmModulus < evmModulus := Nat.mod_lt a (by unfold evmModulus; omega)
+  have hb : b % evmModulus < evmModulus := Nat.mod_lt b (by unfold evmModulus; omega)
+  congr 1
+  conv_rhs =>
+    rw [show EvmYul.UInt256.ofNat a = ⟨⟨a % evmModulus, by rw [EvmYul.UInt256.size]; exact ha⟩⟩
+        from by simp [EvmYul.UInt256.ofNat, Id.run, EvmYul.UInt256.size, evmModulus]]
+    rw [show EvmYul.UInt256.ofNat b = ⟨⟨b % evmModulus, by rw [EvmYul.UInt256.size]; exact hb⟩⟩
+        from by simp [EvmYul.UInt256.ofNat, Id.run, EvmYul.UInt256.size, evmModulus]]
+  exact sgt_int256_eq_sgtBool (a % evmModulus) (b % evmModulus) ha hb
+
+@[simp] theorem evalBuiltinCallWithBackend_evmYulLean_sgt_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "sgt" [a, b] =
+      evalBuiltinCall storage sender selector calldata "sgt" [a, b] := by
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_sgt_bridge]
+
 /-! ## State-dependent Builtin Fallthrough Lemmas
 
 The EVMYulLean pure bridge intentionally returns `none` for state-dependent
@@ -997,6 +1131,28 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "gt" [a, b] := by
   simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_gt_bridge storage sender selector calldata a b]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
+
+@[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_slt_bridge
+    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
+    (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "slt" [a, b] =
+    evalBuiltinCallWithContext storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "slt" [a, b] := by
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_slt_bridge storage sender selector calldata a b]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
+
+@[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_sgt_bridge
+    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
+    (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "sgt" [a, b] =
+    evalBuiltinCallWithContext storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "sgt" [a, b] := by
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  rw [← evalBuiltinCall_sgt_bridge storage sender selector calldata a b]
   simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_and_bridge

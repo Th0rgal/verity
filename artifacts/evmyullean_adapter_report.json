@@ -9,9 +9,7 @@
     "exp",
     "sar",
     "sdiv",
-    "sgt",
     "signextend",
-    "slt",
     "smod"
   ],
   "concrete_test_count": 123,
@@ -122,8 +120,10 @@
     "mulmod",
     "not",
     "or",
+    "sgt",
     "shl",
     "shr",
+    "slt",
     "sub",
     "xor"
   ]

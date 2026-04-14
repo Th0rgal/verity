@@ -36,12 +36,12 @@ Wrapping semantics are **proven** (not assumed) across all three verification la
 | Layer 1 (EDSL) | `Verity/Proofs/Stdlib/Math.lean` | `safeAdd`, `safeSub`, `safeMul` correctness |
 | Compiler | `Compiler/Proofs/YulGeneration/Builtins.lean` | `evalBuiltinCall` implements wrapping for all 15 pure builtins |
 | Compiler | `Compiler/Proofs/ArithmeticProfile.lean` | `add_wraps`, `sub_wraps`, `mul_wraps`, `div_by_zero`, `mod_by_zero` |
-| EVMYulLean bridge | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` | Universal bridge lemmas for 18 of 25 pure builtins (see list below); concrete smoke tests for the remaining 7 |
+| EVMYulLean bridge | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` | Universal bridge lemmas for 20 of 25 pure builtins (see list below); concrete smoke tests for the remaining 5 |
 | EVMYulLean bridge tests | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean` | Regression vectors for the universal pure-builtin bridge lemmas |
 
 The EVMYulLean bridge validates that Verity's `Nat`-modular arithmetic agrees with EVMYulLean's `Fin`-based `UInt256` operations. Current coverage:
-- universal bridge lemmas for 18 pure builtins: `add`, `sub`, `mul`, `div`, `mod`, `addmod`, `mulmod`, `lt`, `gt`, `eq`, `iszero`, `and`, `or`, `xor`, `not`, `shl`, `shr`, and `byte`
-- concrete bridge smoke tests for `exp`, `sdiv`, `smod`, `slt`, `sgt`, `sar`, and `signextend`
+- universal bridge lemmas for 20 pure builtins: `add`, `sub`, `mul`, `div`, `mod`, `addmod`, `mulmod`, `lt`, `gt`, `slt`, `sgt`, `eq`, `iszero`, `and`, `or`, `xor`, `not`, `shl`, `shr`, and `byte`
+- concrete bridge smoke tests for `exp`, `sdiv`, `smod`, `sar`, and `signextend`
 
 ### Higher-Level Expression Operators
 
@@ -109,7 +109,7 @@ The arithmetic model is invariant across profiles. See [`docs/SOLIDITY_PARITY_PR
 - **Gas semantics**: proofs establish result correctness, not gas cost or bounded liveness.
 - **Compiler-layer overflow detection**: the compiler does not insert overflow checks. Use EDSL `safeAdd`/`safeSub`/`safeMul` for checked behavior.
 - **Cryptographic primitives**: keccak256 is axiomatized (see [`AXIOMS.md`](../AXIOMS.md)).
-- **Universal bridge equivalence**: 18/25 pure EVMYulLean-backed builtins have universal bridge lemmas; `exp`, `sdiv`, `smod`, `slt`, `sgt`, `sar`, and `signextend` collectively still rely on concrete smoke tests. All 8 higher-level expression operators also have proven compilation correctness.
+- **Universal bridge equivalence**: 20/25 pure EVMYulLean-backed builtins have universal bridge lemmas; `exp`, `sdiv`, `smod`, `sar`, and `signextend` collectively still rely on concrete smoke tests. All 8 higher-level expression operators also have proven compilation correctness.
 
 ## Auditor Checklist
 

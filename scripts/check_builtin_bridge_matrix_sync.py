@@ -20,6 +20,8 @@ PROVED_BUILTINS = [
     "mulmod",
     "lt",
     "gt",
+    "slt",
+    "sgt",
     "eq",
     "iszero",
     "and",
@@ -34,8 +36,6 @@ CONCRETE_ONLY_BUILTINS = [
     "exp",
     "sdiv",
     "smod",
-    "slt",
-    "sgt",
     "sar",
     "signextend",
 ]
