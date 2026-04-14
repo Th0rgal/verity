@@ -126,12 +126,32 @@ def _parse_pure_bridge(text: str) -> list[str]:
     return sorted(set(PURE_BRIDGE_RE.findall(block)))
 
 
-def _parse_bridge_lemmas() -> list[str]:
-    """Extract builtins with universal bridge lemmas from BridgeLemmas file."""
+def _parse_bridge_lemmas() -> tuple[list[str], list[str]]:
+    """Extract builtins with universal bridge lemmas from BridgeLemmas file.
+
+    Returns (all_lemmas, admitted_lemmas) where admitted_lemmas lists builtins
+    whose bridge theorems transitively depend on ``sorry``'d helper lemmas.
+    Detection: scan forward from each bare ``sorry`` line to the next
+    ``evalBuiltinCall_NAME_bridge`` theorem and mark that builtin as admitted.
+    """
     if not BRIDGE_LEMMAS_FILE.exists():
         raise FileNotFoundError(f"Bridge lemmas file not found: {BRIDGE_LEMMAS_FILE}")
     text = BRIDGE_LEMMAS_FILE.read_text(encoding="utf-8")
-    return sorted(set(BRIDGE_LEMMA_RE.findall(text)))
+    all_lemmas = sorted(set(BRIDGE_LEMMA_RE.findall(text)))
+
+    # Find sorry-dependent builtins by scanning line-by-line: after a sorry,
+    # the next evalBuiltinCall_*_bridge theorem inherits the admission.
+    admitted: set[str] = set()
+    sorry_pending = False
+    for line in text.splitlines():
+        if re.match(r'^\s+sorry\b', line):
+            sorry_pending = True
+        if sorry_pending:
+            m = BRIDGE_LEMMA_RE.search(line)
+            if m:
+                admitted.add(m.group(1))
+                sorry_pending = False
+    return all_lemmas, sorted(admitted)
 
 
 def _parse_bridge_tests() -> tuple[list[str], int]:
@@ -206,7 +226,7 @@ def build_report() -> dict[str, object]:
     # Schema v3: extract builtin bridge inventories
     lookup_primop = _parse_lookup_primop(text)
     eval_pure = _parse_pure_bridge(text)
-    universal_lemmas = _parse_bridge_lemmas()
+    universal_lemmas, admitted_lemmas = _parse_bridge_lemmas()
     tested_builtins, test_count = _parse_bridge_tests()
     # Concrete-only = builtins tested but lacking universal lemmas
     concrete_only = sorted(set(tested_builtins) - set(universal_lemmas))
@@ -229,6 +249,7 @@ def build_report() -> dict[str, object]:
     # Always emit schema-v3 inventory keys so that parser drift (yielding
     # empty lists) causes a visible diff in the artifact rather than silently
     # dropping coverage sections that --check would then accept.
+    report["admitted_bridge_lemmas"] = admitted_lemmas
     report["lookup_primop_mapped"] = lookup_primop
     report["eval_pure_bridged"] = eval_pure
     report["universal_bridge_lemmas"] = universal_lemmas
