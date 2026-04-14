@@ -98,11 +98,15 @@ def validate_builtin_features(matrix: dict) -> list[dict]:
                 raise ValueError(f"{feature} should have evmyullean_bridge=supported")
             if entry.get("agreement_proved") is not False:
                 raise ValueError(f"{feature} should have agreement_proved=false (concrete-only)")
+            if entry.get("sorry_dependent", False) is not False:
+                raise ValueError(f"{feature} is concrete-only and must not have sorry_dependent=true")
         elif feature in DELEGATED_BUILTINS:
             if entry.get("evmyullean_bridge") != "delegated":
                 raise ValueError(f"{feature} should have evmyullean_bridge=delegated")
             if entry.get("agreement_proved") is not False:
                 raise ValueError(f"{feature} should have agreement_proved=false")
+            if entry.get("sorry_dependent", False) is not False:
+                raise ValueError(f"{feature} is delegated and must not have sorry_dependent=true")
 
     return builtin_features
 

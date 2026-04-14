@@ -213,6 +213,16 @@ class ParseCorrectnessProofsTests(unittest.TestCase):
         self.assertIn("assign_to_let", result)
         self.assertIn("for_init_hoisting", result)
 
+    def test_empty_theorems_raises(self) -> None:
+        p = self._write_correctness_file("""\
+            -- no theorems here, just comments
+            def helper := 42
+        """)
+        with patch.object(gen, "CORRECTNESS_FILE", p), \
+             patch.object(gen, "ROOT", Path(self._tmpdir.name)):
+            with self.assertRaises(ValueError, msg="No correctness theorems found"):
+                gen._parse_correctness_proofs()
+
     def test_missing_file_raises(self) -> None:
         with patch.object(gen, "CORRECTNESS_FILE", Path("/nonexistent/Correctness.lean")):
             with self.assertRaises(FileNotFoundError):

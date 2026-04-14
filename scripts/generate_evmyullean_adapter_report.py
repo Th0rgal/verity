@@ -208,6 +208,11 @@ def _parse_correctness_proofs() -> dict[str, object]:
         raise FileNotFoundError(f"Correctness proof file not found: {CORRECTNESS_FILE}")
     text = CORRECTNESS_FILE.read_text(encoding="utf-8")
     theorems = sorted(set(CORRECTNESS_THEOREM_RE.findall(text)))
+    if not theorems:
+        raise ValueError(
+            f"No correctness theorems found in {CORRECTNESS_FILE.relative_to(ROOT)} "
+            f"— expected assign_equiv_let or for_init theorems"
+        )
     assign_thms = [t for t in theorems if "assign" in t]
     for_thms = [t for t in theorems if "for_" in t or "for_init" in t or "for_empty" in t]
     result: dict[str, object] = {

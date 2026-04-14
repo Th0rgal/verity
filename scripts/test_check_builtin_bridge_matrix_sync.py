@@ -146,6 +146,52 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertIn("add should not have sorry_dependent=true", output)
 
+    def test_sorry_dependent_on_concrete_only_fails(self) -> None:
+        """Concrete-only builtin with sorry_dependent=true should fail."""
+        # Use validate_builtin_features directly with a synthetic matrix
+        # that has a concrete-only builtin, since CONCRETE_ONLY_BUILTINS
+        # may be empty in the current codebase state.
+        old_concrete = check.CONCRETE_ONLY_BUILTINS
+        old_proved = check.PROVED_BUILTINS
+        old_expected = check.EXPECTED_BUILTINS
+        old_admitted = check.ADMITTED_BUILTINS
+        try:
+            # Move "add" from proved to concrete-only for this test
+            check.CONCRETE_ONLY_BUILTINS = ["add"]
+            check.PROVED_BUILTINS = [b for b in old_proved if b != "add"]
+            check.ADMITTED_BUILTINS = [b for b in old_admitted if b in check.PROVED_BUILTINS]
+            check.EXPECTED_BUILTINS = check.PROVED_BUILTINS + check.CONCRETE_ONLY_BUILTINS + check.DELEGATED_BUILTINS
+            features = _make_builtin_features(
+                proved=check.PROVED_BUILTINS,
+                concrete_only=check.CONCRETE_ONLY_BUILTINS,
+                admitted=check.ADMITTED_BUILTINS,
+            )
+            # Inject sorry_dependent on the concrete-only entry
+            for f in features:
+                if f["feature"] == "add":
+                    f["sorry_dependent"] = True
+            matrix = {"builtin_features": features}
+            with self.assertRaises(ValueError, msg="concrete-only") as ctx:
+                check.validate_builtin_features(matrix)
+            self.assertIn("concrete-only and must not have sorry_dependent=true", str(ctx.exception))
+        finally:
+            check.CONCRETE_ONLY_BUILTINS = old_concrete
+            check.PROVED_BUILTINS = old_proved
+            check.EXPECTED_BUILTINS = old_expected
+            check.ADMITTED_BUILTINS = old_admitted
+
+    def test_sorry_dependent_on_delegated_fails(self) -> None:
+        """Delegated builtin with sorry_dependent=true should fail."""
+        features = _make_builtin_features()
+        for f in features:
+            if f["feature"] in check.DELEGATED_BUILTINS:
+                f["sorry_dependent"] = True
+                break
+        matrix = {"builtin_features": features}
+        with self.assertRaises(ValueError, msg="delegated") as ctx:
+            check.validate_builtin_features(matrix)
+        self.assertIn("delegated and must not have sorry_dependent=true", str(ctx.exception))
+
     def test_sorry_qualifier_in_snippets(self) -> None:
         """Doc snippets should include sorry qualifier when admitted builtins exist."""
         features = _make_builtin_features()
