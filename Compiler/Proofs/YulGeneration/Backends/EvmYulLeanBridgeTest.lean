@@ -816,6 +816,30 @@ example : backendEvalWithContext "sload" [42] = none := by native_decide
 /-- Context-lifted bridge: state-dependent caller falls through to none -/
 example : backendEvalWithContext "caller" [] = none := by native_decide
 
+/-- Context-lifted bridge: state-dependent calldataload falls through to none -/
+example : backendEvalWithContext "calldataload" [0] = none := by native_decide
+
+/-- Context-lifted bridge: state-dependent calldatasize falls through to none -/
+example : backendEvalWithContext "calldatasize" [] = none := by native_decide
+
+/-- Context-lifted bridge: state-dependent callvalue falls through to none -/
+example : backendEvalWithContext "callvalue" [] = none := by native_decide
+
+/-- Context-lifted bridge: state-dependent address falls through to none -/
+example : backendEvalWithContext "address" [] = none := by native_decide
+
+/-- Context-lifted bridge: state-dependent timestamp falls through to none -/
+example : backendEvalWithContext "timestamp" [] = none := by native_decide
+
+/-- Context-lifted bridge: state-dependent number falls through to none -/
+example : backendEvalWithContext "number" [] = none := by native_decide
+
+/-- Context-lifted bridge: state-dependent chainid falls through to none -/
+example : backendEvalWithContext "chainid" [] = none := by native_decide
+
+/-- Context-lifted bridge: state-dependent blobbasefee falls through to none -/
+example : backendEvalWithContext "blobbasefee" [] = none := by native_decide
+
 -- ## Summary output
 def main : IO Unit := do
   IO.println "✓ Unsigned arithmetic builtins: add, sub, mul, div, mod — universally bridged"
@@ -830,7 +854,7 @@ def main : IO Unit := do
   IO.println "✓ Sign extension: signextend — concrete bridge (byte positions 0,1,15,30,31,32)"
   IO.println "✓ State-dependent builtins: sload, caller, calldataload, address, timestamp, number, chainid, blobbasefee — correctly handled"
   IO.println "✓ Verity-specific helpers: mappingSlot — correctly delegated"
-  IO.println "✓ Context-lifted backend bridge: 25 pure builtins + 2 state-dependent fallthrough"
+  IO.println "✓ Context-lifted backend bridge: 25 pure builtins + 8 state-dependent fallthroughs"
   IO.println "✓ Adapter: all 11 statement types lower without error"
   IO.println "✓ PrimOp mapping: 35 builtins mapped via lookupPrimOp"
   IO.println "EVMYulLean bridge test: all checks passed"
