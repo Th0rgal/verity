@@ -6,6 +6,7 @@ namespace Compiler.Proofs.IRGeneration.ContractFeatureTest
 open Compiler
 open Compiler.CompilationModel
 open Compiler.Proofs.IRGeneration
+open Compiler.Yul
 
 private def literalMappingWriteFunction : FunctionSpec :=
   { name := "setFive"
@@ -205,6 +206,13 @@ private def constructorOnlyTx : IRTransaction :=
     functionSelector := 0
     args := [11] }
 
+private def identityInternalHelper : FunctionSpec :=
+  { name := "identity"
+    params := [{ name := "x", ty := .uint256 }]
+    returnType := some .uint256
+    isInternal := true
+    body := [Stmt.return (.param "x")] }
+
 private theorem literalMappingWrite_txNormalized :
     Function.TxContextNormalized literalMappingWriteTx := by
   simp [Function.TxContextNormalized, literalMappingWriteTx, Compiler.Constants.addressModulus,
@@ -282,6 +290,29 @@ example :
         Except.ok (genConstructorArgLoads constructorOnlyCtor.params ++ bodyStmts) := by
   rcases constructorOnly_compileConstructor with ⟨bodyStmts, hdeploy, _⟩
   exact ⟨bodyStmts, hdeploy⟩
+
+example :
+    ∀ returns retNames bodyStmts,
+      validateFunctionSpec identityInternalHelper = Except.ok () →
+      functionReturns identityInternalHelper = Except.ok returns →
+      retNames =
+        freshInternalRetNames returns
+          (identityInternalHelper.params.map (·.name) ++
+            collectStmtListBindNames identityInternalHelper.body) →
+      compileStmtList [] [] [] .calldata retNames true
+        (identityInternalHelper.params.map (·.name) ++ retNames)
+        identityInternalHelper.body = Except.ok bodyStmts →
+      compileInternalFunction [] [] [] identityInternalHelper =
+        Except.ok
+          (YulStmt.funcDef
+            (internalFunctionYulName identityInternalHelper.name)
+            (identityInternalHelper.params.map (·.name))
+            retNames
+            bodyStmts) := by
+  intro returns retNames bodyStmts hvalidate hreturns hretNames hbody
+  exact compileInternalFunction_some_ok_of_components
+    [] [] [] identityInternalHelper returns retNames bodyStmts
+    hvalidate hreturns hretNames hbody
 
 example
     (ir : IRContract)
