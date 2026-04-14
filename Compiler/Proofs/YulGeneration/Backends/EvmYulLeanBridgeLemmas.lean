@@ -885,9 +885,8 @@ private theorem slt_int256_eq_sltBool (a b : Nat) (ha : a < evmModulus) (hb : b 
   simp only [Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS]
-  -- Case split on sign bits, then close each case
-  by_cases haSign : a < 2 ^ 255 <;> by_cases hbSign : b < 2 ^ 255 <;>
-    simp_all [evmModulus, EvmYul.UInt256.size] <;> omega
+  -- Eliminate all `if` expressions, then close each branch with omega
+  split_ifs <;> simp_all [evmModulus, EvmYul.UInt256.size] <;> omega
 
 /-- Universal bridge theorem for `slt`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
@@ -947,9 +946,8 @@ private theorem sgt_int256_eq_sgtBool (a b : Nat) (ha : a < evmModulus) (hb : b 
   simp only [Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS]
-  -- Case split on sign bits, then close each case
-  by_cases haSign : a < 2 ^ 255 <;> by_cases hbSign : b < 2 ^ 255 <;>
-    simp_all [evmModulus, EvmYul.UInt256.size] <;> omega
+  -- Eliminate all `if` expressions, then close each branch with omega
+  split_ifs <;> simp_all [evmModulus, EvmYul.UInt256.size] <;> omega
 
 /-- Universal bridge theorem for `sgt`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
@@ -1068,7 +1066,19 @@ private theorem bridge_eval_sdiv_normalized (a b : Nat) :
     semantics of EVMYulLean's `⟨v.val * (-1)⟩` negation via Fin multiplication. -/
 private theorem fin_val_mul_neg1 (n x : Nat) (hn : 0 < n) (hx : x < n) (hxpos : 0 < x) :
     (x * (n - 1)) % n = n - x := by
-  -- x * (n - 1) = (x - 1) * n + (n - x), with n - x < n
+  -- x * (n - 1) + x = x * n (uses left_distrib to factor out x)
+  have h1le : 1 ≤ n := hn
+  have hadd : x * (n - 1) + x = x * n := by
+    have : x * (n - 1) + x * 1 = x * n := by
+      rw [← Nat.left_distrib, Nat.sub_add_cancel h1le]
+    rwa [Nat.mul_one] at this
+  -- (x - 1) * n + n = x * n (uses left_distrib to factor out n)
+  have h1lex : 1 ≤ x := hxpos
+  have hadd2 : (x - 1) * n + n = x * n := by
+    have : (x - 1) * n + 1 * n = x * n := by
+      rw [← Nat.right_distrib, Nat.sub_add_cancel h1lex]
+    rwa [Nat.one_mul] at this
+  -- Therefore x * (n - 1) = (x - 1) * n + (n - x) (both + x give x * n)
   have hdiv : x * (n - 1) = (x - 1) * n + (n - x) := by omega
   rw [hdiv]
   exact Nat.mul_add_mod_of_lt (by omega)
