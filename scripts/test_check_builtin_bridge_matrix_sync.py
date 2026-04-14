@@ -16,6 +16,46 @@ if str(SCRIPT_DIR) not in sys.path:
 import check_builtin_bridge_matrix_sync as check
 
 
+def _make_builtin_features(
+    *,
+    proved: list[str] | None = None,
+    admitted: list[str] | None = None,
+    concrete_only: list[str] | None = None,
+    delegated: list[str] | None = None,
+) -> list[dict]:
+    """Build a builtin_features list from category lists."""
+    proved = proved if proved is not None else check.PROVED_BUILTINS
+    admitted = admitted if admitted is not None else check.ADMITTED_BUILTINS
+    concrete_only = concrete_only if concrete_only is not None else check.CONCRETE_ONLY_BUILTINS
+    delegated = delegated if delegated is not None else check.DELEGATED_BUILTINS
+    features: list[dict] = []
+    for name in proved:
+        entry: dict = {
+            "feature": name,
+            "verity_path": "supported",
+            "evmyullean_bridge": "supported",
+            "agreement_proved": True,
+        }
+        if name in admitted:
+            entry["sorry_dependent"] = True
+        features.append(entry)
+    for name in concrete_only:
+        features.append({
+            "feature": name,
+            "verity_path": "supported",
+            "evmyullean_bridge": "supported",
+            "agreement_proved": False,
+        })
+    for name in delegated:
+        features.append({
+            "feature": name,
+            "verity_path": "supported",
+            "evmyullean_bridge": "delegated",
+            "agreement_proved": False,
+        })
+    return features
+
+
 class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
     def _write_fixture_tree(self, root: Path, *, builtin_features: list[dict], doc_text: str) -> None:
         feature_matrix = root / "artifacts" / "interpreter_feature_matrix.json"
@@ -49,73 +89,25 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
                 check.TARGET_DOC = old_target_doc
 
     def test_missing_delegated_builtin_fails_closed(self) -> None:
-        builtin_features = [
-            {
-                "feature": feature,
-                "verity_path": "supported",
-                "evmyullean_bridge": "supported",
-                "agreement_proved": True,
-            }
-            for feature in check.PROVED_BUILTINS
-        ] + [
-            {
-                "feature": feature,
-                "verity_path": "supported",
-                "evmyullean_bridge": "supported",
-                "agreement_proved": False,
-            }
-            for feature in check.CONCRETE_ONLY_BUILTINS
-        ] + [
-            {
-                "feature": feature,
-                "verity_path": "supported",
-                "evmyullean_bridge": "delegated",
-                "agreement_proved": False,
-            }
-            for feature in ["sload", "caller", "chainid", "calldataload", "mappingSlot"]
-        ]
+        features = _make_builtin_features(
+            delegated=["sload", "caller", "chainid", "calldataload", "mappingSlot"],
+        )
         rc, output = self._run_check(
-            builtin_features=builtin_features,
-            doc_text="15/22 builtins have bridge agreement coverage between Verity and EVMYulLean evaluation paths.",
+            builtin_features=features,
+            doc_text="15/22 builtins have bridge agreement coverage.",
         )
         self.assertEqual(rc, 1)
         self.assertIn("builtin feature list is out of sync", output)
 
     def test_summary_drift_fails(self) -> None:
-        builtin_features = [
-            {
-                "feature": feature,
-                "verity_path": "supported",
-                "evmyullean_bridge": "supported",
-                "agreement_proved": True,
-            }
-            for feature in check.PROVED_BUILTINS
-        ] + [
-            {
-                "feature": feature,
-                "verity_path": "supported",
-                "evmyullean_bridge": "supported",
-                "agreement_proved": False,
-            }
-            for feature in check.CONCRETE_ONLY_BUILTINS
-        ] + [
-            {
-                "feature": feature,
-                "verity_path": "supported",
-                "evmyullean_bridge": "delegated",
-                "agreement_proved": False,
-            }
-            for feature in check.DELEGATED_BUILTINS
-        ]
+        features = _make_builtin_features()
         rc, output = self._run_check(
-            builtin_features=builtin_features,
+            builtin_features=features,
             doc_text=(
                 "| `address` | ok | del | -- |\n"
                 "| `timestamp` | ok | del | -- |\n"
-                "15/30 builtins have universal bridge agreement proofs between Verity and EVMYulLean evaluation paths.\n"
-                "15 are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`\n"
-                "5 additional builtins\n"
-                "The remaining 10 are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.\n"
+                "15/30 builtins have universal bridge agreement proofs.\n"
+                "15 are discharged by universal symbolic lemmas in X\n"
             ),
         )
         self.assertEqual(rc, 1)
@@ -128,6 +120,53 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
             rc = check.main()
         output = stdout.getvalue() + stderr.getvalue()
         self.assertEqual(rc, 0, output)
+
+    def test_sorry_dependent_missing_flag_fails(self) -> None:
+        """Admitted builtin without sorry_dependent=true should fail."""
+        features = _make_builtin_features(admitted=[])  # No sorry flags
+        rc, output = self._run_check(
+            builtin_features=features,
+            doc_text="anything",
+        )
+        self.assertEqual(rc, 1)
+        # First admitted builtin should trigger the error
+        self.assertIn("should have sorry_dependent=true", output)
+
+    def test_sorry_dependent_on_non_admitted_fails(self) -> None:
+        """Fully proved builtin with sorry_dependent=true should fail."""
+        features = _make_builtin_features()
+        # Add sorry_dependent to 'add' which is not admitted
+        for f in features:
+            if f["feature"] == "add":
+                f["sorry_dependent"] = True
+        rc, output = self._run_check(
+            builtin_features=features,
+            doc_text="anything",
+        )
+        self.assertEqual(rc, 1)
+        self.assertIn("add should not have sorry_dependent=true", output)
+
+    def test_sorry_qualifier_in_snippets(self) -> None:
+        """Doc snippets should include sorry qualifier when admitted builtins exist."""
+        features = _make_builtin_features()
+        snippets = check.expected_doc_snippets(features)
+        self.assertTrue(
+            any("18 fully proven, 7 with sorry-dependent core equivalences" in s for s in snippets),
+            f"Expected sorry qualifier in snippets: {snippets}",
+        )
+
+    def test_no_sorry_qualifier_when_no_admitted(self) -> None:
+        """Doc snippets should not include qualifier when no sorry-dependent builtins."""
+        features = _make_builtin_features(admitted=[])
+        # Remove sorry_dependent flags that _make_builtin_features adds
+        for f in features:
+            f.pop("sorry_dependent", None)
+        snippets = check.expected_doc_snippets(features)
+        self.assertTrue(
+            any("25/36 builtins have universal bridge agreement proofs" in s
+                and "sorry" not in s for s in snippets),
+            f"Expected unqualified snippet: {snippets}",
+        )
 
 
 if __name__ == "__main__":

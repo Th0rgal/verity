@@ -37,6 +37,8 @@ PROVED_BUILTINS = [
     "signextend",
     "byte",
 ]
+# Builtins whose bridge theorems transitively depend on sorry'd core lemmas.
+ADMITTED_BUILTINS = ["exp", "sdiv", "smod", "slt", "sgt", "sar", "signextend"]
 CONCRETE_ONLY_BUILTINS: list[str] = []
 PURE_BUILTINS = PROVED_BUILTINS + CONCRETE_ONLY_BUILTINS
 DELEGATED_BUILTINS = [
@@ -84,6 +86,13 @@ def validate_builtin_features(matrix: dict) -> list[dict]:
                 raise ValueError(f"{feature} should have evmyullean_bridge=supported")
             if entry.get("agreement_proved") is not True:
                 raise ValueError(f"{feature} should have agreement_proved=true")
+            # Admitted builtins must be flagged; fully proved must not be.
+            if feature in ADMITTED_BUILTINS:
+                if entry.get("sorry_dependent") is not True:
+                    raise ValueError(f"{feature} should have sorry_dependent=true")
+            else:
+                if entry.get("sorry_dependent", False) is not False:
+                    raise ValueError(f"{feature} should not have sorry_dependent=true")
         elif feature in CONCRETE_ONLY_BUILTINS:
             if entry.get("evmyullean_bridge") != "supported":
                 raise ValueError(f"{feature} should have evmyullean_bridge=supported")
@@ -98,12 +107,23 @@ def validate_builtin_features(matrix: dict) -> list[dict]:
     return builtin_features
 
 
+def _sorry_qualifier(builtin_features: list[dict]) -> str:
+    """Return parenthetical qualifier for sorry-dependent bridge proofs."""
+    admitted = sum(1 for e in builtin_features if e.get("sorry_dependent") is True)
+    if admitted == 0:
+        return ""
+    proved_total = sum(1 for e in builtin_features if e["agreement_proved"])
+    fully = proved_total - admitted
+    return f" ({fully} fully proven, {admitted} with sorry-dependent core equivalences)"
+
+
 def expected_doc_snippets(builtin_features: list[dict]) -> list[str]:
     total = len(builtin_features)
     proved = sum(1 for entry in builtin_features if entry["agreement_proved"])
     delegated = len(DELEGATED_BUILTINS)
+    qualifier = _sorry_qualifier(builtin_features)
     snippets = [
-        f"{proved}/{total} builtins have universal bridge agreement proofs between Verity and EVMYulLean evaluation paths.",
+        f"{proved}/{total} builtins have universal bridge agreement proofs between Verity and EVMYulLean evaluation paths{qualifier}.",
         f"{proved} are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`",
     ]
     if CONCRETE_ONLY_BUILTINS:
@@ -149,9 +169,11 @@ def main() -> int:
         return 1
 
     proved = sum(1 for entry in builtin_features if entry["agreement_proved"])
+    admitted = sum(1 for entry in builtin_features if entry.get("sorry_dependent") is True)
+    admitted_str = f"; admitted (sorry-dependent): {', '.join(ADMITTED_BUILTINS)}" if admitted else ""
     print(
         "builtin bridge matrix sync passed: "
-        f"{proved}/{len(builtin_features)} builtins proved; "
+        f"{proved}/{len(builtin_features)} builtins proved{admitted_str}; "
         f"concrete-only: {', '.join(CONCRETE_ONLY_BUILTINS)}; "
         f"delegated: {', '.join(DELEGATED_BUILTINS)}"
     )
