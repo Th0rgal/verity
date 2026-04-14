@@ -93,15 +93,15 @@ def extract_admitted_builtins(text: str) -> list[str]:
     bridge_re = re.compile(r"@\[simp\]\s+theorem\s+evalBuiltinCall_([A-Za-z0-9]+)_bridge\b")
     sorry_re = re.compile(r"\bsorry\b")
     comment_re = re.compile(r"^\s*--")
-    docstring_open_re = re.compile(r"^\s*(/--|/-!)")
+    block_comment_open_re = re.compile(r"^\s*/-")
     status_re = re.compile(r"\*\*Status\*\*")
     for line in text.splitlines():
         stripped = line.strip()
-        # Track multi-line doc comment blocks (/-- ... -/ and /-! ... -/)
-        if not in_docstring and docstring_open_re.match(line):
+        # Track multi-line block comment blocks (/-- ... -/, /-! ... -/, /- ... -/)
+        if not in_docstring and block_comment_open_re.match(line):
             in_docstring = True
-            # Check if doc comment closes on the same line
-            if stripped.endswith("-/") and stripped != "/--" and stripped != "/-!":
+            # Check if block comment closes on the same line
+            if stripped.endswith("-/") and stripped not in ("/--", "/-!", "/-"):
                 in_docstring = False
             continue
         if in_docstring:

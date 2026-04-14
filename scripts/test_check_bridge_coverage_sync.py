@@ -202,6 +202,28 @@ class BridgeCoverageSyncTests(unittest.TestCase):
         admitted = check.extract_admitted_builtins(text)
         self.assertEqual(admitted, [])
 
+    def test_extract_admitted_ignores_sorry_in_block_comments(self) -> None:
+        """Sorry in regular block comments (/- ... -/) should not trigger detection."""
+        text = textwrap.dedent("""\
+            /- This uses sorry as a placeholder -/
+            @[simp] theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+        """)
+        admitted = check.extract_admitted_builtins(text)
+        self.assertEqual(admitted, [])
+
+    def test_extract_admitted_ignores_sorry_in_multiline_block_comments(self) -> None:
+        """Sorry in multi-line regular block comments should not trigger detection."""
+        text = textwrap.dedent("""\
+            /- This block comment
+               mentions sorry
+               across multiple lines -/
+            @[simp] theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+        """)
+        admitted = check.extract_admitted_builtins(text)
+        self.assertEqual(admitted, [])
+
     def test_admitted_qualifier_generates_parenthetical(self) -> None:
         q = check._admitted_qualifier(["exp", "slt", "sgt"])
         self.assertEqual(q, " (22 fully proven, 3 with sorry-dependent core equivalences)")
