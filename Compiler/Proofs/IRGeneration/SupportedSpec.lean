@@ -1711,6 +1711,24 @@ private theorem supportedStmtList_letStorageAddrField_helperSurfaceClosed
     exprTouchesUnsupportedHelperSurface,
         Bool.or_false, Bool.false_or]
 
+private theorem supportedStmtList_assignStorageField_helperSurfaceClosed
+    {name fieldName : String} :
+    stmtListTouchesUnsupportedHelperSurface
+      [Stmt.assignVar name (Expr.storage fieldName)] = false := by
+  simp only [stmtListTouchesUnsupportedHelperSurface,
+    stmtTouchesUnsupportedHelperSurface,
+    exprTouchesUnsupportedHelperSurface,
+        Bool.or_false, Bool.false_or]
+
+private theorem supportedStmtList_assignStorageAddrField_helperSurfaceClosed
+    {name fieldName : String} :
+    stmtListTouchesUnsupportedHelperSurface
+      [Stmt.assignVar name (Expr.storageAddr fieldName)] = false := by
+  simp only [stmtListTouchesUnsupportedHelperSurface,
+    stmtTouchesUnsupportedHelperSurface,
+    exprTouchesUnsupportedHelperSurface,
+        Bool.or_false, Bool.false_or]
+
 private theorem supportedStmtList_setStorageAddrSingleSlot_helperSurfaceClosed
     {fieldName : String}
     {value : Expr}
@@ -1912,6 +1930,10 @@ theorem SupportedStmtList.helperSurfaceClosed
       exact supportedStmtList_letStorageField_helperSurfaceClosed
   | letStorageAddrField _ _ =>
       exact supportedStmtList_letStorageAddrField_helperSurfaceClosed
+  | assignStorageField _ _ =>
+      exact supportedStmtList_assignStorageField_helperSurfaceClosed
+  | assignStorageAddrField _ _ =>
+      exact supportedStmtList_assignStorageAddrField_helperSurfaceClosed
   | letMappingField hkey _ _ =>
       simp only [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
@@ -2034,6 +2056,16 @@ theorem SupportedStmtList.internalHelperCallNames_nil
         exprInternalHelperCallNames,
         List.nil_append, List.append_nil]
   | letStorageAddrField _ _ =>
+      simp only [stmtListInternalHelperCallNames,
+        stmtInternalHelperCallNames,
+        exprInternalHelperCallNames,
+        List.nil_append, List.append_nil]
+  | assignStorageField _ _ =>
+      simp only [stmtListInternalHelperCallNames,
+        stmtInternalHelperCallNames,
+        exprInternalHelperCallNames,
+        List.nil_append, List.append_nil]
+  | assignStorageAddrField _ _ =>
       simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprInternalHelperCallNames,
@@ -3700,6 +3732,10 @@ private theorem supportedStmtList_usesArrayElement_false
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement, Bool.false_or]
   | letStorageAddrField _ _ =>
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement, Bool.false_or]
+  | assignStorageField _ _ =>
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement, Bool.false_or]
+  | assignStorageAddrField _ _ =>
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement, Bool.false_or]
   | letMappingField hkey _ _ =>
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement,
         exprCompileCore_usesArrayElement_false hkey, Bool.false_or]
@@ -3800,6 +3836,12 @@ private theorem supportedStmtList_usesStorageArrayElement_false
       simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprUsesStorageArrayElement, Bool.false_or]
   | letStorageAddrField _ _ =>
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprUsesStorageArrayElement, Bool.false_or]
+  | assignStorageField _ _ =>
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprUsesStorageArrayElement, Bool.false_or]
+  | assignStorageAddrField _ _ =>
       simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprUsesStorageArrayElement, Bool.false_or]
   | letMappingField hkey _ _ =>
@@ -3904,6 +3946,10 @@ private theorem supportedStmtList_usesDynamicBytesEq_false
   | letStorageField _ _ =>
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq, Bool.false_or]
   | letStorageAddrField _ _ =>
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq, Bool.false_or]
+  | assignStorageField _ _ =>
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq, Bool.false_or]
+  | assignStorageAddrField _ _ =>
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq, Bool.false_or]
   | letMappingField hkey _ _ =>
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq,

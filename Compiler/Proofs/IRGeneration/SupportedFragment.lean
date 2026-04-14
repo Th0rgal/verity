@@ -93,6 +93,24 @@ inductive SupportedStmtList (fields : List Field) : List String → List Stmt �
         some ({ name := fieldName, ty := FieldType.address }, slot) →
       fieldName ∈ scope →
       SupportedStmtList fields scope [Stmt.letVar tmp (Expr.storageAddr fieldName)]
+  | assignStorageField
+      {scope : List String}
+      {name : String}
+      {fieldName : String}
+      {slot : Nat} :
+      findFieldWithResolvedSlot fields fieldName =
+        some ({ name := fieldName, ty := FieldType.uint256 }, slot) →
+      fieldName ∈ scope →
+      SupportedStmtList fields scope [Stmt.assignVar name (Expr.storage fieldName)]
+  | assignStorageAddrField
+      {scope : List String}
+      {name : String}
+      {fieldName : String}
+      {slot : Nat} :
+      findFieldWithResolvedSlot fields fieldName =
+        some ({ name := fieldName, ty := FieldType.address }, slot) →
+      fieldName ∈ scope →
+      SupportedStmtList fields scope [Stmt.assignVar name (Expr.storageAddr fieldName)]
   | letMappingField
       {scope : List String}
       {tmp : String}
