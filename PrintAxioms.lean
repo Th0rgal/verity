@@ -2140,9 +2140,11 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.int_neg_lt_pos_evm  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.int_pos_not_lt_neg_evm  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.toNat_fromBool  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.sltBool_val  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.slt_int256_eq_sltBool  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_slt_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_slt_bridge
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.sgtBool_val  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.sgt_int256_eq_sgtBool  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_sgt_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_sgt_bridge
@@ -2266,4 +2268,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 2114 theorems/lemmas (1426 public, 688 private, 0 sorry'd)
+-- Total: 2116 theorems/lemmas (1426 public, 690 private, 0 sorry'd)
