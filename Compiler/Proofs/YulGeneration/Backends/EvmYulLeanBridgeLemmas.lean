@@ -920,20 +920,10 @@ EVMYulLean UInt256 semantics on all inputs. -/
   simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_slt_bridge]
 
-/-- Helper: `UInt256.sgtBool` on raw `Fin` structs reduces to Nat comparisons. -/
-private theorem sgtBool_val (a b : Nat) (ha : a < EvmYul.UInt256.size) (hb : b < EvmYul.UInt256.size) :
-    EvmYul.UInt256.sgtBool ⟨⟨a, ha⟩⟩ ⟨⟨b, hb⟩⟩ =
-      (if a ≥ 2 ^ 255 then
-        if b ≥ 2 ^ 255 then a > b else false
-       else
-        if b ≥ 2 ^ 255 then true else a > b) := by
-  simp only [EvmYul.UInt256.sgtBool, EvmYul.UInt256.toNat, ge_iff_le,
-    GT.gt, LT.lt, LE.le, Fin.lt, Fin.le]
-
 /-- Core lemma: Verity's Int256-based signed greater-than agrees with EVMYulLean's
 sign-bit case analysis for all inputs in [0, evmModulus). Same structure as
 `slt_int256_eq_sltBool` but for `sgt`/`sgtBool`. -/
-set_option maxHeartbeats 8000000 in
+set_option maxHeartbeats 16000000 in
 set_option maxRecDepth 2048 in
 private theorem sgt_int256_eq_sgtBool (a b : Nat) (ha : a < evmModulus) (hb : b < evmModulus) :
     (if Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 ⟨b, hb⟩) <
@@ -941,18 +931,18 @@ private theorem sgt_int256_eq_sgtBool (a b : Nat) (ha : a < evmModulus) (hb : b 
      then (1 : Nat) else 0) =
     (EvmYul.UInt256.toNat
       (EvmYul.UInt256.sgt ⟨⟨a, ha⟩⟩ ⟨⟨b, hb⟩⟩)) := by
-  -- Unfold EVMYulLean side to Bool-level
-  show _ = EvmYul.UInt256.toNat (EvmYul.UInt256.fromBool (EvmYul.UInt256.sgtBool ⟨⟨a, ha⟩⟩ ⟨⟨b, hb⟩⟩))
-  rw [toNat_fromBool]
-  have haS : a < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact ha
-  have hbS : b < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact hb
-  rw [sgtBool_val a b haS hbS]
+  -- Unfold EVMYulLean side completely to Nat-level
+  simp only [EvmYul.UInt256.sgt, EvmYul.UInt256.sgtBool, EvmYul.UInt256.toNat,
+    ge_iff_le, Bool.toUInt256, EvmYul.UInt256.ofNat, Id.run,
+    EvmYul.UInt256.fromBool]
   -- Unfold Verity side
   simp only [Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
     Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
     Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS]
   -- Case split on sign bits and close with omega
-  by_cases haSign : a < 2 ^ 255 <;> by_cases hbSign : b < 2 ^ 255 <;> simp_all <;> omega
+  by_cases haSign : a < 2 ^ 255 <;> by_cases hbSign : b < 2 ^ 255 <;>
+    simp_all [GT.gt, LT.lt, LE.le, Fin.lt, Fin.le, evmModulus, EvmYul.UInt256.size] <;>
+    omega
 
 /-- Universal bridge theorem for `sgt`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
@@ -1067,10 +1057,26 @@ private theorem bridge_eval_sdiv_normalized (a b : Nat) :
         (EvmYul.UInt256.sdiv (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b))) := by
   rfl
 
+/-- In Fin n, `x * (n - 1) % n = n - x` when `0 < x < n`. This captures the
+    semantics of EVMYulLean's `⟨v.val * (-1)⟩` negation via Fin multiplication. -/
+private theorem fin_val_mul_neg1 (n x : Nat) (hn : 0 < n) (hx : x < n) (hxpos : 0 < x) :
+    (x * (n - 1)) % n = n - x := by
+  rw [show x * (n - 1) = (x - 1) * n + (n - x) from by omega]
+  rw [Nat.add_mul_mod_self_left]
+  exact Nat.mod_eq_of_lt (by omega)
+
 /-- Core sdiv equivalence: Verity's `Int256.div` agrees with EVMYulLean's `UInt256.sdiv`.
 
-**Status**: sorry — requires showing Int sign-magnitude division matches
-UInt256 sign-bit case-split division. Validated by concrete tests. -/
+Both implement signed division by:
+1. Case-splitting on the sign bit (2^255 threshold)
+2. Taking absolute values (Verity: `Int.natAbs`; EVMYulLean: `UInt256.abs`)
+3. Dividing the absolute values
+4. Negating the result if signs differ
+
+The proof unfolds both sides, case-splits on signs, reduces EVMYulLean's Fin
+arithmetic to Nat, then closes with omega. -/
+set_option maxHeartbeats 32000000 in
+set_option maxRecDepth 2048 in
 private theorem sdiv_int256_eq_uint256Sdiv (a b : Nat)
     (ha : a < evmModulus) (hb : b < evmModulus) :
     (Verity.Core.Int256.div
