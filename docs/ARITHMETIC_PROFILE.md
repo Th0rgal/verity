@@ -110,7 +110,7 @@ The arithmetic model is invariant across profiles. See [`docs/SOLIDITY_PARITY_PR
 - **Gas semantics**: proofs establish result correctness, not gas cost or bounded liveness.
 - **Compiler-layer overflow detection**: the compiler does not insert overflow checks. Use EDSL `safeAdd`/`safeSub`/`safeMul` for checked behavior.
 - **Cryptographic primitives**: keccak256 is axiomatized (see [`AXIOMS.md`](../AXIOMS.md)).
-- **Universal bridge equivalence**: 25/25 pure EVMYulLean-backed builtins have universal bridge lemmas (21 fully proven, 4 with sorry-dependent core equivalences). All 25 also have context-lifted backend bridge theorems for Phase 4 retargeting. All 8 higher-level expression operators also have proven compilation correctness.
+- **Universal bridge equivalence**: 25/25 pure EVMYulLean-backed builtins have universal bridge lemmas (23 fully proven, 2 with sorry-dependent core equivalences). All 25 also have context-lifted backend bridge theorems for Phase 4 retargeting. All 8 higher-level expression operators also have proven compilation correctness.
 
 ## Auditor Checklist
 

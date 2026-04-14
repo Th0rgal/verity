@@ -238,6 +238,8 @@ ALLOWLIST: set[str] = {
     "safeDiv_result_le_numerator",
     # --- EVMYulLean bridge proofs (multi-layer UInt256→Fin→Nat reduction) ---
     "bridge_eval_byte_normalized",
+    "sdiv_int256_eq_uint256Sdiv",
+    "smod_int256_eq_uint256Smod",
     # --- Misc ---
     "findUniqueInternalFunction",
 }

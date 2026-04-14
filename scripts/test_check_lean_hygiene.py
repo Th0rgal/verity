@@ -159,10 +159,8 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean"
     )
 
-    # The 4 pinned theorem names that are allowed to contain sorry
+    # The 2 pinned theorem names that are allowed to contain sorry
     PINNED_THEOREMS = [
-        "sdiv_int256_eq_uint256Sdiv",
-        "smod_int256_eq_uint256Smod",
         "sar_int256_eq_uint256Sar",
         "signextend_uint256_eq",
     ]
@@ -181,25 +179,25 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         self._make_bridge_file(self.PINNED_THEOREMS)
         rc, output = self._run_main()
         self.assertEqual(rc, 0, output)
-        self.assertIn("4 sorry", output)
+        self.assertIn("2 sorry", output)
 
     def test_sorry_in_pinned_theorems_within_cap(self) -> None:
-        self._make_bridge_file(self.PINNED_THEOREMS[:3])
+        self._make_bridge_file(self.PINNED_THEOREMS[:1])
         rc, output = self._run_main()
         self.assertEqual(rc, 0, output)
-        self.assertIn("3 sorry", output)
+        self.assertIn("1 sorry", output)
 
     def test_sorry_exceeding_cap_fails(self) -> None:
-        # 4 pinned + 1 extra = 5 sorrys, cap is 4
+        # 2 pinned + 1 extra = 3 sorrys, cap is 2
         extra = self.PINNED_THEOREMS + ["extra_fake_theorem"]
         self._make_bridge_file(extra)
         rc, output = self._run_main()
         self.assertNotEqual(rc, 0)
-        self.assertIn("found 5 sorry (cap is 4)", output)
+        self.assertIn("found 3 sorry (cap is 2)", output)
 
     def test_sorry_in_non_pinned_theorem_fails(self) -> None:
         # Replace one pinned theorem with an unpinned one
-        swapped = self.PINNED_THEOREMS[:4] + ["rogue_theorem_xyz"]
+        swapped = self.PINNED_THEOREMS[:2] + ["rogue_theorem_xyz"]
         self._make_bridge_file(swapped)
         rc, output = self._run_main()
         self.assertNotEqual(rc, 0)
@@ -207,8 +205,8 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         self.assertIn("rogue_theorem_xyz", output)
 
     def test_sorry_swap_detected(self) -> None:
-        # Same count (4), but one theorem swapped — must fail
-        swapped = self.PINNED_THEOREMS[:4] + ["different_sorry_theorem"]
+        # Same count (2), but one theorem swapped — must fail
+        swapped = self.PINNED_THEOREMS[:2] + ["different_sorry_theorem"]
         self._make_bridge_file(swapped)
         rc, output = self._run_main()
         self.assertNotEqual(rc, 0)
@@ -237,7 +235,7 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         """A sorry in an `example` block must not be attributed to the prior theorem."""
         bridge = self.root / Path(self.BRIDGE_PATH)
         bridge.parent.mkdir(parents=True, exist_ok=True)
-        # Write 3 pinned theorems (under cap of 4), then an example with sorry.
+        # Write 2 pinned theorems (at cap of 2), then an example with sorry.
         # The example sorry must NOT be attributed to signextend_uint256_eq.
         lines = []
         for thm in self.PINNED_THEOREMS[:3]:

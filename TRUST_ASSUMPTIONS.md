@@ -58,7 +58,7 @@ Current theorem totals, property-test coverage, and proof status live in [docs/V
 
 ### 6. EVM/Yul Semantics and Gas
 - **Role**: Runtime execution model.
-- **Status**: 25 pure builtins bridged to EVMYulLean `UInt256` operations; 25 universal pure bridge theorems (21 fully proven, 4 with sorry-dependent core equivalences) in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` (15 unsigned arithmetic/bitwise + addmod + mulmod + byte + slt + sgt + exp + sdiv + smod + sar + signextend). All pure bridge cases are now covered by universal symbolic lemmas. Gas is not modeled.
+- **Status**: 25 pure builtins bridged to EVMYulLean `UInt256` operations; 25 universal pure bridge theorems (23 fully proven, 2 with sorry-dependent core equivalences) in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` (15 unsigned arithmetic/bitwise + addmod + mulmod + byte + slt + sgt + exp + sdiv + smod + sar + signextend). All pure bridge cases are now covered by universal symbolic lemmas. Gas is not modeled.
 - **Implication**: Semantic correctness does not imply gas-safety.
 - **Proxy note**: `delegatecall`-based proxy / upgradeability flows still sit outside the current proof-interpreter model. Archive `--trust-report` and use `--deny-proxy-upgradeability` when proxy semantics must remain outside the selected verified subset (issue `#1420`).
 

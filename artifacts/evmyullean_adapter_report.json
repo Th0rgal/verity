@@ -7,9 +7,7 @@
   "adapter_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean",
   "admitted_bridge_lemmas": [
     "sar",
-    "sdiv",
-    "signextend",
-    "smod"
+    "signextend"
   ],
   "concrete_bridge_tests": [],
   "concrete_test_count": 123,
@@ -64,10 +62,12 @@
     "mulmod",
     "not",
     "or",
+    "sdiv",
     "sgt",
     "shl",
     "shr",
     "slt",
+    "smod",
     "sub",
     "xor"
   ],

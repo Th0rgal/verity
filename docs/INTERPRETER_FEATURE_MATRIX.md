@@ -152,7 +152,7 @@ Legend: **ok** = supported, **rev** = reverts (not modeled), **nop** = no-op (co
 
 Legend: **ok** = native evaluation, **del** = delegated to Verity path (bridge returns `none`).
 
-25/36 builtins have universal bridge agreement proofs between Verity and EVMYulLean evaluation paths (21 fully proven, 4 with sorry-dependent core equivalences). 25 are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, and none still require concrete-only regression coverage. The remaining 11 are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.
+25/36 builtins have universal bridge agreement proofs between Verity and EVMYulLean evaluation paths (23 fully proven, 2 with sorry-dependent core equivalences). 25 are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, and none still require concrete-only regression coverage. The remaining 11 are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.
 
 ---
 
@@ -162,7 +162,7 @@ Legend: **ok** = native evaluation, **del** = delegated to Verity path (bridge r
 |---|---|---|---|---|
 | Expression features | 24 | 1 (`externalCall`) | 5 (`blockNumber`, `contractAddress`, `chainid`, `mload`, `returndataOptionalBoolAt`) | 4 (`keccak256`, `call`, `staticcall`, `delegatecall`) |
 | Statement features | 25 | 0 | 1 (`mstore`) | 6 (`calldatacopy`, `returndataCopy`, `revertReturndata`, `rawLog`, `externalCallBind`, `ecm`) |
-| Builtins (agreement) | 21 | 0 | 4 (`sdiv`, `smod`, `sar`, `signextend` — sorry-dependent) | 11 (delegated) |
+| Builtins (agreement) | 23 | 0 | 2 (`sar`, `signextend` — sorry-dependent) | 11 (delegated) |
 
 Proof-boundary features split across two buckets. Partially modeled features currently include runtime introspection (`blockNumber`, `contractAddress`, `chainid`) and single-word linear-memory forms (`mload`, `mstore`, `returndataOptionalBoolAt`). Fully not-modeled features currently include `keccak256`, low-level call / returndata plumbing (`call`, `staticcall`, `delegatecall`, `calldatacopy`, `returndataCopy`, `revertReturndata`), event emission (`rawLog`), and external call modules (`externalCallBind`, `ecm`). These features are still compiler-supported and are validated by differential testing (70,000+ test vectors against actual EVM execution).
 
