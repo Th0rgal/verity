@@ -819,6 +819,25 @@ private theorem bridge_eval_sgt_normalized (a b : Nat) :
         (EvmYul.UInt256.sgt (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b))) := by
   rfl
 
+-- Helper: Int.ofNat preserves strict ordering on Nats
+private theorem int_ofNat_lt_iff {a b : Nat} : Int.ofNat a < Int.ofNat b ↔ a < b := by
+  constructor <;> intro h <;> omega
+
+-- Helper: shifting both sides of Int < by the same Nat value preserves ordering
+private theorem int_sub_lt_sub_iff (a b M : Nat) :
+    (Int.ofNat a - Int.ofNat M < Int.ofNat b - Int.ofNat M) ↔ (a < b) := by
+  constructor <;> intro h <;> omega
+
+-- Helper: negative two's complement value (≥ 2^255) wrapped by -M is less than positive value (< 2^255)
+private theorem int_neg_lt_pos_evm (a b : Nat) (haM : a < evmModulus) (hb : b < 2 ^ 255) :
+    Int.ofNat a - Int.ofNat evmModulus < Int.ofNat b := by
+  unfold evmModulus; omega
+
+-- Helper: positive value (< 2^255) is never less than negative two's complement value wrapped by -M
+private theorem int_pos_not_lt_neg_evm (a b : Nat) (ha : a < 2 ^ 255) (hbM : b < evmModulus) :
+    ¬ (Int.ofNat a < Int.ofNat b - Int.ofNat evmModulus) := by
+  unfold evmModulus; omega
+
 set_option maxHeartbeats 32000000 in
 /-- Core lemma: Verity's Int256-based signed comparison agrees with EVMYulLean's
 sign-bit case analysis for all inputs in [0, evmModulus).
@@ -838,36 +857,35 @@ private theorem slt_int256_eq_sltBool (a b : Nat) (ha : a < evmModulus) (hb : b 
   unfold EvmYul.UInt256.slt EvmYul.UInt256.sltBool EvmYul.UInt256.fromBool Bool.toUInt256
   unfold EvmYul.UInt256.toNat EvmYul.UInt256.ofNat Id.run
   simp only [Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
-    Verity.Core.Uint256.modulus, EvmYul.UInt256.size]
+    Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS, EvmYul.UInt256.size, evmModulus]
   by_cases ha255 : a < 2 ^ 255 <;> by_cases hb255 : b < 2 ^ 255
   -- Case 1: both positive (a < 2^255, b < 2^255)
-  · simp only [show ¬(2 ^ 255 ≤ a) from Nat.not_le_of_lt ha255,
-               show ¬(2 ^ 255 ≤ b) from Nat.not_le_of_lt hb255, ite_false]
-    split_ifs <;> simp_all <;> omega
+  · simp only [ha255, show ¬(2 ^ 255 ≤ a) from Nat.not_le_of_lt ha255,
+               hb255, show ¬(2 ^ 255 ≤ b) from Nat.not_le_of_lt hb255,
+               ite_true, ite_false, int_ofNat_lt_iff]
+    split_ifs <;> simp_all
   -- Case 2: a positive, b negative (a < 2^255, b ≥ 2^255)
+  -- slt(pos, neg) = 0: positive is never less than negative
   · have hb_ge : 2 ^ 255 ≤ b := Nat.not_lt.mp hb255
-    simp only [show ¬(2 ^ 255 ≤ a) from Nat.not_le_of_lt ha255,
-               show (2 ^ 255 ≤ b) from hb_ge, ite_true, ite_false]
-    split_ifs <;> simp_all [evmModulus] <;> push_cast <;> omega
+    simp only [ha255, show ¬(2 ^ 255 ≤ a) from Nat.not_le_of_lt ha255,
+               hb255, hb_ge, ite_true, ite_false]
+    rw [if_neg (int_pos_not_lt_neg_evm a b ha255 hb)]
+    simp
   -- Case 3: a negative, b positive (a ≥ 2^255, b < 2^255)
+  -- slt(neg, pos) = 1: negative is always less than positive
   · have ha_ge : 2 ^ 255 ≤ a := Nat.not_lt.mp ha255
-    simp only [show (2 ^ 255 ≤ a) from ha_ge,
-               show ¬(2 ^ 255 ≤ b) from Nat.not_le_of_lt hb255, ite_true, ite_false]
-    split_ifs <;> simp_all [evmModulus] <;> push_cast <;> omega
+    simp only [ha255, ha_ge,
+               hb255, show ¬(2 ^ 255 ≤ b) from Nat.not_le_of_lt hb255,
+               ite_true, ite_false]
+    rw [if_pos (int_neg_lt_pos_evm a b ha hb255)]
+    simp
   -- Case 4: both negative (a ≥ 2^255, b ≥ 2^255)
   -- Int subtraction cancels: (↑a - ↑M < ↑b - ↑M) ↔ (a < b)
   · have ha_ge : 2 ^ 255 ≤ a := Nat.not_lt.mp ha255
     have hb_ge : 2 ^ 255 ≤ b := Nat.not_lt.mp hb255
-    simp only [show (2 ^ 255 ≤ a) from ha_ge,
-               show (2 ^ 255 ≤ b) from hb_ge, ite_true]
-    have int_sub_cancel : ∀ (x y M : Nat),
-        ((x : Int) - (M : Int) < (y : Int) - (M : Int)) ↔ (x < y) := by
-      intros x y M
-      constructor
-      · intro h; omega
-      · intro h; omega
-    simp only [int_sub_cancel]
-    split_ifs <;> simp_all [evmModulus]
+    simp only [ha255, ha_ge, hb255, hb_ge, ite_true, ite_false,
+               int_sub_lt_sub_iff]
+    split_ifs <;> simp_all
 
 /-- Universal bridge theorem for `slt`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
@@ -908,36 +926,35 @@ private theorem sgt_int256_eq_sgtBool (a b : Nat) (ha : a < evmModulus) (hb : b 
   unfold EvmYul.UInt256.sgt EvmYul.UInt256.sgtBool EvmYul.UInt256.fromBool Bool.toUInt256
   unfold EvmYul.UInt256.toNat EvmYul.UInt256.ofNat Id.run
   simp only [Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
-    Verity.Core.Uint256.modulus, EvmYul.UInt256.size]
+    Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS, EvmYul.UInt256.size, evmModulus]
   by_cases ha255 : a < 2 ^ 255 <;> by_cases hb255 : b < 2 ^ 255
   -- Case 1: both positive (a < 2^255, b < 2^255)
-  · simp only [show ¬(2 ^ 255 ≤ a) from Nat.not_le_of_lt ha255,
-               show ¬(2 ^ 255 ≤ b) from Nat.not_le_of_lt hb255, ite_false]
-    split_ifs <;> simp_all <;> omega
+  · simp only [ha255, show ¬(2 ^ 255 ≤ a) from Nat.not_le_of_lt ha255,
+               hb255, show ¬(2 ^ 255 ≤ b) from Nat.not_le_of_lt hb255,
+               ite_true, ite_false, int_ofNat_lt_iff]
+    split_ifs <;> simp_all
   -- Case 2: a positive, b negative (a < 2^255, b ≥ 2^255)
+  -- sgt(pos, neg) = 1: positive is always greater than negative
   · have hb_ge : 2 ^ 255 ≤ b := Nat.not_lt.mp hb255
-    simp only [show ¬(2 ^ 255 ≤ a) from Nat.not_le_of_lt ha255,
-               show (2 ^ 255 ≤ b) from hb_ge, ite_true, ite_false]
-    split_ifs <;> simp_all [evmModulus] <;> push_cast <;> omega
+    simp only [ha255, show ¬(2 ^ 255 ≤ a) from Nat.not_le_of_lt ha255,
+               hb255, hb_ge, ite_true, ite_false]
+    rw [if_pos (int_neg_lt_pos_evm b a hb ha255)]
+    simp
   -- Case 3: a negative, b positive (a ≥ 2^255, b < 2^255)
+  -- sgt(neg, pos) = 0: negative is never greater than positive
   · have ha_ge : 2 ^ 255 ≤ a := Nat.not_lt.mp ha255
-    simp only [show (2 ^ 255 ≤ a) from ha_ge,
-               show ¬(2 ^ 255 ≤ b) from Nat.not_le_of_lt hb255, ite_true, ite_false]
-    split_ifs <;> simp_all [evmModulus] <;> push_cast <;> omega
+    simp only [ha255, ha_ge,
+               hb255, show ¬(2 ^ 255 ≤ b) from Nat.not_le_of_lt hb255,
+               ite_true, ite_false]
+    rw [if_neg (int_pos_not_lt_neg_evm b a hb255 ha)]
+    simp
   -- Case 4: both negative (a ≥ 2^255, b ≥ 2^255)
   -- Int subtraction cancels: (↑b - ↑M < ↑a - ↑M) ↔ (b < a)
   · have ha_ge : 2 ^ 255 ≤ a := Nat.not_lt.mp ha255
     have hb_ge : 2 ^ 255 ≤ b := Nat.not_lt.mp hb255
-    simp only [show (2 ^ 255 ≤ a) from ha_ge,
-               show (2 ^ 255 ≤ b) from hb_ge, ite_true]
-    have int_sub_cancel : ∀ (x y M : Nat),
-        ((x : Int) - (M : Int) < (y : Int) - (M : Int)) ↔ (x < y) := by
-      intros x y M
-      constructor
-      · intro h; omega
-      · intro h; omega
-    simp only [int_sub_cancel]
-    split_ifs <;> simp_all [evmModulus]
+    simp only [ha255, ha_ge, hb255, hb_ge, ite_true, ite_false,
+               int_sub_lt_sub_iff]
+    split_ifs <;> simp_all
 
 /-- Universal bridge theorem for `sgt`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
