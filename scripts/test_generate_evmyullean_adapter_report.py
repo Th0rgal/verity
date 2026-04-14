@@ -88,6 +88,20 @@ class ParseBridgeLemmasTests(unittest.TestCase):
             all_lemmas, admitted = gen._parse_bridge_lemmas()
         self.assertEqual(admitted, [])
 
+    def test_ignores_sorry_in_nested_block_comments(self) -> None:
+        """Nested Lean block comments should not leak sorry into the scan."""
+        p = self._write_lemma_file("""\
+            /- outer
+               /- inner -/
+               sorry
+            -/
+            @[simp] theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+        """)
+        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+            all_lemmas, admitted = gen._parse_bridge_lemmas()
+        self.assertEqual(admitted, [])
+
     def test_missing_file_raises(self) -> None:
         with patch.object(gen, "BRIDGE_LEMMAS_FILE", Path("/nonexistent/BridgeLemmas.lean")):
             with self.assertRaises(FileNotFoundError):

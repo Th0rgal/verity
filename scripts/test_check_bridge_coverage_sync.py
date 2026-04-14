@@ -224,6 +224,19 @@ class BridgeCoverageSyncTests(unittest.TestCase):
         admitted = check.extract_admitted_builtins(text)
         self.assertEqual(admitted, [])
 
+    def test_extract_admitted_ignores_sorry_in_nested_block_comments(self) -> None:
+        """Nested Lean block comments should not leak sorry into the scan."""
+        text = textwrap.dedent("""\
+            /- outer
+               /- inner -/
+               sorry
+            -/
+            @[simp] theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+        """)
+        admitted = check.extract_admitted_builtins(text)
+        self.assertEqual(admitted, [])
+
     def test_admitted_qualifier_generates_parenthetical(self) -> None:
         q = check._admitted_qualifier(["exp", "slt", "sgt"])
         self.assertEqual(q, " (22 fully proven, 3 with sorry-dependent core equivalences)")

@@ -46,6 +46,44 @@ PURE_BUILTINS = [
 ]
 
 
+def _strip_lean_comments(text: str) -> str:
+    """Remove Lean line/block comments while preserving line structure."""
+    result: list[str] = []
+    i = 0
+    n = len(text)
+    block_depth = 0
+    while i < n:
+        if block_depth > 0:
+            if text.startswith("/-", i):
+                block_depth += 1
+                i += 2
+                continue
+            if text.startswith("-/", i):
+                block_depth -= 1
+                i += 2
+                continue
+            if text[i] == "\n":
+                result.append("\n")
+            i += 1
+            continue
+
+        if text.startswith("--", i):
+            newline = text.find("\n", i)
+            if newline == -1:
+                break
+            result.append("\n")
+            i = newline + 1
+            continue
+        if text.startswith("/-", i):
+            block_depth = 1
+            i += 2
+            continue
+
+        result.append(text[i])
+        i += 1
+    return "".join(result)
+
+
 def normalize_ws(text: str) -> str:
     return " ".join(text.split())
 
@@ -89,28 +127,9 @@ def extract_admitted_builtins(text: str) -> list[str]:
     """
     admitted: set[str] = set()
     sorry_pending = False
-    in_docstring = False
     bridge_re = re.compile(r"@\[simp\]\s+theorem\s+evalBuiltinCall_([A-Za-z0-9]+)_bridge\b")
     sorry_re = re.compile(r"\bsorry\b")
-    comment_re = re.compile(r"^\s*--")
-    block_comment_open_re = re.compile(r"^\s*/-")
-    status_re = re.compile(r"\*\*Status\*\*")
-    for line in text.splitlines():
-        stripped = line.strip()
-        # Track multi-line block comment blocks (/-- ... -/, /-! ... -/, /- ... -/)
-        if not in_docstring and block_comment_open_re.match(line):
-            in_docstring = True
-            # Check if block comment closes on the same line
-            if stripped.endswith("-/") and stripped not in ("/--", "/-!", "/-"):
-                in_docstring = False
-            continue
-        if in_docstring:
-            if "-/" in line:
-                in_docstring = False
-            continue
-        # Skip single-line comments and markdown status annotations
-        if comment_re.match(line) or status_re.search(line):
-            continue
+    for line in _strip_lean_comments(text).splitlines():
         if sorry_re.search(line):
             sorry_pending = True
         if sorry_pending:
