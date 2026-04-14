@@ -19,7 +19,7 @@ from property_utils import ROOT, report_errors, scrub_lean_code
 
 SORRY_RE = re.compile(r"\bsorry\b")
 THEOREM_RE = re.compile(
-    r"(?:private\s+)?(?:theorem|lemma|def)\s+(\w+)"
+    r"(?:private\s+)?(?:theorem|lemma|def)\s+([A-Za-z_][A-Za-z0-9_.']*)(?![A-Za-z0-9_.'])"
 )
 # Declaration-boundary keywords that start a new scope.  If the backward
 # scan from a sorry hits one of these before finding a theorem/lemma/def,

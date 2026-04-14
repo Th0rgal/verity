@@ -237,6 +237,20 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         self.assertNotEqual(rc, 0)
         self.assertIn("different_sorry_theorem", output)
 
+    def test_primed_theorem_name_does_not_match_pinned_base_name(self) -> None:
+        primed = [
+            "exp_natModPow_eq_uint256Exp'",
+            self.PINNED_THEOREMS[1],
+            self.PINNED_THEOREMS[2],
+            self.PINNED_THEOREMS[3],
+            self.PINNED_THEOREMS[4],
+        ]
+        self._make_bridge_file(primed)
+        rc, output = self._run_main()
+        self.assertNotEqual(rc, 0)
+        self.assertIn("non-pinned theorems", output)
+        self.assertIn("exp_natModPow_eq_uint256Exp'", output)
+
     def test_sorry_in_non_allowlisted_file_fails(self) -> None:
         rogue = self.root / "Compiler" / "Rogue.lean"
         rogue.write_text("sorry\n", encoding="utf-8")
