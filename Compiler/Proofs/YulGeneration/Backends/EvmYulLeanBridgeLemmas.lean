@@ -1083,6 +1083,30 @@ private theorem fin_val_mul_neg1 (n x : Nat) (hn : 0 < n) (hx : x < n) (hxpos : 
   rw [hdiv]
   exact Nat.mul_add_mod_of_lt (by omega)
 
+private theorem abs_val_eq_neg1_mul (x : Nat) (hx : x < evmModulus) (hxge : 2 ^ 255 ≤ x) :
+    (EvmYul.UInt256.abs ⟨⟨x, by rw [EvmYul.UInt256.size]; exact hx⟩⟩).val.val =
+    evmModulus - x := by
+  unfold EvmYul.UInt256.abs EvmYul.UInt256.toNat
+  simp only [ge_iff_le, EvmYul.UInt256.size, show (2 : Nat) ^ 255 = 2 ^ 255 from rfl]
+  have : (2 : Nat) ^ 255 ≤ (⟨x, by rw [EvmYul.UInt256.size]; exact hx⟩ : Fin evmModulus).val := hxge
+  simp only [this, ↓reduceIte]
+  have hxpos : 0 < x := by omega
+  rw [show (⟨x, by rw [EvmYul.UInt256.size]; exact hx⟩ : Fin evmModulus).val = x from rfl]
+  exact fin_val_mul_neg1 evmModulus x (by unfold evmModulus; omega) hx hxpos
+
+private theorem int256_natAbs_neg (a : Nat) (ha : a < evmModulus)
+    (hge : Verity.Core.Int256.signBit ≤ a) :
+    Int.natAbs (Verity.Core.Int256.toInt ⟨⟨a, ha⟩⟩) = evmModulus - a := by
+  simp [Verity.Core.Int256.toInt, show ¬ (a < Verity.Core.Int256.signBit) from by omega]
+  simp [Verity.Core.Int256.modulus, Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS]
+  unfold evmModulus
+  omega
+
+private theorem int256_natAbs_nonneg (a : Nat) (ha : a < evmModulus)
+    (hlt : a < Verity.Core.Int256.signBit) :
+    Int.natAbs (Verity.Core.Int256.toInt ⟨⟨a, ha⟩⟩) = a := by
+  simp [Verity.Core.Int256.toInt, hlt]
+
 set_option maxHeartbeats 32000000 in
 set_option maxRecDepth 2048 in
 /-- Core sdiv equivalence: Verity's `Int256.div` agrees with EVMYulLean's `UInt256.sdiv`.
@@ -1093,8 +1117,8 @@ Both implement signed division by:
 3. Dividing the absolute values
 4. Negating the result if signs differ
 
-The proof unfolds both sides, case-splits on signs, reduces EVMYulLean's Fin
-arithmetic to Nat, then closes with omega. -/
+**Status**: sorry — requires matching Fin arithmetic in mixed-sign negation cases.
+Validated by concrete tests. -/
 private theorem sdiv_int256_eq_uint256Sdiv (a b : Nat)
     (ha : a < evmModulus) (hb : b < evmModulus) :
     (Verity.Core.Int256.div
