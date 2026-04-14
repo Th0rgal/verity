@@ -2697,56 +2697,66 @@ private theorem exprListTouchesUnsupportedCallSurface_eq_featureOr
       rw [exprTouchesUnsupportedCallSurface_eq_featureOr, ih]
       simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
 
+private theorem stmtTouchesUnsupportedCallSurface_eq_featureOr
+    (stmt : Stmt) :
+    stmtTouchesUnsupportedCallSurface stmt =
+      (stmtTouchesUnsupportedHelperSurface stmt ||
+        stmtTouchesUnsupportedForeignSurface stmt ||
+        stmtTouchesUnsupportedLowLevelSurface stmt) := by
+  cases stmt with
+  | ite cond thenBranch elseBranch =>
+      simp only [stmtTouchesUnsupportedCallSurface,
+        stmtTouchesUnsupportedHelperSurface, stmtTouchesUnsupportedForeignSurface,
+        stmtTouchesUnsupportedLowLevelSurface]
+      rw [exprTouchesUnsupportedCallSurface_eq_featureOr,
+          stmtListTouchesUnsupportedCallSurface_eq_featureOr thenBranch,
+          stmtListTouchesUnsupportedCallSurface_eq_featureOr elseBranch]
+      simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
+  | forEach _ count body =>
+      simp only [stmtTouchesUnsupportedCallSurface,
+        stmtTouchesUnsupportedHelperSurface, stmtTouchesUnsupportedForeignSurface,
+        stmtTouchesUnsupportedLowLevelSurface]
+      rw [exprTouchesUnsupportedCallSurface_eq_featureOr,
+          stmtListTouchesUnsupportedCallSurface_eq_featureOr body]
+      simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
+  | setMappingChain _ keys value =>
+      simp only [stmtTouchesUnsupportedCallSurface,
+        stmtTouchesUnsupportedHelperSurface, stmtTouchesUnsupportedForeignSurface,
+        stmtTouchesUnsupportedLowLevelSurface]
+      rw [exprListTouchesUnsupportedCallSurface_eq_featureOr,
+          exprTouchesUnsupportedCallSurface_eq_featureOr value]
+      simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
+  | emit _ args =>
+      simp only [stmtTouchesUnsupportedCallSurface,
+        stmtTouchesUnsupportedHelperSurface, stmtTouchesUnsupportedForeignSurface,
+        stmtTouchesUnsupportedLowLevelSurface]
+      rw [exprListTouchesUnsupportedCallSurface_eq_featureOr args]
+      simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
+  | _ =>
+      all_goals simp [stmtTouchesUnsupportedCallSurface,
+        stmtTouchesUnsupportedHelperSurface, stmtTouchesUnsupportedForeignSurface,
+        stmtTouchesUnsupportedLowLevelSurface,
+        exprTouchesUnsupportedCallSurface_eq_featureOr,
+        Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
+termination_by sizeOf stmt
+decreasing_by all_goals (subst_vars; simp_wf; simp_all [List.cons.sizeOf_spec]; omega)
+
 theorem stmtListTouchesUnsupportedCallSurface_eq_featureOr
     (stmts : List Stmt) :
     stmtListTouchesUnsupportedCallSurface stmts =
       (stmtListTouchesUnsupportedHelperSurface stmts ||
         stmtListTouchesUnsupportedForeignSurface stmts ||
         stmtListTouchesUnsupportedLowLevelSurface stmts) := by
-  match stmts with
-  | [] =>
+  induction stmts with
+  | nil =>
       simp [stmtListTouchesUnsupportedCallSurface, stmtListTouchesUnsupportedHelperSurface,
         stmtListTouchesUnsupportedForeignSurface, stmtListTouchesUnsupportedLowLevelSurface]
-  | stmt :: rest =>
-      unfold stmtListTouchesUnsupportedCallSurface
-      unfold stmtListTouchesUnsupportedHelperSurface stmtListTouchesUnsupportedForeignSurface
-        stmtListTouchesUnsupportedLowLevelSurface
-      rw [stmtListTouchesUnsupportedCallSurface_eq_featureOr rest]
-      cases stmt with
-      | ite cond thenBranch elseBranch =>
-          simp only [stmtTouchesUnsupportedCallSurface,
-            stmtTouchesUnsupportedHelperSurface, stmtTouchesUnsupportedForeignSurface,
-            stmtTouchesUnsupportedLowLevelSurface]
-          rw [exprTouchesUnsupportedCallSurface_eq_featureOr,
-              stmtListTouchesUnsupportedCallSurface_eq_featureOr thenBranch,
-              stmtListTouchesUnsupportedCallSurface_eq_featureOr elseBranch]
-          simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
-      | forEach _ count body =>
-          simp only [stmtTouchesUnsupportedCallSurface,
-            stmtTouchesUnsupportedHelperSurface, stmtTouchesUnsupportedForeignSurface,
-            stmtTouchesUnsupportedLowLevelSurface]
-          rw [exprTouchesUnsupportedCallSurface_eq_featureOr,
-              stmtListTouchesUnsupportedCallSurface_eq_featureOr body]
-          simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
-      | setMappingChain _ keys value =>
-          simp only [stmtTouchesUnsupportedCallSurface,
-            stmtTouchesUnsupportedHelperSurface, stmtTouchesUnsupportedForeignSurface,
-            stmtTouchesUnsupportedLowLevelSurface]
-          rw [exprListTouchesUnsupportedCallSurface_eq_featureOr,
-              exprTouchesUnsupportedCallSurface_eq_featureOr value]
-          simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
-      | emit _ args =>
-          simp only [stmtTouchesUnsupportedCallSurface,
-            stmtTouchesUnsupportedHelperSurface, stmtTouchesUnsupportedForeignSurface,
-            stmtTouchesUnsupportedLowLevelSurface]
-          rw [exprListTouchesUnsupportedCallSurface_eq_featureOr args]
-          simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
-      | _ =>
-          all_goals simp [stmtTouchesUnsupportedCallSurface,
-            stmtTouchesUnsupportedHelperSurface, stmtTouchesUnsupportedForeignSurface,
-            stmtTouchesUnsupportedLowLevelSurface,
-            exprTouchesUnsupportedCallSurface_eq_featureOr,
-            Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
+  | cons stmt rest ih =>
+      simp only [stmtListTouchesUnsupportedCallSurface, stmtListTouchesUnsupportedHelperSurface,
+        stmtListTouchesUnsupportedForeignSurface, stmtListTouchesUnsupportedLowLevelSurface,
+        List.any_cons]
+      rw [stmtTouchesUnsupportedCallSurface_eq_featureOr, ih]
+      simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
 termination_by sizeOf stmts
 decreasing_by all_goals (subst_vars; simp_wf; simp_all [List.cons.sizeOf_spec]; omega)
 
