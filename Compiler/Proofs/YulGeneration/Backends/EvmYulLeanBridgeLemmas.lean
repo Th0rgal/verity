@@ -820,23 +820,29 @@ private theorem bridge_eval_sgt_normalized (a b : Nat) :
   rfl
 
 -- Helper: Int.ofNat preserves strict ordering on Nats
-private theorem int_ofNat_lt_iff {a b : Nat} : Int.ofNat a < Int.ofNat b ↔ a < b := by
-  exact_mod_cast Iff.rfl
+-- Note: omega in CI sees `Int.ofNat a` and `↑a` as different; use Int.ofNat_lt directly
+private theorem int_ofNat_lt_iff {a b : Nat} : Int.ofNat a < Int.ofNat b ↔ a < b :=
+  Int.ofNat_lt
 
 -- Helper: shifting both sides of Int < by the same Nat value preserves ordering
 private theorem int_sub_lt_sub_iff (a b M : Nat) :
     (Int.ofNat a - Int.ofNat M < Int.ofNat b - Int.ofNat M) ↔ (a < b) := by
-  constructor <;> intro h <;> (push_cast at *; omega)
+  rw [Int.sub_lt_sub_iff_right]
+  exact Int.ofNat_lt
 
 -- Helper: negative two's complement value (≥ 2^255) wrapped by -M is less than positive value (< 2^255)
 private theorem int_neg_lt_pos_evm (a b : Nat) (haM : a < evmModulus) (hb : b < 2 ^ 255) :
     Int.ofNat a - Int.ofNat evmModulus < Int.ofNat b := by
-  unfold evmModulus; push_cast; omega
+  have h1 : Int.ofNat a < Int.ofNat evmModulus := Int.ofNat_lt.mpr haM
+  have h2 : (0 : Int) ≤ Int.ofNat b := Int.ofNat_nonneg b
+  omega
 
 -- Helper: positive value (< 2^255) is never less than negative two's complement value wrapped by -M
 private theorem int_pos_not_lt_neg_evm (a b : Nat) (ha : a < 2 ^ 255) (hbM : b < evmModulus) :
     ¬ (Int.ofNat a < Int.ofNat b - Int.ofNat evmModulus) := by
-  unfold evmModulus; push_cast; omega
+  have h1 : Int.ofNat b < Int.ofNat evmModulus := Int.ofNat_lt.mpr hbM
+  have h2 : (0 : Int) ≤ Int.ofNat a := Int.ofNat_nonneg a
+  omega
 
 set_option maxHeartbeats 32000000 in
 /-- Core lemma: Verity's Int256-based signed comparison agrees with EVMYulLean's
