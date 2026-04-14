@@ -2139,7 +2139,6 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.int_sub_lt_sub_iff  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.int_neg_lt_pos_evm  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.int_pos_not_lt_neg_evm  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_ite_lt_01  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.slt_int256_eq_sltBool  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_slt_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_slt_bridge
@@ -2240,4 +2239,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 2088 theorems/lemmas (1416 public, 672 private, 0 sorry'd)
+-- Total: 2087 theorems/lemmas (1416 public, 671 private, 0 sorry'd)
