@@ -157,6 +157,129 @@ class BridgeCoverageSyncTests(unittest.TestCase):
             expected["END_TO_END"],
         )
 
+    def test_extract_admitted_builtins_detects_sorry(self) -> None:
+        text = textwrap.dedent("""\
+            private theorem exp_core (a b : Nat) : sorry_free := by
+              exact trivial
+
+            @[simp] theorem evalBuiltinCall_exp_bridge := by
+              exact exp_core
+
+            private theorem slt_core (a b : Nat) : sorry_dep := by
+              sorry
+
+            @[simp] theorem evalBuiltinCall_slt_bridge := by
+              exact slt_core
+
+            @[simp] theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+        """)
+        admitted = check.extract_admitted_builtins(text)
+        self.assertEqual(admitted, ["slt"])
+
+    def test_admitted_qualifier_generates_parenthetical(self) -> None:
+        q = check._admitted_qualifier(["exp", "slt", "sgt"])
+        self.assertEqual(q, " (22 fully proven, 3 with sorry-dependent core equivalences)")
+
+    def test_admitted_qualifier_empty_when_none(self) -> None:
+        self.assertEqual(check._admitted_qualifier([]), "")
+
+    def test_snippets_include_qualifier_when_admitted(self) -> None:
+        admitted = ["exp", "slt"]
+        expected = check.expected_snippets(check.PURE_BUILTINS, [], admitted=admitted)
+        self.assertIn(
+            "25 universal pure bridge theorems (23 fully proven, 2 with sorry-dependent core equivalences)",
+            expected["TRUST_ASSUMPTIONS"],
+        )
+        self.assertIn(
+            "25/25 pure EVMYulLean-backed builtins have universal bridge lemmas"
+            " (23 fully proven, 2 with sorry-dependent core equivalences).",
+            expected["ARITHMETIC_PROFILE"],
+        )
+
+    def test_snippets_no_qualifier_when_no_admitted(self) -> None:
+        expected = check.expected_snippets(check.PURE_BUILTINS, [], admitted=[])
+        trust = expected["TRUST_ASSUMPTIONS"]
+        self.assertTrue(
+            any("25 universal pure bridge theorems" in s and "sorry" not in s for s in trust),
+            f"Expected unqualified theorem count in TRUST_ASSUMPTIONS, got: {trust}",
+        )
+
+    def test_matching_bridge_docs_with_admitted_pass(self) -> None:
+        """End-to-end test: fixture with sorry-dependent lemmas and qualified docs."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            bridge_lemmas = root / "Compiler" / "Proofs" / "YulGeneration" / "Backends" / "EvmYulLeanBridgeLemmas.lean"
+            bridge_lemmas.parent.mkdir(parents=True, exist_ok=True)
+            # Two builtins with sorry (exp, slt), rest fully proven
+            lines = []
+            for name in check.PURE_BUILTINS:
+                if name in ("exp", "slt"):
+                    lines.append(f"private theorem {name}_core := by")
+                    lines.append("  sorry")
+                lines.append(f"@[simp] theorem evalBuiltinCall_{name}_bridge := by")
+                lines.append(f"  exact {name}_core")
+            bridge_lemmas.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+            (root / "TRUST_ASSUMPTIONS.md").write_text(
+                "25 universal pure bridge theorems"
+                " (23 fully proven, 2 with sorry-dependent core equivalences). "
+                "All pure bridge cases are now covered by universal symbolic lemmas.\n",
+                encoding="utf-8",
+            )
+            (root / "AXIOMS.md").write_text(
+                "The EVMYulLean bridge currently has universal equivalence lemmas for 25 of them "
+                "(`add`, `sub`, `mul`, `div`, `mod`, `addmod`, `mulmod`, `exp`, `sdiv`, `smod`, "
+                "`lt`, `gt`, `slt`, `sgt`, `eq`, `iszero`, `and`, `or`, `xor`, `not`, `shl`, `shr`, "
+                "`sar`, `signextend`, `byte`), "
+                "with no remaining pure builtins relying only on concrete bridge checks.\n",
+                encoding="utf-8",
+            )
+            (root / "docs").mkdir(parents=True, exist_ok=True)
+            (root / "docs" / "ARITHMETIC_PROFILE.md").write_text(
+                "universal bridge lemmas for 25 pure builtins: `add`, `sub`, `mul`, `div`, `mod`, "
+                "`addmod`, `mulmod`, `exp`, `sdiv`, `smod`, `lt`, `gt`, `slt`, `sgt`, `eq`, `iszero`, "
+                "`and`, `or`, `xor`, `not`, `shl`, `shr`, `sar`, `signextend`, and `byte`\n"
+                "concrete bridge smoke tests are no longer needed for any pure builtin\n"
+                "25/25 pure EVMYulLean-backed builtins have universal bridge lemmas"
+                " (23 fully proven, 2 with sorry-dependent core equivalences).\n",
+                encoding="utf-8",
+            )
+            (root / "docs" / "INTERPRETER_FEATURE_MATRIX.md").write_text(
+                "25 are discharged by universal symbolic lemmas, "
+                "and none still require concrete-only regression coverage.\n",
+                encoding="utf-8",
+            )
+            (root / "Compiler" / "Proofs" / "EndToEnd.lean").write_text(
+                "replacement coverage: universal bridge lemmas for all pure bridged builtins.\n",
+                encoding="utf-8",
+            )
+
+            old_root = check.ROOT
+            old_bridge = check.BRIDGE_LEMMAS
+            old_targets = check.TARGET_FILES
+            check.ROOT = root
+            check.BRIDGE_LEMMAS = bridge_lemmas
+            check.TARGET_FILES = {
+                "TRUST_ASSUMPTIONS": root / "TRUST_ASSUMPTIONS.md",
+                "AXIOMS": root / "AXIOMS.md",
+                "ARITHMETIC_PROFILE": root / "docs" / "ARITHMETIC_PROFILE.md",
+                "INTERPRETER_FEATURE_MATRIX": root / "docs" / "INTERPRETER_FEATURE_MATRIX.md",
+                "END_TO_END": root / "Compiler" / "Proofs" / "EndToEnd.lean",
+            }
+            try:
+                stdout = io.StringIO()
+                stderr = io.StringIO()
+                with redirect_stdout(stdout), redirect_stderr(stderr):
+                    rc = check.main()
+                output = stdout.getvalue() + stderr.getvalue()
+                self.assertEqual(rc, 0, output)
+                self.assertIn("admitted (sorry-dependent): exp, slt", output)
+            finally:
+                check.ROOT = old_root
+                check.BRIDGE_LEMMAS = old_bridge
+                check.TARGET_FILES = old_targets
+
 
 if __name__ == "__main__":
     unittest.main()
