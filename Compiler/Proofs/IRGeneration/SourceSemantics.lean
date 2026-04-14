@@ -1431,6 +1431,10 @@ mutual
             else
               execStmtList fields state elseBranch
         | none => .revert
+    | state, .emit _eventName args =>
+        match evalExprList fields state args with
+        | some _resolved => .continue state
+        | none => .revert
     | _, _ => .revert
 
   def execStmtList (fields : List Field) : RuntimeState → List Stmt → StmtResult
@@ -2193,6 +2197,10 @@ mutual
                 else
                   .revert
             | _, _ => .revert
+    | .emit _eventName args =>
+        match evalExprListWithHelpers spec fields fuel state args with
+        | some _resolved => .continue state
+        | none => .revert
     | _ => .revert
   termination_by stmt => (fuel, sizeOf stmt)
   decreasing_by all_goals (simp_wf; omega)
@@ -3222,7 +3230,18 @@ private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux
   | .calldatacopy _ _ _ => simp [execStmtWithHelpers, execStmt]
   | .returndataCopy _ _ _ => simp [execStmtWithHelpers, execStmt]
   | .revertReturndata => simp [execStmtWithHelpers, execStmt]
-  | .emit _ _ => simp [execStmtWithHelpers, execStmt]
+  | .emit _ args =>
+      simp only [stmtTouchesUnsupportedHelperSurface] at hsurface
+      have hall : args.all (fun expr => exprTouchesUnsupportedHelperSurface expr == false) = true := by
+        induction args with
+        | nil => simp
+        | cons expr rest ih =>
+          simp only [exprListTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+          simp only [List.all_cons, Bool.and_eq_true, beq_iff_eq]
+          exact ⟨hsurface.1, ih hsurface.2⟩
+      simp [execStmtWithHelpers, execStmt,
+        evalExprListWithHelpers_eq_evalExprList_of_helperSurfaceClosed spec fields fuel state args hall,
+        evalExprList_eq_mapM]
   | .rawLog _ _ _ => simp [execStmtWithHelpers, execStmt]
   | .externalCallBind _ _ _ => simp [execStmtWithHelpers, execStmt]
   | .ecm _ _ => simp [execStmtWithHelpers, execStmt]

@@ -11995,6 +11995,32 @@ private theorem stmtListGenericCore_of_supportedStmtList_assignStorageAddrField_
     StmtListGenericCore fields scope [Stmt.assignVar name (Expr.storageAddr fieldName)] :=
   stmtListGenericCore_singleton_assignStorageAddrField hnoConflict hfind hfieldInScope
 
+private theorem false_of_supportedStmtList_emitEvent_surface
+    {eventName : String}
+    {args : List Expr}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface
+        [Stmt.emit eventName args] = false) :
+    False :=
+  false_of_supportedStmtList_singleton_stmt_surface
+    (stmt := Stmt.emit eventName args)
+    (by simp [stmtTouchesUnsupportedContractSurface])
+    hsurface
+
+private theorem false_of_supportedStmtList_emitEvent_surface_exceptMappingWrites
+    {eventName : String}
+    {args : List Expr}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites
+        [Stmt.emit eventName args] = false) :
+    False := by
+  have hhead :
+      stmtTouchesUnsupportedContractSurfaceExceptMappingWrites
+        (Stmt.emit eventName args) = false := by
+    simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites] using hsurface
+  simp [stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
+    stmtTouchesUnsupportedContractSurface] at hhead
+
 private theorem stmtListGenericCore_of_supportedStmtList_iteTerminal_of_surface
     {fields : List Field}
     {scope : List String}
@@ -12783,6 +12809,8 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface
   | assignStorageAddrField hfind hfieldInScope =>
       exact stmtListGenericCore_of_supportedStmtList_assignStorageAddrField_of_surface
         hnoConflict hfind hfieldInScope
+  | emitEvent _ _ =>
+      exact False.elim (false_of_supportedStmtList_emitEvent_surface hsurface)
   | letMappingField _ _ _ =>
       exact False.elim (false_of_supportedStmtList_letMappingField_surface hsurface)
   | letMappingWordField _ _ _ =>
@@ -12870,6 +12898,9 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites
   | assignStorageAddrField hfind hfieldInScope =>
       exact stmtListGenericCore_of_supportedStmtList_assignStorageAddrField_of_surface
         hnoConflict hfind hfieldInScope
+  | emitEvent _ _ =>
+      exact False.elim
+        (false_of_supportedStmtList_emitEvent_surface_exceptMappingWrites hsurface)
   | letMappingField _ _ _ =>
       exact False.elim
         (false_of_supportedStmtList_letMappingField_surface_exceptMappingWrites hsurface)
@@ -13113,6 +13144,9 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites_
   | assignStorageAddrField hfind hfieldInScope =>
       exact stmtListGenericCore_of_supportedStmtList_assignStorageAddrField_of_surface
         hnoConflict hfind hfieldInScope
+  | emitEvent _ _ =>
+      exact False.elim
+        (false_of_supportedStmtList_emitEvent_surface_exceptMappingWrites hsurface)
   | letMappingField _ _ _ =>
       exact False.elim
         (false_of_supportedStmtList_letMappingField_surface_exceptMappingWrites hsurface)

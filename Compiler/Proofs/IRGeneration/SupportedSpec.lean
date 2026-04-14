@@ -496,7 +496,8 @@ def stmtTouchesUnsupportedCallSurface : Stmt → Bool
   | .ecm _ _ => true
   | .stop | .storageArrayPop _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
-  | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _ => false
+  | .returnBytes _ | .returnStorageWords _ | .rawLog _ _ _ => false
+  | .emit _ args => args.any exprTouchesUnsupportedCallSurface
   | .ite cond thenBranch elseBranch =>
       exprTouchesUnsupportedCallSurface cond ||
         stmtListTouchesUnsupportedCallSurface thenBranch ||
@@ -533,7 +534,8 @@ def stmtTouchesUnsupportedHelperSurface : Stmt → Bool
   | .returndataCopy _ _ _ | .revertReturndata | .externalCallBind _ _ _
   | .ecm _ _ | .storageArrayPop _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
-  | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _ => false
+  | .returnBytes _ | .returnStorageWords _ | .rawLog _ _ _ => false
+  | .emit _ args => exprListTouchesUnsupportedHelperSurface args
   | .ite cond thenBranch elseBranch =>
       exprTouchesUnsupportedHelperSurface cond ||
         stmtListTouchesUnsupportedHelperSurface thenBranch ||
@@ -698,7 +700,8 @@ def stmtTouchesUnsupportedForeignSurface : Stmt → Bool
   | .calldatacopy _ _ _ | .returndataCopy _ _ _ | .revertReturndata
   | .storageArrayPop _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
-  | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _ => false
+  | .returnBytes _ | .returnStorageWords _ | .rawLog _ _ _ => false
+  | .emit _ args => args.any exprTouchesUnsupportedForeignSurface
   | .ite cond thenBranch elseBranch =>
       exprTouchesUnsupportedForeignSurface cond ||
         stmtListTouchesUnsupportedForeignSurface thenBranch ||
@@ -736,7 +739,8 @@ def stmtTouchesUnsupportedLowLevelSurface : Stmt → Bool
   | .internalCall _ _ | .internalCallAssign _ _ _ | .externalCallBind _ _ _
   | .ecm _ _ | .storageArrayPop _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
-  | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _ => false
+  | .returnBytes _ | .returnStorageWords _ | .rawLog _ _ _ => false
+  | .emit _ args => args.any exprTouchesUnsupportedLowLevelSurface
   | .ite cond thenBranch elseBranch =>
       exprTouchesUnsupportedLowLevelSurface cond ||
         stmtListTouchesUnsupportedLowLevelSurface thenBranch ||
@@ -1934,6 +1938,10 @@ theorem SupportedStmtList.helperSurfaceClosed
       exact supportedStmtList_assignStorageField_helperSurfaceClosed
   | assignStorageAddrField _ _ =>
       exact supportedStmtList_assignStorageAddrField_helperSurfaceClosed
+  | emitEvent hcoreAll _ =>
+      simpa [stmtListTouchesUnsupportedHelperSurface,
+        stmtTouchesUnsupportedHelperSurface]
+        using exprListCompileCore_helperSurfaceClosed hcoreAll
   | letMappingField hkey _ _ =>
       simp only [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
@@ -2070,6 +2078,9 @@ theorem SupportedStmtList.internalHelperCallNames_nil
         stmtInternalHelperCallNames,
         exprInternalHelperCallNames,
         List.nil_append, List.append_nil]
+  | emitEvent hcoreAll _ =>
+      simpa [stmtListInternalHelperCallNames, stmtInternalHelperCallNames]
+        using exprListCompileCore_internalHelperCallNames_nil hcoreAll
   | letMappingField hkey _ _ =>
       simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
@@ -2723,6 +2734,12 @@ theorem stmtListTouchesUnsupportedCallSurface_eq_featureOr
             stmtTouchesUnsupportedLowLevelSurface]
           rw [exprListTouchesUnsupportedCallSurface_eq_featureOr,
               exprTouchesUnsupportedCallSurface_eq_featureOr value]
+          simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
+      | emit _ args =>
+          simp only [stmtTouchesUnsupportedCallSurface,
+            stmtTouchesUnsupportedHelperSurface, stmtTouchesUnsupportedForeignSurface,
+            stmtTouchesUnsupportedLowLevelSurface]
+          rw [exprListTouchesUnsupportedCallSurface_eq_featureOr args]
           simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
       | _ =>
           all_goals simp [stmtTouchesUnsupportedCallSurface,
@@ -3736,6 +3753,9 @@ private theorem supportedStmtList_usesArrayElement_false
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement, Bool.false_or]
   | assignStorageAddrField _ _ =>
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement, Bool.false_or]
+  | emitEvent hcoreAll _ =>
+      simpa [stmtListUsesArrayElement, stmtUsesArrayElement]
+        using exprListCompileCore_usesArrayElement_false hcoreAll
   | letMappingField hkey _ _ =>
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement,
         exprCompileCore_usesArrayElement_false hkey, Bool.false_or]
@@ -3844,6 +3864,9 @@ private theorem supportedStmtList_usesStorageArrayElement_false
   | assignStorageAddrField _ _ =>
       simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprUsesStorageArrayElement, Bool.false_or]
+  | emitEvent hcoreAll _ =>
+      simpa [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement]
+        using exprListCompileCore_usesStorageArrayElement_false hcoreAll
   | letMappingField hkey _ _ =>
       simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprUsesStorageArrayElement,
@@ -3951,6 +3974,9 @@ private theorem supportedStmtList_usesDynamicBytesEq_false
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq, Bool.false_or]
   | assignStorageAddrField _ _ =>
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq, Bool.false_or]
+  | emitEvent hcoreAll _ =>
+      simpa [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq]
+        using exprListCompileCore_usesDynamicBytesEq_false hcoreAll
   | letMappingField hkey _ _ =>
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hkey, Bool.false_or]

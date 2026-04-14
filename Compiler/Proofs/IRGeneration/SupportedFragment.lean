@@ -111,6 +111,16 @@ inductive SupportedStmtList (fields : List Field) : List String → List Stmt �
         some ({ name := fieldName, ty := FieldType.address }, slot) →
       fieldName ∈ scope →
       SupportedStmtList fields scope [Stmt.assignVar name (Expr.storageAddr fieldName)]
+  /-- Event emission: evaluates all argument expressions and continues execution.
+  Events are state-preserving side effects (they don't modify storage, memory,
+  or bindings). -/
+  | emitEvent
+      {scope : List String}
+      {eventName : String}
+      {args : List Expr} :
+      (∀ arg ∈ args, FunctionBody.ExprCompileCore arg) →
+      (∀ arg ∈ args, FunctionBody.exprBoundNamesInScope arg scope) →
+      SupportedStmtList fields scope [Stmt.emit eventName args]
   | letMappingField
       {scope : List String}
       {tmp : String}
