@@ -706,6 +706,116 @@ example : verityEval "byte" [32, 0xFFFFFFFF] = bridgeEval "byte" [32, 0xFFFFFFFF
 /-- byte: index 0 returns most significant byte -/
 example : verityEval "byte" [0, 0] = bridgeEval "byte" [0, 0] := by native_decide
 
+-- ## Context-lifted backend bridge (Phase 4 rewriting surface)
+--
+-- These tests validate that `evalBuiltinCallWithBackendContext .evmYulLean`
+-- agrees with `evalBuiltinCallWithContext` on concrete inputs, exercising
+-- the 25 context-lifted bridge theorems that are the primary rewrite target
+-- for Phase 4 retargeting.
+
+/-- Helper: evaluate a builtin via the EVMYulLean backend with full context. -/
+private def backendEvalWithContext (func : String) (args : List Nat) : Option Nat :=
+  evalBuiltinCallWithBackendContext .evmYulLean
+    testStorage
+    testSender
+    testMsgValue
+    testThisAddress
+    testBlockTimestamp
+    testBlockNumber
+    testChainId
+    testBlobBaseFee
+    testSelector
+    testCalldata
+    func
+    args
+
+/-- Context-lifted bridge: add -/
+example : backendEvalWithContext "add" [3, 5] = verityEvalWithContext "add" [3, 5] := by native_decide
+
+/-- Context-lifted bridge: sub -/
+example : backendEvalWithContext "sub" [10, 3] = verityEvalWithContext "sub" [10, 3] := by native_decide
+
+/-- Context-lifted bridge: mul -/
+example : backendEvalWithContext "mul" [7, 6] = verityEvalWithContext "mul" [7, 6] := by native_decide
+
+/-- Context-lifted bridge: div -/
+example : backendEvalWithContext "div" [42, 7] = verityEvalWithContext "div" [42, 7] := by native_decide
+
+/-- Context-lifted bridge: mod -/
+example : backendEvalWithContext "mod" [17, 5] = verityEvalWithContext "mod" [17, 5] := by native_decide
+
+/-- Context-lifted bridge: eq -/
+example : backendEvalWithContext "eq" [42, 42] = verityEvalWithContext "eq" [42, 42] := by native_decide
+
+/-- Context-lifted bridge: iszero -/
+example : backendEvalWithContext "iszero" [0] = verityEvalWithContext "iszero" [0] := by native_decide
+
+/-- Context-lifted bridge: lt -/
+example : backendEvalWithContext "lt" [3, 5] = verityEvalWithContext "lt" [3, 5] := by native_decide
+
+/-- Context-lifted bridge: gt -/
+example : backendEvalWithContext "gt" [5, 3] = verityEvalWithContext "gt" [5, 3] := by native_decide
+
+/-- Context-lifted bridge: slt (signed less-than, negative) -/
+example : backendEvalWithContext "slt" [Compiler.Constants.evmModulus - 1, 1] =
+          verityEvalWithContext "slt" [Compiler.Constants.evmModulus - 1, 1] := by native_decide
+
+/-- Context-lifted bridge: sgt (signed greater-than, negative) -/
+example : backendEvalWithContext "sgt" [1, Compiler.Constants.evmModulus - 1] =
+          verityEvalWithContext "sgt" [1, Compiler.Constants.evmModulus - 1] := by native_decide
+
+/-- Context-lifted bridge: and -/
+example : backendEvalWithContext "and" [0xFF, 0x0F] = verityEvalWithContext "and" [0xFF, 0x0F] := by native_decide
+
+/-- Context-lifted bridge: or -/
+example : backendEvalWithContext "or" [0xF0, 0x0F] = verityEvalWithContext "or" [0xF0, 0x0F] := by native_decide
+
+/-- Context-lifted bridge: xor -/
+example : backendEvalWithContext "xor" [0xFF, 0x0F] = verityEvalWithContext "xor" [0xFF, 0x0F] := by native_decide
+
+/-- Context-lifted bridge: not -/
+example : backendEvalWithContext "not" [0] = verityEvalWithContext "not" [0] := by native_decide
+
+/-- Context-lifted bridge: shl -/
+example : backendEvalWithContext "shl" [4, 1] = verityEvalWithContext "shl" [4, 1] := by native_decide
+
+/-- Context-lifted bridge: shr -/
+example : backendEvalWithContext "shr" [4, 256] = verityEvalWithContext "shr" [4, 256] := by native_decide
+
+/-- Context-lifted bridge: addmod -/
+example : backendEvalWithContext "addmod" [10, 10, 8] = verityEvalWithContext "addmod" [10, 10, 8] := by native_decide
+
+/-- Context-lifted bridge: mulmod -/
+example : backendEvalWithContext "mulmod" [10, 10, 8] = verityEvalWithContext "mulmod" [10, 10, 8] := by native_decide
+
+/-- Context-lifted bridge: byte -/
+example : backendEvalWithContext "byte" [31, 0xFF] = verityEvalWithContext "byte" [31, 0xFF] := by native_decide
+
+/-- Context-lifted bridge: exp -/
+example : backendEvalWithContext "exp" [2, 10] = verityEvalWithContext "exp" [2, 10] := by native_decide
+
+/-- Context-lifted bridge: sdiv (mixed sign) -/
+example : backendEvalWithContext "sdiv" [Compiler.Constants.evmModulus - 7, 3] =
+          verityEvalWithContext "sdiv" [Compiler.Constants.evmModulus - 7, 3] := by native_decide
+
+/-- Context-lifted bridge: smod (mixed sign) -/
+example : backendEvalWithContext "smod" [Compiler.Constants.evmModulus - 10, 3] =
+          verityEvalWithContext "smod" [Compiler.Constants.evmModulus - 10, 3] := by native_decide
+
+/-- Context-lifted bridge: sar (signed right shift, negative) -/
+example : backendEvalWithContext "sar" [1, Compiler.Constants.evmModulus - 1] =
+          verityEvalWithContext "sar" [1, Compiler.Constants.evmModulus - 1] := by native_decide
+
+/-- Context-lifted bridge: signextend (byte 0, sign bit set) -/
+example : backendEvalWithContext "signextend" [0, 0x80] =
+          verityEvalWithContext "signextend" [0, 0x80] := by native_decide
+
+/-- Context-lifted bridge: state-dependent sload falls through to none -/
+example : backendEvalWithContext "sload" [42] = none := by native_decide
+
+/-- Context-lifted bridge: state-dependent caller falls through to none -/
+example : backendEvalWithContext "caller" [] = none := by native_decide
+
 -- ## Summary output
 def main : IO Unit := do
   IO.println "✓ Unsigned arithmetic builtins: add, sub, mul, div, mod — universally bridged"
@@ -720,6 +830,7 @@ def main : IO Unit := do
   IO.println "✓ Sign extension: signextend — concrete bridge (byte positions 0,1,15,30,31,32)"
   IO.println "✓ State-dependent builtins: sload, caller, calldataload, address, timestamp, number, chainid, blobbasefee — correctly handled"
   IO.println "✓ Verity-specific helpers: mappingSlot — correctly delegated"
+  IO.println "✓ Context-lifted backend bridge: 25 pure builtins + 2 state-dependent fallthrough"
   IO.println "✓ Adapter: all 11 statement types lower without error"
   IO.println "✓ PrimOp mapping: 35 builtins mapped via lookupPrimOp"
   IO.println "EVMYulLean bridge test: all checks passed"
