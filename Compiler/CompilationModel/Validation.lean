@@ -682,8 +682,16 @@ def stmtListCEIViolation : List Stmt → Bool → Option String
       | none =>
           -- Update seenCall: current stmt may contain an external call
           let newSeenCall := seenCall || stmtContainsExternalCall s
-          -- Check with newSeenCall so a stmt that both calls and writes is caught
-          if newSeenCall && stmtIsPersistentWrite s then
+          -- For compound statements (ite, forEach, unsafeBlock, matchAdt), the internal
+          -- CEI check above already verified ordering within the statement's branches.
+          -- Only apply the flat write-after-call check for leaf/simple statements to
+          -- avoid false positives on compound statements that contain both calls and
+          -- writes in the correct (writes-first) order.
+          let isCompound := match s with
+            | Stmt.ite _ _ _ | Stmt.forEach _ _ _ | Stmt.unsafeBlock _ _
+            | Stmt.matchAdt _ _ _ => true
+            | _ => false
+          if !isCompound && newSeenCall && stmtIsPersistentWrite s then
             some "state write after external call"
           else
             stmtListCEIViolation rest newSeenCall

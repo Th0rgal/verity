@@ -41,6 +41,12 @@ mutual
     | .tuple elems =>
         let rendered := elems.map (fun ty => renderParam "" ty none)
         some ("[" ++ String.intercalate ", " rendered ++ "]")
+    | .adt _ maxFields =>
+        -- ADTs encode as (uint8 tag, uint256 field₀, ..., uint256 fieldₙ)
+        let tagComponent := renderParam "tag" .uint8 none
+        let fieldComponents := List.range maxFields |>.map fun i =>
+          renderParam s!"field{i}" .uint256 none
+        some ("[" ++ String.intercalate ", " (tagComponent :: fieldComponents) ++ "]")
     | .array t => abiComponents? t
     | .fixedArray t _ => abiComponents? t
     | _ => none
@@ -146,10 +152,16 @@ where
   renderFieldType : FieldType → String
     | .uint256 => "uint256"
     | .address => "address"
-    | .dynamicArray _ => "uint256[]"
+    | .dynamicArray elemType => renderStorageArrayElemType elemType ++ "[]"
     | .mappingTyped _ => "mapping"
     | .mappingStruct _ _ => "mapping"
     | .mappingStruct2 _ _ _ => "mapping"
+  renderStorageArrayElemType : StorageArrayElemType → String
+    | .uint256 => "uint256"
+    | .address => "address"
+    | .bool => "bool"
+    | .uint8 => "uint8"
+    | .bytes32 => "bytes32"
   renderFields (fields : List Field) (idx : Nat) : List String :=
     match fields with
     | [] => []
