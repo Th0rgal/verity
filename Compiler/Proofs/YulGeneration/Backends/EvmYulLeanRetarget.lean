@@ -90,16 +90,6 @@ The gap is architecturally sound because:
   structural induction that we defer with sorry for now
 -/
 
-/-- **Phase 4 retargeted theorem**: For contracts that only use bridged builtins,
-    IR execution matches Yul execution under the `.evmYulLean` backend.
-
-    This is the "EVMYulLean is the semantic target" statement. It composes:
-    1. Layer 3 preservation: `interpretIR ≡ interpretYulFromIR` (`.verity` backend)
-    2. Backend equivalence: `.verity` ≡ `.evmYulLean` on bridged builtins
-
-    The `sorry` here captures the whole-program structural induction showing
-    that pointwise builtin equivalence lifts to full execution equivalence.
-    This is architecturally justified by the per-builtin bridge theorems. -/
 /-- Layer 3 contract preservation under EVMYulLean semantics.
 
     This delegates directly to the existing `.verity`-backed Layer 3 preservation
