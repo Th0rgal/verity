@@ -513,6 +513,21 @@ theorem runtimeStateMatchesIR_applyBindingsToIRState
       simpa [ParamLoading.applyBindingsToIRState, IRState.setVar] using
         ih (state := state.setVar entry.1 entry.2) hmatch
 
+theorem constructorRuntimeStateMatchesIR_applyBindingsToIRState
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    (hmatch : FunctionBody.constructorRuntimeStateMatchesIR fields runtime state)
+    (bindings : List (String × Nat)) :
+    FunctionBody.constructorRuntimeStateMatchesIR fields runtime
+      (ParamLoading.applyBindingsToIRState state bindings) := by
+  induction bindings generalizing state with
+  | nil =>
+      simpa [ParamLoading.applyBindingsToIRState]
+  | cons entry rest ih =>
+      simpa [ParamLoading.applyBindingsToIRState, IRState.setVar] using
+        ih (state := state.setVar entry.1 entry.2) hmatch
+
 theorem runtimeStateMatchesIR_prebindRawArgs
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
@@ -830,6 +845,26 @@ theorem initialIRStateForTx_matches_constructor_runtime
       Nat.mod_eq_of_lt hmsgValue, Nat.mod_eq_of_lt htimestamp, Nat.mod_eq_of_lt hnumber,
       Nat.mod_eq_of_lt hchain, Nat.mod_eq_of_lt hblob]
     exact hcalldataSizeFits'
+
+theorem initialIRStateForTx_matches_bound_constructor_runtime
+    (model : CompilationModel)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (bindings : List (String × Nat))
+    (htxNormalized : TxContextNormalized tx)
+    (hcalldataSizeFits : TxConstructorCalldataSizeFitsEvm tx) :
+    FunctionBody.constructorRuntimeStateMatchesIR
+      (SourceSemantics.effectiveFields model)
+      { world := SourceSemantics.withConstructorTransactionContext initialWorld tx
+        bindings := []
+        selector := tx.functionSelector }
+      (ParamLoading.applyBindingsToIRState
+        (FunctionBody.initialIRStateForTx model tx initialWorld)
+        bindings) := by
+  exact constructorRuntimeStateMatchesIR_applyBindingsToIRState
+    (bindings := bindings)
+    (initialIRStateForTx_matches_constructor_runtime
+      model tx initialWorld htxNormalized hcalldataSizeFits)
 
 /-- The ABI parameter-loading prefix reconstructs exactly the decoded source
 bindings for any supported function with pairwise-distinct parameter names. -/

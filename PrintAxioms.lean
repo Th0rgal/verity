@@ -808,6 +808,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.Function.interpretFunction_eq_execResultToIRResult_of_body
 #print axioms Compiler.Proofs.IRGeneration.Function.interpretFunctionWithHelpers_eq_execResultToIRResultWithInternals_of_body
 #print axioms Compiler.Proofs.IRGeneration.Function.runtimeStateMatchesIR_applyBindingsToIRState
+#print axioms Compiler.Proofs.IRGeneration.Function.constructorRuntimeStateMatchesIR_applyBindingsToIRState
 #print axioms Compiler.Proofs.IRGeneration.Function.runtimeStateMatchesIR_prebindRawArgs
 -- #print axioms Compiler.Proofs.IRGeneration.Function.lookupBinding?_foldl_bindValue_not_mem  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Function.lookupBinding?_foldl_bindValue_mem  -- private
@@ -817,6 +818,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.Function.lookupBinding?_some_of_mem  -- private
 #print axioms Compiler.Proofs.IRGeneration.Function.initialIRStateForTx_matches_runtime
 #print axioms Compiler.Proofs.IRGeneration.Function.initialIRStateForTx_matches_constructor_runtime
+#print axioms Compiler.Proofs.IRGeneration.Function.initialIRStateForTx_matches_bound_constructor_runtime
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_param_state_exact
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_body_correct_from_exact_state_core
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_body_correct_from_exact_state_core_extraFuel
@@ -2184,4 +2186,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 2034 theorems/lemmas (1363 public, 671 private, 0 sorry'd)
+-- Total: 2036 theorems/lemmas (1365 public, 671 private, 0 sorry'd)
