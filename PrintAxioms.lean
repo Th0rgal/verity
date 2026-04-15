@@ -49,6 +49,7 @@ import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.StorageBounds
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapterCorrectness
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanStateBridge
 import Compiler.Proofs.YulGeneration.Builtins
 import Compiler.Proofs.YulGeneration.Equivalence
@@ -2223,6 +2224,12 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_mappingSlot_none
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
 
+-- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_on_bridged_builtins  -- sorry'd
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExpr_backend_equiv
+#print axioms Compiler.Proofs.YulGeneration.Backends.layer3_preserves_semantics_evmYulLean
+#print axioms Compiler.Proofs.YulGeneration.Backends.evmYulLean_semantic_target_theorem
+
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorBytes_size  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_wordBytes_size  -- private
@@ -2278,4 +2285,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 2126 theorems/lemmas (1434 public, 692 private, 0 sorry'd)
+-- Total: 2130 theorems/lemmas (1437 public, 692 private, 1 sorry'd)
