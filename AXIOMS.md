@@ -147,7 +147,7 @@ scoped to contracts that use the module.
 ## Non-Axiom: Arithmetic
 
 All 25 pure EVM arithmetic builtins have universal bridge equivalence lemmas
-(20 fully proven, 5 with sorry-dependent core equivalences).
+(22 fully proven, 3 with sorry-dependent core equivalences).
 The proofs show that Verity's arithmetic matches EVM arithmetic (wrapping at
 2^256) for *all* possible inputs, not just test cases. The EVMYulLean bridge
 currently has universal equivalence lemmas for 25 of them (`add`, `sub`, `mul`,
