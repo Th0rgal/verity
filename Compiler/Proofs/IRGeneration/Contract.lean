@@ -393,18 +393,18 @@ private theorem compileValidatedCore_ok_yields_compiled_functions
     pickUniqueFunctionByName_eq_ok_none_of_absent
       "receive" model.functions hSupported.noReceive
   unfold compileValidatedCore at hcore
-  rw [hSupported.normalizedFields, hSupported.noEvents, hSupported.noErrors,
+  rw [hSupported.normalizedFields,
     hSupported.noAdtTypes, hSupported.noConstructor, hfallback, hreceive] at hcore
   simp only [bind, Except.bind, pure, Except.pure] at hcore
   rcases hmap :
       ((model.functions.filter
           (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors).mapM
-        (fun x => compileFunctionSpec model.fields [] [] [] x.2 x.1) with _ | irFns
+        (fun x => compileFunctionSpec model.fields model.events model.errors [] x.2 x.1) with _ | irFns
   · simp [hmap] at hcore
   · simp [hmap] at hcore
     rcases hinternal :
         (model.functions.filter (·.isInternal)).mapM
-          (compileInternalFunction model.fields [] [] []) with _ | internalFuncDefs
+          (compileInternalFunction model.fields model.events model.errors []) with _ | internalFuncDefs
     · simp [hinternal] at hcore
     · simp [hinternal, compileConstructor] at hcore
       have hfunctions : ir.functions = irFns := by
@@ -414,13 +414,13 @@ private theorem compileValidatedCore_ok_yields_compiled_functions
       have hcompiled :
           List.Forall₂
             (fun (entry : FunctionSpec × Nat) irFn =>
-              compileFunctionSpec model.fields [] [] [] entry.2 entry.1 = Except.ok irFn)
+              compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
             ((model.functions.filter
                 (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors)
             irFns :=
-        compiled_functions_forall₂_of_mapM_ok model.fields [] [] _ _ hmap
+        compiled_functions_forall₂_of_mapM_ok model.fields model.events model.errors _ _ hmap
       simpa [SourceSemantics.selectorFunctionPairs, selectorDispatchedFunctions,
-        hSupported.noEvents, hSupported.noErrors, hfunctions] using hcompiled
+        hfunctions] using hcompiled
 
 private theorem compileValidatedCore_ok_yields_compiled_functions_except_mapping_writes
     (model : CompilationModel)
@@ -442,18 +442,18 @@ private theorem compileValidatedCore_ok_yields_compiled_functions_except_mapping
     pickUniqueFunctionByName_eq_ok_none_of_absent
       "receive" model.functions hSupported.noReceive
   unfold compileValidatedCore at hcore
-  rw [hSupported.normalizedFields, hSupported.noEvents, hSupported.noErrors,
+  rw [hSupported.normalizedFields,
     hSupported.noAdtTypes, hSupported.noConstructor, hfallback, hreceive] at hcore
   simp only [bind, Except.bind, pure, Except.pure] at hcore
   rcases hmap :
       ((model.functions.filter
           (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors).mapM
-        (fun x => compileFunctionSpec model.fields [] [] [] x.2 x.1) with _ | irFns
+        (fun x => compileFunctionSpec model.fields model.events model.errors [] x.2 x.1) with _ | irFns
   · simp [hmap] at hcore
   · simp [hmap] at hcore
     rcases hinternal :
         (model.functions.filter (·.isInternal)).mapM
-          (compileInternalFunction model.fields [] [] []) with _ | internalFuncDefs
+          (compileInternalFunction model.fields model.events model.errors []) with _ | internalFuncDefs
     · simp [hinternal] at hcore
     · simp [hinternal, compileConstructor] at hcore
       have hfunctions : ir.functions = irFns := by
@@ -463,13 +463,13 @@ private theorem compileValidatedCore_ok_yields_compiled_functions_except_mapping
       have hcompiled :
           List.Forall₂
             (fun (entry : FunctionSpec × Nat) irFn =>
-              compileFunctionSpec model.fields [] [] [] entry.2 entry.1 = Except.ok irFn)
+              compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
             ((model.functions.filter
                 (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors)
             irFns :=
-        compiled_functions_forall₂_of_mapM_ok model.fields [] [] _ _ hmap
+        compiled_functions_forall₂_of_mapM_ok model.fields model.events model.errors _ _ hmap
       simpa [SourceSemantics.selectorFunctionPairs, selectorDispatchedFunctions,
-        hSupported.noEvents, hSupported.noErrors, hfunctions] using hcompiled
+        hfunctions] using hcompiled
 
 private theorem filterInternalFunctions_eq_nil_of_all_nonInternal :
     ∀ (fns : List FunctionSpec),
@@ -796,8 +796,7 @@ theorem compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList
           hbody.state.surfaceClosed
           (SupportedBodyCallInterface.surfaceClosed hbody)
           hbody.effects.surfaceClosed)
-      (hcompile := by
-        simpa [hSupported.noEvents, hSupported.noErrors] using hbodyCompile)
+      (hcompile := hbodyCompile)
   exact legacyCompatibleExternalStmtList_append _ _ hparams hbody
 
 theorem compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList_except_mapping_writes
@@ -830,8 +829,7 @@ theorem compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList_except_ma
           hbody.state.surfaceClosed
           (SupportedBodyCallInterface.surfaceClosed_exceptMappingWrites (hBody := hbody))
           hbody.effects.surfaceClosed)
-      (hcompile := by
-        simpa [hSupported.noEvents, hSupported.noErrors] using hbodyCompile)
+      (hcompile := hbodyCompile)
   exact legacyCompatibleExternalStmtList_append _ _ hparams hbody
 
 private theorem compiled_functions_legacyCompatibleExternalBodies

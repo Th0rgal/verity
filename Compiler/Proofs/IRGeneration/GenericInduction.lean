@@ -644,13 +644,15 @@ theorem legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFiel
 
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_letVar
     {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
     {inScopeNames : List String}
     {name : String}
     {value : Expr}
     {bodyIR : List YulStmt}
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames [] (.letVar name value) =
+        fields events errors .calldata [] false inScopeNames [] (.letVar name value) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   unfold CompilationModel.compileStmt at hcompile
@@ -662,13 +664,15 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_letVar
 
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_assignVar
     {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
     {inScopeNames : List String}
     {name : String}
     {value : Expr}
     {bodyIR : List YulStmt}
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames [] (.assignVar name value) =
+        fields events errors .calldata [] false inScopeNames [] (.assignVar name value) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   unfold CompilationModel.compileStmt at hcompile
@@ -680,13 +684,15 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_assignVar
 
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_require
     {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
     {inScopeNames : List String}
     {cond : Expr}
     {message : String}
     {bodyIR : List YulStmt}
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames [] (.require cond message) =
+        fields events errors .calldata [] false inScopeNames [] (.require cond message) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   unfold CompilationModel.compileStmt at hcompile
@@ -703,12 +709,14 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_require
 
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_return
     {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
     {inScopeNames : List String}
     {value : Expr}
     {bodyIR : List YulStmt}
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames [] (.return value) =
+        fields events errors .calldata [] false inScopeNames [] (.return value) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   unfold CompilationModel.compileStmt at hcompile
@@ -726,11 +734,13 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_return
 
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_stop
     {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
     {inScopeNames : List String}
     {bodyIR : List YulStmt}
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames [] .stop =
+        fields events errors .calldata [] false inScopeNames [] .stop =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   unfold CompilationModel.compileStmt at hcompile
@@ -743,12 +753,14 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_stop
 
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_mstore
     {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
     {inScopeNames : List String}
     {offset value : Expr}
     {bodyIR : List YulStmt}
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames [] (.mstore offset value) =
+        fields events errors .calldata [] false inScopeNames [] (.mstore offset value) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   unfold CompilationModel.compileStmt at hcompile
@@ -767,12 +779,14 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_mstore
 
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_tstore
     {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
     {inScopeNames : List String}
     {offset value : Expr}
     {bodyIR : List YulStmt}
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames [] (.tstore offset value) =
+        fields events errors .calldata [] false inScopeNames [] (.tstore offset value) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   unfold CompilationModel.compileStmt at hcompile
@@ -796,6 +810,8 @@ the compiled-side compatibility fact needed to reuse already-proved helper-free
 cases inside the exact helper-aware compiled seam. -/
 theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface
     {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
     {inScopeNames : List String}
     {stmt : Stmt}
     {bodyIR : List YulStmt}
@@ -803,7 +819,7 @@ theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractS
     (hsurface : stmtTouchesUnsupportedContractSurface stmt = false)
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames [] stmt = Except.ok bodyIR) :
+        fields events errors .calldata [] false inScopeNames [] stmt = Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   cases stmt with
   | letVar name value =>
@@ -845,11 +861,11 @@ theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractS
       | error e => simp [hcond] at hcompile
       | ok condIR =>
           simp only [hcond] at hcompile
-          cases hthen : CompilationModel.compileStmtList fields [] [] .calldata [] false inScopeNames [] thenBranch with
+          cases hthen : CompilationModel.compileStmtList fields events errors .calldata [] false inScopeNames [] thenBranch with
           | error e => simp [hthen] at hcompile
           | ok thenIR =>
               simp only [hthen] at hcompile
-              cases helse : CompilationModel.compileStmtList fields [] [] .calldata [] false inScopeNames [] elseBranch with
+              cases helse : CompilationModel.compileStmtList fields events errors .calldata [] false inScopeNames [] elseBranch with
               | error e => simp [helse] at hcompile
               | ok elseIR =>
                   simp only [helse] at hcompile
@@ -877,6 +893,8 @@ termination_by sizeOf stmt
 compilation stays inside the legacy helper-free external Yul subset. -/
 theorem legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface
     {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
     {inScopeNames : List String}
     {stmts : List Stmt}
     {bodyIR : List YulStmt}
@@ -884,7 +902,7 @@ theorem legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContr
     (hsurface : stmtListTouchesUnsupportedContractSurface stmts = false)
     (hcompile :
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames [] stmts = Except.ok bodyIR) :
+        fields events errors .calldata [] false inScopeNames [] stmts = Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   match stmts with
   | [] =>
@@ -1509,6 +1527,8 @@ mapping-write fragment instead of forcing it back onto the stricter default
 surface. -/
 theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface_exceptMappingWrites
     {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
     {inScopeNames : List String}
     {stmt : Stmt}
     {bodyIR : List YulStmt}
@@ -1516,7 +1536,7 @@ theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractS
     (hsurface : stmtTouchesUnsupportedContractSurfaceExceptMappingWrites stmt = false)
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames [] stmt = Except.ok bodyIR) :
+        fields events errors .calldata [] false inScopeNames [] stmt = Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   cases stmt with
   | setMapping field key value =>
@@ -1608,6 +1628,8 @@ mapping-write surface. This is the direct `compileStmtList` analogue of the
 single-statement theorem above. -/
 theorem legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface_exceptMappingWrites
     {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
     {inScopeNames : List String}
     {stmts : List Stmt}
     {bodyIR : List YulStmt}
@@ -1615,7 +1637,7 @@ theorem legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContr
     (hsurface : stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites stmts = false)
     (hcompile :
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames [] stmts = Except.ok bodyIR) :
+        fields events errors .calldata [] false inScopeNames [] stmts = Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   match stmts with
   | [] =>
