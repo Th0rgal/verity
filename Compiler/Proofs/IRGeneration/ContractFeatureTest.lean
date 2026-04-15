@@ -199,7 +199,8 @@ private def constructorOnlySupported :
             foreign := by decide
             lowLevel := by decide }
         effects := { surfaceClosed := by decide }
-        noLocalObligations := rfl } }
+        noLocalObligations := rfl }
+    rawCalldataSurfaceClosed := by decide }
 
 private def constructorOnlyTx : IRTransaction :=
   { sender := 7
@@ -220,6 +221,21 @@ private def constructorArgTx : IRTransaction :=
   { sender := 5
     functionSelector := 0
     args := [13] }
+
+private def constructorCalldataCtor : ConstructorSpec :=
+  { params := [{ name := "initialValue", ty := .uint256 }]
+    body := [Stmt.setStorage "value" .calldatasize, .stop] }
+
+private def constructorCalldataSpec : CompilationModel :=
+  { name := "ConstructorCalldata"
+    fields := [{ name := "value", ty := .uint256 }]
+    constructor := some constructorCalldataCtor
+    functions := [] }
+
+private def constructorCalldataTx : IRTransaction :=
+  { sender := 6
+    functionSelector := 0
+    args := [21] }
 
 private def identityInternalHelper : FunctionSpec :=
   { name := "identity"
@@ -451,6 +467,27 @@ example :
       constructorArgCtor
       constructorArgTx
       Verity.defaultState).finalStorage 0 = 13 := by
+  native_decide
+
+example :
+    stmtListTouchesUnsupportedConstructorRawCalldataSurface constructorCalldataCtor.body = true := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructor
+      constructorCalldataSpec
+      constructorCalldataCtor
+      constructorCalldataTx
+      Verity.defaultState).success = false := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructorWithHelpers
+      constructorCalldataSpec
+      0
+      constructorCalldataCtor
+      constructorCalldataTx
+      Verity.defaultState).success = false := by
   native_decide
 
 example

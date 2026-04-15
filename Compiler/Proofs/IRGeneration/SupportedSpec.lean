@@ -23,6 +23,106 @@ def SupportedExternalReturnProfile : List ParamType → Prop
   | [ty] => SupportedExternalParamType ty
   | _ => False
 
+mutual
+/-- Constructor body proofs are intentionally staged after initcode argument
+decoding. Raw constructor calldata observations therefore remain outside the
+current body-level support interface until the deploy-wrapper proof exists. -/
+def exprTouchesUnsupportedConstructorRawCalldataSurface : Expr → Bool
+  | .literal _ | .param _ | .localVar _ | .caller | .contractAddress
+  | .chainid | .msgValue | .blockTimestamp | .blockNumber
+  | .blobbasefee | .constructorArg _ | .returndataSize | .extcodesize _ => false
+  | .calldatasize => true
+  | .storage _ | .storageAddr _ | .arrayLength _ | .storageArrayLength _ => false
+  | .logicalNot a | .bitNot a | .mload a | .tload a | .returndataOptionalBoolAt a =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface a
+  | .calldataload a =>
+      true || exprTouchesUnsupportedConstructorRawCalldataSurface a
+  | .add a b | .sub a b | .mul a b | .div a b | .mod a b
+  | .eq a b | .ge a b | .gt a b | .lt a b | .le a b
+  | .logicalAnd a b | .logicalOr a b | .shl a b | .shr a b
+  | .bitAnd a b | .bitOr a b | .bitXor a b | .min a b | .max a b
+  | .wMulDown a b | .wDivUp a b | .ceilDiv a b | .slt a b | .sgt a b
+  | .sdiv a b | .smod a b | .sar a b | .signextend a b
+  | .mapping _ a | .mappingWord _ a _ | .mappingPackedWord _ a _ _
+  | .mappingUint _ a | .structMember _ a _ | .arrayElement _ a
+  | .storageArrayElement _ a =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface a
+  | .mapping2 _ a b | .mapping2Word _ a b _ | .structMember2 _ a b _ =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface a ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface b
+  | .dynamicBytesEq _ _ => false
+  | .ite c t e | .mulDivDown c t e | .mulDivUp c t e =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface c ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface t ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface e
+  | .mappingChain _ keys | .internalCall _ keys | .externalCall _ keys =>
+      exprListTouchesUnsupportedConstructorRawCalldataSurface keys
+  | .keccak256 a b =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface a ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface b
+  | .call g t v io is oo os =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface g ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface t ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface v ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface io ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface is ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface oo ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface os
+  | .staticcall g t io is oo os | .delegatecall g t io is oo os =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface g ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface t ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface io ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface is ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface oo ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface os
+
+def exprListTouchesUnsupportedConstructorRawCalldataSurface : List Expr → Bool
+  | [] => false
+  | expr :: rest =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface expr ||
+        exprListTouchesUnsupportedConstructorRawCalldataSurface rest
+
+def stmtTouchesUnsupportedConstructorRawCalldataSurface : Stmt → Bool
+  | .letVar _ value | .assignVar _ value | .setStorage _ value
+  | .setStorageAddr _ value | .require value _ | .return value
+  | .storageArrayPush _ value =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface value
+  | .setMapping _ key value | .setMappingWord _ key _ value
+  | .setMappingPackedWord _ key _ _ value | .setMappingUint _ key value
+  | .setStructMember _ key _ value | .setStorageArrayElement _ key value
+  | .mstore key value | .tstore key value =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface key ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface value
+  | .setMappingChain _ keys value =>
+      exprListTouchesUnsupportedConstructorRawCalldataSurface keys ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface value
+  | .setMapping2 _ key1 key2 value | .setMapping2Word _ key1 key2 _ value
+  | .setStructMember2 _ key1 key2 _ value =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface key1 ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface key2 ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface value
+  | .emit _ args | .internalCallAssign _ _ args | .internalCall _ args
+  | .externalCallBind _ _ args =>
+      exprListTouchesUnsupportedConstructorRawCalldataSurface args
+  | .ite cond thenBranch elseBranch =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface cond ||
+        stmtListTouchesUnsupportedConstructorRawCalldataSurface thenBranch ||
+        stmtListTouchesUnsupportedConstructorRawCalldataSurface elseBranch
+  | .forEach _ count body =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface count ||
+        stmtListTouchesUnsupportedConstructorRawCalldataSurface body
+  | .stop | .storageArrayPop _ | .requireError _ _ _ | .revertError _ _
+  | .returnValues _ | .returnArray _ | .returnBytes _ | .returnStorageWords _
+  | .calldatacopy _ _ _ | .returndataCopy _ _ _ | .revertReturndata
+  | .rawLog _ _ _ | .ecm _ _ => false
+
+def stmtListTouchesUnsupportedConstructorRawCalldataSurface : List Stmt → Bool
+  | [] => false
+  | stmt :: rest =>
+      stmtTouchesUnsupportedConstructorRawCalldataSurface stmt ||
+        stmtListTouchesUnsupportedConstructorRawCalldataSurface rest
+end
+
 /-- Selector-dispatched entrypoints in the same order used by `CompilationModel.compile`. -/
 def selectorDispatchedFunctions (spec : CompilationModel) : List FunctionSpec :=
   spec.functions.filter (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)
@@ -1465,6 +1565,8 @@ initcode wrapper that materializes those locals. -/
 structure SupportedConstructor (spec : CompilationModel) (ctor : ConstructorSpec) where
   params : SupportedParamProfile ctor.params
   body : SupportedBodyInterfaceExceptMappingWrites spec (constructorAsFunctionSpec ctor)
+  rawCalldataSurfaceClosed :
+    stmtListTouchesUnsupportedConstructorRawCalldataSurface ctor.body = false
 
 theorem SupportedConstructor.paramNamesNodup
     {spec : CompilationModel} {ctor : ConstructorSpec}

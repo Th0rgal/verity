@@ -1702,16 +1702,19 @@ def interpretConstructor (spec : CompilationModel) (ctor : ConstructorSpec)
     (tx : IRTransaction) (initialWorld : Verity.ContractState) : SourceContractResult :=
   let worldWithTx := withTransactionContext initialWorld tx
   let fields := effectiveFields spec
-  match constructorExecutionBindings ctor tx.args with
-  | none => revertedResult spec worldWithTx
-  | some bindings =>
-      match execStmtList fields
-          { world := worldWithTx, bindings := bindings, selector := tx.functionSelector }
-          ctor.body with
-      | .continue state => successResult spec state.world none
-      | .stop state => successResult spec state.world none
-      | .return value state => successResult spec state.world (some value)
-      | .revert => revertedResult spec worldWithTx
+  if stmtListTouchesUnsupportedConstructorRawCalldataSurface ctor.body then
+    revertedResult spec worldWithTx
+  else
+    match constructorExecutionBindings ctor tx.args with
+    | none => revertedResult spec worldWithTx
+    | some bindings =>
+        match execStmtList fields
+            { world := worldWithTx, bindings := bindings, selector := tx.functionSelector }
+            ctor.body with
+        | .continue state => successResult spec state.world none
+        | .stop state => successResult spec state.world none
+        | .return value state => successResult spec state.world (some value)
+        | .revert => revertedResult spec worldWithTx
 
 def interpretContract (spec : CompilationModel) (selectors : List Nat)
     (tx : IRTransaction) (initialWorld : Verity.ContractState) : SourceContractResult :=
@@ -2392,16 +2395,19 @@ def interpretConstructorWithHelpers
     (initialWorld : Verity.ContractState) : SourceContractResult :=
   let worldWithTx := withTransactionContext initialWorld tx
   let fields := effectiveFields spec
-  match constructorExecutionBindings ctor tx.args with
-  | none => revertedResult spec worldWithTx
-  | some bindings =>
-      match execStmtListWithHelpers spec fields fuel
-          { world := worldWithTx, bindings := bindings, selector := tx.functionSelector }
-          ctor.body with
-      | .continue state => successResult spec state.world none
-      | .stop state => successResult spec state.world none
-      | .return value state => successResult spec state.world (some value)
-      | .revert => revertedResult spec worldWithTx
+  if stmtListTouchesUnsupportedConstructorRawCalldataSurface ctor.body then
+    revertedResult spec worldWithTx
+  else
+    match constructorExecutionBindings ctor tx.args with
+    | none => revertedResult spec worldWithTx
+    | some bindings =>
+        match execStmtListWithHelpers spec fields fuel
+            { world := worldWithTx, bindings := bindings, selector := tx.functionSelector }
+            ctor.body with
+        | .continue state => successResult spec state.world none
+        | .stop state => successResult spec state.world none
+        | .return value state => successResult spec state.world (some value)
+        | .revert => revertedResult spec worldWithTx
 
 def interpretContractWithHelpers
     (spec : CompilationModel)

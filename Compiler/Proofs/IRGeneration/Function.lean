@@ -2092,7 +2092,8 @@ theorem supported_constructor_body_correct_with_body_interface
         ctor.body = sourceResult := by
     simpa [ctorFn, constructorAsFunctionSpec] using hsource
   simpa [SourceSemantics.interpretConstructorWithHelpers,
-    SourceSemantics.constructorExecutionBindings, SourceSemantics.interpretFunctionWithHelpers,
+    hSupported.rawCalldataSurfaceClosed, SourceSemantics.constructorExecutionBindings,
+    SourceSemantics.interpretFunctionWithHelpers,
     constructorAsFunctionSpec, hbind, hcoreClosed, heffective, hsource',
     FunctionBody.stmtResultToSourceResult,
     FunctionBody.sourceResultMatchesIRResult,
