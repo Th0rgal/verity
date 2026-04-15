@@ -331,6 +331,20 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         self.assertNotEqual(rc, 0)
         self.assertIn("non-allowlisted", output)
 
+    def test_sorry_in_def_named_like_pinned_theorem_fails(self) -> None:
+        """A pinned name is allowed only on theorem/lemma declarations, not defs."""
+        lines = []
+        for thm in self.PINNED_THEOREMS[:-1]:
+            lines.append(f"private theorem {thm} (a b : Nat) : True := by")
+            lines.append("  sorry")
+        lines.append("")
+        lines.append(f"private def {self.PINNED_THEOREMS[-1]} : True := by")
+        lines.append("  sorry")
+        self._write_bridge_lines(lines)
+        rc, output = self._run_main()
+        self.assertNotEqual(rc, 0)
+        self.assertIn("non-allowlisted", output)
+
     def test_no_sorry_passes(self) -> None:
         rc, output = self._run_main()
         self.assertEqual(rc, 0, output)

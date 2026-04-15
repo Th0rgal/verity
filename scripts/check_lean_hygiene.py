@@ -19,14 +19,14 @@ from property_utils import ROOT, report_errors, scrub_lean_code
 
 SORRY_RE = re.compile(r"\bsorry\b")
 THEOREM_RE = re.compile(
-    r"(?:private\s+)?(?:theorem|lemma|def)\s+([A-Za-z_][A-Za-z0-9_.']*)(?![A-Za-z0-9_.'])"
+    r"(?:private\s+)?(?:theorem|lemma)\s+([A-Za-z_][A-Za-z0-9_.']*)(?![A-Za-z0-9_.'])"
 )
 # Declaration-boundary keywords that start a new scope.  If the backward
-# scan from a sorry hits one of these before finding a theorem/lemma/def,
+# scan from a sorry hits one of these before finding a theorem/lemma,
 # the sorry is outside any allowlisted declaration (e.g. in an example
 # block) and should not be attributed to the prior theorem.
 BOUNDARY_RE = re.compile(
-    r"^\s*(?:example|instance|abbrev|opaque|structure|class|inductive|section|namespace|end)\b"
+    r"^\s*(?:private\s+)?(?:def|example|instance|abbrev|opaque|structure|class|inductive|section|namespace|end)\b"
     r"|^\s*#"
 )
 

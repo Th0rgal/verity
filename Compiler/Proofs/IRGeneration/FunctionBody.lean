@@ -360,10 +360,15 @@ theorem evalIRExpr_calldatasize_of_runtimeStateMatchesIR
   rcases hmatch with ⟨_, _, _, _, _, _, _, _, _, _, _, hcalldataSize, _, _⟩
   have heval : SourceSemantics.evalExpr fields runtime (.calldatasize) =
     some runtime.world.calldataSize.val := rfl
+  have hcalldataSizeMod :
+      (4 + state.calldata.length * 32) % Compiler.Constants.evmModulus =
+        runtime.world.calldataSize.val := by
+    rw [← hcalldataSize]
+    exact Nat.mod_eq_of_lt runtime.world.calldataSize.isLt
   rw [heval]
   simp [evalIRExpr, evalIRCall, evalIRExprs,
     Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, hcalldataSize]
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, hcalldataSizeMod]
 
 theorem eval_compileExpr_calldatasize
     {fields : List Field}
