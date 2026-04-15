@@ -77,7 +77,8 @@ def exprTouchesUnsupportedCoreSurface : Expr → Bool
   | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
   | .arrayLength _ | .arrayElement _ _ | .storageArrayLength _ | .storageArrayElement _ _
-  | .dynamicBytesEq _ _ => true
+  | .dynamicBytesEq _ _
+  | .adtConstruct _ _ _ | .adtTag _ _ | .adtField _ _ _ _ _ => true
 
 /-- Stateful expression surfaces not yet carried by the generic Layer 2 body
 interface. These are the next storage/layout-style widening targets. -/
@@ -114,6 +115,7 @@ def exprTouchesUnsupportedStateSurface : Expr → Bool
   | .arrayLength _ | .arrayElement _ _
   | .dynamicBytesEq _ _ => false
   | .mload a | .tload a | .calldataload a => exprTouchesUnsupportedStateSurface a
+  | .adtConstruct _ _ _ | .adtTag _ _ | .adtField _ _ _ _ _ => true
 
 /-- Call-related surfaces that still sit outside the current generic Layer 2
 body theorem: internal helper reuse, low-level calls, and foreign call hooks. -/
@@ -153,6 +155,7 @@ def exprTouchesUnsupportedCallSurface : Expr → Bool
   | .shl a b | .shr a b | .sar a b | .signextend a b =>
       exprTouchesUnsupportedCallSurface a || exprTouchesUnsupportedCallSurface b
   | .dynamicBytesEq _ _ => false
+  | .adtConstruct _ _ _ | .adtTag _ _ | .adtField _ _ _ _ _ => true
 
 /-- Internal helper-call surfaces not yet modeled compositionally in the current
 generic whole-contract theorem. -/
@@ -192,6 +195,7 @@ def exprTouchesUnsupportedHelperSurface : Expr → Bool
   | .shl a b | .shr a b | .sar a b | .signextend a b =>
       exprTouchesUnsupportedHelperSurface a || exprTouchesUnsupportedHelperSurface b
   | .dynamicBytesEq _ _ => false
+  | .adtConstruct _ _ _ | .adtTag _ _ | .adtField _ _ _ _ _ => true
 
 def exprListTouchesUnsupportedHelperSurface : List Expr → Bool
   | [] => false
@@ -241,6 +245,7 @@ def exprTouchesInternalHelperSurface : Expr → Bool
   | .shl a b | .shr a b | .sar a b | .signextend a b =>
       exprTouchesInternalHelperSurface a || exprTouchesInternalHelperSurface b
   | .dynamicBytesEq _ _ => false
+  | .adtConstruct _ _ _ | .adtTag _ _ | .adtField _ _ _ _ _ => true
 
 /-- Foreign-call/library-hook surfaces still outside the current generic
 whole-contract theorem. -/
@@ -280,6 +285,7 @@ def exprTouchesUnsupportedForeignSurface : Expr → Bool
   | .shl a b | .shr a b | .sar a b | .signextend a b =>
       exprTouchesUnsupportedForeignSurface a || exprTouchesUnsupportedForeignSurface b
   | .dynamicBytesEq _ _ => false
+  | .adtConstruct _ _ _ | .adtTag _ _ | .adtField _ _ _ _ _ => true
 
 /-- Low-level call/runtime-mechanic surfaces still outside the current generic
 whole-contract theorem. -/
@@ -318,6 +324,7 @@ def exprTouchesUnsupportedLowLevelSurface : Expr → Bool
   | .shl a b | .shr a b | .sar a b | .signextend a b =>
       exprTouchesUnsupportedLowLevelSurface a || exprTouchesUnsupportedLowLevelSurface b
   | .dynamicBytesEq _ _ => false
+  | .adtConstruct _ _ _ | .adtTag _ _ | .adtField _ _ _ _ _ => true
 
 /-- Compatibility expression scan retained for the current generic-induction
 proofs. This intentionally preserves the pre-interface split meaning so the
@@ -356,7 +363,8 @@ def exprTouchesUnsupportedContractSurface (expr : Expr) : Bool :=
   | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
   | .arrayLength _ | .arrayElement _ _ | .storageArrayLength _ | .storageArrayElement _ _
-  | .dynamicBytesEq _ _ => true
+  | .dynamicBytesEq _ _
+  | .adtConstruct _ _ _ | .adtTag _ _ | .adtField _ _ _ _ _ => true
 
 mutual
 /-- Observable/effect-rich surfaces outside the current generic whole-contract
@@ -374,6 +382,7 @@ def stmtTouchesUnsupportedEffectSurface : Stmt → Bool
   | .storageArrayPush _ _ | .storageArrayPop _ | .setStorageArrayElement _ _ _
   | .calldatacopy _ _ _ | .returndataCopy _ _ _ | .revertReturndata
   | .internalCall _ _ | .internalCallAssign _ _ _ => false
+  | .unsafeBlock _ _ | .matchAdt _ _ _ => true
   | .ite _ thenBranch elseBranch =>
       stmtListTouchesUnsupportedEffectSurface thenBranch ||
         stmtListTouchesUnsupportedEffectSurface elseBranch
@@ -423,6 +432,7 @@ def stmtTouchesUnsupportedCoreSurface : Stmt → Bool
   | .returndataCopy _ _ _ | .revertReturndata
   | .emit _ _ | .internalCall _ _ | .internalCallAssign _ _ _
   | .rawLog _ _ _ | .externalCallBind _ _ _ | .tryExternalCallBind _ _ _ _ | .ecm _ _ => false
+  | .unsafeBlock _ _ | .matchAdt _ _ _ => true
 
 /-- State/layout-rich statement surfaces still outside the current whole-contract
 theorem. -/
@@ -447,6 +457,7 @@ def stmtTouchesUnsupportedStateSurface : Stmt → Bool
   | .returndataCopy _ _ _ | .revertReturndata
   | .emit _ _ | .internalCall _ _ | .internalCallAssign _ _ _
   | .rawLog _ _ _ | .externalCallBind _ _ _ | .tryExternalCallBind _ _ _ _ | .ecm _ _ => false
+  | .unsafeBlock _ _ | .matchAdt _ _ _ => true
   | .ite cond thenBranch elseBranch =>
       exprTouchesUnsupportedStateSurface cond ||
         stmtListTouchesUnsupportedStateSurface thenBranch ||
@@ -497,6 +508,7 @@ def stmtTouchesUnsupportedCallSurface : Stmt → Bool
   | .stop | .storageArrayPop _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
   | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _ => false
+  | .unsafeBlock _ _ | .matchAdt _ _ _ => true
   | .ite cond thenBranch elseBranch =>
       exprTouchesUnsupportedCallSurface cond ||
         stmtListTouchesUnsupportedCallSurface thenBranch ||
@@ -534,6 +546,7 @@ def stmtTouchesUnsupportedHelperSurface : Stmt → Bool
   | .ecm _ _ | .storageArrayPop _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
   | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _ => false
+  | .unsafeBlock _ _ | .matchAdt _ _ _ => true
   | .ite cond thenBranch elseBranch =>
       exprTouchesUnsupportedHelperSurface cond ||
         stmtListTouchesUnsupportedHelperSurface thenBranch ||
@@ -575,6 +588,7 @@ def stmtTouchesInternalHelperSurface : Stmt → Bool
   | .revertError _ _ | .returnValues _ | .returnArray _
   | .returnBytes _ | .returnStorageWords _ | .emit _ _
   | .rawLog _ _ _ => false
+  | .unsafeBlock _ _ | .matchAdt _ _ _ => true
   | .ite cond thenBranch elseBranch =>
       exprTouchesInternalHelperSurface cond ||
         stmtListTouchesInternalHelperSurface thenBranch ||
@@ -643,6 +657,7 @@ def stmtTouchesExprInternalHelperSurface : Stmt → Bool
   | .revertError _ _ | .returnValues _ | .returnArray _
   | .returnBytes _ | .returnStorageWords _ | .emit _ _
   | .rawLog _ _ _ => false
+  | .unsafeBlock _ _ | .matchAdt _ _ _ => true
 
 /-- Recursive structural internal-helper transport at the current statement
 head. This isolates `ite` / `forEach` obligations whose proof burden is mainly
@@ -668,6 +683,7 @@ def stmtTouchesStructuralInternalHelperSurface : Stmt → Bool
   | .revertError _ _ | .returnValues _ | .returnArray _
   | .returnBytes _ | .returnStorageWords _ | .emit _ _
   | .rawLog _ _ _ => false
+  | .unsafeBlock _ _ | .matchAdt _ _ _ => true
 
 def stmtTouchesUnsupportedForeignSurface : Stmt → Bool
   | .letVar _ value | .assignVar _ value | .setStorage _ value
@@ -699,6 +715,7 @@ def stmtTouchesUnsupportedForeignSurface : Stmt → Bool
   | .storageArrayPop _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
   | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _ => false
+  | .unsafeBlock _ _ | .matchAdt _ _ _ => true
   | .ite cond thenBranch elseBranch =>
       exprTouchesUnsupportedForeignSurface cond ||
         stmtListTouchesUnsupportedForeignSurface thenBranch ||
@@ -737,6 +754,7 @@ def stmtTouchesUnsupportedLowLevelSurface : Stmt → Bool
   | .ecm _ _ | .storageArrayPop _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
   | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _ => false
+  | .unsafeBlock _ _ | .matchAdt _ _ _ => true
   | .ite cond thenBranch elseBranch =>
       exprTouchesUnsupportedLowLevelSurface cond ||
         stmtListTouchesUnsupportedLowLevelSurface thenBranch ||
@@ -770,7 +788,8 @@ def stmtTouchesUnsupportedContractSurface (stmt : Stmt) : Bool :=
   | .returnBytes _ | .returnStorageWords _ | .calldatacopy _ _ _
   | .returndataCopy _ _ _ | .revertReturndata | .forEach _ _ _
   | .emit _ _ | .internalCall _ _ | .internalCallAssign _ _ _
-  | .rawLog _ _ _ | .externalCallBind _ _ _ | .ecm _ _ => true
+  | .rawLog _ _ _ | .externalCallBind _ _ _ | .ecm _ _
+  | .tryExternalCallBind _ _ _ _ | .unsafeBlock _ _ | .matchAdt _ _ _ => true
 
 def stmtListTouchesUnsupportedContractSurface : List Stmt → Bool
   | [] => false
@@ -989,7 +1008,17 @@ mutual
     | .storageArrayPop _ | .returnArray _ | .returnBytes _ | .returnStorageWords _
     | .revertReturndata | .stop =>
         []
+    | .unsafeBlock _ body => stmtListExprHelperCallNames body
+    | .matchAdt _ _ branches =>
+        matchAdtBranchesExprHelperCallNames branches
   termination_by s => sizeOf s
+  decreasing_by all_goals simp_wf; all_goals omega
+
+  def matchAdtBranchesExprHelperCallNames : List (String × List String × List Stmt) → List String
+    | [] => []
+    | (_, _, body) :: rest =>
+        stmtListExprHelperCallNames body ++ matchAdtBranchesExprHelperCallNames rest
+  termination_by bs => sizeOf bs
   decreasing_by all_goals simp_wf; all_goals omega
 
   def stmtListExprHelperCallNames : List Stmt → List String
@@ -1044,7 +1073,17 @@ mutual
     | .storageArrayPop _ | .returnArray _ | .returnBytes _ | .returnStorageWords _
     | .revertReturndata | .stop =>
         []
+    | .unsafeBlock _ body => stmtListInternalHelperCallNames body
+    | .matchAdt _ _ branches =>
+        matchAdtBranchesInternalHelperCallNames branches
   termination_by s => sizeOf s
+  decreasing_by all_goals simp_wf; all_goals omega
+
+  def matchAdtBranchesInternalHelperCallNames : List (String × List String × List Stmt) → List String
+    | [] => []
+    | (_, _, body) :: rest =>
+        stmtListInternalHelperCallNames body ++ matchAdtBranchesInternalHelperCallNames rest
+  termination_by bs => sizeOf bs
   decreasing_by all_goals simp_wf; all_goals omega
 
   def stmtListInternalHelperCallNames : List Stmt → List String
@@ -1125,6 +1164,25 @@ theorem exprHelperCallNames_nodup (fn : FunctionSpec) :
     (exprHelperCallNames fn).Nodup := by
   simpa [exprHelperCallNames] using List.eraseDups_nodup (stmtListExprHelperCallNames fn.body)
 
+private theorem matchAdtBranchesExprSubsetInternal_aux
+    (listSubset : ∀ (stmts : List Stmt) {calleeName : String},
+      calleeName ∈ stmtListExprHelperCallNames stmts →
+      calleeName ∈ stmtListInternalHelperCallNames stmts)
+    (branches : List (String × List String × List Stmt))
+    {calleeName : String}
+    (hmem : calleeName ∈ matchAdtBranchesExprHelperCallNames branches) :
+    calleeName ∈ matchAdtBranchesInternalHelperCallNames branches := by
+  induction branches with
+  | nil => simp [matchAdtBranchesExprHelperCallNames] at hmem
+  | cons hd tl ih =>
+    obtain ⟨vn, vl, body⟩ := hd
+    simp only [matchAdtBranchesExprHelperCallNames,
+      matchAdtBranchesInternalHelperCallNames, List.mem_append] at hmem ⊢
+    rcases hmem with hbody | hrest
+    · exact Or.inl (listSubset body hbody)
+    · exact Or.inr (ih hrest)
+
+mutual
 private theorem stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNames
     (stmts : List Stmt)
     {calleeName : String}
@@ -1163,13 +1221,34 @@ private theorem stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNam
             exact hstmt
         | revertError errorName args =>
             simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames] using hstmt
+        | unsafeBlock reason body =>
+            simp only [stmtExprHelperCallNames, stmtInternalHelperCallNames] at hstmt ⊢
+            exact stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNames body hstmt
+        | matchAdt adtName scrutinee branches =>
+            simp only [stmtExprHelperCallNames, stmtInternalHelperCallNames] at hstmt ⊢
+            exact matchAdtBranchesExprHelperCallNames_subset_internalHelperCallNames branches hstmt
         | _ =>
             all_goals
               simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append,
                 or_left_comm, or_assoc] using hstmt
       · exact Or.inr (stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNames rest hrest)
 termination_by sizeOf stmts
-decreasing_by all_goals (subst_vars; simp_wf; simp_all [List.cons.sizeOf_spec]; omega)
+
+private theorem matchAdtBranchesExprHelperCallNames_subset_internalHelperCallNames
+    (branches : List (String × List String × List Stmt))
+    {calleeName : String}
+    (hmem : calleeName ∈ matchAdtBranchesExprHelperCallNames branches) :
+    calleeName ∈ matchAdtBranchesInternalHelperCallNames branches := by
+  match branches with
+  | [] => simp [matchAdtBranchesExprHelperCallNames] at hmem
+  | (vn, vl, body) :: rest =>
+    simp only [matchAdtBranchesExprHelperCallNames,
+      matchAdtBranchesInternalHelperCallNames, List.mem_append] at hmem ⊢
+    rcases hmem with hbody | hrest
+    · exact Or.inl (stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNames body hbody)
+    · exact Or.inr (matchAdtBranchesExprHelperCallNames_subset_internalHelperCallNames rest hrest)
+termination_by sizeOf branches
+end
 
 theorem stmtExprHelperCallNames_subset_stmtInternalHelperCallNames
     (stmt : Stmt) :
@@ -1272,6 +1351,7 @@ structure SupportedCompiledInternalHelperWitness
         (applySlotAliasRanges spec.fields spec.slotAliasRanges)
         spec.events
         spec.errors
+        spec.adtTypes
         sourceWitness.callee =
       Except.ok compiledStmt
   presentInRuntime :
@@ -2176,6 +2256,8 @@ mutual
     | arrayLength _ | storageArrayLength _ | dynamicBytesEq _ _
     | externalCall _ _ =>
         simp [exprTouchesInternalHelperSurface]
+    | adtConstruct _ _ _ | adtTag _ _ | adtField _ _ _ _ _ =>
+        simp [exprTouchesUnsupportedHelperSurface] at hsurface
     | extcodesize a
     | returndataOptionalBoolAt a =>
         simp [exprTouchesInternalHelperSurface]
@@ -2309,8 +2391,10 @@ mutual
         simp [stmtTouchesInternalHelperSurface,
           exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed hsurface.1,
           stmtListTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed hsurface.2]
+    | unsafeBlock _ _ | matchAdt _ _ _ =>
+        simp [stmtTouchesUnsupportedHelperSurface] at hsurface
     | stop | calldatacopy _ _ _ | returndataCopy _ _ _ | revertReturndata
-    | externalCallBind _ _ _ | ecm _ _ | storageArrayPop _ | requireError _ _ _
+    | externalCallBind _ _ _ | tryExternalCallBind _ _ _ _ | ecm _ _ | storageArrayPop _ | requireError _ _ _
     | revertError _ _ | returnValues _ | returnArray _ | returnBytes _
     | returnStorageWords _ | emit _ _ | rawLog _ _ _ =>
         simp [stmtTouchesInternalHelperSurface]
@@ -2558,6 +2642,9 @@ private theorem exprTouchesUnsupportedCallSurface_eq_featureOr
   | constructorArg _ | blobbasefee | calldatasize | returndataSize =>
       simp [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedForeignSurface, exprTouchesUnsupportedLowLevelSurface]
+  | adtConstruct _ _ _ | adtTag _ _ | adtField _ _ _ _ _ =>
+      simp [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,
+        exprTouchesUnsupportedForeignSurface, exprTouchesUnsupportedLowLevelSurface]
   | internalCall _ _ | externalCall _ _ =>
       simp [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedForeignSurface, exprTouchesUnsupportedLowLevelSurface]
@@ -2788,6 +2875,8 @@ private theorem exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed
       simp only [exprTouchesUnsupportedCallSurface] at hcalls
       simp [exprTouchesUnsupportedContractSurface,
         exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed a hcore hstate hcalls]
+  | adtConstruct _ _ _ | adtTag _ _ | adtField _ _ _ _ _ =>
+      cases hcore
   | mapping _ _ | mappingWord _ _ _ | mappingPackedWord _ _ _ _
   | mapping2 _ _ _ | mapping2Word _ _ _ _ | mappingUint _ _
   | mappingChain _ _ | structMember _ _ _ | structMember2 _ _ _ _
@@ -3077,6 +3166,8 @@ theorem exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
   | chainid | msgValue | blockTimestamp | blockNumber | blobbasefee
   | calldatasize =>
       simp [exprTouchesUnsupportedHelperSurface]
+  | adtConstruct _ _ _ | adtTag _ _ | adtField _ _ _ _ _ =>
+      simp [exprTouchesUnsupportedContractSurface] at hsurface
   | storage _ | storageAddr _ | internalCall _ _ | externalCall _ _
   | constructorArg _ | keccak256 _ _
   | returndataSize | extcodesize _
@@ -3174,6 +3265,7 @@ theorem stmtTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
       exact ⟨⟨exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.1.1,
         stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.1.2⟩,
         stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.2⟩
+  | tryExternalCallBind _ _ _ _ | unsafeBlock _ _ | matchAdt _ _ _
   | setMapping _ _ _ | setMappingWord _ _ _ _
   | setMappingPackedWord _ _ _ _ _ | setMapping2 _ _ _ _
   | setMapping2Word _ _ _ _ _ | setMappingUint _ _ _

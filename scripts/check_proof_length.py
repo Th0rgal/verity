@@ -127,6 +127,7 @@ ALLOWLIST: set[str] = {
     "exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed",
     "exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed",
     "stmtTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed",
+    "stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNames",
     "stmtTouchesUnsupportedContractSurface_eq_false_of_featureClosed",
     "SupportedStmtList.helperSurfaceClosed",
     "SupportedStmtList.internalHelperCallNames_nil",

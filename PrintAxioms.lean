@@ -1870,7 +1870,9 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.List.mem_of_mem_eraseDups  -- private
 #print axioms Compiler.Proofs.IRGeneration.helperCallNames_nodup
 #print axioms Compiler.Proofs.IRGeneration.exprHelperCallNames_nodup
+-- #print axioms Compiler.Proofs.IRGeneration.matchAdtBranchesExprSubsetInternal_aux  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNames  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.matchAdtBranchesExprHelperCallNames_subset_internalHelperCallNames  -- private
 #print axioms Compiler.Proofs.IRGeneration.stmtExprHelperCallNames_subset_stmtInternalHelperCallNames
 #print axioms Compiler.Proofs.IRGeneration.exprHelperCallNames_subset_helperCallNames
 #print axioms Compiler.Proofs.IRGeneration.SupportedFunction.paramNamesNodup
@@ -2139,4 +2141,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1993 theorems/lemmas (1344 public, 649 private, 0 sorry'd)
+-- Total: 1995 theorems/lemmas (1344 public, 651 private, 0 sorry'd)
