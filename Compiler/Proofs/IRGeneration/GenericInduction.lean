@@ -13448,7 +13448,7 @@ private theorem stmtListGenericCore_of_requireClausesThenLetReturnLocalLiteral
     · refine FunctionBody.StmtListCompileCore.return_ (.localVar tmp) ?_ ?_
       · intro name hmem
         simp [FunctionBody.exprBoundNames] at hmem
-        simpa [hmem]
+        simp [hmem]
       · exact FunctionBody.StmtListCompileCore.nil
   exact stmtListGenericCore_append
     (stmtListGenericCore_of_requireClausesOnly (fields := fields) (scope := scope) clauses)
@@ -13876,18 +13876,18 @@ private theorem execIRStmts_append_of_continue
   | cons stmt rest ih =>
       cases fuel with
       | zero =>
-          simpa [execIRStmts] using hhead
+          simp [execIRStmts] at hhead
       | succ fuel =>
           match hstmt : execIRStmt fuel state stmt with
           | .continue next' =>
               simp [execIRStmts, hstmt] at hhead ⊢
-              simpa using ih fuel next' hhead
+              exact ih fuel next' hhead
           | .return value state' =>
-              simp [execIRStmts, hstmt] at hhead
+              simpa [execIRStmts, hstmt] using hhead
           | .stop state' =>
-              simp [execIRStmts, hstmt] at hhead
+              simpa [execIRStmts, hstmt] using hhead
           | .revert state' =>
-              simp [execIRStmts, hstmt] at hhead
+              simpa [execIRStmts, hstmt] using hhead
 
 private theorem execIRStmts_append_of_not_continue
     (fuel : Nat)
@@ -13935,20 +13935,20 @@ private theorem execIRStmtsWithInternals_append_of_continue
   | cons stmt rest ih =>
       cases fuel with
       | zero =>
-          simpa [execIRStmtsWithInternals] using hhead
+          simp [execIRStmtsWithInternals] at hhead
       | succ fuel =>
           match hstmt : execIRStmtWithInternals runtimeContract fuel state stmt with
           | .continue next' =>
               simp [execIRStmtsWithInternals, hstmt] at hhead ⊢
-              simpa using ih fuel next' hhead
+              exact ih fuel next' hhead
           | .return value state' =>
-              simp [execIRStmtsWithInternals, hstmt] at hhead
+              simpa [execIRStmtsWithInternals, hstmt] using hhead
           | .stop state' =>
-              simp [execIRStmtsWithInternals, hstmt] at hhead
+              simpa [execIRStmtsWithInternals, hstmt] using hhead
           | .revert state' =>
-              simp [execIRStmtsWithInternals, hstmt] at hhead
+              simpa [execIRStmtsWithInternals, hstmt] using hhead
           | .leave state' =>
-              simp [execIRStmtsWithInternals, hstmt] at hhead
+              simpa [execIRStmtsWithInternals, hstmt] using hhead
 
 private theorem execIRStmtsWithInternals_append_of_not_continue
     (runtimeContract : IRContract)
@@ -16530,7 +16530,7 @@ theorem directInternalHelperPerCalleeBridgeCatalog_of_supportedBody_and_assignBr
   refine ⟨?_, ?_⟩
   · intro calleeName hmem
     exfalso
-    simpa [hbody.helperCallNames_nil] using hmem
+    simp [hbody.helperCallNames_nil] at hmem
   · intro calleeName hmem
     exact hassign.assign hmem
 
@@ -16576,7 +16576,7 @@ theorem directInternalHelperPerCalleeCallCompileCatalog_of_supportedBody
   refine ⟨?_⟩
   intro calleeName hmem
   exfalso
-  simpa [hbody.helperCallNames_nil] using hmem
+  simp [hbody.helperCallNames_nil] at hmem
 
 theorem directInternalHelperHeadStepBridgeCatalog_of_perCalleeBridgeCatalog
     {runtimeContract : IRContract}

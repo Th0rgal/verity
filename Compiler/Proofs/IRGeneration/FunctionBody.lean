@@ -7963,31 +7963,34 @@ theorem compileStmtList_cons_ok_of_compileStmt_ok
 
 theorem compileStmtList_cons_ok_inv
     {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
     {inScopeNames : List String}
+    {adtTypes : List AdtTypeDef}
     {stmt : Stmt}
     {rest : List Stmt}
     {bodyIR : List YulStmt}
     (hcompile :
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames [] (stmt :: rest) =
+        fields events errors .calldata [] false inScopeNames adtTypes (stmt :: rest) =
           Except.ok bodyIR) :
     ∃ headIR tailIR,
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames [] stmt = Except.ok headIR ∧
+        fields events errors .calldata [] false inScopeNames adtTypes stmt = Except.ok headIR ∧
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false
-          (collectStmtNames stmt ++ inScopeNames) [] rest = Except.ok tailIR ∧
+        fields events errors .calldata [] false
+          (collectStmtNames stmt ++ inScopeNames) adtTypes rest = Except.ok tailIR ∧
       bodyIR = headIR ++ tailIR := by
   rw [CompilationModel.compileStmtList] at hcompile
   cases hhead : CompilationModel.compileStmt
-      fields [] [] .calldata [] false inScopeNames [] stmt with
+      fields events errors .calldata [] false inScopeNames adtTypes stmt with
   | error err =>
       simp [hhead] at hcompile
       cases hcompile
   | ok headIR =>
       cases htail : CompilationModel.compileStmtList
-          fields [] [] .calldata [] false
-            (collectStmtNames stmt ++ inScopeNames) [] rest with
+          fields events errors .calldata [] false
+            (collectStmtNames stmt ++ inScopeNames) adtTypes rest with
       | error err =>
           simp [hhead, htail] at hcompile
           cases hcompile
