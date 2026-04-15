@@ -403,6 +403,117 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "credited no builtins"):
                 gen.build_report()
 
+    def test_context_lifted_bridge_lemmas_present(self) -> None:
+        report = gen.build_report()
+        context = report.get("context_lifted_bridge_lemmas", [])
+        self.assertTrue(
+            context,
+            "context_lifted_bridge_lemmas should be non-empty",
+        )
+        # Every context-lifted bridge should be in bridged_builtins or be 'pure'
+        bridged = set(report.get("bridged_builtins", []))
+        for b in context:
+            if b != "pure":
+                self.assertIn(
+                    b, bridged,
+                    f"context-lifted bridge {b!r} not in bridged_builtins",
+                )
+
+    def test_fallthrough_lemmas_match_unbridged(self) -> None:
+        report = gen.build_report()
+        fallthrough = set(report.get("fallthrough_lemmas", []))
+        unbridged = set(report.get("unbridged_builtins", []))
+        self.assertTrue(
+            fallthrough,
+            "fallthrough_lemmas should be non-empty (sload/mappingSlot)",
+        )
+        self.assertEqual(
+            fallthrough,
+            unbridged,
+            "fallthrough_lemmas should match unbridged_builtins",
+        )
+
+    def test_bridged_builtins_cover_all_proven_and_admitted(self) -> None:
+        report = gen.build_report()
+        bridged = set(report.get("bridged_builtins", []))
+        universal = set(report["universal_bridge_lemmas"])
+        self.assertTrue(
+            universal <= bridged,
+            f"Universal bridge lemmas not in bridged set: {universal - bridged}",
+        )
+
+
+class ParseContextBridgeLemmasTests(unittest.TestCase):
+    """Tests for _parse_context_bridge_lemmas."""
+
+    def _write_lemma_file(self, text: str) -> Path:
+        self._tmpdir = tempfile.TemporaryDirectory()
+        p = Path(self._tmpdir.name) / "BridgeLemmas.lean"
+        p.write_text(textwrap.dedent(text), encoding="utf-8")
+        return p
+
+    def tearDown(self) -> None:
+        if hasattr(self, "_tmpdir"):
+            self._tmpdir.cleanup()
+
+    def test_extracts_context_bridge_and_fallthrough(self) -> None:
+        p = self._write_lemma_file("""\
+            @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_add_bridge := by sorry
+            @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_sload_none := by sorry
+        """)
+        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+            context, fallthrough = gen._parse_context_bridge_lemmas()
+        self.assertEqual(context, ["add"])
+        self.assertEqual(fallthrough, ["sload"])
+
+    def test_ignores_commented_theorems(self) -> None:
+        p = self._write_lemma_file("""\
+            /-
+            @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_fake_bridge := by sorry
+            -/
+            @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_add_bridge := by sorry
+        """)
+        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+            context, fallthrough = gen._parse_context_bridge_lemmas()
+        self.assertEqual(context, ["add"])
+        self.assertEqual(fallthrough, [])
+
+
+class ParseBridgedBuiltinsDefsTests(unittest.TestCase):
+    """Tests for _parse_bridged_builtins_defs."""
+
+    def _write_lemma_file(self, text: str) -> Path:
+        self._tmpdir = tempfile.TemporaryDirectory()
+        p = Path(self._tmpdir.name) / "BridgeLemmas.lean"
+        p.write_text(textwrap.dedent(text), encoding="utf-8")
+        return p
+
+    def tearDown(self) -> None:
+        if hasattr(self, "_tmpdir"):
+            self._tmpdir.cleanup()
+
+    def test_extracts_bridged_and_unbridged(self) -> None:
+        p = self._write_lemma_file("""\
+            def bridgedBuiltins : List String :=
+              ["add", "sub", "caller"]
+
+            def unbridgedBuiltins : List String := ["sload", "mappingSlot"]
+        """)
+        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+            bridged, unbridged = gen._parse_bridged_builtins_defs()
+        self.assertEqual(bridged, ["add", "caller", "sub"])
+        self.assertEqual(unbridged, ["mappingSlot", "sload"])
+
+    def test_missing_defs_return_empty(self) -> None:
+        p = self._write_lemma_file("""\
+            -- no defs here
+            theorem foo := by sorry
+        """)
+        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+            bridged, unbridged = gen._parse_bridged_builtins_defs()
+        self.assertEqual(bridged, [])
+        self.assertEqual(unbridged, [])
+
 
 if __name__ == "__main__":
     unittest.main()

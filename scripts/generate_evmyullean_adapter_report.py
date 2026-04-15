@@ -41,6 +41,28 @@ PURE_BRIDGE_RE = re.compile(r'^\s*\|\s*"([a-z0-9_]+)",\s*\[', re.MULTILINE)
 # Regex for universal bridge lemmas: theorem evalBuiltinCall_NAME_bridge
 BRIDGE_LEMMA_RE = re.compile(r'theorem\s+evalBuiltinCall_(\w+)_bridge\b')
 
+# Regex for context-lifted bridge theorems:
+# evalBuiltinCallWithBackendContext_evmYulLean_NAME_bridge
+CONTEXT_BRIDGE_RE = re.compile(
+    r'theorem\s+evalBuiltinCallWithBackendContext_evmYulLean_(\w+)_bridge\b'
+)
+
+# Regex for fallthrough (none) theorems:
+# evalBuiltinCallWithBackendContext_evmYulLean_NAME_none
+FALLTHROUGH_RE = re.compile(
+    r'theorem\s+evalBuiltinCallWithBackendContext_evmYulLean_(\w+)_none\b'
+)
+
+# Regex for bridgedBuiltins/unbridgedBuiltins definitions
+BRIDGED_BUILTINS_RE = re.compile(
+    r'def\s+bridgedBuiltins\s*:\s*List\s+String\s*:=\s*\[(.*?)\]',
+    re.DOTALL,
+)
+UNBRIDGED_BUILTINS_RE = re.compile(
+    r'def\s+unbridgedBuiltins\s*:\s*List\s+String\s*:=\s*\[(.*?)\]',
+    re.DOTALL,
+)
+
 # Regex to extract individual examples (multi-line, split on `example`)
 EXAMPLE_SPLIT_RE = re.compile(r'\bexample\b')
 
@@ -239,6 +261,44 @@ def _parse_bridge_tests() -> tuple[list[str], int]:
     return sorted(builtins), bridge_test_count
 
 
+def _parse_context_bridge_lemmas() -> tuple[list[str], list[str]]:
+    """Extract builtins with context-lifted bridge and fallthrough theorems.
+
+    Returns (context_bridged, fallthrough) where context_bridged lists builtins
+    with evalBuiltinCallWithBackendContext_evmYulLean_*_bridge theorems, and
+    fallthrough lists builtins with *_none theorems.
+    """
+    if not BRIDGE_LEMMAS_FILE.exists():
+        raise FileNotFoundError(f"Bridge lemmas file not found: {BRIDGE_LEMMAS_FILE}")
+    text = BRIDGE_LEMMAS_FILE.read_text(encoding="utf-8")
+    code = _strip_lean_comments(text)
+    context_bridged = sorted(set(CONTEXT_BRIDGE_RE.findall(code)))
+    fallthrough = sorted(set(FALLTHROUGH_RE.findall(code)))
+    return context_bridged, fallthrough
+
+
+def _parse_bridged_builtins_defs() -> tuple[list[str], list[str]]:
+    """Extract bridgedBuiltins and unbridgedBuiltins from BridgeLemmas file.
+
+    Returns (bridged, unbridged) or empty lists if definitions not found.
+    """
+    if not BRIDGE_LEMMAS_FILE.exists():
+        return [], []
+    text = BRIDGE_LEMMAS_FILE.read_text(encoding="utf-8")
+    code = _strip_lean_comments(text)
+
+    def _extract_string_list(pattern: re.Pattern[str]) -> list[str]:
+        m = pattern.search(code)
+        if not m:
+            return []
+        raw = m.group(1)
+        return sorted(re.findall(r'"([a-zA-Z0-9_]+)"', raw))
+
+    bridged = _extract_string_list(BRIDGED_BUILTINS_RE)
+    unbridged = _extract_string_list(UNBRIDGED_BUILTINS_RE)
+    return bridged, unbridged
+
+
 def _parse_correctness_proofs() -> dict[str, object]:
     """Parse adapter correctness proof theorems."""
     if not CORRECTNESS_FILE.exists():
@@ -310,8 +370,12 @@ def build_report() -> dict[str, object]:
     concrete_only = sorted(set(tested_builtins) - set(universal_lemmas))
     correctness = _parse_correctness_proofs()
 
+    # Schema v5: Phase 4 readiness — context-lifted bridges + bridged/unbridged defs
+    context_bridged, fallthrough = _parse_context_bridge_lemmas()
+    bridged_defs, unbridged_defs = _parse_bridged_builtins_defs()
+
     report: dict[str, object] = {
-        "schema_version": 4,
+        "schema_version": 5,
         "adapter_file": str(ADAPTER_FILE.relative_to(ROOT)),
         "status": status,
         "expr_supported": expr_supported,
@@ -338,6 +402,14 @@ def build_report() -> dict[str, object]:
     report["concrete_only_bridge_tests"] = concrete_only
     report["concrete_test_count"] = test_count
     report["adapter_correctness_proofs"] = correctness
+
+    # Phase 4 readiness fields (schema v5)
+    report["context_lifted_bridge_lemmas"] = context_bridged
+    report["fallthrough_lemmas"] = fallthrough
+    if bridged_defs:
+        report["bridged_builtins"] = bridged_defs
+    if unbridged_defs:
+        report["unbridged_builtins"] = unbridged_defs
 
     return report
 

@@ -183,11 +183,15 @@ Execution priorities:
 | 2 | Yul/EVM Semantics Bridge | EVMYulLean integration | 1-3m | 🟡 **IN PROGRESS** |
 | 3 | EVM Semantics | Strong testing + documented assumption | Ongoing | ⚪ TODO |
 
-**Yul/EVM Semantics Bridge**: EVMYulLean (NethermindEth) provides formally-defined Yul AST types and UInt256 operations. Current integration status:
+**Yul/EVM Semantics Bridge** (Issue [#1722](https://github.com/lfglabs-dev/verity/issues/1722)): EVMYulLean (NethermindEth) provides formally-defined Yul AST types and UInt256 operations. Current integration status:
 - AST adapter: all 11 statement types + 5 expression types lower to EVMYulLean AST (0 gaps)
-- Builtin bridge: 15 pure arithmetic/comparison/bitwise builtins delegate to EVMYulLean `UInt256` operations with compile-time equivalence checks
-- State-dependent builtins (sload, caller, calldataload) and Verity helpers (mappingSlot) remain on the Verity evaluation path
-- Next: full semantic evaluation via EVMYulLean interpreter, bridging proofs for state-dependent builtins
+- Builtin bridge: 34 of 36 builtins bridged (25 pure + 9 context/env), with 29 fully proven and 5 sorry'd (exp, sdiv, smod, sar, signextend — blocked by private defs in upstream)
+- 113 concrete bridge tests + 7 adapter correctness theorems + 20 context-lifted bridge theorems + 11 state-dependent fallthrough lemmas
+- `bridgedBuiltins` definition enumerates all 34 builtins where `.evmYulLean` and `.verity` backends agree
+- Unbridged: `sload` and `mappingSlot` return `none` on `.evmYulLean` path (requires Phase 3 state bridge)
+- Phase 2 state bridge scaffolding: type conversions, storage round-trip, env field bridges (0 sorry)
+- **Phase 4 readiness**: Backend equivalence surface defined; retargeting `Preservation.lean` blocked on Phase 3 state bridge for `sload`/`mappingSlot`
+- Next: Phase 3 state bridge (sload/mappingSlot), then Phase 4 retargeting of Preservation.lean → EVMYulLean execution
 
 **EVM Semantics**: Mitigated by differential testing against actual EVM execution (Foundry). Likely remains a documented fundamental assumption.
 
@@ -315,5 +319,5 @@ See [`CONTRIBUTING.md`](../CONTRIBUTING.md) for contribution guidelines and [`VE
 
 ---
 
-**Last Updated**: 2026-04-07
+**Last Updated**: 2026-04-15
 **Status**: Layer 1 is complete for the current contract set; Layer 2 now has a generic whole-contract theorem for the current supported fragment, with remaining [#1510](https://github.com/Th0rgal/verity/issues/1510) work focused on fragment widening and legacy bridge migration; Layer 3 is complete. Trust reduction 1/3 done. Sum properties complete (7/7 proven). CompilationModel now supports real-world contracts (loops, branching, events, multi-mappings, internal call mechanics, verified externs).

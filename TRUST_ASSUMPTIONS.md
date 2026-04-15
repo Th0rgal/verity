@@ -58,7 +58,8 @@ Current theorem totals, property-test coverage, and proof status live in [docs/V
 
 ### 6. EVM/Yul Semantics and Gas
 - **Role**: Runtime execution model.
-- **Status**: 25 pure builtins bridged to EVMYulLean `UInt256` operations; 25 universal pure bridge theorems (20 fully proven, 5 with sorry-dependent core equivalences) in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` (15 unsigned arithmetic/bitwise + addmod + mulmod + byte + slt + sgt + exp + sdiv + smod + sar + signextend). All pure bridge cases are now covered by universal symbolic lemmas. Gas is not modeled.
+- **Status**: 25 universal pure bridge theorems (20 fully proven, 5 with sorry-dependent core equivalences) in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` (15 unsigned arithmetic/bitwise + addmod + mulmod + byte + slt + sgt + exp + sdiv + smod + sar + signextend). All pure bridge cases are now covered by universal symbolic lemmas. Additionally, 9 context/env builtin bridge theorems and 2 fallthrough (none) lemmas bring the total to 34 of 36 builtins bridged. The 2 remaining unbridged builtins (`sload`, `mappingSlot`) require the Phase 3 state bridge. Gas is not modeled.
+- **Phase 4 readiness**: The `bridgedBuiltins` definition in `EvmYulLeanBridgeLemmas.lean` enumerates the 34 builtins where `.evmYulLean` and `.verity` backends agree. Phase 4 retargeting of `Preservation.lean` can proceed once the Phase 3 state bridge covers `sload`/`mappingSlot`.
 - **Implication**: Semantic correctness does not imply gas-safety.
 - **Proxy note**: `delegatecall`-based proxy / upgradeability flows still sit outside the current proof-interpreter model. Archive `--trust-report` and use `--deny-proxy-upgradeability` when proxy semantics must remain outside the selected verified subset (issue `#1420`).
 
@@ -110,5 +111,5 @@ High-level semantics can expose intermediate state in reverted computations. EVM
 
 ---
 
-**Last Updated**: 2026-04-13
+**Last Updated**: 2026-04-15
 **Maintainer Rule**: Update on every trust-boundary-relevant code change.
