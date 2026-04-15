@@ -332,11 +332,10 @@ theorem number_bridge (state : YulState) (observableSlots : List Nat) :
 
 /-- The `calldatasize` builtin reads the size of the current calldata payload.
     The state bridge encodes Verity calldata as 4 selector bytes followed by
-    one 32-byte word per calldata element. Agreement with EVMYulLean's
-    `UInt256`-valued observable requires the calldata byte length to stay below
-    `2^256` so the `UInt256.ofNat` conversion does not wrap. -/
-theorem calldatasize_bridge (state : YulState) (observableSlots : List Nat)
-    (hSize : 4 + state.calldata.length * 32 < UInt256.size) :
+    one 32-byte word per calldata element. Both sides reduce the observable
+    length into the `UInt256` word domain, so the bridge agrees even when the
+    byte length wraps modulo `2^256`. -/
+theorem calldatasize_bridge (state : YulState) (observableSlots : List Nat) :
     evalBuiltinCallWithContext state.storage state.sender state.msgValue
       state.thisAddress state.blockTimestamp state.blockNumber state.chainId
       state.blobBaseFee state.selector state.calldata "calldatasize" [] =
@@ -344,7 +343,6 @@ theorem calldatasize_bridge (state : YulState) (observableSlots : List Nat)
       (toSharedState state observableSlots).executionEnv.calldata.size)) := by
   simp [evalBuiltinCallWithContext, toSharedState, uint256ToNat, UInt256.toNat,
     UInt256.ofNat, Id.run, UInt256.size, calldataToByteArray_size]
-  exact (Nat.mod_eq_of_lt hSize).symm
 
 set_option maxHeartbeats 8000000 in
 /-- The `caller` builtin reads `sender` from Verity's state.

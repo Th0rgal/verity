@@ -233,7 +233,7 @@ def evalBuiltinCallWithContext
     | _ => none
   else if func = "calldatasize" then
     match argVals with
-    | [] => some (4 + calldata.length * 32)
+    | [] => some (toWord (4 + calldata.length * 32))
     | _ => none
   else
     none
@@ -290,7 +290,7 @@ def evalBuiltinCallWithBackendContext
         | _ => none
       else if func = "calldatasize" then
         match argVals with
-        | [] => some (4 + calldata.length * 32)
+        | [] => some (toWord (4 + calldata.length * 32))
         | _ => none
       else
         Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean
@@ -332,7 +332,7 @@ def evalBuiltinCall
 @[simp] theorem evalBuiltinCall_calldatasize_nil
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) :
     evalBuiltinCall storage sender selector calldata "calldatasize" [] =
-      some (4 + calldata.length * 32) := by
+      some ((4 + calldata.length * 32) % evmModulus) := by
   simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCall_caller_nil

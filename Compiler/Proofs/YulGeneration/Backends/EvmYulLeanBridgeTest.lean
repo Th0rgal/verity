@@ -863,6 +863,25 @@ example : backendEvalWithBridgeCalldata "calldataload" [4] =
 /-- Context-lifted bridge: calldatasize now reads the bridged execution context. -/
 example : backendEvalWithContext "calldatasize" [] = verityEvalWithContext "calldatasize" [] := by native_decide
 
+/-- `calldatasize` is a UInt256 word observation, so Verity also reduces the
+    bridged byte length modulo `2^256` rather than returning an unbounded Nat. -/
+example (selector : Nat) (calldata : List Nat) :
+    evalBuiltinCallWithContext
+      testStorage
+      testSender
+      testMsgValue
+      testThisAddress
+      testBlockTimestamp
+      testBlockNumber
+      testChainId
+      testBlobBaseFee
+      selector
+      calldata
+      "calldatasize"
+      [] =
+    some ((4 + calldata.length * 32) % Compiler.Constants.evmModulus) := by
+  simp [evalBuiltinCallWithContext, Compiler.Constants.evmModulus]
+
 /-- Context-lifted bridge: callvalue now reads the bridged execution context. -/
 example : backendEvalWithContext "callvalue" [] = verityEvalWithContext "callvalue" [] := by native_decide
 
