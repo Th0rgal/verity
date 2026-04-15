@@ -284,6 +284,10 @@ def evalBuiltinCallWithBackendContext
         match argVals with
         | [] => some (toWord blockNumber)
         | _ => none
+      else if func = "chainid" then
+        match argVals with
+        | [] => some (toWord chainId)
+        | _ => none
       else if func = "blobbasefee" then
         match argVals with
         | [] => some (toWord blobBaseFee)

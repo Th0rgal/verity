@@ -44,6 +44,7 @@ PROVED_BUILTINS = [
     "number",
     "caller",
     "address",
+    "chainid",
     "blobbasefee",
 ]
 # Fallback for tests that call helpers directly. The repository check derives
@@ -54,7 +55,6 @@ CONCRETE_ONLY_BUILTINS: list[str] = []
 PURE_BUILTINS = PROVED_BUILTINS + CONCRETE_ONLY_BUILTINS
 DELEGATED_BUILTINS = [
     "sload",
-    "chainid",
     "mappingSlot",
 ]
 EXPECTED_BUILTINS = [

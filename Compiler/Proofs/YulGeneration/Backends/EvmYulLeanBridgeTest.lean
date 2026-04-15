@@ -894,8 +894,8 @@ example : backendEvalWithContext "timestamp" [] = verityEvalWithContext "timesta
 /-- Context-lifted bridge: number now reads the bridged execution context. -/
 example : backendEvalWithContext "number" [] = verityEvalWithContext "number" [] := by native_decide
 
-/-- Context-lifted bridge: state-dependent chainid falls through to none -/
-example : backendEvalWithContext "chainid" [] = none := by native_decide
+/-- Context-lifted bridge: chainid now reads the bridged execution context. -/
+example : backendEvalWithContext "chainid" [] = verityEvalWithContext "chainid" [] := by native_decide
 
 /-- Context-lifted bridge: blobbasefee now reads the bridged execution context. -/
 example : backendEvalWithContext "blobbasefee" [] = verityEvalWithContext "blobbasefee" [] := by native_decide
@@ -912,10 +912,10 @@ def main : IO Unit := do
   IO.println "✓ Byte extraction: byte — concrete bridge"
   IO.println "✓ Signed shift: sar — concrete bridge (incl. saturated ≥256, INT256_MIN, sign-extend)"
   IO.println "✓ Sign extension: signextend — concrete bridge (byte positions 0,1,15,30,31,32)"
-  IO.println "✓ Context/selector-bridged builtins: address, blobbasefee, caller, callvalue, calldataload, calldatasize, timestamp, number — routed through .evmYulLean"
-  IO.println "✓ Remaining delegated builtins: sload, chainid — correctly handled"
+  IO.println "✓ Context/selector-bridged builtins: address, blobbasefee, caller, callvalue, calldataload, calldatasize, chainid, timestamp, number — routed through .evmYulLean"
+  IO.println "✓ Remaining delegated builtins: sload — correctly handled"
   IO.println "✓ Verity-specific helpers: mappingSlot — correctly delegated"
-  IO.println "✓ Context-lifted backend bridge: 25 pure builtins + 8 context bridges + 2 state-dependent fallthroughs + 1 helper delegation"
+  IO.println "✓ Context-lifted backend bridge: 25 pure builtins + 9 context bridges + 1 state-dependent fallthrough + 1 helper delegation"
   IO.println "✓ Adapter: all 11 statement types lower without error"
   IO.println "✓ PrimOp mapping: 35 builtins mapped via lookupPrimOp"
   IO.println "EVMYulLean bridge test: all checks passed"

@@ -1734,12 +1734,12 @@ For `.evmYulLean`, `evalBuiltinCallWithBackendContext` now has two behaviors:
 
 1. It directly bridges the environment-only builtins whose results are just
    context views at this boundary (`caller`, `address`, `callvalue`,
-   `timestamp`, `number`, `blobbasefee`).
+   `timestamp`, `number`, `chainid`, `blobbasefee`).
 2. It also bridges selector/calldata-only builtins whose full semantics are
    already available at this boundary (`calldatasize`, `calldataload`).
 3. It still falls through to `none` for the remaining state-dependent or
    Verity-specific builtins that need a fuller Phase-2/3 bridge (`sload`,
-   `chainid`, `mappingSlot`).
+   `mappingSlot`).
 
 These lemmas define the exact Phase-3 boundary that later retargeting proofs
 can rewrite against. -/
@@ -1805,12 +1805,14 @@ can rewrite against. -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "blobbasefee" [] := by
   simp [evalBuiltinCallWithBackendContext, evalBuiltinCallWithContext]
 
-@[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_chainid_none
+@[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_chainid_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
-    (calldata : List Nat) (args : List Nat) :
+    (calldata : List Nat) :
     evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
-      blockTimestamp blockNumber chainId blobBaseFee selector calldata "chainid" args = none := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "chainid" [] =
+    evalBuiltinCallWithContext storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "chainid" [] := by
+  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_calldataload_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -1842,7 +1844,7 @@ can rewrite against. -/
 /-! ## Composite Backend Equivalence Theorem
 
 This is the key Phase 4 composition lemma. For any pure builtin `func` in the
-set of 25 universally-bridged builtins (22 fully proven, 3 with sorry-dependent
+set of 25 universally-bridged builtins (20 fully proven, 5 with sorry-dependent
 core equivalences), all with context-lifted bridge theorems, the EVMYulLean
 backend agrees with the Verity backend
 (represented by `evalBuiltinCallWithContext`).
@@ -1854,7 +1856,7 @@ builtin (and `.evmYulLean` returns `none`), or `func` is unknown.
 We provide `evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge` as the
 backend-routing simplification theorem for the non-environment fragment: when
 `func` is not one of the directly bridged context/env builtins (`caller`,
-`address`, `callvalue`, `timestamp`, `number`, `blobbasefee`) and not
+`address`, `callvalue`, `timestamp`, `number`, `chainid`, `blobbasefee`) and not
 `calldatasize`, the `.evmYulLean` backend reduces to `evalBuiltinCallViaEvmYulLean`
 with arbitrary context. Callers can then apply the per-builtin bridge lemmas
 separately when the builtin is known to be in the bridged pure fragment. -/
@@ -1872,31 +1874,34 @@ theorem evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
     (hCallvalue : func ≠ "callvalue")
     (hTimestamp : func ≠ "timestamp")
     (hNumber : func ≠ "number")
+    (hChainid : func ≠ "chainid")
     (hBlobbasefee : func ≠ "blobbasefee")
     (hCalldatasize : func ≠ "calldatasize") :
     evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata func argVals =
     evalBuiltinCallViaEvmYulLean storage sender selector calldata func argVals := by
   simp [evalBuiltinCallWithBackendContext, hCaller, hAddress, hCallvalue, hTimestamp, hNumber,
-    hBlobbasefee, hCalldatasize]
+    hChainid, hBlobbasefee, hCalldatasize]
 
 /-! ## Remaining Core Equivalence Proofs — Status
 
 All 25 pure builtins now have universal bridge theorems
-(`evalBuiltinCall_*_bridge`). Two core equivalence lemmas still use
+(`evalBuiltinCall_*_bridge`). Five core equivalence lemmas still use
 `sorry` pending fundamentally different proof strategies:
 
+- `exp_natModPow_eq_uint256Exp` — Nat repeated-squaring ↔ private UInt256.powAux
+- `sdiv_int256_eq_uint256Sdiv` — Int sign-magnitude division ↔ UInt256 sign-bit cases
+- `smod_int256_eq_uint256Smod` — Int sign-magnitude remainder ↔ UInt256 sgn/abs
 - `sar_int256_eq_uint256Sar` — Int.fdiv ↔ complement-shift-complement
 - `signextend_uint256_eq` — Nat bit-mask ↔ UInt256 shift operations
 
-Both are validated by concrete `native_decide` bridge tests in
+These are validated by concrete `native_decide` bridge tests in
 `EvmYulLeanBridgeTest.lean` covering critical boundary values.
 
 **State-dependent builtin notes**:
-- `chainid`: EVMYulLean hardcodes `chainId = 1` (`EvmYul.Wheels.chainId`),
-  while Verity treats it as a state parameter. A state bridge proof would
-  require constraining `state.chainId = 1`, which is not generally useful.
-  This semantic mismatch should be resolved upstream in EVMYulLean before
-  a state bridge proof is attempted. -/
+- `chainid`: the context-aware backend boundary now bridges the Verity
+  `chainId` context parameter directly. Full interpreter-level execution
+  still depends on EVMYulLean exposing chain id through its execution
+  environment rather than a fixed wheel constant. -/
 
 end Compiler.Proofs.YulGeneration.Backends
