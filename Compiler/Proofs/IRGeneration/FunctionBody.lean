@@ -9845,6 +9845,128 @@ theorem exec_compileStmtList_core
         rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
         simp [hirExec]
         exact ⟨hruntime, ⟨hexact, hbounded⟩⟩
+  | mstore hoffset hinScopeOffset hvalue hinScopeValue hrest ih =>
+      rename_i scope offset value rest
+      have hpresentOffset : exprBoundNamesPresent offset runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeOffset
+      have hpresentValue : exprBoundNamesPresent value runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeValue
+      rcases compileExpr_core_ok hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      have hevalOffset := eval_compileExpr_core hoffset hexact hbounded hpresentOffset hruntime
+      rw [hoffsetIR] at hevalOffset; simp [Except.toOption] at hevalOffset
+      have hevalValue := eval_compileExpr_core hvalue hexact hbounded hpresentValue hruntime
+      rw [hvalueIR] at hevalValue; simp [Except.toOption] at hevalValue
+      rcases hIROffset : evalIRExpr state offsetIR with _ | offsetNat
+      · simp [hIROffset, Option.bind] at hevalOffset
+      · simp [hIROffset, Option.bind] at hevalOffset
+        rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+        · simp [hIRValue, Option.bind] at hevalValue
+        · simp [hIRValue, Option.bind] at hevalValue
+          have hOffsetSrc : SourceSemantics.evalExpr fields runtime offset = some offsetNat :=
+            hevalOffset.symm
+          have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+            hevalValue.symm
+          let runtime' :=
+            { runtime with
+              world := {
+                runtime.world with
+                memory := fun o => if o = offsetNat then valueNat else runtime.world.memory o
+              } }
+          let state' := { state with memory := fun o => if o = offsetNat then valueNat else state.memory o }
+          have hvalueLt := evalExpr_lt_evmModulus_core_onExpr hvalue
+            (bindingsExactlyMatchIRVars_implies_onExpr hexact) hbounded hpresentValue hruntime
+          rw [hValueSrc] at hvalueLt
+          have hruntime' : runtimeStateMatchesIR fields runtime' state' :=
+            runtimeStateMatchesIR_setBothMemory hruntime offsetNat valueNat hvalueLt
+          have hexact' : bindingsExactlyMatchIRVars runtime'.bindings state' :=
+            bindingsExactlyMatchIRVars_setMemory hexact offsetNat valueNat
+          have hbounded' : bindingsBounded runtime'.bindings := by
+            simpa [runtime'] using hbounded
+          rcases ih (runtime := runtime') (state := state')
+              (inScopeNames := collectStmtNames (.mstore offset value) ++ inScopeNames)
+              hscope hexact' hbounded' hruntime' with
+            ⟨tailIR, htailCompile, htailSem, htailExact⟩
+          refine ⟨[YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])] ++ tailIR, ?_, ?_⟩
+          · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+            rw [hoffsetIR, hvalueIR]
+            simp [htailCompile]
+            exact rfl
+          · have hstmt :
+                execIRStmt (tailIR.length + 1) state
+                  (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])) = .continue state' := by
+              simp [execIRStmt, evalIRExprs, hIROffset, hIRValue, state']
+            have hirExec :
+                execIRStmts (tailIR.length + 2) state
+                  (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR]) :: tailIR) =
+                    execIRStmts (tailIR.length + 1) state' tailIR := by
+              simpa using
+                (execIRStmts_cons_of_execIRStmt_continue state state'
+                  (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])) tailIR hstmt)
+            rw [SourceSemantics.execStmtList, SourceSemantics.execStmt, hOffsetSrc, hValueSrc]
+            simp [hirExec]
+            exact ⟨htailSem, htailExact⟩
+  | tstore hoffset hinScopeOffset hvalue hinScopeValue hrest ih =>
+      rename_i scope offset value rest
+      have hpresentOffset : exprBoundNamesPresent offset runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeOffset
+      have hpresentValue : exprBoundNamesPresent value runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeValue
+      rcases compileExpr_core_ok hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      have hevalOffset := eval_compileExpr_core hoffset hexact hbounded hpresentOffset hruntime
+      rw [hoffsetIR] at hevalOffset; simp [Except.toOption] at hevalOffset
+      have hevalValue := eval_compileExpr_core hvalue hexact hbounded hpresentValue hruntime
+      rw [hvalueIR] at hevalValue; simp [Except.toOption] at hevalValue
+      rcases hIROffset : evalIRExpr state offsetIR with _ | offsetNat
+      · simp [hIROffset, Option.bind] at hevalOffset
+      · simp [hIROffset, Option.bind] at hevalOffset
+        rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+        · simp [hIRValue, Option.bind] at hevalValue
+        · simp [hIRValue, Option.bind] at hevalValue
+          have hOffsetSrc : SourceSemantics.evalExpr fields runtime offset = some offsetNat :=
+            hevalOffset.symm
+          have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+            hevalValue.symm
+          let runtime' :=
+            { runtime with
+              world := {
+                runtime.world with
+                transientStorage := fun o => if o = offsetNat then valueNat else runtime.world.transientStorage o
+              } }
+          let state' := { state with transientStorage := fun o => if o = offsetNat then valueNat else state.transientStorage o }
+          have hvalueLt := evalExpr_lt_evmModulus_core_onExpr hvalue
+            (bindingsExactlyMatchIRVars_implies_onExpr hexact) hbounded hpresentValue hruntime
+          rw [hValueSrc] at hvalueLt
+          have hruntime' : runtimeStateMatchesIR fields runtime' state' :=
+            runtimeStateMatchesIR_setTransientStorage hruntime offsetNat valueNat hvalueLt
+          have hexact' : bindingsExactlyMatchIRVars runtime'.bindings state' := by
+            intro name; simpa [IRState.getVar, state'] using hexact name
+          have hbounded' : bindingsBounded runtime'.bindings := by
+            simpa [runtime'] using hbounded
+          rcases ih (runtime := runtime') (state := state')
+              (inScopeNames := collectStmtNames (.tstore offset value) ++ inScopeNames)
+              hscope hexact' hbounded' hruntime' with
+            ⟨tailIR, htailCompile, htailSem, htailExact⟩
+          refine ⟨[YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])] ++ tailIR, ?_, ?_⟩
+          · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+            rw [hoffsetIR, hvalueIR]
+            simp [htailCompile]
+            exact rfl
+          · have hstmt :
+                execIRStmt (tailIR.length + 1) state
+                  (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])) = .continue state' := by
+              simp [execIRStmt, evalIRExprs, hIROffset, hIRValue, state']
+            have hirExec :
+                execIRStmts (tailIR.length + 2) state
+                  (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR]) :: tailIR) =
+                    execIRStmts (tailIR.length + 1) state' tailIR := by
+              simpa using
+                (execIRStmts_cons_of_execIRStmt_continue state state'
+                  (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])) tailIR hstmt)
+            rw [SourceSemantics.execStmtList, SourceSemantics.execStmt, hOffsetSrc, hValueSrc]
+            simp [hirExec]
+            exact ⟨htailSem, htailExact⟩
 
 theorem exec_compileStmtList_core_extraFuel
     {fields : List Field}
@@ -10187,6 +10309,138 @@ theorem exec_compileStmtList_core_extraFuel
         rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
         simp [hirExec']
         exact ⟨hruntime, ⟨hexact, hbounded⟩⟩
+  | mstore hoffset hinScopeOffset hvalue hinScopeValue hrest ih =>
+      rename_i scope offset value rest
+      have hpresentOffset : exprBoundNamesPresent offset runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeOffset
+      have hpresentValue : exprBoundNamesPresent value runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeValue
+      rcases compileExpr_core_ok hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      have hevalOffset := eval_compileExpr_core hoffset hexact hbounded hpresentOffset hruntime
+      rw [hoffsetIR] at hevalOffset; simp [Except.toOption] at hevalOffset
+      have hevalValue := eval_compileExpr_core hvalue hexact hbounded hpresentValue hruntime
+      rw [hvalueIR] at hevalValue; simp [Except.toOption] at hevalValue
+      rcases hIROffset : evalIRExpr state offsetIR with _ | offsetNat
+      · simp [hIROffset, Option.bind] at hevalOffset
+      · simp [hIROffset, Option.bind] at hevalOffset
+        rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+        · simp [hIRValue, Option.bind] at hevalValue
+        · simp [hIRValue, Option.bind] at hevalValue
+          have hOffsetSrc : SourceSemantics.evalExpr fields runtime offset = some offsetNat :=
+            hevalOffset.symm
+          have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+            hevalValue.symm
+          let runtime' :=
+            { runtime with
+              world := {
+                runtime.world with
+                memory := fun o => if o = offsetNat then valueNat else runtime.world.memory o
+              } }
+          let state' := { state with memory := fun o => if o = offsetNat then valueNat else state.memory o }
+          have hvalueLt := evalExpr_lt_evmModulus_core_onExpr hvalue
+            (bindingsExactlyMatchIRVars_implies_onExpr hexact) hbounded hpresentValue hruntime
+          rw [hValueSrc] at hvalueLt
+          have hruntime' : runtimeStateMatchesIR fields runtime' state' :=
+            runtimeStateMatchesIR_setBothMemory hruntime offsetNat valueNat hvalueLt
+          have hexact' : bindingsExactlyMatchIRVars runtime'.bindings state' :=
+            bindingsExactlyMatchIRVars_setMemory hexact offsetNat valueNat
+          have hbounded' : bindingsBounded runtime'.bindings := by
+            simpa [runtime'] using hbounded
+          rcases ih (runtime := runtime') (state := state')
+              (inScopeNames := collectStmtNames (.mstore offset value) ++ inScopeNames)
+              hscope hexact' hbounded' hruntime' with
+            ⟨tailIR, htailCompile, htailSem, htailExact⟩
+          refine ⟨[YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])] ++ tailIR, ?_, ?_⟩
+          · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+            rw [hoffsetIR, hvalueIR]
+            simp [htailCompile]
+            exact rfl
+          · have hstmt :
+                execIRStmt (tailIR.length + extraFuel + 1) state
+                  (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])) = .continue state' := by
+              simp [execIRStmt, evalIRExprs, hIROffset, hIRValue, state']
+            have hirExec :
+                execIRStmts (tailIR.length + extraFuel + 2) state
+                  (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR]) :: tailIR) =
+                    execIRStmts (tailIR.length + extraFuel + 1) state' tailIR := by
+              simpa using
+                (execIRStmts_cons_of_execIRStmt_continue_extraFuel extraFuel state state'
+                  (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])) tailIR hstmt)
+            have hirExec' :
+                execIRStmts (tailIR.length + 1 + extraFuel + 1) state
+                  (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR]) :: tailIR) =
+                    execIRStmts (tailIR.length + extraFuel + 1) state' tailIR := by
+              simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using hirExec
+            rw [SourceSemantics.execStmtList, SourceSemantics.execStmt, hOffsetSrc, hValueSrc]
+            simp [hirExec']
+            exact ⟨htailSem, htailExact⟩
+  | tstore hoffset hinScopeOffset hvalue hinScopeValue hrest ih =>
+      rename_i scope offset value rest
+      have hpresentOffset : exprBoundNamesPresent offset runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeOffset
+      have hpresentValue : exprBoundNamesPresent value runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeValue
+      rcases compileExpr_core_ok hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      have hevalOffset := eval_compileExpr_core hoffset hexact hbounded hpresentOffset hruntime
+      rw [hoffsetIR] at hevalOffset; simp [Except.toOption] at hevalOffset
+      have hevalValue := eval_compileExpr_core hvalue hexact hbounded hpresentValue hruntime
+      rw [hvalueIR] at hevalValue; simp [Except.toOption] at hevalValue
+      rcases hIROffset : evalIRExpr state offsetIR with _ | offsetNat
+      · simp [hIROffset, Option.bind] at hevalOffset
+      · simp [hIROffset, Option.bind] at hevalOffset
+        rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+        · simp [hIRValue, Option.bind] at hevalValue
+        · simp [hIRValue, Option.bind] at hevalValue
+          have hOffsetSrc : SourceSemantics.evalExpr fields runtime offset = some offsetNat :=
+            hevalOffset.symm
+          have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+            hevalValue.symm
+          let runtime' :=
+            { runtime with
+              world := {
+                runtime.world with
+                transientStorage := fun o => if o = offsetNat then valueNat else runtime.world.transientStorage o
+              } }
+          let state' := { state with transientStorage := fun o => if o = offsetNat then valueNat else state.transientStorage o }
+          have hvalueLt := evalExpr_lt_evmModulus_core_onExpr hvalue
+            (bindingsExactlyMatchIRVars_implies_onExpr hexact) hbounded hpresentValue hruntime
+          rw [hValueSrc] at hvalueLt
+          have hruntime' : runtimeStateMatchesIR fields runtime' state' :=
+            runtimeStateMatchesIR_setTransientStorage hruntime offsetNat valueNat hvalueLt
+          have hexact' : bindingsExactlyMatchIRVars runtime'.bindings state' := by
+            intro name; simpa [IRState.getVar, state'] using hexact name
+          have hbounded' : bindingsBounded runtime'.bindings := by
+            simpa [runtime'] using hbounded
+          rcases ih (runtime := runtime') (state := state')
+              (inScopeNames := collectStmtNames (.tstore offset value) ++ inScopeNames)
+              hscope hexact' hbounded' hruntime' with
+            ⟨tailIR, htailCompile, htailSem, htailExact⟩
+          refine ⟨[YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])] ++ tailIR, ?_, ?_⟩
+          · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+            rw [hoffsetIR, hvalueIR]
+            simp [htailCompile]
+            exact rfl
+          · have hstmt :
+                execIRStmt (tailIR.length + extraFuel + 1) state
+                  (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])) = .continue state' := by
+              simp [execIRStmt, evalIRExprs, hIROffset, hIRValue, state']
+            have hirExec :
+                execIRStmts (tailIR.length + extraFuel + 2) state
+                  (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR]) :: tailIR) =
+                    execIRStmts (tailIR.length + extraFuel + 1) state' tailIR := by
+              simpa using
+                (execIRStmts_cons_of_execIRStmt_continue_extraFuel extraFuel state state'
+                  (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])) tailIR hstmt)
+            have hirExec' :
+                execIRStmts (tailIR.length + 1 + extraFuel + 1) state
+                  (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR]) :: tailIR) =
+                    execIRStmts (tailIR.length + extraFuel + 1) state' tailIR := by
+              simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using hirExec
+            rw [SourceSemantics.execStmtList, SourceSemantics.execStmt, hOffsetSrc, hValueSrc]
+            simp [hirExec']
+            exact ⟨htailSem, htailExact⟩
 
 private theorem compiled_terminal_ite_body_block_extraFuel_eq
     (extraFuel : Nat)
@@ -12165,6 +12419,16 @@ theorem execStmtList_terminal_core_not_continue
   | stop hrest =>
       intro next
       simp [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+  | mstore hoffset hinScopeOffset hvalue hinScopeValue hrest ih =>
+      intro next
+      simp only [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+      cases SourceSemantics.evalExpr fields runtime _ <;> simp_all
+      cases SourceSemantics.evalExpr fields runtime _ <;> simp_all
+  | tstore hoffset hinScopeOffset hvalue hinScopeValue hrest ih =>
+      intro next
+      simp only [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+      cases SourceSemantics.evalExpr fields runtime _ <;> simp_all
+      cases SourceSemantics.evalExpr fields runtime _ <;> simp_all
   | ite hcond hinScope hthen helse hrest ih_then ih_else =>
       intro next
       simp only [SourceSemantics.execStmtList, SourceSemantics.execStmt]
@@ -13872,6 +14136,142 @@ theorem exec_compileStmtList_terminal_core_sizeOf_extraFuel
       refine ⟨[YulStmt.expr (YulExpr.call "stop" [])] ++ tailIR, ?_, ?_⟩
       · simpa [CompilationModel.compileStmtList, CompilationModel.compileStmt, htailCompile]
       · exact stmtResultMatchesIRExec_compiled_stop_core_append_wholeFuel hruntime
+  | mstore hoffset hinScopeOffset hvalue hinScopeValue hrest ih =>
+      rename_i scope offset value rest
+      have hpresentOffset : exprBoundNamesPresent offset runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeOffset
+      have hpresentValue : exprBoundNamesPresent value runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeValue
+      rcases compileExpr_core_ok hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      have hevalOffset := eval_compileExpr_core_of_scope hoffset hexact hinScopeOffset hbounded hpresentOffset hruntime
+      rw [hoffsetIR] at hevalOffset; simp [Except.toOption] at hevalOffset
+      have hevalValue := eval_compileExpr_core_of_scope hvalue hexact hinScopeValue hbounded hpresentValue hruntime
+      rw [hvalueIR] at hevalValue; simp [Except.toOption] at hevalValue
+      rcases hIROffset : evalIRExpr state offsetIR with _ | offsetNat
+      · simp [hIROffset, Option.bind] at hevalOffset
+      · simp [hIROffset, Option.bind] at hevalOffset
+        rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+        · simp [hIRValue, Option.bind] at hevalValue
+        · simp [hIRValue, Option.bind] at hevalValue
+          have hOffsetSrc : SourceSemantics.evalExpr fields runtime offset = some offsetNat :=
+            hevalOffset.symm
+          have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+            hevalValue.symm
+          let runtime' :=
+            { runtime with
+              world := {
+                runtime.world with
+                memory := fun o => if o = offsetNat then valueNat else runtime.world.memory o
+              } }
+          let state' := { state with memory := fun o => if o = offsetNat then valueNat else state.memory o }
+          have hvalueLt := evalExpr_lt_evmModulus_core_of_scope hvalue hexact hinScopeValue hbounded hpresentValue hruntime
+          rw [hValueSrc] at hvalueLt; simp at hvalueLt
+          have hruntime' : runtimeStateMatchesIR fields runtime' state' :=
+            runtimeStateMatchesIR_setBothMemory hruntime offsetNat valueNat hvalueLt
+          have hexact' : bindingsExactlyMatchIRVarsOnScope scope runtime'.bindings state' :=
+            bindingsExactlyMatchIRVarsOnScope_setMemory hexact offsetNat valueNat
+          have hbounded' : bindingsBounded runtime'.bindings := by
+            simpa [runtime'] using hbounded
+          have hscope' : scopeNamesPresent scope runtime'.bindings := by
+            simpa [runtime'] using hscope
+          have hincluded' : scopeNamesIncluded scope
+              (collectStmtNames (.mstore offset value) ++ inScopeNames) :=
+            scopeNamesIncluded_collectStmtNames_tail hincluded
+          rcases ih (extraFuel + sizeOf (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])))
+              (runtime := runtime') (state := state')
+              (inScopeNames := collectStmtNames (.mstore offset value) ++ inScopeNames)
+              hincluded' hscope' hexact' hbounded' hruntime' with
+            ⟨tailIR, htailCompile, htailSem⟩
+          refine ⟨[YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])] ++ tailIR, ?_, ?_⟩
+          · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+            rw [hoffsetIR, hvalueIR]
+            simp [htailCompile]
+            exact rfl
+          · have hstmt :
+                execIRStmt (sizeOf ([YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])] ++ tailIR) + extraFuel) state
+                  (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])) = .continue state' := by
+              have hfuelNe : sizeOf ([YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])] ++ tailIR) + extraFuel ≠ 0 :=
+                sizeOf_singleton_append_extraFuel_ne_zero _ _ _
+              cases hfuel : sizeOf ([YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])] ++ tailIR) + extraFuel with
+              | zero => exact absurd hfuel hfuelNe
+              | succ n => simp [execIRStmt, evalIRExprs, hIROffset, hIRValue, state']
+            have hirExec :=
+              execIRStmts_singleton_append_of_execIRStmt_continue_wholeFuel
+                extraFuel state state' (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])) tailIR hstmt
+            simp only [SourceSemantics.execStmtList, SourceSemantics.execStmt, hOffsetSrc, hValueSrc, hirExec]
+            dsimp [runtime', state']
+            convert htailSem using 2
+            simp
+            omega
+  | tstore hoffset hinScopeOffset hvalue hinScopeValue hrest ih =>
+      rename_i scope offset value rest
+      have hpresentOffset : exprBoundNamesPresent offset runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeOffset
+      have hpresentValue : exprBoundNamesPresent value runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeValue
+      rcases compileExpr_core_ok hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      have hevalOffset := eval_compileExpr_core_of_scope hoffset hexact hinScopeOffset hbounded hpresentOffset hruntime
+      rw [hoffsetIR] at hevalOffset; simp [Except.toOption] at hevalOffset
+      have hevalValue := eval_compileExpr_core_of_scope hvalue hexact hinScopeValue hbounded hpresentValue hruntime
+      rw [hvalueIR] at hevalValue; simp [Except.toOption] at hevalValue
+      rcases hIROffset : evalIRExpr state offsetIR with _ | offsetNat
+      · simp [hIROffset, Option.bind] at hevalOffset
+      · simp [hIROffset, Option.bind] at hevalOffset
+        rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+        · simp [hIRValue, Option.bind] at hevalValue
+        · simp [hIRValue, Option.bind] at hevalValue
+          have hOffsetSrc : SourceSemantics.evalExpr fields runtime offset = some offsetNat :=
+            hevalOffset.symm
+          have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+            hevalValue.symm
+          let runtime' :=
+            { runtime with
+              world := {
+                runtime.world with
+                transientStorage := fun o => if o = offsetNat then valueNat else runtime.world.transientStorage o
+              } }
+          let state' := { state with transientStorage := fun o => if o = offsetNat then valueNat else state.transientStorage o }
+          have hvalueLt := evalExpr_lt_evmModulus_core_of_scope hvalue hexact hinScopeValue hbounded hpresentValue hruntime
+          rw [hValueSrc] at hvalueLt; simp at hvalueLt
+          have hruntime' : runtimeStateMatchesIR fields runtime' state' :=
+            runtimeStateMatchesIR_setTransientStorage hruntime offsetNat valueNat hvalueLt
+          have hexact' : bindingsExactlyMatchIRVarsOnScope scope runtime'.bindings state' := by
+            intro name hname; simpa [IRState.getVar, state'] using hexact name hname
+          have hbounded' : bindingsBounded runtime'.bindings := by
+            simpa [runtime'] using hbounded
+          have hscope' : scopeNamesPresent scope runtime'.bindings := by
+            simpa [runtime'] using hscope
+          have hincluded' : scopeNamesIncluded scope
+              (collectStmtNames (.tstore offset value) ++ inScopeNames) :=
+            scopeNamesIncluded_collectStmtNames_tail hincluded
+          rcases ih (extraFuel + sizeOf (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])))
+              (runtime := runtime') (state := state')
+              (inScopeNames := collectStmtNames (.tstore offset value) ++ inScopeNames)
+              hincluded' hscope' hexact' hbounded' hruntime' with
+            ⟨tailIR, htailCompile, htailSem⟩
+          refine ⟨[YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])] ++ tailIR, ?_, ?_⟩
+          · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+            rw [hoffsetIR, hvalueIR]
+            simp [htailCompile]
+            exact rfl
+          · have hstmt :
+                execIRStmt (sizeOf ([YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])] ++ tailIR) + extraFuel) state
+                  (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])) = .continue state' := by
+              have hfuelNe : sizeOf ([YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])] ++ tailIR) + extraFuel ≠ 0 :=
+                sizeOf_singleton_append_extraFuel_ne_zero _ _ _
+              cases hfuel : sizeOf ([YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])] ++ tailIR) + extraFuel with
+              | zero => exact absurd hfuel hfuelNe
+              | succ n => simp [execIRStmt, evalIRExprs, hIROffset, hIRValue, state']
+            have hirExec :=
+              execIRStmts_singleton_append_of_execIRStmt_continue_wholeFuel
+                extraFuel state state' (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])) tailIR hstmt
+            simp only [SourceSemantics.execStmtList, SourceSemantics.execStmt, hOffsetSrc, hValueSrc, hirExec]
+            dsimp [runtime', state']
+            convert htailSem using 2
+            simp
+            omega
   | ite hcond hinScope hthen helse hrest ih_then ih_else =>
       rename_i scope cond thenBranch elseBranch rest
       have hpresent : exprBoundNamesPresent cond runtime.bindings :=

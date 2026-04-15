@@ -49,6 +49,7 @@ ALLOWLIST: set[str] = {
     "compileStmtList_core_ok",
     "compileStmtList_terminal_core_ok",
     "compileStmtList_terminal_core_ok_nonempty",
+    "execStmtList_terminal_core_not_continue",  # mstore/tstore widening — 9 per-constructor cases
     "compileStmtList_terminal_ite_ok_inv",
     "compileStmt_terminal_ite_ok_inv",
     "compileStmt_ok_any_scope_aux",
