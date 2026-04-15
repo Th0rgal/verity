@@ -601,12 +601,10 @@ termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 
-/-- Conservative variant of `stmtContainsExternalCall` for `no_external_calls` validation.
-    Unlike the CEI-oriented `stmtContainsExternalCall`, this returns `true` for internal
-    calls and internal call assignments because their callee bodies may contain external
-    calls that we cannot inspect at single-function validation scope.
-    CEI validation uses the narrower `stmtContainsExternalCall` which only tracks
-    direct external call presence. -/
+/-- Conservative variant of `stmtContainsExternalCall` for `no_external_calls` and CEI
+    validation.  Returns `true` for internal calls and internal call assignments because
+    their callee bodies may contain external calls that we cannot inspect at
+    single-function validation scope. -/
 def stmtMayContainExternalCall : Stmt → Bool
   | s =>
     -- Direct external calls or internal calls (conservative)
@@ -719,6 +717,16 @@ termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 
+/-- Conservative variant of `stmtIsPersistentWrite` for CEI validation.
+    Returns `true` for internal calls and internal call assignments because
+    their callee bodies may write to storage but we cannot inspect them at
+    single-function validation scope. -/
+def stmtMayPersistentlyWrite : Stmt → Bool
+  | s =>
+    match s with
+    | Stmt.internalCall _ _ | Stmt.internalCallAssign _ _ _ => true
+    | _ => stmtIsPersistentWrite s
+
 mutual
 /-- CEI analysis: walk a statement list sequentially and return a descriptive
     violation string if a persistent-storage write occurs after any statement
@@ -735,18 +743,23 @@ def stmtListCEIViolation : List Stmt → Bool → Option String
       match stmtInternalCEIViolation s seenCall with
       | some msg => some msg
       | none =>
-          -- Update seenCall: current stmt may contain an external call
-          let newSeenCall := seenCall || stmtContainsExternalCall s
           -- For compound statements (ite, forEach, unsafeBlock, matchAdt), the internal
           -- CEI check above already verified ordering within the statement's branches.
-          -- Only apply the flat write-after-call check for leaf/simple statements to
-          -- avoid false positives on compound statements that contain both calls and
-          -- writes in the correct (writes-first) order.
           let isCompound := match s with
             | Stmt.ite _ _ _ | Stmt.forEach _ _ _ | Stmt.unsafeBlock _ _
             | Stmt.matchAdt _ _ _ => true
             | _ => false
-          if !isCompound && newSeenCall && stmtIsPersistentWrite s then
+          -- Update seenCall: only direct external calls set the flag (externalCallBind,
+          -- ecm, or expressions with call/staticcall/delegatecall/externalCall).
+          -- Internal calls are NOT treated as interactions here because each callee
+          -- function has its own CEI validation.
+          let newSeenCall := seenCall || stmtContainsExternalCall s
+          -- Write check: use `stmtMayPersistentlyWrite` which conservatively treats
+          -- internal calls as potential writes (since callee bodies may write storage
+          -- but are not visible at this scope).  This catches the pattern:
+          --   externalCallBind(...)        -- seenCall becomes true
+          --   internalCall(helper, [...])  -- may write storage → flagged
+          if !isCompound && newSeenCall && stmtMayPersistentlyWrite s then
             some "state write after external call"
           else
             stmtListCEIViolation rest newSeenCall

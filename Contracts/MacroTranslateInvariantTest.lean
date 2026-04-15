@@ -349,6 +349,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.NewtypeNamespaceSmoke.spec
   , Contracts.Smoke.UnsafeCEIViolation.spec
   , Contracts.Smoke.UnsafeCEICompliant.spec
+  , Contracts.Smoke.CEIInternalCallAfterExternalRejected.spec
   , Contracts.Smoke.RolesCEISmoke.spec
   , Contracts.Smoke.NonreentrantModifiesSmoke.spec
   , Contracts.Smoke.AdtNewtypeCombo.spec
@@ -459,6 +460,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("NewtypeNamespaceSmoke", ["setId(uint256)", "getId()"])
   , ("UnsafeCEIViolation", ["unsafeCallThenWrite(uint256)"])
   , ("UnsafeCEICompliant", ["writeBeforeUnsafeCall(uint256)"])
+  , ("CEIInternalCallAfterExternalRejected", ["increment(uint256)", "callThenHelper(uint256)"])
   , ("RolesCEISmoke", ["setAndCall(uint256)", "getCounter()"])
   , ("NonreentrantModifiesSmoke", ["deposit(uint256)", "getBalance()"])
   , ("AdtNewtypeCombo", ["pause()", "unpause()", "setLastId(uint256)"])
@@ -552,6 +554,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("NewtypeNamespaceSmoke", ["0xd0e0ba95", "0x5d1ca631"])
   , ("UnsafeCEIViolation", ["0x20c925f7"])
   , ("UnsafeCEICompliant", ["0x9a92630e"])
+  , ("CEIInternalCallAfterExternalRejected", ["0x7cf5dab0", "0xa73250c1"])
   , ("RolesCEISmoke", ["0xdc957d7d", "0x8ada066e"])
   , ("NonreentrantModifiesSmoke", ["0xb6b55f25", "0x12065fe0"])
   , ("AdtNewtypeCombo", ["0x8456cb59", "0x3f4ba83a", "0x1a27e85f"])
@@ -577,6 +580,8 @@ private def expectedCompileCheckedError? (contractName : String) : Option String
   | "CEICallBothBranchesWrite" =>
       some "violates CEI (Checks-Effects-Interactions) ordering"
   | "UnsafeCEIViolation" =>
+      some "violates CEI (Checks-Effects-Interactions) ordering"
+  | "CEIInternalCallAfterExternalRejected" =>
       some "violates CEI (Checks-Effects-Interactions) ordering"
   | _ => none
 

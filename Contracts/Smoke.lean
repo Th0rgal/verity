@@ -2232,6 +2232,28 @@ verity_contract UnsafeCEICompliant where
 
 #check_contract UnsafeCEICompliant
 
+-- CEI: internal call after external call — the internal call may write storage,
+-- so this should be flagged as a CEI violation.
+verity_contract CEIInternalCallAfterExternalRejected where
+  storage
+    counter : Uint256 := slot 0
+  linked_externals
+    external echo(Uint256) -> (Uint256)
+
+  function increment (amount : Uint256) : Unit := do
+    let current ← getStorage counter
+    setStorage counter (add current amount)
+
+  function callThenHelper (x : Uint256) : Unit := do
+    let echoed := externalCall "echo" [x]
+    increment echoed
+
+/--
+error: #check_contract failed for 'Contracts.Smoke.CEIInternalCallAfterExternalRejected': Compilation error: function 'callThenHelper' violates CEI (Checks-Effects-Interactions) ordering: state write after external call. Reorder state writes before external calls, or annotate with allow_post_interaction_writes to opt out (Issue #1728 (CEI enforcement — Checks-Effects-Interactions ordering))
+-/
+#guard_msgs in
+#check_contract CEIInternalCallAfterExternalRejected
+
 -- Roles + CEI combo: role guard with CEI-compliant external call
 verity_contract RolesCEISmoke where
   storage

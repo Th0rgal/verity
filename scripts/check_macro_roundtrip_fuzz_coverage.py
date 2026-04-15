@@ -22,6 +22,7 @@ EXCLUDED_CONTRACTS = {
     "CEIWriteInBranchAfterCall",  # Intentionally fails compilation (CEI violation #guard_msgs negative test)
     "CEICallBothBranchesWrite",  # Intentionally fails compilation (CEI violation #guard_msgs negative test)
     "UnsafeCEIViolation",  # Intentionally fails compilation (CEI violation #guard_msgs negative test)
+    "CEIInternalCallAfterExternalRejected",  # Intentionally fails validation (CEI violation — internal call after external call)
     "UnsafeGatingRejected",  # Intentionally fails compilation (unsafe gating #guard_msgs negative test)
 }
 

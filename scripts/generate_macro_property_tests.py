@@ -286,6 +286,11 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
             current_name = cm.group(1)
             continue
 
+        # Clear guard_pending on any non-blank, non-comment line that isn't
+        # a verity_contract (e.g. `#check_contract Foo` after `#guard_msgs in`)
+        if guard_pending and line.strip() and not line.strip().startswith("--"):
+            guard_pending = False
+
         if current_name is None:
             continue
 
