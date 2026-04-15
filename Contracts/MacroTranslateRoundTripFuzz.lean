@@ -103,9 +103,8 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.NonreentrantModifiesSmoke.spec
   , Contracts.Smoke.AdtNewtypeCombo.spec
   , Contracts.Smoke.FullComboSmoke.spec
-  , Contracts.Smoke.CEIWriteInBranchAfterCall.spec
-  , Contracts.Smoke.CEICallBothBranchesWrite.spec
-  , Contracts.Smoke.UnsafeCEIViolation.spec
+  -- CEIWriteInBranchAfterCall, CEICallBothBranchesWrite, UnsafeCEIViolation are
+  -- intentionally invalid (CEI violations); tested via #guard_msgs in Smoke.lean
   ]
 
 private structure FuzzRng where

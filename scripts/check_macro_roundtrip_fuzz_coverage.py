@@ -19,6 +19,9 @@ EXCLUDED_CONTRACTS = {
     "LocalObligationRequiredForUnsafeFunctionBoundary",  # Intentionally fails compilation (#guard_msgs negative test)
     "LocalObligationRequiredForUnsafeConstructorBoundary",  # Intentionally fails compilation (#guard_msgs negative test)
     "CEIViolationRejected",  # Intentionally fails compilation (CEI violation #guard_msgs negative test)
+    "CEIWriteInBranchAfterCall",  # Intentionally fails compilation (CEI violation #guard_msgs negative test)
+    "CEICallBothBranchesWrite",  # Intentionally fails compilation (CEI violation #guard_msgs negative test)
+    "UnsafeCEIViolation",  # Intentionally fails compilation (CEI violation #guard_msgs negative test)
     "UnsafeGatingRejected",  # Intentionally fails compilation (unsafe gating #guard_msgs negative test)
 }
 
