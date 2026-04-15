@@ -65,6 +65,8 @@ def _strip_lean_comments(text: str) -> str:
     i = 0
     n = len(text)
     block_depth = 0
+    in_string = False
+    string_escape = False
     while i < n:
         if block_depth > 0:
             if text.startswith("/-", i):
@@ -80,6 +82,18 @@ def _strip_lean_comments(text: str) -> str:
             i += 1
             continue
 
+        ch = text[i]
+        if in_string:
+            result.append(ch)
+            if string_escape:
+                string_escape = False
+            elif ch == "\\":
+                string_escape = True
+            elif ch == '"':
+                in_string = False
+            i += 1
+            continue
+
         if text.startswith("--", i):
             newline = text.find("\n", i)
             if newline == -1:
@@ -92,7 +106,9 @@ def _strip_lean_comments(text: str) -> str:
             i += 2
             continue
 
-        result.append(text[i])
+        if ch == '"':
+            in_string = True
+        result.append(ch)
         i += 1
     return "".join(result)
 

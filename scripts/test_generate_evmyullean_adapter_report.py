@@ -257,6 +257,16 @@ class ParseBridgeTestsTests(unittest.TestCase):
         self.assertEqual(count, 1)
         self.assertEqual(builtins, ["add"])
 
+    def test_preserves_comment_markers_inside_string_literals(self) -> None:
+        p = self._write_test_file("""\
+            example := "INT256_MIN/-1 overflow" = "INT256_MIN/-1 overflow" := by native_decide
+            example := verityEvalBuiltin "add" [1, 2] = bridgeEval "add" [1, 2] := by native_decide
+        """)
+        with patch.object(gen, "BRIDGE_TEST_FILE", p):
+            builtins, count = gen._parse_bridge_tests()
+        self.assertEqual(count, 1)
+        self.assertEqual(builtins, ["add"])
+
     def test_missing_file_raises(self) -> None:
         with patch.object(gen, "BRIDGE_TEST_FILE", Path("/nonexistent/BridgeTest.lean")):
             with self.assertRaises(FileNotFoundError):
