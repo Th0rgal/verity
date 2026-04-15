@@ -19,6 +19,11 @@ the ABI-style calldata byte size must not wrap modulo the EVM word modulus. -/
 def TxCalldataSizeFitsEvm (tx : IRTransaction) : Prop :=
   4 + tx.args.length * 32 < Compiler.Constants.evmModulus
 
+/-- Constructor calldata is deploy-time ABI data without the 4-byte selector
+prefix used by external function calls. -/
+def TxConstructorCalldataSizeFitsEvm (tx : IRTransaction) : Prop :=
+  tx.args.length * 32 < Compiler.Constants.evmModulus
+
 /-- Source-side transaction context stores addresses as 160-bit values and the
 remaining observed environment fields as `Uint256`s. The generic Layer-2 proof
 therefore needs the IR transaction payload to already fit those bounds. -/
@@ -779,6 +784,52 @@ theorem initialIRStateForTx_matches_runtime
       rfl
     rw [this]
     rfl
+
+/-- The same initial IR state matches constructor source execution when the
+source runtime is initialized with constructor-shaped calldata size, i.e. no
+external-call selector prefix. -/
+theorem initialIRStateForTx_matches_constructor_runtime
+    (model : CompilationModel)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (htxNormalized : TxContextNormalized tx)
+    (hcalldataSizeFits : TxConstructorCalldataSizeFitsEvm tx) :
+    FunctionBody.constructorRuntimeStateMatchesIR
+      (SourceSemantics.effectiveFields model)
+      { world := SourceSemantics.withConstructorTransactionContext initialWorld tx
+        bindings := []
+        selector := tx.functionSelector }
+      (FunctionBody.initialIRStateForTx model tx initialWorld) := by
+  rcases htxNormalized with
+    ⟨hsender, hthis, hmsgValue, htimestamp, hnumber, hchain, hblob⟩
+  have hsenderEvm : tx.sender < Compiler.Constants.evmModulus := by
+    dsimp [Compiler.Constants.addressModulus, Compiler.Constants.evmModulus] at hsender ⊢
+    omega
+  have hthisEvm : tx.thisAddress < Compiler.Constants.evmModulus := by
+    dsimp [Compiler.Constants.addressModulus, Compiler.Constants.evmModulus] at hthis ⊢
+    omega
+  have hsenderAddr : tx.sender < Verity.Core.Address.modulus := by
+    simpa [Verity.Core.Address.modulus, Compiler.Constants.addressModulus] using hsender
+  have hthisAddr : tx.thisAddress < Verity.Core.Address.modulus := by
+    simpa [Verity.Core.Address.modulus, Compiler.Constants.addressModulus] using hthis
+  have hsenderWord :
+      tx.sender % Compiler.Constants.evmModulus % Verity.Core.Address.modulus = tx.sender := by
+    rw [Nat.mod_eq_of_lt hsenderEvm, Nat.mod_eq_of_lt hsenderAddr]
+  have hthisWord :
+      tx.thisAddress % Compiler.Constants.evmModulus % Verity.Core.Address.modulus =
+        tx.thisAddress := by
+    rw [Nat.mod_eq_of_lt hthisEvm, Nat.mod_eq_of_lt hthisAddr]
+  have hcalldataSizeFits' : tx.args.length * 32 < Verity.Core.Uint256.modulus := by
+    simpa [TxConstructorCalldataSizeFitsEvm, Verity.Core.Uint256.modulus] using hcalldataSizeFits
+  refine ⟨?_, ?_⟩
+  · simpa [FunctionBody.initialIRStateForTx, SourceSemantics.effectiveFields,
+      SourceSemantics.encodeStorage] using
+      (SourceSemantics.encodeStorage_withConstructorTransactionContext model initialWorld tx).symm
+  · simp [FunctionBody.initialIRStateForTx,
+      SourceSemantics.withConstructorTransactionContext, Verity.wordToAddress, hsenderWord, hthisWord,
+      Nat.mod_eq_of_lt hmsgValue, Nat.mod_eq_of_lt htimestamp, Nat.mod_eq_of_lt hnumber,
+      Nat.mod_eq_of_lt hchain, Nat.mod_eq_of_lt hblob]
+    exact hcalldataSizeFits'
 
 /-- The ABI parameter-loading prefix reconstructs exactly the decoded source
 bindings for any supported function with pairwise-distinct parameter names. -/

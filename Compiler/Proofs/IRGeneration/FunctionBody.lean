@@ -113,6 +113,30 @@ def runtimeStateMatchesIR
   state.returnValue = none ∧
   state.events = SourceSemantics.encodeEvents runtime.world.events
 
+/-- Runtime/IR alignment for constructor execution, whose calldata is not
+selector-prefixed. This is the constructor-shaped analogue of
+`runtimeStateMatchesIR` and is the reusable target for the deploy/initcode proof
+path. -/
+def constructorRuntimeStateMatchesIR
+    (fields : List Field)
+    (runtime : SourceSemantics.RuntimeState)
+    (state : IRState) : Prop :=
+  state.storage = SourceSemantics.encodeStorageAt fields runtime.world ∧
+  state.transientStorage = (fun slot => (runtime.world.transientStorage slot).val) ∧
+  state.sender = runtime.world.sender.val ∧
+  state.msgValue = runtime.world.msgValue.val ∧
+  state.thisAddress = runtime.world.thisAddress.val ∧
+  state.blockTimestamp = runtime.world.blockTimestamp.val ∧
+  state.blockNumber = runtime.world.blockNumber.val ∧
+  state.chainId = runtime.world.chainId.val ∧
+  state.blobBaseFee = runtime.world.blobBaseFee.val ∧
+  state.selector = runtime.selector ∧
+  state.calldata = runtime.world.calldata ∧
+  runtime.world.calldataSize.val = state.calldata.length * 32 ∧
+  state.memory = (fun o => (runtime.world.memory o).val) ∧
+  state.returnValue = none ∧
+  state.events = SourceSemantics.encodeEvents runtime.world.events
+
 def initialIRStateForTx
     (spec : CompilationModel)
     (tx : IRTransaction)

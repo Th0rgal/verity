@@ -1668,6 +1668,32 @@ theorem encodeStorageAt_congr
   simpa [encodeStorage] using
     encodeStorageAt_withTransactionContext (effectiveFields spec) world tx slot
 
+@[simp] theorem encodeStorageAt_withConstructorTransactionContext
+    (fields : List Field)
+    (world : Verity.ContractState)
+    (tx : IRTransaction)
+    (slot : Nat) :
+    encodeStorageAt fields (withConstructorTransactionContext world tx) slot =
+      encodeStorageAt fields world slot := by
+  exact encodeStorageAt_congr
+    (fields := fields)
+    (world1 := withConstructorTransactionContext world tx)
+    (world2 := world)
+    (slot := slot)
+    (by simp [withConstructorTransactionContext])
+    (by simp [withConstructorTransactionContext])
+    (by simp [withConstructorTransactionContext])
+
+@[simp] theorem encodeStorage_withConstructorTransactionContext
+    (spec : CompilationModel)
+    (world : Verity.ContractState)
+    (tx : IRTransaction) :
+    encodeStorage spec (withConstructorTransactionContext world tx) =
+      encodeStorage spec world := by
+  funext slot
+  simpa [encodeStorage] using
+    encodeStorageAt_withConstructorTransactionContext (effectiveFields spec) world tx slot
+
 def selectorFunctionPairs (spec : CompilationModel) (selectors : List Nat) :
     List (FunctionSpec × Nat) :=
   (selectorDispatchedFunctions spec).zip selectors

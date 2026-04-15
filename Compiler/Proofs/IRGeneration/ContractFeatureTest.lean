@@ -411,6 +411,25 @@ private theorem constructorOnly_calldataFits :
     Function.TxCalldataSizeFitsEvm constructorOnlyTx := by
   simp [Function.TxCalldataSizeFitsEvm, constructorOnlyTx, Compiler.Constants.evmModulus]
 
+private theorem constructorOnly_constructorCalldataFits :
+    Function.TxConstructorCalldataSizeFitsEvm constructorOnlyTx := by
+  simp [Function.TxConstructorCalldataSizeFitsEvm, constructorOnlyTx, Compiler.Constants.evmModulus]
+
+example :
+    FunctionBody.constructorRuntimeStateMatchesIR
+      (SourceSemantics.effectiveFields constructorOnlySpec)
+      { world := SourceSemantics.withConstructorTransactionContext Verity.defaultState constructorOnlyTx
+        bindings := []
+        selector := constructorOnlyTx.functionSelector }
+      (FunctionBody.initialIRStateForTx constructorOnlySpec constructorOnlyTx Verity.defaultState) := by
+  exact
+    Function.initialIRStateForTx_matches_constructor_runtime
+      constructorOnlySpec
+      constructorOnlyTx
+      Verity.defaultState
+      constructorOnly_txNormalized
+      constructorOnly_constructorCalldataFits
+
 private theorem constructorArg_txNormalized :
     Function.TxContextNormalized constructorArgTx := by
   simp [Function.TxContextNormalized, constructorArgTx, Compiler.Constants.addressModulus,

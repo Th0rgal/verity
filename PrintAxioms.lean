@@ -761,6 +761,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.literalMappingWrite_calldataFits  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorOnly_txNormalized  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorOnly_calldataFits  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorOnly_constructorCalldataFits  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorArg_txNormalized  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorArg_calldataFits  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.stopOnly_txNormalized  -- private
@@ -815,6 +816,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.Function.lookupBinding?_eq_none_of_not_mem  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Function.lookupBinding?_some_of_mem  -- private
 #print axioms Compiler.Proofs.IRGeneration.Function.initialIRStateForTx_matches_runtime
+#print axioms Compiler.Proofs.IRGeneration.Function.initialIRStateForTx_matches_constructor_runtime
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_param_state_exact
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_body_correct_from_exact_state_core
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_body_correct_from_exact_state_core_extraFuel
@@ -1837,6 +1839,8 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.encodeStorageAt_congr
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.encodeStorageAt_withTransactionContext
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.encodeStorage_withTransactionContext
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.encodeStorageAt_withConstructorTransactionContext
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.encodeStorage_withConstructorTransactionContext
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.interpretInternalFunctionFuel_zero
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.interpretInternalFunctionFuel_succ
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.helperSummarySound
@@ -2180,4 +2184,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 2030 theorems/lemmas (1360 public, 670 private, 0 sorry'd)
+-- Total: 2034 theorems/lemmas (1363 public, 671 private, 0 sorry'd)
