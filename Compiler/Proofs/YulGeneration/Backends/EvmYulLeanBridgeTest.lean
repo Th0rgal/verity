@@ -619,7 +619,7 @@ example : bridgeEval "number" [] = none := by native_decide
 /-- chainid: bridge returns none (state-dependent). -/
 example : bridgeEval "chainid" [] = none := by native_decide
 
-/-- blobbasefee: bridge returns none (state-dependent). -/
+/-- blobbasefee: the pure bridge still returns none until full context is provided. -/
 example : bridgeEval "blobbasefee" [] = none := by native_decide
 
 /-- mappingSlot: bridge returns none (Verity-specific helper) -/
@@ -878,8 +878,8 @@ example : backendEvalWithContext "number" [] = verityEvalWithContext "number" []
 /-- Context-lifted bridge: state-dependent chainid falls through to none -/
 example : backendEvalWithContext "chainid" [] = none := by native_decide
 
-/-- Context-lifted bridge: state-dependent blobbasefee falls through to none -/
-example : backendEvalWithContext "blobbasefee" [] = none := by native_decide
+/-- Context-lifted bridge: blobbasefee now reads the bridged execution context. -/
+example : backendEvalWithContext "blobbasefee" [] = verityEvalWithContext "blobbasefee" [] := by native_decide
 
 -- ## Summary output
 def main : IO Unit := do
@@ -893,10 +893,10 @@ def main : IO Unit := do
   IO.println "✓ Byte extraction: byte — concrete bridge"
   IO.println "✓ Signed shift: sar — concrete bridge (incl. saturated ≥256, INT256_MIN, sign-extend)"
   IO.println "✓ Sign extension: signextend — concrete bridge (byte positions 0,1,15,30,31,32)"
-  IO.println "✓ Context/selector-bridged builtins: callvalue, calldataload, calldatasize, timestamp, number — routed through .evmYulLean"
-  IO.println "✓ Remaining delegated builtins: sload, caller, address, chainid, blobbasefee — correctly handled"
+  IO.println "✓ Context/selector-bridged builtins: blobbasefee, callvalue, calldataload, calldatasize, timestamp, number — routed through .evmYulLean"
+  IO.println "✓ Remaining delegated builtins: sload, caller, address, chainid — correctly handled"
   IO.println "✓ Verity-specific helpers: mappingSlot — correctly delegated"
-  IO.println "✓ Context-lifted backend bridge: 25 pure builtins + 5 context bridges + 5 state-dependent fallthroughs + 1 helper delegation"
+  IO.println "✓ Context-lifted backend bridge: 25 pure builtins + 6 context bridges + 4 state-dependent fallthroughs + 1 helper delegation"
   IO.println "✓ Adapter: all 11 statement types lower without error"
   IO.println "✓ PrimOp mapping: 35 builtins mapped via lookupPrimOp"
   IO.println "EVMYulLean bridge test: all checks passed"

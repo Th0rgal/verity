@@ -28,31 +28,36 @@ def _make_builtin_features(
     admitted = admitted if admitted is not None else check.ADMITTED_BUILTINS
     concrete_only = concrete_only if concrete_only is not None else check.CONCRETE_ONLY_BUILTINS
     delegated = delegated if delegated is not None else check.DELEGATED_BUILTINS
+    proved_set = set(proved)
+    admitted_set = set(admitted)
+    concrete_only_set = set(concrete_only)
+    delegated_set = set(delegated)
     features: list[dict] = []
-    for name in proved:
-        entry: dict = {
-            "feature": name,
-            "verity_path": "supported",
-            "evmyullean_bridge": "supported",
-            "agreement_proved": True,
-        }
-        if name in admitted:
-            entry["sorry_dependent"] = True
-        features.append(entry)
-    for name in concrete_only:
-        features.append({
-            "feature": name,
-            "verity_path": "supported",
-            "evmyullean_bridge": "supported",
-            "agreement_proved": False,
-        })
-    for name in delegated:
-        features.append({
-            "feature": name,
-            "verity_path": "supported",
-            "evmyullean_bridge": "delegated",
-            "agreement_proved": False,
-        })
+    for name in check.EXPECTED_BUILTINS:
+        if name in proved_set:
+            entry: dict = {
+                "feature": name,
+                "verity_path": "supported",
+                "evmyullean_bridge": "supported",
+                "agreement_proved": True,
+            }
+            if name in admitted_set:
+                entry["sorry_dependent"] = True
+            features.append(entry)
+        elif name in concrete_only_set:
+            features.append({
+                "feature": name,
+                "verity_path": "supported",
+                "evmyullean_bridge": "supported",
+                "agreement_proved": False,
+            })
+        elif name in delegated_set:
+            features.append({
+                "feature": name,
+                "verity_path": "supported",
+                "evmyullean_bridge": "delegated",
+                "agreement_proved": False,
+            })
     return features
 
 
@@ -90,7 +95,7 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
 
     def test_missing_delegated_builtin_fails_closed(self) -> None:
         features = _make_builtin_features(
-            delegated=["sload", "caller", "chainid", "blobbasefee", "mappingSlot"],
+            delegated=["sload", "caller", "chainid", "mappingSlot"],
         )
         rc, output = self._run_check(
             builtin_features=features,
@@ -197,7 +202,7 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
         features = _make_builtin_features()
         snippets = check.expected_doc_snippets(features)
         self.assertTrue(
-            any("25 fully proven, 5 with sorry-dependent core equivalences" in s for s in snippets),
+            any("26 fully proven, 5 with sorry-dependent core equivalences" in s for s in snippets),
             f"Expected sorry qualifier in snippets: {snippets}",
         )
 
@@ -209,7 +214,7 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
             f.pop("sorry_dependent", None)
         snippets = check.expected_doc_snippets(features)
         self.assertTrue(
-            any("30/36 builtins have universal bridge agreement proofs" in s
+            any("31/36 builtins have universal bridge agreement proofs" in s
                 and "sorry" not in s for s in snippets),
             f"Expected unqualified snippet: {snippets}",
         )

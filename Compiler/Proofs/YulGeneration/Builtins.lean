@@ -276,6 +276,10 @@ def evalBuiltinCallWithBackendContext
         match argVals with
         | [] => some (toWord blockNumber)
         | _ => none
+      else if func = "blobbasefee" then
+        match argVals with
+        | [] => some (toWord blobBaseFee)
+        | _ => none
       else if func = "calldatasize" then
         match argVals with
         | [] => some (4 + calldata.length * 32)

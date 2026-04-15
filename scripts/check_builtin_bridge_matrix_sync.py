@@ -41,6 +41,7 @@ PROVED_BUILTINS = [
     "calldatasize",
     "timestamp",
     "number",
+    "blobbasefee",
 ]
 # Builtins whose bridge theorems transitively depend on sorry'd core lemmas.
 ADMITTED_BUILTINS = ["exp", "sdiv", "smod", "sar", "signextend"]
@@ -51,10 +52,46 @@ DELEGATED_BUILTINS = [
     "caller",
     "address",
     "chainid",
+    "mappingSlot",
+]
+EXPECTED_BUILTINS = [
+    "add",
+    "sub",
+    "mul",
+    "div",
+    "mod",
+    "addmod",
+    "mulmod",
+    "exp",
+    "sdiv",
+    "smod",
+    "lt",
+    "gt",
+    "slt",
+    "sgt",
+    "eq",
+    "iszero",
+    "and",
+    "or",
+    "xor",
+    "not",
+    "shl",
+    "shr",
+    "sar",
+    "signextend",
+    "byte",
+    "callvalue",
+    "calldataload",
+    "calldatasize",
+    "timestamp",
+    "number",
+    "sload",
+    "caller",
+    "address",
+    "chainid",
     "blobbasefee",
     "mappingSlot",
 ]
-EXPECTED_BUILTINS = PURE_BUILTINS + DELEGATED_BUILTINS
 
 
 def normalize_ws(text: str) -> str:
