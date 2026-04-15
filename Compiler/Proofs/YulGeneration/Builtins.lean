@@ -10,8 +10,9 @@ namespace Compiler.Proofs.YulGeneration
 open Compiler.Proofs
 export Compiler.Constants (evmModulus selectorModulus selectorShift)
 
-/-- Auxiliary loop for modular exponentiation via repeated squaring. -/
-private def modPowAux (m b : Nat) : Nat → Nat → Nat
+/-- Auxiliary loop for modular exponentiation via repeated squaring.
+    Exposed for downstream bridge proofs against EVMYulLean's `powAux`. -/
+def modPowAux (m b : Nat) : Nat → Nat → Nat
   | 0, acc => acc % m
   | e + 1, acc =>
     let acc' := if (e + 1) % 2 = 1 then (acc * b) % m else acc

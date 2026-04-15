@@ -1006,9 +1006,9 @@ private theorem bridge_eval_exp_normalized (a b : Nat) :
 /-- Core exp equivalence: Verity's `natModPow` agrees with EVMYulLean's `UInt256.exp`
 on all inputs. Both implement modular exponentiation via repeated squaring.
 
-**Status**: sorry — `EvmYul.UInt256.powAux` is `private def` in EVMYulLean, so the
-induction cannot name it. Requires EVMYulLean upstream to expose `powAux` or a public
-equivalence lemma. -/
+**Status**: sorry — requires induction proof matching the loop invariants of
+`modPowAux` (Verity) and `powAux` (EVMYulLean). Both are now public, so the
+induction is nameable. Requires showing Nat modular intermediates match Fin wrapping. -/
 private theorem exp_natModPow_eq_uint256Exp (a b : Nat)
     (ha : a < evmModulus) (hb : b < evmModulus) :
     natModPow a b evmModulus =
@@ -1093,8 +1093,9 @@ Both implement signed division by:
 3. Dividing the absolute values
 4. Negating the result if signs differ
 
-**Status**: sorry — requires matching Fin arithmetic in mixed-sign negation cases.
-Validated by concrete tests. -/
+**Status**: sorry — requires 4-way sign case analysis matching Fin negation
+(`val * (-1)`) with `Int.natAbs`-based absolute value division. `signedAbsNat`
+now exposed. Validated by concrete tests. -/
 private theorem sdiv_int256_eq_uint256Sdiv (a b : Nat)
     (ha : a < evmModulus) (hb : b < evmModulus) :
     (Verity.Core.Int256.div
@@ -1278,8 +1279,12 @@ private theorem bridge_eval_signextend_normalized (byteIdx value : Nat) :
 /-- Core signextend equivalence: Verity's `Uint256.signextend` agrees with
 EVMYulLean's `UInt256.signextend`.
 
-**Status**: sorry — requires showing Nat-level bit mask operations match
-UInt256 shift-based operations. Validated by concrete tests. -/
+Both implement EVM SIGNEXTEND using the same bit-level algorithm:
+1. Compute sign bit position = byteIdx * 8 + 7
+2. Test the sign bit
+3. If set: fill high bits (OR with complement mask)
+4. If clear: clear high bits (AND with mask)
+5. If byteIdx ≥ 31: return value unchanged -/
 private theorem signextend_uint256_eq (byteIdx value : Nat)
     (hb : byteIdx < evmModulus) (hv : value < evmModulus) :
     (Verity.Core.Uint256.signextend ⟨byteIdx, hb⟩ ⟨value, hv⟩).val =

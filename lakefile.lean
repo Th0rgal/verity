@@ -5,7 +5,7 @@ package «verity» where
   version := v!"0.1.0"
 
 require evmyul from git
-  "https://github.com/NethermindEth/EVMYulLean.git"@"047f63070309f436b66c61e276ab3b6d1169265a"
+  "https://github.com/lfglabs-dev/EVMYulLean.git"@"ed9215e9ba8e3fa73128f3b67131793a01db332f"
 
 @[default_target]
 lean_lib «Verity» where
