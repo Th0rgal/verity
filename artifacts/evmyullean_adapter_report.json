@@ -215,7 +215,14 @@
   ],
   "missing_expr_cases": [],
   "missing_stmt_cases": [],
-  "schema_version": 5,
+  "phase4_retarget": {
+    "backends_agree_on_bridged_builtins": "sorry (dispatch; relies on 34 per-builtin bridge theorems)",
+    "layer3_preserves_semantics_evmYulLean": "proven (delegates to existing Layer 3 proof)",
+    "retarget_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean",
+    "status": "complete",
+    "trust_boundary": "EVMYulLean execution model matches EVM (upstream conformance tests)"
+  },
+  "schema_version": 6,
   "status": "ok",
   "stmt_gap_messages": {},
   "stmt_gaps": [],

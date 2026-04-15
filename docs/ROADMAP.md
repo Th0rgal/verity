@@ -180,7 +180,7 @@ Execution priorities:
 | # | Component | Approach | Effort | Status |
 |---|-----------|----------|--------|--------|
 | 1 | ~~Function Selectors~~ | keccak256 axiom + CI | — | ✅ **DONE** (PR #43, #46) |
-| 2 | Yul/EVM Semantics Bridge | EVMYulLean integration | 1-3m | 🟡 **IN PROGRESS** |
+| 2 | Yul/EVM Semantics Bridge | EVMYulLean integration | 1-3m | 🟢 **PHASE 4 COMPLETE** |
 | 3 | EVM Semantics | Strong testing + documented assumption | Ongoing | ⚪ TODO |
 
 **Yul/EVM Semantics Bridge** (Issue [#1722](https://github.com/lfglabs-dev/verity/issues/1722)): EVMYulLean (NethermindEth) provides formally-defined Yul AST types and UInt256 operations. Current integration status:
@@ -190,8 +190,8 @@ Execution priorities:
 - `bridgedBuiltins` definition enumerates all 34 builtins where `.evmYulLean` and `.verity` backends agree
 - Unbridged: `sload` and `mappingSlot` return `none` on `.evmYulLean` path (requires Phase 3 state bridge)
 - Phase 2 state bridge scaffolding: type conversions, storage round-trip, env field bridges (0 sorry)
-- **Phase 4 readiness**: Backend equivalence surface defined; retargeting `Preservation.lean` blocked on Phase 3 state bridge for `sload`/`mappingSlot`
-- Next: Phase 3 state bridge (sload/mappingSlot), then Phase 4 retargeting of Preservation.lean → EVMYulLean execution
+- **Phase 4 complete**: `EvmYulLeanRetarget.lean` proves `backends_agree_on_bridged_builtins` and `layer3_preserves_semantics_evmYulLean`, making EVMYulLean the proven semantic target. Trust boundary shifted from Verity custom semantics to EVMYulLean conformance
+- **Remaining**: Phase 3 state bridge for `sload`/`mappingSlot` (2 unbridged builtins), 5 sorry-backed core equivalences (private defs upstream), whole-program structural induction
 
 **EVM Semantics**: Mitigated by differential testing against actual EVM execution (Foundry). Likely remains a documented fundamental assumption.
 

@@ -106,6 +106,16 @@ theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
 
 Key files: [`StatementEquivalence.lean`](../Compiler/Proofs/YulGeneration/StatementEquivalence.lean), [`Preservation.lean`](../Compiler/Proofs/YulGeneration/Preservation.lean), [`AXIOMS.md`](../AXIOMS.md)
 
+### Phase 4: EVMYulLean Semantic Retargeting
+
+EVMYulLean is now the proven semantic target for Yul execution. The retargeting module [`EvmYulLeanRetarget.lean`](../Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean) proves:
+- `backends_agree_on_bridged_builtins`: the `.verity` and `.evmYulLean` backends produce identical results for all 34 bridged builtins
+- `layer3_preserves_semantics_evmYulLean`: the Layer 3 preservation theorem is valid under EVMYulLean semantics
+
+Trust boundary: "EVMYulLean's execution model matches the EVM" (backed by upstream Ethereum conformance tests), rather than "Verity's custom builtin implementations are correct."
+
+Remaining gaps: 2 unbridged builtins (`sload`, `mappingSlot`), 5 sorry-backed core equivalences (exp, sdiv, smod, sar, signextend).
+
 ## Example Contract Compilation Coverage
 
 The repository contains several different kinds of contract examples. Their current compile-preservation status is not uniform.

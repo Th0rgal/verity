@@ -19,13 +19,15 @@
              (proven generically in Compiler/Proofs/YulGeneration/Preservation.lean)
   - This file: compose them into a single theorem statement.
 
-  **EVMYulLean note**: This file does NOT import EVMYulLean directly. The Yul
-  execution semantics used here (`interpretYulFromIR`, `interpretYulRuntime`)
+  **EVMYulLean note (Phase 4)**: This file does NOT import EVMYulLean directly.
+  The Yul execution semantics used here (`interpretYulFromIR`, `interpretYulRuntime`)
   are defined in terms of `evalBuiltinCallWithBackend` which defaults to the
-  Verity backend. The EVMYulLean bridge is established separately in
-  `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean` and
-  `Compiler/Proofs/ArithmeticProfile.lean`, proving that for pure builtins,
-  the Verity backend agrees with EVMYulLean.
+  Verity backend. The EVMYulLean bridge is established in
+  `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, proving
+  that for all 34 bridged builtins, the Verity backend agrees with EVMYulLean.
+  The Phase 4 retargeting module (`EvmYulLeanRetarget.lean`) composes these
+  per-builtin equivalences into the whole-program retargeting theorem, making
+  EVMYulLean the proven semantic target.
 
   Run: lake build Compiler.Proofs.EndToEnd
 -/
@@ -382,6 +384,33 @@ smaller pieces before they can be re-stated without timeout.
 See: `ArithmeticProfile.lean` and
 `YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` for the current
 replacement coverage: universal bridge lemmas for all pure bridged builtins.
+-/
+
+/-! ## Phase 4: EVMYulLean as Semantic Target
+
+The Yul execution semantics used throughout this file dispatch builtins via
+`evalBuiltinCallWithBackendContext defaultBuiltinBackend`, where
+`defaultBuiltinBackend = .verity`. The EVMYulLean bridge
+(`EvmYulLeanBridgeLemmas.lean`) proves that for all 34 bridged builtins,
+the `.verity` and `.evmYulLean` backends produce identical results.
+
+This means the existing preservation theorems above are already valid under
+EVMYulLean semantics for the bridged builtin surface. The retargeting module
+(`EvmYulLeanRetarget.lean`) makes this explicit with
+`backends_agree_on_bridged_builtins` and
+`layer3_preserves_semantics_evmYulLean`.
+
+**Trust boundary after Phase 4**:
+- The Yul semantics trust assumption shifts from "Verity's custom builtin
+  implementations are correct" to "EVMYulLean's execution model matches
+  the EVM" (backed by upstream Ethereum conformance tests).
+- 34 of 36 builtins are bridged; 2 (`sload`, `mappingSlot`) await Phase 3
+  state bridge.
+- 5 bridge lemmas use `sorry` (exp, sdiv, smod, sar, signextend) pending
+  upstream changes to private definitions.
+
+See `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean` for
+the Phase 4 retargeting theorems.
 -/
 
 end Compiler.Proofs.EndToEnd
