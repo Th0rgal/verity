@@ -441,6 +441,42 @@ decreasing_by all_goals simp_wf; all_goals omega
 end
 
 mutual
+/-- Check whether a statement may write to storage fields that `stmtWrittenFields`
+    cannot track — specifically internal calls whose callee bodies are not visible
+    at single-function validation scope.  External calls (`externalCallBind`,
+    `tryExternalCallBind`, `ecm`) target other contracts and cannot directly modify
+    the current contract's storage fields, so they are safe for `modifies()`.
+    Used by `modifies(...)` validation to conservatively reject annotations when
+    write-set tracking is incomplete. -/
+def stmtHasUntrackableWrites : Stmt → Bool
+  | Stmt.internalCall _ _ | Stmt.internalCallAssign _ _ _ => true
+  | Stmt.ite _ thenBranch elseBranch =>
+      stmtListHasUntrackableWrites thenBranch || stmtListHasUntrackableWrites elseBranch
+  | Stmt.forEach _ _ body =>
+      stmtListHasUntrackableWrites body
+  | Stmt.unsafeBlock _ body =>
+      stmtListHasUntrackableWrites body
+  | Stmt.matchAdt _ _ branches =>
+      matchBranchesHasUntrackableWrites branches
+  | _ => false
+termination_by s => sizeOf s
+decreasing_by all_goals simp_wf; all_goals omega
+
+def stmtListHasUntrackableWrites : List Stmt → Bool
+  | [] => false
+  | s :: ss => stmtHasUntrackableWrites s || stmtListHasUntrackableWrites ss
+termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def matchBranchesHasUntrackableWrites : List (String × List String × List Stmt) → Bool
+  | [] => false
+  | (_, _, body) :: rest =>
+      stmtListHasUntrackableWrites body || matchBranchesHasUntrackableWrites rest
+termination_by bs => sizeOf bs
+decreasing_by all_goals simp_wf; all_goals omega
+end
+
+mutual
 /-- Check whether an expression contains an external call (call, staticcall, delegatecall,
     or externalCall).  Used by `no_external_calls` validation (#1729, Axis 3 Step 1c). -/
 def exprContainsExternalCall : Expr → Bool
@@ -564,6 +600,19 @@ def matchBranchesContainExternalCall : List (String × List String × List Stmt)
 termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
+
+/-- Conservative variant of `stmtContainsExternalCall` for `no_external_calls` validation.
+    Unlike the CEI-oriented `stmtContainsExternalCall`, this returns `true` for internal
+    calls and internal call assignments because their callee bodies may contain external
+    calls that we cannot inspect at single-function validation scope.
+    CEI validation uses the narrower `stmtContainsExternalCall` which only tracks
+    direct external call presence. -/
+def stmtMayContainExternalCall : Stmt → Bool
+  | s =>
+    -- Direct external calls or internal calls (conservative)
+    match s with
+    | Stmt.internalCall _ _ | Stmt.internalCallAssign _ _ _ => true
+    | _ => stmtContainsExternalCall s
 
 mutual
 def stmtReadsStateOrEnv : Stmt → Bool
@@ -773,13 +822,19 @@ def validateFunctionSpec (spec : FunctionSpec) : Except String Unit := do
   spec.body.forM (validateStmtParamReferences spec.name spec.params)
   -- Validate modifies annotation: if declared, every written field must be in the set
   if !spec.modifies.isEmpty then
+    -- Reject modifies() when the body contains calls whose write sets cannot be
+    -- statically tracked (internal calls, external calls, ECM invocations).
+    if stmtListHasUntrackableWrites spec.body then
+      throw s!"Compilation error: function '{spec.name}' is annotated modifies({String.intercalate ", " spec.modifies}) but contains internal call statements whose write sets cannot be verified statically. Remove the modifies annotation or inline the called logic."
     let writtenFields := (stmtListWrittenFields spec.body).eraseDups
     for field in writtenFields do
       if !spec.modifies.contains field then
         throw s!"Compilation error: function '{spec.name}' is annotated modifies({String.intercalate ", " spec.modifies}) but writes to undeclared field '{field}'"
-  -- Validate no_external_calls annotation: reject external call statements
-  if spec.noExternalCalls && spec.body.any stmtContainsExternalCall then
-    throw s!"Compilation error: function '{spec.name}' is annotated no_external_calls but contains external call statements"
+  -- Validate no_external_calls annotation: reject external call statements.
+  -- Uses the conservative `stmtMayContainExternalCall` which also flags internal calls
+  -- (since callee bodies may contain external calls not visible at this scope).
+  if spec.noExternalCalls && spec.body.any stmtMayContainExternalCall then
+    throw s!"Compilation error: function '{spec.name}' is annotated no_external_calls but contains statements that may perform external calls (including internal function calls whose bodies cannot be verified here)"
   -- CEI enforcement: reject state writes after external calls unless opted out via any
   -- rung of the escalation ladder (#1728, Axis 2 Steps 2a-2b):
   --   Rung 2: cei_safe (machine-checked proof obligation)
