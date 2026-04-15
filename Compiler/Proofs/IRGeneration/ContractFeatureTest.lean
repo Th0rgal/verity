@@ -113,6 +113,7 @@ private def literalMappingWrite_supported_spec :
         noEvents := rfl
         noErrors := rfl
         noExternals := rfl
+        noAdtTypes := rfl
         noFallback := literalMappingWrite_noFallback
         noReceive := literalMappingWrite_noReceive }
     functions := literalMappingWrite_supported_function }

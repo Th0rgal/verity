@@ -33,10 +33,10 @@ private theorem compiled_functions_forall₂_of_mapM_ok
     (errors : List ErrorDef) :
     ∀ (entries : List (FunctionSpec × Nat)) irFns,
       (entries.mapM fun (entry : FunctionSpec × Nat) =>
-        compileFunctionSpec fields events errors entry.2 entry.1) = Except.ok irFns →
+        compileFunctionSpec fields events errors [] entry.2 entry.1) = Except.ok irFns →
       List.Forall₂
         (fun (entry : FunctionSpec × Nat) irFn =>
-          compileFunctionSpec fields events errors entry.2 entry.1 = Except.ok irFn)
+          compileFunctionSpec fields events errors [] entry.2 entry.1 = Except.ok irFn)
         entries irFns := by
   intro entries
   induction entries with
@@ -46,12 +46,12 @@ private theorem compiled_functions_forall₂_of_mapM_ok
       simp
   | cons entry entries ih =>
       intro irFns hmap
-      rcases hstep : compileFunctionSpec fields events errors entry.2 entry.1 with _ | irFn
+      rcases hstep : compileFunctionSpec fields events errors [] entry.2 entry.1 with _ | irFn
       · simp only [List.mapM_cons, hstep, bind, Except.bind] at hmap
         cases hmap
       · rcases htail : List.mapM
             (fun (entry : FunctionSpec × Nat) =>
-              compileFunctionSpec fields events errors entry.2 entry.1) entries with _ | irFnsTail
+              compileFunctionSpec fields events errors [] entry.2 entry.1) entries with _ | irFnsTail
         · simp only [List.mapM_cons, hstep, htail, bind, Except.bind] at hmap
           cases hmap
         · simp only [List.mapM_cons, hstep, htail, bind, Except.bind] at hmap
@@ -63,11 +63,11 @@ private theorem compiled_internal_functions_forall₂_of_mapM_ok
     (events : List EventDef)
     (errors : List ErrorDef) :
     ∀ (entries : List FunctionSpec) internalDefs,
-      (entries.mapM (compileInternalFunction fields events errors)) =
+      (entries.mapM (compileInternalFunction fields events errors [])) =
         Except.ok internalDefs →
       List.Forall₂
         (fun fn internalDef =>
-          compileInternalFunction fields events errors fn = Except.ok internalDef)
+          compileInternalFunction fields events errors [] fn = Except.ok internalDef)
         entries internalDefs := by
   intro entries
   induction entries with
@@ -77,11 +77,11 @@ private theorem compiled_internal_functions_forall₂_of_mapM_ok
       simp
   | cons entry entries ih =>
       intro internalDefs hmap
-      rcases hstep : compileInternalFunction fields events errors entry with _ | internalDef
+      rcases hstep : compileInternalFunction fields events errors [] entry with _ | internalDef
       · simp only [List.mapM_cons, hstep, bind, Except.bind] at hmap
         cases hmap
       · rcases htail :
-          List.mapM (compileInternalFunction fields events errors) entries with _ | internalDefsTail
+          List.mapM (compileInternalFunction fields events errors []) entries with _ | internalDefsTail
         · simp only [List.mapM_cons, hstep, htail, bind, Except.bind] at hmap
           cases hmap
         · simp only [List.mapM_cons, hstep, htail, bind, Except.bind] at hmap
@@ -381,7 +381,7 @@ private theorem compileValidatedCore_ok_yields_compiled_functions
     (hcore : compileValidatedCore model selectors = Except.ok ir) :
     List.Forall₂
       (fun entry irFn =>
-        compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
       (SourceSemantics.selectorFunctionPairs model selectors)
       ir.functions := by
   have hfallback :
@@ -394,17 +394,17 @@ private theorem compileValidatedCore_ok_yields_compiled_functions
       "receive" model.functions hSupported.noReceive
   unfold compileValidatedCore at hcore
   rw [hSupported.normalizedFields, hSupported.noEvents, hSupported.noErrors,
-    hSupported.noConstructor, hfallback, hreceive] at hcore
+    hSupported.noAdtTypes, hSupported.noConstructor, hfallback, hreceive] at hcore
   simp only [bind, Except.bind, pure, Except.pure] at hcore
   rcases hmap :
       ((model.functions.filter
           (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors).mapM
-        (fun x => compileFunctionSpec model.fields [] [] x.2 x.1) with _ | irFns
+        (fun x => compileFunctionSpec model.fields [] [] [] x.2 x.1) with _ | irFns
   · simp [hmap] at hcore
   · simp [hmap] at hcore
     rcases hinternal :
         (model.functions.filter (·.isInternal)).mapM
-          (compileInternalFunction model.fields [] []) with _ | internalFuncDefs
+          (compileInternalFunction model.fields [] [] []) with _ | internalFuncDefs
     · simp [hinternal] at hcore
     · simp [hinternal, compileConstructor] at hcore
       have hfunctions : ir.functions = irFns := by
@@ -414,7 +414,7 @@ private theorem compileValidatedCore_ok_yields_compiled_functions
       have hcompiled :
           List.Forall₂
             (fun (entry : FunctionSpec × Nat) irFn =>
-              compileFunctionSpec model.fields [] [] entry.2 entry.1 = Except.ok irFn)
+              compileFunctionSpec model.fields [] [] [] entry.2 entry.1 = Except.ok irFn)
             ((model.functions.filter
                 (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors)
             irFns :=
@@ -430,7 +430,7 @@ private theorem compileValidatedCore_ok_yields_compiled_functions_except_mapping
     (hcore : compileValidatedCore model selectors = Except.ok ir) :
     List.Forall₂
       (fun entry irFn =>
-        compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
       (SourceSemantics.selectorFunctionPairs model selectors)
       ir.functions := by
   have hfallback :
@@ -443,17 +443,17 @@ private theorem compileValidatedCore_ok_yields_compiled_functions_except_mapping
       "receive" model.functions hSupported.noReceive
   unfold compileValidatedCore at hcore
   rw [hSupported.normalizedFields, hSupported.noEvents, hSupported.noErrors,
-    hSupported.noConstructor, hfallback, hreceive] at hcore
+    hSupported.noAdtTypes, hSupported.noConstructor, hfallback, hreceive] at hcore
   simp only [bind, Except.bind, pure, Except.pure] at hcore
   rcases hmap :
       ((model.functions.filter
           (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors).mapM
-        (fun x => compileFunctionSpec model.fields [] [] x.2 x.1) with _ | irFns
+        (fun x => compileFunctionSpec model.fields [] [] [] x.2 x.1) with _ | irFns
   · simp [hmap] at hcore
   · simp [hmap] at hcore
     rcases hinternal :
         (model.functions.filter (·.isInternal)).mapM
-          (compileInternalFunction model.fields [] []) with _ | internalFuncDefs
+          (compileInternalFunction model.fields [] [] []) with _ | internalFuncDefs
     · simp [hinternal] at hcore
     · simp [hinternal, compileConstructor] at hcore
       have hfunctions : ir.functions = irFns := by
@@ -463,7 +463,7 @@ private theorem compileValidatedCore_ok_yields_compiled_functions_except_mapping
       have hcompiled :
           List.Forall₂
             (fun (entry : FunctionSpec × Nat) irFn =>
-              compileFunctionSpec model.fields [] [] entry.2 entry.1 = Except.ok irFn)
+              compileFunctionSpec model.fields [] [] [] entry.2 entry.1 = Except.ok irFn)
             ((model.functions.filter
                 (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors)
             irFns :=
@@ -525,12 +525,12 @@ private theorem compileValidatedCore_ok_yields_internalFunctions_nil
     hSupported.contractUsesDynamicBytesEq_eq_false
   unfold compileValidatedCore at hcore
   rw [hSupported.normalizedFields, hfallback, hreceive, harray, hstorageArray,
-    hdynamicBytesEq, hnoInternalFns, hSupported.noConstructor] at hcore
+    hdynamicBytesEq, hnoInternalFns, hSupported.noConstructor, hSupported.noAdtTypes] at hcore
   simp only [bind, Except.bind, pure, Except.pure, List.mapM_nil] at hcore
   rcases hmap :
       ((model.functions.filter
           (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors).mapM
-        (fun x => compileFunctionSpec model.fields model.events model.errors x.2 x.1) with _ | irFns
+        (fun x => compileFunctionSpec model.fields model.events model.errors [] x.2 x.1) with _ | irFns
   · simp [hmap] at hcore
   · simp [hmap, compileConstructor] at hcore
     injection hcore with hir
@@ -583,7 +583,7 @@ theorem interpretContract_correct_of_ir_functions
     (hcompiled :
       List.Forall₂
         (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+          compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
         (SourceSemantics.selectorFunctionPairs model selectors)
         irFns)
     (hparamsSupported :
@@ -592,7 +592,7 @@ theorem interpretContract_correct_of_ir_functions
     (hfunction :
       ∀ fn sel irFn bindings,
         fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn →
         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
         FunctionBody.sourceResultMatchesIRResult
           (SourceSemantics.interpretFunction model fn tx initialWorld)
@@ -622,7 +622,7 @@ theorem compile_preserves_semantics_of_compiled_functions
     (hcompiled :
       List.Forall₂
         (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+          compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
         (SourceSemantics.selectorFunctionPairs model selectors)
         ir.functions)
     (hparamsSupported :
@@ -631,7 +631,7 @@ theorem compile_preserves_semantics_of_compiled_functions
     (hfunction :
       ∀ fn sel irFn bindings,
         fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn →
         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
         FunctionBody.sourceResultMatchesIRResult
           (SourceSemantics.interpretFunction model fn tx initialWorld)
@@ -662,7 +662,7 @@ theorem compile_ok_yields_compiled_functions
     (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
     List.Forall₂
       (fun entry irFn =>
-        compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
       (SourceSemantics.selectorFunctionPairs model selectors)
       ir.functions := by
   unfold CompilationModel.compile at hcompile
@@ -685,7 +685,7 @@ theorem compile_ok_yields_compiled_functions_except_mapping_writes
     (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
     List.Forall₂
       (fun entry irFn =>
-        compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
       (SourceSemantics.selectorFunctionPairs model selectors)
       ir.functions := by
   unfold CompilationModel.compile at hcompile
@@ -750,12 +750,12 @@ theorem compile_ok_yields_internalFunctions_nil_except_mapping_writes
   · simp [hvalidate] at hcompile
     unfold compileValidatedCore at hcompile
     rw [hSupported.normalizedFields, hfallback, hreceive, harray, hstorageArray,
-      hdynamicBytesEq, hnoInternalFns, hSupported.noConstructor] at hcompile
+      hdynamicBytesEq, hnoInternalFns, hSupported.noConstructor, hSupported.noAdtTypes] at hcompile
     simp only [bind, Except.bind, pure, Except.pure, List.mapM_nil] at hcompile
     rcases hmap :
         ((model.functions.filter
             (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors).mapM
-          (fun x => compileFunctionSpec model.fields model.events model.errors x.2 x.1) with _ | irFns
+          (fun x => compileFunctionSpec model.fields model.events model.errors [] x.2 x.1) with _ | irFns
     · simp [hmap] at hcompile
     · simp [hmap, compileConstructor] at hcompile
       injection hcompile with hir
@@ -776,7 +776,7 @@ theorem compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList
     (irFn : IRFunction)
     (hfn : fn ∈ selectorDispatchedFunctions model)
     (hcompileFn :
-      compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn) :
+      compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn) :
     LegacyCompatibleExternalStmtList irFn.body := by
   rcases Function.compileFunctionSpec_ok_components
       model.fields model.events model.errors sel fn irFn hcompileFn with
@@ -809,7 +809,7 @@ theorem compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList_except_ma
     (irFn : IRFunction)
     (hfn : fn ∈ selectorDispatchedFunctions model)
     (hcompileFn :
-      compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn) :
+      compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn) :
     LegacyCompatibleExternalStmtList irFn.body := by
   rcases Function.compileFunctionSpec_ok_components
       model.fields model.events model.errors sel fn irFn hcompileFn with
@@ -841,7 +841,7 @@ private theorem compiled_functions_legacyCompatibleExternalBodies
     ∀ {entries irFns},
       List.Forall₂
         (fun (entry : FunctionSpec × Nat) irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+          compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
         entries
         irFns →
       (∀ entry ∈ entries, entry.1 ∈ selectorDispatchedFunctions model) →
@@ -879,7 +879,7 @@ private theorem compiled_functions_legacyCompatibleExternalBodies_except_mapping
     ∀ {entries irFns},
       List.Forall₂
         (fun (entry : FunctionSpec × Nat) irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+          compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
         entries
         irFns →
       (∀ entry ∈ entries, entry.1 ∈ selectorDispatchedFunctions model) →
@@ -920,7 +920,7 @@ theorem compile_ok_yields_legacyCompatibleExternalBodies
   have hcompiled :
       List.Forall₂
         (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+          compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
         (SourceSemantics.selectorFunctionPairs model selectors)
         ir.functions :=
     compile_ok_yields_compiled_functions
@@ -952,7 +952,7 @@ theorem compile_ok_yields_legacyCompatibleExternalBodies_except_mapping_writes
   have hcompiled :
       List.Forall₂
         (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+          compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
         (SourceSemantics.selectorFunctionPairs model selectors)
         ir.functions :=
     compile_ok_yields_compiled_functions_except_mapping_writes
@@ -1036,7 +1036,7 @@ theorem compileFunctionSpec_correct_generic
     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
     (hfn : fn ∈ selectorDispatchedFunctions model)
     (hcompileFn :
-      compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn)
+      compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings) :
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
@@ -1091,7 +1091,7 @@ theorem compileFunctionSpec_correct_generic_except_mapping_writes
     (hsafety : SupportedStmtListMappingWriteSlotSafety model.fields)
     (hfn : fn ∈ selectorDispatchedFunctions model)
     (hcompileFn :
-      compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn)
+      compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings) :
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceFunctionSemanticsExceptMappingWrites model selectors hSupported fn tx initialWorld)
@@ -1133,7 +1133,7 @@ theorem compileFunctionSpec_correct_generic_except_mapping_writes_stmtSafety
     (hsafety : ∀ stmt ∈ fn.body, StmtMappingWriteSlotSafe model.fields stmt)
     (hfn : fn ∈ selectorDispatchedFunctions model)
     (hcompileFn :
-      compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn)
+      compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings) :
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceFunctionSemanticsExceptMappingWrites model selectors hSupported fn tx initialWorld)
@@ -1180,7 +1180,7 @@ theorem compileFunctionSpec_correct_generic_with_helper_proofs
     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
     (hfn : fn ∈ selectorDispatchedFunctions model)
     (hcompileFn :
-      compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn)
+      compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings) :
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
@@ -1234,7 +1234,7 @@ theorem compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir
     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
     (hfn : fn ∈ selectorDispatchedFunctions model)
     (hcompileFn :
-      compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn)
+      compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
     (hhelperIR :
       execIRFunctionWithInternals runtimeContract 0 irFn tx.args
@@ -1285,7 +1285,7 @@ theorem compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir_of_
     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
     (hfn : fn ∈ selectorDispatchedFunctions model)
     (hcompileFn :
-      compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn)
+      compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
     (hbodyDisjoint :
       YulStmtListCallsDisjointFromInternalTable runtimeContract irFn.body) :
@@ -1351,7 +1351,7 @@ theorem compile_preserves_semantics
   have hcompiled :
       List.Forall₂
         (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+          compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
         (SourceSemantics.selectorFunctionPairs model selectors)
         ir.functions :=
     compile_ok_yields_compiled_functions
@@ -1367,7 +1367,7 @@ theorem compile_preserves_semantics
   have hfunction :
       ∀ fn sel irFn bindings,
         fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn →
         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
         FunctionBody.sourceResultMatchesIRResult
           (SourceSemantics.interpretFunction model fn tx initialWorld)
@@ -1427,7 +1427,7 @@ theorem compile_preserves_semantics_except_mapping_writes
   have hcompiled :
       List.Forall₂
         (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+          compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
         (SourceSemantics.selectorFunctionPairs model selectors)
         ir.functions :=
     compile_ok_yields_compiled_functions_except_mapping_writes
@@ -1443,7 +1443,7 @@ theorem compile_preserves_semantics_except_mapping_writes
   have hfunction :
       ∀ fn sel irFn bindings,
         fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn →
         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
         FunctionBody.sourceResultMatchesIRResult
           (supportedSourceFunctionSemanticsExceptMappingWrites model selectors hSupported fn tx initialWorld)
@@ -1497,7 +1497,7 @@ theorem compile_preserves_semantics_except_mapping_writes_stmtSafety
   have hcompiled :
       List.Forall₂
         (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+          compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
         (SourceSemantics.selectorFunctionPairs model selectors)
         ir.functions :=
     compile_ok_yields_compiled_functions_except_mapping_writes
@@ -1513,7 +1513,7 @@ theorem compile_preserves_semantics_except_mapping_writes_stmtSafety
   have hfunction :
       ∀ fn sel irFn bindings,
         fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn →
         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
         FunctionBody.sourceResultMatchesIRResult
           (supportedSourceFunctionSemanticsExceptMappingWrites model selectors hSupported fn tx initialWorld)
@@ -1665,7 +1665,7 @@ theorem compile_preserves_semantics_with_helper_proofs
   have hcompiled :
       List.Forall₂
         (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+          compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
         (SourceSemantics.selectorFunctionPairs model selectors)
         ir.functions :=
     compile_ok_yields_compiled_functions
@@ -1681,7 +1681,7 @@ theorem compile_preserves_semantics_with_helper_proofs
   have hfunction :
       ∀ fn sel irFn bindings,
         fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn →
         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
         FunctionBody.sourceResultMatchesIRResult
           (SourceSemantics.interpretFunction model fn tx initialWorld)

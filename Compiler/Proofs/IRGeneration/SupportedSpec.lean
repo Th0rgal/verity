@@ -1457,6 +1457,7 @@ structure SupportedSpecSurface (spec : CompilationModel) : Prop where
   noEvents : spec.events = []
   noErrors : spec.errors = []
   noExternals : spec.externals = []
+  noAdtTypes : spec.adtTypes = []
   noFallback :
     ∀ fn ∈ spec.functions, fn.name != "fallback"
   noReceive :
@@ -4291,6 +4292,18 @@ theorem SupportedSpecExceptMappingWrites.noExternals
     spec.externals = [] :=
   hSupported.surface.noExternals
 
+theorem SupportedSpec.noAdtTypes
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors) :
+    spec.adtTypes = [] :=
+  hSupported.surface.noAdtTypes
+
+theorem SupportedSpecExceptMappingWrites.noAdtTypes
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpecExceptMappingWrites spec selectors) :
+    spec.adtTypes = [] :=
+  hSupported.surface.noAdtTypes
+
 theorem SupportedSpec.noFallback
     {spec : CompilationModel} {selectors : List Nat}
     (hSupported : SupportedSpec spec selectors) :
@@ -4494,6 +4507,7 @@ def counter_supported_spec : SupportedSpec counterSupportedSpecModel
         noEvents := rfl
         noErrors := rfl
         noExternals := rfl
+        noAdtTypes := rfl
         noFallback := counter_noFallback
         noReceive := counter_noReceive }
     functions := counter_supported_function }
@@ -4574,6 +4588,7 @@ def simpleStorage_supported_spec : SupportedSpec simpleStorageSupportedSpecModel
         noEvents := rfl
         noErrors := rfl
         noExternals := rfl
+        noAdtTypes := rfl
         noFallback := simpleStorage_noFallback
         noReceive := simpleStorage_noReceive }
     functions := simpleStorage_supported_function }

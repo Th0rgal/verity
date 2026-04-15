@@ -173,8 +173,8 @@ theorem compileFunctionSpec_ok_of_components
     (hreturns : functionReturns spec = Except.ok returns)
     (hbody :
       compileStmtList fields events errors .calldata [] false
-        (spec.params.map (·.name)) spec.body = Except.ok bodyStmts) :
-    compileFunctionSpec fields events errors selector spec =
+        (spec.params.map (·.name)) [] spec.body = Except.ok bodyStmts) :
+    compileFunctionSpec fields events errors [] selector spec =
       Except.ok (compiledFunctionIR selector spec returns bodyStmts) := by
   unfold CompilationModel.compileFunctionSpec
   rw [hvalidate, hreturns, hbody]
@@ -183,7 +183,7 @@ theorem compileFunctionSpec_ok_of_components
 theorem compileFunctionSpec_ok_params
     (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
     (selector : Nat) (spec : FunctionSpec) (irFn : IRFunction)
-    (hcompile : compileFunctionSpec fields events errors selector spec = Except.ok irFn) :
+    (hcompile : compileFunctionSpec fields events errors [] selector spec = Except.ok irFn) :
     irFn.params = spec.params.map Param.toIRParam := by
   unfold CompilationModel.compileFunctionSpec at hcompile
   cases hvalidate : validateFunctionSpec spec
@@ -196,7 +196,7 @@ theorem compileFunctionSpec_ok_params
     case ok returns =>
       cases hbody :
           compileStmtList fields events errors .calldata [] false
-            (spec.params.map (·.name)) spec.body
+            (spec.params.map (·.name)) [] spec.body
       · rw [hvalidate, hreturns, hbody] at hcompile
         cases hcompile
       case ok bodyStmts =>
@@ -207,7 +207,7 @@ theorem compileFunctionSpec_ok_params
 theorem compileFunctionSpec_ok_selector
     (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
     (selector : Nat) (spec : FunctionSpec) (irFn : IRFunction)
-    (hcompile : compileFunctionSpec fields events errors selector spec = Except.ok irFn) :
+    (hcompile : compileFunctionSpec fields events errors [] selector spec = Except.ok irFn) :
     irFn.selector = selector := by
   unfold CompilationModel.compileFunctionSpec at hcompile
   cases hvalidate : validateFunctionSpec spec
@@ -220,7 +220,7 @@ theorem compileFunctionSpec_ok_selector
     case ok returns =>
       cases hbody :
           compileStmtList fields events errors .calldata [] false
-            (spec.params.map (·.name)) spec.body
+            (spec.params.map (·.name)) [] spec.body
       · rw [hvalidate, hreturns, hbody] at hcompile
         cases hcompile
       case ok bodyStmts =>
@@ -231,12 +231,12 @@ theorem compileFunctionSpec_ok_selector
 theorem compileFunctionSpec_ok_components
     (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
     (selector : Nat) (spec : FunctionSpec) (irFn : IRFunction)
-    (hcompile : compileFunctionSpec fields events errors selector spec = Except.ok irFn) :
+    (hcompile : compileFunctionSpec fields events errors [] selector spec = Except.ok irFn) :
     ∃ returns bodyStmts,
       validateFunctionSpec spec = Except.ok () ∧
       functionReturns spec = Except.ok returns ∧
       compileStmtList fields events errors .calldata [] false
-        (spec.params.map (·.name)) spec.body = Except.ok bodyStmts ∧
+        (spec.params.map (·.name)) [] spec.body = Except.ok bodyStmts ∧
       irFn = compiledFunctionIR selector spec returns bodyStmts := by
   unfold CompilationModel.compileFunctionSpec at hcompile
   cases hvalidate : validateFunctionSpec spec
@@ -249,7 +249,7 @@ theorem compileFunctionSpec_ok_components
     case ok returns =>
       cases hbody :
           compileStmtList fields events errors .calldata [] false
-            (spec.params.map (·.name)) spec.body
+            (spec.params.map (·.name)) [] spec.body
       · rw [hvalidate, hreturns, hbody] at hcompile
         cases hcompile
       case ok bodyStmts =>
@@ -720,7 +720,7 @@ theorem supported_function_body_correct_from_exact_state_core
     (hcore : FunctionBody.StmtListCompileCore (fn.params.map (·.name)) fn.body)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) [] fn.body = Except.ok bodyStmts)
     (hstateRuntime :
       FunctionBody.runtimeStateMatchesIR
         (SourceSemantics.effectiveFields model)
@@ -758,7 +758,7 @@ theorem supported_function_body_correct_from_exact_state_core
     simpa [FunctionBody.runtimeStateMatchesIR] using hstateRuntime
   have hbodyCompile' :
       compileStmtList (SourceSemantics.effectiveFields model) [] []
-        .calldata [] false (fn.params.map (·.name)) fn.body = Except.ok bodyStmts := by
+        .calldata [] false (fn.params.map (·.name)) [] fn.body = Except.ok bodyStmts := by
     simpa [hnormalized, hnoEvents, hnoErrors] using hbodyCompile
   rcases FunctionBody.exec_compileStmtList_core
       (fields := SourceSemantics.effectiveFields model)
@@ -794,7 +794,7 @@ theorem supported_function_body_correct_from_exact_state_core_extraFuel
     (hcore : FunctionBody.StmtListCompileCore (fn.params.map (·.name)) fn.body)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) [] fn.body = Except.ok bodyStmts)
     (hstateRuntime :
       FunctionBody.runtimeStateMatchesIR
         (SourceSemantics.effectiveFields model)
@@ -832,7 +832,7 @@ theorem supported_function_body_correct_from_exact_state_core_extraFuel
     simpa [FunctionBody.runtimeStateMatchesIR] using hstateRuntime
   have hbodyCompile' :
       compileStmtList (SourceSemantics.effectiveFields model) [] []
-        .calldata [] false (fn.params.map (·.name)) fn.body = Except.ok bodyStmts := by
+        .calldata [] false (fn.params.map (·.name)) [] fn.body = Except.ok bodyStmts := by
     simpa [hnormalized, hnoEvents, hnoErrors] using hbodyCompile
   rcases FunctionBody.exec_compileStmtList_core_extraFuel
       (fields := SourceSemantics.effectiveFields model)
@@ -869,7 +869,7 @@ theorem supported_function_body_correct_from_exact_state_terminal_core_extraFuel
     (hterminal : FunctionBody.StmtListTerminalCore (fn.params.map (·.name)) fn.body)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) [] fn.body = Except.ok bodyStmts)
     (hstateRuntime :
       FunctionBody.runtimeStateMatchesIR
         (SourceSemantics.effectiveFields model)
@@ -911,7 +911,7 @@ theorem supported_function_body_correct_from_exact_state_terminal_core_extraFuel
     simpa [FunctionBody.runtimeStateMatchesIR] using hstateRuntime
   have hbodyCompile' :
       compileStmtList (SourceSemantics.effectiveFields model) [] []
-        .calldata [] false (fn.params.map (·.name)) fn.body = Except.ok bodyStmts := by
+        .calldata [] false (fn.params.map (·.name)) [] fn.body = Except.ok bodyStmts := by
     simpa [hnormalized, hnoEvents, hnoErrors] using hbodyCompile
   let sizeSlack := extraFuel - (sizeOf bodyStmts - bodyStmts.length)
   rcases FunctionBody.exec_compileStmtList_terminal_core_sizeOf_extraFuel
@@ -965,8 +965,8 @@ theorem compileFunctionSpec_correct_of_body
     (hreturns : functionReturns fn = Except.ok returns)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
-    (hcompile : compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
+        (fn.params.map (·.name)) [] fn.body = Except.ok bodyStmts)
+    (hcompile : compileFunctionSpec model.fields model.events model.errors [] selector fn = Except.ok irFn)
     (hparamsSupported : ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
     (hcalldataSizeFits : TxCalldataSizeFitsEvm tx)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
@@ -1041,11 +1041,11 @@ theorem compileFunctionSpec_correct_of_body_normalized_extraFuel
       compileStmtList
         (applySlotAliasRanges model.fields model.slotAliasRanges)
         model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) [] fn.body = Except.ok bodyStmts)
     (hcompile :
       compileFunctionSpec
         (applySlotAliasRanges model.fields model.slotAliasRanges)
-        model.events model.errors selector fn = Except.ok irFn)
+        model.events model.errors [] selector fn = Except.ok irFn)
     (hparamsSupported : ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
     (hcalldataSizeFits : TxCalldataSizeFitsEvm tx)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
@@ -1072,10 +1072,10 @@ theorem compileFunctionSpec_correct_of_body_normalized_extraFuel
   let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
   have hbodyCompile' :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts := by
+        (fn.params.map (·.name)) [] fn.body = Except.ok bodyStmts := by
     simpa [hnormalized] using hbodyCompile
   have hcompile' :
-      compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn := by
+      compileFunctionSpec model.fields model.events model.errors [] selector fn = Except.ok irFn := by
     simpa [hnormalized] using hcompile
   have hcompiled :=
     compileFunctionSpec_ok_of_components model.fields model.events model.errors
@@ -1128,11 +1128,11 @@ theorem compileFunctionSpec_correct_of_body_supported_extraFuel
       compileStmtList
         (applySlotAliasRanges model.fields model.slotAliasRanges)
         model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) [] fn.body = Except.ok bodyStmts)
     (hcompile :
       compileFunctionSpec
         (applySlotAliasRanges model.fields model.slotAliasRanges)
-        model.events model.errors selector fn = Except.ok irFn)
+        model.events model.errors [] selector fn = Except.ok irFn)
     (hparamsSupported : ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
     (hcalldataSizeFits : TxCalldataSizeFitsEvm tx)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
@@ -1181,9 +1181,9 @@ theorem supported_function_correct
     (hreturns : functionReturns fn = Except.ok returns)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) [] fn.body = Except.ok bodyStmts)
     (hcompile :
-      compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
+      compileFunctionSpec model.fields model.events model.errors [] selector fn = Except.ok irFn)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
     (htxNormalized : TxContextNormalized tx)
     (hcalldataSizeFits : TxCalldataSizeFitsEvm tx) :
@@ -1437,9 +1437,10 @@ theorem supported_function_correct
           (by simpa [SourceSemantics.effectiveFields] using hSupported.normalizedFields)
           hSupported.noEvents
           hSupported.noErrors
+          hSupported.noAdtTypes
           hsupportedFn.body.helperSurfaceClosed
           hhelperFree
-          hbodyCompile
+          (by rw [hSupported.noAdtTypes]; exact hbodyCompile)
           hscope
           hbounded
           hbodyStateRuntime
@@ -1536,9 +1537,9 @@ theorem supported_function_correct_with_helper_proofs_body_goal
     (hreturns : functionReturns fn = Except.ok returns)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) [] fn.body = Except.ok bodyStmts)
     (hcompile :
-      compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
+      compileFunctionSpec model.fields model.events model.errors [] selector fn = Except.ok irFn)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
     (htxNormalized : TxContextNormalized tx)
     (extraFuel : Nat)
@@ -1655,9 +1656,9 @@ theorem supported_function_correct_with_helper_proofs_body_goal_and_helper_ir
     (hreturns : functionReturns fn = Except.ok returns)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) [] fn.body = Except.ok bodyStmts)
     (hcompile :
-      compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
+      compileFunctionSpec model.fields model.events model.errors [] selector fn = Except.ok irFn)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
     (htxNormalized : TxContextNormalized tx)
     (extraFuel : Nat)
@@ -1734,9 +1735,9 @@ theorem supported_function_correct_with_helper_proofs_body_goal_and_helper_ir_of
     (hreturns : functionReturns fn = Except.ok returns)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) [] fn.body = Except.ok bodyStmts)
     (hcompile :
-      compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
+      compileFunctionSpec model.fields model.events model.errors [] selector fn = Except.ok irFn)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
     (htxNormalized : TxContextNormalized tx)
     (extraFuel : Nat)
@@ -1801,6 +1802,7 @@ theorem supported_function_correct_with_body_interface_except_mapping_writes
       applySlotAliasRanges model.fields model.slotAliasRanges = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
+    (hnoAdtTypes : model.adtTypes = [])
     (hparams : SupportedParamProfile fn.params)
     (hBody : SupportedBodyInterfaceExceptMappingWrites model fn)
     (hnoConflict : firstFieldWriteSlotConflict model.fields = none)
@@ -1816,9 +1818,9 @@ theorem supported_function_correct_with_body_interface_except_mapping_writes
     (hreturns : functionReturns fn = Except.ok returns)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) [] fn.body = Except.ok bodyStmts)
     (hcompile :
-      compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
+      compileFunctionSpec model.fields model.events model.errors [] selector fn = Except.ok irFn)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
     (htxNormalized : TxContextNormalized tx)
     (hcalldataSizeFits : TxCalldataSizeFitsEvm tx) :
@@ -1962,9 +1964,10 @@ theorem supported_function_correct_with_body_interface_except_mapping_writes
         (by simpa [SourceSemantics.effectiveFields] using hnormalized)
         hnoEvents
         hnoErrors
+        hnoAdtTypes
         hBody.helperSurfaceClosed
         hhelperFree
-        hbodyCompile
+        (by rw [hnoAdtTypes]; exact hbodyCompile)
         hscope
         hbounded
         hbodyStateRuntime
@@ -2071,6 +2074,7 @@ theorem supported_function_correct_with_body_interface_except_mapping_writes_stm
       applySlotAliasRanges model.fields model.slotAliasRanges = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
+    (hnoAdtTypes : model.adtTypes = [])
     (hparams : SupportedParamProfile fn.params)
     (hBody : SupportedBodyInterfaceExceptMappingWrites model fn)
     (hnoConflict : firstFieldWriteSlotConflict model.fields = none)
@@ -2086,9 +2090,9 @@ theorem supported_function_correct_with_body_interface_except_mapping_writes_stm
     (hreturns : functionReturns fn = Except.ok returns)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) [] fn.body = Except.ok bodyStmts)
     (hcompile :
-      compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
+      compileFunctionSpec model.fields model.events model.errors [] selector fn = Except.ok irFn)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
     (htxNormalized : TxContextNormalized tx)
     (hcalldataSizeFits : TxCalldataSizeFitsEvm tx) :
@@ -2221,9 +2225,10 @@ theorem supported_function_correct_with_body_interface_except_mapping_writes_stm
         (by simpa [SourceSemantics.effectiveFields] using hnormalized)
         hnoEvents
         hnoErrors
+        hnoAdtTypes
         hBody.helperSurfaceClosed
         hhelperFree
-        hbodyCompile
+        (by rw [hnoAdtTypes]; exact hbodyCompile)
         hscope
         hbounded
         hbodyStateRuntime
@@ -2333,7 +2338,7 @@ theorem supported_function_correct_except_mapping_writes
     (bindings : List (String × Nat))
     (hfn : fn ∈ selectorDispatchedFunctions model)
     (hcompileFn :
-      compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
+      compileFunctionSpec model.fields model.events model.errors [] selector fn = Except.ok irFn)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
     (hnoConflict : firstFieldWriteSlotConflict model.fields = none)
     (hsafety : SupportedStmtListMappingWriteSlotSafety model.fields)
@@ -2354,6 +2359,7 @@ theorem supported_function_correct_except_mapping_writes
       (hnormalized := hSupported.normalizedFields)
       (hnoEvents := hSupported.noEvents)
       (hnoErrors := hSupported.noErrors)
+      (hnoAdtTypes := hSupported.noAdtTypes)
       (hparams := (hSupported.supportedFunctionOfSelectorDispatched hfn).params)
       (hBody := (hSupported.supportedFunctionOfSelectorDispatched hfn).body)
       (hnoConflict := hnoConflict)
@@ -2388,7 +2394,7 @@ theorem supported_function_correct_except_mapping_writes_stmtSafety
     (bindings : List (String × Nat))
     (hfn : fn ∈ selectorDispatchedFunctions model)
     (hcompileFn :
-      compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
+      compileFunctionSpec model.fields model.events model.errors [] selector fn = Except.ok irFn)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
     (hnoConflict : firstFieldWriteSlotConflict model.fields = none)
     (hsafety : ∀ stmt ∈ fn.body, StmtMappingWriteSlotSafe model.fields stmt)
@@ -2409,6 +2415,7 @@ theorem supported_function_correct_except_mapping_writes_stmtSafety
       (hnormalized := hSupported.normalizedFields)
       (hnoEvents := hSupported.noEvents)
       (hnoErrors := hSupported.noErrors)
+      (hnoAdtTypes := hSupported.noAdtTypes)
       (hparams := (hSupported.supportedFunctionOfSelectorDispatched hfn).params)
       (hBody := (hSupported.supportedFunctionOfSelectorDispatched hfn).body)
       (hnoConflict := hnoConflict)
@@ -2455,9 +2462,9 @@ theorem supported_function_correct_with_helper_proofs_goal
     (hreturns : functionReturns fn = Except.ok returns)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) [] fn.body = Except.ok bodyStmts)
     (hcompile :
-      compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
+      compileFunctionSpec model.fields model.events model.errors [] selector fn = Except.ok irFn)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
     (htxNormalized : TxContextNormalized tx)
     (hbodyHelperGoal :
@@ -2597,9 +2604,10 @@ theorem supported_function_correct_with_helper_proofs_goal
         (by simpa [SourceSemantics.effectiveFields] using hSupported.normalizedFields)
         hSupported.noEvents
         hSupported.noErrors
+        hSupported.noAdtTypes
         hsupportedFn.body.helperSurfaceClosed
         hhelperFree
-        hbodyCompile
+        (hSupported.noAdtTypes ▸ hbodyCompile)
         hscope
         hbounded
         hbodyStateRuntime
@@ -2638,9 +2646,9 @@ theorem supported_function_correct_with_helper_proofs
     (hreturns : functionReturns fn = Except.ok returns)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) [] fn.body = Except.ok bodyStmts)
     (hcompile :
-      compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
+      compileFunctionSpec model.fields model.events model.errors [] selector fn = Except.ok irFn)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
     (htxNormalized : TxContextNormalized tx)
     (hcalldataSizeFits : TxCalldataSizeFitsEvm tx) :

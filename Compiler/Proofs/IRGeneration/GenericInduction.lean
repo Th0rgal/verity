@@ -112,7 +112,7 @@ structure CompiledStmtStep
     (stmt : Stmt)
     (compiledIR : List YulStmt) : Prop where
   compileOk :
-    CompilationModel.compileStmt fields [] [] .calldata [] false scope stmt =
+    CompilationModel.compileStmt fields [] [] .calldata [] false scope [] stmt =
       Except.ok compiledIR
   preserves :
     ∀ (runtime : SourceSemantics.RuntimeState)
@@ -138,7 +138,7 @@ structure CompiledStmtStepWithHelpers
     (stmt : Stmt)
     (compiledIR : List YulStmt) : Prop where
   compileOk :
-    CompilationModel.compileStmt fields [] [] .calldata [] false scope stmt =
+    CompilationModel.compileStmt fields [] [] .calldata [] false scope [] stmt =
       Except.ok compiledIR
   preserves :
     ∀ (runtime : SourceSemantics.RuntimeState)
@@ -168,7 +168,7 @@ structure CompiledStmtStepWithHelpersAndHelperIR
     (stmt : Stmt)
     (compiledIR : List YulStmt) : Prop where
   compileOk :
-    CompilationModel.compileStmt fields [] [] .calldata [] false scope stmt =
+    CompilationModel.compileStmt fields [] [] .calldata [] false scope [] stmt =
       Except.ok compiledIR
   preserves :
     ∀ (runtime : SourceSemantics.RuntimeState)
@@ -282,7 +282,7 @@ inductive StmtListCompiledLegacyCompatible
       StmtListCompiledLegacyCompatible fields scope []
   | cons {scope : List String} {stmt : Stmt} {rest : List Stmt} :
       (∀ compiledIR,
-        CompilationModel.compileStmt fields [] [] .calldata [] false scope stmt =
+        CompilationModel.compileStmt fields [] [] .calldata [] false scope [] stmt =
           Except.ok compiledIR →
           LegacyCompatibleExternalStmtList compiledIR) →
       StmtListCompiledLegacyCompatible fields (stmtNextScope scope stmt) rest →
@@ -299,7 +299,7 @@ inductive StmtListHelperFreeCompiledLegacyCompatible
   | cons {scope : List String} {stmt : Stmt} {rest : List Stmt} :
       (stmtTouchesUnsupportedHelperSurface stmt = false →
         ∀ compiledIR,
-          CompilationModel.compileStmt fields [] [] .calldata [] false scope stmt =
+          CompilationModel.compileStmt fields [] [] .calldata [] false scope [] stmt =
             Except.ok compiledIR →
             LegacyCompatibleExternalStmtList compiledIR) →
       StmtListHelperFreeCompiledLegacyCompatible fields (stmtNextScope scope stmt) rest →
@@ -317,7 +317,7 @@ inductive StmtListHelperFreeCompiledCallsDisjoint
   | cons {scope : List String} {stmt : Stmt} {rest : List Stmt} :
       (stmtTouchesUnsupportedHelperSurface stmt = false →
         ∀ compiledIR,
-          CompilationModel.compileStmt fields [] [] .calldata [] false scope stmt =
+          CompilationModel.compileStmt fields [] [] .calldata [] false scope [] stmt =
             Except.ok compiledIR →
             YulStmtListCallsDisjointFromInternalTable runtimeContract compiledIR) →
       StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields (stmtNextScope scope stmt) rest →
@@ -650,7 +650,7 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_letVar
     {bodyIR : List YulStmt}
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames (.letVar name value) =
+        fields [] [] .calldata [] false inScopeNames [] (.letVar name value) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   unfold CompilationModel.compileStmt at hcompile
@@ -668,7 +668,7 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_assignVar
     {bodyIR : List YulStmt}
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames (.assignVar name value) =
+        fields [] [] .calldata [] false inScopeNames [] (.assignVar name value) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   unfold CompilationModel.compileStmt at hcompile
@@ -686,7 +686,7 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_require
     {bodyIR : List YulStmt}
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames (.require cond message) =
+        fields [] [] .calldata [] false inScopeNames [] (.require cond message) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   unfold CompilationModel.compileStmt at hcompile
@@ -708,7 +708,7 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_return
     {bodyIR : List YulStmt}
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames (.return value) =
+        fields [] [] .calldata [] false inScopeNames [] (.return value) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   unfold CompilationModel.compileStmt at hcompile
@@ -730,7 +730,7 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_stop
     {bodyIR : List YulStmt}
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames .stop =
+        fields [] [] .calldata [] false inScopeNames [] .stop =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   unfold CompilationModel.compileStmt at hcompile
@@ -748,7 +748,7 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_mstore
     {bodyIR : List YulStmt}
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames (.mstore offset value) =
+        fields [] [] .calldata [] false inScopeNames [] (.mstore offset value) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   unfold CompilationModel.compileStmt at hcompile
@@ -772,7 +772,7 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_tstore
     {bodyIR : List YulStmt}
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames (.tstore offset value) =
+        fields [] [] .calldata [] false inScopeNames [] (.tstore offset value) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   unfold CompilationModel.compileStmt at hcompile
@@ -803,7 +803,7 @@ theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractS
     (hsurface : stmtTouchesUnsupportedContractSurface stmt = false)
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames stmt = Except.ok bodyIR) :
+        fields [] [] .calldata [] false inScopeNames [] stmt = Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   cases stmt with
   | letVar name value =>
@@ -845,11 +845,11 @@ theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractS
       | error e => simp [hcond] at hcompile
       | ok condIR =>
           simp only [hcond] at hcompile
-          cases hthen : CompilationModel.compileStmtList fields [] [] .calldata [] false inScopeNames thenBranch with
+          cases hthen : CompilationModel.compileStmtList fields [] [] .calldata [] false inScopeNames [] thenBranch with
           | error e => simp [hthen] at hcompile
           | ok thenIR =>
               simp only [hthen] at hcompile
-              cases helse : CompilationModel.compileStmtList fields [] [] .calldata [] false inScopeNames elseBranch with
+              cases helse : CompilationModel.compileStmtList fields [] [] .calldata [] false inScopeNames [] elseBranch with
               | error e => simp [helse] at hcompile
               | ok elseIR =>
                   simp only [helse] at hcompile
@@ -884,7 +884,7 @@ theorem legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContr
     (hsurface : stmtListTouchesUnsupportedContractSurface stmts = false)
     (hcompile :
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR) :
+        fields [] [] .calldata [] false inScopeNames [] stmts = Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   match stmts with
   | [] =>
@@ -1516,7 +1516,7 @@ theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractS
     (hsurface : stmtTouchesUnsupportedContractSurfaceExceptMappingWrites stmt = false)
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames stmt = Except.ok bodyIR) :
+        fields [] [] .calldata [] false inScopeNames [] stmt = Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   cases stmt with
   | setMapping field key value =>
@@ -1574,7 +1574,8 @@ theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractS
   | returndataCopy _ _ _ | revertReturndata | stop
   | ite _ _ _ | forEach _ _ _ | emit _ _
   | internalCall _ _ | internalCallAssign _ _ _ | rawLog _ _ _
-  | externalCallBind _ _ _ | tryExternalCallBind _ _ _ _ | ecm _ _ =>
+  | externalCallBind _ _ _ | tryExternalCallBind _ _ _ _ | ecm _ _
+  | unsafeBlock _ _ | matchAdt _ _ _ =>
       exact legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface
         hnoPacked
         (by simpa [stmtTouchesUnsupportedContractSurfaceExceptMappingWrites] using hsurface)
@@ -1614,7 +1615,7 @@ theorem legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContr
     (hsurface : stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites stmts = false)
     (hcompile :
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR) :
+        fields [] [] .calldata [] false inScopeNames [] stmts = Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   match stmts with
   | [] =>
@@ -2872,13 +2873,13 @@ private theorem compileStmt_ok_of_compileStmtList_append_cons
     {bodyIR : List YulStmt}
     (hcompile :
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false scope («prefix» ++ stmt :: «suffix») =
+        fields [] [] .calldata [] false scope [] («prefix» ++ stmt :: «suffix») =
           Except.ok bodyIR) :
     ∃ stmtIR,
       CompilationModel.compileStmt
         fields [] [] .calldata [] false
           (List.foldl (fun acc s => collectStmtNames s ++ acc) scope «prefix»)
-          stmt = Except.ok stmtIR := by
+          [] stmt = Except.ok stmtIR := by
   induction «prefix» generalizing scope bodyIR with
   | nil => rcases FunctionBody.compileStmtList_cons_ok_inv hcompile with ⟨hd, _, hstmt, _⟩; exact ⟨hd, hstmt⟩
   | cons s rest ih =>
@@ -2893,7 +2894,7 @@ private theorem isMapping_false_of_compileStmt_setStorage_ok
     {compiledIR : List YulStmt}
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false scope (.setStorage fieldName value) =
+        fields [] [] .calldata [] false scope [] (.setStorage fieldName value) =
           Except.ok compiledIR) :
     isMapping fields fieldName = false := by
   simp only [CompilationModel.compileStmt] at hcompile
@@ -2907,26 +2908,26 @@ private theorem compileStmt_ite_ok_inv
     {compiledIR : List YulStmt}
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false scope (.ite cond thenBranch elseBranch) =
+        fields [] [] .calldata [] false scope [] (.ite cond thenBranch elseBranch) =
           Except.ok compiledIR) :
     ∃ condIR thenIR elseIR,
       CompilationModel.compileExpr fields .calldata cond = Except.ok condIR ∧
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false scope thenBranch = Except.ok thenIR ∧
+        fields [] [] .calldata [] false scope [] thenBranch = Except.ok thenIR ∧
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false scope elseBranch = Except.ok elseIR := by
+        fields [] [] .calldata [] false scope [] elseBranch = Except.ok elseIR := by
   unfold CompilationModel.compileStmt at hcompile
   rcases hcond : CompilationModel.compileExpr fields .calldata cond with _ | condIR
   · simp [hcond] at hcompile
     cases hcompile
   · simp [hcond] at hcompile
     rcases hthen : CompilationModel.compileStmtList
-        fields [] [] .calldata [] false scope thenBranch with _ | thenIR
+        fields [] [] .calldata [] false scope [] thenBranch with _ | thenIR
     · simp [hthen] at hcompile
       cases hcompile
     · simp [hthen] at hcompile
       rcases helse : CompilationModel.compileStmtList
-          fields [] [] .calldata [] false scope elseBranch with _ | elseIR
+          fields [] [] .calldata [] false scope [] elseBranch with _ | elseIR
       · simp [helse] at hcompile
         cases hcompile
       ·
@@ -2945,7 +2946,7 @@ private theorem stmtListScopeCore_of_unsupportedContractSurface_eq_false
     (hsurface : stmtListTouchesUnsupportedContractSurface stmts = false)
     (hcompile :
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false scope stmts = Except.ok bodyIR) :
+        fields [] [] .calldata [] false scope [] stmts = Except.ok bodyIR) :
     StmtListScopeCore (fields.map (·.name)) stmts := by
   match stmts with
   | [] => exact StmtListScopeCore.nil
@@ -3023,7 +3024,7 @@ theorem stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsuppo
       stmtListTouchesUnsupportedContractSurface («prefix» ++ «suffix») = false)
     (hcompile :
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false scope («prefix» ++ «suffix») =
+        fields [] [] .calldata [] false scope [] («prefix» ++ «suffix») =
           Except.ok bodyIR) :
     StmtListScopeCore (fields.map (·.name)) «prefix» := by
   induction «prefix» generalizing scope «suffix» bodyIR with
@@ -3113,7 +3114,8 @@ theorem stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsuppo
       | returnBytes _ | returnStorageWords _ | calldatacopy _ _ _
       | returndataCopy _ _ _ | revertReturndata | forEach _ _ _
       | emit _ _ | internalCall _ _ | internalCallAssign _ _ _
-      | rawLog _ _ _ | externalCallBind _ _ _ | tryExternalCallBind _ _ _ _ | ecm _ _ =>
+      | rawLog _ _ _ | externalCallBind _ _ _ | tryExternalCallBind _ _ _ _ | ecm _ _
+      | unsafeBlock _ _ | matchAdt _ _ _ =>
           simp [stmtTouchesUnsupportedContractSurface] at hstmtSurface
 
 private theorem stmtTouchesUnsupportedContractSurface_of_stmtListTouchesUnsupportedContractSurface_append_cons
@@ -10537,7 +10539,7 @@ theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunct
     (hbodySurface : stmtListTouchesUnsupportedContractSurface fn.body = false)
     (hbodyCompile :
       CompilationModel.compileStmtList
-        spec.fields [] [] .calldata [] false (fn.params.map (·.name)) fn.body =
+        spec.fields [] [] .calldata [] false (fn.params.map (·.name)) [] fn.body =
           Except.ok bodyIR)
     (hbody : fn.body = «prefix» ++ .setStorage fieldName value :: «suffix»)
     (hfind : findFieldWithResolvedSlot spec.fields fieldName = some (f, slot))
@@ -10620,7 +10622,7 @@ theorem compiledStmtStep_ite
   refine
     { compileOk := ?_
       preserves := ?_ }
-  · show CompilationModel.compileStmt fields [] [] .calldata [] false scope
+  · show CompilationModel.compileStmt fields [] [] .calldata [] false scope []
         (.ite cond thenBranch elseBranch) = Except.ok compiledIR
     unfold CompilationModel.compileStmt
     simp only [hcondIR, hthenIR, helseIR, Except.bind, helseNonempty, ↓reduceIte]
@@ -13595,7 +13597,7 @@ theorem compileStmtList_ok_of_stmtListGenericCore
     (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by
+        fields [] [] .calldata [] false inScopeNames [] stmts = Except.ok bodyIR := by
   induction hgeneric generalizing inScopeNames with
   | nil => exact ⟨[], rfl⟩
   | cons hstep _hrest ih =>
@@ -13620,7 +13622,7 @@ theorem compileStmtList_ok_of_stmtListGenericWithHelpers
     (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by
+        fields [] [] .calldata [] false inScopeNames [] stmts = Except.ok bodyIR := by
   induction hgeneric generalizing inScopeNames with
   | nil => exact ⟨[], rfl⟩
   | cons hstep _hrest ih =>
@@ -13647,7 +13649,7 @@ theorem compileStmtList_ok_of_stmtListGenericWithHelpersAndHelperIR
     (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by
+        fields [] [] .calldata [] false inScopeNames [] stmts = Except.ok bodyIR := by
   induction hgeneric generalizing inScopeNames with
   | nil => exact ⟨[], rfl⟩
   | cons hstep _hrest ih =>
@@ -13889,7 +13891,7 @@ theorem exec_compileStmtList_generic_sizeOf_extraFuel_step
     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false scope stmts = Except.ok bodyIR ∧
+        fields [] [] .calldata [] false scope [] stmts = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmtList fields runtime stmts
       let irExec := execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR
       stmtStepMatchesIRExec
@@ -13908,7 +13910,7 @@ theorem exec_compileStmtList_generic_sizeOf_extraFuel_step
       let bodyIR := compiledIR ++ tailIR
       have hbodyCompile :
           CompilationModel.compileStmtList
-            fields [] [] .calldata [] false scope (stmt :: rest) =
+            fields [] [] .calldata [] false scope [] (stmt :: rest) =
               Except.ok bodyIR := by
         exact FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok
           hstep.compileOk htailCompile
@@ -14047,7 +14049,7 @@ theorem exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel_step
     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false scope stmts = Except.ok bodyIR ∧
+        fields [] [] .calldata [] false scope [] stmts = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmtListWithHelpers spec fields helperFuel runtime stmts
       let irExec := execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR
       stmtStepMatchesIRExec
@@ -14067,7 +14069,7 @@ theorem exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel_step
       let bodyIR := compiledIR ++ tailIR
       have hbodyCompile :
           CompilationModel.compileStmtList
-            fields [] [] .calldata [] false scope (stmt :: rest) =
+            fields [] [] .calldata [] false scope [] (stmt :: rest) =
               Except.ok bodyIR := by
         exact FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok
           hstep.compileOk htailCompile
@@ -14212,7 +14214,7 @@ theorem exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel
     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false scope stmts = Except.ok bodyIR ∧
+        fields [] [] .calldata [] false scope [] stmts = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmtListWithHelpers spec fields helperFuel runtime stmts
       let irExec := execIRStmtsWithInternals runtimeContract (sizeOf bodyIR + extraFuel + 1) state bodyIR
       stmtStepMatchesIRExecWithInternals
@@ -14233,7 +14235,7 @@ theorem exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel
       let bodyIR := compiledIR ++ tailIR
       have hbodyCompile :
           CompilationModel.compileStmtList
-            fields [] [] .calldata [] false scope (stmt :: rest) =
+            fields [] [] .calldata [] false scope [] (stmt :: rest) =
               Except.ok bodyIR := by
         exact FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok
           hstep.compileOk htailCompile
@@ -14385,7 +14387,7 @@ theorem exec_compileStmtList_generic_sizeOf_extraFuel
     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false scope stmts = Except.ok bodyIR ∧
+        fields [] [] .calldata [] false scope [] stmts = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmtList fields runtime stmts
       let irExec := execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR
       FunctionBody.stmtResultMatchesIRExec fields sourceResult irExec := by
@@ -14421,7 +14423,7 @@ theorem exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel
     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false scope stmts = Except.ok bodyIR ∧
+        fields [] [] .calldata [] false scope [] stmts = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmtListWithHelpers spec fields helperFuel runtime stmts
       let irExec := execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR
       FunctionBody.stmtResultMatchesIRExec fields sourceResult irExec := by
@@ -14462,7 +14464,7 @@ theorem exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel
     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false scope stmts = Except.ok bodyIR ∧
+        fields [] [] .calldata [] false scope [] stmts = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmtListWithHelpers spec fields helperFuel runtime stmts
       let irExec := execIRStmtsWithInternals runtimeContract (sizeOf bodyIR + extraFuel + 1) state bodyIR
       stmtResultMatchesIRExecWithInternals fields sourceResult irExec := by
@@ -14499,6 +14501,7 @@ theorem supported_function_body_correct_from_exact_state_generic
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
+    (hnoAdtTypes : model.adtTypes = [])
     (hgeneric :
       StmtListGenericCore
         (SourceSemantics.effectiveFields model)
@@ -14506,7 +14509,7 @@ theorem supported_function_body_correct_from_exact_state_generic
         fn.body)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) model.adtTypes fn.body = Except.ok bodyStmts)
     (hscope :
       FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
     (hbounded : FunctionBody.bindingsBounded bindings)
@@ -14538,8 +14541,8 @@ theorem supported_function_body_correct_from_exact_state_generic
     simpa [FunctionBody.runtimeStateMatchesIR] using hstateRuntime
   have hbodyCompile' :
       compileStmtList (SourceSemantics.effectiveFields model) [] [] .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts := by
-    simpa [hnormalized, hnoEvents, hnoErrors] using hbodyCompile
+        (fn.params.map (·.name)) [] fn.body = Except.ok bodyStmts := by
+    simpa [hnormalized, hnoEvents, hnoErrors, hnoAdtTypes] using hbodyCompile
   have hscopeExact :
       FunctionBody.bindingsExactlyMatchIRVarsOnScope
         (fn.params.map (·.name)) bindings state :=
@@ -14595,6 +14598,7 @@ private theorem supported_function_body_correct_from_exact_state_generic_helper_
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
+    (hnoAdtTypes : model.adtTypes = [])
     (hgeneric :
       StmtListGenericWithHelpers
         model
@@ -14603,7 +14607,7 @@ private theorem supported_function_body_correct_from_exact_state_generic_helper_
         fn.body)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) model.adtTypes fn.body = Except.ok bodyStmts)
     (hscope :
       FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
     (hbounded : FunctionBody.bindingsBounded bindings)
@@ -14638,8 +14642,8 @@ private theorem supported_function_body_correct_from_exact_state_generic_helper_
     simpa [FunctionBody.runtimeStateMatchesIR] using hstateRuntime
   have hbodyCompile' :
       compileStmtList (SourceSemantics.effectiveFields model) [] [] .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts := by
-    simpa [hnormalized, hnoEvents, hnoErrors] using hbodyCompile
+        (fn.params.map (·.name)) [] fn.body = Except.ok bodyStmts := by
+    simpa [hnormalized, hnoEvents, hnoErrors, hnoAdtTypes] using hbodyCompile
   have hscopeExact :
       FunctionBody.bindingsExactlyMatchIRVarsOnScope
         (fn.params.map (·.name)) bindings state :=
@@ -14731,6 +14735,7 @@ private theorem
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
+    (hnoAdtTypes : model.adtTypes = [])
     (hgeneric :
       StmtListGenericWithHelpersAndHelperIR
         runtimeContract
@@ -14740,7 +14745,7 @@ private theorem
         fn.body)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) model.adtTypes fn.body = Except.ok bodyStmts)
     (hscope :
       FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
     (hbounded : FunctionBody.bindingsBounded bindings)
@@ -14766,8 +14771,8 @@ private theorem
     simpa [FunctionBody.runtimeStateMatchesIR] using hstateRuntime
   have hbodyCompile' :
       compileStmtList (SourceSemantics.effectiveFields model) [] [] .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts := by
-    simpa [hnormalized, hnoEvents, hnoErrors] using hbodyCompile
+        (fn.params.map (·.name)) [] fn.body = Except.ok bodyStmts := by
+    simpa [hnormalized, hnoEvents, hnoErrors, hnoAdtTypes] using hbodyCompile
   have hscopeExact :
       FunctionBody.bindingsExactlyMatchIRVarsOnScope
         (fn.params.map (·.name)) bindings state :=
@@ -14952,6 +14957,7 @@ theorem supported_function_body_correct_from_exact_state_generic_helper_steps
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
+    (hnoAdtTypes : model.adtTypes = [])
     (hgeneric :
       StmtListGenericWithHelpers
         model
@@ -14960,7 +14966,7 @@ theorem supported_function_body_correct_from_exact_state_generic_helper_steps
         fn.body)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) model.adtTypes fn.body = Except.ok bodyStmts)
     (hscope :
       FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
     (hbounded : FunctionBody.bindingsBounded bindings)
@@ -14977,7 +14983,7 @@ theorem supported_function_body_correct_from_exact_state_generic_helper_steps
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
   exact supported_function_body_correct_from_exact_state_generic_helper_steps_raw
     model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
-    hextraFuel hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+    hextraFuel hnormalized hnoEvents hnoErrors hnoAdtTypes hgeneric hbodyCompile hscope
     hbounded hstateRuntime hstateBindings
 
 /-- Exact helper-aware body theorem for an exact helper-aware generic
@@ -15000,6 +15006,7 @@ theorem supported_function_body_correct_from_exact_state_generic_helper_steps_an
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
+    (hnoAdtTypes : model.adtTypes = [])
     (hgeneric :
       StmtListGenericWithHelpersAndHelperIR
         runtimeContract
@@ -15009,7 +15016,7 @@ theorem supported_function_body_correct_from_exact_state_generic_helper_steps_an
         fn.body)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) model.adtTypes fn.body = Except.ok bodyStmts)
     (hscope :
       FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
     (hbounded : FunctionBody.bindingsBounded bindings)
@@ -15029,7 +15036,7 @@ theorem supported_function_body_correct_from_exact_state_generic_helper_steps_an
     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir_raw
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
-      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hnoAdtTypes hgeneric hbodyCompile hscope
       hbounded hstateRuntime hstateBindings
 
 theorem supported_function_body_correct_from_exact_state_generic_helper_surface_steps_and_helper_ir
@@ -15048,6 +15055,7 @@ theorem supported_function_body_correct_from_exact_state_generic_helper_surface_
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
+    (hnoAdtTypes : model.adtTypes = [])
     (hhelperFree :
       StmtListHelperFreeStepInterface
         (SourceSemantics.effectiveFields model)
@@ -15067,7 +15075,7 @@ theorem supported_function_body_correct_from_exact_state_generic_helper_surface_
         fn.body)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) model.adtTypes fn.body = Except.ok bodyStmts)
     (hscope :
       FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
     (hbounded : FunctionBody.bindingsBounded bindings)
@@ -15102,7 +15110,7 @@ theorem supported_function_body_correct_from_exact_state_generic_helper_surface_
     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
-      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hnoAdtTypes hgeneric hbodyCompile hscope
       hbounded hstateRuntime hstateBindings
 
 /-- Body-level exact helper-aware bridge over the split helper-positive
@@ -15125,6 +15133,7 @@ theorem supported_function_body_correct_from_exact_state_generic_internal_helper
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
+    (hnoAdtTypes : model.adtTypes = [])
     (hhelperFree :
       StmtListHelperFreeStepInterface
         (SourceSemantics.effectiveFields model)
@@ -15151,7 +15160,7 @@ theorem supported_function_body_correct_from_exact_state_generic_internal_helper
         fn.body)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) model.adtTypes fn.body = Except.ok bodyStmts)
     (hscope :
       FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
     (hbounded : FunctionBody.bindingsBounded bindings)
@@ -15187,7 +15196,7 @@ theorem supported_function_body_correct_from_exact_state_generic_internal_helper
     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
-      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hnoAdtTypes hgeneric hbodyCompile hscope
       hbounded hstateRuntime hstateBindings
 
 /-- Body-level exact helper-aware bridge over the fully split genuine-helper
@@ -15210,6 +15219,7 @@ theorem supported_function_body_correct_from_exact_state_generic_finer_split_int
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
+    (hnoAdtTypes : model.adtTypes = [])
     (hhelperFree :
       StmtListHelperFreeStepInterface
         (SourceSemantics.effectiveFields model)
@@ -15257,7 +15267,7 @@ theorem supported_function_body_correct_from_exact_state_generic_finer_split_int
         fn.body)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) model.adtTypes fn.body = Except.ok bodyStmts)
     (hscope :
       FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
     (hbounded : FunctionBody.bindingsBounded bindings)
@@ -15296,7 +15306,7 @@ theorem supported_function_body_correct_from_exact_state_generic_finer_split_int
     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
-      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hnoAdtTypes hgeneric hbodyCompile hscope
       hbounded hstateRuntime hstateBindings
 
 /-- Body-level exact helper-aware bridge over the fully split genuine-helper
@@ -15319,6 +15329,7 @@ theorem supported_function_body_correct_from_exact_state_generic_split_internal_
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
+    (hnoAdtTypes : model.adtTypes = [])
     (hhelperFree :
       StmtListHelperFreeStepInterface
         (SourceSemantics.effectiveFields model)
@@ -15359,7 +15370,7 @@ theorem supported_function_body_correct_from_exact_state_generic_split_internal_
         fn.body)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) model.adtTypes fn.body = Except.ok bodyStmts)
     (hscope :
       FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
     (hbounded : FunctionBody.bindingsBounded bindings)
@@ -15397,7 +15408,7 @@ theorem supported_function_body_correct_from_exact_state_generic_split_internal_
     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
-      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hnoAdtTypes hgeneric hbodyCompile hscope
       hbounded hstateRuntime hstateBindings
 
 private theorem
@@ -15493,6 +15504,7 @@ theorem supported_function_body_correct_from_exact_state_generic_finer_split_int
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
+    (hnoAdtTypes : model.adtTypes = [])
     (hhelperFree :
       StmtListHelperFreeStepInterface
         (SourceSemantics.effectiveFields model)
@@ -15541,7 +15553,7 @@ theorem supported_function_body_correct_from_exact_state_generic_finer_split_int
         fn.body)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) model.adtTypes fn.body = Except.ok bodyStmts)
     (hscope :
       FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
     (hbounded : FunctionBody.bindingsBounded bindings)
@@ -15571,7 +15583,7 @@ theorem supported_function_body_correct_from_exact_state_generic_finer_split_int
     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
-      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hnoAdtTypes hgeneric hbodyCompile hscope
       hbounded hstateRuntime hstateBindings
 
 /-- Current-fragment disjointness-based wrapper that lands directly in the exact
@@ -15594,6 +15606,7 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers_an
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
+    (hnoAdtTypes : model.adtTypes = [])
     (hnoPacked : ∀ field ∈ model.fields, field.packedBits = none)
     (hcontractSurface : stmtListTouchesUnsupportedContractSurface fn.body = false)
     (hhelperFree :
@@ -15603,7 +15616,7 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers_an
         fn.body)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) model.adtTypes fn.body = Except.ok bodyStmts)
     (hscope :
       FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
     (hbounded : FunctionBody.bindingsBounded bindings)
@@ -15632,7 +15645,7 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers_an
     supported_function_body_correct_from_exact_state_generic_finer_split_internal_helper_surface_steps_and_helper_ir_callsDisjoint
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
-      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hhelperFree
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hnoAdtTypes hhelperFree
       (stmtListDirectInternalHelperCallStepInterface_of_helperSurfaceClosed
         (runtimeContract := runtimeContract)
         (spec := model)
@@ -15693,6 +15706,7 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers_an
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
+    (hnoAdtTypes : model.adtTypes = [])
     (hnoPacked : ∀ field ∈ model.fields, field.packedBits = none)
     (hcontractSurface : stmtListTouchesUnsupportedContractSurface fn.body = false)
     (hhelperFree :
@@ -15702,7 +15716,7 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers_an
         fn.body)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) model.adtTypes fn.body = Except.ok bodyStmts)
     (hscope :
       FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
     (hbounded : FunctionBody.bindingsBounded bindings)
@@ -15738,7 +15752,7 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers_an
     supported_function_body_correct_from_exact_state_generic_with_helpers_and_helper_ir_callsDisjoint
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
-      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hnoPacked hcontractSurface
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hnoAdtTypes hnoPacked hcontractSurface
       hhelperFree hbodyCompile hscope hbounded hstateRuntime hstateBindings hdisjoint
 
 /-- Tier 2 disjointness-based exact helper-aware wrapper for the alternate
@@ -15762,6 +15776,7 @@ theorem
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
+    (hnoAdtTypes : model.adtTypes = [])
     (hnoPacked : ∀ field ∈ model.fields, field.packedBits = none)
     (hcontractSurface :
       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites fn.body = false)
@@ -15774,7 +15789,7 @@ theorem
         fn.body)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) model.adtTypes fn.body = Except.ok bodyStmts)
     (hscope :
       FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
     (hbounded : FunctionBody.bindingsBounded bindings)
@@ -15800,7 +15815,7 @@ theorem
     supported_function_body_correct_from_exact_state_generic_finer_split_internal_helper_surface_steps_and_helper_ir_callsDisjoint
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
-      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hhelperFree
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hnoAdtTypes hhelperFree
       (stmtListDirectInternalHelperCallStepInterface_of_helperSurfaceClosed
         (runtimeContract := runtimeContract)
         (spec := model)
@@ -15859,6 +15874,7 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers_an
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
+    (hnoAdtTypes : model.adtTypes = [])
     (hnoPacked : ∀ field ∈ model.fields, field.packedBits = none)
     (hcontractSurface :
       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites fn.body = false)
@@ -15871,7 +15887,7 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers_an
         fn.body)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) model.adtTypes fn.body = Except.ok bodyStmts)
     (hscope :
       FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
     (hbounded : FunctionBody.bindingsBounded bindings)
@@ -15907,7 +15923,7 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers_an
     supported_function_body_correct_from_exact_state_generic_with_helpers_and_helper_ir_except_mapping_writes_callsDisjoint
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
-      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hnoPacked hcontractSurface hhelperSurface
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hnoAdtTypes hnoPacked hcontractSurface hhelperSurface
       hhelperFree hbodyCompile hscope hbounded hstateRuntime hstateBindings hdisjoint
 
 /-- Goal-based helper-aware wrapper around the generic body/IR preservation
@@ -15927,6 +15943,7 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers_go
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
+    (hnoAdtTypes : model.adtTypes = [])
     (hhelperGoal :
       SourceSemantics.ExecStmtListWithHelpersConservativeExtensionGoal
         model
@@ -15943,7 +15960,7 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers_go
         fn.body)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) model.adtTypes fn.body = Except.ok bodyStmts)
     (hscope :
       FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
     (hbounded : FunctionBody.bindingsBounded bindings)
@@ -15960,7 +15977,7 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers_go
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
   rcases supported_function_body_correct_from_exact_state_generic
       model fn bodyStmts tx initialWorld state bindings extraFuel hextraFuel
-      hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope hbounded
+      hnormalized hnoEvents hnoErrors hnoAdtTypes hgeneric hbodyCompile hscope hbounded
       hstateRuntime hstateBindings with
     ⟨sourceResult, irExec, hsource, hbodyExec, hmatch⟩
   refine ⟨sourceResult, irExec, ?_, hbodyExec, hmatch⟩
@@ -15987,6 +16004,7 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
+    (hnoAdtTypes : model.adtTypes = [])
     (hhelperSurface : stmtListTouchesUnsupportedHelperSurface fn.body = false)
     (hhelperFree :
       StmtListHelperFreeStepInterface
@@ -15995,7 +16013,7 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers
         fn.body)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) model.adtTypes fn.body = Except.ok bodyStmts)
     (hscope :
       FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
     (hbounded : FunctionBody.bindingsBounded bindings)
@@ -16022,7 +16040,7 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers
       hhelperSurface
   exact supported_function_body_correct_from_exact_state_generic_helper_steps
     model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
-    hextraFuel hnormalized hnoEvents hnoErrors hgenericWithHelpers hbodyCompile
+    hextraFuel hnormalized hnoEvents hnoErrors hnoAdtTypes hgenericWithHelpers hbodyCompile
     hscope hbounded hstateRuntime hstateBindings
 
 /-- Constructor for the helper-aware single-step interface when the head
@@ -16044,7 +16062,7 @@ theorem compiledStmtStepWithHelpersAndHelperIR_internalCallAssign
     {names : List String} {calleeName : String} {args : List Expr}
     {compiledIR : List YulStmt}
     {argExprs : List YulExpr}
-    (hcompile : CompilationModel.compileStmt fields [] [] .calldata [] false scope
+    (hcompile : CompilationModel.compileStmt fields [] [] .calldata [] false scope []
       (Stmt.internalCallAssign names calleeName args) = Except.ok compiledIR)
     (hargCompile : CompilationModel.compileExprList fields .calldata args = Except.ok argExprs)
     -- End-to-end source↔IR alignment bridge.
@@ -16104,7 +16122,7 @@ theorem compiledStmtStepWithHelpersAndHelperIR_internalCall
     {calleeName : String} {args : List Expr}
     {compiledIR : List YulStmt}
     {argExprs : List YulExpr}
-    (hcompile : CompilationModel.compileStmt fields [] [] .calldata [] false scope
+    (hcompile : CompilationModel.compileStmt fields [] [] .calldata [] false scope []
       (Stmt.internalCall calleeName args) = Except.ok compiledIR)
     (hargCompile : CompilationModel.compileExprList fields .calldata args = Except.ok argExprs)
     -- End-to-end source↔IR alignment bridge.
@@ -16238,12 +16256,12 @@ structure DirectInternalHelperCallHeadStepBridge
   compile :
     ∀ {scope : List String} {args : List Expr},
       ∃ compiledIR,
-        CompilationModel.compileStmt fields [] [] .calldata [] false scope
+        CompilationModel.compileStmt fields [] [] .calldata [] false scope []
           (Stmt.internalCall calleeName args) = Except.ok compiledIR
   bridge :
     ∀ {scope : List String} {args : List Expr}
         {compiledIR : List YulStmt} {argExprs : List YulExpr},
-      CompilationModel.compileStmt fields [] [] .calldata [] false scope
+      CompilationModel.compileStmt fields [] [] .calldata [] false scope []
         (Stmt.internalCall calleeName args) = Except.ok compiledIR →
       CompilationModel.compileExprList fields .calldata args = Except.ok argExprs →
       ∀ (runtime : SourceSemantics.RuntimeState)
@@ -16271,12 +16289,12 @@ structure DirectInternalHelperAssignHeadStepBridge
   compile :
     ∀ {scope : List String} {names : List String} {args : List Expr},
       ∃ compiledIR,
-        CompilationModel.compileStmt fields [] [] .calldata [] false scope
+        CompilationModel.compileStmt fields [] [] .calldata [] false scope []
           (Stmt.internalCallAssign names calleeName args) = Except.ok compiledIR
   bridge :
     ∀ {scope : List String} {names : List String} {args : List Expr}
         {compiledIR : List YulStmt} {argExprs : List YulExpr},
-      CompilationModel.compileStmt fields [] [] .calldata [] false scope
+      CompilationModel.compileStmt fields [] [] .calldata [] false scope []
         (Stmt.internalCallAssign names calleeName args) = Except.ok compiledIR →
       CompilationModel.compileExprList fields .calldata args = Except.ok argExprs →
       ∀ (runtime : SourceSemantics.RuntimeState)
@@ -16305,13 +16323,13 @@ structure DirectInternalHelperHeadStepBridgeCatalog
     ∀ {scope : List String} {calleeName : String} {args : List Expr},
       calleeName ∈ helperCallNames fn →
       ∃ compiledIR,
-        CompilationModel.compileStmt fields [] [] .calldata [] false scope
+        CompilationModel.compileStmt fields [] [] .calldata [] false scope []
           (Stmt.internalCall calleeName args) = Except.ok compiledIR
   callBridge :
     ∀ {scope : List String} {calleeName : String} {args : List Expr}
         {compiledIR : List YulStmt} {argExprs : List YulExpr},
       calleeName ∈ helperCallNames fn →
-      CompilationModel.compileStmt fields [] [] .calldata [] false scope
+      CompilationModel.compileStmt fields [] [] .calldata [] false scope []
         (Stmt.internalCall calleeName args) = Except.ok compiledIR →
       CompilationModel.compileExprList fields .calldata args = Except.ok argExprs →
       ∀ (runtime : SourceSemantics.RuntimeState)
@@ -16334,13 +16352,13 @@ structure DirectInternalHelperHeadStepBridgeCatalog
     ∀ {scope : List String} {names : List String} {calleeName : String} {args : List Expr},
       calleeName ∈ helperCallNames fn →
       ∃ compiledIR,
-        CompilationModel.compileStmt fields [] [] .calldata [] false scope
+        CompilationModel.compileStmt fields [] [] .calldata [] false scope []
           (Stmt.internalCallAssign names calleeName args) = Except.ok compiledIR
   assignBridge :
     ∀ {scope : List String} {names : List String} {calleeName : String} {args : List Expr}
         {compiledIR : List YulStmt} {argExprs : List YulExpr},
       calleeName ∈ helperCallNames fn →
-      CompilationModel.compileStmt fields [] [] .calldata [] false scope
+      CompilationModel.compileStmt fields [] [] .calldata [] false scope []
         (Stmt.internalCallAssign names calleeName args) = Except.ok compiledIR →
       CompilationModel.compileExprList fields .calldata args = Except.ok argExprs →
       ∀ (runtime : SourceSemantics.RuntimeState)
@@ -16423,7 +16441,7 @@ structure DirectInternalHelperPerCalleeCallCompileCatalog
       calleeName ∈ helperCallNames fn →
       ∀ {scope : List String} {args : List Expr},
         ∃ compiledIR,
-          CompilationModel.compileStmt fields [] [] .calldata [] false scope
+          CompilationModel.compileStmt fields [] [] .calldata [] false scope []
             (Stmt.internalCall calleeName args) = Except.ok compiledIR
 
 /-- Assign-only half of the compile-side Tier 4 inventory. This isolates the
@@ -16438,7 +16456,7 @@ structure DirectInternalHelperPerCalleeAssignCompileCatalog
       calleeName ∈ helperCallNames fn →
       ∀ {scope : List String} {names : List String} {args : List Expr},
         ∃ compiledIR,
-          CompilationModel.compileStmt fields [] [] .calldata [] false scope
+          CompilationModel.compileStmt fields [] [] .calldata [] false scope []
             (Stmt.internalCallAssign names calleeName args) = Except.ok compiledIR
 
 /-- Reassemble the full compile-side Tier 4 inventory from independently
@@ -17062,7 +17080,7 @@ theorem execIRStmtsWithInternals_of_internalCallAssign_compiledHelperWitness
     {argVals : List Nat}
     {state' : IRState}
     (hcompile :
-      CompilationModel.compileStmt fields [] [] .calldata [] false scope
+      CompilationModel.compileStmt fields [] [] .calldata [] false scope []
         (Stmt.internalCallAssign names calleeName args) = Except.ok compiledIR)
     (argExprs : List YulExpr)
     (hargCompile :
@@ -17140,7 +17158,7 @@ theorem execIRStmtsWithInternals_of_internalCall_compiledHelperWitness
     {argVals : List Nat}
     {state' : IRState}
     (hcompile :
-      CompilationModel.compileStmt fields [] [] .calldata [] false scope
+      CompilationModel.compileStmt fields [] [] .calldata [] false scope []
         (Stmt.internalCall calleeName args) = Except.ok compiledIR)
     (argExprs : List YulExpr)
     (hargCompile :

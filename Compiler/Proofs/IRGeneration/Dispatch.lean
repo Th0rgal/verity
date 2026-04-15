@@ -76,14 +76,14 @@ private theorem find_compiledFunction_some_of_forall₂
     (hcompiled :
       List.Forall₂
         (fun entry irFn =>
-          compileFunctionSpec fields events errors entry.2 entry.1 = Except.ok irFn)
+          compileFunctionSpec fields events errors [] entry.2 entry.1 = Except.ok irFn)
         pairs irFns)
     {fn : FunctionSpec} {sel : Nat}
     (hfind :
       pairs.find? (fun entry => entry.2 == selector) = some (fn, sel)) :
     ∃ irFn,
       irFns.find? (fun irFn => irFn.selector == selector) = some irFn ∧
-      compileFunctionSpec fields events errors sel fn = Except.ok irFn := by
+      compileFunctionSpec fields events errors [] sel fn = Except.ok irFn := by
   induction hcompiled generalizing fn sel with
   | nil =>
       simp at hfind
@@ -92,7 +92,7 @@ private theorem find_compiledFunction_some_of_forall₂
       by_cases hselEq : headSel = selector
       · simp [hselEq] at hfind
         rcases hfind with ⟨rfl, rfl⟩
-        have hhead' : compileFunctionSpec fields events errors selector headFn = Except.ok irFn := by
+        have hhead' : compileFunctionSpec fields events errors [] selector headFn = Except.ok irFn := by
           simpa [hselEq] using hhead
         refine ⟨irFn, ?_, hhead'⟩
         have hselector : irFn.selector = selector := by
@@ -119,7 +119,7 @@ private theorem find_compiledFunction_none_of_forall₂
     (hcompiled :
       List.Forall₂
         (fun entry irFn =>
-          compileFunctionSpec fields events errors entry.2 entry.1 = Except.ok irFn)
+          compileFunctionSpec fields events errors [] entry.2 entry.1 = Except.ok irFn)
         pairs irFns)
     (hfind :
       pairs.find? (fun entry => entry.2 == selector) = none) :
@@ -146,7 +146,7 @@ theorem interpretContract_correct_of_compiled_functions
     (initialWorld : Verity.ContractState)
     (hcompiled :
       List.Forall₂
-        (fun entry irFn => compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        (fun entry irFn => compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
         (SourceSemantics.selectorFunctionPairs model selectors)
         irFns)
     (hparamsSupported :
@@ -155,7 +155,7 @@ theorem interpretContract_correct_of_compiled_functions
     (hfunction :
       ∀ fn sel irFn bindings,
         fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn →
         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
         FunctionBody.sourceResultMatchesIRResult
           (SourceSemantics.interpretFunction model fn tx initialWorld)
@@ -253,7 +253,7 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs
     (hcompiled :
       List.Forall₂
         (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+          compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
         (SourceSemantics.selectorFunctionPairs model selectors)
         irFns)
     (hparamsSupported :
@@ -262,7 +262,7 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs
     (hfunction :
       ∀ fn sel irFn bindings,
         fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn →
         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
         FunctionBody.sourceResultMatchesIRResult
           (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
@@ -274,7 +274,7 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs
   have hlegacyFunction :
       ∀ fn sel irFn bindings,
         fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn →
         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
         FunctionBody.sourceResultMatchesIRResult
           (SourceSemantics.interpretFunction model fn tx initialWorld)
@@ -305,14 +305,14 @@ private theorem legacy_function_correct_of_supportedSourceFunctionSemanticsExcep
     (hfunction :
       ∀ fn sel irFn bindings,
         fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn →
         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
         FunctionBody.sourceResultMatchesIRResult
           (supportedSourceFunctionSemanticsExceptMappingWrites model selectors hSupported fn tx initialWorld)
           (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld))) :
     ∀ fn sel irFn bindings,
       fn ∈ selectorDispatchedFunctions model →
-      compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+      compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn →
       SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
       FunctionBody.sourceResultMatchesIRResult
         (SourceSemantics.interpretFunction model fn tx initialWorld)
@@ -335,7 +335,7 @@ theorem interpretContract_correct_of_compiled_functions_except_mapping_writes
     (hcompiled :
       List.Forall₂
         (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+          compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
         (SourceSemantics.selectorFunctionPairs model selectors)
         irFns)
     (hparamsSupported :
@@ -344,7 +344,7 @@ theorem interpretContract_correct_of_compiled_functions_except_mapping_writes
     (hfunction :
       ∀ fn sel irFn bindings,
         fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn →
         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
         FunctionBody.sourceResultMatchesIRResult
           (supportedSourceFunctionSemanticsExceptMappingWrites model selectors hSupported fn tx initialWorld)
@@ -384,7 +384,7 @@ theorem interpretContract_correct_of_compiled_functions_except_mapping_writes_an
     (hcompiled :
       List.Forall₂
         (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+          compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
         (SourceSemantics.selectorFunctionPairs model selectors)
         irFns)
     (hparamsSupported :
@@ -393,7 +393,7 @@ theorem interpretContract_correct_of_compiled_functions_except_mapping_writes_an
     (hfunction :
       ∀ fn sel irFn bindings,
         fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn →
         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
         FunctionBody.sourceResultMatchesIRResult
           (supportedSourceFunctionSemanticsExceptMappingWrites model selectors hSupported fn tx initialWorld)
@@ -432,7 +432,7 @@ theorem interpretContract_correct_of_compiled_functions_except_mapping_writes_an
     (hcompiled :
       List.Forall₂
         (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+          compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
         (SourceSemantics.selectorFunctionPairs model selectors)
         irFns)
     (hparamsSupported :
@@ -441,7 +441,7 @@ theorem interpretContract_correct_of_compiled_functions_except_mapping_writes_an
     (hfunction :
       ∀ fn sel irFn bindings,
         fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn →
         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
         FunctionBody.sourceResultMatchesIRResult
           (supportedSourceFunctionSemanticsExceptMappingWrites model selectors hSupported fn tx initialWorld)
@@ -482,7 +482,7 @@ theorem interpretContract_correct_of_compiled_functions_except_mapping_writes_an
     (hcompiled :
       List.Forall₂
         (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+          compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
         (SourceSemantics.selectorFunctionPairs model selectors)
         irFns)
     (hparamsSupported :
@@ -491,7 +491,7 @@ theorem interpretContract_correct_of_compiled_functions_except_mapping_writes_an
     (hfunction :
       ∀ fn sel irFn bindings,
         fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn →
         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
         FunctionBody.sourceResultMatchesIRResult
           (supportedSourceFunctionSemanticsExceptMappingWrites model selectors hSupported fn tx initialWorld)
@@ -534,7 +534,7 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_h
     (hcompiled :
       List.Forall₂
         (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+          compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
         (SourceSemantics.selectorFunctionPairs model selectors)
         irFns)
     (hparamsSupported :
@@ -543,7 +543,7 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_h
     (hfunction :
       ∀ fn sel irFn bindings,
         fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn →
         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
         FunctionBody.sourceResultMatchesIRResult
           (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
@@ -581,7 +581,7 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_h
     (hcompiled :
       List.Forall₂
         (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+          compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
         (SourceSemantics.selectorFunctionPairs model selectors)
         irFns)
     (hparamsSupported :
@@ -590,7 +590,7 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_h
     (hfunction :
       ∀ fn sel irFn bindings,
         fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn →
         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
         FunctionBody.sourceResultMatchesIRResult
           (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
@@ -636,7 +636,7 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_h
     (hcompiled :
       List.Forall₂
         (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+          compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
         (SourceSemantics.selectorFunctionPairs model selectors)
         irFns)
     (hparamsSupported :
@@ -645,7 +645,7 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_h
     (hfunction :
       ∀ fn sel irFn bindings,
         fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn →
         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
         FunctionBody.sourceResultMatchesIRResult
           (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
@@ -684,7 +684,7 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_h
     (hcompiled :
       List.Forall₂
         (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+          compileFunctionSpec model.fields model.events model.errors [] entry.2 entry.1 = Except.ok irFn)
         (SourceSemantics.selectorFunctionPairs model selectors)
         irFns)
     (hparamsSupported :
@@ -693,7 +693,7 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_h
     (hfunction :
       ∀ fn sel irFn bindings,
         fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        compileFunctionSpec model.fields model.events model.errors [] sel fn = Except.ok irFn →
         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
         FunctionBody.sourceResultMatchesIRResult
           (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)

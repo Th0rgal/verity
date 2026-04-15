@@ -1999,6 +1999,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.noErrors
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.noExternals
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.noExternals
+#print axioms Compiler.Proofs.IRGeneration.SupportedSpec.noAdtTypes
+#print axioms Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.noAdtTypes
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.noFallback
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.noFallback
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.noReceive
@@ -2141,4 +2143,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1995 theorems/lemmas (1344 public, 651 private, 0 sorry'd)
+-- Total: 1997 theorems/lemmas (1346 public, 651 private, 0 sorry'd)

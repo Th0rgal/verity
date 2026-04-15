@@ -941,6 +941,10 @@ theorem decodeSupportedParamWord_lt_evmModulus
       simp [SourceSemantics.decodeSupportedParamWord] at hdecode
   | fixedArray _ _ =>
       simp [SourceSemantics.decodeSupportedParamWord] at hdecode
+  | adt _ _ =>
+      simp [SourceSemantics.decodeSupportedParamWord] at hdecode
+  | newtypeOf _ _ =>
+      simp [SourceSemantics.decodeSupportedParamWord] at hdecode
   | bytes =>
       simp [SourceSemantics.decodeSupportedParamWord] at hdecode
 
@@ -7109,7 +7113,7 @@ theorem compileStmt_core_ok
     {fields : List Field}
     {stmt : Stmt}
     (hcore : StmtCompileCore stmt) :
-    ∃ bodyIR, CompilationModel.compileStmt fields [] [] .calldata [] false [] stmt = Except.ok bodyIR := by
+    ∃ bodyIR, CompilationModel.compileStmt fields [] [] .calldata [] false [] [] stmt = Except.ok bodyIR := by
   cases hcore with
   | letVar hvalue =>
       rename_i name value
@@ -7345,7 +7349,7 @@ theorem exec_compileStmt_letVar_core
     (hpresent : exprBoundNamesPresent value runtime.bindings)
     (hruntime : runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
-      CompilationModel.compileStmt fields [] [] .calldata [] false [] (.letVar name value) = Except.ok bodyIR ∧
+      CompilationModel.compileStmt fields [] [] .calldata [] false [] [] (.letVar name value) = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmt fields runtime (.letVar name value)
       let irExec := execIRStmts (bodyIR.length + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec ∧
@@ -7388,7 +7392,7 @@ theorem exec_compileStmt_assignVar_core
     (hpresent : exprBoundNamesPresent value runtime.bindings)
     (hruntime : runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
-      CompilationModel.compileStmt fields [] [] .calldata [] false [] (.assignVar name value) = Except.ok bodyIR ∧
+      CompilationModel.compileStmt fields [] [] .calldata [] false [] [] (.assignVar name value) = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmt fields runtime (.assignVar name value)
       let irExec := execIRStmts (bodyIR.length + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec ∧
@@ -7421,7 +7425,7 @@ theorem exec_compileStmt_return_core
     (hpresent : exprBoundNamesPresent value runtime.bindings)
     (hruntime : runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
-      CompilationModel.compileStmt fields [] [] .calldata [] false [] (.return value) = Except.ok bodyIR ∧
+      CompilationModel.compileStmt fields [] [] .calldata [] false [] [] (.return value) = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmt fields runtime (.return value)
       let irExec := execIRStmts (bodyIR.length + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec ∧
@@ -7457,7 +7461,7 @@ theorem exec_compileStmt_return_core_extraFuel
     (hpresent : exprBoundNamesPresent value runtime.bindings)
     (hruntime : runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
-      CompilationModel.compileStmt fields [] [] .calldata [] false [] (.return value) = Except.ok bodyIR ∧
+      CompilationModel.compileStmt fields [] [] .calldata [] false [] [] (.return value) = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmt fields runtime (.return value)
       let irExec := execIRStmts (bodyIR.length + extraFuel + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec ∧
@@ -7505,7 +7509,7 @@ theorem exec_compileStmt_stop_core
     (hbounded : bindingsBounded runtime.bindings)
     (hruntime : runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
-      CompilationModel.compileStmt fields [] [] .calldata [] false [] .stop = Except.ok bodyIR ∧
+      CompilationModel.compileStmt fields [] [] .calldata [] false [] [] .stop = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmt fields runtime .stop
       let irExec := execIRStmts (bodyIR.length + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec ∧
@@ -7536,7 +7540,7 @@ theorem exec_compileStmt_stop_core_extraFuel
     (hbounded : bindingsBounded runtime.bindings)
     (hruntime : runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
-      CompilationModel.compileStmt fields [] [] .calldata [] false [] .stop = Except.ok bodyIR ∧
+      CompilationModel.compileStmt fields [] [] .calldata [] false [] [] .stop = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmt fields runtime .stop
       let irExec := execIRStmts (bodyIR.length + extraFuel + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec ∧
@@ -7734,7 +7738,7 @@ theorem compileStmt_core_ok_any_scope
     (hcore : StmtCompileCore stmt) :
     ∃ bodyIR,
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames stmt = Except.ok bodyIR := by
+        fields [] [] .calldata [] false inScopeNames [] stmt = Except.ok bodyIR := by
   cases hcore with
   | letVar hvalue =>
       rename_i name value
@@ -7778,15 +7782,15 @@ private theorem compileStmt_ok_any_scope_aux
     (fields : List Field) :
     (∀ (stmt : Stmt) (scope1 scope2 : List String),
       sizeOf stmt < n →
-      (∃ ir, CompilationModel.compileStmt fields [] [] .calldata [] false scope1 stmt =
+      (∃ ir, CompilationModel.compileStmt fields [] [] .calldata [] false scope1 [] stmt =
         Except.ok ir) →
-      ∃ ir', CompilationModel.compileStmt fields [] [] .calldata [] false scope2 stmt =
+      ∃ ir', CompilationModel.compileStmt fields [] [] .calldata [] false scope2 [] stmt =
         Except.ok ir') ∧
     (∀ (stmts : List Stmt) (scope1 scope2 : List String),
       sizeOf stmts < n →
-      (∃ ir, CompilationModel.compileStmtList fields [] [] .calldata [] false scope1 stmts =
+      (∃ ir, CompilationModel.compileStmtList fields [] [] .calldata [] false scope1 [] stmts =
         Except.ok ir) →
-      ∃ ir', CompilationModel.compileStmtList fields [] [] .calldata [] false scope2 stmts =
+      ∃ ir', CompilationModel.compileStmtList fields [] [] .calldata [] false scope2 [] stmts =
         Except.ok ir') := by
   induction n with
   | zero => exact ⟨fun _ _ _ h => absurd h (Nat.not_lt_zero _),
@@ -7804,12 +7808,12 @@ private theorem compileStmt_ok_any_scope_aux
           | ok condIR =>
             simp only [hcond] at hir ⊢
             cases hthen1 : CompilationModel.compileStmtList
-                fields [] [] .calldata [] false scope1 thenBranch with
+                fields [] [] .calldata [] false scope1 [] thenBranch with
             | error e => simp [hthen1] at hir
             | ok thenIR1 =>
               simp only [hthen1] at hir
               cases helse1 : CompilationModel.compileStmtList
-                  fields [] [] .calldata [] false scope1 elseBranch with
+                  fields [] [] .calldata [] false scope1 [] elseBranch with
               | error e => simp [helse1] at hir
               | ok elseIR1 =>
                 rcases ih.2 thenBranch scope1 scope2
@@ -7828,7 +7832,7 @@ private theorem compileStmt_ok_any_scope_aux
           | ok countIR =>
             simp only [hcount] at hir ⊢
             cases hbody1 : CompilationModel.compileStmtList
-                fields [] [] .calldata [] false (varName :: scope1) body with
+                fields [] [] .calldata [] false (varName :: scope1) [] body with
             | error e => simp [hbody1] at hir
             | ok bodyIR1 =>
               rcases ih.2 body (varName :: scope1) (varName :: scope2)
@@ -7836,6 +7840,16 @@ private theorem compileStmt_ok_any_scope_aux
                 with ⟨bodyIR2, hbody2⟩
               simp only [hbody2]
               exact ⟨_, rfl⟩
+      | unsafeBlock _ body =>
+          rcases hok with ⟨ir, hir⟩
+          simp only [CompilationModel.compileStmt] at hir ⊢
+          rcases ih.2 body scope1 scope2
+              (by simp [Stmt.unsafeBlock.sizeOf_spec] at hlt; omega) ⟨ir, hir⟩
+            with ⟨bodyIR2, hbody2⟩
+          exact ⟨bodyIR2, hbody2⟩
+      | matchAdt adtName scrutinee branches =>
+          -- matchAdt with adtTypes=[] always fails (lookupAdtTypeDef [] _ throws)
+          simp only [CompilationModel.compileStmt] at hok ⊢; exact hok
       -- All remaining cases: inScopeNames is unused, so the result is identical
       | letVar | assignVar | setStorage | setStorageAddr | storageArrayPush
       | storageArrayPop | setStorageArrayElement | setMapping | setMappingWord
@@ -7854,12 +7868,12 @@ private theorem compileStmt_ok_any_scope_aux
           rcases hok with ⟨ir, hir⟩
           simp only [CompilationModel.compileStmtList, bind, Except.bind] at hir ⊢
           cases hs1 : CompilationModel.compileStmt
-              fields [] [] .calldata [] false scope1 s with
+              fields [] [] .calldata [] false scope1 [] s with
           | error e => simp [hs1] at hir
           | ok headIR1 =>
             simp only [hs1] at hir
             cases hss1 : CompilationModel.compileStmtList
-                fields [] [] .calldata [] false (collectStmtNames s ++ scope1) ss with
+                fields [] [] .calldata [] false (collectStmtNames s ++ scope1) [] ss with
             | error e => simp [hss1] at hir
             | ok tailIR1 =>
               rcases ih.1 s scope1 scope2 (by simp [List.cons.sizeOf_spec] at hlt; omega)
@@ -7875,9 +7889,9 @@ theorem compileStmt_ok_any_scope
     {scope1 scope2 : List String}
     {stmt : Stmt}
     (hok : ∃ ir, CompilationModel.compileStmt
-      fields [] [] .calldata [] false scope1 stmt = Except.ok ir) :
+      fields [] [] .calldata [] false scope1 [] stmt = Except.ok ir) :
     ∃ ir', CompilationModel.compileStmt
-      fields [] [] .calldata [] false scope2 stmt = Except.ok ir' :=
+      fields [] [] .calldata [] false scope2 [] stmt = Except.ok ir' :=
   (compileStmt_ok_any_scope_aux (sizeOf stmt + 1) fields).1 stmt scope1 scope2
     (Nat.lt_succ_of_le (Nat.le_refl _)) hok
 
@@ -7886,9 +7900,9 @@ theorem compileStmtList_ok_any_scope
     {scope1 scope2 : List String}
     {stmts : List Stmt}
     (hok : ∃ ir, CompilationModel.compileStmtList
-      fields [] [] .calldata [] false scope1 stmts = Except.ok ir) :
+      fields [] [] .calldata [] false scope1 [] stmts = Except.ok ir) :
     ∃ ir', CompilationModel.compileStmtList
-      fields [] [] .calldata [] false scope2 stmts = Except.ok ir' :=
+      fields [] [] .calldata [] false scope2 [] stmts = Except.ok ir' :=
   (compileStmt_ok_any_scope_aux (sizeOf stmts + 1) fields).2 stmts scope1 scope2
     (Nat.lt_succ_of_le (Nat.le_refl _)) hok
 
@@ -7900,13 +7914,13 @@ theorem compileStmtList_cons_ok_of_compileStmt_ok
     {headIR tailIR : List YulStmt}
     (hhead :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames stmt = Except.ok headIR)
+        fields [] [] .calldata [] false inScopeNames [] stmt = Except.ok headIR)
     (htail :
       CompilationModel.compileStmtList
         fields [] [] .calldata [] false
-          (collectStmtNames stmt ++ inScopeNames) rest = Except.ok tailIR) :
+          (collectStmtNames stmt ++ inScopeNames) [] rest = Except.ok tailIR) :
     CompilationModel.compileStmtList
-      fields [] [] .calldata [] false inScopeNames (stmt :: rest) =
+      fields [] [] .calldata [] false inScopeNames [] (stmt :: rest) =
         Except.ok (headIR ++ tailIR) := by
   rw [CompilationModel.compileStmtList, hhead]
   dsimp
@@ -7921,25 +7935,25 @@ theorem compileStmtList_cons_ok_inv
     {bodyIR : List YulStmt}
     (hcompile :
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames (stmt :: rest) =
+        fields [] [] .calldata [] false inScopeNames [] (stmt :: rest) =
           Except.ok bodyIR) :
     ∃ headIR tailIR,
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames stmt = Except.ok headIR ∧
+        fields [] [] .calldata [] false inScopeNames [] stmt = Except.ok headIR ∧
       CompilationModel.compileStmtList
         fields [] [] .calldata [] false
-          (collectStmtNames stmt ++ inScopeNames) rest = Except.ok tailIR ∧
+          (collectStmtNames stmt ++ inScopeNames) [] rest = Except.ok tailIR ∧
       bodyIR = headIR ++ tailIR := by
   rw [CompilationModel.compileStmtList] at hcompile
   cases hhead : CompilationModel.compileStmt
-      fields [] [] .calldata [] false inScopeNames stmt with
+      fields [] [] .calldata [] false inScopeNames [] stmt with
   | error err =>
       simp [hhead] at hcompile
       cases hcompile
   | ok headIR =>
       cases htail : CompilationModel.compileStmtList
           fields [] [] .calldata [] false
-            (collectStmtNames stmt ++ inScopeNames) rest with
+            (collectStmtNames stmt ++ inScopeNames) [] rest with
       | error err =>
           simp [hhead, htail] at hcompile
           cases hcompile
@@ -7960,14 +7974,14 @@ theorem compileStmt_terminal_ite_ok_inv
     (helseNonempty : elseBranch.isEmpty = false)
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames
+        fields [] [] .calldata [] false inScopeNames []
           (.ite cond thenBranch elseBranch) = Except.ok bodyIR) :
     ∃ condIR thenIR elseIR tempName,
       CompilationModel.compileExpr fields .calldata cond = Except.ok condIR ∧
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames thenBranch = Except.ok thenIR ∧
+        fields [] [] .calldata [] false inScopeNames [] thenBranch = Except.ok thenIR ∧
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames elseBranch = Except.ok elseIR ∧
+        fields [] [] .calldata [] false inScopeNames [] elseBranch = Except.ok elseIR ∧
       tempName =
         CompilationModel.pickFreshName "__ite_cond"
           (inScopeNames ++ collectExprNames cond ++
@@ -7984,13 +7998,13 @@ theorem compileStmt_terminal_ite_ok_inv
       cases hcompile
   | ok condIR =>
       cases hthen : CompilationModel.compileStmtList
-          fields [] [] .calldata [] false inScopeNames thenBranch with
+          fields [] [] .calldata [] false inScopeNames [] thenBranch with
       | error err =>
           simp [hcond, hthen] at hcompile
           cases hcompile
       | ok thenIR =>
           cases helse : CompilationModel.compileStmtList
-              fields [] [] .calldata [] false inScopeNames elseBranch with
+              fields [] [] .calldata [] false inScopeNames [] elseBranch with
           | error err =>
               simp [hcond, hthen, helse] at hcompile
               cases hcompile
@@ -8016,17 +8030,17 @@ theorem compileStmtList_terminal_ite_ok_inv
     (helseNonempty : elseBranch.isEmpty = false)
     (hcompile :
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames
+        fields [] [] .calldata [] false inScopeNames []
           (.ite cond thenBranch elseBranch :: rest) = Except.ok bodyIR) :
     ∃ condIR thenIR elseIR tailIR tempName,
       CompilationModel.compileExpr fields .calldata cond = Except.ok condIR ∧
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames thenBranch = Except.ok thenIR ∧
+        fields [] [] .calldata [] false inScopeNames [] thenBranch = Except.ok thenIR ∧
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames elseBranch = Except.ok elseIR ∧
+        fields [] [] .calldata [] false inScopeNames [] elseBranch = Except.ok elseIR ∧
       CompilationModel.compileStmtList
         fields [] [] .calldata [] false
-          (collectStmtNames (.ite cond thenBranch elseBranch) ++ inScopeNames) rest =
+          (collectStmtNames (.ite cond thenBranch elseBranch) ++ inScopeNames) [] rest =
           Except.ok tailIR ∧
       tempName =
         CompilationModel.pickFreshName "__ite_cond"
@@ -8065,7 +8079,7 @@ theorem compileStmtList_core_ok
     (hcore : StmtListCompileCore scope stmts) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by
+        fields [] [] .calldata [] false inScopeNames [] stmts = Except.ok bodyIR := by
   induction hcore generalizing inScopeNames
   case nil =>
       exact ⟨[], rfl⟩
@@ -8127,7 +8141,7 @@ theorem compileStmtList_terminal_core_ok
     (hterminal : StmtListTerminalCore scope stmts) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by
+        fields [] [] .calldata [] false inScopeNames [] stmts = Except.ok bodyIR := by
   induction hterminal generalizing inScopeNames
   case letVar scope name value rest hvalue _ hrest ih =>
       rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
@@ -8238,7 +8252,7 @@ theorem compileStmtList_terminal_core_ok_nonempty
     (hterminal : StmtListTerminalCore scope stmts)
     (hcompile :
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR) :
+        fields [] [] .calldata [] false inScopeNames [] stmts = Except.ok bodyIR) :
     bodyIR ≠ [] := by
   induction hterminal generalizing inScopeNames bodyIR with
   | letVar hvalue hinScope hrest ih =>
@@ -8316,14 +8330,14 @@ theorem compileStmtList_terminal_core_ok_nonempty
       | ok condIR =>
           cases hthenIR :
               CompilationModel.compileStmtList
-                fields [] [] .calldata [] false inScopeNames thenBranch with
+                fields [] [] .calldata [] false inScopeNames [] thenBranch with
           | error err =>
               rw [hthenOk] at hthenIR
               cases hthenIR
           | ok thenIR =>
               cases helseIR :
                   CompilationModel.compileStmtList
-                    fields [] [] .calldata [] false inScopeNames elseBranch with
+                    fields [] [] .calldata [] false inScopeNames [] elseBranch with
               | error err =>
                   rw [helseOk] at helseIR
                   cases helseIR
@@ -9455,7 +9469,7 @@ theorem exec_compileStmtList_core
     (hruntime : runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR ∧
+        fields [] [] .calldata [] false inScopeNames [] stmts = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmtList fields runtime stmts
       let irExec := execIRStmts (bodyIR.length + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec ∧
@@ -9750,7 +9764,7 @@ theorem exec_compileStmtList_core_extraFuel
     (hruntime : runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR ∧
+        fields [] [] .calldata [] false inScopeNames [] stmts = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmtList fields runtime stmts
       let irExec := execIRStmts (bodyIR.length + extraFuel + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec ∧
@@ -13534,7 +13548,7 @@ theorem exec_compileStmtList_terminal_core_sizeOf_extraFuel
     (hruntime : runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR ∧
+        fields [] [] .calldata [] false inScopeNames [] stmts = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmtList fields runtime stmts
       let irExec := execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec := by
