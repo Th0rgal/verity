@@ -1124,7 +1124,7 @@ private theorem sdiv_int256_eq_uint256Sdiv (a b : Nat)
   · -- Case 1: a ≥ 2^255, b ≥ 2^255 (both "negative")
     simp only [ha_neg, hb_neg, ite_true, ite_false, show ¬ a < 2 ^ 255 from by omega,
       show ¬ b < 2 ^ 255 from by omega]
-    simp only [Verity.Core.Int256.signedAbsNat]
+    unfold Verity.Core.Int256.signedAbsNat
     have hlhs_neg : Int.ofNat a - Int.ofNat modulus < 0 := by omega
     have hrhs_neg : Int.ofNat b - Int.ofNat modulus < 0 := by omega
     have hrhs_ne_zero : ¬(Int.ofNat b - Int.ofNat modulus = 0) := by omega
@@ -1154,7 +1154,7 @@ private theorem sdiv_int256_eq_uint256Sdiv (a b : Nat)
     have hb_pos_range : b < 2 ^ 255 := by omega
     simp only [ha_neg, show ¬(2 ^ 255 ≤ b) from hb_neg, ite_true, ite_false,
       show ¬ a < 2 ^ 255 from by omega, hb_pos_range]
-    simp only [Verity.Core.Int256.signedAbsNat]
+    unfold Verity.Core.Int256.signedAbsNat
     have hlhs_neg : Int.ofNat a - Int.ofNat modulus < 0 := by omega
     have hrhs_nonneg : ¬(Int.ofNat b < 0) := by omega
     have hsame_sign : (decide (Int.ofNat a - Int.ofNat modulus < 0) == decide (Int.ofNat b < 0)) = false := by
@@ -1207,7 +1207,7 @@ private theorem sdiv_int256_eq_uint256Sdiv (a b : Nat)
     have ha_pos_range : a < 2 ^ 255 := by omega
     simp only [show ¬(2 ^ 255 ≤ a) from ha_neg, hb_neg, ite_true, ite_false,
       ha_pos_range]
-    simp only [Verity.Core.Int256.signedAbsNat]
+    unfold Verity.Core.Int256.signedAbsNat
     have hlhs_nonneg : ¬(Int.ofNat a < 0) := by omega
     have hrhs_neg : Int.ofNat b - Int.ofNat modulus < 0 := by omega
     have hsame_sign : (decide (Int.ofNat a < 0) == decide (Int.ofNat b - Int.ofNat modulus < 0)) = false := by
@@ -1254,7 +1254,7 @@ private theorem sdiv_int256_eq_uint256Sdiv (a b : Nat)
     have hb_pos_range : b < 2 ^ 255 := by omega
     simp only [show ¬(2 ^ 255 ≤ a) from ha_neg, show ¬(2 ^ 255 ≤ b) from hb_neg,
       ite_true, ite_false, ha_pos_range, hb_pos_range]
-    simp only [Verity.Core.Int256.signedAbsNat]
+    unfold Verity.Core.Int256.signedAbsNat
     have hlhs_nonneg : ¬(Int.ofNat a < 0) := by omega
     have hrhs_nonneg : ¬(Int.ofNat b < 0) := by omega
     by_cases hb_zero : b = 0
@@ -1352,7 +1352,8 @@ private theorem smod_int256_eq_uint256Smod (a b : Nat)
   -- Handle the b = 0 case first (both return 0)
   by_cases hb_zero : b = 0
   · subst hb_zero
-    simp [Verity.Core.Int256.signedAbsNat, Verity.Core.Int256.ofInt,
+    unfold Verity.Core.Int256.signedAbsNat
+    simp [Verity.Core.Int256.ofInt,
       Verity.Core.Int256.ofUint256, Verity.Core.Uint256.ofNat,
       Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS,
       EvmYul.UInt256.toSigned]
@@ -1361,7 +1362,7 @@ private theorem smod_int256_eq_uint256Smod (a b : Nat)
     · -- Case 1: a ≥ 2^255 (negative), b ≥ 2^255 (negative)
       simp only [ha_neg, hb_neg, ite_true, ite_false,
         show ¬ a < 2 ^ 255 from by omega, show ¬ b < 2 ^ 255 from by omega]
-      simp only [Verity.Core.Int256.signedAbsNat]
+      unfold Verity.Core.Int256.signedAbsNat
       have hlhs_neg : Int.ofNat a - Int.ofNat modulus < 0 := by omega
       have hrhs_neg : Int.ofNat b - Int.ofNat modulus < 0 := by omega
       have hrhs_ne_zero : ¬(Int.ofNat b - Int.ofNat modulus = 0) := by omega
@@ -1422,7 +1423,7 @@ private theorem smod_int256_eq_uint256Smod (a b : Nat)
       have hb_lt : b < 2 ^ 255 := by omega
       simp only [ha_neg, show ¬(2 ^ 255 ≤ b) from hb_neg, ite_true, ite_false,
         show ¬ a < 2 ^ 255 from by omega, hb_lt]
-      simp only [Verity.Core.Int256.signedAbsNat]
+      unfold Verity.Core.Int256.signedAbsNat
       have hlhs_neg : Int.ofNat a - Int.ofNat modulus < 0 := by omega
       have hrhs_nonneg : ¬(Int.ofNat b < 0) := by omega
       have hrhs_ne_zero : ¬((Int.ofNat b : Int) = 0) := by omega
@@ -1468,7 +1469,7 @@ private theorem smod_int256_eq_uint256Smod (a b : Nat)
     · -- Case 3: a < 2^255 (non-negative), b ≥ 2^255 (negative)
       have ha_lt : a < 2 ^ 255 := by omega
       simp only [show ¬(2 ^ 255 ≤ a) from ha_neg, hb_neg, ite_true, ite_false, ha_lt]
-      simp only [Verity.Core.Int256.signedAbsNat]
+      unfold Verity.Core.Int256.signedAbsNat
       have hlhs_nonneg : ¬(Int.ofNat a < 0) := by omega
       have hrhs_neg : Int.ofNat b - Int.ofNat modulus < 0 := by omega
       have hrhs_ne_zero : ¬(Int.ofNat b - Int.ofNat modulus = 0) := by omega
@@ -1507,7 +1508,7 @@ private theorem smod_int256_eq_uint256Smod (a b : Nat)
       have hb_lt : b < 2 ^ 255 := by omega
       simp only [show ¬(2 ^ 255 ≤ a) from ha_neg, show ¬(2 ^ 255 ≤ b) from hb_neg,
         ite_true, ite_false, ha_lt, hb_lt]
-      simp only [Verity.Core.Int256.signedAbsNat]
+      unfold Verity.Core.Int256.signedAbsNat
       have hlhs_nonneg : ¬(Int.ofNat a < 0) := by omega
       have hrhs_nonneg : ¬(Int.ofNat b < 0) := by omega
       have habs_a : Int.natAbs (Int.ofNat a) = a := by simp
