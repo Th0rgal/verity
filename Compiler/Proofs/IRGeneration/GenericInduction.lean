@@ -12257,6 +12257,18 @@ private theorem stmtListCompileCore_of_scopeNamesIncluded
         (ih hincluded)
   | stop hrest ih =>
       exact .stop (ih hincluded)
+  | mstore hcoreOffset hinScopeOffset hcoreValue hinScopeValue hrest ih =>
+      exact .mstore hcoreOffset
+        (exprBoundNamesInScope_of_scopeNamesIncluded hinScopeOffset hincluded)
+        hcoreValue
+        (exprBoundNamesInScope_of_scopeNamesIncluded hinScopeValue hincluded)
+        (ih hincluded)
+  | tstore hcoreOffset hinScopeOffset hcoreValue hinScopeValue hrest ih =>
+      exact .tstore hcoreOffset
+        (exprBoundNamesInScope_of_scopeNamesIncluded hinScopeOffset hincluded)
+        hcoreValue
+        (exprBoundNamesInScope_of_scopeNamesIncluded hinScopeValue hincluded)
+        (ih hincluded)
 
 private theorem stmtListTerminalCore_of_scopeNamesIncluded
     {scope largerScope : List String}
@@ -12283,6 +12295,18 @@ private theorem stmtListTerminalCore_of_scopeNamesIncluded
         (stmtListCompileCore_of_scopeNamesIncluded hrest hincluded)
   | stop hrest =>
       exact .stop (stmtListCompileCore_of_scopeNamesIncluded hrest hincluded)
+  | mstore hcoreOffset hinScopeOffset hcoreValue hinScopeValue hrest ih =>
+      exact .mstore hcoreOffset
+        (exprBoundNamesInScope_of_scopeNamesIncluded hinScopeOffset hincluded)
+        hcoreValue
+        (exprBoundNamesInScope_of_scopeNamesIncluded hinScopeValue hincluded)
+        (ih hincluded)
+  | tstore hcoreOffset hinScopeOffset hcoreValue hinScopeValue hrest ih =>
+      exact .tstore hcoreOffset
+        (exprBoundNamesInScope_of_scopeNamesIncluded hinScopeOffset hincluded)
+        hcoreValue
+        (exprBoundNamesInScope_of_scopeNamesIncluded hinScopeValue hincluded)
+        (ih hincluded)
   | ite hcond hinScope hthen helse hrest ihThen ihElse =>
       exact .ite hcond
         (exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
@@ -12341,6 +12365,36 @@ private theorem stmtListGenericCore_of_stmtListCompileCore_of_scopeNamesIncluded
       exact StmtListGenericCore.cons compiledStmtStep_stop
         (ih <| FunctionBody.scopeNamesIncluded_collectStmtNames_tail
             (stmt := .stop) hincluded)
+  | mstore hcoreOffset hinScopeOffset hcoreValue hinScopeValue hrest ih =>
+      rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreOffset with
+        ⟨offsetIR, hoffsetIR⟩
+      rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+        ⟨valueIR, hvalueIR⟩
+      exact StmtListGenericCore.cons
+        (compiledStmtStep_mstore_single
+          (hcoreOffset := hcoreOffset)
+          (hinScopeOffset := exprBoundNamesInScope_of_scopeNamesIncluded hinScopeOffset hincluded)
+          (hcoreValue := hcoreValue)
+          (hinScopeValue := exprBoundNamesInScope_of_scopeNamesIncluded hinScopeValue hincluded)
+          (hoffsetIR := hoffsetIR)
+          (hvalueIR := hvalueIR))
+        (ih <| FunctionBody.scopeNamesIncluded_collectStmtNames_tail
+            (stmt := .mstore _ _) hincluded)
+  | tstore hcoreOffset hinScopeOffset hcoreValue hinScopeValue hrest ih =>
+      rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreOffset with
+        ⟨offsetIR, hoffsetIR⟩
+      rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+        ⟨valueIR, hvalueIR⟩
+      exact StmtListGenericCore.cons
+        (compiledStmtStep_tstore_single
+          (hcoreOffset := hcoreOffset)
+          (hinScopeOffset := exprBoundNamesInScope_of_scopeNamesIncluded hinScopeOffset hincluded)
+          (hcoreValue := hcoreValue)
+          (hinScopeValue := exprBoundNamesInScope_of_scopeNamesIncluded hinScopeValue hincluded)
+          (hoffsetIR := hoffsetIR)
+          (hvalueIR := hvalueIR))
+        (ih <| FunctionBody.scopeNamesIncluded_collectStmtNames_tail
+            (stmt := .tstore _ _) hincluded)
 
 private theorem stmtListGenericCore_of_stmtListTerminalCore_of_scopeNamesIncluded
     {fields : List Field}
@@ -12396,6 +12450,36 @@ private theorem stmtListGenericCore_of_stmtListTerminalCore_of_scopeNamesInclude
           hrest
           (FunctionBody.scopeNamesIncluded_collectStmtNames_tail
             (stmt := .stop) hincluded))
+  | mstore hcoreOffset hinScopeOffset hcoreValue hinScopeValue hrest ih =>
+      rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreOffset with
+        ⟨offsetIR, hoffsetIR⟩
+      rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+        ⟨valueIR, hvalueIR⟩
+      exact StmtListGenericCore.cons
+        (compiledStmtStep_mstore_single
+          (hcoreOffset := hcoreOffset)
+          (hinScopeOffset := exprBoundNamesInScope_of_scopeNamesIncluded hinScopeOffset hincluded)
+          (hcoreValue := hcoreValue)
+          (hinScopeValue := exprBoundNamesInScope_of_scopeNamesIncluded hinScopeValue hincluded)
+          (hoffsetIR := hoffsetIR)
+          (hvalueIR := hvalueIR))
+        (ih <| FunctionBody.scopeNamesIncluded_collectStmtNames_tail
+            (stmt := .mstore _ _) hincluded)
+  | tstore hcoreOffset hinScopeOffset hcoreValue hinScopeValue hrest ih =>
+      rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreOffset with
+        ⟨offsetIR, hoffsetIR⟩
+      rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+        ⟨valueIR, hvalueIR⟩
+      exact StmtListGenericCore.cons
+        (compiledStmtStep_tstore_single
+          (hcoreOffset := hcoreOffset)
+          (hinScopeOffset := exprBoundNamesInScope_of_scopeNamesIncluded hinScopeOffset hincluded)
+          (hcoreValue := hcoreValue)
+          (hinScopeValue := exprBoundNamesInScope_of_scopeNamesIncluded hinScopeValue hincluded)
+          (hoffsetIR := hoffsetIR)
+          (hvalueIR := hvalueIR))
+        (ih <| FunctionBody.scopeNamesIncluded_collectStmtNames_tail
+            (stmt := .tstore _ _) hincluded)
   | ite hcond hinScope hthen helse hrest ihThen ihElse =>
       rcases compiledStmtStep_ite (fields := fields) hcond
           (exprBoundNamesInScope_of_scopeNamesIncluded hinScope hincluded)
