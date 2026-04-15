@@ -237,12 +237,30 @@ private def constructorCalldataTx : IRTransaction :=
     functionSelector := 0
     args := [21] }
 
+private def constructorHelperArgCtor : ConstructorSpec :=
+  { params := [{ name := "initialValue", ty := .uint256 }]
+    body :=
+      [Stmt.internalCallAssign ["tmp"] "identity" [.constructorArg 0],
+        Stmt.setStorage "value" (.localVar "tmp"),
+        .stop] }
+
+private def constructorHelperArgTx : IRTransaction :=
+  { sender := 8
+    functionSelector := 0
+    args := [17] }
+
 private def identityInternalHelper : FunctionSpec :=
   { name := "identity"
     params := [{ name := "x", ty := .uint256 }]
     returnType := some .uint256
     isInternal := true
     body := [Stmt.return (.param "x")] }
+
+private def constructorHelperArgSpec : CompilationModel :=
+  { name := "ConstructorHelperArg"
+    fields := [{ name := "value", ty := .uint256 }]
+    constructor := some constructorHelperArgCtor
+    functions := [identityInternalHelper] }
 
 private def constSevenInternalHelper : FunctionSpec :=
   { name := "constSeven"
@@ -467,6 +485,31 @@ example :
       constructorArgCtor
       constructorArgTx
       Verity.defaultState).finalStorage 0 = 13 := by
+  native_decide
+
+example :
+    SourceSemantics.constructorExecutionBindings
+      constructorHelperArgCtor
+      constructorHelperArgTx.args =
+      some [("arg0", 17), ("initialValue", 17)] := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructorWithHelpers
+      constructorHelperArgSpec
+      1
+      constructorHelperArgCtor
+      constructorHelperArgTx
+      Verity.defaultState).success = true := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructorWithHelpers
+      constructorHelperArgSpec
+      1
+      constructorHelperArgCtor
+      constructorHelperArgTx
+      Verity.defaultState).finalStorage 0 = 17 := by
   native_decide
 
 example :

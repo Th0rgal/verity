@@ -1678,7 +1678,9 @@ def constructorExecutionBindings
   match bindSupportedParams ctor.params rawArgs with
   | none => none
   | some bindings =>
-      if stmtListTouchesUnsupportedCoreSurface ctor.body then
+      if stmtListTouchesUnsupportedCoreSurface ctor.body ||
+          stmtListTouchesUnsupportedCallSurface ctor.body ||
+          stmtListTouchesUnsupportedEffectSurface ctor.body then
         match bindConstructorArgAliases ctor.params rawArgs bindings with
         | some ctorBindings => some ctorBindings
         | none => some bindings
