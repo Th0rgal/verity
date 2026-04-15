@@ -140,6 +140,22 @@ class ParseLookupPrimOpTests(unittest.TestCase):
         result = gen._parse_lookup_primop(text)
         self.assertEqual(result, ["add", "mul", "sub"])
 
+    def test_ignores_commented_match_arms(self) -> None:
+        text = textwrap.dedent("""\
+            def lookupPrimOp (name : String) : Option PrimOp :=
+              match name with
+              | "add" => some .ADD
+              /-
+              | "fake" => some .FAKE
+              -/
+              -- | "also_fake" => some .ALSO_FAKE
+              | _ => none
+
+            def evalPureBuiltinViaEvmYulLean := sorry
+        """)
+        result = gen._parse_lookup_primop(text)
+        self.assertEqual(result, ["add"])
+
     def test_missing_block_raises(self) -> None:
         with self.assertRaises(ValueError):
             gen._parse_lookup_primop("no markers here")
@@ -160,6 +176,22 @@ class ParsePureBridgeTests(unittest.TestCase):
         """)
         result = gen._parse_pure_bridge(text)
         self.assertEqual(result, ["add", "sub"])
+
+    def test_ignores_commented_match_arms(self) -> None:
+        text = textwrap.dedent("""\
+            def evalPureBuiltinViaEvmYulLean (name : String) (args : List Nat) : Option Nat :=
+              match name, args with
+              | "add", [a, b] => some (a + b)
+              /-
+              | "fake", [a, b] => some (a + b)
+              -/
+              -- | "also_fake", [a, b] => some (a + b)
+              | _, _ => none
+
+            def evalBuiltinCallViaEvmYulLean := sorry
+        """)
+        result = gen._parse_pure_bridge(text)
+        self.assertEqual(result, ["add"])
 
 
 class ParseBridgeTestsTests(unittest.TestCase):
@@ -211,6 +243,19 @@ class ParseBridgeTestsTests(unittest.TestCase):
         # But neither builtin is credited because they don't match
         self.assertNotIn("add", builtins)
         self.assertNotIn("sub", builtins)
+
+    def test_ignores_commented_bridge_examples(self) -> None:
+        p = self._write_test_file("""\
+            /-
+            example := verityEvalBuiltin "fake" [1, 2] = bridgeEval "fake" [1, 2] := by native_decide
+            -/
+            -- example := verityEvalBuiltin "also_fake" [1, 2] = bridgeEval "also_fake" [1, 2] := by native_decide
+            example := verityEvalBuiltin "add" [1, 2] = bridgeEval "add" [1, 2] := by native_decide
+        """)
+        with patch.object(gen, "BRIDGE_TEST_FILE", p):
+            builtins, count = gen._parse_bridge_tests()
+        self.assertEqual(count, 1)
+        self.assertEqual(builtins, ["add"])
 
     def test_missing_file_raises(self) -> None:
         with patch.object(gen, "BRIDGE_TEST_FILE", Path("/nonexistent/BridgeTest.lean")):

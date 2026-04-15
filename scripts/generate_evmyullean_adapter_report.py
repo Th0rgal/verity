@@ -155,13 +155,13 @@ def _parse_gap_messages(lines: list[str]) -> dict[str, list[str]]:
 def _parse_lookup_primop(text: str) -> list[str]:
     """Extract builtin names from lookupPrimOp match arms."""
     block = "\n".join(_extract_block(text, "def lookupPrimOp", "def evalPureBuiltinViaEvmYulLean"))
-    return sorted(set(PRIMOP_RE.findall(block)))
+    return sorted(set(PRIMOP_RE.findall(_strip_lean_comments(block))))
 
 
 def _parse_pure_bridge(text: str) -> list[str]:
     """Extract builtin names from evalPureBuiltinViaEvmYulLean match arms."""
     block = "\n".join(_extract_block(text, "def evalPureBuiltinViaEvmYulLean", "def evalBuiltinCallViaEvmYulLean"))
-    return sorted(set(PURE_BRIDGE_RE.findall(block)))
+    return sorted(set(PURE_BRIDGE_RE.findall(_strip_lean_comments(block))))
 
 
 def _parse_bridge_lemmas() -> tuple[list[str], list[str]]:
@@ -206,8 +206,9 @@ def _parse_bridge_tests() -> tuple[list[str], int]:
     if not BRIDGE_TEST_FILE.exists():
         raise FileNotFoundError(f"Bridge test file not found: {BRIDGE_TEST_FILE}")
     text = BRIDGE_TEST_FILE.read_text(encoding="utf-8")
+    code = _strip_lean_comments(text)
     # Split into individual example blocks
-    blocks = EXAMPLE_SPLIT_RE.split(text)[1:]  # skip preamble before first example
+    blocks = EXAMPLE_SPLIT_RE.split(code)[1:]  # skip preamble before first example
     builtins: set[str] = set()
     bridge_test_count = 0
     for block in blocks:
