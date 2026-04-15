@@ -1940,6 +1940,11 @@ theorem supported_constructor_body_correct_with_body_interface
           bodyStmts)) := by
   let ctorFn := constructorAsFunctionSpec ctor
   let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
+  have hcoreClosed : stmtListTouchesUnsupportedCoreSurface ctor.body = false := by
+    simpa [ctorFn, constructorAsFunctionSpec] using hSupported.body.core.surfaceClosed
+  have heffective :
+      SourceSemantics.constructorExecutionBindings ctor tx.args = some bindings := by
+    simp [SourceSemantics.constructorExecutionBindings, hbind, hcoreClosed]
   let stateWithBindings := ParamLoading.applyBindingsToIRState initialState bindings
   have hinitBindings :
       FunctionBody.bindingsExactlyMatchIRVars [] initialState := by
@@ -2087,7 +2092,8 @@ theorem supported_constructor_body_correct_with_body_interface
         ctor.body = sourceResult := by
     simpa [ctorFn, constructorAsFunctionSpec] using hsource
   simpa [SourceSemantics.interpretConstructorWithHelpers,
-    SourceSemantics.interpretFunctionWithHelpers, constructorAsFunctionSpec, hbind, hsource',
+    SourceSemantics.constructorExecutionBindings, SourceSemantics.interpretFunctionWithHelpers,
+    constructorAsFunctionSpec, hbind, hcoreClosed, heffective, hsource',
     FunctionBody.stmtResultToSourceResult,
     FunctionBody.sourceResultMatchesIRResult,
     FunctionBody.irResultOfExecResult, execResultToIRResult] using hpacked

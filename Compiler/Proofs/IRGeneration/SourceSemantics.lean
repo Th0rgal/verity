@@ -1638,31 +1638,52 @@ def findFunctionBySelector (spec : CompilationModel) (selectors : List Nat) (sel
     Option FunctionSpec :=
   (selectorFunctionPairs spec selectors).find? (fun entry => entry.2 == selector) |>.map Prod.fst
 
-private def bindConstructorArgAliases
+def bindConstructorArgAliasesFrom
+    (remaining : List Param)
+    (rawArgs : List Nat)
+    (idx : Nat)
+    (headWord : Nat)
+    (bindings : List (String × Nat)) :
+    Option (List (String × Nat)) :=
+  match remaining with
+  | [] => some bindings
+  | param :: rest =>
+      let aliasValue? :=
+        if isDynamicParamType param.ty then
+          rawArgs[headWord]? |> Option.map wordNormalize
+        else
+          match param.ty with
+          | .uint256 | .int256 | .uint8 | .address | .bool | .bytes32 =>
+              lookupBinding? bindings param.name
+          | _ =>
+              rawArgs[headWord]? |> Option.map wordNormalize
+      match aliasValue? with
+      | none => none
+      | some value =>
+          bindConstructorArgAliasesFrom rest rawArgs (idx + 1)
+            (headWord + paramHeadSize param.ty / 32)
+            (bindValue bindings s!"arg{idx}" value)
+
+def bindConstructorArgAliases
     (params : List Param)
     (rawArgs : List Nat)
     (bindings : List (String × Nat)) :
     Option (List (String × Nat)) :=
-  let rec go (remaining : List Param) (idx : Nat) (headWord : Nat)
-      (acc : List (String × Nat)) : Option (List (String × Nat)) :=
-    match remaining with
-    | [] => some acc
-    | param :: rest =>
-        let aliasValue? :=
-          if isDynamicParamType param.ty then
-            rawArgs[headWord]?
-          else
-            match param.ty with
-            | .uint256 | .int256 | .uint8 | .address | .bool | .bytes32 =>
-                lookupBinding? acc param.name
-            | _ =>
-                rawArgs[headWord]?
-        match aliasValue? with
-        | none => none
-        | some value =>
-            go rest (idx + 1) (headWord + paramHeadSize param.ty / 32)
-              (bindValue acc s!"arg{idx}" value)
-  go params 0 0 bindings
+  bindConstructorArgAliasesFrom params rawArgs 0 0 bindings
+
+def constructorExecutionBindings
+    (ctor : ConstructorSpec)
+    (rawArgs : List Nat) :
+    Option (List (String × Nat)) :=
+  match bindSupportedParams ctor.params rawArgs with
+  | none => none
+  | some bindings =>
+      if stmtListTouchesUnsupportedCoreSurface ctor.body then
+        match bindConstructorArgAliases ctor.params rawArgs bindings with
+        | some ctorBindings => some ctorBindings
+        | none => some bindings
+      else
+        some bindings
 
 def interpretFunction (spec : CompilationModel) (fn : FunctionSpec)
     (tx : IRTransaction) (initialWorld : Verity.ContractState) : SourceContractResult :=
@@ -1681,16 +1702,9 @@ def interpretConstructor (spec : CompilationModel) (ctor : ConstructorSpec)
     (tx : IRTransaction) (initialWorld : Verity.ContractState) : SourceContractResult :=
   let worldWithTx := withTransactionContext initialWorld tx
   let fields := effectiveFields spec
-  match bindSupportedParams ctor.params tx.args with
+  match constructorExecutionBindings ctor tx.args with
   | none => revertedResult spec worldWithTx
   | some bindings =>
-      let bindings :=
-        if stmtListTouchesUnsupportedCoreSurface ctor.body then
-          match bindConstructorArgAliases ctor.params tx.args bindings with
-          | some ctorBindings => ctorBindings
-          | none => bindings
-        else
-          bindings
       match execStmtList fields
           { world := worldWithTx, bindings := bindings, selector := tx.functionSelector }
           ctor.body with
@@ -2372,16 +2386,9 @@ def interpretConstructorWithHelpers
     (initialWorld : Verity.ContractState) : SourceContractResult :=
   let worldWithTx := withTransactionContext initialWorld tx
   let fields := effectiveFields spec
-  match bindSupportedParams ctor.params tx.args with
+  match constructorExecutionBindings ctor tx.args with
   | none => revertedResult spec worldWithTx
   | some bindings =>
-      let bindings :=
-        if stmtListTouchesUnsupportedCoreSurface ctor.body then
-          match bindConstructorArgAliases ctor.params tx.args bindings with
-          | some ctorBindings => ctorBindings
-          | none => bindings
-        else
-          bindings
       match execStmtListWithHelpers spec fields fuel
           { world := worldWithTx, bindings := bindings, selector := tx.functionSelector }
           ctor.body with
