@@ -539,7 +539,7 @@ def supportedCustomErrorParamType : ParamType → Bool
   | ParamType.array elemTy => supportedCustomErrorParamType elemTy
   | ParamType.fixedArray elemTy _ => supportedCustomErrorParamType elemTy
   | ParamType.tuple elemTys => supportedCustomErrorParamTypes elemTys
-  | ParamType.adt _ _ => false
+  | ParamType.adt _ _ => true
   | ParamType.newtypeOf _ baseType => supportedCustomErrorParamType baseType
 termination_by ty => sizeOf ty
 decreasing_by

@@ -170,7 +170,7 @@ where
         let slot := f.slot.getD idx
         let entry := "{" ++ joinJsonFields [
           s!"\"name\": {jsonString f.name}",
-          s!"\"slot\": {toString slot}",
+          s!"\"slot\": {jsonString (toString slot)}",
           s!"\"type\": {jsonString (renderFieldType f.ty)}"
         ] ++ "}"
         entry :: renderFields rest (idx + 1)

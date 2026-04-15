@@ -787,8 +787,11 @@ def stmtInternalCEIViolation : Stmt → Bool → Option String
       match stmtListCEIViolation body seenCall with
       | some msg => some s!"in unsafe block: {msg}"
       | none => none
-  | Stmt.matchAdt _ _ branches, seenCall =>
-      matchBranchesCEIViolation branches seenCall
+  | Stmt.matchAdt _ scrutinee branches, seenCall =>
+      -- Include external calls from the scrutinee expression, so
+      -- `match adtTag (externalCall ...) { ... setStorage ... }` is correctly flagged
+      let scrutineeSeenCall := seenCall || exprContainsExternalCall scrutinee
+      matchBranchesCEIViolation branches scrutineeSeenCall
   | _, _ => none
 termination_by s => sizeOf s
 decreasing_by all_goals simp_wf; all_goals omega

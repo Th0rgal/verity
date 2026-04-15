@@ -531,13 +531,13 @@ private def parseAdtDecl (newtypes : Array NewtypeDecl) (stx : Syntax) : Command
       pure { ident := name, name := toString name.getId, variants := parsedVariants }
   | _ => throwErrorAt stx "invalid ADT declaration"
 
-private def parseError (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM ErrorDecl := do
+private def parseError (newtypes : Array NewtypeDecl) (adtDecls : Array AdtDecl) (stx : Syntax) : CommandElabM ErrorDecl := do
   match stx with
   | `(verityError| error $name:ident ($[$params:term],*)) =>
       pure {
         ident := name
         name := toString name.getId
-        params := ← params.mapM (valueTypeFromSyntax newtypes #[])
+        params := ← params.mapM (valueTypeFromSyntax newtypes adtDecls)
       }
   | _ => throwErrorAt stx "invalid custom error declaration"
 
@@ -563,20 +563,20 @@ private def parseImmutable (newtypes : Array NewtypeDecl) (stx : Syntax) : Comma
       }
   | _ => throwErrorAt stx "invalid immutable declaration"
 
-private def parseExternal (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM ExternalDecl := do
+private def parseExternal (newtypes : Array NewtypeDecl) (adtDecls : Array AdtDecl) (stx : Syntax) : CommandElabM ExternalDecl := do
   match stx with
   | `(verityExternal| external $name:ident ($[$params:term],*) -> ($[$returnTys:term],*)) =>
       pure {
         ident := name
         name := toString name.getId
-        params := ← params.mapM (valueTypeFromSyntax newtypes #[])
-        returnTys := ← returnTys.mapM (valueTypeFromSyntax newtypes #[])
+        params := ← params.mapM (valueTypeFromSyntax newtypes adtDecls)
+        returnTys := ← returnTys.mapM (valueTypeFromSyntax newtypes adtDecls)
       }
   | `(verityExternal| external $name:ident ($[$params:term],*)) =>
       pure {
         ident := name
         name := toString name.getId
-        params := ← params.mapM (valueTypeFromSyntax newtypes #[])
+        params := ← params.mapM (valueTypeFromSyntax newtypes adtDecls)
         returnTys := #[]
       }
   | _ => throwErrorAt stx "invalid external declaration"
@@ -970,7 +970,7 @@ private def resolveRoleField
       throwErrorAt roleIdent s!"function '{toString fnIdent.getId}': requires references unknown storage field '{roleName}'; known fields: {(fields.map (·.name)).toList}"
   | some field =>
       match field.ty with
-      | .scalar .address => pure field
+      | .scalar .address | .scalar (.newtype _ .address) => pure field
       | _ => throwErrorAt roleIdent s!"function '{toString fnIdent.getId}': requires({roleName}) must reference an Address-typed storage field, but '{roleName}' has a different type"
 
 /-- Generate IR-level prelude statements for a `requires(role)` annotation.
@@ -4229,7 +4229,7 @@ def parseContractSyntax
         | none => 0
       let parsedErrors ←
         match errorDecls with
-        | some decls => decls.mapM (parseError parsedNewtypes)
+        | some decls => decls.mapM (parseError parsedNewtypes parsedAdts)
         | none => pure #[]
       let parsedConstants ←
         match constantDecls with
@@ -4241,7 +4241,7 @@ def parseContractSyntax
         | none => pure #[]
       let parsedExternals ←
         match externalDecls with
-        | some decls => decls.mapM (parseExternal parsedNewtypes)
+        | some decls => decls.mapM (parseExternal parsedNewtypes parsedAdts)
         | none => pure #[]
       -- Apply namespace offset to parsed storage fields (#1730, Axis 4 Step 4b)
       let parsedFields ← storageFields.mapM (parseStorageField parsedNewtypes parsedAdts)
