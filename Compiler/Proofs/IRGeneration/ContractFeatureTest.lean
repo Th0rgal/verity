@@ -241,6 +241,25 @@ private def helperFuelAlignSpec : CompilationModel :=
     constructor := none
     functions := [constSevenInternalHelper] }
 
+private def helperCallerFunction : FunctionSpec :=
+  { name := "callConstSeven"
+    params := []
+    returnType := some .uint256
+    body :=
+      [Stmt.internalCallAssign ["result"] "constSeven" []
+      , Stmt.return (.param "result")] }
+
+private def helperCallerTx : IRTransaction :=
+  { sender := 4
+    functionSelector := 0
+    args := [] }
+
+private def helperCallSpec : CompilationModel :=
+  { name := "HelperCall"
+    fields := []
+    constructor := none
+    functions := [constSevenInternalHelper, helperCallerFunction] }
+
 private def helperFuelAlignRuntime : SourceSemantics.RuntimeState :=
   { world := Verity.defaultState
     bindings := []
@@ -383,14 +402,22 @@ example :
     hvalidate hreturns hretNames hbody
 
 example :
-    SourceSemantics.interpretInternalFunctionFuel
+    (SourceSemantics.interpretInternalFunctionFuel
       helperFuelAlignSpec
       0
       constSevenInternalHelper
       Verity.defaultState
-      [] =
-    SourceSemantics.revertedInternalResult Verity.defaultState := by
-  simp
+      []).returnValue = some 7 := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretFunctionWithHelpers
+      helperCallSpec
+      1
+      helperCallerFunction
+      helperCallerTx
+      Verity.defaultState).returnValue = some 7 := by
+  native_decide
 
 example :
     (SourceSemantics.interpretConstructor
