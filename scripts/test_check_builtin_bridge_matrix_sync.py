@@ -66,6 +66,13 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
         feature_matrix = root / "artifacts" / "interpreter_feature_matrix.json"
         feature_matrix.parent.mkdir(parents=True, exist_ok=True)
         feature_matrix.write_text(json.dumps({"builtin_features": builtin_features}), encoding="utf-8")
+        admitted = [
+            entry["feature"]
+            for entry in builtin_features
+            if entry.get("sorry_dependent") is True
+        ]
+        adapter_report = root / "artifacts" / "evmyullean_adapter_report.json"
+        adapter_report.write_text(json.dumps({"admitted_bridge_lemmas": admitted}), encoding="utf-8")
 
         target_doc = root / "docs" / "INTERPRETER_FEATURE_MATRIX.md"
         target_doc.parent.mkdir(parents=True, exist_ok=True)
@@ -78,9 +85,11 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
 
             old_root = check.ROOT
             old_feature_matrix = check.FEATURE_MATRIX
+            old_adapter_report = check.ADAPTER_REPORT
             old_target_doc = check.TARGET_DOC
             check.ROOT = root
             check.FEATURE_MATRIX = root / "artifacts" / "interpreter_feature_matrix.json"
+            check.ADAPTER_REPORT = root / "artifacts" / "evmyullean_adapter_report.json"
             check.TARGET_DOC = root / "docs" / "INTERPRETER_FEATURE_MATRIX.md"
             try:
                 stdout = io.StringIO()
@@ -91,6 +100,7 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
             finally:
                 check.ROOT = old_root
                 check.FEATURE_MATRIX = old_feature_matrix
+                check.ADAPTER_REPORT = old_adapter_report
                 check.TARGET_DOC = old_target_doc
 
     def test_missing_delegated_builtin_fails_closed(self) -> None:
@@ -129,13 +139,9 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
     def test_sorry_dependent_missing_flag_fails(self) -> None:
         """Admitted builtin without sorry_dependent=true should fail."""
         features = _make_builtin_features(admitted=[])  # No sorry flags
-        rc, output = self._run_check(
-            builtin_features=features,
-            doc_text="anything",
-        )
-        self.assertEqual(rc, 1)
-        # First admitted builtin should trigger the error
-        self.assertIn("should have sorry_dependent=true", output)
+        matrix = {"builtin_features": features}
+        with self.assertRaisesRegex(ValueError, "should have sorry_dependent=true"):
+            check.validate_builtin_features(matrix, check.ADMITTED_BUILTINS)
 
     def test_sorry_dependent_on_non_admitted_fails(self) -> None:
         """Fully proved builtin with sorry_dependent=true should fail."""
@@ -144,12 +150,9 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
         for f in features:
             if f["feature"] == "add":
                 f["sorry_dependent"] = True
-        rc, output = self._run_check(
-            builtin_features=features,
-            doc_text="anything",
-        )
-        self.assertEqual(rc, 1)
-        self.assertIn("add should not have sorry_dependent=true", output)
+        matrix = {"builtin_features": features}
+        with self.assertRaisesRegex(ValueError, "add should not have sorry_dependent=true"):
+            check.validate_builtin_features(matrix)
 
     def test_sorry_dependent_on_concrete_only_fails(self) -> None:
         """Concrete-only builtin with sorry_dependent=true should fail."""
@@ -196,6 +199,23 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
         with self.assertRaises(ValueError, msg="delegated") as ctx:
             check.validate_builtin_features(matrix)
         self.assertIn("delegated and must not have sorry_dependent=true", str(ctx.exception))
+
+    def test_adapter_report_admitted_set_drives_validation(self) -> None:
+        """Repository check should use the adapter report, not the fallback constant."""
+        features = _make_builtin_features()
+        matrix = {"builtin_features": features}
+        with self.assertRaisesRegex(ValueError, "sdiv should not have sorry_dependent=true"):
+            check.validate_builtin_features(matrix, ["exp"])
+
+        validated = check.validate_builtin_features(matrix, check.ADMITTED_BUILTINS)
+        self.assertEqual(validated, features)
+
+    def test_load_admitted_builtins_rejects_unknown_names(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "report.json"
+            path.write_text(json.dumps({"admitted_bridge_lemmas": ["exp", "fake"]}), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "outside PROVED_BUILTINS"):
+                check.load_admitted_builtins(path)
 
     def test_sorry_qualifier_in_snippets(self) -> None:
         """Doc snippets should include sorry qualifier when admitted builtins exist."""

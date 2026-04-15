@@ -9,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FEATURE_MATRIX = ROOT / "artifacts" / "interpreter_feature_matrix.json"
+ADAPTER_REPORT = ROOT / "artifacts" / "evmyullean_adapter_report.json"
 TARGET_DOC = ROOT / "docs" / "INTERPRETER_FEATURE_MATRIX.md"
 PROVED_BUILTINS = [
     "add",
@@ -45,7 +46,9 @@ PROVED_BUILTINS = [
     "address",
     "blobbasefee",
 ]
-# Builtins whose bridge theorems transitively depend on sorry'd core lemmas.
+# Fallback for tests that call helpers directly. The repository check derives
+# this list from artifacts/evmyullean_adapter_report.json so trust docs cannot
+# drift when the admitted bridge set changes.
 ADMITTED_BUILTINS = ["exp", "sdiv", "smod", "sar", "signextend"]
 CONCRETE_ONLY_BUILTINS: list[str] = []
 PURE_BUILTINS = PROVED_BUILTINS + CONCRETE_ONLY_BUILTINS
@@ -102,7 +105,27 @@ def load_feature_matrix(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def validate_builtin_features(matrix: dict) -> list[dict]:
+def load_admitted_builtins(path: Path) -> list[str]:
+    """Load sorry-dependent bridge builtins from the adapter report artifact."""
+    report = json.loads(path.read_text(encoding="utf-8"))
+    admitted = report.get("admitted_bridge_lemmas")
+    if not isinstance(admitted, list) or not all(isinstance(name, str) for name in admitted):
+        raise ValueError("adapter report is missing admitted_bridge_lemmas")
+    unknown = sorted(set(admitted) - set(PROVED_BUILTINS))
+    if unknown:
+        raise ValueError(
+            "adapter report lists admitted bridge lemmas outside PROVED_BUILTINS: "
+            f"{unknown}"
+        )
+    return [name for name in PROVED_BUILTINS if name in admitted]
+
+
+def validate_builtin_features(
+    matrix: dict,
+    admitted_builtins: list[str] | None = None,
+) -> list[dict]:
+    admitted_builtins = admitted_builtins if admitted_builtins is not None else ADMITTED_BUILTINS
+    admitted_set = set(admitted_builtins)
     builtin_features = matrix.get("builtin_features")
     if not isinstance(builtin_features, list):
         raise ValueError("interpreter feature matrix is missing builtin_features")
@@ -124,7 +147,7 @@ def validate_builtin_features(matrix: dict) -> list[dict]:
             if entry.get("agreement_proved") is not True:
                 raise ValueError(f"{feature} should have agreement_proved=true")
             # Admitted builtins must be flagged; fully proved must not be.
-            if feature in ADMITTED_BUILTINS:
+            if feature in admitted_set:
                 if entry.get("sorry_dependent") is not True:
                     raise ValueError(f"{feature} should have sorry_dependent=true")
             else:
@@ -185,15 +208,19 @@ def main() -> int:
     if not FEATURE_MATRIX.exists():
         print(f"Missing: {FEATURE_MATRIX.relative_to(ROOT)}", file=sys.stderr)
         return 1
+    if not ADAPTER_REPORT.exists():
+        print(f"Missing: {ADAPTER_REPORT.relative_to(ROOT)}", file=sys.stderr)
+        return 1
     if not TARGET_DOC.exists():
         print(f"Missing: {TARGET_DOC.relative_to(ROOT)}", file=sys.stderr)
         return 1
 
     try:
         matrix = load_feature_matrix(FEATURE_MATRIX)
-        builtin_features = validate_builtin_features(matrix)
+        admitted_builtins = load_admitted_builtins(ADAPTER_REPORT)
+        builtin_features = validate_builtin_features(matrix, admitted_builtins)
     except (json.JSONDecodeError, ValueError) as exc:
-        print(f"{FEATURE_MATRIX.relative_to(ROOT)}: {exc}", file=sys.stderr)
+        print(f"builtin bridge matrix sync failed: {exc}", file=sys.stderr)
         return 1
 
     normalized = normalize_ws(TARGET_DOC.read_text(encoding="utf-8"))
@@ -211,7 +238,7 @@ def main() -> int:
 
     proved = sum(1 for entry in builtin_features if entry["agreement_proved"])
     admitted = sum(1 for entry in builtin_features if entry.get("sorry_dependent") is True)
-    admitted_str = f"; admitted (sorry-dependent): {', '.join(ADMITTED_BUILTINS)}" if admitted else ""
+    admitted_str = f"; admitted (sorry-dependent): {', '.join(admitted_builtins)}" if admitted else ""
     print(
         "builtin bridge matrix sync passed: "
         f"{proved}/{len(builtin_features)} builtins proved{admitted_str}; "
