@@ -1941,6 +1941,7 @@ theorem supported_constructor_body_correct_with_body_interface
           bodyStmts)) := by
   let ctorFn := constructorAsFunctionSpec ctor
   let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
+  let _ := hfunctionNamesNodup
   have hcoreClosed : stmtListTouchesUnsupportedCoreSurface ctor.body = false := by
     simpa [ctorFn, constructorAsFunctionSpec] using hSupported.body.core.surfaceClosed
   have hcallClosed : stmtListTouchesUnsupportedCallSurface ctor.body = false := by
@@ -1948,16 +1949,18 @@ theorem supported_constructor_body_correct_with_body_interface
       SupportedBodyCallInterface.surfaceClosed_exceptMappingWrites hSupported.body
   have heffectsClosed : stmtListTouchesUnsupportedEffectSurface ctor.body = false := by
     simpa [ctorFn, constructorAsFunctionSpec] using hSupported.body.effects.surfaceClosed
-  have hdirectHelperRawClosed :
-      SourceSemantics.directHelperTouchesUnsupportedConstructorRawCalldataSurface model ctorFn = false := by
-    exact
-      SourceSemantics.directHelperTouchesUnsupportedConstructorRawCalldataSurface_eq_false_of_supported
-        hSupported.body.calls.helpers
-        hfunctionNamesNodup
+  have hhelperCallsNil : helperCallNames ctorFn = [] :=
+    hSupported.body.helperCallNames_nil
+  have hhelperRawClosed :
+      SourceSemantics.helperClosureTouchesUnsupportedConstructorRawCalldataSurface model
+        (model.functions.length + 1) ctorFn = false :=
+    SourceSemantics.helperClosureTouchesUnsupportedConstructorRawCalldataSurface_eq_false_of_no_helper_calls
+      (model.functions.length + 1)
+      hhelperCallsNil
   have hrawClosed :
       SourceSemantics.constructorTouchesUnsupportedRawCalldataSurface model ctor = false := by
     simp [SourceSemantics.constructorTouchesUnsupportedRawCalldataSurface,
-      ctorFn, hSupported.rawCalldataSurfaceClosed, hdirectHelperRawClosed]
+      ctorFn, hSupported.rawCalldataSurfaceClosed, hhelperRawClosed]
   have hbindTake :
       SourceSemantics.bindSupportedParams ctor.params (List.take ctor.params.length tx.args) = some bindings := by
     exact SourceSemantics.bindSupportedParams_take_param_length hbind

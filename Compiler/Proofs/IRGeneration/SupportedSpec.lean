@@ -2344,6 +2344,12 @@ theorem SupportedBodyInterface.helperCallNames_nil
     helperCallNames fn = [] := by
   simp [helperCallNames, hBody.stmtList.internalHelperCallNames_nil]
 
+theorem SupportedBodyInterfaceExceptMappingWrites.helperCallNames_nil
+    {spec : CompilationModel} {fn : FunctionSpec}
+    (hBody : SupportedBodyInterfaceExceptMappingWrites spec fn) :
+    helperCallNames fn = [] := by
+  simp [helperCallNames, hBody.stmtList.internalHelperCallNames_nil]
+
 mutual
   theorem exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed
       {expr : Expr}

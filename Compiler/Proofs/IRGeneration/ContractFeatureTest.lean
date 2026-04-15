@@ -307,6 +307,26 @@ private def constructorHelperRawCalldataSpec : CompilationModel :=
     constructor := some constructorHelperRawCalldataCtor
     functions := [rawSizeInternalHelper] }
 
+private def nestedRawSizeInternalHelper : FunctionSpec :=
+  { name := "nestedRawSize"
+    params := []
+    returnType := some .uint256
+    isInternal := true
+    body := [Stmt.internalCallAssign ["tmp"] "rawSize" [], Stmt.return (.localVar "tmp")] }
+
+private def constructorNestedHelperRawCalldataCtor : ConstructorSpec :=
+  { params := [{ name := "initialValue", ty := .uint256 }]
+    body :=
+      [Stmt.internalCallAssign ["tmp"] "nestedRawSize" [],
+        Stmt.setStorage "value" (.localVar "tmp"),
+        .stop] }
+
+private def constructorNestedHelperRawCalldataSpec : CompilationModel :=
+  { name := "ConstructorNestedHelperRawCalldata"
+    fields := [{ name := "value", ty := .uint256 }]
+    constructor := some constructorNestedHelperRawCalldataCtor
+    functions := [nestedRawSizeInternalHelper, rawSizeInternalHelper] }
+
 private def constSevenInternalHelper : FunctionSpec :=
   { name := "constSeven"
     params := []
@@ -580,10 +600,26 @@ example :
   native_decide
 
 example :
+    SourceSemantics.helperClosureTouchesUnsupportedConstructorRawCalldataSurface
+      constructorNestedHelperRawCalldataSpec
+      (constructorNestedHelperRawCalldataSpec.functions.length + 1)
+      (constructorAsFunctionSpec constructorNestedHelperRawCalldataCtor) = true := by
+  native_decide
+
+example :
     (SourceSemantics.interpretConstructorWithHelpers
       constructorHelperRawCalldataSpec
       1
       constructorHelperRawCalldataCtor
+      constructorHelperArgTx
+      Verity.defaultState).success = false := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructorWithHelpers
+      constructorNestedHelperRawCalldataSpec
+      2
+      constructorNestedHelperRawCalldataCtor
       constructorHelperArgTx
       Verity.defaultState).success = false := by
   native_decide

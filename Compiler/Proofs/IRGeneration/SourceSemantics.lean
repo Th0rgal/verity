@@ -1721,11 +1721,24 @@ def directHelperTouchesUnsupportedConstructorRawCalldataSurface
         stmtListTouchesUnsupportedConstructorRawCalldataSurface callee.body
     | none => true
 
+def helperClosureTouchesUnsupportedConstructorRawCalldataSurface
+    (spec : CompilationModel) : Nat → FunctionSpec → Bool
+  | 0, fn =>
+      (helperCallNames fn).any fun _ => true
+  | fuel + 1, fn =>
+      (helperCallNames fn).any fun calleeName =>
+        match findUniqueInternalFunction? spec calleeName with
+        | some callee =>
+            stmtListTouchesUnsupportedConstructorRawCalldataSurface callee.body ||
+              helperClosureTouchesUnsupportedConstructorRawCalldataSurface spec fuel callee
+        | none => true
+
 def constructorTouchesUnsupportedRawCalldataSurface
     (spec : CompilationModel)
     (ctor : ConstructorSpec) : Bool :=
   stmtListTouchesUnsupportedConstructorRawCalldataSurface ctor.body ||
-    directHelperTouchesUnsupportedConstructorRawCalldataSurface spec
+    helperClosureTouchesUnsupportedConstructorRawCalldataSurface spec
+      (spec.functions.length + 1)
       (constructorAsFunctionSpec ctor)
 
 def interpretFunction (spec : CompilationModel) (fn : FunctionSpec)
@@ -2641,6 +2654,15 @@ theorem directHelperTouchesUnsupportedConstructorRawCalldataSurface_eq_false_of_
       findUniqueInternalFunction? spec calleeName = some witness.callee :=
     findUniqueInternalFunction?_of_witness witness hnodup
   simpa [hfind, witness] using witness.summary.constructorRawCalldataSurfaceClosed
+
+theorem helperClosureTouchesUnsupportedConstructorRawCalldataSurface_eq_false_of_no_helper_calls
+    {spec : CompilationModel}
+    {fn : FunctionSpec}
+    (fuel : Nat)
+    (hnil : helperCallNames fn = []) :
+    helperClosureTouchesUnsupportedConstructorRawCalldataSurface spec fuel fn = false := by
+  cases fuel <;>
+    simp [helperClosureTouchesUnsupportedConstructorRawCalldataSurface, hnil]
 
 /-- Public characterization of `execStmtWithHelpers` for `Stmt.internalCallAssign`
 when the callee is identified by a `SupportedInternalHelperWitness` and function
