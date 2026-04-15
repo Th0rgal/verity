@@ -222,6 +222,11 @@ private def constructorArgTx : IRTransaction :=
     functionSelector := 0
     args := [13] }
 
+private def constructorArgTrailingTx : IRTransaction :=
+  { sender := 5
+    functionSelector := 0
+    args := [13, 99] }
+
 private def constructorCalldataCtor : ConstructorSpec :=
   { params := [{ name := "initialValue", ty := .uint256 }]
     body := [Stmt.setStorage "value" .calldatasize, .stop] }
@@ -484,6 +489,22 @@ example :
       0
       constructorArgCtor
       constructorArgTx
+      Verity.defaultState).finalStorage 0 = 13 := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructor
+      constructorArgSpec
+      constructorArgCtor
+      constructorArgTrailingTx
+      Verity.defaultState).success = true := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructor
+      constructorArgSpec
+      constructorArgCtor
+      constructorArgTrailingTx
       Verity.defaultState).finalStorage 0 = 13 := by
   native_decide
 

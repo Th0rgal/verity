@@ -1675,7 +1675,7 @@ def constructorExecutionBindings
     (ctor : ConstructorSpec)
     (rawArgs : List Nat) :
     Option (List (String × Nat)) :=
-  match bindSupportedParams ctor.params rawArgs with
+  match bindSupportedParams ctor.params (rawArgs.take ctor.params.length) with
   | none => none
   | some bindings =>
       if stmtListTouchesUnsupportedCoreSurface ctor.body ||
