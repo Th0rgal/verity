@@ -242,6 +242,18 @@ private def constructorCalldataTx : IRTransaction :=
     functionSelector := 0
     args := [21] }
 
+example :
+    (SourceSemantics.withConstructorTransactionContext
+      Verity.defaultState
+      constructorCalldataTx).calldataSize.val = 32 := by
+  native_decide
+
+example :
+    (SourceSemantics.withTransactionContext
+      Verity.defaultState
+      constructorCalldataTx).calldataSize.val = 36 := by
+  native_decide
+
 private def constructorRightCalldataCtor : ConstructorSpec :=
   { params := [{ name := "initialValue", ty := .uint256 }]
     body := [Stmt.setStorage "value" (.add (.literal 1) .calldatasize), .stop] }

@@ -1538,6 +1538,19 @@ def withTransactionContext (world : Verity.ContractState) (tx : IRTransaction) :
     calldataSize := Verity.Core.Uint256.ofNat (4 + tx.args.length * 32)
     calldata := tx.args }
 
+def withConstructorTransactionContext (world : Verity.ContractState) (tx : IRTransaction) :
+    Verity.ContractState :=
+  { world with
+    sender := Verity.wordToAddress tx.sender
+    thisAddress := Verity.wordToAddress tx.thisAddress
+    msgValue := tx.msgValue
+    blockTimestamp := tx.blockTimestamp
+    blockNumber := tx.blockNumber
+    chainId := tx.chainId
+    blobBaseFee := tx.blobBaseFee
+    calldataSize := Verity.Core.Uint256.ofNat (tx.args.length * 32)
+    calldata := tx.args }
+
 theorem findDynamicArrayElementAtSlot_withTransactionContext
     (fields : List Field)
     (world : Verity.ContractState)
@@ -1756,10 +1769,11 @@ def interpretFunction (spec : CompilationModel) (fn : FunctionSpec)
 
 def interpretConstructor (spec : CompilationModel) (ctor : ConstructorSpec)
     (tx : IRTransaction) (initialWorld : Verity.ContractState) : SourceContractResult :=
+  let constructorWorldWithTx := withConstructorTransactionContext initialWorld tx
   let worldWithTx := withTransactionContext initialWorld tx
   let fields := effectiveFields spec
   if constructorTouchesUnsupportedRawCalldataSurface spec ctor then
-    revertedResult spec worldWithTx
+    revertedResult spec constructorWorldWithTx
   else
     match constructorExecutionBindings ctor tx.args with
     | none => revertedResult spec worldWithTx
@@ -2449,10 +2463,11 @@ def interpretConstructorWithHelpers
     (ctor : ConstructorSpec)
     (tx : IRTransaction)
     (initialWorld : Verity.ContractState) : SourceContractResult :=
+  let constructorWorldWithTx := withConstructorTransactionContext initialWorld tx
   let worldWithTx := withTransactionContext initialWorld tx
   let fields := effectiveFields spec
   if constructorTouchesUnsupportedRawCalldataSurface spec ctor then
-    revertedResult spec worldWithTx
+    revertedResult spec constructorWorldWithTx
   else
     match constructorExecutionBindings ctor tx.args with
     | none => revertedResult spec worldWithTx
