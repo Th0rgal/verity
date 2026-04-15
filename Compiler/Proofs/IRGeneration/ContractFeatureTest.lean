@@ -213,6 +213,23 @@ private def identityInternalHelper : FunctionSpec :=
     isInternal := true
     body := [Stmt.return (.param "x")] }
 
+private def stopOnlyFunction : FunctionSpec :=
+  { name := "stopOnly"
+    params := []
+    returnType := none
+    body := [Stmt.stop] }
+
+private def stopOnlySpec : CompilationModel :=
+  { name := "StopOnly"
+    fields := []
+    constructor := none
+    functions := [stopOnlyFunction] }
+
+private def stopOnlyTx : IRTransaction :=
+  { sender := 3
+    functionSelector := 0
+    args := [] }
+
 private theorem literalMappingWrite_txNormalized :
     Function.TxContextNormalized literalMappingWriteTx := by
   simp [Function.TxContextNormalized, literalMappingWriteTx, Compiler.Constants.addressModulus,
@@ -230,6 +247,15 @@ private theorem constructorOnly_txNormalized :
 private theorem constructorOnly_calldataFits :
     Function.TxCalldataSizeFitsEvm constructorOnlyTx := by
   simp [Function.TxCalldataSizeFitsEvm, constructorOnlyTx, Compiler.Constants.evmModulus]
+
+private theorem stopOnly_txNormalized :
+    Function.TxContextNormalized stopOnlyTx := by
+  simp [Function.TxContextNormalized, stopOnlyTx, Compiler.Constants.addressModulus,
+    Compiler.Constants.evmModulus]
+
+private theorem stopOnly_calldataFits :
+    Function.TxCalldataSizeFitsEvm stopOnlyTx := by
+  simp [Function.TxCalldataSizeFitsEvm, stopOnlyTx, Compiler.Constants.evmModulus]
 
 private theorem constructorOnly_noConflict :
     firstFieldWriteSlotConflict constructorOnlySpec.fields = none := by
@@ -458,5 +484,66 @@ example :
       (hbind := hbind)
       (htxNormalized := constructorOnly_txNormalized)
       (hcalldataSizeFits := constructorOnly_calldataFits)
+
+example :
+    FunctionBody.sourceResultMatchesIRResult
+      (SourceSemantics.interpretFunctionWithHelpers
+        stopOnlySpec
+        1
+        stopOnlyFunction
+        stopOnlyTx
+        Verity.defaultState)
+      (FunctionBody.irResultOfExecResultWithInternals
+        (FunctionBody.initialIRStateForTx stopOnlySpec stopOnlyTx Verity.defaultState)
+        (.stop (FunctionBody.initialIRStateForTx stopOnlySpec stopOnlyTx Verity.defaultState))) := by
+  have hbind :
+      SourceSemantics.bindSupportedParams stopOnlyFunction.params stopOnlyTx.args = some [] := by
+    rfl
+  have hsource :
+      SourceSemantics.execStmtListWithHelpers stopOnlySpec (SourceSemantics.effectiveFields stopOnlySpec)
+        1
+        { world := SourceSemantics.withTransactionContext Verity.defaultState stopOnlyTx
+          bindings := []
+          selector := stopOnlyTx.functionSelector }
+        stopOnlyFunction.body =
+      .stop
+        { world := SourceSemantics.withTransactionContext Verity.defaultState stopOnlyTx
+          bindings := []
+          selector := stopOnlyTx.functionSelector } := by
+    simp [stopOnlyFunction, SourceSemantics.execStmtListWithHelpers,
+      SourceSemantics.execStmtWithHelpers]
+  have hstate :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields stopOnlySpec)
+        { world := SourceSemantics.withTransactionContext Verity.defaultState stopOnlyTx
+          bindings := []
+          selector := stopOnlyTx.functionSelector }
+        (FunctionBody.initialIRStateForTx stopOnlySpec stopOnlyTx Verity.defaultState) := by
+    simpa using
+      Function.initialIRStateForTx_matches_runtime
+        stopOnlySpec
+        stopOnlyTx
+        Verity.defaultState
+        stopOnly_txNormalized
+        stopOnly_calldataFits
+  exact
+    Function.interpretFunctionWithHelpers_eq_execResultToIRResultWithInternals_of_body
+      (model := stopOnlySpec)
+      (fn := stopOnlyFunction)
+      (helperFuel := 1)
+      (tx := stopOnlyTx)
+      (initialWorld := Verity.defaultState)
+      (sourceResult := .stop
+        { world := SourceSemantics.withTransactionContext Verity.defaultState stopOnlyTx
+          bindings := []
+          selector := stopOnlyTx.functionSelector })
+      (rollback := FunctionBody.initialIRStateForTx stopOnlySpec stopOnlyTx Verity.defaultState)
+      (irResult := .stop (FunctionBody.initialIRStateForTx stopOnlySpec stopOnlyTx Verity.defaultState))
+      (bindings := [])
+      (hbind := hbind)
+      (hsource := hsource)
+      (hrollbackStorage := by simp [FunctionBody.initialIRStateForTx, stopOnlySpec, stopOnlyTx])
+      (hrollbackEvents := by simp [FunctionBody.initialIRStateForTx, stopOnlySpec, stopOnlyTx])
+      (hmatch := hstate)
 
 end Compiler.Proofs.IRGeneration.ContractFeatureTest

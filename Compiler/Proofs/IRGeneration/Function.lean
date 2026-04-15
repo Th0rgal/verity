@@ -438,6 +438,61 @@ theorem interpretFunction_eq_execResultToIRResult_of_body
     FunctionBody.stmtResultToSourceResult, FunctionBody.sourceResultMatchesIRResult,
     FunctionBody.irResultOfExecResult, execResultToIRResult] using hpack
 
+theorem interpretFunctionWithHelpers_eq_execResultToIRResultWithInternals_of_body
+    (model : CompilationModel) (fn : FunctionSpec)
+    (helperFuel : Nat)
+    (tx : IRTransaction) (initialWorld : Verity.ContractState)
+    (sourceResult : SourceSemantics.StmtResult)
+    (rollback : IRState) (irResult : IRExecResultWithInternals)
+    (bindings : List (String × Nat))
+    (hbind :
+      SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
+    (hsource :
+      SourceSemantics.execStmtListWithHelpers model (SourceSemantics.effectiveFields model)
+        helperFuel
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := bindings
+          selector := tx.functionSelector }
+        fn.body = sourceResult)
+    (hrollbackStorage :
+      rollback.storage =
+        SourceSemantics.encodeStorage model
+          (SourceSemantics.withTransactionContext initialWorld tx))
+    (hrollbackEvents :
+      rollback.events =
+        SourceSemantics.encodeEvents
+          (SourceSemantics.withTransactionContext initialWorld tx).events)
+  (hmatch :
+      stmtResultMatchesIRExecWithInternals
+        (SourceSemantics.effectiveFields model) sourceResult irResult) :
+    FunctionBody.sourceResultMatchesIRResult
+      (SourceSemantics.interpretFunctionWithHelpers model helperFuel fn tx initialWorld)
+      (FunctionBody.irResultOfExecResultWithInternals rollback irResult) := by
+  cases sourceResult <;> cases irResult <;>
+    simp [stmtResultMatchesIRExecWithInternals, FunctionBody.stmtResultMatchesIRExec] at hmatch
+  · rcases hmatch with
+      ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hblob, _, _, hcds, _, hret, hevents⟩
+    simp [SourceSemantics.interpretFunctionWithHelpers, hbind, hsource,
+      FunctionBody.sourceResultMatchesIRResult, FunctionBody.irResultOfExecResultWithInternals,
+      SourceSemantics.successResult, SourceSemantics.encodeStorage,
+      hstorage, hevents, hret]
+  · rcases hmatch with
+      ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hblob, _, _, hcds, _, hret, hevents⟩
+    simp [SourceSemantics.interpretFunctionWithHelpers, hbind, hsource,
+      FunctionBody.sourceResultMatchesIRResult, FunctionBody.irResultOfExecResultWithInternals,
+      SourceSemantics.successResult, SourceSemantics.encodeStorage,
+      hstorage, hevents]
+  · rcases hmatch with
+      ⟨hvalue, hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hblob, _, _, hcds, _, hret,
+        hevents⟩
+    simp [SourceSemantics.interpretFunctionWithHelpers, hbind, hsource,
+      FunctionBody.sourceResultMatchesIRResult, FunctionBody.irResultOfExecResultWithInternals,
+      SourceSemantics.successResult, SourceSemantics.encodeStorage,
+      hvalue, hstorage, hevents]
+  · simp [SourceSemantics.interpretFunctionWithHelpers, hbind, hsource,
+      FunctionBody.sourceResultMatchesIRResult, FunctionBody.irResultOfExecResultWithInternals,
+      SourceSemantics.revertedResult, hrollbackStorage, hrollbackEvents]
+
 theorem runtimeStateMatchesIR_applyBindingsToIRState
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}

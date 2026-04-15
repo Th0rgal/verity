@@ -761,6 +761,8 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.literalMappingWrite_calldataFits  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorOnly_txNormalized  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorOnly_calldataFits  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.stopOnly_txNormalized  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.stopOnly_calldataFits  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorOnly_noConflict  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorOnly_compileConstructor  -- private
 
@@ -801,6 +803,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.Function.exec_compiledFunctionIR_of_body
 #print axioms Compiler.Proofs.IRGeneration.Function.exec_compiledFunctionIR_of_body_extraFuel
 #print axioms Compiler.Proofs.IRGeneration.Function.interpretFunction_eq_execResultToIRResult_of_body
+#print axioms Compiler.Proofs.IRGeneration.Function.interpretFunctionWithHelpers_eq_execResultToIRResultWithInternals_of_body
 #print axioms Compiler.Proofs.IRGeneration.Function.runtimeStateMatchesIR_applyBindingsToIRState
 #print axioms Compiler.Proofs.IRGeneration.Function.runtimeStateMatchesIR_prebindRawArgs
 -- #print axioms Compiler.Proofs.IRGeneration.Function.lookupBinding?_foldl_bindValue_not_mem  -- private
@@ -2169,4 +2172,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 2019 theorems/lemmas (1353 public, 666 private, 0 sorry'd)
+-- Total: 2022 theorems/lemmas (1354 public, 668 private, 0 sorry'd)
