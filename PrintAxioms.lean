@@ -1834,6 +1834,8 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.encodeStorageAt_congr
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.encodeStorageAt_withTransactionContext
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.encodeStorage_withTransactionContext
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.interpretInternalFunctionFuel_zero
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.interpretInternalFunctionFuel_succ
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.helperSummarySound
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.helperSummaryPreservesWorldOnSuccess
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExprWithHelpers_internalCall_obeys_summary
@@ -2172,4 +2174,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 2022 theorems/lemmas (1354 public, 668 private, 0 sorry'd)
+-- Total: 2024 theorems/lemmas (1356 public, 668 private, 0 sorry'd)

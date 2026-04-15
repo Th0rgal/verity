@@ -2228,18 +2228,49 @@ mutual
       (fn : FunctionSpec)
       (initialWorld : Verity.ContractState)
       (args : List Nat) : InternalFunctionResult :=
-    let fields := effectiveFields spec
-    match bindInternalArgs fn.params args with
-    | none => revertedInternalResult initialWorld
-    | some bindings =>
-        match execStmtListWithHelpers spec fields fuel { world := initialWorld, bindings := bindings } fn.body with
-        | .continue state => successInternalResult state.world none
-        | .stop state => successInternalResult state.world none
-        | .return value state => successInternalResult state.world (some value)
-        | .revert => revertedInternalResult initialWorld
+    match fuel with
+    | 0 => revertedInternalResult initialWorld
+    | fuel + 1 =>
+        let fields := effectiveFields spec
+        match bindInternalArgs fn.params args with
+        | none => revertedInternalResult initialWorld
+        | some bindings =>
+            match execStmtListWithHelpers spec fields fuel { world := initialWorld, bindings := bindings } fn.body with
+            | .continue state => successInternalResult state.world none
+            | .stop state => successInternalResult state.world none
+            | .return value state => successInternalResult state.world (some value)
+            | .revert => revertedInternalResult initialWorld
   termination_by (fuel, sizeOf fn.body + 1)
   decreasing_by all_goals (simp_wf; omega)
 end
+
+@[simp] theorem interpretInternalFunctionFuel_zero
+    (spec : CompilationModel)
+    (fn : FunctionSpec)
+    (initialWorld : Verity.ContractState)
+    (args : List Nat) :
+    interpretInternalFunctionFuel spec 0 fn initialWorld args =
+      revertedInternalResult initialWorld := by
+  simp [interpretInternalFunctionFuel]
+
+theorem interpretInternalFunctionFuel_succ
+    (spec : CompilationModel)
+    (fuel : Nat)
+    (fn : FunctionSpec)
+    (initialWorld : Verity.ContractState)
+    (args : List Nat) :
+    interpretInternalFunctionFuel spec (fuel + 1) fn initialWorld args =
+      let fields := effectiveFields spec
+      match bindInternalArgs fn.params args with
+      | none => revertedInternalResult initialWorld
+      | some bindings =>
+          match execStmtListWithHelpers spec fields fuel
+              { world := initialWorld, bindings := bindings } fn.body with
+          | .continue state => successInternalResult state.world none
+          | .stop state => successInternalResult state.world none
+          | .return value state => successInternalResult state.world (some value)
+          | .revert => revertedInternalResult initialWorld := by
+  simp [interpretInternalFunctionFuel]
 
 /-- Semantic contract attached to an internal-helper summary witness. The summary
 is intentionally phrased against the helper-aware source semantics so later

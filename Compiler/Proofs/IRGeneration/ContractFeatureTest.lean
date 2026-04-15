@@ -213,6 +213,24 @@ private def identityInternalHelper : FunctionSpec :=
     isInternal := true
     body := [Stmt.return (.param "x")] }
 
+private def constSevenInternalHelper : FunctionSpec :=
+  { name := "constSeven"
+    params := []
+    returnType := some .uint256
+    isInternal := true
+    body := [Stmt.return (.literal 7)] }
+
+private def helperFuelAlignSpec : CompilationModel :=
+  { name := "HelperFuelAlign"
+    fields := []
+    constructor := none
+    functions := [constSevenInternalHelper] }
+
+private def helperFuelAlignRuntime : SourceSemantics.RuntimeState :=
+  { world := Verity.defaultState
+    bindings := []
+    selector := 0 }
+
 private def stopOnlyFunction : FunctionSpec :=
   { name := "stopOnly"
     params := []
@@ -339,6 +357,16 @@ example :
   exact compileInternalFunction_some_ok_of_components
     [] [] [] identityInternalHelper returns retNames bodyStmts
     hvalidate hreturns hretNames hbody
+
+example :
+    SourceSemantics.interpretInternalFunctionFuel
+      helperFuelAlignSpec
+      0
+      constSevenInternalHelper
+      Verity.defaultState
+      [] =
+    SourceSemantics.revertedInternalResult Verity.defaultState := by
+  simp
 
 example
     (ir : IRContract)
