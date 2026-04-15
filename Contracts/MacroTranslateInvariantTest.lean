@@ -331,6 +331,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.CEILadderSmoke.spec
   , Contracts.Smoke.RolesSmoke.spec
   , Contracts.Smoke.NewtypeSmoke.spec
+  , Contracts.Smoke.NewtypeStorageSmoke.spec
   , Contracts.Smoke.NamespacedStorageSmoke.spec
   , Contracts.Smoke.CustomNamespacedSmoke.spec
   , Contracts.Smoke.CEIViolationRejected.spec
@@ -440,6 +441,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("CEILadderSmoke", ["callThenStoreGuarded(uint256)", "callThenStoreProved(uint256)", "storeThenCall(uint256)", "increment()"])
   , ("RolesSmoke", ["setCounter(uint256)", "getCounter()"])
   , ("NewtypeSmoke", ["mint(uint256,uint256)", "setMinter(address)", "getNextTokenId()"])
+  , ("NewtypeStorageSmoke", ["setTokenId(uint256)", "getTokenId()", "setAdmin(address)", "getAdmin()"])
   , ("NamespacedStorageSmoke", ["deposit(uint256)", "getOwner()"])
   , ("CustomNamespacedSmoke", ["deposit(uint256)", "getOwner()"])
   , ("CEIViolationRejected", ["callThenStore(uint256)"])
@@ -532,6 +534,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("CEILadderSmoke", ["0xaf0ac94c", "0xe9ab4836", "0xb6fbe456", "0xd09de08a"])
   , ("RolesSmoke", ["0x8bb5d9c3", "0x8ada066e"])
   , ("NewtypeSmoke", ["0x1b2ef1ca", "0xfca3b5aa", "0xcaa0f92a"])
+  , ("NewtypeStorageSmoke", ["0xc929ccf3", "0x010a38f5", "0x704b6c02", "0x6e9960c3"])
   , ("NamespacedStorageSmoke", ["0xb6b55f25", "0x893d20e8"])
   , ("CustomNamespacedSmoke", ["0xb6b55f25", "0x893d20e8"])
   , ("CEIViolationRejected", ["0xe4fccc26"])
@@ -649,6 +652,11 @@ private def checkMutabilitySmoke : IO Unit := do
   let _ := @Contracts.Smoke.NewtypeSmoke.mint_cei_compliant
   let _ := @Contracts.Smoke.NewtypeSmoke.setMinter_cei_compliant
   let _ := @Contracts.Smoke.NewtypeSmoke.getNextTokenId_cei_compliant
+  -- Verify NewtypeStorageSmoke: newtype-typed storage fields compile correctly.
+  let _ := @Contracts.Smoke.NewtypeStorageSmoke.setTokenId_cei_compliant
+  let _ := @Contracts.Smoke.NewtypeStorageSmoke.getTokenId_cei_compliant
+  let _ := @Contracts.Smoke.NewtypeStorageSmoke.setAdmin_cei_compliant
+  let _ := @Contracts.Smoke.NewtypeStorageSmoke.getAdmin_cei_compliant
   -- Verify AdtSmoke generates standard _cei_compliant theorems (#1727, Axis 1 Step 5a).
   -- ADTs are parsed; functions compile normally.
   let _ := @Contracts.Smoke.AdtSmoke.increment_cei_compliant

@@ -131,10 +131,10 @@ private def mkFieldFrameConjunct (field : StorageFieldDecl) : CommandElabM Term 
   match field.ty with
   | .scalar _ =>
       -- For scalar uint256 (or any scalar): s'.storage slot = s.storage slot
-      -- For scalar address: s'.storageAddr slot = s.storageAddr slot
+      -- For scalar address (or address newtype): s'.storageAddr slot = s.storageAddr slot
       -- We use the right accessor based on the scalar type
       match field.ty with
-      | .scalar .address =>
+      | .scalar .address | .scalar (.newtype _ .address) =>
           `(Verity.Specs.sameStorageAddrSlot $slotLit s s')
       | _ =>
           `(Verity.Specs.sameStorageSlot $slotLit s s')

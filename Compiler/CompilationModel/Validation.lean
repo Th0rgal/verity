@@ -691,6 +691,7 @@ def stmtIsPersistentWrite : Stmt → Bool
   | Stmt.setMappingChain _ _ _
   | Stmt.setMapping2 _ _ _ _ | Stmt.setMapping2Word _ _ _ _ _
   | Stmt.setStructMember _ _ _ _ | Stmt.setStructMember2 _ _ _ _ _
+  | Stmt.tstore _ _  -- transient storage persists across calls within a transaction
   => true
   | Stmt.ite _ thenBranch elseBranch =>
       stmtListContainsPersistentWrite thenBranch || stmtListContainsPersistentWrite elseBranch
@@ -758,14 +759,17 @@ decreasing_by all_goals simp_wf; all_goals omega
     Returns a descriptive string if a violation is found within the statement's
     own nested structure. -/
 def stmtInternalCEIViolation : Stmt → Bool → Option String
-  | Stmt.ite _ thenBranch elseBranch, seenCall =>
-      match stmtListCEIViolation thenBranch seenCall with
+  | Stmt.ite cond thenBranch elseBranch, seenCall =>
+      -- Include external calls from the condition expression itself, so
+      -- `if externalCall(...) then setStorage ...` is correctly flagged
+      let condSeenCall := seenCall || exprContainsExternalCall cond
+      match stmtListCEIViolation thenBranch condSeenCall with
       | some msg => some s!"in if-then branch: {msg}"
       | none =>
-          match stmtListCEIViolation elseBranch seenCall with
+          match stmtListCEIViolation elseBranch condSeenCall with
           | some msg => some s!"in if-else branch: {msg}"
           | none => none
-  | Stmt.forEach _ _ body, seenCall =>
+  | Stmt.forEach _ count body, seenCall =>
       -- In a loop, if the body has both an external call and a state write,
       -- a second iteration would violate CEI even if the first doesn't
       let bodyHasCall := body.any stmtContainsExternalCall
@@ -773,7 +777,10 @@ def stmtInternalCEIViolation : Stmt → Bool → Option String
       if bodyHasCall && bodyHasWrite then
         some "loop body contains both external call and state write (subsequent iterations would violate CEI)"
       else
-        match stmtListCEIViolation body seenCall with
+        -- Include external calls from the loop count expression, so
+        -- `forEach i (externalCall ...) do setStorage ...` is correctly flagged
+        let countSeenCall := seenCall || exprContainsExternalCall count
+        match stmtListCEIViolation body countSeenCall with
         | some msg => some s!"in loop body: {msg}"
         | none => none
   | Stmt.unsafeBlock _ body, seenCall =>

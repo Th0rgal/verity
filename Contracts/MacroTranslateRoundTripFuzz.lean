@@ -86,6 +86,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.CEILadderSmoke.spec
   , Contracts.Smoke.RolesSmoke.spec
   , Contracts.Smoke.NewtypeSmoke.spec
+  , Contracts.Smoke.NewtypeStorageSmoke.spec
   , Contracts.Smoke.NamespacedStorageSmoke.spec
   , Contracts.Smoke.CustomNamespacedSmoke.spec
   , Contracts.Smoke.UnsafeBlockSmoke.spec

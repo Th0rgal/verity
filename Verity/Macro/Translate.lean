@@ -3181,9 +3181,9 @@ private def translateEffectStmt
   | `(term| setStorage $field:ident $value) =>
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
-      | .scalar .uint256 | .scalar (.adt _ _) =>
+      | .scalar .uint256 | .scalar (.newtype _ .uint256) | .scalar (.adt _ _) =>
           `(Compiler.CompilationModel.Stmt.setStorage $(strTerm f.name) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value))
-      | .scalar .address =>
+      | .scalar .address | .scalar (.newtype _ .address) =>
           throwErrorAt stx s!"field '{f.name}' is Address-valued; use setStorageAddr"
       | .dynamicArray _ =>
           throwErrorAt stx s!"field '{f.name}' is a storage dynamic array; use pushStorageArray/popStorageArray/setStorageArrayElement"
@@ -3192,9 +3192,9 @@ private def translateEffectStmt
   | `(term| setStorageAddr $field:ident $value) =>
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
-      | .scalar .address =>
+      | .scalar .address | .scalar (.newtype _ .address) =>
           `(Compiler.CompilationModel.Stmt.setStorageAddr $(strTerm f.name) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value))
-      | .scalar .uint256 =>
+      | .scalar .uint256 | .scalar (.newtype _ .uint256) =>
           throwErrorAt stx s!"field '{f.name}' is Uint256-valued; use setStorage"
       | .dynamicArray _ =>
           throwErrorAt stx s!"field '{f.name}' is a storage dynamic array; use pushStorageArray/popStorageArray/setStorageArrayElement"

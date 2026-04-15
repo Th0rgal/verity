@@ -973,7 +973,7 @@ verity_contract LowLevelTryCatchSmoke where
   storage
     lastOutcome : Uint256 := slot 0
 
-  function catchFailure ()
+  function allow_post_interaction_writes catchFailure ()
     local_obligations [manual_low_level_refinement := assumed "Low-level call success/failure boundary still requires a manual refinement argument."]
     : Uint256
     := do
@@ -982,7 +982,7 @@ verity_contract LowLevelTryCatchSmoke where
     let current ← getStorage lastOutcome
     return current
 
-  function skipCatchOnSuccess ()
+  function allow_post_interaction_writes skipCatchOnSuccess ()
     local_obligations [manual_low_level_refinement := assumed "Low-level call success/failure boundary still requires a manual refinement argument."]
     : Uint256
     := do
@@ -991,7 +991,7 @@ verity_contract LowLevelTryCatchSmoke where
     let current ← getStorage lastOutcome
     return current
 
-  function catchFailureWithShadowedParam (verity_try_success : Uint256)
+  function allow_post_interaction_writes catchFailureWithShadowedParam (verity_try_success : Uint256)
     local_obligations [manual_low_level_refinement := assumed "Low-level call success/failure boundary still requires a manual refinement argument."]
     : Uint256
     := do
@@ -1840,6 +1840,36 @@ verity_contract NewtypeSmoke where
 
 #check_contract RolesSmoke
 #check_contract NewtypeSmoke
+
+-- Smoke test for newtype-TYPED storage fields (not just newtype params).
+-- Verifies that setStorage/setStorageAddr/getStorage/getStorageAddr work
+-- when the storage field itself is declared with a newtype type.
+verity_contract NewtypeStorageSmoke where
+  types
+    TokenId : Uint256
+    Owner : Address
+  storage
+    currentTokenId : TokenId := slot 0
+    admin : Owner := slot 1
+
+  constructor (initialAdmin : Owner) := do
+    setStorageAddr admin initialAdmin
+
+  function setTokenId (id : TokenId) : Unit := do
+    setStorage currentTokenId id
+
+  function getTokenId () : Uint256 := do
+    let tid ← getStorage currentTokenId
+    return tid
+
+  function setAdmin (newAdmin : Owner) : Unit := do
+    setStorageAddr admin newAdmin
+
+  function getAdmin () : Address := do
+    let a ← getStorageAddr admin
+    return a
+
+#check_contract NewtypeStorageSmoke
 
 -- Every contract emits a storageNamespace : Nat definition (#1730, Axis 4 Step 4a).
 -- Verify a few representative contracts have it and it is a Nat.
