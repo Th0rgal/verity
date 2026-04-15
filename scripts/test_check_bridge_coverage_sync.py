@@ -237,6 +237,30 @@ class BridgeCoverageSyncTests(unittest.TestCase):
         admitted = check.extract_admitted_builtins(text)
         self.assertEqual(admitted, [])
 
+    def test_extract_universal_ignores_commented_theorem_text(self) -> None:
+        text = textwrap.dedent("""\
+            /- @[simp] theorem evalBuiltinCall_exp_bridge := by
+              exact trivial
+            -/
+            @[simp] theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+        """)
+        universal = check.extract_universal_builtins(text)
+        self.assertEqual(universal, ["add"])
+
+    def test_extract_admitted_keeps_comment_markers_inside_strings(self) -> None:
+        text = textwrap.dedent("""\
+            private theorem byte_status : String := "INT256_MIN/-1 overflow"
+
+            private theorem byte_core := by
+              sorry
+
+            @[simp] theorem evalBuiltinCall_byte_bridge := by
+              exact byte_core
+        """)
+        admitted = check.extract_admitted_builtins(text)
+        self.assertEqual(admitted, ["byte"])
+
     def test_admitted_qualifier_generates_parenthetical(self) -> None:
         q = check._admitted_qualifier(["exp", "slt", "sgt"])
         self.assertEqual(q, " (22 fully proven, 3 with sorry-dependent core equivalences)")

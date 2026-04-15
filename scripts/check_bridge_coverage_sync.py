@@ -52,7 +52,20 @@ def _strip_lean_comments(text: str) -> str:
     i = 0
     n = len(text)
     block_depth = 0
+    in_string = False
+    escape = False
     while i < n:
+        if in_string:
+            result.append(text[i])
+            if escape:
+                escape = False
+            elif text[i] == "\\":
+                escape = True
+            elif text[i] == '"':
+                in_string = False
+            i += 1
+            continue
+
         if block_depth > 0:
             if text.startswith("/-", i):
                 block_depth += 1
@@ -77,6 +90,12 @@ def _strip_lean_comments(text: str) -> str:
         if text.startswith("/-", i):
             block_depth = 1
             i += 2
+            continue
+
+        if text[i] == '"':
+            in_string = True
+            result.append(text[i])
+            i += 1
             continue
 
         result.append(text[i])
@@ -111,9 +130,10 @@ def plain_code_subject(names: list[str]) -> str:
 
 
 def extract_universal_builtins(text: str) -> list[str]:
+    code = _strip_lean_comments(text)
     found = {
         match.group(1)
-        for match in re.finditer(r"@\[simp\]\s+theorem\s+evalBuiltinCall_([A-Za-z0-9]+)_bridge\b", text)
+        for match in re.finditer(r"@\[simp\]\s+theorem\s+evalBuiltinCall_([A-Za-z0-9]+)_bridge\b", code)
     }
     return [name for name in PURE_BUILTINS if name in found]
 
