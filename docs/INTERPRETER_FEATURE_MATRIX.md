@@ -40,11 +40,11 @@ with the existing sync scripts and boundary checks.
 | Uint256-keyed mapping | `Expr.mappingUint` | ok | ok | -- | -- | proved |
 | Struct member (single) | `Expr.structMember` | ok | ok | -- | -- | proved |
 | Struct member (double) | `Expr.structMember2` | ok | ok | -- | -- | proved |
-| `caller` | `Expr.caller` | ok | ok | ok | del | proved |
+| `caller` | `Expr.caller` | ok | ok | ok | ok | proved |
 | `msg.value` | `Expr.msgValue` | ok | ok | ok | -- | proved |
 | `block.timestamp` | `Expr.blockTimestamp` | ok | ok | ok | -- | proved |
 | `block.number` | `Expr.blockNumber` | **0** | **0** | ok | -- | partial |
-| `address(this)` | `Expr.contractAddress` | **0** | **0** | ok | -- | partial |
+| `address(this)` | `Expr.contractAddress` | **0** | **0** | ok | ok | partial |
 | `chainid` | `Expr.chainid` | **0** | **0** | ok | -- | partial |
 | `mload` | `Expr.mload` | **0** | **0** | ok | -- | partial |
 | `returndataOptionalBoolAt` | `Expr.returndataOptionalBoolAt` | **0** | **0** | -- | -- | partial |
@@ -139,8 +139,8 @@ Legend: **ok** = supported, **rev** = reverts (not modeled), **nop** = no-op (co
 | `sar` | ok | ok | yes |
 | `signextend` | ok | ok | yes |
 | `sload` | ok | del | -- |
-| `caller` | ok | del | -- |
-| `address` | ok | del | -- |
+| `caller` | ok | ok | yes |
+| `address` | ok | ok | yes |
 | `callvalue` | ok | ok | yes |
 | `calldataload` | ok | ok | yes |
 | `timestamp` | ok | ok | yes |
@@ -152,7 +152,7 @@ Legend: **ok** = supported, **rev** = reverts (not modeled), **nop** = no-op (co
 
 Legend: **ok** = native evaluation, **del** = delegated to Verity path (bridge returns `none`).
 
-31/36 builtins have universal bridge agreement proofs between Verity and EVMYulLean evaluation paths (26 fully proven, 5 with sorry-dependent core equivalences). 31 are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`. Of those, 25 are discharged by universal symbolic lemmas for the pure fragment, and none still require concrete-only regression coverage. The remaining 5 are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.
+33/36 builtins have universal bridge agreement proofs between Verity and EVMYulLean evaluation paths (28 fully proven, 5 with sorry-dependent core equivalences). 33 are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`. Of those, 25 are discharged by universal symbolic lemmas for the pure fragment, and none still require concrete-only regression coverage. The remaining 3 are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.
 
 ---
 
@@ -162,7 +162,7 @@ Legend: **ok** = native evaluation, **del** = delegated to Verity path (bridge r
 |---|---|---|---|---|
 | Expression features | 24 | 1 (`externalCall`) | 5 (`blockNumber`, `contractAddress`, `chainid`, `mload`, `returndataOptionalBoolAt`) | 4 (`keccak256`, `call`, `staticcall`, `delegatecall`) |
 | Statement features | 25 | 0 | 1 (`mstore`) | 6 (`calldatacopy`, `returndataCopy`, `revertReturndata`, `rawLog`, `externalCallBind`, `ecm`) |
-| Builtins (agreement) | 26 | 0 | 5 (`exp`, `sdiv`, `smod`, `sar`, `signextend` — sorry-dependent) | 5 (delegated) |
+| Builtins (agreement) | 28 | 0 | 5 (`exp`, `sdiv`, `smod`, `sar`, `signextend` — sorry-dependent) | 3 (delegated) |
 
 Proof-boundary features split across two buckets. Partially modeled features currently include runtime introspection (`blockNumber`, `contractAddress`, `chainid`) and single-word linear-memory forms (`mload`, `mstore`, `returndataOptionalBoolAt`). Fully not-modeled features currently include `keccak256`, low-level call / returndata plumbing (`call`, `staticcall`, `delegatecall`, `calldatacopy`, `returndataCopy`, `revertReturndata`), event emission (`rawLog`), and external call modules (`externalCallBind`, `ecm`). These features are still compiler-supported and are validated by differential testing (70,000+ test vectors against actual EVM execution).
 

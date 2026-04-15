@@ -1733,13 +1733,13 @@ stack to EVMYulLean). -/
 For `.evmYulLean`, `evalBuiltinCallWithBackendContext` now has two behaviors:
 
 1. It directly bridges the environment-only builtins whose results are just
-   UInt256 views of the current context (`callvalue`, `timestamp`, `number`,
-   `blobbasefee`).
+   context views at this boundary (`caller`, `address`, `callvalue`,
+   `timestamp`, `number`, `blobbasefee`).
 2. It also bridges selector/calldata-only builtins whose full semantics are
    already available at this boundary (`calldatasize`, `calldataload`).
 3. It still falls through to `none` for the remaining state-dependent or
    Verity-specific builtins that need a fuller Phase-2/3 bridge (`sload`,
-   `caller`, `address`, `chainid`, `mappingSlot`).
+   `chainid`, `mappingSlot`).
 
 These lemmas define the exact Phase-3 boundary that later retargeting proofs
 can rewrite against. -/
@@ -1751,19 +1751,23 @@ can rewrite against. -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "sload" args = none := by
   simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
 
-@[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_caller_none
+@[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_caller_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
-    (calldata : List Nat) (args : List Nat) :
+    (calldata : List Nat) :
     evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
-      blockTimestamp blockNumber chainId blobBaseFee selector calldata "caller" args = none := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "caller" [] =
+    evalBuiltinCallWithContext storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "caller" [] := by
+  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallWithContext]
 
-@[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_address_none
+@[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_address_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
-    (calldata : List Nat) (args : List Nat) :
+    (calldata : List Nat) :
     evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
-      blockTimestamp blockNumber chainId blobBaseFee selector calldata "address" args = none := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "address" [] =
+    evalBuiltinCallWithContext storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "address" [] := by
+  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_callvalue_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -1849,21 +1853,22 @@ builtin (and `.evmYulLean` returns `none`), or `func` is unknown.
 
 We provide `evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge` as the
 backend-routing simplification theorem for the non-environment fragment: when
-`func` is not one of the directly bridged env builtins (`callvalue`,
-`timestamp`, `number`, `blobbasefee`), the `.evmYulLean` backend reduces to
-`evalBuiltinCallViaEvmYulLean` with arbitrary context. Callers can then apply
-the per-builtin bridge lemmas separately when the builtin is known to be in the
-bridged pure fragment. -/
+`func` is not one of the directly bridged context/env builtins (`caller`,
+`address`, `callvalue`, `timestamp`, `number`, `blobbasefee`) and not
+`calldatasize`, the `.evmYulLean` backend reduces to `evalBuiltinCallViaEvmYulLean`
+with arbitrary context. Callers can then apply the per-builtin bridge lemmas
+separately when the builtin is known to be in the bridged pure fragment. -/
 
 /-- Simplify the `.evmYulLean` backend branch of
     `evalBuiltinCallWithBackendContext` to `evalBuiltinCallViaEvmYulLean`.
-    This theorem applies away from the env-only builtins that are handled
-    directly by the context-aware dispatcher; per-builtin bridge lemmas are
-    applied after this routing rewrite when the builtin is known to lie in the
-    bridged pure fragment. -/
+    This theorem applies away from the directly handled context/env builtins;
+    per-builtin bridge lemmas are applied after this routing rewrite when the
+    builtin is known to lie in the bridged pure fragment. -/
 theorem evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
     (calldata : List Nat) (func : String) (argVals : List Nat)
+    (hCaller : func ≠ "caller")
+    (hAddress : func ≠ "address")
     (hCallvalue : func ≠ "callvalue")
     (hTimestamp : func ≠ "timestamp")
     (hNumber : func ≠ "number")
@@ -1872,8 +1877,8 @@ theorem evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
     evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata func argVals =
     evalBuiltinCallViaEvmYulLean storage sender selector calldata func argVals := by
-  simp [evalBuiltinCallWithBackendContext, hCallvalue, hTimestamp, hNumber, hBlobbasefee,
-    hCalldatasize]
+  simp [evalBuiltinCallWithBackendContext, hCaller, hAddress, hCallvalue, hTimestamp, hNumber,
+    hBlobbasefee, hCalldatasize]
 
 /-! ## Remaining Core Equivalence Proofs — Status
 

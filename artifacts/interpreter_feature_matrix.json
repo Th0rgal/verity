@@ -140,7 +140,7 @@
       "SpecInterpreter_basic": "supported",
       "SpecInterpreter_fuel": "supported",
       "IRInterpreter": "supported",
-      "EVMYulLean_bridge": "delegated",
+      "EVMYulLean_bridge": "supported",
       "proof_status": "proved"
     },
     {
@@ -176,7 +176,7 @@
       "SpecInterpreter_basic": "fallback_zero",
       "SpecInterpreter_fuel": "fallback_zero",
       "IRInterpreter": "supported",
-      "EVMYulLean_bridge": "n/a",
+      "EVMYulLean_bridge": "supported",
       "proof_status": "partial"
     },
     {
@@ -786,14 +786,14 @@
     {
       "feature": "caller",
       "verity_path": "supported",
-      "evmyullean_bridge": "delegated",
-      "agreement_proved": false
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
     },
     {
       "feature": "address",
       "verity_path": "supported",
-      "evmyullean_bridge": "delegated",
-      "agreement_proved": false
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
     },
     {
       "feature": "chainid",

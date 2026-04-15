@@ -264,7 +264,15 @@ def evalBuiltinCallWithBackendContext
       evalBuiltinCallWithContext storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata func argVals
   | .evmYulLean =>
       let toWord (x : Nat) : Nat := x % evmModulus
-      if func = "callvalue" then
+      if func = "caller" then
+        match argVals with
+        | [] => some sender
+        | _ => none
+      else if func = "address" then
+        match argVals with
+        | [] => some (toWord thisAddress)
+        | _ => none
+      else if func = "callvalue" then
         match argVals with
         | [] => some (toWord msgValue)
         | _ => none

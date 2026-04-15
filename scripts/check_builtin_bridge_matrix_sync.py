@@ -41,6 +41,8 @@ PROVED_BUILTINS = [
     "calldatasize",
     "timestamp",
     "number",
+    "caller",
+    "address",
     "blobbasefee",
 ]
 # Builtins whose bridge theorems transitively depend on sorry'd core lemmas.
@@ -49,8 +51,6 @@ CONCRETE_ONLY_BUILTINS: list[str] = []
 PURE_BUILTINS = PROVED_BUILTINS + CONCRETE_ONLY_BUILTINS
 DELEGATED_BUILTINS = [
     "sload",
-    "caller",
-    "address",
     "chainid",
     "mappingSlot",
 ]
@@ -175,7 +175,7 @@ def expected_doc_snippets(builtin_features: list[dict]) -> list[str]:
         snippets.append("and none still require concrete-only regression coverage")
     snippets.extend([
         f"The remaining {delegated} are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.",
-        "| `address` | ok | del | -- |",
+        "| `address` | ok | ok | yes |",
         "| `timestamp` | ok | ok | yes |",
     ])
     return snippets
