@@ -250,6 +250,9 @@ def bindValue (bindings : List (String × Nat)) (name : String) (value : Nat) :
 def lookupValue (bindings : List (String × Nat)) (name : String) : Nat :=
   bindings.find? (fun entry => entry.1 == name) |>.map Prod.snd |>.getD 0
 
+def lookupBinding? (bindings : List (String × Nat)) (name : String) : Option Nat :=
+  bindings.find? (fun entry => entry.1 == name) |>.map Prod.snd
+
 def bindInternalArgs (params : List Param) (args : List Nat) :
     Option (List (String × Nat)) :=
   match params, args with
@@ -574,6 +577,8 @@ def evalExpr (fields : List Field) (state : RuntimeState) : Expr → Option Nat
   | .calldataload offset => do
       let resolvedOffset ← evalExpr fields state offset
       some (Compiler.Proofs.YulGeneration.calldataloadWord state.selector state.world.calldata resolvedOffset)
+  | .constructorArg idx =>
+      lookupBinding? state.bindings s!"arg{idx}"
   | _ => none
 
 def evalExprList (fields : List Field) (state : RuntimeState) : List Expr → Option (List Nat)
@@ -662,7 +667,8 @@ private theorem evalExpr_constructorArg
     (fields : List Field)
     (state : RuntimeState)
     (idx : Nat) :
-    evalExpr fields state (.constructorArg idx) = none := rfl
+    evalExpr fields state (.constructorArg idx) =
+      lookupBinding? state.bindings s!"arg{idx}" := rfl
 
 private theorem evalExpr_blobbasefee
     (fields : List Field)
@@ -1632,6 +1638,32 @@ def findFunctionBySelector (spec : CompilationModel) (selectors : List Nat) (sel
     Option FunctionSpec :=
   (selectorFunctionPairs spec selectors).find? (fun entry => entry.2 == selector) |>.map Prod.fst
 
+private def bindConstructorArgAliases
+    (params : List Param)
+    (rawArgs : List Nat)
+    (bindings : List (String × Nat)) :
+    Option (List (String × Nat)) :=
+  let rec go (remaining : List Param) (idx : Nat) (headWord : Nat)
+      (acc : List (String × Nat)) : Option (List (String × Nat)) :=
+    match remaining with
+    | [] => some acc
+    | param :: rest =>
+        let aliasValue? :=
+          if isDynamicParamType param.ty then
+            rawArgs[headWord]?
+          else
+            match param.ty with
+            | .uint256 | .int256 | .uint8 | .address | .bool | .bytes32 =>
+                lookupBinding? acc param.name
+            | _ =>
+                rawArgs[headWord]?
+        match aliasValue? with
+        | none => none
+        | some value =>
+            go rest (idx + 1) (headWord + paramHeadSize param.ty / 32)
+              (bindValue acc s!"arg{idx}" value)
+  go params 0 0 bindings
+
 def interpretFunction (spec : CompilationModel) (fn : FunctionSpec)
     (tx : IRTransaction) (initialWorld : Verity.ContractState) : SourceContractResult :=
   let worldWithTx := withTransactionContext initialWorld tx
@@ -1647,7 +1679,25 @@ def interpretFunction (spec : CompilationModel) (fn : FunctionSpec)
 
 def interpretConstructor (spec : CompilationModel) (ctor : ConstructorSpec)
     (tx : IRTransaction) (initialWorld : Verity.ContractState) : SourceContractResult :=
-  interpretFunction spec (constructorAsFunctionSpec ctor) tx initialWorld
+  let worldWithTx := withTransactionContext initialWorld tx
+  let fields := effectiveFields spec
+  match bindSupportedParams ctor.params tx.args with
+  | none => revertedResult spec worldWithTx
+  | some bindings =>
+      let bindings :=
+        if stmtListTouchesUnsupportedCoreSurface ctor.body then
+          match bindConstructorArgAliases ctor.params tx.args bindings with
+          | some ctorBindings => ctorBindings
+          | none => bindings
+        else
+          bindings
+      match execStmtList fields
+          { world := worldWithTx, bindings := bindings, selector := tx.functionSelector }
+          ctor.body with
+      | .continue state => successResult spec state.world none
+      | .stop state => successResult spec state.world none
+      | .return value state => successResult spec state.world (some value)
+      | .revert => revertedResult spec worldWithTx
 
 def interpretContract (spec : CompilationModel) (selectors : List Nat)
     (tx : IRTransaction) (initialWorld : Verity.ContractState) : SourceContractResult :=
@@ -1688,6 +1738,8 @@ mutual
             | some value => some value.val
             | none => none
         | _ => none
+    | .constructorArg idx =>
+        lookupBinding? state.bindings s!"arg{idx}"
     | .caller => some state.world.sender.val
     | .contractAddress => some state.world.thisAddress.val
     | .chainid => some state.world.chainId.val
@@ -2318,7 +2370,25 @@ def interpretConstructorWithHelpers
     (ctor : ConstructorSpec)
     (tx : IRTransaction)
     (initialWorld : Verity.ContractState) : SourceContractResult :=
-  interpretFunctionWithHelpers spec fuel (constructorAsFunctionSpec ctor) tx initialWorld
+  let worldWithTx := withTransactionContext initialWorld tx
+  let fields := effectiveFields spec
+  match bindSupportedParams ctor.params tx.args with
+  | none => revertedResult spec worldWithTx
+  | some bindings =>
+      let bindings :=
+        if stmtListTouchesUnsupportedCoreSurface ctor.body then
+          match bindConstructorArgAliases ctor.params tx.args bindings with
+          | some ctorBindings => ctorBindings
+          | none => bindings
+        else
+          bindings
+      match execStmtListWithHelpers spec fields fuel
+          { world := worldWithTx, bindings := bindings, selector := tx.functionSelector }
+          ctor.body with
+      | .continue state => successResult spec state.world none
+      | .stop state => successResult spec state.world none
+      | .return value state => successResult spec state.world (some value)
+      | .revert => revertedResult spec worldWithTx
 
 def interpretContractWithHelpers
     (spec : CompilationModel)

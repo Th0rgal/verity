@@ -206,6 +206,21 @@ private def constructorOnlyTx : IRTransaction :=
     functionSelector := 0
     args := [11] }
 
+private def constructorArgCtor : ConstructorSpec :=
+  { params := [{ name := "initialValue", ty := .uint256 }]
+    body := [Stmt.setStorage "value" (.constructorArg 0), .stop] }
+
+private def constructorArgSpec : CompilationModel :=
+  { name := "ConstructorArg"
+    fields := [{ name := "value", ty := .uint256 }]
+    constructor := some constructorArgCtor
+    functions := [] }
+
+private def constructorArgTx : IRTransaction :=
+  { sender := 5
+    functionSelector := 0
+    args := [13] }
+
 private def identityInternalHelper : FunctionSpec :=
   { name := "identity"
     params := [{ name := "x", ty := .uint256 }]
@@ -265,6 +280,15 @@ private theorem constructorOnly_txNormalized :
 private theorem constructorOnly_calldataFits :
     Function.TxCalldataSizeFitsEvm constructorOnlyTx := by
   simp [Function.TxCalldataSizeFitsEvm, constructorOnlyTx, Compiler.Constants.evmModulus]
+
+private theorem constructorArg_txNormalized :
+    Function.TxContextNormalized constructorArgTx := by
+  simp [Function.TxContextNormalized, constructorArgTx, Compiler.Constants.addressModulus,
+    Compiler.Constants.evmModulus]
+
+private theorem constructorArg_calldataFits :
+    Function.TxCalldataSizeFitsEvm constructorArgTx := by
+  simp [Function.TxCalldataSizeFitsEvm, constructorArgTx, Compiler.Constants.evmModulus]
 
 private theorem stopOnly_txNormalized :
     Function.TxContextNormalized stopOnlyTx := by
@@ -367,6 +391,40 @@ example :
       [] =
     SourceSemantics.revertedInternalResult Verity.defaultState := by
   simp
+
+example :
+    (SourceSemantics.interpretConstructor
+      constructorArgSpec
+      constructorArgCtor
+      constructorArgTx
+      Verity.defaultState).success = true := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructor
+      constructorArgSpec
+      constructorArgCtor
+      constructorArgTx
+      Verity.defaultState).finalStorage 0 = 13 := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructorWithHelpers
+      constructorArgSpec
+      0
+      constructorArgCtor
+      constructorArgTx
+      Verity.defaultState).success = true := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructorWithHelpers
+      constructorArgSpec
+      0
+      constructorArgCtor
+      constructorArgTx
+      Verity.defaultState).finalStorage 0 = 13 := by
+  native_decide
 
 example
     (ir : IRContract)

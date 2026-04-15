@@ -761,6 +761,8 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.literalMappingWrite_calldataFits  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorOnly_txNormalized  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorOnly_calldataFits  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorArg_txNormalized  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorArg_calldataFits  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.stopOnly_txNormalized  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.stopOnly_calldataFits  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorOnly_noConflict  -- private
@@ -2174,4 +2176,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 2024 theorems/lemmas (1356 public, 668 private, 0 sorry'd)
+-- Total: 2026 theorems/lemmas (1356 public, 670 private, 0 sorry'd)
