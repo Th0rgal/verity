@@ -185,13 +185,13 @@ Execution priorities:
 
 **Yul/EVM Semantics Bridge** (Issue [#1722](https://github.com/lfglabs-dev/verity/issues/1722)): EVMYulLean (NethermindEth) provides formally-defined Yul AST types and UInt256 operations. Current integration status:
 - AST adapter: all 11 statement types + 5 expression types lower to EVMYulLean AST (0 gaps)
-- Builtin bridge: 34 of 36 builtins bridged (25 pure + 9 context/env), with 33 fully proven and 1 sorry'd (exp — blocked by private defs in upstream)
+- Builtin bridge: 34 of 36 builtins bridged (25 pure + 9 context/env), with 29 fully proven and 5 sorry'd (exp, sdiv, smod, sar, signextend — blocked by private defs in upstream)
 - 113 concrete bridge tests + 7 adapter correctness theorems + 20 context-lifted bridge theorems + 11 state-dependent fallthrough lemmas
 - `bridgedBuiltins` definition enumerates all 34 builtins where `.evmYulLean` and `.verity` backends agree
 - Unbridged: `sload` and `mappingSlot` return `none` on `.evmYulLean` path (requires Phase 3 state bridge)
 - Phase 2 state bridge scaffolding: type conversions, storage round-trip, env field bridges (0 sorry)
 - **Phase 4 complete**: `EvmYulLeanRetarget.lean` proves `backends_agree_on_bridged_builtins` and `layer3_preserves_semantics_evmYulLean`, making EVMYulLean the proven semantic target. Trust boundary shifted from Verity custom semantics to EVMYulLean conformance
-- **Remaining**: Phase 3 state bridge for `sload`/`mappingSlot` (2 unbridged builtins), 1 sorry-backed core equivalence (exp, private def upstream), whole-program structural induction
+- **Remaining**: Phase 3 state bridge for `sload`/`mappingSlot` (2 unbridged builtins), 5 sorry-backed core equivalences (private defs upstream), whole-program structural induction
 
 **EVM Semantics**: Mitigated by differential testing against actual EVM execution (Foundry). Likely remains a documented fundamental assumption.
 

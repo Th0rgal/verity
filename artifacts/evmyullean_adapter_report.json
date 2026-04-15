@@ -6,7 +6,11 @@
   },
   "adapter_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean",
   "admitted_bridge_lemmas": [
-    "exp"
+    "exp",
+    "sar",
+    "sdiv",
+    "signextend",
+    "smod"
   ],
   "bridged_builtins": [
     "add",
@@ -165,14 +169,10 @@
     "mulmod",
     "not",
     "or",
-    "sar",
-    "sdiv",
     "sgt",
     "shl",
     "shr",
-    "signextend",
     "slt",
-    "smod",
     "sub",
     "xor"
   ],
