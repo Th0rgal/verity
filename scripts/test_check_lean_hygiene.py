@@ -162,10 +162,6 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
     # The pinned theorem names allowed by the real hygiene rule.
     PINNED_THEOREMS = [
         "exp_natModPow_eq_uint256Exp",
-        "sdiv_int256_eq_uint256Sdiv",
-        "smod_int256_eq_uint256Smod",
-        "sar_int256_eq_uint256Sar",
-        "signextend_uint256_eq",
     ]
 
     def _make_bridge_file(self, theorems: list[str]) -> None:
@@ -187,13 +183,13 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         self._make_bridge_file(self.PINNED_THEOREMS)
         rc, output = self._run_main()
         self.assertEqual(rc, 0, output)
-        self.assertIn("5 sorry", output)
+        self.assertIn("1 sorry", output)
 
     def test_sorry_in_pinned_theorems_within_cap(self) -> None:
-        self._make_bridge_file(self.PINNED_THEOREMS[:2])
+        self._make_bridge_file(self.PINNED_THEOREMS[:1])
         rc, output = self._run_main()
         self.assertEqual(rc, 0, output)
-        self.assertIn("2 sorry", output)
+        self.assertIn("1 sorry", output)
 
     def test_sorry_exceeding_cap_fails(self) -> None:
         # Pinned + 1 extra theorem should fail as non-pinned, before the cap matters.
@@ -209,15 +205,14 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         self._make_bridge_file(duplicate)
         rc, output = self._run_main()
         self.assertNotEqual(rc, 0)
-        self.assertIn("found 6 sorry (cap is 5)", output)
+        self.assertIn("found 2 sorry (cap is 1)", output)
 
     def test_duplicate_sorry_in_pinned_theorem_within_cap_still_fails(self) -> None:
+        # Two copies of the single pinned theorem — total (2) matches cap (1) but
+        # per-theorem count (2) exceeds pinned limit (1).
         duplicate_within_cap = [
             self.PINNED_THEOREMS[0],
             self.PINNED_THEOREMS[0],
-            self.PINNED_THEOREMS[1],
-            self.PINNED_THEOREMS[2],
-            self.PINNED_THEOREMS[3],
         ]
         self._make_bridge_file(duplicate_within_cap)
         rc, output = self._run_main()
@@ -226,12 +221,11 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         self.assertIn(self.PINNED_THEOREMS[0], output)
 
     def test_two_sorries_in_one_pinned_theorem_body_fail_even_when_total_matches(self) -> None:
+        # A single pinned theorem with 2 sorries in its body — total sorry count
+        # matches the file cap (not really), but per-theorem count (2) exceeds
+        # the pinned limit (1).
         lines = []
-        for thm in self.PINNED_THEOREMS[:-2]:
-            lines.append(f"private theorem {thm} (a b : Nat) : True := by")
-            lines.append("  sorry")
-            lines.append("")
-        lines.append(f"private theorem {self.PINNED_THEOREMS[-2]} (a b : Nat) : True := by")
+        lines.append(f"private theorem {self.PINNED_THEOREMS[0]} (a b : Nat) : True := by")
         lines.append("  have h1 : True := by")
         lines.append("    sorry")
         lines.append("  have h2 : True := by")
@@ -241,7 +235,7 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         rc, output = self._run_main()
         self.assertNotEqual(rc, 0)
         self.assertIn("sorry count exceeds pinned limit", output)
-        self.assertIn(self.PINNED_THEOREMS[-2], output)
+        self.assertIn(self.PINNED_THEOREMS[0], output)
 
     def test_sorry_in_non_pinned_theorem_fails(self) -> None:
         # Replace one pinned theorem with an unpinned one
@@ -263,10 +257,6 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
     def test_primed_theorem_name_does_not_match_pinned_base_name(self) -> None:
         primed = [
             "exp_natModPow_eq_uint256Exp'",
-            self.PINNED_THEOREMS[1],
-            self.PINNED_THEOREMS[2],
-            self.PINNED_THEOREMS[3],
-            self.PINNED_THEOREMS[4],
         ]
         self._make_bridge_file(primed)
         rc, output = self._run_main()

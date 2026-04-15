@@ -100,10 +100,6 @@ def main() -> None:
     ALLOWED_SORRY_THEOREMS: dict[str, dict[str, int]] = {
         "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean": {
             "exp_natModPow_eq_uint256Exp": 1,
-            "sdiv_int256_eq_uint256Sdiv": 1,
-            "smod_int256_eq_uint256Smod": 1,
-            "sar_int256_eq_uint256Sar": 1,
-            "signextend_uint256_eq": 1,
         },
         "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean": {
             "backends_agree_on_bridged_builtins": 1,

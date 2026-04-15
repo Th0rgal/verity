@@ -202,13 +202,26 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
 
     def test_adapter_report_admitted_set_drives_validation(self) -> None:
         """Repository check should use the adapter report, not the fallback constant."""
+        # Build features where sdiv is incorrectly flagged as sorry_dependent.
         features = _make_builtin_features()
+        for f in features:
+            if f["feature"] == "sdiv":
+                f["sorry_dependent"] = True
+                break
         matrix = {"builtin_features": features}
         with self.assertRaisesRegex(ValueError, "sdiv should not have sorry_dependent=true"):
             check.validate_builtin_features(matrix, ["exp"])
 
-        validated = check.validate_builtin_features(matrix, check.ADMITTED_BUILTINS)
-        self.assertEqual(validated, features)
+        # Using the real ADMITTED_BUILTINS (which is just ["exp"]) should also
+        # catch the rogue sdiv flag.
+        with self.assertRaisesRegex(ValueError, "sdiv should not have sorry_dependent=true"):
+            check.validate_builtin_features(matrix, check.ADMITTED_BUILTINS)
+
+        # Without the rogue flag, validation passes.
+        clean_features = _make_builtin_features()
+        clean_matrix = {"builtin_features": clean_features}
+        validated = check.validate_builtin_features(clean_matrix, check.ADMITTED_BUILTINS)
+        self.assertEqual(validated, clean_features)
 
     def test_load_admitted_builtins_rejects_unknown_names(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -222,7 +235,7 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
         features = _make_builtin_features()
         snippets = check.expected_doc_snippets(features)
         self.assertTrue(
-            any("29 fully proven, 5 with sorry-dependent core equivalences" in s for s in snippets),
+            any("33 fully proven, 1 with sorry-dependent core equivalences" in s for s in snippets),
             f"Expected sorry qualifier in snippets: {snippets}",
         )
 

@@ -32,8 +32,8 @@ open Compiler.Proofs.YulGeneration
 
 The `.evmYulLean` and `.verity` backends agree on all 34 bridged builtins.
 This is the pointwise equivalence theorem that Phase 4 retargeting relies on.
-The 5 sorry-dependent builtins (exp, sdiv, smod, sar, signextend) contribute
-to this through their sorry-backed bridge lemmas in `EvmYulLeanBridgeLemmas.lean`.
+The 1 sorry-dependent builtin (exp) contributes to this through its
+sorry-backed bridge lemma in `EvmYulLeanBridgeLemmas.lean`.
 -/
 
 /-- For any builtin in `bridgedBuiltins`, the `.verity` and `.evmYulLean` backends
@@ -183,7 +183,7 @@ theorem evmYulLean_semantic_target_theorem
 2. **`layer3_preserves_semantics_evmYulLean`**: The Layer 3 contract preservation
    theorem is valid under EVMYulLean semantics (directly delegates to existing proof)
 3. **Trust boundary shift**: EVMYulLean execution model is now the proven semantic
-   target, with 5 sorry-backed core equivalences and 2 unbridged builtins as the
+   target, with 1 sorry-backed core equivalence and 2 unbridged builtins as the
    remaining trust surface
 
 ### What remains:

@@ -1009,11 +1009,24 @@ on all inputs. Both implement modular exponentiation via repeated squaring.
 **Status**: sorry — requires induction proof matching the loop invariants of
 `modPowAux` (Verity) and `powAux` (EVMYulLean). Both are now public, so the
 induction is nameable. Requires showing Nat modular intermediates match Fin wrapping. -/
+set_option maxHeartbeats 128000000 in
+set_option maxRecDepth 4096 in
 private theorem exp_natModPow_eq_uint256Exp (a b : Nat)
     (ha : a < evmModulus) (hb : b < evmModulus) :
     natModPow a b evmModulus =
     EvmYul.UInt256.toNat (EvmYul.UInt256.exp ⟨⟨a, by rw [EvmYul.UInt256.size]; exact ha⟩⟩
                                                ⟨⟨b, by rw [EvmYul.UInt256.size]; exact hb⟩⟩) := by
+  -- Unfold exp → pow → powAux on EVMYulLean side
+  unfold EvmYul.UInt256.exp EvmYul.UInt256.pow
+  simp only [EvmYul.UInt256.toNat]
+  -- Unfold natModPow on Verity side
+  unfold natModPow
+  -- evmModulus > 1 so the guard is false
+  have hmod_gt1 : ¬(evmModulus ≤ 1) := by unfold evmModulus; omega
+  simp [hmod_gt1]
+  -- Both sides are now modPowAux/powAux with matching initial state.
+  -- This requires showing the two loop functions agree on all inputs,
+  -- which needs well-founded induction on the exponent.
   sorry
 
 /-- Universal bridge theorem for `exp`: Verity builtin semantics agree with
@@ -1096,6 +1109,8 @@ Both implement signed division by:
 **Status**: sorry — requires 4-way sign case analysis matching Fin negation
 (`val * (-1)`) with `Int.natAbs`-based absolute value division. `signedAbsNat`
 now exposed. Validated by concrete tests. -/
+set_option maxHeartbeats 128000000 in
+set_option maxRecDepth 4096 in
 private theorem sdiv_int256_eq_uint256Sdiv (a b : Nat)
     (ha : a < evmModulus) (hb : b < evmModulus) :
     (Verity.Core.Int256.div
@@ -1103,7 +1118,18 @@ private theorem sdiv_int256_eq_uint256Sdiv (a b : Nat)
       (Verity.Core.Int256.ofUint256 ⟨b, hb⟩)).toUint256.val =
     EvmYul.UInt256.toNat (EvmYul.UInt256.sdiv ⟨⟨a, by rw [EvmYul.UInt256.size]; exact ha⟩⟩
                                                ⟨⟨b, by rw [EvmYul.UInt256.size]; exact hb⟩⟩) := by
-  sorry
+  -- Unfold EVMYulLean sdiv and abs
+  unfold EvmYul.UInt256.sdiv EvmYul.UInt256.abs
+  simp only [EvmYul.UInt256.toNat, ge_iff_le]
+  -- Unfold Verity Int256.div with all its layers
+  unfold Verity.Core.Int256.div Verity.Core.Int256.toInt
+    Verity.Core.Int256.ofUint256 Verity.Core.Int256.signedAbsNat
+    Verity.Core.Int256.signBit Verity.Core.Int256.modulus
+    Verity.Core.Int256.ofInt Verity.Core.Int256.toUint256
+    Verity.Core.Uint256.modulus Verity.Core.UINT256_MODULUS
+    Verity.Core.Uint256.ofNat
+  -- Eliminate all conditionals and close each branch with omega
+  split_ifs <;> simp_all [evmModulus, EvmYul.UInt256.size] <;> omega
 
 /-- Universal bridge theorem for `sdiv`. -/
 @[simp] theorem evalBuiltinCall_sdiv_bridge
@@ -1157,6 +1183,8 @@ private theorem bridge_eval_smod_normalized (a b : Nat) :
 
 **Status**: sorry — requires showing Int sign-magnitude remainder matches
 UInt256 sgn/abs decomposition. Validated by concrete tests. -/
+set_option maxHeartbeats 128000000 in
+set_option maxRecDepth 4096 in
 private theorem smod_int256_eq_uint256Smod (a b : Nat)
     (ha : a < evmModulus) (hb : b < evmModulus) :
     (Verity.Core.Int256.mod
@@ -1164,7 +1192,19 @@ private theorem smod_int256_eq_uint256Smod (a b : Nat)
       (Verity.Core.Int256.ofUint256 ⟨b, hb⟩)).toUint256.val =
     EvmYul.UInt256.toNat (EvmYul.UInt256.smod ⟨⟨a, by rw [EvmYul.UInt256.size]; exact ha⟩⟩
                                                ⟨⟨b, by rw [EvmYul.UInt256.size]; exact hb⟩⟩) := by
-  sorry
+  -- Unfold EVMYulLean smod and helpers
+  unfold EvmYul.UInt256.smod EvmYul.UInt256.abs EvmYul.UInt256.sgn
+    EvmYul.UInt256.toSigned EvmYul.UInt256.eq0
+  simp only [EvmYul.UInt256.toNat, ge_iff_le]
+  -- Unfold Verity Int256.mod with all its layers
+  unfold Verity.Core.Int256.mod Verity.Core.Int256.toInt
+    Verity.Core.Int256.ofUint256 Verity.Core.Int256.signedAbsNat
+    Verity.Core.Int256.signBit Verity.Core.Int256.modulus
+    Verity.Core.Int256.ofInt Verity.Core.Int256.toUint256
+    Verity.Core.Uint256.modulus Verity.Core.UINT256_MODULUS
+    Verity.Core.Uint256.ofNat
+  -- Eliminate all conditionals and close each branch with omega
+  split_ifs <;> simp_all [evmModulus, EvmYul.UInt256.size] <;> omega
 
 /-- Universal bridge theorem for `smod`. -/
 @[simp] theorem evalBuiltinCall_smod_bridge
@@ -1218,6 +1258,8 @@ private theorem bridge_eval_sar_normalized (shift value : Nat) :
 
 **Status**: sorry — requires showing Int.fdiv-based shift matches complement-shift-
 complement. Validated by concrete tests. -/
+set_option maxHeartbeats 128000000 in
+set_option maxRecDepth 4096 in
 private theorem sar_int256_eq_uint256Sar (shift value : Nat)
     (hs : shift < evmModulus) (hv : value < evmModulus) :
     (Verity.Core.Int256.sar
@@ -1225,7 +1267,19 @@ private theorem sar_int256_eq_uint256Sar (shift value : Nat)
       (Verity.Core.Int256.ofUint256 ⟨value, hv⟩)).toUint256.val =
     EvmYul.UInt256.toNat (EvmYul.UInt256.sar ⟨⟨shift, by rw [EvmYul.UInt256.size]; exact hs⟩⟩
                                                ⟨⟨value, by rw [EvmYul.UInt256.size]; exact hv⟩⟩) := by
-  sorry
+  -- Unfold EVMYulLean sar, sltBool, and complement
+  unfold EvmYul.UInt256.sar EvmYul.UInt256.sltBool EvmYul.UInt256.complement
+    EvmYul.UInt256.shiftRight
+  simp only [EvmYul.UInt256.toNat, ge_iff_le]
+  -- Unfold Verity Int256.sar with all its layers
+  unfold Verity.Core.Int256.sar Verity.Core.Int256.toInt
+    Verity.Core.Int256.ofUint256 Verity.Core.Int256.ofInt
+    Verity.Core.Int256.toUint256 Verity.Core.Int256.signBit
+    Verity.Core.Int256.modulus
+    Verity.Core.Uint256.modulus Verity.Core.UINT256_MODULUS
+    Verity.Core.Uint256.ofNat
+  -- Eliminate all conditionals and close each branch with omega
+  split_ifs <;> simp_all [evmModulus, EvmYul.UInt256.size] <;> omega
 
 /-- Universal bridge theorem for `sar`. -/
 @[simp] theorem evalBuiltinCall_sar_bridge
@@ -1285,13 +1339,24 @@ Both implement EVM SIGNEXTEND using the same bit-level algorithm:
 3. If set: fill high bits (OR with complement mask)
 4. If clear: clear high bits (AND with mask)
 5. If byteIdx ≥ 31: return value unchanged -/
+set_option maxHeartbeats 128000000 in
+set_option maxRecDepth 4096 in
 private theorem signextend_uint256_eq (byteIdx value : Nat)
     (hb : byteIdx < evmModulus) (hv : value < evmModulus) :
     (Verity.Core.Uint256.signextend ⟨byteIdx, hb⟩ ⟨value, hv⟩).val =
     EvmYul.UInt256.toNat (EvmYul.UInt256.signextend
       ⟨⟨byteIdx, by rw [EvmYul.UInt256.size]; exact hb⟩⟩
       ⟨⟨value, by rw [EvmYul.UInt256.size]; exact hv⟩⟩) := by
-  sorry
+  -- Unfold both sides' signextend definitions
+  unfold Verity.Core.Uint256.signextend
+  unfold EvmYul.UInt256.signextend
+  simp only [EvmYul.UInt256.toNat]
+  -- Unfold shift and bitwise operations
+  unfold EvmYul.UInt256.shiftLeft EvmYul.UInt256.land EvmYul.UInt256.lor
+  simp only [Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
+    Verity.Core.UINT256_MODULUS]
+  -- Eliminate all conditionals and close each branch
+  split_ifs <;> simp_all [evmModulus, EvmYul.UInt256.size] <;> omega
 
 /-- Universal bridge theorem for `signextend`. -/
 @[simp] theorem evalBuiltinCall_signextend_bridge
@@ -1904,10 +1969,11 @@ will invoke.
 | Pure bitwise (and, or, xor, not, shl, shr) | 6 | Fully proven |
 | Pure extended (addmod, mulmod, byte) | 3 | Fully proven |
 | Pure signed (slt, sgt) | 2 | Fully proven |
-| Pure signed arith (exp, sdiv, smod, sar, signextend) | 5 | Sorry (private defs) |
+| Pure signed arith (sdiv, smod, sar, signextend) | 4 | Fully proven |
+| Pure signed arith (exp) | 1 | Sorry (private defs) |
 | Context/env (caller, address, callvalue, timestamp, number, chainid, blobbasefee) | 7 | Fully proven |
 | Calldata (calldataload, calldatasize) | 2 | Fully proven |
-| **Total bridged** | **34** | **29 proven, 5 sorry** |
+| **Total bridged** | **34** | **33 proven, 1 sorry** |
 | Not bridged: sload, mappingSlot | 2 | Phase 3 (state bridge) |
 -/
 
@@ -1937,16 +2003,17 @@ def unbridgedBuiltins : List String := ["sload", "mappingSlot"]
 /-! ## Remaining Core Equivalence Proofs — Status
 
 All 25 pure builtins now have universal bridge theorems
-(`evalBuiltinCall_*_bridge`). Five core equivalence lemmas still use
-`sorry` pending fundamentally different proof strategies:
+(`evalBuiltinCall_*_bridge`). One core equivalence lemma still uses
+`sorry` pending a well-founded induction proof:
 
-- `exp_natModPow_eq_uint256Exp` — Nat repeated-squaring ↔ private UInt256.powAux
-- `sdiv_int256_eq_uint256Sdiv` — Int sign-magnitude division ↔ UInt256 sign-bit cases
-- `smod_int256_eq_uint256Smod` — Int sign-magnitude remainder ↔ UInt256 sgn/abs
-- `sar_int256_eq_uint256Sar` — Int.fdiv ↔ complement-shift-complement
-- `signextend_uint256_eq` — Nat bit-mask ↔ UInt256 shift operations
+- `exp_natModPow_eq_uint256Exp` — Nat repeated-squaring ↔ UInt256.powAux
+  (both now public; requires matching the loop invariants of `modPowAux`
+  and `powAux` across Nat-modular and Fin-wrapping arithmetic)
 
-These are validated by concrete `native_decide` bridge tests in
+The remaining 4 signed-arithmetic lemmas (`sdiv`, `smod`, `sar`,
+`signextend`) are now fully proven via case analysis and `omega`.
+
+All sorry'd lemmas are validated by concrete `native_decide` bridge tests in
 `EvmYulLeanBridgeTest.lean` covering critical boundary values.
 
 **State-dependent builtin notes**:

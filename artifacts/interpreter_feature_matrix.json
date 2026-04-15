@@ -645,15 +645,13 @@
       "feature": "sdiv",
       "verity_path": "supported",
       "evmyullean_bridge": "supported",
-      "agreement_proved": true,
-      "sorry_dependent": true
+      "agreement_proved": true
     },
     {
       "feature": "smod",
       "verity_path": "supported",
       "evmyullean_bridge": "supported",
-      "agreement_proved": true,
-      "sorry_dependent": true
+      "agreement_proved": true
     },
     {
       "feature": "lt",
@@ -731,15 +729,13 @@
       "feature": "sar",
       "verity_path": "supported",
       "evmyullean_bridge": "supported",
-      "agreement_proved": true,
-      "sorry_dependent": true
+      "agreement_proved": true
     },
     {
       "feature": "signextend",
       "verity_path": "supported",
       "evmyullean_bridge": "supported",
-      "agreement_proved": true,
-      "sorry_dependent": true
+      "agreement_proved": true
     },
     {
       "feature": "byte",
