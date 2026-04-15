@@ -200,6 +200,20 @@ inductive StmtListCompileCore : List String → List Stmt → Prop where
   | stop {scope : List String} {rest : List Stmt} :
       StmtListCompileCore scope rest →
       StmtListCompileCore scope (.stop :: rest)
+  | mstore {scope : List String} {offset value : Expr} {rest : List Stmt} :
+      ExprCompileCore offset →
+      exprBoundNamesInScope offset scope →
+      ExprCompileCore value →
+      exprBoundNamesInScope value scope →
+      StmtListCompileCore scope rest →
+      StmtListCompileCore scope (.mstore offset value :: rest)
+  | tstore {scope : List String} {offset value : Expr} {rest : List Stmt} :
+      ExprCompileCore offset →
+      exprBoundNamesInScope offset scope →
+      ExprCompileCore value →
+      exprBoundNamesInScope value scope →
+      StmtListCompileCore scope rest →
+      StmtListCompileCore scope (.tstore offset value :: rest)
 
 /-- Core statement lists whose execution is guaranteed to terminate before
 reaching the end of the list. This is the smallest useful extension needed
@@ -229,6 +243,20 @@ inductive StmtListTerminalCore : List String → List Stmt → Prop where
   | stop {scope : List String} {rest : List Stmt} :
       StmtListCompileCore scope rest →
       StmtListTerminalCore scope (.stop :: rest)
+  | mstore {scope : List String} {offset value : Expr} {rest : List Stmt} :
+      ExprCompileCore offset →
+      exprBoundNamesInScope offset scope →
+      ExprCompileCore value →
+      exprBoundNamesInScope value scope →
+      StmtListTerminalCore scope rest →
+      StmtListTerminalCore scope (.mstore offset value :: rest)
+  | tstore {scope : List String} {offset value : Expr} {rest : List Stmt} :
+      ExprCompileCore offset →
+      exprBoundNamesInScope offset scope →
+      ExprCompileCore value →
+      exprBoundNamesInScope value scope →
+      StmtListTerminalCore scope rest →
+      StmtListTerminalCore scope (.tstore offset value :: rest)
   | ite {scope : List String} {cond : Expr}
       {thenBranch elseBranch rest : List Stmt} :
       ExprCompileCore cond →

@@ -1672,6 +1672,20 @@ private theorem stmtListCompileCore_helperSurfaceClosed
         stmtTouchesUnsupportedHelperSurface,
         ih,
         Bool.or_false, Bool.false_or]
+  | mstore hoffset _ hvalue _ _ ih =>
+      simp only [stmtListTouchesUnsupportedHelperSurface,
+        stmtTouchesUnsupportedHelperSurface,
+        exprCompileCore_helperSurfaceClosed hoffset,
+        exprCompileCore_helperSurfaceClosed hvalue,
+        ih,
+        Bool.or_false, Bool.false_or]
+  | tstore hoffset _ hvalue _ _ ih =>
+      simp only [stmtListTouchesUnsupportedHelperSurface,
+        stmtTouchesUnsupportedHelperSurface,
+        exprCompileCore_helperSurfaceClosed hoffset,
+        exprCompileCore_helperSurfaceClosed hvalue,
+        ih,
+        Bool.or_false, Bool.false_or]
 
 private theorem stmtListCompileCore_internalHelperCallNames_nil
     {scope : List String}
@@ -1696,6 +1710,18 @@ private theorem stmtListCompileCore_internalHelperCallNames_nil
   | stop _ ih =>
       simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
+        ih, List.nil_append, List.append_nil]
+  | mstore hoffset _ hvalue _ _ ih =>
+      simp only [stmtListInternalHelperCallNames,
+        stmtInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hoffset,
+        exprCompileCore_internalHelperCallNames_nil hvalue,
+        ih, List.nil_append, List.append_nil]
+  | tstore hoffset _ hvalue _ _ ih =>
+      simp only [stmtListInternalHelperCallNames,
+        stmtInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hoffset,
+        exprCompileCore_internalHelperCallNames_nil hvalue,
         ih, List.nil_append, List.append_nil]
 
 
@@ -1734,6 +1760,18 @@ private theorem stmtListTerminalCore_internalHelperCallNames_nil
         ihThen, ihElse,
         stmtListCompileCore_internalHelperCallNames_nil hrest,
         List.nil_append, List.append_nil]
+  | mstore hoffset _ hvalue _ _ ih =>
+      simp only [stmtListInternalHelperCallNames,
+        stmtInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hoffset,
+        exprCompileCore_internalHelperCallNames_nil hvalue,
+        ih, List.nil_append, List.append_nil]
+  | tstore hoffset _ hvalue _ _ ih =>
+      simp only [stmtListInternalHelperCallNames,
+        stmtInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hoffset,
+        exprCompileCore_internalHelperCallNames_nil hvalue,
+        ih, List.nil_append, List.append_nil]
 
 
 private theorem stmtListTerminalCore_helperSurfaceClosed
@@ -1772,6 +1810,20 @@ private theorem stmtListTerminalCore_helperSurfaceClosed
         exprCompileCore_helperSurfaceClosed hcond,
         ihThen, ihElse,
         stmtListCompileCore_helperSurfaceClosed hrest,
+        Bool.or_false, Bool.false_or]
+  | mstore hoffset _ hvalue _ _ ih =>
+      simp only [stmtListTouchesUnsupportedHelperSurface,
+        stmtTouchesUnsupportedHelperSurface,
+        exprCompileCore_helperSurfaceClosed hoffset,
+        exprCompileCore_helperSurfaceClosed hvalue,
+        ih,
+        Bool.or_false, Bool.false_or]
+  | tstore hoffset _ hvalue _ _ ih =>
+      simp only [stmtListTouchesUnsupportedHelperSurface,
+        stmtTouchesUnsupportedHelperSurface,
+        exprCompileCore_helperSurfaceClosed hoffset,
+        exprCompileCore_helperSurfaceClosed hvalue,
+        ih,
         Bool.or_false, Bool.false_or]
 
 private theorem supportedStmtList_letStorageField_helperSurfaceClosed
@@ -3612,6 +3664,14 @@ private theorem stmtListCompileCore_usesArrayElement_false
         exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]; assumption
   | stop _ ih =>
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement, Bool.false_or]; assumption
+  | mstore hoffset _ hvalue _ _ ih =>
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
+        exprCompileCore_usesArrayElement_false hoffset,
+        exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]; assumption
+  | tstore hoffset _ hvalue _ _ ih =>
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
+        exprCompileCore_usesArrayElement_false hoffset,
+        exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]; assumption
 
 -- Helper: StmtListTerminalCore never uses arrayElement
 private theorem stmtListTerminalCore_usesArrayElement_false
@@ -3639,6 +3699,14 @@ private theorem stmtListTerminalCore_usesArrayElement_false
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
         exprCompileCore_usesArrayElement_false hcond, ih_then, ih_else,
         stmtListCompileCore_usesArrayElement_false hCompile, Bool.false_or]
+  | mstore hoffset _ hvalue _ _ ih =>
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
+        exprCompileCore_usesArrayElement_false hoffset,
+        exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]; assumption
+  | tstore hoffset _ hvalue _ _ ih =>
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
+        exprCompileCore_usesArrayElement_false hoffset,
+        exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]; assumption
 
 -- Helper: StmtListCompileCore never uses storageArrayElement
 private theorem stmtListCompileCore_usesStorageArrayElement_false
@@ -3661,6 +3729,14 @@ private theorem stmtListCompileCore_usesStorageArrayElement_false
         exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]; assumption
   | stop _ ih =>
       simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement, Bool.false_or]; assumption
+  | mstore hoffset _ hvalue _ _ ih =>
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprCompileCore_usesStorageArrayElement_false hoffset,
+        exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]; assumption
+  | tstore hoffset _ hvalue _ _ ih =>
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprCompileCore_usesStorageArrayElement_false hoffset,
+        exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]; assumption
 
 -- Helper: StmtListTerminalCore never uses storageArrayElement
 private theorem stmtListTerminalCore_usesStorageArrayElement_false
@@ -3688,6 +3764,14 @@ private theorem stmtListTerminalCore_usesStorageArrayElement_false
       simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false hcond, ih_then, ih_else,
         stmtListCompileCore_usesStorageArrayElement_false hCompile, Bool.false_or]
+  | mstore hoffset _ hvalue _ _ ih =>
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprCompileCore_usesStorageArrayElement_false hoffset,
+        exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]; assumption
+  | tstore hoffset _ hvalue _ _ ih =>
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprCompileCore_usesStorageArrayElement_false hoffset,
+        exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]; assumption
 
 -- Helper: StmtListCompileCore never uses dynamicBytesEq
 private theorem stmtListCompileCore_usesDynamicBytesEq_false
@@ -3710,6 +3794,14 @@ private theorem stmtListCompileCore_usesDynamicBytesEq_false
         exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]; assumption
   | stop _ ih =>
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, Bool.false_or]; assumption
+  | mstore hoffset _ hvalue _ _ ih =>
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+        exprCompileCore_usesDynamicBytesEq_false hoffset,
+        exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]; assumption
+  | tstore hoffset _ hvalue _ _ ih =>
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+        exprCompileCore_usesDynamicBytesEq_false hoffset,
+        exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]; assumption
 
 -- Helper: StmtListTerminalCore never uses dynamicBytesEq
 private theorem stmtListTerminalCore_usesDynamicBytesEq_false
@@ -3737,6 +3829,14 @@ private theorem stmtListTerminalCore_usesDynamicBytesEq_false
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hcond, ih_then, ih_else,
         stmtListCompileCore_usesDynamicBytesEq_false hCompile, Bool.false_or]
+  | mstore hoffset _ hvalue _ _ ih =>
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+        exprCompileCore_usesDynamicBytesEq_false hoffset,
+        exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]; assumption
+  | tstore hoffset _ hvalue _ _ ih =>
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+        exprCompileCore_usesDynamicBytesEq_false hoffset,
+        exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]; assumption
 
 -- Helper for append: stmtListUsesArrayElement distributes over append
 private theorem stmtListUsesArrayElement_append (xs ys : List Stmt) :

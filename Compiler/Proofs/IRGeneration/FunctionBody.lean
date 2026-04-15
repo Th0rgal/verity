@@ -7108,6 +7108,12 @@ inductive StmtCompileCore : Stmt → Prop where
       ExprCompileCore value → StmtCompileCore (.return value)
   | stop :
       StmtCompileCore .stop
+  | mstore {offset value : Expr} :
+      ExprCompileCore offset → ExprCompileCore value →
+        StmtCompileCore (.mstore offset value)
+  | tstore {offset value : Expr} :
+      ExprCompileCore offset → ExprCompileCore value →
+        StmtCompileCore (.tstore offset value)
 
 theorem compileStmt_core_ok
     {fields : List Field}
@@ -7142,6 +7148,20 @@ theorem compileStmt_core_ok
   | stop =>
       exact ⟨[YulStmt.expr (YulExpr.call "stop" [])], by
         rw [CompilationModel.compileStmt]
+        rfl⟩
+  | mstore hoffset hvalue =>
+      rename_i offset value
+      rcases compileExpr_core_ok hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      exact ⟨[YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])], by
+        rw [CompilationModel.compileStmt, hoffsetIR, hvalueIR]
+        rfl⟩
+  | tstore hoffset hvalue =>
+      rename_i offset value
+      rcases compileExpr_core_ok hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      exact ⟨[YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])], by
+        rw [CompilationModel.compileStmt, hoffsetIR, hvalueIR]
         rfl⟩
 
 theorem runtimeStateMatchesIR_setBothMemory
@@ -7768,6 +7788,20 @@ theorem compileStmt_core_ok_any_scope
       exact ⟨[YulStmt.expr (YulExpr.call "stop" [])], by
         rw [CompilationModel.compileStmt]
         rfl⟩
+  | mstore hoffset hvalue =>
+      rename_i offset value
+      rcases compileExpr_core_ok hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      exact ⟨[YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])], by
+        rw [CompilationModel.compileStmt, hoffsetIR, hvalueIR]
+        rfl⟩
+  | tstore hoffset hvalue =>
+      rename_i offset value
+      rcases compileExpr_core_ok hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      exact ⟨[YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])], by
+        rw [CompilationModel.compileStmt, hoffsetIR, hvalueIR]
+        rfl⟩
 
 /-! ### Scope-independence of compileStmt / compileStmtList success
 
@@ -8133,6 +8167,26 @@ theorem compileStmtList_core_ok
       dsimp
       rw [htailIR]
       rfl
+  case mstore scope offset value rest hoffset _ hvalue _ hrest ih =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .mstore offset value) (.mstore hoffset hvalue) with ⟨headIR, hheadIR⟩
+      rcases ih (inScopeNames := collectStmtNames (.mstore offset value) ++ inScopeNames) with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
+  case tstore scope offset value rest hoffset _ hvalue _ hrest ih =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .tstore offset value) (.tstore hoffset hvalue) with ⟨headIR, hheadIR⟩
+      rcases ih (inScopeNames := collectStmtNames (.tstore offset value) ++ inScopeNames) with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
 
 theorem compileStmtList_terminal_core_ok
     {fields : List Field}
@@ -8193,6 +8247,26 @@ theorem compileStmtList_terminal_core_ok
           (scope := scope)
           (inScopeNames := collectStmtNames (.stop) ++ inScopeNames)
           (stmts := rest) hrest with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
+  case mstore scope offset value rest hoffset _ hvalue _ hrest ih =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .mstore offset value) (.mstore hoffset hvalue) with ⟨headIR, hheadIR⟩
+      rcases ih (inScopeNames := collectStmtNames (.mstore offset value) ++ inScopeNames) with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
+  case tstore scope offset value rest hoffset _ hvalue _ hrest ih =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .tstore offset value) (.tstore hoffset hvalue) with ⟨headIR, hheadIR⟩
+      rcases ih (inScopeNames := collectStmtNames (.tstore offset value) ++ inScopeNames) with
         ⟨tailIR, htailIR⟩
       refine ⟨headIR ++ tailIR, ?_⟩
       rw [CompilationModel.compileStmtList, hheadIR]
@@ -8301,6 +8375,28 @@ theorem compileStmtList_terminal_core_ok_nonempty
           (stmt := .stop) (rest := rest) hcompile with
         ⟨headIR, tailIR, hhead, _, hbody⟩
       rw [CompilationModel.compileStmt] at hhead
+      injection hhead with hheadEq
+      subst hheadEq
+      simp [hbody]
+  | mstore hoffset hinScopeOffset hvalue hinScopeValue hrest ih =>
+      rename_i scope offset value rest
+      rcases compileExpr_core_ok (fields := fields) hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok (fields := fields) hvalue with ⟨valueIR, hvalueIR⟩
+      rcases compileStmtList_cons_ok_inv (fields := fields) (inScopeNames := inScopeNames)
+          (stmt := .mstore offset value) (rest := rest) hcompile with
+        ⟨headIR, tailIR, hhead, _, hbody⟩
+      rw [CompilationModel.compileStmt, hoffsetIR, hvalueIR] at hhead
+      injection hhead with hheadEq
+      subst hheadEq
+      simp [hbody]
+  | tstore hoffset hinScopeOffset hvalue hinScopeValue hrest ih =>
+      rename_i scope offset value rest
+      rcases compileExpr_core_ok (fields := fields) hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok (fields := fields) hvalue with ⟨valueIR, hvalueIR⟩
+      rcases compileStmtList_cons_ok_inv (fields := fields) (inScopeNames := inScopeNames)
+          (stmt := .tstore offset value) (rest := rest) hcompile with
+        ⟨headIR, tailIR, hhead, _, hbody⟩
+      rw [CompilationModel.compileStmt, hoffsetIR, hvalueIR] at hhead
       injection hhead with hheadEq
       subst hheadEq
       simp [hbody]
