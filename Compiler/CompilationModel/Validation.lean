@@ -264,8 +264,12 @@ def exprReadsStateOrEnv : Expr → Bool
       exprReadsStateOrEnv a
   | Expr.ite cond thenVal elseVal =>
       exprReadsStateOrEnv cond || exprReadsStateOrEnv thenVal || exprReadsStateOrEnv elseVal
-  | Expr.adtConstruct _ _ _ | Expr.adtTag _ _ => true
-  | Expr.adtField _ _ _ _ _ => true
+  | Expr.adtConstruct _ _ args => exprListReadsStateOrEnv args
+  | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ => true
+where
+  exprListReadsStateOrEnv : List Expr → Bool
+    | [] => false
+    | e :: es => exprReadsStateOrEnv e || exprListReadsStateOrEnv es
 
 mutual
 def exprWritesState : Expr → Bool

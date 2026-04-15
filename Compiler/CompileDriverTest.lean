@@ -255,6 +255,7 @@ private def linkedLibrarySpec : CompilationModel := {
       , { name := "b", ty := ParamType.uint256 }
       ]
       returnType := none
+      allowPostInteractionWrites := true
       body := [
         Stmt.letVar "h" (Expr.externalCall "PoseidonT3_hash" [Expr.param "a", Expr.param "b"]),
         Stmt.setStorage "lastHash" (Expr.localVar "h"),

@@ -2661,6 +2661,8 @@ mutual
     cases expr with
     | internalCall _ _ =>
         simp [exprTouchesUnsupportedHelperSurface] at hsurface
+    | adtConstruct _ _ _ | adtTag _ _ | adtField _ _ _ _ _ =>
+        simp [exprTouchesUnsupportedHelperSurface] at hsurface
     | mappingChain _ _ =>
         simp [exprTouchesUnsupportedHelperSurface] at hsurface
     | literal _ =>
