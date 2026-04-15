@@ -1353,6 +1353,8 @@ structure SupportedInternalHelperSummary (spec : CompilationModel) (callee : Fun
   foreign : stmtListTouchesUnsupportedForeignSurface callee.body = false
   lowLevel : stmtListTouchesUnsupportedLowLevelSurface callee.body = false
   effects : SupportedBodyEffectInterface callee
+  constructorRawCalldataSurfaceClosed :
+    stmtListTouchesUnsupportedConstructorRawCalldataSurface callee.body = false
   contract : InternalHelperSummaryContract
   noLocalObligations : callee.localObligations = []
 

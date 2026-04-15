@@ -1500,6 +1500,31 @@ def bindSupportedParams (params : List Param) (args : List Nat) :
       let bindings ← bindSupportedParams rest restArgs
       pure ((param.name, value) :: bindings)
 
+theorem bindSupportedParams_take_param_length
+    {params : List Param}
+    {args : List Nat}
+    {bindings : List (String × Nat)}
+    (hbind : bindSupportedParams params args = some bindings) :
+    bindSupportedParams params (args.take params.length) = some bindings := by
+  induction params generalizing args bindings with
+  | nil =>
+      simpa [bindSupportedParams] using hbind
+  | cons param rest ih =>
+      cases args with
+      | nil =>
+          simp [bindSupportedParams] at hbind
+      | cons arg restArgs =>
+          simp only [bindSupportedParams, List.length_cons, List.take] at hbind ⊢
+          cases hdecode : decodeSupportedParamWord param.ty arg <;> simp [hdecode] at hbind ⊢
+          rename_i value
+          cases htail : bindSupportedParams rest restArgs with
+          | none =>
+              simp [htail] at hbind
+          | some tailBindings =>
+              simp [htail] at hbind ⊢
+              cases hbind
+              simp [ih htail]
+
 def withTransactionContext (world : Verity.ContractState) (tx : IRTransaction) :
     Verity.ContractState :=
   { world with
@@ -1687,6 +1712,22 @@ def constructorExecutionBindings
       else
         some bindings
 
+def directHelperTouchesUnsupportedConstructorRawCalldataSurface
+    (spec : CompilationModel)
+    (fn : FunctionSpec) : Bool :=
+  (helperCallNames fn).any fun calleeName =>
+    match findUniqueInternalFunction? spec calleeName with
+    | some callee =>
+        stmtListTouchesUnsupportedConstructorRawCalldataSurface callee.body
+    | none => true
+
+def constructorTouchesUnsupportedRawCalldataSurface
+    (spec : CompilationModel)
+    (ctor : ConstructorSpec) : Bool :=
+  stmtListTouchesUnsupportedConstructorRawCalldataSurface ctor.body ||
+    directHelperTouchesUnsupportedConstructorRawCalldataSurface spec
+      (constructorAsFunctionSpec ctor)
+
 def interpretFunction (spec : CompilationModel) (fn : FunctionSpec)
     (tx : IRTransaction) (initialWorld : Verity.ContractState) : SourceContractResult :=
   let worldWithTx := withTransactionContext initialWorld tx
@@ -1704,7 +1745,7 @@ def interpretConstructor (spec : CompilationModel) (ctor : ConstructorSpec)
     (tx : IRTransaction) (initialWorld : Verity.ContractState) : SourceContractResult :=
   let worldWithTx := withTransactionContext initialWorld tx
   let fields := effectiveFields spec
-  if stmtListTouchesUnsupportedConstructorRawCalldataSurface ctor.body then
+  if constructorTouchesUnsupportedRawCalldataSurface spec ctor then
     revertedResult spec worldWithTx
   else
     match constructorExecutionBindings ctor tx.args with
@@ -2397,7 +2438,7 @@ def interpretConstructorWithHelpers
     (initialWorld : Verity.ContractState) : SourceContractResult :=
   let worldWithTx := withTransactionContext initialWorld tx
   let fields := effectiveFields spec
-  if stmtListTouchesUnsupportedConstructorRawCalldataSurface ctor.body then
+  if constructorTouchesUnsupportedRawCalldataSurface spec ctor then
     revertedResult spec worldWithTx
   else
     match constructorExecutionBindings ctor tx.args with
@@ -2585,6 +2626,21 @@ private theorem findUniqueInternalFunction?_of_witness
         simp
       rw [h1, h2] at hnd
       exact (List.nodup_cons.mp hnd).1 (by simp)
+
+theorem directHelperTouchesUnsupportedConstructorRawCalldataSurface_eq_false_of_supported
+    {spec : CompilationModel}
+    {fn : FunctionSpec}
+    (hHelpers : SupportedBodyHelperInterface spec fn)
+    (hnodup : (spec.functions.map (·.name)).Nodup) :
+    directHelperTouchesUnsupportedConstructorRawCalldataSurface spec fn = false := by
+  unfold directHelperTouchesUnsupportedConstructorRawCalldataSurface
+  apply List.any_eq_false.mpr
+  intro calleeName hmem
+  let witness := hHelpers.summaryOfCall hmem
+  have hfind :
+      findUniqueInternalFunction? spec calleeName = some witness.callee :=
+    findUniqueInternalFunction?_of_witness witness hnodup
+  simpa [hfind, witness] using witness.summary.constructorRawCalldataSurfaceClosed
 
 /-- Public characterization of `execStmtWithHelpers` for `Stmt.internalCallAssign`
 when the callee is identified by a `SupportedInternalHelperWitness` and function

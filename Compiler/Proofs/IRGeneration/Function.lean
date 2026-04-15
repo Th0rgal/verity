@@ -1913,6 +1913,7 @@ theorem supported_constructor_body_correct_with_body_interface
     (helperFuel : Nat)
     (hnormalized :
       applySlotAliasRanges model.fields model.slotAliasRanges = model.fields)
+    (hfunctionNamesNodup : (model.functions.map (·.name)).Nodup)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
     (hSupported : SupportedConstructor model ctor)
@@ -1947,9 +1948,22 @@ theorem supported_constructor_body_correct_with_body_interface
       SupportedBodyCallInterface.surfaceClosed_exceptMappingWrites hSupported.body
   have heffectsClosed : stmtListTouchesUnsupportedEffectSurface ctor.body = false := by
     simpa [ctorFn, constructorAsFunctionSpec] using hSupported.body.effects.surfaceClosed
+  have hdirectHelperRawClosed :
+      SourceSemantics.directHelperTouchesUnsupportedConstructorRawCalldataSurface model ctorFn = false := by
+    exact
+      SourceSemantics.directHelperTouchesUnsupportedConstructorRawCalldataSurface_eq_false_of_supported
+        hSupported.body.calls.helpers
+        hfunctionNamesNodup
+  have hrawClosed :
+      SourceSemantics.constructorTouchesUnsupportedRawCalldataSurface model ctor = false := by
+    simp [SourceSemantics.constructorTouchesUnsupportedRawCalldataSurface,
+      ctorFn, hSupported.rawCalldataSurfaceClosed, hdirectHelperRawClosed]
+  have hbindTake :
+      SourceSemantics.bindSupportedParams ctor.params (List.take ctor.params.length tx.args) = some bindings := by
+    exact SourceSemantics.bindSupportedParams_take_param_length hbind
   have heffective :
       SourceSemantics.constructorExecutionBindings ctor tx.args = some bindings := by
-    simp [SourceSemantics.constructorExecutionBindings, hbind,
+    simp [SourceSemantics.constructorExecutionBindings, hbindTake,
       hcoreClosed, hcallClosed, heffectsClosed]
   let stateWithBindings := ParamLoading.applyBindingsToIRState initialState bindings
   have hinitBindings :
@@ -2098,9 +2112,9 @@ theorem supported_constructor_body_correct_with_body_interface
         ctor.body = sourceResult := by
     simpa [ctorFn, constructorAsFunctionSpec] using hsource
   simpa [SourceSemantics.interpretConstructorWithHelpers,
-    hSupported.rawCalldataSurfaceClosed, SourceSemantics.constructorExecutionBindings,
+    hrawClosed, SourceSemantics.constructorExecutionBindings,
     SourceSemantics.interpretFunctionWithHelpers,
-    constructorAsFunctionSpec, hbind, hcoreClosed, hcallClosed, heffectsClosed, heffective, hsource',
+    constructorAsFunctionSpec, hbindTake, hcoreClosed, hcallClosed, heffectsClosed, heffective, hsource',
     FunctionBody.stmtResultToSourceResult,
     FunctionBody.sourceResultMatchesIRResult,
     FunctionBody.irResultOfExecResult, execResultToIRResult] using hpacked

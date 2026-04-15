@@ -1831,6 +1831,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mulDivDown  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mulDivUp  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_ite  -- private
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.bindSupportedParams_take_param_length
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.findDynamicArrayElementAtSlot_withTransactionContext
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.findDynamicArrayElementAtSlot_congr_storageArray
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.encodeStorageAt_congr
@@ -1845,6 +1846,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_internalCall_obeys_summary
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_internalCallAssign_obeys_summary
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.findUniqueInternalFunction?_of_witness  -- private
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.directHelperTouchesUnsupportedConstructorRawCalldataSurface_eq_false_of_supported
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_internalCallAssign_of_witness
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_internalCallAssign_obeys_summary_of_witness
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_internalCall_of_witness
@@ -2176,4 +2178,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 2026 theorems/lemmas (1356 public, 670 private, 0 sorry'd)
+-- Total: 2028 theorems/lemmas (1358 public, 670 private, 0 sorry'd)

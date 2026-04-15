@@ -287,6 +287,26 @@ private def constructorHelperArgSpec : CompilationModel :=
     constructor := some constructorHelperArgCtor
     functions := [identityInternalHelper] }
 
+private def rawSizeInternalHelper : FunctionSpec :=
+  { name := "rawSize"
+    params := []
+    returnType := some .uint256
+    isInternal := true
+    body := [Stmt.return .calldatasize] }
+
+private def constructorHelperRawCalldataCtor : ConstructorSpec :=
+  { params := [{ name := "initialValue", ty := .uint256 }]
+    body :=
+      [Stmt.internalCallAssign ["tmp"] "rawSize" [],
+        Stmt.setStorage "value" (.localVar "tmp"),
+        .stop] }
+
+private def constructorHelperRawCalldataSpec : CompilationModel :=
+  { name := "ConstructorHelperRawCalldata"
+    fields := [{ name := "value", ty := .uint256 }]
+    constructor := some constructorHelperRawCalldataCtor
+    functions := [rawSizeInternalHelper] }
+
 private def constSevenInternalHelper : FunctionSpec :=
   { name := "constSeven"
     params := []
@@ -554,6 +574,21 @@ example :
   native_decide
 
 example :
+    SourceSemantics.directHelperTouchesUnsupportedConstructorRawCalldataSurface
+      constructorHelperRawCalldataSpec
+      (constructorAsFunctionSpec constructorHelperRawCalldataCtor) = true := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructorWithHelpers
+      constructorHelperRawCalldataSpec
+      1
+      constructorHelperRawCalldataCtor
+      constructorHelperArgTx
+      Verity.defaultState).success = false := by
+  native_decide
+
+example :
     stmtListTouchesUnsupportedConstructorRawCalldataSurface constructorCalldataCtor.body = true := by
   native_decide
 
@@ -722,6 +757,7 @@ example :
       (ctor := constructorOnlyCtor)
       (helperFuel := 0)
       (hnormalized := rfl)
+      (hfunctionNamesNodup := by decide)
       (hnoEvents := rfl)
       (hnoErrors := rfl)
       (hSupported := constructorOnlySupported)
