@@ -25,9 +25,12 @@ THEOREM_RE = re.compile(
 # scan from a sorry hits one of these before finding a theorem/lemma,
 # the sorry is outside any allowlisted declaration (e.g. in an example
 # block) and should not be attributed to the prior theorem.
+# Only *unindented* declarations count as boundaries; indented ones are
+# local helpers inside a ``where`` clause and do not end the enclosing
+# theorem scope.
 BOUNDARY_RE = re.compile(
-    r"^\s*(?:private\s+)?(?:def|example|instance|abbrev|opaque|structure|class|inductive|section|namespace|end)\b"
-    r"|^\s*#"
+    r"^(?:private\s+)?(?:def|example|instance|abbrev|opaque|structure|class|inductive|section|namespace|end)\b"
+    r"|^#"
 )
 
 
