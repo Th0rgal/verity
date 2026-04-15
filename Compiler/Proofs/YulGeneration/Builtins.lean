@@ -1,4 +1,5 @@
 import Compiler.Constants
+import Compiler.Proofs.YulGeneration.Calldata
 import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 import Verity.Core.Int256
@@ -23,22 +24,6 @@ private def modPowAux (m b : Nat) : Nat → Nat → Nat
 def natModPow (base exp modulus : Nat) : Nat :=
   if modulus ≤ 1 then 0
   else modPowAux modulus (base % modulus) exp 1
-
-def selectorWord (selector : Nat) : Nat :=
-  (selector % selectorModulus) * (2 ^ selectorShift)
-
-def calldataloadWord (selector : Nat) (calldata : List Nat) (offset : Nat) : Nat :=
-  if offset = 0 then
-    selectorWord selector
-  else if offset < 4 then
-    0
-  else
-    let wordOffset := offset - 4
-    if wordOffset % 32 != 0 then
-      0
-    else
-      let idx := wordOffset / 32
-      calldata.getD idx 0 % evmModulus
 
 def evalBuiltinCallWithContext
     (storage : Nat → Nat)

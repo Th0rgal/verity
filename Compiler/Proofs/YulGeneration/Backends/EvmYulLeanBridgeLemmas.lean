@@ -1410,6 +1410,14 @@ fallback covers all builtins. -/
     | nil => rfl
     | cons b t2 => rfl
 
+/-- `calldataload` is bridged at the full adapter boundary because it depends
+    on the selector/calldata context rather than only on argument words. -/
+@[simp] theorem evalBuiltinCall_calldataload_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (offset : Nat) :
+    evalBuiltinCall storage sender selector calldata "calldataload" [offset] =
+      evalBuiltinCallViaEvmYulLean storage sender selector calldata "calldataload" [offset] := by
+  simp [evalBuiltinCall, evalBuiltinCallWithContext, evalBuiltinCallViaEvmYulLean]
+
 /-- `evalPureBuiltinViaEvmYulLean` returns `none` for `calldatasize`. -/
 @[simp] theorem evalPureBuiltinViaEvmYulLean_calldatasize (args : List Nat) :
     evalPureBuiltinViaEvmYulLean "calldatasize" args = none := by
@@ -1726,10 +1734,11 @@ For `.evmYulLean`, `evalBuiltinCallWithBackendContext` now has two behaviors:
 
 1. It directly bridges the environment-only builtins whose results are just
    UInt256 views of the current context (`callvalue`, `timestamp`, `number`).
-2. It still falls through to `none` for the remaining state-dependent or
+2. It also bridges selector/calldata-only builtins whose full semantics are
+   already available at this boundary (`calldatasize`, `calldataload`).
+3. It still falls through to `none` for the remaining state-dependent or
    Verity-specific builtins that need a fuller Phase-2/3 bridge (`sload`,
-   `caller`, `address`, `chainid`, `blobbasefee`, `calldataload`,
-   `calldatasize`, `mappingSlot`).
+   `caller`, `address`, `chainid`, `blobbasefee`, `mappingSlot`).
 
 These lemmas define the exact Phase-3 boundary that later retargeting proofs
 can rewrite against. -/
@@ -1796,12 +1805,16 @@ can rewrite against. -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "blobbasefee" args = none := by
   simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
 
-@[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_calldataload_none
+@[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_calldataload_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
-    (calldata : List Nat) (args : List Nat) :
+    (calldata : List Nat) (offset : Nat) :
     evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
-      blockTimestamp blockNumber chainId blobBaseFee selector calldata "calldataload" args = none := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "calldataload" [offset] =
+    evalBuiltinCallWithContext storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "calldataload" [offset] := by
+  simp only [evalBuiltinCallWithBackendContext]
+  rw [← evalBuiltinCall_calldataload_bridge storage sender selector calldata offset]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_calldatasize_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)

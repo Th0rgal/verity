@@ -1,5 +1,6 @@
 import Compiler.Yul.Ast
 import Compiler.Constants
+import Compiler.Proofs.YulGeneration.Calldata
 import EvmYul.Yul.Ast
 import EvmYul.UInt256
 
@@ -172,16 +173,20 @@ def evalPureBuiltinViaEvmYulLean
   | _, _                    => none
 
 /-- Full builtin bridge: delegates pure arithmetic/comparison/bitwise builtins
-    to EVMYulLean UInt256 operations. State-dependent builtins (`sload`,
-    `caller`, `address`, `timestamp`, `calldataload`) and Verity-specific
-    helpers (`mappingSlot`) fall through to the Verity path via `none`. -/
+    to EVMYulLean UInt256 operations. `calldataload` is also handled directly
+    because its observable semantics depend only on the selector and calldata
+    already available at this boundary. Remaining state-dependent builtins
+    (`sload`, `caller`, `address`, `timestamp`) and Verity-specific helpers
+    (`mappingSlot`) fall through to the Verity path via `none`. -/
 def evalBuiltinCallViaEvmYulLean
     (_storage : Nat → Nat)
     (_sender : Nat)
-    (_selector : Nat)
-    (_calldata : List Nat)
+    (selector : Nat)
+    (calldata : List Nat)
     (func : String)
     (argVals : List Nat) : Option Nat :=
-  evalPureBuiltinViaEvmYulLean func argVals
+  match func, argVals with
+  | "calldataload", [offset] => some (Compiler.Proofs.YulGeneration.calldataloadWord selector calldata offset)
+  | _, _ => evalPureBuiltinViaEvmYulLean func argVals
 
 end Compiler.Proofs.YulGeneration.Backends
