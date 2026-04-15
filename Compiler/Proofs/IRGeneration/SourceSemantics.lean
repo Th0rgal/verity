@@ -1439,7 +1439,7 @@ mutual
         | none => .revert
     | state, .emit _eventName args =>
         match evalExprList fields state args with
-        | some _resolved => .continue state
+        | some _resolved => .revert
         | none => .revert
     | _, _ => .revert
 
@@ -2269,7 +2269,7 @@ mutual
             | _, _ => .revert
     | .emit _eventName args =>
         match evalExprListWithHelpers spec fields fuel state args with
-        | some _resolved => .continue state
+        | some _resolved => .revert
         | none => .revert
     | _ => .revert
   termination_by stmt => (fuel, sizeOf stmt)
