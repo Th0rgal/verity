@@ -162,6 +162,8 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
     # The pinned theorem names allowed by the real hygiene rule.
     PINNED_THEOREMS = [
         "exp_natModPow_eq_uint256Exp",
+        "sdiv_int256_eq_uint256Sdiv",
+        "smod_int256_eq_uint256Smod",
         "sar_int256_eq_uint256Sar",
         "signextend_uint256_eq",
     ]
@@ -185,7 +187,7 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         self._make_bridge_file(self.PINNED_THEOREMS)
         rc, output = self._run_main()
         self.assertEqual(rc, 0, output)
-        self.assertIn("3 sorry", output)
+        self.assertIn("5 sorry", output)
 
     def test_sorry_in_pinned_theorems_within_cap(self) -> None:
         self._make_bridge_file(self.PINNED_THEOREMS[:2])
@@ -207,13 +209,15 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         self._make_bridge_file(duplicate)
         rc, output = self._run_main()
         self.assertNotEqual(rc, 0)
-        self.assertIn("found 4 sorry (cap is 3)", output)
+        self.assertIn("found 6 sorry (cap is 5)", output)
 
     def test_duplicate_sorry_in_pinned_theorem_within_cap_still_fails(self) -> None:
         duplicate_within_cap = [
             self.PINNED_THEOREMS[0],
             self.PINNED_THEOREMS[0],
             self.PINNED_THEOREMS[1],
+            self.PINNED_THEOREMS[2],
+            self.PINNED_THEOREMS[3],
         ]
         self._make_bridge_file(duplicate_within_cap)
         rc, output = self._run_main()
@@ -223,11 +227,11 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
 
     def test_two_sorries_in_one_pinned_theorem_body_fail_even_when_total_matches(self) -> None:
         lines = []
-        for thm in self.PINNED_THEOREMS[:-1]:
+        for thm in self.PINNED_THEOREMS[:-2]:
             lines.append(f"private theorem {thm} (a b : Nat) : True := by")
             lines.append("  sorry")
             lines.append("")
-        lines.append(f"private theorem {self.PINNED_THEOREMS[-1]} (a b : Nat) : True := by")
+        lines.append(f"private theorem {self.PINNED_THEOREMS[-2]} (a b : Nat) : True := by")
         lines.append("  have h1 : True := by")
         lines.append("    sorry")
         lines.append("  have h2 : True := by")
@@ -237,7 +241,7 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         rc, output = self._run_main()
         self.assertNotEqual(rc, 0)
         self.assertIn("sorry count exceeds pinned limit", output)
-        self.assertIn(self.PINNED_THEOREMS[-1], output)
+        self.assertIn(self.PINNED_THEOREMS[-2], output)
 
     def test_sorry_in_non_pinned_theorem_fails(self) -> None:
         # Replace one pinned theorem with an unpinned one
@@ -261,6 +265,8 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
             "exp_natModPow_eq_uint256Exp'",
             self.PINNED_THEOREMS[1],
             self.PINNED_THEOREMS[2],
+            self.PINNED_THEOREMS[3],
+            self.PINNED_THEOREMS[4],
         ]
         self._make_bridge_file(primed)
         rc, output = self._run_main()
@@ -291,7 +297,7 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         """A sorry in an `example` block must not be attributed to the prior theorem."""
         bridge = self.root / Path(self.BRIDGE_PATH)
         bridge.parent.mkdir(parents=True, exist_ok=True)
-        # Write all pinned theorems (at cap of 3), then an example with sorry.
+        # Write all pinned theorems (at cap of 5), then an example with sorry.
         # The example sorry must NOT be attributed to signextend_uint256_eq.
         lines = []
         for thm in self.PINNED_THEOREMS:
