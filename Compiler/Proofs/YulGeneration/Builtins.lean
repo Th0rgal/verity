@@ -291,6 +291,10 @@ def evalBuiltinCallWithBackendContext
         match argVals with
         | [] => some (toWord blockNumber)
         | _ => none
+      else if func = "calldatasize" then
+        match argVals with
+        | [] => some (4 + calldata.length * 32)
+        | _ => none
       else
         Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean
           storage sender selector calldata func argVals

@@ -37,6 +37,7 @@ PROVED_BUILTINS = [
     "signextend",
     "byte",
     "callvalue",
+    "calldatasize",
     "timestamp",
     "number",
 ]
@@ -50,7 +51,6 @@ DELEGATED_BUILTINS = [
     "address",
     "chainid",
     "calldataload",
-    "calldatasize",
     "blobbasefee",
     "mappingSlot",
 ]

@@ -819,8 +819,8 @@ example : backendEvalWithContext "caller" [] = none := by native_decide
 /-- Context-lifted bridge: state-dependent calldataload falls through to none -/
 example : backendEvalWithContext "calldataload" [0] = none := by native_decide
 
-/-- Context-lifted bridge: state-dependent calldatasize falls through to none -/
-example : backendEvalWithContext "calldatasize" [] = none := by native_decide
+/-- Context-lifted bridge: calldatasize now reads the bridged execution context. -/
+example : backendEvalWithContext "calldatasize" [] = verityEvalWithContext "calldatasize" [] := by native_decide
 
 /-- Context-lifted bridge: callvalue now reads the bridged execution context. -/
 example : backendEvalWithContext "callvalue" [] = verityEvalWithContext "callvalue" [] := by native_decide
@@ -852,8 +852,8 @@ def main : IO Unit := do
   IO.println "✓ Byte extraction: byte — concrete bridge"
   IO.println "✓ Signed shift: sar — concrete bridge (incl. saturated ≥256, INT256_MIN, sign-extend)"
   IO.println "✓ Sign extension: signextend — concrete bridge (byte positions 0,1,15,30,31,32)"
-  IO.println "✓ Context-bridged env builtins: callvalue, timestamp, number — routed through .evmYulLean"
-  IO.println "✓ Remaining delegated builtins: sload, caller, calldataload, calldatasize, address, chainid, blobbasefee — correctly handled"
+  IO.println "✓ Context-bridged env builtins: callvalue, calldatasize, timestamp, number — routed through .evmYulLean"
+  IO.println "✓ Remaining delegated builtins: sload, caller, calldataload, address, chainid, blobbasefee — correctly handled"
   IO.println "✓ Verity-specific helpers: mappingSlot — correctly delegated"
   IO.println "✓ Context-lifted backend bridge: 25 pure builtins + 3 env bridges + 7 state-dependent fallthroughs + 1 helper delegation"
   IO.println "✓ Adapter: all 11 statement types lower without error"

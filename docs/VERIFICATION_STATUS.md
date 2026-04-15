@@ -79,7 +79,7 @@ Tracking:
 - Generic: supported statement-list compilation and the whole-contract theorem itself
 - Proved generically: initial-state normalization between `withTransactionContext` and `initialIRStateForTx`, under explicit transaction-context normalization hypotheses
 - No Lean axioms remain in Layer 2; 0 `sorry` placeholders remain. The `storageLookup_projectStorage` proof (previously a sorry) is now complete, using `Batteries.RBMap.find?_insert` lemmas with an injectivity argument over in-range storage slots.
-- 5 stateful environment-reading builtins now have bridge proofs connecting Verity's `evalBuiltinCallWithContext` to the EVMYulLean state constructed by `toSharedState`: `callvalue`, `timestamp`, `number`, `caller` (requires valid address hypothesis), and `address` (requires valid address hypothesis)
+- 6 stateful environment-reading builtins now have bridge proofs connecting Verity's `evalBuiltinCallWithContext` to the EVMYulLean state constructed by `toSharedState`: `callvalue`, `timestamp`, `number`, `caller` (requires valid address hypothesis), `address` (requires valid address hypothesis), and `calldatasize` (requires a non-wrapping calldata-byte-length bound)
 - Additional explicit precondition: the generic theorem surface now requires the observed transaction-context fields (`sender`, `thisAddress`, `msgValue`, `blockTimestamp`, `blockNumber`, `chainId`) to already fit the bounded source-side `Address`/`Uint256` domains
 - Outside the current generic theorem or current proof model: events/logs, proxy/delegatecall upgradeability, linked externals, local unsafe obligations, and other trust-surfaced features not captured by the current supported whole-contract fragment
 

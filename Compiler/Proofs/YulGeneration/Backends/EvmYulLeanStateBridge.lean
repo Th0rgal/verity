@@ -32,6 +32,7 @@ import EvmYul.SharedState
 import EvmYul.State.Account
 import EvmYul.UInt256
 import EvmYul.Maps.StorageMap
+import Batteries.Data.ByteArray
 import Batteries.Data.RBMap.Lemmas
 
 namespace Compiler.Proofs.YulGeneration.Backends.StateBridge
@@ -153,19 +154,68 @@ def mkBlockHeader (state : YulState) : BlockHeader :=
     Prepends the 4-byte function selector. -/
 def calldataToByteArray (selector : Nat) (calldata : List Nat) : ByteArray :=
   -- 4 bytes for selector + 32 bytes per word
-  let selectorBytes : ByteArray := Id.run do
-    let mut arr := ByteArray.emptyWithCapacity 4
-    arr := arr.push (UInt8.ofNat (selector / 2^24 % 256))
-    arr := arr.push (UInt8.ofNat (selector / 2^16 % 256))
-    arr := arr.push (UInt8.ofNat (selector / 2^8 % 256))
-    arr := arr.push (UInt8.ofNat (selector % 256))
-    arr
-  let wordBytes (w : Nat) : ByteArray := Id.run do
-    let mut arr := ByteArray.emptyWithCapacity 32
-    for i in List.range 32 do
-      arr := arr.push (UInt8.ofNat (w / 2^((31 - i) * 8) % 256))
-    arr
+  let selectorBytes : ByteArray :=
+    ByteArray.ofFn fun i : Fin 4 =>
+      match i.1 with
+      | 0 => UInt8.ofNat (selector / 2^24 % 256)
+      | 1 => UInt8.ofNat (selector / 2^16 % 256)
+      | 2 => UInt8.ofNat (selector / 2^8 % 256)
+      | _ => UInt8.ofNat (selector % 256)
+  let wordBytes (w : Nat) : ByteArray :=
+    ByteArray.ofFn fun i : Fin 32 =>
+      UInt8.ofNat (w / 2^((31 - i.1) * 8) % 256)
   calldata.foldl (init := selectorBytes) fun acc w => acc ++ wordBytes w
+
+private theorem calldataToByteArray_selectorBytes_size (selector : Nat) :
+    (ByteArray.ofFn fun i : Fin 4 =>
+      match i.1 with
+      | 0 => UInt8.ofNat (selector / 2^24 % 256)
+      | 1 => UInt8.ofNat (selector / 2^16 % 256)
+      | 2 => UInt8.ofNat (selector / 2^8 % 256)
+      | _ => UInt8.ofNat (selector % 256)).size = 4 := by
+  simp
+
+private theorem calldataToByteArray_wordBytes_size (w : Nat) :
+    (ByteArray.ofFn fun i : Fin 32 =>
+      UInt8.ofNat (w / 2^((31 - i.1) * 8) % 256)).size = 32 := by
+  simp
+
+private theorem calldataToByteArray_fold_size
+    (wordBytes : Nat → ByteArray)
+    (hWord : ∀ w, (wordBytes w).size = 32) :
+    ∀ (acc : ByteArray) (calldata : List Nat),
+      (calldata.foldl (init := acc) fun acc w => acc ++ wordBytes w).size =
+        acc.size + calldata.length * 32 := by
+  intro acc calldata
+  induction calldata generalizing acc with
+  | nil =>
+      simp
+  | cons w ws ih =>
+      simp [List.foldl_cons, ByteArray.size_append, hWord, ih, Nat.add_assoc]
+      omega
+
+/-- The bridged calldata byte array has the same observable length as Verity's
+    `calldatasize`: 4 selector bytes plus 32 bytes per calldata word. -/
+theorem calldataToByteArray_size (selector : Nat) (calldata : List Nat) :
+    (calldataToByteArray selector calldata).size = 4 + calldata.length * 32 := by
+  unfold calldataToByteArray
+  let selectorBytes : ByteArray :=
+    ByteArray.ofFn fun i : Fin 4 =>
+      match i.1 with
+      | 0 => UInt8.ofNat (selector / 2^24 % 256)
+      | 1 => UInt8.ofNat (selector / 2^16 % 256)
+      | 2 => UInt8.ofNat (selector / 2^8 % 256)
+      | _ => UInt8.ofNat (selector % 256)
+  let wordBytes : Nat → ByteArray := fun w =>
+    ByteArray.ofFn fun i : Fin 32 =>
+      UInt8.ofNat (w / 2^((31 - i.1) * 8) % 256)
+  have hSel : selectorBytes.size = 4 := by
+    simp [selectorBytes]
+  have hWord : ∀ w, (wordBytes w).size = 32 := by
+    intro w
+    simp [wordBytes]
+  have hFold := calldataToByteArray_fold_size wordBytes hWord selectorBytes calldata
+  simpa [selectorBytes, wordBytes, hSel] using hFold
 
 /-! ## Full State Conversion
 
@@ -280,6 +330,22 @@ theorem number_bridge (state : YulState) (observableSlots : List Nat) :
   simp [evalBuiltinCallWithContext, toSharedState, mkBlockHeader, uint256ToNat,
     UInt256.toNat, UInt256.ofNat, Id.run, evmModulus, UInt256.size]
 
+/-- The `calldatasize` builtin reads the size of the current calldata payload.
+    The state bridge encodes Verity calldata as 4 selector bytes followed by
+    one 32-byte word per calldata element. Agreement with EVMYulLean's
+    `UInt256`-valued observable requires the calldata byte length to stay below
+    `2^256` so the `UInt256.ofNat` conversion does not wrap. -/
+theorem calldatasize_bridge (state : YulState) (observableSlots : List Nat)
+    (hSize : 4 + state.calldata.length * 32 < UInt256.size) :
+    evalBuiltinCallWithContext state.storage state.sender state.msgValue
+      state.thisAddress state.blockTimestamp state.blockNumber state.chainId
+      state.blobBaseFee state.selector state.calldata "calldatasize" [] =
+    some (uint256ToNat (UInt256.ofNat
+      (toSharedState state observableSlots).executionEnv.calldata.size)) := by
+  simp [evalBuiltinCallWithContext, toSharedState, uint256ToNat, UInt256.toNat,
+    UInt256.ofNat, Id.run, UInt256.size, calldataToByteArray_size]
+  exact (Nat.mod_eq_of_lt hSize).symm
+
 set_option maxHeartbeats 8000000 in
 /-- The `caller` builtin reads `sender` from Verity's state.
     The state bridge stores `natToAddress state.sender` in `execEnv.source`.
@@ -297,7 +363,7 @@ theorem caller_bridge (state : YulState) (observableSlots : List Nat)
     some (uint256ToNat (UInt256.ofNat
       (toSharedState state observableSlots).executionEnv.source.val)) := by
   simp [evalBuiltinCallWithContext, toSharedState, natToAddress,
-    uint256ToNat, UInt256.toNat, UInt256.ofNat, Id.run, evmModulus, UInt256.size]
+    uint256ToNat, UInt256.toNat, UInt256.ofNat, Id.run, UInt256.size]
   omega
 
 set_option maxHeartbeats 8000000 in

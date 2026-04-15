@@ -2218,14 +2218,19 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_chainid_none
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_blobbasefee_none
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_calldataload_none
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_calldatasize_none
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_calldatasize_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_mappingSlot_none
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorBytes_size  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_wordBytes_size  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_fold_size  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_size
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.callvalue_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.timestamp_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.number_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldatasize_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.caller_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.address_bridge
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.ordering_then_eq  -- private
@@ -2272,4 +2277,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 2120 theorems/lemmas (1431 public, 689 private, 0 sorry'd)
+-- Total: 2125 theorems/lemmas (1433 public, 692 private, 0 sorry'd)

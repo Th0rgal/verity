@@ -754,6 +754,12 @@
       "agreement_proved": true
     },
     {
+      "feature": "calldatasize",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
       "feature": "timestamp",
       "verity_path": "supported",
       "evmyullean_bridge": "supported",
@@ -791,12 +797,6 @@
     },
     {
       "feature": "calldataload",
-      "verity_path": "supported",
-      "evmyullean_bridge": "delegated",
-      "agreement_proved": false
-    },
-    {
-      "feature": "calldatasize",
       "verity_path": "supported",
       "evmyullean_bridge": "delegated",
       "agreement_proved": false

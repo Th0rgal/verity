@@ -1803,12 +1803,14 @@ can rewrite against. -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "calldataload" args = none := by
   simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
 
-@[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_calldatasize_none
+@[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_calldatasize_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
-    (calldata : List Nat) (args : List Nat) :
+    (calldata : List Nat) :
     evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
-      blockTimestamp blockNumber chainId blobBaseFee selector calldata "calldatasize" args = none := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "calldatasize" [] =
+    evalBuiltinCallWithContext storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "calldatasize" [] := by
+  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_mappingSlot_none
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -1848,11 +1850,12 @@ theorem evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
     (calldata : List Nat) (func : String) (argVals : List Nat)
     (hCallvalue : func ≠ "callvalue")
     (hTimestamp : func ≠ "timestamp")
-    (hNumber : func ≠ "number") :
+    (hNumber : func ≠ "number")
+    (hCalldatasize : func ≠ "calldatasize") :
     evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata func argVals =
     evalBuiltinCallViaEvmYulLean storage sender selector calldata func argVals := by
-  simp [evalBuiltinCallWithBackendContext, hCallvalue, hTimestamp, hNumber]
+  simp [evalBuiltinCallWithBackendContext, hCallvalue, hTimestamp, hNumber, hCalldatasize]
 
 /-! ## Remaining Core Equivalence Proofs — Status
 
