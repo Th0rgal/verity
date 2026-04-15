@@ -178,6 +178,11 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
             lines.append("  sorry")
         bridge.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
+    def _write_bridge_lines(self, lines: list[str]) -> None:
+        bridge = self.root / Path(self.BRIDGE_PATH)
+        bridge.parent.mkdir(parents=True, exist_ok=True)
+        bridge.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
     def test_sorry_in_pinned_theorems_passes(self) -> None:
         self._make_bridge_file(self.PINNED_THEOREMS)
         rc, output = self._run_main()
@@ -217,8 +222,26 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         self._make_bridge_file(duplicate_within_cap)
         rc, output = self._run_main()
         self.assertNotEqual(rc, 0)
-        self.assertIn("multiple sorry in pinned theorems", output)
+        self.assertIn("sorry count exceeds pinned limit", output)
         self.assertIn(self.PINNED_THEOREMS[0], output)
+
+    def test_two_sorries_in_one_pinned_theorem_body_fail_even_when_total_matches(self) -> None:
+        lines = []
+        for thm in self.PINNED_THEOREMS[:-2]:
+            lines.append(f"private theorem {thm} (a b : Nat) : True := by")
+            lines.append("  sorry")
+            lines.append("")
+        lines.append(f"private theorem {self.PINNED_THEOREMS[-2]} (a b : Nat) : True := by")
+        lines.append("  have h1 : True := by")
+        lines.append("    sorry")
+        lines.append("  have h2 : True := by")
+        lines.append("    sorry")
+        lines.append("  exact trivial")
+        self._write_bridge_lines(lines)
+        rc, output = self._run_main()
+        self.assertNotEqual(rc, 0)
+        self.assertIn("sorry count exceeds pinned limit", output)
+        self.assertIn(self.PINNED_THEOREMS[-2], output)
 
     def test_sorry_in_non_pinned_theorem_fails(self) -> None:
         # Replace one pinned theorem with an unpinned one

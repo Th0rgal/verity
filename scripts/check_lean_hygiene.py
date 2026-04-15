@@ -91,22 +91,22 @@ def main() -> None:
         )
 
     # Check 3: Fixed sorry baseline after the merged proof-reduction pass.
-    # Each allowed sorry is pinned to a specific theorem name so that
-    # swapping one sorry for another is detected (not just the count).
-    ALLOWED_SORRY_THEOREMS: dict[str, set[str]] = {
+    # Each allowed sorry is pinned to a specific theorem with an explicit
+    # per-theorem limit so redistributing obligations between pinned theorems
+    # still fails even if the file-level total stays constant.
+    ALLOWED_SORRY_THEOREMS: dict[str, dict[str, int]] = {
         "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean": {
-            "exp_natModPow_eq_uint256Exp",
-            "sdiv_int256_eq_uint256Sdiv",
-            "smod_int256_eq_uint256Smod",
-            "sar_int256_eq_uint256Sar",
-            "signextend_uint256_eq",
+            "exp_natModPow_eq_uint256Exp": 1,
+            "sdiv_int256_eq_uint256Sdiv": 1,
+            "smod_int256_eq_uint256Smod": 1,
+            "sar_int256_eq_uint256Sar": 1,
+            "signextend_uint256_eq": 1,
         },
     }
     sorry_count = 0
     sorry_locations: list[str] = []
     unexpected_sorry_locations: list[str] = []
     sorry_per_file: dict[str, int] = {}
-    sorry_theorems_per_file: dict[str, set[str]] = {}
     sorry_counts_per_theorem: dict[str, dict[str, int]] = {}
     for lean_file in ROOT.rglob("*.lean"):
         if ".lake" in str(lean_file):
@@ -125,7 +125,6 @@ def main() -> None:
                     sorry_per_file[rel_str] = sorry_per_file.get(rel_str, 0) + 1
                     thm = _find_enclosing_theorem(scrubbed_lines, i - 1)
                     if thm:
-                        sorry_theorems_per_file.setdefault(rel_str, set()).add(thm)
                         theorem_counts = sorry_counts_per_theorem.setdefault(rel_str, {})
                         theorem_counts[thm] = theorem_counts.get(thm, 0) + 1
                     else:
@@ -137,29 +136,31 @@ def main() -> None:
             f"Found sorry in non-allowlisted files: {unexpected_sorry_locations}"
         )
 
-    for path, allowed_thms in ALLOWED_SORRY_THEOREMS.items():
+    for path, allowed_thm_counts in ALLOWED_SORRY_THEOREMS.items():
         actual = sorry_per_file.get(path, 0)
-        if actual > len(allowed_thms):
+        allowed_total = sum(allowed_thm_counts.values())
+        if actual > allowed_total:
             errors.append(
-                f"{path}: found {actual} sorry (cap is {len(allowed_thms)})"
+                f"{path}: found {actual} sorry (cap is {allowed_total})"
             )
-        found_thms = sorry_theorems_per_file.get(path, set())
-        unexpected_thms = found_thms - allowed_thms
+        actual_thm_counts = sorry_counts_per_theorem.get(path, {})
+        unexpected_thms = set(actual_thm_counts) - set(allowed_thm_counts)
         if unexpected_thms:
             errors.append(
                 f"{path}: sorry in non-pinned theorems: "
                 f"{sorted(unexpected_thms)} "
-                f"(allowed: {sorted(allowed_thms)})"
+                f"(allowed: {sorted(allowed_thm_counts)})"
             )
-        duplicate_thms = sorted(
-            theorem
-            for theorem, count in sorry_counts_per_theorem.get(path, {}).items()
-            if count > 1
-        )
-        if duplicate_thms:
+        over_limit_thms = {
+            theorem: count
+            for theorem, count in actual_thm_counts.items()
+            if count > allowed_thm_counts.get(theorem, 0)
+        }
+        if over_limit_thms:
             errors.append(
-                f"{path}: multiple sorry in pinned theorems: {duplicate_thms} "
-                f"(expected at most 1 per theorem)"
+                f"{path}: sorry count exceeds pinned limit: "
+                f"{sorted(over_limit_thms.items())} "
+                f"(allowed: {sorted(allowed_thm_counts.items())})"
             )
 
     # Check 4: No native_decide in proof files (except tests/profiles)
