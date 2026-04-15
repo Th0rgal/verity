@@ -242,6 +242,26 @@ private def constructorCalldataTx : IRTransaction :=
     functionSelector := 0
     args := [21] }
 
+private def constructorRightCalldataCtor : ConstructorSpec :=
+  { params := [{ name := "initialValue", ty := .uint256 }]
+    body := [Stmt.setStorage "value" (.add (.literal 1) .calldatasize), .stop] }
+
+private def constructorRightCalldataSpec : CompilationModel :=
+  { name := "ConstructorRightCalldata"
+    fields := [{ name := "value", ty := .uint256 }]
+    constructor := some constructorRightCalldataCtor
+    functions := [] }
+
+private def constructorRightCalldataloadCtor : ConstructorSpec :=
+  { params := [{ name := "initialValue", ty := .uint256 }]
+    body := [Stmt.setStorage "value" (.add (.literal 1) (.calldataload (.literal 0))), .stop] }
+
+private def constructorRightCalldataloadSpec : CompilationModel :=
+  { name := "ConstructorRightCalldataload"
+    fields := [{ name := "value", ty := .uint256 }]
+    constructor := some constructorRightCalldataloadCtor
+    functions := [] }
+
 private def constructorHelperArgCtor : ConstructorSpec :=
   { params := [{ name := "initialValue", ty := .uint256 }]
     body :=
@@ -550,6 +570,31 @@ example :
       constructorCalldataSpec
       0
       constructorCalldataCtor
+      constructorCalldataTx
+      Verity.defaultState).success = false := by
+  native_decide
+
+example :
+    stmtListTouchesUnsupportedConstructorRawCalldataSurface constructorRightCalldataCtor.body = true := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructor
+      constructorRightCalldataSpec
+      constructorRightCalldataCtor
+      constructorCalldataTx
+      Verity.defaultState).success = false := by
+  native_decide
+
+example :
+    stmtListTouchesUnsupportedConstructorRawCalldataSurface constructorRightCalldataloadCtor.body = true := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructorWithHelpers
+      constructorRightCalldataloadSpec
+      0
+      constructorRightCalldataloadCtor
       constructorCalldataTx
       Verity.defaultState).success = false := by
   native_decide

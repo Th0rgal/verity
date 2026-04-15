@@ -35,18 +35,20 @@ def exprTouchesUnsupportedConstructorRawCalldataSurface : Expr → Bool
   | .storage _ | .storageAddr _ | .arrayLength _ | .storageArrayLength _ => false
   | .logicalNot a | .bitNot a | .mload a | .tload a | .returndataOptionalBoolAt a =>
       exprTouchesUnsupportedConstructorRawCalldataSurface a
-  | .calldataload a =>
-      true || exprTouchesUnsupportedConstructorRawCalldataSurface a
+  | .calldataload _ =>
+      true
+  | .mapping _ a | .mappingWord _ a _ | .mappingPackedWord _ a _ _
+  | .mappingUint _ a | .structMember _ a _ | .arrayElement _ a
+  | .storageArrayElement _ a =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface a
   | .add a b | .sub a b | .mul a b | .div a b | .mod a b
   | .eq a b | .ge a b | .gt a b | .lt a b | .le a b
   | .logicalAnd a b | .logicalOr a b | .shl a b | .shr a b
   | .bitAnd a b | .bitOr a b | .bitXor a b | .min a b | .max a b
   | .wMulDown a b | .wDivUp a b | .ceilDiv a b | .slt a b | .sgt a b
-  | .sdiv a b | .smod a b | .sar a b | .signextend a b
-  | .mapping _ a | .mappingWord _ a _ | .mappingPackedWord _ a _ _
-  | .mappingUint _ a | .structMember _ a _ | .arrayElement _ a
-  | .storageArrayElement _ a =>
-      exprTouchesUnsupportedConstructorRawCalldataSurface a
+  | .sdiv a b | .smod a b | .sar a b | .signextend a b =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface a ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface b
   | .mapping2 _ a b | .mapping2Word _ a b _ | .structMember2 _ a b _ =>
       exprTouchesUnsupportedConstructorRawCalldataSurface a ||
         exprTouchesUnsupportedConstructorRawCalldataSurface b
