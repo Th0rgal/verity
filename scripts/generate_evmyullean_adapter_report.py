@@ -227,7 +227,8 @@ def _parse_correctness_proofs() -> dict[str, object]:
     if not CORRECTNESS_FILE.exists():
         raise FileNotFoundError(f"Correctness proof file not found: {CORRECTNESS_FILE}")
     text = CORRECTNESS_FILE.read_text(encoding="utf-8")
-    theorems = sorted(set(CORRECTNESS_THEOREM_RE.findall(text)))
+    code = _strip_lean_comments(text)
+    theorems = sorted(set(CORRECTNESS_THEOREM_RE.findall(code)))
     if not theorems:
         raise ValueError(
             f"No correctness theorems found in {CORRECTNESS_FILE.relative_to(ROOT)} "
