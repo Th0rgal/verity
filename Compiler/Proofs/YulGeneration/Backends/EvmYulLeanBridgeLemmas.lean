@@ -1003,18 +1003,101 @@ private theorem bridge_eval_exp_normalized (a b : Nat) :
         (EvmYul.UInt256.exp (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b))) := by
   rfl
 
+/-- UInt256 multiplication extracts to modular Nat multiplication. -/
+private theorem uint256_mul_toNat (x y : EvmYul.UInt256) :
+    (x * y).toNat = (x.toNat * y.toNat) % EvmYul.UInt256.size := by
+  show (EvmYul.UInt256.mul x y).val.val = (x.val.val * y.val.val) % EvmYul.UInt256.size
+  simp [EvmYul.UInt256.mul]
+  exact Fin.val_mul x.val y.val
+
+/-- `evmModulus` equals `EvmYul.UInt256.size`. -/
+private theorem evmModulus_eq_uint256Size : evmModulus = EvmYul.UInt256.size := by
+  unfold evmModulus EvmYul.UInt256.size; rfl
+
+/-- UInt256.toNat is always less than UInt256.size. -/
+private theorem uint256_toNat_lt (x : EvmYul.UInt256) : x.toNat < EvmYul.UInt256.size :=
+  x.val.isLt
+
+/-- The generalized loop equivalence: `modPowAux` on Nat values agrees with
+`powAux` on UInt256 values, for all exponents and accumulator/base states.
+This is the induction core for the exp bridge. -/
+private theorem modPowAux_eq_powAux (acc base : EvmYul.UInt256) :
+    ∀ (e : Nat), modPowAux EvmYul.UInt256.size base.toNat e acc.toNat =
+      (EvmYul.UInt256.powAux acc base e).toNat := by
+  intro e
+  induction e using Nat.strongRecOn generalizing acc base with
+  | _ e ih =>
+    match e with
+    | 0 =>
+      unfold modPowAux EvmYul.UInt256.powAux
+      exact Nat.mod_eq_of_lt (uint256_toNat_lt acc)
+    | e + 1 =>
+      unfold modPowAux
+      rw [EvmYul.UInt256.powAux]
+      have hdiv : (e + 1) / 2 < e + 1 := Nat.div_lt_self (by omega) (by omega)
+      -- Both sides branch on whether (e+1) is odd.
+      -- LHS uses: if (e+1) % 2 = 1 then ... (Prop equality)
+      -- RHS uses: if ((e+1) % 2 == 1) = true then ... (BEq)
+      -- These are equivalent for Nat, so we case-split on the Prop and derive the BEq
+      by_cases hodd : (e + 1) % 2 = 1
+      · -- Odd case: both multiply accumulator by base
+        -- LHS: modPowAux simplifies its if using hodd (Prop)
+        simp only [hodd, ite_true]
+        -- RHS: powAux already evaluated (e+1)%2 to 1, giving `if (1 == 1) = true`
+        -- which reduces to `if true = true`, i.e. the then-branch
+        simp (config := { decide := true }) only [ite_true]
+        -- Both sides recurse with (acc*base, base*base, (e+1)/2)
+        have := ih ((e + 1) / 2) hdiv (acc * base) (base * base)
+        rw [uint256_mul_toNat acc base, uint256_mul_toNat base base] at this
+        exact this
+      · -- Even case: accumulator unchanged
+        -- LHS: modPowAux if is false
+        simp only [hodd, ite_false]
+        -- RHS has `if (e.succ % 2 == 1) = true`. Since hodd: ¬(e+1)%2 = 1,
+        -- we know e.succ%2 = 0, so (0 == 1) = false, so if branch goes to else
+        have hmod_zero : e.succ % 2 = 0 := by omega
+        rw [hmod_zero]
+        -- Now RHS has `if (0 == 1) = true` which is `if false = true`
+        -- Use norm_num to evaluate the BEq and simplify the if
+        norm_num
+        -- Both sides recurse with (acc, base*base, (e+1)/2)
+        have := ih ((e + 1) / 2) hdiv acc (base * base)
+        rw [uint256_mul_toNat base base] at this
+        exact this
+
 /-- Core exp equivalence: Verity's `natModPow` agrees with EVMYulLean's `UInt256.exp`
 on all inputs. Both implement modular exponentiation via repeated squaring.
 
-**Status**: sorry — requires induction proof matching the loop invariants of
-`modPowAux` (Verity) and `powAux` (EVMYulLean). Both are now public, so the
-induction is nameable. Requires showing Nat modular intermediates match Fin wrapping. -/
+The proof proceeds by strong induction on the exponent, showing that both
+repeated-squaring loops compute identical results because UInt256 Fin wrapping
+is equivalent to explicit `% modulus` on Nat values. -/
 private theorem exp_natModPow_eq_uint256Exp (a b : Nat)
     (ha : a < evmModulus) (hb : b < evmModulus) :
     natModPow a b evmModulus =
     EvmYul.UInt256.toNat (EvmYul.UInt256.exp ⟨⟨a, by rw [EvmYul.UInt256.size]; exact ha⟩⟩
                                                ⟨⟨b, by rw [EvmYul.UInt256.size]; exact hb⟩⟩) := by
-  sorry
+  -- Unfold natModPow: since evmModulus > 1, we get modPowAux
+  unfold natModPow
+  have hmod_gt : ¬ (evmModulus ≤ 1) := by unfold evmModulus; omega
+  simp only [hmod_gt, ite_false]
+  -- Since a < evmModulus, a % evmModulus = a
+  have ha_mod : a % evmModulus = a := Nat.mod_eq_of_lt ha
+  rw [evmModulus_eq_uint256Size] at ha_mod ⊢
+  rw [ha_mod]
+  -- Unfold exp → pow → powAux
+  unfold EvmYul.UInt256.exp EvmYul.UInt256.pow
+  -- Apply the generalized loop equivalence
+  -- The goal after unfold has specific UInt256 values; show they match
+  -- powAux ⟨1⟩ ⟨⟨a,_⟩⟩ (↑⟨b,_⟩) where ↑ is Fin.val coercion giving b
+  -- We need to instantiate modPowAux_eq_powAux with matching acc/base
+  have key := modPowAux_eq_powAux
+    (⟨⟨1, by rw [EvmYul.UInt256.size]; omega⟩⟩ : EvmYul.UInt256)
+    (⟨⟨a, by rw [EvmYul.UInt256.size]; exact ha⟩⟩ : EvmYul.UInt256)
+    b
+  -- key : modPowAux size (⟨⟨a,_⟩⟩).toNat b (⟨⟨1,_⟩⟩).toNat = (powAux ⟨⟨1,_⟩⟩ ⟨⟨a,_⟩⟩ b).toNat
+  -- toNat of ⟨⟨x,_⟩⟩ is x, so this simplifies to our goal
+  simp only [EvmYul.UInt256.toNat] at key
+  exact key
 
 /-- Universal bridge theorem for `exp`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
@@ -1849,7 +1932,7 @@ can rewrite against. -/
 /-! ## Composite Backend Equivalence Theorem
 
 This is the key Phase 4 composition lemma. For any pure builtin `func` in the
-set of 25 universally-bridged builtins (20 fully proven, 5 with sorry-dependent
+set of 25 universally-bridged builtins (21 fully proven, 4 with sorry-dependent
 core equivalences), all with context-lifted bridge theorems, the EVMYulLean
 backend agrees with the Verity backend
 (represented by `evalBuiltinCallWithContext`).
@@ -1904,10 +1987,11 @@ will invoke.
 | Pure bitwise (and, or, xor, not, shl, shr) | 6 | Fully proven |
 | Pure extended (addmod, mulmod, byte) | 3 | Fully proven |
 | Pure signed (slt, sgt) | 2 | Fully proven |
-| Pure signed arith (exp, sdiv, smod, sar, signextend) | 5 | Sorry (private defs) |
+| Pure signed arith (exp) | 1 | Fully proven |
+| Pure signed arith (sdiv, smod, sar, signextend) | 4 | Sorry (private defs) |
 | Context/env (caller, address, callvalue, timestamp, number, chainid, blobbasefee) | 7 | Fully proven |
 | Calldata (calldataload, calldatasize) | 2 | Fully proven |
-| **Total bridged** | **34** | **29 proven, 5 sorry** |
+| **Total bridged** | **34** | **30 proven, 4 sorry** |
 | Not bridged: sload, mappingSlot | 2 | Phase 3 (state bridge) |
 -/
 
@@ -1937,14 +2021,16 @@ def unbridgedBuiltins : List String := ["sload", "mappingSlot"]
 /-! ## Remaining Core Equivalence Proofs — Status
 
 All 25 pure builtins now have universal bridge theorems
-(`evalBuiltinCall_*_bridge`). Five core equivalence lemmas still use
+(`evalBuiltinCall_*_bridge`). Four core equivalence lemmas still use
 `sorry` pending fundamentally different proof strategies:
 
-- `exp_natModPow_eq_uint256Exp` — Nat repeated-squaring ↔ private UInt256.powAux
 - `sdiv_int256_eq_uint256Sdiv` — Int sign-magnitude division ↔ UInt256 sign-bit cases
 - `smod_int256_eq_uint256Smod` — Int sign-magnitude remainder ↔ UInt256 sgn/abs
 - `sar_int256_eq_uint256Sar` — Int.fdiv ↔ complement-shift-complement
 - `signextend_uint256_eq` — Nat bit-mask ↔ UInt256 shift operations
+
+The `exp` bridge was fully proved by strong induction on the exponent after
+making `powAux` public in the EVMYulLean fork (commit `ed9215e9`).
 
 These are validated by concrete `native_decide` bridge tests in
 `EvmYulLeanBridgeTest.lean` covering critical boundary values.
