@@ -2186,4 +2186,8 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 2036 theorems/lemmas (1365 public, 671 private, 0 sorry'd)
+
+-- Compiler/Proofs/YulGeneration/Semantics.lean
+#print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
+#print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
+-- Total: 2041 theorems/lemmas (1370 public, 671 private, 0 sorry'd)
