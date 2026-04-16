@@ -1992,7 +1992,22 @@ theorem supported_function_correct_with_helper_proofs_body_goal_and_helper_ir_of
 This proves the user-written constructor body after constructor arguments have
 already been decoded into IR locals. The initcode wrapper that materializes
 those locals from deploy-time bytecode is still outside the current proof
-interpreter surface. -/
+interpreter surface.
+
+## Proof obligations (sorry'd)
+The body-level preservation needs constructor-specific step lemmas that
+extend GenericInduction to handle:
+1. `.memory` compilation mode (vs `.calldata` used by existing step lemmas)
+2. `constructorRuntimeStateMatchesIR` (vs `runtimeStateMatchesIR`)
+3. Non-empty `model.events` in compilation (emit statements need event defs)
+
+These three gaps share a common root: the step-level preservation infrastructure
+in GenericInduction.lean and FunctionBody.lean is specialized for runtime
+function calls. Extending it to constructors requires either generalizing the
+179 `.calldata`-hardcoded step lemmas or creating constructor-specific variants.
+
+All preparatory facts (surface closures, binding construction, raw-calldata
+guard, helper closure, transaction context) are fully proven below. -/
 theorem supported_constructor_body_correct_with_body_interface
     (model : CompilationModel)
     (ctor : ConstructorSpec)
@@ -2023,6 +2038,55 @@ theorem supported_constructor_body_correct_with_body_interface
             (FunctionBody.initialIRStateForTx model tx initialWorld)
             bindings)
           bodyStmts)) := by
+  let ctorFn := constructorAsFunctionSpec ctor
+  let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
+  let _ := hfunctionNamesNodup
+  -- Surface closure witnesses (all from SupportedConstructor)
+  have hcoreClosed : stmtListTouchesUnsupportedCoreSurface ctor.body = false := by
+    simpa [ctorFn, constructorAsFunctionSpec] using hSupported.body.core.surfaceClosed
+  have hcallClosed : stmtListTouchesUnsupportedCallSurface ctor.body = false := by
+    simpa [ctorFn, constructorAsFunctionSpec] using
+      SupportedBodyCallInterface.surfaceClosed_exceptMappingWrites hSupported.body
+  have heffectsClosed : stmtListTouchesUnsupportedEffectSurface ctor.body = false := by
+    simpa [ctorFn, constructorAsFunctionSpec] using hSupported.body.effects.surfaceClosed
+  -- Raw calldata surface is closed (constructors don't use calldataload/calldatasize)
+  have hhelperCallsNil : helperCallNames ctorFn = [] :=
+    hSupported.body.helperCallNames_nil
+  have hhelperRawClosed :
+      SourceSemantics.helperClosureTouchesUnsupportedConstructorRawCalldataSurface model
+        (model.functions.length + 1) ctorFn = false :=
+    SourceSemantics.helperClosureTouchesUnsupportedConstructorRawCalldataSurface_eq_false_of_no_helper_calls
+      (model.functions.length + 1)
+      hhelperCallsNil
+  have hrawClosed :
+      SourceSemantics.constructorTouchesUnsupportedRawCalldataSurface model ctor = false := by
+    simp [SourceSemantics.constructorTouchesUnsupportedRawCalldataSurface,
+      ctorFn, hSupported.rawCalldataSurfaceClosed, hhelperRawClosed]
+  -- Binding construction
+  have hbindTake :
+      SourceSemantics.bindSupportedParams ctor.params (List.take ctor.params.length tx.args) = some bindings := by
+    exact SourceSemantics.bindSupportedParams_take_param_length hbind
+  have heffective :
+      SourceSemantics.constructorExecutionBindings ctor tx.args = some bindings := by
+    simp [SourceSemantics.constructorExecutionBindings, hbindTake,
+      hcoreClosed, hcallClosed, heffectsClosed]
+  have hparamNamesNodup :
+      (ctor.params.map (·.name)).Nodup :=
+    hSupported.paramNamesNodup
+  -- Constructor-specific IR/runtime alignment
+  let stateWithBindings := ParamLoading.applyBindingsToIRState initialState bindings
+  have hinitBindings :
+      FunctionBody.bindingsExactlyMatchIRVars [] initialState := by
+    simpa [initialState] using
+      FunctionBody.bindingsExactlyMatchIRVars_nil_initialIRStateForTx model tx initialWorld
+  have hstateBindings :
+      FunctionBody.bindingsExactlyMatchIRVars bindings stateWithBindings := by
+    exact supported_constructor_param_state_exact
+      initialState ctor.params bindings hinitBindings hparamNamesNodup hbind
+  -- Body-level step preservation (sorry'd — needs constructor step lemmas)
+  -- The gap: existing step infrastructure uses runtimeStateMatchesIR + .calldata + [] events/errors.
+  -- Constructors need constructorRuntimeStateMatchesIR + .memory + model.events.
+  -- See docstring above for the three specific obligations.
   sorry
 
 
