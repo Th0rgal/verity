@@ -50,6 +50,7 @@ import Compiler.Proofs.StorageBounds
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 import Compiler.Proofs.YulGeneration.Builtins
 import Compiler.Proofs.YulGeneration.Equivalence
+import Compiler.Proofs.YulGeneration.Semantics
 
 -- Contracts/Counter/Proofs/Basic.lean
 #print axioms Contracts.Counter.Proofs.setStorage_updates_count
@@ -1585,6 +1586,9 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.execIRStmts_sstore_lit_expr_then_stop_succ_succ_succ_of_eval
 #print axioms Compiler.Proofs.IRGeneration.execIRStmts_single_stop_succ_succ
 #print axioms Compiler.Proofs.IRGeneration.execIRStmts_single_block_stop_length_insufficient
+#print axioms Compiler.Proofs.IRGeneration.IRState.withTx_sender
+#print axioms Compiler.Proofs.IRGeneration.IRState.withTx_storage
+#print axioms Compiler.Proofs.IRGeneration.IRState.withTx_events
 #print axioms Compiler.Proofs.IRGeneration.findInternalFunction?_eq_none_of_internalFunctions_nil
 #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalBodies_of_legacyCompatibleRuntimeContract
 #print axioms Compiler.Proofs.IRGeneration.evalIRExprWithInternals_eq_evalIRExpr_of_no_internal
@@ -2139,4 +2143,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1993 theorems/lemmas (1344 public, 649 private, 0 sorry'd)
+
+-- Compiler/Proofs/YulGeneration/Semantics.lean
+#print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
+#print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
+-- Total: 1998 theorems/lemmas (1349 public, 649 private, 0 sorry'd)
