@@ -231,16 +231,22 @@ class ParseBridgeTestsTests(unittest.TestCase):
 
     def test_mismatched_builtins_not_counted(self) -> None:
         """A block where verity and bridge sides test different builtins
-        should not credit either builtin (only the intersection counts)."""
+        does not credit either builtin and is not counted as a bridge test.
+
+        Previously the block was counted toward the concrete-test total even
+        when the two sides referenced unrelated builtins; this inflated the
+        tally with blocks that did not actually assert any bridge equivalence.
+        Now only blocks where the intersection of referenced builtins is
+        non-empty are counted as concrete bridge tests.
+        """
         p = self._write_test_file("""\
             -- preamble
             example := verityEvalBuiltin "add" [1, 2] = bridgeEval "sub" [1, 2] := by native_decide
         """)
         with patch.object(gen, "BRIDGE_TEST_FILE", p):
             builtins, count = gen._parse_bridge_tests()
-        # The block still counts as a bridge test (both sides present)
-        self.assertEqual(count, 1)
-        # But neither builtin is credited because they don't match
+        # Mismatched blocks no longer count toward the concrete-test total.
+        self.assertEqual(count, 0)
         self.assertNotIn("add", builtins)
         self.assertNotIn("sub", builtins)
 

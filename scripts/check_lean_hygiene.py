@@ -18,8 +18,12 @@ import re
 from property_utils import ROOT, report_errors, scrub_lean_code
 
 SORRY_RE = re.compile(r"\bsorry\b")
+# Optional declaration modifiers that may precede ``theorem``/``lemma`` or
+# declaration-boundary keywords (``def``, ``instance``, ...).  Any combination
+# and order of these modifiers is accepted.
+_MODIFIER_RE = r"(?:(?:private|protected|noncomputable|unsafe|partial|@\[[^\]]*\])\s+)*"
 THEOREM_RE = re.compile(
-    r"(?:private\s+)?(?:theorem|lemma)\s+([A-Za-z_][A-Za-z0-9_.']*)(?![A-Za-z0-9_.'])"
+    rf"{_MODIFIER_RE}(?:theorem|lemma)\s+([A-Za-z_][A-Za-z0-9_.']*)(?![A-Za-z0-9_.'])"
 )
 # Declaration-boundary keywords that start a new scope.  If the backward
 # scan from a sorry hits one of these before finding a theorem/lemma,
@@ -27,9 +31,10 @@ THEOREM_RE = re.compile(
 # block) and should not be attributed to the prior theorem.
 # Only *unindented* declarations count as boundaries; indented ones are
 # local helpers inside a ``where`` clause and do not end the enclosing
-# theorem scope.
+# theorem scope.  The optional modifier prefix matches forms like
+# ``noncomputable def``, ``protected def``, ``unsafe def``, etc.
 BOUNDARY_RE = re.compile(
-    r"^(?:private\s+)?(?:def|example|instance|abbrev|opaque|structure|class|inductive|section|namespace|end)\b"
+    rf"^{_MODIFIER_RE}(?:def|example|instance|abbrev|opaque|structure|class|inductive|section|namespace|end)\b"
     r"|^#"
 )
 

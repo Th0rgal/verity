@@ -131,9 +131,15 @@ def plain_code_subject(names: list[str]) -> str:
 
 def extract_universal_builtins(text: str) -> list[str]:
     code = _strip_lean_comments(text)
+    # Match across line breaks so that valid Lean formatting like
+    # ``@[simp]\ntheorem evalBuiltinCall_add_bridge`` is recognised.
     found = {
         match.group(1)
-        for match in re.finditer(r"@\[simp\]\s+theorem\s+evalBuiltinCall_([A-Za-z0-9]+)_bridge\b", code)
+        for match in re.finditer(
+            r"@\[simp\]\s+theorem\s+evalBuiltinCall_([A-Za-z0-9]+)_bridge\b",
+            code,
+            flags=re.DOTALL,
+        )
     }
     return [name for name in PURE_BUILTINS if name in found]
 
@@ -141,22 +147,49 @@ def extract_universal_builtins(text: str) -> list[str]:
 def extract_admitted_builtins(text: str) -> list[str]:
     """Detect bridge builtins whose core lemma depends on sorry.
 
-    Detects both standalone ``sorry`` lines and inline ``by sorry`` /
-    ``:= sorry`` forms, while ignoring sorry mentions in comments, doc
-    comments, and markdown status annotations.
+    Walks all top-level declarations (theorems, lemmas, defs, including
+    those preceded by modifiers like ``private``/``noncomputable``) and
+    attributes each ``sorry`` to the correct bridge theorem:
+
+    * ``sorry`` inside an ``evalBuiltinCall_X_bridge`` body → admit ``X``.
+    * ``sorry`` inside a helper between two bridge theorems → admit the
+      *next* bridge theorem in source order (since helpers are used by
+      the bridge theorem that follows them).
+
+    The ``@[simp]`` attribute and the ``theorem`` header may span
+    multiple lines.
     """
-    admitted: set[str] = set()
-    sorry_pending = False
-    bridge_re = re.compile(r"@\[simp\]\s+theorem\s+evalBuiltinCall_([A-Za-z0-9]+)_bridge\b")
+    code = _strip_lean_comments(text)
     sorry_re = re.compile(r"\bsorry\b")
-    for line in _strip_lean_comments(text).splitlines():
-        if sorry_re.search(line):
-            sorry_pending = True
-        if sorry_pending:
-            m = bridge_re.search(line)
-            if m:
-                admitted.add(m.group(1))
-                sorry_pending = False
+    boundary_re = re.compile(
+        r"(?m)^(?:(?:private|protected|noncomputable|unsafe|partial|@\[[^\]]*\])\s+)*"
+        r"(?:theorem|lemma|def|abbrev|instance|example)\s+(\w+)"
+    )
+    bridge_name_re = re.compile(
+        r"(?:(?:private|protected|noncomputable|unsafe|partial|@\[[^\]]*\])\s+)*"
+        r"theorem\s+evalBuiltinCall_([A-Za-z0-9]+)_bridge\b",
+        flags=re.DOTALL,
+    )
+
+    declarations = [(m.start(), m.group(1)) for m in boundary_re.finditer(code)]
+    admitted: set[str] = set()
+    pending_helper_sorry = False
+    for idx, (start, _name) in enumerate(declarations):
+        end = (
+            declarations[idx + 1][0]
+            if idx + 1 < len(declarations)
+            else len(code)
+        )
+        body = code[start:end]
+        body_has_sorry = sorry_re.search(body) is not None
+        bridge_match = bridge_name_re.match(body)
+        if bridge_match:
+            bridge = bridge_match.group(1)
+            if body_has_sorry or pending_helper_sorry:
+                admitted.add(bridge)
+            pending_helper_sorry = False
+        elif body_has_sorry:
+            pending_helper_sorry = True
     return [name for name in PURE_BUILTINS if name in admitted]
 
 

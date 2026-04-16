@@ -216,7 +216,7 @@
   "missing_expr_cases": [],
   "missing_stmt_cases": [],
   "phase4_retarget": {
-    "backends_agree_on_bridged_builtins": "sorry (dispatch; relies on 34 per-builtin bridge theorems)",
+    "backends_agree_on_bridged_builtins": "proven",
     "layer3_preserves_semantics_evmYulLean": "proven (delegates to existing Layer 3 proof)",
     "retarget_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean",
     "status": "complete",

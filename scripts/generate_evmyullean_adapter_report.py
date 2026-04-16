@@ -217,20 +217,39 @@ def _parse_bridge_lemmas() -> tuple[list[str], list[str]]:
     code = _strip_lean_comments(text)
     all_lemmas = sorted(set(BRIDGE_LEMMA_RE.findall(code)))
 
-    # Find sorry-dependent builtins by scanning line-by-line: after a sorry,
-    # the next evalBuiltinCall_*_bridge theorem inherits the admission.
-    # Detect both standalone `sorry` and inline `by sorry` / `:= sorry` forms.
-    admitted: set[str] = set()
-    sorry_pending = False
+    # Attribute each ``sorry`` correctly:
+    # * If a ``sorry`` appears inside a bridge theorem's own body
+    #   (``evalBuiltinCall_X_bridge``), that bridge theorem is admitted.
+    # * If a ``sorry`` appears in a helper declaration (``private theorem``,
+    #   ``def``, ...) between two bridge theorems, it is admitted against the
+    #   *next* bridge theorem, because helpers are used by the bridge that
+    #   follows them.
+    # The prior scan was purely forward and, when a bridge's own body
+    # contained ``sorry``, misattributed the admission to the *next* bridge.
     sorry_re = re.compile(r'\bsorry\b')
-    for line in code.splitlines():
-        if sorry_re.search(line):
-            sorry_pending = True
-        if sorry_pending:
-            m = BRIDGE_LEMMA_RE.search(line)
-            if m:
-                admitted.add(m.group(1))
-                sorry_pending = False
+    boundary_re = re.compile(
+        r'(?m)^(?:(?:private|protected|noncomputable|unsafe|partial|@\[[^\]]*\])\s+)*'
+        r'(?:theorem|lemma|def|abbrev|instance|example)\s+(\w+)'
+    )
+    bridge_name_re = re.compile(
+        r'(?:(?:private|protected|noncomputable|unsafe|partial|@\[[^\]]*\])\s+)*'
+        r'theorem\s+evalBuiltinCall_(\w+)_bridge\b'
+    )
+    declarations = [(m.start(), m.group(1)) for m in boundary_re.finditer(code)]
+    admitted: set[str] = set()
+    pending_helper_sorry = False
+    for idx, (start, _name) in enumerate(declarations):
+        end = declarations[idx + 1][0] if idx + 1 < len(declarations) else len(code)
+        body = code[start:end]
+        body_has_sorry = sorry_re.search(body) is not None
+        bridge_match = bridge_name_re.match(body)
+        if bridge_match:
+            bridge = bridge_match.group(1)
+            if body_has_sorry or pending_helper_sorry:
+                admitted.add(bridge)
+            pending_helper_sorry = False
+        elif body_has_sorry:
+            pending_helper_sorry = True
     return all_lemmas, sorted(admitted)
 
 
@@ -254,10 +273,15 @@ def _parse_bridge_tests() -> tuple[list[str], int]:
         verity_matches = VERITY_EVAL_RE.findall(block)
         bridge_matches = BRIDGE_EVAL_RE.findall(block)
         if verity_matches and bridge_matches and NATIVE_DECIDE_RE.search(block):
-            bridge_test_count += 1
-            # Only count builtins that appear on both sides of the bridge
+            # Only count builtins that appear on both sides of the bridge,
+            # and only credit this example as a bridge test if such a
+            # common builtin exists.  Without this check, blocks that
+            # compare two *different* builtins (a parser false positive)
+            # would be inflated into the concrete-test total.
             common = set(verity_matches) & set(bridge_matches)
-            builtins.update(common)
+            if common:
+                bridge_test_count += 1
+                builtins.update(common)
     return sorted(builtins), bridge_test_count
 
 
@@ -379,17 +403,57 @@ def build_report() -> dict[str, object]:
     phase4_retarget: dict[str, str] | None = None
     if retarget_file.exists():
         retarget_text = retarget_file.read_text(encoding="utf-8")
+        retarget_code = _strip_lean_comments(retarget_text)
+
+        # Match genuine ``theorem <name>`` declarations (not comments/prose),
+        # optionally preceded by modifiers like ``private`` / ``protected`` /
+        # ``noncomputable``.  This avoids false positives where a theorem
+        # name appears only in a doc comment or summary.
+        def _has_theorem(name: str) -> bool:
+            pattern = (
+                r'(?:(?:private|protected|noncomputable|unsafe|partial|@\[[^\]]*\])\s+)*'
+                r'theorem\s+' + re.escape(name) + r'\b'
+            )
+            return re.search(pattern, retarget_code) is not None
+
+        def _theorem_body_has_sorry(name: str) -> bool:
+            """Return True iff the body of ``theorem name`` contains ``sorry``."""
+            header_re = re.compile(
+                r'(?:(?:private|protected|noncomputable|unsafe|partial|@\[[^\]]*\])\s+)*'
+                r'theorem\s+' + re.escape(name) + r'\b'
+            )
+            m = header_re.search(retarget_code)
+            if not m:
+                return False
+            start = m.start()
+            # Slice to the next top-level ``theorem``/``lemma``/``def``/``end``
+            # declaration to isolate this theorem's body.
+            next_decl = re.compile(
+                r'\n(?:(?:private|protected|noncomputable|unsafe|partial|@\[[^\]]*\])\s+)*'
+                r'(?:theorem|lemma|def|abbrev|instance|example|end\b)'
+            )
+            nxt = next_decl.search(retarget_code, pos=m.end())
+            end = nxt.start() if nxt else len(retarget_code)
+            return re.search(r'\bsorry\b', retarget_code[start:end]) is not None
+
+        has_backends_agree = _has_theorem("backends_agree_on_bridged_builtins")
+        has_layer3 = _has_theorem("layer3_preserves_semantics_evmYulLean")
+        backends_agree_has_sorry = _theorem_body_has_sorry("backends_agree_on_bridged_builtins")
+        layer3_has_sorry = _theorem_body_has_sorry("layer3_preserves_semantics_evmYulLean")
+
         phase4_retarget = {
             "retarget_file": str(retarget_file.relative_to(ROOT)),
-            "status": "complete" if "backends_agree_on_bridged_builtins" in retarget_text else "incomplete",
+            "status": "complete" if has_backends_agree else "incomplete",
             "backends_agree_on_bridged_builtins": (
                 "sorry (dispatch; relies on 34 per-builtin bridge theorems)"
-                if "sorry" in retarget_text
+                if backends_agree_has_sorry
                 else "proven"
             ),
             "layer3_preserves_semantics_evmYulLean": (
-                "proven (delegates to existing Layer 3 proof)"
-                if "layer3_preserves_semantics_evmYulLean" in retarget_text
+                ("sorry (delegates to existing Layer 3 proof)"
+                 if layer3_has_sorry
+                 else "proven (delegates to existing Layer 3 proof)")
+                if has_layer3
                 else "not found"
             ),
             "trust_boundary": "EVMYulLean execution model matches EVM (upstream conformance tests)",
