@@ -2233,6 +2233,40 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_add  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_sub  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_mul  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_div  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_mod  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_lt  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_gt  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_eq  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_iszero  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_and  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_or  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_xor  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_not  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_shl  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_shr  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_addmod  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_mulmod  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_byte  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_slt  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_sgt  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_exp  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_sdiv  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_smod  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_sar  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_signextend  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_caller  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_address  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_callvalue  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_timestamp  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_number  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_chainid  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_blobbasefee  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_calldataload  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_calldatasize  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_on_bridged_builtins
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExpr_backend_equiv
 #print axioms Compiler.Proofs.YulGeneration.Backends.layer3_preserves_semantics_evmYulLean
@@ -2297,4 +2331,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2139 theorems/lemmas (1442 public, 696 private, 1 sorry'd)
+-- Total: 2173 theorems/lemmas (1443 public, 730 private, 0 sorry'd)
