@@ -2293,4 +2293,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2131 theorems/lemmas (1438 public, 692 private, 1 sorry'd)
+-- Total: 2135 theorems/lemmas (1442 public, 692 private, 1 sorry'd)
