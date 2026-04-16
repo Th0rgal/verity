@@ -104,9 +104,6 @@ def main() -> None:
             "sar_int256_eq_uint256Sar": 1,
             "signextend_uint256_eq": 1,
         },
-        "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean": {
-            "backends_agree_on_bridged_builtins": 1,
-        },
     }
     sorry_count = 0
     sorry_locations: list[str] = []

@@ -2233,7 +2233,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_on_bridged_builtins  -- sorry'd
+#print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_on_bridged_builtins
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExpr_backend_equiv
 #print axioms Compiler.Proofs.YulGeneration.Backends.layer3_preserves_semantics_evmYulLean
 #print axioms Compiler.Proofs.YulGeneration.Backends.evmYulLean_semantic_target_theorem
