@@ -99,7 +99,6 @@ def main() -> None:
     # still fails even if the file-level total stays constant.
     ALLOWED_SORRY_THEOREMS: dict[str, dict[str, int]] = {
         "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean": {
-            "sdiv_int256_eq_uint256Sdiv": 1,
             "smod_int256_eq_uint256Smod": 1,
             "sar_int256_eq_uint256Sar": 1,
         },

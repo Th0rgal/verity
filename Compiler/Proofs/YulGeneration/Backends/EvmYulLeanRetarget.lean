@@ -323,7 +323,7 @@ private theorem backends_agree_calldatasize s se mv ta bt bn ci bb sl cd av :
 
 The `.evmYulLean` and `.verity` backends agree on all 34 bridged builtins.
 This is the pointwise equivalence theorem that Phase 4 retargeting relies on.
-The 3 sorry-dependent builtins (sdiv, smod, sar) contribute
+The 2 sorry-dependent builtins (smod, sar) contribute
 to this through their sorry-backed bridge lemmas in `EvmYulLeanBridgeLemmas.lean`.
 -/
 
@@ -335,8 +335,8 @@ to this through their sorry-backed bridge lemmas in `EvmYulLeanBridgeLemmas.lean
     The 2 unbridged builtins (`sload`, `mappingSlot`) are excluded by the
     `hBridged` hypothesis.
 
-    This theorem is sorry-free at the dispatch level; the 4 remaining sorry's
-    (sdiv, smod, sar, signextend) are isolated in the per-builtin bridge lemmas
+    This theorem is sorry-free at the dispatch level; the 2 remaining sorry's
+    (smod, sar) are isolated in the per-builtin bridge lemmas
     in `EvmYulLeanBridgeLemmas.lean`. -/
 theorem backends_agree_on_bridged_builtins
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -437,20 +437,20 @@ theorem evmYulLean_semantic_target_theorem : True := by trivial
 
 ### What this module establishes:
 1. **`backends_agree_on_bridged_builtins`**: Pointwise backend equivalence for all
-   34 bridged builtins. The dispatch proof is sorry-free; the 4 sorry-backed
-   core equivalences (sdiv, smod, sar, signextend) are isolated in
+   34 bridged builtins. The dispatch proof is sorry-free; the 2 sorry-backed
+   core equivalences (smod, sar) are isolated in
    `EvmYulLeanBridgeLemmas.lean`.
 2. **`layer3_preserves_semantics_evmYulLean`**: The Layer 3 contract preservation
    theorem is valid under EVMYulLean semantics (directly delegates to existing proof)
 3. **Trust boundary shift**: EVMYulLean execution model is now the proven semantic
-   target, with 3 sorry-backed core equivalences and 2 unbridged builtins as the
+   target, with 2 sorry-backed core equivalences and 2 unbridged builtins as the
    remaining trust surface
 
 ### What remains:
 - **Phase 3 state bridge**: Prove `sload` and `mappingSlot` equivalence
 - **Whole-program induction**: Prove that pointwise builtin equivalence lifts to
   full program execution equivalence (straightforward structural induction)
-- **3 core sorry's**: sdiv/smod/sar (blocked by private defs upstream)
+- **2 core sorry's**: smod/sar (blocked by private defs upstream)
 -/
 
 end Compiler.Proofs.YulGeneration.Backends

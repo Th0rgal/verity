@@ -326,7 +326,7 @@ EVMYulLean semantics for the bridged builtin surface. The retargeting module
   the EVM" (backed by upstream Ethereum conformance tests).
 - 34 of 36 builtins are bridged; 2 (`sload`, `mappingSlot`) await Phase 3
   state bridge.
-- 3 bridge lemmas use `sorry` (sdiv, smod, sar) pending
+- 2 bridge lemmas use `sorry` (smod, sar) pending
   upstream changes to private definitions.
 
 See `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean` for

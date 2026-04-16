@@ -114,7 +114,7 @@ EVMYulLean is now the proven semantic target for Yul execution. The retargeting 
 
 Trust boundary: "EVMYulLean's execution model matches the EVM" (backed by upstream Ethereum conformance tests), rather than "Verity's custom builtin implementations are correct."
 
-Remaining gaps: 2 unbridged builtins (`sload`, `mappingSlot`), 3 sorry-backed core equivalences (sdiv, smod, sar).
+Remaining gaps: 2 unbridged builtins (`sload`, `mappingSlot`), 2 sorry-backed core equivalences (smod, sar).
 
 ## Example Contract Compilation Coverage
 
@@ -169,7 +169,7 @@ Also note that the macro-generated `*_semantic_preservation` theorems are not co
 
 **Proof-Only Properties (22 exclusions)**: Internal proof machinery that cannot be tested in Foundry.
 
-3 `sorry` remaining across `Compiler/**/*.lean` and `Verity/**/*.lean` proof modules.
+2 `sorry` remaining across `Compiler/**/*.lean` and `Verity/**/*.lean` proof modules.
 1878 theorems/lemmas (1263 public, 615 private) verified by `lake build PrintAxioms`.
 
 0 documented Lean axioms remain. The former mapping-slot range axiom has been eliminated via the kernel-computable Keccak engine. Selector computation is kernel-computable, the Layer 2 body-simulation axiom has been eliminated, and the Layer 3 dispatch bridge is tracked as an explicit theorem hypothesis rather than a Lean axiom.
