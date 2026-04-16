@@ -2051,26 +2051,17 @@ private theorem txCalldataSizeFitsEvm_of_constructorCalldataSizeFitsEvm
     {tx : IRTransaction}
     (h : TxConstructorCalldataSizeFitsEvm tx) :
     TxCalldataSizeFitsEvm tx := by
-  simp only [TxCalldataSizeFitsEvm, TxConstructorCalldataSizeFitsEvm] at *
-  -- evmModulus = 2^256 is divisible by 32 (since 256 ≥ 5), so if
-  -- tx.args.length * 32 < evmModulus then tx.args.length * 32 ≤ evmModulus - 32.
-  have hmod : 32 ∣ Compiler.Constants.evmModulus := by
-    show 32 ∣ 2 ^ 256
-    exact ⟨2 ^ 251, by norm_num⟩
-  have hle : tx.args.length * 32 + 32 ≤ Compiler.Constants.evmModulus := by
-    have hdvd : 32 ∣ tx.args.length * 32 := ⟨tx.args.length, by ring⟩
-    have : tx.args.length * 32 + 32 ≤ Compiler.Constants.evmModulus := by
-      -- Both sides are multiples of 32, and tx.args.length * 32 < evmModulus
-      rcases hmod with ⟨k, hk⟩
-      have hlt' : tx.args.length * 32 < k * 32 := by
-        rw [hk] at h; linarith
-      have : tx.args.length + 1 ≤ k := by
-        have := Nat.lt_of_mul_lt_mul_right hlt'
-        omega
-      have : (tx.args.length + 1) * 32 ≤ k * 32 :=
-        Nat.mul_le_mul_right 32 this
-      rw [hk]; linarith
-    exact this
+  -- evmModulus = 2^256 = 2^251 * 32, so strict inequality `n*32 < evmModulus`
+  -- forces `n+1 ≤ 2^251`, hence `4 + n*32 < evmModulus`.
+  simp only [TxCalldataSizeFitsEvm, TxConstructorCalldataSizeFitsEvm,
+    Compiler.Constants.evmModulus] at *
+  have hk : (2 : Nat) ^ 256 = 2 ^ 251 * 32 := by norm_num
+  rw [hk] at h ⊢
+  have hlt : tx.args.length * 32 < 2 ^ 251 * 32 := h
+  have hle : tx.args.length < 2 ^ 251 :=
+    Nat.lt_of_mul_lt_mul_right hlt
+  have : (tx.args.length + 1) * 32 ≤ 2 ^ 251 * 32 :=
+    Nat.mul_le_mul_right 32 hle
   linarith
 
 /-- Constructor-body bridge for the currently proved statement fragment.
