@@ -63,6 +63,23 @@ structure YulTransaction where
   args : List Nat
   deriving Repr
 
+/-- Convert an IR transaction to a Yul transaction. -/
+@[reducible] def YulTransaction.ofIR (tx : IRTransaction) : YulTransaction :=
+  { sender := tx.sender
+    msgValue := tx.msgValue
+    thisAddress := tx.thisAddress
+    blockTimestamp := tx.blockTimestamp
+    blockNumber := tx.blockNumber
+    chainId := tx.chainId
+    blobBaseFee := tx.blobBaseFee
+    functionSelector := tx.functionSelector
+    args := tx.args }
+
+@[simp] theorem YulTransaction.ofIR_sender (tx : IRTransaction) :
+    (YulTransaction.ofIR tx).sender = tx.sender := rfl
+@[simp] theorem YulTransaction.ofIR_args (tx : IRTransaction) :
+    (YulTransaction.ofIR tx).args = tx.args := rfl
+
 /-- Initial state for Yul execution. -/
 def YulState.initial (tx : YulTransaction) (storage : Nat → Nat)
     (events : List (List Nat) := []) : YulState :=

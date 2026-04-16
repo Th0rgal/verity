@@ -917,6 +917,27 @@ structure IRTransaction where
   args : List Nat
   deriving Repr
 
+/-- Apply transaction context fields to an IR state, leaving storage and
+other non-transaction fields unchanged. -/
+@[reducible] def IRState.withTx (s : IRState) (tx : IRTransaction) : IRState :=
+  { s with
+    sender := tx.sender
+    msgValue := tx.msgValue
+    thisAddress := tx.thisAddress
+    blockTimestamp := tx.blockTimestamp
+    blockNumber := tx.blockNumber
+    chainId := tx.chainId
+    blobBaseFee := tx.blobBaseFee
+    calldata := tx.args
+    selector := tx.functionSelector }
+
+@[simp] theorem IRState.withTx_sender (s : IRState) (tx : IRTransaction) :
+    (s.withTx tx).sender = tx.sender := rfl
+@[simp] theorem IRState.withTx_storage (s : IRState) (tx : IRTransaction) :
+    (s.withTx tx).storage = s.storage := rfl
+@[simp] theorem IRState.withTx_events (s : IRState) (tx : IRTransaction) :
+    (s.withTx tx).events = s.events := rfl
+
 structure IRResult where
   success : Bool
   returnValue : Option Nat
