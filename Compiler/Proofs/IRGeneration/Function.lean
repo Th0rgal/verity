@@ -1988,26 +1988,99 @@ theorem supported_function_correct_with_helper_proofs_body_goal_and_helper_ir_of
         hfnBodyDisjoint)
       hcalldataSizeFits
 
+/-- For effect-surface-closed + core-surface-closed + raw-calldata-surface-closed
+bodies (which is guaranteed by SupportedConstructor), compilation is independent
+of the events/errors lists and the dynamic source mode.
+
+This holds because:
+- `.emit` is blocked by effect surface → events never consulted
+- `.requireError`/`.revertError` blocked by effect surface → errors never consulted
+- `arrayElement`/`dynamicBytesEq` blocked by core surface → dynamic source never branched on
+- `.calldataload` blocked by raw calldata surface → calldataload compilation path is dead -/
+private theorem compileStmtList_constructor_mode_eq
+    {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
+    {body : List Stmt}
+    (heffectsClosed : stmtListTouchesUnsupportedEffectSurface body = false)
+    (hcoreClosed : stmtListTouchesUnsupportedCoreSurface body = false)
+    (hrawClosed : stmtListTouchesUnsupportedConstructorRawCalldataSurface body = false) :
+    compileStmtList fields events errors .memory [] false [] body =
+      compileStmtList fields [] [] .calldata [] false [] body := by
+  sorry
+
+/-- For raw-calldata-surface-closed bodies, the source semantics are independent
+of calldataSize because calldatasize/calldataload expressions are blocked.
+This means executing with `withConstructorTransactionContext` (calldataSize =
+args*32) produces the same result as with `withTransactionContext` (calldataSize
+= 4+args*32).
+
+The worlds differ only in the `calldataSize` field, and the body never reads it.
+This is a structural induction on statements + expressions: every evalExpr case
+except `.calldatasize` and `.calldataload` is independent of calldataSize, and
+those two are blocked by the raw calldata surface predicate. -/
+private theorem execStmtListWithHelpers_constructor_calldataSize_eq
+    {spec : CompilationModel}
+    {fields : List Field}
+    {fuel : Nat}
+    {bindings : List (String × Nat)}
+    {selector : Nat}
+    {body : List Stmt}
+    {initialWorld : Verity.ContractState}
+    {tx : IRTransaction}
+    (hbodyRawClosed : stmtListTouchesUnsupportedConstructorRawCalldataSurface body = false)
+    (hhelperCallsNil : helperCallNames { params := [], body := body, localObligations := [] } = []) :
+    SourceSemantics.execStmtListWithHelpers spec fields fuel
+        { world := SourceSemantics.withConstructorTransactionContext initialWorld tx
+          bindings := bindings
+          selector := selector }
+        body =
+      SourceSemantics.execStmtListWithHelpers spec fields fuel
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := bindings
+          selector := selector }
+        body := by
+  sorry
+
+/-- Constructor calldataSize bound implies the stronger runtime calldataSize
+bound because tx.args.length * 32 is a multiple of 32, so adding 4 cannot
+cause overflow given the size of evmModulus (2^256). -/
+private theorem txCalldataSizeFitsEvm_of_constructorCalldataSizeFitsEvm
+    {tx : IRTransaction}
+    (h : TxConstructorCalldataSizeFitsEvm tx) :
+    TxCalldataSizeFitsEvm tx := by
+  simp only [TxCalldataSizeFitsEvm, TxConstructorCalldataSizeFitsEvm] at *
+  omega
+
 /-- Constructor-body bridge for the currently proved statement fragment.
 This proves the user-written constructor body after constructor arguments have
 already been decoded into IR locals. The initcode wrapper that materializes
 those locals from deploy-time bytecode is still outside the current proof
 interpreter surface.
 
-## Proof obligations (sorry'd)
-The body-level preservation needs constructor-specific step lemmas that
-extend GenericInduction to handle:
-1. `.memory` compilation mode (vs `.calldata` used by existing step lemmas)
-2. `constructorRuntimeStateMatchesIR` (vs `runtimeStateMatchesIR`)
-3. Non-empty `model.events` in compilation (emit statements need event defs)
+## Bridge strategy
+Instead of generalizing the 179+ `.calldata`-hardcoded step lemmas to accept
+`.memory` mode, we bridge through three sorry'd lemmas that exploit the
+`SupportedConstructor` surface closures:
 
-These three gaps share a common root: the step-level preservation infrastructure
-in GenericInduction.lean and FunctionBody.lean is specialized for runtime
-function calls. Extending it to constructors requires either generalizing the
-179 `.calldata`-hardcoded step lemmas or creating constructor-specific variants.
+1. **Compilation mode equivalence** (`compileStmtList_constructor_mode_eq`):
+   For bodies where effect/core/raw-calldata surfaces are all closed,
+   `compileStmtList fields events errors .memory [] false [] body =
+    compileStmtList fields [] [] .calldata [] false [] body`.
+   This holds because emit/requireError/revertError (which use events/errors)
+   are blocked by effect surface, and arrayElement/dynamicBytesEq/calldataload
+   (where .memory≠.calldata) are blocked by core/raw-calldata surfaces.
 
-All preparatory facts (surface closures, binding construction, raw-calldata
-guard, helper closure, transaction context) are fully proven below. -/
+2. **CalldataSize independence** (`execStmtListWithHelpers_constructor_calldataSize_eq`):
+   For bodies where raw calldata surface is closed, source semantics produce
+   identical results regardless of calldataSize value, since calldatasize and
+   calldataload expressions are blocked.
+
+3. **Calldata bound lifting** (`txCalldataSizeFitsEvm_of_constructorCalldataSizeFitsEvm`):
+   TxConstructorCalldataSizeFitsEvm ⊂ TxCalldataSizeFitsEvm by simple arithmetic.
+
+These bridges allow the constructor proof to reuse the existing `.calldata` +
+`runtimeStateMatchesIR` + `withTransactionContext` step infrastructure unchanged. -/
 theorem supported_constructor_body_correct_with_body_interface
     (model : CompilationModel)
     (ctor : ConstructorSpec)
@@ -2083,11 +2156,239 @@ theorem supported_constructor_body_correct_with_body_interface
       FunctionBody.bindingsExactlyMatchIRVars bindings stateWithBindings := by
     exact supported_constructor_param_state_exact
       initialState ctor.params bindings hinitBindings hparamNamesNodup hbind
-  -- Body-level step preservation (sorry'd — needs constructor step lemmas)
-  -- The gap: existing step infrastructure uses runtimeStateMatchesIR + .calldata + [] events/errors.
-  -- Constructors need constructorRuntimeStateMatchesIR + .memory + model.events.
-  -- See docstring above for the three specific obligations.
-  sorry
+  -- === Bridge 1: Compilation mode equivalence ===
+  -- Since the body is effect-closed (no emit), core-closed, and raw-calldata-closed,
+  -- compilation with .memory/events/errors = compilation with .calldata/[]/[]
+  have hbodyCompileCalldata :
+      compileStmtList model.fields [] [] .calldata [] false
+        [] ctor.body = Except.ok bodyStmts := by
+    rw [← compileStmtList_constructor_mode_eq heffectsClosed hcoreClosed
+      hSupported.rawCalldataSurfaceClosed]
+    exact hbodyCompile
+  -- Lift to effectiveFields
+  have hbodyCompileCalldata' :
+      compileStmtList (SourceSemantics.effectiveFields model) [] [] .calldata [] false
+        [] ctor.body = Except.ok bodyStmts := by
+    simpa [SourceSemantics.effectiveFields, hnormalized] using hbodyCompileCalldata
+  -- === Bridge 2: CalldataSize lifting ===
+  have hcalldataSizeFitsRuntime : TxCalldataSizeFitsEvm tx :=
+    txCalldataSizeFitsEvm_of_constructorCalldataSizeFitsEvm hcalldataSizeFits
+  -- === Bridge 3: Runtime state matching via withTransactionContext ===
+  -- Use the existing runtime state matching (not constructor variant)
+  -- Even though the actual constructor world uses withConstructorTransactionContext,
+  -- the IR state comes from initialIRStateForTx which is the same for both.
+  -- runtimeStateMatchesIR with withTransactionContext can be satisfied because
+  -- 4 + tx.args.length * 32 < evmModulus.
+  have hstateRuntime :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := bindings
+          selector := tx.functionSelector }
+        stateWithBindings := by
+    have hpreboundRuntime :
+        FunctionBody.runtimeStateMatchesIR
+          (SourceSemantics.effectiveFields model)
+          { world := SourceSemantics.withTransactionContext initialWorld tx
+            bindings := []
+            selector := tx.functionSelector }
+          initialState := by
+      exact initialIRStateForTx_matches_runtime model tx initialWorld htxNormalized
+        hcalldataSizeFitsRuntime
+    simpa [FunctionBody.runtimeStateMatchesIR] using
+      runtimeStateMatchesIR_applyBindingsToIRState
+        (state := initialState)
+        (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx,
+                      bindings := [], selector := tx.functionSelector })
+        (fields := SourceSemantics.effectiveFields model)
+        (bindings := bindings)
+        hpreboundRuntime
+  -- === Step-level body preservation ===
+  -- Build prerequisites for calling exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel
+  -- directly (bypasses hnoEvents/hnoErrors by working with already-simplified compilation)
+  have hscope :
+      FunctionBody.scopeNamesPresent (ctorFn.params.map (·.name)) bindings := by
+    intro name hmem
+    have hmemBindings : name ∈ bindings.map Prod.fst := by
+      rw [ParamLoading.bindSupportedParams_names hbind]
+      simp [ctorFn, constructorAsFunctionSpec] at hmem
+      simpa using hmem
+    exact lookupBinding?_some_of_mem bindings name hmemBindings
+  have hbounded : FunctionBody.bindingsBounded bindings :=
+    FunctionBody.bindingsBounded_of_bindSupportedParams hbind
+  have hhelperFreeFields :
+      StmtListHelperFreeStepInterface
+        model.fields
+        (ctorFn.params.map (·.name))
+        ctorFn.body :=
+    hSupported.body.helperFreeStepInterface_stmtSafety hnoConflict
+      (by simpa [ctorFn, constructorAsFunctionSpec] using hsafety)
+  have hhelperFree :
+      StmtListHelperFreeStepInterface
+        (SourceSemantics.effectiveFields model)
+        (ctorFn.params.map (·.name))
+        ctorFn.body := by
+    simpa [SourceSemantics.effectiveFields, hnormalized] using hhelperFreeFields
+  have hscopeExact :
+      FunctionBody.bindingsExactlyMatchIRVarsOnScope
+        (ctorFn.params.map (·.name)) bindings stateWithBindings :=
+    FunctionBody.bindingsExactlyMatchIRVars_implies_onScope hstateBindings
+  -- Build generic-with-helpers witness
+  have hgenericWithHelpers :
+      StmtListGenericWithHelpers
+        model
+        (SourceSemantics.effectiveFields model)
+        (ctorFn.params.map (·.name))
+        ctorFn.body :=
+    stmtListGenericWithHelpers_of_helperFreeStepInterface_and_helperSurfaceClosed
+      (spec := model)
+      (hhelperFree := hhelperFree)
+      hSupported.body.helperSurfaceClosed
+  -- Call step infrastructure directly (no hnoEvents/hnoErrors needed — compilation
+  -- is already simplified to fields [] [] .calldata)
+  let sizeSlack := sizeOf bodyStmts - bodyStmts.length
+  rcases exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel
+      (spec := model)
+      (fields := SourceSemantics.effectiveFields model)
+      (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx
+                    bindings := bindings
+                    selector := tx.functionSelector })
+      (state := stateWithBindings)
+      (scope := ctorFn.params.map (·.name))
+      (stmts := ctorFn.body)
+      (helperFuel := helperFuel)
+      (extraFuel := sizeSlack)
+      hgenericWithHelpers
+      hscope
+      hscopeExact
+      hbounded
+      hstateRuntime with
+    ⟨bodyIR, hbodyGenericCompile, hgenericSem⟩
+  -- The step infrastructure produces compileStmtList fields [] [] .calldata [] false scope stmts
+  -- which must match our bodyStmts
+  have hbodyEq : bodyIR = bodyStmts := by
+    rw [hbodyCompileCalldata'] at hbodyGenericCompile
+    injection hbodyGenericCompile with hEq
+    exact hEq.symm
+  subst bodyIR
+  -- Fuel computation: sizeOf bodyStmts + sizeSlack + 1 = sizeOf bodyStmts + 1
+  -- (since sizeSlack = sizeOf - length and we add length back)
+  have hfuel :
+      sizeOf bodyStmts + sizeSlack + 1 =
+        sizeOf bodyStmts + 1 := by
+    dsimp [sizeSlack]
+    omega
+  -- === Bridge 4: CalldataSize independence for source semantics ===
+  -- The step infrastructure proved preservation against execStmtListWithHelpers
+  -- with withTransactionContext. We need to connect to interpretConstructorWithHelpers
+  -- which uses withConstructorTransactionContext. Since the body is raw-calldata-surface-
+  -- closed, the source semantics produce identical results regardless of calldataSize.
+  --
+  -- execStmtListWithHelpers with withConstructorTransactionContext =
+  -- execStmtListWithHelpers with withTransactionContext
+  -- (for raw-calldata-surface-closed bodies)
+  -- === Bridge 4: CalldataSize independence for source semantics ===
+  have hctorSemBridge :
+      SourceSemantics.execStmtListWithHelpers model (SourceSemantics.effectiveFields model) helperFuel
+        { world := SourceSemantics.withConstructorTransactionContext initialWorld tx
+          bindings := bindings
+          selector := tx.functionSelector }
+        ctor.body =
+      SourceSemantics.execStmtListWithHelpers model (SourceSemantics.effectiveFields model) helperFuel
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := bindings
+          selector := tx.functionSelector }
+        ctor.body := by
+    exact execStmtListWithHelpers_constructor_calldataSize_eq
+      hSupported.rawCalldataSurfaceClosed
+      (by simpa [ctorFn, constructorAsFunctionSpec, helperCallNames] using hhelperCallsNil)
+  -- === Package step-level result into source-level result ===
+  -- hgenericSem : stmtResultMatchesIRExec for withTransactionContext
+  -- We need sourceResultMatchesIRResult for interpretConstructorWithHelpers
+  rw [hfuel] at hgenericSem
+  -- Extract the source result from the step infrastructure
+  let sourceResult :=
+    SourceSemantics.execStmtListWithHelpers model (SourceSemantics.effectiveFields model) helperFuel
+      { world := SourceSemantics.withTransactionContext initialWorld tx
+        bindings := bindings
+        selector := tx.functionSelector }
+      ctorFn.body
+  let irExec := execIRStmts (sizeOf bodyStmts + 1) stateWithBindings bodyStmts
+  -- Rollback state matching for constructor
+  have hrollbackStorage :
+      initialState.storage =
+        SourceSemantics.encodeStorage model
+          (SourceSemantics.withConstructorTransactionContext initialWorld tx) := by
+    simpa [initialState, FunctionBody.initialIRStateForTx] using
+      (SourceSemantics.encodeStorage_withConstructorTransactionContext model initialWorld tx).symm
+  have hrollbackEvents :
+      initialState.events =
+        SourceSemantics.encodeEvents
+          (SourceSemantics.withConstructorTransactionContext initialWorld tx).events := by
+    simp [initialState, FunctionBody.initialIRStateForTx]
+  -- The constructor result packages the stmt-level result via
+  -- successResult/revertedResult just like stmtResultToSourceResult does,
+  -- but with withConstructorTransactionContext as the rollback world.
+  --
+  -- We bridge: interpretConstructorWithHelpers → (unfold, apply calldataSize bridge) →
+  -- stmtResultToSourceResult model (withConstructorTransactionContext ...) sourceResult
+  --
+  -- And then use stmtResultToSourceResult_matches_irExecResult to lift
+  -- stmtResultMatchesIRExec → sourceResultMatchesIRResult
+  --
+  -- The key fact is that stmtResultToSourceResult on constructor and function
+  -- produce the same SourceContractResult because successResult/revertedResult
+  -- only use encodeStorage and encodeEvents, which are identical for
+  -- withTransactionContext and withConstructorTransactionContext (they only
+  -- differ in calldataSize, which doesn't affect storage or events encoding).
+  have hpackWithTx :=
+    FunctionBody.stmtResultToSourceResult_matches_irExecResult
+      (spec := model)
+      (fields := SourceSemantics.effectiveFields model)
+      (initialWorld := SourceSemantics.withConstructorTransactionContext initialWorld tx)
+      (rollback := initialState)
+      (sourceResult := sourceResult)
+      (irResult := irExec)
+      hrollbackStorage hrollbackEvents rfl hgenericSem
+  -- Now hpackWithTx relates:
+  --   stmtResultToSourceResult model (withConstructorTransactionContext ...) sourceResult
+  -- to:
+  --   irResultOfExecResult initialState irExec
+  --
+  -- We need to show this matches interpretConstructorWithHelpers.
+  -- interpretConstructorWithHelpers unfolds to exactly stmtResultToSourceResult
+  -- (with withConstructorTransactionContext) applied to
+  -- execStmtListWithHelpers (with withConstructorTransactionContext) which
+  -- equals sourceResult via hctorSemBridge.
+  show FunctionBody.sourceResultMatchesIRResult
+    (SourceSemantics.interpretConstructorWithHelpers model helperFuel ctor tx initialWorld)
+    (execResultToIRResult initialState irExec)
+  -- Unfold interpretConstructorWithHelpers
+  have hinterp :
+      SourceSemantics.interpretConstructorWithHelpers model helperFuel ctor tx initialWorld =
+        FunctionBody.stmtResultToSourceResult model
+          (SourceSemantics.withConstructorTransactionContext initialWorld tx)
+          (SourceSemantics.execStmtListWithHelpers model (SourceSemantics.effectiveFields model) helperFuel
+            { world := SourceSemantics.withConstructorTransactionContext initialWorld tx
+              bindings := bindings
+              selector := tx.functionSelector }
+            ctor.body) := by
+    simp only [SourceSemantics.interpretConstructorWithHelpers, hrawClosed, heffective,
+      SourceSemantics.effectiveFields, hnormalized, Bool.false_eq_true, ↓reduceIte]
+    cases SourceSemantics.execStmtListWithHelpers model
+      (applySlotAliasRanges model.fields model.slotAliasRanges) helperFuel
+      { world := SourceSemantics.withConstructorTransactionContext initialWorld tx
+        bindings := bindings
+        selector := tx.functionSelector }
+      ctor.body <;>
+    simp [FunctionBody.stmtResultToSourceResult, SourceSemantics.successResult,
+      SourceSemantics.revertedResult]
+  rw [hinterp, hctorSemBridge]
+  -- Now the goal is:
+  -- sourceResultMatchesIRResult
+  --   (stmtResultToSourceResult model (withConstructorTransactionContext ...) sourceResult)
+  --   (execResultToIRResult initialState irExec)
+  simpa [execResultToIRResult, FunctionBody.irResultOfExecResult] using hpackWithTx
 
 
 /-- Function-level Tier 2 bridge for bodies admitted by the alternate
