@@ -60,19 +60,8 @@ theorem layer3_function_preserves_semantics
 private def paramLoadErasure (fn : IRFunction) (tx : IRTransaction) (state : IRState) : Prop :=
   let paramState := fn.params.zip tx.args |>.foldl
     (fun s (p, v) => s.setVar p.name v) state
-  let yulTx : YulTransaction := {
-    sender := tx.sender
-    msgValue := tx.msgValue
-    thisAddress := tx.thisAddress
-    blockTimestamp := tx.blockTimestamp
-    blockNumber := tx.blockNumber
-    chainId := tx.chainId
-    blobBaseFee := tx.blobBaseFee
-    functionSelector := tx.functionSelector
-    args := tx.args
-  }
   execYulStmts (yulStateOfIR 0 paramState) fn.body =
-    execYulStmts (YulState.initial yulTx state.storage state.events) fn.body
+    execYulStmts (YulState.initial (YulTransaction.ofIR tx) state.storage state.events) fn.body
 
 /-- Result wrapping equivalence: `interpretYulRuntime` produces the same `YulResult`
 as `yulResultOfExecWithRollback` when the rollback storage matches. -/
@@ -172,16 +161,7 @@ theorem yulBody_from_state_eq_yulBody
   simp only at h_exec
   rw [h_exec]
   exact (interpretYulRuntime_eq_yulResultOfExec fn.body
-    { sender := tx.sender
-      msgValue := tx.msgValue
-      thisAddress := tx.thisAddress
-      blockTimestamp := tx.blockTimestamp
-      blockNumber := tx.blockNumber
-      chainId := tx.chainId
-      blobBaseFee := tx.blobBaseFee
-      functionSelector := tx.functionSelector
-      args := tx.args }
-    state.storage state.events).symm
+    (YulTransaction.ofIR tx) state.storage state.events).symm
 
 /-! ## Layer 3 Contract-Level: IR → Yul (via runtime dispatch) -/
 
@@ -196,17 +176,7 @@ theorem layer3_contract_preserves_semantics
     (htransient : initialState.transientStorage = fun _ => 0)
     (hreturn : initialState.returnValue = none)
     (hparamErase : ∀ fn, fn ∈ contract.functions →
-      paramLoadErasure fn tx
-        { initialState with
-          sender := tx.sender
-          msgValue := tx.msgValue
-          thisAddress := tx.thisAddress
-          blockTimestamp := tx.blockTimestamp
-          blockNumber := tx.blockNumber
-          chainId := tx.chainId
-          blobBaseFee := tx.blobBaseFee
-          calldata := tx.args
-          selector := tx.functionSelector })
+      paramLoadErasure fn tx (initialState.withTx tx))
     (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions →
       DispatchGuardsSafe fn tx)
     (hNoHasSelector : ∀ fn, fn ∈ contract.functions →
@@ -225,17 +195,7 @@ theorem layer3_contract_preserves_semantics
     hselector hNoWrap hWF hNoFallback hNoReceive hdispatchGuardSafe hNoHasSelector hHasSelectorDead
     hLoopFree
   · intro fn hmem
-    exact (yulBody_from_state_eq_yulBody fn tx
-      { initialState with
-        sender := tx.sender
-        msgValue := tx.msgValue
-        thisAddress := tx.thisAddress
-        blockTimestamp := tx.blockTimestamp
-        blockNumber := tx.blockNumber
-        chainId := tx.chainId
-        blobBaseFee := tx.blobBaseFee
-        calldata := tx.args
-        selector := tx.functionSelector }
+    exact (yulBody_from_state_eq_yulBody fn tx (initialState.withTx tx)
       rfl rfl rfl rfl rfl rfl rfl rfl rfl
       (by simpa using hreturn)
       (by simpa using hmemory)
@@ -261,28 +221,8 @@ theorem layer3_contract_preserves_semantics_general
       yulStmtsLoopFree fn.body = true)
     (hbody : ∀ fn, fn ∈ contract.functions →
       Compiler.Proofs.YulGeneration.resultsMatch
-        (execIRFunction fn tx.args
-          { initialState with
-            sender := tx.sender
-            msgValue := tx.msgValue
-            thisAddress := tx.thisAddress
-            blockTimestamp := tx.blockTimestamp
-            blockNumber := tx.blockNumber
-            chainId := tx.chainId
-            blobBaseFee := tx.blobBaseFee
-            calldata := tx.args
-            selector := tx.functionSelector })
-        (interpretYulBody fn tx
-          { initialState with
-            sender := tx.sender
-            msgValue := tx.msgValue
-            thisAddress := tx.thisAddress
-            blockTimestamp := tx.blockTimestamp
-            blockNumber := tx.blockNumber
-            chainId := tx.chainId
-            blobBaseFee := tx.blobBaseFee
-            calldata := tx.args
-            selector := tx.functionSelector })) :
+        (execIRFunction fn tx.args (initialState.withTx tx))
+        (interpretYulBody fn tx (initialState.withTx tx))) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR contract tx initialState)
       (interpretYulFromIR contract tx initialState) :=
@@ -305,17 +245,7 @@ theorem layers2_3_ir_matches_yul
     (htransient : initialState.transientStorage = fun _ => 0)
     (hreturn : initialState.returnValue = none)
     (hparamErase : ∀ fn, fn ∈ irContract.functions →
-      paramLoadErasure fn tx
-        { initialState with
-          sender := tx.sender
-          msgValue := tx.msgValue
-          thisAddress := tx.thisAddress
-          blockTimestamp := tx.blockTimestamp
-          blockNumber := tx.blockNumber
-          chainId := tx.chainId
-          blobBaseFee := tx.blobBaseFee
-          calldata := tx.args
-          selector := tx.functionSelector })
+      paramLoadErasure fn tx (initialState.withTx tx))
     (hdispatchGuardSafe : ∀ fn, fn ∈ irContract.functions →
       DispatchGuardsSafe fn tx)
     (hNoHasSelector : ∀ fn, fn ∈ irContract.functions →
@@ -352,17 +282,7 @@ theorem simpleStorage_endToEnd
     (hHasSelectorDead : ∀ fn, fn ∈ simpleStorageIRContract.functions →
       HasSelectorDeadBridge fn.body)
     (hparamErase : ∀ fn, fn ∈ simpleStorageIRContract.functions →
-      paramLoadErasure fn tx
-        { initialState with
-          sender := tx.sender
-          msgValue := tx.msgValue
-          thisAddress := tx.thisAddress
-          blockTimestamp := tx.blockTimestamp
-          blockNumber := tx.blockNumber
-          chainId := tx.chainId
-          blobBaseFee := tx.blobBaseFee
-          calldata := tx.args
-          selector := tx.functionSelector }) :
+      paramLoadErasure fn tx (initialState.withTx tx)) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR simpleStorageIRContract tx initialState)
       (interpretYulFromIR simpleStorageIRContract tx initialState) :=

@@ -5,7 +5,7 @@
 <h1 align="center">Verity</h1>
 
 <p align="center">
-  <strong>A formally verified smart contract compiler. Read the <a href="https://www.lfglabs.dev/verity">paper</a>.</strong>
+  <strong>A formally verified smart contract compiler. Read the <a href="https://lfglabs.dev/research/verity">paper</a>.</strong>
 </p>
 
 <p align="center">
