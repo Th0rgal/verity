@@ -49,7 +49,7 @@ private def signedScalarSourceSpec : CompilationModel :=
 private def emitSourceSpec : CompilationModel :=
   { name := "EmitSource"
     fields := []
-    events := [{ name := "Ping", params := [{ name := "value", ty := .uint256 }] }]
+    events := [{ name := "Ping", params := [{ name := "value", ty := .uint256, kind := .unindexed }] }]
     constructor := none
     functions :=
       [ { name := "emitPing"
@@ -134,7 +134,7 @@ example :
     (sourceContractSemantics emitSourceSpec
       [0x13572468]
       { sender := 9, functionSelector := 0x13572468, args := [77] }
-      Verity.defaultState).success = false := by
+      Verity.defaultState).success = true := by
   native_decide
 
 end Compiler.Proofs.IRGeneration.SourceSemanticsFeatureTest

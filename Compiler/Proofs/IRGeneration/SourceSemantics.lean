@@ -1439,7 +1439,7 @@ mutual
         | none => .revert
     | state, .emit _eventName args =>
         match evalExprList fields state args with
-        | some _resolved => .revert
+        | some _resolved => .continue state
         | none => .revert
     | _, _ => .revert
 
@@ -1796,21 +1796,20 @@ def interpretFunction (spec : CompilationModel) (fn : FunctionSpec)
 def interpretConstructor (spec : CompilationModel) (ctor : ConstructorSpec)
     (tx : IRTransaction) (initialWorld : Verity.ContractState) : SourceContractResult :=
   let constructorWorldWithTx := withConstructorTransactionContext initialWorld tx
-  let worldWithTx := withTransactionContext initialWorld tx
   let fields := effectiveFields spec
   if constructorTouchesUnsupportedRawCalldataSurface spec ctor then
     revertedResult spec constructorWorldWithTx
   else
     match constructorExecutionBindings ctor tx.args with
-    | none => revertedResult spec worldWithTx
+    | none => revertedResult spec constructorWorldWithTx
     | some bindings =>
         match execStmtList fields
-            { world := worldWithTx, bindings := bindings, selector := tx.functionSelector }
+            { world := constructorWorldWithTx, bindings := bindings, selector := tx.functionSelector }
             ctor.body with
         | .continue state => successResult spec state.world none
         | .stop state => successResult spec state.world none
         | .return value state => successResult spec state.world (some value)
-        | .revert => revertedResult spec worldWithTx
+        | .revert => revertedResult spec constructorWorldWithTx
 
 def interpretContract (spec : CompilationModel) (selectors : List Nat)
     (tx : IRTransaction) (initialWorld : Verity.ContractState) : SourceContractResult :=
@@ -2368,7 +2367,7 @@ mutual
             | _, _ => .revert
     | .emit _eventName args =>
         match evalExprListWithHelpers spec fields fuel state args with
-        | some _resolved => .revert
+        | some _resolved => .continue state
         | none => .revert
     | _ => .revert
   termination_by stmt => (fuel, sizeOf stmt)
@@ -2490,21 +2489,20 @@ def interpretConstructorWithHelpers
     (tx : IRTransaction)
     (initialWorld : Verity.ContractState) : SourceContractResult :=
   let constructorWorldWithTx := withConstructorTransactionContext initialWorld tx
-  let worldWithTx := withTransactionContext initialWorld tx
   let fields := effectiveFields spec
   if constructorTouchesUnsupportedRawCalldataSurface spec ctor then
     revertedResult spec constructorWorldWithTx
   else
     match constructorExecutionBindings ctor tx.args with
-    | none => revertedResult spec worldWithTx
+    | none => revertedResult spec constructorWorldWithTx
     | some bindings =>
         match execStmtListWithHelpers spec fields fuel
-            { world := worldWithTx, bindings := bindings, selector := tx.functionSelector }
+            { world := constructorWorldWithTx, bindings := bindings, selector := tx.functionSelector }
             ctor.body with
         | .continue state => successResult spec state.world none
         | .stop state => successResult spec state.world none
         | .return value state => successResult spec state.world (some value)
-        | .revert => revertedResult spec worldWithTx
+        | .revert => revertedResult spec constructorWorldWithTx
 
 def interpretContractWithHelpers
     (spec : CompilationModel)

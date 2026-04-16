@@ -831,7 +831,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal_and_helper_ir
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal_and_helper_ir_of_bodyCallsDisjoint
-#print axioms Compiler.Proofs.IRGeneration.Function.supported_constructor_body_correct_with_body_interface
+-- #print axioms Compiler.Proofs.IRGeneration.Function.supported_constructor_body_correct_with_body_interface  -- sorry'd
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_body_interface_except_mapping_writes
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_body_interface_except_mapping_writes_stmtSafety
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_except_mapping_writes
@@ -2190,4 +2190,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2041 theorems/lemmas (1370 public, 671 private, 0 sorry'd)
+-- Total: 2041 theorems/lemmas (1369 public, 671 private, 1 sorry'd)

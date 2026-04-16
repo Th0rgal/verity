@@ -807,8 +807,8 @@ example :
         (execIRStmts
           (sizeOf
             (match compileStmtList
-                constructorOnlySpec.fields [] [] .calldata [] false
-                ["initialOwner"]
+                constructorOnlySpec.fields [] [] .memory [] false
+                []
                 [Stmt.setStorageAddr "owner" (.param "initialOwner"), .stop] with
              | .ok body => body
              | .error _ => []) + 1)
@@ -816,17 +816,17 @@ example :
             (FunctionBody.initialIRStateForTx constructorOnlySpec constructorOnlyTx Verity.defaultState)
             [("initialOwner", Compiler.Constants.addressMask &&& 11)])
           (match compileStmtList
-              constructorOnlySpec.fields [] [] .calldata [] false
-              ["initialOwner"]
+              constructorOnlySpec.fields [] [] .memory [] false
+              []
               [Stmt.setStorageAddr "owner" (.param "initialOwner"), .stop] with
            | .ok body => body
            | .error _ => []))) := by
   have hbodyCompile :
       compileStmtList constructorOnlySpec.fields constructorOnlySpec.events constructorOnlySpec.errors
-        .calldata [] false (constructorOnlyCtor.params.map (·.name)) constructorOnlyCtor.body =
+        .memory [] false [] constructorOnlyCtor.body =
       Except.ok
-        (match compileStmtList constructorOnlySpec.fields [] [] .calldata [] false
-            (constructorOnlyCtor.params.map (·.name)) constructorOnlyCtor.body with
+        (match compileStmtList constructorOnlySpec.fields [] [] .memory [] false
+            [] constructorOnlyCtor.body with
          | .ok body => body
          | .error _ => []) := by
     rfl
@@ -843,8 +843,6 @@ example :
       (helperFuel := 0)
       (hnormalized := rfl)
       (hfunctionNamesNodup := by decide)
-      (hnoEvents := rfl)
-      (hnoErrors := rfl)
       (hSupported := constructorOnlySupported)
       (hnoConflict := constructorOnly_noConflict)
       (hsafety := by
@@ -856,14 +854,14 @@ example :
       (tx := constructorOnlyTx)
       (initialWorld := Verity.defaultState)
       (bindings := [("initialOwner", Compiler.Constants.addressMask &&& 11)])
-      (bodyStmts := match compileStmtList constructorOnlySpec.fields [] [] .calldata [] false
-          (constructorOnlyCtor.params.map (·.name)) constructorOnlyCtor.body with
+      (bodyStmts := match compileStmtList constructorOnlySpec.fields [] [] .memory [] false
+          [] constructorOnlyCtor.body with
         | .ok body => body
         | .error _ => [])
       (hbodyCompile := hbodyCompile)
       (hbind := hbind)
       (htxNormalized := constructorOnly_txNormalized)
-      (hcalldataSizeFits := constructorOnly_calldataFits)
+      (hcalldataSizeFits := constructorOnly_constructorCalldataFits)
 
 example :
     FunctionBody.sourceResultMatchesIRResult
