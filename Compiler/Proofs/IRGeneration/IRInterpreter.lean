@@ -786,37 +786,6 @@ def execIRStmt : Nat → IRState → YulStmt → IRExecResult
                 else
                   .return 0 state
               | _, _ => .revert state
-          -- LOG instructions (log0–log4): evaluate all arguments for
-          -- well-formedness checking, then continue with unchanged state.
-          -- This matches the source semantics where `emit` returns
-          -- `.continue state` (events are a side-effect channel that
-          -- doesn't modify the abstract state tracked by the prover).
-          | .call "log0" [offsetExpr, sizeExpr] =>
-              match evalIRExpr state offsetExpr, evalIRExpr state sizeExpr with
-              | some _, some _ => .continue state
-              | _, _ => .revert state
-          | .call "log1" [offsetExpr, sizeExpr, t0Expr] =>
-              match evalIRExpr state offsetExpr, evalIRExpr state sizeExpr,
-                    evalIRExpr state t0Expr with
-              | some _, some _, some _ => .continue state
-              | _, _, _ => .revert state
-          | .call "log2" [offsetExpr, sizeExpr, t0Expr, t1Expr] =>
-              match evalIRExpr state offsetExpr, evalIRExpr state sizeExpr,
-                    evalIRExpr state t0Expr, evalIRExpr state t1Expr with
-              | some _, some _, some _, some _ => .continue state
-              | _, _, _, _ => .revert state
-          | .call "log3" [offsetExpr, sizeExpr, t0Expr, t1Expr, t2Expr] =>
-              match evalIRExpr state offsetExpr, evalIRExpr state sizeExpr,
-                    evalIRExpr state t0Expr, evalIRExpr state t1Expr,
-                    evalIRExpr state t2Expr with
-              | some _, some _, some _, some _, some _ => .continue state
-              | _, _, _, _, _ => .revert state
-          | .call "log4" [offsetExpr, sizeExpr, t0Expr, t1Expr, t2Expr, t3Expr] =>
-              match evalIRExpr state offsetExpr, evalIRExpr state sizeExpr,
-                    evalIRExpr state t0Expr, evalIRExpr state t1Expr,
-                    evalIRExpr state t2Expr, evalIRExpr state t3Expr with
-              | some _, some _, some _, some _, some _, some _ => .continue state
-              | _, _, _, _, _, _ => .revert state
           | _ =>
               -- Keep expression-statement behavior aligned with Yul:
               -- evaluate the expression and revert on evaluation failure.

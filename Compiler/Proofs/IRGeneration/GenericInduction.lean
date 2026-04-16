@@ -12077,7 +12077,7 @@ uses the full event/error lists instead.
 Prerequisites for proving this (all are available, just not yet wired):
 - `compileEmit` generates: mstore-chain + keccak256 + logN
 - The source `execStmt` returns `.continue state` (no state change)
-- The IR evaluator now handles `log0`–`log4` as state-preserving ops
+- The IR evaluator will need to handle `log0`–`log4` as state-preserving ops
 - The intermediate `mstore` ops only modify memory (not storage/events)
 - Therefore the final IR state matches: storage unchanged, events unchanged
 
