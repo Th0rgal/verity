@@ -243,6 +243,12 @@ ALLOWLIST: set[str] = {
     "bridge_eval_byte_normalized",
     "sdiv_int256_eq_uint256Sdiv",
     "smod_int256_eq_uint256Smod",
+    # signextend proof requires 4-case byte-index analysis + bit-level shift
+    # semantics matching; structural complexity is inherent to the operation.
+    "signextend_uint256_eq",
+    # backends_agree dispatch proof case-splits all 34 bridged builtins;
+    # each branch is one line but 34 builtins + headers exceed 50 lines.
+    "backends_agree_on_bridged_builtins",
     # --- Misc ---
     "findUniqueInternalFunction",
 }

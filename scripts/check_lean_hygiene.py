@@ -102,7 +102,6 @@ def main() -> None:
             "sdiv_int256_eq_uint256Sdiv": 1,
             "smod_int256_eq_uint256Smod": 1,
             "sar_int256_eq_uint256Sar": 1,
-            "signextend_uint256_eq": 1,
         },
     }
     sorry_count = 0

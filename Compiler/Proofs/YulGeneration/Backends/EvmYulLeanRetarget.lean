@@ -323,7 +323,7 @@ private theorem backends_agree_calldatasize s se mv ta bt bn ci bb sl cd av :
 
 The `.evmYulLean` and `.verity` backends agree on all 34 bridged builtins.
 This is the pointwise equivalence theorem that Phase 4 retargeting relies on.
-The 4 sorry-dependent builtins (sdiv, smod, sar, signextend) contribute
+The 3 sorry-dependent builtins (sdiv, smod, sar) contribute
 to this through their sorry-backed bridge lemmas in `EvmYulLeanBridgeLemmas.lean`.
 -/
 
@@ -443,14 +443,14 @@ theorem evmYulLean_semantic_target_theorem : True := by trivial
 2. **`layer3_preserves_semantics_evmYulLean`**: The Layer 3 contract preservation
    theorem is valid under EVMYulLean semantics (directly delegates to existing proof)
 3. **Trust boundary shift**: EVMYulLean execution model is now the proven semantic
-   target, with 4 sorry-backed core equivalences and 2 unbridged builtins as the
+   target, with 3 sorry-backed core equivalences and 2 unbridged builtins as the
    remaining trust surface
 
 ### What remains:
 - **Phase 3 state bridge**: Prove `sload` and `mappingSlot` equivalence
 - **Whole-program induction**: Prove that pointwise builtin equivalence lifts to
   full program execution equivalence (straightforward structural induction)
-- **4 core sorry's**: sdiv/smod/sar/signextend (blocked by private defs upstream)
+- **3 core sorry's**: sdiv/smod/sar (blocked by private defs upstream)
 -/
 
 end Compiler.Proofs.YulGeneration.Backends

@@ -8,7 +8,6 @@
   "admitted_bridge_lemmas": [
     "sar",
     "sdiv",
-    "signextend",
     "smod"
   ],
   "bridged_builtins": [
@@ -172,6 +171,7 @@
     "sgt",
     "shl",
     "shr",
+    "signextend",
     "slt",
     "sub",
     "xor"

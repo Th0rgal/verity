@@ -2179,6 +2179,23 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_sar_bridge
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_signextend_normalized  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_signextend_normalized  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.se_uint256_eq_of_val  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.se_lor_val  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.se_land_val  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.se_sub_val  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.se_tb_pow_sub_pow  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.se_tb_ne_zero  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.se_tb_eq_zero  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.se_set_eq  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.se_clear_eq  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.se_tb_val  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.se_shiftLeft_one_val  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.se_val_val_of_eq  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.se_sign_set  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.se_sign_clear  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.se_nat_to_sign  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.se_verity_ofNat  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.se_size_to_uint256_val  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.signextend_uint256_eq  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_signextend_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_signextend_bridge
@@ -2331,4 +2348,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2173 theorems/lemmas (1443 public, 730 private, 0 sorry'd)
+-- Total: 2190 theorems/lemmas (1443 public, 747 private, 0 sorry'd)

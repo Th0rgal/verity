@@ -222,7 +222,7 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
         features = _make_builtin_features()
         snippets = check.expected_doc_snippets(features)
         self.assertTrue(
-            any("30 fully proven, 4 with sorry-dependent core equivalences" in s for s in snippets),
+            any("31 fully proven, 3 with sorry-dependent core equivalences" in s for s in snippets),
             f"Expected sorry qualifier in snippets: {snippets}",
         )
 
