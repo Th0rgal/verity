@@ -314,20 +314,22 @@ The Yul execution semantics used throughout this file dispatch builtins via
 (`EvmYulLeanBridgeLemmas.lean`) proves that for all 34 bridged builtins,
 the `.verity` and `.evmYulLean` backends produce identical results.
 
-This means the existing preservation theorems above are already valid under
-EVMYulLean semantics for the bridged builtin surface. The retargeting module
-(`EvmYulLeanRetarget.lean`) makes this explicit with
-`backends_agree_on_bridged_builtins` and
-`layer3_preserves_semantics_evmYulLean`.
+This means the existing preservation theorems above are pointwise valid under
+EVMYulLean semantics for any single bridged-builtin call site. The retargeting
+module (`EvmYulLeanRetarget.lean`) makes this explicit with the pointwise
+theorem `backends_agree_on_bridged_builtins`.
 
-**Trust boundary after Phase 4**:
-- The Yul semantics trust assumption shifts from "Verity's custom builtin
-  implementations are correct" to "EVMYulLean's execution model matches
-  the EVM" (backed by upstream Ethereum conformance tests).
+**Trust boundary after Phase 4 (pointwise)**:
+- For any single bridged-builtin call, the Yul semantics trust assumption
+  shifts from "Verity's custom builtin implementations are correct" to
+  "EVMYulLean's execution model matches the EVM" (backed by upstream
+  Ethereum conformance tests).
 - 34 of 36 builtins are bridged; 2 (`sload`, `mappingSlot`) await Phase 3
   state bridge.
-- 2 bridge lemmas use `sorry` (smod, sar) pending
-  upstream changes to private definitions.
+- 2 bridge lemmas use `sorry` (smod, sar) — blocked by complex Int↔UInt256
+  sign/bit semantics, not privacy.
+- Whole-program structural induction lifting pointwise equivalence to full
+  Yul program execution is not yet proven.
 
 See `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean` for
 the Phase 4 retargeting theorems.

@@ -230,7 +230,6 @@ ALLOWLIST: set[str] = {
     "SwitchCaseBodyBridge_short",
     "SwitchCaseBodyBridge",
     "layer3_contract_preserves_semantics",
-    "layer3_preserves_semantics_evmYulLean",
     # --- End-to-end proofs ---
     "simpleStorage_endToEnd",
     # --- Contract proofs (Contracts/) ---

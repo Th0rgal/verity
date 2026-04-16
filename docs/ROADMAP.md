@@ -190,8 +190,8 @@ Execution priorities:
 - `bridgedBuiltins` definition enumerates all 34 builtins where `.evmYulLean` and `.verity` backends agree
 - Unbridged: `sload` and `mappingSlot` return `none` on `.evmYulLean` path (requires Phase 3 state bridge)
 - Phase 2 state bridge scaffolding: type conversions, storage round-trip, env field bridges (0 sorry)
-- **Phase 4 complete**: `EvmYulLeanRetarget.lean` proves `backends_agree_on_bridged_builtins` and `layer3_preserves_semantics_evmYulLean`, making EVMYulLean the proven semantic target. Trust boundary shifted from Verity custom semantics to EVMYulLean conformance
-- **Remaining**: Phase 3 state bridge for `sload`/`mappingSlot` (2 unbridged builtins), 2 sorry-backed core equivalences (private defs upstream), whole-program structural induction
+- **Phase 4 (pointwise)**: `EvmYulLeanRetarget.lean` proves `backends_agree_on_bridged_builtins`, establishing that `.verity` and `.evmYulLean` backends agree on every bridged builtin call at the `evalBuiltinCallWithBackendContext` level. Trust boundary shifted pointwise: any single bridged-builtin invocation now inherits EVMYulLean semantics
+- **Remaining to make retargeting whole-program**: Phase 3 state bridge for `sload`/`mappingSlot` (2 unbridged builtins), 2 sorry-backed core equivalences (smod/sar — complex Int↔UInt256 sign/bit semantics), whole-program structural induction lifting pointwise equivalence to full Yul program execution, and a Layer-3-composed theorem connecting IR → Yul under `.evmYulLean`
 
 **EVM Semantics**: Mitigated by differential testing against actual EVM execution (Foundry). Likely remains a documented fundamental assumption.
 

@@ -106,15 +106,21 @@ theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
 
 Key files: [`StatementEquivalence.lean`](../Compiler/Proofs/YulGeneration/StatementEquivalence.lean), [`Preservation.lean`](../Compiler/Proofs/YulGeneration/Preservation.lean), [`AXIOMS.md`](../AXIOMS.md)
 
-### Phase 4: EVMYulLean Semantic Retargeting
+### Phase 4: EVMYulLean Semantic Retargeting (pointwise)
 
-EVMYulLean is now the proven semantic target for Yul execution. The retargeting module [`EvmYulLeanRetarget.lean`](../Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean) proves:
-- `backends_agree_on_bridged_builtins`: the `.verity` and `.evmYulLean` backends produce identical results for all 34 bridged builtins
-- `layer3_preserves_semantics_evmYulLean`: the Layer 3 preservation theorem is valid under EVMYulLean semantics
+The retargeting module [`EvmYulLeanRetarget.lean`](../Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean) proves the following pointwise theorem:
+- `backends_agree_on_bridged_builtins`: the `.verity` and `.evmYulLean` backends produce identical results at the `evalBuiltinCallWithBackendContext` level for all 34 bridged builtins (dispatch proof is sorry-free; delegates to the 34 per-builtin context-lifted bridge lemmas in `EvmYulLeanBridgeLemmas.lean`, 2 of which rest on sorry-backed core equivalences for smod/sar)
 
-Trust boundary: "EVMYulLean's execution model matches the EVM" (backed by upstream Ethereum conformance tests), rather than "Verity's custom builtin implementations are correct."
+Trust boundary (pointwise): any single bridged-builtin call now inherits EVMYulLean semantics — "EVMYulLean's execution model matches the EVM" (backed by upstream Ethereum conformance tests) — rather than "Verity's custom builtin implementations are correct."
 
-Remaining gaps: 2 unbridged builtins (`sload`, `mappingSlot`), 2 sorry-backed core equivalences (smod, sar).
+Not yet proven in this module:
+- expression-level equivalence (`evalYulExpr` over both backends)
+- a Layer-3-composed IR → Yul `.evmYulLean` theorem
+
+Remaining gaps for whole-program retargeting:
+- 2 unbridged builtins (`sload`, `mappingSlot`) — require Phase 3 state bridge
+- 2 sorry-backed core equivalences (smod, sar — complex sign/bit semantics)
+- whole-program structural induction lifting pointwise equivalence to full Yul execution
 
 ## Example Contract Compilation Coverage
 

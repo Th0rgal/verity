@@ -437,26 +437,26 @@ def build_report() -> dict[str, object]:
             return re.search(r'\bsorry\b', retarget_code[start:end]) is not None
 
         has_backends_agree = _has_theorem("backends_agree_on_bridged_builtins")
-        has_layer3 = _has_theorem("layer3_preserves_semantics_evmYulLean")
         backends_agree_has_sorry = _theorem_body_has_sorry("backends_agree_on_bridged_builtins")
-        layer3_has_sorry = _theorem_body_has_sorry("layer3_preserves_semantics_evmYulLean")
 
         phase4_retarget = {
             "retarget_file": str(retarget_file.relative_to(ROOT)),
-            "status": "complete" if has_backends_agree else "incomplete",
+            "status": "pointwise" if has_backends_agree else "incomplete",
             "backends_agree_on_bridged_builtins": (
                 "sorry (dispatch; relies on 34 per-builtin bridge theorems)"
                 if backends_agree_has_sorry
                 else "proven"
             ),
-            "layer3_preserves_semantics_evmYulLean": (
-                ("sorry (delegates to existing Layer 3 proof)"
-                 if layer3_has_sorry
-                 else "proven (delegates to existing Layer 3 proof)")
-                if has_layer3
-                else "not found"
+            "trust_boundary": (
+                "pointwise: EVMYulLean execution model matches EVM "
+                "(upstream conformance tests); whole-program lift not yet proven"
             ),
-            "trust_boundary": "EVMYulLean execution model matches EVM (upstream conformance tests)",
+            "remaining_for_whole_program_retargeting": [
+                "Phase 3 state bridge for sload and mappingSlot",
+                "smod/sar core equivalences (complex Int↔UInt256 sign/bit semantics)",
+                "whole-program structural induction over Yul AST",
+                "Layer-3-composed IR → Yul .evmYulLean theorem",
+            ],
         }
 
     report: dict[str, object] = {

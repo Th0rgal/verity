@@ -10,13 +10,16 @@
    evalBuiltinCallWithBackendContext .evmYulLean ... func args`
   for every `func ∈ bridgedBuiltins`.
 
-  **End-to-end retargeting**: `layer3_contract_preserves_semantics_evmYulLean`
-  composes the Layer 3 preservation theorem with the backend equivalence to
-  obtain: IR execution matches EVMYulLean-backed Yul execution.
+  This is a **pointwise** statement over single builtin calls. The whole-program
+  lift (expression-level and Layer-3-composed IR → Yul `.evmYulLean`) requires
+  structural induction over the Yul AST and is **not yet proven**; see the
+  module summary at the bottom of this file.
 
-  **Trust boundary shift**: After this module, the trust boundary moves from
-  "Verity's custom Yul semantics are correct" to "EVMYulLean's execution model
-  matches the EVM" (backed by upstream conformance tests).
+  **Trust boundary shift (pointwise)**: For any builtin call using a bridged
+  name, the trust boundary moves from "Verity's custom Yul builtin semantics
+  are correct" to "EVMYulLean's builtin semantics match the EVM" (backed by
+  upstream conformance tests). Whole-program guarantees still require the
+  pending structural induction.
 
   Run: lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget
 -/
@@ -388,112 +391,32 @@ theorem backends_agree_on_bridged_builtins
   · exact backends_agree_calldataload storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata argVals
   · exact backends_agree_calldatasize storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata argVals
 
-/-! ## EVMYulLean-Targeted Yul Semantics
-
-We define execution under the `.evmYulLean` backend as an alternative
-interpretation of compiled Yul. The key insight is that since
-`defaultBuiltinBackend = .verity`, and the existing proofs all target
-`.verity`, we establish equivalence rather than rebuilding the proof stack.
--/
-
-/-- Backend equivalence at the builtin-call level: for any bridged builtin, the
-    `.verity` and `.evmYulLean` backends produce identical results under
-    `evalBuiltinCallWithBackendContext`.
-
-    This is the pointwise statement that any Yul expression composed of bridged
-    builtin calls evaluates identically under both backends. The full-expression
-    lift (to `evalYulExpr`) requires the whole-program structural induction that
-    is still pending; see the module summary at the bottom of this file. -/
-theorem evalYulExpr_backend_equiv
-    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
-    (calldata : List Nat)
-    (func : String) (argVals : List Nat)
-    (hBridged : func ∈ bridgedBuiltins) :
-    evalBuiltinCallWithBackendContext .verity storage sender msgValue thisAddress
-      blockTimestamp blockNumber chainId blobBaseFee selector calldata func argVals =
-    evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
-      blockTimestamp blockNumber chainId blobBaseFee selector calldata func argVals :=
-  backends_agree_on_bridged_builtins storage sender msgValue thisAddress
-    blockTimestamp blockNumber chainId blobBaseFee selector calldata func argVals hBridged
-
-/-! ## Retargeted End-to-End Theorems
-
-These theorems compose the Layer 3 preservation with the backend equivalence
-bridge. They express the end-to-end result: "IR execution is equivalent to
-Yul execution under EVMYulLean semantics."
-
-The remaining gap for full end-to-end retargeting is:
-1. The whole-program structural induction (showing pointwise builtin equivalence
-   lifts to full program execution equivalence)
-2. Phase 3 state bridge for `sload` and `mappingSlot`
--/
-
-/-- Layer 3 contract preservation lifted to EVMYulLean: for every bridged
-    builtin, any invocation produces the same result under both backends.
-
-    This is the retargeting corollary of `backends_agree_on_bridged_builtins`
-    universally quantified over the bridged builtin set. Because Layer 3
-    preservation is proven against `evalBuiltinCallWithBackendContext .verity`,
-    and `.verity` agrees with `.evmYulLean` pointwise on the bridged set, the
-    Layer 3 preservation guarantee transports verbatim to the EVMYulLean
-    backend for any contract that invokes only bridged builtins.
-
-    The pointwise-to-whole-program lift (structural induction over the Yul AST)
-    is the remaining gap and is documented in the module summary below. -/
-theorem layer3_preserves_semantics_evmYulLean
-    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
-    (calldata : List Nat)
-    (func : String) (argVals : List Nat)
-    (hBridged : func ∈ bridgedBuiltins) :
-    evalBuiltinCallWithBackendContext .verity storage sender msgValue thisAddress
-      blockTimestamp blockNumber chainId blobBaseFee selector calldata func argVals =
-    evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
-      blockTimestamp blockNumber chainId blobBaseFee selector calldata func argVals :=
-  backends_agree_on_bridged_builtins storage sender msgValue thisAddress
-    blockTimestamp blockNumber chainId blobBaseFee selector calldata func argVals hBridged
-
-/-- EVMYulLean semantic target: the universal statement that the
-    `.verity`-proven semantics carry over to the `.evmYulLean` backend for the
-    full bridged builtin set.
-
-    This is the headline statement of Phase 4: every call site in a Yul program
-    that uses a bridged builtin commutes with backend selection. Combined with
-    Layer 3 preservation (`interpretYulFromIR` on `.verity`), this establishes
-    EVMYulLean as the proven semantic target — modulo the two unbridged builtins
-    (`sload`, `mappingSlot`) and the whole-program structural induction that
-    promotes pointwise equivalence to program-level equivalence. -/
-theorem evmYulLean_semantic_target_theorem :
-    ∀ (storage : Nat → Nat)
-      (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
-      (calldata : List Nat) (func : String) (argVals : List Nat),
-      func ∈ bridgedBuiltins →
-      evalBuiltinCallWithBackendContext .verity storage sender msgValue thisAddress
-        blockTimestamp blockNumber chainId blobBaseFee selector calldata func argVals =
-      evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
-        blockTimestamp blockNumber chainId blobBaseFee selector calldata func argVals :=
-  fun storage sender msgValue thisAddress blockTimestamp blockNumber chainId
-      blobBaseFee selector calldata func argVals hBridged =>
-    backends_agree_on_bridged_builtins storage sender msgValue thisAddress
-      blockTimestamp blockNumber chainId blobBaseFee selector calldata func argVals hBridged
-
 /-! ## Phase 4 Completion Summary
 
 ### What this module establishes:
-1. **`backends_agree_on_bridged_builtins`**: Pointwise backend equivalence for all
-   34 bridged builtins. The dispatch proof is sorry-free; the 2 sorry-backed
-   core equivalences (smod, sar) are isolated in
-   `EvmYulLeanBridgeLemmas.lean`.
-2. **`layer3_preserves_semantics_evmYulLean`**: The Layer 3 contract preservation
-   theorem is valid under EVMYulLean semantics (directly delegates to existing proof)
-3. **Trust boundary shift**: EVMYulLean execution model is now the proven semantic
-   target, with 2 sorry-backed core equivalences and 2 unbridged builtins as the
-   remaining trust surface
+1. **`backends_agree_on_bridged_builtins`**: Pointwise backend equivalence for
+   the full bridged-builtin set at the `evalBuiltinCallWithBackendContext`
+   level. For every `func ∈ bridgedBuiltins`, `.verity` and `.evmYulLean`
+   return the same result. The dispatch proof is sorry-free; the 2 sorry-backed
+   core equivalences (smod, sar) are isolated in `EvmYulLeanBridgeLemmas.lean`.
+
+This is the *pointwise* statement. It is deliberately the only end-to-end
+theorem in this module, because:
+- A stronger expression-level statement (`evalYulExpr` over both backends)
+  requires the whole-program structural induction described under "What
+  remains" below and is **not yet proven**.
+- A Layer-3-composed statement (IR → Yul under `.evmYulLean`) requires that
+  same induction plus Phase 3 state bridging and is **not yet proven**.
 
 ### What remains:
 - **Phase 3 state bridge**: Prove `sload` and `mappingSlot` equivalence
-- **Whole-program induction**: Prove that pointwise builtin equivalence lifts to
-  full program execution equivalence (straightforward structural induction)
-- **2 core sorry's**: smod/sar (blocked by private defs upstream)
+- **Whole-program induction**: Lift pointwise builtin equivalence to full
+  Yul-program execution equivalence (structural induction over the AST)
+- **2 core sorry's**: smod/sar (complex Int↔UInt256 sign/bit semantics)
+
+### Trust boundary (current state):
+Anything provable via only bridged builtins inherits EVMYulLean semantics
+pointwise. Whole-program guarantees still depend on the two items above.
 -/
 
 end Compiler.Proofs.YulGeneration.Backends
