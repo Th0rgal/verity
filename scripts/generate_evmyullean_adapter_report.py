@@ -475,7 +475,6 @@ def build_report() -> dict[str, object]:
                 "statement-level whole-program lift not yet proven"
             ),
             "remaining_for_whole_program_retargeting": [
-                "Phase 3 keccak-semantic bridge for mappingSlot",
                 "smod/sar core equivalences (complex Int↔UInt256 sign/bit semantics)",
                 "statement-level and whole-program structural induction over Yul AST",
                 "Layer-3-composed IR → Yul .evmYulLean theorem",

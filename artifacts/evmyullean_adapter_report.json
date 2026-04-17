@@ -27,6 +27,7 @@
     "gt",
     "iszero",
     "lt",
+    "mappingSlot",
     "mod",
     "mul",
     "mulmod",
@@ -93,6 +94,7 @@
     "gt",
     "iszero",
     "lt",
+    "mappingSlot",
     "mod",
     "mul",
     "mulmod",
@@ -147,9 +149,7 @@
     "lit",
     "str"
   ],
-  "fallthrough_lemmas": [
-    "mappingSlot"
-  ],
+  "fallthrough_lemmas": [],
   "fully_proven_bridge_lemmas": [
     "add",
     "addmod",
@@ -162,6 +162,7 @@
     "gt",
     "iszero",
     "lt",
+    "mappingSlot",
     "mod",
     "mul",
     "mulmod",
@@ -220,7 +221,6 @@
     "backends_agree_on_bridged_builtins": "proven",
     "evalYulExpr_evmYulLean_eq_on_bridged": "proven",
     "remaining_for_whole_program_retargeting": [
-      "Phase 3 keccak-semantic bridge for mappingSlot",
       "smod/sar core equivalences (complex Int\u2194UInt256 sign/bit semantics)",
       "statement-level and whole-program structural induction over Yul AST",
       "Layer-3-composed IR \u2192 Yul .evmYulLean theorem"
@@ -247,9 +247,6 @@
     "let_",
     "switch"
   ],
-  "unbridged_builtins": [
-    "mappingSlot"
-  ],
   "universal_bridge_lemmas": [
     "add",
     "addmod",
@@ -262,6 +259,7 @@
     "gt",
     "iszero",
     "lt",
+    "mappingSlot",
     "mod",
     "mul",
     "mulmod",

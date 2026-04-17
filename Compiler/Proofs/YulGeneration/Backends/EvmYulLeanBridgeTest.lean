@@ -581,9 +581,9 @@ example : verityEvalWithContext "signextend" [7, 2^63] =
 example : verityEvalWithContext "signextend" [7, 2^63 - 1] =
           bridgeEval "signextend" [7, 2^63 - 1] := by native_decide
 
--- ## Scope boundary: state-dependent builtins fall through to none
+-- ## Scope boundary: pure bridge excludes context/state-dependent builtins
 
-/-- sload: bridge returns none (state-dependent, delegated to Verity) -/
+/-- sload: pure bridge returns none; full bridging needs storage context. -/
 example : bridgeEval "sload" [0] = none := by native_decide
 
 /-- caller: bridge returns none (state-dependent) -/
@@ -622,7 +622,7 @@ example : bridgeEval "chainid" [] = none := by native_decide
 /-- blobbasefee: the pure bridge still returns none until full context is provided. -/
 example : bridgeEval "blobbasefee" [] = none := by native_decide
 
-/-- mappingSlot: bridge returns none (Verity-specific helper) -/
+/-- mappingSlot: pure bridge returns none; full bridging happens at the context boundary. -/
 example : bridgeEval "mappingSlot" [0, 1] = none := by native_decide
 
 -- ## Adapter coverage: all statement types lower without error
@@ -850,6 +850,12 @@ example : backendEvalWithContext "signextend" [0, 0x80] =
 example : backendEvalWithContext "sload" [42] =
           verityEvalWithContext "sload" [42] := by native_decide
 
+/-- Context-lifted bridge: mappingSlot uses the shared keccak-faithful derivation. -/
+example : backendEvalWithContext "mappingSlot" [0, 1] =
+          verityEvalWithContext "mappingSlot" [0, 1] := by
+  simp [backendEvalWithContext, verityEvalWithContext, evalBuiltinCallWithBackendContext,
+    evalBuiltinCallWithContext, evalBuiltinCallViaEvmYulLean]
+
 /-- Context-lifted bridge: caller now reads the bridged execution context. -/
 example : backendEvalWithContext "caller" [] = verityEvalWithContext "caller" [] := by native_decide
 
@@ -914,9 +920,8 @@ def main : IO Unit := do
   IO.println "✓ Signed shift: sar — concrete bridge (incl. saturated ≥256, INT256_MIN, sign-extend)"
   IO.println "✓ Sign extension: signextend — concrete bridge (byte positions 0,1,15,30,31,32)"
   IO.println "✓ Context/selector-bridged builtins: address, blobbasefee, caller, callvalue, calldataload, calldatasize, chainid, timestamp, number — routed through .evmYulLean"
-  IO.println "✓ Remaining delegated builtins: sload — correctly handled"
-  IO.println "✓ Verity-specific helpers: mappingSlot — correctly delegated"
-  IO.println "✓ Context-lifted backend bridge: 25 pure builtins + 9 context bridges + 1 state-dependent fallthrough + 1 helper delegation"
+  IO.println "✓ State/helper builtins: sload, mappingSlot — routed through .evmYulLean"
+  IO.println "✓ Context-lifted backend bridge: 25 pure builtins + 9 context bridges + 2 state/helper bridges"
   IO.println "✓ Adapter: all 11 statement types lower without error"
   IO.println "✓ PrimOp mapping: 35 builtins mapped via lookupPrimOp"
   IO.println "EVMYulLean bridge test: all checks passed"

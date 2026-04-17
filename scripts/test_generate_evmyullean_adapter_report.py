@@ -428,10 +428,6 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         report = gen.build_report()
         fallthrough = set(report.get("fallthrough_lemmas", []))
         unbridged = set(report.get("unbridged_builtins", []))
-        self.assertTrue(
-            fallthrough,
-            "fallthrough_lemmas should be non-empty (mappingSlot)",
-        )
         self.assertEqual(
             fallthrough,
             unbridged,

@@ -24,10 +24,11 @@
   are defined in terms of `evalBuiltinCallWithBackend` which defaults to the
   Verity backend. The EVMYulLean bridge is established in
   `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, proving
-  that for all 35 bridged builtins, the Verity backend agrees with EVMYulLean.
+  that for all 36 bridged builtins, the Verity backend agrees with EVMYulLean.
   The Phase 4 retargeting module (`EvmYulLeanRetarget.lean`) composes these
-  per-builtin equivalences into the whole-program retargeting theorem, making
-  EVMYulLean the proven semantic target.
+  per-builtin equivalences through expression evaluation and provides the
+  backend-parameterized statement executor needed for the pending whole-program
+  retargeting theorem.
 
   Run: lake build Compiler.Proofs.EndToEnd
 -/
@@ -311,7 +312,7 @@ replacement coverage: universal bridge lemmas for all pure bridged builtins.
 The Yul execution semantics used throughout this file dispatch builtins via
 `evalBuiltinCallWithBackendContext defaultBuiltinBackend`, where
 `defaultBuiltinBackend = .verity`. The EVMYulLean bridge
-(`EvmYulLeanBridgeLemmas.lean`) proves that for all 35 bridged builtins,
+(`EvmYulLeanBridgeLemmas.lean`) proves that for all 36 bridged builtins,
 the `.verity` and `.evmYulLean` backends produce identical results.
 
 This means the existing preservation theorems above are pointwise valid under
@@ -324,8 +325,8 @@ theorem `backends_agree_on_bridged_builtins`.
   shifts from "Verity's custom builtin implementations are correct" to
   "EVMYulLean's execution model matches the EVM" (backed by upstream
   Ethereum conformance tests).
-- 35 of 36 builtins are bridged; `mappingSlot` awaits the Phase 3
-  keccak-semantic bridge.
+- 36 of 36 builtins are bridged, including `mappingSlot` via the shared
+  keccak-faithful `abstractMappingSlot` derivation.
 - 2 bridge lemmas use `sorry` (smod, sar) — blocked by complex Int↔UInt256
   sign/bit semantics, not privacy.
 - Whole-program structural induction lifting pointwise equivalence to full

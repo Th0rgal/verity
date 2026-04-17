@@ -148,11 +148,11 @@ Legend: **ok** = supported, **rev** = reverts (not modeled), **nop** = no-op (co
 | `calldatasize` | ok | ok | yes |
 | `number` | ok | ok | yes |
 | `blobbasefee` | ok | ok | yes |
-| `mappingSlot` | ok | del | -- |
+| `mappingSlot` | ok | ok | yes |
 
-Legend: **ok** = native evaluation, **del** = delegated to Verity path (bridge returns `none`).
+Legend: **ok** = native evaluation.
 
-35/36 builtins have universal bridge agreement proofs between Verity and EVMYulLean evaluation paths (33 fully proven, 2 with sorry-dependent core equivalences). 35 are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`. Of those, 25 are discharged by universal symbolic lemmas for the pure fragment, and none still require concrete-only regression coverage. The remaining 1 are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.
+36/36 builtins have universal bridge agreement proofs between Verity and EVMYulLean evaluation paths (34 fully proven, 2 with sorry-dependent core equivalences). 36 are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`. Of those, 25 are discharged by universal symbolic lemmas for the pure fragment, and none still require concrete-only regression coverage. No builtin remains delegated to the Verity-only evaluation path.
 
 ---
 
@@ -162,7 +162,7 @@ Legend: **ok** = native evaluation, **del** = delegated to Verity path (bridge r
 |---|---|---|---|---|
 | Expression features | 24 | 1 (`externalCall`) | 5 (`blockNumber`, `contractAddress`, `chainid`, `mload`, `returndataOptionalBoolAt`) | 4 (`keccak256`, `call`, `staticcall`, `delegatecall`) |
 | Statement features | 25 | 0 | 1 (`mstore`) | 6 (`calldatacopy`, `returndataCopy`, `revertReturndata`, `rawLog`, `externalCallBind`, `ecm`) |
-| Builtins (agreement) | 33 | 0 | 2 (`smod`, `sar` — sorry-dependent) | 1 (delegated) |
+| Builtins (agreement) | 34 | 0 | 2 (`smod`, `sar` — sorry-dependent) | 0 (delegated) |
 
 Proof-boundary features split across two buckets. Partially modeled features currently include runtime introspection (`blockNumber`, `contractAddress`, `chainid`) and single-word linear-memory forms (`mload`, `mstore`, `returndataOptionalBoolAt`). Fully not-modeled features currently include `keccak256`, low-level call / returndata plumbing (`call`, `staticcall`, `delegatecall`, `calldatacopy`, `returndataCopy`, `revertReturndata`), event emission (`rawLog`), and external call modules (`externalCallBind`, `ecm`). These features are still compiler-supported and are validated by differential testing (70,000+ test vectors against actual EVM execution).
 

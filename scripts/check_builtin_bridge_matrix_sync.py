@@ -47,6 +47,7 @@ PROVED_BUILTINS = [
     "address",
     "chainid",
     "blobbasefee",
+    "mappingSlot",
 ]
 # Fallback for tests that call helpers directly. The repository check derives
 # this list from artifacts/evmyullean_adapter_report.json so trust docs cannot
@@ -54,9 +55,7 @@ PROVED_BUILTINS = [
 ADMITTED_BUILTINS = ["smod", "sar"]
 CONCRETE_ONLY_BUILTINS: list[str] = []
 PURE_BUILTINS = PROVED_BUILTINS + CONCRETE_ONLY_BUILTINS
-DELEGATED_BUILTINS = [
-    "mappingSlot",
-]
+DELEGATED_BUILTINS: list[str] = []
 EXPECTED_BUILTINS = [
     "add",
     "sub",
@@ -196,8 +195,13 @@ def expected_doc_snippets(builtin_features: list[dict]) -> list[str]:
         snippets.append(f"{concrete_only} additional builtins ({concrete_names}) are evaluated via EVMYulLean and validated by concrete")
     else:
         snippets.append("and none still require concrete-only regression coverage")
+    if delegated:
+        snippets.append(
+            f"The remaining {delegated} are state-dependent or Verity-specific helpers that remain on the Verity evaluation path."
+        )
+    else:
+        snippets.append("No builtin remains delegated to the Verity-only evaluation path.")
     snippets.extend([
-        f"The remaining {delegated} are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.",
         "| `address` | ok | ok | yes |",
         "| `timestamp` | ok | ok | yes |",
     ])

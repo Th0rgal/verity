@@ -1948,6 +1948,18 @@ fallback covers all builtins. -/
       evalBuiltinCallViaEvmYulLean storage sender selector calldata "sload" [slot] := by
   simp [evalBuiltinCall, evalBuiltinCallWithContext, evalBuiltinCallViaEvmYulLean]
 
+/-- `mappingSlot` is bridged at the full adapter boundary: the `.evmYulLean`
+    path routes through `abstractMappingSlot`, the same keccak-faithful
+    Solidity mapping-slot derivation (`keccak256(abi.encode(key, baseSlot))`)
+    that Verity's `evalBuiltinCallWithContext` uses. Because both backends
+    ultimately invoke the same kernel-computable `KeccakEngine.keccak256`,
+    the two sides are definitionally equal. -/
+@[simp] theorem evalBuiltinCall_mappingSlot_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (base key : Nat) :
+    evalBuiltinCall storage sender selector calldata "mappingSlot" [base, key] =
+      evalBuiltinCallViaEvmYulLean storage sender selector calldata "mappingSlot" [base, key] := by
+  simp [evalBuiltinCall, evalBuiltinCallWithContext, evalBuiltinCallViaEvmYulLean]
+
 /-- `evalPureBuiltinViaEvmYulLean` returns `none` for `calldatasize`. -/
 @[simp] theorem evalPureBuiltinViaEvmYulLean_calldatasize (args : List Nat) :
     evalPureBuiltinViaEvmYulLean "calldatasize" args = none := by
@@ -2267,9 +2279,10 @@ For `.evmYulLean`, `evalBuiltinCallWithBackendContext` now has two behaviors:
    `timestamp`, `number`, `chainid`, `blobbasefee`).
 2. It also bridges selector/calldata-only builtins whose full semantics are
    already available at this boundary (`calldatasize`, `calldataload`).
-3. It still falls through to `none` for the remaining state-dependent or
-   Verity-specific builtins that need a fuller Phase-2/3 bridge (`sload`,
-   `mappingSlot`).
+3. It bridges the state-dependent storage-read builtin (`sload`) via the
+   shared `abstractLoadStorageOrMapping` helper.
+4. It bridges the Verity-specific mapping-slot helper (`mappingSlot`) via
+   the shared keccak-faithful `abstractMappingSlot` derivation.
 
 These lemmas define the exact Phase-3 boundary that later retargeting proofs
 can rewrite against. -/
@@ -2366,12 +2379,14 @@ can rewrite against. -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "calldatasize" [] := by
   simp [evalBuiltinCallWithBackendContext, evalBuiltinCallWithContext]
 
-@[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_mappingSlot_none
+@[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_mappingSlot_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
-    (calldata : List Nat) (args : List Nat) :
+    (calldata : List Nat) (base key : Nat) :
     evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
-      blockTimestamp blockNumber chainId blobBaseFee selector calldata "mappingSlot" args = none := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "mappingSlot" [base, key] =
+    evalBuiltinCallWithContext storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "mappingSlot" [base, key] := by
+  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallWithContext, evalBuiltinCallViaEvmYulLean]
 
 /-! ## Composite Backend Equivalence Theorem
 
@@ -2432,18 +2447,18 @@ will invoke.
 | Pure extended (addmod, mulmod, byte) | 3 | Fully proven |
 | Pure signed (slt, sgt) | 2 | Fully proven |
 | Pure signed arith (exp, sdiv) | 2 | Fully proven |
-| Pure signed arith (smod, sar) | 2 | Sorry (private defs) |
+| Pure signed arith (smod, sar) | 2 | Sorry-dependent core equivalences |
 | Pure signed arith (signextend) | 1 | Fully proven |
 | Context/env (caller, address, callvalue, timestamp, number, chainid, blobbasefee) | 7 | Fully proven |
 | Calldata (calldataload, calldatasize) | 2 | Fully proven |
-| **Total bridged** | **34** | **32 proven, 2 sorry** |
-| Not bridged: sload, mappingSlot | 2 | Phase 3 (state bridge) |
+| State (sload, mappingSlot) | 2 | Fully proven (Phase 3 keccak-semantic bridge) |
+| **Total bridged** | **36** | **34 proven, 2 sorry** |
 -/
 
 /-- The set of builtins for which the `.evmYulLean` and `.verity` backends
-    produce identical results. This covers all 35 builtins handled by
-    `evalBuiltinCallWithContext` except `mappingSlot`, which requires the
-    Phase 3 keccak-semantic bridge.
+    produce identical results. This now covers all 36 builtins handled by
+    `evalBuiltinCallWithContext`, including `mappingSlot` which is bridged
+    via the shared keccak-faithful `abstractMappingSlot` derivation.
 
     Phase 4's `Preservation.lean` retargeting uses this set to determine
     which builtin invocations can be transparently switched from `.verity`
@@ -2458,12 +2473,12 @@ def bridgedBuiltins : List String :=
    "caller", "address", "callvalue", "timestamp",
    "number", "chainid", "blobbasefee",
    "calldataload", "calldatasize",
-   "sload"]
+   "sload", "mappingSlot"]
 
-/-- The set of builtins that the `.evmYulLean` backend cannot handle
-    (returns `none`) because they require the Phase 3 keccak-semantic
-    bridge for mapping-slot layout. -/
-def unbridgedBuiltins : List String := ["mappingSlot"]
+/-- The set of builtins that the `.evmYulLean` backend cannot handle is
+    now empty: every builtin in `evalBuiltinCallWithContext` has a bridge
+    lemma and appears in `bridgedBuiltins`. -/
+def unbridgedBuiltins : List String := []
 
 /-! ## Remaining Core Equivalence Proofs — Status
 

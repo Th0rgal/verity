@@ -807,8 +807,8 @@
     {
       "feature": "mappingSlot",
       "verity_path": "supported",
-      "evmyullean_bridge": "delegated",
-      "agreement_proved": false
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
     }
   ],
   "status_legend": {

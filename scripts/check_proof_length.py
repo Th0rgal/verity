@@ -245,8 +245,8 @@ ALLOWLIST: set[str] = {
     # signextend proof requires 4-case byte-index analysis + bit-level shift
     # semantics matching; structural complexity is inherent to the operation.
     "signextend_uint256_eq",
-    # backends_agree dispatch proof case-splits all 35 bridged builtins;
-    # each branch is one line but 34 builtins + headers exceed 50 lines.
+    # backends_agree dispatch proof case-splits all 36 bridged builtins;
+    # each branch is one line but 36 builtins + headers exceed 50 lines.
     "backends_agree_on_bridged_builtins",
     # Backend-parameterized mirror of execYulFuel; long by construction because
     # it preserves all statement cases while swapping only expression backend.

@@ -1,5 +1,6 @@
 import Compiler.Yul.Ast
 import Compiler.Constants
+import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.YulGeneration.Calldata
 import EvmYul.Yul.Ast
 import EvmYul.UInt256
@@ -181,10 +182,12 @@ def evalPureBuiltinViaEvmYulLean
     helper whose EVMYulLean-state correspondence is witnessed by
     `storageLookup_projectStorage` in `EvmYulLeanStateBridge.lean` (projecting
     the abstract `storage : Nat → Nat` into EVMYulLean's `Storage` recovers the
-    same value). Remaining context-dependent builtins (`caller`, `address`,
-    `timestamp`, ...) are routed at the `evalBuiltinCallWithBackendContext`
-    level. The Verity-specific helper `mappingSlot` still falls through to
-    `none` pending the Phase 3 keccak-semantic bridge. -/
+    same value). `mappingSlot` is bridged by routing through
+    `abstractMappingSlot` — the same keccak-faithful Solidity mapping-slot
+    derivation used by Verity's `evalBuiltinCallWithContext`; both backends
+    ultimately compute `keccak256(abi.encode(key, baseSlot))`. Remaining
+    context-dependent builtins (`caller`, `address`, `timestamp`, ...) are
+    routed at the `evalBuiltinCallWithBackendContext` level. -/
 def evalBuiltinCallViaEvmYulLean
     (storage : Nat → Nat)
     (_sender : Nat)
@@ -195,6 +198,7 @@ def evalBuiltinCallViaEvmYulLean
   match func, argVals with
   | "calldataload", [offset] => some (Compiler.Proofs.YulGeneration.calldataloadWord selector calldata offset)
   | "sload", [slot] => some (storage slot)
+  | "mappingSlot", [base, key] => some (Compiler.Proofs.abstractMappingSlot base key)
   | _, _ => evalPureBuiltinViaEvmYulLean func argVals
 
 end Compiler.Proofs.YulGeneration.Backends

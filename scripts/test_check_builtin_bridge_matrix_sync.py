@@ -104,12 +104,13 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
                 check.TARGET_DOC = old_target_doc
 
     def test_missing_delegated_builtin_fails_closed(self) -> None:
-        features = _make_builtin_features(
-            delegated=[],
-        )
+        features = [
+            entry for entry in _make_builtin_features()
+            if entry["feature"] != "mappingSlot"
+        ]
         rc, output = self._run_check(
             builtin_features=features,
-            doc_text="15/22 builtins have bridge agreement coverage.",
+            doc_text="36/36 builtins have bridge agreement coverage.",
         )
         self.assertEqual(rc, 1)
         self.assertIn("builtin feature list is out of sync", output)
@@ -190,15 +191,32 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
 
     def test_sorry_dependent_on_delegated_fails(self) -> None:
         """Delegated builtin with sorry_dependent=true should fail."""
-        features = _make_builtin_features()
-        for f in features:
-            if f["feature"] in check.DELEGATED_BUILTINS:
-                f["sorry_dependent"] = True
-                break
-        matrix = {"builtin_features": features}
-        with self.assertRaises(ValueError, msg="delegated") as ctx:
-            check.validate_builtin_features(matrix)
-        self.assertIn("delegated and must not have sorry_dependent=true", str(ctx.exception))
+        old_delegated = check.DELEGATED_BUILTINS
+        old_proved = check.PROVED_BUILTINS
+        old_expected = check.EXPECTED_BUILTINS
+        old_admitted = check.ADMITTED_BUILTINS
+        try:
+            check.DELEGATED_BUILTINS = ["mappingSlot"]
+            check.PROVED_BUILTINS = [b for b in old_proved if b != "mappingSlot"]
+            check.ADMITTED_BUILTINS = [b for b in old_admitted if b in check.PROVED_BUILTINS]
+            check.EXPECTED_BUILTINS = check.PROVED_BUILTINS + check.CONCRETE_ONLY_BUILTINS + check.DELEGATED_BUILTINS
+            features = _make_builtin_features(
+                proved=check.PROVED_BUILTINS,
+                admitted=check.ADMITTED_BUILTINS,
+                delegated=check.DELEGATED_BUILTINS,
+            )
+            for f in features:
+                if f["feature"] == "mappingSlot":
+                    f["sorry_dependent"] = True
+            matrix = {"builtin_features": features}
+            with self.assertRaises(ValueError, msg="delegated") as ctx:
+                check.validate_builtin_features(matrix)
+            self.assertIn("delegated and must not have sorry_dependent=true", str(ctx.exception))
+        finally:
+            check.DELEGATED_BUILTINS = old_delegated
+            check.PROVED_BUILTINS = old_proved
+            check.EXPECTED_BUILTINS = old_expected
+            check.ADMITTED_BUILTINS = old_admitted
 
     def test_adapter_report_admitted_set_drives_validation(self) -> None:
         """Repository check should use the adapter report, not the fallback constant."""
@@ -222,7 +240,7 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
         features = _make_builtin_features()
         snippets = check.expected_doc_snippets(features)
         self.assertTrue(
-            any("33 fully proven, 2 with sorry-dependent core equivalences" in s for s in snippets),
+            any("34 fully proven, 2 with sorry-dependent core equivalences" in s for s in snippets),
             f"Expected sorry qualifier in snippets: {snippets}",
         )
 
@@ -234,7 +252,7 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
             f.pop("sorry_dependent", None)
         snippets = check.expected_doc_snippets(features)
         self.assertTrue(
-            any("35/36 builtins have universal bridge agreement proofs" in s
+            any("36/36 builtins have universal bridge agreement proofs" in s
                 and "sorry" not in s for s in snippets),
             f"Expected unqualified snippet: {snippets}",
         )

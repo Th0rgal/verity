@@ -334,9 +334,21 @@ private theorem backends_agree_sload s se mv ta bt bn ci bb sl cd av :
   | [] => rfl
   | _ :: _ :: _ => rfl
 
+-- Binary builtin: mappingSlot (Verity-specific helper, routed through the
+-- shared keccak-faithful `abstractMappingSlot` derivation)
+private theorem backends_agree_mappingSlot s se mv ta bt bn ci bb sl cd av :
+    evalBuiltinCallWithBackendContext .verity s se mv ta bt bn ci bb sl cd "mappingSlot" av =
+    evalBuiltinCallWithBackendContext .evmYulLean s se mv ta bt bn ci bb sl cd "mappingSlot" av := by
+  simp only [evalBuiltinCallWithBackendContext]
+  match av with
+  | [base, key] => exact (evalBuiltinCallWithBackendContext_evmYulLean_mappingSlot_bridge s se mv ta bt bn ci bb sl cd base key).symm
+  | [] => rfl
+  | [_] => rfl
+  | _ :: _ :: _ :: _ => rfl
+
 /-! ## Backend Equivalence for Bridged Builtins
 
-The `.evmYulLean` and `.verity` backends agree on all 35 bridged builtins.
+The `.evmYulLean` and `.verity` backends agree on all 36 bridged builtins.
 This is the pointwise equivalence theorem that Phase 4 retargeting relies on.
 The 2 sorry-dependent builtins (smod, sar) contribute
 to this through their sorry-backed bridge lemmas in `EvmYulLeanBridgeLemmas.lean`.
@@ -346,9 +358,9 @@ to this through their sorry-backed bridge lemmas in `EvmYulLeanBridgeLemmas.lean
     produce identical results under `evalBuiltinCallWithBackendContext`.
 
     This is the master backend equivalence theorem for Phase 4 retargeting.
-    It composes the 35 per-builtin bridge theorems into a single dispatch proof.
-    The 1 unbridged builtin (`mappingSlot`) is excluded by the
-    `hBridged` hypothesis.
+    It composes the 36 per-builtin bridge theorems into a single dispatch proof.
+    Every builtin handled by `evalBuiltinCallWithContext` is now bridged, so
+    `unbridgedBuiltins` is empty.
 
     This theorem is sorry-free at the dispatch level; the 2 remaining sorry's
     (smod, sar) are isolated in the per-builtin bridge lemmas
@@ -366,8 +378,8 @@ theorem backends_agree_on_bridged_builtins
   rcases hBridged with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
     rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
     rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
-    rfl | rfl | rfl | rfl | rfl
-  -- 35 goals, one per bridged builtin. Dispatch to per-builtin helpers.
+    rfl | rfl | rfl | rfl | rfl | rfl
+  -- 36 goals, one per bridged builtin. Dispatch to per-builtin helpers.
   · exact backends_agree_add storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata argVals
   · exact backends_agree_sub storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata argVals
   · exact backends_agree_mul storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata argVals
@@ -403,6 +415,7 @@ theorem backends_agree_on_bridged_builtins
   · exact backends_agree_calldataload storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata argVals
   · exact backends_agree_calldatasize storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata argVals
   · exact backends_agree_sload storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata argVals
+  · exact backends_agree_mappingSlot storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata argVals
 
 /-! ## Expression-level backend equivalence
 
@@ -725,18 +738,18 @@ theorem execYulFuelWithBackend_verity_eq
    needed for the next statement-level induction.
 
 This is still not an end-to-end theorem, because a Layer-3-composed statement
-(IR → Yul under `.evmYulLean`) requires the statement-level induction plus
-Phase 3 state bridging and is **not yet proven**.
+(IR → Yul under `.evmYulLean`) requires the statement-level structural
+induction and is **not yet proven**.
 
 ### What remains:
-- **Phase 3 state bridge**: Prove `mappingSlot` equivalence
 - **Statement-level induction**: Lift expression equivalence to full Yul-program
   execution equivalence (structural induction over the statement AST)
 - **2 core sorry's**: smod/sar (complex Int↔UInt256 sign/bit semantics)
 
 ### Trust boundary (current state):
 Expressions constrained by `BridgedExpr` inherit EVMYulLean semantics.
-Whole-program guarantees still depend on the two items above.
+Whole-program guarantees still depend on the statement-level induction and the
+two sorry-dependent core equivalences above.
 -/
 
 end Compiler.Proofs.YulGeneration.Backends
