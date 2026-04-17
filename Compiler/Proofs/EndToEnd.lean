@@ -28,8 +28,9 @@
   The Phase 4 retargeting module (`EvmYulLeanRetarget.lean`) composes these
   per-builtin equivalences through expression evaluation and recursive
   `BridgedTarget` statement execution. It also proves that the emitted runtime
-  wrapper satisfies that predicate when the IR bodies it contains do. Proving
-  those body predicates and whole-program retargeting remain pending.
+  wrapper satisfies that predicate, and executes equivalently under the
+  EVMYulLean backend, when the IR bodies it contains do. Proving those body
+  predicates and whole-program retargeting remain pending.
 
   Run: lake build Compiler.Proofs.EndToEnd
 -/
@@ -325,9 +326,13 @@ expression evaluation, proves statement-fragment helpers for straight-line,
 block, if, switch, and for cases, and now proves recursive
 `BridgedTarget` execution equivalence. It also proves
 `emitYul_runtimeCode_bridged`, the emitted-runtime closure witness conditional
-on bridged IR function, entrypoint, and internal helper bodies. These theorems
-still transitively depend on the two sorry-backed smod/sar core equivalences
-where they invoke backend equivalence.
+on bridged IR function, entrypoint, and internal helper bodies, and
+`emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies`, the corresponding
+conditional emitted-runtime equality between Verity `execYulFuel` and the
+  EVMYulLean backend executor. These theorems still transitively depend on the
+  two sorry-backed smod/sar core equivalences where they invoke backend
+  equivalence. The first body-closure increment also proves scalar calldata
+  parameter prologues satisfy `BridgedStmts`.
 
 **Trust boundary after Phase 4 (sorry-dependent recursive statement-target fragment)**:
 - For any single bridged-builtin call whose bridge dependencies are fully
@@ -337,13 +342,16 @@ where they invoke backend equivalence.
 - `BridgedTarget` statement and statement-list executions inherit that same
   backend equivalence when their nested statements satisfy `BridgedStmt`.
 - The generated runtime dispatch wrapper is now known to satisfy `BridgedTarget`
-  when the IR bodies it embeds satisfy `BridgedStmt`.
+  and execute equivalently under the EVMYulLean backend when the IR bodies it
+  embeds satisfy `BridgedStmt`.
+- Scalar calldata parameter-loading prologues are now known to satisfy
+  `BridgedStmts`.
 - 36 of 36 builtins are bridged, including `mappingSlot` via the shared
   keccak-faithful `abstractMappingSlot` derivation.
 - 2 bridge lemmas use `sorry` (smod, sar) — blocked by complex Int↔UInt256
   sign/bit semantics, not privacy.
-- Closure of compiler-produced IR function/entrypoint bodies under
-  `BridgedStmt` and Layer-3 composition are not yet proven.
+- Closure of compiler-produced IR function/entrypoint bodies beyond scalar
+  calldata parameter prologues, and Layer-3 composition, are not yet proven.
 
 See `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean` for
 the Phase 4 retargeting theorems.

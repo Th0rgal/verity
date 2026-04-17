@@ -24,6 +24,7 @@ BRIDGE_LEMMAS_FILE = BACKENDS_DIR / "EvmYulLeanBridgeLemmas.lean"
 BRIDGE_TEST_FILE = BACKENDS_DIR / "EvmYulLeanBridgeTest.lean"
 CORRECTNESS_FILE = BACKENDS_DIR / "EvmYulLeanAdapterCorrectness.lean"
 RETARGET_FILE = BACKENDS_DIR / "EvmYulLeanRetarget.lean"
+BODY_CLOSURE_FILE = BACKENDS_DIR / "EvmYulLeanBodyClosure.lean"
 DEFAULT_OUTPUT = ROOT / "artifacts" / "evmyullean_adapter_report.json"
 
 EXPECTED_EXPR_CASES = ["lit", "hex", "str", "ident", "call"]
@@ -434,20 +435,23 @@ def build_report() -> dict[str, object]:
         # optionally preceded by modifiers like ``private`` / ``protected`` /
         # ``noncomputable``.  This avoids false positives where a theorem
         # name appears only in a doc comment or summary.
-        def _has_theorem(name: str) -> bool:
+        def _has_theorem_in(code: str, name: str) -> bool:
             pattern = (
                 r'(?:(?:private|protected|noncomputable|unsafe|partial|@\[[^\]]*\])\s+)*'
                 r'theorem\s+' + re.escape(name) + r'\b'
             )
-            return re.search(pattern, retarget_code) is not None
+            return re.search(pattern, code) is not None
 
-        def _theorem_body_has_sorry(name: str) -> bool:
+        def _has_theorem(name: str) -> bool:
+            return _has_theorem_in(retarget_code, name)
+
+        def _theorem_body_has_sorry_in(code: str, name: str) -> bool:
             """Return True iff the body of ``theorem name`` contains ``sorry``."""
             header_re = re.compile(
                 r'(?:(?:private|protected|noncomputable|unsafe|partial|@\[[^\]]*\])\s+)*'
                 r'theorem\s+' + re.escape(name) + r'\b'
             )
-            m = header_re.search(retarget_code)
+            m = header_re.search(code)
             if not m:
                 return False
             start = m.start()
@@ -457,9 +461,12 @@ def build_report() -> dict[str, object]:
                 r'\n(?:(?:private|protected|noncomputable|unsafe|partial|@\[[^\]]*\])\s+)*'
                 r'(?:theorem|lemma|def|abbrev|instance|example|end\b)'
             )
-            nxt = next_decl.search(retarget_code, pos=m.end())
-            end = nxt.start() if nxt else len(retarget_code)
-            return re.search(r'\bsorry\b', retarget_code[start:end]) is not None
+            nxt = next_decl.search(code, pos=m.end())
+            end = nxt.start() if nxt else len(code)
+            return re.search(r'\bsorry\b', code[start:end]) is not None
+
+        def _theorem_body_has_sorry(name: str) -> bool:
+            return _theorem_body_has_sorry_in(retarget_code, name)
 
         has_backends_agree = _has_theorem("backends_agree_on_bridged_builtins")
         has_expr_retarget = _has_theorem("evalYulExpr_evmYulLean_eq_on_bridged")
@@ -482,6 +489,9 @@ def build_report() -> dict[str, object]:
             "execYulFuelWithBackend_eq_on_bridged_target"
         )
         has_runtime_closure = _has_theorem("emitYul_runtimeCode_bridged")
+        has_runtime_backend_eq = _has_theorem(
+            "emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies"
+        )
         backends_agree_has_sorry = _theorem_body_has_sorry("backends_agree_on_bridged_builtins")
         expr_retarget_has_sorry = _theorem_body_has_sorry("evalYulExpr_evmYulLean_eq_on_bridged")
         straight_stmt_retarget_has_sorry = _theorem_body_has_sorry(
@@ -503,6 +513,9 @@ def build_report() -> dict[str, object]:
             "execYulFuelWithBackend_eq_on_bridged_target"
         )
         runtime_closure_has_sorry = _theorem_body_has_sorry("emitYul_runtimeCode_bridged")
+        runtime_backend_eq_has_sorry = _theorem_body_has_sorry(
+            "emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies"
+        )
         admitted_deps = sorted(admitted_lemmas)
         admitted_dep_status = (
             "sorry-dependent (depends on admitted bridge lemmas: "
@@ -579,8 +592,63 @@ def build_report() -> dict[str, object]:
             runtime_closure_status = "sorry"
         else:
             runtime_closure_status = "proven (conditional on bridged IR bodies)"
+        if not has_runtime_backend_eq:
+            runtime_backend_eq_status = "missing"
+        elif runtime_backend_eq_has_sorry:
+            runtime_backend_eq_status = "sorry"
+        elif admitted_deps:
+            runtime_backend_eq_status = admitted_dep_status
+        else:
+            runtime_backend_eq_status = "proven (conditional on bridged IR bodies)"
+        if BODY_CLOSURE_FILE.exists():
+            body_closure_code = _strip_lean_comments(
+                BODY_CLOSURE_FILE.read_text(encoding="utf-8")
+            )
+            has_scalar_param_body_closure = _has_theorem_in(
+                body_closure_code, "genParamLoads_scalar_bridged"
+            )
+            scalar_param_body_closure_has_sorry = _theorem_body_has_sorry_in(
+                body_closure_code, "genParamLoads_scalar_bridged"
+            )
+        else:
+            has_scalar_param_body_closure = False
+            scalar_param_body_closure_has_sorry = False
+        if not has_scalar_param_body_closure:
+            scalar_param_body_closure_status = "missing"
+        elif scalar_param_body_closure_has_sorry:
+            scalar_param_body_closure_status = "sorry"
+        else:
+            scalar_param_body_closure_status = "proven (scalar calldata parameters)"
 
         if (
+            has_runtime_backend_eq
+            and not runtime_backend_eq_has_sorry
+            and
+            has_runtime_closure
+            and not runtime_closure_has_sorry
+            and
+            has_recursive_target_retarget
+            and not recursive_target_retarget_has_sorry
+            and
+            has_for_stmt_retarget
+            and not for_stmt_retarget_has_sorry
+            and
+            has_switch_stmt_retarget
+            and not switch_stmt_retarget_has_sorry
+            and
+            has_if_stmt_retarget
+            and not if_stmt_retarget_has_sorry
+            and
+            has_block_stmt_retarget
+            and not block_stmt_retarget_has_sorry
+            and has_straight_stmt_retarget
+            and not straight_stmt_retarget_has_sorry
+            and has_expr_retarget
+            and not expr_retarget_has_sorry
+            and not admitted_deps
+        ):
+            phase4_status = "runtime-backend-equality-recursive-statement-target-level"
+        elif (
             has_runtime_closure
             and not runtime_closure_has_sorry
             and
@@ -710,16 +778,20 @@ def build_report() -> dict[str, object]:
             "execYulFuelWithBackend_for_eq_on_bridged_parts": for_stmt_retarget_status,
             "execYulFuelWithBackend_eq_on_bridged_target": recursive_target_retarget_status,
             "emitYul_runtimeCode_bridged": runtime_closure_status,
+            "emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies": runtime_backend_eq_status,
+            "genParamLoads_scalar_bridged": scalar_param_body_closure_status,
             "trust_boundary": (
                 "recursive BridgedTarget statement fragment: EVMYulLean execution model "
                 "matches EVM (upstream conformance tests) for BridgedExpr expressions, "
                 "BridgedStraightStmts, and recursively nested BridgedStmt targets; "
-                "generated runtime-code closure is proven conditional on bridged IR bodies; "
+                "generated runtime-code closure and emitted-runtime backend equality are proven "
+                "conditional on bridged IR bodies; scalar calldata parameter prologue "
+                "body closure is proven; "
                 "Layer-3 composition not yet proven"
             ),
             "remaining_for_whole_program_retargeting": [
                 "smod/sar core equivalences (complex Int↔UInt256 sign/bit semantics)",
-                "proof that compiler-produced IR function/entrypoint bodies satisfy BridgedStmt",
+                "extend compiler-produced IR function/entrypoint body closure beyond scalar calldata parameter prologues",
                 "Layer-3-composed IR → Yul .evmYulLean theorem",
             ],
         }

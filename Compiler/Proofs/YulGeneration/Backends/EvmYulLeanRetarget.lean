@@ -1455,6 +1455,21 @@ theorem execYulFuelWithBackend_eq_on_bridged_stmts
   execYulFuelWithBackend_eq_on_bridged_target fuel state (.stmts stmts)
     (.stmts stmts hStmts)
 
+theorem emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies
+    (fuel : Nat) (state : YulState) (contract : Compiler.IRContract)
+    (hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
+    (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)
+    (hReceive : ∀ rc, contract.receiveEntrypoint = some rc → BridgedStmts rc.body)
+    (hInternals : BridgedStmts contract.internalFunctions) :
+    execYulFuel fuel state (.stmts (Compiler.emitYul contract).runtimeCode) =
+    execYulFuelWithBackend .evmYulLean fuel state
+      (.stmts (Compiler.emitYul contract).runtimeCode) := by
+  rw [← execYulFuelWithBackend_verity_eq fuel state
+    (.stmts (Compiler.emitYul contract).runtimeCode)]
+  exact execYulFuelWithBackend_eq_on_bridged_target fuel state
+    (.stmts (Compiler.emitYul contract).runtimeCode)
+    (emitYul_runtimeCode_bridged contract hFunctions hFallback hReceive hInternals)
+
 /-! ## Phase 4 Completion Summary
 
 ### What this module establishes:
@@ -1494,6 +1509,10 @@ theorem execYulFuelWithBackend_eq_on_bridged_stmts
 10. **`execYulFuelWithBackend_eq_on_bridged_target`**: Recursive
     statement/statement-list backend equivalence for targets constrained by
     `BridgedTarget`, whose nested statements satisfy `BridgedStmt`.
+11. **`emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies`**: Composes
+    emitted runtime-wrapper closure with recursive target equivalence to state
+    that Verity `execYulFuel` equals the EVMYulLean backend executor for
+    `emitYul` runtime code, conditional on bridged embedded bodies.
 
 This is still not an end-to-end theorem, because a Layer-3-composed statement
 (IR → Yul under `.evmYulLean`) requires structured-control-flow induction and

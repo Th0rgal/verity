@@ -106,7 +106,7 @@ theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
 
 Key files: [`StatementEquivalence.lean`](../Compiler/Proofs/YulGeneration/StatementEquivalence.lean), [`Preservation.lean`](../Compiler/Proofs/YulGeneration/Preservation.lean), [`AXIOMS.md`](../AXIOMS.md)
 
-### Phase 4: EVMYulLean Semantic Retargeting (sorry-dependent recursive statement-target fragment + generated wrapper closure)
+### Phase 4: EVMYulLean Semantic Retargeting (sorry-dependent recursive statement-target fragment + generated runtime equality)
 
 The retargeting module [`EvmYulLeanRetarget.lean`](../Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean) proves the following retargeting theorems:
 - `backends_agree_on_bridged_builtins`: the `.verity` and `.evmYulLean` backends produce identical results at the `evalBuiltinCallWithBackendContext` level for all 36 bridged builtins (dispatch proof is sorry-free; delegates to the 36 per-builtin context-lifted bridge lemmas in `EvmYulLeanBridgeLemmas.lean`, 2 of which rest on sorry-backed core equivalences for smod/sar)
@@ -119,18 +119,20 @@ The retargeting module [`EvmYulLeanRetarget.lean`](../Compiler/Proofs/YulGenerat
 - `execYulFuelWithBackend_for_eq_on_bridged_parts`: `.for_` statements with straight-line init/body/post lists and a bridged condition preserve the same backend equivalence
 - `execYulFuelWithBackend_eq_on_bridged_target`: recursive `.verity = .evmYulLean` backend equivalence for `BridgedTarget` executions whose nested statements satisfy `BridgedStmt`
 - `emitYul_runtimeCode_bridged`: the emitted runtime dispatch wrapper satisfies `BridgedTarget` when the IR function bodies, fallback/receive bodies, and internal helper statements it embeds satisfy `BridgedStmt`
+- `emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies`: emitted runtime-code execution through Verity `execYulFuel` equals the EVMYulLean backend executor when those embedded function/entrypoint/internal bodies satisfy `BridgedStmts`
+- `genParamLoads_scalar_bridged`: scalar calldata parameter-loading prologues emitted by `genParamLoads` satisfy `BridgedStmts`
 
-The backend-parameterized executor now has a proved `.verity = .evmYulLean` theorem for recursive statement targets constrained by `BridgedTarget`, and the generated runtime wrapper is proved to preserve that predicate under explicit body-closure hypotheses. A proof that compiler-produced IR bodies satisfy `BridgedStmt` and a Layer-3-composed whole-program theorem are still pending.
+The backend-parameterized executor now has a proved `.verity = .evmYulLean` theorem for recursive statement targets constrained by `BridgedTarget`, and the generated runtime wrapper is proved to preserve that predicate and to execute equivalently under explicit body-closure hypotheses. Body closure has started with scalar calldata parameter prologues; full compiler-produced IR bodies and a Layer-3-composed whole-program theorem are still pending.
 
-Trust boundary (recursive statement-target fragment with generated wrapper closure, conditional): `BridgedExpr` expressions, `BridgedStraightStmts` statement lists, recursively nested `BridgedTarget` executions, and emitted runtime wrappers whose embedded bodies are bridged now inherit EVMYulLean semantics when their builtin dependencies are fully proven — "EVMYulLean's execution model matches the EVM" (backed by upstream Ethereum conformance tests) — rather than "Verity's custom builtin implementations are correct." Expressions or statements using smod/sar remain sorry-dependent until those core equivalences are discharged.
+Trust boundary (recursive statement-target fragment with generated runtime equality, conditional): `BridgedExpr` expressions, `BridgedStraightStmts` statement lists, recursively nested `BridgedTarget` executions, and emitted runtime wrappers whose embedded bodies are bridged now inherit EVMYulLean semantics when their builtin dependencies are fully proven — "EVMYulLean's execution model matches the EVM" (backed by upstream Ethereum conformance tests) — rather than "Verity's custom builtin implementations are correct." Expressions or statements using smod/sar remain sorry-dependent until those core equivalences are discharged.
 
 Not yet proven in this module:
-- compiler-produced IR function/entrypoint body closure under `BridgedStmt`
+- compiler-produced IR function/entrypoint body closure beyond scalar calldata parameter prologues
 - a Layer-3-composed IR → Yul `.evmYulLean` theorem
 
 Remaining gaps for whole-program retargeting:
 - 2 sorry-backed core equivalences (smod, sar — complex sign/bit semantics)
-- proof that compiler-produced IR function/entrypoint bodies satisfy `BridgedStmt`
+- extend compiler-produced IR function/entrypoint body closure beyond scalar calldata parameter prologues
 
 ## Example Contract Compilation Coverage
 

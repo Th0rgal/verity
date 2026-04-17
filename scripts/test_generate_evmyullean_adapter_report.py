@@ -460,6 +460,14 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             f"Universal bridge lemmas not in bridged set: {universal - bridged}",
         )
 
+    def test_scalar_parameter_body_closure_is_tracked(self) -> None:
+        report = gen.build_report()
+        phase4 = report["phase4_retarget"]
+        self.assertEqual(
+            phase4["genParamLoads_scalar_bridged"],
+            "proven (scalar calldata parameters)",
+        )
+
     def test_missing_retarget_theorem_is_not_reported_proven(self) -> None:
         with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:
             retarget = Path(tmp) / "EvmYulLeanRetarget.lean"
@@ -501,6 +509,10 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             "missing",
         )
         self.assertEqual(phase4["emitYul_runtimeCode_bridged"], "missing")
+        self.assertEqual(
+            phase4["emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies"],
+            "missing",
+        )
 
     def test_sorry_retarget_theorem_downgrades_phase4_status(self) -> None:
         with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:
@@ -532,6 +544,9 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
                       trivial
 
                     theorem emitYul_runtimeCode_bridged : True := by
+                      trivial
+
+                    theorem emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies : True := by
                       trivial
                 """),
                 encoding="utf-8",
@@ -571,6 +586,10 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             phase4["emitYul_runtimeCode_bridged"],
             "proven (conditional on bridged IR bodies)",
         )
+        self.assertEqual(
+            phase4["emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies"],
+            "proven (conditional on bridged IR bodies)",
+        )
         self.assertEqual(phase4["admitted_bridge_dependencies"], [])
 
     def test_admitted_bridge_deps_downgrade_phase4_status(self) -> None:
@@ -603,6 +622,9 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
                       trivial
 
                     theorem emitYul_runtimeCode_bridged : True := by
+                      trivial
+
+                    theorem emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies : True := by
                       trivial
                 """),
                 encoding="utf-8",
@@ -646,6 +668,10 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         self.assertEqual(
             phase4["emitYul_runtimeCode_bridged"],
             "proven (conditional on bridged IR bodies)",
+        )
+        self.assertIn(
+            "smod",
+            phase4["emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies"],
         )
 
 

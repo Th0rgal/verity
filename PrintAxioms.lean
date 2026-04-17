@@ -48,6 +48,7 @@ import Compiler.Proofs.KeccakBound
 import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.StorageBounds
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapterCorrectness
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBodyClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanStateBridge
@@ -2063,6 +2064,18 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_return
 #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_stop
 
+-- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_calldataload_lit  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_and_lit_mask  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_and_hex_mask  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_iszero_iszero  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmt_revert_zero  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_lt_calldatasize  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.genScalarLoad_calldataload_bridged
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoadBodyFrom_cons_scalar  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoadBodyFrom_calldataload_bridged  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoads_scalar_bridged
+
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.word_lt_uint256_size  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_ofNat_mod_evmModulus  -- private
@@ -2327,6 +2340,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_target
 #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_stmt
 #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_stmts
+#print axioms Compiler.Proofs.YulGeneration.Backends.emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorBytes_size  -- private
@@ -2387,4 +2401,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2229 theorems/lemmas (1463 public, 766 private, 0 sorry'd)
+-- Total: 2240 theorems/lemmas (1466 public, 774 private, 0 sorry'd)

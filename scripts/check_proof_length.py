@@ -284,6 +284,13 @@ ALLOWLIST: set[str] = {
     # Thin public wrapper, but the scanner counts the trailing Phase 4 summary
     # comment in its theorem span.
     "execYulFuelWithBackend_eq_on_bridged_stmts",
+    # Conditional emitted-runtime backend equality composes wrapper closure,
+    # recursive target equality, and `.verity` executor recovery; the statement
+    # is long because it carries all embedded-body closure hypotheses.
+    "emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies",
+    # Scalar parameter body closure is a structural induction over the six
+    # scalar ABI cases emitted by `genParamLoadBodyFrom`.
+    "genParamLoadBodyFrom_calldataload_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
