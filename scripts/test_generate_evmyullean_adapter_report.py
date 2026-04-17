@@ -539,6 +539,14 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             "proven (require statement lists)",
         )
         self.assertEqual(
+            phase4["compileStmtList_external_body_fragment_bridged"],
+            "proven (mixed external body fragment)",
+        )
+        self.assertEqual(
+            phase4["compileStmtList_internal_body_fragment_bridged"],
+            "proven (mixed internal body fragment)",
+        )
+        self.assertEqual(
             phase4["compileExpr_bridgedSource_leaf"],
             "proven (scalar source-expression leaves)",
         )

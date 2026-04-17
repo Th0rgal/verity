@@ -130,18 +130,20 @@ The retargeting module [`EvmYulLeanRetarget.lean`](../Compiler/Proofs/YulGenerat
 - `compileStmtList_terminator_external_bridged`: external `stop`/`return` source statement lists compile to `BridgedStmts`
 - `compileStmtList_internal_return_bridged`: internal `return` source statement lists compile to assignment-plus-`leave` `BridgedStmts`
 - `compileStmtList_require_bridged`: plain `Stmt.require` source statement lists whose failure conditions compile to `BridgedExpr` compile to `BridgedStmts` (the emitted Yul is `if failCond revertWithMessage(msg)`; `revertWithMessage` is proven hypothesis-free to satisfy `BridgedStmts`)
+- `compileStmtList_external_body_fragment_bridged`: mixed external source-body fragments made from pure bindings, unpacked single-slot `setStorage`, plain `require`, and external `stop`/`return` compile to `BridgedStmts`
+- `compileStmtList_internal_body_fragment_bridged`: mixed internal source-body fragments made from pure bindings, unpacked single-slot `setStorage`, plain `require`, internal `return`, and `stop` compile to `BridgedStmts`
 
-The backend-parameterized executor now has a proved `.verity = .evmYulLean` theorem for recursive statement targets constrained by `BridgedTarget`, and the generated runtime wrapper is proved to preserve that predicate and to execute equivalently under explicit body-closure hypotheses. Body closure now covers scalar calldata parameter prologues, static scalar fixed-array/tuple parameter prologues, pure source-expression fragments, scalar/pure-expression let/assign statement-list bodies, pure-binding plus unpacked single-slot `setStorage` statement lists, external `stop`/`return` terminators, internal `return` assignment-plus-`leave` terminators, and `Stmt.require` statements with bridged failure conditions; full compiler-produced IR bodies and a Layer-3-composed whole-program theorem are still pending.
+The backend-parameterized executor now has a proved `.verity = .evmYulLean` theorem for recursive statement targets constrained by `BridgedTarget`, and the generated runtime wrapper is proved to preserve that predicate and to execute equivalently under explicit body-closure hypotheses. Body closure now covers scalar calldata parameter prologues, static scalar fixed-array/tuple parameter prologues, pure source-expression fragments, scalar/pure-expression let/assign statement-list bodies, pure-binding plus unpacked single-slot `setStorage` statement lists, external `stop`/`return` terminators, internal `return` assignment-plus-`leave` terminators, `Stmt.require` statements with bridged failure conditions, and mixed external/internal body fragments composed from those pieces; full compiler-produced IR bodies and a Layer-3-composed whole-program theorem are still pending.
 
 Trust boundary (recursive statement-target fragment with generated runtime equality, conditional): `BridgedExpr` expressions, `BridgedStraightStmts` statement lists, recursively nested `BridgedTarget` executions, and emitted runtime wrappers whose embedded bodies are bridged now inherit EVMYulLean semantics when their builtin dependencies are fully proven — "EVMYulLean's execution model matches the EVM" (backed by upstream Ethereum conformance tests) — rather than "Verity's custom builtin implementations are correct." Expressions or statements using smod/sar remain sorry-dependent until those core equivalences are discharged.
 
 Not yet proven in this module:
-- compiler-produced IR function/entrypoint body closure beyond scalar/static-scalar calldata parameter prologues, scalar/pure-expression let/assign statement lists, pure-binding plus unpacked single-slot `setStorage` lists, external `stop`/`return` terminators, internal `return` terminators, and plain `require` with bridged failure conditions
+- compiler-produced IR function/entrypoint body closure beyond scalar/static-scalar calldata parameter prologues and the mixed pure-binding/single-slot `setStorage`/`require`/terminator fragments
 - a Layer-3-composed IR → Yul `.evmYulLean` theorem
 
 Remaining gaps for whole-program retargeting:
 - 2 sorry-backed core equivalences (smod, sar — complex sign/bit semantics)
-- extend compiler-produced IR function/entrypoint body closure beyond scalar/static-scalar calldata parameter prologues, scalar/pure-expression let/assign statement lists, pure-binding plus unpacked single-slot `setStorage` lists, external `stop`/`return` terminators, internal `return` terminators, and plain `require` with bridged failure conditions
+- extend compiler-produced IR function/entrypoint body closure beyond scalar/static-scalar calldata parameter prologues and the mixed pure-binding/single-slot `setStorage`/`require`/terminator fragments
 
 ## Example Contract Compilation Coverage
 

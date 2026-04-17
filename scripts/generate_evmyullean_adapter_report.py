@@ -664,6 +664,18 @@ def build_report() -> dict[str, object]:
             require_body_closure_has_sorry = _theorem_body_has_sorry_in(
                 body_closure_code, "compileStmtList_require_bridged"
             )
+            has_external_body_fragment_closure = _has_theorem_in(
+                body_closure_code, "compileStmtList_external_body_fragment_bridged"
+            )
+            external_body_fragment_closure_has_sorry = _theorem_body_has_sorry_in(
+                body_closure_code, "compileStmtList_external_body_fragment_bridged"
+            )
+            has_internal_body_fragment_closure = _has_theorem_in(
+                body_closure_code, "compileStmtList_internal_body_fragment_bridged"
+            )
+            internal_body_fragment_closure_has_sorry = _theorem_body_has_sorry_in(
+                body_closure_code, "compileStmtList_internal_body_fragment_bridged"
+            )
         else:
             has_scalar_param_body_closure = False
             scalar_param_body_closure_has_sorry = False
@@ -683,6 +695,10 @@ def build_report() -> dict[str, object]:
             internal_return_body_closure_has_sorry = False
             has_require_body_closure = False
             require_body_closure_has_sorry = False
+            has_external_body_fragment_closure = False
+            external_body_fragment_closure_has_sorry = False
+            has_internal_body_fragment_closure = False
+            internal_body_fragment_closure_has_sorry = False
         if SOURCE_EXPR_CLOSURE_FILE.exists():
             source_expr_closure_code = _strip_lean_comments(
                 SOURCE_EXPR_CLOSURE_FILE.read_text(encoding="utf-8")
@@ -760,6 +776,18 @@ def build_report() -> dict[str, object]:
             require_body_closure_status = "sorry"
         else:
             require_body_closure_status = "proven (require statement lists)"
+        if not has_external_body_fragment_closure:
+            external_body_fragment_closure_status = "missing"
+        elif external_body_fragment_closure_has_sorry:
+            external_body_fragment_closure_status = "sorry"
+        else:
+            external_body_fragment_closure_status = "proven (mixed external body fragment)"
+        if not has_internal_body_fragment_closure:
+            internal_body_fragment_closure_status = "missing"
+        elif internal_body_fragment_closure_has_sorry:
+            internal_body_fragment_closure_status = "sorry"
+        else:
+            internal_body_fragment_closure_status = "proven (mixed internal body fragment)"
         if not has_source_expr_leaf_closure:
             source_expr_leaf_closure_status = "missing"
         elif source_expr_leaf_closure_has_sorry:
@@ -941,6 +969,8 @@ def build_report() -> dict[str, object]:
             "compileStmtList_terminator_external_bridged": terminator_body_closure_status,
             "compileStmtList_internal_return_bridged": internal_return_body_closure_status,
             "compileStmtList_require_bridged": require_body_closure_status,
+            "compileStmtList_external_body_fragment_bridged": external_body_fragment_closure_status,
+            "compileStmtList_internal_body_fragment_bridged": internal_body_fragment_closure_status,
             "compileExpr_bridgedSource_leaf": source_expr_leaf_closure_status,
             "compileExpr_bridgedSource": source_expr_pure_closure_status,
             "trust_boundary": (
@@ -953,12 +983,13 @@ def build_report() -> dict[str, object]:
                 "parameter prologue body closure, pure source-expression closure, scalar/pure "
                 "let/assign statement-list body closure, pure-binding/single-slot setStorage "
                 "body closure, external stop/return terminator closure, and require statement "
-                "closure are proven; "
+                "closure are proven, and mixed external/internal body-fragment closure composes "
+                "those pieces; "
                 "Layer-3 composition not yet proven"
             ),
             "remaining_for_whole_program_retargeting": [
                 "smod/sar core equivalences (complex Int↔UInt256 sign/bit semantics)",
-                "extend compiler-produced IR function/entrypoint body closure beyond scalar/static-scalar calldata parameter prologues, scalar/pure let/assign statement lists, pure-binding/single-slot setStorage lists, external stop/return terminators, and require statement lists",
+                "extend compiler-produced IR function/entrypoint body closure beyond scalar/static-scalar calldata parameter prologues and the mixed pure-binding/single-slot setStorage/require/terminator fragments",
                 "Layer-3-composed IR → Yul .evmYulLean theorem",
             ],
         }
