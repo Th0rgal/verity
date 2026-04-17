@@ -51,6 +51,7 @@ import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapterCorrectness
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBodyClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSourceExprClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanStateBridge
 import Compiler.Proofs.YulGeneration.Builtins
 import Compiler.Proofs.YulGeneration.Equivalence
@@ -2349,6 +2350,9 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_stmts
 #print axioms Compiler.Proofs.YulGeneration.Backends.emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies
 
+-- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSourceExprClosure.lean
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_bridgedSource_leaf
+
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorBytes_size  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_wordBytes_size  -- private
@@ -2408,4 +2412,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2247 theorems/lemmas (1469 public, 778 private, 0 sorry'd)
+-- Total: 2248 theorems/lemmas (1470 public, 778 private, 0 sorry'd)

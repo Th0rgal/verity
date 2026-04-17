@@ -25,6 +25,7 @@ BRIDGE_TEST_FILE = BACKENDS_DIR / "EvmYulLeanBridgeTest.lean"
 CORRECTNESS_FILE = BACKENDS_DIR / "EvmYulLeanAdapterCorrectness.lean"
 RETARGET_FILE = BACKENDS_DIR / "EvmYulLeanRetarget.lean"
 BODY_CLOSURE_FILE = BACKENDS_DIR / "EvmYulLeanBodyClosure.lean"
+SOURCE_EXPR_CLOSURE_FILE = BACKENDS_DIR / "EvmYulLeanSourceExprClosure.lean"
 DEFAULT_OUTPUT = ROOT / "artifacts" / "evmyullean_adapter_report.json"
 
 EXPECTED_EXPR_CASES = ["lit", "hex", "str", "ident", "call"]
@@ -629,6 +630,19 @@ def build_report() -> dict[str, object]:
             static_type_body_closure_has_sorry = False
             has_static_param_body_closure = False
             static_param_body_closure_has_sorry = False
+        if SOURCE_EXPR_CLOSURE_FILE.exists():
+            source_expr_closure_code = _strip_lean_comments(
+                SOURCE_EXPR_CLOSURE_FILE.read_text(encoding="utf-8")
+            )
+            has_source_expr_leaf_closure = _has_theorem_in(
+                source_expr_closure_code, "compileExpr_bridgedSource_leaf"
+            )
+            source_expr_leaf_closure_has_sorry = _theorem_body_has_sorry_in(
+                source_expr_closure_code, "compileExpr_bridgedSource_leaf"
+            )
+        else:
+            has_source_expr_leaf_closure = False
+            source_expr_leaf_closure_has_sorry = False
         if not has_scalar_param_body_closure:
             scalar_param_body_closure_status = "missing"
         elif scalar_param_body_closure_has_sorry:
@@ -647,6 +661,12 @@ def build_report() -> dict[str, object]:
             static_param_body_closure_status = "sorry"
         else:
             static_param_body_closure_status = "proven (static scalar calldata parameters)"
+        if not has_source_expr_leaf_closure:
+            source_expr_leaf_closure_status = "missing"
+        elif source_expr_leaf_closure_has_sorry:
+            source_expr_leaf_closure_status = "sorry"
+        else:
+            source_expr_leaf_closure_status = "proven (scalar source-expression leaves)"
 
         if (
             has_runtime_backend_eq
@@ -810,6 +830,7 @@ def build_report() -> dict[str, object]:
             "genParamLoads_scalar_bridged": scalar_param_body_closure_status,
             "genStaticTypeLoads_calldataload_bridged": static_type_body_closure_status,
             "genParamLoads_static_scalar_bridged": static_param_body_closure_status,
+            "compileExpr_bridgedSource_leaf": source_expr_leaf_closure_status,
             "trust_boundary": (
                 "recursive BridgedTarget statement fragment: EVMYulLean execution model "
                 "matches EVM (upstream conformance tests) for BridgedExpr expressions, "
@@ -817,12 +838,12 @@ def build_report() -> dict[str, object]:
                 "identifier-slot sstore), and recursively nested BridgedStmt targets; "
                 "generated runtime-code closure and emitted-runtime backend equality are proven "
                 "conditional on bridged IR bodies; scalar and static-scalar calldata "
-                "parameter prologue body closure are proven; "
+                "parameter prologue body closure and scalar source-expression leaf closure are proven; "
                 "Layer-3 composition not yet proven"
             ),
             "remaining_for_whole_program_retargeting": [
                 "smod/sar core equivalences (complex Int↔UInt256 sign/bit semantics)",
-                "extend compiler-produced IR function/entrypoint body closure beyond scalar/static-scalar calldata parameter prologues",
+                "extend compiler-produced IR function/entrypoint body closure beyond scalar/static-scalar calldata parameter prologues and scalar source-expression leaves",
                 "Layer-3-composed IR → Yul .evmYulLean theorem",
             ],
         }
