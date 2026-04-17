@@ -609,6 +609,24 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             "missing",
         )
 
+    def test_retarget_theorem_name_inside_string_is_not_reported_proven(self) -> None:
+        with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:
+            retarget = Path(tmp) / "EvmYulLeanRetarget.lean"
+            retarget.write_text(
+                textwrap.dedent('''\
+                    def decoy : String :=
+                      "theorem backends_agree_on_bridged_builtins : True := by sorry"
+
+                    theorem other_theorem : True := by trivial
+                '''),
+                encoding="utf-8",
+            )
+            with patch.object(gen, "RETARGET_FILE", retarget):
+                report = gen.build_report()
+        phase4 = report["phase4_retarget"]
+        self.assertEqual(phase4["status"], "incomplete")
+        self.assertEqual(phase4["backends_agree_on_bridged_builtins"], "missing")
+
     def test_sorry_retarget_theorem_downgrades_phase4_status(self) -> None:
         with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:
             retarget = Path(tmp) / "EvmYulLeanRetarget.lean"

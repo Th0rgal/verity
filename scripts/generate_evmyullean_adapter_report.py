@@ -150,6 +150,39 @@ def _strip_lean_comments(text: str) -> str:
     return "".join(result)
 
 
+def _strip_lean_strings(text: str) -> str:
+    """Blank Lean string literal contents while preserving line structure."""
+    result: list[str] = []
+    i = 0
+    n = len(text)
+    in_string = False
+    string_escape = False
+    while i < n:
+        ch = text[i]
+        if in_string:
+            if ch == "\n":
+                result.append("\n")
+                string_escape = False
+            else:
+                result.append(" ")
+            if string_escape:
+                string_escape = False
+            elif ch == "\\":
+                string_escape = True
+            elif ch == '"':
+                in_string = False
+            i += 1
+            continue
+        if ch == '"':
+            in_string = True
+            result.append(" ")
+            i += 1
+            continue
+        result.append(ch)
+        i += 1
+    return "".join(result)
+
+
 def _extract_block(text: str, start_marker: str, end_marker: str) -> list[str]:
     start = text.find(start_marker)
     if start < 0:
@@ -435,7 +468,7 @@ def build_report() -> dict[str, object]:
     phase4_retarget: dict[str, str] | None = None
     if retarget_file.exists():
         retarget_text = retarget_file.read_text(encoding="utf-8")
-        retarget_code = _strip_lean_comments(retarget_text)
+        retarget_code = _strip_lean_strings(_strip_lean_comments(retarget_text))
 
         # Match genuine ``theorem <name>`` declarations (not comments/prose),
         # optionally preceded by modifiers like ``private`` / ``protected`` /
@@ -607,8 +640,8 @@ def build_report() -> dict[str, object]:
         else:
             runtime_backend_eq_status = "proven (conditional on bridged IR bodies)"
         if BODY_CLOSURE_FILE.exists():
-            body_closure_code = _strip_lean_comments(
-                BODY_CLOSURE_FILE.read_text(encoding="utf-8")
+            body_closure_code = _strip_lean_strings(
+                _strip_lean_comments(BODY_CLOSURE_FILE.read_text(encoding="utf-8"))
             )
             has_scalar_param_body_closure = _has_theorem_in(
                 body_closure_code, "genParamLoads_scalar_bridged"
@@ -716,8 +749,8 @@ def build_report() -> dict[str, object]:
             has_internal_structured_body_fragment_closure = False
             internal_structured_body_fragment_closure_has_sorry = False
         if SOURCE_EXPR_CLOSURE_FILE.exists():
-            source_expr_closure_code = _strip_lean_comments(
-                SOURCE_EXPR_CLOSURE_FILE.read_text(encoding="utf-8")
+            source_expr_closure_code = _strip_lean_strings(
+                _strip_lean_comments(SOURCE_EXPR_CLOSURE_FILE.read_text(encoding="utf-8"))
             )
             has_source_expr_leaf_closure = _has_theorem_in(
                 source_expr_closure_code, "compileExpr_bridgedSource_leaf"
