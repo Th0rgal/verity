@@ -448,6 +448,23 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             f"Universal bridge lemmas not in bridged set: {universal - bridged}",
         )
 
+    def test_missing_retarget_theorem_is_not_reported_proven(self) -> None:
+        with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:
+            retarget = Path(tmp) / "EvmYulLeanRetarget.lean"
+            retarget.write_text(
+                textwrap.dedent("""\
+                    /-- Mentions backends_agree_on_bridged_builtins only in prose. -/
+                    theorem other_theorem : True := by trivial
+                """),
+                encoding="utf-8",
+            )
+            with patch.object(gen, "RETARGET_FILE", retarget):
+                report = gen.build_report()
+        phase4 = report["phase4_retarget"]
+        self.assertEqual(phase4["status"], "incomplete")
+        self.assertEqual(phase4["backends_agree_on_bridged_builtins"], "missing")
+        self.assertEqual(phase4["evalYulExpr_evmYulLean_eq_on_bridged"], "missing")
+
 
 class ParseContextBridgeLemmasTests(unittest.TestCase):
     """Tests for _parse_context_bridge_lemmas."""

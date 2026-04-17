@@ -23,6 +23,7 @@ ADAPTER_FILE = BACKENDS_DIR / "EvmYulLeanAdapter.lean"
 BRIDGE_LEMMAS_FILE = BACKENDS_DIR / "EvmYulLeanBridgeLemmas.lean"
 BRIDGE_TEST_FILE = BACKENDS_DIR / "EvmYulLeanBridgeTest.lean"
 CORRECTNESS_FILE = BACKENDS_DIR / "EvmYulLeanAdapterCorrectness.lean"
+RETARGET_FILE = BACKENDS_DIR / "EvmYulLeanRetarget.lean"
 DEFAULT_OUTPUT = ROOT / "artifacts" / "evmyullean_adapter_report.json"
 
 EXPECTED_EXPR_CASES = ["lit", "hex", "str", "ident", "call"]
@@ -399,7 +400,7 @@ def build_report() -> dict[str, object]:
     bridged_defs, unbridged_defs = _parse_bridged_builtins_defs()
 
     # Phase 4 retarget detection
-    retarget_file = BACKENDS_DIR / "EvmYulLeanRetarget.lean"
+    retarget_file = RETARGET_FILE
     phase4_retarget: dict[str, str] | None = None
     if retarget_file.exists():
         retarget_text = retarget_file.read_text(encoding="utf-8")
@@ -437,24 +438,36 @@ def build_report() -> dict[str, object]:
             return re.search(r'\bsorry\b', retarget_code[start:end]) is not None
 
         has_backends_agree = _has_theorem("backends_agree_on_bridged_builtins")
+        has_expr_retarget = _has_theorem("evalYulExpr_evmYulLean_eq_on_bridged")
         backends_agree_has_sorry = _theorem_body_has_sorry("backends_agree_on_bridged_builtins")
+        expr_retarget_has_sorry = _theorem_body_has_sorry("evalYulExpr_evmYulLean_eq_on_bridged")
+        if not has_backends_agree:
+            backends_agree_status = "missing"
+        elif backends_agree_has_sorry:
+            backends_agree_status = "sorry (dispatch; relies on 34 per-builtin bridge theorems)"
+        else:
+            backends_agree_status = "proven"
+        if not has_expr_retarget:
+            expr_retarget_status = "missing"
+        elif expr_retarget_has_sorry:
+            expr_retarget_status = "sorry"
+        else:
+            expr_retarget_status = "proven"
 
         phase4_retarget = {
             "retarget_file": str(retarget_file.relative_to(ROOT)),
-            "status": "pointwise" if has_backends_agree else "incomplete",
-            "backends_agree_on_bridged_builtins": (
-                "sorry (dispatch; relies on 34 per-builtin bridge theorems)"
-                if backends_agree_has_sorry
-                else "proven"
-            ),
+            "status": "expression-level" if has_expr_retarget else ("pointwise" if has_backends_agree else "incomplete"),
+            "backends_agree_on_bridged_builtins": backends_agree_status,
+            "evalYulExpr_evmYulLean_eq_on_bridged": expr_retarget_status,
             "trust_boundary": (
-                "pointwise: EVMYulLean execution model matches EVM "
-                "(upstream conformance tests); whole-program lift not yet proven"
+                "expression-level: EVMYulLean execution model matches EVM "
+                "(upstream conformance tests) for BridgedExpr; "
+                "statement-level whole-program lift not yet proven"
             ),
             "remaining_for_whole_program_retargeting": [
                 "Phase 3 state bridge for sload and mappingSlot",
                 "smod/sar core equivalences (complex Int↔UInt256 sign/bit semantics)",
-                "whole-program structural induction over Yul AST",
+                "statement-level and whole-program structural induction over Yul AST",
                 "Layer-3-composed IR → Yul .evmYulLean theorem",
             ],
         }

@@ -10,10 +10,11 @@
    evalBuiltinCallWithBackendContext .evmYulLean ... func args`
   for every `func ∈ bridgedBuiltins`.
 
-  This is a **pointwise** statement over single builtin calls. The whole-program
-  lift (expression-level and Layer-3-composed IR → Yul `.evmYulLean`) requires
-  structural induction over the Yul AST and is **not yet proven**; see the
-  module summary at the bottom of this file.
+  This module also proves the expression-level lift for `BridgedExpr`:
+  `evalYulExpr_evmYulLean_eq_on_bridged`. The remaining whole-program lift
+  (statements and Layer-3-composed IR → Yul `.evmYulLean`) requires structural
+  induction over the Yul statement AST and is **not yet proven**; see the module
+  summary at the bottom of this file.
 
   **Trust boundary shift (pointwise)**: For any builtin call using a bridged
   name, the trust boundary moves from "Verity's custom Yul builtin semantics
@@ -391,6 +392,154 @@ theorem backends_agree_on_bridged_builtins
   · exact backends_agree_calldataload storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata argVals
   · exact backends_agree_calldatasize storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata argVals
 
+/-! ## Expression-level backend equivalence
+
+The pointwise builtin theorem lifts through Yul expressions whose call nodes use
+only bridged builtin names, plus the backend-independent `tload`/`mload`
+special cases handled directly by the Verity Yul expression evaluator.
+-/
+
+def allowedExprCallName (func : String) : Prop :=
+  func ∈ bridgedBuiltins ∨ func = "tload" ∨ func = "mload"
+
+inductive BridgedExpr : Compiler.Yul.YulExpr → Prop
+  | lit (n : Nat) : BridgedExpr (.lit n)
+  | hex (n : Nat) : BridgedExpr (.hex n)
+  | str (s : String) : BridgedExpr (.str s)
+  | ident (name : String) : BridgedExpr (.ident name)
+  | call (func : String) (args : List Compiler.Yul.YulExpr)
+      (hName : allowedExprCallName func)
+      (hArgs : ∀ arg ∈ args, BridgedExpr arg) :
+      BridgedExpr (.call func args)
+
+mutual
+
+def evalYulExprsWithBackend (backend : BuiltinBackend) (state : YulState) :
+    List Compiler.Yul.YulExpr → Option (List Nat)
+  | [] => some []
+  | e :: es => do
+    let v ← evalYulExprWithBackend backend state e
+    let vs ← evalYulExprsWithBackend backend state es
+    pure (v :: vs)
+termination_by es => exprsSize es
+decreasing_by
+  all_goals
+    simp [exprsSize]
+    omega
+
+def evalYulCallWithBackend (backend : BuiltinBackend) (state : YulState)
+    (func : String) : List Compiler.Yul.YulExpr → Option Nat
+  | args => do
+    let argVals ← evalYulExprsWithBackend backend state args
+    if func = "tload" then
+      match argVals with
+      | [slot] => some (state.transientStorage (slot % Compiler.Constants.evmModulus))
+      | _ => none
+    else if func = "mload" then
+      match argVals with
+      | [offset] => some (state.memory offset)
+      | _ => none
+    else
+      evalBuiltinCallWithBackendContext backend
+        state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
+        state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals
+termination_by args => exprsSize args + 1
+decreasing_by
+  omega
+
+def evalYulExprWithBackend (backend : BuiltinBackend) (state : YulState) :
+    Compiler.Yul.YulExpr → Option Nat
+  | .lit n => some n
+  | .hex n => some n
+  | .str _ => none
+  | .ident name => state.getVar name
+  | .call func args => evalYulCallWithBackend backend state func args
+termination_by e => exprSize e
+decreasing_by
+  simp [exprSize]
+
+end
+
+mutual
+
+private theorem evalYulExprWithBackend_verity_eq
+    (state : YulState) (expr : Compiler.Yul.YulExpr) :
+    evalYulExprWithBackend .verity state expr = evalYulExpr state expr := by
+  cases expr with
+  | lit _ => simp [evalYulExprWithBackend, evalYulExpr]
+  | hex _ => simp [evalYulExprWithBackend, evalYulExpr]
+  | str _ => simp [evalYulExprWithBackend, evalYulExpr]
+  | ident _ => simp [evalYulExprWithBackend, evalYulExpr]
+  | call func args =>
+      simp only [evalYulExprWithBackend, evalYulExpr, evalYulCallWithBackend, evalYulCall]
+      rw [evalYulExprsWithBackend_verity_eq state args]
+      rfl
+
+private theorem evalYulExprsWithBackend_verity_eq
+    (state : YulState) (args : List Compiler.Yul.YulExpr) :
+    evalYulExprsWithBackend .verity state args = evalYulExprs state args := by
+  cases args with
+  | nil => simp [evalYulExprsWithBackend, evalYulExprs]
+  | cons arg rest =>
+      simp only [evalYulExprsWithBackend, evalYulExprs]
+      rw [evalYulExprWithBackend_verity_eq state arg,
+        evalYulExprsWithBackend_verity_eq state rest]
+
+end
+
+mutual
+
+theorem evalYulExprWithBackend_eq_on_bridged
+    (state : YulState) (expr : Compiler.Yul.YulExpr) (hExpr : BridgedExpr expr) :
+    evalYulExprWithBackend .verity state expr =
+    evalYulExprWithBackend .evmYulLean state expr := by
+  cases hExpr with
+  | lit _ => simp [evalYulExprWithBackend]
+  | hex _ => simp [evalYulExprWithBackend]
+  | str _ => simp [evalYulExprWithBackend]
+  | ident _ => simp [evalYulExprWithBackend]
+  | call func args hName hArgs =>
+      simp only [evalYulExprWithBackend, evalYulCallWithBackend]
+      rw [evalYulExprsWithBackend_eq_on_bridged state args hArgs]
+      cases hEval : evalYulExprsWithBackend .evmYulLean state args with
+      | none => rfl
+      | some argVals =>
+          rcases hName with hBridged | rfl | rfl
+          · have hEq := backends_agree_on_bridged_builtins
+              state.storage state.sender state.msgValue state.thisAddress
+              state.blockTimestamp state.blockNumber state.chainId state.blobBaseFee
+              state.selector state.calldata func argVals hBridged
+            simp [hEq]
+          · simp
+          · simp
+
+private theorem evalYulExprsWithBackend_eq_on_bridged
+    (state : YulState) (args : List Compiler.Yul.YulExpr)
+    (hArgs : ∀ arg ∈ args, BridgedExpr arg) :
+    evalYulExprsWithBackend .verity state args =
+    evalYulExprsWithBackend .evmYulLean state args := by
+  cases args with
+  | nil =>
+      simp [evalYulExprsWithBackend]
+  | cons arg rest =>
+      have hArg : BridgedExpr arg := hArgs arg (by simp)
+      have hRest : ∀ e ∈ rest, BridgedExpr e := by
+        intro e he
+        exact hArgs e (by simp [he])
+      simp only [evalYulExprsWithBackend]
+      rw [evalYulExprWithBackend_eq_on_bridged state arg hArg,
+        evalYulExprsWithBackend_eq_on_bridged state rest hRest]
+
+end
+
+theorem evalYulExpr_evmYulLean_eq_on_bridged
+    (state : YulState) (expr : Compiler.Yul.YulExpr) (hExpr : BridgedExpr expr) :
+    evalYulExpr state expr =
+    evalYulExprWithBackend .evmYulLean state expr := by
+  have h := evalYulExprWithBackend_eq_on_bridged state expr hExpr
+  rw [← evalYulExprWithBackend_verity_eq state expr]
+  exact h
+
 /-! ## Phase 4 Completion Summary
 
 ### What this module establishes:
@@ -399,24 +548,23 @@ theorem backends_agree_on_bridged_builtins
    level. For every `func ∈ bridgedBuiltins`, `.verity` and `.evmYulLean`
    return the same result. The dispatch proof is sorry-free; the 2 sorry-backed
    core equivalences (smod, sar) are isolated in `EvmYulLeanBridgeLemmas.lean`.
+2. **`evalYulExpr_evmYulLean_eq_on_bridged`**: Expression-level backend
+   equivalence for `BridgedExpr`, covering literals, identifiers, nested calls
+   to bridged builtins, and backend-independent `tload`/`mload`.
 
-This is the *pointwise* statement. It is deliberately the only end-to-end
-theorem in this module, because:
-- A stronger expression-level statement (`evalYulExpr` over both backends)
-  requires the whole-program structural induction described under "What
-  remains" below and is **not yet proven**.
-- A Layer-3-composed statement (IR → Yul under `.evmYulLean`) requires that
-  same induction plus Phase 3 state bridging and is **not yet proven**.
+This is still not an end-to-end theorem, because a Layer-3-composed statement
+(IR → Yul under `.evmYulLean`) requires the statement-level induction plus
+Phase 3 state bridging and is **not yet proven**.
 
 ### What remains:
 - **Phase 3 state bridge**: Prove `sload` and `mappingSlot` equivalence
-- **Whole-program induction**: Lift pointwise builtin equivalence to full
-  Yul-program execution equivalence (structural induction over the AST)
+- **Statement-level induction**: Lift expression equivalence to full Yul-program
+  execution equivalence (structural induction over the statement AST)
 - **2 core sorry's**: smod/sar (complex Int↔UInt256 sign/bit semantics)
 
 ### Trust boundary (current state):
-Anything provable via only bridged builtins inherits EVMYulLean semantics
-pointwise. Whole-program guarantees still depend on the two items above.
+Expressions constrained by `BridgedExpr` inherit EVMYulLean semantics.
+Whole-program guarantees still depend on the two items above.
 -/
 
 end Compiler.Proofs.YulGeneration.Backends

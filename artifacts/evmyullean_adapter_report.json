@@ -217,15 +217,16 @@
   "missing_stmt_cases": [],
   "phase4_retarget": {
     "backends_agree_on_bridged_builtins": "proven",
+    "evalYulExpr_evmYulLean_eq_on_bridged": "proven",
     "remaining_for_whole_program_retargeting": [
       "Phase 3 state bridge for sload and mappingSlot",
       "smod/sar core equivalences (complex Int\u2194UInt256 sign/bit semantics)",
-      "whole-program structural induction over Yul AST",
+      "statement-level and whole-program structural induction over Yul AST",
       "Layer-3-composed IR \u2192 Yul .evmYulLean theorem"
     ],
     "retarget_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean",
-    "status": "pointwise",
-    "trust_boundary": "pointwise: EVMYulLean execution model matches EVM (upstream conformance tests); whole-program lift not yet proven"
+    "status": "expression-level",
+    "trust_boundary": "expression-level: EVMYulLean execution model matches EVM (upstream conformance tests) for BridgedExpr; statement-level whole-program lift not yet proven"
   },
   "schema_version": 6,
   "status": "ok",
