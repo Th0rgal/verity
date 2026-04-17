@@ -932,4 +932,141 @@ theorem compileStmtList_terminator_external_bridged
                   internalRetNames inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
 
+/-! ## Source statement body closure: `require`
+
+Plain `Stmt.require cond message` compiles to a Yul `if` whose body is
+`revertWithMessage message`. The theorem below keeps the condition side
+explicit: callers only need to show that `compileRequireFailCond` emits a
+`BridgedExpr` for their condition fragment.
+-/
+
+/-- The fixed `revertWithMessage` helper emits only bridged straight-line
+statements (`mstore` literals/hex words followed by `revert`). -/
+private theorem revertWithMessage_bridged (message : String) :
+    BridgedStmts (revertWithMessage message) := by
+  unfold revertWithMessage
+  intro yulStmt hMem
+  rcases List.mem_append.mp hMem with hPrefix | hRevert
+  · rcases List.mem_append.mp hPrefix with hHeader | hData
+    · simp only [List.mem_cons, List.mem_nil_iff] at hHeader
+      rcases hHeader with rfl | rfl | rfl | hNil
+      · exact BridgedStmt.straight _
+          (BridgedStraightStmt.expr_mstore (YulExpr.lit 0)
+            (YulExpr.hex errorStringSelectorWord)
+            (BridgedExpr.lit 0) (BridgedExpr.hex errorStringSelectorWord))
+      · exact BridgedStmt.straight _
+          (BridgedStraightStmt.expr_mstore (YulExpr.lit 4)
+            (YulExpr.lit 32) (BridgedExpr.lit 4) (BridgedExpr.lit 32))
+      · exact BridgedStmt.straight _
+          (BridgedStraightStmt.expr_mstore (YulExpr.lit 36)
+            (YulExpr.lit (bytesFromString message).length)
+            (BridgedExpr.lit 36) (BridgedExpr.lit (bytesFromString message).length))
+      · cases hNil
+    · simp only [List.mem_map] at hData
+      rcases hData with ⟨chunkAndIdx, _hChunk, rfl⟩
+      rcases chunkAndIdx with ⟨chunk, idx⟩
+      exact BridgedStmt.straight _
+        (BridgedStraightStmt.expr_mstore
+          (YulExpr.lit (68 + idx * 32))
+          (YulExpr.hex (wordFromBytes chunk))
+          (BridgedExpr.lit (68 + idx * 32))
+          (BridgedExpr.hex (wordFromBytes chunk)))
+  · simp only [List.mem_singleton] at hRevert
+    subst yulStmt
+    exact BridgedStmt.straight _
+      (BridgedStraightStmt.expr_revert (YulExpr.lit 0)
+        (YulExpr.lit (68 + ((bytesFromString message).length + 31) / 32 * 32)))
+
+/-- Source `require` statements whose compiled failure condition is bridged. -/
+inductive BridgedSourceRequireStmt
+    (fields : List Field) (dynamicSource : DynamicDataSource) : Stmt → Prop
+  | require (cond : Expr) (message : String)
+      (hFailCond :
+        ∀ {failCond : YulExpr},
+          compileRequireFailCond fields dynamicSource cond = .ok failCond →
+          BridgedExpr failCond) :
+      BridgedSourceRequireStmt fields dynamicSource (.require cond message)
+
+def BridgedSourceRequireStmts
+    (fields : List Field) (dynamicSource : DynamicDataSource) (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts, BridgedSourceRequireStmt fields dynamicSource stmt
+
+/-- A plain `Stmt.require` whose compiled failure condition is bridged compiles
+to a bridged Yul `if` around `revertWithMessage`. -/
+theorem compileStmt_require_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    {cond : Expr} {message : String}
+    (hFailCond :
+      ∀ {failCond : YulExpr},
+        compileRequireFailCond fields dynamicSource cond = .ok failCond →
+        BridgedExpr failCond) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames (.require cond message) = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  simp only [compileStmt, bind, Except.bind] at hOk
+  cases hFail : compileRequireFailCond fields dynamicSource cond with
+  | error err =>
+      simp [hFail] at hOk
+  | ok failCond =>
+      simp [hFail, Pure.pure, Except.pure] at hOk
+      subst out
+      intro yulStmt hMem
+      simp only [List.mem_singleton] at hMem
+      subst yulStmt
+      exact BridgedStmt.if_ failCond (revertWithMessage message)
+        (hFailCond hFail) (revertWithMessage_bridged message)
+
+/-- Lists made only of plain `require` statements whose compiled failure
+conditions are bridged compile to Yul lists satisfying `BridgedStmts`. -/
+theorem compileStmtList_require_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceRequireStmts fields dynamicSource stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames head with
+      | error err =>
+          simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource internalRetNames
+              isInternal (collectStmtNames head ++ inScopeNames) tail with
+          | error err =>
+              simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource : BridgedSourceRequireStmt fields dynamicSource head :=
+                hSource head (by simp)
+              have hTailSource : BridgedSourceRequireStmts fields dynamicSource tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              cases hHeadSource with
+              | require cond message hFailCond =>
+                  exact BridgedStmts_append
+                    (compileStmt_require_bridged fields events errors dynamicSource
+                      internalRetNames isInternal inScopeNames hFailCond hHead)
+                    (ih (collectStmtNames (.require cond message) ++ inScopeNames)
+                      hTailSource hTail)
+
 end Compiler.Proofs.YulGeneration.Backends

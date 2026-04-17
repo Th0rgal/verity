@@ -316,6 +316,15 @@ ALLOWLIST: set[str] = {
     # recursion plus per-head dispatch between pure bindings and single-slot
     # setStorage; decomposition would only duplicate the existing list skeleton.
     "compileStmtList_storage_fragment_bridged",
+    # External-terminator list closure mirrors compileStmtList's head/tail
+    # recursion; its reported span grew past 50 lines when the require-closure
+    # section was appended after it. The theorem body itself remains short
+    # boilerplate over Except binds.
+    "compileStmtList_terminator_external_bridged",
+    # Require list closure follows the same compileStmtList head/tail skeleton
+    # with a `cases hHeadSource` step to extract the bridged failure-condition
+    # hypothesis before delegating to the per-statement require closure.
+    "compileStmtList_require_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }

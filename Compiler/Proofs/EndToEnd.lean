@@ -335,7 +335,9 @@ conditional emitted-runtime equality between Verity `execYulFuel` and the
   equivalence. Body-closure increments also prove scalar and static-scalar
   calldata parameter prologues satisfy `BridgedStmts`, pure source-expression
   fragments compile to `BridgedExpr`, and scalar-leaf plus pure-expression
-  `letVar`/`assignVar` statement lists compile to `BridgedStmts`.
+  `letVar`/`assignVar` statement lists, pure-binding/single-slot storage-write
+  lists, external terminators, and plain `require` statements with bridged
+  failure conditions compile to `BridgedStmts`.
 
 **Trust boundary after Phase 4 (sorry-dependent recursive statement-target fragment)**:
 - For any single bridged-builtin call whose bridge dependencies are fully
@@ -356,14 +358,18 @@ conditional emitted-runtime equality between Verity `execYulFuel` and the
 - Pure-binding plus unpacked single-slot `setStorage` statement lists and
   external `stop`/`return` terminators are now known to compile to
   `BridgedStmts`.
+- Plain `Stmt.require` statement lists with bridged failure conditions are
+  now known to compile to `BridgedStmts` (the generated revert-message body
+  is hypothesis-free).
 - 36 of 36 builtins are bridged, including `mappingSlot` via the shared
   keccak-faithful `abstractMappingSlot` derivation.
 - 2 bridge lemmas use `sorry` (smod, sar) — blocked by complex Int↔UInt256
   sign/bit semantics, not privacy.
 - Closure of compiler-produced IR function/entrypoint bodies beyond scalar
   calldata parameter prologues, scalar/pure-expression let/assign statement
-  lists, pure-binding plus single-slot storage-write lists, and external
-  terminators, plus Layer-3 composition, are not yet proven.
+  lists, pure-binding plus single-slot storage-write lists, external
+  terminators, and plain `require` with bridged failure conditions, plus
+  Layer-3 composition, are not yet proven.
 
 See `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean` for
 the Phase 4 retargeting theorems.
