@@ -325,6 +325,10 @@ ALLOWLIST: set[str] = {
     # with a `cases hHeadSource` step to extract the bridged failure-condition
     # hypothesis before delegating to the per-statement require closure.
     "compileStmtList_require_bridged",
+    # Internal-return list closure is the same compileStmtList head/tail
+    # skeleton as the external terminator and require closure proofs; the
+    # excess lines are boilerplate decomposition of the two Except binds.
+    "compileStmtList_internal_return_bridged",
     # Require failure-condition source closure case-splits on the 23
     # `BridgedSourceExpr` constructors: `.ge`/`.le` are handled specially
     # because `compileRequireFailCond` uses the direct `lt`/`gt` optimization,

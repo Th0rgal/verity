@@ -531,6 +531,10 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             "proven (external stop/return statement lists)",
         )
         self.assertEqual(
+            phase4["compileStmtList_internal_return_bridged"],
+            "proven (internal return statement lists)",
+        )
+        self.assertEqual(
             phase4["compileStmtList_require_bridged"],
             "proven (require statement lists)",
         )

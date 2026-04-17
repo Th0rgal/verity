@@ -652,6 +652,12 @@ def build_report() -> dict[str, object]:
             terminator_body_closure_has_sorry = _theorem_body_has_sorry_in(
                 body_closure_code, "compileStmtList_terminator_external_bridged"
             )
+            has_internal_return_body_closure = _has_theorem_in(
+                body_closure_code, "compileStmtList_internal_return_bridged"
+            )
+            internal_return_body_closure_has_sorry = _theorem_body_has_sorry_in(
+                body_closure_code, "compileStmtList_internal_return_bridged"
+            )
             has_require_body_closure = _has_theorem_in(
                 body_closure_code, "compileStmtList_require_bridged"
             )
@@ -673,6 +679,8 @@ def build_report() -> dict[str, object]:
             storage_fragment_body_closure_has_sorry = False
             has_terminator_body_closure = False
             terminator_body_closure_has_sorry = False
+            has_internal_return_body_closure = False
+            internal_return_body_closure_has_sorry = False
             has_require_body_closure = False
             require_body_closure_has_sorry = False
         if SOURCE_EXPR_CLOSURE_FILE.exists():
@@ -740,6 +748,12 @@ def build_report() -> dict[str, object]:
             terminator_body_closure_status = "sorry"
         else:
             terminator_body_closure_status = "proven (external stop/return statement lists)"
+        if not has_internal_return_body_closure:
+            internal_return_body_closure_status = "missing"
+        elif internal_return_body_closure_has_sorry:
+            internal_return_body_closure_status = "sorry"
+        else:
+            internal_return_body_closure_status = "proven (internal return statement lists)"
         if not has_require_body_closure:
             require_body_closure_status = "missing"
         elif require_body_closure_has_sorry:
@@ -925,6 +939,7 @@ def build_report() -> dict[str, object]:
             "compileStmtList_pure_binding_bridged": pure_binding_stmt_body_closure_status,
             "compileStmtList_storage_fragment_bridged": storage_fragment_body_closure_status,
             "compileStmtList_terminator_external_bridged": terminator_body_closure_status,
+            "compileStmtList_internal_return_bridged": internal_return_body_closure_status,
             "compileStmtList_require_bridged": require_body_closure_status,
             "compileExpr_bridgedSource_leaf": source_expr_leaf_closure_status,
             "compileExpr_bridgedSource": source_expr_pure_closure_status,

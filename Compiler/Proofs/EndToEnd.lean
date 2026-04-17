@@ -336,8 +336,9 @@ conditional emitted-runtime equality between Verity `execYulFuel` and the
   calldata parameter prologues satisfy `BridgedStmts`, pure source-expression
   fragments compile to `BridgedExpr`, and scalar-leaf plus pure-expression
   `letVar`/`assignVar` statement lists, pure-binding/single-slot storage-write
-  lists, external terminators, and plain `require` statements with bridged
-  failure conditions compile to `BridgedStmts`.
+  lists, external terminators, internal return terminators, and plain
+  `require` statements with bridged failure conditions compile to
+  `BridgedStmts`.
 
 **Trust boundary after Phase 4 (sorry-dependent recursive statement-target fragment)**:
 - For any single bridged-builtin call whose bridge dependencies are fully
@@ -358,6 +359,8 @@ conditional emitted-runtime equality between Verity `execYulFuel` and the
 - Pure-binding plus unpacked single-slot `setStorage` statement lists and
   external `stop`/`return` terminators are now known to compile to
   `BridgedStmts`.
+- Internal `return` terminators are now known to compile to assignment-plus-
+  `leave` `BridgedStmts`.
 - Plain `Stmt.require` statement lists with bridged failure conditions are
   now known to compile to `BridgedStmts` (the generated revert-message body
   is hypothesis-free).
@@ -368,8 +371,8 @@ conditional emitted-runtime equality between Verity `execYulFuel` and the
 - Closure of compiler-produced IR function/entrypoint bodies beyond scalar
   calldata parameter prologues, scalar/pure-expression let/assign statement
   lists, pure-binding plus single-slot storage-write lists, external
-  terminators, and plain `require` with bridged failure conditions, plus
-  Layer-3 composition, are not yet proven.
+  terminators, internal return terminators, and plain `require` with bridged
+  failure conditions, plus Layer-3 composition, are not yet proven.
 
 See `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean` for
 the Phase 4 retargeting theorems.

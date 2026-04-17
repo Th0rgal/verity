@@ -226,6 +226,7 @@
     "compileExpr_bridgedSource": "proven (pure source-expression fragment)",
     "compileExpr_bridgedSource_leaf": "proven (scalar source-expression leaves)",
     "compileStmtList_binding_leaf_bridged": "proven (scalar let/assign statement lists)",
+    "compileStmtList_internal_return_bridged": "proven (internal return statement lists)",
     "compileStmtList_pure_binding_bridged": "proven (pure let/assign statement lists)",
     "compileStmtList_require_bridged": "proven (require statement lists)",
     "compileStmtList_storage_fragment_bridged": "proven (pure bindings plus single-slot setStorage statement lists)",
