@@ -451,6 +451,9 @@ def build_report() -> dict[str, object]:
         has_if_stmt_retarget = _has_theorem(
             "execYulFuelWithBackend_if_eq_on_bridged_body"
         )
+        has_switch_stmt_retarget = _has_theorem(
+            "execYulFuelWithBackend_switch_eq_on_bridged_cases"
+        )
         backends_agree_has_sorry = _theorem_body_has_sorry("backends_agree_on_bridged_builtins")
         expr_retarget_has_sorry = _theorem_body_has_sorry("evalYulExpr_evmYulLean_eq_on_bridged")
         straight_stmt_retarget_has_sorry = _theorem_body_has_sorry(
@@ -461,6 +464,9 @@ def build_report() -> dict[str, object]:
         )
         if_stmt_retarget_has_sorry = _theorem_body_has_sorry(
             "execYulFuelWithBackend_if_eq_on_bridged_body"
+        )
+        switch_stmt_retarget_has_sorry = _theorem_body_has_sorry(
+            "execYulFuelWithBackend_switch_eq_on_bridged_cases"
         )
         admitted_deps = sorted(admitted_lemmas)
         admitted_dep_status = (
@@ -508,12 +514,35 @@ def build_report() -> dict[str, object]:
             if_stmt_retarget_status = admitted_dep_status
         else:
             if_stmt_retarget_status = "proven"
+        if not has_switch_stmt_retarget:
+            switch_stmt_retarget_status = "missing"
+        elif switch_stmt_retarget_has_sorry:
+            switch_stmt_retarget_status = "sorry"
+        elif admitted_deps:
+            switch_stmt_retarget_status = admitted_dep_status
+        else:
+            switch_stmt_retarget_status = "proven"
 
         if (
+            has_switch_stmt_retarget
+            and not switch_stmt_retarget_has_sorry
+            and
             has_if_stmt_retarget
             and not if_stmt_retarget_has_sorry
             and
             has_block_stmt_retarget
+            and not block_stmt_retarget_has_sorry
+            and has_straight_stmt_retarget
+            and not straight_stmt_retarget_has_sorry
+            and has_expr_retarget
+            and not expr_retarget_has_sorry
+            and not admitted_deps
+        ):
+            phase4_status = "switch-if-straight-line-statement-level"
+        elif (
+            has_if_stmt_retarget
+            and not if_stmt_retarget_has_sorry
+            and has_block_stmt_retarget
             and not block_stmt_retarget_has_sorry
             and has_straight_stmt_retarget
             and not straight_stmt_retarget_has_sorry
@@ -556,16 +585,18 @@ def build_report() -> dict[str, object]:
             "execYulFuelWithBackend_eq_on_bridged_straight_stmts": straight_stmt_retarget_status,
             "execYulFuelWithBackend_block_eq_on_bridged_straight_stmts": block_stmt_retarget_status,
             "execYulFuelWithBackend_if_eq_on_bridged_body": if_stmt_retarget_status,
+            "execYulFuelWithBackend_switch_eq_on_bridged_cases": switch_stmt_retarget_status,
             "trust_boundary": (
-                "if-with-straight-line-body statement fragment: EVMYulLean "
+                "switch/if-with-straight-line-body statement fragment: EVMYulLean "
                 "execution model matches EVM (upstream conformance tests) for "
                 "BridgedStraightStmts, .block wrappers around them, and .if_ "
-                "statements with bridged conditions and straight-line bodies; "
+                "statements with bridged conditions plus .switch statements "
+                "with bridged scrutinees and straight-line selected bodies; "
                 "recursive structured-control-flow and whole-program lift not yet proven"
             ),
             "remaining_for_whole_program_retargeting": [
                 "smod/sar core equivalences (complex Int↔UInt256 sign/bit semantics)",
-                "structured-control-flow induction over recursive block bodies plus switch/for Yul AST",
+                "structured-control-flow induction over recursive block bodies plus for Yul AST",
                 "Layer-3-composed IR → Yul .evmYulLean theorem",
             ],
         }

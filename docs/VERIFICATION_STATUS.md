@@ -106,7 +106,7 @@ theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
 
 Key files: [`StatementEquivalence.lean`](../Compiler/Proofs/YulGeneration/StatementEquivalence.lean), [`Preservation.lean`](../Compiler/Proofs/YulGeneration/Preservation.lean), [`AXIOMS.md`](../AXIOMS.md)
 
-### Phase 4: EVMYulLean Semantic Retargeting (sorry-dependent if/straight-line statement fragment)
+### Phase 4: EVMYulLean Semantic Retargeting (sorry-dependent switch/if/straight-line statement fragment)
 
 The retargeting module [`EvmYulLeanRetarget.lean`](../Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean) proves the following retargeting theorems:
 - `backends_agree_on_bridged_builtins`: the `.verity` and `.evmYulLean` backends produce identical results at the `evalBuiltinCallWithBackendContext` level for all 36 bridged builtins (dispatch proof is sorry-free; delegates to the 36 per-builtin context-lifted bridge lemmas in `EvmYulLeanBridgeLemmas.lean`, 2 of which rest on sorry-backed core equivalences for smod/sar)
@@ -115,18 +115,19 @@ The retargeting module [`EvmYulLeanRetarget.lean`](../Compiler/Proofs/YulGenerat
 - `execYulFuelWithBackend_eq_on_bridged_straight_stmts`: `.verity` and `.evmYulLean` statement execution agree for straight-line statement lists satisfying `BridgedStraightStmts`, covering value bindings, `letMany`'s shared revert behavior, and dedicated statement-call semantics for mapping-slot `sstore`, `mstore`, `tstore`, `stop`, `return`, and `revert`; this theorem also transitively depends on the two sorry-backed smod/sar core equivalences through expression evaluation
 - `execYulFuelWithBackend_block_eq_on_bridged_straight_stmts`: `.block` wrappers around those straight-line lists preserve the same backend equivalence; recursive block bodies and branching control flow remain outside the proved fragment
 - `execYulFuelWithBackend_if_eq_on_bridged_body`: `.if_` statements with bridged conditions and straight-line bodies preserve the same backend equivalence
+- `execYulFuelWithBackend_switch_eq_on_bridged_cases`: `.switch` statements with bridged scrutinees and straight-line selected case/default bodies preserve the same backend equivalence
 
-The backend-parameterized executor now has a proved `.verity = .evmYulLean` theorem for the if/straight-line fragment, but not yet for recursive structured control flow or whole programs.
+The backend-parameterized executor now has a proved `.verity = .evmYulLean` theorem for the switch/if/straight-line fragment, but not yet for recursive structured control flow or whole programs.
 
-Trust boundary (if/straight-line fragment, conditional): `BridgedExpr` expressions, `BridgedStraightStmts` statement lists, `.block` wrappers around those lists, and `.if_` statements with bridged conditions and straight-line bodies whose builtin dependencies are fully proven now inherit EVMYulLean semantics — "EVMYulLean's execution model matches the EVM" (backed by upstream Ethereum conformance tests) — rather than "Verity's custom builtin implementations are correct." Expressions or statements using smod/sar remain sorry-dependent until those core equivalences are discharged.
+Trust boundary (switch/if/straight-line fragment, conditional): `BridgedExpr` expressions, `BridgedStraightStmts` statement lists, `.block` wrappers around those lists, `.if_` statements with bridged conditions and straight-line bodies, and `.switch` statements with bridged scrutinees and straight-line selected case/default bodies whose builtin dependencies are fully proven now inherit EVMYulLean semantics — "EVMYulLean's execution model matches the EVM" (backed by upstream Ethereum conformance tests) — rather than "Verity's custom builtin implementations are correct." Expressions or statements using smod/sar remain sorry-dependent until those core equivalences are discharged.
 
 Not yet proven in this module:
-- structured-control-flow execution equivalence for recursive block bodies, `.switch`, and `.for_`
+- structured-control-flow execution equivalence for recursive block bodies and `.for_`
 - a Layer-3-composed IR → Yul `.evmYulLean` theorem
 
 Remaining gaps for whole-program retargeting:
 - 2 sorry-backed core equivalences (smod, sar — complex sign/bit semantics)
-- structured-control-flow induction lifting if/straight-line equivalence to full Yul execution
+- structured-control-flow induction lifting switch/if/straight-line equivalence to full Yul execution
 
 ## Example Contract Compilation Coverage
 

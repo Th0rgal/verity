@@ -915,6 +915,48 @@ theorem execYulFuelWithBackend_if_eq_on_bridged_body
           · simp [hv]
             exact execYulFuelWithBackend_eq_on_bridged_straight_stmts fuel state body hBody
 
+def BridgedSwitchCases (cases : List (Nat × List Compiler.Yul.YulStmt)) : Prop :=
+  ∀ scrutinee value body,
+    cases.find? (fun x => decide (x.fst = scrutinee)) = some (value, body) →
+    BridgedStraightStmts body
+
+/-- A `.switch` with a bridged scrutinee and straight-line selected bodies
+    preserves backend equivalence. The predicate only needs to cover bodies that
+    can actually be selected by `find?`; the default branch is handled
+    separately. Recursive switch bodies and loops still need the broader
+    statement predicate/induction. -/
+theorem execYulFuelWithBackend_switch_eq_on_bridged_cases
+    (fuel : Nat) (state : YulState) (expr : Compiler.Yul.YulExpr)
+    (cases : List (Nat × List Compiler.Yul.YulStmt))
+    (defaultCase : Option (List Compiler.Yul.YulStmt))
+    (hExpr : BridgedExpr expr) (hCases : BridgedSwitchCases cases)
+    (hDefault : ∀ body, defaultCase = some body → BridgedStraightStmts body) :
+    execYulFuelWithBackend .verity fuel state (.stmt (.switch expr cases defaultCase)) =
+    execYulFuelWithBackend .evmYulLean fuel state (.stmt (.switch expr cases defaultCase)) := by
+  cases fuel with
+  | zero => rfl
+  | succ fuel =>
+      simp only [execYulFuelWithBackend]
+      rw [evalYulExprWithBackend_eq_on_bridged state expr hExpr]
+      cases evalYulExprWithBackend .evmYulLean state expr with
+      | none => rfl
+      | some v =>
+          cases hFind : cases.find? (fun x => decide (x.fst = v)) with
+          | some hit =>
+              cases hit with
+              | mk value body =>
+                  simp [hFind]
+                  exact execYulFuelWithBackend_eq_on_bridged_straight_stmts
+                    fuel state body (hCases v value body hFind)
+          | none =>
+              cases hDefaultCase : defaultCase with
+              | none =>
+                  simp [hFind]
+              | some body =>
+                  simp [hFind]
+                  exact execYulFuelWithBackend_eq_on_bridged_straight_stmts
+                    fuel state body (hDefault body hDefaultCase)
+
 /-! ## Phase 4 Completion Summary
 
 ### What this module establishes:
@@ -944,6 +986,10 @@ theorem execYulFuelWithBackend_if_eq_on_bridged_body
 7. **`execYulFuelWithBackend_if_eq_on_bridged_body`**: The `.if_` statement
    constructor preserves backend equivalence when its condition is a
    `BridgedExpr` and its body is a `BridgedStraightStmts` list.
+8. **`execYulFuelWithBackend_switch_eq_on_bridged_cases`**: The `.switch`
+   statement constructor preserves backend equivalence when its scrutinee is a
+   `BridgedExpr`, every selectable case body satisfies `BridgedStraightStmts`,
+   and the optional default body is straight-line when present.
 
 This is still not an end-to-end theorem, because a Layer-3-composed statement
 (IR → Yul under `.evmYulLean`) requires structured-control-flow induction and
@@ -951,16 +997,16 @@ is **not yet proven**.
 
 ### What remains:
 - **Structured-control-flow induction**: Lift statement equivalence through
-  recursive block bodies and `.switch`/`.for_`.
+  recursive block bodies and `.for_`.
 - **2 core sorry's**: smod/sar (complex Int↔UInt256 sign/bit semantics)
 
 ### Trust boundary (current state):
 Expressions constrained by `BridgedExpr`, straight-line statement lists
 constrained by `BridgedStraightStmts`, block wrappers around those lists, and
-`.if_` statements with bridged conditions plus straight-line bodies inherit
-EVMYulLean semantics. Whole-program guarantees still depend on
-structured-control-flow induction through recursive blocks, switches, loops, and
-the two sorry-dependent core equivalences above.
+`.if_`/`.switch` statements with bridged conditions or scrutinees plus
+straight-line selected bodies inherit EVMYulLean semantics. Whole-program
+guarantees still depend on structured-control-flow induction through recursive
+blocks, loops, and the two sorry-dependent core equivalences above.
 -/
 
 end Compiler.Proofs.YulGeneration.Backends
