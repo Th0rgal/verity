@@ -162,11 +162,11 @@ def extract_admitted_builtins(text: str) -> list[str]:
     code = _strip_lean_comments(text)
     sorry_re = re.compile(r"\bsorry\b")
     boundary_re = re.compile(
-        r"(?m)^(?:(?:private|protected|noncomputable|unsafe|partial|@\[[^\]]*\])\s+)*"
+        r"(?m)^(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*"
         r"(?:theorem|lemma|def|abbrev|instance|example)\s+(\w+)"
     )
     bridge_name_re = re.compile(
-        r"(?:(?:private|protected|noncomputable|unsafe|partial|@\[[^\]]*\])\s+)*"
+        r"(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*"
         r"theorem\s+evalBuiltinCall_([A-Za-z0-9]+)_bridge\b",
         flags=re.DOTALL,
     )

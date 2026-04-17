@@ -191,6 +191,21 @@ class BridgeCoverageSyncTests(unittest.TestCase):
         admitted = check.extract_admitted_builtins(text)
         self.assertEqual(admitted, ["exp"])
 
+    def test_extract_admitted_detects_local_helper_sorry(self) -> None:
+        """A ``local theorem`` helper with sorry should admit the next bridge."""
+        text = textwrap.dedent("""\
+            local theorem sar_core := by
+              sorry
+
+            @[simp] theorem evalBuiltinCall_sar_bridge := by
+              exact sar_core
+
+            @[simp] theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+        """)
+        admitted = check.extract_admitted_builtins(text)
+        self.assertEqual(admitted, ["sar"])
+
     def test_extract_admitted_ignores_sorry_in_comments(self) -> None:
         """Sorry in comments or doc comments should not trigger detection."""
         text = textwrap.dedent("""\

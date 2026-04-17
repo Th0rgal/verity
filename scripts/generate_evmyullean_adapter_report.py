@@ -235,11 +235,11 @@ def _parse_bridge_lemmas() -> tuple[list[str], list[str]]:
     # contained ``sorry``, misattributed the admission to the *next* bridge.
     sorry_re = re.compile(r'\bsorry\b')
     boundary_re = re.compile(
-        r'(?m)^(?:(?:private|protected|noncomputable|unsafe|partial|@\[[^\]]*\])\s+)*'
+        r'(?m)^(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*'
         r'(?:theorem|lemma|def|abbrev|instance|example)\s+(\w+)'
     )
     bridge_name_re = re.compile(
-        r'(?:(?:private|protected|noncomputable|unsafe|partial|@\[[^\]]*\])\s+)*'
+        r'(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*'
         r'theorem\s+evalBuiltinCall_(\w+)_bridge\b'
     )
     declarations = [(m.start(), m.group(1)) for m in boundary_re.finditer(code)]

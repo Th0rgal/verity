@@ -76,6 +76,23 @@ class ParseBridgeLemmasTests(unittest.TestCase):
             all_lemmas, admitted = gen._parse_bridge_lemmas()
         self.assertEqual(admitted, ["exp"])
 
+    def test_detects_local_helper_sorry(self) -> None:
+        """A ``local theorem`` helper with sorry should admit the next bridge."""
+        p = self._write_lemma_file("""\
+            local theorem sar_core := by
+              sorry
+
+            @[simp] theorem evalBuiltinCall_sar_bridge := by
+              exact sar_core
+
+            @[simp] theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+        """)
+        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+            all_lemmas, admitted = gen._parse_bridge_lemmas()
+        self.assertIn("sar", all_lemmas)
+        self.assertEqual(admitted, ["sar"])
+
     def test_ignores_sorry_in_comments(self) -> None:
         """Sorry in comments or doc comments should not trigger detection."""
         p = self._write_lemma_file("""\
