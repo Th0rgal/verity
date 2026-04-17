@@ -325,6 +325,15 @@ ALLOWLIST: set[str] = {
     # with a `cases hHeadSource` step to extract the bridged failure-condition
     # hypothesis before delegating to the per-statement require closure.
     "compileStmtList_require_bridged",
+    # Require failure-condition source closure case-splits on the 23
+    # `BridgedSourceExpr` constructors: `.ge`/`.le` are handled specially
+    # because `compileRequireFailCond` uses the direct `lt`/`gt` optimization,
+    # and the remaining 21 constructors each invoke the shared
+    # `compileRequireFailCond_default_bridgedSource` helper for the `iszero`
+    # fall-through. Each constructor case is two mechanical lines; merging
+    # them would require either introducing a generic reconstruction tactic
+    # or passing a weaker hypothesis to the helper.
+    "compileRequireFailCond_bridgedSource",
     # --- Misc ---
     "findUniqueInternalFunction",
 }

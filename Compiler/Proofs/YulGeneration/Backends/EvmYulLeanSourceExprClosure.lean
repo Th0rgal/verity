@@ -368,4 +368,120 @@ theorem compileExpr_bridgedSource
       subst hEq
       exact bridgedExpr_yulNegatedBinOp (by simp [bridgedBuiltins]) (iha hA) (ihb hB)
 
+/-- Default `require` failure condition shape: `iszero(compileExpr cond)` is
+    bridged whenever the source condition expression is bridged. -/
+private lemma compileRequireFailCond_default_bridgedSource
+    {fields : List CompilationModel.Field} {src : DynamicDataSource}
+    {cond : Expr} {failCond : YulExpr}
+    (hCond : BridgedSourceExpr cond)
+    (hOk :
+      (do
+        let compiled ← compileExpr fields src cond
+        pure (YulExpr.call "iszero" [compiled]) : Except String YulExpr) = .ok failCond) :
+    BridgedExpr failCond := by
+  cases hCompiled : compileExpr fields src cond with
+  | error err =>
+      rw [hCompiled] at hOk
+      simp at hOk
+  | ok compiled =>
+      rw [hCompiled] at hOk
+      simp at hOk
+      subst hOk
+      exact bridgedExpr_unopBuiltin (by simp [bridgedBuiltins])
+        (compileExpr_bridgedSource fields src hCond hCompiled)
+
+/-- `compileRequireFailCond` emits a `BridgedExpr` for every pure bridged source
+    condition. The `ge`/`le` cases use the compiler's direct negation
+    optimization (`lt`/`gt`); all other conditions compile as `iszero(cond)`. -/
+theorem compileRequireFailCond_bridgedSource
+    (fields : List CompilationModel.Field) (src : DynamicDataSource) :
+    ∀ {cond : Expr}, BridgedSourceExpr cond →
+      ∀ {failCond : YulExpr},
+        compileRequireFailCond fields src cond = .ok failCond → BridgedExpr failCond := by
+  intro cond hCond failCond hOk
+  cases hCond with
+  | ge ha hb =>
+      simp only [compileRequireFailCond] at hOk
+      obtain ⟨ca, cb, hA, hB, hEq⟩ := compileExpr_yulBinOp_ok hOk
+      subst hEq
+      exact bridgedExpr_yulBinOp (by simp [bridgedBuiltins])
+        (compileExpr_bridgedSource fields src ha hA)
+        (compileExpr_bridgedSource fields src hb hB)
+  | le ha hb =>
+      simp only [compileRequireFailCond] at hOk
+      obtain ⟨ca, cb, hA, hB, hEq⟩ := compileExpr_yulBinOp_ok hOk
+      subst hEq
+      exact bridgedExpr_yulBinOp (by simp [bridgedBuiltins])
+        (compileExpr_bridgedSource fields src ha hA)
+        (compileExpr_bridgedSource fields src hb hB)
+  | literal n =>
+      exact compileRequireFailCond_default_bridgedSource (.literal n)
+        (by simpa [compileRequireFailCond] using hOk)
+  | param name =>
+      exact compileRequireFailCond_default_bridgedSource (.param name)
+        (by simpa [compileRequireFailCond] using hOk)
+  | constructorArg idx =>
+      exact compileRequireFailCond_default_bridgedSource (.constructorArg idx)
+        (by simpa [compileRequireFailCond] using hOk)
+  | localVar name =>
+      exact compileRequireFailCond_default_bridgedSource (.localVar name)
+        (by simpa [compileRequireFailCond] using hOk)
+  | add ha hb =>
+      exact compileRequireFailCond_default_bridgedSource (.add ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | sub ha hb =>
+      exact compileRequireFailCond_default_bridgedSource (.sub ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | mul ha hb =>
+      exact compileRequireFailCond_default_bridgedSource (.mul ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | div ha hb =>
+      exact compileRequireFailCond_default_bridgedSource (.div ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | sdiv ha hb =>
+      exact compileRequireFailCond_default_bridgedSource (.sdiv ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | mod ha hb =>
+      exact compileRequireFailCond_default_bridgedSource (.mod ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | smod ha hb =>
+      exact compileRequireFailCond_default_bridgedSource (.smod ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | bitAnd ha hb =>
+      exact compileRequireFailCond_default_bridgedSource (.bitAnd ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | bitOr ha hb =>
+      exact compileRequireFailCond_default_bridgedSource (.bitOr ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | bitXor ha hb =>
+      exact compileRequireFailCond_default_bridgedSource (.bitXor ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | shl hs hv =>
+      exact compileRequireFailCond_default_bridgedSource (.shl hs hv)
+        (by simpa [compileRequireFailCond] using hOk)
+  | shr hs hv =>
+      exact compileRequireFailCond_default_bridgedSource (.shr hs hv)
+        (by simpa [compileRequireFailCond] using hOk)
+  | sar hs hv =>
+      exact compileRequireFailCond_default_bridgedSource (.sar hs hv)
+        (by simpa [compileRequireFailCond] using hOk)
+  | signextend hb hv =>
+      exact compileRequireFailCond_default_bridgedSource (.signextend hb hv)
+        (by simpa [compileRequireFailCond] using hOk)
+  | eq ha hb =>
+      exact compileRequireFailCond_default_bridgedSource (.eq ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | gt ha hb =>
+      exact compileRequireFailCond_default_bridgedSource (.gt ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | sgt ha hb =>
+      exact compileRequireFailCond_default_bridgedSource (.sgt ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | lt ha hb =>
+      exact compileRequireFailCond_default_bridgedSource (.lt ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | slt ha hb =>
+      exact compileRequireFailCond_default_bridgedSource (.slt ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+
 end Compiler.Proofs.YulGeneration.Backends
