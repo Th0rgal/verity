@@ -183,6 +183,26 @@ class ParseBridgeLemmasTests(unittest.TestCase):
             all_lemmas, admitted = gen._parse_bridge_lemmas()
         self.assertEqual(all_lemmas, ["add"])
 
+    def test_ignores_bridge_theorem_name_inside_string_literal(self) -> None:
+        """A ``theorem evalBuiltinCall_X_bridge`` pattern appearing inside a
+        Lean string literal (e.g., error message, doc reference) must not be
+        counted as a real bridge declaration; otherwise the universal-bridge
+        coverage count could be overstated even after an actual theorem is
+        removed or renamed."""
+        p = self._write_lemma_file('''\
+            theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+
+            -- A string literal that mentions a theorem-shaped name, which must
+            -- NOT be interpreted as a second bridge lemma.
+            def diagnosticMessage : String :=
+              "theorem evalBuiltinCall_phantom_bridge was removed; see PR #1725"
+        ''')
+        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+            all_lemmas, admitted = gen._parse_bridge_lemmas()
+        self.assertEqual(all_lemmas, ["add"])
+        self.assertEqual(admitted, [])
+
 
 class ParseLookupPrimOpTests(unittest.TestCase):
     """Tests for _parse_lookup_primop extraction."""

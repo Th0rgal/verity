@@ -272,7 +272,15 @@ def _parse_bridge_lemmas() -> tuple[list[str], list[str]]:
         raise FileNotFoundError(f"Bridge lemmas file not found: {BRIDGE_LEMMAS_FILE}")
     text = BRIDGE_LEMMAS_FILE.read_text(encoding="utf-8")
     code = _strip_lean_comments(text)
-    all_lemmas = sorted(set(BRIDGE_LEMMA_RE.findall(code)))
+    # Filter out matches whose start position lies inside a Lean string literal
+    # so that theorem-shaped text embedded in a quoted string (e.g. an error
+    # message or doc reference) cannot be counted as a real bridge theorem.
+    in_string_mask = _compute_in_string_mask(code)
+    all_lemmas = sorted({
+        m.group(1)
+        for m in BRIDGE_LEMMA_RE.finditer(code)
+        if not (m.start() < len(in_string_mask) and in_string_mask[m.start()])
+    })
 
     # Attribute each ``sorry`` correctly:
     # * If a ``sorry`` appears inside a bridge theorem's own body
@@ -296,7 +304,11 @@ def _parse_bridge_lemmas() -> tuple[list[str], list[str]]:
         r'(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*'
         r'theorem\s+evalBuiltinCall_(\w+)_bridge\b'
     )
-    declarations = [(m.start(), m.group(1)) for m in boundary_re.finditer(code)]
+    declarations = [
+        (m.start(), m.group(1))
+        for m in boundary_re.finditer(code)
+        if not (m.start() < len(in_string_mask) and in_string_mask[m.start()])
+    ]
     admitted: set[str] = set()
     pending_helper_sorry = False
     for idx, (start, _name) in enumerate(declarations):
