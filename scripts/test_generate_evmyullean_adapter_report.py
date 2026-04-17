@@ -157,6 +157,32 @@ class ParseBridgeLemmasTests(unittest.TestCase):
             with self.assertRaises(FileNotFoundError):
                 gen._parse_bridge_lemmas()
 
+    def test_ignores_nested_bridge_name_inside_proof_body(self) -> None:
+        """Indented ``have evalBuiltinCall_X_bridge`` inside a proof must not
+        count as a top-level universal bridge lemma."""
+        p = self._write_lemma_file("""\
+            @[simp] theorem evalBuiltinCall_add_bridge := by
+              have inner_theorem_evalBuiltinCall_fake_bridge : True := trivial
+              exact trivial
+        """)
+        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+            all_lemmas, admitted = gen._parse_bridge_lemmas()
+        self.assertEqual(all_lemmas, ["add"])
+        self.assertEqual(admitted, [])
+
+    def test_indented_theorem_not_treated_as_top_level(self) -> None:
+        """A ``theorem evalBuiltinCall_X_bridge`` that is not at column 0 with
+        only declaration modifiers before it must not be counted."""
+        p = self._write_lemma_file("""\
+            @[simp] theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+              -- not a real declaration, just text:
+              /- theorem evalBuiltinCall_not_real_bridge -/
+        """)
+        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+            all_lemmas, admitted = gen._parse_bridge_lemmas()
+        self.assertEqual(all_lemmas, ["add"])
+
 
 class ParseLookupPrimOpTests(unittest.TestCase):
     """Tests for _parse_lookup_primop extraction."""
@@ -345,6 +371,20 @@ class ParseBridgeTestsTests(unittest.TestCase):
         with patch.object(gen, "BRIDGE_TEST_FILE", Path("/nonexistent/BridgeTest.lean")):
             with self.assertRaises(FileNotFoundError):
                 gen._parse_bridge_tests()
+
+    def test_ignores_bridge_equality_inside_string_literal(self) -> None:
+        """A bridge-equality pattern appearing inside a Lean string literal
+        (e.g., error messages, doc strings) must not inflate the test count."""
+        p = self._write_test_file('''\
+            example :=
+              let msg := "example := verityEvalBuiltin \\"fake\\" [1, 2] = bridgeEval \\"fake\\" [1, 2] := by native_decide"
+              True := by native_decide
+            example := verityEvalBuiltin "add" [1, 2] = bridgeEval "add" [1, 2] := by native_decide
+        ''')
+        with patch.object(gen, "BRIDGE_TEST_FILE", p):
+            builtins, count = gen._parse_bridge_tests()
+        self.assertEqual(count, 1)
+        self.assertEqual(builtins, ["add"])
 
 
 class ParseCorrectnessProofsTests(unittest.TestCase):

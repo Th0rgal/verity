@@ -42,8 +42,14 @@ PRIMOP_RE = re.compile(r'^\s*\|\s*"([a-z0-9_]+)"\s+=>\s*some\s+\.', re.MULTILINE
 # Regex for evalPureBuiltinViaEvmYulLean match arms: | "name", [args] => some (...)
 PURE_BRIDGE_RE = re.compile(r'^\s*\|\s*"([a-z0-9_]+)",\s*\[', re.MULTILINE)
 
-# Regex for universal bridge lemmas: theorem evalBuiltinCall_NAME_bridge
-BRIDGE_LEMMA_RE = re.compile(r'theorem\s+evalBuiltinCall_(\w+)_bridge\b')
+# Regex for universal bridge lemmas: theorem evalBuiltinCall_NAME_bridge.
+# Anchored to the start of a line and only allows declaration modifiers before
+# ``theorem`` so that nested/indented ``have`` / ``theorem`` occurrences inside
+# another proof body are not treated as top-level universal bridge lemmas.
+BRIDGE_LEMMA_RE = re.compile(
+    r'(?m)^(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*'
+    r'theorem\s+evalBuiltinCall_(\w+)_bridge\b'
+)
 
 # Regex for context-lifted bridge theorems:
 # evalBuiltinCallWithBackendContext_evmYulLean_NAME_bridge
@@ -319,23 +325,68 @@ def _parse_bridge_tests() -> tuple[list[str], int]:
         raise FileNotFoundError(f"Bridge test file not found: {BRIDGE_TEST_FILE}")
     text = BRIDGE_TEST_FILE.read_text(encoding="utf-8")
     code = _strip_lean_comments(text)
-    # Split into individual example blocks
-    blocks = EXAMPLE_SPLIT_RE.split(code)[1:]  # skip preamble before first example
+    # Compute the positions that are *inside* a Lean string literal so that a
+    # plain string containing text like ``example ... verityEval ... =
+    # bridgeEval ... := by native_decide`` cannot inflate ``concrete_test_count``
+    # or the concrete builtin inventory. The example-splitter also runs on the
+    # stripped code, but split points that fall inside a string must not begin
+    # a new block: treat the stripped code as a single block if the ``example``
+    # keyword itself is inside a string.
+    in_string_mask = _compute_in_string_mask(code)
+    # Split into individual example blocks, but only at example keywords that
+    # are not themselves inside a string literal.
+    example_positions = [
+        m.start() for m in EXAMPLE_SPLIT_RE.finditer(code)
+        if not in_string_mask[m.start()]
+    ]
+    block_spans: list[tuple[int, int]] = []
+    for idx, start in enumerate(example_positions):
+        end = example_positions[idx + 1] if idx + 1 < len(example_positions) else len(code)
+        block_spans.append((start, end))
     builtins: set[str] = set()
     bridge_test_count = 0
-    for block in blocks:
-        # Only count blocks that explicitly compare a Verity evaluator with
-        # the bridge evaluator for the same builtin. Merely mentioning both
-        # evaluators in separate conjuncts is not a bridge-equivalence test.
+    for start, end in block_spans:
+        block = code[start:end]
         if not NATIVE_DECIDE_RE.search(block):
             continue
-        matches = list(BRIDGE_EQUALITY_RE.finditer(block))
+        matches = [
+            m for m in BRIDGE_EQUALITY_RE.finditer(block)
+            # Skip matches whose start position in the full file lies inside a
+            # string literal — those are quotations of test-like text, not real
+            # bridge equivalences.
+            if not in_string_mask[start + m.start()]
+        ]
         if matches:
             bridge_test_count += 1
             for match in matches:
                 builtin = match.group("left") or match.group("right")
                 builtins.add(builtin)
     return sorted(builtins), bridge_test_count
+
+
+def _compute_in_string_mask(code: str) -> list[bool]:
+    """Return a list the same length as ``code`` where ``mask[i]`` is True iff
+    the character at position ``i`` lies inside a Lean string literal (between
+    its opening and closing ``"`` characters). The opening and closing quotes
+    themselves are marked False so that regexes anchored on the quote character
+    keep matching legitimate short builtin-name strings like ``"add"``.
+    """
+    mask = [False] * len(code)
+    in_string = False
+    string_escape = False
+    for i, ch in enumerate(code):
+        if in_string:
+            mask[i] = True
+            if string_escape:
+                string_escape = False
+            elif ch == "\\":
+                string_escape = True
+            elif ch == '"':
+                mask[i] = False  # closing quote itself is not "inside"
+                in_string = False
+        elif ch == '"':
+            in_string = True
+    return mask
 
 
 def _parse_context_bridge_lemmas() -> tuple[list[str], list[str]]:
