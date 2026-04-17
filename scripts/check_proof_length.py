@@ -309,6 +309,13 @@ ALLOWLIST: set[str] = {
     # 21 `BridgedSourceExpr` constructors (4 leaves + 17 binops); each binop
     # case is 4-5 lines and cannot be merged without losing readability.
     "compileExpr_bridgedSource",
+    # Pure binding list closure mirrors `compileStmtList`'s head/tail recursion;
+    # most proof lines are boilerplate decomposition of the two Except binds.
+    "compileStmtList_pure_binding_bridged",
+    # Storage-fragment list closure has the same compileStmtList head/tail
+    # recursion plus per-head dispatch between pure bindings and single-slot
+    # setStorage; decomposition would only duplicate the existing list skeleton.
+    "compileStmtList_storage_fragment_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }

@@ -2083,11 +2083,17 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoadBodyFrom_calldataload_static_scalar_bridged  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoads_scalar_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoads_static_scalar_bridged
--- #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_append'  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_binding_leaf_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_binding_leaf_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_pure_binding_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_pure_binding_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setStorage_singleSlot_pure_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_storage_fragment_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_storage_fragment_bridged
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_stop_bridged  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_return_external_bridged  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_terminator_external_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_terminator_external_bridged
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.word_lt_uint256_size  -- private
@@ -2424,4 +2430,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2260 theorems/lemmas (1475 public, 785 private, 0 sorry'd)
+-- Total: 2266 theorems/lemmas (1480 public, 786 private, 0 sorry'd)

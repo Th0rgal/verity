@@ -501,6 +501,14 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             "proven (pure let/assign statement lists)",
         )
         self.assertEqual(
+            phase4["compileStmtList_storage_fragment_bridged"],
+            "proven (pure bindings plus single-slot setStorage statement lists)",
+        )
+        self.assertEqual(
+            phase4["compileStmtList_terminator_external_bridged"],
+            "proven (external stop/return statement lists)",
+        )
+        self.assertEqual(
             phase4["compileExpr_bridgedSource_leaf"],
             "proven (scalar source-expression leaves)",
         )
