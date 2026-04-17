@@ -227,8 +227,10 @@
     "compileExpr_bridgedSource_leaf": "proven (scalar source-expression leaves)",
     "compileStmtList_binding_leaf_bridged": "proven (scalar let/assign statement lists)",
     "compileStmtList_external_body_fragment_bridged": "proven (mixed external body fragment)",
+    "compileStmtList_external_structured_body_fragment_bridged": "proven (mixed external body fragment plus one ite layer)",
     "compileStmtList_internal_body_fragment_bridged": "proven (mixed internal body fragment)",
     "compileStmtList_internal_return_bridged": "proven (internal return statement lists)",
+    "compileStmtList_internal_structured_body_fragment_bridged": "proven (mixed internal body fragment plus one ite layer)",
     "compileStmtList_pure_binding_bridged": "proven (pure let/assign statement lists)",
     "compileStmtList_require_bridged": "proven (require statement lists)",
     "compileStmtList_storage_fragment_bridged": "proven (pure bindings plus single-slot setStorage statement lists)",
@@ -247,12 +249,12 @@
     "genStaticTypeLoads_calldataload_bridged": "proven (static scalar calldata leaves)",
     "remaining_for_whole_program_retargeting": [
       "smod/sar core equivalences (complex Int\u2194UInt256 sign/bit semantics)",
-      "extend compiler-produced IR function/entrypoint body closure beyond scalar/static-scalar calldata parameter prologues and the mixed pure-binding/single-slot setStorage/require/terminator fragments",
+      "extend compiler-produced IR function/entrypoint body closure beyond scalar/static-scalar calldata parameter prologues, the mixed pure-binding/single-slot setStorage/require/terminator fragments, and one-layer Stmt.ite wrappers",
       "Layer-3-composed IR \u2192 Yul .evmYulLean theorem"
     ],
     "retarget_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean",
     "status": "incomplete",
-    "trust_boundary": "recursive BridgedTarget statement fragment: EVMYulLean execution model matches EVM (upstream conformance tests) for BridgedExpr expressions, BridgedStraightStmts (including mapping-slot, literal-slot, and identifier-slot sstore), and recursively nested BridgedStmt targets; generated runtime-code closure and emitted-runtime backend equality are proven conditional on bridged IR bodies; scalar and static-scalar calldata parameter prologue body closure, pure source-expression closure, scalar/pure let/assign statement-list body closure, pure-binding/single-slot setStorage body closure, external stop/return terminator closure, and require statement closure are proven, and mixed external/internal body-fragment closure composes those pieces; Layer-3 composition not yet proven"
+    "trust_boundary": "recursive BridgedTarget statement fragment: EVMYulLean execution model matches EVM (upstream conformance tests) for BridgedExpr expressions, BridgedStraightStmts (including mapping-slot, literal-slot, and identifier-slot sstore), and recursively nested BridgedStmt targets; generated runtime-code closure and emitted-runtime backend equality are proven conditional on bridged IR bodies; scalar and static-scalar calldata parameter prologue body closure, pure source-expression closure, scalar/pure let/assign statement-list body closure, pure-binding/single-slot setStorage body closure, external stop/return terminator closure, and require statement closure are proven, mixed external/internal body-fragment closure composes those pieces, and one-layer Stmt.ite closure wraps those mixed fragments; Layer-3 composition not yet proven"
   },
   "schema_version": 6,
   "status": "ok",

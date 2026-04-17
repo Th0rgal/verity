@@ -329,6 +329,18 @@ ALLOWLIST: set[str] = {
     # skeleton as the external terminator and require closure proofs; the
     # excess lines are boilerplate decomposition of the two Except binds.
     "compileStmtList_internal_return_bridged",
+    # Internal mixed-body list closure is the same compileStmtList head/tail
+    # skeleton as the external mixed-body list proof; its span crosses the
+    # limit because the following one-layer ite section now follows it.
+    "compileStmtList_internal_body_fragment_bridged",
+    # One-layer source ite closure mirrors the compiler's two emitted shapes:
+    # empty else emits one Yul if, nonempty else emits a three-statement block
+    # with a cached condition and two Yul ifs. The proof is mostly mechanical
+    # Except-bind decomposition plus those two generated-shape branches.
+    "compileStmt_ite_external_body_fragment_bridged",
+    # Same generated-shape proof as the external ite closure, but with internal
+    # branch body closure so internal returns compile to assignment plus leave.
+    "compileStmt_ite_internal_body_fragment_bridged",
     # Require failure-condition source closure case-splits on the 23
     # `BridgedSourceExpr` constructors: `.ge`/`.le` are handled specially
     # because `compileRequireFailCond` uses the direct `lt`/`gt` optimization,
