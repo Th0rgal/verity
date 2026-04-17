@@ -294,14 +294,31 @@ class ParseCorrectnessProofsTests(unittest.TestCase):
 
     def test_extracts_assign_and_for_theorems(self) -> None:
         p = self._write_correctness_file("""\
-            theorem assign_equiv_let := by sorry
-            theorem for_init_hoisting := by sorry
+            theorem assign_equiv_let : True := by
+              trivial
+            theorem for_init_hoisting : True := by
+              trivial
         """)
         with patch.object(gen, "CORRECTNESS_FILE", p), \
              patch.object(gen, "ROOT", Path(self._tmpdir.name)):
             result = gen._parse_correctness_proofs()
         self.assertIn("assign_to_let", result)
         self.assertIn("for_init_hoisting", result)
+        self.assertIn("proven", result["assign_to_let"])
+        self.assertIn("proven", result["for_init_hoisting"])
+
+    def test_marks_correctness_family_sorry_when_body_contains_sorry(self) -> None:
+        p = self._write_correctness_file("""\
+            theorem assign_equiv_let : True := by
+              trivial
+            theorem for_init_hoisting : True := by
+              sorry
+        """)
+        with patch.object(gen, "CORRECTNESS_FILE", p), \
+             patch.object(gen, "ROOT", Path(self._tmpdir.name)):
+            result = gen._parse_correctness_proofs()
+        self.assertIn("proven", result["assign_to_let"])
+        self.assertIn("sorry", result["for_init_hoisting"])
 
     def test_empty_theorems_raises(self) -> None:
         p = self._write_correctness_file("""\

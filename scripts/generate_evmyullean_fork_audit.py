@@ -37,6 +37,8 @@ from pathlib import Path
 from property_utils import ROOT
 
 LAKE_MANIFEST = ROOT / "lake-manifest.json"
+PACKAGE_MANIFESTS = sorted((ROOT / "packages").glob("*/lake-manifest.json"))
+LAKE_MANIFESTS = [LAKE_MANIFEST, *PACKAGE_MANIFESTS]
 DEFAULT_OUTPUT = ROOT / "artifacts" / "evmyullean_fork_audit.json"
 
 # Hand-maintained record of the fork's divergence from upstream.
@@ -141,14 +143,14 @@ FORK_AUDIT = {
 }
 
 
-def _read_pinned_from_manifest() -> str:
-    """Extract the ``evmyul`` package's pinned revision from lake-manifest.json."""
-    with LAKE_MANIFEST.open("r", encoding="utf-8") as f:
+def _read_evmyul_package(manifest_path: Path) -> dict[str, object]:
+    """Extract the ``evmyul`` package entry from a Lake manifest."""
+    with manifest_path.open("r", encoding="utf-8") as f:
         manifest = json.load(f)
     for pkg in manifest.get("packages", []):
         if pkg.get("name") == "evmyul":
-            return pkg.get("rev", "")
-    raise RuntimeError("evmyul package not found in lake-manifest.json")
+            return pkg
+    raise RuntimeError(f"evmyul package not found in {manifest_path.relative_to(ROOT)}")
 
 
 def _validate_audit() -> None:
@@ -173,29 +175,43 @@ def _validate_audit() -> None:
             raise RuntimeError(
                 f"invalid SHA format: {commit['sha']}"
             )
+    pinned = FORK_AUDIT["pinned_commit"]
+    expected_tip = (
+        FORK_AUDIT["commits"][-1]["sha"]
+        if FORK_AUDIT["commits"]
+        else FORK_AUDIT["upstream_base"]
+    )
+    if pinned != expected_tip:
+        raise RuntimeError(
+            f"pinned_commit {pinned} must match the audited fork tip "
+            f"{expected_tip}"
+        )
 
 
 def _cross_check_manifest_pin() -> None:
-    """Verify the pinned commit in lake-manifest.json matches the audit."""
-    pinned = _read_pinned_from_manifest()
-    if pinned != FORK_AUDIT["pinned_commit"]:
-        raise RuntimeError(
-            f"lake-manifest.json pins evmyul at {pinned} but the fork "
-            f"audit records pinned_commit={FORK_AUDIT['pinned_commit']}. "
-            f"The audit must be regenerated whenever the pin moves."
-        )
-    # Also confirm the fork URL matches.
-    with LAKE_MANIFEST.open("r", encoding="utf-8") as f:
-        manifest = json.load(f)
-    for pkg in manifest.get("packages", []):
-        if pkg.get("name") == "evmyul":
-            expected_url = FORK_AUDIT["fork_url"] + ".git"
-            if pkg.get("url") != expected_url:
-                raise RuntimeError(
-                    f"lake-manifest.json points evmyul at {pkg.get('url')} "
-                    f"but audit records fork_url={expected_url}"
-                )
-            break
+    """Verify every tracked Lake manifest pins the audited fork commit."""
+    expected_url = FORK_AUDIT["fork_url"] + ".git"
+    for manifest_path in LAKE_MANIFESTS:
+        pkg = _read_evmyul_package(manifest_path)
+        pinned = pkg.get("rev", "")
+        input_rev = pkg.get("inputRev", "")
+        label = str(manifest_path.relative_to(ROOT))
+        if pinned != FORK_AUDIT["pinned_commit"]:
+            raise RuntimeError(
+                f"{label} pins evmyul at {pinned} but the fork "
+                f"audit records pinned_commit={FORK_AUDIT['pinned_commit']}. "
+                f"The audit must be regenerated whenever the pin moves."
+            )
+        if input_rev != FORK_AUDIT["pinned_commit"]:
+            raise RuntimeError(
+                f"{label} records evmyul inputRev={input_rev} but the fork "
+                f"audit records pinned_commit={FORK_AUDIT['pinned_commit']}."
+            )
+        if pkg.get("url") != expected_url:
+            raise RuntimeError(
+                f"{label} points evmyul at {pkg.get('url')} "
+                f"but audit records fork_url={expected_url}"
+            )
 
 
 def _serialize() -> str:

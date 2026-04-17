@@ -80,6 +80,11 @@ CORRECTNESS_THEOREM_RE = re.compile(
     r"^(?:@\[[^\]]*\]\s*)*(?:(?:noncomputable|private|protected)\s+)*theorem\s+([\w']+)",
     re.MULTILINE,
 )
+DECLARATION_RE = re.compile(
+    r"^(?:@\[[^\]]*\]\s*)*(?:(?:noncomputable|private|protected|unsafe|partial|local)\s+)*"
+    r"(?:theorem|lemma|def|abbrev|instance|opaque|structure|class|inductive)\b",
+    re.MULTILINE,
+)
 
 
 def _strip_lean_comments(text: str) -> str:
@@ -333,7 +338,17 @@ def _parse_correctness_proofs() -> dict[str, object]:
         raise FileNotFoundError(f"Correctness proof file not found: {CORRECTNESS_FILE}")
     text = CORRECTNESS_FILE.read_text(encoding="utf-8")
     code = _strip_lean_comments(text)
-    theorems = sorted(set(CORRECTNESS_THEOREM_RE.findall(code)))
+    theorem_matches = list(CORRECTNESS_THEOREM_RE.finditer(code))
+    theorem_status: dict[str, str] = {}
+    for idx, match in enumerate(theorem_matches):
+        name = match.group(1)
+        next_decl = DECLARATION_RE.search(code, match.end())
+        next_theorem = theorem_matches[idx + 1].start() if idx + 1 < len(theorem_matches) else None
+        candidates = [pos for pos in [next_decl.start() if next_decl else None, next_theorem] if pos is not None]
+        end = min(candidates) if candidates else len(code)
+        body = code[match.end():end]
+        theorem_status[name] = "sorry" if re.search(r"\bsorry\b", body) else "proven"
+    theorems = sorted(theorem_status)
     if not theorems:
         raise ValueError(
             f"No correctness theorems found in {CORRECTNESS_FILE.relative_to(ROOT)} "
@@ -351,10 +366,16 @@ def _parse_correctness_proofs() -> dict[str, object]:
             f"Missing for-init-hoisting correctness theorem family in {CORRECTNESS_FILE.relative_to(ROOT)} "
             f"— expected theorem names containing 'for_' or 'for_init'"
         )
+
+    def family_status(names: list[str]) -> str:
+        if any(theorem_status[name] == "sorry" for name in names):
+            return f"sorry ({', '.join(names)})"
+        return f"proven ({', '.join(names)})"
+
     return {
         "file": str(CORRECTNESS_FILE.relative_to(ROOT)),
-        "assign_to_let": f"proven ({', '.join(assign_thms)})",
-        "for_init_hoisting": f"proven ({', '.join(for_thms)})",
+        "assign_to_let": family_status(assign_thms),
+        "for_init_hoisting": family_status(for_thms),
     }
 
 

@@ -319,6 +319,34 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         self.assertNotEqual(rc, 0)
         self.assertIn("non-allowlisted", output)
 
+    def test_sorry_in_local_def_after_pinned_theorem_fails(self) -> None:
+        """A sorry in a top-level `local def` must not be attributed to a prior theorem."""
+        lines = []
+        for thm in self.PINNED_THEOREMS[:-1]:
+            lines.append(f"private theorem {thm} (a b : Nat) : True := by")
+            lines.append("  sorry")
+        lines.append("")
+        lines.append(f"private theorem {self.PINNED_THEOREMS[-1]} (a b : Nat) : True := by")
+        lines.append("  exact trivial")
+        lines.append("")
+        lines.append("local def helper : True := by")
+        lines.append("  sorry")
+        self._write_bridge_lines(lines)
+        rc, output = self._run_main()
+        self.assertNotEqual(rc, 0)
+        self.assertIn("non-allowlisted", output)
+
+    def test_sorry_in_local_theorem_is_own_non_pinned_theorem(self) -> None:
+        """A `local theorem` with sorry should be recognized as its own theorem."""
+        lines = []
+        lines.append("local theorem rogue_local_theorem : True := by")
+        lines.append("  sorry")
+        self._write_bridge_lines(lines)
+        rc, output = self._run_main()
+        self.assertNotEqual(rc, 0)
+        self.assertIn("non-pinned theorems", output)
+        self.assertIn("rogue_local_theorem", output)
+
     def test_sorry_in_def_named_like_pinned_theorem_fails(self) -> None:
         """A pinned name is allowed only on theorem/lemma declarations, not defs."""
         lines = []

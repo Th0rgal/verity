@@ -21,7 +21,7 @@ SORRY_RE = re.compile(r"\bsorry\b")
 # Optional declaration modifiers that may precede ``theorem``/``lemma`` or
 # declaration-boundary keywords (``def``, ``instance``, ...).  Any combination
 # and order of these modifiers is accepted.
-_MODIFIER_RE = r"(?:(?:private|protected|noncomputable|unsafe|partial|@\[[^\]]*\])\s+)*"
+_MODIFIER_RE = r"(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*"
 THEOREM_RE = re.compile(
     rf"{_MODIFIER_RE}(?:theorem|lemma)\s+([A-Za-z_][A-Za-z0-9_.']*)(?![A-Za-z0-9_.'])"
 )
