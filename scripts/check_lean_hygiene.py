@@ -23,7 +23,7 @@ SORRY_RE = re.compile(r"\bsorry\b")
 # and order of these modifiers is accepted.
 _MODIFIER_RE = r"(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*"
 THEOREM_RE = re.compile(
-    rf"{_MODIFIER_RE}(?:theorem|lemma)\s+([A-Za-z_][A-Za-z0-9_.']*)(?![A-Za-z0-9_.'])"
+    rf"^{_MODIFIER_RE}(?:theorem|lemma)\s+([A-Za-z_][A-Za-z0-9_.']*)(?![A-Za-z0-9_.'])"
 )
 # Declaration-boundary keywords that start a new scope.  If the backward
 # scan from a sorry hits one of these before finding a theorem/lemma,
@@ -47,7 +47,7 @@ def _find_enclosing_theorem(lines: list[str], sorry_idx: int) -> str | None:
     pinned theorem.
     """
     for j in range(sorry_idx, -1, -1):
-        m = THEOREM_RE.search(lines[j])
+        m = THEOREM_RE.match(lines[j])
         if m:
             return m.group(1)
         if BOUNDARY_RE.match(lines[j]):

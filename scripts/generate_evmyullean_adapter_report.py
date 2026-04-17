@@ -72,6 +72,13 @@ EXAMPLE_SPLIT_RE = re.compile(r'\bexample\b')
 # Regex for builtins in bridge equivalence tests (both verityEval and bridgeEval present)
 VERITY_EVAL_RE = re.compile(r'verityEval\w*\s+"([a-z0-9_]+)"')
 BRIDGE_EVAL_RE = re.compile(r'bridgeEval\s+"([a-z0-9_]+)"')
+BRIDGE_EQUALITY_RE = re.compile(
+    r'(?:'
+    r'verityEval\w*\s+"(?P<left>[a-z0-9_]+)"[\s\S]*?=\s*bridgeEval\s+"(?P=left)"'
+    r'|'
+    r'bridgeEval\s+"(?P<right>[a-z0-9_]+)"[\s\S]*?=\s*verityEval\w*\s+"(?P=right)"'
+    r')'
+)
 
 # Count native_decide occurrences
 NATIVE_DECIDE_RE = re.compile(r'by\s+native_decide')
@@ -277,19 +284,17 @@ def _parse_bridge_tests() -> tuple[list[str], int]:
     builtins: set[str] = set()
     bridge_test_count = 0
     for block in blocks:
-        # Only count blocks that have both verityEval and bridgeEval (true equivalence)
-        verity_matches = VERITY_EVAL_RE.findall(block)
-        bridge_matches = BRIDGE_EVAL_RE.findall(block)
-        if verity_matches and bridge_matches and NATIVE_DECIDE_RE.search(block):
-            # Only count builtins that appear on both sides of the bridge,
-            # and only credit this example as a bridge test if such a
-            # common builtin exists.  Without this check, blocks that
-            # compare two *different* builtins (a parser false positive)
-            # would be inflated into the concrete-test total.
-            common = set(verity_matches) & set(bridge_matches)
-            if common:
-                bridge_test_count += 1
-                builtins.update(common)
+        # Only count blocks that explicitly compare a Verity evaluator with
+        # the bridge evaluator for the same builtin. Merely mentioning both
+        # evaluators in separate conjuncts is not a bridge-equivalence test.
+        if not NATIVE_DECIDE_RE.search(block):
+            continue
+        matches = list(BRIDGE_EQUALITY_RE.finditer(block))
+        if matches:
+            bridge_test_count += 1
+            for match in matches:
+                builtin = match.group("left") or match.group("right")
+                builtins.add(builtin)
     return sorted(builtins), bridge_test_count
 
 
@@ -438,7 +443,7 @@ def build_report() -> dict[str, object]:
         # name appears only in a doc comment or summary.
         def _has_theorem_in(code: str, name: str) -> bool:
             pattern = (
-                r'(?:(?:private|protected|noncomputable|unsafe|partial|@\[[^\]]*\])\s+)*'
+                r'(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*'
                 r'theorem\s+' + re.escape(name) + r'\b'
             )
             return re.search(pattern, code) is not None
@@ -459,7 +464,7 @@ def build_report() -> dict[str, object]:
             # Slice to the next top-level ``theorem``/``lemma``/``def``/``end``
             # declaration to isolate this theorem's body.
             next_decl = re.compile(
-                r'\n(?:(?:private|protected|noncomputable|unsafe|partial|@\[[^\]]*\])\s+)*'
+                r'\n(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*'
                 r'(?:theorem|lemma|def|abbrev|instance|example|end\b)'
             )
             nxt = next_decl.search(code, pos=m.end())

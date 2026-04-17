@@ -347,6 +347,21 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         self.assertIn("non-pinned theorems", output)
         self.assertIn("rogue_local_theorem", output)
 
+    def test_indented_local_theorem_inside_pinned_theorem_uses_enclosing_theorem(self) -> None:
+        """An indented local helper theorem belongs to the enclosing pinned theorem."""
+        lines = []
+        lines.append(f"private theorem {self.PINNED_THEOREMS[0]} (a b : Nat) : True := by")
+        lines.append("  local theorem helper : True := by")
+        lines.append("    sorry")
+        lines.append("  exact helper")
+        lines.append("")
+        lines.append(f"private theorem {self.PINNED_THEOREMS[1]} (a b : Nat) : True := by")
+        lines.append("  sorry")
+        self._write_bridge_lines(lines)
+        rc, output = self._run_main()
+        self.assertEqual(rc, 0, output)
+        self.assertIn("2 sorry", output)
+
     def test_sorry_in_def_named_like_pinned_theorem_fails(self) -> None:
         """A pinned name is allowed only on theorem/lemma declarations, not defs."""
         lines = []

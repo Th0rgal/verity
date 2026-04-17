@@ -267,6 +267,28 @@ class ParseBridgeTestsTests(unittest.TestCase):
         self.assertNotIn("add", builtins)
         self.assertNotIn("sub", builtins)
 
+    def test_mentions_without_bridge_equality_not_counted(self) -> None:
+        """Separate facts about both evaluators are not bridge equivalences."""
+        p = self._write_test_file("""\
+            -- preamble
+            example : (verityEvalBuiltin "add" [1, 2] = 3) ∧
+                (bridgeEval "add" [1, 2] = 4) := by native_decide
+        """)
+        with patch.object(gen, "BRIDGE_TEST_FILE", p):
+            builtins, count = gen._parse_bridge_tests()
+        self.assertEqual(count, 0)
+        self.assertEqual(builtins, [])
+
+    def test_reversed_bridge_equality_counted(self) -> None:
+        p = self._write_test_file("""\
+            -- preamble
+            example : bridgeEval "add" [1, 2] = verityEvalBuiltin "add" [1, 2] := by native_decide
+        """)
+        with patch.object(gen, "BRIDGE_TEST_FILE", p):
+            builtins, count = gen._parse_bridge_tests()
+        self.assertEqual(count, 1)
+        self.assertEqual(builtins, ["add"])
+
     def test_ignores_commented_bridge_examples(self) -> None:
         p = self._write_test_file("""\
             /-
@@ -644,6 +666,29 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             "proven (conditional on bridged IR bodies)",
         )
         self.assertEqual(phase4["admitted_bridge_dependencies"], [])
+
+    def test_top_level_local_sorry_does_not_downgrade_prior_retarget_theorem(self) -> None:
+        with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:
+            retarget = Path(tmp) / "EvmYulLeanRetarget.lean"
+            retarget.write_text(
+                textwrap.dedent("""\
+                    theorem backends_agree_on_bridged_builtins : True := by
+                      trivial
+
+                    local def helper : True := by
+                      sorry
+
+                    theorem evalYulExpr_evmYulLean_eq_on_bridged : True := by
+                      trivial
+                """),
+                encoding="utf-8",
+            )
+            with patch.object(gen, "RETARGET_FILE", retarget):
+                with patch.object(gen, "_parse_bridge_lemmas", return_value=(["add"], [])):
+                    report = gen.build_report()
+        phase4 = report["phase4_retarget"]
+        self.assertEqual(phase4["backends_agree_on_bridged_builtins"], "proven")
+        self.assertEqual(phase4["evalYulExpr_evmYulLean_eq_on_bridged"], "proven")
 
     def test_admitted_bridge_deps_downgrade_phase4_status(self) -> None:
         with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:
