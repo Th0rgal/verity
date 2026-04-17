@@ -493,8 +493,16 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             "proven (static scalar calldata parameters)",
         )
         self.assertEqual(
+            phase4["compileStmtList_binding_leaf_bridged"],
+            "proven (scalar let/assign statement lists)",
+        )
+        self.assertEqual(
             phase4["compileExpr_bridgedSource_leaf"],
             "proven (scalar source-expression leaves)",
+        )
+        self.assertEqual(
+            phase4["compileExpr_bridgedSource"],
+            "proven (pure source-expression fragment)",
         )
 
     def test_missing_retarget_theorem_is_not_reported_proven(self) -> None:

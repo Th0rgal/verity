@@ -22,6 +22,8 @@
 -/
 
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSourceExprClosure
+import Compiler.CompilationModel.Compile
 import Compiler.CompilationModel.ParamLoading
 
 namespace Compiler.Proofs.YulGeneration.Backends
@@ -452,5 +454,125 @@ theorem genParamLoads_static_scalar_bridged
     exact BridgedStmt.straight _ bridgedStraightStmt_revert_zero
   · exact genParamLoadBodyFrom_calldataload_static_scalar_bridged _ 4 params 4
       hStatic stmt hMem
+
+/-! ## Source statement body closure: scalar leaf bindings
+
+The runtime wrapper theorem is conditional on embedded IR bodies satisfying
+`BridgedStmts`. The following small source-level fragment connects the scalar
+leaf expression closure in `EvmYulLeanSourceExprClosure` to the two simplest
+`compileStmt` forms: `letVar` and `assignVar`.
+-/
+
+/-- Source statements whose emitted Yul is a single value-binding statement
+with a scalar leaf expression on the right-hand side. -/
+inductive BridgedSourceBindingStmt : Stmt → Prop
+  | letVar (name : String) (value : Expr)
+      (hValue : BridgedSourceExprLeaf value) :
+      BridgedSourceBindingStmt (.letVar name value)
+  | assignVar (name : String) (value : Expr)
+      (hValue : BridgedSourceExprLeaf value) :
+      BridgedSourceBindingStmt (.assignVar name value)
+
+def BridgedSourceBindingStmts (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts, BridgedSourceBindingStmt stmt
+
+private theorem BridgedStmts_append' {xs ys : List YulStmt}
+    (hXs : BridgedStmts xs) (hYs : BridgedStmts ys) :
+    BridgedStmts (xs ++ ys) := by
+  intro stmt hMem
+  rcases List.mem_append.mp hMem with h | h
+  · exact hXs stmt h
+  · exact hYs stmt h
+
+/-- A scalar-leaf `letVar`/`assignVar` source statement compiles to Yul that
+satisfies `BridgedStmts`. -/
+theorem compileStmt_binding_leaf_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceBindingStmt stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames stmt = .ok out →
+        BridgedStmts out := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | letVar name value hValue =>
+      simp only [compileStmt, bind, Except.bind] at hOk
+      cases hExpr : compileExpr fields dynamicSource value with
+      | error err =>
+          simp [hExpr] at hOk
+      | ok valueExpr =>
+          simp [hExpr, Pure.pure, Except.pure] at hOk
+          subst out
+          have hBridged : BridgedExpr valueExpr :=
+            compileExpr_bridgedSource_leaf fields dynamicSource hValue hExpr
+          intro yulStmt hMem
+          simp only [List.mem_singleton] at hMem
+          subst yulStmt
+          exact BridgedStmt.straight _
+            (BridgedStraightStmt.let_ name valueExpr hBridged)
+  | assignVar name value hValue =>
+      simp only [compileStmt, bind, Except.bind] at hOk
+      cases hExpr : compileExpr fields dynamicSource value with
+      | error err =>
+          simp [hExpr] at hOk
+      | ok valueExpr =>
+          simp [hExpr, Pure.pure, Except.pure] at hOk
+          subst out
+          have hBridged : BridgedExpr valueExpr :=
+            compileExpr_bridgedSource_leaf fields dynamicSource hValue hExpr
+          intro yulStmt hMem
+          simp only [List.mem_singleton] at hMem
+          subst yulStmt
+          exact BridgedStmt.straight _
+            (BridgedStraightStmt.assign name valueExpr hBridged)
+
+/-- Lists made only of scalar-leaf `letVar`/`assignVar` statements compile to
+Yul lists satisfying `BridgedStmts`. This is the first direct body-closure
+theorem over `compileStmtList`. -/
+theorem compileStmtList_binding_leaf_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceBindingStmts stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames head with
+      | error err =>
+          simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource internalRetNames
+              isInternal (collectStmtNames head ++ inScopeNames) tail with
+          | error err =>
+              simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource : BridgedSourceBindingStmt head :=
+                hSource head (by simp)
+              have hTailSource : BridgedSourceBindingStmts tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              exact BridgedStmts_append'
+                (compileStmt_binding_leaf_bridged fields events errors dynamicSource
+                  internalRetNames isInternal inScopeNames hHeadSource hHead)
+                (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
 
 end Compiler.Proofs.YulGeneration.Backends

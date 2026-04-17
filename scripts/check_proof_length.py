@@ -305,6 +305,10 @@ ALLOWLIST: set[str] = {
     # actual `genParamLoadBodyFrom` prologue generator; the fixed-array branch
     # has to cover both inline static loads and the generated first-element alias.
     "genParamLoadBodyFrom_calldataload_static_scalar_bridged",
+    # Source-expression closure main theorem: structural induction over the
+    # 21 `BridgedSourceExpr` constructors (4 leaves + 17 binops); each binop
+    # case is 4-5 lines and cannot be merged without losing readability.
+    "compileExpr_bridgedSource",
     # --- Misc ---
     "findUniqueInternalFunction",
 }

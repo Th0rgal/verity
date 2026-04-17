@@ -333,8 +333,9 @@ conditional emitted-runtime equality between Verity `execYulFuel` and the
   EVMYulLean backend executor. These theorems still transitively depend on the
   two sorry-backed smod/sar core equivalences where they invoke backend
   equivalence. Body-closure increments also prove scalar and static-scalar
-  calldata parameter prologues satisfy `BridgedStmts`, and scalar source
-  expression leaves compile to `BridgedExpr`.
+  calldata parameter prologues satisfy `BridgedStmts`, pure source-expression
+  fragments compile to `BridgedExpr`, and scalar-leaf `letVar`/`assignVar`
+  statement lists compile to `BridgedStmts`.
 
 **Trust boundary after Phase 4 (sorry-dependent recursive statement-target fragment)**:
 - For any single bridged-builtin call whose bridge dependencies are fully
@@ -348,15 +349,17 @@ conditional emitted-runtime equality between Verity `execYulFuel` and the
   embeds satisfy `BridgedStmt`.
 - Scalar and static-scalar calldata parameter-loading prologues are now known
   to satisfy `BridgedStmts`.
-- Scalar source expression leaves (`literal`/`param`/`constructorArg`/`localVar`)
-  are now known to compile to `BridgedExpr`.
+- Scalar source expression leaves and the pure arithmetic/comparison/bit-operation
+  `BridgedSourceExpr` fragment are now known to compile to `BridgedExpr`.
+- Scalar-leaf `letVar`/`assignVar` statement lists are now known to compile to
+  `BridgedStmts`.
 - 36 of 36 builtins are bridged, including `mappingSlot` via the shared
   keccak-faithful `abstractMappingSlot` derivation.
 - 2 bridge lemmas use `sorry` (smod, sar) — blocked by complex Int↔UInt256
   sign/bit semantics, not privacy.
 - Closure of compiler-produced IR function/entrypoint bodies beyond scalar
-  calldata parameter prologues and scalar source-expression leaves, and Layer-3
-  composition, are not yet proven.
+  calldata parameter prologues and scalar/pure-expression let/assign statement
+  lists, and Layer-3 composition, are not yet proven.
 
 See `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean` for
 the Phase 4 retargeting theorems.

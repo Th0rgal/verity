@@ -8,11 +8,13 @@ namespace Compiler.CompilationModel
 open Compiler
 open Compiler.Yul
 
--- Helpers for building common Yul patterns (defined outside mutual block for termination)
-private def yulBinOp (op : String) (a b : YulExpr) : YulExpr :=
+-- Helpers for building common Yul patterns (defined outside mutual block for termination).
+-- Exposed (non-private) so that bridge/closure proofs in `Compiler.Proofs.*` can
+-- reference their definitional shape via `simp`/`unfold`.
+def yulBinOp (op : String) (a b : YulExpr) : YulExpr :=
   YulExpr.call op [a, b]
 
-private def yulNegatedBinOp (op : String) (a b : YulExpr) : YulExpr :=
+def yulNegatedBinOp (op : String) (a b : YulExpr) : YulExpr :=
   YulExpr.call "iszero" [YulExpr.call op [a, b]]
 
 def yulToBool (e : YulExpr) : YulExpr :=
