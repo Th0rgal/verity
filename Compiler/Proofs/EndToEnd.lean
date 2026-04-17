@@ -323,10 +323,11 @@ dependencies are fully proven. The retargeting module
 expression evaluation, proves straight-line statement-list equivalence for
 `BridgedStraightStmts`, and now covers `.block` wrappers plus `.if_` statements
 with bridged conditions and `.switch` statements with bridged scrutinees and
-straight-line selected bodies. These theorems still transitively depend on the
-two sorry-backed smod/sar core equivalences.
+straight-line selected bodies plus `.for_` statements with straight-line
+init/body/post lists and bridged conditions. These theorems still transitively
+depend on the two sorry-backed smod/sar core equivalences.
 
-**Trust boundary after Phase 4 (sorry-dependent switch/if/straight-line fragment)**:
+**Trust boundary after Phase 4 (sorry-dependent for/switch/if/straight-line fragment)**:
 - For any single bridged-builtin call whose bridge dependencies are fully
   proven, the Yul semantics trust assumption shifts from "Verity's custom
   builtin implementations are correct" to "EVMYulLean's execution model
@@ -339,12 +340,15 @@ two sorry-backed smod/sar core equivalences.
   the same backend equivalence.
 - `.switch` statements with a bridged scrutinee and straight-line selected
   case/default bodies preserve the same backend equivalence.
+- `.for_` statements with straight-line init/body/post lists and bridged
+  conditions preserve the same backend equivalence.
 - 36 of 36 builtins are bridged, including `mappingSlot` via the shared
   keccak-faithful `abstractMappingSlot` derivation.
 - 2 bridge lemmas use `sorry` (smod, sar) — blocked by complex Int↔UInt256
   sign/bit semantics, not privacy.
 - Structured-control-flow induction lifting this fragment through recursive
-  blocks and loops to full Yul program execution is not yet proven.
+  blocks and nested control flow to full Yul program execution is not yet
+  proven.
 
 See `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean` for
 the Phase 4 retargeting theorems.

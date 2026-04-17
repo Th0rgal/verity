@@ -268,9 +268,12 @@ ALLOWLIST: set[str] = {
     # switch theorem's doc block in its theorem span.
     "execYulFuelWithBackend_if_eq_on_bridged_body",
     # Switch helper has a short proof, but the scanner counts the trailing
-    # Phase 4 summary comment in its theorem span because it is now the last
-    # statement-level helper in the module.
+    # for theorem's doc block in its theorem span.
     "execYulFuelWithBackend_switch_eq_on_bridged_cases",
+    # For helper follows the executor's nested loop structure and exceeds the
+    # default 50-line budget even though it delegates all list execution to
+    # existing straight-line lemmas.
+    "execYulFuelWithBackend_for_eq_on_bridged_parts",
     # --- Misc ---
     "findUniqueInternalFunction",
 }

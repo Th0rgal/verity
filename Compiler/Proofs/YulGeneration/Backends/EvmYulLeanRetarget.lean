@@ -957,6 +957,53 @@ theorem execYulFuelWithBackend_switch_eq_on_bridged_cases
                   exact execYulFuelWithBackend_eq_on_bridged_straight_stmts
                     fuel state body (hDefault body hDefaultCase)
 
+/-- A `.for_` with bridged straight-line init/body/post lists and a bridged
+    condition preserves backend equivalence. The recursive loop call is made at
+    the predecessor fuel with an empty initializer, so the proof follows the
+    executor's fuel structure directly. Recursive control-flow inside the loop
+    lists still needs the broader statement predicate/induction. -/
+theorem execYulFuelWithBackend_for_eq_on_bridged_parts
+    (fuel : Nat) (state : YulState)
+    (init : List Compiler.Yul.YulStmt) (cond : Compiler.Yul.YulExpr)
+    (post body : List Compiler.Yul.YulStmt)
+    (hInit : BridgedStraightStmts init) (hCond : BridgedExpr cond)
+    (hPost : BridgedStraightStmts post) (hBody : BridgedStraightStmts body) :
+    execYulFuelWithBackend .verity fuel state (.stmt (.for_ init cond post body)) =
+    execYulFuelWithBackend .evmYulLean fuel state (.stmt (.for_ init cond post body)) := by
+  induction fuel generalizing state init with
+  | zero => rfl
+  | succ fuel ih =>
+      simp only [execYulFuelWithBackend]
+      rw [execYulFuelWithBackend_eq_on_bridged_straight_stmts fuel state init hInit]
+      cases execYulFuelWithBackend .evmYulLean fuel state (.stmts init) with
+      | «continue» s' =>
+          simp only
+          rw [evalYulExprWithBackend_eq_on_bridged s' cond hCond]
+          cases evalYulExprWithBackend .evmYulLean s' cond with
+          | none => rfl
+          | some v =>
+              by_cases hv : v = 0
+              · simp [hv]
+              · simp [hv]
+                rw [execYulFuelWithBackend_eq_on_bridged_straight_stmts fuel s' body hBody]
+                cases execYulFuelWithBackend .evmYulLean fuel s' (.stmts body) with
+                | «continue» s'' =>
+                    simp only
+                    rw [execYulFuelWithBackend_eq_on_bridged_straight_stmts fuel s'' post hPost]
+                    cases execYulFuelWithBackend .evmYulLean fuel s'' (.stmts post) with
+                    | «continue» s''' =>
+                        simp only
+                        exact ih s''' [] (by intro stmt hMem; cases hMem)
+                    | «return» _ _ => rfl
+                    | «stop» _ => rfl
+                    | «revert» _ => rfl
+                | «return» _ _ => rfl
+                | «stop» _ => rfl
+                | «revert» _ => rfl
+      | «return» _ _ => rfl
+      | «stop» _ => rfl
+      | «revert» _ => rfl
+
 /-! ## Phase 4 Completion Summary
 
 ### What this module establishes:
@@ -990,6 +1037,9 @@ theorem execYulFuelWithBackend_switch_eq_on_bridged_cases
    statement constructor preserves backend equivalence when its scrutinee is a
    `BridgedExpr`, every selectable case body satisfies `BridgedStraightStmts`,
    and the optional default body is straight-line when present.
+9. **`execYulFuelWithBackend_for_eq_on_bridged_parts`**: The `.for_`
+   statement constructor preserves backend equivalence when its init/body/post
+   lists are `BridgedStraightStmts` and its condition is a `BridgedExpr`.
 
 This is still not an end-to-end theorem, because a Layer-3-composed statement
 (IR → Yul under `.evmYulLean`) requires structured-control-flow induction and
@@ -997,16 +1047,16 @@ is **not yet proven**.
 
 ### What remains:
 - **Structured-control-flow induction**: Lift statement equivalence through
-  recursive block bodies and `.for_`.
+  recursive block bodies and control-flow bodies that are not straight-line.
 - **2 core sorry's**: smod/sar (complex Int↔UInt256 sign/bit semantics)
 
 ### Trust boundary (current state):
 Expressions constrained by `BridgedExpr`, straight-line statement lists
 constrained by `BridgedStraightStmts`, block wrappers around those lists, and
-`.if_`/`.switch` statements with bridged conditions or scrutinees plus
-straight-line selected bodies inherit EVMYulLean semantics. Whole-program
-guarantees still depend on structured-control-flow induction through recursive
-blocks, loops, and the two sorry-dependent core equivalences above.
+`.if_`/`.switch`/`.for_` statements with bridged conditions or scrutinees plus
+straight-line bodies inherit EVMYulLean semantics. Whole-program guarantees
+still depend on structured-control-flow induction through recursive blocks,
+nested control flow, and the two sorry-dependent core equivalences above.
 -/
 
 end Compiler.Proofs.YulGeneration.Backends
