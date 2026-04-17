@@ -813,7 +813,8 @@ def build_report() -> dict[str, object]:
             "trust_boundary": (
                 "recursive BridgedTarget statement fragment: EVMYulLean execution model "
                 "matches EVM (upstream conformance tests) for BridgedExpr expressions, "
-                "BridgedStraightStmts, and recursively nested BridgedStmt targets; "
+                "BridgedStraightStmts (including mapping-slot, literal-slot, and "
+                "identifier-slot sstore), and recursively nested BridgedStmt targets; "
                 "generated runtime-code closure and emitted-runtime backend equality are proven "
                 "conditional on bridged IR bodies; scalar and static-scalar calldata "
                 "parameter prologue body closure are proven; "

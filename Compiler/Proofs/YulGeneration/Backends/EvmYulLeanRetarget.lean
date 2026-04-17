@@ -792,6 +792,12 @@ inductive BridgedStraightStmt : Compiler.Yul.YulStmt → Prop
   | expr_sstore_lit (slot : Nat) (valExpr : Compiler.Yul.YulExpr)
       (hVal : BridgedExpr valExpr) :
       BridgedStraightStmt (.expr (.call "sstore" [.lit slot, valExpr]))
+  /-- `sstore(ident slotName, valExpr)` for compiler-emitted writes whose
+  storage slot has already been bound to a local variable, e.g. struct-member
+  and compatibility write helpers. -/
+  | expr_sstore_ident (slotName : String) (valExpr : Compiler.Yul.YulExpr)
+      (hVal : BridgedExpr valExpr) :
+      BridgedStraightStmt (.expr (.call "sstore" [.ident slotName, valExpr]))
   | expr_mstore (offsetExpr valExpr : Compiler.Yul.YulExpr)
       (hOffset : BridgedExpr offsetExpr) (hVal : BridgedExpr valExpr) :
       BridgedStraightStmt (.expr (.call "mstore" [offsetExpr, valExpr]))
@@ -838,6 +844,14 @@ private theorem execYulFuelWithBackend_eq_on_bridged_straight_stmt
       | succ fuel =>
           simp only [execYulFuelWithBackend]
           rw [evalYulExprWithBackend_eq_on_bridged state (.lit slot) (BridgedExpr.lit slot),
+            evalYulExprWithBackend_eq_on_bridged state valExpr hVal]
+  | expr_sstore_ident slotName valExpr hVal =>
+      cases fuel with
+      | zero => rfl
+      | succ fuel =>
+          simp only [execYulFuelWithBackend]
+          rw [evalYulExprWithBackend_eq_on_bridged state (.ident slotName)
+              (BridgedExpr.ident slotName),
             evalYulExprWithBackend_eq_on_bridged state valExpr hVal]
   | expr_mstore offsetExpr valExpr hOffset hVal =>
       cases fuel with
