@@ -254,6 +254,11 @@ ALLOWLIST: set[str] = {
     # Recovery proof mirrors the executor's statement case split; each branch is
     # direct simplification back to execYulFuel.
     "execYulFuelWithBackend_verity_eq",
+    # Straight-line statement-list backend equivalence: fuel induction plus a
+    # head/tail dispatch over the four YulExecResult constructors forces the
+    # proof past the 50-line budget even with all stmt cases delegated to the
+    # per-constructor helper lemma.
+    "execYulFuelWithBackend_eq_on_bridged_straight_stmts",
     # --- Misc ---
     "findUniqueInternalFunction",
 }

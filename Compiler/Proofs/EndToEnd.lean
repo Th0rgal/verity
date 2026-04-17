@@ -26,9 +26,9 @@
   `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, proving
   that for all 36 bridged builtins, the Verity backend agrees with EVMYulLean.
   The Phase 4 retargeting module (`EvmYulLeanRetarget.lean`) composes these
-  per-builtin equivalences through expression evaluation and provides the
-  backend-parameterized statement executor needed for the pending whole-program
-  retargeting theorem.
+  per-builtin equivalences through expression evaluation and straight-line
+  statement execution; structured control flow and whole-program retargeting
+  remain pending.
 
   Run: lake build Compiler.Proofs.EndToEnd
 -/
@@ -318,20 +318,24 @@ the `.verity` and `.evmYulLean` backends produce identical results.
 This means the existing preservation theorems above are pointwise valid under
 EVMYulLean semantics for any single bridged-builtin call site whose bridge
 dependencies are fully proven. The retargeting module
-(`EvmYulLeanRetarget.lean`) makes this explicit with the pointwise theorem
-`backends_agree_on_bridged_builtins`; the theorem still transitively depends
-on the two sorry-backed smod/sar core equivalences.
+(`EvmYulLeanRetarget.lean`) makes this explicit with
+`backends_agree_on_bridged_builtins`, lifts it through `BridgedExpr`
+expression evaluation, and now proves straight-line statement-list equivalence
+for `BridgedStraightStmts`. These theorems still transitively depend on the two
+sorry-backed smod/sar core equivalences.
 
-**Trust boundary after Phase 4 (sorry-dependent pointwise)**:
+**Trust boundary after Phase 4 (sorry-dependent straight-line fragment)**:
 - For any single bridged-builtin call whose bridge dependencies are fully
   proven, the Yul semantics trust assumption shifts from "Verity's custom
   builtin implementations are correct" to "EVMYulLean's execution model
   matches the EVM" (backed by upstream Ethereum conformance tests).
+- Straight-line `BridgedStraightStmts` statement lists inherit that same
+  backend equivalence when their expression dependencies are bridged.
 - 36 of 36 builtins are bridged, including `mappingSlot` via the shared
   keccak-faithful `abstractMappingSlot` derivation.
 - 2 bridge lemmas use `sorry` (smod, sar) — blocked by complex Int↔UInt256
   sign/bit semantics, not privacy.
-- Whole-program structural induction lifting pointwise equivalence to full
+- Structured-control-flow induction lifting the straight-line fragment to full
   Yul program execution is not yet proven.
 
 See `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean` for

@@ -459,6 +459,10 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         self.assertEqual(phase4["status"], "incomplete")
         self.assertEqual(phase4["backends_agree_on_bridged_builtins"], "missing")
         self.assertEqual(phase4["evalYulExpr_evmYulLean_eq_on_bridged"], "missing")
+        self.assertEqual(
+            phase4["execYulFuelWithBackend_eq_on_bridged_straight_stmts"],
+            "missing",
+        )
 
     def test_sorry_retarget_theorem_downgrades_phase4_status(self) -> None:
         with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:
@@ -470,6 +474,9 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
 
                     theorem evalYulExpr_evmYulLean_eq_on_bridged : True := by
                       sorry
+
+                    theorem execYulFuelWithBackend_eq_on_bridged_straight_stmts : True := by
+                      trivial
                 """),
                 encoding="utf-8",
             )
@@ -480,6 +487,10 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         self.assertEqual(phase4["status"], "pointwise")
         self.assertEqual(phase4["backends_agree_on_bridged_builtins"], "proven")
         self.assertEqual(phase4["evalYulExpr_evmYulLean_eq_on_bridged"], "sorry")
+        self.assertEqual(
+            phase4["execYulFuelWithBackend_eq_on_bridged_straight_stmts"],
+            "proven",
+        )
         self.assertEqual(phase4["admitted_bridge_dependencies"], [])
 
     def test_admitted_bridge_deps_downgrade_phase4_status(self) -> None:
@@ -491,6 +502,9 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
                       trivial
 
                     theorem evalYulExpr_evmYulLean_eq_on_bridged : True := by
+                      trivial
+
+                    theorem execYulFuelWithBackend_eq_on_bridged_straight_stmts : True := by
                       trivial
                 """),
                 encoding="utf-8",
@@ -507,6 +521,10 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         self.assertEqual(phase4["admitted_bridge_dependencies"], ["sar", "smod"])
         self.assertIn("sorry-dependent", phase4["backends_agree_on_bridged_builtins"])
         self.assertIn("smod", phase4["evalYulExpr_evmYulLean_eq_on_bridged"])
+        self.assertIn(
+            "smod",
+            phase4["execYulFuelWithBackend_eq_on_bridged_straight_stmts"],
+        )
 
 
 class ParseContextBridgeLemmasTests(unittest.TestCase):

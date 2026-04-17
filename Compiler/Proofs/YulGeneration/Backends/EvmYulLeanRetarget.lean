@@ -722,6 +722,154 @@ theorem execYulFuelWithBackend_verity_eq
               simp only [execYulFuelWithBackend, execYulFuel, ih]
               try rfl))
 
+/-! ## Statement-level backend equivalence: value-binding helpers
+
+The following pair of theorems establish the first statement-level bridges
+between `.verity` and `.evmYulLean` backends. They cover the `.let_` and
+`.assign` Yul statement forms when their right-hand-side expression is a
+`BridgedExpr`. Both proofs reduce by unfolding the executor one step then
+rewriting through `evalYulExprWithBackend_eq_on_bridged`.
+
+These are intentionally narrow helpers. A future statement-level predicate
+(covering `.block`, sstore/mstore/tstore, and control flow) can dispatch to
+them rather than re-deriving the expression rewrite each time.
+-/
+
+theorem execYulFuelWithBackend_let_eq_on_bridged
+    (fuel : Nat) (state : YulState) (name : String)
+    (value : Compiler.Yul.YulExpr) (hValue : BridgedExpr value) :
+    execYulFuelWithBackend .verity fuel state (.stmt (.let_ name value)) =
+    execYulFuelWithBackend .evmYulLean fuel state (.stmt (.let_ name value)) := by
+  cases fuel with
+  | zero => rfl
+  | succ fuel =>
+      simp only [execYulFuelWithBackend]
+      rw [evalYulExprWithBackend_eq_on_bridged state value hValue]
+
+theorem execYulFuelWithBackend_assign_eq_on_bridged
+    (fuel : Nat) (state : YulState) (name : String)
+    (value : Compiler.Yul.YulExpr) (hValue : BridgedExpr value) :
+    execYulFuelWithBackend .verity fuel state (.stmt (.assign name value)) =
+    execYulFuelWithBackend .evmYulLean fuel state (.stmt (.assign name value)) := by
+  cases fuel with
+  | zero => rfl
+  | succ fuel =>
+      simp only [execYulFuelWithBackend]
+      rw [evalYulExprWithBackend_eq_on_bridged state value hValue]
+
+/-! ## Straight-line statement backend equivalence
+
+This predicate captures the non-branching statement fragment whose backend
+dependence is solely through expression evaluation. It is the first
+statement-level lift of `evalYulExprWithBackend_eq_on_bridged`; structured
+control flow (`if`, `switch`, `for`, nested `block`) still needs a separate
+fuel/AST induction.
+-/
+
+inductive BridgedStraightStmt : Compiler.Yul.YulStmt → Prop
+  | comment (text : String) : BridgedStraightStmt (.comment text)
+  | let_ (name : String) (value : Compiler.Yul.YulExpr)
+      (hValue : BridgedExpr value) :
+      BridgedStraightStmt (.let_ name value)
+  | assign (name : String) (value : Compiler.Yul.YulExpr)
+      (hValue : BridgedExpr value) :
+      BridgedStraightStmt (.assign name value)
+  | leave : BridgedStraightStmt .leave
+  | expr_sstore_mapping (baseExpr keyExpr valExpr : Compiler.Yul.YulExpr)
+      (hBase : BridgedExpr baseExpr) (hKey : BridgedExpr keyExpr)
+      (hVal : BridgedExpr valExpr) :
+      BridgedStraightStmt
+        (.expr (.call "sstore" [.call "mappingSlot" [baseExpr, keyExpr], valExpr]))
+  | expr_mstore (offsetExpr valExpr : Compiler.Yul.YulExpr)
+      (hOffset : BridgedExpr offsetExpr) (hVal : BridgedExpr valExpr) :
+      BridgedStraightStmt (.expr (.call "mstore" [offsetExpr, valExpr]))
+  | expr_tstore (offsetExpr valExpr : Compiler.Yul.YulExpr)
+      (hOffset : BridgedExpr offsetExpr) (hVal : BridgedExpr valExpr) :
+      BridgedStraightStmt (.expr (.call "tstore" [offsetExpr, valExpr]))
+  | expr_stop : BridgedStraightStmt (.expr (.call "stop" []))
+  | expr_return (offsetExpr sizeExpr : Compiler.Yul.YulExpr)
+      (hOffset : BridgedExpr offsetExpr) (hSize : BridgedExpr sizeExpr) :
+      BridgedStraightStmt (.expr (.call "return" [offsetExpr, sizeExpr]))
+  | expr_revert (offsetExpr sizeExpr : Compiler.Yul.YulExpr) :
+      BridgedStraightStmt (.expr (.call "revert" [offsetExpr, sizeExpr]))
+  | funcDef (name : String) (params rets : List String)
+      (body : List Compiler.Yul.YulStmt) :
+      BridgedStraightStmt (.funcDef name params rets body)
+
+def BridgedStraightStmts (stmts : List Compiler.Yul.YulStmt) : Prop :=
+  ∀ stmt ∈ stmts, BridgedStraightStmt stmt
+
+private theorem execYulFuelWithBackend_eq_on_bridged_straight_stmt
+    (fuel : Nat) (state : YulState) (stmt : Compiler.Yul.YulStmt)
+    (hStmt : BridgedStraightStmt stmt) :
+    execYulFuelWithBackend .verity fuel state (.stmt stmt) =
+    execYulFuelWithBackend .evmYulLean fuel state (.stmt stmt) := by
+  cases hStmt with
+  | comment _ => cases fuel <;> rfl
+  | let_ name value hValue =>
+      exact execYulFuelWithBackend_let_eq_on_bridged fuel state name value hValue
+  | assign name value hValue =>
+      exact execYulFuelWithBackend_assign_eq_on_bridged fuel state name value hValue
+  | «leave» => cases fuel <;> rfl
+  | expr_sstore_mapping baseExpr keyExpr valExpr hBase hKey hVal =>
+      cases fuel with
+      | zero => rfl
+      | succ fuel =>
+          simp only [execYulFuelWithBackend]
+          rw [evalYulExprWithBackend_eq_on_bridged state baseExpr hBase,
+            evalYulExprWithBackend_eq_on_bridged state keyExpr hKey,
+            evalYulExprWithBackend_eq_on_bridged state valExpr hVal]
+  | expr_mstore offsetExpr valExpr hOffset hVal =>
+      cases fuel with
+      | zero => rfl
+      | succ fuel =>
+          simp only [execYulFuelWithBackend]
+          rw [evalYulExprWithBackend_eq_on_bridged state offsetExpr hOffset,
+            evalYulExprWithBackend_eq_on_bridged state valExpr hVal]
+  | expr_tstore offsetExpr valExpr hOffset hVal =>
+      cases fuel with
+      | zero => rfl
+      | succ fuel =>
+          simp only [execYulFuelWithBackend]
+          rw [evalYulExprWithBackend_eq_on_bridged state offsetExpr hOffset,
+            evalYulExprWithBackend_eq_on_bridged state valExpr hVal]
+  | expr_stop => cases fuel <;> rfl
+  | expr_return offsetExpr sizeExpr hOffset hSize =>
+      cases fuel with
+      | zero => rfl
+      | succ fuel =>
+          simp only [execYulFuelWithBackend]
+          rw [evalYulExprWithBackend_eq_on_bridged state offsetExpr hOffset,
+            evalYulExprWithBackend_eq_on_bridged state sizeExpr hSize]
+  | expr_revert _ _ => cases fuel <;> rfl
+  | funcDef _ _ _ _ => cases fuel <;> rfl
+
+theorem execYulFuelWithBackend_eq_on_bridged_straight_stmts
+    (fuel : Nat) (state : YulState) (stmts : List Compiler.Yul.YulStmt)
+    (hStmts : BridgedStraightStmts stmts) :
+    execYulFuelWithBackend .verity fuel state (.stmts stmts) =
+    execYulFuelWithBackend .evmYulLean fuel state (.stmts stmts) := by
+  induction fuel generalizing state stmts with
+  | zero =>
+      cases stmts <;> rfl
+  | succ fuel ih =>
+      cases stmts with
+      | nil => rfl
+      | cons stmt rest =>
+          have hStmt : BridgedStraightStmt stmt := hStmts stmt (by simp)
+          have hRest : BridgedStraightStmts rest := by
+            intro s hs
+            exact hStmts s (by simp [hs])
+          simp only [execYulFuelWithBackend]
+          rw [execYulFuelWithBackend_eq_on_bridged_straight_stmt fuel state stmt hStmt]
+          cases hExec : execYulFuelWithBackend .evmYulLean fuel state (.stmt stmt) with
+          | «continue» s' =>
+              simp only
+              exact ih s' rest hRest
+          | «return» v s => rfl
+          | «stop» s => rfl
+          | «revert» s => rfl
+
 /-! ## Phase 4 Completion Summary
 
 ### What this module establishes:
@@ -735,21 +883,30 @@ theorem execYulFuelWithBackend_verity_eq
    to bridged builtins, and backend-independent `tload`/`mload`.
 3. **Statement-executor scaffolding**: `execYulFuelWithBackend` is a
    backend-parameterized mirror of `execYulFuel`, providing the executor surface
-   needed for the next statement-level induction.
+   needed for statement-level induction.
+4. **`execYulFuelWithBackend_{let,assign}_eq_on_bridged`**: First
+   statement-level backend-equivalence theorems — `.let_ n v` and `.assign n v`
+   produce identical results under `.verity` and `.evmYulLean` when `v` is a
+   `BridgedExpr`. These are narrow helpers a future full statement predicate
+   can dispatch to.
+5. **`execYulFuelWithBackend_eq_on_bridged_straight_stmts`**: Statement-level
+   backend equivalence for straight-line statement lists whose expression
+   dependencies satisfy `BridgedExpr`.
 
 This is still not an end-to-end theorem, because a Layer-3-composed statement
-(IR → Yul under `.evmYulLean`) requires the statement-level structural
-induction and is **not yet proven**.
+(IR → Yul under `.evmYulLean`) requires structured-control-flow induction and
+is **not yet proven**.
 
 ### What remains:
-- **Statement-level induction**: Lift expression equivalence to full Yul-program
-  execution equivalence (structural induction over the statement AST)
+- **Structured-control-flow induction**: Lift straight-line statement
+  equivalence through `.block`, `.if_`, `.switch`, and `.for_`.
 - **2 core sorry's**: smod/sar (complex Int↔UInt256 sign/bit semantics)
 
 ### Trust boundary (current state):
-Expressions constrained by `BridgedExpr` inherit EVMYulLean semantics.
-Whole-program guarantees still depend on the statement-level induction and the
-two sorry-dependent core equivalences above.
+Expressions constrained by `BridgedExpr`, and straight-line statement lists
+constrained by `BridgedStraightStmts`, inherit EVMYulLean semantics.
+Whole-program guarantees still depend on structured-control-flow induction and
+the two sorry-dependent core equivalences above.
 -/
 
 end Compiler.Proofs.YulGeneration.Backends
