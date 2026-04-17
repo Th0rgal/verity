@@ -536,6 +536,9 @@ def build_report() -> dict[str, object]:
         has_runtime_backend_eq = _has_theorem(
             "emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies"
         )
+        has_layer3_evm_retarget = _has_theorem(
+            "yulCodegen_preserves_semantics_evmYulLean"
+        )
         backends_agree_has_sorry = _theorem_body_has_sorry("backends_agree_on_bridged_builtins")
         expr_retarget_has_sorry = _theorem_body_has_sorry("evalYulExpr_evmYulLean_eq_on_bridged")
         straight_stmt_retarget_has_sorry = _theorem_body_has_sorry(
@@ -559,6 +562,9 @@ def build_report() -> dict[str, object]:
         runtime_closure_has_sorry = _theorem_body_has_sorry("emitYul_runtimeCode_bridged")
         runtime_backend_eq_has_sorry = _theorem_body_has_sorry(
             "emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies"
+        )
+        layer3_evm_retarget_has_sorry = _theorem_body_has_sorry(
+            "yulCodegen_preserves_semantics_evmYulLean"
         )
         admitted_deps = sorted(admitted_lemmas)
         admitted_dep_status = (
@@ -644,6 +650,14 @@ def build_report() -> dict[str, object]:
             runtime_backend_eq_status = admitted_dep_status
         else:
             runtime_backend_eq_status = "proven (conditional on bridged IR bodies)"
+        if not has_layer3_evm_retarget:
+            layer3_evm_retarget_status = "missing"
+        elif layer3_evm_retarget_has_sorry:
+            layer3_evm_retarget_status = "sorry"
+        elif admitted_deps:
+            layer3_evm_retarget_status = admitted_dep_status
+        else:
+            layer3_evm_retarget_status = "proven (conditional on bridged IR bodies)"
         if BODY_CLOSURE_FILE.exists():
             body_closure_code = _strip_lean_strings(
                 _strip_lean_comments(BODY_CLOSURE_FILE.read_text(encoding="utf-8"))
@@ -936,6 +950,37 @@ def build_report() -> dict[str, object]:
             source_expr_pure_closure_status = "proven (pure source-expression fragment)"
 
         if (
+            has_layer3_evm_retarget
+            and not layer3_evm_retarget_has_sorry
+            and
+            has_runtime_backend_eq
+            and not runtime_backend_eq_has_sorry
+            and
+            has_runtime_closure
+            and not runtime_closure_has_sorry
+            and
+            has_recursive_target_retarget
+            and not recursive_target_retarget_has_sorry
+            and
+            has_for_stmt_retarget
+            and not for_stmt_retarget_has_sorry
+            and
+            has_switch_stmt_retarget
+            and not switch_stmt_retarget_has_sorry
+            and
+            has_if_stmt_retarget
+            and not if_stmt_retarget_has_sorry
+            and
+            has_block_stmt_retarget
+            and not block_stmt_retarget_has_sorry
+            and has_straight_stmt_retarget
+            and not straight_stmt_retarget_has_sorry
+            and has_expr_retarget
+            and not expr_retarget_has_sorry
+            and not admitted_deps
+        ):
+            phase4_status = "layer3-contract-evmyullean-target"
+        elif (
             has_runtime_backend_eq
             and not runtime_backend_eq_has_sorry
             and
@@ -1094,6 +1139,7 @@ def build_report() -> dict[str, object]:
             "execYulFuelWithBackend_eq_on_bridged_target": recursive_target_retarget_status,
             "emitYul_runtimeCode_bridged": runtime_closure_status,
             "emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies": runtime_backend_eq_status,
+            "yulCodegen_preserves_semantics_evmYulLean": layer3_evm_retarget_status,
             "genParamLoads_scalar_bridged": scalar_param_body_closure_status,
             "genStaticTypeLoads_calldataload_bridged": static_type_body_closure_status,
             "genParamLoads_static_scalar_bridged": static_param_body_closure_status,
@@ -1119,19 +1165,19 @@ def build_report() -> dict[str, object]:
                 "BridgedStraightStmts (including mapping-slot, literal-slot, and "
                 "identifier-slot sstore), and recursively nested BridgedStmt targets; "
                 "generated runtime-code closure and emitted-runtime backend equality are proven "
-                "conditional on bridged IR bodies; scalar and static-scalar calldata "
+                "conditional on bridged IR bodies; Layer-3 contract preservation now has an "
+                "EVMYulLean-backend Yul target under the same body hypotheses; scalar and static-scalar calldata "
                 "parameter prologue body closure, pure source-expression closure, scalar/pure "
                 "let/assign statement-list body closure, pure-binding/single-slot setStorage "
                 "body closure, external stop/return terminator closure, and require statement "
                 "closure are proven, mixed external/internal body-fragment closure composes "
                 "those pieces, one-layer and two-level Stmt.ite closures are proven, "
-                "and recursive Stmt.ite closure wraps mixed body fragments; "
-                "Layer-3 composition not yet proven"
+                "and recursive Stmt.ite closure wraps mixed body fragments"
             ),
             "remaining_for_whole_program_retargeting": [
                 "smod/sar core equivalences (complex Int↔UInt256 sign/bit semantics)",
                 "extend compiler-produced IR function/entrypoint body closure beyond scalar/static-scalar calldata parameter prologues and recursive pure-binding/single-slot setStorage/require/terminator/Stmt.ite fragments",
-                "Layer-3-composed IR → Yul .evmYulLean theorem",
+                "EndToEnd theorem still targets interpretYulFromIR rather than interpretYulRuntimeWithBackend .evmYulLean",
             ],
         }
 

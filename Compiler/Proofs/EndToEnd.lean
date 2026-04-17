@@ -29,9 +29,10 @@
   per-builtin equivalences through expression evaluation and recursive
   `BridgedTarget` statement execution. It also proves that the emitted runtime
   wrapper satisfies that predicate, and executes equivalently under the
-  EVMYulLean backend, when the IR bodies it contains do. Proving those body
-  predicates is now underway for scalar and static-scalar calldata parameter
-  prologues; whole-program retargeting remains pending.
+  EVMYulLean backend, when the IR bodies it contains do. It now also exposes a
+  conditional Layer-3 theorem whose Yul side is
+  `interpretYulRuntimeWithBackend .evmYulLean`. Proving all embedded body
+  predicates and retargeting this public EndToEnd theorem remain pending.
 
   Run: lake build Compiler.Proofs.EndToEnd
 -/
@@ -332,7 +333,9 @@ on bridged IR function, entrypoint, and internal helper bodies, and
 conditional emitted-runtime equality between Verity `execYulFuel` and the
   EVMYulLean backend executor. These theorems still transitively depend on the
   two sorry-backed smod/sar core equivalences where they invoke backend
-  equivalence. Body-closure increments also prove scalar and static-scalar
+  equivalence. It also proves `yulCodegen_preserves_semantics_evmYulLean`, a
+  conditional Layer-3 theorem whose Yul side is the EVMYulLean backend runtime.
+  Body-closure increments also prove scalar and static-scalar
   calldata parameter prologues satisfy `BridgedStmts`, pure source-expression
   fragments compile to `BridgedExpr`, and scalar-leaf plus pure-expression
   `letVar`/`assignVar` statement lists, pure-binding/single-slot storage-write
@@ -350,6 +353,8 @@ conditional emitted-runtime equality between Verity `execYulFuel` and the
 - The generated runtime dispatch wrapper is now known to satisfy `BridgedTarget`
   and execute equivalently under the EVMYulLean backend when the IR bodies it
   embeds satisfy `BridgedStmt`.
+- Layer 3 now has a conditional contract-level theorem targeting
+  `interpretYulRuntimeWithBackend .evmYulLean`.
 - Scalar and static-scalar calldata parameter-loading prologues are now known
   to satisfy `BridgedStmts`.
 - Scalar source expression leaves and the pure arithmetic/comparison/bit-operation
@@ -372,7 +377,8 @@ conditional emitted-runtime equality between Verity `execYulFuel` and the
   calldata parameter prologues, scalar/pure-expression let/assign statement
   lists, pure-binding plus single-slot storage-write lists, external
   terminators, internal return terminators, and plain `require` with bridged
-  failure conditions, plus Layer-3 composition, are not yet proven.
+  failure conditions, plus this public EndToEnd theorem's EVMYulLean target,
+  are not yet proven.
 
 See `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean` for
 the Phase 4 retargeting theorems.

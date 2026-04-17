@@ -32,6 +32,7 @@ import Compiler.Proofs.YulGeneration.Preservation
 namespace Compiler.Proofs.YulGeneration.Backends
 
 open Compiler.Proofs.YulGeneration
+open Compiler.Proofs.IRGeneration
 
 /-! ## Per-builtin backend equivalence helpers
 
@@ -1500,6 +1501,130 @@ theorem emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies
     (.stmts (Compiler.emitYul contract).runtimeCode)
     (emitYul_runtimeCode_bridged contract hFunctions hFallback hReceive hInternals)
 
+noncomputable def execYulStmtsWithBackend
+    (backend : BuiltinBackend) (state : YulState) (stmts : List Compiler.Yul.YulStmt) :
+    YulExecResult :=
+  execYulFuelWithBackend backend (sizeOf stmts + 1) state (.stmts stmts)
+
+noncomputable def interpretYulRuntimeWithBackend
+    (backend : BuiltinBackend) (runtimeCode : List Compiler.Yul.YulStmt)
+    (tx : YulTransaction) (storage : Nat → Nat) (events : List (List Nat) := []) :
+    YulResult :=
+  let initialState := YulState.initial tx storage events
+  yulResultOfExecWithRollback initialState
+    (execYulStmtsWithBackend backend initialState runtimeCode)
+
+theorem interpretYulRuntimeWithBackend_verity_eq
+    (runtimeCode : List Compiler.Yul.YulStmt) (tx : YulTransaction)
+    (storage : Nat → Nat) (events : List (List Nat) := []) :
+    interpretYulRuntimeWithBackend .verity runtimeCode tx storage events =
+    interpretYulRuntime runtimeCode tx storage events := by
+  unfold interpretYulRuntimeWithBackend execYulStmtsWithBackend interpretYulRuntime
+  unfold execYulStmts execYulStmtsFuel
+  change
+    yulResultOfExecWithRollback (YulState.initial tx storage events)
+      (execYulFuelWithBackend .verity (sizeOf runtimeCode + 1)
+        (YulState.initial tx storage events) (.stmts runtimeCode)) =
+    match execYulFuel (sizeOf runtimeCode + 1)
+        (YulState.initial tx storage events) (.stmts runtimeCode) with
+    | .continue s =>
+        { success := true, returnValue := s.returnValue, finalStorage := s.storage,
+          finalMappings := Compiler.Proofs.storageAsMappings s.storage, events := s.events }
+    | .return v s =>
+        { success := true, returnValue := some v, finalStorage := s.storage,
+          finalMappings := Compiler.Proofs.storageAsMappings s.storage, events := s.events }
+    | .stop s =>
+        { success := true, returnValue := none, finalStorage := s.storage,
+          finalMappings := Compiler.Proofs.storageAsMappings s.storage, events := s.events }
+    | .revert _ =>
+        { success := false, returnValue := none, finalStorage := storage,
+          finalMappings := Compiler.Proofs.storageAsMappings storage, events := events }
+  rw [execYulFuelWithBackend_verity_eq]
+  cases execYulFuel (sizeOf runtimeCode + 1) (YulState.initial tx storage events)
+      (.stmts runtimeCode) <;> rfl
+
+theorem interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
+    (contract : Compiler.IRContract) (tx : Compiler.Proofs.IRGeneration.IRTransaction)
+    (state : Compiler.Proofs.IRGeneration.IRState)
+    (hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
+    (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)
+    (hReceive : ∀ rc, contract.receiveEntrypoint = some rc → BridgedStmts rc.body)
+    (hInternals : BridgedStmts contract.internalFunctions) :
+    interpretYulFromIR contract tx state =
+    interpretYulRuntimeWithBackend .evmYulLean
+      (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
+      state.storage state.events := by
+  unfold interpretYulFromIR
+  calc
+    interpretYulRuntime (Compiler.emitYul contract).runtimeCode
+        (YulTransaction.ofIR tx) state.storage state.events =
+      interpretYulRuntimeWithBackend .verity
+        (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
+        state.storage state.events := by
+          exact (interpretYulRuntimeWithBackend_verity_eq
+            (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
+            state.storage (events := state.events)).symm
+    _ = interpretYulRuntimeWithBackend .evmYulLean
+        (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
+        state.storage state.events := by
+          unfold interpretYulRuntimeWithBackend execYulStmtsWithBackend
+          change
+            yulResultOfExecWithRollback
+              (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
+              (execYulFuelWithBackend .verity
+                (sizeOf (Compiler.emitYul contract).runtimeCode + 1)
+                (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
+                (.stmts (Compiler.emitYul contract).runtimeCode)) =
+            yulResultOfExecWithRollback
+              (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
+              (execYulFuelWithBackend .evmYulLean
+                (sizeOf (Compiler.emitYul contract).runtimeCode + 1)
+                (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
+                (.stmts (Compiler.emitYul contract).runtimeCode))
+          rw [execYulFuelWithBackend_verity_eq]
+          rw [emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies
+            (sizeOf (Compiler.emitYul contract).runtimeCode + 1)
+            (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
+            contract hFunctions hFallback hReceive hInternals]
+
+theorem yulCodegen_preserves_semantics_evmYulLean
+    (contract : Compiler.IRContract)
+    (tx : IRTransaction)
+    (initialState : IRState)
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hWF : ContractWF contract)
+    (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none)
+    (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions →
+      DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ contract.functions →
+      yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions →
+      HasSelectorDeadBridge fn.body)
+    (hLoopFree : ∀ fn, fn ∈ contract.functions →
+      yulStmtsLoopFree fn.body = true)
+    (hbody : ∀ fn, fn ∈ contract.functions →
+      resultsMatch
+        (execIRFunction fn tx.args (initialState.withTx tx))
+        (interpretYulBody fn tx (initialState.withTx tx)))
+    (hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
+    (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)
+    (hReceive : ∀ rc, contract.receiveEntrypoint = some rc → BridgedStmts rc.body)
+    (hInternals : BridgedStmts contract.internalFunctions) :
+    resultsMatch
+      (interpretIR contract tx initialState)
+      (interpretYulRuntimeWithBackend .evmYulLean
+        (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
+        initialState.storage initialState.events) := by
+  have hLayer3 :=
+    yulCodegen_preserves_semantics contract tx initialState
+      hselector hNoWrap hWF hNoFallback hNoReceive hdispatchGuardSafe
+      hNoHasSelector hHasSelectorDead hLoopFree hbody
+  rw [← interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
+    contract tx initialState hFunctions hFallback hReceive hInternals]
+  exact hLayer3
+
 /-! ## Phase 4 Completion Summary
 
 ### What this module establishes:
@@ -1543,22 +1668,30 @@ theorem emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies
     emitted runtime-wrapper closure with recursive target equivalence to state
     that Verity `execYulFuel` equals the EVMYulLean backend executor for
     `emitYul` runtime code, conditional on bridged embedded bodies.
+12. **`yulCodegen_preserves_semantics_evmYulLean`**: Composes the existing
+    Layer-3 IR-to-Yul preservation theorem with the bridged-runtime equality
+    above, yielding a contract-level result whose Yul side is evaluated by the
+    EVMYulLean builtin backend. This remains conditional on generated embedded
+    bodies satisfying `BridgedStmts`.
 
-This is still not an end-to-end theorem, because a Layer-3-composed statement
-(IR → Yul under `.evmYulLean`) requires structured-control-flow induction and
-is **not yet proven**.
+This is still not an end-to-end theorem, because the full EndToEnd composition
+still targets `interpretYulFromIR`; using the EVMYulLean-targeted Layer-3
+theorem requires discharging the embedded-body `BridgedStmts` hypotheses for
+the compiled contract.
 
 ### What remains:
-- **Layer-3 composition**: Connect the recursive `BridgedStmt` target theorem
-  to the existing IR → Yul preservation stack.
+- **EndToEnd composition**: Replace the public end-to-end theorem's Yul target
+  with `interpretYulRuntimeWithBackend .evmYulLean` once body-closure
+  hypotheses are available for the compiled contract.
 - **2 core sorry's**: smod/sar (complex Int↔UInt256 sign/bit semantics)
 
 ### Trust boundary (current state):
 Expressions constrained by `BridgedExpr`, straight-line statement lists
 constrained by `BridgedStraightStmts`, and recursive statement targets
-constrained by `BridgedTarget` inherit EVMYulLean semantics. Whole-program
-guarantees still depend on composing this target theorem into Layer 3 and on
-the two sorry-dependent core equivalences above.
+constrained by `BridgedTarget` inherit EVMYulLean semantics. Contract-level
+Layer-3 preservation also targets the EVMYulLean backend when embedded bodies
+satisfy `BridgedStmts`. Whole-program guarantees still depend on EndToEnd
+composition and on the two sorry-dependent core equivalences above.
 -/
 
 end Compiler.Proofs.YulGeneration.Backends

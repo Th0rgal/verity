@@ -294,6 +294,10 @@ ALLOWLIST: set[str] = {
     # recursive target equality, and `.verity` executor recovery; the statement
     # is long because it carries all embedded-body closure hypotheses.
     "emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies",
+    # Conditional Layer-3 EVMYulLean theorem composes existing codegen
+    # preservation with emitted-runtime backend equality; the scanner also
+    # counts the trailing Phase 4 summary block in its theorem span.
+    "yulCodegen_preserves_semantics_evmYulLean",
     # Scalar parameter body closure is a structural induction over the six
     # scalar ABI cases emitted by `genParamLoadBodyFrom`.
     "genParamLoadBodyFrom_calldataload_bridged",

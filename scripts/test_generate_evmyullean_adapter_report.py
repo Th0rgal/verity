@@ -635,6 +635,10 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             phase4["emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies"],
             "missing",
         )
+        self.assertEqual(
+            phase4["yulCodegen_preserves_semantics_evmYulLean"],
+            "missing",
+        )
 
     def test_retarget_theorem_name_inside_string_is_not_reported_proven(self) -> None:
         with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:
@@ -688,6 +692,9 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
 
                     theorem emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies : True := by
                       trivial
+
+                    theorem yulCodegen_preserves_semantics_evmYulLean : True := by
+                      trivial
                 """),
                 encoding="utf-8",
             )
@@ -728,6 +735,10 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         )
         self.assertEqual(
             phase4["emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies"],
+            "proven (conditional on bridged IR bodies)",
+        )
+        self.assertEqual(
+            phase4["yulCodegen_preserves_semantics_evmYulLean"],
             "proven (conditional on bridged IR bodies)",
         )
         self.assertEqual(phase4["admitted_bridge_dependencies"], [])
@@ -808,6 +819,9 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
 
                     theorem emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies : True := by
                       trivial
+
+                    theorem yulCodegen_preserves_semantics_evmYulLean : True := by
+                      trivial
                 """),
                 encoding="utf-8",
             )
@@ -854,6 +868,10 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         self.assertIn(
             "smod",
             phase4["emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies"],
+        )
+        self.assertIn(
+            "smod",
+            phase4["yulCodegen_preserves_semantics_evmYulLean"],
         )
 
 
