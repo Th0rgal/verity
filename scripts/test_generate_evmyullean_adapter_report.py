@@ -93,6 +93,24 @@ class ParseBridgeLemmasTests(unittest.TestCase):
         self.assertIn("sar", all_lemmas)
         self.assertEqual(admitted, ["sar"])
 
+    def test_treats_opaque_helper_as_declaration_boundary(self) -> None:
+        """An ``opaque`` helper with sorry should admit the following bridge."""
+        p = self._write_lemma_file("""\
+            @[simp] theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+
+            opaque sar_core : True := by
+              sorry
+
+            @[simp] theorem evalBuiltinCall_sar_bridge := by
+              exact sar_core
+        """)
+        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+            all_lemmas, admitted = gen._parse_bridge_lemmas()
+        self.assertIn("add", all_lemmas)
+        self.assertIn("sar", all_lemmas)
+        self.assertEqual(admitted, ["sar"])
+
     def test_ignores_sorry_in_comments(self) -> None:
         """Sorry in comments or doc comments should not trigger detection."""
         p = self._write_lemma_file("""\

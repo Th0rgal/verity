@@ -206,6 +206,21 @@ class BridgeCoverageSyncTests(unittest.TestCase):
         admitted = check.extract_admitted_builtins(text)
         self.assertEqual(admitted, ["sar"])
 
+    def test_extract_admitted_treats_opaque_as_boundary(self) -> None:
+        """An ``opaque`` helper with sorry should not be merged into the prior bridge."""
+        text = textwrap.dedent("""\
+            @[simp] theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+
+            opaque sar_core : True := by
+              sorry
+
+            @[simp] theorem evalBuiltinCall_sar_bridge := by
+              exact sar_core
+        """)
+        admitted = check.extract_admitted_builtins(text)
+        self.assertEqual(admitted, ["sar"])
+
     def test_extract_admitted_ignores_sorry_in_comments(self) -> None:
         """Sorry in comments or doc comments should not trigger detection."""
         text = textwrap.dedent("""\

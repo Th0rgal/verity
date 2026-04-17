@@ -161,9 +161,13 @@ def extract_admitted_builtins(text: str) -> list[str]:
     """
     code = _strip_lean_comments(text)
     sorry_re = re.compile(r"\bsorry\b")
+    decl_keywords = (
+        r"theorem|lemma|def|abbrev|instance|example|opaque|axiom|constant|"
+        r"inductive|structure|class"
+    )
     boundary_re = re.compile(
         r"(?m)^(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*"
-        r"(?:theorem|lemma|def|abbrev|instance|example)\s+(\w+)"
+        rf"(?:{decl_keywords})\s+(\w+)"
     )
     bridge_name_re = re.compile(
         r"(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*"
