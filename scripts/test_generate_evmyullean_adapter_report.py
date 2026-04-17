@@ -555,6 +555,14 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             "proven (mixed internal body fragment plus one ite layer)",
         )
         self.assertEqual(
+            phase4["compileStmtList_external_nested_body_fragment_bridged"],
+            "proven (mixed external body fragment plus two ite layers)",
+        )
+        self.assertEqual(
+            phase4["compileStmtList_internal_nested_body_fragment_bridged"],
+            "proven (mixed internal body fragment plus two ite layers)",
+        )
+        self.assertEqual(
             phase4["compileExpr_bridgedSource_leaf"],
             "proven (scalar source-expression leaves)",
         )

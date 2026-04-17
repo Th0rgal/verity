@@ -341,6 +341,17 @@ ALLOWLIST: set[str] = {
     # Same generated-shape proof as the external ite closure, but with internal
     # branch body closure so internal returns compile to assignment plus leave.
     "compileStmt_ite_internal_body_fragment_bridged",
+    # Internal structured-body list closure is the same compileStmtList
+    # head/tail skeleton as the external structured-body proof; the measured
+    # span now includes the following nested-ite section header.
+    "compileStmtList_internal_structured_body_fragment_bridged",
+    # Two-level source ite closure mirrors the same two compiler-emitted shapes
+    # as the one-layer proof, but delegates branch bodies to structured-body
+    # list closure. The proof is mechanical Except-bind decomposition.
+    "compileStmt_ite_external_nested_body_fragment_bridged",
+    # Same generated-shape proof as the external two-level ite closure, but
+    # with internal branch body closure for internal returns.
+    "compileStmt_ite_internal_nested_body_fragment_bridged",
     # Require failure-condition source closure case-splits on the 23
     # `BridgedSourceExpr` constructors: `.ge`/`.le` are handled specially
     # because `compileRequireFailCond` uses the direct `lt`/`gt` optimization,
