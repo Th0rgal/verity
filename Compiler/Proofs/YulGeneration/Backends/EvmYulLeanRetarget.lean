@@ -552,6 +552,163 @@ theorem evalYulExpr_evmYulLean_eq_on_bridged
   rw [← evalYulExprWithBackend_verity_eq state expr]
   exact h
 
+/-! ## Statement-level backend-parameterized executor (scaffolding)
+
+`execYulFuelWithBackend` mirrors `execYulFuel` from `Semantics.lean` but routes
+each expression evaluation through `evalYulExprWithBackend backend`. This is
+infrastructure for the pending whole-program retargeting. Bridging `.verity`
+and `.evmYulLean` on bridged statement targets is deferred to a follow-up.
+-/
+
+def execYulFuelWithBackend (backend : BuiltinBackend) :
+    Nat → YulState → YulExecTarget → YulExecResult
+  | _, state, .stmts [] => .continue state
+  | _, state, .stmt (Compiler.Yul.YulStmt.funcDef _ _ _ _) => .continue state
+  | 0, state, _ => .revert state
+  | Nat.succ fuel, state, target =>
+      match target with
+      | .stmt stmt =>
+          match stmt with
+          | .comment _ => .continue state
+          | .let_ name value =>
+              match evalYulExprWithBackend backend state value with
+              | some v => .continue (state.setVar name v)
+              | none => .revert state
+          | .letMany _ _ => .revert state
+          | .assign name value =>
+              match evalYulExprWithBackend backend state value with
+              | some v => .continue (state.setVar name v)
+              | none => .revert state
+          | .leave => .continue state
+          | .expr e =>
+              match e with
+              | .call "sstore" [slotExpr, valExpr] =>
+                  match slotExpr with
+                  | .call "mappingSlot" [baseExpr, keyExpr] =>
+                      match evalYulExprWithBackend backend state baseExpr,
+                            evalYulExprWithBackend backend state keyExpr,
+                            evalYulExprWithBackend backend state valExpr with
+                      | some baseSlot, some key, some val =>
+                          let updated := Compiler.Proofs.abstractStoreMappingEntry
+                            state.storage baseSlot key val
+                          .continue { state with storage := updated }
+                      | _, _, _ => .revert state
+                  | _ =>
+                      match evalYulExprWithBackend backend state slotExpr,
+                            evalYulExprWithBackend backend state valExpr with
+                      | some slot, some val =>
+                          let updated := Compiler.Proofs.abstractStoreStorageOrMapping
+                            state.storage slot val
+                          .continue { state with storage := updated }
+                      | _, _ => .revert state
+              | .call "mstore" [offsetExpr, valExpr] =>
+                  match evalYulExprWithBackend backend state offsetExpr,
+                        evalYulExprWithBackend backend state valExpr with
+                  | some offset, some val =>
+                      .continue { state with
+                        memory := fun o => if o = offset then val else state.memory o }
+                  | _, _ => .revert state
+              | .call "tstore" [offsetExpr, valExpr] =>
+                  match evalYulExprWithBackend backend state offsetExpr,
+                        evalYulExprWithBackend backend state valExpr with
+                  | some offset, some val =>
+                      .continue { state with
+                        transientStorage := fun o =>
+                          if o = offset then val else state.transientStorage o }
+                  | _, _ => .revert state
+              | .call "stop" [] => .stop state
+              | .call "return" [offsetExpr, sizeExpr] =>
+                  match evalYulExprWithBackend backend state offsetExpr,
+                        evalYulExprWithBackend backend state sizeExpr with
+                  | some offset, some size =>
+                      if size = 32 then
+                        .return (state.memory offset) state
+                      else
+                        .return 0 state
+                  | _, _ => .revert state
+              | .call "revert" [_, _] => .revert state
+              | _ =>
+                  match evalYulExprWithBackend backend state e with
+                  | some _ => .continue state
+                  | none => .revert state
+          | .if_ cond body =>
+              match evalYulExprWithBackend backend state cond with
+              | some v =>
+                  if v = 0 then
+                    .continue state
+                  else
+                    execYulFuelWithBackend backend fuel state (.stmts body)
+              | none => .revert state
+          | .switch expr cases defaultCase =>
+              match evalYulExprWithBackend backend state expr with
+              | some v =>
+                  match cases.find? (fun x => decide (x.fst = v)) with
+                  | some (_, body) =>
+                      execYulFuelWithBackend backend fuel state (.stmts body)
+                  | none =>
+                      match defaultCase with
+                      | some body =>
+                          execYulFuelWithBackend backend fuel state (.stmts body)
+                      | none => .continue state
+              | none => .revert state
+          | .for_ init cond post body =>
+              match execYulFuelWithBackend backend fuel state (.stmts init) with
+              | .continue s' =>
+                  match evalYulExprWithBackend backend s' cond with
+                  | some v =>
+                      if v = 0 then .continue s'
+                      else
+                        match execYulFuelWithBackend backend fuel s' (.stmts body) with
+                        | .continue s'' =>
+                            match execYulFuelWithBackend backend fuel s'' (.stmts post) with
+                            | .continue s''' =>
+                                execYulFuelWithBackend backend fuel s'''
+                                  (.stmt (.for_ [] cond post body))
+                            | other => other
+                        | other => other
+                  | none => .revert s'
+              | other => other
+          | .block stmts =>
+              execYulFuelWithBackend backend fuel state (.stmts stmts)
+          | .funcDef _ _ _ _ => .continue state
+      | .stmts [] => .continue state
+      | .stmts (stmt :: rest) =>
+          match execYulFuelWithBackend backend fuel state (.stmt stmt) with
+          | .continue s' => execYulFuelWithBackend backend fuel s' (.stmts rest)
+          | .return v s => .return v s
+          | .stop s => .stop s
+          | .revert s => .revert s
+
+/-- The backend-parameterized executor recovers `execYulFuel` at the `.verity`
+    backend. Statement-level analogue of `evalYulExprWithBackend_verity_eq` —
+    this is the correctness obligation that justifies replacing every
+    `execYulFuel` call in upstream theorems with
+    `execYulFuelWithBackend .verity`. -/
+theorem execYulFuelWithBackend_verity_eq
+    (fuel : Nat) (state : YulState) (target : YulExecTarget) :
+    execYulFuelWithBackend .verity fuel state target =
+    execYulFuel fuel state target := by
+  induction fuel generalizing state target with
+  | zero =>
+      cases target with
+      | stmt s => cases s <;> rfl
+      | stmts ss => cases ss <;> rfl
+  | succ fuel ih =>
+      cases target with
+      | stmt s =>
+          cases s <;> (
+            try rfl
+            all_goals (
+              simp only [execYulFuelWithBackend, execYulFuel,
+                evalYulExprWithBackend_verity_eq, ih]
+              try rfl))
+      | stmts ss =>
+          cases ss <;> (
+            try rfl
+            all_goals (
+              simp only [execYulFuelWithBackend, execYulFuel, ih]
+              try rfl))
+
 /-! ## Phase 4 Completion Summary
 
 ### What this module establishes:
@@ -563,13 +720,16 @@ theorem evalYulExpr_evmYulLean_eq_on_bridged
 2. **`evalYulExpr_evmYulLean_eq_on_bridged`**: Expression-level backend
    equivalence for `BridgedExpr`, covering literals, identifiers, nested calls
    to bridged builtins, and backend-independent `tload`/`mload`.
+3. **Statement-executor scaffolding**: `execYulFuelWithBackend` is a
+   backend-parameterized mirror of `execYulFuel`, providing the executor surface
+   needed for the next statement-level induction.
 
 This is still not an end-to-end theorem, because a Layer-3-composed statement
 (IR → Yul under `.evmYulLean`) requires the statement-level induction plus
 Phase 3 state bridging and is **not yet proven**.
 
 ### What remains:
-- **Phase 3 state bridge**: Prove `sload` and `mappingSlot` equivalence
+- **Phase 3 state bridge**: Prove `mappingSlot` equivalence
 - **Statement-level induction**: Lift expression equivalence to full Yul-program
   execution equivalence (structural induction over the statement AST)
 - **2 core sorry's**: smod/sar (complex Int↔UInt256 sign/bit semantics)

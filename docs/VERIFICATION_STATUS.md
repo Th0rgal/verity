@@ -106,16 +106,19 @@ theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
 
 Key files: [`StatementEquivalence.lean`](../Compiler/Proofs/YulGeneration/StatementEquivalence.lean), [`Preservation.lean`](../Compiler/Proofs/YulGeneration/Preservation.lean), [`AXIOMS.md`](../AXIOMS.md)
 
-### Phase 4: EVMYulLean Semantic Retargeting (expression-level)
+### Phase 4: EVMYulLean Semantic Retargeting (expression-level + statement executor)
 
 The retargeting module [`EvmYulLeanRetarget.lean`](../Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean) proves the following retargeting theorems:
 - `backends_agree_on_bridged_builtins`: the `.verity` and `.evmYulLean` backends produce identical results at the `evalBuiltinCallWithBackendContext` level for all 35 bridged builtins (dispatch proof is sorry-free; delegates to the 35 per-builtin context-lifted bridge lemmas in `EvmYulLeanBridgeLemmas.lean`, 2 of which rest on sorry-backed core equivalences for smod/sar)
 - `evalYulExpr_evmYulLean_eq_on_bridged`: `evalYulExpr` agrees with the `.evmYulLean` backend-parameterized evaluator for every `BridgedExpr` expression, including nested calls to bridged builtins and backend-independent `tload`/`mload`
+- `execYulFuelWithBackend_verity_eq`: the backend-parameterized statement executor recovers existing `execYulFuel` semantics at `.verity`, giving the next induction a verified executor surface
+
+The backend-parameterized executor is scaffolding for the next structural induction, not a proved `.verity = .evmYulLean` statement-level retarget theorem.
 
 Trust boundary (expression-level): any `BridgedExpr` now inherits EVMYulLean semantics — "EVMYulLean's execution model matches the EVM" (backed by upstream Ethereum conformance tests) — rather than "Verity's custom builtin implementations are correct."
 
 Not yet proven in this module:
-- statement-level execution equivalence
+- statement-level execution equivalence over a bridged-statement predicate
 - a Layer-3-composed IR → Yul `.evmYulLean` theorem
 
 Remaining gaps for whole-program retargeting:

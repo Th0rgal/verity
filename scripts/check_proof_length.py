@@ -248,6 +248,12 @@ ALLOWLIST: set[str] = {
     # backends_agree dispatch proof case-splits all 35 bridged builtins;
     # each branch is one line but 34 builtins + headers exceed 50 lines.
     "backends_agree_on_bridged_builtins",
+    # Backend-parameterized mirror of execYulFuel; long by construction because
+    # it preserves all statement cases while swapping only expression backend.
+    "execYulFuelWithBackend",
+    # Recovery proof mirrors the executor's statement case split; each branch is
+    # direct simplification back to execYulFuel.
+    "execYulFuelWithBackend_verity_eq",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
