@@ -1923,14 +1923,14 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNames  -- private
 #print axioms Compiler.Proofs.IRGeneration.stmtExprHelperCallNames_subset_stmtInternalHelperCallNames
 #print axioms Compiler.Proofs.IRGeneration.exprHelperCallNames_subset_helperCallNames
+#print axioms Compiler.Proofs.IRGeneration.SupportedConstructor.paramNamesNodup
+#print axioms Compiler.Proofs.IRGeneration.SupportedConstructor.paramsSupported
 #print axioms Compiler.Proofs.IRGeneration.SupportedFunction.paramNamesNodup
 #print axioms Compiler.Proofs.IRGeneration.SupportedFunction.paramsSupported
 #print axioms Compiler.Proofs.IRGeneration.SupportedFunction.returnsSupported
 #print axioms Compiler.Proofs.IRGeneration.SupportedFunctionExceptMappingWrites.paramNamesNodup
 #print axioms Compiler.Proofs.IRGeneration.SupportedFunctionExceptMappingWrites.paramsSupported
 #print axioms Compiler.Proofs.IRGeneration.SupportedFunctionExceptMappingWrites.returnsSupported
-#print axioms Compiler.Proofs.IRGeneration.SupportedConstructor.paramNamesNodup
-#print axioms Compiler.Proofs.IRGeneration.SupportedConstructor.paramsSupported
 -- #print axioms Compiler.Proofs.IRGeneration.exprCompileCore_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.exprCompileCore_internalHelperCallNames_nil  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.exprListCompileCore_helperSurfaceClosed  -- private
@@ -2046,8 +2046,6 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.selectorsDistinct
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.functionNamesNodup
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.functionNamesNodup
-#print axioms Compiler.Proofs.IRGeneration.SupportedSpec.constructor
-#print axioms Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.constructor
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.noEvents
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.noEvents
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.noErrors
@@ -2200,4 +2198,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2051 theorems/lemmas (1370 public, 681 private, 0 sorry'd)
+-- Total: 2049 theorems/lemmas (1368 public, 681 private, 0 sorry'd)
