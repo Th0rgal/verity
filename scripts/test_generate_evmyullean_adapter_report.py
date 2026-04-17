@@ -464,6 +464,26 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         self.assertEqual(phase4["backends_agree_on_bridged_builtins"], "missing")
         self.assertEqual(phase4["evalYulExpr_evmYulLean_eq_on_bridged"], "missing")
 
+    def test_sorry_retarget_theorem_downgrades_phase4_status(self) -> None:
+        with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:
+            retarget = Path(tmp) / "EvmYulLeanRetarget.lean"
+            retarget.write_text(
+                textwrap.dedent("""\
+                    theorem backends_agree_on_bridged_builtins : True := by
+                      trivial
+
+                    theorem evalYulExpr_evmYulLean_eq_on_bridged : True := by
+                      sorry
+                """),
+                encoding="utf-8",
+            )
+            with patch.object(gen, "RETARGET_FILE", retarget):
+                report = gen.build_report()
+        phase4 = report["phase4_retarget"]
+        self.assertEqual(phase4["status"], "pointwise")
+        self.assertEqual(phase4["backends_agree_on_bridged_builtins"], "proven")
+        self.assertEqual(phase4["evalYulExpr_evmYulLean_eq_on_bridged"], "sorry")
+
 
 class ParseContextBridgeLemmasTests(unittest.TestCase):
     """Tests for _parse_context_bridge_lemmas."""

@@ -846,8 +846,9 @@ example : backendEvalWithContext "sar" [1, Compiler.Constants.evmModulus - 1] =
 example : backendEvalWithContext "signextend" [0, 0x80] =
           verityEvalWithContext "signextend" [0, 0x80] := by native_decide
 
-/-- Context-lifted bridge: state-dependent sload falls through to none -/
-example : backendEvalWithContext "sload" [42] = none := by native_decide
+/-- Context-lifted bridge: state-dependent sload reads the bridged storage context. -/
+example : backendEvalWithContext "sload" [42] =
+          verityEvalWithContext "sload" [42] := by native_decide
 
 /-- Context-lifted bridge: caller now reads the bridged execution context. -/
 example : backendEvalWithContext "caller" [] = verityEvalWithContext "caller" [] := by native_decide

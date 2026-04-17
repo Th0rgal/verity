@@ -457,9 +457,16 @@ def build_report() -> dict[str, object]:
         else:
             expr_retarget_status = "proven"
 
+        if has_expr_retarget and not expr_retarget_has_sorry:
+            phase4_status = "expression-level"
+        elif has_backends_agree and not backends_agree_has_sorry:
+            phase4_status = "pointwise"
+        else:
+            phase4_status = "incomplete"
+
         phase4_retarget = {
             "retarget_file": str(retarget_file.relative_to(ROOT)),
-            "status": "expression-level" if has_expr_retarget else ("pointwise" if has_backends_agree else "incomplete"),
+            "status": phase4_status,
             "backends_agree_on_bridged_builtins": backends_agree_status,
             "evalYulExpr_evmYulLean_eq_on_bridged": expr_retarget_status,
             "trust_boundary": (
