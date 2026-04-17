@@ -254,6 +254,12 @@ ALLOWLIST: set[str] = {
     # Recovery proof mirrors the executor's statement case split; each branch is
     # direct simplification back to execYulFuel.
     "execYulFuelWithBackend_verity_eq",
+    # Per-constructor straight-line statement backend equivalence: one short
+    # case per `BridgedStraightStmt` constructor; the breadth of shapes
+    # (comment/let/letMany/assign/leave/sstore_mapping/sstore_lit/mstore/tstore/
+    # stop/return/revert/funcDef) pushes the total past 50 lines even with each
+    # case under a handful of tactics.
+    "execYulFuelWithBackend_eq_on_bridged_straight_stmt",
     # Straight-line statement-list backend equivalence: fuel induction plus a
     # head/tail dispatch over the four YulExecResult constructors forces the
     # proof past the 50-line budget even with all stmt cases delegated to the

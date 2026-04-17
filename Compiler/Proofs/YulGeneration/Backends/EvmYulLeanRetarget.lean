@@ -783,6 +783,15 @@ inductive BridgedStraightStmt : Compiler.Yul.YulStmt → Prop
       (hVal : BridgedExpr valExpr) :
       BridgedStraightStmt
         (.expr (.call "sstore" [.call "mappingSlot" [baseExpr, keyExpr], valExpr]))
+  /-- `sstore(lit slot, valExpr)` for a literal slot. Covers the common
+  direct-storage-write shape emitted by `compileSetStorage` for unpacked
+  single-slot fields at a known slot index. The executor's inner match on
+  `.lit slot` falls through to the generic `sstore` branch (it is not a
+  `mappingSlot` call), which only differs between backends via
+  `evalYulExprWithBackend` on `.lit slot` / `valExpr` — both bridged. -/
+  | expr_sstore_lit (slot : Nat) (valExpr : Compiler.Yul.YulExpr)
+      (hVal : BridgedExpr valExpr) :
+      BridgedStraightStmt (.expr (.call "sstore" [.lit slot, valExpr]))
   | expr_mstore (offsetExpr valExpr : Compiler.Yul.YulExpr)
       (hOffset : BridgedExpr offsetExpr) (hVal : BridgedExpr valExpr) :
       BridgedStraightStmt (.expr (.call "mstore" [offsetExpr, valExpr]))
@@ -822,6 +831,13 @@ private theorem execYulFuelWithBackend_eq_on_bridged_straight_stmt
           simp only [execYulFuelWithBackend]
           rw [evalYulExprWithBackend_eq_on_bridged state baseExpr hBase,
             evalYulExprWithBackend_eq_on_bridged state keyExpr hKey,
+            evalYulExprWithBackend_eq_on_bridged state valExpr hVal]
+  | expr_sstore_lit slot valExpr hVal =>
+      cases fuel with
+      | zero => rfl
+      | succ fuel =>
+          simp only [execYulFuelWithBackend]
+          rw [evalYulExprWithBackend_eq_on_bridged state (.lit slot) (BridgedExpr.lit slot),
             evalYulExprWithBackend_eq_on_bridged state valExpr hVal]
   | expr_mstore offsetExpr valExpr hOffset hVal =>
       cases fuel with
