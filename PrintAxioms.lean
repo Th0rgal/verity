@@ -2076,9 +2076,12 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_flatMap  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_append  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.genStaticTypeLoads_calldataload_bridged
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.fixedArrayFirstAlias_bridged  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoadBodyFrom_cons_scalar  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoadBodyFrom_calldataload_bridged  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoadBodyFrom_calldataload_static_scalar_bridged  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoads_scalar_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoads_static_scalar_bridged
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.word_lt_uint256_size  -- private
@@ -2405,4 +2408,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2244 theorems/lemmas (1468 public, 776 private, 0 sorry'd)
+-- Total: 2247 theorems/lemmas (1469 public, 778 private, 0 sorry'd)

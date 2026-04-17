@@ -30,7 +30,8 @@
   `BridgedTarget` statement execution. It also proves that the emitted runtime
   wrapper satisfies that predicate, and executes equivalently under the
   EVMYulLean backend, when the IR bodies it contains do. Proving those body
-  predicates and whole-program retargeting remain pending.
+  predicates is now underway for scalar and static-scalar calldata parameter
+  prologues; whole-program retargeting remains pending.
 
   Run: lake build Compiler.Proofs.EndToEnd
 -/
@@ -331,8 +332,8 @@ on bridged IR function, entrypoint, and internal helper bodies, and
 conditional emitted-runtime equality between Verity `execYulFuel` and the
   EVMYulLean backend executor. These theorems still transitively depend on the
   two sorry-backed smod/sar core equivalences where they invoke backend
-  equivalence. The first body-closure increment also proves scalar calldata
-  parameter prologues satisfy `BridgedStmts`.
+  equivalence. Body-closure increments also prove scalar and static-scalar
+  calldata parameter prologues satisfy `BridgedStmts`.
 
 **Trust boundary after Phase 4 (sorry-dependent recursive statement-target fragment)**:
 - For any single bridged-builtin call whose bridge dependencies are fully
@@ -344,8 +345,8 @@ conditional emitted-runtime equality between Verity `execYulFuel` and the
 - The generated runtime dispatch wrapper is now known to satisfy `BridgedTarget`
   and execute equivalently under the EVMYulLean backend when the IR bodies it
   embeds satisfy `BridgedStmt`.
-- Scalar calldata parameter-loading prologues are now known to satisfy
-  `BridgedStmts`.
+- Scalar and static-scalar calldata parameter-loading prologues are now known
+  to satisfy `BridgedStmts`.
 - 36 of 36 builtins are bridged, including `mappingSlot` via the shared
   keccak-faithful `abstractMappingSlot` derivation.
 - 2 bridge lemmas use `sorry` (smod, sar) — blocked by complex Int↔UInt256

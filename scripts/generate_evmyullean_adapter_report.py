@@ -616,11 +616,19 @@ def build_report() -> dict[str, object]:
             static_type_body_closure_has_sorry = _theorem_body_has_sorry_in(
                 body_closure_code, "genStaticTypeLoads_calldataload_bridged"
             )
+            has_static_param_body_closure = _has_theorem_in(
+                body_closure_code, "genParamLoads_static_scalar_bridged"
+            )
+            static_param_body_closure_has_sorry = _theorem_body_has_sorry_in(
+                body_closure_code, "genParamLoads_static_scalar_bridged"
+            )
         else:
             has_scalar_param_body_closure = False
             scalar_param_body_closure_has_sorry = False
             has_static_type_body_closure = False
             static_type_body_closure_has_sorry = False
+            has_static_param_body_closure = False
+            static_param_body_closure_has_sorry = False
         if not has_scalar_param_body_closure:
             scalar_param_body_closure_status = "missing"
         elif scalar_param_body_closure_has_sorry:
@@ -633,6 +641,12 @@ def build_report() -> dict[str, object]:
             static_type_body_closure_status = "sorry"
         else:
             static_type_body_closure_status = "proven (static scalar calldata leaves)"
+        if not has_static_param_body_closure:
+            static_param_body_closure_status = "missing"
+        elif static_param_body_closure_has_sorry:
+            static_param_body_closure_status = "sorry"
+        else:
+            static_param_body_closure_status = "proven (static scalar calldata parameters)"
 
         if (
             has_runtime_backend_eq
@@ -795,18 +809,19 @@ def build_report() -> dict[str, object]:
             "emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies": runtime_backend_eq_status,
             "genParamLoads_scalar_bridged": scalar_param_body_closure_status,
             "genStaticTypeLoads_calldataload_bridged": static_type_body_closure_status,
+            "genParamLoads_static_scalar_bridged": static_param_body_closure_status,
             "trust_boundary": (
                 "recursive BridgedTarget statement fragment: EVMYulLean execution model "
                 "matches EVM (upstream conformance tests) for BridgedExpr expressions, "
                 "BridgedStraightStmts, and recursively nested BridgedStmt targets; "
                 "generated runtime-code closure and emitted-runtime backend equality are proven "
-                "conditional on bridged IR bodies; scalar calldata parameter prologue "
-                "body closure and static scalar leaf-load closure are proven; "
+                "conditional on bridged IR bodies; scalar and static-scalar calldata "
+                "parameter prologue body closure are proven; "
                 "Layer-3 composition not yet proven"
             ),
             "remaining_for_whole_program_retargeting": [
                 "smod/sar core equivalences (complex Int↔UInt256 sign/bit semantics)",
-                "extend compiler-produced IR function/entrypoint body closure beyond scalar calldata parameter prologues and static scalar leaf-load helpers",
+                "extend compiler-produced IR function/entrypoint body closure beyond scalar/static-scalar calldata parameter prologues",
                 "Layer-3-composed IR → Yul .evmYulLean theorem",
             ],
         }

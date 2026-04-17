@@ -14,10 +14,9 @@
   right-hand sides are `calldataload` (optionally wrapped in `and` /
   `iszero`-`iszero`), all of which live in `bridgedBuiltins`.
 
-  Dynamic parameters, full `genParamLoads` closure for static composites, and
-  constructor argument helpers are intentionally **out of scope** here — they
-  need additional predicates covering absolute-offset bookkeeping and will be
-  handled in follow-up files.
+  Dynamic parameters and constructor argument helpers are intentionally **out
+  of scope** here — they need additional predicates covering absolute-offset
+  bookkeeping and will be handled in follow-up files.
 
   Run: lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBodyClosure
 -/
@@ -281,6 +280,32 @@ theorem genStaticTypeLoads_calldataload_bridged
 def AllScalarParams (params : List Param) : Prop :=
   ∀ p ∈ params, IsScalarParamType p.ty
 
+/-- Parameter lists whose types are static ABI composites with scalar leaves. -/
+def AllStaticScalarParams (params : List Param) : Prop :=
+  ∀ p ∈ params, IsStaticScalarParamType p.ty
+
+/-- The fixed-array alias emitted for scalar-element arrays is a bridged `let`. -/
+private theorem fixedArrayFirstAlias_bridged
+    (name : String) (elemTy : ParamType) (n : Nat) :
+    BridgedStmts
+      (if n == 0 then []
+       else
+        if isScalarParamType elemTy then
+          [YulStmt.let_ name (YulExpr.ident s!"{name}_0")]
+        else
+          []) := by
+  by_cases hN : n == 0
+  · intro stmt hMem
+    simp [hN] at hMem
+  · by_cases hScalar : isScalarParamType elemTy
+    · intro stmt hMem
+      simp [hN, hScalar] at hMem
+      subst hMem
+      exact BridgedStmt.straight _
+        (BridgedStraightStmt.let_ name _ (BridgedExpr.ident s!"{name}_0"))
+    · intro stmt hMem
+      simp [hN, hScalar] at hMem
+
 /-- For a scalar parameter type, `genParamLoadBodyFrom` on a cons cell decomposes
 as `genScalarLoad ...` appended to the tail. This isolates the 6-way case
 split on `ParamType` constructors from the surrounding induction. -/
@@ -334,6 +359,64 @@ private theorem genParamLoadBodyFrom_calldataload_bridged
       · exact hHere stmt h
       · exact hTail stmt h
 
+/-- For static scalar-composite parameter lists, `genParamLoadBodyFrom` with the
+calldata loader emits only bridged statements. Scalar heads reuse
+`genScalarLoad_calldataload_bridged`; tuple/fixed-array heads reuse the proved
+`genStaticTypeLoads_calldataload_bridged` helper, plus the scalar fixed-array
+alias when present. -/
+private theorem genParamLoadBodyFrom_calldataload_static_scalar_bridged
+    (headSize baseOffset : Nat) (params : List Param) (headOffset : Nat)
+    (hStatic : AllStaticScalarParams params) :
+    BridgedStmts
+      (genParamLoadBodyFrom
+        (fun pos => YulExpr.call "calldataload" [pos])
+        (YulExpr.call "calldatasize" [])
+        headSize baseOffset params headOffset) := by
+  induction params generalizing headOffset with
+  | nil =>
+      intro stmt hMem
+      simp [genParamLoadBodyFrom] at hMem
+  | cons param rest ih =>
+      rcases param with ⟨paramName, paramTy⟩
+      have hHead : IsStaticScalarParamType paramTy :=
+        hStatic { name := paramName, ty := paramTy } (by simp)
+      have hRest : AllStaticScalarParams rest := by
+        intro p hp
+        exact hStatic p (by simp [hp])
+      have hTail : BridgedStmts
+          (genParamLoadBodyFrom
+            (fun pos => YulExpr.call "calldataload" [pos])
+            (YulExpr.call "calldatasize" [])
+            headSize baseOffset rest (headOffset + paramHeadSize paramTy)) :=
+        ih (headOffset + paramHeadSize paramTy) hRest
+      cases hHead with
+      | scalar hScalar =>
+          rw [genParamLoadBodyFrom_cons_scalar _ _ _ _ _ _ _ hScalar]
+          apply BridgedStmts_append
+          · exact genScalarLoad_calldataload_bridged paramName paramTy headOffset hScalar
+          · exact hTail
+      | @fixedArray elemTy n hElem =>
+          simp only [genParamLoadBodyFrom,
+            isDynamicParamType_false_of_static_scalar _ (IsStaticScalarParamType.fixedArray hElem)]
+          apply BridgedStmts_append
+          · by_cases hN : n == 0
+            · simp [hN]
+              exact (genStaticTypeLoads_calldataload_bridged paramName
+                (.fixedArray elemTy n) headOffset (IsStaticScalarParamType.fixedArray hElem))
+            · simp [hN]
+              apply BridgedStmts_append
+              · exact (genStaticTypeLoads_calldataload_bridged paramName
+                  (.fixedArray elemTy n) headOffset (IsStaticScalarParamType.fixedArray hElem))
+              · simpa [hN] using fixedArrayFirstAlias_bridged paramName elemTy n
+          · exact hTail
+      | @tuple elemTys hElems =>
+          simp only [genParamLoadBodyFrom,
+            isDynamicParamType_false_of_static_scalar _ (IsStaticScalarParamType.tuple hElems)]
+          apply BridgedStmts_append
+          · exact genStaticTypeLoads_calldataload_bridged paramName (.tuple elemTys)
+              headOffset (IsStaticScalarParamType.tuple hElems)
+          · exact hTail
+
 /-- `genParamLoads` produces only bridged statements when every parameter has
 a scalar ABI type. The emitted prologue is a minimum-input-size guard
 followed by one `let` per parameter. -/
@@ -351,5 +434,23 @@ theorem genParamLoads_scalar_bridged
     subst hs
     exact BridgedStmt.straight _ bridgedStraightStmt_revert_zero
   · exact genParamLoadBodyFrom_calldataload_bridged _ 4 params 4 hScalar stmt hMem
+
+/-- `genParamLoads` produces only bridged statements when every parameter is a
+static ABI value whose leaves are scalar words. This is the real prologue-level
+closure theorem for fixed arrays and tuples of scalar ABI types. -/
+theorem genParamLoads_static_scalar_bridged
+    (params : List Param) (hStatic : AllStaticScalarParams params) :
+    BridgedStmts (genParamLoads params) := by
+  unfold genParamLoads genParamLoadsFrom
+  intro stmt hMem
+  simp only [List.mem_cons] at hMem
+  rcases hMem with rfl | hMem
+  · refine BridgedStmt.if_ _ _ (bridgedExpr_lt_calldatasize _) ?_
+    intro s hs
+    simp only [List.mem_singleton] at hs
+    subst hs
+    exact BridgedStmt.straight _ bridgedStraightStmt_revert_zero
+  · exact genParamLoadBodyFrom_calldataload_static_scalar_bridged _ 4 params 4
+      hStatic stmt hMem
 
 end Compiler.Proofs.YulGeneration.Backends

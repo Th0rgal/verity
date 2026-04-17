@@ -301,6 +301,10 @@ ALLOWLIST: set[str] = {
     # with three inductive branches (scalar / fixedArray / tuple) and a nested
     # list induction over the tuple's `let rec go` body.
     "genStaticTypeLoads_calldataload_bridged",
+    # Static scalar parameter body closure is a structural induction over the
+    # actual `genParamLoadBodyFrom` prologue generator; the fixed-array branch
+    # has to cover both inline static loads and the generated first-element alias.
+    "genParamLoadBodyFrom_calldataload_static_scalar_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
