@@ -279,6 +279,17 @@ class ParseBridgeTestsTests(unittest.TestCase):
         self.assertEqual(count, 0)
         self.assertEqual(builtins, [])
 
+    def test_rejects_non_direct_bridge_equality(self) -> None:
+        """Only direct evaluator-to-evaluator equalities count as bridge tests."""
+        p = self._write_test_file("""\
+            -- preamble
+            example : verityEvalBuiltin "add" [1, 2] = bridgeEval "add" [1, 2] + 1 := by native_decide
+        """)
+        with patch.object(gen, "BRIDGE_TEST_FILE", p):
+            builtins, count = gen._parse_bridge_tests()
+        self.assertEqual(count, 0)
+        self.assertEqual(builtins, [])
+
     def test_reversed_bridge_equality_counted(self) -> None:
         p = self._write_test_file("""\
             -- preamble
@@ -743,6 +754,25 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         phase4 = report["phase4_retarget"]
         self.assertEqual(phase4["backends_agree_on_bridged_builtins"], "proven")
         self.assertEqual(phase4["evalYulExpr_evmYulLean_eq_on_bridged"], "proven")
+
+    def test_nested_local_theorem_does_not_satisfy_retarget_presence(self) -> None:
+        with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:
+            retarget = Path(tmp) / "EvmYulLeanRetarget.lean"
+            retarget.write_text(
+                textwrap.dedent("""\
+                    theorem wrapper : True := by
+                      local theorem backends_agree_on_bridged_builtins : True := by
+                        trivial
+                      trivial
+                """),
+                encoding="utf-8",
+            )
+            with patch.object(gen, "RETARGET_FILE", retarget):
+                with patch.object(gen, "_parse_bridge_lemmas", return_value=(["add"], [])):
+                    report = gen.build_report()
+        phase4 = report["phase4_retarget"]
+        self.assertEqual(phase4["backends_agree_on_bridged_builtins"], "missing")
+        self.assertEqual(phase4["status"], "incomplete")
 
     def test_admitted_bridge_deps_downgrade_phase4_status(self) -> None:
         with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:

@@ -74,9 +74,11 @@ VERITY_EVAL_RE = re.compile(r'verityEval\w*\s+"([a-z0-9_]+)"')
 BRIDGE_EVAL_RE = re.compile(r'bridgeEval\s+"([a-z0-9_]+)"')
 BRIDGE_EQUALITY_RE = re.compile(
     r'(?:'
-    r'verityEval\w*\s+"(?P<left>[a-z0-9_]+)"[\s\S]*?=\s*bridgeEval\s+"(?P=left)"'
+    r'verityEval\w*\s+"(?P<left>[a-z0-9_]+)"\s+\[[^\]]*\]\s*'
+    r'=\s*bridgeEval\s+"(?P=left)"\s+\[[^\]]*\]\s*:=\s*by\s+native_decide'
     r'|'
-    r'bridgeEval\s+"(?P<right>[a-z0-9_]+)"[\s\S]*?=\s*verityEval\w*\s+"(?P=right)"'
+    r'bridgeEval\s+"(?P<right>[a-z0-9_]+)"\s+\[[^\]]*\]\s*'
+    r'=\s*verityEval\w*\s+"(?P=right)"\s+\[[^\]]*\]\s*:=\s*by\s+native_decide'
     r')'
 )
 
@@ -476,10 +478,11 @@ def build_report() -> dict[str, object]:
         # name appears only in a doc comment or summary.
         def _has_theorem_in(code: str, name: str) -> bool:
             pattern = (
-                r'(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*'
+                r'^[ \t]{0,2}(?:@\[[^\]]*\]\s*)*'
+                r'(?:(?:private|protected|noncomputable|unsafe|partial)\s+)*'
                 r'theorem\s+' + re.escape(name) + r'\b'
             )
-            return re.search(pattern, code) is not None
+            return re.search(pattern, code, re.MULTILINE) is not None
 
         def _has_theorem(name: str) -> bool:
             return _has_theorem_in(retarget_code, name)
@@ -487,8 +490,10 @@ def build_report() -> dict[str, object]:
         def _theorem_body_has_sorry_in(code: str, name: str) -> bool:
             """Return True iff the body of ``theorem name`` contains ``sorry``."""
             header_re = re.compile(
-                r'(?:(?:private|protected|noncomputable|unsafe|partial|@\[[^\]]*\])\s+)*'
-                r'theorem\s+' + re.escape(name) + r'\b'
+                r'^[ \t]{0,2}(?:@\[[^\]]*\]\s*)*'
+                r'(?:(?:private|protected|noncomputable|unsafe|partial)\s+)*'
+                r'theorem\s+' + re.escape(name) + r'\b',
+                re.MULTILINE,
             )
             m = header_re.search(code)
             if not m:
@@ -497,7 +502,7 @@ def build_report() -> dict[str, object]:
             # Slice to the next top-level ``theorem``/``lemma``/``def``/``end``
             # declaration to isolate this theorem's body.
             next_decl = re.compile(
-                r'\n(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*'
+                r'\n[ \t]{0,2}(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*'
                 r'(?:theorem|lemma|def|abbrev|instance|example|end\b)'
             )
             nxt = next_decl.search(code, pos=m.end())
