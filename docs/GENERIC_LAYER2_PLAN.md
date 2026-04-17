@@ -1,9 +1,9 @@
 # Generic Layer 2 Plan
 
 Tracking:
-- umbrella issue: [#1510](https://github.com/Th0rgal/verity/issues/1510)
-- axiom-elimination milestone: [#1618](https://github.com/Th0rgal/verity/issues/1618)
-- post-generic-completeness milestone: [#1630](https://github.com/Th0rgal/verity/issues/1630)
+- umbrella issue: [#1510](https://github.com/lfglabs-dev/verity/issues/1510)
+- axiom-elimination milestone: [#1618](https://github.com/lfglabs-dev/verity/issues/1618)
+- post-generic-completeness milestone: [#1630](https://github.com/lfglabs-dev/verity/issues/1630)
 
 ## Objective
 
@@ -37,7 +37,7 @@ The defensible end-state claim is **not** "all arbitrary Lean EDSL terms compile
 proof-complete Layer 2 theorem". Arbitrary Lean escape hatches can still construct
 `CompilationModel` values outside the frontend's intended macro-lowered surface.
 
-The precise target for the widening work tracked in [#1630](https://github.com/Th0rgal/verity/issues/1630) is:
+The precise target for the widening work tracked in [#1630](https://github.com/lfglabs-dev/verity/issues/1630) is:
 
 - prove the generic whole-contract theorem for a proof-complete `CompilationModel` subset
 - prove that the macro-lowered image of `verity_contract` lands inside that subset
@@ -243,7 +243,7 @@ directly from `CompilationModel.compile = Except.ok ir`.
 
 The main objective of issue #1618 is therefore complete. Remaining Layer 2 work
 now sits under the post-generic widening/completeness plan in
-[#1630](https://github.com/Th0rgal/verity/issues/1630):
+[#1630](https://github.com/lfglabs-dev/verity/issues/1630):
 
 - keep shrinking the body-level `SupportedSpec` witness by replacing the new
   `core` / `state` / `calls` / `effects` interfaces with positive proof
@@ -418,7 +418,7 @@ now sits under the post-generic widening/completeness plan in
   helper-free runtime subset;
   those helper-aware IR semantics are now available as total fuel-indexed helper-aware IR semantics, and the first compiled-side
   retarget step is no longer open on the helper-free runtime subset;
-  the compiled-side blocker is tracked in [#1638](https://github.com/Th0rgal/verity/issues/1638)
+  the compiled-side blocker is tracked in [#1638](https://github.com/lfglabs-dev/verity/issues/1638)
 - widen the supported whole-contract fragment without reintroducing axioms
 
 ## Non-Goals For The First Generic Theorem

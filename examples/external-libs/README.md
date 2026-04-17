@@ -19,7 +19,7 @@ function myHash(a, b) -> result {
 }
 ```
 
-### Step 2: Add the external call in `Compiler/Specs.lean`
+### Step 2: Add the external call in `Contracts/Specs.lean`
 
 Find your contract spec and add (`Expr.param` takes the parameter **name** as a string, matching the `name` field in your function's `params` list):
 ```lean
@@ -86,7 +86,7 @@ def myHash (a b : Uint256) : Contract Uint256 := do
 
 ### 3. Add External Call to CompilationModel
 
-In `Compiler/Specs.lean`, reference the library function:
+In `Contracts/Specs.lean`, reference the library function:
 
 ```lean
 Stmt.letVar "h" (Expr.externalCall "myHash" [Expr.param "a", Expr.param "b"])
@@ -100,7 +100,7 @@ lake exe verity-compiler --link examples/external-libs/MyHash.yul -o artifacts/y
 
 ## Complete Guide
 
-For a comprehensive guide on using external libraries, see the [Linking External Libraries](../docs-site/content/guides/linking-libraries.mdx) documentation.
+For a comprehensive guide on using external libraries, see the [Linking External Libraries](../../docs-site/content/guides/linking-libraries.mdx) documentation.
 
 The guide covers:
 - Writing library files
@@ -178,7 +178,7 @@ Arity mismatch: myFunc called with 2 args but library defines 3 params
 
 These are **placeholder implementations** for demonstration purposes. In production, use:
 
-1. Real Poseidon hash implementations from audited libraries (e.g., [HorizenLabs](https://github.com/HorizenLabs/poseidon))
+1. Real Poseidon hash implementations from audited libraries (e.g., [HorizenLabs Poseidon2](https://github.com/HorizenLabs/poseidon2))
 2. Groth16 verification functions from audited zk-SNARK libraries
 3. Other cryptographic primitives from trusted sources
 
@@ -190,10 +190,10 @@ External libraries are **outside the formal verification boundary**. Your Lean p
 
 1. Use audited, battle-tested library implementations
 2. Add Foundry tests that exercise linked contracts end-to-end
-3. Document the trust assumption (see [TRUST_ASSUMPTIONS.md](../TRUST_ASSUMPTIONS.md#5-external-library-code-linker))
+3. Document the trust assumption (see [TRUST_ASSUMPTIONS.md](../../TRUST_ASSUMPTIONS.md#5-external-library-code-linker))
 
 ## Related Files
 
-- [CryptoHash Example](../Contracts/CryptoHash/Contract.lean) - Shows placeholder usage
-- [Linker Module](../Compiler/Linker.lean) - Full linker implementation
-- [CompilationModel](../Compiler/CompilationModel.lean) - External call syntax
+- [CryptoHash Example](../../Contracts/CryptoHash/Contract.lean) - Shows placeholder usage
+- [Linker Module](../../Compiler/Linker.lean) - Full linker implementation
+- [CompilationModel](../../Compiler/CompilationModel.lean) - External call syntax

@@ -1,6 +1,6 @@
 # Parity Packs
 
-Issue: [#967](https://github.com/Th0rgal/verity/issues/967)
+Issue: [#967](https://github.com/lfglabs-dev/verity/issues/967)
 
 This document defines the proposed structure for versioned parity packs that target exact `solc` Yul identity for pinned toolchain tuples.
 

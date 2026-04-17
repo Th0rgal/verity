@@ -96,9 +96,9 @@ Verity is complementary to these tools. It is for cases where you need mathemati
 
 ### Research
 
-- [Verity: A Formally Verified Smart Contract Compiler](https://www.lfglabs.dev/verity)
-- [Verity Benchmark: AI-Driven Proof Generation](https://www.lfglabs.dev/verity-benchmark)
-- [What is a formal proof?](https://www.lfglabs.dev/what-is-a-formal-proof)
+- [Verity: A Formally Verified Smart Contract Compiler](https://lfglabs.dev/research/verity)
+- [Verity Benchmark: AI-Driven Proof Generation](https://lfglabs.dev/research/verity-benchmark)
+- [What is a formal proof?](https://lfglabs.dev/research/what-is-a-formal-proof)
 
 ## Support
 
