@@ -497,6 +497,10 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             "proven (scalar let/assign statement lists)",
         )
         self.assertEqual(
+            phase4["compileStmtList_pure_binding_bridged"],
+            "proven (pure let/assign statement lists)",
+        )
+        self.assertEqual(
             phase4["compileExpr_bridgedSource_leaf"],
             "proven (scalar source-expression leaves)",
         )

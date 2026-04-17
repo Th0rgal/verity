@@ -334,8 +334,8 @@ conditional emitted-runtime equality between Verity `execYulFuel` and the
   two sorry-backed smod/sar core equivalences where they invoke backend
   equivalence. Body-closure increments also prove scalar and static-scalar
   calldata parameter prologues satisfy `BridgedStmts`, pure source-expression
-  fragments compile to `BridgedExpr`, and scalar-leaf `letVar`/`assignVar`
-  statement lists compile to `BridgedStmts`.
+  fragments compile to `BridgedExpr`, and scalar-leaf plus pure-expression
+  `letVar`/`assignVar` statement lists compile to `BridgedStmts`.
 
 **Trust boundary after Phase 4 (sorry-dependent recursive statement-target fragment)**:
 - For any single bridged-builtin call whose bridge dependencies are fully
@@ -351,8 +351,8 @@ conditional emitted-runtime equality between Verity `execYulFuel` and the
   to satisfy `BridgedStmts`.
 - Scalar source expression leaves and the pure arithmetic/comparison/bit-operation
   `BridgedSourceExpr` fragment are now known to compile to `BridgedExpr`.
-- Scalar-leaf `letVar`/`assignVar` statement lists are now known to compile to
-  `BridgedStmts`.
+- Scalar-leaf and pure-expression `letVar`/`assignVar` statement lists are now
+  known to compile to `BridgedStmts`.
 - 36 of 36 builtins are bridged, including `mappingSlot` via the shared
   keccak-faithful `abstractMappingSlot` derivation.
 - 2 bridge lemmas use `sorry` (smod, sar) — blocked by complex Int↔UInt256

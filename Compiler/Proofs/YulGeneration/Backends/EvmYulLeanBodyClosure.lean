@@ -476,6 +476,19 @@ inductive BridgedSourceBindingStmt : Stmt → Prop
 def BridgedSourceBindingStmts (stmts : List Stmt) : Prop :=
   ∀ stmt ∈ stmts, BridgedSourceBindingStmt stmt
 
+/-- Source statements whose emitted Yul is a single value-binding statement
+with a pure bridged source expression on the right-hand side. -/
+inductive BridgedSourcePureBindingStmt : Stmt → Prop
+  | letVar (name : String) (value : Expr)
+      (hValue : BridgedSourceExpr value) :
+      BridgedSourcePureBindingStmt (.letVar name value)
+  | assignVar (name : String) (value : Expr)
+      (hValue : BridgedSourceExpr value) :
+      BridgedSourcePureBindingStmt (.assignVar name value)
+
+def BridgedSourcePureBindingStmts (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts, BridgedSourcePureBindingStmt stmt
+
 private theorem BridgedStmts_append' {xs ys : List YulStmt}
     (hXs : BridgedStmts xs) (hYs : BridgedStmts ys) :
     BridgedStmts (xs ++ ys) := by
@@ -572,6 +585,96 @@ theorem compileStmtList_binding_leaf_bridged
                 exact hSource stmt (by simp [hMem])
               exact BridgedStmts_append'
                 (compileStmt_binding_leaf_bridged fields events errors dynamicSource
+                  internalRetNames isInternal inScopeNames hHeadSource hHead)
+                (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+/-- A pure-expression `letVar`/`assignVar` source statement compiles to Yul
+that satisfies `BridgedStmts`. -/
+theorem compileStmt_pure_binding_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourcePureBindingStmt stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames stmt = .ok out →
+        BridgedStmts out := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | letVar name value hValue =>
+      simp only [compileStmt, bind, Except.bind] at hOk
+      cases hExpr : compileExpr fields dynamicSource value with
+      | error err =>
+          simp [hExpr] at hOk
+      | ok valueExpr =>
+          simp [hExpr, Pure.pure, Except.pure] at hOk
+          subst out
+          have hBridged : BridgedExpr valueExpr :=
+            compileExpr_bridgedSource fields dynamicSource hValue hExpr
+          intro yulStmt hMem
+          simp only [List.mem_singleton] at hMem
+          subst yulStmt
+          exact BridgedStmt.straight _
+            (BridgedStraightStmt.let_ name valueExpr hBridged)
+  | assignVar name value hValue =>
+      simp only [compileStmt, bind, Except.bind] at hOk
+      cases hExpr : compileExpr fields dynamicSource value with
+      | error err =>
+          simp [hExpr] at hOk
+      | ok valueExpr =>
+          simp [hExpr, Pure.pure, Except.pure] at hOk
+          subst out
+          have hBridged : BridgedExpr valueExpr :=
+            compileExpr_bridgedSource fields dynamicSource hValue hExpr
+          intro yulStmt hMem
+          simp only [List.mem_singleton] at hMem
+          subst yulStmt
+          exact BridgedStmt.straight _
+            (BridgedStraightStmt.assign name valueExpr hBridged)
+
+/-- Lists made only of pure-expression `letVar`/`assignVar` statements compile
+to Yul lists satisfying `BridgedStmts`. -/
+theorem compileStmtList_pure_binding_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourcePureBindingStmts stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames head with
+      | error err =>
+          simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource internalRetNames
+              isInternal (collectStmtNames head ++ inScopeNames) tail with
+          | error err =>
+              simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource : BridgedSourcePureBindingStmt head :=
+                hSource head (by simp)
+              have hTailSource : BridgedSourcePureBindingStmts tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              exact BridgedStmts_append'
+                (compileStmt_pure_binding_bridged fields events errors dynamicSource
                   internalRetNames isInternal inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
 

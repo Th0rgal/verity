@@ -125,6 +125,7 @@ The retargeting module [`EvmYulLeanRetarget.lean`](../Compiler/Proofs/YulGenerat
 - `genParamLoads_static_scalar_bridged`: full calldata parameter-loading prologues for static scalar fixed arrays/tuples satisfy `BridgedStmts`
 - `compileExpr_bridgedSource`: pure arithmetic/comparison/bit-operation source expressions in the `BridgedSourceExpr` fragment compile to `BridgedExpr`
 - `compileStmtList_binding_leaf_bridged`: scalar-leaf `letVar`/`assignVar` source statement lists compile to `BridgedStmts`
+- `compileStmtList_pure_binding_bridged`: pure arithmetic/comparison/bit-operation `letVar`/`assignVar` source statement lists compile to `BridgedStmts`
 
 The backend-parameterized executor now has a proved `.verity = .evmYulLean` theorem for recursive statement targets constrained by `BridgedTarget`, and the generated runtime wrapper is proved to preserve that predicate and to execute equivalently under explicit body-closure hypotheses. Body closure now covers scalar calldata parameter prologues, static scalar fixed-array/tuple parameter prologues, pure source-expression fragments, and scalar/pure-expression let/assign statement-list bodies; full compiler-produced IR bodies and a Layer-3-composed whole-program theorem are still pending.
 
