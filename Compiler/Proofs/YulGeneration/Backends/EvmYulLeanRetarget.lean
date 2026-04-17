@@ -870,6 +870,22 @@ theorem execYulFuelWithBackend_eq_on_bridged_straight_stmts
           | «stop» s => rfl
           | «revert» s => rfl
 
+/-- A `.block` wrapper around a straight-line statement list preserves the
+    backend equivalence established for `BridgedStraightStmts`. This discharges
+    the block constructor when the block body is already in the straight-line
+    fragment; recursive blocks and branching control flow still require the
+    broader statement predicate/induction. -/
+theorem execYulFuelWithBackend_block_eq_on_bridged_straight_stmts
+    (fuel : Nat) (state : YulState) (stmts : List Compiler.Yul.YulStmt)
+    (hStmts : BridgedStraightStmts stmts) :
+    execYulFuelWithBackend .verity fuel state (.stmt (.block stmts)) =
+    execYulFuelWithBackend .evmYulLean fuel state (.stmt (.block stmts)) := by
+  cases fuel with
+  | zero => rfl
+  | succ fuel =>
+      simp only [execYulFuelWithBackend]
+      exact execYulFuelWithBackend_eq_on_bridged_straight_stmts fuel state stmts hStmts
+
 /-! ## Phase 4 Completion Summary
 
 ### What this module establishes:
@@ -892,21 +908,25 @@ theorem execYulFuelWithBackend_eq_on_bridged_straight_stmts
 5. **`execYulFuelWithBackend_eq_on_bridged_straight_stmts`**: Statement-level
    backend equivalence for straight-line statement lists whose expression
    dependencies satisfy `BridgedExpr`.
+6. **`execYulFuelWithBackend_block_eq_on_bridged_straight_stmts`**: The `.block`
+   statement constructor preserves that straight-line list equivalence when its
+   body is a `BridgedStraightStmts` list.
 
 This is still not an end-to-end theorem, because a Layer-3-composed statement
 (IR → Yul under `.evmYulLean`) requires structured-control-flow induction and
 is **not yet proven**.
 
 ### What remains:
-- **Structured-control-flow induction**: Lift straight-line statement
-  equivalence through `.block`, `.if_`, `.switch`, and `.for_`.
+- **Structured-control-flow induction**: Lift statement equivalence through
+  recursive block bodies and `.if_`, `.switch`, and `.for_`.
 - **2 core sorry's**: smod/sar (complex Int↔UInt256 sign/bit semantics)
 
 ### Trust boundary (current state):
 Expressions constrained by `BridgedExpr`, and straight-line statement lists
 constrained by `BridgedStraightStmts`, inherit EVMYulLean semantics.
-Whole-program guarantees still depend on structured-control-flow induction and
-the two sorry-dependent core equivalences above.
+Whole-program guarantees still depend on structured-control-flow induction
+through recursive blocks/branches/loops and the two sorry-dependent core
+equivalences above.
 -/
 
 end Compiler.Proofs.YulGeneration.Backends

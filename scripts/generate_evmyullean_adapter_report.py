@@ -445,10 +445,16 @@ def build_report() -> dict[str, object]:
         has_straight_stmt_retarget = _has_theorem(
             "execYulFuelWithBackend_eq_on_bridged_straight_stmts"
         )
+        has_block_stmt_retarget = _has_theorem(
+            "execYulFuelWithBackend_block_eq_on_bridged_straight_stmts"
+        )
         backends_agree_has_sorry = _theorem_body_has_sorry("backends_agree_on_bridged_builtins")
         expr_retarget_has_sorry = _theorem_body_has_sorry("evalYulExpr_evmYulLean_eq_on_bridged")
         straight_stmt_retarget_has_sorry = _theorem_body_has_sorry(
             "execYulFuelWithBackend_eq_on_bridged_straight_stmts"
+        )
+        block_stmt_retarget_has_sorry = _theorem_body_has_sorry(
+            "execYulFuelWithBackend_block_eq_on_bridged_straight_stmts"
         )
         admitted_deps = sorted(admitted_lemmas)
         admitted_dep_status = (
@@ -480,8 +486,26 @@ def build_report() -> dict[str, object]:
             straight_stmt_retarget_status = admitted_dep_status
         else:
             straight_stmt_retarget_status = "proven"
+        if not has_block_stmt_retarget:
+            block_stmt_retarget_status = "missing"
+        elif block_stmt_retarget_has_sorry:
+            block_stmt_retarget_status = "sorry"
+        elif admitted_deps:
+            block_stmt_retarget_status = admitted_dep_status
+        else:
+            block_stmt_retarget_status = "proven"
 
         if (
+            has_block_stmt_retarget
+            and not block_stmt_retarget_has_sorry
+            and has_straight_stmt_retarget
+            and not straight_stmt_retarget_has_sorry
+            and has_expr_retarget
+            and not expr_retarget_has_sorry
+            and not admitted_deps
+        ):
+            phase4_status = "block-wrapped-straight-line-statement-level"
+        elif (
             has_straight_stmt_retarget
             and not straight_stmt_retarget_has_sorry
             and has_expr_retarget
@@ -503,14 +527,16 @@ def build_report() -> dict[str, object]:
             "backends_agree_on_bridged_builtins": backends_agree_status,
             "evalYulExpr_evmYulLean_eq_on_bridged": expr_retarget_status,
             "execYulFuelWithBackend_eq_on_bridged_straight_stmts": straight_stmt_retarget_status,
+            "execYulFuelWithBackend_block_eq_on_bridged_straight_stmts": block_stmt_retarget_status,
             "trust_boundary": (
-                "straight-line statement fragment: EVMYulLean execution model "
-                "matches EVM (upstream conformance tests) for BridgedStraightStmts; "
+                "block-wrapped straight-line statement fragment: EVMYulLean "
+                "execution model matches EVM (upstream conformance tests) for "
+                "BridgedStraightStmts and .block wrappers around them; recursive "
                 "structured-control-flow and whole-program lift not yet proven"
             ),
             "remaining_for_whole_program_retargeting": [
                 "smod/sar core equivalences (complex Int↔UInt256 sign/bit semantics)",
-                "structured-control-flow induction over block/if/switch/for Yul AST",
+                "structured-control-flow induction over recursive block bodies plus if/switch/for Yul AST",
                 "Layer-3-composed IR → Yul .evmYulLean theorem",
             ],
         }

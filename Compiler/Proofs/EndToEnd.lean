@@ -321,22 +321,26 @@ dependencies are fully proven. The retargeting module
 (`EvmYulLeanRetarget.lean`) makes this explicit with
 `backends_agree_on_bridged_builtins`, lifts it through `BridgedExpr`
 expression evaluation, and now proves straight-line statement-list equivalence
-for `BridgedStraightStmts`. These theorems still transitively depend on the two
-sorry-backed smod/sar core equivalences.
+for `BridgedStraightStmts` plus `.block` wrappers around those lists. These
+theorems still transitively depend on the two sorry-backed smod/sar core
+equivalences.
 
-**Trust boundary after Phase 4 (sorry-dependent straight-line fragment)**:
+**Trust boundary after Phase 4 (sorry-dependent block-wrapped straight-line fragment)**:
 - For any single bridged-builtin call whose bridge dependencies are fully
   proven, the Yul semantics trust assumption shifts from "Verity's custom
   builtin implementations are correct" to "EVMYulLean's execution model
   matches the EVM" (backed by upstream Ethereum conformance tests).
 - Straight-line `BridgedStraightStmts` statement lists inherit that same
   backend equivalence when their expression dependencies are bridged.
+- `.block` statements containing those straight-line lists preserve the same
+  backend equivalence.
 - 36 of 36 builtins are bridged, including `mappingSlot` via the shared
   keccak-faithful `abstractMappingSlot` derivation.
 - 2 bridge lemmas use `sorry` (smod, sar) — blocked by complex Int↔UInt256
   sign/bit semantics, not privacy.
-- Structured-control-flow induction lifting the straight-line fragment to full
-  Yul program execution is not yet proven.
+- Structured-control-flow induction lifting the block-wrapped straight-line
+  fragment through recursive blocks, branches, and loops to full Yul program
+  execution is not yet proven.
 
 See `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean` for
 the Phase 4 retargeting theorems.

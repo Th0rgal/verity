@@ -259,6 +259,10 @@ ALLOWLIST: set[str] = {
     # proof past the 50-line budget even with all stmt cases delegated to the
     # per-constructor helper lemma.
     "execYulFuelWithBackend_eq_on_bridged_straight_stmts",
+    # Block-wrapper theorem has a short proof, but the scanner counts the
+    # following Phase 4 summary comment in its theorem span because it is the
+    # last theorem in the module.
+    "execYulFuelWithBackend_block_eq_on_bridged_straight_stmts",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
