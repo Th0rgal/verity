@@ -106,7 +106,7 @@ theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
 
 Key files: [`StatementEquivalence.lean`](../Compiler/Proofs/YulGeneration/StatementEquivalence.lean), [`Preservation.lean`](../Compiler/Proofs/YulGeneration/Preservation.lean), [`AXIOMS.md`](../AXIOMS.md)
 
-### Phase 4: EVMYulLean Semantic Retargeting (sorry-dependent recursive statement-target fragment)
+### Phase 4: EVMYulLean Semantic Retargeting (sorry-dependent recursive statement-target fragment + generated wrapper closure)
 
 The retargeting module [`EvmYulLeanRetarget.lean`](../Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean) proves the following retargeting theorems:
 - `backends_agree_on_bridged_builtins`: the `.verity` and `.evmYulLean` backends produce identical results at the `evalBuiltinCallWithBackendContext` level for all 36 bridged builtins (dispatch proof is sorry-free; delegates to the 36 per-builtin context-lifted bridge lemmas in `EvmYulLeanBridgeLemmas.lean`, 2 of which rest on sorry-backed core equivalences for smod/sar)
@@ -118,18 +118,19 @@ The retargeting module [`EvmYulLeanRetarget.lean`](../Compiler/Proofs/YulGenerat
 - `execYulFuelWithBackend_switch_eq_on_bridged_cases`: `.switch` statements with bridged scrutinees and straight-line selected case/default bodies preserve the same backend equivalence
 - `execYulFuelWithBackend_for_eq_on_bridged_parts`: `.for_` statements with straight-line init/body/post lists and a bridged condition preserve the same backend equivalence
 - `execYulFuelWithBackend_eq_on_bridged_target`: recursive `.verity = .evmYulLean` backend equivalence for `BridgedTarget` executions whose nested statements satisfy `BridgedStmt`
+- `emitYul_runtimeCode_bridged`: the emitted runtime dispatch wrapper satisfies `BridgedTarget` when the IR function bodies, fallback/receive bodies, and internal helper statements it embeds satisfy `BridgedStmt`
 
-The backend-parameterized executor now has a proved `.verity = .evmYulLean` theorem for recursive statement targets constrained by `BridgedTarget`, but not yet a generated-code proof that compiled Yul satisfies that predicate or a Layer-3-composed whole-program theorem.
+The backend-parameterized executor now has a proved `.verity = .evmYulLean` theorem for recursive statement targets constrained by `BridgedTarget`, and the generated runtime wrapper is proved to preserve that predicate under explicit body-closure hypotheses. A proof that compiler-produced IR bodies satisfy `BridgedStmt` and a Layer-3-composed whole-program theorem are still pending.
 
-Trust boundary (recursive statement-target fragment, conditional): `BridgedExpr` expressions, `BridgedStraightStmts` statement lists, and recursively nested `BridgedTarget` executions whose builtin dependencies are fully proven now inherit EVMYulLean semantics — "EVMYulLean's execution model matches the EVM" (backed by upstream Ethereum conformance tests) — rather than "Verity's custom builtin implementations are correct." Expressions or statements using smod/sar remain sorry-dependent until those core equivalences are discharged.
+Trust boundary (recursive statement-target fragment with generated wrapper closure, conditional): `BridgedExpr` expressions, `BridgedStraightStmts` statement lists, recursively nested `BridgedTarget` executions, and emitted runtime wrappers whose embedded bodies are bridged now inherit EVMYulLean semantics when their builtin dependencies are fully proven — "EVMYulLean's execution model matches the EVM" (backed by upstream Ethereum conformance tests) — rather than "Verity's custom builtin implementations are correct." Expressions or statements using smod/sar remain sorry-dependent until those core equivalences are discharged.
 
 Not yet proven in this module:
-- generated-code closure under `BridgedTarget`/`BridgedStmt`
+- compiler-produced IR function/entrypoint body closure under `BridgedStmt`
 - a Layer-3-composed IR → Yul `.evmYulLean` theorem
 
 Remaining gaps for whole-program retargeting:
 - 2 sorry-backed core equivalences (smod, sar — complex sign/bit semantics)
-- generated-code proof that emitted Yul satisfies `BridgedTarget`/`BridgedStmt`
+- proof that compiler-produced IR function/entrypoint bodies satisfy `BridgedStmt`
 
 ## Example Contract Compilation Coverage
 

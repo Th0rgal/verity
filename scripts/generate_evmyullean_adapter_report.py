@@ -460,6 +460,7 @@ def build_report() -> dict[str, object]:
         has_recursive_target_retarget = _has_theorem(
             "execYulFuelWithBackend_eq_on_bridged_target"
         )
+        has_runtime_closure = _has_theorem("emitYul_runtimeCode_bridged")
         backends_agree_has_sorry = _theorem_body_has_sorry("backends_agree_on_bridged_builtins")
         expr_retarget_has_sorry = _theorem_body_has_sorry("evalYulExpr_evmYulLean_eq_on_bridged")
         straight_stmt_retarget_has_sorry = _theorem_body_has_sorry(
@@ -480,6 +481,7 @@ def build_report() -> dict[str, object]:
         recursive_target_retarget_has_sorry = _theorem_body_has_sorry(
             "execYulFuelWithBackend_eq_on_bridged_target"
         )
+        runtime_closure_has_sorry = _theorem_body_has_sorry("emitYul_runtimeCode_bridged")
         admitted_deps = sorted(admitted_lemmas)
         admitted_dep_status = (
             "sorry-dependent (depends on admitted bridge lemmas: "
@@ -550,8 +552,39 @@ def build_report() -> dict[str, object]:
             recursive_target_retarget_status = admitted_dep_status
         else:
             recursive_target_retarget_status = "proven"
+        if not has_runtime_closure:
+            runtime_closure_status = "missing"
+        elif runtime_closure_has_sorry:
+            runtime_closure_status = "sorry"
+        else:
+            runtime_closure_status = "proven (conditional on bridged IR bodies)"
 
         if (
+            has_runtime_closure
+            and not runtime_closure_has_sorry
+            and
+            has_recursive_target_retarget
+            and not recursive_target_retarget_has_sorry
+            and
+            has_for_stmt_retarget
+            and not for_stmt_retarget_has_sorry
+            and
+            has_switch_stmt_retarget
+            and not switch_stmt_retarget_has_sorry
+            and
+            has_if_stmt_retarget
+            and not if_stmt_retarget_has_sorry
+            and
+            has_block_stmt_retarget
+            and not block_stmt_retarget_has_sorry
+            and has_straight_stmt_retarget
+            and not straight_stmt_retarget_has_sorry
+            and has_expr_retarget
+            and not expr_retarget_has_sorry
+            and not admitted_deps
+        ):
+            phase4_status = "runtime-closure-recursive-statement-target-level"
+        elif (
             has_recursive_target_retarget
             and not recursive_target_retarget_has_sorry
             and
@@ -655,15 +688,17 @@ def build_report() -> dict[str, object]:
             "execYulFuelWithBackend_switch_eq_on_bridged_cases": switch_stmt_retarget_status,
             "execYulFuelWithBackend_for_eq_on_bridged_parts": for_stmt_retarget_status,
             "execYulFuelWithBackend_eq_on_bridged_target": recursive_target_retarget_status,
+            "emitYul_runtimeCode_bridged": runtime_closure_status,
             "trust_boundary": (
                 "recursive BridgedTarget statement fragment: EVMYulLean execution model "
                 "matches EVM (upstream conformance tests) for BridgedExpr expressions, "
                 "BridgedStraightStmts, and recursively nested BridgedStmt targets; "
-                "Layer-3 composition and whole-program generated-code closure not yet proven"
+                "generated runtime-code closure is proven conditional on bridged IR bodies; "
+                "Layer-3 composition not yet proven"
             ),
             "remaining_for_whole_program_retargeting": [
                 "smod/sar core equivalences (complex Int↔UInt256 sign/bit semantics)",
-                "generated-code proof that emitted Yul targets satisfy BridgedTarget/BridgedStmt",
+                "proof that compiler-produced IR function/entrypoint bodies satisfy BridgedStmt",
                 "Layer-3-composed IR → Yul .evmYulLean theorem",
             ],
         }

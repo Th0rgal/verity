@@ -483,6 +483,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             phase4["execYulFuelWithBackend_eq_on_bridged_target"],
             "missing",
         )
+        self.assertEqual(phase4["emitYul_runtimeCode_bridged"], "missing")
 
     def test_sorry_retarget_theorem_downgrades_phase4_status(self) -> None:
         with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:
@@ -511,6 +512,9 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
                       trivial
 
                     theorem execYulFuelWithBackend_eq_on_bridged_target : True := by
+                      trivial
+
+                    theorem emitYul_runtimeCode_bridged : True := by
                       trivial
                 """),
                 encoding="utf-8",
@@ -546,6 +550,10 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             phase4["execYulFuelWithBackend_eq_on_bridged_target"],
             "proven",
         )
+        self.assertEqual(
+            phase4["emitYul_runtimeCode_bridged"],
+            "proven (conditional on bridged IR bodies)",
+        )
         self.assertEqual(phase4["admitted_bridge_dependencies"], [])
 
     def test_admitted_bridge_deps_downgrade_phase4_status(self) -> None:
@@ -575,6 +583,9 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
                       trivial
 
                     theorem execYulFuelWithBackend_eq_on_bridged_target : True := by
+                      trivial
+
+                    theorem emitYul_runtimeCode_bridged : True := by
                       trivial
                 """),
                 encoding="utf-8",
@@ -614,6 +625,10 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         self.assertIn(
             "smod",
             phase4["execYulFuelWithBackend_eq_on_bridged_target"],
+        )
+        self.assertEqual(
+            phase4["emitYul_runtimeCode_bridged"],
+            "proven (conditional on bridged IR bodies)",
         )
 
 

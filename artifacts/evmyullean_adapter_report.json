@@ -223,6 +223,7 @@
       "smod"
     ],
     "backends_agree_on_bridged_builtins": "sorry-dependent (depends on admitted bridge lemmas: sar, smod)",
+    "emitYul_runtimeCode_bridged": "proven (conditional on bridged IR bodies)",
     "evalYulExpr_evmYulLean_eq_on_bridged": "sorry-dependent (depends on admitted bridge lemmas: sar, smod)",
     "execYulFuelWithBackend_block_eq_on_bridged_straight_stmts": "sorry-dependent (depends on admitted bridge lemmas: sar, smod)",
     "execYulFuelWithBackend_eq_on_bridged_straight_stmts": "sorry-dependent (depends on admitted bridge lemmas: sar, smod)",
@@ -232,12 +233,12 @@
     "execYulFuelWithBackend_switch_eq_on_bridged_cases": "sorry-dependent (depends on admitted bridge lemmas: sar, smod)",
     "remaining_for_whole_program_retargeting": [
       "smod/sar core equivalences (complex Int\u2194UInt256 sign/bit semantics)",
-      "generated-code proof that emitted Yul targets satisfy BridgedTarget/BridgedStmt",
+      "proof that compiler-produced IR function/entrypoint bodies satisfy BridgedStmt",
       "Layer-3-composed IR \u2192 Yul .evmYulLean theorem"
     ],
     "retarget_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean",
     "status": "incomplete",
-    "trust_boundary": "recursive BridgedTarget statement fragment: EVMYulLean execution model matches EVM (upstream conformance tests) for BridgedExpr expressions, BridgedStraightStmts, and recursively nested BridgedStmt targets; Layer-3 composition and whole-program generated-code closure not yet proven"
+    "trust_boundary": "recursive BridgedTarget statement fragment: EVMYulLean execution model matches EVM (upstream conformance tests) for BridgedExpr expressions, BridgedStraightStmts, and recursively nested BridgedStmt targets; generated runtime-code closure is proven conditional on bridged IR bodies; Layer-3 composition not yet proven"
   },
   "schema_version": 6,
   "status": "ok",

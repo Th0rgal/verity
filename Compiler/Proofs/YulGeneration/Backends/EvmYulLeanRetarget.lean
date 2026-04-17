@@ -1051,6 +1051,281 @@ inductive BridgedTarget : YulExecTarget → Prop
   | stmts (stmts : List Compiler.Yul.YulStmt) (hStmts : BridgedStmts stmts) :
       BridgedTarget (.stmts stmts)
 
+/-! ## Generated-code closure under the recursive statement predicate
+
+The recursive executor theorem above is useful for Layer 3 only once generated
+runtime wrappers are known to satisfy `BridgedStmt`. These lemmas prove that
+the compiler-emitted dispatch shell (`callvalue`/`calldatasize` guards,
+selector switch, fallback/receive wrapper, optional mapping helper) is bridged
+whenever the IR function and entrypoint bodies it contains are bridged.
+-/
+
+private theorem BridgedStmts_nil : BridgedStmts [] := by
+  intro stmt hMem
+  cases hMem
+
+private theorem BridgedStmts_cons {stmt : Compiler.Yul.YulStmt}
+    {stmts : List Compiler.Yul.YulStmt}
+    (hStmt : BridgedStmt stmt) (hStmts : BridgedStmts stmts) :
+    BridgedStmts (stmt :: stmts) := by
+  intro s hMem
+  cases hMem with
+  | head => exact hStmt
+  | tail _ hTail => exact hStmts s hTail
+
+private theorem BridgedStmts_append {xs ys : List Compiler.Yul.YulStmt}
+    (hXs : BridgedStmts xs) (hYs : BridgedStmts ys) :
+    BridgedStmts (xs ++ ys) := by
+  intro stmt hMem
+  simp only [List.mem_append] at hMem
+  cases hMem with
+  | inl h => exact hXs stmt h
+  | inr h => exact hYs stmt h
+
+private theorem bridgedExpr_callvalue :
+    BridgedExpr (Compiler.Yul.YulExpr.call "callvalue" []) := by
+  exact BridgedExpr.call "callvalue" [] (Or.inl (by simp [bridgedBuiltins]))
+    (by intro arg hMem; cases hMem)
+
+private theorem bridgedExpr_calldatasize :
+    BridgedExpr (Compiler.Yul.YulExpr.call "calldatasize" []) := by
+  exact BridgedExpr.call "calldatasize" [] (Or.inl (by simp [bridgedBuiltins]))
+    (by intro arg hMem; cases hMem)
+
+private theorem bridgedExpr_selector :
+    BridgedExpr
+      (Compiler.Yul.YulExpr.call "shr"
+        [Compiler.Yul.YulExpr.lit Compiler.Constants.selectorShift,
+          Compiler.Yul.YulExpr.call "calldataload" [Compiler.Yul.YulExpr.lit 0]]) := by
+  refine BridgedExpr.call "shr" _ (Or.inl (by simp [bridgedBuiltins])) ?_
+  intro arg hMem
+  simp only [List.mem_cons, List.mem_nil_iff, or_false] at hMem
+  rcases hMem with rfl | rfl
+  · exact BridgedExpr.lit Compiler.Constants.selectorShift
+  · refine BridgedExpr.call "calldataload" _ (Or.inl (by simp [bridgedBuiltins])) ?_
+    intro nested hNested
+    simp only [List.mem_singleton] at hNested
+    subst hNested
+    exact BridgedExpr.lit 0
+
+private theorem bridgedExpr_calldatasize_lt (n : Nat) :
+    BridgedExpr
+      (Compiler.Yul.YulExpr.call "lt"
+        [Compiler.Yul.YulExpr.call "calldatasize" [], Compiler.Yul.YulExpr.lit n]) := by
+  refine BridgedExpr.call "lt" _ (Or.inl (by simp [bridgedBuiltins])) ?_
+  intro arg hMem
+  simp only [List.mem_cons, List.mem_nil_iff, or_false] at hMem
+  rcases hMem with rfl | rfl
+  · exact bridgedExpr_calldatasize
+  · exact BridgedExpr.lit n
+
+private theorem bridgedExpr_has_selector :
+    BridgedExpr
+      (Compiler.Yul.YulExpr.call "iszero"
+        [Compiler.Yul.YulExpr.call "lt"
+          [Compiler.Yul.YulExpr.call "calldatasize" [], Compiler.Yul.YulExpr.lit 4]]) := by
+  refine BridgedExpr.call "iszero" _ (Or.inl (by simp [bridgedBuiltins])) ?_
+  intro arg hMem
+  simp only [List.mem_singleton] at hMem
+  subst hMem
+  exact bridgedExpr_calldatasize_lt 4
+
+private theorem bridgedExpr_empty_calldata :
+    BridgedExpr
+      (Compiler.Yul.YulExpr.call "eq"
+        [Compiler.Yul.YulExpr.call "calldatasize" [], Compiler.Yul.YulExpr.lit 0]) := by
+  refine BridgedExpr.call "eq" _ (Or.inl (by simp [bridgedBuiltins])) ?_
+  intro arg hMem
+  simp only [List.mem_cons, List.mem_nil_iff, or_false] at hMem
+  rcases hMem with rfl | rfl
+  · exact bridgedExpr_calldatasize
+  · exact BridgedExpr.lit 0
+
+private theorem bridgedExpr_iszero_ident (name : String) :
+    BridgedExpr
+      (Compiler.Yul.YulExpr.call "iszero" [Compiler.Yul.YulExpr.ident name]) := by
+  refine BridgedExpr.call "iszero" _ (Or.inl (by simp [bridgedBuiltins])) ?_
+  intro arg hMem
+  simp only [List.mem_singleton] at hMem
+  subst hMem
+  exact BridgedExpr.ident name
+
+private theorem bridgedStmt_revert_zero :
+    BridgedStmt
+      (Compiler.Yul.YulStmt.expr
+        (Compiler.Yul.YulExpr.call "revert"
+          [Compiler.Yul.YulExpr.lit 0, Compiler.Yul.YulExpr.lit 0])) :=
+  BridgedStmt.straight _
+    (BridgedStraightStmt.expr_revert
+      (Compiler.Yul.YulExpr.lit 0) (Compiler.Yul.YulExpr.lit 0))
+
+theorem callvalueGuard_bridged : BridgedStmt Compiler.CodegenCommon.callvalueGuard := by
+  unfold Compiler.CodegenCommon.callvalueGuard
+  exact BridgedStmt.if_ _ _ bridgedExpr_callvalue
+    (BridgedStmts_cons bridgedStmt_revert_zero BridgedStmts_nil)
+
+theorem calldatasizeGuard_bridged (numParams : Nat) :
+    BridgedStmt (Compiler.CodegenCommon.calldatasizeGuard numParams) := by
+  unfold Compiler.CodegenCommon.calldatasizeGuard
+  exact BridgedStmt.if_ _ _ (bridgedExpr_calldatasize_lt (4 + numParams * 32))
+    (BridgedStmts_cons bridgedStmt_revert_zero BridgedStmts_nil)
+
+theorem dispatchBody_bridged (payable : Bool) (label : String)
+    (body : List Compiler.Yul.YulStmt) (hBody : BridgedStmts body) :
+    BridgedStmts (Compiler.CodegenCommon.dispatchBody payable label body) := by
+  unfold Compiler.CodegenCommon.dispatchBody
+  cases payable <;>
+    simp only [Bool.false_eq_true, ite_false, ite_true,
+      List.singleton_append]
+  · exact BridgedStmts_cons (BridgedStmt.straight _
+      (BridgedStraightStmt.comment label))
+      (BridgedStmts_cons callvalueGuard_bridged hBody)
+  · exact BridgedStmts_cons (BridgedStmt.straight _
+      (BridgedStraightStmt.comment label)) hBody
+
+theorem defaultDispatchCase_bridged
+    (fallback receive : Option Compiler.IREntrypoint)
+    (hFallback : ∀ fb, fallback = some fb → BridgedStmts fb.body)
+    (hReceive : ∀ rc, receive = some rc → BridgedStmts rc.body) :
+    BridgedStmts (Compiler.CodegenCommon.defaultDispatchCase fallback receive) := by
+  cases receive with
+  | none =>
+      cases fallback with
+      | none =>
+          unfold Compiler.CodegenCommon.defaultDispatchCase
+          exact BridgedStmts_cons bridgedStmt_revert_zero BridgedStmts_nil
+      | some fb =>
+          unfold Compiler.CodegenCommon.defaultDispatchCase
+          exact dispatchBody_bridged fb.payable "fallback()" fb.body
+            (hFallback fb rfl)
+  | some rc =>
+      cases fallback with
+      | none =>
+          unfold Compiler.CodegenCommon.defaultDispatchCase
+          refine BridgedStmts_cons ?_ BridgedStmts_nil
+          refine BridgedStmt.block _ ?_
+          exact BridgedStmts_cons
+            (BridgedStmt.straight _
+              (BridgedStraightStmt.let_ "__is_empty_calldata" _ bridgedExpr_empty_calldata))
+            (BridgedStmts_cons
+              (BridgedStmt.if_ _ _
+                (BridgedExpr.ident "__is_empty_calldata")
+                (dispatchBody_bridged rc.payable "receive()" rc.body
+                  (hReceive rc rfl)))
+              (BridgedStmts_cons
+                (BridgedStmt.if_ _ _ (bridgedExpr_iszero_ident "__is_empty_calldata")
+                  (BridgedStmts_cons bridgedStmt_revert_zero BridgedStmts_nil))
+                BridgedStmts_nil))
+      | some fb =>
+          unfold Compiler.CodegenCommon.defaultDispatchCase
+          refine BridgedStmts_cons ?_ BridgedStmts_nil
+          refine BridgedStmt.block _ ?_
+          exact BridgedStmts_cons
+            (BridgedStmt.straight _
+              (BridgedStraightStmt.let_ "__is_empty_calldata" _ bridgedExpr_empty_calldata))
+            (BridgedStmts_cons
+              (BridgedStmt.if_ _ _
+                (BridgedExpr.ident "__is_empty_calldata")
+                (dispatchBody_bridged rc.payable "receive()" rc.body
+                  (hReceive rc rfl)))
+              (BridgedStmts_cons
+                (BridgedStmt.if_ _ _ (bridgedExpr_iszero_ident "__is_empty_calldata")
+                  (dispatchBody_bridged fb.payable "fallback()" fb.body
+                    (hFallback fb rfl)))
+                BridgedStmts_nil))
+
+private theorem switchCases_bridged
+    (funcs : List Compiler.IRFunction)
+    (hFunctions : ∀ fn, fn ∈ funcs → BridgedStmts fn.body) :
+    ∀ scrutinee value body,
+      (funcs.map (fun fn =>
+        (fn.selector,
+          Compiler.CodegenCommon.dispatchBody fn.payable s!"{fn.name}()"
+            ([Compiler.CodegenCommon.calldatasizeGuard fn.params.length] ++ fn.body)))).find?
+            (fun x => decide (x.fst = scrutinee)) = some (value, body) →
+      BridgedStmts body := by
+  intro scrutinee value body hFind
+  have hMem :
+      (value, body) ∈ funcs.map (fun fn =>
+        (fn.selector,
+          Compiler.CodegenCommon.dispatchBody fn.payable s!"{fn.name}()"
+            ([Compiler.CodegenCommon.calldatasizeGuard fn.params.length] ++ fn.body))) :=
+    List.mem_of_find?_eq_some hFind
+  rcases List.mem_map.mp hMem with ⟨fn, hFn, hEq⟩
+  cases hEq
+  exact dispatchBody_bridged fn.payable s!"{fn.name}()"
+    ([Compiler.CodegenCommon.calldatasizeGuard fn.params.length] ++ fn.body)
+    (BridgedStmts_cons (calldatasizeGuard_bridged fn.params.length)
+      (hFunctions fn hFn))
+
+theorem buildSwitch_bridged
+    (funcs : List Compiler.IRFunction)
+    (fallback receive : Option Compiler.IREntrypoint)
+    (hFunctions : ∀ fn, fn ∈ funcs → BridgedStmts fn.body)
+    (hFallback : ∀ fb, fallback = some fb → BridgedStmts fb.body)
+    (hReceive : ∀ rc, receive = some rc → BridgedStmts rc.body) :
+    BridgedStmt (Compiler.CodegenCommon.buildSwitch funcs fallback receive false) := by
+  unfold Compiler.CodegenCommon.buildSwitch
+  exact BridgedStmt.block _
+    (BridgedStmts_cons
+      (BridgedStmt.straight _
+        (BridgedStraightStmt.let_ "__has_selector" _ bridgedExpr_has_selector))
+      (BridgedStmts_cons
+        (BridgedStmt.if_ _ _ (bridgedExpr_iszero_ident "__has_selector")
+          (defaultDispatchCase_bridged fallback receive hFallback hReceive))
+        (BridgedStmts_cons
+          (BridgedStmt.if_ _ _
+            (BridgedExpr.ident "__has_selector")
+            (BridgedStmts_cons
+              (BridgedStmt.«switch» _ _ _
+                bridgedExpr_selector
+                (switchCases_bridged funcs hFunctions)
+                (by
+                  intro body hBody
+                  cases hBody
+                  exact defaultDispatchCase_bridged fallback receive hFallback hReceive))
+              BridgedStmts_nil))
+          BridgedStmts_nil)))
+
+theorem mappingSlotFuncAt_bridged (scratchBase : Nat) :
+    BridgedStmt (Compiler.CodegenCommon.mappingSlotFuncAt scratchBase) := by
+  unfold Compiler.CodegenCommon.mappingSlotFuncAt
+  exact BridgedStmt.straight _
+    (BridgedStraightStmt.funcDef "mappingSlot" ["baseSlot", "key"] ["slot"] _)
+
+theorem runtimeCode_bridged
+    (contract : Compiler.IRContract)
+    (hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
+    (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)
+    (hReceive : ∀ rc, contract.receiveEntrypoint = some rc → BridgedStmts rc.body)
+    (hInternals : BridgedStmts contract.internalFunctions) :
+    BridgedStmts (Compiler.CodegenCommon.runtimeCode contract) := by
+  unfold Compiler.CodegenCommon.runtimeCode
+  cases contract.usesMapping
+  · exact BridgedStmts_append hInternals
+      (BridgedStmts_cons
+        (buildSwitch_bridged contract.functions contract.fallbackEntrypoint
+          contract.receiveEntrypoint hFunctions hFallback hReceive)
+        BridgedStmts_nil)
+  · simp only [ite_true]
+    exact BridgedStmts_cons (mappingSlotFuncAt_bridged 0)
+      (BridgedStmts_append hInternals
+        (BridgedStmts_cons
+          (buildSwitch_bridged contract.functions contract.fallbackEntrypoint
+            contract.receiveEntrypoint hFunctions hFallback hReceive)
+          BridgedStmts_nil))
+
+theorem emitYul_runtimeCode_bridged
+    (contract : Compiler.IRContract)
+    (hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
+    (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)
+    (hReceive : ∀ rc, contract.receiveEntrypoint = some rc → BridgedStmts rc.body)
+    (hInternals : BridgedStmts contract.internalFunctions) :
+    BridgedTarget (.stmts (Compiler.emitYul contract).runtimeCode) := by
+  exact BridgedTarget.stmts _ (by
+    simpa [Compiler.emitYul] using
+      runtimeCode_bridged contract hFunctions hFallback hReceive hInternals)
+
 theorem execYulFuelWithBackend_eq_on_bridged_target
     (fuel : Nat) (state : YulState) (target : YulExecTarget)
     (hTarget : BridgedTarget target) :
