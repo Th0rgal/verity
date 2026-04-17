@@ -2105,6 +2105,11 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.revertWithMessage_bridged  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_require_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_require_bridged
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.compileMappingSlotWrite_singleSlot_bridged  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping_singleSlot_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingUint_singleSlot_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWrite_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWrite_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_body_fragment_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_body_fragment_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_body_fragment_bridged
@@ -2467,4 +2472,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2303 theorems/lemmas (1513 public, 790 private, 0 sorry'd)
+-- Total: 2308 theorems/lemmas (1517 public, 791 private, 0 sorry'd)

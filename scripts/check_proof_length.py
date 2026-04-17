@@ -335,6 +335,11 @@ ALLOWLIST: set[str] = {
     # with a `cases hHeadSource` step to extract the bridged failure-condition
     # hypothesis before delegating to the per-statement require closure.
     "compileStmtList_require_bridged",
+    # Mapping-write list closure mirrors the same compileStmtList head/tail
+    # recursion skeleton; delegates per-head to the mapping-write dispatch
+    # theorem. The excess lines are boilerplate decomposition of the two
+    # Except binds over head and tail.
+    "compileStmtList_mappingWrite_bridged",
     # Internal-return list closure is the same compileStmtList head/tail
     # skeleton as the external terminator and require closure proofs; the
     # excess lines are boilerplate decomposition of the two Except binds.

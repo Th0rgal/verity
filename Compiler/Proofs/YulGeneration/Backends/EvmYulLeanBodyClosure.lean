@@ -1192,6 +1192,183 @@ theorem compileStmtList_require_bridged
                     (ih (collectStmtNames (.require cond message) ++ inScopeNames)
                       hTailSource hTail)
 
+/-! ## Source statement body closure: single-slot mapping writes
+
+`Stmt.setMapping` and `Stmt.setMappingUint` both go through
+`compileMappingSlotWrite`, which, for an unpacked single-slot mapping with
+`wordOffset = 0`, emits a single
+`sstore(mappingSlot(.lit slot, keyExpr), valueExpr)` statement. That exact
+shape already matches `BridgedStraightStmt.expr_sstore_mapping`, so the
+closure is a one-step composition over the bridged key/value expressions. -/
+
+/-- Mapping-write source statements currently known to compile to
+`BridgedStmts`: single-slot, wordOffset=0 writes to a declared mapping field
+whose key/value expressions are pure `BridgedSourceExpr`s. `setMapping` and
+`setMappingUint` share the same emission path; both are covered. -/
+inductive BridgedSourceMappingWriteStmt (fields : List Field) : Stmt → Prop
+  | setMapping (field : String) {slot : Nat} {key value : Expr}
+      (hKey : BridgedSourceExpr key) (hValue : BridgedSourceExpr value)
+      (hMapping : isMapping fields field = true)
+      (hSlots : findFieldWriteSlots fields field = some [slot]) :
+      BridgedSourceMappingWriteStmt fields (.setMapping field key value)
+  | setMappingUint (field : String) {slot : Nat} {key value : Expr}
+      (hKey : BridgedSourceExpr key) (hValue : BridgedSourceExpr value)
+      (hMapping : isMapping fields field = true)
+      (hSlots : findFieldWriteSlots fields field = some [slot]) :
+      BridgedSourceMappingWriteStmt fields (.setMappingUint field key value)
+
+def BridgedSourceMappingWriteStmts (fields : List Field) (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts, BridgedSourceMappingWriteStmt fields stmt
+
+/-- Shared helper: `compileMappingSlotWrite` on a single-slot mapping with
+`wordOffset = 0` and pre-compiled bridged key/value expressions produces a
+`BridgedStmts` list (one `sstore(mappingSlot(lit slot, key), value)`). -/
+private theorem compileMappingSlotWrite_singleSlot_bridged
+    (fields : List Field) (field : String) {slot : Nat}
+    (keyExpr valueExpr : YulExpr) (label : String)
+    (hKey : BridgedExpr keyExpr) (hValue : BridgedExpr valueExpr)
+    (hMapping : isMapping fields field = true)
+    (hSlots : findFieldWriteSlots fields field = some [slot]) :
+    ∀ {out : List YulStmt},
+      compileMappingSlotWrite fields field keyExpr valueExpr label 0 = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  simp [compileMappingSlotWrite, hMapping, hSlots, Pure.pure, Except.pure] at hOk
+  subst hOk
+  intro yulStmt hMem
+  simp only [List.mem_singleton] at hMem
+  subst yulStmt
+  exact BridgedStmt.straight _
+    (BridgedStraightStmt.expr_sstore_mapping (.lit slot) keyExpr valueExpr
+      (BridgedExpr.lit slot) hKey hValue)
+
+/-- A single-slot `Stmt.setMapping` source write with a pure bridged key and
+value compiles to `BridgedStmts`. -/
+theorem compileStmt_setMapping_singleSlot_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) {slot : Nat} {key value : Expr}
+    (hKey : BridgedSourceExpr key) (hValue : BridgedSourceExpr value)
+    (hMapping : isMapping fields field = true)
+    (hSlots : findFieldWriteSlots fields field = some [slot]) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames (.setMapping field key value) = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  simp only [compileStmt, bind, Except.bind] at hOk
+  cases hKeyExpr : compileExpr fields dynamicSource key with
+  | error err => simp [hKeyExpr] at hOk
+  | ok keyExpr =>
+      cases hValueExpr : compileExpr fields dynamicSource value with
+      | error err => simp [hKeyExpr, hValueExpr] at hOk
+      | ok valueExpr =>
+          simp [hKeyExpr, hValueExpr] at hOk
+          exact compileMappingSlotWrite_singleSlot_bridged fields field keyExpr
+            valueExpr "setMapping"
+            (compileExpr_bridgedSource fields dynamicSource hKey hKeyExpr)
+            (compileExpr_bridgedSource fields dynamicSource hValue hValueExpr)
+            hMapping hSlots hOk
+
+/-- A single-slot `Stmt.setMappingUint` source write with a pure bridged key
+and value compiles to `BridgedStmts`. Emission path is identical to
+`Stmt.setMapping`, so this reuses the same mapping-write helper. -/
+theorem compileStmt_setMappingUint_singleSlot_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) {slot : Nat} {key value : Expr}
+    (hKey : BridgedSourceExpr key) (hValue : BridgedSourceExpr value)
+    (hMapping : isMapping fields field = true)
+    (hSlots : findFieldWriteSlots fields field = some [slot]) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames (.setMappingUint field key value) = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  simp only [compileStmt, bind, Except.bind] at hOk
+  cases hKeyExpr : compileExpr fields dynamicSource key with
+  | error err => simp [hKeyExpr] at hOk
+  | ok keyExpr =>
+      cases hValueExpr : compileExpr fields dynamicSource value with
+      | error err => simp [hKeyExpr, hValueExpr] at hOk
+      | ok valueExpr =>
+          simp [hKeyExpr, hValueExpr] at hOk
+          exact compileMappingSlotWrite_singleSlot_bridged fields field keyExpr
+            valueExpr "setMappingUint"
+            (compileExpr_bridgedSource fields dynamicSource hKey hKeyExpr)
+            (compileExpr_bridgedSource fields dynamicSource hValue hValueExpr)
+            hMapping hSlots hOk
+
+/-- Each statement in the mapping-write fragment compiles to Yul satisfying
+`BridgedStmts`. -/
+theorem compileStmt_mappingWrite_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceMappingWriteStmt fields stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames stmt = .ok out →
+        BridgedStmts out := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | setMapping field hKey hValue hMapping hSlots =>
+      exact compileStmt_setMapping_singleSlot_bridged fields events errors
+        dynamicSource internalRetNames isInternal inScopeNames field
+        hKey hValue hMapping hSlots hOk
+  | setMappingUint field hKey hValue hMapping hSlots =>
+      exact compileStmt_setMappingUint_singleSlot_bridged fields events errors
+        dynamicSource internalRetNames isInternal inScopeNames field
+        hKey hValue hMapping hSlots hOk
+
+/-- Lists of single-slot mapping-write source statements compile to Yul lists
+satisfying `BridgedStmts`. -/
+theorem compileStmtList_mappingWrite_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceMappingWriteStmts fields stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames head with
+      | error err =>
+          simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource internalRetNames
+              isInternal (collectStmtNames head ++ inScopeNames) tail with
+          | error err =>
+              simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource : BridgedSourceMappingWriteStmt fields head :=
+                hSource head (by simp)
+              have hTailSource : BridgedSourceMappingWriteStmts fields tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              exact BridgedStmts_append
+                (compileStmt_mappingWrite_bridged fields events errors dynamicSource
+                  internalRetNames isInternal inScopeNames hHeadSource hHead)
+                (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
 /-! ## Source statement body closure: mixed function-body fragments
 
 The fragment-specific list theorems above are useful proof bricks, but real
