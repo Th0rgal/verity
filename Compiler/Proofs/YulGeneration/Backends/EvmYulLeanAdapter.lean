@@ -47,12 +47,12 @@ partial def lowerStmtGroup : YulStmt → Except AdapterError (List EvmYul.Yul.As
       let body' ← lowerStmts body
       -- EVMYulLean For has no init block; emit init stmts before the loop.
       pure (init' ++ [.For (lowerExpr cond) post' body'])
-  | .switch expr cases default => do
+  | .switch expr cases defaultCase => do
       let lowerCase := fun ((tag, block) : Nat × List YulStmt) => do
         let block' ← lowerStmts block
         pure (EvmYul.UInt256.ofNat tag, block')
       let cases' ← cases.mapM lowerCase
-      let default' ← lowerStmts (default.getD [])
+      let default' ← lowerStmts (defaultCase.getD [])
       pure [.Switch (lowerExpr expr) cases' default']
   | .block stmts => do
       let stmts' ← lowerStmts stmts
@@ -71,6 +71,7 @@ partial def lowerStmt : YulStmt → Except AdapterError EvmYul.Yul.Ast.Stmt
   | stmt => do
       let stmts ← lowerStmtGroup stmt
       pure (.Block stmts)
+
 end
 
 def lowerProgram (stmts : List YulStmt) : Except AdapterError EvmYul.Yul.Ast.Stmt := do
@@ -173,13 +174,19 @@ def evalPureBuiltinViaEvmYulLean
   | _, _                    => none
 
 /-- Full builtin bridge: delegates pure arithmetic/comparison/bitwise builtins
-    to EVMYulLean UInt256 operations. `calldataload` is also handled directly
-    because its observable semantics depend only on the selector and calldata
-    already available at this boundary. Remaining state-dependent builtins
-    (`sload`, `caller`, `address`, `timestamp`) and Verity-specific helpers
-    (`mappingSlot`) fall through to the Verity path via `none`. -/
+    to EVMYulLean UInt256 operations. `calldataload` is handled directly because
+    its observable semantics depend only on the selector and calldata already
+    available at this boundary. `sload` is handled via
+    `abstractLoadStorageOrMapping`, the shared Verity/Phase-2 storage-read
+    helper whose EVMYulLean-state correspondence is witnessed by
+    `storageLookup_projectStorage` in `EvmYulLeanStateBridge.lean` (projecting
+    the abstract `storage : Nat → Nat` into EVMYulLean's `Storage` recovers the
+    same value). Remaining context-dependent builtins (`caller`, `address`,
+    `timestamp`, ...) are routed at the `evalBuiltinCallWithBackendContext`
+    level. The Verity-specific helper `mappingSlot` still falls through to
+    `none` pending the Phase 3 keccak-semantic bridge. -/
 def evalBuiltinCallViaEvmYulLean
-    (_storage : Nat → Nat)
+    (storage : Nat → Nat)
     (_sender : Nat)
     (selector : Nat)
     (calldata : List Nat)
@@ -187,6 +194,7 @@ def evalBuiltinCallViaEvmYulLean
     (argVals : List Nat) : Option Nat :=
   match func, argVals with
   | "calldataload", [offset] => some (Compiler.Proofs.YulGeneration.calldataloadWord selector calldata offset)
+  | "sload", [slot] => some (storage slot)
   | _, _ => evalPureBuiltinViaEvmYulLean func argVals
 
 end Compiler.Proofs.YulGeneration.Backends

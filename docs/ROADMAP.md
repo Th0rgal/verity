@@ -185,13 +185,13 @@ Execution priorities:
 
 **Yul/EVM Semantics Bridge** (Issue [#1722](https://github.com/lfglabs-dev/verity/issues/1722)): EVMYulLean (NethermindEth) provides formally-defined Yul AST types and UInt256 operations. Current integration status:
 - AST adapter: all 11 statement types + 5 expression types lower to EVMYulLean AST (0 gaps)
-- Builtin bridge: 34 of 36 builtins bridged (25 pure + 9 context/env), with 32 fully proven and 2 sorry'd (smod, sar — blocked by private defs in upstream)
-- 113 concrete bridge tests + 7 adapter correctness theorems + 20 context-lifted bridge theorems + 11 state-dependent fallthrough lemmas
-- `bridgedBuiltins` definition enumerates all 34 builtins where `.evmYulLean` and `.verity` backends agree
-- Unbridged: `sload` and `mappingSlot` return `none` on `.evmYulLean` path (requires Phase 3 state bridge)
+- Builtin bridge: 35 of 36 builtins bridged (25 pure + 10 context/env/storage), with 33 fully proven and 2 sorry'd (smod, sar — complex Int↔UInt256 sign/bit semantics)
+- 113 concrete bridge tests + 7 adapter correctness theorems + 35 context-lifted bridge theorems + 1 fallthrough lemma
+- `bridgedBuiltins` definition enumerates all 35 builtins where `.evmYulLean` and `.verity` backends agree
+- Unbridged: `mappingSlot` returns `none` on `.evmYulLean` path (requires Phase 3 keccak-semantic bridge)
 - Phase 2 state bridge scaffolding: type conversions, storage round-trip, env field bridges (0 sorry)
 - **Phase 4 (expression-level)**: `EvmYulLeanRetarget.lean` proves `backends_agree_on_bridged_builtins` and `evalYulExpr_evmYulLean_eq_on_bridged`, establishing that `.verity` and `.evmYulLean` agree for `BridgedExpr` expressions built from bridged builtin calls plus backend-independent `tload`/`mload`. Trust boundary shifted for those expressions: they now inherit EVMYulLean semantics.
-- **Remaining to make retargeting whole-program**: Phase 3 state bridge for `sload`/`mappingSlot` (2 unbridged builtins), 2 sorry-backed core equivalences (smod/sar — complex Int↔UInt256 sign/bit semantics), statement-level structural induction lifting expression equivalence to full Yul program execution, and a Layer-3-composed theorem connecting IR → Yul under `.evmYulLean`
+- **Remaining to make retargeting whole-program**: Phase 3 `mappingSlot` keccak-semantic bridge (1 unbridged builtin), 2 sorry-backed core equivalences (smod/sar — complex Int↔UInt256 sign/bit semantics), statement-level structural induction lifting expression equivalence to full Yul program execution, and a Layer-3-composed theorem connecting IR → Yul under `.evmYulLean`
 
 **EVM Semantics**: Mitigated by differential testing against actual EVM execution (Foundry). Likely remains a documented fundamental assumption.
 

@@ -416,14 +416,13 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             context,
             "context_lifted_bridge_lemmas should be non-empty",
         )
-        # Every context-lifted bridge should be in bridged_builtins or be 'pure'
+        # Every context-lifted bridge should be a real bridged builtin.
         bridged = set(report.get("bridged_builtins", []))
         for b in context:
-            if b != "pure":
-                self.assertIn(
-                    b, bridged,
-                    f"context-lifted bridge {b!r} not in bridged_builtins",
-                )
+            self.assertIn(
+                b, bridged,
+                f"context-lifted bridge {b!r} not in bridged_builtins",
+            )
 
     def test_fallthrough_lemmas_match_unbridged(self) -> None:
         report = gen.build_report()
@@ -431,7 +430,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         unbridged = set(report.get("unbridged_builtins", []))
         self.assertTrue(
             fallthrough,
-            "fallthrough_lemmas should be non-empty (sload/mappingSlot)",
+            "fallthrough_lemmas should be non-empty (mappingSlot)",
         )
         self.assertEqual(
             fallthrough,
@@ -482,6 +481,7 @@ class ParseContextBridgeLemmasTests(unittest.TestCase):
     def test_extracts_context_bridge_and_fallthrough(self) -> None:
         p = self._write_lemma_file("""\
             @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_add_bridge := by sorry
+            theorem evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge := by sorry
             @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_sload_none := by sorry
         """)
         with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):

@@ -323,9 +323,20 @@ private theorem backends_agree_calldatasize s se mv ta bt bn ci bb sl cd av :
   | [] => exact (evalBuiltinCallWithBackendContext_evmYulLean_calldatasize_bridge s se mv ta bt bn ci bb sl cd).symm
   | _ :: _ => rfl
 
+-- Unary builtin: sload (state-dependent, routed through the same
+-- `storage : Nat → Nat` lookup used by Verity's `evalBuiltinCallWithContext`)
+private theorem backends_agree_sload s se mv ta bt bn ci bb sl cd av :
+    evalBuiltinCallWithBackendContext .verity s se mv ta bt bn ci bb sl cd "sload" av =
+    evalBuiltinCallWithBackendContext .evmYulLean s se mv ta bt bn ci bb sl cd "sload" av := by
+  simp only [evalBuiltinCallWithBackendContext]
+  match av with
+  | [slot] => exact (evalBuiltinCallWithBackendContext_evmYulLean_sload_bridge s se mv ta bt bn ci bb sl cd slot).symm
+  | [] => rfl
+  | _ :: _ :: _ => rfl
+
 /-! ## Backend Equivalence for Bridged Builtins
 
-The `.evmYulLean` and `.verity` backends agree on all 34 bridged builtins.
+The `.evmYulLean` and `.verity` backends agree on all 35 bridged builtins.
 This is the pointwise equivalence theorem that Phase 4 retargeting relies on.
 The 2 sorry-dependent builtins (smod, sar) contribute
 to this through their sorry-backed bridge lemmas in `EvmYulLeanBridgeLemmas.lean`.
@@ -335,8 +346,8 @@ to this through their sorry-backed bridge lemmas in `EvmYulLeanBridgeLemmas.lean
     produce identical results under `evalBuiltinCallWithBackendContext`.
 
     This is the master backend equivalence theorem for Phase 4 retargeting.
-    It composes the 34 per-builtin bridge theorems into a single dispatch proof.
-    The 2 unbridged builtins (`sload`, `mappingSlot`) are excluded by the
+    It composes the 35 per-builtin bridge theorems into a single dispatch proof.
+    The 1 unbridged builtin (`mappingSlot`) is excluded by the
     `hBridged` hypothesis.
 
     This theorem is sorry-free at the dispatch level; the 2 remaining sorry's
@@ -355,8 +366,8 @@ theorem backends_agree_on_bridged_builtins
   rcases hBridged with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
     rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
     rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
-    rfl | rfl | rfl | rfl
-  -- 34 goals, one per bridged builtin. Dispatch to per-builtin helpers.
+    rfl | rfl | rfl | rfl | rfl
+  -- 35 goals, one per bridged builtin. Dispatch to per-builtin helpers.
   · exact backends_agree_add storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata argVals
   · exact backends_agree_sub storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata argVals
   · exact backends_agree_mul storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata argVals
@@ -391,6 +402,7 @@ theorem backends_agree_on_bridged_builtins
   · exact backends_agree_blobbasefee storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata argVals
   · exact backends_agree_calldataload storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata argVals
   · exact backends_agree_calldatasize storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata argVals
+  · exact backends_agree_sload storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata argVals
 
 /-! ## Expression-level backend equivalence
 

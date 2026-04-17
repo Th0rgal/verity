@@ -42,6 +42,7 @@ PROVED_BUILTINS = [
     "calldatasize",
     "timestamp",
     "number",
+    "sload",
     "caller",
     "address",
     "chainid",
@@ -54,7 +55,6 @@ ADMITTED_BUILTINS = ["smod", "sar"]
 CONCRETE_ONLY_BUILTINS: list[str] = []
 PURE_BUILTINS = PROVED_BUILTINS + CONCRETE_ONLY_BUILTINS
 DELEGATED_BUILTINS = [
-    "sload",
     "mappingSlot",
 ]
 EXPECTED_BUILTINS = [

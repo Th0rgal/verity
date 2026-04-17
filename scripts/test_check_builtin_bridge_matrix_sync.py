@@ -105,7 +105,7 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
 
     def test_missing_delegated_builtin_fails_closed(self) -> None:
         features = _make_builtin_features(
-            delegated=["sload"],
+            delegated=[],
         )
         rc, output = self._run_check(
             builtin_features=features,
@@ -222,7 +222,7 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
         features = _make_builtin_features()
         snippets = check.expected_doc_snippets(features)
         self.assertTrue(
-            any("32 fully proven, 2 with sorry-dependent core equivalences" in s for s in snippets),
+            any("33 fully proven, 2 with sorry-dependent core equivalences" in s for s in snippets),
             f"Expected sorry qualifier in snippets: {snippets}",
         )
 
@@ -234,7 +234,7 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
             f.pop("sorry_dependent", None)
         snippets = check.expected_doc_snippets(features)
         self.assertTrue(
-            any("34/36 builtins have universal bridge agreement proofs" in s
+            any("35/36 builtins have universal bridge agreement proofs" in s
                 and "sorry" not in s for s in snippets),
             f"Expected unqualified snippet: {snippets}",
         )

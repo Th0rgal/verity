@@ -2210,6 +2210,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_blobbasefee
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_calldataload
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_calldataload_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_sload_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_calldatasize
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_mappingSlot
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_add_bridge
@@ -2237,7 +2238,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_smod_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_sar_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_signextend_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_sload_none
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_sload_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_caller_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_address_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_callvalue_bridge
@@ -2285,6 +2286,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_blobbasefee  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_calldataload  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_calldatasize  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_sload  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_on_bridged_builtins
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExprWithBackend_verity_eq  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExprsWithBackend_verity_eq  -- private
@@ -2351,4 +2353,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2193 theorems/lemmas (1442 public, 751 private, 0 sorry'd)
+-- Total: 2195 theorems/lemmas (1443 public, 752 private, 0 sorry'd)

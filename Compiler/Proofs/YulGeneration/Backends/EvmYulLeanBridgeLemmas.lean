@@ -1937,6 +1937,17 @@ fallback covers all builtins. -/
       evalBuiltinCallViaEvmYulLean storage sender selector calldata "calldataload" [offset] := by
   simp [evalBuiltinCall, evalBuiltinCallWithContext, evalBuiltinCallViaEvmYulLean]
 
+/-- `sload` is bridged at the full adapter boundary: the `.evmYulLean` path
+    routes through `abstractLoadStorageOrMapping`, the same helper Verity's
+    `evalBuiltinCallWithContext` uses. The EVMYulLean-state correspondence of
+    that helper is witnessed by `storageLookup_projectStorage` in
+    `EvmYulLeanStateBridge.lean`. -/
+@[simp] theorem evalBuiltinCall_sload_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (slot : Nat) :
+    evalBuiltinCall storage sender selector calldata "sload" [slot] =
+      evalBuiltinCallViaEvmYulLean storage sender selector calldata "sload" [slot] := by
+  simp [evalBuiltinCall, evalBuiltinCallWithContext, evalBuiltinCallViaEvmYulLean]
+
 /-- `evalPureBuiltinViaEvmYulLean` returns `none` for `calldatasize`. -/
 @[simp] theorem evalPureBuiltinViaEvmYulLean_calldatasize (args : List Nat) :
     evalPureBuiltinViaEvmYulLean "calldatasize" args = none := by
@@ -2263,12 +2274,14 @@ For `.evmYulLean`, `evalBuiltinCallWithBackendContext` now has two behaviors:
 These lemmas define the exact Phase-3 boundary that later retargeting proofs
 can rewrite against. -/
 
-@[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_sload_none
+@[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_sload_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
-    (calldata : List Nat) (args : List Nat) :
+    (calldata : List Nat) (slot : Nat) :
     evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
-      blockTimestamp blockNumber chainId blobBaseFee selector calldata "sload" args = none := by
-  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "sload" [slot] =
+    evalBuiltinCallWithContext storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "sload" [slot] := by
+  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallWithContext, evalBuiltinCallViaEvmYulLean]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_caller_bridge
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -2428,9 +2441,9 @@ will invoke.
 -/
 
 /-- The set of builtins for which the `.evmYulLean` and `.verity` backends
-    produce identical results. This covers all 34 builtins handled by
-    `evalBuiltinCallWithContext` except `sload` and `mappingSlot`, which
-    require the Phase 3 state bridge.
+    produce identical results. This covers all 35 builtins handled by
+    `evalBuiltinCallWithContext` except `mappingSlot`, which requires the
+    Phase 3 keccak-semantic bridge.
 
     Phase 4's `Preservation.lean` retargeting uses this set to determine
     which builtin invocations can be transparently switched from `.verity`
@@ -2444,11 +2457,13 @@ def bridgedBuiltins : List String :=
    "exp", "sdiv", "smod", "sar", "signextend",
    "caller", "address", "callvalue", "timestamp",
    "number", "chainid", "blobbasefee",
-   "calldataload", "calldatasize"]
+   "calldataload", "calldatasize",
+   "sload"]
 
 /-- The set of builtins that the `.evmYulLean` backend cannot handle
-    (returns `none`) because they require the Phase 3 state bridge. -/
-def unbridgedBuiltins : List String := ["sload", "mappingSlot"]
+    (returns `none`) because they require the Phase 3 keccak-semantic
+    bridge for mapping-slot layout. -/
+def unbridgedBuiltins : List String := ["mappingSlot"]
 
 /-! ## Remaining Core Equivalence Proofs — Status
 

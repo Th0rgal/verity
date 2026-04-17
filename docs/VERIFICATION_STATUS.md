@@ -109,7 +109,7 @@ Key files: [`StatementEquivalence.lean`](../Compiler/Proofs/YulGeneration/Statem
 ### Phase 4: EVMYulLean Semantic Retargeting (expression-level)
 
 The retargeting module [`EvmYulLeanRetarget.lean`](../Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean) proves the following retargeting theorems:
-- `backends_agree_on_bridged_builtins`: the `.verity` and `.evmYulLean` backends produce identical results at the `evalBuiltinCallWithBackendContext` level for all 34 bridged builtins (dispatch proof is sorry-free; delegates to the 34 per-builtin context-lifted bridge lemmas in `EvmYulLeanBridgeLemmas.lean`, 2 of which rest on sorry-backed core equivalences for smod/sar)
+- `backends_agree_on_bridged_builtins`: the `.verity` and `.evmYulLean` backends produce identical results at the `evalBuiltinCallWithBackendContext` level for all 35 bridged builtins (dispatch proof is sorry-free; delegates to the 35 per-builtin context-lifted bridge lemmas in `EvmYulLeanBridgeLemmas.lean`, 2 of which rest on sorry-backed core equivalences for smod/sar)
 - `evalYulExpr_evmYulLean_eq_on_bridged`: `evalYulExpr` agrees with the `.evmYulLean` backend-parameterized evaluator for every `BridgedExpr` expression, including nested calls to bridged builtins and backend-independent `tload`/`mload`
 
 Trust boundary (expression-level): any `BridgedExpr` now inherits EVMYulLean semantics — "EVMYulLean's execution model matches the EVM" (backed by upstream Ethereum conformance tests) — rather than "Verity's custom builtin implementations are correct."
@@ -119,7 +119,7 @@ Not yet proven in this module:
 - a Layer-3-composed IR → Yul `.evmYulLean` theorem
 
 Remaining gaps for whole-program retargeting:
-- 2 unbridged builtins (`sload`, `mappingSlot`) — require Phase 3 state bridge
+- 1 unbridged builtin (`mappingSlot`) — requires the Phase 3 keccak-semantic bridge
 - 2 sorry-backed core equivalences (smod, sar — complex sign/bit semantics)
 - statement-level structural induction lifting expression equivalence to full Yul execution
 

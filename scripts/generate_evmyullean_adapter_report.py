@@ -297,7 +297,10 @@ def _parse_context_bridge_lemmas() -> tuple[list[str], list[str]]:
         raise FileNotFoundError(f"Bridge lemmas file not found: {BRIDGE_LEMMAS_FILE}")
     text = BRIDGE_LEMMAS_FILE.read_text(encoding="utf-8")
     code = _strip_lean_comments(text)
-    context_bridged = sorted(set(CONTEXT_BRIDGE_RE.findall(code)))
+    context_bridged = sorted(
+        name for name in set(CONTEXT_BRIDGE_RE.findall(code))
+        if name != "pure"
+    )
     fallthrough = sorted(set(FALLTHROUGH_RE.findall(code)))
     return context_bridged, fallthrough
 
@@ -465,7 +468,7 @@ def build_report() -> dict[str, object]:
                 "statement-level whole-program lift not yet proven"
             ),
             "remaining_for_whole_program_retargeting": [
-                "Phase 3 state bridge for sload and mappingSlot",
+                "Phase 3 keccak-semantic bridge for mappingSlot",
                 "smod/sar core equivalences (complex Int↔UInt256 sign/bit semantics)",
                 "statement-level and whole-program structural induction over Yul AST",
                 "Layer-3-composed IR → Yul .evmYulLean theorem",
