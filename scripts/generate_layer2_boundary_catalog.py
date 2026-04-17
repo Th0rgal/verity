@@ -27,7 +27,6 @@ def build_catalog() -> dict:
                 "helper_ir_semantics": 1638,
             },
             "source_refs": [
-                "docs/GENERIC_LAYER2_PLAN.md",
                 "docs/ROADMAP.md",
                 "docs/VERIFICATION_STATUS.md",
             ],

@@ -52,7 +52,7 @@ Tracking:
 - Theorem-shape milestone: [#1510](https://github.com/lfglabs-dev/verity/issues/1510)
 - Follow-on widening/completeness work: [#1630](https://github.com/lfglabs-dev/verity/issues/1630)
 - Axiom-elimination work completed in: [#1618](https://github.com/lfglabs-dev/verity/issues/1618)
-- Proof decomposition plan: [GENERIC_LAYER2_PLAN.md](./GENERIC_LAYER2_PLAN.md)
+- Machine-readable boundary catalog: [`artifacts/layer2_boundary_catalog.json`](../artifacts/layer2_boundary_catalog.json)
 
 **What is generic today**:
 - a structural theorem for raw statement lists inside the explicit `SupportedStmtList` fragment witness in [`TypedIRCompilerCorrectness.lean`](../Compiler/TypedIRCompilerCorrectness.lean), re-exported for the compiler-proof layer in [`SupportedFragment.lean`](../Compiler/Proofs/IRGeneration/SupportedFragment.lean)

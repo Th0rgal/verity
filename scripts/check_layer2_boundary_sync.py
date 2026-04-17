@@ -10,7 +10,6 @@ ROOT = Path(__file__).resolve().parents[1]
 TARGETS = {
     "AXIOMS": ROOT / "AXIOMS.md",
     "COMPILER_PROOFS_README": ROOT / "Compiler" / "Proofs" / "README.md",
-    "GENERIC_PLAN": ROOT / "docs" / "GENERIC_LAYER2_PLAN.md",
     "VERIFICATION_STATUS": ROOT / "docs" / "VERIFICATION_STATUS.md",
     "ROADMAP": ROOT / "docs" / "ROADMAP.md",
     "ROOT_README": ROOT / "README.md",
@@ -38,10 +37,6 @@ def expected_snippets() -> dict[str, list[str]]:
         "COMPILER_PROOFS_README": [
             "Generic whole-contract theorem",
             "0 sorry, 0 axioms",
-        ],
-        "GENERIC_PLAN": [
-            "avoid any `post`/`hpost`/contract-specific bridge premise",
-            "The main objective of issue #1618 is therefore complete.",
         ],
         "VERIFICATION_STATUS": [
             "## Layer 2: CompilationModel → IR — GENERIC WHOLE-CONTRACT THEOREM",
@@ -112,9 +107,6 @@ def forbidden_snippets() -> dict[str, list[str]]:
             "Still axiomatized: generic supported body simulation and the `execIRFunctionFuel` to `execIRFunction` bridge",
             "PARTIAL GENERIC, 2 AXIOMS, CONTRACT BRIDGES ACTIVE",
             "there is not yet a single compiler-level theorem quantified over arbitrary supported `CompilationModel` programs and successful `CompilationModel.compile` output.",
-        ],
-        "GENERIC_PLAN": [
-            "use the old `hpost`-based bridge theorem as the solution",
         ],
         "ROADMAP": [
             "✅ **Layer 2 Complete**",
