@@ -677,8 +677,12 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.EndToEnd.yulBody_from_state_eq_yulBody
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_general
+#print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_evmYulLean_general
+#print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_evmYulLean
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul
+#print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_evmYulLean
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd
+#print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_evmYulLean
 
 -- Compiler/Proofs/EventSemantics.lean
 #print axioms Compiler.Proofs.EventSemantics.encodeEvents_append
@@ -2462,4 +2466,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2298 theorems/lemmas (1509 public, 789 private, 0 sorry'd)
+-- Total: 2302 theorems/lemmas (1513 public, 789 private, 0 sorry'd)

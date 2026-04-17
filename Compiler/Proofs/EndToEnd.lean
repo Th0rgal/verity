@@ -19,10 +19,12 @@
              (proven generically in Compiler/Proofs/YulGeneration/Preservation.lean)
   - This file: compose them into a single theorem statement.
 
-  **EVMYulLean note (Phase 4)**: This file does NOT import EVMYulLean directly.
-  The Yul execution semantics used here (`interpretYulFromIR`, `interpretYulRuntime`)
-  are defined in terms of `evalBuiltinCallWithBackend` which defaults to the
-  Verity backend. The EVMYulLean bridge is established in
+  **EVMYulLean note (Phase 4)**: This file now exposes both the historical
+  Verity-backed Yul target (`interpretYulFromIR`) and conditional public
+  wrappers targeting `interpretYulRuntimeWithBackend .evmYulLean`.
+  The default Yul execution semantics (`interpretYulFromIR`, `interpretYulRuntime`)
+  are still defined in terms of `evalBuiltinCallWithBackend` which defaults to
+  the Verity backend. The EVMYulLean bridge is established in
   `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, proving
   that for all 36 bridged builtins, the Verity backend agrees with EVMYulLean.
   The Phase 4 retargeting module (`EvmYulLeanRetarget.lean`) composes these
@@ -31,13 +33,16 @@
   wrapper satisfies that predicate, and executes equivalently under the
   EVMYulLean backend, when the IR bodies it contains do. It now also exposes a
   conditional Layer-3 theorem whose Yul side is
-  `interpretYulRuntimeWithBackend .evmYulLean`. Proving all embedded body
-  predicates and retargeting this public EndToEnd theorem remain pending.
+  `interpretYulRuntimeWithBackend .evmYulLean`. This file composes that theorem
+  into public EndToEnd wrappers, still conditional on the embedded body
+  predicates and the smod/sar bridge dependencies documented in the retargeting
+  module.
 
   Run: lake build Compiler.Proofs.EndToEnd
 -/
 
 import Compiler.Proofs.YulGeneration.Preservation
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget
 import Compiler.Proofs.IRGeneration.Expr
 
 namespace Compiler.Proofs.EndToEnd
@@ -235,6 +240,105 @@ theorem layer3_contract_preserves_semantics_general
     hselector hNoWrap hWF hNoFallback hNoReceive hdispatchGuardSafe hNoHasSelector hHasSelectorDead
     hLoopFree hbody
 
+/-! ## Layer 3 Contract-Level: IR → EVMYulLean-backed Yul -/
+
+/-- Conditional Layer 3 contract-level preservation targeting the
+EVMYulLean-backed Yul runtime. This is the public EndToEnd-facing wrapper
+around `yulCodegen_preserves_semantics_evmYulLean`; it remains conditional on
+the existing function-body simulation hypotheses plus `BridgedStmts` witnesses
+for every embedded runtime body. -/
+theorem layer3_contract_preserves_semantics_evmYulLean_general
+    (contract : IRContract) (tx : IRTransaction) (initialState : IRState)
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hWF : ContractWF contract)
+    (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none)
+    (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions →
+      DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ contract.functions →
+      yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions →
+      HasSelectorDeadBridge fn.body)
+    (hLoopFree : ∀ fn, fn ∈ contract.functions →
+      yulStmtsLoopFree fn.body = true)
+    (hbody : ∀ fn, fn ∈ contract.functions →
+      Compiler.Proofs.YulGeneration.resultsMatch
+        (execIRFunction fn tx.args (initialState.withTx tx))
+        (interpretYulBody fn tx (initialState.withTx tx)))
+    (hFunctions : ∀ fn, fn ∈ contract.functions →
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body)
+    (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb →
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fb.body)
+    (hReceive : ∀ rc, contract.receiveEntrypoint = some rc →
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts rc.body)
+    (hInternals :
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts
+        contract.internalFunctions) :
+    Compiler.Proofs.YulGeneration.resultsMatch
+      (interpretIR contract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
+        .evmYulLean (Compiler.emitYul contract).runtimeCode
+        (YulTransaction.ofIR tx) initialState.storage initialState.events) :=
+  Compiler.Proofs.YulGeneration.Backends.yulCodegen_preserves_semantics_evmYulLean
+    contract tx initialState hselector hNoWrap hWF hNoFallback hNoReceive
+    hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hbody
+    hFunctions hFallback hReceive hInternals
+
+/-- Conditional Layer 3 contract-level preservation targeting EVMYulLean,
+using the same entry-state normalization hypotheses as
+`layer3_contract_preserves_semantics`. -/
+theorem layer3_contract_preserves_semantics_evmYulLean
+    (contract : IRContract) (tx : IRTransaction) (initialState : IRState)
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hvars : initialState.vars = [])
+    (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0)
+    (hreturn : initialState.returnValue = none)
+    (hparamErase : ∀ fn, fn ∈ contract.functions →
+      paramLoadErasure fn tx (initialState.withTx tx))
+    (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions →
+      DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ contract.functions →
+      yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions →
+      HasSelectorDeadBridge fn.body)
+    (hLoopFree : ∀ fn, fn ∈ contract.functions →
+      yulStmtsLoopFree fn.body = true)
+    (hWF : ContractWF contract)
+    (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none)
+    (hFunctions : ∀ fn, fn ∈ contract.functions →
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body)
+    (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb →
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fb.body)
+    (hReceive : ∀ rc, contract.receiveEntrypoint = some rc →
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts rc.body)
+    (hInternals :
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts
+        contract.internalFunctions) :
+    Compiler.Proofs.YulGeneration.resultsMatch
+      (interpretIR contract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
+        .evmYulLean (Compiler.emitYul contract).runtimeCode
+        (YulTransaction.ofIR tx) initialState.storage initialState.events) := by
+  apply layer3_contract_preserves_semantics_evmYulLean_general contract tx initialState
+    hselector hNoWrap hWF hNoFallback hNoReceive hdispatchGuardSafe hNoHasSelector
+    hHasSelectorDead hLoopFree
+  · intro fn hmem
+    exact (yulBody_from_state_eq_yulBody fn tx (initialState.withTx tx)
+      rfl rfl rfl rfl rfl rfl rfl rfl rfl
+      (by simpa using hreturn)
+      (by simpa using hmemory)
+      (by simpa using htransient)
+      (by simpa using hvars)
+      (hparamErase fn hmem))
+  · exact hFunctions
+  · exact hFallback
+  · exact hReceive
+  · exact hInternals
+
 /-! ## Layers 2+3 Composition -/
 
 /-- End-to-end: given a successfully compiled contract, IR execution matches
@@ -269,6 +373,50 @@ theorem layers2_3_ir_matches_yul
     hselector hNoWrap hvars hmemory htransient hreturn hparamErase hdispatchGuardSafe hNoHasSelector
     hHasSelectorDead hLoopFree hWF hNoFallback hNoReceive
 
+/-- End-to-end: given a successfully compiled contract, IR execution matches
+EVMYulLean-backed Yul execution under the current body-closure hypotheses. -/
+theorem layers2_3_ir_matches_yul_evmYulLean
+    (spec : CompilationModel.CompilationModel) (selectors : List Nat)
+    (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
+    (_hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hvars : initialState.vars = [])
+    (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0)
+    (hreturn : initialState.returnValue = none)
+    (hparamErase : ∀ fn, fn ∈ irContract.functions →
+      paramLoadErasure fn tx (initialState.withTx tx))
+    (hdispatchGuardSafe : ∀ fn, fn ∈ irContract.functions →
+      DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ irContract.functions →
+      yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ irContract.functions →
+      HasSelectorDeadBridge fn.body)
+    (hLoopFree : ∀ fn, fn ∈ irContract.functions →
+      yulStmtsLoopFree fn.body = true)
+    (hWF : ContractWF irContract)
+    (hNoFallback : irContract.fallbackEntrypoint = none)
+    (hNoReceive : irContract.receiveEntrypoint = none)
+    (hFunctions : ∀ fn, fn ∈ irContract.functions →
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body)
+    (hFallback : ∀ fb, irContract.fallbackEntrypoint = some fb →
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fb.body)
+    (hReceive : ∀ rc, irContract.receiveEntrypoint = some rc →
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts rc.body)
+    (hInternals :
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts
+        irContract.internalFunctions) :
+    Compiler.Proofs.YulGeneration.resultsMatch
+      (interpretIR irContract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
+        .evmYulLean (Compiler.emitYul irContract).runtimeCode
+        (YulTransaction.ofIR tx) initialState.storage initialState.events) :=
+  layer3_contract_preserves_semantics_evmYulLean irContract tx initialState
+    hselector hNoWrap hvars hmemory htransient hreturn hparamErase
+    hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
+    hNoReceive hFunctions hFallback hReceive hInternals
+
 /-! ## Concrete Instantiation: SimpleStorage -/
 
 /-- SimpleStorage end-to-end: compile → IR → Yul preserves semantics. -/
@@ -297,6 +445,41 @@ theorem simpleStorage_endToEnd
     (by intro fn hmem; simp [simpleStorageIRContract] at hmem ⊢; rcases hmem with rfl | rfl <;> rfl)
     (by intro s hs; simp [simpleStorageIRContract] at hs) rfl rfl
 
+/-- SimpleStorage end-to-end: compile → IR → EVMYulLean-backed Yul preserves
+semantics, conditional on bridged-body witnesses for the emitted functions. -/
+theorem simpleStorage_endToEnd_evmYulLean
+    (tx : IRTransaction) (initialState : IRState)
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hvars : initialState.vars = [])
+    (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0)
+    (hreturn : initialState.returnValue = none)
+    (hdispatchGuardSafe : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      HasSelectorDeadBridge fn.body)
+    (hparamErase : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      paramLoadErasure fn tx (initialState.withTx tx))
+    (hFunctions : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body) :
+    Compiler.Proofs.YulGeneration.resultsMatch
+      (interpretIR simpleStorageIRContract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
+        .evmYulLean (Compiler.emitYul simpleStorageIRContract).runtimeCode
+        (YulTransaction.ofIR tx) initialState.storage initialState.events) :=
+  layer3_contract_preserves_semantics_evmYulLean simpleStorageIRContract tx initialState
+    hselector hNoWrap hvars hmemory htransient hreturn hparamErase
+    hdispatchGuardSafe hNoHasSelector hHasSelectorDead
+    (by intro fn hmem; simp [simpleStorageIRContract] at hmem ⊢; rcases hmem with rfl | rfl <;> rfl)
+    (by intro s hs; simp [simpleStorageIRContract] at hs) rfl rfl
+    hFunctions
+    (by intro fb hSome; simp [simpleStorageIRContract] at hSome)
+    (by intro rc hSome; simp [simpleStorageIRContract] at hSome)
+    (by intro stmt hMem; simp [simpleStorageIRContract] at hMem)
+
 /-! ## Universal Pure Arithmetic Bridge
 
 The pure arithmetic bridge proofs (`pure_add_bridge`, etc.) were removed
@@ -313,7 +496,7 @@ replacement coverage: universal bridge lemmas for all pure bridged builtins.
 
 /-! ## Phase 4: EVMYulLean as Semantic Target
 
-The Yul execution semantics used throughout this file dispatch builtins via
+The historical Yul execution semantics used throughout this file dispatch builtins via
 `evalBuiltinCallWithBackendContext defaultBuiltinBackend`, where
 `defaultBuiltinBackend = .verity`. The EVMYulLean bridge
 (`EvmYulLeanBridgeLemmas.lean`) proves that for all 36 bridged builtins,
@@ -330,11 +513,16 @@ block, if, switch, and for cases, and now proves recursive
 `emitYul_runtimeCode_bridged`, the emitted-runtime closure witness conditional
 on bridged IR function, entrypoint, and internal helper bodies, and
 `emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies`, the corresponding
-conditional emitted-runtime equality between Verity `execYulFuel` and the
+  conditional emitted-runtime equality between Verity `execYulFuel` and the
   EVMYulLean backend executor. These theorems still transitively depend on the
   two sorry-backed smod/sar core equivalences where they invoke backend
   equivalence. It also proves `yulCodegen_preserves_semantics_evmYulLean`, a
   conditional Layer-3 theorem whose Yul side is the EVMYulLean backend runtime.
+  This file now exposes public EndToEnd wrappers
+  `layer3_contract_preserves_semantics_evmYulLean_general`,
+  `layer3_contract_preserves_semantics_evmYulLean`,
+  `layers2_3_ir_matches_yul_evmYulLean`, and
+  `simpleStorage_endToEnd_evmYulLean` over that target.
   Body-closure increments also prove scalar and static-scalar
   calldata parameter prologues satisfy `BridgedStmts`, pure source-expression
   fragments compile to `BridgedExpr`, and scalar-leaf plus pure-expression
@@ -355,6 +543,9 @@ conditional emitted-runtime equality between Verity `execYulFuel` and the
   embeds satisfy `BridgedStmt`.
 - Layer 3 now has a conditional contract-level theorem targeting
   `interpretYulRuntimeWithBackend .evmYulLean`.
+- This public EndToEnd module now has conditional wrappers targeting
+  `interpretYulRuntimeWithBackend .evmYulLean`; the historical wrappers remain
+  available for the Verity-backed `interpretYulFromIR` target.
 - Scalar and static-scalar calldata parameter-loading prologues are now known
   to satisfy `BridgedStmts`.
 - Scalar source expression leaves and the pure arithmetic/comparison/bit-operation
@@ -377,8 +568,7 @@ conditional emitted-runtime equality between Verity `execYulFuel` and the
   calldata parameter prologues, scalar/pure-expression let/assign statement
   lists, pure-binding plus single-slot storage-write lists, external
   terminators, internal return terminators, and plain `require` with bridged
-  failure conditions, plus this public EndToEnd theorem's EVMYulLean target,
-  are not yet proven.
+  failure conditions are not yet proven.
 
 See `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean` for
 the Phase 4 retargeting theorems.

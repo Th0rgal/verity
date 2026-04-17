@@ -26,6 +26,7 @@ CORRECTNESS_FILE = BACKENDS_DIR / "EvmYulLeanAdapterCorrectness.lean"
 RETARGET_FILE = BACKENDS_DIR / "EvmYulLeanRetarget.lean"
 BODY_CLOSURE_FILE = BACKENDS_DIR / "EvmYulLeanBodyClosure.lean"
 SOURCE_EXPR_CLOSURE_FILE = BACKENDS_DIR / "EvmYulLeanSourceExprClosure.lean"
+END_TO_END_FILE = ROOT / "Compiler" / "Proofs" / "EndToEnd.lean"
 DEFAULT_OUTPUT = ROOT / "artifacts" / "evmyullean_adapter_report.json"
 
 EXPECTED_EXPR_CASES = ["lit", "hex", "str", "ident", "call"]
@@ -539,6 +540,19 @@ def build_report() -> dict[str, object]:
         has_layer3_evm_retarget = _has_theorem(
             "yulCodegen_preserves_semantics_evmYulLean"
         )
+        if END_TO_END_FILE.exists():
+            end_to_end_code = _strip_lean_strings(
+                _strip_lean_comments(END_TO_END_FILE.read_text(encoding="utf-8"))
+            )
+            has_end_to_end_evm_retarget = _has_theorem_in(
+                end_to_end_code, "layers2_3_ir_matches_yul_evmYulLean"
+            )
+            end_to_end_evm_retarget_has_sorry = _theorem_body_has_sorry_in(
+                end_to_end_code, "layers2_3_ir_matches_yul_evmYulLean"
+            )
+        else:
+            has_end_to_end_evm_retarget = False
+            end_to_end_evm_retarget_has_sorry = False
         backends_agree_has_sorry = _theorem_body_has_sorry("backends_agree_on_bridged_builtins")
         expr_retarget_has_sorry = _theorem_body_has_sorry("evalYulExpr_evmYulLean_eq_on_bridged")
         straight_stmt_retarget_has_sorry = _theorem_body_has_sorry(
@@ -658,6 +672,14 @@ def build_report() -> dict[str, object]:
             layer3_evm_retarget_status = admitted_dep_status
         else:
             layer3_evm_retarget_status = "proven (conditional on bridged IR bodies)"
+        if not has_end_to_end_evm_retarget:
+            end_to_end_evm_retarget_status = "missing"
+        elif end_to_end_evm_retarget_has_sorry:
+            end_to_end_evm_retarget_status = "sorry"
+        elif admitted_deps:
+            end_to_end_evm_retarget_status = admitted_dep_status
+        else:
+            end_to_end_evm_retarget_status = "proven (conditional on bridged IR bodies)"
         if BODY_CLOSURE_FILE.exists():
             body_closure_code = _strip_lean_strings(
                 _strip_lean_comments(BODY_CLOSURE_FILE.read_text(encoding="utf-8"))
@@ -1140,6 +1162,7 @@ def build_report() -> dict[str, object]:
             "emitYul_runtimeCode_bridged": runtime_closure_status,
             "emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies": runtime_backend_eq_status,
             "yulCodegen_preserves_semantics_evmYulLean": layer3_evm_retarget_status,
+            "layers2_3_ir_matches_yul_evmYulLean": end_to_end_evm_retarget_status,
             "genParamLoads_scalar_bridged": scalar_param_body_closure_status,
             "genStaticTypeLoads_calldataload_bridged": static_type_body_closure_status,
             "genParamLoads_static_scalar_bridged": static_param_body_closure_status,
@@ -1166,7 +1189,9 @@ def build_report() -> dict[str, object]:
                 "identifier-slot sstore), and recursively nested BridgedStmt targets; "
                 "generated runtime-code closure and emitted-runtime backend equality are proven "
                 "conditional on bridged IR bodies; Layer-3 contract preservation now has an "
-                "EVMYulLean-backend Yul target under the same body hypotheses; scalar and static-scalar calldata "
+                "EVMYulLean-backend Yul target under the same body hypotheses; "
+                "the public EndToEnd module now exposes a conditional wrapper over that "
+                "EVMYulLean-backed target; scalar and static-scalar calldata "
                 "parameter prologue body closure, pure source-expression closure, scalar/pure "
                 "let/assign statement-list body closure, pure-binding/single-slot setStorage "
                 "body closure, external stop/return terminator closure, and require statement "
@@ -1177,7 +1202,7 @@ def build_report() -> dict[str, object]:
             "remaining_for_whole_program_retargeting": [
                 "smod/sar core equivalences (complex Int↔UInt256 sign/bit semantics)",
                 "extend compiler-produced IR function/entrypoint body closure beyond scalar/static-scalar calldata parameter prologues and recursive pure-binding/single-slot setStorage/require/terminator/Stmt.ite fragments",
-                "EndToEnd theorem still targets interpretYulFromIR rather than interpretYulRuntimeWithBackend .evmYulLean",
+                "discharge the conditional EndToEnd theorem's bridged-body hypotheses for full compiler-produced contracts",
             ],
         }
 

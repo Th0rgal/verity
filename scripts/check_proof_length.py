@@ -230,8 +230,14 @@ ALLOWLIST: set[str] = {
     "SwitchCaseBodyBridge_short",
     "SwitchCaseBodyBridge",
     "layer3_contract_preserves_semantics",
+    # Thin EVMYulLean EndToEnd wrapper; signature carries explicit body-closure
+    # witnesses and the proof mostly forwards existing Layer-3 hypotheses.
+    "layer3_contract_preserves_semantics_evmYulLean",
     # --- End-to-end proofs ---
     "simpleStorage_endToEnd",
+    # Thin public wrapper; the scanner counts the trailing Phase 4 summary
+    # comment in its theorem span.
+    "simpleStorage_endToEnd_evmYulLean",
     # --- Contract proofs (Contracts/) ---
     "constructor_increment_getCount",
     "add_one_preserves_order_iff_no_overflow",
