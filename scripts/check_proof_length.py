@@ -274,6 +274,13 @@ ALLOWLIST: set[str] = {
     # default 50-line budget even though it delegates all list execution to
     # existing straight-line lemmas.
     "execYulFuelWithBackend_for_eq_on_bridged_parts",
+    # Recursive target theorem is the statement-level fuel induction over all
+    # BridgedStmt constructors. Each branch mirrors one executor case and
+    # delegates nested execution through the predecessor-fuel IH.
+    "execYulFuelWithBackend_eq_on_bridged_target",
+    # Thin public wrapper, but the scanner counts the trailing Phase 4 summary
+    # comment in its theorem span.
+    "execYulFuelWithBackend_eq_on_bridged_stmts",
     # --- Misc ---
     "findUniqueInternalFunction",
 }

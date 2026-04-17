@@ -457,6 +457,9 @@ def build_report() -> dict[str, object]:
         has_for_stmt_retarget = _has_theorem(
             "execYulFuelWithBackend_for_eq_on_bridged_parts"
         )
+        has_recursive_target_retarget = _has_theorem(
+            "execYulFuelWithBackend_eq_on_bridged_target"
+        )
         backends_agree_has_sorry = _theorem_body_has_sorry("backends_agree_on_bridged_builtins")
         expr_retarget_has_sorry = _theorem_body_has_sorry("evalYulExpr_evmYulLean_eq_on_bridged")
         straight_stmt_retarget_has_sorry = _theorem_body_has_sorry(
@@ -473,6 +476,9 @@ def build_report() -> dict[str, object]:
         )
         for_stmt_retarget_has_sorry = _theorem_body_has_sorry(
             "execYulFuelWithBackend_for_eq_on_bridged_parts"
+        )
+        recursive_target_retarget_has_sorry = _theorem_body_has_sorry(
+            "execYulFuelWithBackend_eq_on_bridged_target"
         )
         admitted_deps = sorted(admitted_lemmas)
         admitted_dep_status = (
@@ -536,8 +542,38 @@ def build_report() -> dict[str, object]:
             for_stmt_retarget_status = admitted_dep_status
         else:
             for_stmt_retarget_status = "proven"
+        if not has_recursive_target_retarget:
+            recursive_target_retarget_status = "missing"
+        elif recursive_target_retarget_has_sorry:
+            recursive_target_retarget_status = "sorry"
+        elif admitted_deps:
+            recursive_target_retarget_status = admitted_dep_status
+        else:
+            recursive_target_retarget_status = "proven"
 
         if (
+            has_recursive_target_retarget
+            and not recursive_target_retarget_has_sorry
+            and
+            has_for_stmt_retarget
+            and not for_stmt_retarget_has_sorry
+            and
+            has_switch_stmt_retarget
+            and not switch_stmt_retarget_has_sorry
+            and
+            has_if_stmt_retarget
+            and not if_stmt_retarget_has_sorry
+            and
+            has_block_stmt_retarget
+            and not block_stmt_retarget_has_sorry
+            and has_straight_stmt_retarget
+            and not straight_stmt_retarget_has_sorry
+            and has_expr_retarget
+            and not expr_retarget_has_sorry
+            and not admitted_deps
+        ):
+            phase4_status = "recursive-statement-target-level"
+        elif (
             has_for_stmt_retarget
             and not for_stmt_retarget_has_sorry
             and
@@ -618,18 +654,16 @@ def build_report() -> dict[str, object]:
             "execYulFuelWithBackend_if_eq_on_bridged_body": if_stmt_retarget_status,
             "execYulFuelWithBackend_switch_eq_on_bridged_cases": switch_stmt_retarget_status,
             "execYulFuelWithBackend_for_eq_on_bridged_parts": for_stmt_retarget_status,
+            "execYulFuelWithBackend_eq_on_bridged_target": recursive_target_retarget_status,
             "trust_boundary": (
-                "for/switch/if-with-straight-line-body statement fragment: EVMYulLean "
-                "execution model matches EVM (upstream conformance tests) for "
-                "BridgedStraightStmts, .block wrappers around them, and .if_ "
-                "statements with bridged conditions plus .switch statements "
-                "with bridged scrutinees and straight-line selected bodies plus "
-                ".for_ statements with straight-line init/body/post lists; "
-                "recursive structured-control-flow and whole-program lift not yet proven"
+                "recursive BridgedTarget statement fragment: EVMYulLean execution model "
+                "matches EVM (upstream conformance tests) for BridgedExpr expressions, "
+                "BridgedStraightStmts, and recursively nested BridgedStmt targets; "
+                "Layer-3 composition and whole-program generated-code closure not yet proven"
             ),
             "remaining_for_whole_program_retargeting": [
                 "smod/sar core equivalences (complex Int↔UInt256 sign/bit semantics)",
-                "structured-control-flow induction over recursive block bodies and nested control flow",
+                "generated-code proof that emitted Yul targets satisfy BridgedTarget/BridgedStmt",
                 "Layer-3-composed IR → Yul .evmYulLean theorem",
             ],
         }

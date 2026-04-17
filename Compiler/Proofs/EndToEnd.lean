@@ -26,9 +26,9 @@
   `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, proving
   that for all 36 bridged builtins, the Verity backend agrees with EVMYulLean.
   The Phase 4 retargeting module (`EvmYulLeanRetarget.lean`) composes these
-  per-builtin equivalences through expression evaluation and straight-line
-  statement execution; structured control flow and whole-program retargeting
-  remain pending.
+  per-builtin equivalences through expression evaluation and recursive
+  `BridgedTarget` statement execution. Generated-code closure under that
+  predicate and whole-program retargeting remain pending.
 
   Run: lake build Compiler.Proofs.EndToEnd
 -/
@@ -320,35 +320,24 @@ EVMYulLean semantics for any single bridged-builtin call site whose bridge
 dependencies are fully proven. The retargeting module
 (`EvmYulLeanRetarget.lean`) makes this explicit with
 `backends_agree_on_bridged_builtins`, lifts it through `BridgedExpr`
-expression evaluation, proves straight-line statement-list equivalence for
-`BridgedStraightStmts`, and now covers `.block` wrappers plus `.if_` statements
-with bridged conditions and `.switch` statements with bridged scrutinees and
-straight-line selected bodies plus `.for_` statements with straight-line
-init/body/post lists and bridged conditions. These theorems still transitively
-depend on the two sorry-backed smod/sar core equivalences.
+expression evaluation, proves statement-fragment helpers for straight-line,
+block, if, switch, and for cases, and now proves recursive
+`BridgedTarget` execution equivalence. These theorems still transitively depend
+on the two sorry-backed smod/sar core equivalences.
 
-**Trust boundary after Phase 4 (sorry-dependent for/switch/if/straight-line fragment)**:
+**Trust boundary after Phase 4 (sorry-dependent recursive statement-target fragment)**:
 - For any single bridged-builtin call whose bridge dependencies are fully
   proven, the Yul semantics trust assumption shifts from "Verity's custom
   builtin implementations are correct" to "EVMYulLean's execution model
   matches the EVM" (backed by upstream Ethereum conformance tests).
-- Straight-line `BridgedStraightStmts` statement lists inherit that same
-  backend equivalence when their expression dependencies are bridged.
-- `.block` statements containing those straight-line lists preserve the same
-  backend equivalence.
-- `.if_` statements with a bridged condition and a straight-line body preserve
-  the same backend equivalence.
-- `.switch` statements with a bridged scrutinee and straight-line selected
-  case/default bodies preserve the same backend equivalence.
-- `.for_` statements with straight-line init/body/post lists and bridged
-  conditions preserve the same backend equivalence.
+- `BridgedTarget` statement and statement-list executions inherit that same
+  backend equivalence when their nested statements satisfy `BridgedStmt`.
 - 36 of 36 builtins are bridged, including `mappingSlot` via the shared
   keccak-faithful `abstractMappingSlot` derivation.
 - 2 bridge lemmas use `sorry` (smod, sar) — blocked by complex Int↔UInt256
   sign/bit semantics, not privacy.
-- Structured-control-flow induction lifting this fragment through recursive
-  blocks and nested control flow to full Yul program execution is not yet
-  proven.
+- Generated-code closure under `BridgedTarget`/`BridgedStmt` and Layer-3
+  composition are not yet proven.
 
 See `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean` for
 the Phase 4 retargeting theorems.

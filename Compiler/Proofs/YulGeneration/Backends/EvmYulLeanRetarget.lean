@@ -11,16 +11,17 @@
   for every `func ∈ bridgedBuiltins`.
 
   This module also proves the expression-level lift for `BridgedExpr`:
-  `evalYulExpr_evmYulLean_eq_on_bridged`. The remaining whole-program lift
-  (statements and Layer-3-composed IR → Yul `.evmYulLean`) requires structural
-  induction over the Yul statement AST and is **not yet proven**; see the module
-  summary at the bottom of this file.
+  `evalYulExpr_evmYulLean_eq_on_bridged`, plus the recursive target lift
+  `execYulFuelWithBackend_eq_on_bridged_target` for `BridgedTarget`
+  executions. The remaining whole-program lift requires proving generated Yul
+  targets satisfy `BridgedTarget`/`BridgedStmt` and composing that theorem into
+  Layer 3; see the module summary at the bottom of this file.
 
   **Trust boundary shift (pointwise)**: For any builtin call using a bridged
   name, the trust boundary moves from "Verity's custom Yul builtin semantics
   are correct" to "EVMYulLean's builtin semantics match the EVM" (backed by
   upstream conformance tests). Whole-program guarantees still require the
-  pending structural induction.
+  pending Layer-3 composition.
 
   Run: lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget
 -/
@@ -1004,6 +1005,181 @@ theorem execYulFuelWithBackend_for_eq_on_bridged_parts
       | «stop» _ => rfl
       | «revert» _ => rfl
 
+/-! ## Recursive statement backend equivalence
+
+`BridgedStmt` lifts the earlier straight-line/control-flow helpers to recursive
+Yul statement structure. It is still an explicit fragment predicate: every
+expression dependency must satisfy `BridgedExpr`, and every nested statement
+list must recursively satisfy `BridgedStmt`.
+-/
+
+inductive BridgedStmt : Compiler.Yul.YulStmt → Prop
+  | straight (stmt : Compiler.Yul.YulStmt)
+      (hStmt : BridgedStraightStmt stmt) :
+      BridgedStmt stmt
+  | block (stmts : List Compiler.Yul.YulStmt)
+      (hStmts : ∀ stmt ∈ stmts, BridgedStmt stmt) :
+      BridgedStmt (.block stmts)
+  | if_ (cond : Compiler.Yul.YulExpr) (body : List Compiler.Yul.YulStmt)
+      (hCond : BridgedExpr cond)
+      (hBody : ∀ stmt ∈ body, BridgedStmt stmt) :
+      BridgedStmt (.if_ cond body)
+  | «switch» (expr : Compiler.Yul.YulExpr)
+      (cases : List (Nat × List Compiler.Yul.YulStmt))
+      (defaultCase : Option (List Compiler.Yul.YulStmt))
+      (hExpr : BridgedExpr expr)
+      (hCases : ∀ scrutinee value body,
+        cases.find? (fun x => decide (x.fst = scrutinee)) = some (value, body) →
+        ∀ stmt ∈ body, BridgedStmt stmt)
+      (hDefault : ∀ body, defaultCase = some body →
+        ∀ stmt ∈ body, BridgedStmt stmt) :
+      BridgedStmt (.switch expr cases defaultCase)
+  | for_ (init : List Compiler.Yul.YulStmt) (cond : Compiler.Yul.YulExpr)
+      (post body : List Compiler.Yul.YulStmt)
+      (hInit : ∀ stmt ∈ init, BridgedStmt stmt)
+      (hCond : BridgedExpr cond)
+      (hPost : ∀ stmt ∈ post, BridgedStmt stmt)
+      (hBody : ∀ stmt ∈ body, BridgedStmt stmt) :
+      BridgedStmt (.for_ init cond post body)
+
+def BridgedStmts (stmts : List Compiler.Yul.YulStmt) : Prop :=
+  ∀ stmt ∈ stmts, BridgedStmt stmt
+
+inductive BridgedTarget : YulExecTarget → Prop
+  | stmt (stmt : Compiler.Yul.YulStmt) (hStmt : BridgedStmt stmt) :
+      BridgedTarget (.stmt stmt)
+  | stmts (stmts : List Compiler.Yul.YulStmt) (hStmts : BridgedStmts stmts) :
+      BridgedTarget (.stmts stmts)
+
+theorem execYulFuelWithBackend_eq_on_bridged_target
+    (fuel : Nat) (state : YulState) (target : YulExecTarget)
+    (hTarget : BridgedTarget target) :
+    execYulFuelWithBackend .verity fuel state target =
+    execYulFuelWithBackend .evmYulLean fuel state target := by
+  induction fuel generalizing state target with
+  | zero =>
+      cases hTarget with
+      | stmt stmt hStmt =>
+          cases hStmt with
+          | straight stmt hStraight =>
+              exact execYulFuelWithBackend_eq_on_bridged_straight_stmt
+                0 state stmt hStraight
+          | block _ _ => rfl
+          | if_ _ _ _ _ => rfl
+          | «switch» _ _ _ _ _ _ => rfl
+          | for_ _ _ _ _ _ _ _ _ => rfl
+      | stmts stmts hStmts =>
+          cases stmts <;> rfl
+  | succ fuel ih =>
+      cases hTarget with
+      | stmt stmt hStmt =>
+          cases hStmt with
+          | straight stmt hStraight =>
+              exact execYulFuelWithBackend_eq_on_bridged_straight_stmt
+                (Nat.succ fuel) state stmt hStraight
+          | block stmts hStmts =>
+              simp only [execYulFuelWithBackend]
+              exact ih state (.stmts stmts) (.stmts stmts hStmts)
+          | if_ cond body hCond hBody =>
+              simp only [execYulFuelWithBackend]
+              rw [evalYulExprWithBackend_eq_on_bridged state cond hCond]
+              cases evalYulExprWithBackend .evmYulLean state cond with
+              | none => rfl
+              | some v =>
+                  by_cases hv : v = 0
+                  · simp [hv]
+                  · simp [hv]
+                    exact ih state (.stmts body) (.stmts body hBody)
+          | «switch» expr cases defaultCase hExpr hCases hDefault =>
+              simp only [execYulFuelWithBackend]
+              rw [evalYulExprWithBackend_eq_on_bridged state expr hExpr]
+              cases evalYulExprWithBackend .evmYulLean state expr with
+              | none => rfl
+              | some v =>
+                  cases hFind : cases.find? (fun x => decide (x.fst = v)) with
+                  | some hit =>
+                      cases hit with
+                      | mk value body =>
+                          simp [hFind]
+                          exact ih state (.stmts body)
+                            (.stmts body (hCases v value body hFind))
+                  | none =>
+                      cases hDefaultCase : defaultCase with
+                      | none =>
+                          simp [hFind]
+                      | some body =>
+                          simp [hFind]
+                          exact ih state (.stmts body)
+                            (.stmts body (hDefault body hDefaultCase))
+          | for_ init cond post body hInit hCond hPost hBody =>
+              simp only [execYulFuelWithBackend]
+              rw [ih state (.stmts init) (.stmts init hInit)]
+              cases execYulFuelWithBackend .evmYulLean fuel state (.stmts init) with
+              | «continue» s' =>
+                  simp only
+                  rw [evalYulExprWithBackend_eq_on_bridged s' cond hCond]
+                  cases evalYulExprWithBackend .evmYulLean s' cond with
+                  | none => rfl
+                  | some v =>
+                      by_cases hv : v = 0
+                      · simp [hv]
+                      · simp [hv]
+                        rw [ih s' (.stmts body) (.stmts body hBody)]
+                        cases execYulFuelWithBackend .evmYulLean fuel s' (.stmts body) with
+                        | «continue» s'' =>
+                            simp only
+                            rw [ih s'' (.stmts post) (.stmts post hPost)]
+                            cases execYulFuelWithBackend .evmYulLean fuel s'' (.stmts post) with
+                            | «continue» s''' =>
+                                simp only
+                                exact ih s''' (.stmt (.for_ [] cond post body))
+                                  (.stmt (.for_ [] cond post body)
+                                    (.for_ [] cond post body
+                                      (by intro stmt hMem; cases hMem)
+                                      hCond hPost hBody))
+                            | «return» _ _ => rfl
+                            | «stop» _ => rfl
+                            | «revert» _ => rfl
+                        | «return» _ _ => rfl
+                        | «stop» _ => rfl
+                        | «revert» _ => rfl
+              | «return» _ _ => rfl
+              | «stop» _ => rfl
+              | «revert» _ => rfl
+      | stmts stmts hStmts =>
+          cases stmts with
+          | nil => rfl
+          | cons stmt rest =>
+              have hStmt : BridgedStmt stmt := hStmts stmt (by simp)
+              have hRest : BridgedStmts rest := by
+                intro s hs
+                exact hStmts s (by simp [hs])
+              simp only [execYulFuelWithBackend]
+              rw [ih state (.stmt stmt) (.stmt stmt hStmt)]
+              cases execYulFuelWithBackend .evmYulLean fuel state (.stmt stmt) with
+              | «continue» s' =>
+                  simp only
+                  exact ih s' (.stmts rest) (.stmts rest hRest)
+              | «return» _ _ => rfl
+              | «stop» _ => rfl
+              | «revert» _ => rfl
+
+theorem execYulFuelWithBackend_eq_on_bridged_stmt
+    (fuel : Nat) (state : YulState) (stmt : Compiler.Yul.YulStmt)
+    (hStmt : BridgedStmt stmt) :
+    execYulFuelWithBackend .verity fuel state (.stmt stmt) =
+    execYulFuelWithBackend .evmYulLean fuel state (.stmt stmt) :=
+  execYulFuelWithBackend_eq_on_bridged_target fuel state (.stmt stmt)
+    (.stmt stmt hStmt)
+
+theorem execYulFuelWithBackend_eq_on_bridged_stmts
+    (fuel : Nat) (state : YulState) (stmts : List Compiler.Yul.YulStmt)
+    (hStmts : BridgedStmts stmts) :
+    execYulFuelWithBackend .verity fuel state (.stmts stmts) =
+    execYulFuelWithBackend .evmYulLean fuel state (.stmts stmts) :=
+  execYulFuelWithBackend_eq_on_bridged_target fuel state (.stmts stmts)
+    (.stmts stmts hStmts)
+
 /-! ## Phase 4 Completion Summary
 
 ### What this module establishes:
@@ -1040,23 +1216,25 @@ theorem execYulFuelWithBackend_for_eq_on_bridged_parts
 9. **`execYulFuelWithBackend_for_eq_on_bridged_parts`**: The `.for_`
    statement constructor preserves backend equivalence when its init/body/post
    lists are `BridgedStraightStmts` and its condition is a `BridgedExpr`.
+10. **`execYulFuelWithBackend_eq_on_bridged_target`**: Recursive
+    statement/statement-list backend equivalence for targets constrained by
+    `BridgedTarget`, whose nested statements satisfy `BridgedStmt`.
 
 This is still not an end-to-end theorem, because a Layer-3-composed statement
 (IR → Yul under `.evmYulLean`) requires structured-control-flow induction and
 is **not yet proven**.
 
 ### What remains:
-- **Structured-control-flow induction**: Lift statement equivalence through
-  recursive block bodies and control-flow bodies that are not straight-line.
+- **Layer-3 composition**: Connect the recursive `BridgedStmt` target theorem
+  to the existing IR → Yul preservation stack.
 - **2 core sorry's**: smod/sar (complex Int↔UInt256 sign/bit semantics)
 
 ### Trust boundary (current state):
 Expressions constrained by `BridgedExpr`, straight-line statement lists
-constrained by `BridgedStraightStmts`, block wrappers around those lists, and
-`.if_`/`.switch`/`.for_` statements with bridged conditions or scrutinees plus
-straight-line bodies inherit EVMYulLean semantics. Whole-program guarantees
-still depend on structured-control-flow induction through recursive blocks,
-nested control flow, and the two sorry-dependent core equivalences above.
+constrained by `BridgedStraightStmts`, and recursive statement targets
+constrained by `BridgedTarget` inherit EVMYulLean semantics. Whole-program
+guarantees still depend on composing this target theorem into Layer 3 and on
+the two sorry-dependent core equivalences above.
 -/
 
 end Compiler.Proofs.YulGeneration.Backends
