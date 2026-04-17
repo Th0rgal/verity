@@ -467,6 +467,10 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             phase4["genParamLoads_scalar_bridged"],
             "proven (scalar calldata parameters)",
         )
+        self.assertEqual(
+            phase4["genStaticTypeLoads_calldataload_bridged"],
+            "proven (static scalar calldata leaves)",
+        )
 
     def test_missing_retarget_theorem_is_not_reported_proven(self) -> None:
         with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:

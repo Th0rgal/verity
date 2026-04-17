@@ -8,15 +8,16 @@
 
   The first increment covers `Compiler.CompilationModel.genParamLoads` for
   parameter lists whose types are all primitive scalar ABI types
-  (`uint256`/`int256`/`uint8`/`address`/`bool`/`bytes32`). For such lists the
-  emitted Yul is a minimum-input-size `if` check followed by per-parameter
-  `let_` bindings whose right-hand sides are `calldataload` (optionally wrapped
-  in `and` / `iszero`-`iszero`), all of which live in `bridgedBuiltins`.
+  (`uint256`/`int256`/`uint8`/`address`/`bool`/`bytes32`). This module also
+  proves the static-load helper for fixed arrays and tuples whose leaves are
+  those scalar ABI types. The emitted Yul is built from `let_` bindings whose
+  right-hand sides are `calldataload` (optionally wrapped in `and` /
+  `iszero`-`iszero`), all of which live in `bridgedBuiltins`.
 
-  Dynamic parameters, tuples, fixed arrays, and the constructor argument
-  helpers are intentionally **out of scope** here — they need additional
-  predicates covering absolute-offset bookkeeping and will be handled in
-  follow-up files.
+  Dynamic parameters, full `genParamLoads` closure for static composites, and
+  constructor argument helpers are intentionally **out of scope** here — they
+  need additional predicates covering absolute-offset bookkeeping and will be
+  handled in follow-up files.
 
   Run: lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBodyClosure
 -/
@@ -37,6 +38,56 @@ calldata without offset/length bookkeeping. -/
 def IsScalarParamType : ParamType → Prop
   | .uint256 | .int256 | .uint8 | .address | .bool | .bytes32 => True
   | _ => False
+
+/-- Static ABI parameter types whose leaves are all scalar words. This extends
+`IsScalarParamType` with tuples and fixed arrays that can be decoded inline
+without dynamic-offset bookkeeping. -/
+inductive IsStaticScalarParamType : ParamType → Prop
+  | scalar {ty : ParamType} (hScalar : IsScalarParamType ty) :
+      IsStaticScalarParamType ty
+  | fixedArray {elemTy : ParamType} {n : Nat}
+      (hElem : IsStaticScalarParamType elemTy) :
+      IsStaticScalarParamType (.fixedArray elemTy n)
+  | tuple {elemTys : List ParamType}
+      (hElems : ∀ ty ∈ elemTys, IsStaticScalarParamType ty) :
+      IsStaticScalarParamType (.tuple elemTys)
+
+theorem isDynamicParamType_false_of_static_scalar
+    (ty : ParamType) (hStatic : IsStaticScalarParamType ty) :
+    isDynamicParamType ty = false := by
+  induction hStatic with
+  | @scalar scalarTy hScalar =>
+      cases scalarTy <;> simp [IsScalarParamType, isDynamicParamType.eq_1,
+        isDynamicParamType.eq_2, isDynamicParamType.eq_3, isDynamicParamType.eq_4,
+        isDynamicParamType.eq_5, isDynamicParamType.eq_6] at hScalar ⊢
+  | fixedArray hElem ih =>
+      rw [isDynamicParamType.eq_10]
+      exact ih
+  | tuple hElems hElems_ih =>
+      rw [isDynamicParamType.eq_def]
+      suffices hList :
+          ∀ tys : List ParamType,
+            (∀ ty ∈ tys, IsStaticScalarParamType ty) →
+            (∀ ty ∈ tys, isDynamicParamType ty = false) →
+            isDynamicParamTypeList tys = false by
+        exact hList _ hElems hElems_ih
+      intro tys
+      induction tys with
+      | nil =>
+          intro _ _
+          exact isDynamicParamTypeList.eq_1
+      | cons elemTy rest ihRest =>
+          intro hRestStatic hRestDynamic
+          rw [isDynamicParamTypeList.eq_2]
+          rw [hRestDynamic elemTy (by simp)]
+          have hTailStatic : ∀ ty ∈ rest, IsStaticScalarParamType ty := by
+            intro ty hMem
+            exact hRestStatic ty (by simp [hMem])
+          have hTailDynamic : ∀ ty ∈ rest, isDynamicParamType ty = false := by
+            intro ty hMem
+            exact hRestDynamic ty (by simp [hMem])
+          rw [ihRest hTailStatic hTailDynamic]
+          rfl
 
 /-- `calldataload(lit n)` is a `BridgedExpr`: both `calldataload` and the
 literal constructor are bridged. -/
@@ -148,6 +199,83 @@ theorem genScalarLoad_calldataload_bridged
       exact BridgedStmt.straight _
         (BridgedStraightStmt.let_ name _
           (bridgedExpr_iszero_iszero _ (bridgedExpr_calldataload_lit offset)))
+
+/-- `flatMap` preserves `BridgedStmts` when every generated chunk is bridged. -/
+private theorem BridgedStmts_flatMap {α : Type} (xs : List α) (f : α → List YulStmt)
+    (h : ∀ x ∈ xs, BridgedStmts (f x)) :
+    BridgedStmts (xs.flatMap f) := by
+  intro stmt hMem
+  rcases List.mem_flatMap.mp hMem with ⟨x, hx, hStmt⟩
+  exact h x hx stmt hStmt
+
+private theorem BridgedStmts_append {xs ys : List YulStmt}
+    (hXs : BridgedStmts xs) (hYs : BridgedStmts ys) :
+    BridgedStmts (xs ++ ys) := by
+  intro stmt hMem
+  rcases List.mem_append.mp hMem with h | h
+  · exact hXs stmt h
+  · exact hYs stmt h
+
+/-- Static scalar composites (`fixedArray`/`tuple` whose leaves are scalar ABI
+words) generate only bridged calldata-load statements. -/
+theorem genStaticTypeLoads_calldataload_bridged
+    (name : String) (ty : ParamType) (offset : Nat)
+    (hStatic : IsStaticScalarParamType ty) :
+    BridgedStmts
+      (genStaticTypeLoads (fun pos => YulExpr.call "calldataload" [pos])
+        name ty offset) := by
+  induction hStatic generalizing name offset with
+  | @scalar ty hScalar =>
+      cases ty <;> simp [IsScalarParamType, genStaticTypeLoads.eq_def] at hScalar ⊢
+      all_goals
+        exact genScalarLoad_calldataload_bridged name _ offset (by trivial)
+  | @fixedArray elemTy n hElem ih =>
+      rw [genStaticTypeLoads.eq_7]
+      apply BridgedStmts_flatMap
+      intro i hi
+      exact ih (name := s!"{name}_{i}") (offset := offset + i * paramHeadSize _)
+  | @tuple elemTys hElems hElems_ih =>
+      rw [genStaticTypeLoads.eq_8]
+      suffices hGo :
+          ∀ (tys : List ParamType) (idx curOffset : Nat),
+            (∀ ty ∈ tys, IsStaticScalarParamType ty) →
+            (∀ ty ∈ tys,
+              ∀ (name : String) (offset : Nat),
+                BridgedStmts
+                  (genStaticTypeLoads
+                    (fun pos => YulExpr.call "calldataload" [pos])
+                    name ty offset)) →
+            BridgedStmts
+              (genStaticTypeLoads.go
+                (fun pos => YulExpr.call "calldataload" [pos])
+                name tys idx curOffset) by
+        exact hGo elemTys 0 offset hElems hElems_ih
+      intro tys
+      induction tys with
+      | nil =>
+          intro idx curOffset _ _
+          rw [genStaticTypeLoads.go.eq_def]
+          intro stmt hMem
+          cases hMem
+      | cons elemTy rest ihRest =>
+          intro idx curOffset hRestStatic hRestIH
+          rw [genStaticTypeLoads.go.eq_def]
+          apply BridgedStmts_append
+          · exact hRestIH elemTy (by simp) s!"{name}_{idx}" curOffset
+          · have hTailStatic : ∀ ty ∈ rest, IsStaticScalarParamType ty := by
+              intro ty hMem
+              exact hRestStatic ty (by simp [hMem])
+            have hTailIH :
+                ∀ ty ∈ rest,
+                  ∀ (name : String) (offset : Nat),
+                    BridgedStmts
+                      (genStaticTypeLoads
+                        (fun pos => YulExpr.call "calldataload" [pos])
+                        name ty offset) := by
+              intro ty hMem
+              exact hRestIH ty (by simp [hMem])
+            exact ihRest (idx + 1) (curOffset + paramHeadSize elemTy)
+              hTailStatic hTailIH
 
 /-- Parameter lists whose types are all scalar. -/
 def AllScalarParams (params : List Param) : Prop :=

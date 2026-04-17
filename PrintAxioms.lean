@@ -2065,6 +2065,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_stop
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean
+#print axioms Compiler.Proofs.YulGeneration.Backends.isDynamicParamType_false_of_static_scalar
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_calldataload_lit  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_and_lit_mask  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_and_hex_mask  -- private
@@ -2072,6 +2073,9 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmt_revert_zero  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_lt_calldatasize  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.genScalarLoad_calldataload_bridged
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_flatMap  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_append  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.genStaticTypeLoads_calldataload_bridged
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoadBodyFrom_cons_scalar  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoadBodyFrom_calldataload_bridged  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoads_scalar_bridged
@@ -2401,4 +2405,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2240 theorems/lemmas (1466 public, 774 private, 0 sorry'd)
+-- Total: 2244 theorems/lemmas (1468 public, 776 private, 0 sorry'd)

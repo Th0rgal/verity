@@ -291,6 +291,10 @@ ALLOWLIST: set[str] = {
     # Scalar parameter body closure is a structural induction over the six
     # scalar ABI cases emitted by `genParamLoadBodyFrom`.
     "genParamLoadBodyFrom_calldataload_bridged",
+    # Static scalar composite body closure mirrors `IsStaticScalarParamType`
+    # with three inductive branches (scalar / fixedArray / tuple) and a nested
+    # list induction over the tuple's `let rec go` body.
+    "genStaticTypeLoads_calldataload_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
