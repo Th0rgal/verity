@@ -316,15 +316,17 @@ The Yul execution semantics used throughout this file dispatch builtins via
 the `.verity` and `.evmYulLean` backends produce identical results.
 
 This means the existing preservation theorems above are pointwise valid under
-EVMYulLean semantics for any single bridged-builtin call site. The retargeting
-module (`EvmYulLeanRetarget.lean`) makes this explicit with the pointwise
-theorem `backends_agree_on_bridged_builtins`.
+EVMYulLean semantics for any single bridged-builtin call site whose bridge
+dependencies are fully proven. The retargeting module
+(`EvmYulLeanRetarget.lean`) makes this explicit with the pointwise theorem
+`backends_agree_on_bridged_builtins`; the theorem still transitively depends
+on the two sorry-backed smod/sar core equivalences.
 
-**Trust boundary after Phase 4 (pointwise)**:
-- For any single bridged-builtin call, the Yul semantics trust assumption
-  shifts from "Verity's custom builtin implementations are correct" to
-  "EVMYulLean's execution model matches the EVM" (backed by upstream
-  Ethereum conformance tests).
+**Trust boundary after Phase 4 (sorry-dependent pointwise)**:
+- For any single bridged-builtin call whose bridge dependencies are fully
+  proven, the Yul semantics trust assumption shifts from "Verity's custom
+  builtin implementations are correct" to "EVMYulLean's execution model
+  matches the EVM" (backed by upstream Ethereum conformance tests).
 - 36 of 36 builtins are bridged, including `mappingSlot` via the shared
   keccak-faithful `abstractMappingSlot` derivation.
 - 2 bridge lemmas use `sorry` (smod, sar) — blocked by complex Int↔UInt256

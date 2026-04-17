@@ -444,22 +444,32 @@ def build_report() -> dict[str, object]:
         has_expr_retarget = _has_theorem("evalYulExpr_evmYulLean_eq_on_bridged")
         backends_agree_has_sorry = _theorem_body_has_sorry("backends_agree_on_bridged_builtins")
         expr_retarget_has_sorry = _theorem_body_has_sorry("evalYulExpr_evmYulLean_eq_on_bridged")
+        admitted_deps = sorted(admitted_lemmas)
+        admitted_dep_status = (
+            "sorry-dependent (depends on admitted bridge lemmas: "
+            + ", ".join(admitted_deps)
+            + ")"
+        )
         if not has_backends_agree:
             backends_agree_status = "missing"
         elif backends_agree_has_sorry:
             backends_agree_status = "sorry (dispatch; relies on 34 per-builtin bridge theorems)"
+        elif admitted_deps:
+            backends_agree_status = admitted_dep_status
         else:
             backends_agree_status = "proven"
         if not has_expr_retarget:
             expr_retarget_status = "missing"
         elif expr_retarget_has_sorry:
             expr_retarget_status = "sorry"
+        elif admitted_deps:
+            expr_retarget_status = admitted_dep_status
         else:
             expr_retarget_status = "proven"
 
-        if has_expr_retarget and not expr_retarget_has_sorry:
+        if has_expr_retarget and not expr_retarget_has_sorry and not admitted_deps:
             phase4_status = "expression-level"
-        elif has_backends_agree and not backends_agree_has_sorry:
+        elif has_backends_agree and not backends_agree_has_sorry and not admitted_deps:
             phase4_status = "pointwise"
         else:
             phase4_status = "incomplete"
@@ -467,6 +477,7 @@ def build_report() -> dict[str, object]:
         phase4_retarget = {
             "retarget_file": str(retarget_file.relative_to(ROOT)),
             "status": phase4_status,
+            "admitted_bridge_dependencies": admitted_deps,
             "backends_agree_on_bridged_builtins": backends_agree_status,
             "evalYulExpr_evmYulLean_eq_on_bridged": expr_retarget_status,
             "trust_boundary": (

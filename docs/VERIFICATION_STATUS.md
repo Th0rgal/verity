@@ -106,16 +106,16 @@ theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
 
 Key files: [`StatementEquivalence.lean`](../Compiler/Proofs/YulGeneration/StatementEquivalence.lean), [`Preservation.lean`](../Compiler/Proofs/YulGeneration/Preservation.lean), [`AXIOMS.md`](../AXIOMS.md)
 
-### Phase 4: EVMYulLean Semantic Retargeting (expression-level + statement executor)
+### Phase 4: EVMYulLean Semantic Retargeting (sorry-dependent expression-level + statement executor)
 
 The retargeting module [`EvmYulLeanRetarget.lean`](../Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean) proves the following retargeting theorems:
 - `backends_agree_on_bridged_builtins`: the `.verity` and `.evmYulLean` backends produce identical results at the `evalBuiltinCallWithBackendContext` level for all 36 bridged builtins (dispatch proof is sorry-free; delegates to the 36 per-builtin context-lifted bridge lemmas in `EvmYulLeanBridgeLemmas.lean`, 2 of which rest on sorry-backed core equivalences for smod/sar)
-- `evalYulExpr_evmYulLean_eq_on_bridged`: `evalYulExpr` agrees with the `.evmYulLean` backend-parameterized evaluator for every `BridgedExpr` expression, including nested calls to bridged builtins and backend-independent `tload`/`mload`
+- `evalYulExpr_evmYulLean_eq_on_bridged`: `evalYulExpr` agrees with the `.evmYulLean` backend-parameterized evaluator for every `BridgedExpr` expression, including nested calls to bridged builtins and backend-independent `tload`/`mload`; this theorem transitively depends on the two sorry-backed smod/sar core equivalences
 - `execYulFuelWithBackend_verity_eq`: the backend-parameterized statement executor recovers existing `execYulFuel` semantics at `.verity`, giving the next induction a verified executor surface
 
 The backend-parameterized executor is scaffolding for the next structural induction, not a proved `.verity = .evmYulLean` statement-level retarget theorem.
 
-Trust boundary (expression-level): any `BridgedExpr` now inherits EVMYulLean semantics — "EVMYulLean's execution model matches the EVM" (backed by upstream Ethereum conformance tests) — rather than "Verity's custom builtin implementations are correct."
+Trust boundary (expression-level, conditional): `BridgedExpr` expressions whose builtin dependencies are fully proven now inherit EVMYulLean semantics — "EVMYulLean's execution model matches the EVM" (backed by upstream Ethereum conformance tests) — rather than "Verity's custom builtin implementations are correct." Expressions using smod/sar remain sorry-dependent until those core equivalences are discharged.
 
 Not yet proven in this module:
 - statement-level execution equivalence over a bridged-statement predicate

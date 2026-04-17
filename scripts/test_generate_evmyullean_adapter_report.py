@@ -474,11 +474,39 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
                 encoding="utf-8",
             )
             with patch.object(gen, "RETARGET_FILE", retarget):
-                report = gen.build_report()
+                with patch.object(gen, "_parse_bridge_lemmas", return_value=(["add"], [])):
+                    report = gen.build_report()
         phase4 = report["phase4_retarget"]
         self.assertEqual(phase4["status"], "pointwise")
         self.assertEqual(phase4["backends_agree_on_bridged_builtins"], "proven")
         self.assertEqual(phase4["evalYulExpr_evmYulLean_eq_on_bridged"], "sorry")
+        self.assertEqual(phase4["admitted_bridge_dependencies"], [])
+
+    def test_admitted_bridge_deps_downgrade_phase4_status(self) -> None:
+        with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:
+            retarget = Path(tmp) / "EvmYulLeanRetarget.lean"
+            retarget.write_text(
+                textwrap.dedent("""\
+                    theorem backends_agree_on_bridged_builtins : True := by
+                      trivial
+
+                    theorem evalYulExpr_evmYulLean_eq_on_bridged : True := by
+                      trivial
+                """),
+                encoding="utf-8",
+            )
+            with patch.object(gen, "RETARGET_FILE", retarget):
+                with patch.object(
+                    gen,
+                    "_parse_bridge_lemmas",
+                    return_value=(["add", "smod", "sar"], ["smod", "sar"]),
+                ):
+                    report = gen.build_report()
+        phase4 = report["phase4_retarget"]
+        self.assertEqual(phase4["status"], "incomplete")
+        self.assertEqual(phase4["admitted_bridge_dependencies"], ["sar", "smod"])
+        self.assertIn("sorry-dependent", phase4["backends_agree_on_bridged_builtins"])
+        self.assertIn("smod", phase4["evalYulExpr_evmYulLean_eq_on_bridged"])
 
 
 class ParseContextBridgeLemmasTests(unittest.TestCase):
