@@ -1409,6 +1409,19 @@ private theorem bridge_eval_smod_normalized (a b : Nat) :
         (EvmYul.UInt256.smod (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b))) := by
   rfl
 
+private theorem int256_ofInt_nat_toUint256_val (r : Nat) (hr : r < evmModulus) :
+    (Verity.Core.Int256.ofInt (Int.ofNat r)).toUint256.val = r := by
+  simp [Verity.Core.Int256.ofInt, Verity.Core.Int256.toUint256,
+    Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS]
+  exact Nat.mod_eq_of_lt (by simpa [evmModulus, Verity.Core.UINT256_MODULUS] using hr)
+
+/- TODO(smod): prove the negative wrapper counterpart needed by the NP/NN
+   sign cases:
+   `(Verity.Core.Int256.ofInt (-Int.ofNat r)).toUint256.val =
+      if r = 0 then 0 else evmModulus - r`.
+   A direct proof currently gets stuck rewriting `Int.natAbs` under the
+   dependent `Uint256` constructor proof term. -/
+
 /-- Core smod equivalence: Verity's `Int256.mod` agrees with EVMYulLean's `UInt256.smod`.
 
 **Status**: sorry — requires showing Int sign-magnitude remainder matches
