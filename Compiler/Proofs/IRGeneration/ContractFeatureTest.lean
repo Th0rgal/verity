@@ -110,12 +110,14 @@ private def literalMappingWrite_supported_spec :
         selectorsDistinct := by decide
         functionNamesNodup := by decide }
     surface :=
-      { noConstructor := rfl
-        noEvents := rfl
+      { noEvents := rfl
         noErrors := rfl
         noExternals := rfl
         noFallback := literalMappingWrite_noFallback
         noReceive := literalMappingWrite_noReceive }
+    constructor := by
+      intro ctor hctor
+      simp [literalMappingWriteSpec] at hctor
     functions := literalMappingWrite_supported_function }
 
 private theorem literalMappingWrite_noConflict :
@@ -485,7 +487,7 @@ private theorem constructorOnly_compileConstructor :
           .memory
           []
           false
-          []
+          (constructorOnlyCtor.params.map (·.name))
           constructorOnlyCtor.body =
         Except.ok bodyStmts := by
   rcases Function.compileConstructor_ok_components
@@ -501,7 +503,7 @@ private theorem constructorOnly_compileConstructor :
             .memory
             []
             false
-            []
+            (constructorOnlyCtor.params.map (·.name))
             constructorOnlyCtor.body with
          | .ok body => body
          | .error _ => [])
@@ -817,16 +819,16 @@ example :
             [("initialOwner", Compiler.Constants.addressMask &&& 11)])
           (match compileStmtList
               constructorOnlySpec.fields [] [] .memory [] false
-              []
+              (constructorOnlyCtor.params.map (·.name))
               [Stmt.setStorageAddr "owner" (.param "initialOwner"), .stop] with
            | .ok body => body
            | .error _ => []))) := by
   have hbodyCompile :
       compileStmtList constructorOnlySpec.fields constructorOnlySpec.events constructorOnlySpec.errors
-        .memory [] false [] constructorOnlyCtor.body =
+        .memory [] false (constructorOnlyCtor.params.map (·.name)) constructorOnlyCtor.body =
       Except.ok
         (match compileStmtList constructorOnlySpec.fields [] [] .memory [] false
-            [] constructorOnlyCtor.body with
+            (constructorOnlyCtor.params.map (·.name)) constructorOnlyCtor.body with
          | .ok body => body
          | .error _ => []) := by
     rfl
@@ -923,5 +925,39 @@ example :
       (hrollbackStorage := by simp [FunctionBody.initialIRStateForTx, stopOnlySpec, stopOnlyTx])
       (hrollbackEvents := by simp [FunctionBody.initialIRStateForTx, stopOnlySpec, stopOnlyTx])
       (hmatch := hstate)
+
+private def eventTrackingSpec : CompilationModel :=
+  { name := "EventTracking"
+    fields := []
+    constructor := none
+    events := [
+      { name := "Evt"
+        params := [
+          { name := "topic", ty := .uint256, kind := .indexed },
+          { name := "value", ty := .uint256, kind := .unindexed }
+        ] }
+    ]
+    functions := [] }
+
+private def eventTrackingRuntime : SourceSemantics.RuntimeState :=
+  { world := Verity.defaultState
+    bindings := []
+    selector := 0 }
+
+example :
+    SourceSemantics.execStmtWithHelpers eventTrackingSpec [] 0 eventTrackingRuntime
+      (.emit "Evt" [.literal 11, .literal 22]) =
+    .continue
+      { eventTrackingRuntime with
+        world := { eventTrackingRuntime.world with
+            events := eventTrackingRuntime.world.events ++
+              [{ name := "Evt"
+                 args := [
+                   Verity.Core.Uint256.ofNat (11 % Compiler.Constants.evmModulus),
+                   Verity.Core.Uint256.ofNat (22 % Compiler.Constants.evmModulus)]
+                 indexedArgs := [] }] } } := by
+  simp [eventTrackingSpec, eventTrackingRuntime, SourceSemantics.execStmtWithHelpers,
+    SourceSemantics.evalExprListWithHelpers, SourceSemantics.evalExprWithHelpers,
+    SourceSemantics.eventFromResolvedArgs?, SourceSemantics.valuesAsEventArgs]
 
 end Compiler.Proofs.IRGeneration.ContractFeatureTest

@@ -54,6 +54,10 @@ ALLOWLIST: set[str] = {
     "eval_compileExpr_core_onExpr",
     "evalExpr_lt_evmModulus_core_onExpr",
     "eval_compileRequireFailCond_core_onExpr",
+    # Constructor mode equivalence is a structural expression-constructor split;
+    # each case is direct, but splitting further would duplicate the same
+    # surface-closure plumbing across dozens of one-line cases.
+    "compileExpr_constructor_mode_eq",
     # --- Statement-level compiled step proofs ---
     "compiledStmtStep_letVar",
     "compiledStmtStep_assignVar",
@@ -168,6 +172,12 @@ ALLOWLIST: set[str] = {
     "legacyCompatibleExternalStmtList_of_compileSetStructMember2_ok",
     "interpretContract_correct_of_compiled_functions",
     "interpretContract_correct_of_compiled_functions_except_mapping_writes_and_helper_ir_closed",
+    # Constructor-bearing compile output adds one extra compileConstructor split
+    # to these component extractors; the surrounding Forall₂ proof shape remains
+    # unchanged and does not factor cleanly without duplicating mapM plumbing.
+    "compileValidatedCore_ok_yields_compiled_functions",
+    "compileValidatedCore_ok_yields_compiled_functions_except_mapping_writes",
+    "compile_ok_yields_internalFunctions_nil_except_mapping_writes",
     "compile_preserves_semantics",
     "compile_preserves_semantics_except_mapping_writes",
     "compile_preserves_semantics_except_mapping_writes_stmtSafety",

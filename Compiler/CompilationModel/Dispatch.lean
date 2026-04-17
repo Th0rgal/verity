@@ -202,7 +202,8 @@ def compileConstructor (fields : List Field) (events : List EventDef) (errors : 
   | none => return []
   | some spec =>
     let argLoads := genConstructorArgLoads spec.params
-    let bodyChunks ← compileStmtList fields events errors .memory [] false [] spec.body
+    let bodyChunks ← compileStmtList fields events errors .memory [] false
+      (spec.params.map (·.name)) spec.body
     return argLoads ++ bodyChunks
 
 -- Main compilation function

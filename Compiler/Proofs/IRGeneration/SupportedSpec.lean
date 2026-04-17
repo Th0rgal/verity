@@ -1466,6 +1466,41 @@ structure SupportedFunctionExceptMappingWrites
   returns : SupportedReturnProfile fn
   body : SupportedBodyInterfaceExceptMappingWrites spec fn
 
+/-- Constructor bodies reuse the same statement-fragment interface as ordinary
+functions once deploy-time arguments have been decoded into local bindings. -/
+def constructorAsFunctionSpec (ctor : ConstructorSpec) : FunctionSpec :=
+  { name := "__constructor__"
+    params := ctor.params
+    returnType := none
+    returns := []
+    isPayable := ctor.isPayable
+    isView := false
+    isPure := false
+    body := ctor.body
+    isInternal := false
+    localObligations := ctor.localObligations }
+
+/-- Body-level support witness for constructors. This is intentionally local:
+it covers the user-written constructor body after argument decoding, not the
+initcode wrapper that materializes those locals. -/
+structure SupportedConstructor (spec : CompilationModel) (ctor : ConstructorSpec) where
+  params : SupportedParamProfile ctor.params
+  body : SupportedBodyInterfaceExceptMappingWrites spec (constructorAsFunctionSpec ctor)
+  rawCalldataSurfaceClosed :
+    stmtListTouchesUnsupportedConstructorRawCalldataSurface ctor.body = false
+
+theorem SupportedConstructor.paramNamesNodup
+    {spec : CompilationModel} {ctor : ConstructorSpec}
+    (hSupported : SupportedConstructor spec ctor) :
+    (ctor.params.map (·.name)).Nodup :=
+  hSupported.params.namesNodup
+
+theorem SupportedConstructor.paramsSupported
+    {spec : CompilationModel} {ctor : ConstructorSpec}
+    (hSupported : SupportedConstructor spec ctor) :
+    ∀ param ∈ ctor.params, SupportedExternalParamType param.ty :=
+  hSupported.params.supported
+
 /-- Whole-contract invariants that should remain global preconditions for the
 current generic theorem, independent of feature-local proof interfaces. -/
 structure SupportedSpecInvariants (spec : CompilationModel) (selectors : List Nat) : Prop where
@@ -1481,7 +1516,6 @@ structure SupportedSpecInvariants (spec : CompilationModel) (selectors : List Na
 kept separate from global normalization/dispatch invariants so future widening
 can replace these by dedicated proof interfaces feature-by-feature. -/
 structure SupportedSpecSurface (spec : CompilationModel) : Prop where
-  noConstructor : spec.constructor = none
   noEvents : spec.events = []
   noErrors : spec.errors = []
   noExternals : spec.externals = []
@@ -1497,6 +1531,8 @@ must already live inside the explicit supported statement fragment. -/
 structure SupportedSpec (spec : CompilationModel) (selectors : List Nat) where
   invariants : SupportedSpecInvariants spec selectors
   surface : SupportedSpecSurface spec
+  constructor :
+    ∀ ctor, spec.constructor = some ctor → SupportedConstructor spec ctor
   functions :
     ∀ fn, fn ∈ spec.functions → SupportedFunction spec fn
 
@@ -1506,6 +1542,8 @@ structure SupportedSpecExceptMappingWrites
     (spec : CompilationModel) (selectors : List Nat) where
   invariants : SupportedSpecInvariants spec selectors
   surface : SupportedSpecSurface spec
+  constructor :
+    ∀ ctor, spec.constructor = some ctor → SupportedConstructor spec ctor
   functions :
     ∀ fn, fn ∈ spec.functions → SupportedFunctionExceptMappingWrites spec fn
 
@@ -1548,41 +1586,6 @@ theorem SupportedFunctionExceptMappingWrites.returnsSupported
       functionReturns fn = Except.ok resolvedReturns ∧
         SupportedExternalReturnProfile resolvedReturns :=
   hSupported.returns.resolved
-
-/-- Constructor bodies reuse the same statement-fragment interface as ordinary
-functions once deploy-time arguments have been decoded into local bindings. -/
-def constructorAsFunctionSpec (ctor : ConstructorSpec) : FunctionSpec :=
-  { name := "__constructor__"
-    params := ctor.params
-    returnType := none
-    returns := []
-    isPayable := ctor.isPayable
-    isView := false
-    isPure := false
-    body := ctor.body
-    isInternal := false
-    localObligations := ctor.localObligations }
-
-/-- Body-level support witness for constructors. This is intentionally local:
-it covers the user-written constructor body after argument decoding, not the
-initcode wrapper that materializes those locals. -/
-structure SupportedConstructor (spec : CompilationModel) (ctor : ConstructorSpec) where
-  params : SupportedParamProfile ctor.params
-  body : SupportedBodyInterfaceExceptMappingWrites spec (constructorAsFunctionSpec ctor)
-  rawCalldataSurfaceClosed :
-    stmtListTouchesUnsupportedConstructorRawCalldataSurface ctor.body = false
-
-theorem SupportedConstructor.paramNamesNodup
-    {spec : CompilationModel} {ctor : ConstructorSpec}
-    (hSupported : SupportedConstructor spec ctor) :
-    (ctor.params.map (·.name)).Nodup :=
-  hSupported.params.namesNodup
-
-theorem SupportedConstructor.paramsSupported
-    {spec : CompilationModel} {ctor : ConstructorSpec}
-    (hSupported : SupportedConstructor spec ctor) :
-    ∀ param ∈ ctor.params, SupportedExternalParamType param.ty :=
-  hSupported.params.supported
 
 def SupportedFunction.helperFuel
     {spec : CompilationModel} {fn : FunctionSpec}
@@ -4272,69 +4275,149 @@ theorem SupportedSpec.contractUsesArrayElement_eq_false
     {spec : CompilationModel} {selectors : List Nat}
     (hSupported : SupportedSpec spec selectors) :
     contractUsesArrayElement spec = false := by
-  simp [contractUsesArrayElement, hSupported.surface.noConstructor, constructorUsesArrayElement]
-  intro fn hmem
-  simp only [functionUsesArrayElement]
-  rw [← stmtListUsesArrayElement_eq_any]
-  exact supportedStmtList_usesArrayElement_false (hSupported.functions fn hmem).body.stmtList
+  have hfunctions : ∀ fn ∈ spec.functions, functionUsesArrayElement fn = false := by
+    intro fn hmem
+    simp only [functionUsesArrayElement]
+    rw [← stmtListUsesArrayElement_eq_any]
+    exact supportedStmtList_usesArrayElement_false (hSupported.functions fn hmem).body.stmtList
+  have hfunctionsAny : spec.functions.any functionUsesArrayElement = false :=
+    listAny_eq_false_of_mem_eq_false functionUsesArrayElement spec.functions hfunctions
+  cases hctor : spec.constructor with
+  | none =>
+      simp [contractUsesArrayElement, hctor, constructorUsesArrayElement, hfunctionsAny]
+  | some ctor =>
+      have hctorArray :
+          ctor.body.any stmtUsesArrayElement = false := by
+        rw [← stmtListUsesArrayElement_eq_any]
+        exact supportedStmtList_usesArrayElement_false
+          (hSupported.constructor ctor hctor).body.stmtList
+      simp [contractUsesArrayElement, hctor, constructorUsesArrayElement, hctorArray,
+        hfunctionsAny]
 
 theorem SupportedSpecExceptMappingWrites.contractUsesArrayElement_eq_false
     {spec : CompilationModel} {selectors : List Nat}
     (hSupported : SupportedSpecExceptMappingWrites spec selectors) :
     contractUsesArrayElement spec = false := by
-  simp [contractUsesArrayElement, hSupported.surface.noConstructor, constructorUsesArrayElement]
-  intro fn hmem
-  simp only [functionUsesArrayElement]
-  rw [← stmtListUsesArrayElement_eq_any]
-  exact supportedStmtList_usesArrayElement_false (hSupported.functions fn hmem).body.stmtList
+  have hfunctions : ∀ fn ∈ spec.functions, functionUsesArrayElement fn = false := by
+    intro fn hmem
+    simp only [functionUsesArrayElement]
+    rw [← stmtListUsesArrayElement_eq_any]
+    exact supportedStmtList_usesArrayElement_false (hSupported.functions fn hmem).body.stmtList
+  have hfunctionsAny : spec.functions.any functionUsesArrayElement = false :=
+    listAny_eq_false_of_mem_eq_false functionUsesArrayElement spec.functions hfunctions
+  cases hctor : spec.constructor with
+  | none =>
+      simp [contractUsesArrayElement, hctor, constructorUsesArrayElement, hfunctionsAny]
+  | some ctor =>
+      have hctorArray :
+          ctor.body.any stmtUsesArrayElement = false := by
+        rw [← stmtListUsesArrayElement_eq_any]
+        exact supportedStmtList_usesArrayElement_false
+          (hSupported.constructor ctor hctor).body.stmtList
+      simp [contractUsesArrayElement, hctor, constructorUsesArrayElement, hctorArray,
+        hfunctionsAny]
 
 theorem SupportedSpec.contractUsesStorageArrayElement_eq_false
     {spec : CompilationModel} {selectors : List Nat}
     (hSupported : SupportedSpec spec selectors) :
     contractUsesStorageArrayElement spec = false := by
-  simp [contractUsesStorageArrayElement, hSupported.surface.noConstructor,
-    constructorUsesStorageArrayElement]
-  intro fn hmem
-  simp only [functionUsesStorageArrayElement]
-  rw [← stmtListUsesStorageArrayElement_eq_any]
-  exact supportedStmtList_usesStorageArrayElement_false
-    (hSupported.functions fn hmem).body.stmtList
+  have hfunctions : ∀ fn ∈ spec.functions, functionUsesStorageArrayElement fn = false := by
+    intro fn hmem
+    simp only [functionUsesStorageArrayElement]
+    rw [← stmtListUsesStorageArrayElement_eq_any]
+    exact supportedStmtList_usesStorageArrayElement_false
+      (hSupported.functions fn hmem).body.stmtList
+  have hfunctionsAny : spec.functions.any functionUsesStorageArrayElement = false :=
+    listAny_eq_false_of_mem_eq_false functionUsesStorageArrayElement spec.functions hfunctions
+  cases hctor : spec.constructor with
+  | none =>
+      simp [contractUsesStorageArrayElement, hctor, constructorUsesStorageArrayElement,
+        hfunctionsAny]
+  | some ctor =>
+      have hctorArray :
+          ctor.body.any stmtUsesStorageArrayElement = false := by
+        rw [← stmtListUsesStorageArrayElement_eq_any]
+        exact supportedStmtList_usesStorageArrayElement_false
+          (hSupported.constructor ctor hctor).body.stmtList
+      simp [contractUsesStorageArrayElement, hctor, constructorUsesStorageArrayElement,
+        hctorArray, hfunctionsAny]
 
 theorem SupportedSpecExceptMappingWrites.contractUsesStorageArrayElement_eq_false
     {spec : CompilationModel} {selectors : List Nat}
     (hSupported : SupportedSpecExceptMappingWrites spec selectors) :
     contractUsesStorageArrayElement spec = false := by
-  simp [contractUsesStorageArrayElement, hSupported.surface.noConstructor,
-    constructorUsesStorageArrayElement]
-  intro fn hmem
-  simp only [functionUsesStorageArrayElement]
-  rw [← stmtListUsesStorageArrayElement_eq_any]
-  exact supportedStmtList_usesStorageArrayElement_false
-    (hSupported.functions fn hmem).body.stmtList
+  have hfunctions : ∀ fn ∈ spec.functions, functionUsesStorageArrayElement fn = false := by
+    intro fn hmem
+    simp only [functionUsesStorageArrayElement]
+    rw [← stmtListUsesStorageArrayElement_eq_any]
+    exact supportedStmtList_usesStorageArrayElement_false
+      (hSupported.functions fn hmem).body.stmtList
+  have hfunctionsAny : spec.functions.any functionUsesStorageArrayElement = false :=
+    listAny_eq_false_of_mem_eq_false functionUsesStorageArrayElement spec.functions hfunctions
+  cases hctor : spec.constructor with
+  | none =>
+      simp [contractUsesStorageArrayElement, hctor, constructorUsesStorageArrayElement,
+        hfunctionsAny]
+  | some ctor =>
+      have hctorArray :
+          ctor.body.any stmtUsesStorageArrayElement = false := by
+        rw [← stmtListUsesStorageArrayElement_eq_any]
+        exact supportedStmtList_usesStorageArrayElement_false
+          (hSupported.constructor ctor hctor).body.stmtList
+      simp [contractUsesStorageArrayElement, hctor, constructorUsesStorageArrayElement,
+        hctorArray, hfunctionsAny]
 
 theorem SupportedSpec.contractUsesDynamicBytesEq_eq_false
     {spec : CompilationModel} {selectors : List Nat}
     (hSupported : SupportedSpec spec selectors) :
     contractUsesDynamicBytesEq spec = false := by
-  simp [contractUsesDynamicBytesEq, hSupported.surface.noConstructor]
-  intro fn hmem
-  have := supportedStmtList_usesDynamicBytesEq_false
-    (hSupported.functions fn hmem).body.stmtList
-  rw [stmtListUsesDynamicBytesEq_eq_any] at this
-  simp at this
-  exact this
+  have hfunctions : ∀ fn ∈ spec.functions, fn.body.any stmtUsesDynamicBytesEq = false := by
+    intro fn hmem
+    have := supportedStmtList_usesDynamicBytesEq_false
+      (hSupported.functions fn hmem).body.stmtList
+    rw [stmtListUsesDynamicBytesEq_eq_any] at this
+    simpa using this
+  have hfunctionsAny :
+      spec.functions.any (fun fn => fn.body.any stmtUsesDynamicBytesEq) = false :=
+    listAny_eq_false_of_mem_eq_false
+      (fun fn => fn.body.any stmtUsesDynamicBytesEq) spec.functions hfunctions
+  cases hctor : spec.constructor with
+  | none =>
+      simp [contractUsesDynamicBytesEq, hctor, hfunctionsAny]
+  | some ctor =>
+      have hctorDynamic :
+          ctor.body.any stmtUsesDynamicBytesEq = false := by
+        have := supportedStmtList_usesDynamicBytesEq_false
+          (hSupported.constructor ctor hctor).body.stmtList
+        rw [stmtListUsesDynamicBytesEq_eq_any] at this
+        simpa using this
+      simp [contractUsesDynamicBytesEq, hctor, hctorDynamic, hfunctionsAny]
 
 theorem SupportedSpecExceptMappingWrites.contractUsesDynamicBytesEq_eq_false
     {spec : CompilationModel} {selectors : List Nat}
     (hSupported : SupportedSpecExceptMappingWrites spec selectors) :
     contractUsesDynamicBytesEq spec = false := by
-  simp [contractUsesDynamicBytesEq, hSupported.surface.noConstructor]
-  intro fn hmem
-  have := supportedStmtList_usesDynamicBytesEq_false
-    (hSupported.functions fn hmem).body.stmtList
-  rw [stmtListUsesDynamicBytesEq_eq_any] at this
-  simp at this
-  exact this
+  have hfunctions : ∀ fn ∈ spec.functions, fn.body.any stmtUsesDynamicBytesEq = false := by
+    intro fn hmem
+    have := supportedStmtList_usesDynamicBytesEq_false
+      (hSupported.functions fn hmem).body.stmtList
+    rw [stmtListUsesDynamicBytesEq_eq_any] at this
+    simpa using this
+  have hfunctionsAny :
+      spec.functions.any (fun fn => fn.body.any stmtUsesDynamicBytesEq) = false :=
+    listAny_eq_false_of_mem_eq_false
+      (fun fn => fn.body.any stmtUsesDynamicBytesEq) spec.functions hfunctions
+  cases hctor : spec.constructor with
+  | none =>
+      simp [contractUsesDynamicBytesEq, hctor, hfunctionsAny]
+  | some ctor =>
+      have hctorDynamic :
+          ctor.body.any stmtUsesDynamicBytesEq = false := by
+        have := supportedStmtList_usesDynamicBytesEq_false
+          (hSupported.constructor ctor hctor).body.stmtList
+        rw [stmtListUsesDynamicBytesEq_eq_any] at this
+        simpa using this
+      simp [contractUsesDynamicBytesEq, hctor, hctorDynamic, hfunctionsAny]
 
 
 theorem SupportedSpec.normalizedFields
@@ -4396,18 +4479,6 @@ theorem SupportedSpecExceptMappingWrites.functionNamesNodup
     (hSupported : SupportedSpecExceptMappingWrites spec selectors) :
     (spec.functions.map (·.name)).Nodup :=
   hSupported.invariants.functionNamesNodup
-
-theorem SupportedSpec.noConstructor
-    {spec : CompilationModel} {selectors : List Nat}
-    (hSupported : SupportedSpec spec selectors) :
-    spec.constructor = none :=
-  hSupported.surface.noConstructor
-
-theorem SupportedSpecExceptMappingWrites.noConstructor
-    {spec : CompilationModel} {selectors : List Nat}
-    (hSupported : SupportedSpecExceptMappingWrites spec selectors) :
-    spec.constructor = none :=
-  hSupported.surface.noConstructor
 
 theorem SupportedSpec.noEvents
     {spec : CompilationModel} {selectors : List Nat}
@@ -4644,12 +4715,14 @@ def counter_supported_spec : SupportedSpec counterSupportedSpecModel
         selectorsDistinct := by decide
         functionNamesNodup := by decide }
     surface :=
-      { noConstructor := rfl
-        noEvents := rfl
+      { noEvents := rfl
         noErrors := rfl
         noExternals := rfl
         noFallback := counter_noFallback
         noReceive := counter_noReceive }
+    constructor := by
+      intro ctor hctor
+      simp [counterSupportedSpecModel] at hctor
     functions := counter_supported_function }
 
 
@@ -4724,12 +4797,14 @@ def simpleStorage_supported_spec : SupportedSpec simpleStorageSupportedSpecModel
         selectorsDistinct := by decide
         functionNamesNodup := by decide }
     surface :=
-      { noConstructor := rfl
-        noEvents := rfl
+      { noEvents := rfl
         noErrors := rfl
         noExternals := rfl
         noFallback := simpleStorage_noFallback
         noReceive := simpleStorage_noReceive }
+    constructor := by
+      intro ctor hctor
+      simp [simpleStorageSupportedSpecModel] at hctor
     functions := simpleStorage_supported_function }
 
 

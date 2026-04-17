@@ -831,10 +831,17 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal_and_helper_ir
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal_and_helper_ir_of_bodyCallsDisjoint
+-- #print axioms Compiler.Proofs.IRGeneration.Function.compileExpr_constructor_mode_eq  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Function.compileExprList_constructor_mode_eq  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Function.compileRequireFailCond_constructor_mode_eq  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Function.compileStmt_constructor_mode_eq  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Function.compileStmtList_constructor_mode_eq'  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Function.compileStmtList_constructor_mode_eq  -- private
--- #print axioms Compiler.Proofs.IRGeneration.Function.execStmtListWithHelpers_constructor_calldataSize_eq  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Function.constructor_function_contexts_erase_calldataSize_eq  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Function.txCalldataSizeFitsEvm_of_constructorCalldataSizeFitsEvm  -- private
--- #print axioms Compiler.Proofs.IRGeneration.Function.supported_constructor_body_correct_with_body_interface  -- sorry'd
+-- #print axioms Compiler.Proofs.IRGeneration.Function.bindingsExactlyMatchIRVars_applyBindingsToIRState_self  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Function.constructorTouchesUnsupportedRawCalldataSurface_eq_false  -- private
+#print axioms Compiler.Proofs.IRGeneration.Function.supported_constructor_body_correct_with_body_interface
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_body_interface_except_mapping_writes
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_body_interface_except_mapping_writes_stmtSafety
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_except_mapping_writes
@@ -1464,7 +1471,6 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_letStorageAddrField_of_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_assignStorageField_of_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_assignStorageAddrField_of_surface  -- private
--- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_emit  -- sorry'd
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_emitEvent_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_emitEvent_surface_exceptMappingWrites  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_iteTerminal_of_surface  -- private
@@ -2040,8 +2046,8 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.selectorsDistinct
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.functionNamesNodup
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.functionNamesNodup
-#print axioms Compiler.Proofs.IRGeneration.SupportedSpec.noConstructor
-#print axioms Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.noConstructor
+#print axioms Compiler.Proofs.IRGeneration.SupportedSpec.constructor
+#print axioms Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.constructor
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.noEvents
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.noEvents
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.noErrors
@@ -2194,4 +2200,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2045 theorems/lemmas (1369 public, 674 private, 2 sorry'd)
+-- Total: 2051 theorems/lemmas (1370 public, 681 private, 0 sorry'd)

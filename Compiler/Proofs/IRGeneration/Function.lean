@@ -269,7 +269,8 @@ theorem compileConstructor_some_ok_of_body
     (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
     (ctor : ConstructorSpec) (bodyStmts : List YulStmt)
     (hbody :
-      compileStmtList fields events errors .memory [] false [] ctor.body = Except.ok bodyStmts) :
+      compileStmtList fields events errors .memory [] false
+        (ctor.params.map (·.name)) ctor.body = Except.ok bodyStmts) :
     compileConstructor fields events errors (some ctor) =
       Except.ok (genConstructorArgLoads ctor.params ++ bodyStmts) := by
   simp [CompilationModel.compileConstructor, hbody]
@@ -279,11 +280,13 @@ theorem compileConstructor_ok_components
     (ctor : ConstructorSpec) (deployStmts : List YulStmt)
     (hcompile :
       compileConstructor fields events errors (some ctor) = Except.ok deployStmts) :
-    ∃ bodyStmts,
-      compileStmtList fields events errors .memory [] false [] ctor.body = Except.ok bodyStmts ∧
+  ∃ bodyStmts,
+      compileStmtList fields events errors .memory [] false
+        (ctor.params.map (·.name)) ctor.body = Except.ok bodyStmts ∧
       deployStmts = genConstructorArgLoads ctor.params ++ bodyStmts := by
   cases hbody :
-      compileStmtList fields events errors .memory [] false [] ctor.body with
+      compileStmtList fields events errors .memory [] false
+        (ctor.params.map (·.name)) ctor.body with
   | error err =>
       simp [CompilationModel.compileConstructor, hbody] at hcompile
   | ok bodyStmts =>
@@ -1988,6 +1991,209 @@ theorem supported_function_correct_with_helper_proofs_body_goal_and_helper_ir_of
         hfnBodyDisjoint)
       hcalldataSizeFits
 
+/-- On the constructor body surface, expression compilation does not depend on
+the dynamic-data source. The only expression forms whose generated Yul differs
+between memory and calldata are excluded by the core/raw-calldata surfaces. -/
+private theorem compileExpr_constructor_mode_eq
+    {fields : List Field} :
+    ∀ {expr : Expr},
+      exprTouchesUnsupportedCoreSurface expr = false →
+      exprTouchesUnsupportedConstructorRawCalldataSurface expr = false →
+      compileExpr fields .memory expr = compileExpr fields .calldata expr
+  | .literal _, _, _ => by simp [compileExpr]
+  | .param _, _, _ => by simp [compileExpr]
+  | .constructorArg _, hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .storage _, _, _ => by simp [compileExpr]
+  | .storageAddr _, _, _ => by simp [compileExpr]
+  | .mapping _ _, hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .mappingWord _ _ _, hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .mappingPackedWord _ _ _ _, hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .mapping2 _ _ _, hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .mapping2Word _ _ _ _, hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .mappingUint _ _, hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .mappingChain _ _, hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .structMember _ _ _, hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .structMember2 _ _ _ _, hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .caller, _, _ => by simp [compileExpr]
+  | .contractAddress, _, _ => by simp [compileExpr]
+  | .chainid, _, _ => by simp [compileExpr]
+  | .msgValue, _, _ => by simp [compileExpr]
+  | .blockTimestamp, _, _ => by simp [compileExpr]
+  | .blockNumber, _, _ => by simp [compileExpr]
+  | .blobbasefee, _, _ => by simp [compileExpr]
+  | .mload _, hcore, hraw => by
+      simp only [exprTouchesUnsupportedCoreSurface] at hcore
+      simp only [exprTouchesUnsupportedConstructorRawCalldataSurface] at hraw
+      simp [compileExpr, compileExpr_constructor_mode_eq hcore hraw]
+  | .tload _, hcore, hraw => by
+      simp only [exprTouchesUnsupportedCoreSurface] at hcore
+      simp only [exprTouchesUnsupportedConstructorRawCalldataSurface] at hraw
+      simp [compileExpr, compileExpr_constructor_mode_eq hcore hraw]
+  | .keccak256 _ _, hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .call .., hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .staticcall .., hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .delegatecall .., hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .calldatasize, _, hraw => by simp [exprTouchesUnsupportedConstructorRawCalldataSurface] at hraw
+  | .calldataload _, _, hraw => by simp [exprTouchesUnsupportedConstructorRawCalldataSurface] at hraw
+  | .returndataSize, hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .extcodesize _, hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .returndataOptionalBoolAt _, hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .localVar _, _, _ => by simp [compileExpr]
+  | .externalCall _ _, hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .internalCall _ _, hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .arrayLength _, hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .arrayElement _ _, hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .storageArrayLength _, hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .storageArrayElement _ _, hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .dynamicBytesEq _ _, hcore, _ => by simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | .add a b, hcore, hraw
+  | .sub a b, hcore, hraw
+  | .mul a b, hcore, hraw
+  | .div a b, hcore, hraw
+  | .sdiv a b, hcore, hraw
+  | .mod a b, hcore, hraw
+  | .smod a b, hcore, hraw
+  | .bitAnd a b, hcore, hraw
+  | .bitOr a b, hcore, hraw
+  | .bitXor a b, hcore, hraw
+  | .shl a b, hcore, hraw
+  | .shr a b, hcore, hraw
+  | .sar a b, hcore, hraw
+  | .signextend a b, hcore, hraw
+  | .eq a b, hcore, hraw
+  | .ge a b, hcore, hraw
+  | .gt a b, hcore, hraw
+  | .sgt a b, hcore, hraw
+  | .lt a b, hcore, hraw
+  | .slt a b, hcore, hraw
+  | .le a b, hcore, hraw
+  | .logicalAnd a b, hcore, hraw
+  | .logicalOr a b, hcore, hraw
+  | .ceilDiv a b, hcore, hraw
+  | .wMulDown a b, hcore, hraw
+  | .wDivUp a b, hcore, hraw
+  | .min a b, hcore, hraw
+  | .max a b, hcore, hraw => by
+      simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
+      simp only [exprTouchesUnsupportedConstructorRawCalldataSurface,
+        Bool.or_eq_false_iff] at hraw
+      rcases hcore with ⟨hcoreA, hcoreB⟩
+      rcases hraw with ⟨hrawA, hrawB⟩
+      simp [compileExpr, compileExpr_constructor_mode_eq hcoreA hrawA,
+        compileExpr_constructor_mode_eq hcoreB hrawB]
+  | .bitNot a, hcore, hraw
+  | .logicalNot a, hcore, hraw => by
+      simp only [exprTouchesUnsupportedCoreSurface] at hcore
+      simp only [exprTouchesUnsupportedConstructorRawCalldataSurface] at hraw
+      simp [compileExpr, compileExpr_constructor_mode_eq hcore hraw]
+  | .mulDivDown a b c, hcore, hraw
+  | .mulDivUp a b c, hcore, hraw
+  | .ite a b c, hcore, hraw => by
+      simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff,
+        Bool.or_assoc] at hcore
+      simp only [exprTouchesUnsupportedConstructorRawCalldataSurface,
+        Bool.or_eq_false_iff, Bool.or_assoc] at hraw
+      rcases hcore with ⟨hcoreA, hcoreB, hcoreC⟩
+      rcases hraw with ⟨hrawA, hrawB, hrawC⟩
+      simp [compileExpr, compileExpr_constructor_mode_eq hcoreA hrawA,
+        compileExpr_constructor_mode_eq hcoreB hrawB,
+        compileExpr_constructor_mode_eq hcoreC hrawC]
+
+private theorem compileExprList_constructor_mode_eq
+    {fields : List Field} :
+    ∀ {exprs : List Expr},
+      exprs.all (fun expr => exprTouchesUnsupportedCoreSurface expr == false) = true →
+      exprListTouchesUnsupportedConstructorRawCalldataSurface exprs = false →
+      compileExprList fields .memory exprs = compileExprList fields .calldata exprs
+  | [], _, _ => by simp [compileExprList]
+  | expr :: rest, hcore, hraw => by
+      simp only [List.all_cons, Bool.and_eq_true, Bool.beq_eq_decide_eq,
+        decide_eq_true_eq] at hcore
+      simp only [exprListTouchesUnsupportedConstructorRawCalldataSurface,
+        Bool.or_eq_false_iff] at hraw
+      rcases hcore with ⟨hcoreHead, hcoreTail⟩
+      rcases hraw with ⟨hrawHead, hrawTail⟩
+      simp [compileExprList, compileExpr_constructor_mode_eq hcoreHead hrawHead,
+        compileExprList_constructor_mode_eq hcoreTail hrawTail]
+
+private theorem compileRequireFailCond_constructor_mode_eq
+    {fields : List Field}
+    {cond : Expr}
+    (hcoreClosed : exprTouchesUnsupportedCoreSurface cond = false)
+    (hrawClosed : exprTouchesUnsupportedConstructorRawCalldataSurface cond = false) :
+    compileRequireFailCond fields .memory cond =
+      compileRequireFailCond fields .calldata cond := by
+  cases cond <;>
+    try simp_all [compileRequireFailCond, compileExpr_constructor_mode_eq]
+  · simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcoreClosed
+    simp only [exprTouchesUnsupportedConstructorRawCalldataSurface,
+      Bool.or_eq_false_iff] at hrawClosed
+    simp [compileRequireFailCond,
+      compileExpr_constructor_mode_eq hcoreClosed.1 hrawClosed.1,
+      compileExpr_constructor_mode_eq hcoreClosed.2 hrawClosed.2]
+  · simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcoreClosed
+    simp only [exprTouchesUnsupportedConstructorRawCalldataSurface,
+      Bool.or_eq_false_iff] at hrawClosed
+    simp [compileRequireFailCond,
+      compileExpr_constructor_mode_eq hcoreClosed.1 hrawClosed.1,
+      compileExpr_constructor_mode_eq hcoreClosed.2 hrawClosed.2]
+
+mutual
+private theorem compileStmt_constructor_mode_eq
+    {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
+    {scope : List String}
+    {stmt : Stmt}
+    (heffectsClosed : stmtTouchesUnsupportedEffectSurface stmt = false)
+    (hcoreClosed : stmtTouchesUnsupportedCoreSurface stmt = false)
+    (hcallClosed : stmtTouchesUnsupportedCallSurface stmt = false)
+    (hrawClosed : stmtTouchesUnsupportedConstructorRawCalldataSurface stmt = false) :
+    compileStmt fields events errors .memory [] false scope stmt =
+      compileStmt fields [] [] .calldata [] false scope stmt := by
+  cases stmt <;>
+    try simp [stmtTouchesUnsupportedEffectSurface] at heffectsClosed <;>
+    try simp [stmtTouchesUnsupportedCoreSurface] at hcoreClosed <;>
+    try simp [stmtTouchesUnsupportedCallSurface] at hcallClosed <;>
+    try simp [stmtTouchesUnsupportedConstructorRawCalldataSurface] at hrawClosed <;>
+    simp_all [compileStmt, compileSetStorage, compileStorageArrayPush,
+      compileSetStorageArrayElement, compileSetMapping2, compileSetMapping2Word,
+      compileSetMappingChain, compileSetStructMember, compileSetStructMember2,
+      compileRequireFailCond_constructor_mode_eq, compileExpr_constructor_mode_eq,
+      compileExprList_constructor_mode_eq, compileStmtList_constructor_mode_eq',
+      Bool.or_eq_false_iff]
+
+private theorem compileStmtList_constructor_mode_eq'
+    {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
+    {scope : List String} :
+    ∀ {body : List Stmt},
+      stmtListTouchesUnsupportedEffectSurface body = false →
+      stmtListTouchesUnsupportedCoreSurface body = false →
+      stmtListTouchesUnsupportedCallSurface body = false →
+      stmtListTouchesUnsupportedConstructorRawCalldataSurface body = false →
+      compileStmtList fields events errors .memory [] false scope body =
+        compileStmtList fields [] [] .calldata [] false scope body
+  | [], _, _, _, _ => by simp [compileStmtList]
+  | stmt :: rest, heffectsClosed, hcoreClosed, hcallClosed, hrawClosed => by
+      simp only [stmtListTouchesUnsupportedEffectSurface,
+        stmtListTouchesUnsupportedCoreSurface,
+        stmtListTouchesUnsupportedCallSurface,
+        stmtListTouchesUnsupportedConstructorRawCalldataSurface,
+        Bool.or_eq_false_iff] at heffectsClosed hcoreClosed hcallClosed hrawClosed
+      rcases heffectsClosed with ⟨heffectsStmt, heffectsRest⟩
+      rcases hcoreClosed with ⟨hcoreStmt, hcoreRest⟩
+      rcases hcallClosed with ⟨hcallStmt, hcallRest⟩
+      rcases hrawClosed with ⟨hrawStmt, hrawRest⟩
+      simp [compileStmtList,
+        compileStmt_constructor_mode_eq (events := events) (errors := errors)
+          (scope := scope) heffectsStmt hcoreStmt hcallStmt hrawStmt,
+        compileStmtList_constructor_mode_eq' (events := events) (errors := errors)
+          (scope := collectStmtNames stmt ++ scope)
+          heffectsRest hcoreRest hcallRest hrawRest]
+end
+
 /-- For effect-surface-closed + core-surface-closed + raw-calldata-surface-closed
 bodies (which is guaranteed by SupportedConstructor), compilation is independent
 of the events/errors lists and the dynamic source mode.
@@ -2004,45 +2210,41 @@ private theorem compileStmtList_constructor_mode_eq
     {body : List Stmt}
     (heffectsClosed : stmtListTouchesUnsupportedEffectSurface body = false)
     (hcoreClosed : stmtListTouchesUnsupportedCoreSurface body = false)
+    (hcallClosed : stmtListTouchesUnsupportedCallSurface body = false)
     (hrawClosed : stmtListTouchesUnsupportedConstructorRawCalldataSurface body = false) :
     compileStmtList fields events errors .memory [] false [] body =
       compileStmtList fields [] [] .calldata [] false [] body := by
-  sorry
+  exact compileStmtList_constructor_mode_eq' (events := events) (errors := errors)
+    (scope := []) heffectsClosed hcoreClosed hcallClosed hrawClosed
 
-/-- For raw-calldata-surface-closed bodies, the source semantics are independent
-of calldataSize because calldatasize/calldataload expressions are blocked.
-This means executing with `withConstructorTransactionContext` (calldataSize =
-args*32) produces the same result as with `withTransactionContext` (calldataSize
-= 4+args*32).
+/-- Erase only the transaction calldata-size word from a source runtime state.
+Constructor execution uses deploy-time calldata (`args.length * 32`), while the
+generic function interpreter uses selector-prefixed calldata (`4 + args.length *
+32`). The two states are not judgmentally equal, even for an empty body, so
+constructor bridging must use this observational relation rather than direct
+`StmtResult` equality. -/
+private def eraseRuntimeCalldataSize
+    (state : SourceSemantics.RuntimeState) : SourceSemantics.RuntimeState :=
+  { state with world := { state.world with calldataSize := 0 } }
 
-The worlds differ only in the `calldataSize` field, and the body never reads it.
-This is a structural induction on statements + expressions: every evalExpr case
-except `.calldatasize` and `.calldataload` is independent of calldataSize, and
-those two are blocked by the raw calldata surface predicate. -/
-private theorem execStmtListWithHelpers_constructor_calldataSize_eq
-    {spec : CompilationModel}
-    {fields : List Field}
-    {fuel : Nat}
+/-- The constructor/function transaction contexts differ only in calldata size.
+This is the base fact for the calldata-size bridge; a full execution bridge must
+show raw-calldata-surface-closed bodies preserve this erased-state relation. -/
+private theorem constructor_function_contexts_erase_calldataSize_eq
     {bindings : List (String × Nat)}
     {selector : Nat}
-    {body : List Stmt}
     {initialWorld : Verity.ContractState}
-    {tx : IRTransaction}
-    (hbodyRawClosed : stmtListTouchesUnsupportedConstructorRawCalldataSurface body = false)
-    (hhelperCallsNil : helperCallNames
-        { name := "", params := [], returnType := none, body := body,
-          localObligations := [] } = []) :
-    SourceSemantics.execStmtListWithHelpers spec fields fuel
+    {tx : IRTransaction} :
+    eraseRuntimeCalldataSize
         { world := SourceSemantics.withConstructorTransactionContext initialWorld tx
           bindings := bindings
-          selector := selector }
-        body =
-      SourceSemantics.execStmtListWithHelpers spec fields fuel
+          selector := selector } =
+      eraseRuntimeCalldataSize
         { world := SourceSemantics.withTransactionContext initialWorld tx
           bindings := bindings
-          selector := selector }
-        body := by
-  sorry
+          selector := selector } := by
+  simp [eraseRuntimeCalldataSize, SourceSemantics.withConstructorTransactionContext,
+    SourceSemantics.withTransactionContext]
 
 /-- Constructor calldataSize bound implies the stronger runtime calldataSize
 bound because tx.args.length * 32 is a multiple of 32, so adding 4 cannot
@@ -2062,7 +2264,43 @@ private theorem txCalldataSizeFitsEvm_of_constructorCalldataSizeFitsEvm
     Nat.lt_of_mul_lt_mul_right hlt
   have : (tx.args.length + 1) * 32 ≤ 2 ^ 251 * 32 :=
     Nat.mul_le_mul_right 32 hle
-  linarith
+  have hstep : 4 + tx.args.length * 32 < (tx.args.length + 1) * 32 := by
+    omega
+  exact lt_of_lt_of_le hstep this
+
+private theorem bindingsExactlyMatchIRVars_applyBindingsToIRState_self
+    {state : IRState}
+    {bindings : List (String × Nat)}
+    (hinit : FunctionBody.bindingsExactlyMatchIRVars [] state)
+    (hnodup : (bindings.map Prod.fst).Nodup) :
+    FunctionBody.bindingsExactlyMatchIRVars bindings
+      (ParamLoading.applyBindingsToIRState state bindings) := by
+  have hfold :
+      FunctionBody.bindingsExactlyMatchIRVars
+        (bindings.foldl (fun acc entry => SourceSemantics.bindValue acc entry.1 entry.2) [])
+        (ParamLoading.applyBindingsToIRState state bindings) :=
+    FunctionBody.bindingsExactlyMatchIRVars_applyBindingsToIRState hinit
+  intro queryName
+  rw [hfold queryName]
+  by_cases hmem : queryName ∈ bindings.map Prod.fst
+  · exact lookupBinding?_foldl_bindValue_mem bindings [] queryName hmem hnodup
+  · rw [lookupBinding?_foldl_bindValue_not_mem bindings [] queryName hmem]
+    symm
+    exact lookupBinding?_eq_none_of_not_mem bindings queryName hmem
+
+private theorem constructorTouchesUnsupportedRawCalldataSurface_eq_false
+    {model : CompilationModel}
+    {ctor : ConstructorSpec}
+    (hSupported : SupportedConstructor model ctor) :
+    SourceSemantics.constructorTouchesUnsupportedRawCalldataSurface model ctor = false := by
+  have hhelpers :
+      SourceSemantics.helperClosureTouchesUnsupportedConstructorRawCalldataSurface model
+        (model.functions.length + 1) (constructorAsFunctionSpec ctor) = false :=
+    SourceSemantics.helperClosureTouchesUnsupportedConstructorRawCalldataSurface_eq_false_of_no_helper_calls
+      (model.functions.length + 1)
+      hSupported.body.helperCallNames_nil
+  simp [SourceSemantics.constructorTouchesUnsupportedRawCalldataSurface,
+    hSupported.rawCalldataSurfaceClosed, hhelpers]
 
 /-- Constructor-body bridge for the currently proved statement fragment.
 This proves the user-written constructor body after constructor arguments have
@@ -2070,10 +2308,10 @@ already been decoded into IR locals. The initcode wrapper that materializes
 those locals from deploy-time bytecode is still outside the current proof
 interpreter surface.
 
-## Bridge strategy
+## Remaining bridge shape
 Instead of generalizing the 179+ `.calldata`-hardcoded step lemmas to accept
-`.memory` mode, we bridge through three sorry'd lemmas that exploit the
-`SupportedConstructor` surface closures:
+`.memory` mode, the constructor path first rewrites the compiled body through
+the proven `SupportedConstructor` surface closures:
 
 1. **Compilation mode equivalence** (`compileStmtList_constructor_mode_eq`):
    For bodies where effect/core/raw-calldata surfaces are all closed,
@@ -2083,16 +2321,18 @@ Instead of generalizing the 179+ `.calldata`-hardcoded step lemmas to accept
    are blocked by effect surface, and arrayElement/dynamicBytesEq/calldataload
    (where .memory≠.calldata) are blocked by core/raw-calldata surfaces.
 
-2. **CalldataSize independence** (`execStmtListWithHelpers_constructor_calldataSize_eq`):
-   For bodies where raw calldata surface is closed, source semantics produce
-   identical results regardless of calldataSize value, since calldatasize and
-   calldataload expressions are blocked.
+2. **CalldataSize observation** (`constructor_function_contexts_erase_calldataSize_eq`):
+   Constructor and function transaction contexts differ only in the
+   `calldataSize` word. Direct `StmtResult` equality is false even for an empty
+   body, so the final bridge must preserve an erased-calldata-size relation
+   through raw-calldata-surface-closed execution.
 
 3. **Calldata bound lifting** (`txCalldataSizeFitsEvm_of_constructorCalldataSizeFitsEvm`):
    TxConstructorCalldataSizeFitsEvm ⊂ TxCalldataSizeFitsEvm by simple arithmetic.
 
-These bridges allow the constructor proof to reuse the existing `.calldata` +
-`runtimeStateMatchesIR` + `withTransactionContext` step infrastructure unchanged. -/
+These bridges set up reuse of the existing `.calldata` +
+`runtimeStateMatchesIR` + `withTransactionContext` step infrastructure once the
+scope/fuel alignment below is completed. -/
 theorem supported_constructor_body_correct_with_body_interface
     (model : CompilationModel)
     (ctor : ConstructorSpec)
@@ -2109,7 +2349,7 @@ theorem supported_constructor_body_correct_with_body_interface
     (bodyStmts : List YulStmt)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .memory [] false
-        [] ctor.body = Except.ok bodyStmts)
+        (ctor.params.map (·.name)) ctor.body = Except.ok bodyStmts)
     (hbind : SourceSemantics.bindSupportedParams ctor.params tx.args = some bindings)
     (htxNormalized : TxContextNormalized tx)
     (hcalldataSizeFits : TxConstructorCalldataSizeFitsEvm tx) :
@@ -2118,20 +2358,157 @@ theorem supported_constructor_body_correct_with_body_interface
       (execResultToIRResult
         (FunctionBody.initialIRStateForTx model tx initialWorld)
         (execIRStmts
-          (sizeOf bodyStmts + 1)
-          (ParamLoading.applyBindingsToIRState
-            (FunctionBody.initialIRStateForTx model tx initialWorld)
-            bindings)
-          bodyStmts)) := by
-  -- Proof currently relies on bridge lemmas (compileStmtList_constructor_mode_eq,
-  -- execStmtListWithHelpers_constructor_calldataSize_eq) plus step infrastructure
-  -- calls whose scope/fuel accounting needs more work. The prior inline proof used
-  -- mismatched scope arguments between hbodyCompileCalldata' (scope []) and the
-  -- step infrastructure output (scope ctorFn.params.map name), and assumed
-  -- sizeOf bodyStmts = bodyStmts.length, which is not true in general. Left as a
-  -- sorry pending a revised bridge that keeps scope arguments aligned and uses the
-  -- actual extraFuel semantics of exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel.
-  sorry
+            (sizeOf bodyStmts + 1)
+            (ParamLoading.applyBindingsToIRState
+              (FunctionBody.initialIRStateForTx model tx initialWorld)
+              bindings)
+            bodyStmts)) := by
+    let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
+    let ctorFn := constructorAsFunctionSpec ctor
+    have hbindTake :
+        SourceSemantics.bindSupportedParams ctor.params (tx.args.take ctor.params.length) =
+          some bindings :=
+      SourceSemantics.bindSupportedParams_take_param_length hbind
+    have hrawUnsupported :
+        SourceSemantics.constructorTouchesUnsupportedRawCalldataSurface model ctor = false :=
+      constructorTouchesUnsupportedRawCalldataSurface_eq_false hSupported
+    have hconstructorBindings :
+        SourceSemantics.constructorExecutionBindings ctor tx.args = some bindings := by
+      have hguard :
+          (stmtListTouchesUnsupportedCoreSurface ctor.body ||
+              stmtListTouchesUnsupportedCallSurface ctor.body ||
+            stmtListTouchesUnsupportedEffectSurface ctor.body) = false := by
+        exact Bool.or_eq_false_iff.mpr
+          ⟨Bool.or_eq_false_iff.mpr
+              ⟨hSupported.body.core.surfaceClosed,
+                SupportedBodyCallInterface.surfaceClosed_exceptMappingWrites hSupported.body⟩,
+            hSupported.body.effects.surfaceClosed⟩
+      simp [SourceSemantics.constructorExecutionBindings, hbindTake, hguard]
+    have hbodyCompileCalldata :
+        compileStmtList model.fields [] [] .calldata [] false
+          (ctor.params.map (·.name)) ctor.body = Except.ok bodyStmts := by
+      have hmode :=
+        compileStmtList_constructor_mode_eq' (fields := model.fields)
+          (events := model.events) (errors := model.errors)
+          (scope := ctor.params.map (·.name))
+          (body := ctor.body)
+          hSupported.body.effects.surfaceClosed
+          hSupported.body.core.surfaceClosed
+          (SupportedBodyCallInterface.surfaceClosed_exceptMappingWrites hSupported.body)
+          hSupported.rawCalldataSurfaceClosed
+      rw [hbodyCompile] at hmode
+      exact hmode.symm
+    have hbodyCompileEffective :
+        compileStmtList (SourceSemantics.effectiveFields model) [] [] .calldata [] false
+          (ctor.params.map (·.name)) ctor.body = Except.ok bodyStmts := by
+      simpa [SourceSemantics.effectiveFields, hnormalized] using hbodyCompileCalldata
+    have hstateRuntime :
+        FunctionBody.runtimeStateMatchesIR
+          (SourceSemantics.effectiveFields model)
+          { world := SourceSemantics.withTransactionContext initialWorld tx
+            bindings := bindings
+            selector := tx.functionSelector }
+          (ParamLoading.applyBindingsToIRState initialState bindings) := by
+      have hinitRuntime :
+          FunctionBody.runtimeStateMatchesIR
+            (SourceSemantics.effectiveFields model)
+            { world := SourceSemantics.withTransactionContext initialWorld tx
+              bindings := []
+              selector := tx.functionSelector }
+            initialState := by
+        simpa [initialState] using
+          initialIRStateForTx_matches_runtime model tx initialWorld htxNormalized
+            (txCalldataSizeFitsEvm_of_constructorCalldataSizeFitsEvm hcalldataSizeFits)
+      simpa [FunctionBody.runtimeStateMatchesIR] using
+        runtimeStateMatchesIR_applyBindingsToIRState
+          (fields := SourceSemantics.effectiveFields model)
+          (state := initialState)
+          hinitRuntime bindings
+    have hstateBindings :
+        FunctionBody.bindingsExactlyMatchIRVars bindings
+          (ParamLoading.applyBindingsToIRState initialState bindings) := by
+      exact bindingsExactlyMatchIRVars_applyBindingsToIRState_self
+        (state := initialState)
+        (bindings := bindings)
+        (by simpa [initialState] using
+          FunctionBody.bindingsExactlyMatchIRVars_nil_initialIRStateForTx model tx initialWorld)
+        (ParamLoading.bindSupportedParams_names_nodup hSupported.params.namesNodup hbind)
+    have hscope :
+        FunctionBody.scopeNamesPresent (ctor.params.map (·.name)) bindings := by
+      intro name hmem
+      have hmemBindings : name ∈ bindings.map Prod.fst := by
+        rw [ParamLoading.bindSupportedParams_names hbind]
+        simpa using hmem
+      exact lookupBinding?_some_of_mem bindings name hmemBindings
+    have hbounded : FunctionBody.bindingsBounded bindings :=
+      FunctionBody.bindingsBounded_of_bindSupportedParams hbind
+    have hhelperFree :
+        StmtListHelperFreeStepInterface
+          (SourceSemantics.effectiveFields model)
+          (ctor.params.map (·.name))
+          ctor.body := by
+      simpa [SourceSemantics.effectiveFields, hnormalized, ctorFn] using
+        hSupported.body.helperFreeStepInterface_stmtSafety hnoConflict hsafety
+    have hgeneric :
+        StmtListGenericWithHelpers model (SourceSemantics.effectiveFields model)
+          (ctor.params.map (·.name)) ctor.body :=
+      stmtListGenericWithHelpers_of_helperFreeStepInterface_and_helperSurfaceClosed
+        (spec := model)
+        (hhelperFree := hhelperFree)
+        (by simpa [ctorFn] using hSupported.body.helperSurfaceClosed)
+    rcases exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel
+        (spec := model)
+        (fields := SourceSemantics.effectiveFields model)
+        (state := ParamLoading.applyBindingsToIRState initialState bindings)
+        (scope := ctor.params.map (·.name))
+        (stmts := ctor.body)
+        (helperFuel := helperFuel)
+        (extraFuel := 0)
+        hgeneric
+        hscope
+        (FunctionBody.bindingsExactlyMatchIRVars_implies_onScope hstateBindings)
+        hbounded
+        hstateRuntime with
+      ⟨bodyIR, hcompileIR, hmatch⟩
+    have hbodyIR : bodyIR = bodyStmts := by
+      rw [hbodyCompileEffective] at hcompileIR
+      injection hcompileIR with hEq
+      exact hEq.symm
+    subst bodyIR
+    have hrollbackStorage :
+        initialState.storage =
+          SourceSemantics.encodeStorage model
+            (SourceSemantics.withTransactionContext initialWorld tx) := by
+      simpa [initialState, FunctionBody.initialIRStateForTx, SourceSemantics.encodeStorage] using
+        (FunctionBody.encodeStorage_withTransactionContext model initialWorld tx).symm
+    have hrollbackEvents :
+        initialState.events =
+          SourceSemantics.encodeEvents
+            (SourceSemantics.withTransactionContext initialWorld tx).events := by
+      simp [initialState, FunctionBody.initialIRStateForTx,
+        SourceSemantics.withTransactionContext]
+    have hpack :=
+      FunctionBody.stmtResultToSourceResult_matches_irExecResult
+        (spec := model)
+        (fields := SourceSemantics.effectiveFields model)
+        (initialWorld := SourceSemantics.withTransactionContext initialWorld tx)
+        (rollback := initialState)
+        (sourceResult := SourceSemantics.execStmtListWithHelpers model
+          (SourceSemantics.effectiveFields model) helperFuel
+          { world := SourceSemantics.withTransactionContext initialWorld tx
+            bindings := bindings
+            selector := tx.functionSelector }
+          ctor.body)
+        (irResult := execIRStmts (sizeOf bodyStmts + 1)
+          (ParamLoading.applyBindingsToIRState initialState bindings) bodyStmts)
+        hrollbackStorage
+        hrollbackEvents
+        rfl
+        hmatch
+    simpa [SourceSemantics.interpretConstructorWithHelpers, hrawUnsupported,
+      hconstructorBindings, FunctionBody.stmtResultToSourceResult,
+      FunctionBody.sourceResultMatchesIRResult, FunctionBody.irResultOfExecResult,
+      execResultToIRResult, initialState, SourceSemantics.effectiveFields] using hpack
 
 
 /-- Function-level Tier 2 bridge for bodies admitted by the alternate

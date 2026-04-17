@@ -28,6 +28,29 @@ def encodeEvent (ev : Verity.Event) : List Nat :=
 def encodeEvents (events : List Verity.Event) : List (List Nat) :=
   events.map encodeEvent
 
+def valuesAsEventArgs (values : List Nat) : List Verity.Core.Uint256 :=
+  values.map (fun value => (value : Verity.Core.Uint256))
+
+def splitEventArgsByParams :
+    List EventParam → List Nat → Option (List Verity.Core.Uint256 × List Verity.Core.Uint256)
+  | [], [] => some ([], [])
+  | param :: params, value :: values => do
+      let (args, indexedArgs) ← splitEventArgsByParams params values
+      if param.kind == EventParamKind.indexed then
+        some (args, (value : Verity.Core.Uint256) :: indexedArgs)
+      else
+        some ((value : Verity.Core.Uint256) :: args, indexedArgs)
+  | _, _ => none
+
+def eventFromResolvedArgs? (events : List EventDef) (eventName : String)
+    (values : List Nat) : Option Verity.Event :=
+  match events.find? (·.name == eventName) with
+  | none =>
+      some { name := eventName, args := valuesAsEventArgs values, indexedArgs := [] }
+  | some eventDef => do
+      let (args, indexedArgs) ← splitEventArgsByParams eventDef.params values
+      some { name := eventName, args := args, indexedArgs := indexedArgs }
+
 def effectiveFields (spec : CompilationModel) : List Field :=
   applySlotAliasRanges spec.fields spec.slotAliasRanges
 
@@ -1437,9 +1460,14 @@ mutual
             else
               execStmtList fields state elseBranch
         | none => .revert
-    | state, .emit _eventName args =>
+    | state, .emit eventName args =>
         match evalExprList fields state args with
-        | some _resolved => .continue state
+        | some resolved =>
+            match eventFromResolvedArgs? [] eventName resolved with
+            | some event =>
+                .continue { state with
+                  world := { state.world with events := state.world.events ++ [event] } }
+            | none => .revert
         | none => .revert
     | _, _ => .revert
 
@@ -1795,7 +1823,7 @@ def interpretFunction (spec : CompilationModel) (fn : FunctionSpec)
 
 def interpretConstructor (spec : CompilationModel) (ctor : ConstructorSpec)
     (tx : IRTransaction) (initialWorld : Verity.ContractState) : SourceContractResult :=
-  let constructorWorldWithTx := withConstructorTransactionContext initialWorld tx
+  let constructorWorldWithTx := withTransactionContext initialWorld tx
   let fields := effectiveFields spec
   if constructorTouchesUnsupportedRawCalldataSurface spec ctor then
     revertedResult spec constructorWorldWithTx
@@ -2365,9 +2393,14 @@ mutual
                 else
                   .revert
             | _, _ => .revert
-    | .emit _eventName args =>
+    | .emit eventName args =>
         match evalExprListWithHelpers spec fields fuel state args with
-        | some _resolved => .continue state
+        | some resolved =>
+            match eventFromResolvedArgs? [] eventName resolved with
+            | some event =>
+                .continue { state with
+                  world := { state.world with events := state.world.events ++ [event] } }
+            | none => .revert
         | none => .revert
     | _ => .revert
   termination_by stmt => (fuel, sizeOf stmt)
@@ -2488,7 +2521,7 @@ def interpretConstructorWithHelpers
     (ctor : ConstructorSpec)
     (tx : IRTransaction)
     (initialWorld : Verity.ContractState) : SourceContractResult :=
-  let constructorWorldWithTx := withConstructorTransactionContext initialWorld tx
+  let constructorWorldWithTx := withTransactionContext initialWorld tx
   let fields := effectiveFields spec
   if constructorTouchesUnsupportedRawCalldataSurface spec ctor then
     revertedResult spec constructorWorldWithTx

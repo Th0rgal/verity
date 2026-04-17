@@ -12065,52 +12065,6 @@ private theorem stmtListGenericCore_of_supportedStmtList_assignStorageAddrField_
     StmtListGenericCore fields scope [Stmt.assignVar name (Expr.storageAddr fieldName)] :=
   stmtListGenericCore_singleton_assignStorageAddrField hnoConflict hfind hfieldInScope
 
-/-- Emit step preservation: compiling `Stmt.emit` and executing the resulting
-IR produces a result that matches the source semantics.
-
-Unlike other `CompiledStmtStep` lemmas, emit compilation requires the
-event definitions list (to resolve the event name and compute the ABI
-signature for topic0). The current `CompiledStmtStep` interface hard-codes
-`events = []` and `errors = []` in the `compileOk` field, so this lemma
-uses the full event/error lists instead.
-
-Prerequisites for proving this (all are available, just not yet wired):
-- `compileEmit` generates: mstore-chain + keccak256 + logN
-- The source `execStmt` returns `.continue state` (no state change)
-- The IR evaluator will need to handle `log0`–`log4` as state-preserving ops
-- The intermediate `mstore` ops only modify memory (not storage/events)
-- Therefore the final IR state matches: storage unchanged, events unchanged
-
-This sorry is the key step for widening the proven fragment to include emit.
-Removing it requires verifying the `compileEmit` output step-by-step against
-the IR evaluator. -/
-theorem compiledStmtStep_emit
-    {fields : List Field}
-    {events : List EventDef}
-    {scope : List String}
-    {eventName : String}
-    {args : List Expr}
-    {compiledIR : List YulStmt}
-    (hcompile :
-      CompilationModel.compileStmt fields events [] .calldata [] false scope
-        (Stmt.emit eventName args) = Except.ok compiledIR)
-    (hargCompile : ∀ arg ∈ args, FunctionBody.ExprCompileCore arg)
-    (hargScope : ∀ arg ∈ args, FunctionBody.exprBoundNamesInScope arg scope) :
-    ∀ (runtime : SourceSemantics.RuntimeState)
-      (state : IRState)
-      (extraFuel : Nat),
-      FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state →
-      FunctionBody.scopeNamesPresent scope runtime.bindings →
-      FunctionBody.bindingsBounded runtime.bindings →
-      FunctionBody.runtimeStateMatchesIR fields runtime state →
-      sizeOf compiledIR - compiledIR.length ≤ extraFuel →
-      ∃ sourceResult irExec,
-        SourceSemantics.execStmt fields runtime (Stmt.emit eventName args) = sourceResult ∧
-        execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR = irExec ∧
-        stmtStepMatchesIRExec fields (stmtNextScope scope (Stmt.emit eventName args))
-          sourceResult irExec := by
-  sorry
-
 private theorem false_of_supportedStmtList_emitEvent_surface
     {eventName : String}
     {args : List Expr}
