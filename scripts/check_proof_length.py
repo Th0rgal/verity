@@ -260,9 +260,14 @@ ALLOWLIST: set[str] = {
     # per-constructor helper lemma.
     "execYulFuelWithBackend_eq_on_bridged_straight_stmts",
     # Block-wrapper theorem has a short proof, but the scanner counts the
-    # following Phase 4 summary comment in its theorem span because it is the
-    # last theorem in the module.
+    # following Phase 4 summary comment / next theorem's doc block in its
+    # theorem span because section comments are attributed to the preceding
+    # theorem.
     "execYulFuelWithBackend_block_eq_on_bridged_straight_stmts",
+    # If-body theorem has a short proof, but the scanner counts the trailing
+    # Phase 4 summary comment in its theorem span because it is now the last
+    # statement-level helper in the module.
+    "execYulFuelWithBackend_if_eq_on_bridged_body",
     # --- Misc ---
     "findUniqueInternalFunction",
 }

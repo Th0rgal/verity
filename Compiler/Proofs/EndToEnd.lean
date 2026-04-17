@@ -320,12 +320,12 @@ EVMYulLean semantics for any single bridged-builtin call site whose bridge
 dependencies are fully proven. The retargeting module
 (`EvmYulLeanRetarget.lean`) makes this explicit with
 `backends_agree_on_bridged_builtins`, lifts it through `BridgedExpr`
-expression evaluation, and now proves straight-line statement-list equivalence
-for `BridgedStraightStmts` plus `.block` wrappers around those lists. These
-theorems still transitively depend on the two sorry-backed smod/sar core
-equivalences.
+expression evaluation, proves straight-line statement-list equivalence for
+`BridgedStraightStmts`, and now covers `.block` wrappers plus `.if_` statements
+with bridged conditions and straight-line bodies. These theorems still
+transitively depend on the two sorry-backed smod/sar core equivalences.
 
-**Trust boundary after Phase 4 (sorry-dependent block-wrapped straight-line fragment)**:
+**Trust boundary after Phase 4 (sorry-dependent if/straight-line fragment)**:
 - For any single bridged-builtin call whose bridge dependencies are fully
   proven, the Yul semantics trust assumption shifts from "Verity's custom
   builtin implementations are correct" to "EVMYulLean's execution model
@@ -334,13 +334,14 @@ equivalences.
   backend equivalence when their expression dependencies are bridged.
 - `.block` statements containing those straight-line lists preserve the same
   backend equivalence.
+- `.if_` statements with a bridged condition and a straight-line body preserve
+  the same backend equivalence.
 - 36 of 36 builtins are bridged, including `mappingSlot` via the shared
   keccak-faithful `abstractMappingSlot` derivation.
 - 2 bridge lemmas use `sorry` (smod, sar) — blocked by complex Int↔UInt256
   sign/bit semantics, not privacy.
-- Structured-control-flow induction lifting the block-wrapped straight-line
-  fragment through recursive blocks, branches, and loops to full Yul program
-  execution is not yet proven.
+- Structured-control-flow induction lifting this fragment through recursive
+  blocks, switches, and loops to full Yul program execution is not yet proven.
 
 See `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean` for
 the Phase 4 retargeting theorems.

@@ -762,7 +762,7 @@ theorem execYulFuelWithBackend_assign_eq_on_bridged
 This predicate captures the non-branching statement fragment whose backend
 dependence is solely through expression evaluation. It is the first
 statement-level lift of `evalYulExprWithBackend_eq_on_bridged`; structured
-control flow (`if`, `switch`, `for`, nested `block`) still needs a separate
+control flow (`switch`, `for`, recursive `block`) still needs a separate
 fuel/AST induction.
 -/
 
@@ -771,6 +771,8 @@ inductive BridgedStraightStmt : Compiler.Yul.YulStmt → Prop
   | let_ (name : String) (value : Compiler.Yul.YulExpr)
       (hValue : BridgedExpr value) :
       BridgedStraightStmt (.let_ name value)
+  | letMany (names : List String) (value : Compiler.Yul.YulExpr) :
+      BridgedStraightStmt (.letMany names value)
   | assign (name : String) (value : Compiler.Yul.YulExpr)
       (hValue : BridgedExpr value) :
       BridgedStraightStmt (.assign name value)
@@ -808,6 +810,7 @@ private theorem execYulFuelWithBackend_eq_on_bridged_straight_stmt
   | comment _ => cases fuel <;> rfl
   | let_ name value hValue =>
       exact execYulFuelWithBackend_let_eq_on_bridged fuel state name value hValue
+  | letMany _ _ => cases fuel <;> rfl
   | assign name value hValue =>
       exact execYulFuelWithBackend_assign_eq_on_bridged fuel state name value hValue
   | «leave» => cases fuel <;> rfl
@@ -886,6 +889,32 @@ theorem execYulFuelWithBackend_block_eq_on_bridged_straight_stmts
       simp only [execYulFuelWithBackend]
       exact execYulFuelWithBackend_eq_on_bridged_straight_stmts fuel state stmts hStmts
 
+/-- An `.if_` with a bridged condition and a straight-line body preserves
+    backend equivalence. The condition is evaluated via `BridgedExpr`; when the
+    condition evaluates to a nonzero value the body is executed at one less
+    fuel, which we discharge via `execYulFuelWithBackend_eq_on_bridged_straight_stmts`.
+    First narrow-helper lift into branching control flow; `.switch` and `.for_`
+    still require their own helpers, and recursive control-flow bodies still
+    require a broader predicate/induction. -/
+theorem execYulFuelWithBackend_if_eq_on_bridged_body
+    (fuel : Nat) (state : YulState) (cond : Compiler.Yul.YulExpr)
+    (body : List Compiler.Yul.YulStmt)
+    (hCond : BridgedExpr cond) (hBody : BridgedStraightStmts body) :
+    execYulFuelWithBackend .verity fuel state (.stmt (.if_ cond body)) =
+    execYulFuelWithBackend .evmYulLean fuel state (.stmt (.if_ cond body)) := by
+  cases fuel with
+  | zero => rfl
+  | succ fuel =>
+      simp only [execYulFuelWithBackend]
+      rw [evalYulExprWithBackend_eq_on_bridged state cond hCond]
+      cases evalYulExprWithBackend .evmYulLean state cond with
+      | none => rfl
+      | some v =>
+          by_cases hv : v = 0
+          · simp [hv]
+          · simp [hv]
+            exact execYulFuelWithBackend_eq_on_bridged_straight_stmts fuel state body hBody
+
 /-! ## Phase 4 Completion Summary
 
 ### What this module establishes:
@@ -907,10 +936,14 @@ theorem execYulFuelWithBackend_block_eq_on_bridged_straight_stmts
    can dispatch to.
 5. **`execYulFuelWithBackend_eq_on_bridged_straight_stmts`**: Statement-level
    backend equivalence for straight-line statement lists whose expression
-   dependencies satisfy `BridgedExpr`.
+   dependencies satisfy `BridgedExpr`; the unsupported `.letMany` form is also
+   covered because both backends revert identically.
 6. **`execYulFuelWithBackend_block_eq_on_bridged_straight_stmts`**: The `.block`
    statement constructor preserves that straight-line list equivalence when its
    body is a `BridgedStraightStmts` list.
+7. **`execYulFuelWithBackend_if_eq_on_bridged_body`**: The `.if_` statement
+   constructor preserves backend equivalence when its condition is a
+   `BridgedExpr` and its body is a `BridgedStraightStmts` list.
 
 This is still not an end-to-end theorem, because a Layer-3-composed statement
 (IR → Yul under `.evmYulLean`) requires structured-control-flow induction and
@@ -918,15 +951,16 @@ is **not yet proven**.
 
 ### What remains:
 - **Structured-control-flow induction**: Lift statement equivalence through
-  recursive block bodies and `.if_`, `.switch`, and `.for_`.
+  recursive block bodies and `.switch`/`.for_`.
 - **2 core sorry's**: smod/sar (complex Int↔UInt256 sign/bit semantics)
 
 ### Trust boundary (current state):
-Expressions constrained by `BridgedExpr`, and straight-line statement lists
-constrained by `BridgedStraightStmts`, inherit EVMYulLean semantics.
-Whole-program guarantees still depend on structured-control-flow induction
-through recursive blocks/branches/loops and the two sorry-dependent core
-equivalences above.
+Expressions constrained by `BridgedExpr`, straight-line statement lists
+constrained by `BridgedStraightStmts`, block wrappers around those lists, and
+`.if_` statements with bridged conditions plus straight-line bodies inherit
+EVMYulLean semantics. Whole-program guarantees still depend on
+structured-control-flow induction through recursive blocks, switches, loops, and
+the two sorry-dependent core equivalences above.
 -/
 
 end Compiler.Proofs.YulGeneration.Backends

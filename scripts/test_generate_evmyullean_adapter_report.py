@@ -467,6 +467,10 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             phase4["execYulFuelWithBackend_block_eq_on_bridged_straight_stmts"],
             "missing",
         )
+        self.assertEqual(
+            phase4["execYulFuelWithBackend_if_eq_on_bridged_body"],
+            "missing",
+        )
 
     def test_sorry_retarget_theorem_downgrades_phase4_status(self) -> None:
         with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:
@@ -483,6 +487,9 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
                       trivial
 
                     theorem execYulFuelWithBackend_block_eq_on_bridged_straight_stmts : True := by
+                      trivial
+
+                    theorem execYulFuelWithBackend_if_eq_on_bridged_body : True := by
                       trivial
                 """),
                 encoding="utf-8",
@@ -502,6 +509,10 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             phase4["execYulFuelWithBackend_block_eq_on_bridged_straight_stmts"],
             "proven",
         )
+        self.assertEqual(
+            phase4["execYulFuelWithBackend_if_eq_on_bridged_body"],
+            "proven",
+        )
         self.assertEqual(phase4["admitted_bridge_dependencies"], [])
 
     def test_admitted_bridge_deps_downgrade_phase4_status(self) -> None:
@@ -519,6 +530,9 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
                       trivial
 
                     theorem execYulFuelWithBackend_block_eq_on_bridged_straight_stmts : True := by
+                      trivial
+
+                    theorem execYulFuelWithBackend_if_eq_on_bridged_body : True := by
                       trivial
                 """),
                 encoding="utf-8",
@@ -542,6 +556,10 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         self.assertIn(
             "smod",
             phase4["execYulFuelWithBackend_block_eq_on_bridged_straight_stmts"],
+        )
+        self.assertIn(
+            "smod",
+            phase4["execYulFuelWithBackend_if_eq_on_bridged_body"],
         )
 
 
