@@ -154,7 +154,7 @@ my-verity-ecm/
 
 In `lakefile.lean`:
 ```lean
-require verity from git "https://github.com/Th0rgal/verity.git" @ "main"
+require verity from git "https://github.com/lfglabs-dev/verity.git" @ "main"
 ```
 
 Import path: `import MyProtocol.Swap`.

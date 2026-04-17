@@ -1,7 +1,7 @@
 # Solidity-Parity Backend Profile
 
-Issue: [#802](https://github.com/Th0rgal/verity/issues/802)
-Roadmap extension: [#967](https://github.com/Th0rgal/verity/issues/967)
+Issue: [#802](https://github.com/lfglabs-dev/verity/issues/802)
+Roadmap extension: [#967](https://github.com/lfglabs-dev/verity/issues/967)
 
 This document defines the opt-in backend profile used for deterministic output-shape alignment with Solidity-style workflows.
 
@@ -52,7 +52,7 @@ See [`docs/ARITHMETIC_PROFILE.md`](ARITHMETIC_PROFILE.md) for the full arithmeti
 
 ## Identity Track (Groundwork)
 
-Issue [#967](https://github.com/Th0rgal/verity/issues/967) defines the path from output-shape parity to exact `solc` Yul identity for pinned compiler tuples.
+Issue [#967](https://github.com/lfglabs-dev/verity/issues/967) defines the path from output-shape parity to exact `solc` Yul identity for pinned compiler tuples.
 
 Planned extensions (beyond current `--parity-pack` registry/selection support):
 

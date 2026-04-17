@@ -1,6 +1,6 @@
 # Rewrite Rules (Groundwork)
 
-Issue: [#967](https://github.com/Th0rgal/verity/issues/967)
+Issue: [#967](https://github.com/lfglabs-dev/verity/issues/967)
 
 This document defines the target authoring model for proof-carrying Yul subtree rewrites.
 

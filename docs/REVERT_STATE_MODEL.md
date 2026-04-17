@@ -1,6 +1,6 @@
 # Revert-State Modeling Note
 
-Issue: [#1009](https://github.com/Th0rgal/verity/issues/1009)
+Issue: [#1009](https://github.com/lfglabs-dev/verity/issues/1009)
 
 This note clarifies a subtle but important modeling boundary:
 
