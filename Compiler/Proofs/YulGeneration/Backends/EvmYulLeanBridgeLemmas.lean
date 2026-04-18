@@ -1415,12 +1415,40 @@ private theorem int256_ofInt_nat_toUint256_val (r : Nat) (hr : r < evmModulus) :
     Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS]
   exact Nat.mod_eq_of_lt (by simpa [evmModulus, Verity.Core.UINT256_MODULUS] using hr)
 
-/- TODO(smod): prove the negative wrapper counterpart needed by the NP/NN
-   sign cases:
-   `(Verity.Core.Int256.ofInt (-Int.ofNat r)).toUint256.val =
-      if r = 0 then 0 else evmModulus - r`.
-   A direct proof currently gets stuck rewriting `Int.natAbs` under the
-   dependent `Uint256` constructor proof term. -/
+/-- Negative-wrapper counterpart to `int256_ofInt_nat_toUint256_val` used by
+    the NP/NN sign cases of the `smod` core equivalence:
+    `(Verity.Core.Int256.ofInt (-Int.ofNat r)).toUint256.val =
+       if r = 0 then 0 else evmModulus - r`. -/
+private theorem int256_ofInt_neg_nat_toUint256_val (r : Nat) (hr : r < evmModulus) :
+    (Verity.Core.Int256.ofInt (-Int.ofNat r)).toUint256.val =
+      if r = 0 then 0 else evmModulus - r := by
+  by_cases hr0 : r = 0
+  · subst hr0
+    simp [Verity.Core.Int256.ofInt, Verity.Core.Int256.toUint256,
+          Verity.Core.Int256.ofUint256, Verity.Core.Uint256.ofNat]
+  · have hrpos : 0 < r := Nat.pos_of_ne_zero hr0
+    have hneg : (-Int.ofNat r : Int) < 0 := by
+      have : (0 : Int) < Int.ofNat r := Int.natCast_pos.mpr hrpos
+      omega
+    have hnatAbs : Int.natAbs (-Int.ofNat r) = r := by
+      simp [Int.natAbs_neg]
+    have hmod_eq : Verity.Core.Int256.modulus = evmModulus := by
+      simp [Verity.Core.Int256.modulus, Verity.Core.Uint256.modulus,
+            Verity.Core.UINT256_MODULUS, evmModulus]
+    have hr_lt_mod : r < Verity.Core.Int256.modulus := by rw [hmod_eq]; exact hr
+    have hmod_r : r % Verity.Core.Int256.modulus = r := Nat.mod_eq_of_lt hr_lt_mod
+    have hsub_lt : Verity.Core.Int256.modulus - r < Verity.Core.Int256.modulus := by
+      have : 0 < Verity.Core.Int256.modulus := by rw [hmod_eq]; unfold evmModulus; omega
+      omega
+    rw [if_neg hr0]
+    simp only [Verity.Core.Int256.ofInt, if_pos hneg,
+      Verity.Core.Int256.toUint256, Verity.Core.Int256.ofUint256,
+      Verity.Core.Uint256.ofNat, hnatAbs, hmod_r]
+    show (Verity.Core.Int256.modulus - r) % Verity.Core.Uint256.modulus = evmModulus - r
+    have hmod_eq' : Verity.Core.Int256.modulus = Verity.Core.Uint256.modulus := rfl
+    rw [hmod_eq', Nat.mod_eq_of_lt (by rw [← hmod_eq']; exact hsub_lt)]
+    show Verity.Core.Uint256.modulus - r = evmModulus - r
+    rw [hmod_eq.symm.trans hmod_eq']
 
 /-- Core smod equivalence: Verity's `Int256.mod` agrees with EVMYulLean's `UInt256.smod`.
 
