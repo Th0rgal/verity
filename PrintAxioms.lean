@@ -838,6 +838,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.Function.compileStmtList_constructor_mode_eq'  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Function.compileStmtList_constructor_mode_eq  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Function.constructor_function_contexts_erase_calldataSize_eq  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Function.execStmtListWithHelpers_constructor_calldataSize_eq  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Function.txCalldataSizeFitsEvm_of_constructorCalldataSizeFitsEvm  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Function.bindingsExactlyMatchIRVars_applyBindingsToIRState_self  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Function.constructorTouchesUnsupportedRawCalldataSurface_eq_false  -- private
@@ -2200,4 +2201,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2051 theorems/lemmas (1370 public, 681 private, 0 sorry'd)
+-- Total: 2052 theorems/lemmas (1370 public, 682 private, 0 sorry'd)
