@@ -14466,7 +14466,7 @@ theorem exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel_step
         rw [hfullExec]
         simp [stmtStepMatchesIRExec]
 
--- (Old sorry'd proof body removed - proof now uses scope directly)
+-- Old placeholder proof body removed; the proof now uses scope directly.
 
 theorem exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel_step
     {runtimeContract : IRContract}
