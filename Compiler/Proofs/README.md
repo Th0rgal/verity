@@ -47,7 +47,6 @@ The `SupportedSpec` split and current boundary are recorded in [`artifacts/layer
 
 - Layer 2 completeness: [#1630](https://github.com/lfglabs-dev/verity/issues/1630)
 - Machine-readable boundary: [`artifacts/layer2_boundary_catalog.json`](../../artifacts/layer2_boundary_catalog.json)
-- Plan: [`docs/GENERIC_LAYER2_PLAN.md`](../../docs/GENERIC_LAYER2_PLAN.md)
 
 ## Build
 

@@ -10,7 +10,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG = ROOT / "artifacts" / "layer2_boundary_catalog.json"
 TARGET_FILES = {
-    "GENERIC_PLAN": ROOT / "docs" / "GENERIC_LAYER2_PLAN.md",
     "ROADMAP": ROOT / "docs" / "ROADMAP.md",
     "VERIFICATION_STATUS": ROOT / "docs" / "VERIFICATION_STATUS.md",
     "COMPILER_PROOFS_README": ROOT / "Compiler" / "Proofs" / "README.md",
@@ -45,27 +44,6 @@ def expected_snippets(catalog: dict) -> dict[str, list[str]]:
     assert theorem_target["intended_claim"] == "proof_complete_macro_lowered_verity_contract_image"
     assert helper["current_fail_closed_gate"] == "SupportedBodyInterface.stmtList"
     return {
-        "GENERIC_PLAN": [
-            "`artifacts/layer2_boundary_catalog.json`",
-            "proof-complete `CompilationModel` subset",
-            "macro-lowered image of `verity_contract`",
-            "helper-free `SupportedStmtList` witness",
-            "`SupportedFunctionBodyWithHelpersIRPreservationGoal`",
-            "`SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal`",
-            "legacy-compatible external-body Yul subset",
-            "`InterpretIRWithInternalsZeroConservativeExtensionGoal`",
-            "`InterpretIRWithInternalsZeroConservativeExtensionDispatchGoal`",
-            "`interpretIRWithInternalsZeroConservativeExtensionGoal_of_dispatchGoal`",
-            "`InterpretIRWithInternalsZeroConservativeExtensionStmtSubgoals`",
-            "`interpretIRWithInternalsZeroConservativeExtensionInterfaces_of_stmtSubgoals`",
-            "`interpretIRWithInternalsZeroConservativeExtensionGoal_closed`",
-            "`compile_preserves_semantics_with_helper_proofs_and_helper_ir_goal`",
-            "`compile_preserves_semantics_with_helper_proofs_and_helper_ir_closed`",
-            "total fuel-indexed helper-aware IR semantics",
-            "`exprStmtUsesDedicatedBuiltinSemantics`",
-            "direct helper-free lemmas for `stop`, `mstore`, `revert`, `return`, and mapping-slot `sstore`",
-            "helper-free conservative-extension goal is now closed",
-        ],
         "ROADMAP": [
             "`artifacts/layer2_boundary_catalog.json`",
             "macro-lowered `verity_contract` image",

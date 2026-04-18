@@ -40,28 +40,6 @@ class Layer2BoundaryCatalogSyncTests(unittest.TestCase):
         )
 
         docs = {
-            "GENERIC_PLAN": (
-                "`artifacts/layer2_boundary_catalog.json`\n"
-                "proof-complete `CompilationModel` subset\n"
-                "macro-lowered image of `verity_contract`\n"
-                "helper-free `SupportedStmtList` witness\n"
-                "`SupportedFunctionBodyWithHelpersIRPreservationGoal`\n"
-                "`SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal`\n"
-                "legacy-compatible external-body Yul subset\n"
-                "`InterpretIRWithInternalsZeroConservativeExtensionGoal`\n"
-                "`InterpretIRWithInternalsZeroConservativeExtensionDispatchGoal`\n"
-                "`interpretIRWithInternalsZeroConservativeExtensionGoal_of_dispatchGoal`\n"
-                "`InterpretIRWithInternalsZeroConservativeExtensionStmtSubgoals`\n"
-                "`interpretIRWithInternalsZeroConservativeExtensionInterfaces_of_stmtSubgoals`\n"
-                "`interpretIRWithInternalsZeroConservativeExtensionGoal_closed`\n"
-                "`compile_preserves_semantics_with_helper_proofs_and_helper_ir_goal`\n"
-                "`compile_preserves_semantics_with_helper_proofs_and_helper_ir_closed`\n"
-                "total fuel-indexed helper-aware IR semantics\n"
-                "`exprStmtUsesDedicatedBuiltinSemantics`\n"
-                "direct helper-free lemmas for `stop`, `mstore`, `revert`, `return`, and mapping-slot `sstore`\n"
-                "helper-free conservative-extension goal is now closed\n"
-                "`InterpretIRWithInternalsZeroConservativeExtensionInterfaces`\n"
-            ),
             "ROADMAP": (
                 "`artifacts/layer2_boundary_catalog.json`\n"
                 "macro-lowered `verity_contract` image\n"
@@ -136,7 +114,6 @@ class Layer2BoundaryCatalogSyncTests(unittest.TestCase):
             docs["ROADMAP"] = "stale roadmap\n"
 
         for label, rel in {
-            "GENERIC_PLAN": Path("docs/GENERIC_LAYER2_PLAN.md"),
             "ROADMAP": Path("docs/ROADMAP.md"),
             "VERIFICATION_STATUS": Path("docs/VERIFICATION_STATUS.md"),
             "COMPILER_PROOFS_README": Path("Compiler/Proofs/README.md"),
@@ -156,7 +133,6 @@ class Layer2BoundaryCatalogSyncTests(unittest.TestCase):
             check.ROOT = root
             check.CATALOG = root / "artifacts" / "layer2_boundary_catalog.json"
             check.TARGET_FILES = {
-                "GENERIC_PLAN": root / "docs" / "GENERIC_LAYER2_PLAN.md",
                 "ROADMAP": root / "docs" / "ROADMAP.md",
                 "VERIFICATION_STATUS": root / "docs" / "VERIFICATION_STATUS.md",
                 "COMPILER_PROOFS_README": root / "Compiler" / "Proofs" / "README.md",
