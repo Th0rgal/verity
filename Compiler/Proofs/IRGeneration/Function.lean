@@ -2362,7 +2362,9 @@ theorem supported_constructor_body_correct_with_body_interface
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .memory [] false
         (ctor.params.map (·.name)) ctor.body = Except.ok bodyStmts)
-    (hbind : SourceSemantics.bindSupportedParams ctor.params tx.args = some bindings)
+    (hbind :
+      SourceSemantics.bindSupportedParams ctor.params (tx.args.take ctor.params.length) =
+        some bindings)
     (htxNormalized : TxContextNormalized tx)
     (hcalldataSizeFits : TxConstructorCalldataSizeFitsEvm tx) :
     FunctionBody.sourceResultMatchesIRResult
@@ -2377,10 +2379,6 @@ theorem supported_constructor_body_correct_with_body_interface
             bodyStmts)) := by
     let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
     let ctorFn := constructorAsFunctionSpec ctor
-    have hbindTake :
-        SourceSemantics.bindSupportedParams ctor.params (tx.args.take ctor.params.length) =
-          some bindings :=
-      SourceSemantics.bindSupportedParams_take_param_length hbind
     have hrawUnsupported :
         SourceSemantics.constructorTouchesUnsupportedRawCalldataSurface model ctor = false :=
       constructorTouchesUnsupportedRawCalldataSurface_eq_false hSupported
@@ -2395,7 +2393,7 @@ theorem supported_constructor_body_correct_with_body_interface
               ⟨hSupported.body.core.surfaceClosed,
                 SupportedBodyCallInterface.surfaceClosed_exceptMappingWrites hSupported.body⟩,
             hSupported.body.effects.surfaceClosed⟩
-      simp [SourceSemantics.constructorExecutionBindings, hbindTake, hguard]
+      simp [SourceSemantics.constructorExecutionBindings, hbind, hguard]
     have hbodyCompileCalldata :
         compileStmtList model.fields [] [] .calldata [] false
           (ctor.params.map (·.name)) ctor.body = Except.ok bodyStmts := by

@@ -209,6 +209,9 @@ private def constructorOnlyTx : IRTransaction :=
     functionSelector := 0
     args := [11] }
 
+private def constructorOnlyTrailingTx : IRTransaction :=
+  { constructorOnlyTx with args := [11, 99] }
+
 private def constructorArgCtor : ConstructorSpec :=
   { params := [{ name := "initialValue", ty := .uint256 }]
     body := [Stmt.setStorage "value" (.constructorArg 0), .stop] }
@@ -865,6 +868,72 @@ example :
       (hbind := hbind)
       (htxNormalized := constructorOnly_txNormalized)
       (hcalldataSizeFits := constructorOnly_constructorCalldataFits)
+
+example :
+    ∃ bodyStmts bindings,
+      SourceSemantics.bindSupportedParams constructorOnlyCtor.params
+          (constructorOnlyTrailingTx.args.take constructorOnlyCtor.params.length) =
+        some bindings ∧
+      FunctionBody.sourceResultMatchesIRResult
+        (SourceSemantics.interpretConstructorWithHelpers
+          constructorOnlySpec 0 constructorOnlyCtor constructorOnlyTrailingTx Verity.defaultState)
+        (Function.execResultToIRResult
+          (FunctionBody.initialIRStateForTx constructorOnlySpec constructorOnlyTrailingTx
+            Verity.defaultState)
+          (execIRStmts
+            (sizeOf bodyStmts + 1)
+            (ParamLoading.applyBindingsToIRState
+              (FunctionBody.initialIRStateForTx constructorOnlySpec constructorOnlyTrailingTx
+                Verity.defaultState)
+              bindings)
+            bodyStmts)) := by
+  let bodyStmts :=
+    match compileStmtList constructorOnlySpec.fields [] [] .memory [] false
+        (constructorOnlyCtor.params.map (·.name)) constructorOnlyCtor.body with
+    | .ok body => body
+    | .error _ => []
+  let bindings := [("initialOwner", Compiler.Constants.addressMask &&& 11)]
+  refine ⟨bodyStmts, bindings, ?_, ?_⟩
+  · native_decide
+  · have hbodyCompile :
+        compileStmtList constructorOnlySpec.fields constructorOnlySpec.events constructorOnlySpec.errors
+          .memory [] false (constructorOnlyCtor.params.map (·.name)) constructorOnlyCtor.body =
+        Except.ok bodyStmts := by
+      rfl
+    have hbind :
+        SourceSemantics.bindSupportedParams constructorOnlyCtor.params
+            (constructorOnlyTrailingTx.args.take constructorOnlyCtor.params.length) =
+          some bindings := by
+      native_decide
+    simpa [constructorOnlySpec, constructorOnlyTrailingTx, constructorOnlyTx, constructorOnlySupported,
+      Function.execResultToIRResult] using
+      Function.supported_constructor_body_correct_with_body_interface
+        (model := constructorOnlySpec)
+        (ctor := constructorOnlyCtor)
+        (helperFuel := 0)
+        (hnormalized := rfl)
+        (hfunctionNamesNodup := by decide)
+        (hSupported := constructorOnlySupported)
+        (hnoConflict := constructorOnly_noConflict)
+        (hsafety := by
+          intro stmt hmem
+          simp [constructorOnlyCtor] at hmem
+          rcases hmem with rfl | rfl
+          · simp [StmtMappingWriteSlotSafe]
+          · simp [StmtMappingWriteSlotSafe])
+        (hnoEvents := rfl)
+        (tx := constructorOnlyTrailingTx)
+        (initialWorld := Verity.defaultState)
+        (bindings := bindings)
+        (bodyStmts := bodyStmts)
+        (hbodyCompile := hbodyCompile)
+        (hbind := hbind)
+        (htxNormalized := by
+          simp [Function.TxContextNormalized, constructorOnlyTrailingTx, constructorOnlyTx,
+            Compiler.Constants.addressModulus, Compiler.Constants.evmModulus])
+        (hcalldataSizeFits := by
+          simp [Function.TxConstructorCalldataSizeFitsEvm, constructorOnlyTrailingTx,
+            constructorOnlyTx, Compiler.Constants.evmModulus])
 
 example :
     FunctionBody.sourceResultMatchesIRResult
