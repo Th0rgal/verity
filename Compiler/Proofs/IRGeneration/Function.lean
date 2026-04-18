@@ -413,6 +413,7 @@ theorem interpretFunction_eq_execResultToIRResult_of_body
     (bindings : List (String × Nat))
     (hbind :
       SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
+    (hnoEvents : model.events = [])
     (hsource :
       SourceSemantics.execStmtList (SourceSemantics.effectiveFields model)
         { world := SourceSemantics.withTransactionContext initialWorld tx
@@ -430,9 +431,16 @@ theorem interpretFunction_eq_execResultToIRResult_of_body
     (hmatch :
       FunctionBody.stmtResultMatchesIRExec
         (SourceSemantics.effectiveFields model) sourceResult irResult) :
-    FunctionBody.sourceResultMatchesIRResult
+      FunctionBody.sourceResultMatchesIRResult
       (SourceSemantics.interpretFunction model fn tx initialWorld)
       (execResultToIRResult rollback irResult) := by
+  have hsourceWithEvents :
+      SourceSemantics.execStmtListWithEvents (SourceSemantics.effectiveFields model) model.events
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := bindings
+          selector := tx.functionSelector }
+        fn.body = sourceResult := by
+    simpa [hnoEvents] using hsource
   have hpack :=
     FunctionBody.stmtResultToSourceResult_matches_irExecResult
       (spec := model)
@@ -442,7 +450,7 @@ theorem interpretFunction_eq_execResultToIRResult_of_body
       (sourceResult := sourceResult)
       (irResult := irResult)
       hrollbackStorage hrollbackEvents rfl hmatch
-  simpa [SourceSemantics.interpretFunction, hbind, hsource,
+  simpa [SourceSemantics.interpretFunction, hbind, hsourceWithEvents,
     FunctionBody.stmtResultToSourceResult, FunctionBody.sourceResultMatchesIRResult,
     FunctionBody.irResultOfExecResult, execResultToIRResult] using hpack
 
@@ -1174,6 +1182,7 @@ theorem compileFunctionSpec_correct_of_body
     (hparamsSupported : ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
     (hcalldataSizeFits : TxCalldataSizeFitsEvm tx)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
+    (hnoEvents : model.events = [])
     (hsource :
       SourceSemantics.execStmtList (SourceSemantics.effectiveFields model)
         { world := SourceSemantics.withTransactionContext initialWorld tx
@@ -1216,7 +1225,7 @@ theorem compileFunctionSpec_correct_of_body
     interpretFunction_eq_execResultToIRResult_of_body
       (model := model) (fn := fn) (tx := tx) (initialWorld := initialWorld)
       (sourceResult := sourceResult) (rollback := initialState) (irResult := irExec)
-      (bindings := bindings) hbind hsource hrollbackStorage hrollbackEvents hmatch
+      (bindings := bindings) hbind hnoEvents hsource hrollbackStorage hrollbackEvents hmatch
   have hcompiledExec :
       Compiler.Proofs.YulGeneration.execIRFunctionFuel
           ((genParamLoads fn.params ++ bodyStmts).length + 1)
@@ -1253,6 +1262,7 @@ theorem compileFunctionSpec_correct_of_body_normalized_extraFuel
     (hparamsSupported : ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
     (hcalldataSizeFits : TxCalldataSizeFitsEvm tx)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
+    (hnoEvents : model.events = [])
     (hsource :
       SourceSemantics.execStmtList (SourceSemantics.effectiveFields model)
         { world := SourceSemantics.withTransactionContext initialWorld tx
@@ -1302,7 +1312,7 @@ theorem compileFunctionSpec_correct_of_body_normalized_extraFuel
     interpretFunction_eq_execResultToIRResult_of_body
       (model := model) (fn := fn) (tx := tx) (initialWorld := initialWorld)
       (sourceResult := sourceResult) (rollback := initialState) (irResult := irExec)
-      (bindings := bindings) hbind hsource hrollbackStorage hrollbackEvents hmatch
+      (bindings := bindings) hbind hnoEvents hsource hrollbackStorage hrollbackEvents hmatch
   have hcompiledExec :
       Compiler.Proofs.YulGeneration.execIRFunctionFuel
           ((genParamLoads fn.params ++ bodyStmts).length + extraFuel + 1)
@@ -1365,7 +1375,7 @@ theorem compileFunctionSpec_correct_of_body_supported_extraFuel
     hSupported.normalizedFields
     selector fn irFn returns bodyStmts tx initialWorld sourceResult irExec
     bindings extraFuel hvalidate hreturns hbodyCompile hcompile hparamsSupported
-    hcalldataSizeFits hbind hsource hbodyExec hmatch
+    hcalldataSizeFits hbind hSupported.noEvents hsource hbodyExec hmatch
 
 theorem supported_function_correct
     (model : CompilationModel)
@@ -1649,8 +1659,9 @@ theorem supported_function_correct
           hbodyStateRuntime
           hbodyStateBindings with ⟨sourceResult, irExec, hsource, hbodyExec, hmatch⟩
         refine ⟨sourceResult, irExec, ?_, hbodyExec, hmatch⟩
-        simpa [SourceSemantics.ExecStmtListWithHelpersConservativeExtensionGoal] using
+        have hsourceWithEvents :=
           hbodyHelperGoal.symm.trans hsource
+        simpa [hSupported.noEvents] using hsourceWithEvents
     rcases hbodyCorrect with
       ⟨sourceResult, irExec, hsource, hbodyExec, hmatch⟩
     have hfuel :=
@@ -2343,6 +2354,7 @@ theorem supported_constructor_body_correct_with_body_interface
     (hSupported : SupportedConstructor model ctor)
     (hnoConflict : firstFieldWriteSlotConflict model.fields = none)
     (hsafety : ∀ stmt ∈ ctor.body, StmtMappingWriteSlotSafe model.fields stmt)
+    (hnoEvents : model.events = [])
     (tx : IRTransaction)
     (initialWorld : Verity.ContractState)
     (bindings : List (String × Nat))
@@ -2455,7 +2467,8 @@ theorem supported_constructor_body_correct_with_body_interface
       stmtListGenericWithHelpers_of_helperFreeStepInterface_and_helperSurfaceClosed
         (spec := model)
         (hhelperFree := hhelperFree)
-        (by simpa [ctorFn] using hSupported.body.helperSurfaceClosed)
+        (hnoEvents := hnoEvents)
+        (hsurface := by simpa [ctorFn] using hSupported.body.helperSurfaceClosed)
     rcases exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel
         (spec := model)
         (fields := SourceSemantics.effectiveFields model)
@@ -2659,8 +2672,15 @@ theorem supported_function_correct_with_body_interface_except_mapping_writes
                       selector := tx.functionSelector })
           (stmts := fn.body)
           hBody.helperSurfaceClosed
+      have hsourceWithEvents :
+          SourceSemantics.execStmtListWithEvents (SourceSemantics.effectiveFields model) model.events
+            { world := SourceSemantics.withTransactionContext initialWorld tx
+              bindings := bindings
+              selector := tx.functionSelector }
+            fn.body = sourceResult := by
+        simpa [hnoEvents] using hsource
       simpa [SourceSemantics.ExecStmtListWithHelpersConservativeExtensionGoal] using
-        hhelperGoal.trans hsource
+        hhelperGoal.trans hsourceWithEvents
     · have hscope :
           FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings := by
         intro name hmem
@@ -2717,8 +2737,9 @@ theorem supported_function_correct_with_body_interface_except_mapping_writes
           bindings := bindings
           selector := tx.functionSelector }
         fn.body = sourceResult := by
-    simpa [SourceSemantics.ExecStmtListWithHelpersConservativeExtensionGoal] using
+    have hsourceWithEvents :=
       hhelperGoal.symm.trans hsource
+    simpa [hnoEvents] using hsourceWithEvents
   have hlegacy :
       FunctionBody.sourceResultMatchesIRResult
         (SourceSemantics.interpretFunction model fn tx initialWorld)
@@ -2734,6 +2755,7 @@ theorem supported_function_correct_with_body_interface_except_mapping_writes
         hparams.supported
         hcalldataSizeFits
         hbind
+        hnoEvents
         hsourceLegacy
         hbodyExec
         hmatch
@@ -2918,8 +2940,15 @@ theorem supported_function_correct_with_body_interface_except_mapping_writes_stm
                       selector := tx.functionSelector })
           (stmts := fn.body)
           hBody.helperSurfaceClosed
+      have hsourceWithEvents :
+          SourceSemantics.execStmtListWithEvents (SourceSemantics.effectiveFields model) model.events
+            { world := SourceSemantics.withTransactionContext initialWorld tx
+              bindings := bindings
+              selector := tx.functionSelector }
+            fn.body = sourceResult := by
+        simpa [hnoEvents] using hsource
       simpa [SourceSemantics.ExecStmtListWithHelpersConservativeExtensionGoal] using
-        hhelperGoal.trans hsource
+        hhelperGoal.trans hsourceWithEvents
     · have hscope :
           FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings := by
         intro name hmem
@@ -2976,8 +3005,9 @@ theorem supported_function_correct_with_body_interface_except_mapping_writes_stm
           bindings := bindings
           selector := tx.functionSelector }
         fn.body = sourceResult := by
-    simpa [SourceSemantics.ExecStmtListWithHelpersConservativeExtensionGoal] using
+    have hsourceWithEvents :=
       hhelperGoal.symm.trans hsource
+    simpa [hnoEvents] using hsourceWithEvents
   have hlegacy :
       FunctionBody.sourceResultMatchesIRResult
         (SourceSemantics.interpretFunction model fn tx initialWorld)
@@ -2993,6 +3023,7 @@ theorem supported_function_correct_with_body_interface_except_mapping_writes_stm
         hparams.supported
         hcalldataSizeFits
         hbind
+        hnoEvents
         hsourceLegacy
         hbodyExec
         hmatch
@@ -3282,8 +3313,15 @@ theorem supported_function_correct_with_helper_proofs_goal
           hbodyStateRuntime
           hbodyStateBindings with ⟨sourceResult, irExec, hsource, hbodyExec, hmatch⟩
       refine ⟨sourceResult, irExec, ?_, hbodyExec, hmatch⟩
+      have hsourceWithEvents :
+          SourceSemantics.execStmtListWithEvents (SourceSemantics.effectiveFields model) model.events
+            { world := SourceSemantics.withTransactionContext initialWorld tx
+              bindings := bindings
+              selector := tx.functionSelector }
+            fn.body = sourceResult := by
+        simpa [hSupported.noEvents] using hsource
       simpa [SourceSemantics.ExecStmtListWithHelpersConservativeExtensionGoal] using
-        hbodyHelperGoal.trans hsource
+        hbodyHelperGoal.trans hsourceWithEvents
     · have hscope :
           FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings := by
         intro name hmem

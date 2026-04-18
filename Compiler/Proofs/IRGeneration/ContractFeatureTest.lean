@@ -853,6 +853,7 @@ example :
         rcases hmem with rfl | rfl
         · simp [StmtMappingWriteSlotSafe]
         · simp [StmtMappingWriteSlotSafe])
+      (hnoEvents := rfl)
       (tx := constructorOnlyTx)
       (initialWorld := Verity.defaultState)
       (bindings := [("initialOwner", Compiler.Constants.addressMask &&& 11)])
@@ -952,12 +953,17 @@ example :
         world := { eventTrackingRuntime.world with
             events := eventTrackingRuntime.world.events ++
               [{ name := "Evt"
-                 args := [
-                   Verity.Core.Uint256.ofNat (11 % Compiler.Constants.evmModulus),
-                   Verity.Core.Uint256.ofNat (22 % Compiler.Constants.evmModulus)]
-                 indexedArgs := [] }] } } := by
+                 args := [Verity.Core.Uint256.ofNat (22 % Compiler.Constants.evmModulus)]
+                 indexedArgs := [Verity.Core.Uint256.ofNat (11 % Compiler.Constants.evmModulus)] }] } } := by
+  have hunindexed :
+      (EventParamKind.unindexed == EventParamKind.indexed) = false := by
+    native_decide
+  have hindexed :
+      (EventParamKind.indexed == EventParamKind.indexed) = true := by
+    native_decide
   simp [eventTrackingSpec, eventTrackingRuntime, SourceSemantics.execStmtWithHelpers,
     SourceSemantics.evalExprListWithHelpers, SourceSemantics.evalExprWithHelpers,
-    SourceSemantics.eventFromResolvedArgs?, SourceSemantics.valuesAsEventArgs]
+    SourceSemantics.eventFromResolvedArgs?, SourceSemantics.splitEventArgsByParams,
+    hunindexed, hindexed]
 
 end Compiler.Proofs.IRGeneration.ContractFeatureTest

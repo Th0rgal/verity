@@ -106,10 +106,11 @@ theorem fullHelperAwareListWitness_of_allInterfaces
     (hresidual :
       StmtListResidualHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
     (hlegacy : StmtListHelperFreeCompiledLegacyCompatible fields scope stmts)
+    (hnoEvents : spec.events = [])
     (hnoInternalFunctions : runtimeContract.internalFunctions = []) :
     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts :=
   stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_directInternalHelperCallStepInterface_and_directInternalHelperAssignStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
-    hhelperFree hcall hassign hexpr hstruct hresidual hlegacy hnoInternalFunctions
+    hhelperFree hcall hassign hexpr hstruct hresidual hlegacy hnoEvents hnoInternalFunctions
 
 /-- Convenience alias: full assembly using the disjoint-calls variant (for
 contracts where the IR contract has internal functions but compiled IR calls
@@ -132,6 +133,7 @@ theorem fullHelperAwareListWitness_of_allInterfaces_disjoint
       StmtListStructuralInternalHelperStepInterface runtimeContract spec fields scope stmts)
     (hresidual :
       StmtListResidualHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
+    (hnoEvents : spec.events = [])
     (hdisjoint : StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields scope stmts) :
     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts :=
   stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledCallsDisjoint
@@ -142,6 +144,7 @@ theorem fullHelperAwareListWitness_of_allInterfaces_disjoint
           hcall hassign)
         hexpr hstruct)
       hresidual)
+    hnoEvents
     hdisjoint
 
 /-- Fast-path for helper-free contracts: if the statement list doesn't touch
@@ -157,6 +160,7 @@ theorem helperFreeContractWitness
     (hhelperFree : StmtListHelperFreeStepInterface fields scope stmts)
     (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false)
     (hlegacy : StmtListHelperFreeCompiledLegacyCompatible fields scope stmts)
+    (hnoEvents : spec.events = [])
     (hnoInternalFunctions : runtimeContract.internalFunctions = []) :
     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts :=
   let ⟨hcall, hassign, hexpr, hstruct⟩ :=
@@ -164,7 +168,7 @@ theorem helperFreeContractWitness
   fullHelperAwareListWitness_of_allInterfaces
     hhelperFree hcall hassign hexpr hstruct
     (stmtListResidualHelperSurfaceStepInterface_of_helperSurfaceClosed hsurface)
-    hlegacy hnoInternalFunctions
+    hlegacy hnoEvents hnoInternalFunctions
 
 /-- Fast-path using disjoint-calls variant for helper-free contracts with
 non-empty internal function tables. -/
@@ -176,6 +180,7 @@ theorem helperFreeContractWitness_disjoint
     {stmts : List Stmt}
     (hhelperFree : StmtListHelperFreeStepInterface fields scope stmts)
     (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false)
+    (hnoEvents : spec.events = [])
     (hdisjoint : StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields scope stmts) :
     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts :=
   let ⟨hcall, hassign, hexpr, hstruct⟩ :=
@@ -183,6 +188,7 @@ theorem helperFreeContractWitness_disjoint
   fullHelperAwareListWitness_of_allInterfaces_disjoint
     hhelperFree hcall hassign hexpr hstruct
     (stmtListResidualHelperSurfaceStepInterface_of_helperSurfaceClosed hsurface)
+    hnoEvents
     hdisjoint
 
 end Compiler.Proofs.HelperStepProofs
