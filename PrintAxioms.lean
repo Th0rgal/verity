@@ -1845,6 +1845,8 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mulDivDown  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mulDivUp  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_ite  -- private
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithEvents_nil_eq_execStmt
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtListWithEvents_nil_eq_execStmtList
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.bindSupportedParams_take_param_length
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.findDynamicArrayElementAtSlot_withTransactionContext
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.findDynamicArrayElementAtSlot_congr_storageArray
@@ -2198,4 +2200,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2049 theorems/lemmas (1368 public, 681 private, 0 sorry'd)
+-- Total: 2051 theorems/lemmas (1370 public, 681 private, 0 sorry'd)
