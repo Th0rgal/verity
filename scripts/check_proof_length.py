@@ -387,6 +387,13 @@ ALLOWLIST: set[str] = {
     # them would require either introducing a generic reconstruction tactic
     # or passing a weaker hypothesis to the helper.
     "compileRequireFailCond_bridgedSource",
+    # Memory-write source closure handles both `.mstore` and `.tstore`
+    # constructors; each case is a mechanical Except-bind decomposition of the
+    # two-argument `compileExpr`/`compileExpr` pair before a single
+    # `BridgedStraightStmt.expr_mstore`/`expr_tstore` application. Merging the
+    # two cases would require a shared helper that abstracts over the Yul
+    # primitive name.
+    "compileStmt_memoryWrite_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }

@@ -2441,4 +2441,125 @@ mutual
                     (collectStmtNames head ++ inScopeNames) hTailCompile)
 end
 
+/-! ## Source statement body closure: direct memory writes (`mstore`/`tstore`)
+
+The `Stmt.mstore` and `Stmt.tstore` source statements compile directly to a
+single Yul `mstore`/`tstore` call whose arguments are the compiled offset and
+value expressions. When both sides are pure bridged source expressions, the
+emitted statement satisfies `BridgedStraightStmt` via `expr_mstore` / `expr_tstore`.
+-/
+
+/-- Direct memory/transient-memory write source statements whose offset and
+value are pure bridged source expressions. -/
+inductive BridgedSourceMemoryWriteStmt : Stmt → Prop
+  | mstore (offset value : Expr)
+      (hOffset : BridgedSourceExpr offset) (hValue : BridgedSourceExpr value) :
+      BridgedSourceMemoryWriteStmt (.mstore offset value)
+  | tstore (offset value : Expr)
+      (hOffset : BridgedSourceExpr offset) (hValue : BridgedSourceExpr value) :
+      BridgedSourceMemoryWriteStmt (.tstore offset value)
+
+def BridgedSourceMemoryWriteStmts (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts, BridgedSourceMemoryWriteStmt stmt
+
+/-- A direct `mstore`/`tstore` source statement whose offset and value are
+bridged source expressions compiles to a single-statement Yul list satisfying
+`BridgedStmts`. -/
+theorem compileStmt_memoryWrite_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceMemoryWriteStmt stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames stmt = .ok out →
+        BridgedStmts out := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | mstore offset value hOffset hValue =>
+      simp only [compileStmt, bind, Except.bind] at hOk
+      cases hOExpr : compileExpr fields dynamicSource offset with
+      | error err => simp [hOExpr] at hOk
+      | ok offsetExpr =>
+          simp [hOExpr] at hOk
+          cases hVExpr : compileExpr fields dynamicSource value with
+          | error err => simp [hVExpr] at hOk
+          | ok valueExpr =>
+              simp [hVExpr, Pure.pure, Except.pure] at hOk
+              subst out
+              have hBO : BridgedExpr offsetExpr :=
+                compileExpr_bridgedSource fields dynamicSource hOffset hOExpr
+              have hBV : BridgedExpr valueExpr :=
+                compileExpr_bridgedSource fields dynamicSource hValue hVExpr
+              intro yulStmt hMem
+              simp only [List.mem_singleton] at hMem
+              subst yulStmt
+              exact BridgedStmt.straight _
+                (BridgedStraightStmt.expr_mstore offsetExpr valueExpr hBO hBV)
+  | tstore offset value hOffset hValue =>
+      simp only [compileStmt, bind, Except.bind] at hOk
+      cases hOExpr : compileExpr fields dynamicSource offset with
+      | error err => simp [hOExpr] at hOk
+      | ok offsetExpr =>
+          simp [hOExpr] at hOk
+          cases hVExpr : compileExpr fields dynamicSource value with
+          | error err => simp [hVExpr] at hOk
+          | ok valueExpr =>
+              simp [hVExpr, Pure.pure, Except.pure] at hOk
+              subst out
+              have hBO : BridgedExpr offsetExpr :=
+                compileExpr_bridgedSource fields dynamicSource hOffset hOExpr
+              have hBV : BridgedExpr valueExpr :=
+                compileExpr_bridgedSource fields dynamicSource hValue hVExpr
+              intro yulStmt hMem
+              simp only [List.mem_singleton] at hMem
+              subst yulStmt
+              exact BridgedStmt.straight _
+                (BridgedStraightStmt.expr_tstore offsetExpr valueExpr hBO hBV)
+
+/-- Lists made only of direct `mstore`/`tstore` source statements with bridged
+source arguments compile to Yul lists satisfying `BridgedStmts`. -/
+theorem compileStmtList_memoryWrite_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceMemoryWriteStmts stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames head with
+      | error err => simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
+              tail with
+          | error err => simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource : BridgedSourceMemoryWriteStmt head :=
+                hSource head (by simp)
+              have hTailSource : BridgedSourceMemoryWriteStmts tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              exact BridgedStmts_append
+                (compileStmt_memoryWrite_bridged fields events errors dynamicSource
+                  internalRetNames isInternal inScopeNames hHeadSource hHead)
+                (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
 end Compiler.Proofs.YulGeneration.Backends
