@@ -31,15 +31,24 @@ def encodeEvents (events : List Verity.Event) : List (List Nat) :=
 def valuesAsEventArgs (values : List Nat) : List Verity.Core.Uint256 :=
   values.map (fun value => (value : Verity.Core.Uint256))
 
+def normalizeEventValue (ty : ParamType) (value : Nat) : Nat :=
+  let word := wordNormalize value
+  match ty with
+  | .uint8 => word &&& (uint8Modulus - 1)
+  | .address => word &&& Compiler.Constants.addressMask
+  | .bool => if word = 0 then 0 else 1
+  | _ => word
+
 def splitEventArgsByParams :
     List EventParam → List Nat → Option (List Verity.Core.Uint256 × List Verity.Core.Uint256)
   | [], [] => some ([], [])
   | param :: params, value :: values => do
       let (args, indexedArgs) ← splitEventArgsByParams params values
+      let normalized := normalizeEventValue param.ty value
       if param.kind == EventParamKind.indexed then
-        some (args, (value : Verity.Core.Uint256) :: indexedArgs)
+        some (args, (normalized : Verity.Core.Uint256) :: indexedArgs)
       else
-        some ((value : Verity.Core.Uint256) :: args, indexedArgs)
+        some ((normalized : Verity.Core.Uint256) :: args, indexedArgs)
   | _, _ => none
 
 def eventFromResolvedArgs? (events : List EventDef) (eventName : String)

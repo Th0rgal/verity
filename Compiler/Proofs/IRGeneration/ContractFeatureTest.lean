@@ -964,6 +964,43 @@ example :
   simp [eventTrackingSpec, eventTrackingRuntime, SourceSemantics.execStmtWithHelpers,
     SourceSemantics.evalExprListWithHelpers, SourceSemantics.evalExprWithHelpers,
     SourceSemantics.eventFromResolvedArgs?, SourceSemantics.splitEventArgsByParams,
+    SourceSemantics.normalizeEventValue,
     hunindexed, hindexed]
+
+private def eventNormalizationSpec : CompilationModel :=
+  { name := "EventNormalization"
+    fields := []
+    constructor := none
+    events := [
+      { name := "Evt"
+        params := [
+          { name := "flag", ty := .bool, kind := .indexed },
+          { name := "owner", ty := .address, kind := .unindexed },
+          { name := "small", ty := .uint8, kind := .unindexed }
+        ] }
+    ]
+    functions := [] }
+
+example :
+    SourceSemantics.eventFromResolvedArgs? eventNormalizationSpec.events "Evt"
+      [2, Compiler.Constants.addressMask + 18, 300] =
+    some
+      { name := "Evt"
+        args := [
+          Verity.Core.Uint256.ofNat 17,
+          Verity.Core.Uint256.ofNat 44
+        ]
+        indexedArgs := [Verity.Core.Uint256.ofNat 1] } := by
+  have hunindexed :
+      (EventParamKind.unindexed == EventParamKind.indexed) = false := by
+    native_decide
+  have hindexed :
+      (EventParamKind.indexed == EventParamKind.indexed) = true := by
+    native_decide
+  simp [eventNormalizationSpec, SourceSemantics.eventFromResolvedArgs?,
+    SourceSemantics.splitEventArgsByParams, SourceSemantics.normalizeEventValue,
+    SourceSemantics.wordNormalize, SourceSemantics.uint8Modulus,
+    Compiler.Constants.addressMask, Compiler.Constants.evmModulus,
+    Verity.Core.Uint256.ofNat, hunindexed, hindexed]
 
 end Compiler.Proofs.IRGeneration.ContractFeatureTest
