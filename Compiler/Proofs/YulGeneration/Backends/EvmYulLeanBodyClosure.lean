@@ -2562,4 +2562,78 @@ theorem compileStmtList_memoryWrite_bridged
                   internalRetNames isInternal inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
 
+/-! ## Source statement body closure: bounded `forEach` loops
+
+The `Stmt.forEach varName count body` source statement compiles to a single
+`YulStmt.for_` whose init, cond, and post are fixed shapes built from literal
+`0` / `1` and the compiled `count` expression. Given a bridged source `count`
+and a forward hypothesis that the body's compiled Yul is `BridgedStmts`, the
+forEach statement itself is `BridgedStmts`.
+-/
+
+/-- A `Stmt.forEach varName count body` source statement compiles to a Yul
+`.for_` wrapping the body's compiled output. When `count` is bridged and the
+body's `compileStmtList` output is bridged, the whole forEach is
+`BridgedStmts`. -/
+theorem compileStmt_forEach_with_bridged_body
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (varName : String) (count : Expr) (body : List Stmt)
+    (hCount : BridgedSourceExpr count)
+    (hBody : ∀ {out : List YulStmt},
+      compileStmtList fields events errors dynamicSource internalRetNames
+        isInternal (varName :: inScopeNames) body = .ok out →
+      BridgedStmts out) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames (.forEach varName count body) = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  simp only [compileStmt, bind, Except.bind] at hOk
+  cases hCExpr : compileExpr fields dynamicSource count with
+  | error err => simp [hCExpr] at hOk
+  | ok countExpr =>
+      simp [hCExpr] at hOk
+      cases hBodyOk : compileStmtList fields events errors dynamicSource
+          internalRetNames isInternal (varName :: inScopeNames) body with
+      | error err => simp [hBodyOk] at hOk
+      | ok bodyOut =>
+          simp [hBodyOk, Pure.pure, Except.pure] at hOk
+          subst out
+          have hBC : BridgedExpr countExpr :=
+            compileExpr_bridgedSource fields dynamicSource hCount hCExpr
+          have hBBody : BridgedStmts bodyOut := hBody hBodyOk
+          intro yulStmt hMem
+          simp only [List.mem_singleton] at hMem
+          subst yulStmt
+          refine BridgedStmt.for_ _ _ _ _ ?_ ?_ ?_ ?_
+          · -- init: [YulStmt.let_ varName (YulExpr.lit 0)]
+            intro stmt hMemInit
+            simp only [List.mem_singleton] at hMemInit
+            subst stmt
+            exact BridgedStmt.straight _
+              (BridgedStraightStmt.let_ varName (.lit 0) (BridgedExpr.lit 0))
+          · -- cond: lt(ident varName, countExpr)
+            refine BridgedExpr.call "lt" _ (Or.inl (by simp [bridgedBuiltins])) ?_
+            intro arg hMemArg
+            simp only [List.mem_cons, List.not_mem_nil, or_false] at hMemArg
+            rcases hMemArg with rfl | rfl
+            · exact BridgedExpr.ident varName
+            · exact hBC
+          · -- post: [YulStmt.assign varName (add(ident varName, lit 1))]
+            intro stmt hMemPost
+            simp only [List.mem_singleton] at hMemPost
+            subst stmt
+            refine BridgedStmt.straight _
+              (BridgedStraightStmt.assign varName _ ?_)
+            refine BridgedExpr.call "add" _ (Or.inl (by simp [bridgedBuiltins])) ?_
+            intro arg hMemArg
+            simp only [List.mem_cons, List.not_mem_nil, or_false] at hMemArg
+            rcases hMemArg with rfl | rfl
+            · exact BridgedExpr.ident varName
+            · exact BridgedExpr.lit 1
+          · -- body
+            exact hBBody
+
 end Compiler.Proofs.YulGeneration.Backends

@@ -394,6 +394,17 @@ ALLOWLIST: set[str] = {
     # two cases would require a shared helper that abstracts over the Yul
     # primitive name.
     "compileStmt_memoryWrite_bridged",
+    # Memory-write list closure mirrors the same compileStmtList head/tail
+    # skeleton as the other list closure proofs; the excess lines are
+    # boilerplate decomposition of the two Except binds.
+    "compileStmtList_memoryWrite_bridged",
+    # `Stmt.forEach` closure has a fixed-shape wrapper: init `[let v := 0]`,
+    # cond `lt(v, count)`, post `[v := add(v, 1)]`, plus the caller's body
+    # closure hypothesis. The excess lines are boilerplate decomposition of
+    # the two Except binds, the fixed init/cond/post shape proofs, and the
+    # body delegation. Each init/post/cond witness is a mechanical
+    # `BridgedStmt.straight` / `BridgedExpr.call` application.
+    "compileStmt_forEach_with_bridged_body",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
