@@ -344,6 +344,26 @@ private def constructorNestedHelperRawCalldataSpec : CompilationModel :=
     constructor := some constructorNestedHelperRawCalldataCtor
     functions := [nestedRawSizeInternalHelper, rawSizeInternalHelper] }
 
+private def recursiveNoRawInternalHelper : FunctionSpec :=
+  { name := "recursiveNoRaw"
+    params := []
+    returnType := some .uint256
+    isInternal := true
+    body := [Stmt.internalCallAssign ["tmp"] "recursiveNoRaw" [], Stmt.return (.literal 0)] }
+
+private def constructorRecursiveNoRawCtor : ConstructorSpec :=
+  { params := [{ name := "initialValue", ty := .uint256 }]
+    body :=
+      [Stmt.internalCallAssign ["tmp"] "recursiveNoRaw" [],
+        Stmt.setStorage "value" (.localVar "tmp"),
+        .stop] }
+
+private def constructorRecursiveNoRawSpec : CompilationModel :=
+  { name := "ConstructorRecursiveNoRaw"
+    fields := [{ name := "value", ty := .uint256 }]
+    constructor := some constructorRecursiveNoRawCtor
+    functions := [recursiveNoRawInternalHelper] }
+
 private def constSevenInternalHelper : FunctionSpec :=
   { name := "constSeven"
     params := []
@@ -658,6 +678,13 @@ example :
       constructorNestedHelperRawCalldataSpec
       (constructorNestedHelperRawCalldataSpec.functions.length + 1)
       (constructorAsFunctionSpec constructorNestedHelperRawCalldataCtor) = true := by
+  native_decide
+
+example :
+    SourceSemantics.helperClosureTouchesUnsupportedConstructorRawCalldataSurface
+      constructorRecursiveNoRawSpec
+      (constructorRecursiveNoRawSpec.functions.length + 1)
+      (constructorAsFunctionSpec constructorRecursiveNoRawCtor) = false := by
   native_decide
 
 example :

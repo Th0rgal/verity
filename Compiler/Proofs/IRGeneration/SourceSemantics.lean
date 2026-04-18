@@ -2040,17 +2040,24 @@ def directHelperTouchesUnsupportedConstructorRawCalldataSurface
         stmtListTouchesUnsupportedConstructorRawCalldataSurface callee.body
     | none => true
 
+def helperClosureTouchesUnsupportedConstructorRawCalldataSurfaceFrom
+    (spec : CompilationModel) : Nat → List String → FunctionSpec → Bool
+  | 0, _, _ => false
+  | fuel + 1, visited, fn =>
+      if fn.name ∈ visited then
+        false
+      else
+        (helperCallNames fn).any fun calleeName =>
+          match findUniqueInternalFunction? spec calleeName with
+          | some callee =>
+              stmtListTouchesUnsupportedConstructorRawCalldataSurface callee.body ||
+                helperClosureTouchesUnsupportedConstructorRawCalldataSurfaceFrom spec fuel
+                  (fn.name :: visited) callee
+          | none => true
+
 def helperClosureTouchesUnsupportedConstructorRawCalldataSurface
-    (spec : CompilationModel) : Nat → FunctionSpec → Bool
-  | 0, fn =>
-      (helperCallNames fn).any fun _ => true
-  | fuel + 1, fn =>
-      (helperCallNames fn).any fun calleeName =>
-        match findUniqueInternalFunction? spec calleeName with
-        | some callee =>
-            stmtListTouchesUnsupportedConstructorRawCalldataSurface callee.body ||
-              helperClosureTouchesUnsupportedConstructorRawCalldataSurface spec fuel callee
-        | none => true
+    (spec : CompilationModel) (fuel : Nat) (fn : FunctionSpec) : Bool :=
+  helperClosureTouchesUnsupportedConstructorRawCalldataSurfaceFrom spec fuel [] fn
 
 def constructorTouchesUnsupportedRawCalldataSurface
     (spec : CompilationModel)
@@ -2987,7 +2994,8 @@ theorem helperClosureTouchesUnsupportedConstructorRawCalldataSurface_eq_false_of
     (hnil : helperCallNames fn = []) :
     helperClosureTouchesUnsupportedConstructorRawCalldataSurface spec fuel fn = false := by
   cases fuel <;>
-    simp [helperClosureTouchesUnsupportedConstructorRawCalldataSurface, hnil]
+    simp [helperClosureTouchesUnsupportedConstructorRawCalldataSurface,
+      helperClosureTouchesUnsupportedConstructorRawCalldataSurfaceFrom, hnil]
 
 /-- Public characterization of `execStmtWithHelpers` for `Stmt.internalCallAssign`
 when the callee is identified by a `SupportedInternalHelperWitness` and function
