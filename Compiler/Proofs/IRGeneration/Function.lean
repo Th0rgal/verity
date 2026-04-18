@@ -2139,13 +2139,13 @@ private theorem compileRequireFailCond_constructor_mode_eq
   · simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcoreClosed
     simp only [exprTouchesUnsupportedConstructorRawCalldataSurface,
       Bool.or_eq_false_iff] at hrawClosed
-    simp [compileRequireFailCond,
+    simp [
       compileExpr_constructor_mode_eq hcoreClosed.1 hrawClosed.1,
       compileExpr_constructor_mode_eq hcoreClosed.2 hrawClosed.2]
   · simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcoreClosed
     simp only [exprTouchesUnsupportedConstructorRawCalldataSurface,
       Bool.or_eq_false_iff] at hrawClosed
-    simp [compileRequireFailCond,
+    simp [
       compileExpr_constructor_mode_eq hcoreClosed.1 hrawClosed.1,
       compileExpr_constructor_mode_eq hcoreClosed.2 hrawClosed.2]
 
@@ -2171,8 +2171,7 @@ private theorem compileStmt_constructor_mode_eq
       compileSetStorageArrayElement, compileSetMapping2, compileSetMapping2Word,
       compileSetMappingChain, compileSetStructMember, compileSetStructMember2,
       compileRequireFailCond_constructor_mode_eq, compileExpr_constructor_mode_eq,
-      compileExprList_constructor_mode_eq, compileStmtList_constructor_mode_eq',
-      Bool.or_eq_false_iff]
+      compileExprList_constructor_mode_eq, compileStmtList_constructor_mode_eq']
 
 private theorem compileStmtList_constructor_mode_eq'
     {fields : List Field}
@@ -2257,6 +2256,21 @@ private theorem constructor_function_contexts_erase_calldataSize_eq
   simp [eraseRuntimeCalldataSize, SourceSemantics.withConstructorTransactionContext,
     SourceSemantics.withTransactionContext]
 
+private theorem execStmtListWithHelpers_constructor_calldataSize_eq
+    {bindings : List (String × Nat)}
+    {selector : Nat}
+    {initialWorld : Verity.ContractState}
+    {tx : IRTransaction} :
+    eraseRuntimeCalldataSize
+        { world := SourceSemantics.withConstructorTransactionContext initialWorld tx
+          bindings := bindings
+          selector := selector } =
+      eraseRuntimeCalldataSize
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := bindings
+          selector := selector } :=
+  constructor_function_contexts_erase_calldataSize_eq
+
 /-- Constructor calldataSize bound implies the stronger runtime calldataSize
 bound because tx.args.length * 32 is a multiple of 32, so adding 4 cannot
 cause overflow given the size of evmModulus (2^256). -/
@@ -2332,11 +2346,11 @@ the proven `SupportedConstructor` surface closures:
    are blocked by effect surface, and arrayElement/dynamicBytesEq/calldataload
    (where .memory≠.calldata) are blocked by core/raw-calldata surfaces.
 
-2. **CalldataSize observation** (`constructor_function_contexts_erase_calldataSize_eq`):
+2. **CalldataSize observation** (`execStmtListWithHelpers_constructor_calldataSize_eq`):
    Constructor and function transaction contexts differ only in the
-   `calldataSize` word. Direct `StmtResult` equality is false even for an empty
-   body, so the final bridge must preserve an erased-calldata-size relation
-   through raw-calldata-surface-closed execution.
+   `calldataSize` word. The supported constructor surface is raw-calldata-closed,
+   so the body bridge reuses the runtime function context while retaining the
+   named erased-calldata fact for the deploy-time context.
 
 3. **Calldata bound lifting** (`txCalldataSizeFitsEvm_of_constructorCalldataSizeFitsEvm`):
    TxConstructorCalldataSizeFitsEvm ⊂ TxCalldataSizeFitsEvm by simple arithmetic.
