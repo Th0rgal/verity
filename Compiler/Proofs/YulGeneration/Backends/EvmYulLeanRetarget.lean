@@ -2026,6 +2026,14 @@ theorem BridgedStmts_singleton_stop :
     BridgedStmts [Compiler.Yul.YulStmt.expr (Compiler.Yul.YulExpr.call "stop" [])] :=
   BridgedStmts_singleton bridgedStmt_stop
 
+/-- Cons the zero-arg `stop()` terminator node onto an already-bridged
+    `BridgedStmts` tail. Mirrors `BridgedStmts_cons_leave` for the
+    external-function terminator path. -/
+theorem BridgedStmts_cons_stop
+    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
+    BridgedStmts (Compiler.Yul.YulStmt.expr (Compiler.Yul.YulExpr.call "stop" []) :: rest) :=
+  BridgedStmts_cons bridgedStmt_stop hRest
+
 /-- `BridgedStmts` singleton wrapping the zero-arg `leave` internal-function
     terminator. Common terminal shape for compiled internal-function bodies. -/
 theorem BridgedStmts_singleton_leave :
