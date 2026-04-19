@@ -23,6 +23,23 @@ def SupportedExternalReturnProfile : List ParamType → Prop
   | [ty] => SupportedExternalParamType ty
   | _ => False
 
+def eventParamScalarProofSupported (ty : ParamType) : Bool :=
+  match ty with
+  | .uint256 | .int256 | .uint8 | .address | .bool | .bytes32 => true
+  | .string | .tuple _ | .array _ | .fixedArray _ _ | .bytes => false
+
+def eventDefScalarProofSupported (eventDef : EventDef) : Bool :=
+  eventDef.params.all (fun param => eventParamScalarProofSupported param.ty) &&
+    (eventDef.params.filter (fun param => param.kind == EventParamKind.indexed)).length <= 3
+
+def eventEmissionProofSupported
+    (events : List EventDef) (eventName : String) (args : List Expr) : Bool :=
+  match events.find? (·.name == eventName) with
+  | none => false
+  | some eventDef =>
+      eventDefScalarProofSupported eventDef &&
+        decide (args.length = eventDef.params.length)
+
 mutual
 /-- Constructor body proofs are intentionally staged after initcode argument
 decoding. Raw constructor calldata observations therefore remain outside the
@@ -878,11 +895,30 @@ def stmtTouchesUnsupportedContractSurface (stmt : Stmt) : Bool :=
   | .emit _ _ | .internalCall _ _ | .internalCallAssign _ _ _
   | .rawLog _ _ _ | .externalCallBind _ _ _ | .ecm _ _ => true
 
+def stmtTouchesUnsupportedContractSurfaceWithEvents
+    (events : List EventDef) (stmt : Stmt) : Bool :=
+  match stmt with
+  | .emit eventName args =>
+      args.any exprTouchesUnsupportedContractSurface ||
+        !eventEmissionProofSupported events eventName args
+  | .ite cond thenBranch elseBranch =>
+      exprTouchesUnsupportedContractSurface cond ||
+        stmtListTouchesUnsupportedContractSurfaceWithEvents events thenBranch ||
+        stmtListTouchesUnsupportedContractSurfaceWithEvents events elseBranch
+  | _ => stmtTouchesUnsupportedContractSurface stmt
+
 def stmtListTouchesUnsupportedContractSurface : List Stmt → Bool
   | [] => false
   | stmt :: rest =>
       stmtTouchesUnsupportedContractSurface stmt ||
         stmtListTouchesUnsupportedContractSurface rest
+
+def stmtListTouchesUnsupportedContractSurfaceWithEvents
+    (events : List EventDef) : List Stmt → Bool
+  | [] => false
+  | stmt :: rest =>
+      stmtTouchesUnsupportedContractSurfaceWithEvents events stmt ||
+        stmtListTouchesUnsupportedContractSurfaceWithEvents events rest
 
 /-- Weaker contract-surface gate used by the Tier 2 singleton storage-write
 bridge: ordinary unsupported contract effects remain excluded, but the proved

@@ -48,15 +48,6 @@ def eventSignatureTopic (eventDef : EventDef) : Nat :=
   abstractKeccakMemorySlice (eventSignatureMemory eventDef) 0
     (bytesFromString (eventSignature eventDef)).length
 
-def eventParamScalarProofSupported (ty : ParamType) : Bool :=
-  match ty with
-  | .uint256 | .int256 | .uint8 | .address | .bool | .bytes32 => true
-  | .string | .tuple _ | .array _ | .fixedArray _ _ | .bytes => false
-
-def eventDefScalarProofSupported (eventDef : EventDef) : Bool :=
-  eventDef.params.all (fun param => eventParamScalarProofSupported param.ty) &&
-    (eventDef.params.filter (fun param => param.kind == EventParamKind.indexed)).length <= 3
-
 def normalizeEventValue (ty : ParamType) (value : Nat) : Nat :=
   let word := wordNormalize value
   match ty with
