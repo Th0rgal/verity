@@ -2220,6 +2220,29 @@ theorem BridgedStmts_cons_sstore_mapping
     (bridgedStmt_sstore_mapping_of_bridged_args baseExpr keyExpr valExpr hBase hKey hVal)
     hRest
 
+/-- `BridgedStmts` singleton wrapping a single `logN(args...)` event-emission
+    call over bridged argument expressions. Mirrors the mstore/tstore/sstore
+    singletons for the EVM log emission path (log0/log1/log2/log3/log4). -/
+theorem BridgedStmts_singleton_log
+    (func : String) (args : List Compiler.Yul.YulExpr)
+    (hLog : isYulLogName func = true)
+    (hArgs : ∀ arg ∈ args, BridgedExpr arg) :
+    BridgedStmts [Compiler.Yul.YulStmt.expr (Compiler.Yul.YulExpr.call func args)] :=
+  BridgedStmts_singleton (bridgedStmt_log_of_bridged_args func args hLog hArgs)
+
+/-- Cons a `logN(args...)` event-emission call over bridged argument
+    expressions onto an already-bridged `BridgedStmts` tail. Covers the
+    common event-emission shape where a topic+data encoding block ends
+    with the log call before subsequent bridged statements. -/
+theorem BridgedStmts_cons_log
+    (func : String) (args : List Compiler.Yul.YulExpr)
+    (hLog : isYulLogName func = true)
+    (hArgs : ∀ arg ∈ args, BridgedExpr arg)
+    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
+    BridgedStmts
+      (Compiler.Yul.YulStmt.expr (Compiler.Yul.YulExpr.call func args) :: rest) :=
+  BridgedStmts_cons (bridgedStmt_log_of_bridged_args func args hLog hArgs) hRest
+
 theorem callvalueGuard_bridged : BridgedStmt Compiler.CodegenCommon.callvalueGuard := by
   unfold Compiler.CodegenCommon.callvalueGuard
   exact BridgedStmt.if_ _ _ bridgedExpr_callvalue
