@@ -1628,6 +1628,35 @@ theorem bridgedStmt_revert
 theorem bridgedStmt_leave : BridgedStmt .leave :=
   bridgedStmt_of_bridgedStraightStmt BridgedStraightStmt.leave
 
+/-- Direct `BridgedStmt` wrapper for generic `let name := value` where
+    `value` is any bridged expression (not restricted to mload/tload/keccak256).
+    Covers the common `let tmp := <pure expr>` bindings compiler-emitted
+    between store/read blocks. -/
+theorem bridgedStmt_let_of_bridged_val
+    (name : String) (value : Compiler.Yul.YulExpr) (hValue : BridgedExpr value) :
+    BridgedStmt (.let_ name value) :=
+  bridgedStmt_of_bridgedStraightStmt
+    (BridgedStraightStmt.let_ name value hValue)
+
+/-- Direct `BridgedStmt` wrapper for multi-variable `let name1, name2, ... := value`.
+    The underlying `BridgedStraightStmt.letMany` ctor intentionally requires no
+    bridged-value hypothesis — it is closed generically over the `value`
+    expression. -/
+theorem bridgedStmt_letMany
+    (names : List String) (value : Compiler.Yul.YulExpr) :
+    BridgedStmt (.letMany names value) :=
+  bridgedStmt_of_bridgedStraightStmt
+    (BridgedStraightStmt.letMany names value)
+
+/-- Direct `BridgedStmt` wrapper for generic `name := value` reassignment over
+    any bridged expression. Paralleling `bridgedStmt_let_of_bridged_val` for
+    the already-declared-variable path. -/
+theorem bridgedStmt_assign_of_bridged_val
+    (name : String) (value : Compiler.Yul.YulExpr) (hValue : BridgedExpr value) :
+    BridgedStmt (.assign name value) :=
+  bridgedStmt_of_bridgedStraightStmt
+    (BridgedStraightStmt.assign name value hValue)
+
 /-- List-level lift: any list satisfying `BridgedStraightStmts` also satisfies
     the recursive `BridgedStmts` predicate, since `BridgedStraightStmt` lifts
     pointwise via `bridgedStmt_of_bridgedStraightStmt`. Useful when a compiler
