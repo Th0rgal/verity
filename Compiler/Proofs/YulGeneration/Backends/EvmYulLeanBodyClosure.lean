@@ -4508,4 +4508,58 @@ theorem BridgedSourceInternalBodyWithErrorsStmts_of_plain
     BridgedSourceInternalBodyWithErrorsStmts fields errors dynamicSource stmts :=
   fun stmt hMem => .base (h stmt hMem)
 
+/-! ### Direct plain→with-errors wrapper lifts
+
+Compositions of `*BodyWithErrorsStmts_of_plain` with the existing with-errors
+wrapper lifts. Callers holding a plain-body witness reach structured, nested,
+or forEach-wrapped with-errors aliases in one pointwise step. -/
+
+theorem BridgedSourceExternalStructuredBodyWithErrorsStmts_of_plain
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceExternalBodyStmts fields dynamicSource stmts) :
+    BridgedSourceExternalStructuredBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  fun stmt hMem => .base (.base (h stmt hMem))
+
+theorem BridgedSourceInternalStructuredBodyWithErrorsStmts_of_plain
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceInternalBodyStmts fields dynamicSource stmts) :
+    BridgedSourceInternalStructuredBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  fun stmt hMem => .base (.base (h stmt hMem))
+
+theorem BridgedSourceExternalNestedBodyWithErrorsStmts_of_plain
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceExternalBodyStmts fields dynamicSource stmts) :
+    BridgedSourceExternalNestedBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  fun stmt hMem => .structured (.base (.base (h stmt hMem)))
+
+theorem BridgedSourceInternalNestedBodyWithErrorsStmts_of_plain
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceInternalBodyStmts fields dynamicSource stmts) :
+    BridgedSourceInternalNestedBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  fun stmt hMem => .structured (.base (.base (h stmt hMem)))
+
+theorem BridgedSourceExternalForEachBodyWithErrorsStmts_of_plain
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceExternalBodyStmts fields dynamicSource stmts) :
+    BridgedSourceExternalForEachBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  fun stmt hMem => .base (.base (h stmt hMem))
+
+theorem BridgedSourceInternalForEachBodyWithErrorsStmts_of_plain
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceInternalBodyStmts fields dynamicSource stmts) :
+    BridgedSourceInternalForEachBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  fun stmt hMem => .base (.base (h stmt hMem))
+
 end Compiler.Proofs.YulGeneration.Backends
