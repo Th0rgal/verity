@@ -4364,4 +4364,33 @@ theorem BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_alias
       intro stmt hMem
       exact h stmt (by simp [hMem])
 
+/-! ### Lifting flat plain-body aliases into the recursive inductive
+
+Symmetric counterparts of the with-errors lift lemmas for the non-with-errors
+recursive predicate. Callers with a flat
+`∀ stmt ∈ stmts, BridgedSource*BodyStmt …` witness reach the inductive
+`BridgedSource*RecursiveBodyStmts …` via pointwise `base`/`cons`/`nil`. -/
+
+theorem BridgedSourceExternalRecursiveBodyStmts_of_alias
+    {fields : List Field} {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceExternalBodyStmts fields dynamicSource stmts) :
+    BridgedSourceExternalRecursiveBodyStmts fields dynamicSource stmts := by
+  induction stmts with
+  | nil => exact .nil
+  | cons head tail ih =>
+      refine .cons (.base (h head (by simp))) (ih ?_)
+      intro stmt hMem
+      exact h stmt (by simp [hMem])
+
+theorem BridgedSourceInternalRecursiveBodyStmts_of_alias
+    {fields : List Field} {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceInternalBodyStmts fields dynamicSource stmts) :
+    BridgedSourceInternalRecursiveBodyStmts fields dynamicSource stmts := by
+  induction stmts with
+  | nil => exact .nil
+  | cons head tail ih =>
+      refine .cons (.base (h head (by simp))) (ih ?_)
+      intro stmt hMem
+      exact h stmt (by simp [hMem])
+
 end Compiler.Proofs.YulGeneration.Backends
