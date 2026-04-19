@@ -1498,6 +1498,16 @@ theorem bridgedStmt_block_of_bridgedStmts
     BridgedStmt (.block stmts) :=
   BridgedStmt.block stmts hStmts
 
+/-- Wrap a bridged condition plus `BridgedStmts`-typed body under
+    `BridgedStmt.if_`. Parallels `bridgedStmt_block_of_bridgedStmts` for
+    the single-branch conditional shape (no else) emitted by require/revert
+    guards and similar fragments. -/
+theorem bridgedStmt_if_of_bridgedStmts
+    {cond : Compiler.Yul.YulExpr} {body : List Compiler.Yul.YulStmt}
+    (hCond : BridgedExpr cond) (hBody : BridgedStmts body) :
+    BridgedStmt (.if_ cond body) :=
+  BridgedStmt.if_ cond body hCond hBody
+
 /-- `BridgedStmts` analogue of `BridgedStraightStmts_map_tstore`, for the
     transient-store variant of the map helper above. -/
 theorem BridgedStmts_map_tstore
