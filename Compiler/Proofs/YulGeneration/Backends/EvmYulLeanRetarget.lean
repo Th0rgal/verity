@@ -1473,6 +1473,18 @@ theorem BridgedStmts_of_BridgedStraightStmts
   intro stmt hMem
   exact bridgedStmt_of_bridgedStraightStmt (hStmts stmt hMem)
 
+/-- Cons a `BridgedStraightStmt` head onto a `BridgedStmts` tail without
+    retyping `bridgedStmt_of_bridgedStraightStmt` at the call site. Shortens
+    scalar-emit body assembly, where each straight-line prologue/terminator
+    statement (`let __evt_ptr := mload ...`, `let __evt_topic0 := keccak256 ...`,
+    final `logN(...)`) is naturally a `BridgedStraightStmt` being attached to
+    a `BridgedStmts`-typed recursive tail. -/
+theorem BridgedStmts_cons_straight {stmt : Compiler.Yul.YulStmt}
+    {stmts : List Compiler.Yul.YulStmt}
+    (hStmt : BridgedStraightStmt stmt) (hStmts : BridgedStmts stmts) :
+    BridgedStmts (stmt :: stmts) :=
+  BridgedStmts_cons (bridgedStmt_of_bridgedStraightStmt hStmt) hStmts
+
 /-- `BridgedStmts` analogue of `BridgedStraightStmts_map_mstore`: a list of
     `(offset, value)` expression pairs with both components bridged maps to
     a `BridgedStmts` list of `mstore(offset, value)` statements. Directly
