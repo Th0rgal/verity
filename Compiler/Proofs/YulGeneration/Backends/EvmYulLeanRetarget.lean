@@ -2307,29 +2307,25 @@ theorem defaultDispatchCase_bridged
           refine BridgedStmts_cons ?_ BridgedStmts_nil
           refine BridgedStmt.block _ ?_
           exact BridgedStmts_cons_let "__is_empty_calldata" _ bridgedExpr_empty_calldata
-            (BridgedStmts_cons
-              (BridgedStmt.if_ _ _
-                (BridgedExpr.ident "__is_empty_calldata")
-                (dispatchBody_bridged rc.payable "receive()" rc.body
-                  (hReceive rc rfl)))
-              (BridgedStmts_cons
-                (BridgedStmt.if_ _ _ (bridgedExpr_iszero_ident "__is_empty_calldata")
-                  (BridgedStmts_singleton_revert_zero))
+            (BridgedStmts_cons_if
+              (BridgedExpr.ident "__is_empty_calldata")
+              (dispatchBody_bridged rc.payable "receive()" rc.body
+                (hReceive rc rfl))
+              (BridgedStmts_cons_if (bridgedExpr_iszero_ident "__is_empty_calldata")
+                BridgedStmts_singleton_revert_zero
                 BridgedStmts_nil))
       | some fb =>
           unfold Compiler.CodegenCommon.defaultDispatchCase
           refine BridgedStmts_cons ?_ BridgedStmts_nil
           refine BridgedStmt.block _ ?_
           exact BridgedStmts_cons_let "__is_empty_calldata" _ bridgedExpr_empty_calldata
-            (BridgedStmts_cons
-              (BridgedStmt.if_ _ _
-                (BridgedExpr.ident "__is_empty_calldata")
-                (dispatchBody_bridged rc.payable "receive()" rc.body
-                  (hReceive rc rfl)))
-              (BridgedStmts_cons
-                (BridgedStmt.if_ _ _ (bridgedExpr_iszero_ident "__is_empty_calldata")
-                  (dispatchBody_bridged fb.payable "fallback()" fb.body
-                    (hFallback fb rfl)))
+            (BridgedStmts_cons_if
+              (BridgedExpr.ident "__is_empty_calldata")
+              (dispatchBody_bridged rc.payable "receive()" rc.body
+                (hReceive rc rfl))
+              (BridgedStmts_cons_if (bridgedExpr_iszero_ident "__is_empty_calldata")
+                (dispatchBody_bridged fb.payable "fallback()" fb.body
+                  (hFallback fb rfl))
                 BridgedStmts_nil))
 
 private theorem switchCases_bridged
@@ -2366,21 +2362,19 @@ theorem buildSwitch_bridged
   unfold Compiler.CodegenCommon.buildSwitch
   exact BridgedStmt.block _
     (BridgedStmts_cons_let "__has_selector" _ bridgedExpr_has_selector
-      (BridgedStmts_cons
-        (BridgedStmt.if_ _ _ (bridgedExpr_iszero_ident "__has_selector")
-          (defaultDispatchCase_bridged fallback receive hFallback hReceive))
-        (BridgedStmts_cons
-          (BridgedStmt.if_ _ _
-            (BridgedExpr.ident "__has_selector")
-            (BridgedStmts_cons
-              (BridgedStmt.«switch» _ _ _
-                bridgedExpr_selector
-                (switchCases_bridged funcs hFunctions)
-                (by
-                  intro body hBody
-                  cases hBody
-                  exact defaultDispatchCase_bridged fallback receive hFallback hReceive))
-              BridgedStmts_nil))
+      (BridgedStmts_cons_if (bridgedExpr_iszero_ident "__has_selector")
+        (defaultDispatchCase_bridged fallback receive hFallback hReceive)
+        (BridgedStmts_cons_if
+          (BridgedExpr.ident "__has_selector")
+          (BridgedStmts_cons
+            (BridgedStmt.«switch» _ _ _
+              bridgedExpr_selector
+              (switchCases_bridged funcs hFunctions)
+              (by
+                intro body hBody
+                cases hBody
+                exact defaultDispatchCase_bridged fallback receive hFallback hReceive))
+            BridgedStmts_nil)
           BridgedStmts_nil)))
 
 theorem mappingSlotFuncAt_bridged (scratchBase : Nat) :
