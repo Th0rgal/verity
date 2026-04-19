@@ -138,7 +138,7 @@ structure CompiledStmtStepWithHelpers
     (stmt : Stmt)
     (compiledIR : List YulStmt) : Prop where
   compileOk :
-    CompilationModel.compileStmt fields [] [] .calldata [] false scope stmt =
+    CompilationModel.compileStmt fields spec.events spec.errors .calldata [] false scope stmt =
       Except.ok compiledIR
   preserves :
     ∀ (runtime : SourceSemantics.RuntimeState)
@@ -168,7 +168,7 @@ structure CompiledStmtStepWithHelpersAndHelperIR
     (stmt : Stmt)
     (compiledIR : List YulStmt) : Prop where
   compileOk :
-    CompilationModel.compileStmt fields [] [] .calldata [] false scope stmt =
+    CompilationModel.compileStmt fields spec.events spec.errors .calldata [] false scope stmt =
       Except.ok compiledIR
   preserves :
     ∀ (runtime : SourceSemantics.RuntimeState)
@@ -200,9 +200,10 @@ theorem CompiledStmtStep.withHelpers_of_helperSurfaceClosed
     {compiledIR : List YulStmt}
     (hstep : CompiledStmtStep fields scope stmt compiledIR)
     (hnoEvents : spec.events = [])
+    (hnoErrors : spec.errors = [])
     (hsurface : stmtTouchesUnsupportedHelperSurface stmt = false) :
     CompiledStmtStepWithHelpers spec fields scope stmt compiledIR where
-  compileOk := hstep.compileOk
+  compileOk := by simpa [hnoEvents, hnoErrors] using hstep.compileOk
   preserves := by
     intro runtime state helperFuel extraFuel hexact hscope hbounded hruntime hslack
     rcases hstep.preserves runtime state extraFuel
@@ -2074,6 +2075,7 @@ theorem stmtListGenericWithHelpers_of_core_and_helperSurfaceClosed
     {stmts : List Stmt}
     (hgeneric : StmtListGenericCore fields scope stmts)
     (hnoEvents : spec.events = [])
+    (hnoErrors : spec.errors = [])
     (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
     StmtListGenericWithHelpers spec fields scope stmts := by
   induction hgeneric with
@@ -2082,7 +2084,7 @@ theorem stmtListGenericWithHelpers_of_core_and_helperSurfaceClosed
   | @cons scope stmt compiledIR rest hstep hrest ih =>
       simp only [stmtListTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
       exact .cons
-        (hstep.withHelpers_of_helperSurfaceClosed hnoEvents hsurface.1)
+        (hstep.withHelpers_of_helperSurfaceClosed hnoEvents hnoErrors hsurface.1)
         (ih hsurface.2)
 theorem stmtListGenericWithHelpers_of_helperFreeStepInterface_and_helperSurfaceClosed
     {spec : CompilationModel}
@@ -2091,6 +2093,7 @@ theorem stmtListGenericWithHelpers_of_helperFreeStepInterface_and_helperSurfaceC
     {stmts : List Stmt}
     (hhelperFree : StmtListHelperFreeStepInterface fields scope stmts)
     (hnoEvents : spec.events = [])
+    (hnoErrors : spec.errors = [])
     (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
     StmtListGenericWithHelpers spec fields scope stmts := by
   induction hhelperFree with
@@ -2100,7 +2103,7 @@ theorem stmtListGenericWithHelpers_of_helperFreeStepInterface_and_helperSurfaceC
       simp only [stmtListTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
       rcases hhead hsurface.1 with ⟨compiledIR, hstep⟩
       exact .cons
-        (hstep.withHelpers_of_helperSurfaceClosed hnoEvents hsurface.1)
+        (hstep.withHelpers_of_helperSurfaceClosed hnoEvents hnoErrors hsurface.1)
         (ih hsurface.2)
 
 private theorem compiledStmtStepWithHelpers_preserves_withCompat
@@ -2208,6 +2211,8 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_withHelpers_and_compiledLegacyC
     {stmts : List Stmt}
     (hgeneric : StmtListGenericWithHelpers spec fields scope stmts)
     (hlegacy : StmtListCompiledLegacyCompatible fields scope stmts)
+    (hnoEvents : spec.events = [])
+    (hnoErrors : spec.errors = [])
     (hinternal : runtimeContract.internalFunctions = []) :
     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
   induction hgeneric with
@@ -2217,7 +2222,9 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_withHelpers_and_compiledLegacyC
       cases hlegacy with
       | cons hhead htail =>
           exact .cons
-            (hstep.withHelperIR_of_legacyCompatible (hhead compiledIR hstep.compileOk) hinternal)
+            (hstep.withHelperIR_of_legacyCompatible
+              (hhead compiledIR (by simpa [hnoEvents, hnoErrors] using hstep.compileOk))
+              hinternal)
             (ih htail)
 
 /-- Exact helper-aware list bridge that splits the remaining work cleanly:
@@ -2235,6 +2242,7 @@ theorem
     (hsteps : StmtListHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
     (hlegacy : StmtListHelperFreeCompiledLegacyCompatible fields scope stmts)
     (hnoEvents : spec.events = [])
+    (hnoErrors : spec.errors = [])
     (hinternal : runtimeContract.internalFunctions = []) :
     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
   induction hsteps with
@@ -2249,7 +2257,7 @@ theorem
               · obtain ⟨compiledIR, hcore⟩ := hheadFree hsurface
                 exact .cons
                   (CompiledStmtStepWithHelpers.withHelperIR_of_legacyCompatible
-                    (hcore.withHelpers_of_helperSurfaceClosed hnoEvents hsurface)
+                    (hcore.withHelpers_of_helperSurfaceClosed hnoEvents hnoErrors hsurface)
                     (hheadLegacy hsurface compiledIR hcore.compileOk)
                     hinternal)
                   (ih htailFree htailLegacy)
@@ -2273,6 +2281,7 @@ theorem
     (hhelperFree : StmtListHelperFreeStepInterface fields scope stmts)
     (hsteps : StmtListHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
     (hnoEvents : spec.events = [])
+    (hnoErrors : spec.errors = [])
     (hdisjoint : StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields scope stmts) :
     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
   induction hsteps with
@@ -2287,7 +2296,7 @@ theorem
               · obtain ⟨compiledIR, hcore⟩ := hheadFree hsurface
                 exact .cons
                   (CompiledStmtStepWithHelpers.withHelperIR_of_callsDisjoint
-                    (hcore.withHelpers_of_helperSurfaceClosed hnoEvents hsurface)
+                    (hcore.withHelpers_of_helperSurfaceClosed hnoEvents hnoErrors hsurface)
                     (hheadDisjoint hsurface compiledIR hcore.compileOk))
                   (ih htailFree htailDisjoint)
               · have hsurfaceTrue : stmtTouchesUnsupportedHelperSurface stmt = true := by
@@ -2312,6 +2321,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_int
       StmtListResidualHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
     (hlegacy : StmtListHelperFreeCompiledLegacyCompatible fields scope stmts)
     (hnoEvents : spec.events = [])
+    (hnoErrors : spec.errors = [])
     (hnoInternalFunctions : runtimeContract.internalFunctions = []) :
     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
   induction hhelperFree with
@@ -2327,7 +2337,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_int
                   by_cases hsurface : stmtTouchesUnsupportedHelperSurface stmt = false
                   · rcases hheadFree hsurface with ⟨compiledIR, hcore⟩
                     exact .cons
-                      ((hcore.withHelpers_of_helperSurfaceClosed hnoEvents hsurface).withHelperIR_of_legacyCompatible
+                      ((hcore.withHelpers_of_helperSurfaceClosed hnoEvents hnoErrors hsurface).withHelperIR_of_legacyCompatible
                         (hheadLegacy hsurface compiledIR hcore.compileOk)
                         hnoInternalFunctions)
                       (ih htailInternal htailResidual htailLegacy)
@@ -2372,6 +2382,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_dir
       StmtListResidualHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
     (hlegacy : StmtListHelperFreeCompiledLegacyCompatible fields scope stmts)
     (hnoEvents : spec.events = [])
+    (hnoErrors : spec.errors = [])
     (hnoInternalFunctions : runtimeContract.internalFunctions = []) :
     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
   exact
@@ -2388,6 +2399,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_dir
       (hresidual := hresidual)
       (hlegacy := hlegacy)
       (hnoEvents := hnoEvents)
+      (hnoErrors := hnoErrors)
       hnoInternalFunctions
 
 /-- Exact helper-aware list bridge over the fully split helper-positive
@@ -2411,6 +2423,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_dir
       StmtListResidualHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
     (hlegacy : StmtListHelperFreeCompiledLegacyCompatible fields scope stmts)
     (hnoEvents : spec.events = [])
+    (hnoErrors : spec.errors = [])
     (hnoInternalFunctions : runtimeContract.internalFunctions = []) :
     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
   exact
@@ -2426,6 +2439,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_dir
       (hresidual := hresidual)
       (hlegacy := hlegacy)
       (hnoEvents := hnoEvents)
+      (hnoErrors := hnoErrors)
       hnoInternalFunctions
 
 /-- Exact helper-aware list bridge that splits the remaining work cleanly:
@@ -2442,6 +2456,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceStepInterface
     (hsteps : StmtListHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
     (hlegacy : StmtListHelperFreeCompiledLegacyCompatible fields scope stmts)
     (hnoEvents : spec.events = [])
+    (hnoErrors : spec.errors = [])
     (hinternal : runtimeContract.internalFunctions = []) :
     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
   induction hgeneric with
@@ -2453,7 +2468,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceStepInterface
           | cons hheadLegacy htailLegacy =>
               by_cases hsurface : stmtTouchesUnsupportedHelperSurface stmt = false
               · exact .cons
-                  ((hstep.withHelpers_of_helperSurfaceClosed hnoEvents hsurface).withHelperIR_of_legacyCompatible
+                  ((hstep.withHelpers_of_helperSurfaceClosed hnoEvents hnoErrors hsurface).withHelperIR_of_legacyCompatible
                     (hheadLegacy hsurface compiledIR hstep.compileOk) hinternal)
                   (ih htailSteps htailLegacy)
               · have hsurfaceTrue : stmtTouchesUnsupportedHelperSurface stmt = true := by
@@ -2471,6 +2486,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceStepInterface
     (hgeneric : StmtListGenericCore fields scope stmts)
     (hsteps : StmtListHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
     (hnoEvents : spec.events = [])
+    (hnoErrors : spec.errors = [])
     (hdisjoint : StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields scope stmts) :
     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
   induction hgeneric with
@@ -2482,7 +2498,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceStepInterface
           | cons hheadDisjoint htailDisjoint =>
               by_cases hsurface : stmtTouchesUnsupportedHelperSurface stmt = false
               · exact .cons
-                  ((hstep.withHelpers_of_helperSurfaceClosed hnoEvents hsurface).withHelperIR_of_callsDisjoint
+                  ((hstep.withHelpers_of_helperSurfaceClosed hnoEvents hnoErrors hsurface).withHelperIR_of_callsDisjoint
                     (hheadDisjoint hsurface compiledIR hstep.compileOk))
                   (ih htailSteps htailDisjoint)
               · have hsurfaceTrue : stmtTouchesUnsupportedHelperSurface stmt = true := by
@@ -2508,6 +2524,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_internalHelperSurfaceStepI
       StmtListResidualHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
     (hlegacy : StmtListHelperFreeCompiledLegacyCompatible fields scope stmts)
     (hnoEvents : spec.events = [])
+    (hnoErrors : spec.errors = [])
     (hnoInternalFunctions : runtimeContract.internalFunctions = []) :
     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
   exact
@@ -2519,6 +2536,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_internalHelperSurfaceStepI
       (hresidual := hresidual)
       (hlegacy := hlegacy)
       (hnoEvents := hnoEvents)
+      (hnoErrors := hnoErrors)
       hnoInternalFunctions
 
 /-- Legacy-core exact helper-aware list bridge over the fully split
@@ -2545,6 +2563,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_directInternalHelperCallSt
       StmtListResidualHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
     (hlegacy : StmtListHelperFreeCompiledLegacyCompatible fields scope stmts)
     (hnoEvents : spec.events = [])
+    (hnoErrors : spec.errors = [])
     (hnoInternalFunctions : runtimeContract.internalFunctions = []) :
     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
   exact
@@ -2559,6 +2578,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_directInternalHelperCallSt
       (hresidual := hresidual)
       (hlegacy := hlegacy)
       (hnoEvents := hnoEvents)
+      (hnoErrors := hnoErrors)
       hnoInternalFunctions
 
 /-- Legacy-core exact helper-aware list bridge over the fully split
@@ -2583,6 +2603,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_directInternalHelperStepIn
       StmtListResidualHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
     (hlegacy : StmtListHelperFreeCompiledLegacyCompatible fields scope stmts)
     (hnoEvents : spec.events = [])
+    (hnoErrors : spec.errors = [])
     (hnoInternalFunctions : runtimeContract.internalFunctions = []) :
     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
   exact
@@ -2596,6 +2617,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_directInternalHelperStepIn
       (hresidual := hresidual)
       (hlegacy := hlegacy)
       (hnoEvents := hnoEvents)
+      (hnoErrors := hnoErrors)
       hnoInternalFunctions
 
 /-- Disjoint-based legacy-core exact helper-aware list bridge over the fully
@@ -2619,6 +2641,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_directInternalHelperCallSt
     (hresidual :
       StmtListResidualHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
     (hnoEvents : spec.events = [])
+    (hnoErrors : spec.errors = [])
     (hdisjoint : StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields scope stmts) :
     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
   exact
@@ -2636,6 +2659,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_directInternalHelperCallSt
             hstruct)
           hresidual)
       (hnoEvents := hnoEvents)
+      (hnoErrors := hnoErrors)
       (hdisjoint := hdisjoint)
 
 /-- On helper-surface-closed statement lists, the disjoint-based bridge
@@ -2650,6 +2674,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceClosed_and_he
     (hgeneric : StmtListGenericCore fields scope stmts)
     (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false)
     (hnoEvents : spec.events = [])
+    (hnoErrors : spec.errors = [])
     (hdisjoint : StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields scope stmts) :
     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
   exact
@@ -2666,6 +2691,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceClosed_and_he
           (stmts := stmts)
           hsurface)
       (hnoEvents := hnoEvents)
+      (hnoErrors := hnoErrors)
       (hdisjoint := hdisjoint)
 
 /-- On helper-surface-closed statement lists, the new exact helper-aware list
@@ -2681,6 +2707,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceClosed_and_he
     (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false)
     (hlegacy : StmtListHelperFreeCompiledLegacyCompatible fields scope stmts)
     (hnoEvents : spec.events = [])
+    (hnoErrors : spec.errors = [])
     (hinternal : runtimeContract.internalFunctions = []) :
     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
   exact
@@ -2698,6 +2725,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceClosed_and_he
           hsurface)
       (hlegacy := hlegacy)
       (hnoEvents := hnoEvents)
+      (hnoErrors := hnoErrors)
       hinternal
 
 /-- Combined fail-closed lifting bridge from the existing helper-free generic
@@ -2714,6 +2742,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceClosed_and_co
     (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false)
     (hlegacy : StmtListCompiledLegacyCompatible fields scope stmts)
     (hnoEvents : spec.events = [])
+    (hnoErrors : spec.errors = [])
     (hinternal : runtimeContract.internalFunctions = []) :
     StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
   exact
@@ -2725,6 +2754,7 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceClosed_and_co
       (hlegacy :=
         stmtListHelperFreeCompiledLegacyCompatible_of_compiledLegacyCompatible hlegacy)
       (hnoEvents := hnoEvents)
+      (hnoErrors := hnoErrors)
       hinternal
 
 /-- Structural scope discipline for statement prefixes used to justify that the
@@ -13921,11 +13951,11 @@ theorem compileStmtList_ok_of_stmtListGenericWithHelpers
     (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by
+        fields spec.events spec.errors .calldata [] false inScopeNames stmts = Except.ok bodyIR := by
   induction hgeneric generalizing inScopeNames with
   | nil => exact ⟨[], rfl⟩
   | cons hstep _hrest ih =>
-      rcases FunctionBody.compileStmt_ok_any_scope
+      rcases FunctionBody.compileStmt_ok_any_scope_with_surface
         (scope2 := inScopeNames) ⟨_, hstep.compileOk⟩ with ⟨headIR, hhead⟩
       rcases ih (inScopeNames := collectStmtNames _ ++ inScopeNames)
           (by intro name hmem
@@ -13935,7 +13965,7 @@ theorem compileStmtList_ok_of_stmtListGenericWithHelpers
               · exact List.mem_append_right _ (hincluded name h))
         with ⟨tailIR, htail⟩
       exact ⟨headIR ++ tailIR,
-        FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok hhead htail⟩
+        FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok_with_surface hhead htail⟩
 
 theorem compileStmtList_ok_of_stmtListGenericWithHelpersAndHelperIR
     {runtimeContract : IRContract}
@@ -13948,11 +13978,11 @@ theorem compileStmtList_ok_of_stmtListGenericWithHelpersAndHelperIR
     (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by
+        fields spec.events spec.errors .calldata [] false inScopeNames stmts = Except.ok bodyIR := by
   induction hgeneric generalizing inScopeNames with
   | nil => exact ⟨[], rfl⟩
   | cons hstep _hrest ih =>
-      rcases FunctionBody.compileStmt_ok_any_scope
+      rcases FunctionBody.compileStmt_ok_any_scope_with_surface
         (scope2 := inScopeNames) ⟨_, hstep.compileOk⟩ with ⟨headIR, hhead⟩
       rcases ih (inScopeNames := collectStmtNames _ ++ inScopeNames)
           (by intro name hmem
@@ -13962,7 +13992,7 @@ theorem compileStmtList_ok_of_stmtListGenericWithHelpersAndHelperIR
               · exact List.mem_append_right _ (hincluded name h))
         with ⟨tailIR, htail⟩
       exact ⟨headIR ++ tailIR,
-        FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok hhead htail⟩
+        FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok_with_surface hhead htail⟩
 
 theorem stmtStepMatchesIRExec_of_included
     {fields : List Field}
@@ -14345,10 +14375,12 @@ theorem exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel_step
     (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
     (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
     (hbounded : FunctionBody.bindingsBounded runtime.bindings)
+    (hnoEvents : spec.events = [])
+    (hnoErrors : spec.errors = [])
     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false scope stmts = Except.ok bodyIR ∧
+        fields spec.events spec.errors .calldata [] false scope stmts = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmtListWithHelpers spec fields helperFuel runtime stmts
       let irExec := execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR
       stmtStepMatchesIRExec
@@ -14368,9 +14400,9 @@ theorem exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel_step
       let bodyIR := compiledIR ++ tailIR
       have hbodyCompile :
           CompilationModel.compileStmtList
-            fields [] [] .calldata [] false scope (stmt :: rest) =
+            fields spec.events spec.errors .calldata [] false scope (stmt :: rest) =
               Except.ok bodyIR := by
-        exact FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok
+        exact FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok_with_surface
           hstep.compileOk htailCompile
       let headExtraFuel := sizeOf bodyIR - compiledIR.length + extraFuel
       have hheadSlack :
@@ -14510,10 +14542,12 @@ theorem exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel
     (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
     (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
     (hbounded : FunctionBody.bindingsBounded runtime.bindings)
+    (hnoEvents : spec.events = [])
+    (hnoErrors : spec.errors = [])
     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false scope stmts = Except.ok bodyIR ∧
+        fields spec.events spec.errors .calldata [] false scope stmts = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmtListWithHelpers spec fields helperFuel runtime stmts
       let irExec := execIRStmtsWithInternals runtimeContract (sizeOf bodyIR + extraFuel + 1) state bodyIR
       stmtStepMatchesIRExecWithInternals
@@ -14534,9 +14568,9 @@ theorem exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel
       let bodyIR := compiledIR ++ tailIR
       have hbodyCompile :
           CompilationModel.compileStmtList
-            fields [] [] .calldata [] false scope (stmt :: rest) =
+            fields spec.events spec.errors .calldata [] false scope (stmt :: rest) =
               Except.ok bodyIR := by
-        exact FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok
+        exact FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok_with_surface
           hstep.compileOk htailCompile
       let headExtraFuel := sizeOf bodyIR - compiledIR.length + extraFuel
       have hheadSlack :
@@ -14719,6 +14753,8 @@ theorem exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel
     (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
     (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
     (hbounded : FunctionBody.bindingsBounded runtime.bindings)
+    (hnoEvents : spec.events = [])
+    (hnoErrors : spec.errors = [])
     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
@@ -14739,9 +14775,11 @@ theorem exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel
       hscope
       hexact
       hbounded
+      hnoEvents
+      hnoErrors
       hruntime with
     ⟨bodyIR, hcompile, hstep⟩
-  refine ⟨bodyIR, hcompile, ?_⟩
+  refine ⟨bodyIR, by simpa [hnoEvents, hnoErrors] using hcompile, ?_⟩
   exact stmtStepMatchesIRExec_implies_stmtResultMatchesIRExec hstep
 
 theorem exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel
@@ -14760,6 +14798,8 @@ theorem exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel
     (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
     (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
     (hbounded : FunctionBody.bindingsBounded runtime.bindings)
+    (hnoEvents : spec.events = [])
+    (hnoErrors : spec.errors = [])
     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
@@ -14782,9 +14822,11 @@ theorem exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel
       hscope
       hexact
       hbounded
+      hnoEvents
+      hnoErrors
       hruntime with
     ⟨bodyIR, hcompile, hstep⟩
-  refine ⟨bodyIR, hcompile, ?_⟩
+  refine ⟨bodyIR, by simpa [hnoEvents, hnoErrors] using hcompile, ?_⟩
   exact stmtStepMatchesIRExecWithInternals_implies_stmtResultMatchesIRExecWithInternals hstep
 
 theorem supported_function_body_correct_from_exact_state_generic
@@ -14961,6 +15003,8 @@ private theorem supported_function_body_correct_from_exact_state_generic_helper_
       hscope
       hscopeExact
       hbounded
+      hnoEvents
+      hnoErrors
       hstateRuntime' with
     ⟨bodyIR, hbodyGenericCompile, hgenericSem⟩
   have hbodyEq : bodyIR = bodyStmts := by
@@ -15091,6 +15135,8 @@ private theorem
       hscope
       hscopeExact
       hbounded
+      hnoEvents
+      hnoErrors
       hstateRuntime' with
     ⟨bodyIR, hbodyGenericCompile, hgenericSem⟩
   have hbodyEq : bodyIR = bodyStmts := by
@@ -15399,6 +15445,7 @@ theorem supported_function_body_correct_from_exact_state_generic_helper_surface_
       (hsteps := hsteps)
       (hlegacy := hlegacy)
       (hnoEvents := hnoEvents)
+      (hnoErrors := hnoErrors)
       hinternal
   exact
     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
@@ -15485,6 +15532,7 @@ theorem supported_function_body_correct_from_exact_state_generic_internal_helper
       (hresidual := hresidualSteps)
       (hlegacy := hlegacy)
       (hnoEvents := hnoEvents)
+      (hnoErrors := hnoErrors)
       hnoInternalFunctions
   exact
     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
@@ -15595,6 +15643,7 @@ theorem supported_function_body_correct_from_exact_state_generic_finer_split_int
       (hresidual := hresidual)
       (hlegacy := hlegacy)
       (hnoEvents := hnoEvents)
+      (hnoErrors := hnoErrors)
       hnoInternalFunctions
   exact
     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
@@ -15697,6 +15746,7 @@ theorem supported_function_body_correct_from_exact_state_generic_split_internal_
       (hresidual := hresidual)
       (hlegacy := hlegacy)
       (hnoEvents := hnoEvents)
+      (hnoErrors := hnoErrors)
       hnoInternalFunctions
   exact
     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
@@ -15751,6 +15801,7 @@ private theorem
         (fn.params.map (·.name))
         fn.body)
     (hnoEvents : model.events = [])
+    (hnoErrors : model.errors = [])
     (hdisjoint :
       StmtListHelperFreeCompiledCallsDisjoint
         runtimeContract
@@ -15777,6 +15828,7 @@ private theorem
           hstruct)
         hresidual)
     (hnoEvents := hnoEvents)
+    (hnoErrors := hnoErrors)
     (hdisjoint := hdisjoint)
 
 /-- Disjoint-based body-level exact helper-aware bridge over the fully split
@@ -15873,7 +15925,7 @@ theorem supported_function_body_correct_from_exact_state_generic_finer_split_int
         fn.body :=
     generic_with_helpers_and_helper_ir_of_split_internal_helper_surface_callsDisjoint
       runtimeContract model fn hhelperFree hcall hassign hexpr hstruct hresidual
-      hnoEvents hdisjoint
+      hnoEvents hnoErrors hdisjoint
   exact
     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
       runtimeContract
@@ -16438,6 +16490,7 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers
       (spec := model)
       (hhelperFree := hhelperFree)
       (hnoEvents := hnoEvents)
+      (hnoErrors := hnoErrors)
       hhelperSurface
   exact supported_function_body_correct_from_exact_state_generic_helper_steps
     model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel

@@ -20,16 +20,33 @@ def addressModulus : Nat := 2 ^ 160
 def boolWord (b : Bool) : Nat :=
   if b then 1 else 0
 
+/-- Low-level proof encoding of an emitted event.
+
+Source execution stores the same log payload shape as proof IR `log*`
+execution: topics first, followed by word-aligned data words. For known events
+`eventFromResolvedArgs?` places the event signature topic at the front of
+`indexedArgs`, so this encoder intentionally ignores the high-level name. -/
 def encodeEvent (ev : Verity.Event) : List Nat :=
-  (ev.name.toList.map Char.toNat) ++
-    (0 :: (ev.args.map (fun arg => arg.val))) ++
-    (0 :: (ev.indexedArgs.map (fun arg => arg.val)))
+  ev.indexedArgs.map (fun arg => arg.val) ++ ev.args.map (fun arg => arg.val)
 
 def encodeEvents (events : List Verity.Event) : List (List Nat) :=
   events.map encodeEvent
 
 def valuesAsEventArgs (values : List Nat) : List Verity.Core.Uint256 :=
   values.map (fun value => (value : Verity.Core.Uint256))
+
+def eventSignatureMemory (eventDef : EventDef) : Nat → Nat :=
+  let words :=
+    (chunkBytes32 (bytesFromString (eventSignature eventDef))).map wordFromBytes
+  fun offset =>
+    if offset % 32 = 0 then
+      (words[offset / 32]?).getD 0
+    else
+      0
+
+def eventSignatureTopic (eventDef : EventDef) : Nat :=
+  abstractKeccakMemorySlice (eventSignatureMemory eventDef) 0
+    (bytesFromString (eventSignature eventDef)).length
 
 def normalizeEventValue (ty : ParamType) (value : Nat) : Nat :=
   let word := wordNormalize value
@@ -58,7 +75,10 @@ def eventFromResolvedArgs? (events : List EventDef) (eventName : String)
       some { name := eventName, args := valuesAsEventArgs values, indexedArgs := [] }
   | some eventDef => do
       let (args, indexedArgs) ← splitEventArgsByParams eventDef.params values
-      some { name := eventName, args := args, indexedArgs := indexedArgs }
+      some {
+        name := eventName
+        args := args
+        indexedArgs := (eventSignatureTopic eventDef : Verity.Core.Uint256) :: indexedArgs }
 
 def effectiveFields (spec : CompilationModel) : List Field :=
   applySlotAliasRanges spec.fields spec.slotAliasRanges

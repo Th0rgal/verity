@@ -884,6 +884,7 @@ example :
         · simp [StmtMappingWriteSlotSafe]
         · simp [StmtMappingWriteSlotSafe])
       (hnoEvents := rfl)
+      (hnoErrors := rfl)
       (tx := constructorOnlyTx)
       (initialWorld := Verity.defaultState)
       (bindings := [("initialOwner", Compiler.Constants.addressMask &&& 11)])
@@ -949,6 +950,7 @@ example :
           · simp [StmtMappingWriteSlotSafe]
           · simp [StmtMappingWriteSlotSafe])
         (hnoEvents := rfl)
+        (hnoErrors := rfl)
         (tx := constructorOnlyTrailingTx)
         (initialWorld := Verity.defaultState)
         (bindings := bindings)
@@ -1050,7 +1052,15 @@ example :
             events := eventTrackingRuntime.world.events ++
               [{ name := "Evt"
                  args := [Verity.Core.Uint256.ofNat (22 % Compiler.Constants.evmModulus)]
-                 indexedArgs := [Verity.Core.Uint256.ofNat (11 % Compiler.Constants.evmModulus)] }] } } := by
+                 indexedArgs := [
+                   Verity.Core.Uint256.ofNat
+                     (SourceSemantics.eventSignatureTopic
+                       { name := "Evt"
+                         params := [
+                           { name := "topic", ty := .uint256, kind := .indexed },
+                           { name := "value", ty := .uint256, kind := .unindexed }
+                         ] }),
+                   Verity.Core.Uint256.ofNat (11 % Compiler.Constants.evmModulus)] }] } } := by
   have hunindexed :
       (EventParamKind.unindexed == EventParamKind.indexed) = false := by
     native_decide
@@ -1086,7 +1096,16 @@ example :
           Verity.Core.Uint256.ofNat 17,
           Verity.Core.Uint256.ofNat 44
         ]
-        indexedArgs := [Verity.Core.Uint256.ofNat 1] } := by
+        indexedArgs := [
+          Verity.Core.Uint256.ofNat
+            (SourceSemantics.eventSignatureTopic
+              { name := "Evt"
+                params := [
+                  { name := "flag", ty := .bool, kind := .indexed },
+                  { name := "owner", ty := .address, kind := .unindexed },
+                  { name := "small", ty := .uint8, kind := .unindexed }
+                ] }),
+          Verity.Core.Uint256.ofNat 1] } := by
   have hunindexed :
       (EventParamKind.unindexed == EventParamKind.indexed) = false := by
     native_decide

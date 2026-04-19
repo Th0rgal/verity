@@ -218,6 +218,11 @@ ALLOWLIST: set[str] = {
     "exec_compileStmt_return_core_extraFuel",
     # --- Helper-aware IR compatibility proofs ---
     "execIRStmtWithInternals_eq_execIRStmt_sstore_of_no_internal",
+    # Event-log interpreter compatibility has to mirror the builtin-call
+    # case split for both disjoint and helper-free conservative-extension
+    # theorems.
+    "evalIRCallWithInternals_stmt_eq_of_callsDisjoint",
+    "evalIRCallWithInternals_stmt_eq_of_no_internal",
     "execIRStmtWithInternals_eq_execIRStmt_expr_of_no_internal",
     "execIRStmtWithInternals_eq_execIRStmt_expr_of_callsDisjoint",
     "execIRStmtsWithInternals_eq_execIRStmts_of_exprCompatibility",
@@ -230,6 +235,10 @@ ALLOWLIST: set[str] = {
     "compiledStmtStepWithHelpersAndHelperIR_internalCall",
     "evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed",
     "execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux",
+    # Spec-aware compile-scope transport is one mutual induction over
+    # statements and statement lists; splitting it would duplicate the scope
+    # bookkeeping that the theorem is meant to centralize.
+    "compileStmt_ok_any_scope_with_surface_aux",
     # --- Contract feature fixtures ---
     "literalMappingWrite_calldataFits",
     # Constructor-body bridge and its focused fixture for issue #1723.

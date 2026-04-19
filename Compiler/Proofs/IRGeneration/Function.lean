@@ -2369,6 +2369,7 @@ theorem supported_constructor_body_correct_with_body_interface
     (hnoConflict : firstFieldWriteSlotConflict model.fields = none)
     (hsafety : ∀ stmt ∈ ctor.body, StmtMappingWriteSlotSafe model.fields stmt)
     (hnoEvents : model.events = [])
+    (hnoErrors : model.errors = [])
     (tx : IRTransaction)
     (initialWorld : Verity.ContractState)
     (bindings : List (String × Nat))
@@ -2480,6 +2481,7 @@ theorem supported_constructor_body_correct_with_body_interface
         (spec := model)
         (hhelperFree := hhelperFree)
         (hnoEvents := hnoEvents)
+        (hnoErrors := hnoErrors)
         (hsurface := by simpa [ctorFn] using hSupported.body.helperSurfaceClosed)
     rcases exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel
         (spec := model)
@@ -2493,6 +2495,8 @@ theorem supported_constructor_body_correct_with_body_interface
         hscope
         (FunctionBody.bindingsExactlyMatchIRVars_implies_onScope hstateBindings)
         hbounded
+        hnoEvents
+        hnoErrors
         hstateRuntime with
       ⟨bodyIR, hcompileIR, hmatch⟩
     have hbodyIR : bodyIR = bodyStmts := by
