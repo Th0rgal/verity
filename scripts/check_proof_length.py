@@ -368,6 +368,10 @@ ALLOWLIST: set[str] = {
     # with internal branch body closure for internal returns alongside
     # with-errors extensions.
     "compileStmt_ite_internal_body_with_errors_bridged",
+    # External structured with-errors list closure: same compileStmtList
+    # head/tail skeleton as the plain-body structured list closure, delegating
+    # per-statement closure to the structured with-errors dispatcher.
+    "compileStmtList_external_structured_body_with_errors_bridged",
     # Internal structured-body list closure is the same compileStmtList
     # head/tail skeleton as the external structured-body proof; the measured
     # span now includes the following nested-ite section header.
