@@ -243,6 +243,32 @@ inductive StmtListHelperFreeStepInterface
       StmtListHelperFreeStepInterface fields (stmtNextScope scope stmt) rest →
       StmtListHelperFreeStepInterface fields scope (stmt :: rest)
 
+/-- Direct event-emission heads are the non-helper effect still being threaded
+into the exact generic induction seam. The predicate is deliberately head-only:
+recursive event occurrences are handled by the statement-list recursion and by
+dedicated structural statement proofs. -/
+def stmtTouchesEventSurface : Stmt → Bool
+  | .emit _ _ => true
+  | _ => false
+
+/-- Exact step interface for direct event-emission heads. Non-event heads are
+discharged elsewhere; `.emit` heads must provide a helper-aware compiled step
+because event compilation depends on `spec.events`. -/
+inductive StmtListEventSurfaceStepInterface
+    (runtimeContract : IRContract)
+    (spec : CompilationModel)
+    (fields : List Field) : List String → List Stmt → Prop where
+  | nil {scope : List String} :
+      StmtListEventSurfaceStepInterface runtimeContract spec fields scope []
+  | cons {scope : List String} {stmt : Stmt} {rest : List Stmt} :
+      (stmtTouchesEventSurface stmt = true →
+        ∃ compiledIR,
+          CompiledStmtStepWithHelpersAndHelperIR
+            runtimeContract spec fields scope stmt compiledIR) →
+      StmtListEventSurfaceStepInterface
+        runtimeContract spec fields (stmtNextScope scope stmt) rest →
+      StmtListEventSurfaceStepInterface runtimeContract spec fields scope (stmt :: rest)
+
 /-- Statement lists whose heads all admit a helper-aware generic compiled-step
 proof. This is the exact induction-level seam needed to consume helper-summary
 soundness and decreasing-rank evidence without reusing the helper-free
@@ -1693,6 +1719,59 @@ theorem stmtListHelperFreeStepInterface_of_core
       refine .cons ?_ ih
       intro _
       exact ⟨compiledIR, hstep⟩
+
+/-- Event head-step inventory for the exact generic induction seam. The
+event-aware contract-surface predicate supplies the support and expression
+closure facts; the catalog supplies the actual compiled-step proof for a direct
+`.emit` head. -/
+structure EventHeadStepCatalog
+    (runtimeContract : IRContract)
+    (spec : CompilationModel)
+    (fields : List Field) : Prop where
+  emit :
+    ∀ {scope : List String} {eventName : String} {args : List Expr},
+      eventEmissionProofSupported spec.events eventName args = true →
+      args.any exprTouchesUnsupportedContractSurface = false →
+      ∃ compiledIR,
+        CompiledStmtStepWithHelpersAndHelperIR
+          runtimeContract spec fields scope (Stmt.emit eventName args) compiledIR
+
+/-- Assemble the direct-event list interface from a reusable event head-step
+catalog and the event-aware contract-surface gate. This is the structural bridge
+that lets the generic proof consume a real `compiledStmtStep_emit` proof later
+instead of eliminating `SupportedStmtList.emitEvent` by contradiction. -/
+theorem stmtListEventSurfaceStepInterface_of_eventHeadStepCatalog_of_surfaceWithEvents
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hcatalog : EventHeadStepCatalog runtimeContract spec fields)
+    (hsurface : stmtListTouchesUnsupportedContractSurfaceWithEvents spec.events stmts = false) :
+    StmtListEventSurfaceStepInterface runtimeContract spec fields scope stmts := by
+  induction stmts generalizing scope with
+  | nil =>
+      exact .nil
+  | cons stmt rest ih =>
+      have hsplit := Bool.or_eq_false_iff.mp <| by
+        simpa [stmtListTouchesUnsupportedContractSurfaceWithEvents] using hsurface
+      have hstmtSurface :
+          stmtTouchesUnsupportedContractSurfaceWithEvents spec.events stmt = false := hsplit.1
+      have hrestSurface :
+          stmtListTouchesUnsupportedContractSurfaceWithEvents spec.events rest = false := hsplit.2
+      refine .cons ?_ (ih hrestSurface)
+      intro hevent
+      cases stmt with
+      | emit eventName args =>
+          exact hcatalog.emit
+            (eventName := eventName)
+            (args := args)
+            (eventEmissionProofSupported_eq_true_of_emit_contractSurfaceWithEventsClosed
+              hstmtSurface)
+            (exprListTouchesUnsupportedContractSurface_eq_false_of_emit_contractSurfaceWithEventsClosed
+              hstmtSurface)
+      | _ =>
+          simp [stmtTouchesEventSurface] at hevent
 
 /-- Helper-surface-closed statement lists satisfy the exact helper-surface step
 interface vacuously: no head ever needs a genuinely new helper-aware step
