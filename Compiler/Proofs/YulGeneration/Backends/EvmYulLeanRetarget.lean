@@ -2020,6 +2020,26 @@ theorem BridgedStmts_cons_letMany
     BridgedStmts (Compiler.Yul.YulStmt.letMany names value :: rest) :=
   BridgedStmts_cons (bridgedStmt_letMany names value) hRest
 
+/-- `BridgedStmts` singleton wrapping the zero-arg `stop()` terminator. Common
+    terminal shape for external-function bodies that return no data. -/
+theorem BridgedStmts_singleton_stop :
+    BridgedStmts [Compiler.Yul.YulStmt.expr (Compiler.Yul.YulExpr.call "stop" [])] :=
+  BridgedStmts_singleton bridgedStmt_stop
+
+/-- `BridgedStmts` singleton wrapping the zero-arg `leave` internal-function
+    terminator. Common terminal shape for compiled internal-function bodies. -/
+theorem BridgedStmts_singleton_leave :
+    BridgedStmts [Compiler.Yul.YulStmt.leave] :=
+  BridgedStmts_singleton bridgedStmt_leave
+
+/-- Cons a `.leave` terminator node onto an already-bridged `BridgedStmts`
+    tail. Useful when an internal-return shape is followed by dead-code
+    cleanup in compiled output. -/
+theorem BridgedStmts_cons_leave
+    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
+    BridgedStmts (Compiler.Yul.YulStmt.leave :: rest) :=
+  BridgedStmts_cons bridgedStmt_leave hRest
+
 theorem callvalueGuard_bridged : BridgedStmt Compiler.CodegenCommon.callvalueGuard := by
   unfold Compiler.CodegenCommon.callvalueGuard
   exact BridgedStmt.if_ _ _ bridgedExpr_callvalue
