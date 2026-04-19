@@ -46,6 +46,37 @@ private def signedScalarSourceSpec : CompilationModel :=
           returns := [.int256]
           body := [Stmt.return (Expr.param "x")] } ] }
 
+private def emitSourceSpec : CompilationModel :=
+  { name := "EmitSource"
+    fields := []
+    events := [{ name := "Ping", params := [{ name := "value", ty := .uint256, kind := .unindexed }] }]
+    constructor := none
+    functions :=
+      [ { name := "emitPing"
+          params := [{ name := "value", ty := .uint256 }]
+          returnType := none
+          body := [Stmt.emit "Ping" [Expr.param "value"], .stop] } ] }
+
+private def indexedEmitSourceSpec : CompilationModel :=
+  { name := "IndexedEmitSource"
+    fields := []
+    events := [
+      { name := "Ping"
+        params := [
+          { name := "topic", ty := .uint256, kind := .indexed },
+          { name := "value", ty := .uint256, kind := .unindexed }
+        ] }
+    ]
+    constructor := none
+    functions :=
+      [ { name := "emitPing"
+          params := [
+            { name := "topic", ty := .uint256 },
+            { name := "value", ty := .uint256 }
+          ]
+          returnType := none
+          body := [Stmt.emit "Ping" [Expr.param "topic", Expr.param "value"], .stop] } ] }
+
 example :
     (sourceContractSemantics simpleStorageSupportedSpecModel [0x2e64cec1]
       { sender := 7, functionSelector := 0x2e64cec1, args := [] }
@@ -117,6 +148,24 @@ example :
       [0xabcdef01]
       { sender := 9, functionSelector := 0xabcdef01, args := [2 ^ 256 - 1] }
       Verity.defaultState).returnValue = some (2 ^ 256 - 1) := by
+  native_decide
+
+example :
+    (sourceContractSemantics emitSourceSpec
+      [0x13572468]
+      { sender := 9, functionSelector := 0x13572468, args := [77] }
+      Verity.defaultState).success = true := by
+  native_decide
+
+example :
+    (sourceContractSemantics indexedEmitSourceSpec
+      [0x24681357]
+      { sender := 9, functionSelector := 0x24681357, args := [11, 22] }
+      Verity.defaultState).events =
+        SourceSemantics.encodeEvents
+          [{ name := "Ping"
+             args := [Verity.Core.Uint256.ofNat (22 % Compiler.Constants.evmModulus)]
+             indexedArgs := [Verity.Core.Uint256.ofNat (11 % Compiler.Constants.evmModulus)] }] := by
   native_decide
 
 end Compiler.Proofs.IRGeneration.SourceSemanticsFeatureTest

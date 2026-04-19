@@ -113,6 +113,30 @@ def runtimeStateMatchesIR
   state.returnValue = none ∧
   state.events = SourceSemantics.encodeEvents runtime.world.events
 
+/-- Runtime/IR alignment for constructor execution, whose calldata is not
+selector-prefixed. This is the constructor-shaped analogue of
+`runtimeStateMatchesIR` and is the reusable target for the deploy/initcode proof
+path. -/
+def constructorRuntimeStateMatchesIR
+    (fields : List Field)
+    (runtime : SourceSemantics.RuntimeState)
+    (state : IRState) : Prop :=
+  state.storage = SourceSemantics.encodeStorageAt fields runtime.world ∧
+  state.transientStorage = (fun slot => (runtime.world.transientStorage slot).val) ∧
+  state.sender = runtime.world.sender.val ∧
+  state.msgValue = runtime.world.msgValue.val ∧
+  state.thisAddress = runtime.world.thisAddress.val ∧
+  state.blockTimestamp = runtime.world.blockTimestamp.val ∧
+  state.blockNumber = runtime.world.blockNumber.val ∧
+  state.chainId = runtime.world.chainId.val ∧
+  state.blobBaseFee = runtime.world.blobBaseFee.val ∧
+  state.selector = runtime.selector ∧
+  state.calldata = runtime.world.calldata ∧
+  runtime.world.calldataSize.val = state.calldata.length * 32 ∧
+  state.memory = (fun o => (runtime.world.memory o).val) ∧
+  state.returnValue = none ∧
+  state.events = SourceSemantics.encodeEvents runtime.world.events
+
 def initialIRStateForTx
     (spec : CompilationModel)
     (tx : IRTransaction)
@@ -7175,6 +7199,41 @@ theorem runtimeStateMatchesIR_setBothMemory
     · simp [ho]
       exact congrFun hmem o
 
+/-- Rebuild `runtimeStateMatchesIR` after a proof step has already established
+the exact low-level memory and event-log alignment for the updated source/IR
+states. This is the reusable postcondition shape for event emission, where the
+compiler writes scratch memory and appends a Yul log entry. -/
+theorem runtimeStateMatchesIR_updateMemoryEvents
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    (hmatch : runtimeStateMatchesIR fields runtime state)
+    (sourceMemory : Nat → Verity.Core.Uint256)
+    (irMemory : Nat → Nat)
+    (sourceEvents : List Verity.Event)
+    (irEvents : List (List Nat))
+    (hmemory : irMemory = fun o => (sourceMemory o).val)
+    (hevents : irEvents = SourceSemantics.encodeEvents sourceEvents) :
+    runtimeStateMatchesIR fields
+      { runtime with
+          world := {
+            runtime.world with
+            memory := sourceMemory
+            events := sourceEvents } }
+      { state with
+          memory := irMemory
+          events := irEvents } := by
+  cases runtime
+  cases state
+  simp only [runtimeStateMatchesIR] at hmatch ⊢
+  obtain ⟨hstor, htrans, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hsel,
+    hcd, hcds, hmem, hret, hevt⟩ := hmatch
+  refine ⟨?_, htrans, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hsel,
+    hcd, hcds, hmemory, hret, hevents⟩
+  rw [hstor]
+  funext slot
+  exact SourceSemantics.encodeStorageAt_congr rfl rfl rfl
+
 theorem runtimeStateMatchesIR_setTransientStorage
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
@@ -7886,6 +7945,128 @@ theorem compileStmt_ok_any_scope
   (compileStmt_ok_any_scope_aux (sizeOf stmt + 1) fields).1 stmt scope1 scope2
     (Nat.lt_succ_of_le (Nat.le_refl _)) hok
 
+private theorem compileStmt_ok_any_scope_with_surface_aux
+    (n : Nat)
+    (fields : List Field)
+    (events : List EventDef)
+    (errors : List ErrorDef) :
+    (∀ (stmt : Stmt) (scope1 scope2 : List String),
+      sizeOf stmt < n →
+      (∃ ir, CompilationModel.compileStmt fields events errors .calldata [] false scope1 stmt =
+        Except.ok ir) →
+      ∃ ir', CompilationModel.compileStmt fields events errors .calldata [] false scope2 stmt =
+        Except.ok ir') ∧
+    (∀ (stmts : List Stmt) (scope1 scope2 : List String),
+      sizeOf stmts < n →
+      (∃ ir, CompilationModel.compileStmtList fields events errors .calldata [] false scope1 stmts =
+        Except.ok ir) →
+      ∃ ir', CompilationModel.compileStmtList fields events errors .calldata [] false scope2 stmts =
+        Except.ok ir') := by
+  induction n with
+  | zero => exact ⟨fun _ _ _ h => absurd h (Nat.not_lt_zero _),
+                    fun _ _ _ h => absurd h (Nat.not_lt_zero _)⟩
+  | succ n ih =>
+    constructor
+    · intro stmt scope1 scope2 hlt hok
+      cases stmt with
+      | ite cond thenBranch elseBranch =>
+          rcases hok with ⟨ir, hir⟩
+          simp only [CompilationModel.compileStmt, bind, Except.bind] at hir ⊢
+          cases hcond : CompilationModel.compileExpr fields .calldata cond with
+          | error e => simp [hcond] at hir
+          | ok condIR =>
+            simp only [hcond] at hir ⊢
+            cases hthen1 : CompilationModel.compileStmtList
+                fields events errors .calldata [] false scope1 thenBranch with
+            | error e => simp [hthen1] at hir
+            | ok thenIR1 =>
+              simp only [hthen1] at hir
+              cases helse1 : CompilationModel.compileStmtList
+                  fields events errors .calldata [] false scope1 elseBranch with
+              | error e => simp [helse1] at hir
+              | ok elseIR1 =>
+                rcases ih.2 thenBranch scope1 scope2
+                    (by simp [Stmt.ite.sizeOf_spec] at hlt; omega) ⟨thenIR1, hthen1⟩
+                  with ⟨thenIR2, hthen2⟩
+                rcases ih.2 elseBranch scope1 scope2
+                    (by simp [Stmt.ite.sizeOf_spec] at hlt; omega) ⟨elseIR1, helse1⟩
+                  with ⟨elseIR2, helse2⟩
+                simp only [hthen2, helse2]
+                cases elseBranch.isEmpty <;> exact ⟨_, rfl⟩
+      | forEach varName count body =>
+          rcases hok with ⟨ir, hir⟩
+          simp only [CompilationModel.compileStmt, bind, Except.bind] at hir ⊢
+          cases hcount : CompilationModel.compileExpr fields .calldata count with
+          | error e => simp [hcount] at hir
+          | ok countIR =>
+            simp only [hcount] at hir ⊢
+            cases hbody1 : CompilationModel.compileStmtList
+                fields events errors .calldata [] false (varName :: scope1) body with
+            | error e => simp [hbody1] at hir
+            | ok bodyIR1 =>
+              rcases ih.2 body (varName :: scope1) (varName :: scope2)
+                  (by simp [Stmt.forEach.sizeOf_spec] at hlt; omega) ⟨bodyIR1, hbody1⟩
+                with ⟨bodyIR2, hbody2⟩
+              simp only [hbody2]
+              exact ⟨_, rfl⟩
+      | letVar | assignVar | setStorage | setStorageAddr | storageArrayPush
+      | storageArrayPop | setStorageArrayElement | setMapping | setMappingWord
+      | setMappingPackedWord | setMapping2 | setMapping2Word | setMappingUint
+      | setMappingChain | setStructMember | setStructMember2 | require
+      | requireError | revertError | «return» | returnValues | returnArray
+      | returnBytes | returnStorageWords | mstore | tstore | calldatacopy
+      | returndataCopy | revertReturndata | stop | emit | internalCall
+      | internalCallAssign | externalCallBind | ecm | rawLog =>
+          simp only [CompilationModel.compileStmt] at hok ⊢; exact hok
+    · intro stmts scope1 scope2 hlt hok
+      cases stmts with
+      | nil => exact ⟨[], rfl⟩
+      | cons s ss =>
+          rcases hok with ⟨ir, hir⟩
+          simp only [CompilationModel.compileStmtList, bind, Except.bind] at hir ⊢
+          cases hs1 : CompilationModel.compileStmt
+              fields events errors .calldata [] false scope1 s with
+          | error e => simp [hs1] at hir
+          | ok headIR1 =>
+            simp only [hs1] at hir
+            cases hss1 : CompilationModel.compileStmtList
+                fields events errors .calldata [] false (collectStmtNames s ++ scope1) ss with
+            | error e => simp [hss1] at hir
+            | ok tailIR1 =>
+              rcases ih.1 s scope1 scope2 (by simp [List.cons.sizeOf_spec] at hlt; omega)
+                  ⟨headIR1, hs1⟩ with ⟨headIR2, hs2⟩
+              rcases ih.2 ss (collectStmtNames s ++ scope1) (collectStmtNames s ++ scope2)
+                  (by simp [List.cons.sizeOf_spec] at hlt; omega) ⟨tailIR1, hss1⟩
+                with ⟨tailIR2, hss2⟩
+              simp only [hs2, hss2]
+              exact ⟨_, rfl⟩
+
+theorem compileStmt_ok_any_scope_with_surface
+    {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
+    {scope1 scope2 : List String}
+    {stmt : Stmt}
+    (hok : ∃ ir, CompilationModel.compileStmt
+      fields events errors .calldata [] false scope1 stmt = Except.ok ir) :
+    ∃ ir', CompilationModel.compileStmt
+      fields events errors .calldata [] false scope2 stmt = Except.ok ir' :=
+  (compileStmt_ok_any_scope_with_surface_aux (sizeOf stmt + 1) fields events errors).1
+    stmt scope1 scope2 (Nat.lt_succ_of_le (Nat.le_refl _)) hok
+
+theorem compileStmtList_ok_any_scope_with_surface
+    {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
+    {scope1 scope2 : List String}
+    {stmts : List Stmt}
+    (hok : ∃ ir, CompilationModel.compileStmtList
+      fields events errors .calldata [] false scope1 stmts = Except.ok ir) :
+    ∃ ir', CompilationModel.compileStmtList
+      fields events errors .calldata [] false scope2 stmts = Except.ok ir' :=
+  (compileStmt_ok_any_scope_with_surface_aux (sizeOf stmts + 1) fields events errors).2
+    stmts scope1 scope2 (Nat.lt_succ_of_le (Nat.le_refl _)) hok
+
 theorem compileStmtList_ok_any_scope
     {fields : List Field}
     {scope1 scope2 : List String}
@@ -7896,6 +8077,29 @@ theorem compileStmtList_ok_any_scope
       fields [] [] .calldata [] false scope2 stmts = Except.ok ir' :=
   (compileStmt_ok_any_scope_aux (sizeOf stmts + 1) fields).2 stmts scope1 scope2
     (Nat.lt_succ_of_le (Nat.le_refl _)) hok
+
+theorem compileStmtList_cons_ok_of_compileStmt_ok_with_surface
+    {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
+    {inScopeNames : List String}
+    {stmt : Stmt}
+    {rest : List Stmt}
+    {headIR tailIR : List YulStmt}
+    (hhead :
+      CompilationModel.compileStmt
+        fields events errors .calldata [] false inScopeNames stmt = Except.ok headIR)
+    (htail :
+      CompilationModel.compileStmtList
+        fields events errors .calldata [] false
+          (collectStmtNames stmt ++ inScopeNames) rest = Except.ok tailIR) :
+    CompilationModel.compileStmtList
+      fields events errors .calldata [] false inScopeNames (stmt :: rest) =
+        Except.ok (headIR ++ tailIR) := by
+  rw [CompilationModel.compileStmtList, hhead]
+  dsimp
+  rw [htail]
+  rfl
 
 theorem compileStmtList_cons_ok_of_compileStmt_ok
     {fields : List Field}
@@ -13971,6 +14175,38 @@ theorem exec_compileStmtList_terminal_core_sizeOf_extraFuel
 
 def irResultOfExecResult (rollback : IRState) : IRExecResult → IRResult
   | .continue s =>
+      { success := true
+        returnValue := s.returnValue
+        finalStorage := s.storage
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
+  | .return v s =>
+      { success := true
+        returnValue := some v
+        finalStorage := s.storage
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
+  | .stop s =>
+      { success := true
+        returnValue := none
+        finalStorage := s.storage
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
+  | .revert _ =>
+      { success := false
+        returnValue := none
+        finalStorage := rollback.storage
+        finalMappings := Compiler.Proofs.storageAsMappings rollback.storage
+        events := rollback.events }
+
+def irResultOfExecResultWithInternals (rollback : IRState) : IRExecResultWithInternals → IRResult
+  | .continue s =>
+      { success := true
+        returnValue := s.returnValue
+        finalStorage := s.storage
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
+  | .leave s =>
       { success := true
         returnValue := s.returnValue
         finalStorage := s.storage

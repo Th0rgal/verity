@@ -406,4 +406,15 @@ def sameExceptEvents (s s' : ContractState) : Prop :=
 @[simp] theorem sameExceptEvents_rfl (s : ContractState) : sameExceptEvents s s :=
   ⟨sameAllStorage_rfl s, sameContext_rfl s, rfl⟩
 
+/-- Full state is unchanged — the frame condition for `view` functions.
+    Covers all storage, context, events, and known-address tracking. -/
+def viewPreservesState (s s' : ContractState) : Prop :=
+  sameAllStorage s s' ∧
+  sameContext s s' ∧
+  sameEvents s s' ∧
+  sameKnownAddresses s s'
+
+@[simp] theorem viewPreservesState_rfl (s : ContractState) : viewPreservesState s s :=
+  ⟨sameAllStorage_rfl s, sameContext_rfl s, rfl, rfl⟩
+
 end Verity.Specs

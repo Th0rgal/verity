@@ -12,10 +12,12 @@ namespace Compiler.CompilationModel
 open Compiler
 open Compiler.Yul
 
-private def pickFreshInternalRetName (usedNames : List String) (idx : Nat) : String :=
+/-- Pick a fresh internal return variable name for the given index. -/
+def pickFreshInternalRetName (usedNames : List String) (idx : Nat) : String :=
   pickFreshName s!"__ret{idx}" usedNames
 
-private def freshInternalRetNames (returns : List ParamType) (usedNames : List String) : List String :=
+/-- Generate fresh internal return variable names for an internal function. -/
+def freshInternalRetNames (returns : List ParamType) (usedNames : List String) : List String :=
   let (_, namesRev) := returns.zipIdx.foldl
     (fun (acc : List String × List String) (_retTy, idx) =>
       let (used, names) := acc
@@ -36,6 +38,118 @@ def compileInternalFunction (fields : List Field) (events : List EventDef) (erro
   let bodyStmts ← compileStmtList fields events errors .calldata retNames true
     (paramNames ++ retNames) spec.body
   pure (YulStmt.funcDef (internalFunctionYulName spec.name) paramNames retNames bodyStmts)
+
+theorem compileInternalFunction_ok_components
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (spec : FunctionSpec) (stmt : YulStmt)
+    (hcompile : compileInternalFunction fields events errors spec = Except.ok stmt) :
+    ∃ returns retNames bodyStmts,
+      validateFunctionSpec spec = Except.ok () ∧
+      functionReturns spec = Except.ok returns ∧
+      compileStmtList fields events errors .calldata retNames true
+        (spec.params.map (·.name) ++ retNames) spec.body = Except.ok bodyStmts ∧
+      stmt = YulStmt.funcDef
+        (internalFunctionYulName spec.name)
+        (spec.params.map (·.name))
+        retNames
+        bodyStmts := by
+  unfold compileInternalFunction at hcompile
+  cases hvalidate : validateFunctionSpec spec
+  · rw [hvalidate] at hcompile
+    cases hcompile
+  case ok _ =>
+    cases hreturns : functionReturns spec
+    · rw [hvalidate, hreturns] at hcompile
+      cases hcompile
+    case ok returns =>
+      rw [hvalidate, hreturns] at hcompile
+      simp only [bind, Except.bind] at hcompile
+      cases hbody :
+          compileStmtList fields events errors .calldata
+            (freshInternalRetNames returns
+              (spec.params.map (·.name) ++ collectStmtListBindNames spec.body))
+            true
+            (spec.params.map (·.name) ++
+              freshInternalRetNames returns
+                (spec.params.map (·.name) ++ collectStmtListBindNames spec.body))
+            spec.body
+      · rw [hbody] at hcompile
+        cases hcompile
+      case ok bodyStmts =>
+        rw [hbody] at hcompile
+        simp only [pure, Except.pure, Except.ok.injEq] at hcompile
+        refine
+          ⟨returns,
+            freshInternalRetNames returns
+              (spec.params.map (·.name) ++ collectStmtListBindNames spec.body),
+            bodyStmts,
+            ?_⟩
+        exact ⟨by simp, by simp,
+          by simpa using hbody, by simpa using hcompile.symm⟩
+
+theorem compileInternalFunction_some_ok_of_components
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (spec : FunctionSpec) (returns : List ParamType) (retNames : List String)
+    (bodyStmts : List YulStmt)
+    (hvalidate : validateFunctionSpec spec = Except.ok ())
+    (hreturns : functionReturns spec = Except.ok returns)
+    (hretNames :
+      retNames =
+        freshInternalRetNames returns
+          (spec.params.map (·.name) ++ collectStmtListBindNames spec.body))
+    (hbody :
+      compileStmtList fields events errors .calldata retNames true
+        (spec.params.map (·.name) ++ retNames) spec.body = Except.ok bodyStmts) :
+    compileInternalFunction fields events errors spec =
+      Except.ok
+        (YulStmt.funcDef
+          (internalFunctionYulName spec.name)
+          (spec.params.map (·.name))
+          retNames
+          bodyStmts) := by
+  have hbody' :
+      compileStmtList fields events errors .calldata
+        (freshInternalRetNames returns
+          (spec.params.map (·.name) ++ collectStmtListBindNames spec.body))
+        true
+        (spec.params.map (·.name) ++
+          freshInternalRetNames returns
+            (spec.params.map (·.name) ++ collectStmtListBindNames spec.body))
+        spec.body = Except.ok bodyStmts := by
+    simpa [hretNames] using hbody
+  let paramNames := spec.params.map (·.name)
+  let compiledName := internalFunctionYulName spec.name
+  have hmap :
+      (YulStmt.funcDef
+          compiledName
+          paramNames
+          (freshInternalRetNames returns (paramNames ++ collectStmtListBindNames spec.body))) <$>
+        compileStmtList fields events errors .calldata
+          (freshInternalRetNames returns (paramNames ++ collectStmtListBindNames spec.body))
+          true
+          (paramNames ++ freshInternalRetNames returns (paramNames ++ collectStmtListBindNames spec.body))
+          spec.body =
+      Except.ok
+        (YulStmt.funcDef
+          compiledName
+          paramNames
+          (freshInternalRetNames returns (paramNames ++ collectStmtListBindNames spec.body))
+          bodyStmts) := by
+    simpa [paramNames, compiledName] using
+      congrArg
+        (fun compiledBody =>
+          Except.map
+            (fun compiledStmts =>
+              YulStmt.funcDef
+                compiledName
+                paramNames
+                (freshInternalRetNames returns (paramNames ++ collectStmtListBindNames spec.body))
+                compiledStmts)
+            compiledBody)
+        hbody'
+  unfold compileInternalFunction
+  simp [hvalidate, hreturns]
+  simpa [paramNames, compiledName, hretNames] using hmap
 
 -- Compile function spec to IR function
 def compileFunctionSpec (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
@@ -88,7 +202,8 @@ def compileConstructor (fields : List Field) (events : List EventDef) (errors : 
   | none => return []
   | some spec =>
     let argLoads := genConstructorArgLoads spec.params
-    let bodyChunks ← compileStmtList fields events errors .memory [] false [] spec.body
+    let bodyChunks ← compileStmtList fields events errors .memory [] false
+      (spec.params.map (·.name)) spec.body
     return argLoads ++ bodyChunks
 
 -- Main compilation function

@@ -54,6 +54,10 @@ ALLOWLIST: set[str] = {
     "eval_compileExpr_core_onExpr",
     "evalExpr_lt_evmModulus_core_onExpr",
     "eval_compileRequireFailCond_core_onExpr",
+    # Constructor mode equivalence is a structural expression-constructor split;
+    # each case is direct, but splitting further would duplicate the same
+    # surface-closure plumbing across dozens of one-line cases.
+    "compileExpr_constructor_mode_eq",
     # --- Statement-level compiled step proofs ---
     "compiledStmtStep_letVar",
     "compiledStmtStep_assignVar",
@@ -78,6 +82,8 @@ ALLOWLIST: set[str] = {
     "compiledStmtStep_setMappingChain_singleSlot_of_slotSafety_preserves",
     "compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_preserves",
     "compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety",
+    # --- Helper-aware result packaging bridge ---
+    "interpretFunctionWithHelpers_eq_execResultToIRResultWithInternals_of_body",
     "compiledStmtStep_setStructMember2_singleSlot_of_slotSafety_preserves",
     "stmtListGenericCore_singleton_setStructMember2Single_of_slotSafety",
     # --- Transient/memory write singleton bridges ---
@@ -166,6 +172,12 @@ ALLOWLIST: set[str] = {
     "legacyCompatibleExternalStmtList_of_compileSetStructMember2_ok",
     "interpretContract_correct_of_compiled_functions",
     "interpretContract_correct_of_compiled_functions_except_mapping_writes_and_helper_ir_closed",
+    # Constructor-bearing compile output adds one extra compileConstructor split
+    # to these component extractors; the surrounding Forall₂ proof shape remains
+    # unchanged and does not factor cleanly without duplicating mapM plumbing.
+    "compileValidatedCore_ok_yields_compiled_functions",
+    "compileValidatedCore_ok_yields_compiled_functions_except_mapping_writes",
+    "compile_ok_yields_internalFunctions_nil_except_mapping_writes",
     "compile_preserves_semantics",
     "compile_preserves_semantics_except_mapping_writes",
     "compile_preserves_semantics_except_mapping_writes_stmtSafety",
@@ -206,6 +218,11 @@ ALLOWLIST: set[str] = {
     "exec_compileStmt_return_core_extraFuel",
     # --- Helper-aware IR compatibility proofs ---
     "execIRStmtWithInternals_eq_execIRStmt_sstore_of_no_internal",
+    # Event-log interpreter compatibility has to mirror the builtin-call
+    # case split for both disjoint and helper-free conservative-extension
+    # theorems.
+    "evalIRCallWithInternals_stmt_eq_of_callsDisjoint",
+    "evalIRCallWithInternals_stmt_eq_of_no_internal",
     "execIRStmtWithInternals_eq_execIRStmt_expr_of_no_internal",
     "execIRStmtWithInternals_eq_execIRStmt_expr_of_callsDisjoint",
     "execIRStmtsWithInternals_eq_execIRStmts_of_exprCompatibility",
@@ -218,8 +235,17 @@ ALLOWLIST: set[str] = {
     "compiledStmtStepWithHelpersAndHelperIR_internalCall",
     "evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed",
     "execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux",
+    # Spec-aware compile-scope transport is one mutual induction over
+    # statements and statement lists; splitting it would duplicate the scope
+    # bookkeeping that the theorem is meant to centralize.
+    "compileStmt_ok_any_scope_with_surface_aux",
     # --- Contract feature fixtures ---
     "literalMappingWrite_calldataFits",
+    # Constructor-body bridge and its focused fixture for issue #1723.
+    "supported_constructor_body_correct_with_body_interface",
+    "constructorOnly_noConflict",
+    # Call-surface decomposition kept as one structural recursion proof.
+    "stmtOrListTouchesUnsupportedCallSurface_eq_featureOr",
     # --- Yul generation / Layer 3 proofs ---
     "yulCodegen_preserves_semantics",
     "stmt_and_stmts_equiv",

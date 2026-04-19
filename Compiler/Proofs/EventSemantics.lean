@@ -4,8 +4,7 @@ import Verity.Core
 # Event Emission Semantics
 
 Structural properties of the event subsystem used by the source-level
-interpreter. These lemmas support widening `SupportedBodyEffectInterface` to
-admit `Stmt.emit` into the proven fragment.
+interpreter. These lemmas support `Stmt.emit` in the event-tracking fragment.
 
 ## Key results
 

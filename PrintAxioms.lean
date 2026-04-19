@@ -47,12 +47,7 @@ import Compiler.Proofs.IRGeneration.SupportedSpec
 import Compiler.Proofs.KeccakBound
 import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.StorageBounds
-import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapterCorrectness
-import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBodyClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
-import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget
-import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSourceExprClosure
-import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanStateBridge
 import Compiler.Proofs.YulGeneration.Builtins
 import Compiler.Proofs.YulGeneration.Equivalence
 import Compiler.Proofs.YulGeneration.Semantics
@@ -677,12 +672,8 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.EndToEnd.yulBody_from_state_eq_yulBody
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_general
-#print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_evmYulLean_general
-#print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_evmYulLean
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul
-#print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_evmYulLean
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd
-#print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_evmYulLean
 
 -- Compiler/Proofs/EventSemantics.lean
 #print axioms Compiler.Proofs.EventSemantics.encodeEvents_append
@@ -765,8 +756,18 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.literalMappingWrite_noFallback  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.literalMappingWrite_noReceive  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.literalMappingWrite_noConflict  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorOnly_owner_resolved  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.literalMappingWrite_txNormalized  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.literalMappingWrite_calldataFits  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorOnly_txNormalized  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorOnly_calldataFits  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorOnly_constructorCalldataFits  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorArg_txNormalized  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorArg_calldataFits  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.stopOnly_txNormalized  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.stopOnly_calldataFits  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorOnly_noConflict  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorOnly_compileConstructor  -- private
 
 -- Compiler/Proofs/IRGeneration/Dispatch.lean
 #print axioms Compiler.Proofs.IRGeneration.Dispatch.runtimeContractOfFunctions_internalFunctions
@@ -800,17 +801,24 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_ok_params
 #print axioms Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_ok_selector
 #print axioms Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_ok_components
+#print axioms Compiler.Proofs.IRGeneration.Function.compileConstructor_some_ok_of_body
+#print axioms Compiler.Proofs.IRGeneration.Function.compileConstructor_ok_components
 #print axioms Compiler.Proofs.IRGeneration.Function.exec_compiledFunctionIR_of_body
 #print axioms Compiler.Proofs.IRGeneration.Function.exec_compiledFunctionIR_of_body_extraFuel
 #print axioms Compiler.Proofs.IRGeneration.Function.interpretFunction_eq_execResultToIRResult_of_body
+#print axioms Compiler.Proofs.IRGeneration.Function.interpretFunctionWithHelpers_eq_execResultToIRResultWithInternals_of_body
 #print axioms Compiler.Proofs.IRGeneration.Function.runtimeStateMatchesIR_applyBindingsToIRState
+#print axioms Compiler.Proofs.IRGeneration.Function.constructorRuntimeStateMatchesIR_applyBindingsToIRState
 #print axioms Compiler.Proofs.IRGeneration.Function.runtimeStateMatchesIR_prebindRawArgs
 -- #print axioms Compiler.Proofs.IRGeneration.Function.lookupBinding?_foldl_bindValue_not_mem  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Function.lookupBinding?_foldl_bindValue_mem  -- private
+#print axioms Compiler.Proofs.IRGeneration.Function.supported_constructor_param_state_exact
 -- #print axioms Compiler.Proofs.IRGeneration.Function.lookupBinding?_rawArgBindings_fold_not_mem  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Function.lookupBinding?_eq_none_of_not_mem  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Function.lookupBinding?_some_of_mem  -- private
 #print axioms Compiler.Proofs.IRGeneration.Function.initialIRStateForTx_matches_runtime
+#print axioms Compiler.Proofs.IRGeneration.Function.initialIRStateForTx_matches_constructor_runtime
+#print axioms Compiler.Proofs.IRGeneration.Function.initialIRStateForTx_matches_bound_constructor_runtime
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_param_state_exact
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_body_correct_from_exact_state_core
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_body_correct_from_exact_state_core_extraFuel
@@ -823,6 +831,18 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal_and_helper_ir
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal_and_helper_ir_of_bodyCallsDisjoint
+-- #print axioms Compiler.Proofs.IRGeneration.Function.compileExpr_constructor_mode_eq  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Function.compileExprList_constructor_mode_eq  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Function.compileRequireFailCond_constructor_mode_eq  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Function.compileStmt_constructor_mode_eq  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Function.compileStmtList_constructor_mode_eq'  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Function.compileStmtList_constructor_mode_eq  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Function.constructor_function_contexts_erase_calldataSize_eq  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Function.execStmtListWithHelpers_constructor_calldataSize_eq  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Function.txCalldataSizeFitsEvm_of_constructorCalldataSizeFitsEvm  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Function.bindingsExactlyMatchIRVars_applyBindingsToIRState_self  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Function.constructorTouchesUnsupportedRawCalldataSurface_eq_false  -- private
+#print axioms Compiler.Proofs.IRGeneration.Function.supported_constructor_body_correct_with_body_interface
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_body_interface_except_mapping_writes
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_body_interface_except_mapping_writes_stmtSafety
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_except_mapping_writes
@@ -1040,6 +1060,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.runtimeStateMatchesIR_setVar_irrelevant
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmt_core_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.runtimeStateMatchesIR_setBothMemory
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.runtimeStateMatchesIR_updateMemoryEvents
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.runtimeStateMatchesIR_setTransientStorage
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVars_setMemory
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVarsOnScope_setMemory
@@ -1070,7 +1091,11 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmt_core_ok_any_scope
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmt_ok_any_scope_aux  -- private
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmt_ok_any_scope
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmt_ok_any_scope_with_surface_aux  -- private
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmt_ok_any_scope_with_surface
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmtList_ok_any_scope_with_surface
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmtList_ok_any_scope
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok_with_surface
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmtList_cons_ok_inv
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmt_terminal_ite_ok_inv
@@ -1256,14 +1281,19 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeCompiledLegacyCompatible_of_supportedContractSurface_exceptMappingWrites
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeCompiledCallsDisjoint_of_supportedContractSurface_exceptMappingWrites
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeStepInterface_of_core
+#print axioms Compiler.Proofs.IRGeneration.eventHeadStepCatalog_of_bridgeCatalog
+#print axioms Compiler.Proofs.IRGeneration.stmtListEventSurfaceStepInterface_of_eventHeadStepCatalog_of_surfaceWithEvents
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperSurfaceStepInterface_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.stmtListInternalHelperSurfaceStepInterface_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperCallStepInterface_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperCallStepInterface_of_directCallSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperAssignStepInterface_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperStepInterface_of_callStepInterface_and_assignStepInterface
 #print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperStepInterface_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.stmtListExprInternalHelperStepInterface_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.stmtListExprInternalHelperStepInterface_of_exprSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.stmtListStructuralInternalHelperStepInterface_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.stmtListStructuralInternalHelperStepInterface_of_structuralSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.stmtListInternalHelperSurfaceStepInterface_of_directInternalHelperStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface
 #print axioms Compiler.Proofs.IRGeneration.stmtListResidualHelperSurfaceStepInterface_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperSurfaceStepInterface_of_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface
@@ -1382,6 +1412,8 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingUint_singleSlot_of_slotSafety_preserves  -- private
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingUint_singleSlot_of_slotSafety
 -- #print axioms Compiler.Proofs.IRGeneration.compileExprList_core_ok  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.compileStmt_emit_scalar_supported_ok  -- private
+#print axioms Compiler.Proofs.IRGeneration.eventHeadStepBridgeCatalog_of_semanticBridgeCatalog
 -- #print axioms Compiler.Proofs.IRGeneration.eval_compileExpr_core_some_of_scope  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.eval_compileExprList_core_of_scope  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.evalIRExpr_mappingSlotChain  -- private
@@ -1422,6 +1454,10 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_letStorageField  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_letStorageAddrField  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_letStorageAddrField  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_assignStorageField  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_assignStorageField  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_assignStorageAddrField  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_assignStorageAddrField  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_iteTerminal  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_setStorage_singleSlot  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_setStorageAddr_singleSlot  -- private
@@ -1443,6 +1479,10 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_singleton_stmt_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_letStorageField_of_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_letStorageAddrField_of_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_assignStorageField_of_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_assignStorageAddrField_of_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_emitEvent_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_emitEvent_surface_exceptMappingWrites  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_iteTerminal_of_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMappingField_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMappingField_surface_exceptMappingWrites  -- private
@@ -1582,10 +1622,21 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.expr_call_measure_decreases  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.pairLex_same_fst_succ  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.internal_call_measure_decreases  -- private
+#print axioms Compiler.Proofs.IRGeneration.applyYulLogCall?_log0
+#print axioms Compiler.Proofs.IRGeneration.applyYulLogCall?_log1
+#print axioms Compiler.Proofs.IRGeneration.applyYulLogCall?_log2
+#print axioms Compiler.Proofs.IRGeneration.applyYulLogCall?_log3
+#print axioms Compiler.Proofs.IRGeneration.applyYulLogCall?_log4
+#print axioms Compiler.Proofs.IRGeneration.IRState.appendYulLog_events
 #print axioms Compiler.Proofs.IRGeneration.evalIRCall_tload_singleton
 #print axioms Compiler.Proofs.IRGeneration.evalIRCall_mload_singleton
 #print axioms Compiler.Proofs.IRGeneration.evalIRCall_calldataload_singleton
 -- #print axioms Compiler.Proofs.IRGeneration.prepareInternalCalleeState_vars  -- private
+#print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_log0_of_eval_args
+#print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_log1_of_eval_args
+#print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_log2_of_eval_args
+#print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_log3_of_eval_args
+#print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_log4_of_eval_args
 #print axioms Compiler.Proofs.IRGeneration.execIRInternalFunctionWithInternals_hides_caller_only_locals
 #print axioms Compiler.Proofs.IRGeneration.execIRStmt_stop_succ
 #print axioms Compiler.Proofs.IRGeneration.execIRStmt_stop_one_add
@@ -1614,6 +1665,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.YulStmtListCallsDisjointFromInternalTable.of_append_prefix
 #print axioms Compiler.Proofs.IRGeneration.evalIRCallWithInternals_stmt_eq_of_callsDisjoint
 #print axioms Compiler.Proofs.IRGeneration.evalIRCallWithInternals_stmt_eq_of_no_internal
+-- #print axioms Compiler.Proofs.IRGeneration.yulLogStmtResult_eq_of_evalIRExprsWithInternals_eq  -- private
 #print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_eq_execIRStmt_expr_of_callsDisjoint
 #print axioms Compiler.Proofs.IRGeneration.execIRStmtsWithInternals_eq_execIRStmts_of_callsDisjoint
 #print axioms Compiler.Proofs.IRGeneration.YulStmtListCallsDisjointFromInternalTable_of_internalFunctions_nil
@@ -1711,6 +1763,9 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.findInternalFunction?_exact_of_compileInternalFunction_mem_unique
 #print axioms Compiler.Proofs.IRGeneration.compileStmt_internalCallAssign_shape
 #print axioms Compiler.Proofs.IRGeneration.compileStmt_internalCall_shape
+-- #print axioms Compiler.Proofs.IRGeneration.internalFunctionYulName_head  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.internalFunctionYulName_ne_log  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.internalFunctionYulName_isYulLogName_false  -- private
 #print axioms Compiler.Proofs.IRGeneration.execIRStmtsWithInternals_of_internalCallAssign_compile
 #print axioms Compiler.Proofs.IRGeneration.execIRStmtsWithInternals_of_internalCall_compile
 #print axioms Compiler.Proofs.IRGeneration.applyIRTransactionContext_sender
@@ -1744,6 +1799,11 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genParamLoads_supported_then
 
 -- Compiler/Proofs/IRGeneration/SourceSemantics.lean
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.exists_splitEventArgsByParams_of_length
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.exists_eventFromResolvedArgs?_of_supported_length
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.exists_writeUnindexedEventScratch_of_length
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.exists_writeUnindexedEventScratch_of_length_zero
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.exists_eventScratchMemoryAfterEmit?_of_supported_length
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_literal  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_param  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_localVar  -- private
@@ -1815,11 +1875,20 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mulDivDown  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mulDivUp  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_ite  -- private
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithEvents_nil_eq_execStmt
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtListWithEvents_nil_eq_execStmtList
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.bindSupportedParams_take_param_length
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.findDynamicArrayElementAtSlot_withTransactionContext
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.findDynamicArrayElementAtSlot_congr_storageArray
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.encodeStorageAt_congr
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.encodeStorageAt_withTransactionContext
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.encodeStorage_withTransactionContext
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.encodeStorageAt_withConstructorTransactionContext
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.encodeStorage_withConstructorTransactionContext
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExprListWithHelpers_length_of_some
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_emit_supported_continues
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.interpretInternalFunctionFuel_zero
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.interpretInternalFunctionFuel_succ
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.helperSummarySound
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.helperSummaryPreservesWorldOnSuccess
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExprWithHelpers_internalCall_obeys_summary
@@ -1827,6 +1896,8 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_internalCall_obeys_summary
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_internalCallAssign_obeys_summary
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.findUniqueInternalFunction?_of_witness  -- private
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.directHelperTouchesUnsupportedConstructorRawCalldataSurface_eq_false_of_supported
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.helperClosureTouchesUnsupportedConstructorRawCalldataSurface_eq_false_of_no_helper_calls
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_internalCallAssign_of_witness
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_internalCallAssign_obeys_summary_of_witness
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_internalCall_of_witness
@@ -1876,6 +1947,42 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.supportedSourceContractSemanticsExceptMappingWrites_eq_sourceContractSemantics
 
 -- Compiler/Proofs/IRGeneration/SupportedSpec.lean
+#print axioms Compiler.Proofs.IRGeneration.eventDefScalarProofSupported_params_all
+#print axioms Compiler.Proofs.IRGeneration.eventDefScalarProofSupported_indexed_length_le_three
+-- #print axioms Compiler.Proofs.IRGeneration.eventParamScalarProofSupported_eq_true_of_mem_all  -- private
+#print axioms Compiler.Proofs.IRGeneration.eventParamScalarProofSupported_eq_true_of_eventDefScalarProofSupported
+#print axioms Compiler.Proofs.IRGeneration.eventParamScalarProofSupported_eventIsDynamicType_eq_false
+#print axioms Compiler.Proofs.IRGeneration.eventParamScalarProofSupported_eventHeadWordSize_eq_thirty_two
+#print axioms Compiler.Proofs.IRGeneration.eventParamScalarProofSupported_ne_bytes
+#print axioms Compiler.Proofs.IRGeneration.eventParamScalarProofSupported_ne_string
+#print axioms Compiler.Proofs.IRGeneration.eventParamScalarProofSupported_ne_array
+#print axioms Compiler.Proofs.IRGeneration.eventParamScalarProofSupported_ne_fixedArray
+#print axioms Compiler.Proofs.IRGeneration.eventParamScalarProofSupported_ne_tuple
+#print axioms Compiler.Proofs.IRGeneration.exists_eventDef_of_eventEmissionProofSupported
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_find?_isSome
+#print axioms Compiler.Proofs.IRGeneration.eventDefScalarProofSupported_eq_true_of_eventEmissionProofSupported
+#print axioms Compiler.Proofs.IRGeneration.eventParamScalarProofSupported_eq_true_of_eventEmissionProofSupported
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_indexed_length_le_three
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_args_length
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_param_eventIsDynamicType_eq_false
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_param_eventHeadWordSize_eq_thirty_two
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_param_not_bytes
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_param_not_string
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_zippedWithSource_param_scalar
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_zippedWithSource_eventIsDynamicType_eq_false
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_zippedWithSource_eventHeadWordSize_eq_thirty_two
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_zippedWithSource_unindexed_any_dynamic_false
+-- #print axioms Compiler.Proofs.IRGeneration.foldl_eventHeadWordSize_eq_thirty_two_mul_length  -- private
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_zippedWithSource_unindexed_head_size
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_eventUnindexedHeadSize
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_eventHasUnindexedDynamicData_eq_false
+-- #print axioms Compiler.Proofs.IRGeneration.eventCompiledArgs_filter_kind_length_le_params_filter_kind  -- private
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_zippedWithSource_indexed_length_le_three
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_eventIndexedArgs_length_le_three
+#print axioms Compiler.Proofs.IRGeneration.eventLogFunction_mem_logBuiltins_of_le_three
+#print axioms Compiler.Proofs.IRGeneration.eventLogArgs_length
+#print axioms Compiler.Proofs.IRGeneration.exprListTouchesUnsupportedContractSurface_eq_false_of_emit_contractSurfaceWithEventsClosed
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_eq_true_of_emit_contractSurfaceWithEventsClosed
 -- #print axioms Compiler.Proofs.IRGeneration.eraseDups_nodup_and_mem_aux  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.List.eraseDups_nodup  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.List.mem_eraseDups_iff  -- private
@@ -1886,6 +1993,8 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNames  -- private
 #print axioms Compiler.Proofs.IRGeneration.stmtExprHelperCallNames_subset_stmtInternalHelperCallNames
 #print axioms Compiler.Proofs.IRGeneration.exprHelperCallNames_subset_helperCallNames
+#print axioms Compiler.Proofs.IRGeneration.SupportedConstructor.paramNamesNodup
+#print axioms Compiler.Proofs.IRGeneration.SupportedConstructor.paramsSupported
 #print axioms Compiler.Proofs.IRGeneration.SupportedFunction.paramNamesNodup
 #print axioms Compiler.Proofs.IRGeneration.SupportedFunction.paramsSupported
 #print axioms Compiler.Proofs.IRGeneration.SupportedFunction.returnsSupported
@@ -1902,6 +2011,8 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListTerminalCore_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_letStorageField_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_letStorageAddrField_helperSurfaceClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_assignStorageField_helperSurfaceClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_assignStorageAddrField_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_setStorageAddrSingleSlot_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_mstoreSingle_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_tstoreSingle_helperSurfaceClosed  -- private
@@ -1918,6 +2029,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.exprListInternalHelperCallNames_literals  -- private
 #print axioms Compiler.Proofs.IRGeneration.SupportedStmtList.internalHelperCallNames_nil
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyInterface.helperCallNames_nil
+#print axioms Compiler.Proofs.IRGeneration.SupportedBodyInterfaceExceptMappingWrites.helperCallNames_nil
 #print axioms Compiler.Proofs.IRGeneration.exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.exprListTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.stmtTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed
@@ -1941,6 +2053,8 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyHelperInterface.exprSummaryPreservesWorld
 -- #print axioms Compiler.Proofs.IRGeneration.exprTouchesUnsupportedCallSurface_eq_featureOr  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.exprListTouchesUnsupportedCallSurface_eq_featureOr  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtOrListTouchesUnsupportedCallSurface_eq_featureOr  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedCallSurface_eq_featureOr  -- private
 #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedCallSurface_eq_featureOr
 -- #print axioms Compiler.Proofs.IRGeneration.exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.exprListTouchesUnsupportedContractSurface_eq_false_of_featureClosed  -- private
@@ -1955,6 +2069,8 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.exprListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed  -- private
 #print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceWithEventsClosed
+#print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceWithEventsClosed
 #print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed_exceptMappingWrites
 #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed_exceptMappingWrites
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyCallInterface.surfaceClosed
@@ -2002,8 +2118,6 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.selectorsDistinct
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.functionNamesNodup
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.functionNamesNodup
-#print axioms Compiler.Proofs.IRGeneration.SupportedSpec.noConstructor
-#print axioms Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.noConstructor
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.noEvents
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.noEvents
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.noErrors
@@ -2060,211 +2174,8 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.StorageBounds.writeStorageArray_storage_unchanged
 #print axioms Compiler.Proofs.StorageBounds.writeStorageArray_events_unchanged
 
--- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapterCorrectness.lean
-#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let
-#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let'
-#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.execYulFuel_stmts_nil
-#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist
-#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_revert
-#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_return
-#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_stop
-
--- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean
-#print axioms Compiler.Proofs.YulGeneration.Backends.isDynamicParamType_false_of_static_scalar
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_calldataload_lit  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_and_lit_mask  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_and_hex_mask  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_iszero_iszero  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_iszero_ident  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmt_revert_zero  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_lt_calldatasize  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.genScalarLoad_calldataload_bridged
--- #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_flatMap  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_append  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.genStaticTypeLoads_calldataload_bridged
--- #print axioms Compiler.Proofs.YulGeneration.Backends.fixedArrayFirstAlias_bridged  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoadBodyFrom_cons_scalar  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoadBodyFrom_calldataload_bridged  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoadBodyFrom_calldataload_static_scalar_bridged  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoads_scalar_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoads_static_scalar_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_binding_leaf_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_binding_leaf_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_pure_binding_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_pure_binding_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setStorage_singleSlot_pure_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_storage_fragment_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_storage_fragment_bridged
--- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_stop_bridged  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_return_external_bridged  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_terminator_external_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_terminator_external_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_return_internal_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_return_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_return_bridged
--- #print axioms Compiler.Proofs.YulGeneration.Backends.revertWithMessage_bridged  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_require_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_require_bridged
--- #print axioms Compiler.Proofs.YulGeneration.Backends.compileMappingSlotWrite_singleSlot_bridged  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping_singleSlot_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingUint_singleSlot_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWrite_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWrite_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_body_fragment_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_body_fragment_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_body_fragment_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_body_fragment_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_external_body_fragment_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_internal_body_fragment_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_structured_body_fragment_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_structured_body_fragment_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_structured_body_fragment_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_structured_body_fragment_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_external_nested_body_fragment_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_internal_nested_body_fragment_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_nested_body_fragment_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_nested_body_fragment_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_nested_body_fragment_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_nested_body_fragment_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_recursive_body_fragment_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_recursive_body_fragment_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_recursive_body_fragment_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_recursive_body_fragment_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_memoryWrite_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_memoryWrite_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_forEach_with_bridged_body
--- #print axioms Compiler.Proofs.YulGeneration.Backends.sigStores_bridged  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.revertWithCustomError_zero_bridged  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_revertError_zero_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_requireError_zero_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_customError_zero_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_customError_zero_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_external_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_internal_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_structured_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_structured_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_structured_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_structured_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_external_nested_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_internal_nested_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_nested_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_nested_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_nested_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_nested_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_forEach_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_forEach_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_forEach_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_forEach_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_recursive_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_recursive_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_recursive_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_recursive_body_with_errors_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_alias
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_alias
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyStmts_of_alias
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyStmts_of_alias
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalStructuredBodyStmts_of_alias
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalStructuredBodyStmts_of_alias
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalStructuredBodyWithErrorsStmts_of_alias
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalStructuredBodyWithErrorsStmts_of_alias
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalNestedBodyStmts_of_alias
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalNestedBodyStmts_of_alias
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalNestedBodyWithErrorsStmts_of_alias
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalNestedBodyWithErrorsStmts_of_alias
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalForEachBodyWithErrorsStmts_of_alias
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalForEachBodyWithErrorsStmts_of_alias
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalBodyWithErrorsStmts_of_plain
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalBodyWithErrorsStmts_of_plain
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalStructuredBodyWithErrorsStmts_of_plain
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalStructuredBodyWithErrorsStmts_of_plain
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalNestedBodyWithErrorsStmts_of_plain
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalNestedBodyWithErrorsStmts_of_plain
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalForEachBodyWithErrorsStmts_of_plain
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalForEachBodyWithErrorsStmts_of_plain
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_plain
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_plain
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalNestedBodyStmts_of_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalNestedBodyStmts_of_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalNestedBodyWithErrorsStmts_of_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalNestedBodyWithErrorsStmts_of_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyStmts_of_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyStmts_of_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyStmts_of_nested
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyStmts_of_nested
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_nested
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_nested
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_forEach
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_forEach
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyWithErrorsStmt_of_plain_recursive
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_plain_recursive
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyWithErrorsStmt_of_plain_recursive
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_plain_recursive
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalStructuredBodyWithErrorsStmt_of_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalStructuredBodyWithErrorsStmts_of_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalStructuredBodyWithErrorsStmt_of_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalStructuredBodyWithErrorsStmts_of_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalNestedBodyWithErrorsStmt_of_nested
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalNestedBodyWithErrorsStmts_of_nested
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalNestedBodyWithErrorsStmt_of_nested
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalNestedBodyWithErrorsStmts_of_nested
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_plain_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_plain_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_plain_nested
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_plain_nested
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalNestedBodyWithErrorsStmts_of_plain_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalNestedBodyWithErrorsStmts_of_plain_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyStmt_of_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyStmt_of_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyWithErrorsStmt_of_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyWithErrorsStmt_of_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyStmt_of_nested
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyStmt_of_nested
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyWithErrorsStmt_of_nested
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyWithErrorsStmt_of_nested
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyWithErrorsStmt_of_forEach
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyWithErrorsStmt_of_forEach
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyWithErrorsStmt_of_plain_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyWithErrorsStmt_of_plain_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyWithErrorsStmt_of_plain_nested
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyWithErrorsStmt_of_plain_nested
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalNestedBodyWithErrorsStmt_of_plain_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalNestedBodyWithErrorsStmt_of_plain_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalNestedBodyWithErrorsStmt_of_plain_nested
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalNestedBodyWithErrorsStmt_of_plain_nested
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalBodyWithErrorsStmt_of_plain
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalBodyWithErrorsStmt_of_plain
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalStructuredBodyWithErrorsStmt_of_plain
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalStructuredBodyWithErrorsStmt_of_plain
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalNestedBodyWithErrorsStmt_of_plain
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalNestedBodyWithErrorsStmt_of_plain
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalForEachBodyWithErrorsStmt_of_plain
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalForEachBodyWithErrorsStmt_of_plain
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalStructuredBodyStmt_of_base
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalStructuredBodyStmt_of_base
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalNestedBodyStmt_of_base
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalNestedBodyStmt_of_base
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalNestedBodyStmt_of_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalNestedBodyStmt_of_structured
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyStmt_of_base
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyStmt_of_base
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalStructuredBodyWithErrorsStmt_of_base
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalStructuredBodyWithErrorsStmt_of_base
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalNestedBodyWithErrorsStmt_of_base
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalNestedBodyWithErrorsStmt_of_base
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalForEachBodyWithErrorsStmt_of_base
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalForEachBodyWithErrorsStmt_of_base
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyWithErrorsStmt_of_base
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyWithErrorsStmt_of_base
-
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.word_lt_uint256_size  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_ofNat_mod_evmModulus  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_add_normalized  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_add_normalized  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_sub_normalized  -- private
@@ -2320,252 +2231,6 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_not_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_shl_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_shr_bridge
--- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_addmod_normalized  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.eq0_true_of_val_eq_zero  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.eq0_false_of_val_ne_zero  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_addmod_normalized  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_mulmod_normalized  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_mulmod_normalized  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_addmod_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_mulmod_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_addmod_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_mulmod_bridge
--- #print axioms Compiler.Proofs.YulGeneration.Backends.nat_land_0xFF  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_byte_normalized  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_byte_normalized  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_byte_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_byte_bridge
--- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_slt_normalized  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_slt_normalized  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_sgt_normalized  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_sgt_normalized  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.int_ofNat_lt_iff  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.int_sub_lt_sub_iff  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.int_neg_lt_pos_evm  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.int_pos_not_lt_neg_evm  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.toNat_fromBool  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_lt_iff_nat_lt  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.slt_int256_eq_sltBool  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_slt_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_slt_bridge
--- #print axioms Compiler.Proofs.YulGeneration.Backends.sgt_int256_eq_sgtBool  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_sgt_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_sgt_bridge
--- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_exp_normalized  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_exp_normalized  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_mul_toNat  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.evmModulus_eq_uint256Size  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_toNat_lt  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.modPowAux_eq_powAux  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.exp_natModPow_eq_uint256Exp  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_exp_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_exp_bridge
--- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_sdiv_normalized  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_sdiv_normalized  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.fin_val_mul_neg1  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.natAbs_ofNat_sub  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.sdiv_int256_eq_uint256Sdiv  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_sdiv_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_sdiv_bridge
--- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_smod_normalized  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_smod_normalized  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.int256_ofInt_nat_toUint256_val  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.int256_ofInt_neg_nat_toUint256_val  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.smod_int256_eq_uint256Smod  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_smod_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_smod_bridge
--- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_sar_normalized  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_sar_normalized  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.sar_int256_eq_uint256Sar  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_sar_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_sar_bridge
--- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_signextend_normalized  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_signextend_normalized  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.se_uint256_eq_of_val  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.se_lor_val  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.se_land_val  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.se_sub_val  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.se_tb_pow_sub_pow  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.se_tb_ne_zero  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.se_tb_eq_zero  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.se_set_eq  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.se_clear_eq  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.se_tb_val  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.se_shiftLeft_one_val  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.se_val_val_of_eq  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.se_sign_set  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.se_sign_clear  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.se_nat_to_sign  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.se_verity_ofNat  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.se_size_to_uint256_val  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.signextend_uint256_eq  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_signextend_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_signextend_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_sload
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_caller
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_address
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_callvalue
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_timestamp
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_number
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_chainid
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_blobbasefee
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_calldataload
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_calldataload_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_sload_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_mappingSlot_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_calldatasize
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_mappingSlot
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_add_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_sub_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_mul_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_div_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_mod_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_eq_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_iszero_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_lt_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_gt_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_slt_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_sgt_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_and_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_or_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_xor_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_not_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_shl_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_shr_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_addmod_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_mulmod_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_byte_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_exp_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_sdiv_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_smod_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_sar_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_signextend_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_sload_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_caller_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_address_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_callvalue_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_timestamp_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_number_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_blobbasefee_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_chainid_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_calldataload_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_calldatasize_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_mappingSlot_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
-
--- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_add  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_sub  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_mul  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_div  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_mod  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_lt  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_gt  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_eq  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_iszero  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_and  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_or  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_xor  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_not  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_shl  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_shr  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_addmod  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_mulmod  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_byte  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_slt  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_sgt  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_exp  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_sdiv  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_smod  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_sar  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_signextend  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_caller  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_address  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_callvalue  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_timestamp  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_number  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_chainid  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_blobbasefee  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_calldataload  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_calldatasize  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_sload  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_mappingSlot  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_on_bridged_builtins
--- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_on_keccak256  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExprWithBackend_verity_eq  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExprsWithBackend_verity_eq  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExprWithBackend_eq_on_bridged
--- #print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExprsWithBackend_eq_on_bridged  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExpr_evmYulLean_eq_on_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_verity_eq
-#print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_let_eq_on_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_assign_eq_on_bridged
--- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_straight_stmt  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_straight_stmts
-#print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_block_eq_on_bridged_straight_stmts
-#print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_if_eq_on_bridged_body
-#print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_switch_eq_on_bridged_cases
-#print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_for_eq_on_bridged_parts
--- #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_nil  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_append  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_callvalue  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_calldatasize  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_selector  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_calldatasize_lt  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_has_selector  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_empty_calldata  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_iszero_ident  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_revert_zero  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.callvalueGuard_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.calldatasizeGuard_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.dispatchBody_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.defaultDispatchCase_bridged
--- #print axioms Compiler.Proofs.YulGeneration.Backends.switchCases_bridged  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.buildSwitch_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.mappingSlotFuncAt_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.runtimeCode_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.emitYul_runtimeCode_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_target
-#print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_stmt
-#print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_stmts
-#print axioms Compiler.Proofs.YulGeneration.Backends.emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies
-#print axioms Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend_verity_eq
-#print axioms Compiler.Proofs.YulGeneration.Backends.interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
-#print axioms Compiler.Proofs.YulGeneration.Backends.yulCodegen_preserves_semantics_evmYulLean
-
--- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSourceExprClosure.lean
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_bridgedSource_leaf
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_binopBuiltin  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_unopBuiltin  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_yulBinOp  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_yulNegatedBinOp  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_yulBinOp_ok  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_yulNegatedBinOp_ok  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_bridgedSource
--- #print axioms Compiler.Proofs.YulGeneration.Backends.compileRequireFailCond_default_bridgedSource  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.compileRequireFailCond_bridgedSource
-
--- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean
--- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorBytes_size  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_wordBytes_size  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_fold_size  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_size
-#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.callvalue_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.timestamp_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.number_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldatasize_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.caller_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.address_bridge
--- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.ordering_then_eq  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.UInt256_compare_eq_fin  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.UInt256_eq_of_compare_eq
-#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256_injective
-#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.compare_natToUInt256_ne
-#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.foldl_insert_find_not_mem
-#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.foldl_insert_find
-#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.storageLookup_projectStorage
-#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.uint256_roundtrip
 
 -- Compiler/Proofs/YulGeneration/Builtins.lean
 #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_callvalue_nil
@@ -2605,4 +2270,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2441 theorems/lemmas (1646 public, 795 private, 0 sorry'd)
+-- Total: 2121 theorems/lemmas (1430 public, 691 private, 0 sorry'd)

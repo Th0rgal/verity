@@ -146,6 +146,10 @@ def evalYulCall (state : YulState) (func : String) : List YulExpr → Option Nat
       match argVals with
       | [offset] => some (state.memory offset)
       | _ => none
+    else if func = "keccak256" then
+      match argVals with
+      | [offset, size] => some (abstractKeccakMemorySlice state.memory offset size)
+      | _ => none
     else
       Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
         Compiler.Proofs.YulGeneration.defaultBuiltinBackend
@@ -169,6 +173,25 @@ decreasing_by
 end
 
 /-! ## Yul Statement Execution -/
+
+def YulState.appendYulLog (s : YulState) (offset size : Nat)
+    (topics : List Nat) : YulState :=
+  { s with events := s.events ++ [encodeYulLogEvent s.memory offset size topics] }
+
+def applyYulLogCall? (state : YulState) (func : String)
+    (argVals : List Nat) : Option YulState :=
+  match func, argVals with
+  | "log0", [offset, size] =>
+      some (state.appendYulLog offset size [])
+  | "log1", [offset, size, topic0] =>
+      some (state.appendYulLog offset size [topic0])
+  | "log2", [offset, size, topic0, topic1] =>
+      some (state.appendYulLog offset size [topic0, topic1])
+  | "log3", [offset, size, topic0, topic1, topic2] =>
+      some (state.appendYulLog offset size [topic0, topic1, topic2])
+  | "log4", [offset, size, topic0, topic1, topic2, topic3] =>
+      some (state.appendYulLog offset size [topic0, topic1, topic2, topic3])
+  | _, _ => none
 
 inductive YulExecResult
   | continue (state : YulState)
@@ -248,6 +271,18 @@ def execYulFuel : Nat → YulState → YulExecTarget → YulExecResult
                         .return 0 state
                   | _, _ => .revert state
               | .call "revert" [_, _] => .revert state
+              | .call func args =>
+                  if isYulLogName func then
+                    match evalYulExprs state args with
+                    | some argVals =>
+                        match applyYulLogCall? state func argVals with
+                        | some next => .continue next
+                        | none => .revert state
+                    | none => .revert state
+                  else
+                    match evalYulExpr state e with
+                    | some _ => .continue state
+                    | none => .revert state
               | _ =>
                   match evalYulExpr state e with
                   | some _ => .continue state
