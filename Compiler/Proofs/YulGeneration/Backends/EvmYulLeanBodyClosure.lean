@@ -5093,4 +5093,28 @@ theorem BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_plain_nested
   BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_nested
     (BridgedSourceInternalNestedBodyWithErrorsStmts_of_nested h)
 
+/-! ### Lifting plain structured witnesses into the nested with-errors predicate
+
+Convenience compositions so callers holding a plain structured witness reach
+the nested with-errors alias in one step. Chains the plain→with-errors
+structural bridge with the existing structured→nested with-errors lift. -/
+
+theorem BridgedSourceExternalNestedBodyWithErrorsStmts_of_plain_structured
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceExternalStructuredBodyStmts fields dynamicSource stmts) :
+    BridgedSourceExternalNestedBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  BridgedSourceExternalNestedBodyWithErrorsStmts_of_structured
+    (BridgedSourceExternalStructuredBodyWithErrorsStmts_of_structured h)
+
+theorem BridgedSourceInternalNestedBodyWithErrorsStmts_of_plain_structured
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceInternalStructuredBodyStmts fields dynamicSource stmts) :
+    BridgedSourceInternalNestedBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  BridgedSourceInternalNestedBodyWithErrorsStmts_of_structured
+    (BridgedSourceInternalStructuredBodyWithErrorsStmts_of_structured h)
+
 end Compiler.Proofs.YulGeneration.Backends
