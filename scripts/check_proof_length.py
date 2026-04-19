@@ -398,6 +398,19 @@ ALLOWLIST: set[str] = {
     # head/tail skeleton as earlier list closures; the measured span reaches
     # into the internal forEach-with-errors section header.
     "compileStmtList_external_forEach_body_with_errors_bridged",
+    # Internal forEach-wrapped with-errors list closure: span now reaches into
+    # the following recursive-with-errors section header because the measured
+    # range extends to the next non-indented section. Proof body unchanged.
+    "compileStmtList_internal_forEach_body_with_errors_bridged",
+    # Recursive with-errors body closure mirrors the same two compiler-emitted
+    # ite shapes as the one-layer proof, but uses mutual recursion (matching
+    # the plain-body recursive closure) to delegate arbitrarily nested branch
+    # lists through the paired list closure. Proof is mechanical Except-bind
+    # decomposition.
+    "compileStmt_external_recursive_body_with_errors_bridged",
+    # Same mutual-recursive proof shape as the external version, using the
+    # internal-body dispatcher and internal-list closure for branches.
+    "compileStmt_internal_recursive_body_with_errors_bridged",
     # Internal structured-body list closure is the same compileStmtList
     # head/tail skeleton as the external structured-body proof; the measured
     # span now includes the following nested-ite section header.
