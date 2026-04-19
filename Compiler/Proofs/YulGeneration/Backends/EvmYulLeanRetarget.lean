@@ -2389,17 +2389,15 @@ theorem runtimeCode_bridged
   unfold Compiler.CodegenCommon.runtimeCode
   cases contract.usesMapping
   · exact BridgedStmts_append hInternals
-      (BridgedStmts_cons
+      (BridgedStmts_singleton
         (buildSwitch_bridged contract.functions contract.fallbackEntrypoint
-          contract.receiveEntrypoint hFunctions hFallback hReceive)
-        BridgedStmts_nil)
+          contract.receiveEntrypoint hFunctions hFallback hReceive))
   · simp only [ite_true]
     exact BridgedStmts_cons (mappingSlotFuncAt_bridged 0)
       (BridgedStmts_append hInternals
-        (BridgedStmts_cons
+        (BridgedStmts_singleton
           (buildSwitch_bridged contract.functions contract.fallbackEntrypoint
-            contract.receiveEntrypoint hFunctions hFallback hReceive)
-          BridgedStmts_nil))
+            contract.receiveEntrypoint hFunctions hFallback hReceive)))
 
 theorem emitYul_runtimeCode_bridged
     (contract : Compiler.IRContract)
