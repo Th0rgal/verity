@@ -1473,6 +1473,32 @@ theorem BridgedStmts_of_BridgedStraightStmts
   intro stmt hMem
   exact bridgedStmt_of_bridgedStraightStmt (hStmts stmt hMem)
 
+/-- `BridgedStmts` analogue of `BridgedStraightStmts_map_mstore`: a list of
+    `(offset, value)` expression pairs with both components bridged maps to
+    a `BridgedStmts` list of `mstore(offset, value)` statements. Directly
+    supports scalar `emit` bodies where `sigStores` / `unindexedStores` are
+    built as `List YulStmt` via `.map` over pair-shaped data and must slot
+    into a recursive-body context. -/
+theorem BridgedStmts_map_mstore
+    (pairs : List (Compiler.Yul.YulExpr × Compiler.Yul.YulExpr))
+    (hPairs : ∀ p ∈ pairs, BridgedExpr p.1 ∧ BridgedExpr p.2) :
+    BridgedStmts
+      (pairs.map fun p =>
+        Compiler.Yul.YulStmt.expr
+          (Compiler.Yul.YulExpr.call "mstore" [p.1, p.2])) :=
+  BridgedStmts_of_BridgedStraightStmts (BridgedStraightStmts_map_mstore pairs hPairs)
+
+/-- `BridgedStmts` analogue of `BridgedStraightStmts_map_tstore`, for the
+    transient-store variant of the map helper above. -/
+theorem BridgedStmts_map_tstore
+    (pairs : List (Compiler.Yul.YulExpr × Compiler.Yul.YulExpr))
+    (hPairs : ∀ p ∈ pairs, BridgedExpr p.1 ∧ BridgedExpr p.2) :
+    BridgedStmts
+      (pairs.map fun p =>
+        Compiler.Yul.YulStmt.expr
+          (Compiler.Yul.YulExpr.call "tstore" [p.1, p.2])) :=
+  BridgedStmts_of_BridgedStraightStmts (BridgedStraightStmts_map_tstore pairs hPairs)
+
 private theorem bridgedStmt_revert_zero :
     BridgedStmt
       (Compiler.Yul.YulStmt.expr
