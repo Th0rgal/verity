@@ -4006,9 +4006,11 @@ theorem compileStmtList_internal_forEach_body_with_errors_bridged
 /-! ### Recursive with-errors body closure
 
 Mutual stmt/list predicates that close with-errors body fragments under
-arbitrarily deep `Stmt.ite` nesting. The list predicate is inductive rather
-than a `∀ stmt ∈ stmts` alias so Lean provides the induction hypotheses
-needed for nested branch lists.
+arbitrarily deep `Stmt.ite` nesting as well as `Stmt.forEach` wrappers (both
+constructors recurse back through the paired list predicate, so nesting
+depth and interleaving of `ite`/`forEach` layers is unconstrained). The list
+predicate is inductive rather than a `∀ stmt ∈ stmts` alias so Lean provides
+the induction hypotheses needed for nested branch lists.
 -/
 
 mutual
@@ -4030,6 +4032,12 @@ mutual
           dynamicSource elseBranch) :
         BridgedSourceExternalRecursiveBodyWithErrorsStmt fields errors
           dynamicSource (.ite cond thenBranch elseBranch)
+    | forEach (varName : String) (count : Expr) (body : List Stmt)
+        (hCount : BridgedSourceExpr count)
+        (hBody : BridgedSourceExternalRecursiveBodyWithErrorsStmts fields errors
+          dynamicSource body) :
+        BridgedSourceExternalRecursiveBodyWithErrorsStmt fields errors
+          dynamicSource (.forEach varName count body)
 
   /-- External with-errors body lists made from recursively bridged
   with-errors statements. -/
@@ -4066,6 +4074,12 @@ mutual
           dynamicSource elseBranch) :
         BridgedSourceInternalRecursiveBodyWithErrorsStmt fields errors
           dynamicSource (.ite cond thenBranch elseBranch)
+    | forEach (varName : String) (count : Expr) (body : List Stmt)
+        (hCount : BridgedSourceExpr count)
+        (hBody : BridgedSourceInternalRecursiveBodyWithErrorsStmts fields errors
+          dynamicSource body) :
+        BridgedSourceInternalRecursiveBodyWithErrorsStmt fields errors
+          dynamicSource (.forEach varName count body)
 
   /-- Internal with-errors body lists made from recursively bridged
   with-errors statements. -/
@@ -4150,6 +4164,14 @@ mutual
                       · exact BridgedStmt.if_ _ elseOut
                           (bridgedExpr_iszero_ident _) hElseBridged
                       · cases hNil
+    | forEach varName count body hCount hBody =>
+        refine compileStmt_forEach_with_bridged_body fields events errors
+          dynamicSource internalRetNames false inScopeNames varName count body
+          hCount ?_ hOk
+        intro bodyOut hBodyOk
+        exact compileStmtList_external_recursive_body_with_errors_bridged fields
+          events errors dynamicSource internalRetNames hBody
+          (varName :: inScopeNames) hBodyOk
 
   theorem compileStmtList_external_recursive_body_with_errors_bridged
       (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
@@ -4259,6 +4281,14 @@ mutual
                       · exact BridgedStmt.if_ _ elseOut
                           (bridgedExpr_iszero_ident _) hElseBridged
                       · cases hNil
+    | forEach varName count body hCount hBody =>
+        refine compileStmt_forEach_with_bridged_body fields events errors
+          dynamicSource internalRetNames true inScopeNames varName count body
+          hCount ?_ hOk
+        intro bodyOut hBodyOk
+        exact compileStmtList_internal_recursive_body_with_errors_bridged fields
+          events errors dynamicSource internalRetNames hBody
+          (varName :: inScopeNames) hBodyOk
 
   theorem compileStmtList_internal_recursive_body_with_errors_bridged
       (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
