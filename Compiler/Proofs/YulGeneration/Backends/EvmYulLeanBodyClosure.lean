@@ -2925,8 +2925,8 @@ original predicates remain untouched so existing callers are unaffected.
 -/
 
 /-- External body statement predicate extended to admit zero-arg custom
-errors and direct `mstore`/`tstore` memory writes alongside the existing
-`storage`/`require`/`terminator` cases. -/
+errors, direct `mstore`/`tstore` memory writes, and single-slot mapping
+writes alongside the existing `storage`/`require`/`terminator` cases. -/
 inductive BridgedSourceExternalBodyWithErrorsStmt
     (fields : List Field) (errors : List ErrorDef)
     (dynamicSource : DynamicDataSource) : Stmt → Prop
@@ -2938,6 +2938,8 @@ inductive BridgedSourceExternalBodyWithErrorsStmt
       BridgedSourceExternalBodyWithErrorsStmt fields errors dynamicSource stmt
   | memoryWrite {stmt : Stmt} (hStmt : BridgedSourceMemoryWriteStmt stmt) :
       BridgedSourceExternalBodyWithErrorsStmt fields errors dynamicSource stmt
+  | mappingWrite {stmt : Stmt} (hStmt : BridgedSourceMappingWriteStmt fields stmt) :
+      BridgedSourceExternalBodyWithErrorsStmt fields errors dynamicSource stmt
 
 def BridgedSourceExternalBodyWithErrorsStmts
     (fields : List Field) (errors : List ErrorDef)
@@ -2946,8 +2948,8 @@ def BridgedSourceExternalBodyWithErrorsStmts
     BridgedSourceExternalBodyWithErrorsStmt fields errors dynamicSource stmt
 
 /-- Internal body statement predicate extended to admit zero-arg custom
-errors and direct `mstore`/`tstore` memory writes alongside the existing
-`storage`/`require`/`returnInternal`/`stop` cases. -/
+errors, direct `mstore`/`tstore` memory writes, and single-slot mapping
+writes alongside the existing `storage`/`require`/`returnInternal`/`stop` cases. -/
 inductive BridgedSourceInternalBodyWithErrorsStmt
     (fields : List Field) (errors : List ErrorDef)
     (dynamicSource : DynamicDataSource) : Stmt → Prop
@@ -2958,6 +2960,8 @@ inductive BridgedSourceInternalBodyWithErrorsStmt
       (hStmt : BridgedSourceCustomErrorStmt fields errors dynamicSource stmt) :
       BridgedSourceInternalBodyWithErrorsStmt fields errors dynamicSource stmt
   | memoryWrite {stmt : Stmt} (hStmt : BridgedSourceMemoryWriteStmt stmt) :
+      BridgedSourceInternalBodyWithErrorsStmt fields errors dynamicSource stmt
+  | mappingWrite {stmt : Stmt} (hStmt : BridgedSourceMappingWriteStmt fields stmt) :
       BridgedSourceInternalBodyWithErrorsStmt fields errors dynamicSource stmt
 
 def BridgedSourceInternalBodyWithErrorsStmts
@@ -2989,6 +2993,9 @@ theorem compileStmt_external_body_with_errors_bridged
   | memoryWrite hMem =>
       exact compileStmt_memoryWrite_bridged fields events errors dynamicSource
         internalRetNames false inScopeNames hMem hOk
+  | mappingWrite hMap =>
+      exact compileStmt_mappingWrite_bridged fields events errors dynamicSource
+        internalRetNames false inScopeNames hMap hOk
 
 /-- Each statement in the extended internal body fragment compiles to
 `BridgedStmts`. -/
@@ -3013,6 +3020,9 @@ theorem compileStmt_internal_body_with_errors_bridged
   | memoryWrite hMem =>
       exact compileStmt_memoryWrite_bridged fields events errors dynamicSource
         internalRetNames true inScopeNames hMem hOk
+  | mappingWrite hMap =>
+      exact compileStmt_mappingWrite_bridged fields events errors dynamicSource
+        internalRetNames true inScopeNames hMap hOk
 
 /-- Mixed external source bodies (storage/require/terminator + zero-arg
 custom errors) compile to Yul lists satisfying `BridgedStmts`. -/
