@@ -2265,14 +2265,14 @@ theorem BridgedStmts_cons_funcDef
 
 theorem callvalueGuard_bridged : BridgedStmt Compiler.CodegenCommon.callvalueGuard := by
   unfold Compiler.CodegenCommon.callvalueGuard
-  exact BridgedStmt.if_ _ _ bridgedExpr_callvalue
-    (BridgedStmts_singleton_revert_zero)
+  exact bridgedStmt_if_of_bridgedStmts bridgedExpr_callvalue
+    BridgedStmts_singleton_revert_zero
 
 theorem calldatasizeGuard_bridged (numParams : Nat) :
     BridgedStmt (Compiler.CodegenCommon.calldatasizeGuard numParams) := by
   unfold Compiler.CodegenCommon.calldatasizeGuard
-  exact BridgedStmt.if_ _ _ (bridgedExpr_calldatasize_lt (4 + numParams * 32))
-    (BridgedStmts_singleton_revert_zero)
+  exact bridgedStmt_if_of_bridgedStmts (bridgedExpr_calldatasize_lt (4 + numParams * 32))
+    BridgedStmts_singleton_revert_zero
 
 theorem dispatchBody_bridged (payable : Bool) (label : String)
     (body : List Compiler.Yul.YulStmt) (hBody : BridgedStmts body) :
