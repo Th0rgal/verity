@@ -1504,6 +1504,38 @@ theorem bridgedStmt_let_keccak256 (name : String)
   bridgedStmt_of_bridgedStraightStmt
     (bridgedStraightStmt_let_keccak256 name offsetExpr sizeExpr hOffset hSize)
 
+/-- Direct `BridgedStmt` version of `bridgedStraightStmt_assign_mload`:
+    `name := mload(offsetExpr)` with a bridged offset lifts straight to
+    `BridgedStmt`, paralleling `bridgedStmt_let_mload` for the already-declared
+    variable path. -/
+theorem bridgedStmt_assign_mload (name : String)
+    (offsetExpr : Compiler.Yul.YulExpr) (hOffset : BridgedExpr offsetExpr) :
+    BridgedStmt
+      (.assign name (Compiler.Yul.YulExpr.call "mload" [offsetExpr])) :=
+  bridgedStmt_of_bridgedStraightStmt
+    (bridgedStraightStmt_assign_mload name offsetExpr hOffset)
+
+/-- Direct `BridgedStmt` version of `bridgedStraightStmt_assign_tload`:
+    EIP-1153 transient-load analogue of `bridgedStmt_assign_mload`. -/
+theorem bridgedStmt_assign_tload (name : String)
+    (slotExpr : Compiler.Yul.YulExpr) (hSlot : BridgedExpr slotExpr) :
+    BridgedStmt
+      (.assign name (Compiler.Yul.YulExpr.call "tload" [slotExpr])) :=
+  bridgedStmt_of_bridgedStraightStmt
+    (bridgedStraightStmt_assign_tload name slotExpr hSlot)
+
+/-- Direct `BridgedStmt` version of `bridgedStraightStmt_assign_keccak256`:
+    `name := keccak256(ptr, size)` for assigning to an already-declared
+    variable, paralleling `bridgedStmt_let_keccak256`. -/
+theorem bridgedStmt_assign_keccak256 (name : String)
+    (offsetExpr sizeExpr : Compiler.Yul.YulExpr)
+    (hOffset : BridgedExpr offsetExpr) (hSize : BridgedExpr sizeExpr) :
+    BridgedStmt
+      (.assign name
+        (Compiler.Yul.YulExpr.call "keccak256" [offsetExpr, sizeExpr])) :=
+  bridgedStmt_of_bridgedStraightStmt
+    (bridgedStraightStmt_assign_keccak256 name offsetExpr sizeExpr hOffset hSize)
+
 /-- List-level lift: any list satisfying `BridgedStraightStmts` also satisfies
     the recursive `BridgedStmts` predicate, since `BridgedStraightStmt` lifts
     pointwise via `bridgedStmt_of_bridgedStraightStmt`. Useful when a compiler
