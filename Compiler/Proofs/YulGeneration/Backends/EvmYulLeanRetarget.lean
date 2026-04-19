@@ -1596,6 +1596,38 @@ theorem bridgedStmt_sstore_ident_of_bridged_val
   bridgedStmt_of_bridgedStraightStmt
     (BridgedStraightStmt.expr_sstore_ident slotName valExpr hVal)
 
+/-- Direct `BridgedStmt` wrapper for the zero-arg `stop()` terminator. -/
+theorem bridgedStmt_stop :
+    BridgedStmt (.expr (Compiler.Yul.YulExpr.call "stop" [])) :=
+  bridgedStmt_of_bridgedStraightStmt BridgedStraightStmt.expr_stop
+
+/-- Direct `BridgedStmt` wrapper for `return(offsetExpr, sizeExpr)` with both
+    arguments bridged. Covers the external-function non-empty-return
+    terminator. -/
+theorem bridgedStmt_return_of_bridged_args
+    (offsetExpr sizeExpr : Compiler.Yul.YulExpr)
+    (hOffset : BridgedExpr offsetExpr) (hSize : BridgedExpr sizeExpr) :
+    BridgedStmt
+      (.expr (Compiler.Yul.YulExpr.call "return" [offsetExpr, sizeExpr])) :=
+  bridgedStmt_of_bridgedStraightStmt
+    (BridgedStraightStmt.expr_return offsetExpr sizeExpr hOffset hSize)
+
+/-- Direct `BridgedStmt` wrapper for `revert(offsetExpr, sizeExpr)`. The
+    underlying `BridgedStraightStmt.expr_revert` ctor takes no bridged-arg
+    hypotheses — revert only inspects memory range bounds via the shared
+    `EvmYulLean` state bridge. -/
+theorem bridgedStmt_revert
+    (offsetExpr sizeExpr : Compiler.Yul.YulExpr) :
+    BridgedStmt
+      (.expr (Compiler.Yul.YulExpr.call "revert" [offsetExpr, sizeExpr])) :=
+  bridgedStmt_of_bridgedStraightStmt
+    (BridgedStraightStmt.expr_revert offsetExpr sizeExpr)
+
+/-- Direct `BridgedStmt` wrapper for the zero-arg `leave` internal-function
+    terminator. -/
+theorem bridgedStmt_leave : BridgedStmt .leave :=
+  bridgedStmt_of_bridgedStraightStmt BridgedStraightStmt.leave
+
 /-- List-level lift: any list satisfying `BridgedStraightStmts` also satisfies
     the recursive `BridgedStmts` predicate, since `BridgedStraightStmt` lifts
     pointwise via `bridgedStmt_of_bridgedStraightStmt`. Useful when a compiler
