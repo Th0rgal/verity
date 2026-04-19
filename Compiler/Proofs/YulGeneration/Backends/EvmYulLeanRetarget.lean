@@ -1926,7 +1926,11 @@ theorem BridgedStmts_map_tstore
           (Compiler.Yul.YulExpr.call "tstore" [p.1, p.2])) :=
   BridgedStmts_of_BridgedStraightStmts (BridgedStraightStmts_map_tstore pairs hPairs)
 
-private theorem bridgedStmt_revert_zero :
+/-- The common `revert(0, 0)` failure terminator as a `BridgedStmt`. Used by
+    compiler-emitted guards (callvalue, calldatasize, require) whose failure
+    branch is a single unconditional revert with zero offset/size. Exposed
+    publicly so downstream body-closure proofs can reuse it. -/
+theorem bridgedStmt_revert_zero :
     BridgedStmt
       (Compiler.Yul.YulStmt.expr
         (Compiler.Yul.YulExpr.call "revert"
@@ -1934,6 +1938,16 @@ private theorem bridgedStmt_revert_zero :
   BridgedStmt.straight _
     (BridgedStraightStmt.expr_revert
       (Compiler.Yul.YulExpr.lit 0) (Compiler.Yul.YulExpr.lit 0))
+
+/-- `BridgedStmts` singleton wrapping a single `revert(0, 0)`. Matches the
+    canonical guard-body shape `[YulStmt.expr (call "revert" [lit 0, lit 0])]`
+    emitted by callvalue/calldatasize/require guards. -/
+theorem BridgedStmts_singleton_revert_zero :
+    BridgedStmts
+      [Compiler.Yul.YulStmt.expr
+        (Compiler.Yul.YulExpr.call "revert"
+          [Compiler.Yul.YulExpr.lit 0, Compiler.Yul.YulExpr.lit 0])] :=
+  BridgedStmts_singleton bridgedStmt_revert_zero
 
 theorem callvalueGuard_bridged : BridgedStmt Compiler.CodegenCommon.callvalueGuard := by
   unfold Compiler.CodegenCommon.callvalueGuard
