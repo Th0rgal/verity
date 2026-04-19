@@ -405,6 +405,18 @@ ALLOWLIST: set[str] = {
     # body delegation. Each init/post/cond witness is a mechanical
     # `BridgedStmt.straight` / `BridgedExpr.call` application.
     "compileStmt_forEach_with_bridged_body",
+    # Zero-argument custom-error revert closure enumerates the seven distinct
+    # bridged-statement kinds inside `revertWithCustomError`'s emitted
+    # `YulStmt.block`: `mload`-let for the free-memory pointer, the four
+    # `mstore` signature-byte stores produced by `chunkBytes32`, the
+    # `keccak256`-let, the `shl`/`shr` selector arithmetic, the selector
+    # `mstore`, the tail-init `mload`-let, and the final `revert` expr.
+    # Each branch needs its own `BridgedExpr` construction because the
+    # constructor families (`BridgedStraightStmt` vs `BridgedExpr.call`) and
+    # arity differ; decomposing into per-statement-kind helpers would yield
+    # seven trivial single-use lemmas whose combined boilerplate exceeds the
+    # main proof's line count.
+    "revertWithCustomError_zero_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }

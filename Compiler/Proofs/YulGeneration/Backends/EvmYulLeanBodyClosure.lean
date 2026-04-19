@@ -2636,4 +2636,283 @@ theorem compileStmt_forEach_with_bridged_body
           · -- body
             exact hBBody
 
+/-! ## Source statement body closure: zero-argument custom errors
+
+`Stmt.revertError errorName []` compiles via `revertWithCustomError` to a
+single Yul `.block` containing `mload` (frame pointer load), signature-word
+`mstore`s, `keccak256` of the signature, `shl`/`shr` selector extraction,
+a `mstore` of the selector, `let __err_tail = 0`, and a final `revert`.
+Every statement inside the block satisfies `BridgedStraightStmt`, so the
+block satisfies `BridgedStmt`.
+
+`Stmt.requireError cond errorName []` additionally wraps the block inside a
+Yul `if_` whose condition is the compiled fail-cond expression.
+
+Closure for custom errors with arguments requires additional reasoning about
+`attachOffsets`, `encodeStaticCustomErrorArg`, and per-parameter ABI
+encoding, which is out of scope for this increment.
+-/
+
+/-- Every element of the signature-bytes store list has shape
+`expr (mstore [add [ident "__err_ptr", lit], hex])` and is therefore
+`BridgedStmt`. -/
+private theorem sigStores_bridged (sigBytes : List UInt8) :
+    ∀ s ∈ (chunkBytes32 sigBytes).zipIdx.map
+        (fun (chunk, idx) =>
+          YulStmt.expr (YulExpr.call "mstore" [
+            YulExpr.call "add" [YulExpr.ident "__err_ptr", YulExpr.lit (idx * 32)],
+            YulExpr.hex (wordFromBytes chunk)])),
+      BridgedStmt s := by
+  intro s hMem
+  simp only [List.mem_map] at hMem
+  rcases hMem with ⟨chunkAndIdx, _hChunk, rfl⟩
+  rcases chunkAndIdx with ⟨chunk, idx⟩
+  refine BridgedStmt.straight _ (BridgedStraightStmt.expr_mstore _ _ ?_ ?_)
+  · refine BridgedExpr.call "add" _ (Or.inl (by simp [bridgedBuiltins])) ?_
+    intro arg hArg
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hArg
+    rcases hArg with rfl | rfl
+    · exact BridgedExpr.ident "__err_ptr"
+    · exact BridgedExpr.lit (idx * 32)
+  · exact BridgedExpr.hex (wordFromBytes chunk)
+
+/-- A zero-argument custom error reverts via a `.block` whose body is made
+entirely of bridged straight-line statements. -/
+private theorem revertWithCustomError_zero_bridged
+    (dynamicSource : DynamicDataSource) (errorDef : ErrorDef)
+    (hParams : errorDef.params = []) :
+    ∀ {out : List YulStmt},
+      revertWithCustomError dynamicSource errorDef [] [] = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  have hNil : (revertWithCustomError dynamicSource errorDef [] []) = .ok
+      [YulStmt.block
+        ([YulStmt.let_ "__err_ptr" (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer])] ++
+          ((chunkBytes32 (bytesFromString (errorSignature errorDef))).zipIdx.map
+            (fun (chunk, idx) =>
+              YulStmt.expr (YulExpr.call "mstore" [
+                YulExpr.call "add" [YulExpr.ident "__err_ptr", YulExpr.lit (idx * 32)],
+                YulExpr.hex (wordFromBytes chunk)]))) ++
+          [YulStmt.let_ "__err_hash"
+              (YulExpr.call "keccak256" [YulExpr.ident "__err_ptr",
+                YulExpr.lit (bytesFromString (errorSignature errorDef)).length]),
+            YulStmt.let_ "__err_selector"
+              (YulExpr.call "shl" [YulExpr.lit selectorShift,
+                YulExpr.call "shr" [YulExpr.lit selectorShift, YulExpr.ident "__err_hash"]]),
+            YulStmt.expr (YulExpr.call "mstore"
+              [YulExpr.lit 0, YulExpr.ident "__err_selector"]),
+            YulStmt.let_ "__err_tail" (YulExpr.lit 0)] ++
+          [YulStmt.expr (YulExpr.call "revert"
+            [YulExpr.lit 0,
+              YulExpr.call "add" [YulExpr.lit 4, YulExpr.ident "__err_tail"]])])] := by
+    unfold revertWithCustomError
+    simp [hParams]
+    rfl
+  rw [hNil] at hOk
+  injection hOk with hOk
+  subst out
+  intro yulStmt hMem
+  simp only [List.mem_singleton] at hMem
+  subst yulStmt
+  refine BridgedStmt.block _ ?_
+  intro inner hInner
+  -- The block body: [storePtr] ++ sigStores ++ [hashStmt, selectorStmt,
+  -- selectorStore, tailInit] ++ [revertStmt]
+  simp only [List.mem_append, List.mem_cons, List.not_mem_nil, or_false] at hInner
+  rcases hInner with ((hStore | hSig) | hMid) | hRevert
+  · -- storePtr: let __err_ptr = mload(freeMemoryPointer)
+    subst hStore
+    refine BridgedStmt.straight _ (BridgedStraightStmt.let_ _ _ ?_)
+    refine BridgedExpr.call "mload" _
+      (Or.inr (Or.inr (Or.inl rfl))) ?_
+    intro arg hArg
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hArg
+    rcases hArg with rfl
+    exact BridgedExpr.lit freeMemoryPointer
+  · -- sigStores element
+    exact sigStores_bridged _ inner hSig
+  · -- middle four: hashStmt | selectorStmt | selectorStore | tailInit
+    rcases hMid with rfl | rfl | rfl | rfl
+    · -- hashStmt: let __err_hash = keccak256(ident "__err_ptr", lit sigBytes.length)
+      refine BridgedStmt.straight _ (BridgedStraightStmt.let_ _ _ ?_)
+      refine BridgedExpr.call "keccak256" _
+        (Or.inr (Or.inr (Or.inr rfl))) ?_
+      intro arg hArg
+      simp only [List.mem_cons, List.not_mem_nil, or_false] at hArg
+      rcases hArg with rfl | rfl
+      · exact BridgedExpr.ident "__err_ptr"
+      · exact BridgedExpr.lit _
+    · -- selectorStmt: let __err_selector = shl(selectorShift, shr(selectorShift, ident))
+      refine BridgedStmt.straight _ (BridgedStraightStmt.let_ _ _ ?_)
+      refine BridgedExpr.call "shl" _
+        (Or.inl (by simp [bridgedBuiltins])) ?_
+      intro arg hArg
+      simp only [List.mem_cons, List.not_mem_nil, or_false] at hArg
+      rcases hArg with rfl | rfl
+      · exact BridgedExpr.lit selectorShift
+      · refine BridgedExpr.call "shr" _
+          (Or.inl (by simp [bridgedBuiltins])) ?_
+        intro arg2 hArg2
+        simp only [List.mem_cons, List.not_mem_nil, or_false] at hArg2
+        rcases hArg2 with rfl | rfl
+        · exact BridgedExpr.lit selectorShift
+        · exact BridgedExpr.ident "__err_hash"
+    · -- selectorStore: mstore(lit 0, ident "__err_selector")
+      refine BridgedStmt.straight _ (BridgedStraightStmt.expr_mstore _ _ ?_ ?_)
+      · exact BridgedExpr.lit 0
+      · exact BridgedExpr.ident "__err_selector"
+    · -- tailInit: let __err_tail = lit 0
+      refine BridgedStmt.straight _ (BridgedStraightStmt.let_ _ _ ?_)
+      exact BridgedExpr.lit _
+  · -- revertStmt: expr revert(lit 0, add [lit 4, ident "__err_tail"])
+    subst hRevert
+    exact BridgedStmt.straight _ (BridgedStraightStmt.expr_revert _ _)
+
+/-- Source custom-error statements with zero parameters whose call-site looks
+up a defined `ErrorDef` with no parameters. -/
+inductive BridgedSourceCustomErrorStmt
+    (fields : List Field) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) : Stmt → Prop
+  | revertError (errorName : String)
+      (errorDef : ErrorDef)
+      (hLookup : errors.find? (·.name == errorName) = some errorDef)
+      (hZeroParams : errorDef.params = []) :
+      BridgedSourceCustomErrorStmt fields errors dynamicSource
+        (.revertError errorName [])
+  | requireError (cond : Expr) (errorName : String)
+      (errorDef : ErrorDef)
+      (hLookup : errors.find? (·.name == errorName) = some errorDef)
+      (hZeroParams : errorDef.params = [])
+      (hFailCond : ∀ {failCond : YulExpr},
+        compileRequireFailCond fields dynamicSource cond = .ok failCond →
+        BridgedExpr failCond) :
+      BridgedSourceCustomErrorStmt fields errors dynamicSource
+        (.requireError cond errorName [])
+
+def BridgedSourceCustomErrorStmts
+    (fields : List Field) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts, BridgedSourceCustomErrorStmt fields errors dynamicSource stmt
+
+/-- A zero-arg `Stmt.revertError` compiles to a bridged Yul statement list. -/
+theorem compileStmt_revertError_zero_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    {errorName : String} {errorDef : ErrorDef}
+    (hLookup : errors.find? (·.name == errorName) = some errorDef)
+    (hZeroParams : errorDef.params = []) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames (.revertError errorName []) = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  simp only [compileStmt, bind, Except.bind, hLookup, compileExprList,
+    Pure.pure, Except.pure] at hOk
+  exact revertWithCustomError_zero_bridged dynamicSource errorDef hZeroParams hOk
+
+/-- A zero-arg `Stmt.requireError` compiles to a bridged Yul statement list
+when its failure condition is bridged. -/
+theorem compileStmt_requireError_zero_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    {cond : Expr} {errorName : String} {errorDef : ErrorDef}
+    (hLookup : errors.find? (·.name == errorName) = some errorDef)
+    (hZeroParams : errorDef.params = [])
+    (hFailCond : ∀ {failCond : YulExpr},
+      compileRequireFailCond fields dynamicSource cond = .ok failCond →
+      BridgedExpr failCond) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames (.requireError cond errorName []) = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  simp only [compileStmt, bind, Except.bind] at hOk
+  cases hFail : compileRequireFailCond fields dynamicSource cond with
+  | error err => simp [hFail] at hOk
+  | ok failCond =>
+      simp [hFail, hLookup, compileExprList, Pure.pure, Except.pure] at hOk
+      cases hRevert : revertWithCustomError dynamicSource errorDef [] [] with
+      | error err => simp [hRevert] at hOk
+      | ok revertStmts =>
+          simp [hRevert] at hOk
+          subst out
+          have hBRevert : BridgedStmts revertStmts :=
+            revertWithCustomError_zero_bridged dynamicSource errorDef hZeroParams hRevert
+          intro yulStmt hMem
+          simp only [List.mem_singleton] at hMem
+          subst yulStmt
+          exact BridgedStmt.if_ failCond revertStmts
+            (hFailCond hFail) hBRevert
+
+/-- Zero-arg custom-error statements compile to bridged Yul statement lists. -/
+theorem compileStmt_customError_zero_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    {stmt : Stmt}
+    (hStmt : BridgedSourceCustomErrorStmt fields errors dynamicSource stmt) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames stmt = .ok out →
+      BridgedStmts out := by
+  cases hStmt with
+  | revertError errorName errorDef hLookup hZeroParams =>
+      exact compileStmt_revertError_zero_bridged fields events errors dynamicSource
+        internalRetNames isInternal inScopeNames hLookup hZeroParams
+  | requireError cond errorName errorDef hLookup hZeroParams hFailCond =>
+      exact compileStmt_requireError_zero_bridged fields events errors dynamicSource
+        internalRetNames isInternal inScopeNames hLookup hZeroParams hFailCond
+
+/-- A list made entirely of zero-arg custom-error source statements compiles
+to a Yul list satisfying `BridgedStmts`. -/
+theorem compileStmtList_customError_zero_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceCustomErrorStmts fields errors dynamicSource stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames head with
+      | error err => simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) tail with
+          | error err => simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource : BridgedSourceCustomErrorStmt fields errors dynamicSource head :=
+                hSource head (by simp)
+              have hBHead : BridgedStmts headOut :=
+                compileStmt_customError_zero_bridged fields events errors dynamicSource
+                  internalRetNames isInternal inScopeNames hHeadSource hHead
+              have hTailSource : BridgedSourceCustomErrorStmts fields errors dynamicSource tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              have hBTail : BridgedStmts tailOut :=
+                ih (collectStmtNames head ++ inScopeNames) hTailSource hTail
+              intro stmt hMem
+              simp only [List.mem_append] at hMem
+              rcases hMem with h | h
+              · exact hBHead stmt h
+              · exact hBTail stmt h
+
 end Compiler.Proofs.YulGeneration.Backends

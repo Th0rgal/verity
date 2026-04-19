@@ -427,7 +427,30 @@ special cases handled directly by the Verity Yul expression evaluator.
 -/
 
 def allowedExprCallName (func : String) : Prop :=
-  func ∈ bridgedBuiltins ∨ func = "tload" ∨ func = "mload"
+  func ∈ bridgedBuiltins ∨ func = "tload" ∨ func = "mload" ∨ func = "keccak256"
+
+set_option maxHeartbeats 1000000 in
+/-- `keccak256` is not handled by Verity's `evalBuiltinCallWithContext` (it
+    falls through the 35-case if-else chain to the final `else none`) and is
+    not handled by the EVMYulLean adapter (`evalBuiltinCallViaEvmYulLean` and
+    `evalPureBuiltinViaEvmYulLean` both default to `none` for unknown funcs).
+    Both backends therefore agree trivially by returning `none`. This makes
+    `keccak256` a safe "bridged by absence" expression name: the Yul
+    interpreter cannot compute a hash under either backend, and any Yul
+    program that evaluates `keccak256(...)` through this interpreter halts
+    identically on both sides.  -/
+private theorem backends_agree_on_keccak256
+    (storage : Nat → Nat)
+    (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
+    (calldata : List Nat) (argVals : List Nat) :
+    evalBuiltinCallWithBackendContext .verity storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "keccak256" argVals =
+    evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
+      blockTimestamp blockNumber chainId blobBaseFee selector calldata "keccak256" argVals := by
+  -- Both sides reduce definitionally to `none` via their respective long
+  -- if-else chains on `func`. Using `rfl` with bumped heartbeats is the
+  -- simplest path; targeted simp at every level would be longer and no faster.
+  rfl
 
 inductive BridgedExpr : Compiler.Yul.YulExpr → Prop
   | lit (n : Nat) : BridgedExpr (.lit n)
@@ -531,7 +554,7 @@ theorem evalYulExprWithBackend_eq_on_bridged
       cases hEval : evalYulExprsWithBackend .evmYulLean state args with
       | none => rfl
       | some argVals =>
-          rcases hName with hBridged | rfl | rfl
+          rcases hName with hBridged | rfl | rfl | rfl
           · have hEq := backends_agree_on_bridged_builtins
               state.storage state.sender state.msgValue state.thisAddress
               state.blockTimestamp state.blockNumber state.chainId state.blobBaseFee
@@ -539,6 +562,16 @@ theorem evalYulExprWithBackend_eq_on_bridged
             simp [hEq]
           · simp
           · simp
+          · -- func = "keccak256": both backends fall through to `none` via the
+            -- else-branch of `evalYulCallWithBackend`; proved by the standalone
+            -- helper `backends_agree_on_keccak256`.
+            have h1 : ("keccak256" : String) = "tload" ↔ False := by decide
+            have h2 : ("keccak256" : String) = "mload" ↔ False := by decide
+            simp only [h1, h2, if_false]
+            exact backends_agree_on_keccak256
+              state.storage state.sender state.msgValue state.thisAddress
+              state.blockTimestamp state.blockNumber state.chainId state.blobBaseFee
+              state.selector state.calldata argVals
 
 private theorem evalYulExprsWithBackend_eq_on_bridged
     (state : YulState) (args : List Compiler.Yul.YulExpr)
