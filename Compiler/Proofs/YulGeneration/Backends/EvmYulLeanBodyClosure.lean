@@ -4331,4 +4331,37 @@ mutual
                     (collectStmtNames head ++ inScopeNames) hTailCompile)
 end
 
+/-! ### Lifting flat with-errors aliases into the recursive inductive
+
+Clients that produce a flat `∀ stmt ∈ stmts, BridgedSource*BodyWithErrorsStmt …`
+witness (the alias form) can lift it into the inductive recursive predicate
+via the `base` constructor applied pointwise, without manually threading
+`nil`/`cons`. -/
+
+theorem BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_alias
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceExternalBodyWithErrorsStmts fields errors dynamicSource stmts) :
+    BridgedSourceExternalRecursiveBodyWithErrorsStmts fields errors
+      dynamicSource stmts := by
+  induction stmts with
+  | nil => exact .nil
+  | cons head tail ih =>
+      refine .cons (.base (h head (by simp))) (ih ?_)
+      intro stmt hMem
+      exact h stmt (by simp [hMem])
+
+theorem BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_alias
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceInternalBodyWithErrorsStmts fields errors dynamicSource stmts) :
+    BridgedSourceInternalRecursiveBodyWithErrorsStmts fields errors
+      dynamicSource stmts := by
+  induction stmts with
+  | nil => exact .nil
+  | cons head tail ih =>
+      refine .cons (.base (h head (by simp))) (ih ?_)
+      intro stmt hMem
+      exact h stmt (by simp [hMem])
+
 end Compiler.Proofs.YulGeneration.Backends
