@@ -1488,6 +1488,16 @@ theorem BridgedStmts_map_mstore
           (Compiler.Yul.YulExpr.call "mstore" [p.1, p.2])) :=
   BridgedStmts_of_BridgedStraightStmts (BridgedStraightStmts_map_mstore pairs hPairs)
 
+/-- Wrap a `BridgedStmts`-typed list under `BridgedStmt.block`. The ctor's
+    pointwise `∀ stmt ∈ stmts, BridgedStmt stmt` obligation is definitionally
+    equal to `BridgedStmts stmts`, so this is a one-line convenience. Directly
+    supports the scalar `emit` body shape, which compiles to a single outer
+    `[YulStmt.block body]` wrapping all bridged fragments. -/
+theorem bridgedStmt_block_of_bridgedStmts
+    {stmts : List Compiler.Yul.YulStmt} (hStmts : BridgedStmts stmts) :
+    BridgedStmt (.block stmts) :=
+  BridgedStmt.block stmts hStmts
+
 /-- `BridgedStmts` analogue of `BridgedStraightStmts_map_tstore`, for the
     transient-store variant of the map helper above. -/
 theorem BridgedStmts_map_tstore
