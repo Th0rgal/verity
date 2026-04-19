@@ -1984,11 +1984,9 @@ theorem dispatchBody_bridged (payable : Bool) (label : String)
   cases payable <;>
     simp only [Bool.false_eq_true, ite_false, ite_true,
       List.singleton_append]
-  · exact BridgedStmts_cons (BridgedStmt.straight _
-      (BridgedStraightStmt.comment label))
+  · exact BridgedStmts_cons_comment label
       (BridgedStmts_cons callvalueGuard_bridged hBody)
-  · exact BridgedStmts_cons (BridgedStmt.straight _
-      (BridgedStraightStmt.comment label)) hBody
+  · exact BridgedStmts_cons_comment label hBody
 
 theorem defaultDispatchCase_bridged
     (fallback receive : Option Compiler.IREntrypoint)
