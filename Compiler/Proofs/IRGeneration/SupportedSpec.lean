@@ -266,6 +266,94 @@ theorem eventEmissionProofSupported_param_not_string
     (eventParamScalarProofSupported_eq_true_of_eventEmissionProofSupported
       hsupport hfind hmem)
 
+theorem eventEmissionProofSupported_zippedWithSource_param_scalar
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    {α : Type}
+    {compiledArgs : List α}
+    {entry : EventParam × Expr × α}
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef)
+    (hmem :
+      entry ∈
+        ((eventDef.params.zip args).zip compiledArgs |>.map
+          (fun ((p, srcExpr), argExpr) => (p, srcExpr, argExpr)))) :
+    eventParamScalarProofSupported entry.1.ty = true := by
+  rcases entry with ⟨param, srcExpr, argExpr⟩
+  simp only [List.mem_map] at hmem
+  rcases hmem with ⟨sourceEntry, hsourceMem, hentry⟩
+  rcases sourceEntry with ⟨paramArg, compiledArg⟩
+  rcases paramArg with ⟨sourceParam, sourceExpr⟩
+  cases hentry
+  have hparamArgMem : (sourceParam, sourceExpr) ∈ eventDef.params.zip args := by
+    exact (List.of_mem_zip hsourceMem).1
+  have hparamMem : sourceParam ∈ eventDef.params := by
+    exact (List.of_mem_zip hparamArgMem).1
+  exact eventParamScalarProofSupported_eq_true_of_eventEmissionProofSupported
+    hsupport hfind hparamMem
+
+theorem eventEmissionProofSupported_zippedWithSource_eventIsDynamicType_eq_false
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    {α : Type}
+    {compiledArgs : List α}
+    {entry : EventParam × Expr × α}
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef)
+    (hmem :
+      entry ∈
+        ((eventDef.params.zip args).zip compiledArgs |>.map
+          (fun ((p, srcExpr), argExpr) => (p, srcExpr, argExpr)))) :
+    eventIsDynamicType entry.1.ty = false :=
+  eventParamScalarProofSupported_eventIsDynamicType_eq_false
+    (eventEmissionProofSupported_zippedWithSource_param_scalar
+      hsupport hfind hmem)
+
+theorem eventEmissionProofSupported_zippedWithSource_eventHeadWordSize_eq_thirty_two
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    {α : Type}
+    {compiledArgs : List α}
+    {entry : EventParam × Expr × α}
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef)
+    (hmem :
+      entry ∈
+        ((eventDef.params.zip args).zip compiledArgs |>.map
+          (fun ((p, srcExpr), argExpr) => (p, srcExpr, argExpr)))) :
+    eventHeadWordSize entry.1.ty = 32 :=
+  eventParamScalarProofSupported_eventHeadWordSize_eq_thirty_two
+    (eventEmissionProofSupported_zippedWithSource_param_scalar
+      hsupport hfind hmem)
+
+theorem eventEmissionProofSupported_zippedWithSource_unindexed_any_dynamic_false
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    {α : Type}
+    (compiledArgs : List α)
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef) :
+    ((((eventDef.params.zip args).zip compiledArgs |>.map
+        (fun ((p, srcExpr), argExpr) => (p, srcExpr, argExpr))).filter
+          (fun (p, _, _) => p.kind == EventParamKind.unindexed)).any
+            (fun (p, _, _) => eventIsDynamicType p.ty)) = false := by
+  apply List.any_eq_false.mpr
+  intro entry hentry
+  have hstatic :
+      (match entry with
+        | (p, _, _) => eventIsDynamicType p.ty) = false :=
+    eventEmissionProofSupported_zippedWithSource_eventIsDynamicType_eq_false
+      hsupport hfind (List.mem_filter.mp hentry).1
+  simp [hstatic]
+
 mutual
 /-- Constructor body proofs are intentionally staged after initcode argument
 decoding. Raw constructor calldata observations therefore remain outside the
