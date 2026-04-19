@@ -2141,6 +2141,30 @@ theorem BridgedStmts_cons_tstore
         (Compiler.Yul.YulExpr.call "tstore" [offsetExpr, valExpr]) :: rest) :=
   BridgedStmts_cons (bridgedStmt_tstore_of_bridged_args offsetExpr valExpr hOffset hVal) hRest
 
+/-- `BridgedStmts` singleton wrapping a single `sstore(lit slot, val)` node
+    over a bridged value expression. Matches the unpacked single-slot field
+    write emitted by `compileSetStorage`. -/
+theorem BridgedStmts_singleton_sstore_lit
+    (slot : Nat) (valExpr : Compiler.Yul.YulExpr) (hVal : BridgedExpr valExpr) :
+    BridgedStmts
+      [Compiler.Yul.YulStmt.expr
+        (Compiler.Yul.YulExpr.call "sstore"
+          [Compiler.Yul.YulExpr.lit slot, valExpr])] :=
+  BridgedStmts_singleton (bridgedStmt_sstore_lit_of_bridged_val slot valExpr hVal)
+
+/-- Cons a `sstore(lit slot, val)` node over a bridged value expression onto
+    an already-bridged `BridgedStmts` tail. Covers the common packed-storage
+    layout where sequential literal-slot writes precede subsequent bridged
+    statements. -/
+theorem BridgedStmts_cons_sstore_lit
+    (slot : Nat) (valExpr : Compiler.Yul.YulExpr) (hVal : BridgedExpr valExpr)
+    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
+    BridgedStmts
+      (Compiler.Yul.YulStmt.expr
+        (Compiler.Yul.YulExpr.call "sstore"
+          [Compiler.Yul.YulExpr.lit slot, valExpr]) :: rest) :=
+  BridgedStmts_cons (bridgedStmt_sstore_lit_of_bridged_val slot valExpr hVal) hRest
+
 theorem callvalueGuard_bridged : BridgedStmt Compiler.CodegenCommon.callvalueGuard := by
   unfold Compiler.CodegenCommon.callvalueGuard
   exact BridgedStmt.if_ _ _ bridgedExpr_callvalue
