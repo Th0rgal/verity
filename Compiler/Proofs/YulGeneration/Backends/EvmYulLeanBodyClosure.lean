@@ -4944,4 +4944,110 @@ theorem BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_plain_recursive
         (BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_plain_recursive hTail)
 end
 
+/-! ### Lifting structured plain witnesses into structured with-errors
+
+Callers holding a `BridgedSource*StructuredBodyStmt{,s}` witness (one-layer
+`Stmt.ite` over plain body-stmt lists) reach the with-errors counterpart at
+the same structural level in one step: `.base` delegates to the body-level
+`*BodyWithErrorsStmt.base` ctor; `.ite` rewraps each branch list through the
+existing `*BodyWithErrorsStmts_of_plain` alias lift. -/
+
+theorem BridgedSourceExternalStructuredBodyWithErrorsStmt_of_structured
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceExternalStructuredBodyStmt fields dynamicSource stmt) :
+    BridgedSourceExternalStructuredBodyWithErrorsStmt fields errors
+      dynamicSource stmt := by
+  match h with
+  | .base hStmt => exact .base (.base hStmt)
+  | .ite cond thenBranch elseBranch hCond hThen hElse =>
+      exact .ite cond thenBranch elseBranch hCond
+        (BridgedSourceExternalBodyWithErrorsStmts_of_plain hThen)
+        (BridgedSourceExternalBodyWithErrorsStmts_of_plain hElse)
+
+theorem BridgedSourceExternalStructuredBodyWithErrorsStmts_of_structured
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceExternalStructuredBodyStmts fields dynamicSource stmts) :
+    BridgedSourceExternalStructuredBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  fun stmt hMem =>
+    BridgedSourceExternalStructuredBodyWithErrorsStmt_of_structured (h stmt hMem)
+
+theorem BridgedSourceInternalStructuredBodyWithErrorsStmt_of_structured
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceInternalStructuredBodyStmt fields dynamicSource stmt) :
+    BridgedSourceInternalStructuredBodyWithErrorsStmt fields errors
+      dynamicSource stmt := by
+  match h with
+  | .base hStmt => exact .base (.base hStmt)
+  | .ite cond thenBranch elseBranch hCond hThen hElse =>
+      exact .ite cond thenBranch elseBranch hCond
+        (BridgedSourceInternalBodyWithErrorsStmts_of_plain hThen)
+        (BridgedSourceInternalBodyWithErrorsStmts_of_plain hElse)
+
+theorem BridgedSourceInternalStructuredBodyWithErrorsStmts_of_structured
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceInternalStructuredBodyStmts fields dynamicSource stmts) :
+    BridgedSourceInternalStructuredBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  fun stmt hMem =>
+    BridgedSourceInternalStructuredBodyWithErrorsStmt_of_structured (h stmt hMem)
+
+/-! ### Lifting nested plain witnesses into nested with-errors
+
+Two-layer analog of the structured plain→with-errors lift. `.structured`
+delegates to the just-landed structured plain→with-errors stmt lift; `.ite`
+rewraps each branch list via the structured plain→with-errors list lift. -/
+
+theorem BridgedSourceExternalNestedBodyWithErrorsStmt_of_nested
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceExternalNestedBodyStmt fields dynamicSource stmt) :
+    BridgedSourceExternalNestedBodyWithErrorsStmt fields errors
+      dynamicSource stmt := by
+  match h with
+  | .structured hStruct =>
+      exact .structured
+        (BridgedSourceExternalStructuredBodyWithErrorsStmt_of_structured hStruct)
+  | .ite cond thenBranch elseBranch hCond hThen hElse =>
+      exact .ite cond thenBranch elseBranch hCond
+        (BridgedSourceExternalStructuredBodyWithErrorsStmts_of_structured hThen)
+        (BridgedSourceExternalStructuredBodyWithErrorsStmts_of_structured hElse)
+
+theorem BridgedSourceExternalNestedBodyWithErrorsStmts_of_nested
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceExternalNestedBodyStmts fields dynamicSource stmts) :
+    BridgedSourceExternalNestedBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  fun stmt hMem =>
+    BridgedSourceExternalNestedBodyWithErrorsStmt_of_nested (h stmt hMem)
+
+theorem BridgedSourceInternalNestedBodyWithErrorsStmt_of_nested
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceInternalNestedBodyStmt fields dynamicSource stmt) :
+    BridgedSourceInternalNestedBodyWithErrorsStmt fields errors
+      dynamicSource stmt := by
+  match h with
+  | .structured hStruct =>
+      exact .structured
+        (BridgedSourceInternalStructuredBodyWithErrorsStmt_of_structured hStruct)
+  | .ite cond thenBranch elseBranch hCond hThen hElse =>
+      exact .ite cond thenBranch elseBranch hCond
+        (BridgedSourceInternalStructuredBodyWithErrorsStmts_of_structured hThen)
+        (BridgedSourceInternalStructuredBodyWithErrorsStmts_of_structured hElse)
+
+theorem BridgedSourceInternalNestedBodyWithErrorsStmts_of_nested
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceInternalNestedBodyStmts fields dynamicSource stmts) :
+    BridgedSourceInternalNestedBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  fun stmt hMem =>
+    BridgedSourceInternalNestedBodyWithErrorsStmt_of_nested (h stmt hMem)
+
 end Compiler.Proofs.YulGeneration.Backends
