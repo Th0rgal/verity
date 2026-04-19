@@ -1536,6 +1536,29 @@ theorem bridgedStmt_assign_keccak256 (name : String)
   bridgedStmt_of_bridgedStraightStmt
     (bridgedStraightStmt_assign_keccak256 name offsetExpr sizeExpr hOffset hSize)
 
+/-- Direct `BridgedStmt` wrapper for `mstore(offsetExpr, valExpr)` with both
+    expression arguments bridged. Skips the explicit `BridgedStmt.straight _`
+    + `BridgedStraightStmt.expr_mstore` construction at call sites for a
+    standalone mstore that sits in a recursive-body context (e.g. spliced
+    between non-straight fragments). -/
+theorem bridgedStmt_mstore_of_bridged_args
+    (offsetExpr valExpr : Compiler.Yul.YulExpr)
+    (hOffset : BridgedExpr offsetExpr) (hVal : BridgedExpr valExpr) :
+    BridgedStmt
+      (.expr (Compiler.Yul.YulExpr.call "mstore" [offsetExpr, valExpr])) :=
+  bridgedStmt_of_bridgedStraightStmt
+    (BridgedStraightStmt.expr_mstore offsetExpr valExpr hOffset hVal)
+
+/-- Direct `BridgedStmt` wrapper for `tstore(offsetExpr, valExpr)`: EIP-1153
+    transient-store analogue of `bridgedStmt_mstore_of_bridged_args`. -/
+theorem bridgedStmt_tstore_of_bridged_args
+    (offsetExpr valExpr : Compiler.Yul.YulExpr)
+    (hOffset : BridgedExpr offsetExpr) (hVal : BridgedExpr valExpr) :
+    BridgedStmt
+      (.expr (Compiler.Yul.YulExpr.call "tstore" [offsetExpr, valExpr])) :=
+  bridgedStmt_of_bridgedStraightStmt
+    (BridgedStraightStmt.expr_tstore offsetExpr valExpr hOffset hVal)
+
 /-- List-level lift: any list satisfying `BridgedStraightStmts` also satisfies
     the recursive `BridgedStmts` predicate, since `BridgedStraightStmt` lifts
     pointwise via `bridgedStmt_of_bridgedStraightStmt`. Useful when a compiler
