@@ -4587,4 +4587,41 @@ theorem BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_plain
   BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_alias
     (BridgedSourceInternalBodyWithErrorsStmts_of_plain h)
 
+/-! ### Lifting structured aliases into the nested (two-`ite`-layer) inductive
+
+Each nested inductive exposes a `.structured` constructor accepting the
+structured stmt unchanged, so a caller holding a structured witness reaches
+the nested alias via pointwise `.structured` wrapping — no outer `ite` layer
+needs to be introduced. Covers plain and with-errors variants. -/
+
+theorem BridgedSourceExternalNestedBodyStmts_of_structured
+    {fields : List Field} {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceExternalStructuredBodyStmts fields dynamicSource stmts) :
+    BridgedSourceExternalNestedBodyStmts fields dynamicSource stmts :=
+  fun stmt hMem => .structured (h stmt hMem)
+
+theorem BridgedSourceInternalNestedBodyStmts_of_structured
+    {fields : List Field} {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceInternalStructuredBodyStmts fields dynamicSource stmts) :
+    BridgedSourceInternalNestedBodyStmts fields dynamicSource stmts :=
+  fun stmt hMem => .structured (h stmt hMem)
+
+theorem BridgedSourceExternalNestedBodyWithErrorsStmts_of_structured
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceExternalStructuredBodyWithErrorsStmts fields errors
+      dynamicSource stmts) :
+    BridgedSourceExternalNestedBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  fun stmt hMem => .structured (h stmt hMem)
+
+theorem BridgedSourceInternalNestedBodyWithErrorsStmts_of_structured
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceInternalStructuredBodyWithErrorsStmts fields errors
+      dynamicSource stmts) :
+    BridgedSourceInternalNestedBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  fun stmt hMem => .structured (h stmt hMem)
+
 end Compiler.Proofs.YulGeneration.Backends
