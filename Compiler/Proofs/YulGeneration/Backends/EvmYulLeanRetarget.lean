@@ -489,6 +489,10 @@ def evalYulCallWithBackend (backend : BuiltinBackend) (state : YulState)
       match argVals with
       | [offset] => some (state.memory offset)
       | _ => none
+    else if func = "keccak256" then
+      match argVals with
+      | [offset, size] => some (abstractKeccakMemorySlice state.memory offset size)
+      | _ => none
     else
       evalBuiltinCallWithBackendContext backend
         state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
@@ -562,16 +566,9 @@ theorem evalYulExprWithBackend_eq_on_bridged
             simp [hEq]
           · simp
           · simp
-          · -- func = "keccak256": both backends fall through to `none` via the
-            -- else-branch of `evalYulCallWithBackend`; proved by the standalone
-            -- helper `backends_agree_on_keccak256`.
-            have h1 : ("keccak256" : String) = "tload" ↔ False := by decide
-            have h2 : ("keccak256" : String) = "mload" ↔ False := by decide
-            simp only [h1, h2, if_false]
-            exact backends_agree_on_keccak256
-              state.storage state.sender state.msgValue state.thisAddress
-              state.blockTimestamp state.blockNumber state.chainId state.blobBaseFee
-              state.selector state.calldata argVals
+          · -- func = "keccak256": both backends now have a direct keccak256
+            -- branch that computes `abstractKeccakMemorySlice` identically.
+            rfl
 
 private theorem evalYulExprsWithBackend_eq_on_bridged
     (state : YulState) (args : List Compiler.Yul.YulExpr)
@@ -675,6 +672,18 @@ def execYulFuelWithBackend (backend : BuiltinBackend) :
                         .return 0 state
                   | _, _ => .revert state
               | .call "revert" [_, _] => .revert state
+              | .call func args =>
+                  if isYulLogName func then
+                    match evalYulExprsWithBackend backend state args with
+                    | some argVals =>
+                        match applyYulLogCall? state func argVals with
+                        | some next => .continue next
+                        | none => .revert state
+                    | none => .revert state
+                  else
+                    match evalYulExprWithBackend backend state e with
+                    | some _ => .continue state
+                    | none => .revert state
               | _ =>
                   match evalYulExprWithBackend backend state e with
                   | some _ => .continue state
@@ -748,8 +757,10 @@ theorem execYulFuelWithBackend_verity_eq
             try rfl
             all_goals (
               simp only [execYulFuelWithBackend, execYulFuel,
-                evalYulExprWithBackend_verity_eq, ih]
-              try rfl))
+                evalYulExprWithBackend_verity_eq,
+                evalYulExprsWithBackend_verity_eq, ih]
+              try rfl
+              try (split <;> rfl)))
       | stmts ss =>
           cases ss <;> (
             try rfl
