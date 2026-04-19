@@ -903,6 +903,51 @@ theorem BridgedStraightStmts_singleton {stmt : Compiler.Yul.YulStmt}
     (hStmt : BridgedStraightStmt stmt) : BridgedStraightStmts [stmt] :=
   BridgedStraightStmts_cons hStmt BridgedStraightStmts_nil
 
+/-- A list of `(offset, value)` expression pairs where each component is a
+    `BridgedExpr` maps to a `BridgedStraightStmts` list of `mstore(offset,
+    value)` statements. Directly supports the scalar event-emission compiler
+    pattern where `sigStores` and `unindexedStores` are both computed as
+    `List YulStmt` via `.map` over pair-shaped data. -/
+theorem BridgedStraightStmts_map_mstore
+    (pairs : List (Compiler.Yul.YulExpr × Compiler.Yul.YulExpr))
+    (hPairs : ∀ p ∈ pairs, BridgedExpr p.1 ∧ BridgedExpr p.2) :
+    BridgedStraightStmts
+      (pairs.map fun p =>
+        Compiler.Yul.YulStmt.expr
+          (Compiler.Yul.YulExpr.call "mstore" [p.1, p.2])) := by
+  induction pairs with
+  | nil => exact BridgedStraightStmts_nil
+  | cons p rest ih =>
+      have hHead : BridgedExpr p.1 ∧ BridgedExpr p.2 := hPairs p (by simp)
+      have hRest : ∀ q ∈ rest, BridgedExpr q.1 ∧ BridgedExpr q.2 := by
+        intro q hq
+        exact hPairs q (by simp [hq])
+      exact BridgedStraightStmts_cons
+        (BridgedStraightStmt.expr_mstore p.1 p.2 hHead.1 hHead.2)
+        (ih hRest)
+
+/-- Analogue of `BridgedStraightStmts_map_mstore` for the transient-store
+    variant. Compiler helpers that target transient storage (EIP-1153)
+    occasionally emit concatenated `tstore` fragments, and having the
+    `map`-shaped helper pre-proved avoids per-fragment list recursion. -/
+theorem BridgedStraightStmts_map_tstore
+    (pairs : List (Compiler.Yul.YulExpr × Compiler.Yul.YulExpr))
+    (hPairs : ∀ p ∈ pairs, BridgedExpr p.1 ∧ BridgedExpr p.2) :
+    BridgedStraightStmts
+      (pairs.map fun p =>
+        Compiler.Yul.YulStmt.expr
+          (Compiler.Yul.YulExpr.call "tstore" [p.1, p.2])) := by
+  induction pairs with
+  | nil => exact BridgedStraightStmts_nil
+  | cons p rest ih =>
+      have hHead : BridgedExpr p.1 ∧ BridgedExpr p.2 := hPairs p (by simp)
+      have hRest : ∀ q ∈ rest, BridgedExpr q.1 ∧ BridgedExpr q.2 := by
+        intro q hq
+        exact hPairs q (by simp [hq])
+      exact BridgedStraightStmts_cons
+        (BridgedStraightStmt.expr_tstore p.1 p.2 hHead.1 hHead.2)
+        (ih hRest)
+
 private theorem execYulFuelWithBackend_eq_on_bridged_straight_stmt
     (fuel : Nat) (state : YulState) (stmt : Compiler.Yul.YulStmt)
     (hStmt : BridgedStraightStmt stmt) :
