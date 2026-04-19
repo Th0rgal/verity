@@ -40,6 +40,63 @@ def eventEmissionProofSupported
       eventDefScalarProofSupported eventDef &&
         decide (args.length = eventDef.params.length)
 
+theorem exists_eventDef_of_eventEmissionProofSupported
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    (hsupport : eventEmissionProofSupported events eventName args = true) :
+    ∃ eventDef,
+      events.find? (·.name == eventName) = some eventDef ∧
+      eventDefScalarProofSupported eventDef = true ∧
+      args.length = eventDef.params.length := by
+  unfold eventEmissionProofSupported at hsupport
+  cases hfind : events.find? (fun x => x.name == eventName) with
+  | none =>
+      simp [hfind] at hsupport
+  | some eventDef =>
+      simp [hfind, Bool.and_eq_true] at hsupport
+      exact ⟨eventDef, rfl, hsupport.1, hsupport.2⟩
+
+theorem eventEmissionProofSupported_find?_isSome
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    (hsupport : eventEmissionProofSupported events eventName args = true) :
+    (events.find? (·.name == eventName)).isSome = true := by
+  rcases exists_eventDef_of_eventEmissionProofSupported hsupport with
+    ⟨eventDef, hfind, _, _⟩
+  simp [hfind]
+
+theorem eventDefScalarProofSupported_eq_true_of_eventEmissionProofSupported
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef) :
+    eventDefScalarProofSupported eventDef = true := by
+  rcases exists_eventDef_of_eventEmissionProofSupported hsupport with
+    ⟨selected, hselected, hscalar, _⟩
+  rw [hfind] at hselected
+  injection hselected with heq
+  subst heq
+  exact hscalar
+
+theorem eventEmissionProofSupported_args_length
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef) :
+    args.length = eventDef.params.length := by
+  rcases exists_eventDef_of_eventEmissionProofSupported hsupport with
+    ⟨selected, hselected, _, hlen⟩
+  rw [hfind] at hselected
+  injection hselected with heq
+  subst heq
+  exact hlen
+
 mutual
 /-- Constructor body proofs are intentionally staged after initcode argument
 decoding. Raw constructor calldata observations therefore remain outside the

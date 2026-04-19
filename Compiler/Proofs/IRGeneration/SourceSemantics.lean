@@ -68,6 +68,28 @@ def splitEventArgsByParams :
         some ((normalized : Verity.Core.Uint256) :: args, indexedArgs)
   | _, _ => none
 
+theorem exists_splitEventArgsByParams_of_length :
+    ∀ {params : List EventParam} {values : List Nat},
+      values.length = params.length →
+        ∃ args indexedArgs,
+          splitEventArgsByParams params values = some (args, indexedArgs)
+  | [], [], _ => by
+      exact ⟨[], [], rfl⟩
+  | [], _ :: _, hlen => by
+      simp at hlen
+  | _ :: _, [], hlen => by
+      simp at hlen
+  | param :: params, value :: values, hlen => by
+      have htail : values.length = params.length := by
+        simpa using Nat.succ.inj hlen
+      rcases exists_splitEventArgsByParams_of_length htail with
+        ⟨args, indexedArgs, hsplit⟩
+      by_cases hkind : param.kind == EventParamKind.indexed
+      · exact ⟨args, (normalizeEventValue param.ty value : Verity.Core.Uint256) :: indexedArgs,
+          by simp [splitEventArgsByParams, hsplit, hkind]⟩
+      · exact ⟨(normalizeEventValue param.ty value : Verity.Core.Uint256) :: args, indexedArgs,
+          by simp [splitEventArgsByParams, hsplit, hkind]⟩
+
 def eventFromResolvedArgs? (events : List EventDef) (eventName : String)
     (values : List Nat) : Option Verity.Event :=
   match events.find? (·.name == eventName) with
@@ -79,6 +101,26 @@ def eventFromResolvedArgs? (events : List EventDef) (eventName : String)
         name := eventName
         args := args
         indexedArgs := (eventSignatureTopic eventDef : Verity.Core.Uint256) :: indexedArgs }
+
+theorem exists_eventFromResolvedArgs?_of_supported_length
+    {events : List EventDef}
+    {eventName : String}
+    {exprArgs : List Expr}
+    {values : List Nat}
+    (hsupport : eventEmissionProofSupported events eventName exprArgs = true)
+    (hlen : values.length = exprArgs.length) :
+    ∃ event, eventFromResolvedArgs? events eventName values = some event := by
+  rcases exists_eventDef_of_eventEmissionProofSupported hsupport with
+    ⟨eventDef, hfind, _hscalar, hargsLen⟩
+  have hvalueLen : values.length = eventDef.params.length := by
+    rw [hlen, hargsLen]
+  rcases exists_splitEventArgsByParams_of_length hvalueLen with
+    ⟨args, indexedArgs, hsplit⟩
+  refine ⟨{ name := eventName
+            args := args
+            indexedArgs :=
+              (eventSignatureTopic eventDef : Verity.Core.Uint256) :: indexedArgs }, ?_⟩
+  simp [eventFromResolvedArgs?, hfind, hsplit]
 
 def writeEventSignatureScratch (eventDef : EventDef)
     (ptr : Nat) (memory : Nat → Verity.Core.Uint256) : Nat → Verity.Core.Uint256 :=
@@ -92,30 +134,77 @@ def writeEventSignatureScratch (eventDef : EventDef)
           memory offset
     | none => memory offset
 
+def writeUnindexedEventScratchFrom :
+    List EventParam → List Nat → Nat → Nat → (Nat → Verity.Core.Uint256) →
+      Option (Nat → Verity.Core.Uint256)
+  | [], [], _, _, memory => some memory
+  | param :: params, value :: values, ptr, wordIdx, memory =>
+      let normalized := normalizeEventValue param.ty value
+      let next :=
+        if param.kind == EventParamKind.unindexed then
+          fun offset =>
+            if offset = ptr + wordIdx * 32 then
+              (normalized : Verity.Core.Uint256)
+            else
+              memory offset
+        else
+          memory
+      writeUnindexedEventScratchFrom params values ptr
+        (if param.kind == EventParamKind.unindexed then wordIdx + 1 else wordIdx)
+        next
+  | _, _, _, _, _ => none
+
 def writeUnindexedEventScratch
     (params : List EventParam) (values : List Nat)
     (ptr : Nat) (memory : Nat → Verity.Core.Uint256) : Option (Nat → Verity.Core.Uint256) :=
-  let rec go (remainingParams : List EventParam) (remainingValues : List Nat)
-      (wordIdx : Nat) (mem : Nat → Verity.Core.Uint256) :
-      Option (Nat → Verity.Core.Uint256) :=
-    match remainingParams, remainingValues with
-    | [], [] => some mem
-    | param :: params, value :: values =>
-        let normalized := normalizeEventValue param.ty value
-        let next :=
-          if param.kind == EventParamKind.unindexed then
-            fun offset =>
+  writeUnindexedEventScratchFrom params values ptr 0 memory
+
+theorem exists_writeUnindexedEventScratch_of_length :
+    ∀ {params : List EventParam} {values : List Nat}
+      {ptr wordIdx : Nat} {memory : Nat → Verity.Core.Uint256},
+      values.length = params.length →
+        ∃ memory',
+          writeUnindexedEventScratchFrom params values ptr wordIdx memory = some memory'
+  | [], [], _, _, memory, _ => by
+      exact ⟨memory, rfl⟩
+  | [], _ :: _, _, _, _, hlen => by
+      simp at hlen
+  | _ :: _, [], _, _, _, hlen => by
+      simp at hlen
+  | param :: params, value :: values, ptr, wordIdx, memory, hlen => by
+      have htail : values.length = params.length := by
+        simpa using Nat.succ.inj hlen
+      by_cases hkind : param.kind == EventParamKind.unindexed
+      · rcases exists_writeUnindexedEventScratch_of_length
+            (params := params) (values := values) (ptr := ptr)
+            (wordIdx := wordIdx + 1)
+            (memory := fun offset =>
               if offset = ptr + wordIdx * 32 then
-                (normalized : Verity.Core.Uint256)
+                (normalizeEventValue param.ty value : Verity.Core.Uint256)
               else
-                mem offset
-          else
-            mem
-        go params values
-          (if param.kind == EventParamKind.unindexed then wordIdx + 1 else wordIdx)
-          next
-    | _, _ => none
-  go params values 0 memory
+                memory offset)
+            htail with
+          ⟨memory', hmem⟩
+        refine ⟨memory', ?_⟩
+        simpa [writeUnindexedEventScratchFrom, hkind] using hmem
+      · rcases exists_writeUnindexedEventScratch_of_length
+            (params := params) (values := values) (ptr := ptr)
+            (wordIdx := wordIdx)
+            (memory := memory)
+            htail with
+          ⟨memory', hmem⟩
+        refine ⟨memory', ?_⟩
+        simpa [writeUnindexedEventScratchFrom, hkind] using hmem
+
+theorem exists_writeUnindexedEventScratch_of_length_zero
+    {params : List EventParam} {values : List Nat}
+    {ptr : Nat} {memory : Nat → Verity.Core.Uint256}
+    (hlen : values.length = params.length) :
+    ∃ memory', writeUnindexedEventScratch params values ptr memory = some memory' := by
+  simpa [writeUnindexedEventScratch] using
+    (exists_writeUnindexedEventScratch_of_length
+      (params := params) (values := values) (ptr := ptr) (wordIdx := 0)
+      (memory := memory) hlen)
 
 def eventScratchMemoryAfterEmit? (events : List EventDef)
     (eventName : String) (values : List Nat)
@@ -129,6 +218,29 @@ def eventScratchMemoryAfterEmit? (events : List EventDef)
           (writeEventSignatureScratch eventDef ptr memory)
       else
         some memory
+
+theorem exists_eventScratchMemoryAfterEmit?_of_supported_length
+    {events : List EventDef}
+    {eventName : String}
+    {exprArgs : List Expr}
+    {values : List Nat}
+    {memory : Nat → Verity.Core.Uint256}
+    (hsupport : eventEmissionProofSupported events eventName exprArgs = true)
+    (hlen : values.length = exprArgs.length) :
+    ∃ memory',
+      eventScratchMemoryAfterEmit? events eventName values memory = some memory' := by
+  rcases exists_eventDef_of_eventEmissionProofSupported hsupport with
+    ⟨eventDef, hfind, hscalar, hargsLen⟩
+  have hvalueLen : values.length = eventDef.params.length := by
+    rw [hlen, hargsLen]
+  unfold eventScratchMemoryAfterEmit?
+  simp [hfind, hscalar]
+  exact exists_writeUnindexedEventScratch_of_length_zero
+    (params := eventDef.params) (values := values)
+    (ptr := (memory Compiler.Constants.freeMemoryPointer).val)
+    (memory := writeEventSignatureScratch eventDef
+      (memory Compiler.Constants.freeMemoryPointer).val memory)
+    hvalueLen
 
 def effectiveFields (spec : CompilationModel) : List Field :=
   applySlotAliasRanges spec.fields spec.slotAliasRanges
