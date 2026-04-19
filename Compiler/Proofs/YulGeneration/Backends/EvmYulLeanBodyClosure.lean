@@ -4562,4 +4562,29 @@ theorem BridgedSourceInternalForEachBodyWithErrorsStmts_of_plain
       dynamicSource stmts :=
   fun stmt hMem => .base (.base (h stmt hMem))
 
+/-! ### Direct plain→recursive with-errors lifts
+
+Callers holding a plain-body witness reach the recursive with-errors
+inductive (closed under arbitrary `Stmt.ite` / `Stmt.forEach` nesting) by
+chaining `*BodyWithErrorsStmts_of_plain` with
+`*RecursiveBodyWithErrorsStmts_of_alias`. -/
+
+theorem BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_plain
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceExternalBodyStmts fields dynamicSource stmts) :
+    BridgedSourceExternalRecursiveBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_alias
+    (BridgedSourceExternalBodyWithErrorsStmts_of_plain h)
+
+theorem BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_plain
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceInternalBodyStmts fields dynamicSource stmts) :
+    BridgedSourceInternalRecursiveBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_alias
+    (BridgedSourceInternalBodyWithErrorsStmts_of_plain h)
+
 end Compiler.Proofs.YulGeneration.Backends
