@@ -1935,12 +1935,23 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.eventDefScalarProofSupported_indexed_length_le_three
 -- #print axioms Compiler.Proofs.IRGeneration.eventParamScalarProofSupported_eq_true_of_mem_all  -- private
 #print axioms Compiler.Proofs.IRGeneration.eventParamScalarProofSupported_eq_true_of_eventDefScalarProofSupported
+#print axioms Compiler.Proofs.IRGeneration.eventParamScalarProofSupported_eventIsDynamicType_eq_false
+#print axioms Compiler.Proofs.IRGeneration.eventParamScalarProofSupported_eventHeadWordSize_eq_thirty_two
+#print axioms Compiler.Proofs.IRGeneration.eventParamScalarProofSupported_ne_bytes
+#print axioms Compiler.Proofs.IRGeneration.eventParamScalarProofSupported_ne_string
+#print axioms Compiler.Proofs.IRGeneration.eventParamScalarProofSupported_ne_array
+#print axioms Compiler.Proofs.IRGeneration.eventParamScalarProofSupported_ne_fixedArray
+#print axioms Compiler.Proofs.IRGeneration.eventParamScalarProofSupported_ne_tuple
 #print axioms Compiler.Proofs.IRGeneration.exists_eventDef_of_eventEmissionProofSupported
 #print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_find?_isSome
 #print axioms Compiler.Proofs.IRGeneration.eventDefScalarProofSupported_eq_true_of_eventEmissionProofSupported
 #print axioms Compiler.Proofs.IRGeneration.eventParamScalarProofSupported_eq_true_of_eventEmissionProofSupported
 #print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_indexed_length_le_three
 #print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_args_length
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_param_eventIsDynamicType_eq_false
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_param_eventHeadWordSize_eq_thirty_two
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_param_not_bytes
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_param_not_string
 #print axioms Compiler.Proofs.IRGeneration.exprListTouchesUnsupportedContractSurface_eq_false_of_emit_contractSurfaceWithEventsClosed
 #print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_eq_true_of_emit_contractSurfaceWithEventsClosed
 -- #print axioms Compiler.Proofs.IRGeneration.eraseDups_nodup_and_mem_aux  -- private
@@ -2230,4 +2241,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2081 theorems/lemmas (1393 public, 688 private, 0 sorry'd)
+-- Total: 2092 theorems/lemmas (1404 public, 688 private, 0 sorry'd)
