@@ -354,6 +354,55 @@ theorem eventEmissionProofSupported_zippedWithSource_unindexed_any_dynamic_false
       hsupport hfind (List.mem_filter.mp hentry).1
   simp [hstatic]
 
+private theorem eventCompiledArgs_filter_kind_length_le_params_filter_kind
+    {α : Type}
+    (params : List EventParam)
+    (args : List Expr)
+    (compiledArgs : List α)
+    (kind : EventParamKind) :
+    ((List.filter
+        (fun entry : EventParam × Expr × α => entry.1.kind == kind)
+        (List.map
+          (fun entry : (EventParam × Expr) × α => (entry.1.1, entry.1.2, entry.2))
+          ((List.zip params args).zip compiledArgs))).length) ≤
+      (params.filter (fun param => param.kind == kind)).length := by
+  induction params generalizing args compiledArgs with
+  | nil =>
+      simp
+  | cons param params ih =>
+      cases args with
+      | nil =>
+          simp
+      | cons arg args =>
+          cases compiledArgs with
+          | nil =>
+              simp
+          | cons compiledArg compiledArgs =>
+              by_cases hkind : param.kind == kind
+              · simp [hkind, ih args compiledArgs]
+              · have htail := ih args compiledArgs
+                simp [hkind]
+                exact htail
+
+theorem eventEmissionProofSupported_zippedWithSource_indexed_length_le_three
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    {α : Type}
+    (compiledArgs : List α)
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef) :
+    ((List.filter
+        (fun entry : EventParam × Expr × α => entry.1.kind == EventParamKind.indexed)
+        (List.map
+          (fun entry : (EventParam × Expr) × α => (entry.1.1, entry.1.2, entry.2))
+          ((List.zip eventDef.params args).zip compiledArgs))).length) ≤ 3 := by
+  exact Nat.le_trans
+    (eventCompiledArgs_filter_kind_length_le_params_filter_kind
+      eventDef.params args compiledArgs EventParamKind.indexed)
+    (eventEmissionProofSupported_indexed_length_le_three hsupport hfind)
+
 mutual
 /-- Constructor body proofs are intentionally staged after initcode argument
 decoding. Raw constructor calldata observations therefore remain outside the
