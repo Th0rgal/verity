@@ -4428,4 +4428,61 @@ theorem BridgedSourceInternalStructuredBodyWithErrorsStmts_of_alias
       dynamicSource stmts :=
   fun stmt hMem => .base (h stmt hMem)
 
+/-! ### Lifting flat body aliases into the nested (two-`ite`-layer) inductive
+
+Each nested inductive exposes a `.structured` constructor that accepts the
+one-layer structured predicate; composing it with `.base` yields a pointwise
+lift from the flat body alias without introducing any `ite` wrapping. Covers
+plain and with-errors variants. -/
+
+theorem BridgedSourceExternalNestedBodyStmts_of_alias
+    {fields : List Field} {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceExternalBodyStmts fields dynamicSource stmts) :
+    BridgedSourceExternalNestedBodyStmts fields dynamicSource stmts :=
+  fun stmt hMem => .structured (.base (h stmt hMem))
+
+theorem BridgedSourceInternalNestedBodyStmts_of_alias
+    {fields : List Field} {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceInternalBodyStmts fields dynamicSource stmts) :
+    BridgedSourceInternalNestedBodyStmts fields dynamicSource stmts :=
+  fun stmt hMem => .structured (.base (h stmt hMem))
+
+theorem BridgedSourceExternalNestedBodyWithErrorsStmts_of_alias
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceExternalBodyWithErrorsStmts fields errors dynamicSource stmts) :
+    BridgedSourceExternalNestedBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  fun stmt hMem => .structured (.base (h stmt hMem))
+
+theorem BridgedSourceInternalNestedBodyWithErrorsStmts_of_alias
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceInternalBodyWithErrorsStmts fields errors dynamicSource stmts) :
+    BridgedSourceInternalNestedBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  fun stmt hMem => .structured (.base (h stmt hMem))
+
+/-! ### Lifting flat with-errors aliases into the forEach-wrapped inductive
+
+The forEach-wrapped with-errors inductives expose a `.base` constructor taking
+the underlying with-errors body predicate directly, so the lift is a pointwise
+`.base` wrap — no `forEach` layer need be introduced. -/
+
+theorem BridgedSourceExternalForEachBodyWithErrorsStmts_of_alias
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceExternalBodyWithErrorsStmts fields errors dynamicSource stmts) :
+    BridgedSourceExternalForEachBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  fun stmt hMem => .base (h stmt hMem)
+
+theorem BridgedSourceInternalForEachBodyWithErrorsStmts_of_alias
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceInternalBodyWithErrorsStmts fields errors dynamicSource stmts) :
+    BridgedSourceInternalForEachBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  fun stmt hMem => .base (h stmt hMem)
+
 end Compiler.Proofs.YulGeneration.Backends

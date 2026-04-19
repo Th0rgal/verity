@@ -2171,6 +2171,12 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalStructuredBodyStmts_of_alias
 #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalStructuredBodyWithErrorsStmts_of_alias
 #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalStructuredBodyWithErrorsStmts_of_alias
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalNestedBodyStmts_of_alias
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalNestedBodyStmts_of_alias
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalNestedBodyWithErrorsStmts_of_alias
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalNestedBodyWithErrorsStmts_of_alias
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalForEachBodyWithErrorsStmts_of_alias
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalForEachBodyWithErrorsStmts_of_alias
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.word_lt_uint256_size  -- private
@@ -2515,4 +2521,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2351 theorems/lemmas (1556 public, 795 private, 0 sorry'd)
+-- Total: 2357 theorems/lemmas (1562 public, 795 private, 0 sorry'd)
