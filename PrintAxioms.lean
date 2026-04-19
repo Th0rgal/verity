@@ -1411,6 +1411,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingUint_singleSlot_of_slotSafety_preserves  -- private
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingUint_singleSlot_of_slotSafety
 -- #print axioms Compiler.Proofs.IRGeneration.compileExprList_core_ok  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.compileStmt_emit_scalar_supported_ok  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.eval_compileExpr_core_some_of_scope  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.eval_compileExprList_core_of_scope  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.evalIRExpr_mappingSlotChain  -- private
@@ -2255,4 +2256,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2106 theorems/lemmas (1416 public, 690 private, 0 sorry'd)
+-- Total: 2107 theorems/lemmas (1416 public, 691 private, 0 sorry'd)
