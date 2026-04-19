@@ -2623,6 +2623,10 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_verity_eq
 #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_let_eq_on_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_assign_eq_on_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_nil
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_cons
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_append
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_singleton
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_straight_stmt  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_straight_stmts
 #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_block_eq_on_bridged_straight_stmts
@@ -2731,4 +2735,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2567 theorems/lemmas (1730 public, 837 private, 0 sorry'd)
+-- Total: 2571 theorems/lemmas (1734 public, 837 private, 0 sorry'd)

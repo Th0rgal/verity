@@ -869,6 +869,40 @@ inductive BridgedStraightStmt : Compiler.Yul.YulStmt → Prop
 def BridgedStraightStmts (stmts : List Compiler.Yul.YulStmt) : Prop :=
   ∀ stmt ∈ stmts, BridgedStraightStmt stmt
 
+/-! ### List-level convenience helpers for `BridgedStraightStmts`
+
+Analogues of `BridgedStmts_nil`/`_cons`/`_append` (defined further below for
+the recursive `BridgedStmt` predicate) so that callers composing scalar-event
+emission fragments or other compiler-emitted concatenated straight-line lists
+can piece them together without unfolding the membership definition at each
+call site. -/
+
+theorem BridgedStraightStmts_nil : BridgedStraightStmts [] := by
+  intro stmt hMem
+  cases hMem
+
+theorem BridgedStraightStmts_cons {stmt : Compiler.Yul.YulStmt}
+    {stmts : List Compiler.Yul.YulStmt}
+    (hStmt : BridgedStraightStmt stmt) (hStmts : BridgedStraightStmts stmts) :
+    BridgedStraightStmts (stmt :: stmts) := by
+  intro s hMem
+  cases hMem with
+  | head => exact hStmt
+  | tail _ hTail => exact hStmts s hTail
+
+theorem BridgedStraightStmts_append {xs ys : List Compiler.Yul.YulStmt}
+    (hXs : BridgedStraightStmts xs) (hYs : BridgedStraightStmts ys) :
+    BridgedStraightStmts (xs ++ ys) := by
+  intro stmt hMem
+  simp only [List.mem_append] at hMem
+  cases hMem with
+  | inl h => exact hXs stmt h
+  | inr h => exact hYs stmt h
+
+theorem BridgedStraightStmts_singleton {stmt : Compiler.Yul.YulStmt}
+    (hStmt : BridgedStraightStmt stmt) : BridgedStraightStmts [stmt] :=
+  BridgedStraightStmts_cons hStmt BridgedStraightStmts_nil
+
 private theorem execYulFuelWithBackend_eq_on_bridged_straight_stmt
     (fuel : Nat) (state : YulState) (stmt : Compiler.Yul.YulStmt)
     (hStmt : BridgedStraightStmt stmt) :
