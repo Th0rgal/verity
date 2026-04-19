@@ -2304,8 +2304,7 @@ theorem defaultDispatchCase_bridged
       cases fallback with
       | none =>
           unfold Compiler.CodegenCommon.defaultDispatchCase
-          refine BridgedStmts_cons ?_ BridgedStmts_nil
-          refine BridgedStmt.block _ ?_
+          refine BridgedStmts_singleton_block ?_
           exact BridgedStmts_cons_let "__is_empty_calldata" _ bridgedExpr_empty_calldata
             (BridgedStmts_cons_if
               (BridgedExpr.ident "__is_empty_calldata")
@@ -2316,8 +2315,7 @@ theorem defaultDispatchCase_bridged
                 BridgedStmts_nil))
       | some fb =>
           unfold Compiler.CodegenCommon.defaultDispatchCase
-          refine BridgedStmts_cons ?_ BridgedStmts_nil
-          refine BridgedStmt.block _ ?_
+          refine BridgedStmts_singleton_block ?_
           exact BridgedStmts_cons_let "__is_empty_calldata" _ bridgedExpr_empty_calldata
             (BridgedStmts_cons_if
               (BridgedExpr.ident "__is_empty_calldata")
