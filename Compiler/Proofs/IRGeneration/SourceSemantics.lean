@@ -2892,6 +2892,56 @@ mutual
   decreasing_by all_goals (simp_wf; omega)
 end
 
+theorem evalExprListWithHelpers_length_of_some
+    {spec : CompilationModel}
+    {fields : List Field}
+    {fuel : Nat}
+    {state : RuntimeState}
+    {exprs : List Expr}
+    {values : List Nat}
+    (heval : evalExprListWithHelpers spec fields fuel state exprs = some values) :
+    values.length = exprs.length := by
+  induction exprs generalizing values with
+  | nil =>
+      simp [evalExprListWithHelpers] at heval
+      cases heval
+      rfl
+  | cons expr rest ih =>
+      cases hhead : evalExprWithHelpers spec fields fuel state expr <;>
+        simp [evalExprListWithHelpers, hhead] at heval
+      cases htail : evalExprListWithHelpers spec fields fuel state rest <;>
+        simp [htail] at heval
+      cases heval
+      simp [ih htail]
+
+theorem execStmtWithHelpers_emit_supported_continues
+    {spec : CompilationModel}
+    {fields : List Field}
+    {fuel : Nat}
+    {state : RuntimeState}
+    {eventName : String}
+    {args : List Expr}
+    {values : List Nat}
+    (heval : evalExprListWithHelpers spec fields fuel state args = some values)
+    (hsupport : eventEmissionProofSupported spec.events eventName args = true) :
+    ∃ event memory,
+      eventFromResolvedArgs? spec.events eventName values = some event ∧
+      eventScratchMemoryAfterEmit? spec.events eventName values state.world.memory = some memory ∧
+      execStmtWithHelpers spec fields fuel state (.emit eventName args) =
+        .continue { state with
+          world := {
+            state.world with
+            memory := memory
+            events := state.world.events ++ [event] } } := by
+  have hlen : values.length = args.length :=
+    evalExprListWithHelpers_length_of_some heval
+  rcases exists_eventFromResolvedArgs?_of_supported_length hsupport hlen with
+    ⟨event, hevent⟩
+  rcases exists_eventScratchMemoryAfterEmit?_of_supported_length hsupport hlen with
+    ⟨memory, hmemory⟩
+  exact ⟨event, memory, hevent, hmemory, by
+    simp [execStmtWithHelpers, heval, hevent, hmemory]⟩
+
 @[simp] theorem interpretInternalFunctionFuel_zero
     (spec : CompilationModel)
     (fn : FunctionSpec)
