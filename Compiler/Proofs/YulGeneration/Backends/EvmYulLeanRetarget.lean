@@ -2189,6 +2189,37 @@ theorem BridgedStmts_cons_sstore_ident
           [Compiler.Yul.YulExpr.ident slotName, valExpr]) :: rest) :=
   BridgedStmts_cons (bridgedStmt_sstore_ident_of_bridged_val slotName valExpr hVal) hRest
 
+/-- `BridgedStmts` singleton wrapping `sstore(mappingSlot(base, key), val)` over
+    bridged argument expressions. Mirrors the mstore/tstore/sstore_lit/sstore_ident
+    singletons for the mapping-write path emitted by `setMapping`/`setMappingUint`. -/
+theorem BridgedStmts_singleton_sstore_mapping
+    (baseExpr keyExpr valExpr : Compiler.Yul.YulExpr)
+    (hBase : BridgedExpr baseExpr) (hKey : BridgedExpr keyExpr)
+    (hVal : BridgedExpr valExpr) :
+    BridgedStmts
+      [Compiler.Yul.YulStmt.expr
+        (Compiler.Yul.YulExpr.call "sstore"
+          [Compiler.Yul.YulExpr.call "mappingSlot" [baseExpr, keyExpr], valExpr])] :=
+  BridgedStmts_singleton
+    (bridgedStmt_sstore_mapping_of_bridged_args baseExpr keyExpr valExpr hBase hKey hVal)
+
+/-- Cons an `sstore(mappingSlot(base, key), val)` node over bridged argument
+    expressions onto an already-bridged `BridgedStmts` tail. Covers the common
+    mapping-write shape where a single mapping write precedes subsequent
+    bridged statements. -/
+theorem BridgedStmts_cons_sstore_mapping
+    (baseExpr keyExpr valExpr : Compiler.Yul.YulExpr)
+    (hBase : BridgedExpr baseExpr) (hKey : BridgedExpr keyExpr)
+    (hVal : BridgedExpr valExpr)
+    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
+    BridgedStmts
+      (Compiler.Yul.YulStmt.expr
+        (Compiler.Yul.YulExpr.call "sstore"
+          [Compiler.Yul.YulExpr.call "mappingSlot" [baseExpr, keyExpr], valExpr]) :: rest) :=
+  BridgedStmts_cons
+    (bridgedStmt_sstore_mapping_of_bridged_args baseExpr keyExpr valExpr hBase hKey hVal)
+    hRest
+
 theorem callvalueGuard_bridged : BridgedStmt Compiler.CodegenCommon.callvalueGuard := by
   unfold Compiler.CodegenCommon.callvalueGuard
   exact BridgedStmt.if_ _ _ bridgedExpr_callvalue
