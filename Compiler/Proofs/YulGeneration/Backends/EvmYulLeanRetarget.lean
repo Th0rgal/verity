@@ -1461,6 +1461,18 @@ theorem bridgedStmt_of_bridgedStraightStmt {stmt : Compiler.Yul.YulStmt}
     (hStmt : BridgedStraightStmt stmt) : BridgedStmt stmt :=
   BridgedStmt.straight stmt hStmt
 
+/-- List-level lift: any list satisfying `BridgedStraightStmts` also satisfies
+    the recursive `BridgedStmts` predicate, since `BridgedStraightStmt` lifts
+    pointwise via `bridgedStmt_of_bridgedStraightStmt`. Useful when a compiler
+    fragment emits a pure-straight segment (e.g. the `sigStores` /
+    `unindexedStores` lists inside scalar `emit` bodies) that needs to slot
+    into a recursive-statement body context. -/
+theorem BridgedStmts_of_BridgedStraightStmts
+    {stmts : List Compiler.Yul.YulStmt} (hStmts : BridgedStraightStmts stmts) :
+    BridgedStmts stmts := by
+  intro stmt hMem
+  exact bridgedStmt_of_bridgedStraightStmt (hStmts stmt hMem)
+
 private theorem bridgedStmt_revert_zero :
     BridgedStmt
       (Compiler.Yul.YulStmt.expr
