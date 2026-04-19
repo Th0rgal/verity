@@ -1984,6 +1984,24 @@ theorem BridgedStmts_cons_let
     BridgedStmts (Compiler.Yul.YulStmt.let_ name value :: rest) :=
   BridgedStmts_cons (bridgedStmt_let_of_bridged_val name value hValue) hRest
 
+/-- `BridgedStmts` singleton wrapping a single `.assign name value` node over
+    a bridged value expression. Mirrors `BridgedStmts_singleton_let` for the
+    already-declared-variable path. -/
+theorem BridgedStmts_singleton_assign
+    (name : String) (value : Compiler.Yul.YulExpr) (hValue : BridgedExpr value) :
+    BridgedStmts [Compiler.Yul.YulStmt.assign name value] :=
+  BridgedStmts_singleton (bridgedStmt_assign_of_bridged_val name value hValue)
+
+/-- Cons a `.assign name value` node over a bridged value expression onto an
+    already-bridged `BridgedStmts` tail. Mirrors `BridgedStmts_cons_let` for
+    the already-declared-variable path, covering `x := <bridged expr>`
+    compiler-emitted reassignments between bridged statements. -/
+theorem BridgedStmts_cons_assign
+    (name : String) (value : Compiler.Yul.YulExpr) (hValue : BridgedExpr value)
+    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
+    BridgedStmts (Compiler.Yul.YulStmt.assign name value :: rest) :=
+  BridgedStmts_cons (bridgedStmt_assign_of_bridged_val name value hValue) hRest
+
 theorem callvalueGuard_bridged : BridgedStmt Compiler.CodegenCommon.callvalueGuard := by
   unfold Compiler.CodegenCommon.callvalueGuard
   exact BridgedStmt.if_ _ _ bridgedExpr_callvalue
