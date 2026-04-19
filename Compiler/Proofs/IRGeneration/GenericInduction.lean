@@ -7607,6 +7607,46 @@ private theorem compileExprList_core_ok
         rfl
       ⟩
 
+private theorem compileStmt_emit_scalar_supported_ok
+    {fields : List Field}
+    {spec : CompilationModel}
+    {scope : List String}
+    {eventName : String}
+    {args : List Expr}
+    (hsupport : eventEmissionProofSupported spec.events eventName args = true)
+    (hsurface : args.any exprTouchesUnsupportedContractSurface = false) :
+    ∃ compiledIR,
+      CompilationModel.compileStmt fields spec.events spec.errors .calldata
+        [] false scope (Stmt.emit eventName args) = Except.ok compiledIR := by
+  have hcore : ∀ expr ∈ args, FunctionBody.ExprCompileCore expr := by
+    intro expr hmem
+    have hnotTrue :
+        ¬ exprTouchesUnsupportedContractSurface expr = true :=
+      (List.any_eq_false.mp hsurface) expr hmem
+    have hclosed : exprTouchesUnsupportedContractSurface expr = false := by
+      cases h : exprTouchesUnsupportedContractSurface expr <;> simp [h] at hnotTrue ⊢
+    exact exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+      hclosed
+  rcases compileExprList_core_ok (fields := fields) hcore with
+    ⟨argExprs, hargExprs⟩
+  rcases exists_eventDef_of_eventEmissionProofSupported hsupport with
+    ⟨eventDef, hfind, hscalar, hlen⟩
+  have hindexed :
+      ¬ (eventIndexedArgs (eventZippedWithSource eventDef args argExprs)).length > 3 := by
+    exact Nat.not_lt.mpr
+      (eventEmissionProofSupported_eventIndexedArgs_length_le_three
+        argExprs hsupport hfind)
+  have hindexedGuard :
+      ¬ 3 < (eventIndexedArgs (eventZippedWithSource eventDef args argExprs)).length := by
+    simpa [GT.gt] using hindexed
+  have hscalarCompile :
+      eventDefScalarCompileSupported eventDef = true := by
+    simpa [eventDefScalarProofSupported] using hscalar
+  refine ⟨compileScalarEmitFromCompiledArgs eventDef args argExprs, ?_⟩
+  simp only [CompilationModel.compileStmt, CompilationModel.compileEmit]
+  simp [hfind, hlen, hargExprs, hindexedGuard, hscalarCompile,
+    Bind.bind, Except.bind, pure, Except.pure]
+
 private theorem eval_compileExpr_core_some_of_scope
     {fields : List Field}
     {scope : List String}

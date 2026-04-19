@@ -49,6 +49,62 @@ def eventLogArgs
   [YulExpr.ident "__evt_ptr", dataSizeExpr, YulExpr.ident "__evt_topic0"] ++
     indexedTopicParts.map (·.2)
 
+def eventParamScalarCompileSupported (ty : ParamType) : Bool :=
+  match ty with
+  | .uint256 | .int256 | .uint8 | .address | .bool | .bytes32 => true
+  | .string | .tuple _ | .array _ | .fixedArray _ _ | .bytes => false
+
+def eventDefScalarCompileSupported (eventDef : EventDef) : Bool :=
+  eventDef.params.all (fun param => eventParamScalarCompileSupported param.ty) &&
+    (eventDef.params.filter (fun param => param.kind == EventParamKind.indexed)).length <= 3
+
+def scalarEventUnindexedStores
+    (unindexed : List (EventParam × Expr × YulExpr)) :
+    List YulStmt :=
+  unindexed.zipIdx.map fun ((p, _, argExpr), idx) =>
+    YulStmt.expr (YulExpr.call "mstore" [
+      YulExpr.call "add" [YulExpr.ident "__evt_ptr", YulExpr.lit (idx * 32)],
+      normalizeEventWord p.ty argExpr
+    ])
+
+def scalarEventIndexedTopicParts
+    (indexed : List (EventParam × Expr × YulExpr)) :
+    List (List YulStmt × YulExpr) :=
+  indexed.map fun (p, _, argExpr) =>
+    match p.ty with
+    | ParamType.address =>
+        ([], YulExpr.call "and" [argExpr, YulExpr.hex addressMask])
+    | ParamType.bool =>
+        ([], yulToBool argExpr)
+    | _ =>
+        ([], argExpr)
+
+def compileScalarEmitFromCompiledArgs
+    (eventDef : EventDef) (args : List Expr) (compiledArgs : List YulExpr) :
+    List YulStmt :=
+  let zippedWithSource := eventZippedWithSource eventDef args compiledArgs
+  let indexed := eventIndexedArgs zippedWithSource
+  let unindexed := eventUnindexedArgs zippedWithSource
+  let sig := eventSignature eventDef
+  let sigBytes := bytesFromString sig
+  let freeMemPtr := YulExpr.call "mload" [YulExpr.lit freeMemoryPointer]
+  let storePtr := YulStmt.let_ "__evt_ptr" freeMemPtr
+  let sigStores := (chunkBytes32 sigBytes).zipIdx.map fun (chunk, idx) =>
+    YulStmt.expr (YulExpr.call "mstore" [
+      YulExpr.call "add" [YulExpr.ident "__evt_ptr", YulExpr.lit (idx * 32)],
+      YulExpr.hex (wordFromBytes chunk)
+    ])
+  let topic0Expr := YulExpr.call "keccak256" [YulExpr.ident "__evt_ptr", YulExpr.lit sigBytes.length]
+  let topic0Store := YulStmt.let_ "__evt_topic0" topic0Expr
+  let unindexedStores := scalarEventUnindexedStores unindexed
+  let indexedTopicParts := scalarEventIndexedTopicParts indexed
+  let dataSizeExpr := YulExpr.lit (eventUnindexedHeadSize unindexed)
+  let logFn := eventLogFunction indexed.length
+  let logArgs := eventLogArgs dataSizeExpr indexedTopicParts
+  let logStmt := YulStmt.expr (YulExpr.call logFn logArgs)
+  [YulStmt.block ([storePtr] ++ sigStores ++ [topic0Store] ++
+    unindexedStores ++ [logStmt])]
+
 def compileEmit (fields : List Field) (events : List EventDef)
     (dynamicSource : DynamicDataSource := .calldata)
     (eventName : String) (args : List Expr) : Except String (List YulStmt) := do
@@ -65,6 +121,9 @@ def compileEmit (fields : List Field) (events : List EventDef)
   let unindexed := eventUnindexedArgs zippedWithSource
   if indexed.length > 3 then
     throw s!"Compilation error: event '{eventName}' has {indexed.length} indexed params; max is 3"
+  if eventDefScalarCompileSupported eventDef then
+    pure (compileScalarEmitFromCompiledArgs eventDef args compiledArgs)
+  else
   let sig := eventSignature eventDef
   let sigBytes := bytesFromString sig
   let freeMemPtr := YulExpr.call "mload" [YulExpr.lit freeMemoryPointer]

@@ -24,13 +24,10 @@ def SupportedExternalReturnProfile : List ParamType → Prop
   | _ => False
 
 def eventParamScalarProofSupported (ty : ParamType) : Bool :=
-  match ty with
-  | .uint256 | .int256 | .uint8 | .address | .bool | .bytes32 => true
-  | .string | .tuple _ | .array _ | .fixedArray _ _ | .bytes => false
+  eventParamScalarCompileSupported ty
 
 def eventDefScalarProofSupported (eventDef : EventDef) : Bool :=
-  eventDef.params.all (fun param => eventParamScalarProofSupported param.ty) &&
-    (eventDef.params.filter (fun param => param.kind == EventParamKind.indexed)).length <= 3
+  eventDefScalarCompileSupported eventDef
 
 theorem eventDefScalarProofSupported_params_all
     {eventDef : EventDef}
@@ -39,7 +36,8 @@ theorem eventDefScalarProofSupported_params_all
   have hsplit :
       (∀ param ∈ eventDef.params, eventParamScalarProofSupported param.ty = true) ∧
         (eventDef.params.filter (fun param => param.kind == EventParamKind.indexed)).length ≤ 3 := by
-    simpa [eventDefScalarProofSupported, Bool.and_eq_true] using hsupport
+    simpa [eventDefScalarProofSupported, eventDefScalarCompileSupported,
+      eventParamScalarProofSupported, Bool.and_eq_true] using hsupport
   simpa using hsplit.1
 
 theorem eventDefScalarProofSupported_indexed_length_le_three
@@ -49,7 +47,8 @@ theorem eventDefScalarProofSupported_indexed_length_le_three
   have hsplit :
       (∀ param ∈ eventDef.params, eventParamScalarProofSupported param.ty = true) ∧
         (eventDef.params.filter (fun param => param.kind == EventParamKind.indexed)).length ≤ 3 := by
-    simpa [eventDefScalarProofSupported, Bool.and_eq_true] using hsupport
+    simpa [eventDefScalarProofSupported, eventDefScalarCompileSupported,
+      eventParamScalarProofSupported, Bool.and_eq_true] using hsupport
   exact hsplit.2
 
 private theorem eventParamScalarProofSupported_eq_true_of_mem_all :
@@ -77,7 +76,8 @@ theorem eventParamScalarProofSupported_eventIsDynamicType_eq_false
     (hsupport : eventParamScalarProofSupported ty = true) :
     eventIsDynamicType ty = false := by
   cases ty <;>
-    simp [eventParamScalarProofSupported, eventIsDynamicType, isDynamicParamType]
+    simp [eventParamScalarProofSupported, eventParamScalarCompileSupported,
+      eventIsDynamicType, isDynamicParamType]
       at hsupport ⊢
 
 theorem eventParamScalarProofSupported_eventHeadWordSize_eq_thirty_two
@@ -85,40 +85,46 @@ theorem eventParamScalarProofSupported_eventHeadWordSize_eq_thirty_two
     (hsupport : eventParamScalarProofSupported ty = true) :
     eventHeadWordSize ty = 32 := by
   cases ty <;>
-    simp [eventParamScalarProofSupported, eventHeadWordSize, paramHeadSize]
+    simp [eventParamScalarProofSupported, eventParamScalarCompileSupported,
+      eventHeadWordSize, paramHeadSize]
       at hsupport ⊢
 
 theorem eventParamScalarProofSupported_ne_bytes
     {ty : ParamType}
     (hsupport : eventParamScalarProofSupported ty = true) :
     ty ≠ ParamType.bytes := by
-  intro h; subst h; simp [eventParamScalarProofSupported] at hsupport
+  intro h; subst h; simp [eventParamScalarProofSupported,
+    eventParamScalarCompileSupported] at hsupport
 
 theorem eventParamScalarProofSupported_ne_string
     {ty : ParamType}
     (hsupport : eventParamScalarProofSupported ty = true) :
     ty ≠ ParamType.string := by
-  intro h; subst h; simp [eventParamScalarProofSupported] at hsupport
+  intro h; subst h; simp [eventParamScalarProofSupported,
+    eventParamScalarCompileSupported] at hsupport
 
 theorem eventParamScalarProofSupported_ne_array
     {ty elemTy : ParamType}
     (hsupport : eventParamScalarProofSupported ty = true) :
     ty ≠ ParamType.array elemTy := by
-  intro h; subst h; simp [eventParamScalarProofSupported] at hsupport
+  intro h; subst h; simp [eventParamScalarProofSupported,
+    eventParamScalarCompileSupported] at hsupport
 
 theorem eventParamScalarProofSupported_ne_fixedArray
     {ty elemTy : ParamType}
     {len : Nat}
     (hsupport : eventParamScalarProofSupported ty = true) :
     ty ≠ ParamType.fixedArray elemTy len := by
-  intro h; subst h; simp [eventParamScalarProofSupported] at hsupport
+  intro h; subst h; simp [eventParamScalarProofSupported,
+    eventParamScalarCompileSupported] at hsupport
 
 theorem eventParamScalarProofSupported_ne_tuple
     {ty : ParamType}
     {members : List ParamType}
     (hsupport : eventParamScalarProofSupported ty = true) :
     ty ≠ ParamType.tuple members := by
-  intro h; subst h; simp [eventParamScalarProofSupported] at hsupport
+  intro h; subst h; simp [eventParamScalarProofSupported,
+    eventParamScalarCompileSupported] at hsupport
 
 def eventEmissionProofSupported
     (events : List EventDef) (eventName : String) (args : List Expr) : Bool :=
