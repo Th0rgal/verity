@@ -1767,6 +1767,24 @@ theorem bridgedStmt_for_of_bridgedStmts
     BridgedStmt (.for_ init cond post body) :=
   BridgedStmt.for_ init cond post body hInit hCond hPost hBody
 
+/-- Wrap a bridged scrutinee expression together with per-case and default
+    body hypotheses under `BridgedStmt.switch`. Parallels the block/if/for
+    wrappers for the Yul `switch` dispatch shape emitted by the compiler's
+    selector/function dispatcher. Each body-side hypothesis is precisely the
+    pointwise `∀ stmt ∈ _, BridgedStmt stmt` that the ctor expects. -/
+theorem bridgedStmt_switch_of_bridgedStmts
+    {expr : Compiler.Yul.YulExpr}
+    {cases : List (Nat × List Compiler.Yul.YulStmt)}
+    {defaultCase : Option (List Compiler.Yul.YulStmt)}
+    (hExpr : BridgedExpr expr)
+    (hCases : ∀ scrutinee value body,
+      cases.find? (fun x => decide (x.fst = scrutinee)) = some (value, body) →
+      ∀ stmt ∈ body, BridgedStmt stmt)
+    (hDefault : ∀ body, defaultCase = some body →
+      ∀ stmt ∈ body, BridgedStmt stmt) :
+    BridgedStmt (.switch expr cases defaultCase) :=
+  BridgedStmt.switch expr cases defaultCase hExpr hCases hDefault
+
 /-- Convenience wrapper: when the block body is entirely straight-line,
     callers can supply a `BridgedStraightStmts` hypothesis directly without
     manually lifting through `BridgedStmts_of_BridgedStraightStmts`. -/
