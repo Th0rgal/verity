@@ -5240,4 +5240,39 @@ theorem BridgedSourceInternalRecursiveBodyWithErrorsStmt_of_nested
         (BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_structured hThen)
         (BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_structured hElse)
 
+/-! ### Stmt-level forEach-with-errors → recursive-with-errors lifts
+
+Single-stmt counterparts of the list-level
+`*RecursiveBodyWithErrorsStmts_of_forEach` lifts. A forEach-with-errors stmt
+is either a plain with-errors body stmt (admitted via `.base`) or an outer
+`Stmt.forEach varName count body` whose body is a plain with-errors body-stmt
+list, lifted through `*RecursiveBodyWithErrorsStmts_of_alias`. Covers
+external and internal variants. -/
+
+theorem BridgedSourceExternalRecursiveBodyWithErrorsStmt_of_forEach
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceExternalForEachBodyWithErrorsStmt fields errors
+      dynamicSource stmt) :
+    BridgedSourceExternalRecursiveBodyWithErrorsStmt fields errors
+      dynamicSource stmt := by
+  match h with
+  | .base hStmt => exact .base hStmt
+  | .forEach varName count body hCount hBody =>
+      exact .forEach varName count body hCount
+        (BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_alias hBody)
+
+theorem BridgedSourceInternalRecursiveBodyWithErrorsStmt_of_forEach
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceInternalForEachBodyWithErrorsStmt fields errors
+      dynamicSource stmt) :
+    BridgedSourceInternalRecursiveBodyWithErrorsStmt fields errors
+      dynamicSource stmt := by
+  match h with
+  | .base hStmt => exact .base hStmt
+  | .forEach varName count body hCount hBody =>
+      exact .forEach varName count body hCount
+        (BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_alias hBody)
+
 end Compiler.Proofs.YulGeneration.Backends
