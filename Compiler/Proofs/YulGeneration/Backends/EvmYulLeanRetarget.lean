@@ -1485,6 +1485,14 @@ theorem BridgedStmts_cons_straight {stmt : Compiler.Yul.YulStmt}
     BridgedStmts (stmt :: stmts) :=
   BridgedStmts_cons (bridgedStmt_of_bridgedStraightStmt hStmt) hStmts
 
+/-- Singleton counterpart to `BridgedStmts_cons_straight`: a single
+    `BridgedStraightStmt` lifts to the one-element `BridgedStmts [stmt]` list.
+    Saves a nested `bridgedStmt_of_bridgedStraightStmt` when the whole body is
+    just one straight-line statement (e.g. a terminator-only fragment). -/
+theorem BridgedStmts_singleton_straight {stmt : Compiler.Yul.YulStmt}
+    (hStmt : BridgedStraightStmt stmt) : BridgedStmts [stmt] :=
+  BridgedStmts_singleton (bridgedStmt_of_bridgedStraightStmt hStmt)
+
 /-- `BridgedStmts` analogue of `BridgedStraightStmts_map_mstore`: a list of
     `(offset, value)` expression pairs with both components bridged maps to
     a `BridgedStmts` list of `mstore(offset, value)` statements. Directly
