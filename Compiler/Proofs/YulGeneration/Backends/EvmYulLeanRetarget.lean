@@ -2165,6 +2165,30 @@ theorem BridgedStmts_cons_sstore_lit
           [Compiler.Yul.YulExpr.lit slot, valExpr]) :: rest) :=
   BridgedStmts_cons (bridgedStmt_sstore_lit_of_bridged_val slot valExpr hVal) hRest
 
+/-- `BridgedStmts` singleton wrapping a single `sstore(ident slotName, val)`
+    node over a bridged value expression. Matches dynamic-slot single writes
+    where the slot identifier has been resolved to a local `let` binding
+    (e.g. from `mappingSlot(baseSlot, key)`). -/
+theorem BridgedStmts_singleton_sstore_ident
+    (slotName : String) (valExpr : Compiler.Yul.YulExpr) (hVal : BridgedExpr valExpr) :
+    BridgedStmts
+      [Compiler.Yul.YulStmt.expr
+        (Compiler.Yul.YulExpr.call "sstore"
+          [Compiler.Yul.YulExpr.ident slotName, valExpr])] :=
+  BridgedStmts_singleton (bridgedStmt_sstore_ident_of_bridged_val slotName valExpr hVal)
+
+/-- Cons a `sstore(ident slotName, val)` node over a bridged value expression
+    onto an already-bridged `BridgedStmts` tail. Covers mapping-write shapes
+    where a resolved slot identifier drives sequential bridged writes. -/
+theorem BridgedStmts_cons_sstore_ident
+    (slotName : String) (valExpr : Compiler.Yul.YulExpr) (hVal : BridgedExpr valExpr)
+    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
+    BridgedStmts
+      (Compiler.Yul.YulStmt.expr
+        (Compiler.Yul.YulExpr.call "sstore"
+          [Compiler.Yul.YulExpr.ident slotName, valExpr]) :: rest) :=
+  BridgedStmts_cons (bridgedStmt_sstore_ident_of_bridged_val slotName valExpr hVal) hRest
+
 theorem callvalueGuard_bridged : BridgedStmt Compiler.CodegenCommon.callvalueGuard := by
   unfold Compiler.CodegenCommon.callvalueGuard
   exact BridgedStmt.if_ _ _ bridgedExpr_callvalue
