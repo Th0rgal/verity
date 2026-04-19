@@ -1493,6 +1493,17 @@ theorem BridgedStmts_singleton_straight {stmt : Compiler.Yul.YulStmt}
     (hStmt : BridgedStraightStmt stmt) : BridgedStmts [stmt] :=
   BridgedStmts_singleton (bridgedStmt_of_bridgedStraightStmt hStmt)
 
+/-- Append counterpart to `BridgedStmts_cons_straight` / `_singleton_straight`:
+    prepend a `BridgedStraightStmts`-typed segment to a `BridgedStmts`-typed
+    tail. Supports scalar-emit body assembly where the prologue and store
+    blocks are naturally `BridgedStraightStmts` (map-shaped or cons-built)
+    that need to sit in front of a `BridgedStmts` recursive-body continuation
+    without retyping the list-level lift at the call site. -/
+theorem BridgedStmts_append_straight {xs ys : List Compiler.Yul.YulStmt}
+    (hXs : BridgedStraightStmts xs) (hYs : BridgedStmts ys) :
+    BridgedStmts (xs ++ ys) :=
+  BridgedStmts_append (BridgedStmts_of_BridgedStraightStmts hXs) hYs
+
 /-- `BridgedStmts` analogue of `BridgedStraightStmts_map_mstore`: a list of
     `(offset, value)` expression pairs with both components bridged maps to
     a `BridgedStmts` list of `mstore(offset, value)` statements. Directly
