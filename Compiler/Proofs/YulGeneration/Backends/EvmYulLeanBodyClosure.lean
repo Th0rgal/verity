@@ -4826,4 +4826,57 @@ theorem BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_nested
       intro stmt hMem
       exact h stmt (by simp [hMem])
 
+/-! ### Lifting forEach-wrapped with-errors aliases into the recursive inductive
+
+Each forEach-with-errors stmt is either a plain with-errors body stmt (admitted
+via `.base`) or an outer `Stmt.forEach varName count body` whose body is a
+with-errors body-stmt list. The recursive with-errors inductive accepts both
+shapes: `.base` reuses the plain with-errors body stmt unchanged, and
+`.forEach` takes a recursive with-errors body-stmt list — reachable from the
+plain with-errors body-stmt-list body via
+`*RecursiveBodyWithErrorsStmts_of_alias`. Covers external and internal
+variants. -/
+
+theorem BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_forEach
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceExternalForEachBodyWithErrorsStmts fields errors
+      dynamicSource stmts) :
+    BridgedSourceExternalRecursiveBodyWithErrorsStmts fields errors
+      dynamicSource stmts := by
+  induction stmts with
+  | nil => exact .nil
+  | cons head tail ih =>
+      have hHead : BridgedSourceExternalRecursiveBodyWithErrorsStmt fields errors
+          dynamicSource head := by
+        match h head (by simp) with
+        | .base hStmt => exact .base hStmt
+        | .forEach varName count body hCount hBody =>
+            exact .forEach varName count body hCount
+              (BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_alias hBody)
+      refine .cons hHead (ih ?_)
+      intro stmt hMem
+      exact h stmt (by simp [hMem])
+
+theorem BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_forEach
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceInternalForEachBodyWithErrorsStmts fields errors
+      dynamicSource stmts) :
+    BridgedSourceInternalRecursiveBodyWithErrorsStmts fields errors
+      dynamicSource stmts := by
+  induction stmts with
+  | nil => exact .nil
+  | cons head tail ih =>
+      have hHead : BridgedSourceInternalRecursiveBodyWithErrorsStmt fields errors
+          dynamicSource head := by
+        match h head (by simp) with
+        | .base hStmt => exact .base hStmt
+        | .forEach varName count body hCount hBody =>
+            exact .forEach varName count body hCount
+              (BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_alias hBody)
+      refine .cons hHead (ih ?_)
+      intro stmt hMem
+      exact h stmt (by simp [hMem])
+
 end Compiler.Proofs.YulGeneration.Backends
