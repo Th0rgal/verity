@@ -1657,6 +1657,25 @@ theorem bridgedStmt_assign_of_bridged_val
   bridgedStmt_of_bridgedStraightStmt
     (BridgedStraightStmt.assign name value hValue)
 
+/-- Direct `BridgedStmt` wrapper for a standalone `comment` statement.
+    The underlying `BridgedStraightStmt.comment` ctor is closed generically
+    over the label text, so no further hypothesis is required. -/
+theorem bridgedStmt_comment (text : String) :
+    BridgedStmt (.comment text) :=
+  bridgedStmt_of_bridgedStraightStmt (BridgedStraightStmt.comment text)
+
+/-- Direct `BridgedStmt` wrapper for a Yul `function` declaration at the
+    straight-line level. Mirrors `BridgedStraightStmt.funcDef`, which is
+    closed generically over the function name, params/rets, and body —
+    callers needing body-level bridgedness must use a separate body
+    closure predicate. -/
+theorem bridgedStmt_funcDef
+    (name : String) (params rets : List String)
+    (body : List Compiler.Yul.YulStmt) :
+    BridgedStmt (.funcDef name params rets body) :=
+  bridgedStmt_of_bridgedStraightStmt
+    (BridgedStraightStmt.funcDef name params rets body)
+
 /-- List-level lift: any list satisfying `BridgedStraightStmts` also satisfies
     the recursive `BridgedStmts` predicate, since `BridgedStraightStmt` lifts
     pointwise via `bridgedStmt_of_bridgedStraightStmt`. Useful when a compiler
