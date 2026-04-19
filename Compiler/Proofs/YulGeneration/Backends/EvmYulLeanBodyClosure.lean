@@ -5177,4 +5177,67 @@ theorem BridgedSourceInternalRecursiveBodyWithErrorsStmt_of_structured
         (BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_alias hThen)
         (BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_alias hElse)
 
+/-! ### Stmt-level nested → recursive lifts
+
+Single-stmt counterparts of the list-level `*RecursiveBody{,WithErrors}Stmts_of_nested`
+lifts. A nested stmt is either a structured stmt (admitted via the just-landed
+`*RecursiveBodyStmt_of_structured`) or a two-layer `Stmt.ite` whose branches
+are structured-stmt lists, which we lift through
+`*RecursiveBody{,WithErrors}Stmts_of_structured`. Covers plain and
+with-errors variants. -/
+
+theorem BridgedSourceExternalRecursiveBodyStmt_of_nested
+    {fields : List Field} {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceExternalNestedBodyStmt fields dynamicSource stmt) :
+    BridgedSourceExternalRecursiveBodyStmt fields dynamicSource stmt := by
+  match h with
+  | .structured hStructured =>
+      exact BridgedSourceExternalRecursiveBodyStmt_of_structured hStructured
+  | .ite cond thenBranch elseBranch hCond hThen hElse =>
+      exact .ite cond thenBranch elseBranch hCond
+        (BridgedSourceExternalRecursiveBodyStmts_of_structured hThen)
+        (BridgedSourceExternalRecursiveBodyStmts_of_structured hElse)
+
+theorem BridgedSourceInternalRecursiveBodyStmt_of_nested
+    {fields : List Field} {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceInternalNestedBodyStmt fields dynamicSource stmt) :
+    BridgedSourceInternalRecursiveBodyStmt fields dynamicSource stmt := by
+  match h with
+  | .structured hStructured =>
+      exact BridgedSourceInternalRecursiveBodyStmt_of_structured hStructured
+  | .ite cond thenBranch elseBranch hCond hThen hElse =>
+      exact .ite cond thenBranch elseBranch hCond
+        (BridgedSourceInternalRecursiveBodyStmts_of_structured hThen)
+        (BridgedSourceInternalRecursiveBodyStmts_of_structured hElse)
+
+theorem BridgedSourceExternalRecursiveBodyWithErrorsStmt_of_nested
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceExternalNestedBodyWithErrorsStmt fields errors
+      dynamicSource stmt) :
+    BridgedSourceExternalRecursiveBodyWithErrorsStmt fields errors
+      dynamicSource stmt := by
+  match h with
+  | .structured hStructured =>
+      exact BridgedSourceExternalRecursiveBodyWithErrorsStmt_of_structured hStructured
+  | .ite cond thenBranch elseBranch hCond hThen hElse =>
+      exact .ite cond thenBranch elseBranch hCond
+        (BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_structured hThen)
+        (BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_structured hElse)
+
+theorem BridgedSourceInternalRecursiveBodyWithErrorsStmt_of_nested
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceInternalNestedBodyWithErrorsStmt fields errors
+      dynamicSource stmt) :
+    BridgedSourceInternalRecursiveBodyWithErrorsStmt fields errors
+      dynamicSource stmt := by
+  match h with
+  | .structured hStructured =>
+      exact BridgedSourceInternalRecursiveBodyWithErrorsStmt_of_structured hStructured
+  | .ite cond thenBranch elseBranch hCond hThen hElse =>
+      exact .ite cond thenBranch elseBranch hCond
+        (BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_structured hThen)
+        (BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_structured hElse)
+
 end Compiler.Proofs.YulGeneration.Backends
