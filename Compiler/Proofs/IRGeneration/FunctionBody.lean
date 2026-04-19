@@ -7194,6 +7194,41 @@ theorem runtimeStateMatchesIR_setBothMemory
     · simp [ho]
       exact congrFun hmem o
 
+/-- Rebuild `runtimeStateMatchesIR` after a proof step has already established
+the exact low-level memory and event-log alignment for the updated source/IR
+states. This is the reusable postcondition shape for event emission, where the
+compiler writes scratch memory and appends a Yul log entry. -/
+theorem runtimeStateMatchesIR_updateMemoryEvents
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    (hmatch : runtimeStateMatchesIR fields runtime state)
+    (sourceMemory : Nat → Verity.Core.Uint256)
+    (irMemory : Nat → Nat)
+    (sourceEvents : List Verity.Event)
+    (irEvents : List (List Nat))
+    (hmemory : irMemory = fun o => (sourceMemory o).val)
+    (hevents : irEvents = SourceSemantics.encodeEvents sourceEvents) :
+    runtimeStateMatchesIR fields
+      { runtime with
+          world := {
+            runtime.world with
+            memory := sourceMemory
+            events := sourceEvents } }
+      { state with
+          memory := irMemory
+          events := irEvents } := by
+  cases runtime
+  cases state
+  simp only [runtimeStateMatchesIR] at hmatch ⊢
+  obtain ⟨hstor, htrans, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hsel,
+    hcd, hcds, hmem, hret, hevt⟩ := hmatch
+  refine ⟨?_, htrans, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hsel,
+    hcd, hcds, hmemory, hret, hevents⟩
+  rw [hstor]
+  funext slot
+  exact SourceSemantics.encodeStorageAt_congr rfl rfl rfl
+
 theorem runtimeStateMatchesIR_setTransientStorage
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
