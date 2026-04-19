@@ -1559,6 +1559,43 @@ theorem bridgedStmt_tstore_of_bridged_args
   bridgedStmt_of_bridgedStraightStmt
     (BridgedStraightStmt.expr_tstore offsetExpr valExpr hOffset hVal)
 
+/-- Direct `BridgedStmt` wrapper for the mapping-slot storage write
+    `sstore(mappingSlot(baseExpr, keyExpr), valExpr)` over bridged base/key/
+    value. Paralleling `bridgedStmt_mstore_of_bridged_args` for the dynamic
+    mapping path emitted by `compileMappingSlotWrite`. -/
+theorem bridgedStmt_sstore_mapping_of_bridged_args
+    (baseExpr keyExpr valExpr : Compiler.Yul.YulExpr)
+    (hBase : BridgedExpr baseExpr) (hKey : BridgedExpr keyExpr)
+    (hVal : BridgedExpr valExpr) :
+    BridgedStmt
+      (.expr (Compiler.Yul.YulExpr.call "sstore"
+        [Compiler.Yul.YulExpr.call "mappingSlot" [baseExpr, keyExpr], valExpr])) :=
+  bridgedStmt_of_bridgedStraightStmt
+    (BridgedStraightStmt.expr_sstore_mapping baseExpr keyExpr valExpr hBase hKey hVal)
+
+/-- Direct `BridgedStmt` wrapper for `sstore(lit slot, valExpr)` with a known
+    literal slot index. Matches the unpacked single-slot field write emitted
+    by `compileSetStorage`. -/
+theorem bridgedStmt_sstore_lit_of_bridged_val
+    (slot : Nat) (valExpr : Compiler.Yul.YulExpr) (hVal : BridgedExpr valExpr) :
+    BridgedStmt
+      (.expr (Compiler.Yul.YulExpr.call "sstore"
+        [Compiler.Yul.YulExpr.lit slot, valExpr])) :=
+  bridgedStmt_of_bridgedStraightStmt
+    (BridgedStraightStmt.expr_sstore_lit slot valExpr hVal)
+
+/-- Direct `BridgedStmt` wrapper for `sstore(ident slotName, valExpr)` where
+    the target slot has already been bound to a local variable (struct-member
+    and compatibility-write paths). -/
+theorem bridgedStmt_sstore_ident_of_bridged_val
+    (slotName : String) (valExpr : Compiler.Yul.YulExpr)
+    (hVal : BridgedExpr valExpr) :
+    BridgedStmt
+      (.expr (Compiler.Yul.YulExpr.call "sstore"
+        [Compiler.Yul.YulExpr.ident slotName, valExpr])) :=
+  bridgedStmt_of_bridgedStraightStmt
+    (BridgedStraightStmt.expr_sstore_ident slotName valExpr hVal)
+
 /-- List-level lift: any list satisfying `BridgedStraightStmts` also satisfies
     the recursive `BridgedStmts` predicate, since `BridgedStraightStmt` lifts
     pointwise via `bridgedStmt_of_bridgedStraightStmt`. Useful when a compiler
