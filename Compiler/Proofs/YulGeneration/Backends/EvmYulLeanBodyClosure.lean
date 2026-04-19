@@ -5451,4 +5451,62 @@ theorem BridgedSourceInternalForEachBodyWithErrorsStmt_of_plain
       dynamicSource stmt :=
   .base (.base h)
 
+/-! ### Stmt-level plain→structured/nested/recursive lifts (plain space)
+
+Stmt-level counterparts of the list-level `*_of_alias` lifts in the plain
+(non-with-errors) space. A plain body stmt admits into the structured,
+nested, and recursive inductives via direct `.base` / `.structured (.base _)`
+applications — mirroring the list-level shapes
+`fun stmt hMem => .base (h stmt hMem)` etc. The `of_structured` nested lift
+reuses the structured witness unchanged under the nested `.structured`
+constructor. -/
+
+theorem BridgedSourceExternalStructuredBodyStmt_of_base
+    {fields : List Field} {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceExternalBodyStmt fields dynamicSource stmt) :
+    BridgedSourceExternalStructuredBodyStmt fields dynamicSource stmt :=
+  .base h
+
+theorem BridgedSourceInternalStructuredBodyStmt_of_base
+    {fields : List Field} {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceInternalBodyStmt fields dynamicSource stmt) :
+    BridgedSourceInternalStructuredBodyStmt fields dynamicSource stmt :=
+  .base h
+
+theorem BridgedSourceExternalNestedBodyStmt_of_base
+    {fields : List Field} {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceExternalBodyStmt fields dynamicSource stmt) :
+    BridgedSourceExternalNestedBodyStmt fields dynamicSource stmt :=
+  .structured (.base h)
+
+theorem BridgedSourceInternalNestedBodyStmt_of_base
+    {fields : List Field} {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceInternalBodyStmt fields dynamicSource stmt) :
+    BridgedSourceInternalNestedBodyStmt fields dynamicSource stmt :=
+  .structured (.base h)
+
+theorem BridgedSourceExternalNestedBodyStmt_of_structured
+    {fields : List Field} {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceExternalStructuredBodyStmt fields dynamicSource stmt) :
+    BridgedSourceExternalNestedBodyStmt fields dynamicSource stmt :=
+  .structured h
+
+theorem BridgedSourceInternalNestedBodyStmt_of_structured
+    {fields : List Field} {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceInternalStructuredBodyStmt fields dynamicSource stmt) :
+    BridgedSourceInternalNestedBodyStmt fields dynamicSource stmt :=
+  .structured h
+
+theorem BridgedSourceExternalRecursiveBodyStmt_of_base
+    {fields : List Field} {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceExternalBodyStmt fields dynamicSource stmt) :
+    BridgedSourceExternalRecursiveBodyStmt fields dynamicSource stmt :=
+  .base h
+
+theorem BridgedSourceInternalRecursiveBodyStmt_of_base
+    {fields : List Field} {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceInternalBodyStmt fields dynamicSource stmt) :
+    BridgedSourceInternalRecursiveBodyStmt fields dynamicSource stmt :=
+  .base h
+
 end Compiler.Proofs.YulGeneration.Backends
