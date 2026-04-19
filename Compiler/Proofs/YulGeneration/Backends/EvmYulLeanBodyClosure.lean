@@ -4485,4 +4485,27 @@ theorem BridgedSourceInternalForEachBodyWithErrorsStmts_of_alias
       dynamicSource stmts :=
   fun stmt hMem => .base (h stmt hMem)
 
+/-! ### Lifting plain body aliases into the with-errors body predicate
+
+The with-errors body inductive exposes a `.base` constructor that accepts the
+plain body predicate unchanged, so a caller holding a flat plain-body witness
+(no custom-error, memory-write, or mapping-write cases) gets a with-errors
+witness via pointwise `.base` wrapping. Composed with the already-landed
+with-errors structured/nested/forEach/recursive lifts, this closes the
+"plain body → any with-errors wrapper" convenience chain. -/
+
+theorem BridgedSourceExternalBodyWithErrorsStmts_of_plain
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceExternalBodyStmts fields dynamicSource stmts) :
+    BridgedSourceExternalBodyWithErrorsStmts fields errors dynamicSource stmts :=
+  fun stmt hMem => .base (h stmt hMem)
+
+theorem BridgedSourceInternalBodyWithErrorsStmts_of_plain
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceInternalBodyStmts fields dynamicSource stmts) :
+    BridgedSourceInternalBodyWithErrorsStmts fields errors dynamicSource stmts :=
+  fun stmt hMem => .base (h stmt hMem)
+
 end Compiler.Proofs.YulGeneration.Backends
