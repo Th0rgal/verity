@@ -1250,6 +1250,43 @@ private theorem bridgedExpr_iszero_ident (name : String) :
   subst hMem
   exact BridgedExpr.ident name
 
+/-- `keccak256(offsetExpr, sizeExpr)` with bridged argument expressions is a
+    `BridgedExpr`. Both backends compute `abstractKeccakMemorySlice` directly
+    in `evalYulCallWithBackend` / `evalYulCall` after the PR #1732 proven-fragment
+    expansion, so this is a genuine convenience helper rather than an axiom
+    wrapper. Useful for closing event-emission bodies (scalar `emit` compiles
+    a `let __evt_topic0 := keccak256(__evt_ptr, sigBytes.length)` binding). -/
+theorem bridgedExpr_keccak256 (offsetExpr sizeExpr : Compiler.Yul.YulExpr)
+    (hOffset : BridgedExpr offsetExpr) (hSize : BridgedExpr sizeExpr) :
+    BridgedExpr
+      (Compiler.Yul.YulExpr.call "keccak256" [offsetExpr, sizeExpr]) := by
+  refine BridgedExpr.call "keccak256" _ (Or.inr (Or.inr (Or.inr rfl))) ?_
+  intro arg hMem
+  simp only [List.mem_cons, List.mem_nil_iff, or_false] at hMem
+  rcases hMem with rfl | rfl
+  · exact hOffset
+  · exact hSize
+
+/-- Convenience constructor that lifts `expr_log` through the `isYulLogName`
+    hypothesis for any of the five Yul log mnemonics. Callers outside this file
+    can produce `BridgedStraightStmt` log emissions without restating the
+    `isYulLogName` boolean obligation. Each emitted `logN` from the PR #1732
+    proven-fragment dispatch table now has a closed bridged counterpart. -/
+theorem bridgedStraightStmt_log_of_bridged_args
+    (func : String) (args : List Compiler.Yul.YulExpr)
+    (hLog : isYulLogName func = true)
+    (hArgs : ∀ arg ∈ args, BridgedExpr arg) :
+    BridgedStraightStmt (.expr (.call func args)) :=
+  BridgedStraightStmt.expr_log func args hLog hArgs
+
+/-- `BridgedStraightStmt` lifts to `BridgedStmt` via the `straight` ctor; this
+    is a thin convenience wrapper so that callers can chain a `logN` emission
+    (or any other straight-line statement) directly into a recursive body
+    context without retyping `BridgedStmt.straight _`. -/
+theorem bridgedStmt_of_bridgedStraightStmt {stmt : Compiler.Yul.YulStmt}
+    (hStmt : BridgedStraightStmt stmt) : BridgedStmt stmt :=
+  BridgedStmt.straight stmt hStmt
+
 private theorem bridgedStmt_revert_zero :
     BridgedStmt
       (Compiler.Yul.YulStmt.expr
