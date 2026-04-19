@@ -1461,6 +1461,18 @@ theorem bridgedStmt_of_bridgedStraightStmt {stmt : Compiler.Yul.YulStmt}
     (hStmt : BridgedStraightStmt stmt) : BridgedStmt stmt :=
   BridgedStmt.straight stmt hStmt
 
+/-- Direct `BridgedStmt` version of `bridgedStraightStmt_log_of_bridged_args`:
+    a `logN` call (any Yul log mnemonic per `isYulLogName`) with all arguments
+    bridged lifts straight to `BridgedStmt`, saving the
+    `bridgedStmt_of_bridgedStraightStmt` wrap at the call site. -/
+theorem bridgedStmt_log_of_bridged_args
+    (func : String) (args : List Compiler.Yul.YulExpr)
+    (hLog : isYulLogName func = true)
+    (hArgs : ∀ arg ∈ args, BridgedExpr arg) :
+    BridgedStmt (.expr (.call func args)) :=
+  bridgedStmt_of_bridgedStraightStmt
+    (bridgedStraightStmt_log_of_bridged_args func args hLog hArgs)
+
 /-- List-level lift: any list satisfying `BridgedStraightStmts` also satisfies
     the recursive `BridgedStmts` predicate, since `BridgedStraightStmt` lifts
     pointwise via `bridgedStmt_of_bridgedStraightStmt`. Useful when a compiler
