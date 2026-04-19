@@ -1268,6 +1268,15 @@ theorem BridgedStmts_singleton {stmt : Compiler.Yul.YulStmt}
     (hStmt : BridgedStmt stmt) : BridgedStmts [stmt] :=
   BridgedStmts_cons hStmt BridgedStmts_nil
 
+/-- Snoc composition: append a single `BridgedStmt` to the end of an
+    already-bridged list. Saves an explicit `BridgedStmts_singleton` wrap
+    when chaining `BridgedStmts_append xs (BridgedStmts_singleton y)`. -/
+theorem BridgedStmts_snoc {xs : List Compiler.Yul.YulStmt}
+    {y : Compiler.Yul.YulStmt}
+    (hXs : BridgedStmts xs) (hY : BridgedStmt y) :
+    BridgedStmts (xs ++ [y]) :=
+  BridgedStmts_append hXs (BridgedStmts_singleton hY)
+
 private theorem bridgedExpr_callvalue :
     BridgedExpr (Compiler.Yul.YulExpr.call "callvalue" []) := by
   exact BridgedExpr.call "callvalue" [] (Or.inl (by simp [bridgedBuiltins]))

@@ -2638,6 +2638,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons
 #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_append
 #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_snoc
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_callvalue  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_calldatasize  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_selector  -- private
@@ -2818,4 +2819,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2654 theorems/lemmas (1822 public, 832 private, 0 sorry'd)
+-- Total: 2655 theorems/lemmas (1823 public, 832 private, 0 sorry'd)
