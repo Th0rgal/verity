@@ -32,6 +32,46 @@ def eventDefScalarProofSupported (eventDef : EventDef) : Bool :=
   eventDef.params.all (fun param => eventParamScalarProofSupported param.ty) &&
     (eventDef.params.filter (fun param => param.kind == EventParamKind.indexed)).length <= 3
 
+theorem eventDefScalarProofSupported_params_all
+    {eventDef : EventDef}
+    (hsupport : eventDefScalarProofSupported eventDef = true) :
+    eventDef.params.all (fun param => eventParamScalarProofSupported param.ty) = true := by
+  have hsplit :
+      (∀ param ∈ eventDef.params, eventParamScalarProofSupported param.ty = true) ∧
+        (eventDef.params.filter (fun param => param.kind == EventParamKind.indexed)).length ≤ 3 := by
+    simpa [eventDefScalarProofSupported, Bool.and_eq_true] using hsupport
+  simpa using hsplit.1
+
+theorem eventDefScalarProofSupported_indexed_length_le_three
+    {eventDef : EventDef}
+    (hsupport : eventDefScalarProofSupported eventDef = true) :
+    (eventDef.params.filter (fun param => param.kind == EventParamKind.indexed)).length ≤ 3 := by
+  have hsplit :
+      (∀ param ∈ eventDef.params, eventParamScalarProofSupported param.ty = true) ∧
+        (eventDef.params.filter (fun param => param.kind == EventParamKind.indexed)).length ≤ 3 := by
+    simpa [eventDefScalarProofSupported, Bool.and_eq_true] using hsupport
+  exact hsplit.2
+
+private theorem eventParamScalarProofSupported_eq_true_of_mem_all :
+    ∀ {params : List EventParam} {param : EventParam},
+      params.all (fun param => eventParamScalarProofSupported param.ty) = true →
+        param ∈ params →
+          eventParamScalarProofSupported param.ty = true
+  | params, param, hall, hmem => by
+      have hforall :
+          ∀ candidate ∈ params, eventParamScalarProofSupported candidate.ty = true := by
+        simpa using hall
+      exact hforall param hmem
+
+theorem eventParamScalarProofSupported_eq_true_of_eventDefScalarProofSupported
+    {eventDef : EventDef}
+    {param : EventParam}
+    (hsupport : eventDefScalarProofSupported eventDef = true)
+    (hmem : param ∈ eventDef.params) :
+    eventParamScalarProofSupported param.ty = true :=
+  eventParamScalarProofSupported_eq_true_of_mem_all
+    (eventDefScalarProofSupported_params_all hsupport) hmem
+
 def eventEmissionProofSupported
     (events : List EventDef) (eventName : String) (args : List Expr) : Bool :=
   match events.find? (·.name == eventName) with
@@ -81,6 +121,31 @@ theorem eventDefScalarProofSupported_eq_true_of_eventEmissionProofSupported
   injection hselected with heq
   subst heq
   exact hscalar
+
+theorem eventParamScalarProofSupported_eq_true_of_eventEmissionProofSupported
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    {param : EventParam}
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef)
+    (hmem : param ∈ eventDef.params) :
+    eventParamScalarProofSupported param.ty = true :=
+  eventParamScalarProofSupported_eq_true_of_eventDefScalarProofSupported
+    (eventDefScalarProofSupported_eq_true_of_eventEmissionProofSupported hsupport hfind)
+    hmem
+
+theorem eventEmissionProofSupported_indexed_length_le_three
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef) :
+    (eventDef.params.filter (fun param => param.kind == EventParamKind.indexed)).length ≤ 3 :=
+  eventDefScalarProofSupported_indexed_length_le_three
+    (eventDefScalarProofSupported_eq_true_of_eventEmissionProofSupported hsupport hfind)
 
 theorem eventEmissionProofSupported_args_length
     {events : List EventDef}
