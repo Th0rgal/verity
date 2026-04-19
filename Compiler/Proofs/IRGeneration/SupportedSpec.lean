@@ -72,6 +72,54 @@ theorem eventParamScalarProofSupported_eq_true_of_eventDefScalarProofSupported
   eventParamScalarProofSupported_eq_true_of_mem_all
     (eventDefScalarProofSupported_params_all hsupport) hmem
 
+theorem eventParamScalarProofSupported_eventIsDynamicType_eq_false
+    {ty : ParamType}
+    (hsupport : eventParamScalarProofSupported ty = true) :
+    eventIsDynamicType ty = false := by
+  cases ty <;>
+    simp [eventParamScalarProofSupported, eventIsDynamicType, isDynamicParamType]
+      at hsupport ⊢
+
+theorem eventParamScalarProofSupported_eventHeadWordSize_eq_thirty_two
+    {ty : ParamType}
+    (hsupport : eventParamScalarProofSupported ty = true) :
+    eventHeadWordSize ty = 32 := by
+  cases ty <;>
+    simp [eventParamScalarProofSupported, eventHeadWordSize, paramHeadSize]
+      at hsupport ⊢
+
+theorem eventParamScalarProofSupported_ne_bytes
+    {ty : ParamType}
+    (hsupport : eventParamScalarProofSupported ty = true) :
+    ty ≠ ParamType.bytes := by
+  intro h; subst h; simp [eventParamScalarProofSupported] at hsupport
+
+theorem eventParamScalarProofSupported_ne_string
+    {ty : ParamType}
+    (hsupport : eventParamScalarProofSupported ty = true) :
+    ty ≠ ParamType.string := by
+  intro h; subst h; simp [eventParamScalarProofSupported] at hsupport
+
+theorem eventParamScalarProofSupported_ne_array
+    {ty elemTy : ParamType}
+    (hsupport : eventParamScalarProofSupported ty = true) :
+    ty ≠ ParamType.array elemTy := by
+  intro h; subst h; simp [eventParamScalarProofSupported] at hsupport
+
+theorem eventParamScalarProofSupported_ne_fixedArray
+    {ty elemTy : ParamType}
+    {len : Nat}
+    (hsupport : eventParamScalarProofSupported ty = true) :
+    ty ≠ ParamType.fixedArray elemTy len := by
+  intro h; subst h; simp [eventParamScalarProofSupported] at hsupport
+
+theorem eventParamScalarProofSupported_ne_tuple
+    {ty : ParamType}
+    {members : List ParamType}
+    (hsupport : eventParamScalarProofSupported ty = true) :
+    ty ≠ ParamType.tuple members := by
+  intro h; subst h; simp [eventParamScalarProofSupported] at hsupport
+
 def eventEmissionProofSupported
     (events : List EventDef) (eventName : String) (args : List Expr) : Bool :=
   match events.find? (·.name == eventName) with
@@ -161,6 +209,62 @@ theorem eventEmissionProofSupported_args_length
   injection hselected with heq
   subst heq
   exact hlen
+
+theorem eventEmissionProofSupported_param_eventIsDynamicType_eq_false
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    {param : EventParam}
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef)
+    (hmem : param ∈ eventDef.params) :
+    eventIsDynamicType param.ty = false :=
+  eventParamScalarProofSupported_eventIsDynamicType_eq_false
+    (eventParamScalarProofSupported_eq_true_of_eventEmissionProofSupported
+      hsupport hfind hmem)
+
+theorem eventEmissionProofSupported_param_eventHeadWordSize_eq_thirty_two
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    {param : EventParam}
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef)
+    (hmem : param ∈ eventDef.params) :
+    eventHeadWordSize param.ty = 32 :=
+  eventParamScalarProofSupported_eventHeadWordSize_eq_thirty_two
+    (eventParamScalarProofSupported_eq_true_of_eventEmissionProofSupported
+      hsupport hfind hmem)
+
+theorem eventEmissionProofSupported_param_not_bytes
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    {param : EventParam}
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef)
+    (hmem : param ∈ eventDef.params) :
+    param.ty ≠ ParamType.bytes :=
+  eventParamScalarProofSupported_ne_bytes
+    (eventParamScalarProofSupported_eq_true_of_eventEmissionProofSupported
+      hsupport hfind hmem)
+
+theorem eventEmissionProofSupported_param_not_string
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    {param : EventParam}
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef)
+    (hmem : param ∈ eventDef.params) :
+    param.ty ≠ ParamType.string :=
+  eventParamScalarProofSupported_ne_string
+    (eventParamScalarProofSupported_eq_true_of_eventEmissionProofSupported
+      hsupport hfind hmem)
 
 mutual
 /-- Constructor body proofs are intentionally staged after initcode argument
