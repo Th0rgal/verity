@@ -1966,6 +1966,24 @@ theorem BridgedStmts_cons_comment
     BridgedStmts (Compiler.Yul.YulStmt.comment text :: rest) :=
   BridgedStmts_cons (bridgedStmt_comment text) hRest
 
+/-- `BridgedStmts` singleton wrapping a single `.let_ name value` node over a
+    bridged value expression. Mirrors the bridged-value `let` shape emitted
+    throughout the dispatcher and runtime-common prologues. -/
+theorem BridgedStmts_singleton_let
+    (name : String) (value : Compiler.Yul.YulExpr) (hValue : BridgedExpr value) :
+    BridgedStmts [Compiler.Yul.YulStmt.let_ name value] :=
+  BridgedStmts_singleton (bridgedStmt_let_of_bridged_val name value hValue)
+
+/-- Cons a `.let_ name value` node over a bridged value expression onto an
+    already-bridged `BridgedStmts` tail. Covers the common prologue shape
+    where a pure `let tmp := <bridged expr>` binding precedes subsequent
+    bridged statements. -/
+theorem BridgedStmts_cons_let
+    (name : String) (value : Compiler.Yul.YulExpr) (hValue : BridgedExpr value)
+    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
+    BridgedStmts (Compiler.Yul.YulStmt.let_ name value :: rest) :=
+  BridgedStmts_cons (bridgedStmt_let_of_bridged_val name value hValue) hRest
+
 theorem callvalueGuard_bridged : BridgedStmt Compiler.CodegenCommon.callvalueGuard := by
   unfold Compiler.CodegenCommon.callvalueGuard
   exact BridgedStmt.if_ _ _ bridgedExpr_callvalue
