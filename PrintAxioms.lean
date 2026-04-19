@@ -1622,11 +1622,21 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.expr_call_measure_decreases  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.pairLex_same_fst_succ  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.internal_call_measure_decreases  -- private
+#print axioms Compiler.Proofs.IRGeneration.applyYulLogCall?_log0
+#print axioms Compiler.Proofs.IRGeneration.applyYulLogCall?_log1
+#print axioms Compiler.Proofs.IRGeneration.applyYulLogCall?_log2
+#print axioms Compiler.Proofs.IRGeneration.applyYulLogCall?_log3
+#print axioms Compiler.Proofs.IRGeneration.applyYulLogCall?_log4
 #print axioms Compiler.Proofs.IRGeneration.IRState.appendYulLog_events
 #print axioms Compiler.Proofs.IRGeneration.evalIRCall_tload_singleton
 #print axioms Compiler.Proofs.IRGeneration.evalIRCall_mload_singleton
 #print axioms Compiler.Proofs.IRGeneration.evalIRCall_calldataload_singleton
 -- #print axioms Compiler.Proofs.IRGeneration.prepareInternalCalleeState_vars  -- private
+#print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_log0_of_eval_args
+#print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_log1_of_eval_args
+#print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_log2_of_eval_args
+#print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_log3_of_eval_args
+#print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_log4_of_eval_args
 #print axioms Compiler.Proofs.IRGeneration.execIRInternalFunctionWithInternals_hides_caller_only_locals
 #print axioms Compiler.Proofs.IRGeneration.execIRStmt_stop_succ
 #print axioms Compiler.Proofs.IRGeneration.execIRStmt_stop_one_add
@@ -2260,4 +2270,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2111 theorems/lemmas (1420 public, 691 private, 0 sorry'd)
+-- Total: 2121 theorems/lemmas (1430 public, 691 private, 0 sorry'd)
