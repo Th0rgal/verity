@@ -196,6 +196,31 @@ def applyYulLogCall? (state : IRState) (func : String)
       some (state.appendYulLog offset size [topic0, topic1, topic2, topic3])
   | _, _ => none
 
+@[simp] theorem applyYulLogCall?_log0
+    (state : IRState) (offset size : Nat) :
+    applyYulLogCall? state "log0" [offset, size] =
+      some (state.appendYulLog offset size []) := rfl
+
+@[simp] theorem applyYulLogCall?_log1
+    (state : IRState) (offset size topic0 : Nat) :
+    applyYulLogCall? state "log1" [offset, size, topic0] =
+      some (state.appendYulLog offset size [topic0]) := rfl
+
+@[simp] theorem applyYulLogCall?_log2
+    (state : IRState) (offset size topic0 topic1 : Nat) :
+    applyYulLogCall? state "log2" [offset, size, topic0, topic1] =
+      some (state.appendYulLog offset size [topic0, topic1]) := rfl
+
+@[simp] theorem applyYulLogCall?_log3
+    (state : IRState) (offset size topic0 topic1 topic2 : Nat) :
+    applyYulLogCall? state "log3" [offset, size, topic0, topic1, topic2] =
+      some (state.appendYulLog offset size [topic0, topic1, topic2]) := rfl
+
+@[simp] theorem applyYulLogCall?_log4
+    (state : IRState) (offset size topic0 topic1 topic2 topic3 : Nat) :
+    applyYulLogCall? state "log4" [offset, size, topic0, topic1, topic2, topic3] =
+      some (state.appendYulLog offset size [topic0, topic1, topic2, topic3]) := rfl
+
 @[simp] theorem IRState.appendYulLog_events
     (s : IRState) (offset size : Nat) (topics : List Nat) :
     (s.appendYulLog offset size topics).events =
@@ -749,6 +774,77 @@ termination_by stmts => (fuel, stmts.length)
 decreasing_by all_goals simp_wf; all_goals omega
 
 end
+
+theorem execIRStmtWithInternals_log0_of_eval_args
+    {contract : IRContract}
+    {fuel : Nat}
+    {state state' : IRState}
+    {args : List YulExpr}
+    {offset size : Nat}
+    (heval :
+      evalIRExprsWithInternals contract fuel state args =
+        .values [offset, size] state') :
+    execIRStmtWithInternals contract (Nat.succ fuel) state
+        (YulStmt.expr (YulExpr.call "log0" args)) =
+      .continue (state'.appendYulLog offset size []) := by
+  simp [execIRStmtWithInternals, isYulLogName, heval]
+
+theorem execIRStmtWithInternals_log1_of_eval_args
+    {contract : IRContract}
+    {fuel : Nat}
+    {state state' : IRState}
+    {args : List YulExpr}
+    {offset size topic0 : Nat}
+    (heval :
+      evalIRExprsWithInternals contract fuel state args =
+        .values [offset, size, topic0] state') :
+    execIRStmtWithInternals contract (Nat.succ fuel) state
+        (YulStmt.expr (YulExpr.call "log1" args)) =
+      .continue (state'.appendYulLog offset size [topic0]) := by
+  simp [execIRStmtWithInternals, isYulLogName, heval]
+
+theorem execIRStmtWithInternals_log2_of_eval_args
+    {contract : IRContract}
+    {fuel : Nat}
+    {state state' : IRState}
+    {args : List YulExpr}
+    {offset size topic0 topic1 : Nat}
+    (heval :
+      evalIRExprsWithInternals contract fuel state args =
+        .values [offset, size, topic0, topic1] state') :
+    execIRStmtWithInternals contract (Nat.succ fuel) state
+        (YulStmt.expr (YulExpr.call "log2" args)) =
+      .continue (state'.appendYulLog offset size [topic0, topic1]) := by
+  simp [execIRStmtWithInternals, isYulLogName, heval]
+
+theorem execIRStmtWithInternals_log3_of_eval_args
+    {contract : IRContract}
+    {fuel : Nat}
+    {state state' : IRState}
+    {args : List YulExpr}
+    {offset size topic0 topic1 topic2 : Nat}
+    (heval :
+      evalIRExprsWithInternals contract fuel state args =
+        .values [offset, size, topic0, topic1, topic2] state') :
+    execIRStmtWithInternals contract (Nat.succ fuel) state
+        (YulStmt.expr (YulExpr.call "log3" args)) =
+      .continue (state'.appendYulLog offset size [topic0, topic1, topic2]) := by
+  simp [execIRStmtWithInternals, isYulLogName, heval]
+
+theorem execIRStmtWithInternals_log4_of_eval_args
+    {contract : IRContract}
+    {fuel : Nat}
+    {state state' : IRState}
+    {args : List YulExpr}
+    {offset size topic0 topic1 topic2 topic3 : Nat}
+    (heval :
+      evalIRExprsWithInternals contract fuel state args =
+        .values [offset, size, topic0, topic1, topic2, topic3] state') :
+    execIRStmtWithInternals contract (Nat.succ fuel) state
+        (YulStmt.expr (YulExpr.call "log4" args)) =
+      .continue (state'.appendYulLog offset size
+        [topic0, topic1, topic2, topic3]) := by
+  simp [execIRStmtWithInternals, isYulLogName, heval]
 
 /-! ## Helper Scope Sanity Checks -/
 
