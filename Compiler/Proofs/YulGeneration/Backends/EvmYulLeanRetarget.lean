@@ -1952,13 +1952,13 @@ theorem BridgedStmts_singleton_revert_zero :
 theorem callvalueGuard_bridged : BridgedStmt Compiler.CodegenCommon.callvalueGuard := by
   unfold Compiler.CodegenCommon.callvalueGuard
   exact BridgedStmt.if_ _ _ bridgedExpr_callvalue
-    (BridgedStmts_cons bridgedStmt_revert_zero BridgedStmts_nil)
+    (BridgedStmts_singleton_revert_zero)
 
 theorem calldatasizeGuard_bridged (numParams : Nat) :
     BridgedStmt (Compiler.CodegenCommon.calldatasizeGuard numParams) := by
   unfold Compiler.CodegenCommon.calldatasizeGuard
   exact BridgedStmt.if_ _ _ (bridgedExpr_calldatasize_lt (4 + numParams * 32))
-    (BridgedStmts_cons bridgedStmt_revert_zero BridgedStmts_nil)
+    (BridgedStmts_singleton_revert_zero)
 
 theorem dispatchBody_bridged (payable : Bool) (label : String)
     (body : List Compiler.Yul.YulStmt) (hBody : BridgedStmts body) :
@@ -1983,7 +1983,7 @@ theorem defaultDispatchCase_bridged
       cases fallback with
       | none =>
           unfold Compiler.CodegenCommon.defaultDispatchCase
-          exact BridgedStmts_cons bridgedStmt_revert_zero BridgedStmts_nil
+          exact BridgedStmts_singleton_revert_zero
       | some fb =>
           unfold Compiler.CodegenCommon.defaultDispatchCase
           exact dispatchBody_bridged fb.payable "fallback()" fb.body
@@ -2004,7 +2004,7 @@ theorem defaultDispatchCase_bridged
                   (hReceive rc rfl)))
               (BridgedStmts_cons
                 (BridgedStmt.if_ _ _ (bridgedExpr_iszero_ident "__is_empty_calldata")
-                  (BridgedStmts_cons bridgedStmt_revert_zero BridgedStmts_nil))
+                  (BridgedStmts_singleton_revert_zero))
                 BridgedStmts_nil))
       | some fb =>
           unfold Compiler.CodegenCommon.defaultDispatchCase
