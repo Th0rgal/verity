@@ -372,6 +372,24 @@ ALLOWLIST: set[str] = {
     # head/tail skeleton as the plain-body structured list closure, delegating
     # per-statement closure to the structured with-errors dispatcher.
     "compileStmtList_external_structured_body_with_errors_bridged",
+    # Internal structured with-errors list closure: span now includes the
+    # trailing nested-with-errors section header because the measured range
+    # reaches the next non-indented section. Proof body unchanged.
+    "compileStmtList_internal_structured_body_with_errors_bridged",
+    # Two-level with-errors ite closure mirrors the same two compiler-emitted
+    # shapes (single Yul `if` vs cached-condition `block` with two inner
+    # `if`s) as the one-layer with-errors proof, but delegates branch bodies
+    # to structured with-errors list closure. The proof is mechanical
+    # Except-bind decomposition.
+    "compileStmt_ite_external_nested_body_with_errors_bridged",
+    # Same generated-shape proof as the external two-level with-errors ite
+    # closure, but with internal branch body closure for internal returns
+    # alongside with-errors extensions.
+    "compileStmt_ite_internal_nested_body_with_errors_bridged",
+    # External nested with-errors list closure: same compileStmtList
+    # head/tail skeleton as earlier list closures; the measured span includes
+    # the following internal-section boundary.
+    "compileStmtList_external_nested_body_with_errors_bridged",
     # Internal structured-body list closure is the same compileStmtList
     # head/tail skeleton as the external structured-body proof; the measured
     # span now includes the following nested-ite section header.

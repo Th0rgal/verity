@@ -3458,4 +3458,340 @@ theorem compileStmtList_internal_structured_body_with_errors_bridged
                   hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
 
+/-! ### Nested with-errors body closure (two `Stmt.ite` layers)
+
+The structured with-errors predicate above covers one `Stmt.ite` layer around
+plain with-errors body fragments. This increment adds one further nesting
+level: an outer `Stmt.ite` whose branches are already-proven structured
+with-errors lists.
+-/
+
+/-- External with-errors body statements extended with an outer `Stmt.ite`
+whose branches are already one-layer structured with-errors body fragments. -/
+inductive BridgedSourceExternalNestedBodyWithErrorsStmt
+    (fields : List Field) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) : Stmt → Prop
+  | structured {stmt : Stmt}
+      (hStmt : BridgedSourceExternalStructuredBodyWithErrorsStmt fields errors
+        dynamicSource stmt) :
+      BridgedSourceExternalNestedBodyWithErrorsStmt fields errors dynamicSource stmt
+  | ite (cond : Expr) (thenBranch elseBranch : List Stmt)
+      (hCond : BridgedSourceExpr cond)
+      (hThen : BridgedSourceExternalStructuredBodyWithErrorsStmts fields errors
+        dynamicSource thenBranch)
+      (hElse : BridgedSourceExternalStructuredBodyWithErrorsStmts fields errors
+        dynamicSource elseBranch) :
+      BridgedSourceExternalNestedBodyWithErrorsStmt fields errors dynamicSource
+        (.ite cond thenBranch elseBranch)
+
+def BridgedSourceExternalNestedBodyWithErrorsStmts
+    (fields : List Field) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts,
+    BridgedSourceExternalNestedBodyWithErrorsStmt fields errors dynamicSource stmt
+
+/-- Internal with-errors body statements extended with an outer `Stmt.ite`
+whose branches are already one-layer structured with-errors body fragments. -/
+inductive BridgedSourceInternalNestedBodyWithErrorsStmt
+    (fields : List Field) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) : Stmt → Prop
+  | structured {stmt : Stmt}
+      (hStmt : BridgedSourceInternalStructuredBodyWithErrorsStmt fields errors
+        dynamicSource stmt) :
+      BridgedSourceInternalNestedBodyWithErrorsStmt fields errors dynamicSource stmt
+  | ite (cond : Expr) (thenBranch elseBranch : List Stmt)
+      (hCond : BridgedSourceExpr cond)
+      (hThen : BridgedSourceInternalStructuredBodyWithErrorsStmts fields errors
+        dynamicSource thenBranch)
+      (hElse : BridgedSourceInternalStructuredBodyWithErrorsStmts fields errors
+        dynamicSource elseBranch) :
+      BridgedSourceInternalNestedBodyWithErrorsStmt fields errors dynamicSource
+        (.ite cond thenBranch elseBranch)
+
+def BridgedSourceInternalNestedBodyWithErrorsStmts
+    (fields : List Field) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts,
+    BridgedSourceInternalNestedBodyWithErrorsStmt fields errors dynamicSource stmt
+
+/-- An outer external `Stmt.ite` whose branches are one-layer structured
+with-errors body fragments compiles to bridged Yul. -/
+theorem compileStmt_ite_external_nested_body_with_errors_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (inScopeNames : List String)
+    {cond : Expr} {thenBranch elseBranch : List Stmt}
+    (hCond : BridgedSourceExpr cond)
+    (hThen : BridgedSourceExternalStructuredBodyWithErrorsStmts fields errors
+      dynamicSource thenBranch)
+    (hElse : BridgedSourceExternalStructuredBodyWithErrorsStmts fields errors
+      dynamicSource elseBranch) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames
+        (isInternal := false) inScopeNames (.ite cond thenBranch elseBranch) = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  simp only [compileStmt, bind, Except.bind] at hOk
+  cases hCondExpr : compileExpr fields dynamicSource cond with
+  | error err =>
+      simp [hCondExpr] at hOk
+  | ok condExpr =>
+      cases hThenCompile : compileStmtList fields events errors dynamicSource
+          internalRetNames false inScopeNames thenBranch with
+      | error err =>
+          simp [hCondExpr, hThenCompile] at hOk
+      | ok thenOut =>
+          cases hElseCompile : compileStmtList fields events errors dynamicSource
+              internalRetNames false inScopeNames elseBranch with
+          | error err =>
+              simp [hCondExpr, hThenCompile, hElseCompile] at hOk
+          | ok elseOut =>
+              have hCondBridged : BridgedExpr condExpr :=
+                compileExpr_bridgedSource fields dynamicSource hCond hCondExpr
+              have hThenBridged : BridgedStmts thenOut :=
+                compileStmtList_external_structured_body_with_errors_bridged fields
+                  events errors dynamicSource internalRetNames thenBranch
+                  inScopeNames hThen hThenCompile
+              have hElseBridged : BridgedStmts elseOut :=
+                compileStmtList_external_structured_body_with_errors_bridged fields
+                  events errors dynamicSource internalRetNames elseBranch
+                  inScopeNames hElse hElseCompile
+              by_cases hEmpty : elseBranch.isEmpty
+              · simp [hCondExpr, hThenCompile, hElseCompile, hEmpty,
+                  Pure.pure, Except.pure] at hOk
+                subst out
+                intro yulStmt hMem
+                simp only [List.mem_singleton] at hMem
+                subst yulStmt
+                exact BridgedStmt.if_ condExpr thenOut hCondBridged hThenBridged
+              · simp [hCondExpr, hThenCompile, hElseCompile, hEmpty,
+                  Pure.pure, Except.pure] at hOk
+                subst out
+                intro yulStmt hMem
+                simp only [List.mem_singleton] at hMem
+                subst yulStmt
+                refine BridgedStmt.block _ ?_
+                intro blockStmt hBlockMem
+                simp only [List.mem_cons, List.mem_nil_iff] at hBlockMem
+                rcases hBlockMem with rfl | rfl | rfl | hNil
+                · exact BridgedStmt.straight _
+                    (BridgedStraightStmt.let_ _ condExpr hCondBridged)
+                · exact BridgedStmt.if_ _ thenOut (BridgedExpr.ident _) hThenBridged
+                · exact BridgedStmt.if_ _ elseOut
+                    (bridgedExpr_iszero_ident _) hElseBridged
+                · cases hNil
+
+/-- An outer internal `Stmt.ite` whose branches are one-layer structured
+with-errors body fragments compiles to bridged Yul. -/
+theorem compileStmt_ite_internal_nested_body_with_errors_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (inScopeNames : List String)
+    {cond : Expr} {thenBranch elseBranch : List Stmt}
+    (hCond : BridgedSourceExpr cond)
+    (hThen : BridgedSourceInternalStructuredBodyWithErrorsStmts fields errors
+      dynamicSource thenBranch)
+    (hElse : BridgedSourceInternalStructuredBodyWithErrorsStmts fields errors
+      dynamicSource elseBranch) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames
+        (isInternal := true) inScopeNames (.ite cond thenBranch elseBranch) = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  simp only [compileStmt, bind, Except.bind] at hOk
+  cases hCondExpr : compileExpr fields dynamicSource cond with
+  | error err =>
+      simp [hCondExpr] at hOk
+  | ok condExpr =>
+      cases hThenCompile : compileStmtList fields events errors dynamicSource
+          internalRetNames true inScopeNames thenBranch with
+      | error err =>
+          simp [hCondExpr, hThenCompile] at hOk
+      | ok thenOut =>
+          cases hElseCompile : compileStmtList fields events errors dynamicSource
+              internalRetNames true inScopeNames elseBranch with
+          | error err =>
+              simp [hCondExpr, hThenCompile, hElseCompile] at hOk
+          | ok elseOut =>
+              have hCondBridged : BridgedExpr condExpr :=
+                compileExpr_bridgedSource fields dynamicSource hCond hCondExpr
+              have hThenBridged : BridgedStmts thenOut :=
+                compileStmtList_internal_structured_body_with_errors_bridged fields
+                  events errors dynamicSource internalRetNames thenBranch
+                  inScopeNames hThen hThenCompile
+              have hElseBridged : BridgedStmts elseOut :=
+                compileStmtList_internal_structured_body_with_errors_bridged fields
+                  events errors dynamicSource internalRetNames elseBranch
+                  inScopeNames hElse hElseCompile
+              by_cases hEmpty : elseBranch.isEmpty
+              · simp [hCondExpr, hThenCompile, hElseCompile, hEmpty,
+                  Pure.pure, Except.pure] at hOk
+                subst out
+                intro yulStmt hMem
+                simp only [List.mem_singleton] at hMem
+                subst yulStmt
+                exact BridgedStmt.if_ condExpr thenOut hCondBridged hThenBridged
+              · simp [hCondExpr, hThenCompile, hElseCompile, hEmpty,
+                  Pure.pure, Except.pure] at hOk
+                subst out
+                intro yulStmt hMem
+                simp only [List.mem_singleton] at hMem
+                subst yulStmt
+                refine BridgedStmt.block _ ?_
+                intro blockStmt hBlockMem
+                simp only [List.mem_cons, List.mem_nil_iff] at hBlockMem
+                rcases hBlockMem with rfl | rfl | rfl | hNil
+                · exact BridgedStmt.straight _
+                    (BridgedStraightStmt.let_ _ condExpr hCondBridged)
+                · exact BridgedStmt.if_ _ thenOut (BridgedExpr.ident _) hThenBridged
+                · exact BridgedStmt.if_ _ elseOut
+                    (bridgedExpr_iszero_ident _) hElseBridged
+                · cases hNil
+
+/-- Each external with-errors nested-body statement compiles to Yul
+satisfying `BridgedStmts`. -/
+theorem compileStmt_external_nested_body_with_errors_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (inScopeNames : List String) :
+    ∀ {stmt : Stmt},
+      BridgedSourceExternalNestedBodyWithErrorsStmt fields errors
+        dynamicSource stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          (isInternal := false) inScopeNames stmt = .ok out →
+        BridgedStmts out := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | structured hStructured =>
+      exact compileStmt_external_structured_body_with_errors_bridged fields events
+        errors dynamicSource internalRetNames inScopeNames hStructured hOk
+  | ite cond thenBranch elseBranch hCond hThen hElse =>
+      exact compileStmt_ite_external_nested_body_with_errors_bridged fields events
+        errors dynamicSource internalRetNames inScopeNames hCond hThen hElse hOk
+
+/-- External nested with-errors source bodies compile to Yul lists
+satisfying `BridgedStmts`. -/
+theorem compileStmtList_external_nested_body_with_errors_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceExternalNestedBodyWithErrorsStmts fields errors
+        dynamicSource stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          (isInternal := false) inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          false inScopeNames head with
+      | error err =>
+          simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource
+              internalRetNames false (collectStmtNames head ++ inScopeNames) tail with
+          | error err =>
+              simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource :
+                  BridgedSourceExternalNestedBodyWithErrorsStmt fields errors
+                    dynamicSource head :=
+                hSource head (by simp)
+              have hTailSource :
+                  BridgedSourceExternalNestedBodyWithErrorsStmts fields errors
+                    dynamicSource tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              exact BridgedStmts_append
+                (compileStmt_external_nested_body_with_errors_bridged fields
+                  events errors dynamicSource internalRetNames inScopeNames
+                  hHeadSource hHead)
+                (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+/-- Each internal with-errors nested-body statement compiles to Yul
+satisfying `BridgedStmts`. -/
+theorem compileStmt_internal_nested_body_with_errors_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (inScopeNames : List String) :
+    ∀ {stmt : Stmt},
+      BridgedSourceInternalNestedBodyWithErrorsStmt fields errors
+        dynamicSource stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          (isInternal := true) inScopeNames stmt = .ok out →
+        BridgedStmts out := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | structured hStructured =>
+      exact compileStmt_internal_structured_body_with_errors_bridged fields events
+        errors dynamicSource internalRetNames inScopeNames hStructured hOk
+  | ite cond thenBranch elseBranch hCond hThen hElse =>
+      exact compileStmt_ite_internal_nested_body_with_errors_bridged fields events
+        errors dynamicSource internalRetNames inScopeNames hCond hThen hElse hOk
+
+/-- Internal nested with-errors source bodies compile to Yul lists
+satisfying `BridgedStmts`. -/
+theorem compileStmtList_internal_nested_body_with_errors_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceInternalNestedBodyWithErrorsStmts fields errors
+        dynamicSource stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          (isInternal := true) inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          true inScopeNames head with
+      | error err =>
+          simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource
+              internalRetNames true (collectStmtNames head ++ inScopeNames) tail with
+          | error err =>
+              simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource :
+                  BridgedSourceInternalNestedBodyWithErrorsStmt fields errors
+                    dynamicSource head :=
+                hSource head (by simp)
+              have hTailSource :
+                  BridgedSourceInternalNestedBodyWithErrorsStmts fields errors
+                    dynamicSource tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              exact BridgedStmts_append
+                (compileStmt_internal_nested_body_with_errors_bridged fields
+                  events errors dynamicSource internalRetNames inScopeNames
+                  hHeadSource hHead)
+                (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
 end Compiler.Proofs.YulGeneration.Backends
