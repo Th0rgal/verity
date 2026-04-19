@@ -1090,7 +1090,11 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmt_core_ok_any_scope
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmt_ok_any_scope_aux  -- private
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmt_ok_any_scope
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmt_ok_any_scope_with_surface_aux  -- private
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmt_ok_any_scope_with_surface
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmtList_ok_any_scope_with_surface
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmtList_ok_any_scope
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok_with_surface
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmtList_cons_ok_inv
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmt_terminal_ite_ok_inv
@@ -1613,6 +1617,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.expr_call_measure_decreases  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.pairLex_same_fst_succ  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.internal_call_measure_decreases  -- private
+#print axioms Compiler.Proofs.IRGeneration.IRState.appendYulLog_events
 #print axioms Compiler.Proofs.IRGeneration.evalIRCall_tload_singleton
 #print axioms Compiler.Proofs.IRGeneration.evalIRCall_mload_singleton
 #print axioms Compiler.Proofs.IRGeneration.evalIRCall_calldataload_singleton
@@ -1645,6 +1650,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.YulStmtListCallsDisjointFromInternalTable.of_append_prefix
 #print axioms Compiler.Proofs.IRGeneration.evalIRCallWithInternals_stmt_eq_of_callsDisjoint
 #print axioms Compiler.Proofs.IRGeneration.evalIRCallWithInternals_stmt_eq_of_no_internal
+-- #print axioms Compiler.Proofs.IRGeneration.yulLogStmtResult_eq_of_evalIRExprsWithInternals_eq  -- private
 #print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_eq_execIRStmt_expr_of_callsDisjoint
 #print axioms Compiler.Proofs.IRGeneration.execIRStmtsWithInternals_eq_execIRStmts_of_callsDisjoint
 #print axioms Compiler.Proofs.IRGeneration.YulStmtListCallsDisjointFromInternalTable_of_internalFunctions_nil
@@ -1742,6 +1748,9 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.findInternalFunction?_exact_of_compileInternalFunction_mem_unique
 #print axioms Compiler.Proofs.IRGeneration.compileStmt_internalCallAssign_shape
 #print axioms Compiler.Proofs.IRGeneration.compileStmt_internalCall_shape
+-- #print axioms Compiler.Proofs.IRGeneration.internalFunctionYulName_head  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.internalFunctionYulName_ne_log  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.internalFunctionYulName_isYulLogName_false  -- private
 #print axioms Compiler.Proofs.IRGeneration.execIRStmtsWithInternals_of_internalCallAssign_compile
 #print axioms Compiler.Proofs.IRGeneration.execIRStmtsWithInternals_of_internalCall_compile
 #print axioms Compiler.Proofs.IRGeneration.applyIRTransactionContext_sender
@@ -2201,4 +2210,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2052 theorems/lemmas (1370 public, 682 private, 0 sorry'd)
+-- Total: 2061 theorems/lemmas (1374 public, 687 private, 0 sorry'd)
