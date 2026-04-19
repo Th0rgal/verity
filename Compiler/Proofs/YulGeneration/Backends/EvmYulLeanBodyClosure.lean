@@ -5050,4 +5050,47 @@ theorem BridgedSourceInternalNestedBodyWithErrorsStmts_of_nested
   fun stmt hMem =>
     BridgedSourceInternalNestedBodyWithErrorsStmt_of_nested (h stmt hMem)
 
+/-! ### Lifting plain structured/nested witnesses into the with-errors recursive predicate
+
+Convenience compositions so callers holding a plain structured or nested
+witness reach the recursive with-errors inductive in one step. Each lift
+chains the matching plain→with-errors structural bridge with the existing
+structured→recursive-with-errors or nested→recursive-with-errors lift. -/
+
+theorem BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_plain_structured
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceExternalStructuredBodyStmts fields dynamicSource stmts) :
+    BridgedSourceExternalRecursiveBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_structured
+    (BridgedSourceExternalStructuredBodyWithErrorsStmts_of_structured h)
+
+theorem BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_plain_structured
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceInternalStructuredBodyStmts fields dynamicSource stmts) :
+    BridgedSourceInternalRecursiveBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_structured
+    (BridgedSourceInternalStructuredBodyWithErrorsStmts_of_structured h)
+
+theorem BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_plain_nested
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceExternalNestedBodyStmts fields dynamicSource stmts) :
+    BridgedSourceExternalRecursiveBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_nested
+    (BridgedSourceExternalNestedBodyWithErrorsStmts_of_nested h)
+
+theorem BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_plain_nested
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceInternalNestedBodyStmts fields dynamicSource stmts) :
+    BridgedSourceInternalRecursiveBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_nested
+    (BridgedSourceInternalNestedBodyWithErrorsStmts_of_nested h)
+
 end Compiler.Proofs.YulGeneration.Backends
