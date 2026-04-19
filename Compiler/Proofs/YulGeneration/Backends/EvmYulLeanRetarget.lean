@@ -2027,9 +2027,7 @@ theorem defaultDispatchCase_bridged
           unfold Compiler.CodegenCommon.defaultDispatchCase
           refine BridgedStmts_cons ?_ BridgedStmts_nil
           refine BridgedStmt.block _ ?_
-          exact BridgedStmts_cons
-            (BridgedStmt.straight _
-              (BridgedStraightStmt.let_ "__is_empty_calldata" _ bridgedExpr_empty_calldata))
+          exact BridgedStmts_cons_let "__is_empty_calldata" _ bridgedExpr_empty_calldata
             (BridgedStmts_cons
               (BridgedStmt.if_ _ _
                 (BridgedExpr.ident "__is_empty_calldata")
@@ -2043,9 +2041,7 @@ theorem defaultDispatchCase_bridged
           unfold Compiler.CodegenCommon.defaultDispatchCase
           refine BridgedStmts_cons ?_ BridgedStmts_nil
           refine BridgedStmt.block _ ?_
-          exact BridgedStmts_cons
-            (BridgedStmt.straight _
-              (BridgedStraightStmt.let_ "__is_empty_calldata" _ bridgedExpr_empty_calldata))
+          exact BridgedStmts_cons_let "__is_empty_calldata" _ bridgedExpr_empty_calldata
             (BridgedStmts_cons
               (BridgedStmt.if_ _ _
                 (BridgedExpr.ident "__is_empty_calldata")
@@ -2090,9 +2086,7 @@ theorem buildSwitch_bridged
     BridgedStmt (Compiler.CodegenCommon.buildSwitch funcs fallback receive false) := by
   unfold Compiler.CodegenCommon.buildSwitch
   exact BridgedStmt.block _
-    (BridgedStmts_cons
-      (BridgedStmt.straight _
-        (BridgedStraightStmt.let_ "__has_selector" _ bridgedExpr_has_selector))
+    (BridgedStmts_cons_let "__has_selector" _ bridgedExpr_has_selector
       (BridgedStmts_cons
         (BridgedStmt.if_ _ _ (bridgedExpr_iszero_ident "__has_selector")
           (defaultDispatchCase_bridged fallback receive hFallback hReceive))
