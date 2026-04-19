@@ -1949,6 +1949,23 @@ theorem BridgedStmts_singleton_revert_zero :
           [Compiler.Yul.YulExpr.lit 0, Compiler.Yul.YulExpr.lit 0])] :=
   BridgedStmts_singleton bridgedStmt_revert_zero
 
+/-- `BridgedStmts` singleton wrapping a single `.comment text` node. Useful
+    when a compiled body reduces to a lone comment label (rare, but present
+    as a terminal marker in some codegen paths). -/
+theorem BridgedStmts_singleton_comment (text : String) :
+    BridgedStmts [Compiler.Yul.YulStmt.comment text] :=
+  BridgedStmts_singleton (bridgedStmt_comment text)
+
+/-- Cons a `.comment text` node onto an already-bridged `BridgedStmts` tail.
+    Matches the canonical shape emitted by the dispatcher and most function
+    bodies, where a single label-prefix comment sits at the head of the
+    compiled statement list. -/
+theorem BridgedStmts_cons_comment
+    (text : String) {rest : List Compiler.Yul.YulStmt}
+    (hRest : BridgedStmts rest) :
+    BridgedStmts (Compiler.Yul.YulStmt.comment text :: rest) :=
+  BridgedStmts_cons (bridgedStmt_comment text) hRest
+
 theorem callvalueGuard_bridged : BridgedStmt Compiler.CodegenCommon.callvalueGuard := by
   unfold Compiler.CodegenCommon.callvalueGuard
   exact BridgedStmt.if_ _ _ bridgedExpr_callvalue
