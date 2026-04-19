@@ -2376,8 +2376,7 @@ theorem buildSwitch_bridged
 theorem mappingSlotFuncAt_bridged (scratchBase : Nat) :
     BridgedStmt (Compiler.CodegenCommon.mappingSlotFuncAt scratchBase) := by
   unfold Compiler.CodegenCommon.mappingSlotFuncAt
-  exact BridgedStmt.straight _
-    (BridgedStraightStmt.funcDef "mappingSlot" ["baseSlot", "key"] ["slot"] _)
+  exact bridgedStmt_funcDef "mappingSlot" ["baseSlot", "key"] ["slot"] _
 
 theorem runtimeCode_bridged
     (contract : Compiler.IRContract)
