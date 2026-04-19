@@ -1956,6 +1956,8 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_zippedWithSource_eventIsDynamicType_eq_false
 #print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_zippedWithSource_eventHeadWordSize_eq_thirty_two
 #print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_zippedWithSource_unindexed_any_dynamic_false
+-- #print axioms Compiler.Proofs.IRGeneration.foldl_eventHeadWordSize_eq_thirty_two_mul_length  -- private
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_zippedWithSource_unindexed_head_size
 -- #print axioms Compiler.Proofs.IRGeneration.eventCompiledArgs_filter_kind_length_le_params_filter_kind  -- private
 #print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_zippedWithSource_indexed_length_le_three
 #print axioms Compiler.Proofs.IRGeneration.exprListTouchesUnsupportedContractSurface_eq_false_of_emit_contractSurfaceWithEventsClosed
@@ -2247,4 +2249,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2098 theorems/lemmas (1409 public, 689 private, 0 sorry'd)
+-- Total: 2100 theorems/lemmas (1410 public, 690 private, 0 sorry'd)
