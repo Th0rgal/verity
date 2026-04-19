@@ -1804,6 +1804,31 @@ theorem bridgedStmt_for_of_bridgedStmts
     BridgedStmt (.for_ init cond post body) :=
   BridgedStmt.for_ init cond post body hInit hCond hPost hBody
 
+/-- `BridgedStmts` singleton wrapping a single Yul `for` loop node. Useful
+    when a compiled body reduces to a lone loop. -/
+theorem BridgedStmts_singleton_for
+    {init : List Compiler.Yul.YulStmt} {cond : Compiler.Yul.YulExpr}
+    {post body : List Compiler.Yul.YulStmt}
+    (hInit : BridgedStmts init) (hCond : BridgedExpr cond)
+    (hPost : BridgedStmts post) (hBody : BridgedStmts body) :
+    BridgedStmts [Compiler.Yul.YulStmt.for_ init cond post body] :=
+  BridgedStmts_singleton
+    (bridgedStmt_for_of_bridgedStmts hInit hCond hPost hBody)
+
+/-- Cons a Yul `for` loop node onto an already-bridged `BridgedStmts` tail.
+    Typical shape: a loop followed by additional straight-line or bridged
+    statements in a compiled body list. -/
+theorem BridgedStmts_cons_for
+    {init : List Compiler.Yul.YulStmt} {cond : Compiler.Yul.YulExpr}
+    {post body : List Compiler.Yul.YulStmt}
+    {rest : List Compiler.Yul.YulStmt}
+    (hInit : BridgedStmts init) (hCond : BridgedExpr cond)
+    (hPost : BridgedStmts post) (hBody : BridgedStmts body)
+    (hRest : BridgedStmts rest) :
+    BridgedStmts (Compiler.Yul.YulStmt.for_ init cond post body :: rest) :=
+  BridgedStmts_cons
+    (bridgedStmt_for_of_bridgedStmts hInit hCond hPost hBody) hRest
+
 /-- Wrap a bridged scrutinee expression together with per-case and default
     body hypotheses under `BridgedStmt.switch`. Parallels the block/if/for
     wrappers for the Yul `switch` dispatch shape emitted by the compiler's
