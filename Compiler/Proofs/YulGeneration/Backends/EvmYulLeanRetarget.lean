@@ -2358,7 +2358,7 @@ theorem buildSwitch_bridged
     (hReceive : ∀ rc, receive = some rc → BridgedStmts rc.body) :
     BridgedStmt (Compiler.CodegenCommon.buildSwitch funcs fallback receive false) := by
   unfold Compiler.CodegenCommon.buildSwitch
-  exact BridgedStmt.block _
+  exact bridgedStmt_block_of_bridgedStmts
     (BridgedStmts_cons_let "__has_selector" _ bridgedExpr_has_selector
       (BridgedStmts_cons_if (bridgedExpr_iszero_ident "__has_selector")
         (defaultDispatchCase_bridged fallback receive hFallback hReceive)
