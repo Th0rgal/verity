@@ -2925,7 +2925,8 @@ original predicates remain untouched so existing callers are unaffected.
 -/
 
 /-- External body statement predicate extended to admit zero-arg custom
-errors alongside the existing `storage`/`require`/`terminator` cases. -/
+errors and direct `mstore`/`tstore` memory writes alongside the existing
+`storage`/`require`/`terminator` cases. -/
 inductive BridgedSourceExternalBodyWithErrorsStmt
     (fields : List Field) (errors : List ErrorDef)
     (dynamicSource : DynamicDataSource) : Stmt → Prop
@@ -2935,6 +2936,8 @@ inductive BridgedSourceExternalBodyWithErrorsStmt
   | customError {stmt : Stmt}
       (hStmt : BridgedSourceCustomErrorStmt fields errors dynamicSource stmt) :
       BridgedSourceExternalBodyWithErrorsStmt fields errors dynamicSource stmt
+  | memoryWrite {stmt : Stmt} (hStmt : BridgedSourceMemoryWriteStmt stmt) :
+      BridgedSourceExternalBodyWithErrorsStmt fields errors dynamicSource stmt
 
 def BridgedSourceExternalBodyWithErrorsStmts
     (fields : List Field) (errors : List ErrorDef)
@@ -2943,7 +2946,8 @@ def BridgedSourceExternalBodyWithErrorsStmts
     BridgedSourceExternalBodyWithErrorsStmt fields errors dynamicSource stmt
 
 /-- Internal body statement predicate extended to admit zero-arg custom
-errors alongside the existing `storage`/`require`/`returnInternal`/`stop` cases. -/
+errors and direct `mstore`/`tstore` memory writes alongside the existing
+`storage`/`require`/`returnInternal`/`stop` cases. -/
 inductive BridgedSourceInternalBodyWithErrorsStmt
     (fields : List Field) (errors : List ErrorDef)
     (dynamicSource : DynamicDataSource) : Stmt → Prop
@@ -2952,6 +2956,8 @@ inductive BridgedSourceInternalBodyWithErrorsStmt
       BridgedSourceInternalBodyWithErrorsStmt fields errors dynamicSource stmt
   | customError {stmt : Stmt}
       (hStmt : BridgedSourceCustomErrorStmt fields errors dynamicSource stmt) :
+      BridgedSourceInternalBodyWithErrorsStmt fields errors dynamicSource stmt
+  | memoryWrite {stmt : Stmt} (hStmt : BridgedSourceMemoryWriteStmt stmt) :
       BridgedSourceInternalBodyWithErrorsStmt fields errors dynamicSource stmt
 
 def BridgedSourceInternalBodyWithErrorsStmts
@@ -2980,6 +2986,9 @@ theorem compileStmt_external_body_with_errors_bridged
   | customError hCustom =>
       exact compileStmt_customError_zero_bridged fields events errors
         dynamicSource internalRetNames false inScopeNames hCustom hOk
+  | memoryWrite hMem =>
+      exact compileStmt_memoryWrite_bridged fields events errors dynamicSource
+        internalRetNames false inScopeNames hMem hOk
 
 /-- Each statement in the extended internal body fragment compiles to
 `BridgedStmts`. -/
@@ -3001,6 +3010,9 @@ theorem compileStmt_internal_body_with_errors_bridged
   | customError hCustom =>
       exact compileStmt_customError_zero_bridged fields events errors
         dynamicSource internalRetNames true inScopeNames hCustom hOk
+  | memoryWrite hMem =>
+      exact compileStmt_memoryWrite_bridged fields events errors dynamicSource
+        internalRetNames true inScopeNames hMem hOk
 
 /-- Mixed external source bodies (storage/require/terminator + zero-arg
 custom errors) compile to Yul lists satisfying `BridgedStmts`. -/
