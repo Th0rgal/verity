@@ -1736,6 +1736,75 @@ structure EventHeadStepCatalog
         CompiledStmtStepWithHelpersAndHelperIR
           runtimeContract spec fields scope (Stmt.emit eventName args) compiledIR
 
+/-- Split event-head inventory for the final `.emit` proof.
+
+`compile` is the pure `compileEmit` shape/success side; `bridge` is the
+source/IR execution alignment for the compiled head. Keeping them separate
+lets the next proof step focus on `compileEmit` without also rebuilding the
+`CompiledStmtStepWithHelpersAndHelperIR` wrapper. -/
+structure EventHeadStepBridgeCatalog
+    (runtimeContract : IRContract)
+    (spec : CompilationModel)
+    (fields : List Field) : Prop where
+  compile :
+    ∀ {scope : List String} {eventName : String} {args : List Expr},
+      eventEmissionProofSupported spec.events eventName args = true →
+      args.any exprTouchesUnsupportedContractSurface = false →
+      ∃ compiledIR,
+        CompilationModel.compileStmt fields spec.events spec.errors .calldata
+          [] false scope (Stmt.emit eventName args) = Except.ok compiledIR
+  bridge :
+    ∀ {scope : List String} {eventName : String} {args : List Expr}
+        {compiledIR : List YulStmt},
+      eventEmissionProofSupported spec.events eventName args = true →
+      args.any exprTouchesUnsupportedContractSurface = false →
+      CompilationModel.compileStmt fields spec.events spec.errors .calldata
+        [] false scope (Stmt.emit eventName args) = Except.ok compiledIR →
+      ∀ (runtime : SourceSemantics.RuntimeState)
+        (state : IRState)
+        (helperFuel : Nat)
+        (extraFuel : Nat),
+        0 < helperFuel →
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state →
+        FunctionBody.scopeNamesPresent scope runtime.bindings →
+        FunctionBody.bindingsBounded runtime.bindings →
+        FunctionBody.runtimeStateMatchesIR fields runtime state →
+        sizeOf compiledIR - compiledIR.length ≤ extraFuel →
+        ∃ sourceResult irExec,
+          SourceSemantics.execStmtWithHelpers spec fields helperFuel runtime
+            (Stmt.emit eventName args) = sourceResult ∧
+          execIRStmtsWithInternals runtimeContract
+            (compiledIR.length + extraFuel + 1) state compiledIR = irExec ∧
+          stmtStepMatchesIRExecWithInternals
+            fields (stmtNextScope scope (Stmt.emit eventName args))
+            sourceResult irExec
+
+/-- Mechanical wrapper from split event-head compile/execution obligations into
+the existing event-head step catalog consumed by the list interface. -/
+theorem eventHeadStepCatalog_of_bridgeCatalog
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    (hbridge : EventHeadStepBridgeCatalog runtimeContract spec fields) :
+    EventHeadStepCatalog runtimeContract spec fields := by
+  refine ⟨?_⟩
+  intro scope eventName args hsupport hsurface
+  rcases hbridge.compile
+      (scope := scope)
+      (eventName := eventName)
+      (args := args)
+      hsupport hsurface with
+    ⟨compiledIR, hcompile⟩
+  refine ⟨compiledIR, ?_⟩
+  exact {
+    compileOk := hcompile
+    preserves := hbridge.bridge
+      (scope := scope)
+      (eventName := eventName)
+      (args := args)
+      (compiledIR := compiledIR)
+      hsupport hsurface hcompile }
+
 /-- Assemble the direct-event list interface from a reusable event head-step
 catalog and the event-aware contract-surface gate. This is the structural bridge
 that lets the generic proof consume a real `compiledStmtStep_emit` proof later
