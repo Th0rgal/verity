@@ -1026,6 +1026,29 @@ def stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites : List Stmt →
         stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites rest
 end
 
+theorem exprListTouchesUnsupportedContractSurface_eq_false_of_emit_contractSurfaceWithEventsClosed
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    (hsurface :
+      stmtTouchesUnsupportedContractSurfaceWithEvents events (.emit eventName args) = false) :
+    args.any exprTouchesUnsupportedContractSurface = false := by
+  simpa [stmtTouchesUnsupportedContractSurfaceWithEvents] using
+    (Bool.or_eq_false_iff.mp hsurface).1
+
+theorem eventEmissionProofSupported_eq_true_of_emit_contractSurfaceWithEventsClosed
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    (hsurface :
+      stmtTouchesUnsupportedContractSurfaceWithEvents events (.emit eventName args) = false) :
+    eventEmissionProofSupported events eventName args = true := by
+  have hsupport :
+      (!eventEmissionProofSupported events eventName args) = false := by
+    simpa [stmtTouchesUnsupportedContractSurfaceWithEvents] using
+      (Bool.or_eq_false_iff.mp hsurface).2
+  cases h : eventEmissionProofSupported events eventName args <;> simp [h] at hsupport ⊢
+
 mutual
   /-- Collect direct internal-helper callee names mentioned by an expression. This
   inventory is used to define a compositional helper-summary interface without yet
@@ -3459,6 +3482,53 @@ theorem stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClose
       simp [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.1,
         stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.2]
+termination_by sizeOf stmts
+end
+
+mutual
+theorem stmtTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceWithEventsClosed
+    {events : List EventDef}
+    {stmt : Stmt}
+    (hsurface : stmtTouchesUnsupportedContractSurfaceWithEvents events stmt = false) :
+    stmtTouchesUnsupportedHelperSurface stmt = false := by
+  cases stmt with
+  | emit eventName args =>
+      simp only [stmtTouchesUnsupportedContractSurfaceWithEvents,
+        Bool.or_eq_false_iff] at hsurface
+      simp [stmtTouchesUnsupportedHelperSurface,
+        exprListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.1]
+  | ite cond thenBranch elseBranch =>
+      simp only [stmtTouchesUnsupportedContractSurfaceWithEvents,
+        Bool.or_eq_false_iff] at hsurface
+      show (exprTouchesUnsupportedHelperSurface cond ||
+            stmtListTouchesUnsupportedHelperSurface thenBranch ||
+            stmtListTouchesUnsupportedHelperSurface elseBranch) = false
+      rw [Bool.or_eq_false_iff, Bool.or_eq_false_iff]
+      exact ⟨⟨exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.1.1,
+        stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceWithEventsClosed
+          hsurface.1.2⟩,
+        stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceWithEventsClosed
+          hsurface.2⟩
+  | _ =>
+      exact stmtTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
+        (by simpa [stmtTouchesUnsupportedContractSurfaceWithEvents] using hsurface)
+termination_by sizeOf stmt
+
+theorem stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceWithEventsClosed
+    {events : List EventDef}
+    {stmts : List Stmt}
+    (hsurface : stmtListTouchesUnsupportedContractSurfaceWithEvents events stmts = false) :
+    stmtListTouchesUnsupportedHelperSurface stmts = false := by
+  match stmts with
+  | [] => simp [stmtListTouchesUnsupportedHelperSurface]
+  | stmt :: rest =>
+      simp only [stmtListTouchesUnsupportedContractSurfaceWithEvents,
+        Bool.or_eq_false_iff] at hsurface
+      simp [stmtListTouchesUnsupportedHelperSurface,
+        stmtTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceWithEventsClosed
+          hsurface.1,
+        stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceWithEventsClosed
+          hsurface.2]
 termination_by sizeOf stmts
 end
 
