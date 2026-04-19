@@ -2203,7 +2203,6 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_lt_calldatasize  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.genScalarLoad_calldataload_bridged
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_flatMap  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_append  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.genStaticTypeLoads_calldataload_bridged
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.fixedArrayFirstAlias_bridged  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoadBodyFrom_cons_scalar  -- private
@@ -2635,9 +2634,10 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_if_eq_on_bridged_body
 #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_switch_eq_on_bridged_cases
 #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_for_eq_on_bridged_parts
--- #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_nil  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_append  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_nil
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_append
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_callvalue  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_calldatasize  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_selector  -- private
@@ -2745,4 +2745,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2581 theorems/lemmas (1744 public, 837 private, 0 sorry'd)
+-- Total: 2581 theorems/lemmas (1748 public, 833 private, 0 sorry'd)

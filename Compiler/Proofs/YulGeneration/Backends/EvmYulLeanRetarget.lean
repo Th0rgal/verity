@@ -1239,11 +1239,11 @@ selector switch, fallback/receive wrapper, optional mapping helper) is bridged
 whenever the IR function and entrypoint bodies it contains are bridged.
 -/
 
-private theorem BridgedStmts_nil : BridgedStmts [] := by
+theorem BridgedStmts_nil : BridgedStmts [] := by
   intro stmt hMem
   cases hMem
 
-private theorem BridgedStmts_cons {stmt : Compiler.Yul.YulStmt}
+theorem BridgedStmts_cons {stmt : Compiler.Yul.YulStmt}
     {stmts : List Compiler.Yul.YulStmt}
     (hStmt : BridgedStmt stmt) (hStmts : BridgedStmts stmts) :
     BridgedStmts (stmt :: stmts) := by
@@ -1252,7 +1252,7 @@ private theorem BridgedStmts_cons {stmt : Compiler.Yul.YulStmt}
   | head => exact hStmt
   | tail _ hTail => exact hStmts s hTail
 
-private theorem BridgedStmts_append {xs ys : List Compiler.Yul.YulStmt}
+theorem BridgedStmts_append {xs ys : List Compiler.Yul.YulStmt}
     (hXs : BridgedStmts xs) (hYs : BridgedStmts ys) :
     BridgedStmts (xs ++ ys) := by
   intro stmt hMem
@@ -1260,6 +1260,13 @@ private theorem BridgedStmts_append {xs ys : List Compiler.Yul.YulStmt}
   cases hMem with
   | inl h => exact hXs stmt h
   | inr h => exact hYs stmt h
+
+/-- Public singleton helper: if `hStmt : BridgedStmt stmt` then the one-element
+    list `[stmt]` satisfies `BridgedStmts`. Matches `BridgedStraightStmts_singleton`
+    for list composition of recursive-statement lists. -/
+theorem BridgedStmts_singleton {stmt : Compiler.Yul.YulStmt}
+    (hStmt : BridgedStmt stmt) : BridgedStmts [stmt] :=
+  BridgedStmts_cons hStmt BridgedStmts_nil
 
 private theorem bridgedExpr_callvalue :
     BridgedExpr (Compiler.Yul.YulExpr.call "callvalue" []) := by

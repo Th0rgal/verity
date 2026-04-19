@@ -218,14 +218,6 @@ private theorem BridgedStmts_flatMap {α : Type} (xs : List α) (f : α → List
   rcases List.mem_flatMap.mp hMem with ⟨x, hx, hStmt⟩
   exact h x hx stmt hStmt
 
-private theorem BridgedStmts_append {xs ys : List YulStmt}
-    (hXs : BridgedStmts xs) (hYs : BridgedStmts ys) :
-    BridgedStmts (xs ++ ys) := by
-  intro stmt hMem
-  rcases List.mem_append.mp hMem with h | h
-  · exact hXs stmt h
-  · exact hYs stmt h
-
 /-- Static scalar composites (`fixedArray`/`tuple` whose leaves are scalar ABI
 words) generate only bridged calldata-load statements. -/
 theorem genStaticTypeLoads_calldataload_bridged
