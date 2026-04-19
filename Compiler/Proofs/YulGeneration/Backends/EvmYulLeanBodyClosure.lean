@@ -4879,4 +4879,69 @@ theorem BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_forEach
       intro stmt hMem
       exact h stmt (by simp [hMem])
 
+/-! ### Lifting plain recursive witnesses into the with-errors recursive inductive
+
+The with-errors body-stmt predicate admits the plain body-stmt predicate via
+`.base`, so every plain recursive witness reinterprets into the with-errors
+recursive inductive by reusing the same `.ite`/`.cons`/`.nil` structure while
+wrapping each leaf through `.base (.base hStmt)`. Defined mutually over
+stmt/list to follow the mutual plain inductive; recursion on sub-proofs is
+structural. -/
+
+mutual
+theorem BridgedSourceExternalRecursiveBodyWithErrorsStmt_of_plain_recursive
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceExternalRecursiveBodyStmt fields dynamicSource stmt) :
+    BridgedSourceExternalRecursiveBodyWithErrorsStmt fields errors
+      dynamicSource stmt := by
+  cases h with
+  | base hStmt => exact .base (.base hStmt)
+  | ite cond thenBranch elseBranch hCond hThen hElse =>
+      exact .ite cond thenBranch elseBranch hCond
+        (BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_plain_recursive hThen)
+        (BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_plain_recursive hElse)
+
+theorem BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_plain_recursive
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceExternalRecursiveBodyStmts fields dynamicSource stmts) :
+    BridgedSourceExternalRecursiveBodyWithErrorsStmts fields errors
+      dynamicSource stmts := by
+  cases h with
+  | nil => exact .nil
+  | cons hHead hTail =>
+      exact .cons
+        (BridgedSourceExternalRecursiveBodyWithErrorsStmt_of_plain_recursive hHead)
+        (BridgedSourceExternalRecursiveBodyWithErrorsStmts_of_plain_recursive hTail)
+end
+
+mutual
+theorem BridgedSourceInternalRecursiveBodyWithErrorsStmt_of_plain_recursive
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceInternalRecursiveBodyStmt fields dynamicSource stmt) :
+    BridgedSourceInternalRecursiveBodyWithErrorsStmt fields errors
+      dynamicSource stmt := by
+  cases h with
+  | base hStmt => exact .base (.base hStmt)
+  | ite cond thenBranch elseBranch hCond hThen hElse =>
+      exact .ite cond thenBranch elseBranch hCond
+        (BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_plain_recursive hThen)
+        (BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_plain_recursive hElse)
+
+theorem BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_plain_recursive
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceInternalRecursiveBodyStmts fields dynamicSource stmts) :
+    BridgedSourceInternalRecursiveBodyWithErrorsStmts fields errors
+      dynamicSource stmts := by
+  cases h with
+  | nil => exact .nil
+  | cons hHead hTail =>
+      exact .cons
+        (BridgedSourceInternalRecursiveBodyWithErrorsStmt_of_plain_recursive hHead)
+        (BridgedSourceInternalRecursiveBodyWithErrorsStmts_of_plain_recursive hTail)
+end
+
 end Compiler.Proofs.YulGeneration.Backends
