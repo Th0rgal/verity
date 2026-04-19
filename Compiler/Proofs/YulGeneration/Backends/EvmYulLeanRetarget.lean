@@ -1744,6 +1744,23 @@ theorem bridgedStmt_block_of_bridgedStmts
     BridgedStmt (.block stmts) :=
   BridgedStmt.block stmts hStmts
 
+/-- `BridgedStmts` analogue of a single-element list wrapping a `.block` node.
+    Convenient for compiler-emitted shapes that put an entire function body
+    inside a single top-level block (e.g. scalar `emit`, runtime dispatch). -/
+theorem BridgedStmts_singleton_block
+    {stmts : List Compiler.Yul.YulStmt} (hStmts : BridgedStmts stmts) :
+    BridgedStmts [Compiler.Yul.YulStmt.block stmts] :=
+  BridgedStmts_singleton (bridgedStmt_block_of_bridgedStmts hStmts)
+
+/-- Cons a `.block` node to an already-bridged `BridgedStmts` tail. Useful when
+    a compiled list interleaves a scoped block fragment with surrounding
+    straight-line or other bridged statements. -/
+theorem BridgedStmts_cons_block
+    {stmts : List Compiler.Yul.YulStmt} {rest : List Compiler.Yul.YulStmt}
+    (hStmts : BridgedStmts stmts) (hRest : BridgedStmts rest) :
+    BridgedStmts (Compiler.Yul.YulStmt.block stmts :: rest) :=
+  BridgedStmts_cons (bridgedStmt_block_of_bridgedStmts hStmts) hRest
+
 /-- Wrap a bridged condition plus `BridgedStmts`-typed body under
     `BridgedStmt.if_`. Parallels `bridgedStmt_block_of_bridgedStmts` for
     the single-branch conditional shape (no else) emitted by require/revert
