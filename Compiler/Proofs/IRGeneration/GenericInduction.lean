@@ -1779,6 +1779,39 @@ structure EventHeadStepBridgeCatalog
             fields (stmtNextScope scope (Stmt.emit eventName args))
             sourceResult irExec
 
+/-- Event-head inventory after the scalar `.emit` compile-shape theorem has
+discharged the pure compile side. Future proof work only has to provide the
+semantic bridge between source event execution and the compiled IR log. -/
+structure EventHeadStepSemanticBridgeCatalog
+    (runtimeContract : IRContract)
+    (spec : CompilationModel)
+    (fields : List Field) : Prop where
+  bridge :
+    ∀ {scope : List String} {eventName : String} {args : List Expr}
+        {compiledIR : List YulStmt},
+      eventEmissionProofSupported spec.events eventName args = true →
+      args.any exprTouchesUnsupportedContractSurface = false →
+      CompilationModel.compileStmt fields spec.events spec.errors .calldata
+        [] false scope (Stmt.emit eventName args) = Except.ok compiledIR →
+      ∀ (runtime : SourceSemantics.RuntimeState)
+        (state : IRState)
+        (helperFuel : Nat)
+        (extraFuel : Nat),
+        0 < helperFuel →
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state →
+        FunctionBody.scopeNamesPresent scope runtime.bindings →
+        FunctionBody.bindingsBounded runtime.bindings →
+        FunctionBody.runtimeStateMatchesIR fields runtime state →
+        sizeOf compiledIR - compiledIR.length ≤ extraFuel →
+        ∃ sourceResult irExec,
+          SourceSemantics.execStmtWithHelpers spec fields helperFuel runtime
+            (Stmt.emit eventName args) = sourceResult ∧
+          execIRStmtsWithInternals runtimeContract
+            (compiledIR.length + extraFuel + 1) state compiledIR = irExec ∧
+          stmtStepMatchesIRExecWithInternals
+            fields (stmtNextScope scope (Stmt.emit eventName args))
+            sourceResult irExec
+
 /-- Mechanical wrapper from split event-head compile/execution obligations into
 the existing event-head step catalog consumed by the list interface. -/
 theorem eventHeadStepCatalog_of_bridgeCatalog
@@ -7646,6 +7679,47 @@ private theorem compileStmt_emit_scalar_supported_ok
   simp only [CompilationModel.compileStmt, CompilationModel.compileEmit]
   simp [hfind, hlen, hargExprs, hindexedGuard, hscalarCompile,
     Bind.bind, Except.bind, pure, Except.pure]
+
+/-- Fill the event-head compile obligation from the scalar `.emit` compile
+shape theorem, leaving only the semantic source/IR bridge as proof input. -/
+theorem eventHeadStepBridgeCatalog_of_semanticBridgeCatalog
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    (hsemantic :
+      EventHeadStepSemanticBridgeCatalog runtimeContract spec fields) :
+    EventHeadStepBridgeCatalog runtimeContract spec fields := by
+  refine ⟨?_, ?_⟩
+  · intro scope eventName args hsupport hsurface
+    exact compileStmt_emit_scalar_supported_ok
+      (fields := fields)
+      (spec := spec)
+      (scope := scope)
+      (eventName := eventName)
+      (args := args)
+      hsupport
+      hsurface
+  · intro scope eventName args compiledIR hsupport hsurface hcompile
+      runtime state helperFuel extraFuel hfuel hbindings hpresent hbounded hmatch
+      hfuelIR
+    exact hsemantic.bridge
+      (scope := scope)
+      (eventName := eventName)
+      (args := args)
+      (compiledIR := compiledIR)
+      hsupport
+      hsurface
+      hcompile
+      runtime
+      state
+      helperFuel
+      extraFuel
+      hfuel
+      hbindings
+      hpresent
+      hbounded
+      hmatch
+      hfuelIR
 
 private theorem eval_compileExpr_core_some_of_scope
     {fields : List Field}
