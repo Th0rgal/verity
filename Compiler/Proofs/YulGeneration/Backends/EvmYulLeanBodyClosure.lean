@@ -5344,4 +5344,40 @@ theorem BridgedSourceInternalNestedBodyWithErrorsStmt_of_plain_structured
       dynamicSource stmt :=
   .structured (BridgedSourceInternalStructuredBodyWithErrorsStmt_of_structured h)
 
+/-! ### Stmt-level plain nested → nested with-errors lifts
+
+Single-stmt counterparts mapping a plain nested witness directly into the
+nested with-errors inductive. The `.structured` branch delegates to the
+stmt-level `_of_plain_structured` lift; the `.ite` branch reuses the nested
+with-errors `.ite` constructor after lifting the structured body-stmt lists
+via `BridgedSourceExternalStructuredBodyWithErrorsStmts_of_structured`. -/
+
+theorem BridgedSourceExternalNestedBodyWithErrorsStmt_of_plain_nested
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceExternalNestedBodyStmt fields dynamicSource stmt) :
+    BridgedSourceExternalNestedBodyWithErrorsStmt fields errors
+      dynamicSource stmt := by
+  match h with
+  | .structured hS =>
+      exact BridgedSourceExternalNestedBodyWithErrorsStmt_of_plain_structured hS
+  | .ite cond thenBranch elseBranch hCond hThen hElse =>
+      exact .ite cond thenBranch elseBranch hCond
+        (BridgedSourceExternalStructuredBodyWithErrorsStmts_of_structured hThen)
+        (BridgedSourceExternalStructuredBodyWithErrorsStmts_of_structured hElse)
+
+theorem BridgedSourceInternalNestedBodyWithErrorsStmt_of_plain_nested
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceInternalNestedBodyStmt fields dynamicSource stmt) :
+    BridgedSourceInternalNestedBodyWithErrorsStmt fields errors
+      dynamicSource stmt := by
+  match h with
+  | .structured hS =>
+      exact BridgedSourceInternalNestedBodyWithErrorsStmt_of_plain_structured hS
+  | .ite cond thenBranch elseBranch hCond hThen hElse =>
+      exact .ite cond thenBranch elseBranch hCond
+        (BridgedSourceInternalStructuredBodyWithErrorsStmts_of_structured hThen)
+        (BridgedSourceInternalStructuredBodyWithErrorsStmts_of_structured hElse)
+
 end Compiler.Proofs.YulGeneration.Backends
