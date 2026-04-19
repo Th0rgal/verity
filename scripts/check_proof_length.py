@@ -356,6 +356,18 @@ ALLOWLIST: set[str] = {
     # Same generated-shape proof as the external ite closure, but with internal
     # branch body closure so internal returns compile to assignment plus leave.
     "compileStmt_ite_internal_body_fragment_bridged",
+    # One-layer source ite closure for with-errors body fragments: same two
+    # compiler-emitted shapes as the plain-body variant (empty else -> one Yul
+    # if, nonempty else -> cached-condition block with two Yul ifs), but the
+    # branches are closed via the with-errors list closure so they may include
+    # zero-arg custom errors, direct mstore/tstore, and single-slot mapping
+    # writes alongside storage/require/terminator. Mechanical Except-bind
+    # decomposition.
+    "compileStmt_ite_external_body_with_errors_bridged",
+    # Same generated-shape proof as the external with-errors ite closure, but
+    # with internal branch body closure for internal returns alongside
+    # with-errors extensions.
+    "compileStmt_ite_internal_body_with_errors_bridged",
     # Internal structured-body list closure is the same compileStmtList
     # head/tail skeleton as the external structured-body proof; the measured
     # span now includes the following nested-ite section header.
