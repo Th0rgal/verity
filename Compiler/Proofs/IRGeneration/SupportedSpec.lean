@@ -406,6 +406,35 @@ theorem eventEmissionProofSupported_zippedWithSource_unindexed_head_size
         exact eventEmissionProofSupported_zippedWithSource_eventHeadWordSize_eq_thirty_two
           hsupport hfind (List.mem_filter.mp hentry).1)
 
+theorem eventEmissionProofSupported_eventUnindexedHeadSize
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    (compiledArgs : List Compiler.Yul.YulExpr)
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef) :
+    eventUnindexedHeadSize
+        (eventUnindexedArgs (eventZippedWithSource eventDef args compiledArgs)) =
+      32 * (eventUnindexedArgs (eventZippedWithSource eventDef args compiledArgs)).length := by
+  simpa [eventUnindexedHeadSize, eventUnindexedArgs, eventZippedWithSource] using
+    eventEmissionProofSupported_zippedWithSource_unindexed_head_size
+      compiledArgs hsupport hfind
+
+theorem eventEmissionProofSupported_eventHasUnindexedDynamicData_eq_false
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    (compiledArgs : List Compiler.Yul.YulExpr)
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef) :
+    eventHasUnindexedDynamicData
+        (eventUnindexedArgs (eventZippedWithSource eventDef args compiledArgs)) = false := by
+  simpa [eventHasUnindexedDynamicData, eventUnindexedArgs, eventZippedWithSource] using
+    eventEmissionProofSupported_zippedWithSource_unindexed_any_dynamic_false
+      compiledArgs hsupport hfind
+
 private theorem eventCompiledArgs_filter_kind_length_le_params_filter_kind
     {α : Type}
     (params : List EventParam)
@@ -454,6 +483,48 @@ theorem eventEmissionProofSupported_zippedWithSource_indexed_length_le_three
     (eventCompiledArgs_filter_kind_length_le_params_filter_kind
       eventDef.params args compiledArgs EventParamKind.indexed)
     (eventEmissionProofSupported_indexed_length_le_three hsupport hfind)
+
+theorem eventEmissionProofSupported_eventIndexedArgs_length_le_three
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    (compiledArgs : List Compiler.Yul.YulExpr)
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef) :
+    (eventIndexedArgs (eventZippedWithSource eventDef args compiledArgs)).length ≤ 3 := by
+  simpa [eventIndexedArgs, eventZippedWithSource] using
+    eventEmissionProofSupported_zippedWithSource_indexed_length_le_three
+      compiledArgs hsupport hfind
+
+theorem eventLogFunction_mem_logBuiltins_of_le_three
+    {indexedLength : Nat}
+    (hle : indexedLength ≤ 3) :
+    eventLogFunction indexedLength ∈ ["log1", "log2", "log3", "log4"] := by
+  cases indexedLength with
+  | zero =>
+      simp [eventLogFunction]
+  | succ n =>
+      cases n with
+      | zero =>
+          simp [eventLogFunction]
+      | succ n =>
+          cases n with
+          | zero =>
+              simp [eventLogFunction]
+          | succ n =>
+              cases n with
+              | zero =>
+                  simp [eventLogFunction]
+              | succ n =>
+                  omega
+
+theorem eventLogArgs_length
+    (dataSizeExpr : Compiler.Yul.YulExpr)
+    (indexedTopicParts : List (List Compiler.Yul.YulStmt × Compiler.Yul.YulExpr)) :
+    (eventLogArgs dataSizeExpr indexedTopicParts).length =
+      indexedTopicParts.length + 3 := by
+  simp [eventLogArgs]
 
 mutual
 /-- Constructor body proofs are intentionally staged after initcode argument

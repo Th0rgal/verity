@@ -12,6 +12,43 @@ namespace Compiler.CompilationModel
 open Compiler
 open Compiler.Yul
 
+def eventZippedWithSource
+    (eventDef : EventDef) (args : List Expr) (compiledArgs : List YulExpr) :
+    List (EventParam × Expr × YulExpr) :=
+  (eventDef.params.zip args).zip compiledArgs |>.map
+    (fun ((p, srcExpr), argExpr) => (p, srcExpr, argExpr))
+
+def eventIndexedArgs
+    (zippedWithSource : List (EventParam × Expr × YulExpr)) :
+    List (EventParam × Expr × YulExpr) :=
+  zippedWithSource.filter (fun (p, _, _) => p.kind == EventParamKind.indexed)
+
+def eventUnindexedArgs
+    (zippedWithSource : List (EventParam × Expr × YulExpr)) :
+    List (EventParam × Expr × YulExpr) :=
+  zippedWithSource.filter (fun (p, _, _) => p.kind == EventParamKind.unindexed)
+
+def eventUnindexedHeadSize
+    (unindexed : List (EventParam × Expr × YulExpr)) : Nat :=
+  (unindexed.map (fun (p, _, _) => eventHeadWordSize p.ty)).foldl (· + ·) 0
+
+def eventHasUnindexedDynamicData
+    (unindexed : List (EventParam × Expr × YulExpr)) : Bool :=
+  unindexed.any (fun (p, _, _) => eventIsDynamicType p.ty)
+
+def eventLogFunction (indexedLength : Nat) : String :=
+  match indexedLength with
+  | 0 => "log1"
+  | 1 => "log2"
+  | 2 => "log3"
+  | _ => "log4"
+
+def eventLogArgs
+    (dataSizeExpr : YulExpr) (indexedTopicParts : List (List YulStmt × YulExpr)) :
+    List YulExpr :=
+  [YulExpr.ident "__evt_ptr", dataSizeExpr, YulExpr.ident "__evt_topic0"] ++
+    indexedTopicParts.map (·.2)
+
 def compileEmit (fields : List Field) (events : List EventDef)
     (dynamicSource : DynamicDataSource := .calldata)
     (eventName : String) (args : List Expr) : Except String (List YulStmt) := do
@@ -23,10 +60,9 @@ def compileEmit (fields : List Field) (events : List EventDef)
   if args.length != eventDef.params.length then
     throw s!"Compilation error: event '{eventName}' expects {eventDef.params.length} args, got {args.length}"
   let compiledArgs ← compileExprList fields dynamicSource args
-  let zippedWithSource := (eventDef.params.zip args).zip compiledArgs |>.map (fun ((p, srcExpr), argExpr) =>
-    (p, srcExpr, argExpr))
-  let indexed := zippedWithSource.filter (fun (p, _, _) => p.kind == EventParamKind.indexed)
-  let unindexed := zippedWithSource.filter (fun (p, _, _) => p.kind == EventParamKind.unindexed)
+  let zippedWithSource := eventZippedWithSource eventDef args compiledArgs
+  let indexed := eventIndexedArgs zippedWithSource
+  let unindexed := eventUnindexedArgs zippedWithSource
   if indexed.length > 3 then
     throw s!"Compilation error: event '{eventName}' has {indexed.length} indexed params; max is 3"
   let sig := eventSignature eventDef
@@ -40,8 +76,8 @@ def compileEmit (fields : List Field) (events : List EventDef)
     ])
   let topic0Expr := YulExpr.call "keccak256" [YulExpr.ident "__evt_ptr", YulExpr.lit sigBytes.length]
   let topic0Store := YulStmt.let_ "__evt_topic0" topic0Expr
-  let unindexedHeadSize := (unindexed.map (fun (p, _, _) => eventHeadWordSize p.ty)).foldl (· + ·) 0
-  let hasUnindexedDynamicData := unindexed.any (fun (p, _, _) => eventIsDynamicType p.ty)
+  let unindexedHeadSize := eventUnindexedHeadSize unindexed
+  let hasUnindexedDynamicData := eventHasUnindexedDynamicData unindexed
   let unindexedTailInit :=
     if hasUnindexedDynamicData then
       [YulStmt.let_ "__evt_data_tail" (YulExpr.lit unindexedHeadSize)]
@@ -460,13 +496,8 @@ def compileEmit (fields : List Field) (events : List EventDef)
     | _ =>
         pure ([], argExpr)
   let indexedTopicStmts := indexedTopicParts.flatMap (·.1)
-  let topicExprs := [YulExpr.ident "__evt_topic0"] ++ indexedTopicParts.map (·.2)
-  let logFn := match indexed.length with
-    | 0 => "log1"
-    | 1 => "log2"
-    | 2 => "log3"
-    | _ => "log4"
-  let logArgs := [YulExpr.ident "__evt_ptr", dataSizeExpr] ++ topicExprs
+  let logFn := eventLogFunction indexed.length
+  let logArgs := eventLogArgs dataSizeExpr indexedTopicParts
   let logStmt := YulStmt.expr (YulExpr.call logFn logArgs)
   pure [YulStmt.block ([storePtr] ++ sigStores ++ [topic0Store] ++ indexedTopicStmts ++ unindexedTailInit ++ unindexedStores ++ [logStmt])]
 
