@@ -48,6 +48,15 @@ def eventSignatureTopic (eventDef : EventDef) : Nat :=
   abstractKeccakMemorySlice (eventSignatureMemory eventDef) 0
     (bytesFromString (eventSignature eventDef)).length
 
+def eventParamScalarProofSupported (ty : ParamType) : Bool :=
+  match ty with
+  | .uint256 | .int256 | .uint8 | .address | .bool | .bytes32 => true
+  | .string | .tuple _ | .array _ | .fixedArray _ _ | .bytes => false
+
+def eventDefScalarProofSupported (eventDef : EventDef) : Bool :=
+  eventDef.params.all (fun param => eventParamScalarProofSupported param.ty) &&
+    (eventDef.params.filter (fun param => param.kind == EventParamKind.indexed)).length <= 3
+
 def normalizeEventValue (ty : ParamType) (value : Nat) : Nat :=
   let word := wordNormalize value
   match ty with
@@ -79,6 +88,56 @@ def eventFromResolvedArgs? (events : List EventDef) (eventName : String)
         name := eventName
         args := args
         indexedArgs := (eventSignatureTopic eventDef : Verity.Core.Uint256) :: indexedArgs }
+
+def writeEventSignatureScratch (eventDef : EventDef)
+    (ptr : Nat) (memory : Nat → Verity.Core.Uint256) : Nat → Verity.Core.Uint256 :=
+  let chunks := (chunkBytes32 (bytesFromString (eventSignature eventDef))).map wordFromBytes
+  fun offset =>
+    match chunks[(offset - ptr) / 32]? with
+    | some word =>
+        if ptr ≤ offset ∧ (offset - ptr) % 32 = 0 then
+          (word : Verity.Core.Uint256)
+        else
+          memory offset
+    | none => memory offset
+
+def writeUnindexedEventScratch
+    (params : List EventParam) (values : List Nat)
+    (ptr : Nat) (memory : Nat → Verity.Core.Uint256) : Option (Nat → Verity.Core.Uint256) :=
+  let rec go (remainingParams : List EventParam) (remainingValues : List Nat)
+      (wordIdx : Nat) (mem : Nat → Verity.Core.Uint256) :
+      Option (Nat → Verity.Core.Uint256) :=
+    match remainingParams, remainingValues with
+    | [], [] => some mem
+    | param :: params, value :: values =>
+        let normalized := normalizeEventValue param.ty value
+        let next :=
+          if param.kind == EventParamKind.unindexed then
+            fun offset =>
+              if offset = ptr + wordIdx * 32 then
+                (normalized : Verity.Core.Uint256)
+              else
+                mem offset
+          else
+            mem
+        go params values
+          (if param.kind == EventParamKind.unindexed then wordIdx + 1 else wordIdx)
+          next
+    | _, _ => none
+  go params values 0 memory
+
+def eventScratchMemoryAfterEmit? (events : List EventDef)
+    (eventName : String) (values : List Nat)
+    (memory : Nat → Verity.Core.Uint256) : Option (Nat → Verity.Core.Uint256) :=
+  match events.find? (·.name == eventName) with
+  | none => some memory
+  | some eventDef =>
+      if eventDefScalarProofSupported eventDef then
+        let ptr := (memory Compiler.Constants.freeMemoryPointer).val
+        writeUnindexedEventScratch eventDef.params values ptr
+          (writeEventSignatureScratch eventDef ptr memory)
+      else
+        some memory
 
 def effectiveFields (spec : CompilationModel) : List Field :=
   applySlotAliasRanges spec.fields spec.slotAliasRanges
@@ -1493,11 +1552,15 @@ mutual
     | state, .emit eventName args =>
         match evalExprList fields state args with
         | some resolved =>
-            match eventFromResolvedArgs? events eventName resolved with
-            | some event =>
+            match eventFromResolvedArgs? events eventName resolved,
+                eventScratchMemoryAfterEmit? events eventName resolved state.world.memory with
+            | some event, some memory =>
                 .continue { state with
-                  world := { state.world with events := state.world.events ++ [event] } }
-            | none => .revert
+                  world := {
+                    state.world with
+                    memory := memory
+                    events := state.world.events ++ [event] } }
+            | _, _ => .revert
         | none => .revert
     | _, _ => .revert
 
@@ -1717,11 +1780,15 @@ mutual
     | state, .emit eventName args =>
         match evalExprList fields state args with
         | some resolved =>
-            match eventFromResolvedArgs? [] eventName resolved with
-            | some event =>
+            match eventFromResolvedArgs? [] eventName resolved,
+                eventScratchMemoryAfterEmit? [] eventName resolved state.world.memory with
+            | some event, some memory =>
                 .continue { state with
-                  world := { state.world with events := state.world.events ++ [event] } }
-            | none => .revert
+                  world := {
+                    state.world with
+                    memory := memory
+                    events := state.world.events ++ [event] } }
+            | _, _ => .revert
         | none => .revert
     | _, _ => .revert
 
@@ -2676,11 +2743,15 @@ mutual
     | .emit eventName args =>
         match evalExprListWithHelpers spec fields fuel state args with
         | some resolved =>
-            match eventFromResolvedArgs? spec.events eventName resolved with
-            | some event =>
+            match eventFromResolvedArgs? spec.events eventName resolved,
+                eventScratchMemoryAfterEmit? spec.events eventName resolved state.world.memory with
+            | some event, some memory =>
                 .continue { state with
-                  world := { state.world with events := state.world.events ++ [event] } }
-            | none => .revert
+                  world := {
+                    state.world with
+                    memory := memory
+                    events := state.world.events ++ [event] } }
+            | _, _ => .revert
         | none => .revert
     | _ => .revert
   termination_by stmt => (fuel, sizeOf stmt)

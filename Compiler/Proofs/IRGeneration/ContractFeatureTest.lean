@@ -1046,31 +1046,49 @@ private def eventTrackingRuntime : SourceSemantics.RuntimeState :=
 example :
     SourceSemantics.execStmtWithHelpers eventTrackingSpec [] 0 eventTrackingRuntime
       (.emit "Evt" [.literal 11, .literal 22]) =
-    .continue
-      { eventTrackingRuntime with
-        world := { eventTrackingRuntime.world with
-            events := eventTrackingRuntime.world.events ++
-              [{ name := "Evt"
-                 args := [Verity.Core.Uint256.ofNat (22 % Compiler.Constants.evmModulus)]
-                 indexedArgs := [
-                   Verity.Core.Uint256.ofNat
-                     (SourceSemantics.eventSignatureTopic
-                       { name := "Evt"
-                         params := [
-                           { name := "topic", ty := .uint256, kind := .indexed },
-                           { name := "value", ty := .uint256, kind := .unindexed }
-                         ] }),
-                   Verity.Core.Uint256.ofNat (11 % Compiler.Constants.evmModulus)] }] } } := by
+    match SourceSemantics.eventScratchMemoryAfterEmit?
+        eventTrackingSpec.events "Evt"
+        [11 % Compiler.Constants.evmModulus, 22 % Compiler.Constants.evmModulus]
+        eventTrackingRuntime.world.memory with
+    | some memory =>
+        .continue
+          { eventTrackingRuntime with
+            world := { eventTrackingRuntime.world with
+                memory := memory
+                events := eventTrackingRuntime.world.events ++
+                  [{ name := "Evt"
+                     args := [Verity.Core.Uint256.ofNat (22 % Compiler.Constants.evmModulus)]
+                     indexedArgs := [
+                       Verity.Core.Uint256.ofNat
+                         (SourceSemantics.eventSignatureTopic
+                           { name := "Evt"
+                             params := [
+                               { name := "topic", ty := .uint256, kind := .indexed },
+                               { name := "value", ty := .uint256, kind := .unindexed }
+                             ] }),
+                       Verity.Core.Uint256.ofNat (11 % Compiler.Constants.evmModulus)] }] } }
+    | none => .revert := by
   have hunindexed :
       (EventParamKind.unindexed == EventParamKind.indexed) = false := by
     native_decide
   have hindexed :
       (EventParamKind.indexed == EventParamKind.indexed) = true := by
     native_decide
+  generalize hscratch :
+      SourceSemantics.eventScratchMemoryAfterEmit?
+        [{ name := "Evt"
+           params := [
+             { name := "topic", ty := .uint256, kind := .indexed },
+             { name := "value", ty := .uint256, kind := .unindexed }
+           ] }]
+        "Evt"
+        [11 % Compiler.Constants.evmModulus, 22 % Compiler.Constants.evmModulus]
+        Verity.defaultState.memory = scratch
+  cases scratch <;>
   simp [eventTrackingSpec, eventTrackingRuntime, SourceSemantics.execStmtWithHelpers,
     SourceSemantics.evalExprListWithHelpers, SourceSemantics.evalExprWithHelpers,
     SourceSemantics.eventFromResolvedArgs?, SourceSemantics.splitEventArgsByParams,
-    SourceSemantics.normalizeEventValue,
+    SourceSemantics.normalizeEventValue, hscratch,
     hunindexed, hindexed]
 
 private def eventNormalizationSpec : CompilationModel :=
