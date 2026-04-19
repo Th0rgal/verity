@@ -1785,6 +1785,11 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genParamLoads_supported_then
 
 -- Compiler/Proofs/IRGeneration/SourceSemantics.lean
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.exists_splitEventArgsByParams_of_length
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.exists_eventFromResolvedArgs?_of_supported_length
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.exists_writeUnindexedEventScratch_of_length
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.exists_writeUnindexedEventScratch_of_length_zero
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.exists_eventScratchMemoryAfterEmit?_of_supported_length
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_literal  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_param  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_localVar  -- private
@@ -1926,6 +1931,10 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.supportedSourceContractSemanticsExceptMappingWrites_eq_sourceContractSemantics
 
 -- Compiler/Proofs/IRGeneration/SupportedSpec.lean
+#print axioms Compiler.Proofs.IRGeneration.exists_eventDef_of_eventEmissionProofSupported
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_find?_isSome
+#print axioms Compiler.Proofs.IRGeneration.eventDefScalarProofSupported_eq_true_of_eventEmissionProofSupported
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_args_length
 #print axioms Compiler.Proofs.IRGeneration.exprListTouchesUnsupportedContractSurface_eq_false_of_emit_contractSurfaceWithEventsClosed
 #print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_eq_true_of_emit_contractSurfaceWithEventsClosed
 -- #print axioms Compiler.Proofs.IRGeneration.eraseDups_nodup_and_mem_aux  -- private
@@ -2215,4 +2224,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2066 theorems/lemmas (1379 public, 687 private, 0 sorry'd)
+-- Total: 2075 theorems/lemmas (1388 public, 687 private, 0 sorry'd)
