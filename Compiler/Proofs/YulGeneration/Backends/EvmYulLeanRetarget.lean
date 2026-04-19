@@ -2243,6 +2243,26 @@ theorem BridgedStmts_cons_log
       (Compiler.Yul.YulStmt.expr (Compiler.Yul.YulExpr.call func args) :: rest) :=
   BridgedStmts_cons (bridgedStmt_log_of_bridged_args func args hLog hArgs) hRest
 
+/-- `BridgedStmts` singleton wrapping a single `.funcDef name params rets body`
+    node. The underlying `BridgedStraightStmt.funcDef` ctor is closed
+    generically over the body, so no body-level bridgedness hypothesis is
+    needed here — callers needing body-level equivalence must layer a
+    separate body-closure predicate. Mirrors the comment/let/assign/letMany
+    singletons for the function-declaration path. -/
+theorem BridgedStmts_singleton_funcDef
+    (name : String) (params rets : List String) (body : List Compiler.Yul.YulStmt) :
+    BridgedStmts [Compiler.Yul.YulStmt.funcDef name params rets body] :=
+  BridgedStmts_singleton (bridgedStmt_funcDef name params rets body)
+
+/-- Cons a `.funcDef name params rets body` node onto an already-bridged
+    `BridgedStmts` tail. Matches compiler shapes that declare helper
+    functions (e.g. `mappingSlot`) ahead of the runtime statement list. -/
+theorem BridgedStmts_cons_funcDef
+    (name : String) (params rets : List String) (body : List Compiler.Yul.YulStmt)
+    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
+    BridgedStmts (Compiler.Yul.YulStmt.funcDef name params rets body :: rest) :=
+  BridgedStmts_cons (bridgedStmt_funcDef name params rets body) hRest
+
 theorem callvalueGuard_bridged : BridgedStmt Compiler.CodegenCommon.callvalueGuard := by
   unfold Compiler.CodegenCommon.callvalueGuard
   exact BridgedStmt.if_ _ _ bridgedExpr_callvalue
