@@ -2002,6 +2002,24 @@ theorem BridgedStmts_cons_assign
     BridgedStmts (Compiler.Yul.YulStmt.assign name value :: rest) :=
   BridgedStmts_cons (bridgedStmt_assign_of_bridged_val name value hValue) hRest
 
+/-- `BridgedStmts` singleton wrapping a single `.letMany names value` node.
+    The underlying `BridgedStraightStmt.letMany` ctor is closed generically
+    over `value`, so no bridged-value hypothesis is needed. Mirrors the
+    let/assign singletons for the multi-binding destructuring path. -/
+theorem BridgedStmts_singleton_letMany
+    (names : List String) (value : Compiler.Yul.YulExpr) :
+    BridgedStmts [Compiler.Yul.YulStmt.letMany names value] :=
+  BridgedStmts_singleton (bridgedStmt_letMany names value)
+
+/-- Cons a `.letMany names value` node onto an already-bridged `BridgedStmts`
+    tail. Matches compiler shapes that introduce multiple bindings from a
+    single right-hand side (e.g. multi-return intrinsics). -/
+theorem BridgedStmts_cons_letMany
+    (names : List String) (value : Compiler.Yul.YulExpr)
+    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
+    BridgedStmts (Compiler.Yul.YulStmt.letMany names value :: rest) :=
+  BridgedStmts_cons (bridgedStmt_letMany names value) hRest
+
 theorem callvalueGuard_bridged : BridgedStmt Compiler.CodegenCommon.callvalueGuard := by
   unfold Compiler.CodegenCommon.callvalueGuard
   exact BridgedStmt.if_ _ _ bridgedExpr_callvalue
