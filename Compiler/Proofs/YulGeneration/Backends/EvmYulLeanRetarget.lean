@@ -1376,6 +1376,37 @@ theorem bridgedExpr_tload (slotExpr : Compiler.Yul.YulExpr)
   subst hMem
   exact hSlot
 
+/-- `let name := mload(offsetExpr)` with a bridged `offsetExpr` is a
+    `BridgedStraightStmt`. Composes `BridgedStraightStmt.let_` with
+    `bridgedExpr_mload`. Directly matches the `let __evt_ptr := mload(0x40)`
+    prologue emitted at the head of compiled scalar `emit` bodies. -/
+theorem bridgedStraightStmt_let_mload (name : String)
+    (offsetExpr : Compiler.Yul.YulExpr) (hOffset : BridgedExpr offsetExpr) :
+    BridgedStraightStmt
+      (.let_ name (Compiler.Yul.YulExpr.call "mload" [offsetExpr])) :=
+  BridgedStraightStmt.let_ name _ (bridgedExpr_mload offsetExpr hOffset)
+
+/-- `let name := tload(slotExpr)` analogue of `bridgedStraightStmt_let_mload`
+    for EIP-1153 transient storage reads. -/
+theorem bridgedStraightStmt_let_tload (name : String)
+    (slotExpr : Compiler.Yul.YulExpr) (hSlot : BridgedExpr slotExpr) :
+    BridgedStraightStmt
+      (.let_ name (Compiler.Yul.YulExpr.call "tload" [slotExpr])) :=
+  BridgedStraightStmt.let_ name _ (bridgedExpr_tload slotExpr hSlot)
+
+/-- `let name := keccak256(offsetExpr, sizeExpr)` with bridged operands is a
+    `BridgedStraightStmt`. Composes `BridgedStraightStmt.let_` with
+    `bridgedExpr_keccak256`. Matches the `let __evt_topic0 := keccak256(...)`
+    binding inside compiled scalar `emit` bodies. -/
+theorem bridgedStraightStmt_let_keccak256 (name : String)
+    (offsetExpr sizeExpr : Compiler.Yul.YulExpr)
+    (hOffset : BridgedExpr offsetExpr) (hSize : BridgedExpr sizeExpr) :
+    BridgedStraightStmt
+      (.let_ name
+        (Compiler.Yul.YulExpr.call "keccak256" [offsetExpr, sizeExpr])) :=
+  BridgedStraightStmt.let_ name _
+    (bridgedExpr_keccak256 offsetExpr sizeExpr hOffset hSize)
+
 /-- Convenience constructor that lifts `expr_log` through the `isYulLogName`
     hypothesis for any of the five Yul log mnemonics. Callers outside this file
     can produce `BridgedStraightStmt` log emissions without restating the
