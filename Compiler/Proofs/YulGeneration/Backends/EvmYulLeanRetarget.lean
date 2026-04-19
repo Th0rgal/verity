@@ -1847,6 +1847,42 @@ theorem bridgedStmt_switch_of_bridgedStmts
     BridgedStmt (.switch expr cases defaultCase) :=
   BridgedStmt.switch expr cases defaultCase hExpr hCases hDefault
 
+/-- `BridgedStmts` singleton wrapping a single Yul `switch` node. Completes
+    block/if/for/switch parity for list composers. -/
+theorem BridgedStmts_singleton_switch
+    {expr : Compiler.Yul.YulExpr}
+    {cases : List (Nat × List Compiler.Yul.YulStmt)}
+    {defaultCase : Option (List Compiler.Yul.YulStmt)}
+    (hExpr : BridgedExpr expr)
+    (hCases : ∀ scrutinee value body,
+      cases.find? (fun x => decide (x.fst = scrutinee)) = some (value, body) →
+      ∀ stmt ∈ body, BridgedStmt stmt)
+    (hDefault : ∀ body, defaultCase = some body →
+      ∀ stmt ∈ body, BridgedStmt stmt) :
+    BridgedStmts [Compiler.Yul.YulStmt.switch expr cases defaultCase] :=
+  BridgedStmts_singleton
+    (bridgedStmt_switch_of_bridgedStmts hExpr hCases hDefault)
+
+/-- Cons a Yul `switch` node onto an already-bridged `BridgedStmts` tail.
+    Typical shape: selector/function dispatch followed by a trailing
+    fallback fragment in a compiled body list. -/
+theorem BridgedStmts_cons_switch
+    {expr : Compiler.Yul.YulExpr}
+    {cases : List (Nat × List Compiler.Yul.YulStmt)}
+    {defaultCase : Option (List Compiler.Yul.YulStmt)}
+    {rest : List Compiler.Yul.YulStmt}
+    (hExpr : BridgedExpr expr)
+    (hCases : ∀ scrutinee value body,
+      cases.find? (fun x => decide (x.fst = scrutinee)) = some (value, body) →
+      ∀ stmt ∈ body, BridgedStmt stmt)
+    (hDefault : ∀ body, defaultCase = some body →
+      ∀ stmt ∈ body, BridgedStmt stmt)
+    (hRest : BridgedStmts rest) :
+    BridgedStmts
+      (Compiler.Yul.YulStmt.switch expr cases defaultCase :: rest) :=
+  BridgedStmts_cons
+    (bridgedStmt_switch_of_bridgedStmts hExpr hCases hDefault) hRest
+
 /-- Convenience wrapper: when the block body is entirely straight-line,
     callers can supply a `BridgedStraightStmts` hypothesis directly without
     manually lifting through `BridgedStmts_of_BridgedStraightStmts`. -/
