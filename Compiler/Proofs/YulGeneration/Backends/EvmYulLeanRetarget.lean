@@ -2366,15 +2366,13 @@ theorem buildSwitch_bridged
         (defaultDispatchCase_bridged fallback receive hFallback hReceive)
         (BridgedStmts_cons_if
           (BridgedExpr.ident "__has_selector")
-          (BridgedStmts_cons
-            (BridgedStmt.«switch» _ _ _
-              bridgedExpr_selector
-              (switchCases_bridged funcs hFunctions)
-              (by
-                intro body hBody
-                cases hBody
-                exact defaultDispatchCase_bridged fallback receive hFallback hReceive))
-            BridgedStmts_nil)
+          (BridgedStmts_singleton_switch
+            bridgedExpr_selector
+            (switchCases_bridged funcs hFunctions)
+            (by
+              intro body hBody
+              cases hBody
+              exact defaultDispatchCase_bridged fallback receive hFallback hReceive))
           BridgedStmts_nil)))
 
 theorem mappingSlotFuncAt_bridged (scratchBase : Nat) :
