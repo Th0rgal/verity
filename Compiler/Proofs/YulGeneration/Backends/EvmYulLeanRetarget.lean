@@ -2048,6 +2048,53 @@ theorem BridgedStmts_cons_leave
     BridgedStmts (Compiler.Yul.YulStmt.leave :: rest) :=
   BridgedStmts_cons bridgedStmt_leave hRest
 
+/-- `BridgedStmts` singleton wrapping a `return(offset, size)` terminator with
+    both args bridged. Common terminal shape for external-function bodies
+    that return non-empty data. -/
+theorem BridgedStmts_singleton_return
+    (offsetExpr sizeExpr : Compiler.Yul.YulExpr)
+    (hOffset : BridgedExpr offsetExpr) (hSize : BridgedExpr sizeExpr) :
+    BridgedStmts
+      [Compiler.Yul.YulStmt.expr
+        (Compiler.Yul.YulExpr.call "return" [offsetExpr, sizeExpr])] :=
+  BridgedStmts_singleton
+    (bridgedStmt_return_of_bridged_args offsetExpr sizeExpr hOffset hSize)
+
+/-- Cons a `return(offset, size)` terminator node onto an already-bridged
+    `BridgedStmts` tail. Mirrors `BridgedStmts_cons_stop` for the non-empty
+    return path. -/
+theorem BridgedStmts_cons_return
+    (offsetExpr sizeExpr : Compiler.Yul.YulExpr)
+    (hOffset : BridgedExpr offsetExpr) (hSize : BridgedExpr sizeExpr)
+    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
+    BridgedStmts
+      (Compiler.Yul.YulStmt.expr
+        (Compiler.Yul.YulExpr.call "return" [offsetExpr, sizeExpr]) :: rest) :=
+  BridgedStmts_cons
+    (bridgedStmt_return_of_bridged_args offsetExpr sizeExpr hOffset hSize) hRest
+
+/-- `BridgedStmts` singleton wrapping a `revert(offset, size)` terminator.
+    The underlying `BridgedStraightStmt.expr_revert` ctor takes no
+    bridged-arg hypotheses; revert only inspects memory range bounds via
+    the shared `EvmYulLean` state bridge. -/
+theorem BridgedStmts_singleton_revert
+    (offsetExpr sizeExpr : Compiler.Yul.YulExpr) :
+    BridgedStmts
+      [Compiler.Yul.YulStmt.expr
+        (Compiler.Yul.YulExpr.call "revert" [offsetExpr, sizeExpr])] :=
+  BridgedStmts_singleton (bridgedStmt_revert offsetExpr sizeExpr)
+
+/-- Cons a `revert(offset, size)` terminator node onto an already-bridged
+    `BridgedStmts` tail. Generalizes `BridgedStmts_singleton_revert_zero`
+    to arbitrary offset/size expressions. -/
+theorem BridgedStmts_cons_revert
+    (offsetExpr sizeExpr : Compiler.Yul.YulExpr)
+    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
+    BridgedStmts
+      (Compiler.Yul.YulStmt.expr
+        (Compiler.Yul.YulExpr.call "revert" [offsetExpr, sizeExpr]) :: rest) :=
+  BridgedStmts_cons (bridgedStmt_revert offsetExpr sizeExpr) hRest
+
 theorem callvalueGuard_bridged : BridgedStmt Compiler.CodegenCommon.callvalueGuard := by
   unfold Compiler.CodegenCommon.callvalueGuard
   exact BridgedStmt.if_ _ _ bridgedExpr_callvalue
