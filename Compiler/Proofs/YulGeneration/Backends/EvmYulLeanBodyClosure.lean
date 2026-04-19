@@ -5509,4 +5509,76 @@ theorem BridgedSourceInternalRecursiveBodyStmt_of_base
     BridgedSourceInternalRecursiveBodyStmt fields dynamicSource stmt :=
   .base h
 
+/-! ### Stmt-level `_of_base` lifts for with-errors wrappers
+
+Symmetric counterparts of the plain `*BodyStmt_of_base` lifts for the
+with-errors family. Each wrapper inductive exposes a `.base`/`.structured`
+constructor accepting an unchanged `BodyWithErrorsStmt`, reached via either
+direct `.base` or `.structured (.base …)` composition. Covers structured,
+nested, forEach, and recursive external/internal variants. -/
+
+theorem BridgedSourceExternalStructuredBodyWithErrorsStmt_of_base
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceExternalBodyWithErrorsStmt fields errors dynamicSource stmt) :
+    BridgedSourceExternalStructuredBodyWithErrorsStmt fields errors
+      dynamicSource stmt :=
+  .base h
+
+theorem BridgedSourceInternalStructuredBodyWithErrorsStmt_of_base
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceInternalBodyWithErrorsStmt fields errors dynamicSource stmt) :
+    BridgedSourceInternalStructuredBodyWithErrorsStmt fields errors
+      dynamicSource stmt :=
+  .base h
+
+theorem BridgedSourceExternalNestedBodyWithErrorsStmt_of_base
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceExternalBodyWithErrorsStmt fields errors dynamicSource stmt) :
+    BridgedSourceExternalNestedBodyWithErrorsStmt fields errors
+      dynamicSource stmt :=
+  .structured (.base h)
+
+theorem BridgedSourceInternalNestedBodyWithErrorsStmt_of_base
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceInternalBodyWithErrorsStmt fields errors dynamicSource stmt) :
+    BridgedSourceInternalNestedBodyWithErrorsStmt fields errors
+      dynamicSource stmt :=
+  .structured (.base h)
+
+theorem BridgedSourceExternalForEachBodyWithErrorsStmt_of_base
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceExternalBodyWithErrorsStmt fields errors dynamicSource stmt) :
+    BridgedSourceExternalForEachBodyWithErrorsStmt fields errors
+      dynamicSource stmt :=
+  .base h
+
+theorem BridgedSourceInternalForEachBodyWithErrorsStmt_of_base
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceInternalBodyWithErrorsStmt fields errors dynamicSource stmt) :
+    BridgedSourceInternalForEachBodyWithErrorsStmt fields errors
+      dynamicSource stmt :=
+  .base h
+
+theorem BridgedSourceExternalRecursiveBodyWithErrorsStmt_of_base
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceExternalBodyWithErrorsStmt fields errors dynamicSource stmt) :
+    BridgedSourceExternalRecursiveBodyWithErrorsStmt fields errors
+      dynamicSource stmt :=
+  .base h
+
+theorem BridgedSourceInternalRecursiveBodyWithErrorsStmt_of_base
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceInternalBodyWithErrorsStmt fields errors dynamicSource stmt) :
+    BridgedSourceInternalRecursiveBodyWithErrorsStmt fields errors
+      dynamicSource stmt :=
+  .base h
+
 end Compiler.Proofs.YulGeneration.Backends

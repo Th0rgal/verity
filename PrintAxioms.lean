@@ -2253,6 +2253,14 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalNestedBodyStmt_of_structured
 #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyStmt_of_base
 #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyStmt_of_base
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalStructuredBodyWithErrorsStmt_of_base
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalStructuredBodyWithErrorsStmt_of_base
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalNestedBodyWithErrorsStmt_of_base
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalNestedBodyWithErrorsStmt_of_base
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalForEachBodyWithErrorsStmt_of_base
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalForEachBodyWithErrorsStmt_of_base
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyWithErrorsStmt_of_base
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyWithErrorsStmt_of_base
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.word_lt_uint256_size  -- private
@@ -2597,4 +2605,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2433 theorems/lemmas (1638 public, 795 private, 0 sorry'd)
+-- Total: 2441 theorems/lemmas (1646 public, 795 private, 0 sorry'd)
