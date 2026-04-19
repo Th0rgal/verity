@@ -3794,4 +3794,213 @@ theorem compileStmtList_internal_nested_body_with_errors_bridged
                   hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
 
+/-! ### `forEach`-wrapped with-errors body closure
+
+Extends with-errors body closure under one outer `Stmt.forEach` layer whose
+body is itself a with-errors body list. Mirrors the `ite`-structured pattern
+but reuses `compileStmt_forEach_with_bridged_body` as the per-statement
+building block so the outer `Stmt.forEach` compile shape (a Yul `.for_` with
+init/cond/post scaffolding) is handled once.
+-/
+
+/-- External with-errors body statements extended with one outer
+`Stmt.forEach varName count body` whose body is itself a with-errors body
+list. -/
+inductive BridgedSourceExternalForEachBodyWithErrorsStmt
+    (fields : List Field) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) : Stmt → Prop
+  | base {stmt : Stmt}
+      (hStmt : BridgedSourceExternalBodyWithErrorsStmt fields errors dynamicSource stmt) :
+      BridgedSourceExternalForEachBodyWithErrorsStmt fields errors dynamicSource stmt
+  | forEach (varName : String) (count : Expr) (body : List Stmt)
+      (hCount : BridgedSourceExpr count)
+      (hBody : BridgedSourceExternalBodyWithErrorsStmts fields errors
+        dynamicSource body) :
+      BridgedSourceExternalForEachBodyWithErrorsStmt fields errors dynamicSource
+        (.forEach varName count body)
+
+def BridgedSourceExternalForEachBodyWithErrorsStmts
+    (fields : List Field) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts,
+    BridgedSourceExternalForEachBodyWithErrorsStmt fields errors dynamicSource stmt
+
+/-- Internal with-errors body statements extended with one outer
+`Stmt.forEach varName count body` whose body is itself a with-errors body
+list. -/
+inductive BridgedSourceInternalForEachBodyWithErrorsStmt
+    (fields : List Field) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) : Stmt → Prop
+  | base {stmt : Stmt}
+      (hStmt : BridgedSourceInternalBodyWithErrorsStmt fields errors dynamicSource stmt) :
+      BridgedSourceInternalForEachBodyWithErrorsStmt fields errors dynamicSource stmt
+  | forEach (varName : String) (count : Expr) (body : List Stmt)
+      (hCount : BridgedSourceExpr count)
+      (hBody : BridgedSourceInternalBodyWithErrorsStmts fields errors
+        dynamicSource body) :
+      BridgedSourceInternalForEachBodyWithErrorsStmt fields errors dynamicSource
+        (.forEach varName count body)
+
+def BridgedSourceInternalForEachBodyWithErrorsStmts
+    (fields : List Field) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts,
+    BridgedSourceInternalForEachBodyWithErrorsStmt fields errors dynamicSource stmt
+
+/-- Each external with-errors forEach-body statement compiles to Yul
+satisfying `BridgedStmts`. -/
+theorem compileStmt_external_forEach_body_with_errors_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (inScopeNames : List String) :
+    ∀ {stmt : Stmt},
+      BridgedSourceExternalForEachBodyWithErrorsStmt fields errors
+        dynamicSource stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          (isInternal := false) inScopeNames stmt = .ok out →
+        BridgedStmts out := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | base hBase =>
+      exact compileStmt_external_body_with_errors_bridged fields events errors
+        dynamicSource internalRetNames inScopeNames hBase hOk
+  | forEach varName count body hCount hBody =>
+      refine compileStmt_forEach_with_bridged_body fields events errors
+        dynamicSource internalRetNames false inScopeNames varName count body
+        hCount ?_ hOk
+      intro bodyOut hBodyOk
+      exact compileStmtList_external_body_with_errors_bridged fields events
+        errors dynamicSource internalRetNames body (varName :: inScopeNames)
+        hBody hBodyOk
+
+/-- External forEach-wrapped with-errors source bodies compile to Yul lists
+satisfying `BridgedStmts`. -/
+theorem compileStmtList_external_forEach_body_with_errors_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceExternalForEachBodyWithErrorsStmts fields errors
+        dynamicSource stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          (isInternal := false) inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          false inScopeNames head with
+      | error err =>
+          simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource
+              internalRetNames false (collectStmtNames head ++ inScopeNames) tail with
+          | error err =>
+              simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource :
+                  BridgedSourceExternalForEachBodyWithErrorsStmt fields errors
+                    dynamicSource head :=
+                hSource head (by simp)
+              have hTailSource :
+                  BridgedSourceExternalForEachBodyWithErrorsStmts fields errors
+                    dynamicSource tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              exact BridgedStmts_append
+                (compileStmt_external_forEach_body_with_errors_bridged fields
+                  events errors dynamicSource internalRetNames inScopeNames
+                  hHeadSource hHead)
+                (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+/-- Each internal with-errors forEach-body statement compiles to Yul
+satisfying `BridgedStmts`. -/
+theorem compileStmt_internal_forEach_body_with_errors_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (inScopeNames : List String) :
+    ∀ {stmt : Stmt},
+      BridgedSourceInternalForEachBodyWithErrorsStmt fields errors
+        dynamicSource stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          (isInternal := true) inScopeNames stmt = .ok out →
+        BridgedStmts out := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | base hBase =>
+      exact compileStmt_internal_body_with_errors_bridged fields events errors
+        dynamicSource internalRetNames inScopeNames hBase hOk
+  | forEach varName count body hCount hBody =>
+      refine compileStmt_forEach_with_bridged_body fields events errors
+        dynamicSource internalRetNames true inScopeNames varName count body
+        hCount ?_ hOk
+      intro bodyOut hBodyOk
+      exact compileStmtList_internal_body_with_errors_bridged fields events
+        errors dynamicSource internalRetNames body (varName :: inScopeNames)
+        hBody hBodyOk
+
+/-- Internal forEach-wrapped with-errors source bodies compile to Yul lists
+satisfying `BridgedStmts`. -/
+theorem compileStmtList_internal_forEach_body_with_errors_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceInternalForEachBodyWithErrorsStmts fields errors
+        dynamicSource stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          (isInternal := true) inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          true inScopeNames head with
+      | error err =>
+          simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource
+              internalRetNames true (collectStmtNames head ++ inScopeNames) tail with
+          | error err =>
+              simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource :
+                  BridgedSourceInternalForEachBodyWithErrorsStmt fields errors
+                    dynamicSource head :=
+                hSource head (by simp)
+              have hTailSource :
+                  BridgedSourceInternalForEachBodyWithErrorsStmts fields errors
+                    dynamicSource tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              exact BridgedStmts_append
+                (compileStmt_internal_forEach_body_with_errors_bridged fields
+                  events errors dynamicSource internalRetNames inScopeNames
+                  hHeadSource hHead)
+                (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
 end Compiler.Proofs.YulGeneration.Backends

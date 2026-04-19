@@ -390,6 +390,14 @@ ALLOWLIST: set[str] = {
     # head/tail skeleton as earlier list closures; the measured span includes
     # the following internal-section boundary.
     "compileStmtList_external_nested_body_with_errors_bridged",
+    # Internal nested with-errors list closure: span now reaches into the
+    # following forEach-with-errors section header because the measured
+    # range extends to the next non-indented section. Proof body unchanged.
+    "compileStmtList_internal_nested_body_with_errors_bridged",
+    # External forEach-wrapped with-errors list closure: same compileStmtList
+    # head/tail skeleton as earlier list closures; the measured span reaches
+    # into the internal forEach-with-errors section header.
+    "compileStmtList_external_forEach_body_with_errors_bridged",
     # Internal structured-body list closure is the same compileStmtList
     # head/tail skeleton as the external structured-body proof; the measured
     # span now includes the following nested-ite section header.
