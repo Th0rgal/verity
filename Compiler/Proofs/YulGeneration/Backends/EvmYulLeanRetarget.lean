@@ -1407,6 +1407,33 @@ theorem bridgedStraightStmt_let_keccak256 (name : String)
   BridgedStraightStmt.let_ name _
     (bridgedExpr_keccak256 offsetExpr sizeExpr hOffset hSize)
 
+/-- `name := mload(offsetExpr)` analogue of `bridgedStraightStmt_let_mload` for
+    reassignment to an already-declared local (e.g. `retVal := mload(ptr)`
+    in a return-epilogue). -/
+theorem bridgedStraightStmt_assign_mload (name : String)
+    (offsetExpr : Compiler.Yul.YulExpr) (hOffset : BridgedExpr offsetExpr) :
+    BridgedStraightStmt
+      (.assign name (Compiler.Yul.YulExpr.call "mload" [offsetExpr])) :=
+  BridgedStraightStmt.assign name _ (bridgedExpr_mload offsetExpr hOffset)
+
+/-- `name := tload(slotExpr)` analogue of `bridgedStraightStmt_let_tload`. -/
+theorem bridgedStraightStmt_assign_tload (name : String)
+    (slotExpr : Compiler.Yul.YulExpr) (hSlot : BridgedExpr slotExpr) :
+    BridgedStraightStmt
+      (.assign name (Compiler.Yul.YulExpr.call "tload" [slotExpr])) :=
+  BridgedStraightStmt.assign name _ (bridgedExpr_tload slotExpr hSlot)
+
+/-- `name := keccak256(offsetExpr, sizeExpr)` analogue of
+    `bridgedStraightStmt_let_keccak256` for reassignment contexts. -/
+theorem bridgedStraightStmt_assign_keccak256 (name : String)
+    (offsetExpr sizeExpr : Compiler.Yul.YulExpr)
+    (hOffset : BridgedExpr offsetExpr) (hSize : BridgedExpr sizeExpr) :
+    BridgedStraightStmt
+      (.assign name
+        (Compiler.Yul.YulExpr.call "keccak256" [offsetExpr, sizeExpr])) :=
+  BridgedStraightStmt.assign name _
+    (bridgedExpr_keccak256 offsetExpr sizeExpr hOffset hSize)
+
 /-- Convenience constructor that lifts `expr_log` through the `isYulLogName`
     hypothesis for any of the five Yul log mnemonics. Callers outside this file
     can produce `BridgedStraightStmt` log emissions without restating the
