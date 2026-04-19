@@ -759,8 +759,7 @@ theorem execYulFuelWithBackend_verity_eq
               simp only [execYulFuelWithBackend, execYulFuel,
                 evalYulExprWithBackend_verity_eq,
                 evalYulExprsWithBackend_verity_eq, ih]
-              try rfl
-              try (split <;> rfl)))
+              try rfl))
       | stmts ss =>
           cases ss <;> (
             try rfl
@@ -855,6 +854,14 @@ inductive BridgedStraightStmt : Compiler.Yul.YulStmt → Prop
       BridgedStraightStmt (.expr (.call "return" [offsetExpr, sizeExpr]))
   | expr_revert (offsetExpr sizeExpr : Compiler.Yul.YulExpr) :
       BridgedStraightStmt (.expr (.call "revert" [offsetExpr, sizeExpr]))
+  /-- `logN(args...)` for `N ∈ {0,1,2,3,4}`. The Yul semantics dispatches log
+  calls via backend-agnostic `applyYulLogCall?` (takes only state + func +
+  evaluated argument values), so both backends diverge only on the argument
+  evaluation step which is closed by `BridgedExpr` on each argument. -/
+  | expr_log (func : String) (args : List Compiler.Yul.YulExpr)
+      (hLog : isYulLogName func = true)
+      (hArgs : ∀ arg ∈ args, BridgedExpr arg) :
+      BridgedStraightStmt (.expr (.call func args))
   | funcDef (name : String) (params rets : List String)
       (body : List Compiler.Yul.YulStmt) :
       BridgedStraightStmt (.funcDef name params rets body)
@@ -921,6 +928,24 @@ private theorem execYulFuelWithBackend_eq_on_bridged_straight_stmt
           rw [evalYulExprWithBackend_eq_on_bridged state offsetExpr hOffset,
             evalYulExprWithBackend_eq_on_bridged state sizeExpr hSize]
   | expr_revert _ _ => cases fuel <;> rfl
+  | expr_log func args hLog hArgs =>
+      cases fuel with
+      | zero => rfl
+      | succ fuel =>
+          -- Enumerate the five log names so the specific-string cases
+          -- (`sstore`, `mstore`, `tstore`, `stop`, `return`, `revert`) drop
+          -- out and the match reduces into the generic `.call func args`
+          -- branch where both backends share `applyYulLogCall?`. Each backend
+          -- differs only in `evalYulExprWithBackend` / `evalYulExprsWithBackend`
+          -- on the bridged argument list, so rewriting the verity side to the
+          -- evmYulLean side makes both sides syntactically identical.
+          have hFunc : func = "log0" ∨ func = "log1" ∨ func = "log2" ∨
+              func = "log3" ∨ func = "log4" := by
+            simp [isYulLogName] at hLog
+            tauto
+          have hEval := evalYulExprsWithBackend_eq_on_bridged state args hArgs
+          rcases hFunc with rfl | rfl | rfl | rfl | rfl <;>
+            simp [execYulFuelWithBackend, isYulLogName, hEval]
   | funcDef _ _ _ _ => cases fuel <;> rfl
 
 theorem execYulFuelWithBackend_eq_on_bridged_straight_stmts
