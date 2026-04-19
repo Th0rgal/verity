@@ -2095,6 +2095,29 @@ theorem BridgedStmts_cons_revert
         (Compiler.Yul.YulExpr.call "revert" [offsetExpr, sizeExpr]) :: rest) :=
   BridgedStmts_cons (bridgedStmt_revert offsetExpr sizeExpr) hRest
 
+/-- `BridgedStmts` singleton wrapping a single `mstore(offset, val)` node over
+    bridged offset/value expressions. Common scratchpad-write shape in
+    scalar-emit prologues. -/
+theorem BridgedStmts_singleton_mstore
+    (offsetExpr valExpr : Compiler.Yul.YulExpr)
+    (hOffset : BridgedExpr offsetExpr) (hVal : BridgedExpr valExpr) :
+    BridgedStmts
+      [Compiler.Yul.YulStmt.expr
+        (Compiler.Yul.YulExpr.call "mstore" [offsetExpr, valExpr])] :=
+  BridgedStmts_singleton (bridgedStmt_mstore_of_bridged_args offsetExpr valExpr hOffset hVal)
+
+/-- Cons an `mstore(offset, val)` node over bridged offset/value expressions
+    onto an already-bridged `BridgedStmts` tail. Matches the scratchpad-write
+    shape that precedes subsequent bridged statements in emit/keccak paths. -/
+theorem BridgedStmts_cons_mstore
+    (offsetExpr valExpr : Compiler.Yul.YulExpr)
+    (hOffset : BridgedExpr offsetExpr) (hVal : BridgedExpr valExpr)
+    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
+    BridgedStmts
+      (Compiler.Yul.YulStmt.expr
+        (Compiler.Yul.YulExpr.call "mstore" [offsetExpr, valExpr]) :: rest) :=
+  BridgedStmts_cons (bridgedStmt_mstore_of_bridged_args offsetExpr valExpr hOffset hVal) hRest
+
 theorem callvalueGuard_bridged : BridgedStmt Compiler.CodegenCommon.callvalueGuard := by
   unfold Compiler.CodegenCommon.callvalueGuard
   exact BridgedStmt.if_ _ _ bridgedExpr_callvalue
