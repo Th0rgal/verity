@@ -1767,6 +1767,38 @@ theorem bridgedStmt_for_of_bridgedStmts
     BridgedStmt (.for_ init cond post body) :=
   BridgedStmt.for_ init cond post body hInit hCond hPost hBody
 
+/-- Convenience wrapper: when the block body is entirely straight-line,
+    callers can supply a `BridgedStraightStmts` hypothesis directly without
+    manually lifting through `BridgedStmts_of_BridgedStraightStmts`. -/
+theorem bridgedStmt_block_of_bridgedStraightStmts
+    {stmts : List Compiler.Yul.YulStmt} (hStmts : BridgedStraightStmts stmts) :
+    BridgedStmt (.block stmts) :=
+  bridgedStmt_block_of_bridgedStmts (BridgedStmts_of_BridgedStraightStmts hStmts)
+
+/-- Convenience wrapper: single-branch `if` whose body is entirely
+    straight-line. Mirrors `bridgedStmt_block_of_bridgedStraightStmts` for
+    the guard-only conditional shape. -/
+theorem bridgedStmt_if_of_bridgedStraightStmts
+    {cond : Compiler.Yul.YulExpr} {body : List Compiler.Yul.YulStmt}
+    (hCond : BridgedExpr cond) (hBody : BridgedStraightStmts body) :
+    BridgedStmt (.if_ cond body) :=
+  bridgedStmt_if_of_bridgedStmts hCond (BridgedStmts_of_BridgedStraightStmts hBody)
+
+/-- Convenience wrapper: `for { init } cond { post } { body }` whose four
+    list-typed components are each entirely straight-line. Mirrors the block
+    and if variants above for the loop shape. -/
+theorem bridgedStmt_for_of_bridgedStraightStmts
+    {init : List Compiler.Yul.YulStmt} {cond : Compiler.Yul.YulExpr}
+    {post body : List Compiler.Yul.YulStmt}
+    (hInit : BridgedStraightStmts init) (hCond : BridgedExpr cond)
+    (hPost : BridgedStraightStmts post) (hBody : BridgedStraightStmts body) :
+    BridgedStmt (.for_ init cond post body) :=
+  bridgedStmt_for_of_bridgedStmts
+    (BridgedStmts_of_BridgedStraightStmts hInit)
+    hCond
+    (BridgedStmts_of_BridgedStraightStmts hPost)
+    (BridgedStmts_of_BridgedStraightStmts hBody)
+
 /-- `BridgedStmts` analogue of `BridgedStraightStmts_map_tstore`, for the
     transient-store variant of the map helper above. -/
 theorem BridgedStmts_map_tstore
