@@ -4393,4 +4393,39 @@ theorem BridgedSourceInternalRecursiveBodyStmts_of_alias
       intro stmt hMem
       exact h stmt (by simp [hMem])
 
+/-! ### Lifting flat body aliases into the structured (one-`ite`-layer) inductive
+
+Callers with a flat `∀ stmt ∈ stmts, BridgedSource*BodyStmt …` witness reach the
+structured-body alias (`BridgedSource*StructuredBodyStmts`) via pointwise `.base`
+wrapping — no `ite` layer needs to be introduced. Symmetric counterparts cover
+the with-errors variants. -/
+
+theorem BridgedSourceExternalStructuredBodyStmts_of_alias
+    {fields : List Field} {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceExternalBodyStmts fields dynamicSource stmts) :
+    BridgedSourceExternalStructuredBodyStmts fields dynamicSource stmts :=
+  fun stmt hMem => .base (h stmt hMem)
+
+theorem BridgedSourceInternalStructuredBodyStmts_of_alias
+    {fields : List Field} {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceInternalBodyStmts fields dynamicSource stmts) :
+    BridgedSourceInternalStructuredBodyStmts fields dynamicSource stmts :=
+  fun stmt hMem => .base (h stmt hMem)
+
+theorem BridgedSourceExternalStructuredBodyWithErrorsStmts_of_alias
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceExternalBodyWithErrorsStmts fields errors dynamicSource stmts) :
+    BridgedSourceExternalStructuredBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  fun stmt hMem => .base (h stmt hMem)
+
+theorem BridgedSourceInternalStructuredBodyWithErrorsStmts_of_alias
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmts : List Stmt}
+    (h : BridgedSourceInternalBodyWithErrorsStmts fields errors dynamicSource stmts) :
+    BridgedSourceInternalStructuredBodyWithErrorsStmts fields errors
+      dynamicSource stmts :=
+  fun stmt hMem => .base (h stmt hMem)
+
 end Compiler.Proofs.YulGeneration.Backends
