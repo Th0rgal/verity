@@ -1060,6 +1060,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.runtimeStateMatchesIR_setVar_irrelevant
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmt_core_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.runtimeStateMatchesIR_setBothMemory
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.runtimeStateMatchesIR_updateMemoryEvents
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.runtimeStateMatchesIR_setTransientStorage
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVars_setMemory
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVarsOnScope_setMemory
@@ -1412,6 +1413,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingUint_singleSlot_of_slotSafety
 -- #print axioms Compiler.Proofs.IRGeneration.compileExprList_core_ok  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compileStmt_emit_scalar_supported_ok  -- private
+#print axioms Compiler.Proofs.IRGeneration.eventHeadStepBridgeCatalog_of_semanticBridgeCatalog
 -- #print axioms Compiler.Proofs.IRGeneration.eval_compileExpr_core_some_of_scope  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.eval_compileExprList_core_of_scope  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.evalIRExpr_mappingSlotChain  -- private
@@ -2258,4 +2260,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2109 theorems/lemmas (1418 public, 691 private, 0 sorry'd)
+-- Total: 2111 theorems/lemmas (1420 public, 691 private, 0 sorry'd)
