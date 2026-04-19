@@ -903,6 +903,17 @@ theorem BridgedStraightStmts_singleton {stmt : Compiler.Yul.YulStmt}
     (hStmt : BridgedStraightStmt stmt) : BridgedStraightStmts [stmt] :=
   BridgedStraightStmts_cons hStmt BridgedStraightStmts_nil
 
+/-- Snoc composition for `BridgedStraightStmts`: append a single
+    `BridgedStraightStmt` to the end of an already-bridged straight list.
+    Parallels `BridgedStmts_snoc` for the straight-line layer, saving an
+    explicit `BridgedStraightStmts_singleton` wrap when chaining
+    `BridgedStraightStmts_append xs (BridgedStraightStmts_singleton y)`. -/
+theorem BridgedStraightStmts_snoc {xs : List Compiler.Yul.YulStmt}
+    {y : Compiler.Yul.YulStmt}
+    (hXs : BridgedStraightStmts xs) (hY : BridgedStraightStmt y) :
+    BridgedStraightStmts (xs ++ [y]) :=
+  BridgedStraightStmts_append hXs (BridgedStraightStmts_singleton hY)
+
 /-- A list of `(offset, value)` expression pairs where each component is a
     `BridgedExpr` maps to a `BridgedStraightStmts` list of `mstore(offset,
     value)` statements. Directly supports the scalar event-emission compiler
