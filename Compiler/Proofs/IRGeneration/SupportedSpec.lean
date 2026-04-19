@@ -354,6 +354,58 @@ theorem eventEmissionProofSupported_zippedWithSource_unindexed_any_dynamic_false
       hsupport hfind (List.mem_filter.mp hentry).1
   simp [hstatic]
 
+private theorem foldl_eventHeadWordSize_eq_thirty_two_mul_length
+    {α : Type}
+    {entries : List (EventParam × Expr × α)}
+    (acc : Nat)
+    (hhead :
+      ∀ entry ∈ entries, eventHeadWordSize entry.1.ty = 32) :
+    (entries.map (fun entry => eventHeadWordSize entry.1.ty)).foldl (· + ·) acc =
+      acc + 32 * entries.length := by
+  induction entries generalizing acc with
+  | nil =>
+      simp
+  | cons entry rest ih =>
+      have hentry : eventHeadWordSize entry.1.ty = 32 := hhead entry (by simp)
+      have hrest :
+          ∀ tailEntry ∈ rest, eventHeadWordSize tailEntry.1.ty = 32 := by
+        intro tailEntry hmem
+        exact hhead tailEntry (by simp [hmem])
+      calc
+        ((entry :: rest).map (fun entry => eventHeadWordSize entry.1.ty)).foldl (· + ·) acc
+            = (rest.map (fun entry => eventHeadWordSize entry.1.ty)).foldl (· + ·)
+                (acc + 32) := by simp [hentry]
+        _ = (acc + 32) + 32 * rest.length := ih (acc + 32) hrest
+        _ = acc + 32 * (entry :: rest).length := by
+          simp [Nat.mul_succ, Nat.add_comm, Nat.add_assoc]
+
+theorem eventEmissionProofSupported_zippedWithSource_unindexed_head_size
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    {α : Type}
+    (compiledArgs : List α)
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef) :
+    let zipped : List (EventParam × Expr × α) :=
+      (eventDef.params.zip args).zip compiledArgs |>.map
+        (fun ((p, srcExpr), argExpr) => (p, srcExpr, argExpr))
+    let unindexed := zipped.filter (fun (p, _, _) => p.kind == EventParamKind.unindexed)
+    (unindexed.map (fun (p, _, _) => eventHeadWordSize p.ty)).foldl (· + ·) 0 =
+      32 * unindexed.length := by
+  dsimp only
+  simpa using
+    foldl_eventHeadWordSize_eq_thirty_two_mul_length (α := α) (acc := 0)
+      (entries :=
+        (((eventDef.params.zip args).zip compiledArgs |>.map
+          (fun ((p, srcExpr), argExpr) => (p, srcExpr, argExpr))).filter
+            (fun (p, _, _) => p.kind == EventParamKind.unindexed)))
+      (by
+        intro entry hentry
+        exact eventEmissionProofSupported_zippedWithSource_eventHeadWordSize_eq_thirty_two
+          hsupport hfind (List.mem_filter.mp hentry).1)
+
 private theorem eventCompiledArgs_filter_kind_length_le_params_filter_kind
     {α : Type}
     (params : List EventParam)
