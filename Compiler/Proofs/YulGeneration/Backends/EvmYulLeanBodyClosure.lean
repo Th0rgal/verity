@@ -5321,4 +5321,27 @@ theorem BridgedSourceInternalRecursiveBodyWithErrorsStmt_of_plain_nested
   BridgedSourceInternalRecursiveBodyWithErrorsStmt_of_plain_recursive
     (BridgedSourceInternalRecursiveBodyStmt_of_nested h)
 
+/-! ### Stmt-level plain structured → nested with-errors lifts
+
+Single-stmt counterparts of the list-level
+`*NestedBodyWithErrorsStmts_of_plain_structured` lifts. Chains the
+plain→with-errors structured stmt bridge with the `.structured` constructor
+of the nested with-errors inductive. -/
+
+theorem BridgedSourceExternalNestedBodyWithErrorsStmt_of_plain_structured
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceExternalStructuredBodyStmt fields dynamicSource stmt) :
+    BridgedSourceExternalNestedBodyWithErrorsStmt fields errors
+      dynamicSource stmt :=
+  .structured (BridgedSourceExternalStructuredBodyWithErrorsStmt_of_structured h)
+
+theorem BridgedSourceInternalNestedBodyWithErrorsStmt_of_plain_structured
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {stmt : Stmt}
+    (h : BridgedSourceInternalStructuredBodyStmt fields dynamicSource stmt) :
+    BridgedSourceInternalNestedBodyWithErrorsStmt fields errors
+      dynamicSource stmt :=
+  .structured (BridgedSourceInternalStructuredBodyWithErrorsStmt_of_structured h)
+
 end Compiler.Proofs.YulGeneration.Backends
