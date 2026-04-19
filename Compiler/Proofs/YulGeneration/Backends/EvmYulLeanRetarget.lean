@@ -1346,6 +1346,36 @@ theorem bridgedExpr_keccak256 (offsetExpr sizeExpr : Compiler.Yul.YulExpr)
   · exact hOffset
   · exact hSize
 
+/-- `mload(offsetExpr)` with a bridged `offsetExpr` is a `BridgedExpr`. Both
+    backends already include `mload` directly in `evalYulCallWithBackend` /
+    `evalYulCall` (single-slot memory read by Verity's free-memory model).
+    Useful for closing compiler-emitted `let __evt_ptr := mload(0x40)` shapes
+    at the head of scalar `emit` bodies, and for any prologue helper that
+    consults the free-memory pointer. -/
+theorem bridgedExpr_mload (offsetExpr : Compiler.Yul.YulExpr)
+    (hOffset : BridgedExpr offsetExpr) :
+    BridgedExpr
+      (Compiler.Yul.YulExpr.call "mload" [offsetExpr]) := by
+  refine BridgedExpr.call "mload" _ (Or.inr (Or.inr (Or.inl rfl))) ?_
+  intro arg hMem
+  simp only [List.mem_singleton] at hMem
+  subst hMem
+  exact hOffset
+
+/-- `tload(slotExpr)` analogue of `bridgedExpr_mload`. EIP-1153 transient
+    storage reads are in `allowedExprCallName` and share the same two-backend
+    `tload` branch in `evalYulCallWithBackend`. Having the helper available
+    keeps tload-consuming Yul prologues composable under `BridgedExpr`. -/
+theorem bridgedExpr_tload (slotExpr : Compiler.Yul.YulExpr)
+    (hSlot : BridgedExpr slotExpr) :
+    BridgedExpr
+      (Compiler.Yul.YulExpr.call "tload" [slotExpr]) := by
+  refine BridgedExpr.call "tload" _ (Or.inr (Or.inl rfl)) ?_
+  intro arg hMem
+  simp only [List.mem_singleton] at hMem
+  subst hMem
+  exact hSlot
+
 /-- Convenience constructor that lifts `expr_log` through the `isYulLogName`
     hypothesis for any of the five Yul log mnemonics. Callers outside this file
     can produce `BridgedStraightStmt` log emissions without restating the
