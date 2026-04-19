@@ -1280,6 +1280,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeCompiledLegacyCompatible_of_supportedContractSurface_exceptMappingWrites
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeCompiledCallsDisjoint_of_supportedContractSurface_exceptMappingWrites
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeStepInterface_of_core
+#print axioms Compiler.Proofs.IRGeneration.eventHeadStepCatalog_of_bridgeCatalog
 #print axioms Compiler.Proofs.IRGeneration.stmtListEventSurfaceStepInterface_of_eventHeadStepCatalog_of_surfaceWithEvents
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperSurfaceStepInterface_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.stmtListInternalHelperSurfaceStepInterface_of_helperSurfaceClosed
@@ -2249,4 +2250,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2100 theorems/lemmas (1410 public, 690 private, 0 sorry'd)
+-- Total: 2101 theorems/lemmas (1411 public, 690 private, 0 sorry'd)
