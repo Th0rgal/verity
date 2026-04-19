@@ -417,6 +417,21 @@ ALLOWLIST: set[str] = {
     # seven trivial single-use lemmas whose combined boilerplate exceeds the
     # main proof's line count.
     "revertWithCustomError_zero_bridged",
+    # Zero-arg custom-error list closure is standard compileStmtList
+    # cons/nil induction (nil: empty-list lemma; cons: destructure head
+    # Except.ok, destructure tail Except.ok, apply per-statement lemma,
+    # recurse via IH, split membership by `List.mem_append`). The excess
+    # lines are the four Except-bind cases mechanically matching
+    # `compileStmtList`'s bind structure.
+    "compileStmtList_customError_zero_bridged",
+    # External body + zero-arg custom error list closure mirrors the
+    # existing `compileStmtList_external_body_fragment_bridged` skeleton
+    # verbatim; the head case just dispatches through the extended
+    # per-statement theorem instead of the mixed-body one.
+    "compileStmtList_external_body_with_errors_bridged",
+    # Internal body + zero-arg custom error list closure: same cons/nil
+    # boilerplate as the external variant with `isInternal := true`.
+    "compileStmtList_internal_body_with_errors_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
