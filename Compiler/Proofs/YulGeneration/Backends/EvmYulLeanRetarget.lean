@@ -1771,6 +1771,26 @@ theorem bridgedStmt_if_of_bridgedStmts
     BridgedStmt (.if_ cond body) :=
   BridgedStmt.if_ cond body hCond hBody
 
+/-- `BridgedStmts` singleton wrapping a Yul `if cond { body }` node. Useful when
+    a compiled body reduces to a lone guard fragment (e.g. the callvalue or
+    calldatasize guards emitted at the top of a dispatch block). -/
+theorem BridgedStmts_singleton_if
+    {cond : Compiler.Yul.YulExpr} {body : List Compiler.Yul.YulStmt}
+    (hCond : BridgedExpr cond) (hBody : BridgedStmts body) :
+    BridgedStmts [Compiler.Yul.YulStmt.if_ cond body] :=
+  BridgedStmts_singleton (bridgedStmt_if_of_bridgedStmts hCond hBody)
+
+/-- Cons a Yul `if cond { body }` node onto an already-bridged `BridgedStmts`
+    tail. Typical shape: a guard statement followed by the rest of a compiled
+    body list. -/
+theorem BridgedStmts_cons_if
+    {cond : Compiler.Yul.YulExpr} {body : List Compiler.Yul.YulStmt}
+    {rest : List Compiler.Yul.YulStmt}
+    (hCond : BridgedExpr cond) (hBody : BridgedStmts body)
+    (hRest : BridgedStmts rest) :
+    BridgedStmts (Compiler.Yul.YulStmt.if_ cond body :: rest) :=
+  BridgedStmts_cons (bridgedStmt_if_of_bridgedStmts hCond hBody) hRest
+
 /-- Wrap four bridged components (init/post/body `BridgedStmts`, cond
     `BridgedExpr`) under `BridgedStmt.for_`. Parallels the block/if wrappers
     for the Yul `for { init } cond { post } { body }` shape emitted by
