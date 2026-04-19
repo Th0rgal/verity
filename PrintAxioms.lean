@@ -1959,8 +1959,13 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_zippedWithSource_unindexed_any_dynamic_false
 -- #print axioms Compiler.Proofs.IRGeneration.foldl_eventHeadWordSize_eq_thirty_two_mul_length  -- private
 #print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_zippedWithSource_unindexed_head_size
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_eventUnindexedHeadSize
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_eventHasUnindexedDynamicData_eq_false
 -- #print axioms Compiler.Proofs.IRGeneration.eventCompiledArgs_filter_kind_length_le_params_filter_kind  -- private
 #print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_zippedWithSource_indexed_length_le_three
+#print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_eventIndexedArgs_length_le_three
+#print axioms Compiler.Proofs.IRGeneration.eventLogFunction_mem_logBuiltins_of_le_three
+#print axioms Compiler.Proofs.IRGeneration.eventLogArgs_length
 #print axioms Compiler.Proofs.IRGeneration.exprListTouchesUnsupportedContractSurface_eq_false_of_emit_contractSurfaceWithEventsClosed
 #print axioms Compiler.Proofs.IRGeneration.eventEmissionProofSupported_eq_true_of_emit_contractSurfaceWithEventsClosed
 -- #print axioms Compiler.Proofs.IRGeneration.eraseDups_nodup_and_mem_aux  -- private
@@ -2250,4 +2255,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2101 theorems/lemmas (1411 public, 690 private, 0 sorry'd)
+-- Total: 2106 theorems/lemmas (1416 public, 690 private, 0 sorry'd)
