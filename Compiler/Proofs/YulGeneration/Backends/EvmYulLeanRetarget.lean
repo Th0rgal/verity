@@ -1508,6 +1508,19 @@ theorem bridgedStmt_if_of_bridgedStmts
     BridgedStmt (.if_ cond body) :=
   BridgedStmt.if_ cond body hCond hBody
 
+/-- Wrap four bridged components (init/post/body `BridgedStmts`, cond
+    `BridgedExpr`) under `BridgedStmt.for_`. Parallels the block/if wrappers
+    for the Yul `for { init } cond { post } { body }` shape emitted by
+    compiler loops. Each list hypothesis is definitionally the pointwise
+    `∀ stmt ∈ _, BridgedStmt stmt` the ctor expects. -/
+theorem bridgedStmt_for_of_bridgedStmts
+    {init : List Compiler.Yul.YulStmt} {cond : Compiler.Yul.YulExpr}
+    {post body : List Compiler.Yul.YulStmt}
+    (hInit : BridgedStmts init) (hCond : BridgedExpr cond)
+    (hPost : BridgedStmts post) (hBody : BridgedStmts body) :
+    BridgedStmt (.for_ init cond post body) :=
+  BridgedStmt.for_ init cond post body hInit hCond hPost hBody
+
 /-- `BridgedStmts` analogue of `BridgedStraightStmts_map_tstore`, for the
     transient-store variant of the map helper above. -/
 theorem BridgedStmts_map_tstore
