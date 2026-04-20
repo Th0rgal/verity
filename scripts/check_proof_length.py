@@ -685,6 +685,24 @@ ALLOWLIST: set[str] = {
     # `compileStmtList_setStorageArrayElement_bridged` (`eccc1df9`) and
     # `compileStmtList_mappingWordNonzero_bridged` (`5ef7f4b7`).
     "compileStmtList_mapping2WordNonzero_bridged",
+    # Multi-slot setMapping compatibility branch emits an outer
+    # `YulStmt.block` wrapping two let-bindings plus N sstore writes
+    # (one per slot). The proof must enumerate four concrete membership
+    # cases (let __compat_key, let __compat_value, sstore slot0,
+    # sstore slot1) before falling through to the generic slotsRest
+    # map case via the `bridgedStraightStmts_multiSlot_sstore_mapping`
+    # helper. Each ctor call carries six explicit witness arguments
+    # (baseExpr, keyExpr, valExpr + their BridgedExpr proofs), which
+    # pads the proof without substantive logic. Decomposing the four
+    # rcases branches would produce trivial single-use helpers whose
+    # boilerplate exceeds the save.
+    "compileMappingSlotWrite_multiSlot_bridged",
+    # setMappingChain list closure: prior section's compileStmtList
+    # head/tail skeleton pushed over by this section's (multi-slot
+    # setMapping) doc-comment preamble being attributed to this
+    # proof's span, same pattern as
+    # `compileStmtList_mapping2WordNonzero_bridged` (`69d3abde`).
+    "compileStmtList_mappingChain_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
