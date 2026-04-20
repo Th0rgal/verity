@@ -1,0 +1,72 @@
+name: EVMYulLean fork conformance
+
+# Weekly probe that the pinned lfglabs-dev/EVMYulLean fork still
+# satisfies Verity's bridge assumptions: the fork audit artifact is
+# in sync with `lake-manifest.json`, the universal bridge lemmas
+# (23 proven + 2 admitted: smod/sar) still build, and all 113
+# concrete `native_decide` bridge-equivalence tests still pass.
+#
+# Burn-in: the probe step runs with `continue-on-error: true` for a
+# two-week window starting 2026-04-20 (see issue #1722 plan C4 risk
+# analysis). During burn-in the job is yellow-on-failure rather than
+# red, and no issue is opened automatically. After 2026-05-04, the
+# `continue-on-error` can be dropped and an issue-opening step added
+# in a separate commit with explicit review of issue-label/assignment
+# policy.
+
+on:
+  schedule:
+    # Monday 07:23 UTC — off the :00/:30 minute mark to avoid
+    # scheduler pile-up with other weekly jobs.
+    - cron: '23 7 * * 1'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/evmyullean-fork-conformance.yml'
+      - 'Makefile'
+      - 'scripts/generate_evmyullean_fork_audit.py'
+      - 'artifacts/evmyullean_fork_audit.json'
+      - 'lake-manifest.json'
+  pull_request:
+    paths:
+      - '.github/workflows/evmyullean-fork-conformance.yml'
+      - 'Makefile'
+      - 'scripts/generate_evmyullean_fork_audit.py'
+      - 'artifacts/evmyullean_fork_audit.json'
+      - 'lake-manifest.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evmyullean-fork-conformance-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Setup Lean
+        uses: ./.github/actions/setup-lean
+        with:
+          cache-key-prefix: lake
+
+      - name: Run EVMYulLean fork conformance probe
+        id: probe
+        continue-on-error: true
+        run: make test-evmyullean-fork
+
+      - name: Report probe outcome
+        if: always()
+        run: |
+          if [ "${{ steps.probe.outcome }}" = "success" ]; then
+            echo "::notice::EVMYulLean fork conformance probe passed."
+          else
+            echo "::warning::EVMYulLean fork conformance probe failed during burn-in window (ends 2026-05-04). Investigate locally with 'make test-evmyullean-fork'."
+          fi
