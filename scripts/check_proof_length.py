@@ -513,6 +513,18 @@ ALLOWLIST: set[str] = {
     # Internal body + zero-arg custom error list closure: same cons/nil
     # boilerplate as the external variant with `isInternal := true`.
     "compileStmtList_internal_body_with_errors_bridged",
+    # Direct `rawLog` source-closure proof unfolds `compileStmt`'s rawLog
+    # branch: the `topics.length > 4` guard case (impossible via
+    # `Except.noConfusion`), three sequential `Except.ok` destructurings
+    # (`compileExprList topics`, `compileExpr dataOffset`, `compileExpr
+    # dataSize`), per-arg `BridgedExpr` extraction through
+    # `compileExprList_bridgedSource`/`compileExpr_bridgedSource`,
+    # `isYulLogName s!"log{topics.length}"` discharge by 5-case `omega`
+    # decomposition, and membership-split through `List.mem_append` for
+    # the `[offset, size] ++ topics` argument list before applying
+    # `BridgedStraightStmt.expr_log`. Decomposing would yield
+    # single-use Except-bind helpers whose boilerplate exceeds the proof.
+    "compileStmt_rawLog_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }

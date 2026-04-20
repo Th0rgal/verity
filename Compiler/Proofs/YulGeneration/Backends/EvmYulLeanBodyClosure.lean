@@ -5573,4 +5573,134 @@ theorem BridgedSourceInternalRecursiveBodyWithErrorsStmt_of_base
       dynamicSource stmt :=
   .base h
 
+/-! ## Source statement body closure: direct `rawLog` emissions
+
+`Stmt.rawLog topics dataOffset dataSize` compiles (when `topics.length ≤ 4`)
+to a single `YulStmt.expr (YulExpr.call s!"log{topics.length}" args)` where
+`args = [offsetExpr, sizeExpr] ++ topicExprs`. Given bridged source
+hypotheses on all three components, every argument is `BridgedExpr`
+(topics via `compileExprList_bridgedSource`; offset/size via
+`compileExpr_bridgedSource`), `s!"log{topics.length}"` is an
+`isYulLogName`, and the emitted statement satisfies `BridgedStraightStmt`
+via `expr_log`.
+-/
+
+inductive BridgedSourceRawLogStmt : Stmt → Prop
+  | rawLog (topics : List Expr) (dataOffset dataSize : Expr)
+      (hTopics : ∀ t ∈ topics, BridgedSourceExpr t)
+      (hOffset : BridgedSourceExpr dataOffset)
+      (hSize : BridgedSourceExpr dataSize) :
+      BridgedSourceRawLogStmt (.rawLog topics dataOffset dataSize)
+
+def BridgedSourceRawLogStmts (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts, BridgedSourceRawLogStmt stmt
+
+/-- A direct `rawLog` source statement with bridged topics/offset/size
+compiles to a single-statement Yul list satisfying `BridgedStmts`. -/
+theorem compileStmt_rawLog_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceRawLogStmt stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames stmt = .ok out →
+        BridgedStmts out := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | rawLog topics dataOffset dataSize hTopics hOffset hSize =>
+      simp only [compileStmt] at hOk
+      by_cases hLen : topics.length > 4
+      · exfalso
+        simp only [if_pos hLen, bind, Except.bind] at hOk
+        exact Except.noConfusion hOk
+      · simp only [if_neg hLen, bind, Except.bind,
+                   Pure.pure, Except.pure] at hOk
+        cases hTopicsExpr : compileExprList fields dynamicSource topics with
+        | error err => simp [hTopicsExpr] at hOk
+        | ok topicExprs =>
+            simp only [hTopicsExpr] at hOk
+            cases hOffsetExpr : compileExpr fields dynamicSource dataOffset with
+            | error err => simp [hOffsetExpr] at hOk
+            | ok offsetExpr =>
+                simp only [hOffsetExpr] at hOk
+                cases hSizeExpr : compileExpr fields dynamicSource dataSize with
+                | error err => simp [hSizeExpr] at hOk
+                | ok sizeExpr =>
+                    simp only [hSizeExpr, Except.ok.injEq] at hOk
+                    subst out
+                    have hTopicsAll : ∀ t ∈ topicExprs, BridgedExpr t :=
+                      compileExprList_bridgedSource fields dynamicSource hTopics hTopicsExpr
+                    have hOffsetBridged : BridgedExpr offsetExpr :=
+                      compileExpr_bridgedSource fields dynamicSource hOffset hOffsetExpr
+                    have hSizeBridged : BridgedExpr sizeExpr :=
+                      compileExpr_bridgedSource fields dynamicSource hSize hSizeExpr
+                    have hLenLe : topics.length ≤ 4 := Nat.le_of_not_lt hLen
+                    have hLogName :
+                        Compiler.Proofs.IRGeneration.isYulLogName
+                          s!"log{topics.length}" = true := by
+                      have hn : topics.length ≤ 4 := hLenLe
+                      generalize hEq : topics.length = n at hn
+                      have hDisj : n = 0 ∨ n = 1 ∨ n = 2 ∨ n = 3 ∨ n = 4 := by
+                        omega
+                      rcases hDisj with rfl | rfl | rfl | rfl | rfl <;> decide
+                    have hArgs : ∀ arg ∈ [offsetExpr, sizeExpr] ++ topicExprs,
+                        BridgedExpr arg := by
+                      intro arg hMem
+                      rcases List.mem_append.mp hMem with hPrefix | hTail
+                      · simp only [List.mem_cons, List.not_mem_nil, or_false]
+                          at hPrefix
+                        rcases hPrefix with h | h
+                        · subst h; exact hOffsetBridged
+                        · subst h; exact hSizeBridged
+                      · exact hTopicsAll arg hTail
+                    exact BridgedStmts_singleton
+                      (BridgedStmt.straight _
+                        (BridgedStraightStmt.expr_log _ _ hLogName hArgs))
+
+/-- Lists made only of direct `rawLog` source statements with bridged
+arguments compile to Yul lists satisfying `BridgedStmts`. -/
+theorem compileStmtList_rawLog_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceRawLogStmts stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames head with
+      | error err => simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
+              tail with
+          | error err => simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource : BridgedSourceRawLogStmt head :=
+                hSource head (by simp)
+              have hTailSource : BridgedSourceRawLogStmts tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              exact BridgedStmts_append
+                (compileStmt_rawLog_bridged fields events errors dynamicSource
+                  internalRetNames isInternal inScopeNames hHeadSource hHead)
+                (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
 end Compiler.Proofs.YulGeneration.Backends
