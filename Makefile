@@ -5,7 +5,7 @@
 
 .PHONY: help setup setup-elan setup-solc setup-foundry \
         verify verify-packages verify-targeted profile-lean test test-foundry test-python axiom-report \
-        compile generate-yul check \
+        compile generate-yul check test-evmyullean-fork \
         refresh-status all clean
 
 # Pinned versions (must match .github/workflows/verify.yml)
@@ -103,6 +103,14 @@ test-python: ## Run Python unit tests
 
 test-foundry: ## Run Foundry differential tests (requires solc + forge + generated Yul)
 	FOUNDRY_PROFILE=difftest forge test
+
+test-evmyullean-fork: ## Probe EVMYulLean fork conformance (audit + 113 native_decide bridge tests)
+	@echo "Checking EVMYulLean fork pin + drift audit..."
+	python3 scripts/generate_evmyullean_fork_audit.py --check
+	@echo "Building EVMYulLean bridge modules (smod/sar admitted; 113 concrete bridge tests)..."
+	lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
+	lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeTest
+	@echo "EVMYulLean fork conformance probe passed."
 
 check: ## Run local CI-equivalent checks job (no Lean build, no solc)
 	@echo "Running CI-equivalent checks job..."
