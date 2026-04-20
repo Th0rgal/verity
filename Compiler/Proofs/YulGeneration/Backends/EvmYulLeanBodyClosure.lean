@@ -7386,4 +7386,165 @@ theorem compileStmtList_returnValuesInternal_bridged
                   dynamicSource internalRetNames inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
 
+/-! ## Source statement body closure: external general `returnValues`
+
+`Stmt.returnValues values` with `isInternal = false` compiles to:
+- `[expr (call "return" [lit 0, lit 0])]` when `values = []`;
+- `stores ++ [expr (call "return" [lit 0, lit (values.length * 32)])]` when
+  `values ≠ []`, where `stores = compiled.zipIdx.map (fun (v, idx) =>
+  expr (call "mstore" [lit (idx * 32), v]))` and `compiled` is
+  `compileExprList fields dynamicSource values`.
+
+Both cases satisfy `BridgedStmts`: the trailing `return` terminator is
+`BridgedStraightStmt.expr_return` with two `BridgedExpr.lit` arguments;
+each zip-indexed `mstore` is `BridgedStraightStmt.expr_mstore` with a
+literal offset and the bridged value expression from
+`compileExprList_bridgedSource`. Close via `BridgedStmts_snoc`. -/
+
+/-- An external `Stmt.returnValues values` source statement whose every
+element is a `BridgedSourceExpr`. Subsumes the empty-values form covered
+by `BridgedSourceReturnValuesEmptyStmt`. -/
+inductive BridgedSourceReturnValuesExternalStmt : Stmt → Prop
+  | returnValuesExternal (values : List Expr)
+      (hValues : ∀ v ∈ values, BridgedSourceExpr v) :
+      BridgedSourceReturnValuesExternalStmt (.returnValues values)
+
+def BridgedSourceReturnValuesExternalStmts (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts, BridgedSourceReturnValuesExternalStmt stmt
+
+/-- Every element of `compiled.zipIdx.map (fun (v, idx) =>
+YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit (idx * 32), v]))` is a
+`BridgedStmt` when each `compiled` element is `BridgedExpr`. Proved by
+induction on `compiled` with the `zipIdx` starting offset generalized. -/
+private theorem zipIdx_mstores_bridgedStmts :
+    ∀ (compiled : List YulExpr) (startIdx : Nat),
+      (∀ e ∈ compiled, BridgedExpr e) →
+      BridgedStmts
+        ((compiled.zipIdx startIdx).map (fun p =>
+          YulStmt.expr (YulExpr.call "mstore"
+            [YulExpr.lit (p.2 * 32), p.1]))) := by
+  intro compiled
+  induction compiled with
+  | nil =>
+      intro _ _
+      intro stmt hMem
+      simp at hMem
+  | cons c cs ih =>
+      intro startIdx hCompiled
+      have hC : BridgedExpr c := hCompiled c (by simp)
+      have hCs : ∀ e ∈ cs, BridgedExpr e := by
+        intro e hMem
+        exact hCompiled e (by simp [hMem])
+      intro stmt hMem
+      simp only [List.zipIdx_cons, List.map_cons, List.mem_cons] at hMem
+      cases hMem with
+      | inl h =>
+          subst h
+          exact BridgedStmt.straight _
+            (BridgedStraightStmt.expr_mstore (.lit (startIdx * 32)) c
+              (BridgedExpr.lit (startIdx * 32)) hC)
+      | inr h =>
+          exact ih (startIdx + 1) hCs stmt h
+
+/-- An external `Stmt.returnValues values` (for any `values`) with bridged
+source value expressions compiles to a Yul list satisfying `BridgedStmts`. -/
+private theorem compileStmt_returnValuesExternal_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (inScopeNames : List String) (values : List Expr)
+    (hValues : ∀ v ∈ values, BridgedSourceExpr v) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames
+        (isInternal := false) inScopeNames (.returnValues values) = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  by_cases hValuesNil : values = []
+  · subst hValuesNil
+    simp [compileStmt, Pure.pure, Except.pure] at hOk
+    subst hOk
+    intro yulStmt hMem
+    simp only [List.mem_singleton] at hMem
+    subst yulStmt
+    exact BridgedStmt.straight _
+      (BridgedStraightStmt.expr_return (.lit 0) (.lit 0)
+        (BridgedExpr.lit 0) (BridgedExpr.lit 0))
+  · have hEmptyFalse : values.isEmpty = false := by
+      simp [hValuesNil]
+    simp only [compileStmt, hEmptyFalse, bind, Except.bind,
+      Pure.pure, Except.pure] at hOk
+    cases hCompiled : compileExprList fields dynamicSource values with
+    | error err => simp [hCompiled] at hOk
+    | ok compiled =>
+        simp [hCompiled] at hOk
+        subst hOk
+        have hAllBridged : ∀ e ∈ compiled, BridgedExpr e :=
+          compileExprList_bridgedSource fields dynamicSource hValues hCompiled
+        exact BridgedStmts_snoc
+          (zipIdx_mstores_bridgedStmts compiled 0 hAllBridged)
+          (BridgedStmt.straight _
+            (BridgedStraightStmt.expr_return (.lit 0) (.lit (values.length * 32))
+              (BridgedExpr.lit 0) (BridgedExpr.lit (values.length * 32))))
+
+/-- Each statement in the external-`returnValues` fragment compiles to Yul
+satisfying `BridgedStmts`. -/
+theorem compileStmt_returnValuesExternal_fragment_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceReturnValuesExternalStmt stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          (isInternal := false) inScopeNames stmt = .ok out →
+        BridgedStmts out := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | returnValuesExternal values hValues =>
+      exact compileStmt_returnValuesExternal_bridged fields events errors
+        dynamicSource internalRetNames inScopeNames values hValues hOk
+
+/-- Lists of external `returnValues` source statements compile to Yul lists
+satisfying `BridgedStmts`. -/
+theorem compileStmtList_returnValuesExternal_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceReturnValuesExternalStmts stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          (isInternal := false) inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          false inScopeNames head with
+      | error err => simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource
+              internalRetNames false (collectStmtNames head ++ inScopeNames)
+              tail with
+          | error err => simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource : BridgedSourceReturnValuesExternalStmt head :=
+                hSource head (by simp)
+              have hTailSource : BridgedSourceReturnValuesExternalStmts tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              exact BridgedStmts_append
+                (compileStmt_returnValuesExternal_fragment_bridged fields events
+                  errors dynamicSource internalRetNames inScopeNames hHeadSource
+                  hHead)
+                (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
 end Compiler.Proofs.YulGeneration.Backends

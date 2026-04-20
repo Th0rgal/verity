@@ -416,6 +416,11 @@ ALLOWLIST: set[str] = {
     # come from the doc-comment preamble for the next section (internal
     # non-empty returnValues) being attributed to this proof's span.
     "compileStmtList_returnValuesEmpty_internal_bridged",
+    # Internal non-empty returnValues list closure is the same compileStmtList
+    # head/tail skeleton; the excess lines come from the doc-comment preamble
+    # for the next section (external general returnValues) being attributed to
+    # this proof's span by the measurer.
+    "compileStmtList_returnValuesInternal_bridged",
     # Internal-return list closure is the same compileStmtList head/tail
     # skeleton as the external terminator and require closure proofs; the
     # excess lines are boilerplate decomposition of the two Except binds.
