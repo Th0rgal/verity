@@ -406,6 +406,11 @@ ALLOWLIST: set[str] = {
     # construction) but adds a leading `subst hWordOffset` plus an
     # `unfold compileSetMapping2Word`, pushing the proof over the limit.
     "compileStmt_setMapping2Word_singleSlot_bridged",
+    # setMapping2Word list closure same as other single-slot list
+    # closures; the extra lines come from the doc-comment preamble for
+    # the next section (returnValuesEmpty external) being attributed to
+    # this proof's span by the measurer.
+    "compileStmtList_mapping2Word_bridged",
     # Internal-return list closure is the same compileStmtList head/tail
     # skeleton as the external terminator and require closure proofs; the
     # excess lines are boilerplate decomposition of the two Except binds.
