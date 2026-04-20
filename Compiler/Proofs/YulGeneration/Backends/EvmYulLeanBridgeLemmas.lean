@@ -1583,9 +1583,8 @@ private theorem int256_mod_toUint256_val_eq_smodSpec (a b : Nat)
         omega
     have hr_lt_specAbsB : SignedArithSpec.specAbs a % SignedArithSpec.specAbs b < SignedArithSpec.specAbs b :=
       Nat.mod_lt _ habs_b_pos
-    have habs_b_le : SignedArithSpec.specAbs b ≤ SignedArithSpec.specSignBit := by
-      apply SignedArithSpec.specAbs_le_specSignBit
-      show b < 2^256; exact hb
+    have habs_b_le : SignedArithSpec.specAbs b ≤ SignedArithSpec.specSignBit :=
+      SignedArithSpec.specAbs_le_specSignBit b
     have hSBlt : SignedArithSpec.specSignBit < SignedArithSpec.specModulus :=
       SignedArithSpec.specSignBit_lt_specModulus
     have hr_lt_mod : SignedArithSpec.specAbs a % SignedArithSpec.specAbs b < evmModulus := by

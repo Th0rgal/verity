@@ -114,8 +114,10 @@ private theorem specModulus_eq_two_mul_specSignBit :
 
 /-- `specAbs` never exceeds `specSignBit`: for `a < specSignBit` it
 equals `a < specSignBit`; for `a ≥ specSignBit` it equals
-`specModulus - a ≤ specModulus - specSignBit = specSignBit`. -/
-theorem specAbs_le_specSignBit (a : Nat) (ha : a < specModulus) :
+`specModulus - a ≤ specModulus - specSignBit = specSignBit`.
+Holds unconditionally on `a` because truncated `Nat` subtraction
+clamps to `0` when `a ≥ specModulus`. -/
+theorem specAbs_le_specSignBit (a : Nat) :
     specAbs a ≤ specSignBit := by
   unfold specAbs
   by_cases h : a < specSignBit
@@ -152,8 +154,7 @@ theorem smodSpec_of_neg (a b : Nat)
 /-- `smodSpec` always produces a value in `[0, specModulus)`. This is
 the load-bearing boundedness lemma A2 will cite when closing the
 `%` reduction on the EVMYulLean wrapper side. -/
-theorem smodSpec_lt_specModulus (a b : Nat)
-    (ha : a < specModulus) (hb : b < specModulus) :
+theorem smodSpec_lt_specModulus (a b : Nat) (hb : b < specModulus) :
     smodSpec a b < specModulus := by
   unfold smodSpec
   by_cases hb0 : b = 0
@@ -172,7 +173,7 @@ theorem smodSpec_lt_specModulus (a b : Nat)
         have hmod := specModulus_eq_two_mul_specSignBit
         omega
     have hlt : specAbs a % specAbs b < specAbs b := Nat.mod_lt _ habs_b_pos
-    have hbound : specAbs b ≤ specSignBit := specAbs_le_specSignBit b hb
+    have hbound : specAbs b ≤ specSignBit := specAbs_le_specSignBit b
     have hsign_lt : specSignBit < specModulus := specSignBit_lt_specModulus
     omega
   · -- Negative `a`: result is either `0` or `specModulus - r`, both `< specModulus`.
