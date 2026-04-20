@@ -1657,6 +1657,27 @@ private theorem uint256_abs_toNat_eq_specAbs (a : Nat) (ha : a < evmModulus) :
     rw [if_neg ha0]
     rfl
 
+/-! ### EVMYulLean-side mod reduction to Nat-level mod (for A2b)
+
+Reduces `(a % b : UInt256).toNat` to `a.toNat % b.toNat` under the nonzero
+hypothesis on `b` (the zero branch forces a `0` result on the UInt256 side
+but yields `a` on the Nat side, so the conditional is necessary). This is
+the straightforward `Fin.mod` unfolding needed to let the A2b composition
+push `UInt256.mod` through to `Nat.mod`. -/
+private theorem uint256_mod_toNat_of_nonzero
+    (a b : EvmYul.UInt256) (hb : EvmYul.UInt256.toNat b ≠ 0) :
+    EvmYul.UInt256.toNat (a % b) =
+      EvmYul.UInt256.toNat a % EvmYul.UInt256.toNat b := by
+  show EvmYul.UInt256.toNat (EvmYul.UInt256.mod a b) = _
+  unfold EvmYul.UInt256.mod EvmYul.UInt256.toNat
+  split_ifs with h
+  · exfalso
+    apply hb
+    simp only [beq_iff_eq] at h
+    show b.val.val = 0
+    rw [h]; rfl
+  · rfl
+
 /-- Core smod equivalence: Verity's `Int256.mod` agrees with EVMYulLean's `UInt256.smod`.
 
 **Status**: sorry — requires showing Int sign-magnitude remainder matches
