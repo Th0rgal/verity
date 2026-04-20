@@ -484,4 +484,53 @@ theorem compileRequireFailCond_bridgedSource
       exact compileRequireFailCond_default_bridgedSource (.slt ha hb)
         (by simpa [compileRequireFailCond] using hOk)
 
+/-- List-level closure: when every source expression in a list is
+    `BridgedSourceExpr`, `compileExprList` produces a list whose every
+    element is a `BridgedExpr`.
+
+    Used by body-closure lemmas for statement constructors that carry a
+    list of source expressions (e.g., `rawLog`, `emit`, `setMapping`
+    multi-slot, `setStructMember`, `returnValues`, `ecm` args). -/
+theorem compileExprList_bridgedSource
+    (fields : List CompilationModel.Field) (src : DynamicDataSource) :
+    ∀ {exprs : List Expr}, (∀ e ∈ exprs, BridgedSourceExpr e) →
+      ∀ {out : List YulExpr},
+        compileExprList fields src exprs = .ok out →
+        ∀ yulExpr ∈ out, BridgedExpr yulExpr := by
+  intro exprs
+  induction exprs with
+  | nil =>
+      intro _ out hOk
+      simp [compileExprList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro yulExpr hMem
+      cases hMem
+  | cons e es ih =>
+      intro hAll out hOk
+      simp only [compileExprList, bind, Except.bind] at hOk
+      cases hHead : compileExpr fields src e with
+      | error err =>
+          simp [hHead] at hOk
+      | ok headExpr =>
+          simp [hHead] at hOk
+          cases hTail : compileExprList fields src es with
+          | error err =>
+              simp [hTail] at hOk
+          | ok tailExprs =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource : BridgedSourceExpr e := hAll e (by simp)
+              have hHeadBridged : BridgedExpr headExpr :=
+                compileExpr_bridgedSource fields src hHeadSource hHead
+              have hTailAll : ∀ e' ∈ es, BridgedSourceExpr e' := by
+                intro e' hMem
+                exact hAll e' (by simp [hMem])
+              have hTailBridged : ∀ x ∈ tailExprs, BridgedExpr x :=
+                ih hTailAll hTail
+              intro yulExpr hMem
+              simp only [List.mem_cons] at hMem
+              cases hMem with
+              | inl h => subst h; exact hHeadBridged
+              | inr h => exact hTailBridged yulExpr h
+
 end Compiler.Proofs.YulGeneration.Backends
