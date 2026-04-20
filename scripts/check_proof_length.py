@@ -767,6 +767,12 @@ ALLOWLIST: set[str] = {
     # `compileStmtList_structMemberMultiSlot_bridged` (`3b331fc7`),
     # and `compileStmtList_structMember2MultiSlot_bridged` (`112e2995`).
     "compileStmtList_mappingWordMultiSlot_bridged",
+    # Multi-slot setMapping2Word wordOffset=0 list closure: prior
+    # section's list skeleton pushed over to 66 lines by the newly
+    # appended multi-slot setMappingWord wordOffset≠0 section's
+    # doc-comment preamble, same displacement pattern as prior
+    # multi-slot list closures.
+    "compileStmtList_mapping2WordMultiSlot_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }

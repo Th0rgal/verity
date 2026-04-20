@@ -9947,4 +9947,220 @@ theorem compileStmtList_mapping2WordMultiSlot_bridged
                   hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
 
+/-! ## Source statement body closure: multi-slot `setMappingWord`
+(wordOffset ≠ 0)
+
+`Stmt.setMappingWord field key wordOffset value` with `wordOffset ≠ 0`
+on a multi-slot (≥ 2 slots) `isMapping` field. `compileMappingSlotWrite`
+multi-slot branch emits
+`block [let __compat_key := keyExpr, let __compat_value := valueExpr,
+       sstore(add(mappingSlot(lit slot, __compat_key), lit wordOffset),
+              __compat_value) for each slot]`.
+The per-slot element is an `expr_sstore_add` over a bridged mappingSlot
+subexpression, so closure delegates to a new shared helper
+`bridgedStraightStmts_multiSlot_sstore_mapping_add` that mirrors
+`bridgedStraightStmts_multiSlot_sstore_mapping` (line 8797) but with the
+extra `add` layer. -/
+
+/-- Helper: the `slots.map` fragment in the multi-slot nonzero-offset
+compatibility branch of `compileMappingSlotWrite` is
+`BridgedStraightStmts`. Each element is
+`sstore(add(mappingSlot(lit slot, ident "__compat_key"),
+lit wordOffset), ident "__compat_value")`. -/
+private theorem bridgedStraightStmts_multiSlot_sstore_mapping_add
+    (slots : List Nat) (wordOffset : Nat) :
+    BridgedStraightStmts
+      (slots.map fun slot =>
+        Compiler.Yul.YulStmt.expr
+          (Compiler.Yul.YulExpr.call "sstore" [
+            Compiler.Yul.YulExpr.call "add" [
+              Compiler.Yul.YulExpr.call "mappingSlot"
+                [Compiler.Yul.YulExpr.lit slot,
+                 Compiler.Yul.YulExpr.ident "__compat_key"],
+              Compiler.Yul.YulExpr.lit wordOffset],
+            Compiler.Yul.YulExpr.ident "__compat_value"])) := by
+  induction slots with
+  | nil => intro stmt hMem; cases hMem
+  | cons s rest ih =>
+      intro stmt hMem
+      simp only [List.map_cons, List.mem_cons] at hMem
+      rcases hMem with hMem | hMem
+      · subst hMem
+        have hMappingExpr : BridgedExpr
+            (Compiler.Yul.YulExpr.call "mappingSlot"
+              [Compiler.Yul.YulExpr.lit s,
+               Compiler.Yul.YulExpr.ident "__compat_key"]) := by
+          apply BridgedExpr.call
+          · exact Or.inl (by decide)
+          · intro arg hArg
+            simp only [List.mem_cons, List.not_mem_nil, or_false] at hArg
+            rcases hArg with hArg | hArg
+            · subst hArg; exact BridgedExpr.lit s
+            · subst hArg; exact BridgedExpr.ident "__compat_key"
+        exact BridgedStraightStmt.expr_sstore_add
+          (Compiler.Yul.YulExpr.call "mappingSlot"
+            [Compiler.Yul.YulExpr.lit s,
+             Compiler.Yul.YulExpr.ident "__compat_key"])
+          (Compiler.Yul.YulExpr.lit wordOffset)
+          (Compiler.Yul.YulExpr.ident "__compat_value")
+          hMappingExpr
+          (BridgedExpr.lit wordOffset)
+          (BridgedExpr.ident "__compat_value")
+      · exact ih stmt hMem
+
+/-- Shared helper: `compileMappingSlotWrite` on a multi-slot mapping
+(≥ 2 slots) with `wordOffset ≠ 0` and pre-compiled bridged key/value
+expressions produces a `BridgedStmts` list. Mirrors
+`compileMappingSlotWrite_multiSlot_bridged` (cd135ff7, line 8827) but
+with the `add`-wrapped sstore shape. -/
+private theorem compileMappingSlotWrite_multiSlot_nonzero_bridged
+    (fields : List Field) (field : String)
+    {slot0 slot1 : Nat} {slotsRest : List Nat} {wordOffset : Nat}
+    (keyExpr valueExpr : YulExpr) (label : String)
+    (hKey : BridgedExpr keyExpr) (hValue : BridgedExpr valueExpr)
+    (hMapping : isMapping fields field = true)
+    (hSlots : findFieldWriteSlots fields field =
+      some (slot0 :: slot1 :: slotsRest))
+    (hNonzero : wordOffset ≠ 0) :
+    ∀ {out : List YulStmt},
+      compileMappingSlotWrite fields field keyExpr valueExpr label wordOffset = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  have hBeq : (wordOffset == 0) = false := by
+    cases wordOffset with
+    | zero => exact absurd rfl hNonzero
+    | succ n => rfl
+  simp [compileMappingSlotWrite, hMapping, hSlots, hBeq, Pure.pure, Except.pure] at hOk
+  subst hOk
+  refine BridgedStmts_singleton_block ?_
+  intro stmt hMem
+  simp only [List.mem_cons] at hMem
+  rcases hMem with hEq | hMem
+  · subst hEq
+    exact BridgedStmt.straight _ (BridgedStraightStmt.let_ _ _ hKey)
+  rcases hMem with hEq | hMem
+  · subst hEq
+    exact BridgedStmt.straight _ (BridgedStraightStmt.let_ _ _ hValue)
+  · have hSstore : BridgedStraightStmt stmt :=
+      bridgedStraightStmts_multiSlot_sstore_mapping_add
+        (slot0 :: slot1 :: slotsRest) wordOffset stmt (by simpa using hMem)
+    exact BridgedStmt.straight _ hSstore
+
+/-- A multi-slot `Stmt.setMappingWord field key wordOffset value` source
+write with pure bridged key and value at `wordOffset ≠ 0` on a mapping
+field whose write slots list has ≥ 2 entries. -/
+inductive BridgedSourceMappingWordMultiSlotNonzeroStmt (fields : List Field) :
+    Stmt → Prop
+  | setMappingWord (field : String) {slot0 slot1 : Nat} {slotsRest : List Nat}
+      {key value : Expr} (wordOffset : Nat)
+      (hKey : BridgedSourceExpr key) (hValue : BridgedSourceExpr value)
+      (hMapping : isMapping fields field = true)
+      (hSlots : findFieldWriteSlots fields field =
+        some (slot0 :: slot1 :: slotsRest))
+      (hNonzero : wordOffset ≠ 0) :
+      BridgedSourceMappingWordMultiSlotNonzeroStmt fields
+        (.setMappingWord field key wordOffset value)
+
+def BridgedSourceMappingWordMultiSlotNonzeroStmts (fields : List Field)
+    (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts, BridgedSourceMappingWordMultiSlotNonzeroStmt fields stmt
+
+/-- A multi-slot `Stmt.setMappingWord` source write at `wordOffset ≠ 0`
+with pure bridged key and value compiles to `BridgedStmts`. -/
+theorem compileStmt_setMappingWord_multiSlot_nonzero_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) {slot0 slot1 : Nat} {slotsRest : List Nat}
+    {key value : Expr} (wordOffset : Nat)
+    (hKey : BridgedSourceExpr key) (hValue : BridgedSourceExpr value)
+    (hMapping : isMapping fields field = true)
+    (hSlots : findFieldWriteSlots fields field =
+      some (slot0 :: slot1 :: slotsRest))
+    (hNonzero : wordOffset ≠ 0) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames (.setMappingWord field key wordOffset value) = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  simp only [compileStmt, bind, Except.bind] at hOk
+  cases hKeyExpr : compileExpr fields dynamicSource key with
+  | error err => simp [hKeyExpr] at hOk
+  | ok keyExpr =>
+      cases hValueExpr : compileExpr fields dynamicSource value with
+      | error err => simp [hKeyExpr, hValueExpr] at hOk
+      | ok valueExpr =>
+          simp [hKeyExpr, hValueExpr] at hOk
+          exact compileMappingSlotWrite_multiSlot_nonzero_bridged fields field
+            keyExpr valueExpr "setMappingWord"
+            (compileExpr_bridgedSource fields dynamicSource hKey hKeyExpr)
+            (compileExpr_bridgedSource fields dynamicSource hValue hValueExpr)
+            hMapping hSlots hNonzero hOk
+
+/-- Each statement in the multi-slot nonzero-offset mappingWord-write
+fragment compiles to Yul satisfying `BridgedStmts`. -/
+theorem compileStmt_mappingWordMultiSlotNonzero_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceMappingWordMultiSlotNonzeroStmt fields stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames stmt = .ok out →
+        BridgedStmts out := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | setMappingWord field wordOffset hKey hValue hMapping hSlots hNonzero =>
+      exact compileStmt_setMappingWord_multiSlot_nonzero_bridged fields events errors
+        dynamicSource internalRetNames isInternal inScopeNames field wordOffset
+        hKey hValue hMapping hSlots hNonzero hOk
+
+/-- Lists of multi-slot nonzero-offset mappingWord-write source
+statements compile to Yul lists satisfying `BridgedStmts`. -/
+theorem compileStmtList_mappingWordMultiSlotNonzero_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceMappingWordMultiSlotNonzeroStmts fields stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames head with
+      | error err => simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
+              tail with
+          | error err => simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource :
+                  BridgedSourceMappingWordMultiSlotNonzeroStmt fields head :=
+                hSource head (by simp)
+              have hTailSource :
+                  BridgedSourceMappingWordMultiSlotNonzeroStmts fields tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              exact BridgedStmts_append
+                (compileStmt_mappingWordMultiSlotNonzero_bridged fields events errors
+                  dynamicSource internalRetNames isInternal inScopeNames
+                  hHeadSource hHead)
+                (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
 end Compiler.Proofs.YulGeneration.Backends
