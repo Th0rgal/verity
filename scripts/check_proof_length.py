@@ -525,6 +525,19 @@ ALLOWLIST: set[str] = {
     # `BridgedStraightStmt.expr_log`. Decomposing would yield
     # single-use Except-bind helpers whose boilerplate exceeds the proof.
     "compileStmt_rawLog_bridged",
+    # Direct `rawLog` list closure mirrors the shared cons/nil boilerplate
+    # used by every `compileStmtList_*_bridged` sibling: the `error`/`ok`
+    # destructurings of `compileStmt` and the recursive `compileStmtList`
+    # call, plus `BridgedStmts_append` on the head/tail witnesses.
+    "compileStmtList_rawLog_bridged",
+    # Raw-log-lifted external body list closure dispatches head statements
+    # through `compileStmt_external_body_with_raw_log_bridged` (base/rawLog)
+    # and reuses the same cons/nil boilerplate as sibling with-errors list
+    # closures; decomposing would duplicate that Except-bind skeleton.
+    "compileStmtList_external_body_with_raw_log_bridged",
+    # Raw-log-lifted internal body list closure: identical boilerplate to
+    # the external variant with `isInternal := true`.
+    "compileStmtList_internal_body_with_raw_log_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
