@@ -1268,7 +1268,9 @@ def build_report() -> dict[str, object]:
             ),
             "remaining_for_whole_program_retargeting": [
                 "smod/sar core equivalences (complex Int↔UInt256 sign/bit semantics)",
-                "extend compiler-produced IR function/entrypoint body closure beyond scalar/static-scalar calldata parameter prologues and recursive pure-binding/single-slot setStorage/require/terminator/Stmt.ite fragments",
+                "ABI-encoded return/error closures: returnArray, returnBytes, returnStorageWords, emit, revertError/requireError with args",
+                "new BridgedStraightStmt ctors for calldatacopy, returndatacopy, and revertReturndata (currently no bridged ctor)",
+                "universal compileStmtList_always_bridged metatheorem with a BridgedSafeStmts whitelist predicate (external-call family — internalCall, internalCallAssign, externalCallBind, ecm — remains explicitly carved out behind hFunctions/hInternals hypotheses)",
                 "discharge the conditional EndToEnd theorem's bridged-body hypotheses for full compiler-produced contracts",
             ],
         }
