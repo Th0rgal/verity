@@ -2880,6 +2880,8 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.SignedArithSpec.smodSpec_a_zero
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.SignedArithSpec.specModulus_eq_two_mul_specSignBit  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.SignedArithSpec.specAbs_le_specSignBit
+#print axioms Compiler.Proofs.YulGeneration.Backends.SignedArithSpec.smodSpec_of_nonneg
+#print axioms Compiler.Proofs.YulGeneration.Backends.SignedArithSpec.smodSpec_of_neg
 #print axioms Compiler.Proofs.YulGeneration.Backends.SignedArithSpec.smodSpec_lt_specModulus
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSourceExprClosure.lean
@@ -2954,4 +2956,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2787 theorems/lemmas (1935 public, 852 private, 0 sorry'd)
+-- Total: 2789 theorems/lemmas (1937 public, 852 private, 0 sorry'd)

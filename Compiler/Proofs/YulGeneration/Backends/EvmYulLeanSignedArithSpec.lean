@@ -124,6 +124,31 @@ theorem specAbs_le_specSignBit (a : Nat) (ha : a < specModulus) :
     have hmod := specModulus_eq_two_mul_specSignBit
     omega
 
+/-- Non-negative-`a` closed form for `smodSpec`. When `a < specSignBit`
+(the non-negative half of the two's-complement range) and `b ≠ 0`,
+`smodSpec` reduces to a plain `specAbs a % specAbs b`. This is the
+clean handle A2 will cite for the non-negative `a` sign cases,
+avoiding having to re-unfold `smodSpec` mid-proof. -/
+theorem smodSpec_of_nonneg (a b : Nat)
+    (ha : a < specSignBit) (hb : b ≠ 0) :
+    smodSpec a b = specAbs a % specAbs b := by
+  unfold smodSpec
+  simp [hb, ha]
+
+/-- Negative-`a` closed form for `smodSpec`. When `specSignBit ≤ a`
+(the negative half of the two's-complement range) and `b ≠ 0`,
+`smodSpec` applies a two's-complement negation to the Nat remainder,
+with a guard for `r = 0` that keeps the result in `[0, specModulus)`.
+This is the companion to `smodSpec_of_nonneg` for the NP/NN sign
+cases of A2. -/
+theorem smodSpec_of_neg (a b : Nat)
+    (ha : specSignBit ≤ a) (hb : b ≠ 0) :
+    smodSpec a b =
+      (let r := specAbs a % specAbs b
+       if r = 0 then 0 else specModulus - r) := by
+  unfold smodSpec
+  simp [hb, Nat.not_lt.mpr ha]
+
 /-- `smodSpec` always produces a value in `[0, specModulus)`. This is
 the load-bearing boundedness lemma A2 will cite when closing the
 `%` reduction on the EVMYulLean wrapper side. -/
