@@ -742,6 +742,14 @@ ALLOWLIST: set[str] = {
     # `compileStmtList_mappingWriteMultiSlot_bridged` (`cd135ff7`)
     # and `compileStmtList_mappingWrite2MultiSlot_bridged` (`29634900`).
     "compileStmtList_structMemberMultiSlot_bridged",
+    # Multi-slot setStructMember2 list closure: prior section's list
+    # skeleton pushed over to 61 lines by the newly appended
+    # multi-slot setMappingWord wordOffset=0 section's doc-comment
+    # preamble, same displacement pattern as
+    # `compileStmtList_mappingWriteMultiSlot_bridged` (`cd135ff7`),
+    # `compileStmtList_mappingWrite2MultiSlot_bridged` (`29634900`),
+    # and `compileStmtList_structMemberMultiSlot_bridged` (`3b331fc7`).
+    "compileStmtList_structMember2MultiSlot_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
