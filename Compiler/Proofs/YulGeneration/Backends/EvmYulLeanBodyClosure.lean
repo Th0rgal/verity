@@ -11051,4 +11051,234 @@ theorem compileStmtList_mappingPackedWord_bridged
                   hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
 
+/-! ## Source statement body closure: single-slot `setMappingPackedWord`
+(wordOffset ≠ 0)
+
+When `wordOffset ≠ 0`, `compileMappingPackedSlotWrite` on a single-slot
+mapping emits a `YulStmt.block` whose `__compat_slot_word` `sload`
+argument and whose terminating `sstore` slot are both
+`add(mappingSlot(lit slot, keyExpr), lit wordOffset)` rather than the
+bare `mappingSlot`. The extra `add` layer is bridged via
+`BridgedExpr.call "add"` (since `add ∈ bridgedBuiltins`) and, for the
+final sstore, via `BridgedStraightStmt.expr_sstore_add`. -/
+
+/-- A single-slot `Stmt.setMappingPackedWord field key wordOffset packed
+value` source write with pure bridged key and value at `wordOffset ≠ 0`,
+gated by `packedBitsValid packed`. -/
+inductive BridgedSourceMappingPackedWordNonzeroStmt (fields : List Field) :
+    Stmt → Prop
+  | setMappingPackedWord (field : String) {slot wordOffset : Nat}
+      {key value : Expr} (packed : PackedBits)
+      (hKey : BridgedSourceExpr key) (hValue : BridgedSourceExpr value)
+      (hMapping : isMapping fields field = true)
+      (hSlots : findFieldWriteSlots fields field = some [slot])
+      (hNonzero : wordOffset ≠ 0)
+      (hPacked : packedBitsValid packed = true) :
+      BridgedSourceMappingPackedWordNonzeroStmt fields
+        (.setMappingPackedWord field key wordOffset packed value)
+
+def BridgedSourceMappingPackedWordNonzeroStmts (fields : List Field)
+    (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts, BridgedSourceMappingPackedWordNonzeroStmt fields stmt
+
+/-- A single-slot `Stmt.setMappingPackedWord` source write at
+`wordOffset ≠ 0` with pure bridged key and value compiles to
+`BridgedStmts`. -/
+theorem compileStmt_setMappingPackedWord_singleSlot_nonzero_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) {slot wordOffset : Nat} {key value : Expr}
+    (packed : PackedBits)
+    (hKey : BridgedSourceExpr key) (hValue : BridgedSourceExpr value)
+    (hMapping : isMapping fields field = true)
+    (hSlots : findFieldWriteSlots fields field = some [slot])
+    (hNonzero : wordOffset ≠ 0)
+    (hPacked : packedBitsValid packed = true) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames
+        (.setMappingPackedWord field key wordOffset packed value) = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  have hBeq : (wordOffset == 0) = false := by
+    cases wordOffset with
+    | zero => exact absurd rfl hNonzero
+    | succ n => rfl
+  simp only [compileStmt, bind, Except.bind] at hOk
+  cases hKeyExpr : compileExpr fields dynamicSource key with
+  | error err => simp [hKeyExpr] at hOk
+  | ok keyExpr =>
+      cases hValueExpr : compileExpr fields dynamicSource value with
+      | error err => simp [hKeyExpr, hValueExpr] at hOk
+      | ok valueExpr =>
+          simp [hKeyExpr, hValueExpr, compileMappingPackedSlotWrite,
+            hMapping, hPacked, hSlots, hBeq, Pure.pure, Except.pure] at hOk
+          subst hOk
+          have hKeyBridged : BridgedExpr keyExpr :=
+            compileExpr_bridgedSource fields dynamicSource hKey hKeyExpr
+          have _hValueBridged : BridgedExpr valueExpr :=
+            compileExpr_bridgedSource fields dynamicSource hValue hValueExpr
+          have hMappingBase : BridgedExpr
+              (Compiler.Yul.YulExpr.call "mappingSlot"
+                [Compiler.Yul.YulExpr.lit slot, keyExpr]) := by
+            apply BridgedExpr.call
+            · exact Or.inl (by decide)
+            · intro arg hArg
+              simp only [List.mem_cons, List.not_mem_nil, or_false] at hArg
+              rcases hArg with hArg | hArg
+              · subst hArg; exact BridgedExpr.lit slot
+              · subst hArg; exact hKeyBridged
+          have hWriteSlot : BridgedExpr
+              (Compiler.Yul.YulExpr.call "add" [
+                Compiler.Yul.YulExpr.call "mappingSlot"
+                  [Compiler.Yul.YulExpr.lit slot, keyExpr],
+                Compiler.Yul.YulExpr.lit wordOffset]) := by
+            apply BridgedExpr.call
+            · exact Or.inl (by decide)
+            · intro arg hArg
+              simp only [List.mem_cons, List.not_mem_nil, or_false] at hArg
+              rcases hArg with hArg | hArg
+              · subst hArg; exact hMappingBase
+              · subst hArg; exact BridgedExpr.lit wordOffset
+          refine BridgedStmts_singleton_block ?_
+          intro stmt hMem
+          simp only [List.mem_cons, List.not_mem_nil, or_false] at hMem
+          rcases hMem with rfl | rfl | rfl | rfl | rfl
+          · -- let_ "__compat_value" valueExpr
+            exact BridgedStmt.straight _
+              (BridgedStraightStmt.let_ _ _ _hValueBridged)
+          · -- let_ "__compat_packed" (and(ident "__compat_value", lit maskNat))
+            refine BridgedStmt.straight _
+              (BridgedStraightStmt.let_ _ _ ?_)
+            apply BridgedExpr.call
+            · exact Or.inl (by decide)
+            · intro arg hArg
+              simp only [List.mem_cons, List.not_mem_nil, or_false] at hArg
+              rcases hArg with hArg | hArg
+              · subst hArg; exact BridgedExpr.ident "__compat_value"
+              · subst hArg; exact BridgedExpr.lit _
+          · -- let_ "__compat_slot_word" (sload(add(mappingBase, lit wordOffset)))
+            refine BridgedStmt.straight _
+              (BridgedStraightStmt.let_ _ _ ?_)
+            apply BridgedExpr.call
+            · exact Or.inl (by decide)
+            · intro arg hArg
+              simp only [List.mem_cons, List.not_mem_nil, or_false] at hArg
+              subst hArg; exact hWriteSlot
+          · -- let_ "__compat_slot_cleared"
+            --   (and(ident "__compat_slot_word", not(lit shiftedMaskNat)))
+            refine BridgedStmt.straight _
+              (BridgedStraightStmt.let_ _ _ ?_)
+            apply BridgedExpr.call
+            · exact Or.inl (by decide)
+            · intro arg hArg
+              simp only [List.mem_cons, List.not_mem_nil, or_false] at hArg
+              rcases hArg with hArg | hArg
+              · subst hArg; exact BridgedExpr.ident "__compat_slot_word"
+              · subst hArg
+                apply BridgedExpr.call
+                · exact Or.inl (by decide)
+                · intro arg' hArg'
+                  simp only [List.mem_cons, List.not_mem_nil,
+                    or_false] at hArg'
+                  subst hArg'; exact BridgedExpr.lit _
+          · -- expr (sstore(add(mappingBase, lit wordOffset),
+            --         or(ident "__compat_slot_cleared",
+            --            shl(lit packed.offset, ident "__compat_packed"))))
+            have hVal : BridgedExpr
+                (Compiler.Yul.YulExpr.call "or" [
+                  Compiler.Yul.YulExpr.ident "__compat_slot_cleared",
+                  Compiler.Yul.YulExpr.call "shl" [
+                    Compiler.Yul.YulExpr.lit packed.offset,
+                    Compiler.Yul.YulExpr.ident "__compat_packed"]]) := by
+              apply BridgedExpr.call
+              · exact Or.inl (by decide)
+              · intro arg hArg
+                simp only [List.mem_cons, List.not_mem_nil, or_false] at hArg
+                rcases hArg with hArg | hArg
+                · subst hArg; exact BridgedExpr.ident "__compat_slot_cleared"
+                · subst hArg
+                  apply BridgedExpr.call
+                  · exact Or.inl (by decide)
+                  · intro arg' hArg'
+                    simp only [List.mem_cons, List.not_mem_nil,
+                      or_false] at hArg'
+                    rcases hArg' with hArg' | hArg'
+                    · subst hArg'; exact BridgedExpr.lit _
+                    · subst hArg'; exact BridgedExpr.ident "__compat_packed"
+            exact BridgedStmt.straight _
+              (BridgedStraightStmt.expr_sstore_add
+                (Compiler.Yul.YulExpr.call "mappingSlot"
+                  [Compiler.Yul.YulExpr.lit slot, keyExpr])
+                (Compiler.Yul.YulExpr.lit wordOffset) _
+                hMappingBase (BridgedExpr.lit wordOffset) hVal)
+
+/-- Each statement in the wordOffset≠0 mappingPackedWord-write fragment
+compiles to Yul satisfying `BridgedStmts`. -/
+theorem compileStmt_mappingPackedWordNonzero_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceMappingPackedWordNonzeroStmt fields stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames stmt = .ok out →
+        BridgedStmts out := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | setMappingPackedWord field packed hKey hValue hMapping hSlots hNonzero
+      hPacked =>
+      exact compileStmt_setMappingPackedWord_singleSlot_nonzero_bridged fields
+        events errors dynamicSource internalRetNames isInternal inScopeNames
+        field packed hKey hValue hMapping hSlots hNonzero hPacked hOk
+
+/-- Lists of single-slot wordOffset≠0 mappingPackedWord-write source
+statements compile to Yul lists satisfying `BridgedStmts`. -/
+theorem compileStmtList_mappingPackedWordNonzero_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceMappingPackedWordNonzeroStmts fields stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource
+          internalRetNames isInternal inScopeNames head with
+      | error err => simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
+              tail with
+          | error err => simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource :
+                  BridgedSourceMappingPackedWordNonzeroStmt fields head :=
+                hSource head (by simp)
+              have hTailSource :
+                  BridgedSourceMappingPackedWordNonzeroStmts fields tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              exact BridgedStmts_append
+                (compileStmt_mappingPackedWordNonzero_bridged fields events
+                  errors dynamicSource internalRetNames isInternal inScopeNames
+                  hHeadSource hHead)
+                (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
 end Compiler.Proofs.YulGeneration.Backends

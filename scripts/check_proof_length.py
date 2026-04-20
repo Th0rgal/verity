@@ -825,6 +825,19 @@ ALLOWLIST: set[str] = {
     # available until a shared `and`/`or`/`not`/`shl` BridgedExpr helper
     # lands.
     "compileStmt_setMappingPackedWord_singleSlot_bridged",
+    # Single-slot setMappingPackedWord wordOffset≠0 source body closure:
+    # 132-line span structurally mirrors the wordOffset=0 variant (5-way
+    # rcases over the emitted block) with the added `add(mappingSlot,
+    # lit wordOffset)` BridgedExpr witness used by both the `sload` arg
+    # and the terminating `expr_sstore_add`. Same decomposition rationale
+    # as the wordOffset=0 sibling.
+    "compileStmt_setMappingPackedWord_singleSlot_nonzero_bridged",
+    # Single-slot setMappingPackedWord wordOffset=0 list closure:
+    # displaced from 45 to 59 lines by the newly appended wordOffset≠0
+    # inductive declaration which terminates the proof span (same
+    # displacement pattern as prior adjacent closures; proof body
+    # unchanged).
+    "compileStmtList_mappingPackedWord_bridged",
     # Multi-slot setStructMember2 wordOffset≠0 list closure: displaced
     # from 45 to 63 lines by the newly appended single-slot
     # setMappingPackedWord section's doc-comment preamble + predicate,
