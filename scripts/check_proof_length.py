@@ -750,6 +750,23 @@ ALLOWLIST: set[str] = {
     # `compileStmtList_mappingWrite2MultiSlot_bridged` (`29634900`),
     # and `compileStmtList_structMemberMultiSlot_bridged` (`3b331fc7`).
     "compileStmtList_structMember2MultiSlot_bridged",
+    # Multi-slot setMapping2Word wordOffset=0 closure: inherent
+    # 5-way concrete membership enumeration (3 let-bindings + 2
+    # concrete sstore cases with inline nested BridgedExpr.call
+    # "mappingSlot" witnesses) before the slotsRest tail helper,
+    # same pattern as `compileStmt_setMapping2_multiSlot_bridged`
+    # (`defa6150`) and `compileStmt_setStructMember2_multiSlot_bridged`
+    # (`3b331fc7`).
+    "compileStmt_setMapping2Word_multiSlot_bridged",
+    # Multi-slot setMappingWord wordOffset=0 list closure: prior
+    # section's list skeleton pushed over to 60 lines by the newly
+    # appended multi-slot setMapping2Word wordOffset=0 section's
+    # doc-comment preamble, same displacement pattern as
+    # `compileStmtList_mappingWriteMultiSlot_bridged` (`cd135ff7`),
+    # `compileStmtList_mappingWrite2MultiSlot_bridged` (`29634900`),
+    # `compileStmtList_structMemberMultiSlot_bridged` (`3b331fc7`),
+    # and `compileStmtList_structMember2MultiSlot_bridged` (`112e2995`).
+    "compileStmtList_mappingWordMultiSlot_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
