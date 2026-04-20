@@ -6783,4 +6783,123 @@ theorem compileStmtList_structMember2_bridged
                   internalRetNames isInternal inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
 
+/-! ## Source statement body closure: single-slot `setMappingWord`
+(wordOffset=0)
+
+`Stmt.setMappingWord field key wordOffset value` routes through
+`compileMappingSlotWrite fields field keyExpr valueExpr "setMappingWord"
+wordOffset`. When `wordOffset = 0`, the emitted shape collapses to
+`sstore(mappingSlot(lit slot, keyExpr), valueExpr)` — identical to the
+single-slot `setMapping` case — so the closure reuses
+`compileMappingSlotWrite_singleSlot_bridged`. -/
+
+/-- A single-slot `Stmt.setMappingWord field key 0 value` source write
+with a pure bridged key and value at `wordOffset = 0`. -/
+inductive BridgedSourceMappingWordStmt (fields : List Field) : Stmt → Prop
+  | setMappingWord (field : String) {slot : Nat} {key value : Expr}
+      (wordOffset : Nat)
+      (hKey : BridgedSourceExpr key) (hValue : BridgedSourceExpr value)
+      (hMapping : isMapping fields field = true)
+      (hSlots : findFieldWriteSlots fields field = some [slot])
+      (hWordOffset : wordOffset = 0) :
+      BridgedSourceMappingWordStmt fields
+        (.setMappingWord field key wordOffset value)
+
+def BridgedSourceMappingWordStmts (fields : List Field) (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts, BridgedSourceMappingWordStmt fields stmt
+
+/-- A single-slot `Stmt.setMappingWord` source write at `wordOffset = 0`
+with pure bridged key and value compiles to `BridgedStmts`. -/
+theorem compileStmt_setMappingWord_singleSlot_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) {slot : Nat} {key value : Expr} (wordOffset : Nat)
+    (hKey : BridgedSourceExpr key) (hValue : BridgedSourceExpr value)
+    (hMapping : isMapping fields field = true)
+    (hSlots : findFieldWriteSlots fields field = some [slot])
+    (hWordOffset : wordOffset = 0) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames (.setMappingWord field key wordOffset value) = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  subst hWordOffset
+  simp only [compileStmt, bind, Except.bind] at hOk
+  cases hKeyExpr : compileExpr fields dynamicSource key with
+  | error err => simp [hKeyExpr] at hOk
+  | ok keyExpr =>
+      cases hValueExpr : compileExpr fields dynamicSource value with
+      | error err => simp [hKeyExpr, hValueExpr] at hOk
+      | ok valueExpr =>
+          simp [hKeyExpr, hValueExpr] at hOk
+          exact compileMappingSlotWrite_singleSlot_bridged fields field keyExpr
+            valueExpr "setMappingWord"
+            (compileExpr_bridgedSource fields dynamicSource hKey hKeyExpr)
+            (compileExpr_bridgedSource fields dynamicSource hValue hValueExpr)
+            hMapping hSlots hOk
+
+/-- Each statement in the mappingWord-write fragment compiles to Yul
+satisfying `BridgedStmts`. -/
+theorem compileStmt_mappingWord_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceMappingWordStmt fields stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames stmt = .ok out →
+        BridgedStmts out := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | setMappingWord field wordOffset hKey hValue hMapping hSlots hWordOffset =>
+      exact compileStmt_setMappingWord_singleSlot_bridged fields events errors
+        dynamicSource internalRetNames isInternal inScopeNames field wordOffset
+        hKey hValue hMapping hSlots hWordOffset hOk
+
+/-- Lists of single-slot mappingWord-write source statements compile
+to Yul lists satisfying `BridgedStmts`. -/
+theorem compileStmtList_mappingWord_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceMappingWordStmts fields stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames head with
+      | error err => simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
+              tail with
+          | error err => simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource : BridgedSourceMappingWordStmt fields head :=
+                hSource head (by simp)
+              have hTailSource : BridgedSourceMappingWordStmts fields tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              exact BridgedStmts_append
+                (compileStmt_mappingWord_bridged fields events errors dynamicSource
+                  internalRetNames isInternal inScopeNames hHeadSource hHead)
+                (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
 end Compiler.Proofs.YulGeneration.Backends
