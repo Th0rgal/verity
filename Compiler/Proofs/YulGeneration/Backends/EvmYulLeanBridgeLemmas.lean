@@ -1,5 +1,6 @@
 import Compiler.Proofs.YulGeneration.Builtins
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSignedArithSpec
 import Mathlib.Data.Nat.Bitwise
 
 namespace Compiler.Proofs.YulGeneration.Backends
@@ -1449,6 +1450,164 @@ private theorem int256_ofInt_neg_nat_toUint256_val (r : Nat) (hr : r < evmModulu
     rw [hmod_eq', Nat.mod_eq_of_lt (by rw [← hmod_eq']; exact hsub_lt)]
     show Verity.Core.Uint256.modulus - r = evmModulus - r
     rw [hmod_eq.symm.trans hmod_eq']
+
+/-! ### Verity-side reduction for A2
+
+The next three lemmas reduce Verity's `Int256.signedAbsNat ∘ toInt` on a
+word to the Nat-level `SignedArithSpec.specAbs`, and reduce the sign
+tests on `(ofUint256 ⟨n, _⟩ : Int)` to comparisons on `n`. They compose
+into `int256_mod_toUint256_val_eq_smodSpec`, which is the Verity-side
+half of the `smod` core equivalence (A2). -/
+
+private theorem int256_ofUint256_coe_eq (a : Nat) (ha : a < evmModulus) :
+    ((Verity.Core.Int256.ofUint256 ⟨a, ha⟩ : Verity.Core.Int256) : Int) =
+      if a < SignedArithSpec.specSignBit then Int.ofNat a
+      else Int.ofNat a - Int.ofNat Verity.Core.Int256.modulus := by
+  show Verity.Core.Int256.toInt _ = _
+  unfold Verity.Core.Int256.toInt
+  have hword : (Verity.Core.Int256.ofUint256 ⟨a, ha⟩ : Verity.Core.Int256).word.val = a := rfl
+  have hSB : SignedArithSpec.specSignBit = Verity.Core.Int256.signBit := rfl
+  rw [hword, hSB]
+
+private theorem evmModulus_eq_specModulus : evmModulus = SignedArithSpec.specModulus := rfl
+
+private theorem int256_modulus_eq_specModulus :
+    Verity.Core.Int256.modulus = SignedArithSpec.specModulus := by
+  simp [Verity.Core.Int256.modulus, Verity.Core.Uint256.modulus,
+        Verity.Core.UINT256_MODULUS, SignedArithSpec.specModulus]
+
+private theorem signedAbsNat_of_ofUint256 (a : Nat) (ha : a < evmModulus) :
+    Verity.Core.Int256.signedAbsNat
+      ((Verity.Core.Int256.ofUint256 ⟨a, ha⟩ : Verity.Core.Int256) : Int) =
+    SignedArithSpec.specAbs a := by
+  unfold Verity.Core.Int256.signedAbsNat SignedArithSpec.specAbs
+  rw [int256_ofUint256_coe_eq a ha]
+  have hMod : Verity.Core.Int256.modulus = evmModulus := by
+    simp [Verity.Core.Int256.modulus, Verity.Core.Uint256.modulus,
+          Verity.Core.UINT256_MODULUS, evmModulus]
+  by_cases hS : a < SignedArithSpec.specSignBit
+  · rw [if_pos hS, if_pos hS]
+    show (Int.ofNat a).natAbs = a
+    rfl
+  · rw [if_neg hS, if_neg hS]
+    have ha' : a < Verity.Core.Int256.modulus := by rw [hMod]; exact ha
+    have hle : a ≤ Verity.Core.Int256.modulus := Nat.le_of_lt ha'
+    have hcast : (Int.ofNat (Verity.Core.Int256.modulus - a) : Int) =
+                 Int.ofNat Verity.Core.Int256.modulus - Int.ofNat a :=
+      Int.ofNat_sub hle
+    have hsub : Int.ofNat a - Int.ofNat Verity.Core.Int256.modulus =
+                -(Int.ofNat (Verity.Core.Int256.modulus - a)) := by
+      rw [hcast]; ring
+    rw [hsub, Int.natAbs_neg]
+    show Verity.Core.Int256.modulus - a = SignedArithSpec.specModulus - a
+    rw [int256_modulus_eq_specModulus]
+
+private theorem int256_coe_lt_zero_iff (a : Nat) (ha : a < evmModulus) :
+    ((Verity.Core.Int256.ofUint256 ⟨a, ha⟩ : Verity.Core.Int256) : Int) < 0 ↔
+    SignedArithSpec.specSignBit ≤ a := by
+  rw [int256_ofUint256_coe_eq a ha]
+  have hMod : Verity.Core.Int256.modulus = evmModulus := by
+    simp [Verity.Core.Int256.modulus, Verity.Core.Uint256.modulus,
+          Verity.Core.UINT256_MODULUS, evmModulus]
+  have ha' : a < Verity.Core.Int256.modulus := by rw [hMod]; exact ha
+  by_cases hS : a < SignedArithSpec.specSignBit
+  · rw [if_pos hS]
+    have hnn : (0 : Int) ≤ Int.ofNat a := Int.natCast_nonneg a
+    constructor
+    · intro h; omega
+    · intro h; exact absurd h (Nat.not_le.mpr hS)
+  · rw [if_neg hS]
+    have hge : SignedArithSpec.specSignBit ≤ a := Nat.le_of_not_lt hS
+    have hlt_int : Int.ofNat a < Int.ofNat Verity.Core.Int256.modulus := Int.ofNat_lt.mpr ha'
+    constructor
+    · intro _; exact hge
+    · intro _; omega
+
+private theorem int256_coe_eq_zero_iff (a : Nat) (ha : a < evmModulus) :
+    ((Verity.Core.Int256.ofUint256 ⟨a, ha⟩ : Verity.Core.Int256) : Int) = 0 ↔
+    a = 0 := by
+  rw [int256_ofUint256_coe_eq a ha]
+  have hMod : Verity.Core.Int256.modulus = evmModulus := by
+    simp [Verity.Core.Int256.modulus, Verity.Core.Uint256.modulus,
+          Verity.Core.UINT256_MODULUS, evmModulus]
+  have ha' : a < Verity.Core.Int256.modulus := by rw [hMod]; exact ha
+  by_cases hS : a < SignedArithSpec.specSignBit
+  · rw [if_pos hS]; exact Int.ofNat_eq_zero
+  · rw [if_neg hS]
+    have hge : SignedArithSpec.specSignBit ≤ a := Nat.le_of_not_lt hS
+    have hSBpos : 0 < SignedArithSpec.specSignBit := SignedArithSpec.specSignBit_pos
+    constructor
+    · intro h
+      have : Int.ofNat a < Int.ofNat Verity.Core.Int256.modulus := Int.ofNat_lt.mpr ha'
+      omega
+    · intro h; subst h; exact absurd hge (Nat.not_le.mpr hSBpos)
+
+/-- Verity-side half of A2: `Int256.mod`'s `.toUint256.val` view
+reduces exactly to `smodSpec` at the Nat level. Composes
+`int256_ofInt_nat_toUint256_val` / `int256_ofInt_neg_nat_toUint256_val`
+for the non-negative/negative `a` sign cases with the sign-case
+characterizations `smodSpec_of_nonneg` / `smodSpec_of_neg`. -/
+private theorem int256_mod_toUint256_val_eq_smodSpec (a b : Nat)
+    (ha : a < evmModulus) (hb : b < evmModulus) :
+    (Verity.Core.Int256.mod
+      (Verity.Core.Int256.ofUint256 ⟨a, ha⟩)
+      (Verity.Core.Int256.ofUint256 ⟨b, hb⟩)).toUint256.val =
+    SignedArithSpec.smodSpec a b := by
+  unfold Verity.Core.Int256.mod
+  have habs_a := signedAbsNat_of_ofUint256 a ha
+  have habs_b := signedAbsNat_of_ofUint256 b hb
+  have hzero_b := int256_coe_eq_zero_iff b hb
+  have hneg_a := int256_coe_lt_zero_iff a ha
+  by_cases hb0 : b = 0
+  · -- b = 0 branch on both sides
+    subst hb0
+    simp only [hzero_b.mpr rfl, if_true]
+    show ((0 : Verity.Core.Int256) : Verity.Core.Uint256).val = _
+    rw [SignedArithSpec.smodSpec_b_zero]
+    rfl
+  · -- b ≠ 0
+    have hrhs_ne : ((Verity.Core.Int256.ofUint256 ⟨b, hb⟩ : Verity.Core.Int256) : Int) ≠ 0 := by
+      intro h; exact hb0 (hzero_b.mp h)
+    simp only [hrhs_ne, if_false]
+    have habs_b_pos : 0 < SignedArithSpec.specAbs b := by
+      unfold SignedArithSpec.specAbs
+      by_cases hbs : b < SignedArithSpec.specSignBit
+      · simp [hbs]; exact Nat.pos_of_ne_zero hb0
+      · simp [hbs]
+        have hb_ge : SignedArithSpec.specSignBit ≤ b := Nat.le_of_not_lt hbs
+        have hmod := SignedArithSpec.specModulus_pos
+        have hSBlt := SignedArithSpec.specSignBit_lt_specModulus
+        have hbmod : b < SignedArithSpec.specModulus := by
+          show b < 2^256
+          exact hb
+        omega
+    have hr_lt_specAbsB : SignedArithSpec.specAbs a % SignedArithSpec.specAbs b < SignedArithSpec.specAbs b :=
+      Nat.mod_lt _ habs_b_pos
+    have habs_b_le : SignedArithSpec.specAbs b ≤ SignedArithSpec.specSignBit := by
+      apply SignedArithSpec.specAbs_le_specSignBit
+      show b < 2^256; exact hb
+    have hSBlt : SignedArithSpec.specSignBit < SignedArithSpec.specModulus :=
+      SignedArithSpec.specSignBit_lt_specModulus
+    have hr_lt_mod : SignedArithSpec.specAbs a % SignedArithSpec.specAbs b < evmModulus := by
+      have : SignedArithSpec.specAbs a % SignedArithSpec.specAbs b < SignedArithSpec.specModulus := by
+        omega
+      exact this
+    rw [habs_a, habs_b]
+    by_cases haS : a < SignedArithSpec.specSignBit
+    · -- non-negative a
+      have hnlt : ¬ ((Verity.Core.Int256.ofUint256 ⟨a, ha⟩ : Verity.Core.Int256) : Int) < 0 := by
+        rw [hneg_a]; exact Nat.not_le.mpr haS
+      simp only [hnlt, if_false]
+      rw [int256_ofInt_nat_toUint256_val _ hr_lt_mod]
+      rw [SignedArithSpec.smodSpec_of_nonneg a b haS hb0]
+    · -- negative a
+      have hge : SignedArithSpec.specSignBit ≤ a := Nat.le_of_not_lt haS
+      have hlt : ((Verity.Core.Int256.ofUint256 ⟨a, ha⟩ : Verity.Core.Int256) : Int) < 0 := by
+        rw [hneg_a]; exact hge
+      simp only [hlt, if_true]
+      rw [int256_ofInt_neg_nat_toUint256_val _ hr_lt_mod]
+      rw [SignedArithSpec.smodSpec_of_neg a b hge hb0]
+      rw [evmModulus_eq_specModulus]
 
 /-- Core smod equivalence: Verity's `Int256.mod` agrees with EVMYulLean's `UInt256.smod`.
 

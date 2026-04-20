@@ -274,6 +274,8 @@ ALLOWLIST: set[str] = {
     "bridge_eval_byte_normalized",
     "sdiv_int256_eq_uint256Sdiv",
     "smod_int256_eq_uint256Smod",
+    # Verity-side half of A2 (smod); 5-case sign decomposition mirroring sdiv.
+    "int256_mod_toUint256_val_eq_smodSpec",
     # signextend proof requires 4-case byte-index analysis + bit-level shift
     # semantics matching; structural complexity is inherent to the operation.
     "signextend_uint256_eq",
