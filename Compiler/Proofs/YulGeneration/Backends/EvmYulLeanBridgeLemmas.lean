@@ -1608,6 +1608,55 @@ private theorem int256_mod_toUint256_val_eq_smodSpec (a b : Nat)
       rw [SignedArithSpec.smodSpec_of_neg a b hge hb0]
       rw [evmModulus_eq_specModulus]
 
+/-! ### EVMYulLean-side abs reduction for A2
+
+Mirror of the Verity-side `signedAbsNat_of_ofUint256` helper: reduces
+`EvmYul.UInt256.abs` on a raw-Nat word to `SignedArithSpec.specAbs`. The
+negative branch applies `fin_val_mul_neg1` to collapse Fin-multiplication
+by `-1` into two's-complement subtraction. Future A2b work can compose
+this with `smodSpec_of_nonneg`/`_of_neg` + `toSigned` characterizations to
+close the EVMYulLean side of the `smod` core equivalence, symmetric to
+`int256_mod_toUint256_val_eq_smodSpec` on the Verity side. -/
+private theorem uint256_abs_toNat_eq_specAbs (a : Nat) (ha : a < evmModulus) :
+    EvmYul.UInt256.toNat
+      (EvmYul.UInt256.abs ⟨⟨a, by rw [EvmYul.UInt256.size]; exact ha⟩⟩) =
+    SignedArithSpec.specAbs a := by
+  unfold evmModulus at ha
+  unfold EvmYul.UInt256.abs EvmYul.UInt256.toNat SignedArithSpec.specAbs
+  by_cases haS : a < SignedArithSpec.specSignBit
+  · -- Non-negative branch: abs returns the value unchanged, specAbs returns `a`.
+    have hnot : ¬ (2^255 ≤ a) := by
+      have : a < 2^255 := haS
+      omega
+    show (if 2^255 ≤ a then _ else (⟨⟨a, _⟩⟩ : EvmYul.UInt256)).val.val =
+         if a < SignedArithSpec.specSignBit then a else SignedArithSpec.specModulus - a
+    rw [if_neg hnot, if_pos haS]
+  · -- Negative branch: abs returns `⟨a.val * (-1)⟩`; specAbs returns `specModulus - a`.
+    have hge : 2^255 ≤ a := by
+      have hnot : ¬ a < SignedArithSpec.specSignBit := haS
+      have : SignedArithSpec.specSignBit = 2^255 := rfl
+      omega
+    have hpos : 0 < a := by
+      have h255 : 0 < (2 : Nat)^255 := by positivity
+      omega
+    show (if 2^255 ≤ a then (⟨⟨a, _⟩ * (-1 : Fin EvmYul.UInt256.size)⟩ : EvmYul.UInt256)
+          else _).val.val =
+         if a < SignedArithSpec.specSignBit then a else SignedArithSpec.specModulus - a
+    rw [if_pos hge, if_neg haS]
+    show ((⟨a, _⟩ : Fin EvmYul.UInt256.size) * (-1 : Fin EvmYul.UInt256.size)).val =
+         SignedArithSpec.specModulus - a
+    simp only [EvmYul.UInt256.size]
+    norm_num
+    simp only [Fin.val_neg]
+    norm_num
+    -- After simp + norm_num, the goal reduces to
+    -- `(if a = 0 then 0 else 115792... - a) = SignedArithSpec.specModulus - a`.
+    -- `hpos : 0 < a` discharges the `a = 0` branch, and the literal is
+    -- definitionally `specModulus`.
+    have ha0 : a ≠ 0 := Nat.pos_iff_ne_zero.mp hpos
+    rw [if_neg ha0]
+    rfl
+
 /-- Core smod equivalence: Verity's `Int256.mod` agrees with EVMYulLean's `UInt256.smod`.
 
 **Status**: sorry — requires showing Int sign-magnitude remainder matches

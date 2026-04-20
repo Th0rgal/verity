@@ -2622,6 +2622,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.int256_coe_lt_zero_iff  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.int256_coe_eq_zero_iff  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.int256_mod_toUint256_val_eq_smodSpec  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_abs_toNat_eq_specAbs  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.smod_int256_eq_uint256Smod  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_smod_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_smod_bridge
@@ -2963,4 +2964,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2796 theorems/lemmas (1937 public, 859 private, 0 sorry'd)
+-- Total: 2797 theorems/lemmas (1937 public, 860 private, 0 sorry'd)
