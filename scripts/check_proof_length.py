@@ -655,6 +655,21 @@ ALLOWLIST: set[str] = {
     # wordOffset ≠ 0 body closure) being attributed to this proof's span
     # by the measurer.
     "compileStmtList_setStorageArrayElement_bridged",
+    # setMapping2Word single-slot nonzero-offset closure builds three
+    # BridgedExpr witnesses (key1, key2, value), then a nested
+    # mappingSlot(mappingSlot(lit slot, key1), key2) outer-slot witness via
+    # two `refine BridgedExpr.call "mappingSlot" …` applications, then
+    # applies `expr_sstore_add` for the final `sstore(add(outerSlot, lit
+    # wordOffset), value)`. Decomposing the nested-mappingSlot witness
+    # would yield a trivial single-use helper whose boilerplate exceeds
+    # the size saved.
+    "compileStmt_setMapping2Word_singleSlot_nonzero_bridged",
+    # setMappingWord wordOffset ≠ 0 list closure: same compileStmtList
+    # head/tail skeleton as sibling list closures; the excess lines come
+    # from the doc-comment preamble for the next section (setMapping2Word
+    # wordOffset ≠ 0 body closure) being attributed to this proof's span
+    # by the measurer.
+    "compileStmtList_mappingWordNonzero_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
