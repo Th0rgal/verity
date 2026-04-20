@@ -814,6 +814,23 @@ ALLOWLIST: set[str] = {
     # predicate, same displacement pattern as prior multi-slot list
     # closures.
     "compileStmtList_structMemberMultiSlotNonzero_bridged",
+    # Single-slot setMappingPackedWord wordOffset=0 closure: 115-line
+    # span enumerates the one-element list wrapping a block of four
+    # `let_` bindings (value / packed / slot_word / slot_cleared, each
+    # an `and`/`sload`/`not` call) plus a terminating
+    # `expr_sstore_mapping` with a three-level `or(ident, shl(lit,
+    # ident))` value. Every inner call goes through `bridgedBuiltins`,
+    # so decomposition would only multiply identical `BridgedExpr.call`
+    # boilerplate. First packed-bits body closure — no cleaner factoring
+    # available until a shared `and`/`or`/`not`/`shl` BridgedExpr helper
+    # lands.
+    "compileStmt_setMappingPackedWord_singleSlot_bridged",
+    # Multi-slot setStructMember2 wordOffset≠0 list closure: displaced
+    # from 45 to 63 lines by the newly appended single-slot
+    # setMappingPackedWord section's doc-comment preamble + predicate,
+    # same displacement pattern as prior multi-slot list closures
+    # (proof body unchanged).
+    "compileStmtList_structMember2MultiSlotNonzero_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
