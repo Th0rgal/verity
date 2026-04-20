@@ -620,6 +620,20 @@ ALLOWLIST: set[str] = {
     # single-use helpers whose combined boilerplate exceeds the main
     # proof's line count.
     "compileStmt_storageArrayPush_singleSlot_bridged",
+    # storageArrayPush list closure: same compileStmtList head/tail
+    # skeleton as sibling list closures; the excess lines come from the
+    # doc-comment preamble for the next section (storageArrayPop body
+    # closure) being attributed to this proof's span by the measurer.
+    "compileStmtList_storageArrayPush_bridged",
+    # storageArrayPop single-slot closure enumerates seven emitted
+    # statements in the `.block` body including an `if iszero(__array_len)
+    # { revert(0, 0) }` guard: let __array_len = sload(lit slot), if_
+    # guard, let __array_new_len = sub, mstore(lit 0, lit slot), let
+    # __array_base = keccak256, sstore(add(..), lit 0), sstore(lit slot,
+    # ident __array_new_len). Each branch builds its own BridgedExpr
+    # witness; decomposing would yield seven trivial single-use helpers
+    # whose combined boilerplate exceeds the main proof's line count.
+    "compileStmt_storageArrayPop_singleSlot_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }

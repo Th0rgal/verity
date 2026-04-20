@@ -7915,4 +7915,180 @@ theorem compileStmtList_storageArrayPush_bridged
                   hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
 
+/-! ## Source statement body closure: `storageArrayPop`
+
+`Stmt.storageArrayPop field` compiles via `compileStorageArrayPop` to a
+singleton list containing one `.block` with seven statements, including
+an `if iszero(__array_len) { revert(0,0) }` guard:
+
+```
+let __array_len := sload(lit slot)
+if_ (iszero(ident __array_len)) [revert(0, 0)]
+let __array_new_len := sub(ident __array_len, lit 1)
+mstore(lit 0, lit slot)
+let __array_base := keccak256(lit 0, lit 32)
+sstore(add(ident __array_base, ident __array_new_len), lit 0)
+sstore(lit slot, ident __array_new_len)
+```
+
+The body is no longer pure straight-line, so the outer block closes via
+`bridgedStmt_block_of_bridgedStmts` over a `BridgedStmts` list. The
+guard fragment uses `bridgedStmt_if_of_bridgedStmts` with
+`BridgedStmts_singleton_revert_zero`. All other statements lift their
+`BridgedStraightStmt` witness via `bridgedStmt_of_bridgedStraightStmt`.
+-/
+
+inductive BridgedSourceStorageArrayPopStmt (fields : List Field) : Stmt → Prop
+  | storageArrayPop (field : String) (f : Field) (slot : Nat)
+      (elemType : StorageArrayElemType)
+      (hFind : findFieldWithResolvedSlot fields field = some (f, slot))
+      (hDynArr : f.ty = .dynamicArray elemType) :
+      BridgedSourceStorageArrayPopStmt fields (.storageArrayPop field)
+
+def BridgedSourceStorageArrayPopStmts (fields : List Field)
+    (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts, BridgedSourceStorageArrayPopStmt fields stmt
+
+theorem compileStmt_storageArrayPop_singleSlot_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) (f : Field) (slot : Nat)
+    (elemType : StorageArrayElemType)
+    (hFind : findFieldWithResolvedSlot fields field = some (f, slot))
+    (hDynArr : f.ty = .dynamicArray elemType) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames (.storageArrayPop field) = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  simp only [compileStmt] at hOk
+  unfold compileStorageArrayPop at hOk
+  unfold validateDynamicArrayField at hOk
+  simp [hFind, hDynArr, bind, Except.bind, Pure.pure, Except.pure] at hOk
+  subst out
+  -- BridgedExpr witnesses for composite exprs.
+  have hSload : BridgedExpr
+      (Compiler.Yul.YulExpr.call "sload"
+        [Compiler.Yul.YulExpr.lit slot]) := by
+    refine BridgedExpr.call "sload" _ (Or.inl ?_) ?_
+    · simp [bridgedBuiltins]
+    · intro arg hMem
+      rcases List.mem_cons.mp hMem with rfl | hMem
+      · exact BridgedExpr.lit _
+      · cases hMem
+  have hIszero : BridgedExpr
+      (Compiler.Yul.YulExpr.call "iszero"
+        [Compiler.Yul.YulExpr.ident "__array_len"]) := by
+    refine BridgedExpr.call "iszero" _ (Or.inl ?_) ?_
+    · simp [bridgedBuiltins]
+    · intro arg hMem
+      rcases List.mem_cons.mp hMem with rfl | hMem
+      · exact BridgedExpr.ident _
+      · cases hMem
+  have hSubLen : BridgedExpr
+      (Compiler.Yul.YulExpr.call "sub"
+        [Compiler.Yul.YulExpr.ident "__array_len",
+          Compiler.Yul.YulExpr.lit 1]) := by
+    refine BridgedExpr.call "sub" _ (Or.inl ?_) ?_
+    · simp [bridgedBuiltins]
+    · intro arg hMem
+      rcases List.mem_cons.mp hMem with rfl | hMem
+      · exact BridgedExpr.ident _
+      · rcases List.mem_cons.mp hMem with rfl | hMem
+        · exact BridgedExpr.lit _
+        · cases hMem
+  intro yulStmt hMem
+  simp only [List.mem_singleton] at hMem
+  subst yulStmt
+  -- Close the outer `.block body` via its body list.
+  apply bridgedStmt_block_of_bridgedStmts
+  intro s hMemBlock
+  simp only [List.mem_cons, List.not_mem_nil, or_false] at hMemBlock
+  rcases hMemBlock with rfl | rfl | rfl | rfl | rfl | rfl | rfl
+  · exact bridgedStmt_of_bridgedStraightStmt
+      (BridgedStraightStmt.let_ "__array_len" _ hSload)
+  · exact bridgedStmt_if_of_bridgedStmts hIszero
+      BridgedStmts_singleton_revert_zero
+  · exact bridgedStmt_of_bridgedStraightStmt
+      (BridgedStraightStmt.let_ "__array_new_len" _ hSubLen)
+  · exact bridgedStmt_of_bridgedStraightStmt
+      (BridgedStraightStmt.expr_mstore _ _
+        (BridgedExpr.lit 0) (BridgedExpr.lit slot))
+  · exact bridgedStmt_of_bridgedStraightStmt
+      (bridgedStraightStmt_let_keccak256 "__array_base" _ _
+        (BridgedExpr.lit 0) (BridgedExpr.lit 32))
+  · exact bridgedStmt_of_bridgedStraightStmt
+      (BridgedStraightStmt.expr_sstore_add _ _ _
+        (BridgedExpr.ident "__array_base")
+        (BridgedExpr.ident "__array_new_len")
+        (BridgedExpr.lit 0))
+  · exact bridgedStmt_of_bridgedStraightStmt
+      (BridgedStraightStmt.expr_sstore_lit slot _
+        (BridgedExpr.ident "__array_new_len"))
+
+/-- Each statement in the storageArrayPop fragment compiles to Yul
+satisfying `BridgedStmts`. -/
+theorem compileStmt_storageArrayPop_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceStorageArrayPopStmt fields stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames stmt = .ok out →
+        BridgedStmts out := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | storageArrayPop field f slot elemType hFind hDynArr =>
+      exact compileStmt_storageArrayPop_singleSlot_bridged fields events errors
+        dynamicSource internalRetNames isInternal inScopeNames field f slot
+        elemType hFind hDynArr hOk
+
+/-- Lists of `storageArrayPop` source statements compile to Yul lists
+satisfying `BridgedStmts`. -/
+theorem compileStmtList_storageArrayPop_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceStorageArrayPopStmts fields stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames head with
+      | error err => simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
+              tail with
+          | error err => simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource : BridgedSourceStorageArrayPopStmt fields head :=
+                hSource head (by simp)
+              have hTailSource : BridgedSourceStorageArrayPopStmts fields tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              exact BridgedStmts_append
+                (compileStmt_storageArrayPop_bridged fields events errors
+                  dynamicSource internalRetNames isInternal inScopeNames
+                  hHeadSource hHead)
+                (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
 end Compiler.Proofs.YulGeneration.Backends
