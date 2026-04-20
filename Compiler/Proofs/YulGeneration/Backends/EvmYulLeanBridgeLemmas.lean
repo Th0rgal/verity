@@ -1678,6 +1678,43 @@ private theorem uint256_mod_toNat_of_nonzero
     rw [h]; rfl
   · rfl
 
+/-! ### EVMYulLean toSigned characterizations (A2b scaffolds)
+
+Splits `toNat ∘ toSigned` by the `Int` constructor. `toSigned` is defined on
+the Verity side as
+```
+match i with
+  | .ofNat n     => ofNat n
+  | .negSucc n   => ofNat (UInt256.size - 1 - n)
+```
+so `toNat` reduces to `n % size` and `(size - 1 - n) % size` respectively.
+Bounded inputs remove the modulus, which is what A2b's case split needs. -/
+private theorem uint256_toSigned_ofNat_toNat_of_lt
+    (n : Nat) (hn : n < EvmYul.UInt256.size) :
+    EvmYul.UInt256.toNat (EvmYul.UInt256.toSigned (Int.ofNat n)) = n := by
+  show EvmYul.UInt256.toNat (EvmYul.UInt256.ofNat n) = n
+  unfold EvmYul.UInt256.ofNat EvmYul.UInt256.toNat
+  simp only [Id.run]
+  show (Fin.ofNat EvmYul.UInt256.size n).val = n
+  unfold Fin.ofNat
+  exact Nat.mod_eq_of_lt hn
+
+private theorem uint256_toSigned_negSucc_toNat_of_lt
+    (n : Nat) (hn : n + 1 < EvmYul.UInt256.size) :
+    EvmYul.UInt256.toNat (EvmYul.UInt256.toSigned (Int.negSucc n)) =
+      EvmYul.UInt256.size - 1 - n := by
+  show EvmYul.UInt256.toNat (EvmYul.UInt256.ofNat (EvmYul.UInt256.size - 1 - n)) = _
+  unfold EvmYul.UInt256.ofNat EvmYul.UInt256.toNat
+  simp only [Id.run]
+  show (Fin.ofNat EvmYul.UInt256.size (EvmYul.UInt256.size - 1 - n)).val =
+       EvmYul.UInt256.size - 1 - n
+  unfold Fin.ofNat
+  have h : EvmYul.UInt256.size - 1 - n < EvmYul.UInt256.size := by
+    have hpos : 0 < EvmYul.UInt256.size := by
+      unfold EvmYul.UInt256.size; decide
+    omega
+  exact Nat.mod_eq_of_lt h
+
 /-- Core smod equivalence: Verity's `Int256.mod` agrees with EVMYulLean's `UInt256.smod`.
 
 **Status**: sorry — requires showing Int sign-magnitude remainder matches
