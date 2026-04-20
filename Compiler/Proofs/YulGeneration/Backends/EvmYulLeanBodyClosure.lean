@@ -6368,4 +6368,136 @@ theorem compileStmtList_mappingWrite2_bridged
                   internalRetNames isInternal inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
 
+/-! ## Source statement body closure: single-slot `setStorageAddr`
+
+`Stmt.setStorageAddr` goes through `compileSetStorage ... requireAddressField := true`.
+For an address-typed, unpacked, single-slot field the emitted shape is a
+single `sstore(lit slot, and(valueExpr, hex addressMask))`. Closure reuses
+`BridgedStraightStmt.expr_sstore_lit` with the masked value as a
+bridged `BridgedExpr.call "and"`. -/
+
+/-- Address-typed, single-slot setStorageAddr source statements with a pure
+bridged right-hand side. -/
+inductive BridgedSourceStorageAddrStmt (fields : List Field) : Stmt → Prop
+  | setStorageAddr (field : String) (value : Expr) (f : Field) (slot : Nat)
+      (hValue : BridgedSourceExpr value)
+      (hNotMapping : isMapping fields field = false)
+      (hAddrTy : f.ty = FieldType.address)
+      (hFind :
+        findFieldWithResolvedSlot fields field =
+          some ({ f with packedBits := none, aliasSlots := [] }, slot)) :
+      BridgedSourceStorageAddrStmt fields (.setStorageAddr field value)
+
+def BridgedSourceStorageAddrStmts (fields : List Field) (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts, BridgedSourceStorageAddrStmt fields stmt
+
+/-- An address-typed, unpacked single-slot `setStorageAddr` source statement
+with a pure bridged right-hand side compiles to a literal-slot
+`sstore(lit slot, and(value, hex addressMask))`, hence satisfies
+`BridgedStmts`. -/
+theorem compileStmt_setStorageAddr_singleSlot_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) (value : Expr) (f : Field) (slot : Nat)
+    (hValue : BridgedSourceExpr value)
+    (hNotMapping : isMapping fields field = false)
+    (hAddrTy : f.ty = FieldType.address)
+    (hFind :
+      findFieldWithResolvedSlot fields field =
+        some ({ f with packedBits := none, aliasSlots := [] }, slot)) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames (.setStorageAddr field value) = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  simp only [compileStmt] at hOk
+  unfold compileSetStorage at hOk
+  simp [hNotMapping, hFind, hAddrTy] at hOk
+  cases hExpr : compileExpr fields dynamicSource value with
+  | error err => simp [hExpr] at hOk
+  | ok valueExpr =>
+      simp [hExpr] at hOk
+      subst out
+      have hBridged : BridgedExpr valueExpr :=
+        compileExpr_bridgedSource fields dynamicSource hValue hExpr
+      have hMasked : BridgedExpr
+          (Compiler.Yul.YulExpr.call "and"
+            [valueExpr, Compiler.Yul.YulExpr.hex Compiler.Constants.addressMask]) := by
+        apply BridgedExpr.call
+        · exact Or.inl (by decide)
+        · intro arg hArg
+          simp only [List.mem_cons, List.not_mem_nil, or_false] at hArg
+          rcases hArg with hArg | hArg
+          · subst hArg; exact hBridged
+          · subst hArg; exact BridgedExpr.hex _
+      intro yulStmt hMem
+      simp only [List.mem_singleton] at hMem
+      subst yulStmt
+      exact BridgedStmt.straight _
+        (BridgedStraightStmt.expr_sstore_lit slot _ hMasked)
+
+/-- Each statement in the setStorageAddr fragment compiles to Yul satisfying
+`BridgedStmts`. -/
+theorem compileStmt_storageAddr_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceStorageAddrStmt fields stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames stmt = .ok out →
+        BridgedStmts out := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | setStorageAddr field value f slot hValue hNotMapping hAddrTy hFind =>
+      exact compileStmt_setStorageAddr_singleSlot_bridged fields events errors
+        dynamicSource internalRetNames isInternal inScopeNames field value f slot
+        hValue hNotMapping hAddrTy hFind hOk
+
+/-- Lists of single-slot `setStorageAddr` source statements compile to Yul
+lists satisfying `BridgedStmts`. -/
+theorem compileStmtList_storageAddr_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceStorageAddrStmts fields stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames head with
+      | error err => simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
+              tail with
+          | error err => simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource : BridgedSourceStorageAddrStmt fields head :=
+                hSource head (by simp)
+              have hTailSource : BridgedSourceStorageAddrStmts fields tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              exact BridgedStmts_append
+                (compileStmt_storageAddr_bridged fields events errors dynamicSource
+                  internalRetNames isInternal inScopeNames hHeadSource hHead)
+                (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
 end Compiler.Proofs.YulGeneration.Backends
