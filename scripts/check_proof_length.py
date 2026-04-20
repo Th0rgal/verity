@@ -649,6 +649,12 @@ ALLOWLIST: set[str] = {
     # would yield six trivial single-use helpers whose combined
     # boilerplate exceeds the main proof's line count.
     "compileStmt_setStorageArrayElement_singleSlot_bridged",
+    # setStorageArrayElement list closure: same compileStmtList head/tail
+    # skeleton as sibling list closures; the excess lines come from the
+    # doc-comment preamble for the next section (setMappingWord
+    # wordOffset ≠ 0 body closure) being attributed to this proof's span
+    # by the measurer.
+    "compileStmtList_setStorageArrayElement_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
