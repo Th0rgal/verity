@@ -381,6 +381,16 @@ ALLOWLIST: set[str] = {
     # comment for the next section (which the proof-length measurer
     # attributes to this proof's span).
     "compileStmtList_storageAddr_bridged",
+    # setStructMember list closure same as other single-slot closures;
+    # the extra lines come from the doc-comment preamble for the next
+    # section being attributed to this proof's span by the measurer.
+    "compileStmtList_structMember_bridged",
+    # Double-mapping struct-member single-slot closure mirrors the
+    # setMapping2 single-slot proof (three compileExpr cases + inner
+    # BridgedExpr.call construction) but adds four additional struct
+    # hypotheses (members/findMember/unpacked/wordOffset) that are
+    # unfolded up front, pushing the proof over the limit.
+    "compileStmt_setStructMember2_singleSlot_bridged",
     # Internal-return list closure is the same compileStmtList head/tail
     # skeleton as the external terminator and require closure proofs; the
     # excess lines are boilerplate decomposition of the two Except binds.
