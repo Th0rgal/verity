@@ -5898,4 +5898,333 @@ theorem compileStmtList_internal_body_with_raw_log_bridged
               · exact hBHead stmt h
               · exact hBTail stmt h
 
+/-!
+## Recursive mixed body with raw log
+
+Mutual inductive that recursively nests `Stmt.ite` / `Stmt.forEach`
+wrappers around the raw-log-extended leaf fragment
+(`BridgedSourceExternalBodyWithRawLogStmt` / `...InternalBody...`).
+Parallel to the existing `BridgedSourceExternalRecursiveBodyWithErrorsStmt`
+predicate but substitutes the raw-log-extended leaf. Defined at the file
+tail because the leaf predicate is itself defined at the tail.
+-/
+
+mutual
+  /-- External with-raw-log body statements made from the raw-log-extended
+  fragment and recursively nested `Stmt.ite` / `Stmt.forEach` wrappers. -/
+  inductive BridgedSourceExternalRecursiveBodyWithRawLogStmt
+      (fields : List Field) (errors : List ErrorDef)
+      (dynamicSource : DynamicDataSource) : Stmt → Prop
+    | base {stmt : Stmt}
+        (hStmt : BridgedSourceExternalBodyWithRawLogStmt fields errors
+          dynamicSource stmt) :
+        BridgedSourceExternalRecursiveBodyWithRawLogStmt fields errors
+          dynamicSource stmt
+    | ite (cond : Expr) (thenBranch elseBranch : List Stmt)
+        (hCond : BridgedSourceExpr cond)
+        (hThen : BridgedSourceExternalRecursiveBodyWithRawLogStmts fields errors
+          dynamicSource thenBranch)
+        (hElse : BridgedSourceExternalRecursiveBodyWithRawLogStmts fields errors
+          dynamicSource elseBranch) :
+        BridgedSourceExternalRecursiveBodyWithRawLogStmt fields errors
+          dynamicSource (.ite cond thenBranch elseBranch)
+    | forEach (varName : String) (count : Expr) (body : List Stmt)
+        (hCount : BridgedSourceExpr count)
+        (hBody : BridgedSourceExternalRecursiveBodyWithRawLogStmts fields errors
+          dynamicSource body) :
+        BridgedSourceExternalRecursiveBodyWithRawLogStmt fields errors
+          dynamicSource (.forEach varName count body)
+
+  /-- External with-raw-log body lists made from recursively bridged
+  with-raw-log statements. -/
+  inductive BridgedSourceExternalRecursiveBodyWithRawLogStmts
+      (fields : List Field) (errors : List ErrorDef)
+      (dynamicSource : DynamicDataSource) : List Stmt → Prop
+    | nil : BridgedSourceExternalRecursiveBodyWithRawLogStmts fields errors
+        dynamicSource []
+    | cons {head : Stmt} {tail : List Stmt}
+        (hHead : BridgedSourceExternalRecursiveBodyWithRawLogStmt fields errors
+          dynamicSource head)
+        (hTail : BridgedSourceExternalRecursiveBodyWithRawLogStmts fields errors
+          dynamicSource tail) :
+        BridgedSourceExternalRecursiveBodyWithRawLogStmts fields errors
+          dynamicSource (head :: tail)
+end
+
+mutual
+  /-- Internal with-raw-log body statements made from the raw-log-extended
+  fragment and recursively nested `Stmt.ite` / `Stmt.forEach` wrappers. -/
+  inductive BridgedSourceInternalRecursiveBodyWithRawLogStmt
+      (fields : List Field) (errors : List ErrorDef)
+      (dynamicSource : DynamicDataSource) : Stmt → Prop
+    | base {stmt : Stmt}
+        (hStmt : BridgedSourceInternalBodyWithRawLogStmt fields errors
+          dynamicSource stmt) :
+        BridgedSourceInternalRecursiveBodyWithRawLogStmt fields errors
+          dynamicSource stmt
+    | ite (cond : Expr) (thenBranch elseBranch : List Stmt)
+        (hCond : BridgedSourceExpr cond)
+        (hThen : BridgedSourceInternalRecursiveBodyWithRawLogStmts fields errors
+          dynamicSource thenBranch)
+        (hElse : BridgedSourceInternalRecursiveBodyWithRawLogStmts fields errors
+          dynamicSource elseBranch) :
+        BridgedSourceInternalRecursiveBodyWithRawLogStmt fields errors
+          dynamicSource (.ite cond thenBranch elseBranch)
+    | forEach (varName : String) (count : Expr) (body : List Stmt)
+        (hCount : BridgedSourceExpr count)
+        (hBody : BridgedSourceInternalRecursiveBodyWithRawLogStmts fields errors
+          dynamicSource body) :
+        BridgedSourceInternalRecursiveBodyWithRawLogStmt fields errors
+          dynamicSource (.forEach varName count body)
+
+  /-- Internal with-raw-log body lists made from recursively bridged
+  with-raw-log statements. -/
+  inductive BridgedSourceInternalRecursiveBodyWithRawLogStmts
+      (fields : List Field) (errors : List ErrorDef)
+      (dynamicSource : DynamicDataSource) : List Stmt → Prop
+    | nil : BridgedSourceInternalRecursiveBodyWithRawLogStmts fields errors
+        dynamicSource []
+    | cons {head : Stmt} {tail : List Stmt}
+        (hHead : BridgedSourceInternalRecursiveBodyWithRawLogStmt fields errors
+          dynamicSource head)
+        (hTail : BridgedSourceInternalRecursiveBodyWithRawLogStmts fields errors
+          dynamicSource tail) :
+        BridgedSourceInternalRecursiveBodyWithRawLogStmts fields errors
+          dynamicSource (head :: tail)
+end
+
+mutual
+  theorem compileStmt_external_recursive_body_with_raw_log_bridged
+      (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+      (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+      (inScopeNames : List String) :
+      ∀ {stmt : Stmt},
+        BridgedSourceExternalRecursiveBodyWithRawLogStmt fields errors
+          dynamicSource stmt →
+        ∀ {out : List YulStmt},
+          compileStmt fields events errors dynamicSource internalRetNames
+            (isInternal := false) inScopeNames stmt = .ok out →
+          BridgedStmts out := by
+    intro stmt hStmt out hOk
+    cases hStmt with
+    | base hBase =>
+        exact compileStmt_external_body_with_raw_log_bridged fields events errors
+          dynamicSource internalRetNames inScopeNames hBase hOk
+    | ite cond thenBranch elseBranch hCond hThen hElse =>
+        simp only [compileStmt, bind, Except.bind] at hOk
+        cases hCondExpr : compileExpr fields dynamicSource cond with
+        | error err =>
+            simp [hCondExpr] at hOk
+        | ok condExpr =>
+            cases hThenCompile : compileStmtList fields events errors dynamicSource
+                internalRetNames false inScopeNames thenBranch with
+            | error err =>
+                simp [hCondExpr, hThenCompile] at hOk
+            | ok thenOut =>
+                cases hElseCompile : compileStmtList fields events errors dynamicSource
+                    internalRetNames false inScopeNames elseBranch with
+                | error err =>
+                    simp [hCondExpr, hThenCompile, hElseCompile] at hOk
+                | ok elseOut =>
+                    have hCondBridged : BridgedExpr condExpr :=
+                      compileExpr_bridgedSource fields dynamicSource hCond hCondExpr
+                    have hThenBridged : BridgedStmts thenOut :=
+                      compileStmtList_external_recursive_body_with_raw_log_bridged fields
+                        events errors dynamicSource internalRetNames hThen
+                        inScopeNames hThenCompile
+                    have hElseBridged : BridgedStmts elseOut :=
+                      compileStmtList_external_recursive_body_with_raw_log_bridged fields
+                        events errors dynamicSource internalRetNames hElse
+                        inScopeNames hElseCompile
+                    by_cases hEmpty : elseBranch.isEmpty
+                    · simp [hCondExpr, hThenCompile, hElseCompile, hEmpty,
+                        Pure.pure, Except.pure] at hOk
+                      subst out
+                      intro yulStmt hMem
+                      simp only [List.mem_singleton] at hMem
+                      subst yulStmt
+                      exact BridgedStmt.if_ condExpr thenOut hCondBridged hThenBridged
+                    · simp [hCondExpr, hThenCompile, hElseCompile, hEmpty,
+                        Pure.pure, Except.pure] at hOk
+                      subst out
+                      intro yulStmt hMem
+                      simp only [List.mem_singleton] at hMem
+                      subst yulStmt
+                      refine BridgedStmt.block _ ?_
+                      intro blockStmt hBlockMem
+                      simp only [List.mem_cons, List.mem_nil_iff] at hBlockMem
+                      rcases hBlockMem with rfl | rfl | rfl | hNil
+                      · exact BridgedStmt.straight _
+                          (BridgedStraightStmt.let_ _ condExpr hCondBridged)
+                      · exact BridgedStmt.if_ _ thenOut (BridgedExpr.ident _) hThenBridged
+                      · exact BridgedStmt.if_ _ elseOut
+                          (bridgedExpr_iszero_ident _) hElseBridged
+                      · cases hNil
+    | forEach varName count body hCount hBody =>
+        refine compileStmt_forEach_with_bridged_body fields events errors
+          dynamicSource internalRetNames false inScopeNames varName count body
+          hCount ?_ hOk
+        intro bodyOut hBodyOk
+        exact compileStmtList_external_recursive_body_with_raw_log_bridged fields
+          events errors dynamicSource internalRetNames hBody
+          (varName :: inScopeNames) hBodyOk
+
+  theorem compileStmtList_external_recursive_body_with_raw_log_bridged
+      (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+      (dynamicSource : DynamicDataSource) (internalRetNames : List String) :
+      ∀ {stmts : List Stmt},
+        BridgedSourceExternalRecursiveBodyWithRawLogStmts fields errors
+          dynamicSource stmts →
+        ∀ (inScopeNames : List String) {out : List YulStmt},
+          compileStmtList fields events errors dynamicSource internalRetNames
+            (isInternal := false) inScopeNames stmts = .ok out →
+          BridgedStmts out := by
+    intro stmts hSource inScopeNames out hOk
+    cases hSource with
+    | nil =>
+        simp [compileStmtList, Pure.pure, Except.pure] at hOk
+        subst out
+        intro stmt hMem
+        cases hMem
+    | @cons head tail hHead hTail =>
+        simp only [compileStmtList, bind, Except.bind] at hOk
+        cases hHeadCompile : compileStmt fields events errors dynamicSource
+            internalRetNames false inScopeNames head with
+        | error err =>
+            simp [hHeadCompile] at hOk
+        | ok headOut =>
+            simp [hHeadCompile] at hOk
+            cases hTailCompile : compileStmtList fields events errors dynamicSource
+                internalRetNames false (collectStmtNames head ++ inScopeNames) tail with
+            | error err =>
+                simp [hTailCompile] at hOk
+            | ok tailOut =>
+                simp [hTailCompile, Pure.pure, Except.pure] at hOk
+                subst out
+                exact BridgedStmts_append
+                  (compileStmt_external_recursive_body_with_raw_log_bridged fields events
+                    errors dynamicSource internalRetNames inScopeNames hHead
+                    hHeadCompile)
+                  (compileStmtList_external_recursive_body_with_raw_log_bridged fields
+                    events errors dynamicSource internalRetNames hTail
+                    (collectStmtNames head ++ inScopeNames) hTailCompile)
+end
+
+mutual
+  theorem compileStmt_internal_recursive_body_with_raw_log_bridged
+      (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+      (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+      (inScopeNames : List String) :
+      ∀ {stmt : Stmt},
+        BridgedSourceInternalRecursiveBodyWithRawLogStmt fields errors
+          dynamicSource stmt →
+        ∀ {out : List YulStmt},
+          compileStmt fields events errors dynamicSource internalRetNames
+            (isInternal := true) inScopeNames stmt = .ok out →
+          BridgedStmts out := by
+    intro stmt hStmt out hOk
+    cases hStmt with
+    | base hBase =>
+        exact compileStmt_internal_body_with_raw_log_bridged fields events errors
+          dynamicSource internalRetNames inScopeNames hBase hOk
+    | ite cond thenBranch elseBranch hCond hThen hElse =>
+        simp only [compileStmt, bind, Except.bind] at hOk
+        cases hCondExpr : compileExpr fields dynamicSource cond with
+        | error err =>
+            simp [hCondExpr] at hOk
+        | ok condExpr =>
+            cases hThenCompile : compileStmtList fields events errors dynamicSource
+                internalRetNames true inScopeNames thenBranch with
+            | error err =>
+                simp [hCondExpr, hThenCompile] at hOk
+            | ok thenOut =>
+                cases hElseCompile : compileStmtList fields events errors dynamicSource
+                    internalRetNames true inScopeNames elseBranch with
+                | error err =>
+                    simp [hCondExpr, hThenCompile, hElseCompile] at hOk
+                | ok elseOut =>
+                    have hCondBridged : BridgedExpr condExpr :=
+                      compileExpr_bridgedSource fields dynamicSource hCond hCondExpr
+                    have hThenBridged : BridgedStmts thenOut :=
+                      compileStmtList_internal_recursive_body_with_raw_log_bridged fields
+                        events errors dynamicSource internalRetNames hThen
+                        inScopeNames hThenCompile
+                    have hElseBridged : BridgedStmts elseOut :=
+                      compileStmtList_internal_recursive_body_with_raw_log_bridged fields
+                        events errors dynamicSource internalRetNames hElse
+                        inScopeNames hElseCompile
+                    by_cases hEmpty : elseBranch.isEmpty
+                    · simp [hCondExpr, hThenCompile, hElseCompile, hEmpty,
+                        Pure.pure, Except.pure] at hOk
+                      subst out
+                      intro yulStmt hMem
+                      simp only [List.mem_singleton] at hMem
+                      subst yulStmt
+                      exact BridgedStmt.if_ condExpr thenOut hCondBridged hThenBridged
+                    · simp [hCondExpr, hThenCompile, hElseCompile, hEmpty,
+                        Pure.pure, Except.pure] at hOk
+                      subst out
+                      intro yulStmt hMem
+                      simp only [List.mem_singleton] at hMem
+                      subst yulStmt
+                      refine BridgedStmt.block _ ?_
+                      intro blockStmt hBlockMem
+                      simp only [List.mem_cons, List.mem_nil_iff] at hBlockMem
+                      rcases hBlockMem with rfl | rfl | rfl | hNil
+                      · exact BridgedStmt.straight _
+                          (BridgedStraightStmt.let_ _ condExpr hCondBridged)
+                      · exact BridgedStmt.if_ _ thenOut (BridgedExpr.ident _) hThenBridged
+                      · exact BridgedStmt.if_ _ elseOut
+                          (bridgedExpr_iszero_ident _) hElseBridged
+                      · cases hNil
+    | forEach varName count body hCount hBody =>
+        refine compileStmt_forEach_with_bridged_body fields events errors
+          dynamicSource internalRetNames true inScopeNames varName count body
+          hCount ?_ hOk
+        intro bodyOut hBodyOk
+        exact compileStmtList_internal_recursive_body_with_raw_log_bridged fields
+          events errors dynamicSource internalRetNames hBody
+          (varName :: inScopeNames) hBodyOk
+
+  theorem compileStmtList_internal_recursive_body_with_raw_log_bridged
+      (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+      (dynamicSource : DynamicDataSource) (internalRetNames : List String) :
+      ∀ {stmts : List Stmt},
+        BridgedSourceInternalRecursiveBodyWithRawLogStmts fields errors
+          dynamicSource stmts →
+        ∀ (inScopeNames : List String) {out : List YulStmt},
+          compileStmtList fields events errors dynamicSource internalRetNames
+            (isInternal := true) inScopeNames stmts = .ok out →
+          BridgedStmts out := by
+    intro stmts hSource inScopeNames out hOk
+    cases hSource with
+    | nil =>
+        simp [compileStmtList, Pure.pure, Except.pure] at hOk
+        subst out
+        intro stmt hMem
+        cases hMem
+    | @cons head tail hHead hTail =>
+        simp only [compileStmtList, bind, Except.bind] at hOk
+        cases hHeadCompile : compileStmt fields events errors dynamicSource
+            internalRetNames true inScopeNames head with
+        | error err =>
+            simp [hHeadCompile] at hOk
+        | ok headOut =>
+            simp [hHeadCompile] at hOk
+            cases hTailCompile : compileStmtList fields events errors dynamicSource
+                internalRetNames true (collectStmtNames head ++ inScopeNames) tail with
+            | error err =>
+                simp [hTailCompile] at hOk
+            | ok tailOut =>
+                simp [hTailCompile, Pure.pure, Except.pure] at hOk
+                subst out
+                exact BridgedStmts_append
+                  (compileStmt_internal_recursive_body_with_raw_log_bridged fields events
+                    errors dynamicSource internalRetNames inScopeNames hHead
+                    hHeadCompile)
+                  (compileStmtList_internal_recursive_body_with_raw_log_bridged fields
+                    events errors dynamicSource internalRetNames hTail
+                    (collectStmtNames head ++ inScopeNames) hTailCompile)
+end
+
 end Compiler.Proofs.YulGeneration.Backends

@@ -437,6 +437,13 @@ ALLOWLIST: set[str] = {
     # Same mutual-recursive proof shape as the external version, using the
     # internal-body dispatcher and internal-list closure for branches.
     "compileStmt_internal_recursive_body_with_errors_bridged",
+    # Raw-log-lifted recursive external variant: identical proof shape to
+    # `compileStmt_external_recursive_body_with_errors_bridged` with the
+    # base case dispatching through `compileStmt_external_body_with_raw_log_bridged`
+    # (which dispatches further to the with-errors base or the rawLog leaf).
+    "compileStmt_external_recursive_body_with_raw_log_bridged",
+    # Symmetric raw-log-lifted recursive internal variant.
+    "compileStmt_internal_recursive_body_with_raw_log_bridged",
     # Internal structured-body list closure is the same compileStmtList
     # head/tail skeleton as the external structured-body proof; the measured
     # span now includes the following nested-ite section header.
