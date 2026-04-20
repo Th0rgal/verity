@@ -8594,4 +8594,185 @@ theorem compileStmtList_mapping2WordNonzero_bridged
                   internalRetNames isInternal inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
 
+/-! ## Source statement body closure: single-slot `setMappingChain`
+
+`Stmt.setMappingChain` dispatches through `compileSetMappingChain`. For a
+single-slot mapping field with bridged source keys and value, the emitted
+Yul shape is a single
+`sstore(keyExprs.foldl (fun acc k => mappingSlot(acc, k)) (lit slot),
+valueExpr)`. Closure branches on whether `keyExprs` is empty:
+- `keyExprs = []` → fold collapses to `lit slot`; use
+  `BridgedStraightStmt.expr_sstore_lit`.
+- `keyExprs = prefix ++ [last]` → outermost call is
+  `mappingSlot(prefixFold, last)`; use
+  `BridgedStraightStmt.expr_sstore_mapping` with the prefix fold witness
+  produced by the `bridgedExpr_foldl_mappingSlot` helper. -/
+
+/-- The `foldl mappingSlot` chain over a list of bridged key expressions
+applied to a bridged base expression stays bridged. Used to discharge
+the outer slot argument of the `sstore` emitted by
+`compileSetMappingChain`. -/
+theorem bridgedExpr_foldl_mappingSlot
+    (keys : List Compiler.Yul.YulExpr) :
+    ∀ (base : Compiler.Yul.YulExpr),
+      BridgedExpr base →
+      (∀ k ∈ keys, BridgedExpr k) →
+      BridgedExpr
+        (keys.foldl
+          (fun acc k => Compiler.Yul.YulExpr.call "mappingSlot" [acc, k])
+          base) := by
+  induction keys with
+  | nil =>
+      intro base hBase _
+      simpa using hBase
+  | cons k ks ih =>
+      intro base hBase hAll
+      have hKey : BridgedExpr k := hAll k (by simp)
+      have hTail : ∀ k' ∈ ks, BridgedExpr k' := by
+        intro k' hMem; exact hAll k' (by simp [hMem])
+      have hNewBase : BridgedExpr
+          (Compiler.Yul.YulExpr.call "mappingSlot" [base, k]) := by
+        apply BridgedExpr.call
+        · exact Or.inl (by decide)
+        · intro arg hArg
+          simp only [List.mem_cons, List.not_mem_nil, or_false] at hArg
+          rcases hArg with hArg | hArg
+          · subst hArg; exact hBase
+          · subst hArg; exact hKey
+      simpa [List.foldl] using ih _ hNewBase hTail
+
+/-- A single-slot `Stmt.setMappingChain field keys value` source write
+with pure bridged keys and value. -/
+inductive BridgedSourceMappingChainStmt (fields : List Field) : Stmt → Prop
+  | setMappingChain (field : String) {slot : Nat}
+      {keys : List Expr} {value : Expr}
+      (hKeys : ∀ k ∈ keys, BridgedSourceExpr k)
+      (hValue : BridgedSourceExpr value)
+      (hMapping : isMapping fields field = true)
+      (hSlots : findFieldWriteSlots fields field = some [slot]) :
+      BridgedSourceMappingChainStmt fields (.setMappingChain field keys value)
+
+def BridgedSourceMappingChainStmts (fields : List Field) (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts, BridgedSourceMappingChainStmt fields stmt
+
+/-- A single-slot `Stmt.setMappingChain` source write with bridged keys
+and value compiles to `BridgedStmts`. -/
+theorem compileStmt_setMappingChain_singleSlot_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) {slot : Nat} {keys : List Expr} {value : Expr}
+    (hKeys : ∀ k ∈ keys, BridgedSourceExpr k)
+    (hValue : BridgedSourceExpr value)
+    (hMapping : isMapping fields field = true)
+    (hSlots : findFieldWriteSlots fields field = some [slot]) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames (.setMappingChain field keys value) = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  simp only [compileStmt] at hOk
+  unfold compileSetMappingChain at hOk
+  simp [hMapping, hSlots] at hOk
+  cases hKeyExprs : compileExprList fields dynamicSource keys with
+  | error err => simp [hKeyExprs, bind, Except.bind] at hOk
+  | ok keyExprs =>
+      cases hValueExpr : compileExpr fields dynamicSource value with
+      | error err => simp [hKeyExprs, hValueExpr, bind, Except.bind] at hOk
+      | ok valueExpr =>
+          simp [hKeyExprs, hValueExpr, bind, Except.bind] at hOk
+          subst hOk
+          intro yulStmt hMem
+          simp only [List.mem_singleton] at hMem
+          subst yulStmt
+          have hBridgedKeys : ∀ ke ∈ keyExprs, BridgedExpr ke :=
+            compileExprList_bridgedSource fields dynamicSource hKeys hKeyExprs
+          have hBridgedValue : BridgedExpr valueExpr :=
+            compileExpr_bridgedSource fields dynamicSource hValue hValueExpr
+          rcases keyExprs.eq_nil_or_concat with hNil | ⟨pre, last, hConcat⟩
+          · -- keyExprs = [] → fold = lit slot → use expr_sstore_lit
+            subst hNil
+            simp only [List.foldl_nil]
+            exact BridgedStmt.straight _
+              (BridgedStraightStmt.expr_sstore_lit slot valueExpr hBridgedValue)
+          · -- keyExprs = pre ++ [last] → outermost call is mappingSlot(...)
+            rw [List.concat_eq_append] at hConcat
+            subst hConcat
+            have hAllPre : ∀ ke ∈ pre, BridgedExpr ke := by
+              intro ke hMem
+              exact hBridgedKeys ke (by simp [hMem])
+            have hLast : BridgedExpr last := hBridgedKeys last (by simp)
+            have hPreFold : BridgedExpr
+                (pre.foldl
+                  (fun acc k => Compiler.Yul.YulExpr.call "mappingSlot" [acc, k])
+                  (Compiler.Yul.YulExpr.lit slot)) :=
+              bridgedExpr_foldl_mappingSlot pre _ (BridgedExpr.lit slot) hAllPre
+            simp only [List.foldl_append, List.foldl_cons, List.foldl_nil]
+            exact BridgedStmt.straight _
+              (BridgedStraightStmt.expr_sstore_mapping _ last valueExpr
+                hPreFold hLast hBridgedValue)
+
+/-- Each statement in the mapping-chain-write fragment compiles to Yul
+satisfying `BridgedStmts`. -/
+theorem compileStmt_mappingChain_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceMappingChainStmt fields stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames stmt = .ok out →
+        BridgedStmts out := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | setMappingChain field hKeys hValue hMapping hSlots =>
+      exact compileStmt_setMappingChain_singleSlot_bridged fields events errors
+        dynamicSource internalRetNames isInternal inScopeNames field
+        hKeys hValue hMapping hSlots hOk
+
+/-- Lists of single-slot mapping-chain-write source statements compile to
+Yul lists satisfying `BridgedStmts`. -/
+theorem compileStmtList_mappingChain_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceMappingChainStmts fields stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames head with
+      | error err => simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
+              tail with
+          | error err => simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource : BridgedSourceMappingChainStmt fields head :=
+                hSource head (by simp)
+              have hTailSource : BridgedSourceMappingChainStmts fields tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              exact BridgedStmts_append
+                (compileStmt_mappingChain_bridged fields events errors dynamicSource
+                  internalRetNames isInternal inScopeNames hHeadSource hHead)
+                (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
 end Compiler.Proofs.YulGeneration.Backends

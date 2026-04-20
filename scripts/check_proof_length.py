@@ -670,6 +670,21 @@ ALLOWLIST: set[str] = {
     # wordOffset ≠ 0 body closure) being attributed to this proof's span
     # by the measurer.
     "compileStmtList_mappingWordNonzero_bridged",
+    # setMappingChain single-slot closure requires a two-way case split on
+    # keyExprs (empty → expr_sstore_lit; non-empty prefix ++ [last] →
+    # expr_sstore_mapping) plus the bridgedExpr_foldl_mappingSlot helper
+    # application for the prefix chain. The surrounding bind/case-unfold
+    # boilerplate across the compileExprList + compileExpr monadic chain
+    # inflates the total. Decomposing the two `rcases` branches would each
+    # yield a trivial single-use helper whose boilerplate exceeds the save.
+    "compileStmt_setMappingChain_singleSlot_bridged",
+    # setMapping2Word wordOffset ≠ 0 list closure: prior section's
+    # compileStmtList head/tail skeleton pushed over by this section's
+    # (setMappingChain) doc-comment preamble being attributed to this
+    # proof's span, same pattern as
+    # `compileStmtList_setStorageArrayElement_bridged` (`eccc1df9`) and
+    # `compileStmtList_mappingWordNonzero_bridged` (`5ef7f4b7`).
+    "compileStmtList_mapping2WordNonzero_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
