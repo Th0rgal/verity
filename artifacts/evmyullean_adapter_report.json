@@ -225,6 +225,7 @@
     "backends_agree_on_bridged_builtins": "sorry-dependent (depends on admitted bridge lemmas: sar, smod)",
     "compileExpr_bridgedSource": "proven (pure source-expression fragment)",
     "compileExpr_bridgedSource_leaf": "proven (scalar source-expression leaves)",
+    "compileStmtList_always_bridged": "missing",
     "compileStmtList_binding_leaf_bridged": "proven (scalar let/assign statement lists)",
     "compileStmtList_external_body_fragment_bridged": "proven (mixed external body fragment)",
     "compileStmtList_external_nested_body_fragment_bridged": "proven (mixed external body fragment plus two ite layers)",
@@ -264,7 +265,7 @@
     "trust_boundary": "recursive BridgedTarget statement fragment: EVMYulLean execution model matches EVM (upstream conformance tests) for BridgedExpr expressions, BridgedStraightStmts (including mapping-slot, literal-slot, and identifier-slot sstore), and recursively nested BridgedStmt targets; generated runtime-code closure and emitted-runtime backend equality are proven conditional on bridged IR bodies; Layer-3 contract preservation now has an EVMYulLean-backend Yul target under the same body hypotheses; the public EndToEnd module now exposes a conditional wrapper over that EVMYulLean-backed target; scalar and static-scalar calldata parameter prologue body closure, pure source-expression closure, scalar/pure let/assign statement-list body closure, pure-binding/single-slot setStorage body closure, external stop/return terminator closure, and require statement closure are proven, mixed external/internal body-fragment closure composes those pieces, one-layer and two-level Stmt.ite closures are proven, and recursive Stmt.ite closure wraps mixed body fragments",
     "yulCodegen_preserves_semantics_evmYulLean": "sorry-dependent (depends on admitted bridge lemmas: sar, smod)"
   },
-  "schema_version": 6,
+  "schema_version": 7,
   "status": "ok",
   "stmt_gap_messages": {},
   "stmt_gaps": [],

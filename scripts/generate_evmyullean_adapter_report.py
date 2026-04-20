@@ -853,6 +853,17 @@ def build_report() -> dict[str, object]:
             internal_recursive_body_fragment_closure_has_sorry = _theorem_body_has_sorry_in(
                 body_closure_code, "compileStmtList_internal_recursive_body_fragment_bridged"
             )
+            # Universal body-closure metatheorem (plan #1722 B7). When present and
+            # proven, every compileStmtList output for external-safe source
+            # statement lists discharges `BridgedStmts` without per-call
+            # hypotheses. Together with an empty `admitted_bridge_dependencies`
+            # set this promotes phase4_status to "full_semantic_integration".
+            has_universal_body_closure = _has_theorem_in(
+                body_closure_code, "compileStmtList_always_bridged"
+            )
+            universal_body_closure_has_sorry = _theorem_body_has_sorry_in(
+                body_closure_code, "compileStmtList_always_bridged"
+            )
         else:
             has_scalar_param_body_closure = False
             scalar_param_body_closure_has_sorry = False
@@ -888,6 +899,8 @@ def build_report() -> dict[str, object]:
             external_recursive_body_fragment_closure_has_sorry = False
             has_internal_recursive_body_fragment_closure = False
             internal_recursive_body_fragment_closure_has_sorry = False
+            has_universal_body_closure = False
+            universal_body_closure_has_sorry = False
         if SOURCE_EXPR_CLOSURE_FILE.exists():
             source_expr_closure_code = _strip_lean_strings(
                 _strip_lean_comments(SOURCE_EXPR_CLOSURE_FILE.read_text(encoding="utf-8"))
@@ -1037,8 +1050,52 @@ def build_report() -> dict[str, object]:
             source_expr_pure_closure_status = "sorry"
         else:
             source_expr_pure_closure_status = "proven (pure source-expression fragment)"
+        if not has_universal_body_closure:
+            universal_body_closure_status = "missing"
+        elif universal_body_closure_has_sorry:
+            universal_body_closure_status = "sorry"
+        else:
+            universal_body_closure_status = (
+                "proven (universal compileStmtList body closure for BridgedSafeStmts; "
+                "external-call family carved out)"
+            )
 
         if (
+            has_universal_body_closure
+            and not universal_body_closure_has_sorry
+            and has_end_to_end_evm_retarget
+            and not end_to_end_evm_retarget_has_sorry
+            and has_layer3_evm_retarget
+            and not layer3_evm_retarget_has_sorry
+            and
+            has_runtime_backend_eq
+            and not runtime_backend_eq_has_sorry
+            and
+            has_runtime_closure
+            and not runtime_closure_has_sorry
+            and
+            has_recursive_target_retarget
+            and not recursive_target_retarget_has_sorry
+            and
+            has_for_stmt_retarget
+            and not for_stmt_retarget_has_sorry
+            and
+            has_switch_stmt_retarget
+            and not switch_stmt_retarget_has_sorry
+            and
+            has_if_stmt_retarget
+            and not if_stmt_retarget_has_sorry
+            and
+            has_block_stmt_retarget
+            and not block_stmt_retarget_has_sorry
+            and has_straight_stmt_retarget
+            and not straight_stmt_retarget_has_sorry
+            and has_expr_retarget
+            and not expr_retarget_has_sorry
+            and not admitted_deps
+        ):
+            phase4_status = "full_semantic_integration"
+        elif (
             has_layer3_evm_retarget
             and not layer3_evm_retarget_has_sorry
             and
@@ -1249,6 +1306,7 @@ def build_report() -> dict[str, object]:
             "compileStmtList_internal_recursive_body_fragment_bridged": internal_recursive_body_fragment_closure_status,
             "compileExpr_bridgedSource_leaf": source_expr_leaf_closure_status,
             "compileExpr_bridgedSource": source_expr_pure_closure_status,
+            "compileStmtList_always_bridged": universal_body_closure_status,
             "trust_boundary": (
                 "recursive BridgedTarget statement fragment: EVMYulLean execution model "
                 "matches EVM (upstream conformance tests) for BridgedExpr expressions, "
@@ -1276,7 +1334,7 @@ def build_report() -> dict[str, object]:
         }
 
     report: dict[str, object] = {
-        "schema_version": 6,
+        "schema_version": 7,
         "adapter_file": str(ADAPTER_FILE.relative_to(ROOT)),
         "status": status,
         "expr_supported": expr_supported,
