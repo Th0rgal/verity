@@ -9,7 +9,7 @@ namespace Compiler.CompilationModel
 open Compiler
 open Compiler.Yul
 
-private def validateDynamicArrayField (fields : List Field) (field : String) :
+def validateDynamicArrayField (fields : List Field) (field : String) :
     Except String (Nat × StorageArrayElemType) := do
   match findFieldWithResolvedSlot fields field with
   | some (f, slot) =>

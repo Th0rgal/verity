@@ -605,6 +605,21 @@ ALLOWLIST: set[str] = {
     # Raw-log-lifted internal body list closure: identical boilerplate to
     # the external variant with `isInternal := true`.
     "compileStmtList_internal_body_with_raw_log_bridged",
+    # tstore list closure mirrors the same compileStmtList head/tail
+    # skeleton as sibling list closures; the excess lines come from the
+    # doc-comment preamble for the next section (storageArrayPush body
+    # closure) being attributed to this proof's span by the measurer.
+    "compileStmtList_tstore_bridged",
+    # storageArrayPush single-slot closure enumerates the five emitted
+    # straight-line statements in the `.block` body: let __array_len =
+    # sload(lit slot), mstore(lit 0, lit slot), let __array_base =
+    # keccak256(lit 0, lit 32), sstore(add(__array_base, __array_len),
+    # valueExpr), and sstore(lit slot, add(__array_len, lit 1)). Each
+    # branch builds its own BridgedExpr witness for the composite
+    # sload/add expressions; decomposing would yield five trivial
+    # single-use helpers whose combined boilerplate exceeds the main
+    # proof's line count.
+    "compileStmt_storageArrayPush_singleSlot_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
