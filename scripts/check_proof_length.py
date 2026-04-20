@@ -375,6 +375,12 @@ ALLOWLIST: set[str] = {
     # skeleton as the single-mapping variant; the excess lines are
     # boilerplate decomposition of the two Except binds.
     "compileStmtList_mappingWrite2_bridged",
+    # setStorageAddr list closure is the same compileStmtList head/tail
+    # skeleton as the other single-slot closures; the excess lines are
+    # boilerplate decomposition of the two Except binds plus the doc
+    # comment for the next section (which the proof-length measurer
+    # attributes to this proof's span).
+    "compileStmtList_storageAddr_bridged",
     # Internal-return list closure is the same compileStmtList head/tail
     # skeleton as the external terminator and require closure proofs; the
     # excess lines are boilerplate decomposition of the two Except binds.

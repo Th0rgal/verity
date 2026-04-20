@@ -6500,4 +6500,134 @@ theorem compileStmtList_storageAddr_bridged
                   internalRetNames isInternal inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
 
+/-! ## Source statement body closure: single-slot `setStructMember`
+
+`Stmt.setStructMember` goes through `compileSetStructMember`, which
+delegates to `compileMappingSlotWrite` for unpacked members on a
+single-slot mapping field. For `member.wordOffset = 0` the emitted
+shape is `sstore(mappingSlot(lit slot, keyExpr), valueExpr)` — the
+same shape as single-slot `setMapping`, so the proof reuses
+`compileMappingSlotWrite_singleSlot_bridged`. -/
+
+/-- Unpacked, wordOffset=0 setStructMember on a single-slot mappingStruct
+field with a pure bridged key and value. -/
+inductive BridgedSourceStructMemberStmt (fields : List Field) : Stmt → Prop
+  | setStructMember (field : String) {slot : Nat} {key value : Expr}
+      (memberName : String) (members : List StructMember) (member : StructMember)
+      (hKey : BridgedSourceExpr key) (hValue : BridgedSourceExpr value)
+      (hNotMapping2 : isMapping2 fields field = false)
+      (hMembers : findStructMembers fields field = some members)
+      (hFindMember : findStructMember members memberName = some member)
+      (hUnpacked : member.packed = none)
+      (hWordOffset : member.wordOffset = 0)
+      (hMapping : isMapping fields field = true)
+      (hSlots : findFieldWriteSlots fields field = some [slot]) :
+      BridgedSourceStructMemberStmt fields
+        (.setStructMember field key memberName value)
+
+def BridgedSourceStructMemberStmts (fields : List Field) (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts, BridgedSourceStructMemberStmt fields stmt
+
+/-- A single-slot, unpacked, wordOffset=0 `Stmt.setStructMember` source
+write with a pure bridged key and value compiles to `BridgedStmts`. -/
+theorem compileStmt_setStructMember_singleSlot_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) {slot : Nat} {key value : Expr}
+    (memberName : String) (members : List StructMember) (member : StructMember)
+    (hKey : BridgedSourceExpr key) (hValue : BridgedSourceExpr value)
+    (hNotMapping2 : isMapping2 fields field = false)
+    (hMembers : findStructMembers fields field = some members)
+    (hFindMember : findStructMember members memberName = some member)
+    (hUnpacked : member.packed = none)
+    (hWordOffset : member.wordOffset = 0)
+    (hMapping : isMapping fields field = true)
+    (hSlots : findFieldWriteSlots fields field = some [slot]) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames (.setStructMember field key memberName value) = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  simp only [compileStmt, compileSetStructMember, hNotMapping2, hMembers,
+    hFindMember, hUnpacked, hWordOffset, bind, Except.bind,
+    Bool.false_eq_true, if_false] at hOk
+  cases hKeyExpr : compileExpr fields dynamicSource key with
+  | error err => simp [hKeyExpr, pure, Pure.pure, Except.pure] at hOk
+  | ok keyExpr =>
+      cases hValueExpr : compileExpr fields dynamicSource value with
+      | error err => simp [hKeyExpr, hValueExpr, pure, Pure.pure, Except.pure] at hOk
+      | ok valueExpr =>
+          simp [hKeyExpr, hValueExpr, pure, Pure.pure, Except.pure] at hOk
+          exact compileMappingSlotWrite_singleSlot_bridged fields field keyExpr
+            valueExpr s!"setStructMember.{memberName}"
+            (compileExpr_bridgedSource fields dynamicSource hKey hKeyExpr)
+            (compileExpr_bridgedSource fields dynamicSource hValue hValueExpr)
+            hMapping hSlots hOk
+
+/-- Each statement in the struct-member-write fragment compiles to Yul
+satisfying `BridgedStmts`. -/
+theorem compileStmt_structMember_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceStructMemberStmt fields stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames stmt = .ok out →
+        BridgedStmts out := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | setStructMember field memberName members member hKey hValue hNotMapping2
+      hMembers hFindMember hUnpacked hWordOffset hMapping hSlots =>
+      exact compileStmt_setStructMember_singleSlot_bridged fields events errors
+        dynamicSource internalRetNames isInternal inScopeNames field memberName
+        members member hKey hValue hNotMapping2 hMembers hFindMember hUnpacked
+        hWordOffset hMapping hSlots hOk
+
+/-- Lists of single-slot struct-member-write source statements compile to
+Yul lists satisfying `BridgedStmts`. -/
+theorem compileStmtList_structMember_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceStructMemberStmts fields stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames head with
+      | error err => simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
+              tail with
+          | error err => simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource : BridgedSourceStructMemberStmt fields head :=
+                hSource head (by simp)
+              have hTailSource : BridgedSourceStructMemberStmts fields tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              exact BridgedStmts_append
+                (compileStmt_structMember_bridged fields events errors dynamicSource
+                  internalRetNames isInternal inScopeNames hHeadSource hHead)
+                (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
 end Compiler.Proofs.YulGeneration.Backends
