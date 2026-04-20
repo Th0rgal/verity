@@ -857,6 +857,26 @@ ALLOWLIST: set[str] = {
     # theorem which terminate the proof span (same displacement
     # pattern as prior adjacent closures; proof body unchanged).
     "compileStmtList_mappingPackedWordNonzero_bridged",
+    # Multi-slot setMappingPackedWord wordOffset≠0 inner-block helper:
+    # 108-line span builds `mappingSlot` and `add(mappingSlot, lit
+    # wordOffset)` BridgedExpr witnesses once and then enumerates the
+    # three inner-block stmts (sload-let over add, and-not cleared,
+    # expr_sstore_add terminator) for a single slot. Decomposing would
+    # multiply identical `BridgedExpr.call` boilerplate across three
+    # sibling helpers.
+    "bridgedStmt_packedInnerBlock_wordOffsetNonzero",
+    # Multi-slot setMappingPackedWord wordOffset≠0 main closure: 70-
+    # line span enumerates outer block prefix (let_key / let_value /
+    # let_packed) and the slots.map inner blocks (slot0, slot1,
+    # slotsRest via the map helper). Each branch reuses the inner-
+    # block helper; further decomposition yields no clear gain.
+    "compileStmt_setMappingPackedWord_multiSlot_nonzero_bridged",
+    # Multi-slot setMappingPackedWord wordOffset=0 list closure:
+    # displaced from 45 to 63 lines by the newly appended multi-slot
+    # wordOffset≠0 helpers + predicate + main theorem (proof body
+    # unchanged; same displacement pattern as prior adjacent
+    # closures).
+    "compileStmtList_mappingPackedWordMultiSlot_bridged",
     # Multi-slot setStructMember2 wordOffset≠0 list closure: displaced
     # from 45 to 63 lines by the newly appended single-slot
     # setMappingPackedWord section's doc-comment preamble + predicate,
