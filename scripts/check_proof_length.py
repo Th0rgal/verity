@@ -773,6 +773,27 @@ ALLOWLIST: set[str] = {
     # doc-comment preamble, same displacement pattern as prior
     # multi-slot list closures.
     "compileStmtList_mapping2WordMultiSlot_bridged",
+    # Multi-slot setMapping2Word wordOffset≠0 closure: 126 lines
+    # inherent — 5-way concrete membership enumeration over outer
+    # block (let __compat_key1, let __compat_key2, let __compat_value,
+    # sstore_add(slot0), sstore_add(slot1), slotsRest tail), each
+    # sstore_add head carrying a nested mappingSlot(mappingSlot(...))
+    # bridged witness. Mirrors `compileStmt_setMapping2Word_multiSlot_bridged`
+    # (wordOffset=0, 97 lines allowlisted above) plus the extra `add`
+    # layer boilerplate.
+    "compileStmt_setMapping2Word_multiSlot_nonzero_bridged",
+    # Multi-slot setMappingWord wordOffset≠0 list closure: prior
+    # section's list skeleton pushed over to 70 lines by the newly
+    # appended multi-slot setMapping2Word wordOffset≠0 section's
+    # doc-comment preamble + helper + predicate, same displacement
+    # pattern as prior multi-slot list closures.
+    "compileStmtList_mappingWordMultiSlotNonzero_bridged",
+    # Multi-slot setMapping2Word wordOffset≠0 `slots.map` helper:
+    # 61 lines inherent — per-slot element is `expr_sstore_add` whose
+    # inner mappingSlot arg is itself a nested mappingSlot, requiring
+    # both an inner and outer BridgedExpr.call derivation before
+    # invoking the `expr_sstore_add` ctor. No clean decomposition.
+    "bridgedStraightStmts_multiSlot_sstore_mapping2_add",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
