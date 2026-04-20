@@ -842,6 +842,20 @@ inductive BridgedStraightStmt : Compiler.Yul.YulStmt → Prop
   | expr_sstore_ident (slotName : String) (valExpr : Compiler.Yul.YulExpr)
       (hVal : BridgedExpr valExpr) :
       BridgedStraightStmt (.expr (.call "sstore" [.ident slotName, valExpr]))
+  /-- `sstore(add(leftExpr, rightExpr), valExpr)` for storage-array element
+  writes where the slot is computed as `base + index`. The executor's inner
+  match on `.call "add" [...]` falls through to the generic `sstore` branch
+  (it is not a `mappingSlot` call), so both backends only diverge on
+  `evalYulExprWithBackend` for the `add` subexpression and the value — both
+  bridged (`add` is in `bridgedBuiltins`). Covers the compile paths used by
+  `compileStorageArrayPush`, `compileStorageArrayPop`, and
+  `compileSetStorageArrayElement`. -/
+  | expr_sstore_add (leftExpr rightExpr valExpr : Compiler.Yul.YulExpr)
+      (hLeft : BridgedExpr leftExpr) (hRight : BridgedExpr rightExpr)
+      (hVal : BridgedExpr valExpr) :
+      BridgedStraightStmt
+        (.expr (.call "sstore"
+          [.call "add" [leftExpr, rightExpr], valExpr]))
   | expr_mstore (offsetExpr valExpr : Compiler.Yul.YulExpr)
       (hOffset : BridgedExpr offsetExpr) (hVal : BridgedExpr valExpr) :
       BridgedStraightStmt (.expr (.call "mstore" [offsetExpr, valExpr]))
@@ -995,6 +1009,29 @@ private theorem execYulFuelWithBackend_eq_on_bridged_straight_stmt
           rw [evalYulExprWithBackend_eq_on_bridged state (.ident slotName)
               (BridgedExpr.ident slotName),
             evalYulExprWithBackend_eq_on_bridged state valExpr hVal]
+  | expr_sstore_add leftExpr rightExpr valExpr hLeft hRight hVal =>
+      cases fuel with
+      | zero => rfl
+      | succ fuel =>
+          have hAdd : BridgedExpr
+              (Compiler.Yul.YulExpr.call "add" [leftExpr, rightExpr]) := by
+            refine BridgedExpr.call "add" [leftExpr, rightExpr]
+              (Or.inl ?_) ?_
+            · simp [bridgedBuiltins]
+            · intro arg hMem
+              rcases List.mem_cons.mp hMem with rfl | hMem
+              · exact hLeft
+              · rcases List.mem_cons.mp hMem with rfl | hMem
+                · exact hRight
+                · cases hMem
+          have hAddEval := evalYulExprWithBackend_eq_on_bridged state
+            (Compiler.Yul.YulExpr.call "add" [leftExpr, rightExpr]) hAdd
+          have hValEval := evalYulExprWithBackend_eq_on_bridged state valExpr hVal
+          -- The slot `.call "add" [...]` is not a `.call "mappingSlot" [...]`
+          -- so the inner slot match takes the generic `_` branch. `simp`
+          -- reduces the string-literal pattern mismatch via iota; the two
+          -- backend evals are unified via `hAddEval` / `hValEval`.
+          simp [execYulFuelWithBackend, hAddEval, hValEval]
   | expr_mstore offsetExpr valExpr hOffset hVal =>
       cases fuel with
       | zero => rfl
@@ -1615,6 +1652,21 @@ theorem bridgedStmt_sstore_ident_of_bridged_val
         [Compiler.Yul.YulExpr.ident slotName, valExpr])) :=
   bridgedStmt_of_bridgedStraightStmt
     (BridgedStraightStmt.expr_sstore_ident slotName valExpr hVal)
+
+/-- Direct `BridgedStmt` wrapper for `sstore(add(leftExpr, rightExpr), valExpr)`
+    with bridged left/right slot-computation args and value. Covers the
+    storage-array element writes emitted by `compileStorageArrayPush`,
+    `compileStorageArrayPop`, and `compileSetStorageArrayElement`. -/
+theorem bridgedStmt_sstore_add_of_bridged_args
+    (leftExpr rightExpr valExpr : Compiler.Yul.YulExpr)
+    (hLeft : BridgedExpr leftExpr) (hRight : BridgedExpr rightExpr)
+    (hVal : BridgedExpr valExpr) :
+    BridgedStmt
+      (.expr (Compiler.Yul.YulExpr.call "sstore"
+        [Compiler.Yul.YulExpr.call "add" [leftExpr, rightExpr], valExpr])) :=
+  bridgedStmt_of_bridgedStraightStmt
+    (BridgedStraightStmt.expr_sstore_add leftExpr rightExpr valExpr
+      hLeft hRight hVal)
 
 /-- Direct `BridgedStmt` wrapper for the zero-arg `stop()` terminator. -/
 theorem bridgedStmt_stop :
