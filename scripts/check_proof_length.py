@@ -721,6 +721,13 @@ ALLOWLIST: set[str] = {
     # attributed to this proof's span, same pattern as
     # `compileStmtList_mappingChain_bridged` (`cd135ff7`).
     "compileStmtList_mappingWriteMultiSlot_bridged",
+    # Multi-slot setMapping2 list closure: prior section's list
+    # skeleton pushed over to 57 lines by the newly appended
+    # multi-slot setStructMember section's doc-comment preamble
+    # being attributed to this proof's span, same pattern as
+    # `compileStmtList_mappingChain_bridged` (`cd135ff7`) and
+    # `compileStmtList_mappingWriteMultiSlot_bridged`.
+    "compileStmtList_mappingWrite2MultiSlot_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
