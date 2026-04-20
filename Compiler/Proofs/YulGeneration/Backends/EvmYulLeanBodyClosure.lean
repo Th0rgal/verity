@@ -10457,4 +10457,146 @@ theorem compileStmtList_mapping2WordMultiSlotNonzero_bridged
                   hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
 
+/-! ## Source statement body closure: multi-slot `setStructMember`
+(wordOffset ≠ 0)
+
+Multi-slot unpacked `Stmt.setStructMember` writes with `member.wordOffset ≠ 0`
+on a `mappingStruct` field with ≥ 2 write slots dispatch through
+`compileMappingSlotWrite fields field keyExpr valueExpr label member.wordOffset`.
+The existing private helper `compileMappingSlotWrite_multiSlot_nonzero_bridged`
+(c0642e7d) already closes that target shape, so this section simply
+threads the struct-member preconditions through it, mirroring the
+`setStructMember` wordOffset=0 multi-slot section. -/
+
+/-- Unpacked, wordOffset ≠ 0 `setStructMember` on a multi-slot
+`mappingStruct` field with a pure bridged key and value. -/
+inductive BridgedSourceStructMemberMultiSlotNonzeroStmt (fields : List Field) :
+    Stmt → Prop
+  | setStructMember (field : String) {slot0 slot1 : Nat} {slotsRest : List Nat}
+      {key value : Expr} (memberName : String)
+      (members : List StructMember) (member : StructMember)
+      (hKey : BridgedSourceExpr key) (hValue : BridgedSourceExpr value)
+      (hNotMapping2 : isMapping2 fields field = false)
+      (hMembers : findStructMembers fields field = some members)
+      (hFindMember : findStructMember members memberName = some member)
+      (hUnpacked : member.packed = none)
+      (hNonzero : member.wordOffset ≠ 0)
+      (hMapping : isMapping fields field = true)
+      (hSlots : findFieldWriteSlots fields field =
+        some (slot0 :: slot1 :: slotsRest)) :
+      BridgedSourceStructMemberMultiSlotNonzeroStmt fields
+        (.setStructMember field key memberName value)
+
+def BridgedSourceStructMemberMultiSlotNonzeroStmts (fields : List Field)
+    (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts, BridgedSourceStructMemberMultiSlotNonzeroStmt fields stmt
+
+/-- A multi-slot, unpacked, wordOffset ≠ 0 `Stmt.setStructMember` source
+write with a pure bridged key and value compiles to `BridgedStmts`. -/
+theorem compileStmt_setStructMember_multiSlot_nonzero_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) {slot0 slot1 : Nat} {slotsRest : List Nat}
+    {key value : Expr} (memberName : String)
+    (members : List StructMember) (member : StructMember)
+    (hKey : BridgedSourceExpr key) (hValue : BridgedSourceExpr value)
+    (hNotMapping2 : isMapping2 fields field = false)
+    (hMembers : findStructMembers fields field = some members)
+    (hFindMember : findStructMember members memberName = some member)
+    (hUnpacked : member.packed = none)
+    (hNonzero : member.wordOffset ≠ 0)
+    (hMapping : isMapping fields field = true)
+    (hSlots : findFieldWriteSlots fields field =
+      some (slot0 :: slot1 :: slotsRest)) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames (.setStructMember field key memberName value) = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  simp only [compileStmt, compileSetStructMember, hNotMapping2, hMembers,
+    hFindMember, hUnpacked, bind, Except.bind,
+    Bool.false_eq_true, if_false] at hOk
+  cases hKeyExpr : compileExpr fields dynamicSource key with
+  | error err => simp [hKeyExpr, pure, Pure.pure, Except.pure] at hOk
+  | ok keyExpr =>
+      cases hValueExpr : compileExpr fields dynamicSource value with
+      | error err =>
+          simp [hKeyExpr, hValueExpr, pure, Pure.pure, Except.pure] at hOk
+      | ok valueExpr =>
+          simp [hKeyExpr, hValueExpr, pure, Pure.pure, Except.pure] at hOk
+          exact compileMappingSlotWrite_multiSlot_nonzero_bridged fields field
+            keyExpr valueExpr s!"setStructMember.{memberName}"
+            (compileExpr_bridgedSource fields dynamicSource hKey hKeyExpr)
+            (compileExpr_bridgedSource fields dynamicSource hValue hValueExpr)
+            hMapping hSlots hNonzero hOk
+
+/-- Each statement in the multi-slot nonzero-offset struct-member-write
+fragment compiles to Yul satisfying `BridgedStmts`. -/
+theorem compileStmt_structMemberMultiSlotNonzero_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceStructMemberMultiSlotNonzeroStmt fields stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames stmt = .ok out →
+        BridgedStmts out := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | setStructMember field memberName members member hKey hValue hNotMapping2
+      hMembers hFindMember hUnpacked hNonzero hMapping hSlots =>
+      exact compileStmt_setStructMember_multiSlot_nonzero_bridged fields events
+        errors dynamicSource internalRetNames isInternal inScopeNames field
+        memberName members member hKey hValue hNotMapping2 hMembers hFindMember
+        hUnpacked hNonzero hMapping hSlots hOk
+
+/-- Lists of multi-slot nonzero-offset struct-member-write source
+statements compile to Yul lists satisfying `BridgedStmts`. -/
+theorem compileStmtList_structMemberMultiSlotNonzero_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceStructMemberMultiSlotNonzeroStmts fields stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames head with
+      | error err => simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
+              tail with
+          | error err => simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource :
+                  BridgedSourceStructMemberMultiSlotNonzeroStmt fields head :=
+                hSource head (by simp)
+              have hTailSource :
+                  BridgedSourceStructMemberMultiSlotNonzeroStmts fields tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              exact BridgedStmts_append
+                (compileStmt_structMemberMultiSlotNonzero_bridged fields events
+                  errors dynamicSource internalRetNames isInternal inScopeNames
+                  hHeadSource hHead)
+                (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
 end Compiler.Proofs.YulGeneration.Backends

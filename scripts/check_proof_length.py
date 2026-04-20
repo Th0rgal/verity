@@ -794,6 +794,12 @@ ALLOWLIST: set[str] = {
     # both an inner and outer BridgedExpr.call derivation before
     # invoking the `expr_sstore_add` ctor. No clean decomposition.
     "bridgedStraightStmts_multiSlot_sstore_mapping2_add",
+    # Multi-slot setMapping2Word wordOffset≠0 list closure: prior
+    # section's list skeleton pushed over to 59 lines by the newly
+    # appended multi-slot setStructMember wordOffset≠0 section's
+    # doc-comment preamble + predicate, same displacement pattern as
+    # prior multi-slot list closures.
+    "compileStmtList_mapping2WordMultiSlotNonzero_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
