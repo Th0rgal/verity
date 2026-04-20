@@ -703,6 +703,24 @@ ALLOWLIST: set[str] = {
     # proof's span, same pattern as
     # `compileStmtList_mapping2WordNonzero_bridged` (`69d3abde`).
     "compileStmtList_mappingChain_bridged",
+    # Multi-slot setMapping2 compatibility branch emits an outer
+    # `YulStmt.block` wrapping three let-bindings (__compat_key1,
+    # __compat_key2, __compat_value) plus N nested-mappingSlot sstore
+    # writes (one per slot). The proof must enumerate five concrete
+    # membership cases (three let-bindings + sstore slot0 +
+    # sstore slot1) before falling through to the generic slotsRest
+    # map case via the `bridgedStraightStmts_multiSlot_sstore_mapping2`
+    # helper. Each concrete sstore case must also construct a nested
+    # `BridgedExpr.call "mappingSlot"` witness inline for the inner
+    # mappingSlot subexpression. Decomposing would yield trivial
+    # single-use helpers whose boilerplate exceeds the save.
+    "compileStmt_setMapping2_multiSlot_bridged",
+    # Multi-slot setMapping list closure: prior section's
+    # compileStmtList head/tail skeleton pushed over by this
+    # section's (multi-slot setMapping2) doc-comment preamble being
+    # attributed to this proof's span, same pattern as
+    # `compileStmtList_mappingChain_bridged` (`cd135ff7`).
+    "compileStmtList_mappingWriteMultiSlot_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }

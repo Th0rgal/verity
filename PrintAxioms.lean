@@ -2457,6 +2457,10 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingUint_multiSlot_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWriteMultiSlot_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWriteMultiSlot_bridged
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmts_multiSlot_sstore_mapping2  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping2_multiSlot_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWrite2MultiSlot_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWrite2MultiSlot_bridged
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.word_lt_uint256_size  -- private
@@ -2896,4 +2900,4 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- Compiler/Proofs/YulGeneration/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2732 theorems/lemmas (1889 public, 843 private, 0 sorry'd)
+-- Total: 2736 theorems/lemmas (1892 public, 844 private, 0 sorry'd)

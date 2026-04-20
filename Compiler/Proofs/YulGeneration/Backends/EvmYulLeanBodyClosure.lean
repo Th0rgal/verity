@@ -9033,4 +9033,250 @@ theorem compileStmtList_mappingWriteMultiSlot_bridged
                   dynamicSource internalRetNames isInternal inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
 
+/-! ## Source statement body closure: multi-slot `setMapping2` (wordOffset = 0)
+
+Multi-slot `setMapping2` writes hit the `_` arm of `compileSetMapping2`'s
+`match slots`, which emits a single outer `YulStmt.block` wrapping:
+- `let __compat_key1 := key1Expr`
+- `let __compat_key2 := key2Expr`
+- `let __compat_value := valueExpr`
+- one
+  `sstore(mappingSlot(mappingSlot(lit slot, ident "__compat_key1"),
+                       ident "__compat_key2"),
+         ident "__compat_value")`
+  per slot.
+
+All components are `BridgedExpr`/`BridgedStraightStmt`-shaped, so the whole
+block is `BridgedStmts`. One predicate ctor (`setMapping2`).
+-/
+
+/-- The `slots.map` fragment in the multi-slot branch of
+`compileSetMapping2` is `BridgedStraightStmts`. Each element is
+`sstore(mappingSlot(mappingSlot(lit slot, ident "__compat_key1"),
+                     ident "__compat_key2"),
+       ident "__compat_value")`. -/
+private theorem bridgedStraightStmts_multiSlot_sstore_mapping2
+    (slots : List Nat) :
+    BridgedStraightStmts
+      (slots.map fun slot =>
+        Compiler.Yul.YulStmt.expr
+          (Compiler.Yul.YulExpr.call "sstore" [
+            Compiler.Yul.YulExpr.call "mappingSlot"
+              [Compiler.Yul.YulExpr.call "mappingSlot"
+                 [Compiler.Yul.YulExpr.lit slot,
+                  Compiler.Yul.YulExpr.ident "__compat_key1"],
+               Compiler.Yul.YulExpr.ident "__compat_key2"],
+            Compiler.Yul.YulExpr.ident "__compat_value"])) := by
+  induction slots with
+  | nil => intro stmt hMem; cases hMem
+  | cons s rest ih =>
+      intro stmt hMem
+      simp only [List.map_cons, List.mem_cons] at hMem
+      rcases hMem with hMem | hMem
+      · subst hMem
+        have hInnerBridged : BridgedExpr
+            (Compiler.Yul.YulExpr.call "mappingSlot"
+              [Compiler.Yul.YulExpr.lit s,
+               Compiler.Yul.YulExpr.ident "__compat_key1"]) := by
+          apply BridgedExpr.call
+          · exact Or.inl (by decide)
+          · intro arg hArg
+            simp only [List.mem_cons, List.not_mem_nil, or_false] at hArg
+            rcases hArg with hArg | hArg
+            · subst hArg; exact BridgedExpr.lit s
+            · subst hArg; exact BridgedExpr.ident "__compat_key1"
+        exact BridgedStraightStmt.expr_sstore_mapping
+          (Compiler.Yul.YulExpr.call "mappingSlot"
+            [Compiler.Yul.YulExpr.lit s,
+             Compiler.Yul.YulExpr.ident "__compat_key1"])
+          (Compiler.Yul.YulExpr.ident "__compat_key2")
+          (Compiler.Yul.YulExpr.ident "__compat_value")
+          hInnerBridged
+          (BridgedExpr.ident "__compat_key2")
+          (BridgedExpr.ident "__compat_value")
+      · exact ih stmt hMem
+
+/-- Multi-slot double-mapping-write source statements: `setMapping2` to a
+declared `isMapping2` field whose write slots list has ≥ 2 entries, with
+pure `BridgedSourceExpr` key1/key2/value. -/
+inductive BridgedSourceMappingWrite2MultiSlotStmt (fields : List Field) :
+    Stmt → Prop
+  | setMapping2 (field : String) {slot0 slot1 : Nat} {slotsRest : List Nat}
+      {key1 key2 value : Expr}
+      (hKey1 : BridgedSourceExpr key1) (hKey2 : BridgedSourceExpr key2)
+      (hValue : BridgedSourceExpr value)
+      (hMapping2 : isMapping2 fields field = true)
+      (hSlots : findFieldWriteSlots fields field =
+        some (slot0 :: slot1 :: slotsRest)) :
+      BridgedSourceMappingWrite2MultiSlotStmt fields
+        (.setMapping2 field key1 key2 value)
+
+def BridgedSourceMappingWrite2MultiSlotStmts (fields : List Field)
+    (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts, BridgedSourceMappingWrite2MultiSlotStmt fields stmt
+
+/-- A multi-slot `Stmt.setMapping2` source write with pure bridged
+key1/key2/value compiles to `BridgedStmts`. -/
+theorem compileStmt_setMapping2_multiSlot_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) {slot0 slot1 : Nat} {slotsRest : List Nat}
+    {key1 key2 value : Expr}
+    (hKey1 : BridgedSourceExpr key1) (hKey2 : BridgedSourceExpr key2)
+    (hValue : BridgedSourceExpr value)
+    (hMapping2 : isMapping2 fields field = true)
+    (hSlots : findFieldWriteSlots fields field =
+      some (slot0 :: slot1 :: slotsRest)) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames (.setMapping2 field key1 key2 value) = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  simp only [compileStmt] at hOk
+  unfold compileSetMapping2 at hOk
+  simp [hMapping2, hSlots] at hOk
+  cases hKey1Expr : compileExpr fields dynamicSource key1 with
+  | error err => simp [hKey1Expr, bind, Except.bind] at hOk
+  | ok key1Expr =>
+      cases hKey2Expr : compileExpr fields dynamicSource key2 with
+      | error err => simp [hKey1Expr, hKey2Expr, bind, Except.bind] at hOk
+      | ok key2Expr =>
+          cases hValueExpr : compileExpr fields dynamicSource value with
+          | error err =>
+              simp [hKey1Expr, hKey2Expr, hValueExpr, bind, Except.bind] at hOk
+          | ok valueExpr =>
+              simp [hKey1Expr, hKey2Expr, hValueExpr, bind, Except.bind] at hOk
+              subst hOk
+              have hBridgedKey1 : BridgedExpr key1Expr :=
+                compileExpr_bridgedSource fields dynamicSource hKey1 hKey1Expr
+              have hBridgedKey2 : BridgedExpr key2Expr :=
+                compileExpr_bridgedSource fields dynamicSource hKey2 hKey2Expr
+              have hBridgedValue : BridgedExpr valueExpr :=
+                compileExpr_bridgedSource fields dynamicSource hValue hValueExpr
+              refine BridgedStmts_singleton_block ?_
+              -- After simp, body is:
+              --   let_ __compat_key1 :: let_ __compat_key2 :: let_ __compat_value
+              --     :: sstore_slot0 :: sstore_slot1 :: slotsRest.map sstoreFn
+              intro stmt hMem
+              simp only [List.mem_cons] at hMem
+              rcases hMem with hEq | hMem
+              · subst hEq
+                exact BridgedStmt.straight _
+                  (BridgedStraightStmt.let_ _ _ hBridgedKey1)
+              rcases hMem with hEq | hMem
+              · subst hEq
+                exact BridgedStmt.straight _
+                  (BridgedStraightStmt.let_ _ _ hBridgedKey2)
+              rcases hMem with hEq | hMem
+              · subst hEq
+                exact BridgedStmt.straight _
+                  (BridgedStraightStmt.let_ _ _ hBridgedValue)
+              rcases hMem with hEq | hMem
+              · subst hEq
+                have hInner0 : BridgedExpr
+                    (Compiler.Yul.YulExpr.call "mappingSlot"
+                      [Compiler.Yul.YulExpr.lit slot0,
+                       Compiler.Yul.YulExpr.ident "__compat_key1"]) := by
+                  apply BridgedExpr.call
+                  · exact Or.inl (by decide)
+                  · intro arg hArg
+                    simp only [List.mem_cons, List.not_mem_nil, or_false] at hArg
+                    rcases hArg with hArg | hArg
+                    · subst hArg; exact BridgedExpr.lit slot0
+                    · subst hArg; exact BridgedExpr.ident "__compat_key1"
+                exact BridgedStmt.straight _
+                  (BridgedStraightStmt.expr_sstore_mapping _ _ _
+                    hInner0
+                    (BridgedExpr.ident "__compat_key2")
+                    (BridgedExpr.ident "__compat_value"))
+              rcases hMem with hEq | hMem
+              · subst hEq
+                have hInner1 : BridgedExpr
+                    (Compiler.Yul.YulExpr.call "mappingSlot"
+                      [Compiler.Yul.YulExpr.lit slot1,
+                       Compiler.Yul.YulExpr.ident "__compat_key1"]) := by
+                  apply BridgedExpr.call
+                  · exact Or.inl (by decide)
+                  · intro arg hArg
+                    simp only [List.mem_cons, List.not_mem_nil, or_false] at hArg
+                    rcases hArg with hArg | hArg
+                    · subst hArg; exact BridgedExpr.lit slot1
+                    · subst hArg; exact BridgedExpr.ident "__compat_key1"
+                exact BridgedStmt.straight _
+                  (BridgedStraightStmt.expr_sstore_mapping _ _ _
+                    hInner1
+                    (BridgedExpr.ident "__compat_key2")
+                    (BridgedExpr.ident "__compat_value"))
+              · have hSstore : BridgedStraightStmt stmt :=
+                  bridgedStraightStmts_multiSlot_sstore_mapping2 slotsRest stmt
+                    (by simpa using hMem)
+                exact BridgedStmt.straight _ hSstore
+
+/-- Each statement in the multi-slot double-mapping-write fragment compiles
+to Yul satisfying `BridgedStmts`. -/
+theorem compileStmt_mappingWrite2MultiSlot_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceMappingWrite2MultiSlotStmt fields stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames stmt = .ok out →
+        BridgedStmts out := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | setMapping2 field hKey1 hKey2 hValue hMapping2 hSlots =>
+      exact compileStmt_setMapping2_multiSlot_bridged fields events errors
+        dynamicSource internalRetNames isInternal inScopeNames field
+        hKey1 hKey2 hValue hMapping2 hSlots hOk
+
+/-- Lists of multi-slot double-mapping-write source statements compile to
+Yul lists satisfying `BridgedStmts`. -/
+theorem compileStmtList_mappingWrite2MultiSlot_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceMappingWrite2MultiSlotStmts fields stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames head with
+      | error err => simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
+              tail with
+          | error err => simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource :
+                  BridgedSourceMappingWrite2MultiSlotStmt fields head :=
+                hSource head (by simp)
+              have hTailSource :
+                  BridgedSourceMappingWrite2MultiSlotStmts fields tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              exact BridgedStmts_append
+                (compileStmt_mappingWrite2MultiSlot_bridged fields events errors
+                  dynamicSource internalRetNames isInternal inScopeNames
+                  hHeadSource hHead)
+                (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
 end Compiler.Proofs.YulGeneration.Backends
