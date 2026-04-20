@@ -634,6 +634,21 @@ ALLOWLIST: set[str] = {
     # witness; decomposing would yield seven trivial single-use helpers
     # whose combined boilerplate exceeds the main proof's line count.
     "compileStmt_storageArrayPop_singleSlot_bridged",
+    # storageArrayPop list closure: same compileStmtList head/tail
+    # skeleton as sibling list closures; the excess lines come from the
+    # doc-comment preamble for the next section (setStorageArrayElement
+    # body closure) being attributed to this proof's span by the measurer.
+    "compileStmtList_storageArrayPop_bridged",
+    # setStorageArrayElement single-slot closure enumerates six emitted
+    # statements in the `.block` body including an `if
+    # iszero(lt(__array_index, __array_len)) { revert(0, 0) }` bounds-check
+    # guard: let __array_len = sload, let __array_index = indexExpr, if_
+    # guard, mstore(lit 0, lit slot), let __array_base = keccak256,
+    # sstore(add(__array_base, __array_index), valueExpr). Each branch
+    # builds its own BridgedExpr witness for sload/lt/iszero; decomposing
+    # would yield six trivial single-use helpers whose combined
+    # boilerplate exceeds the main proof's line count.
+    "compileStmt_setStorageArrayElement_singleSlot_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
