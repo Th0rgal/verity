@@ -366,6 +366,11 @@ ALLOWLIST: set[str] = {
     # theorem. The excess lines are boilerplate decomposition of the two
     # Except binds over head and tail.
     "compileStmtList_mappingWrite_bridged",
+    # Double-mapping single-slot setMapping2 closure nests one compileExpr
+    # cases layer deeper than the single-mapping variant (three exprs
+    # compileExpr calls + inner mappingSlot BridgedExpr.call construction),
+    # pushing the proof three lines over the limit.
+    "compileStmt_setMapping2_singleSlot_bridged",
     # Internal-return list closure is the same compileStmtList head/tail
     # skeleton as the external terminator and require closure proofs; the
     # excess lines are boilerplate decomposition of the two Except binds.
