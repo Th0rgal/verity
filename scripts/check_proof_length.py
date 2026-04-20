@@ -800,6 +800,20 @@ ALLOWLIST: set[str] = {
     # doc-comment preamble + predicate, same displacement pattern as
     # prior multi-slot list closures.
     "compileStmtList_mapping2WordMultiSlotNonzero_bridged",
+    # Multi-slot setStructMember2 wordOffset≠0 closure: mirrors
+    # setMapping2Word wordOffset≠0 multi-slot (97+ lines) via the
+    # struct-member2 ctor. Five-way List.mem_cons enumeration over
+    # compileSetStructMember2's emitted block (three lets + two
+    # sstore_add heads over nested mappingSlot(mappingSlot(...)) +
+    # slotsRest tail), with member.wordOffset threaded into each
+    # sstore_add and the multi-slot sstore_mapping2_add helper.
+    "compileStmt_setStructMember2_multiSlot_nonzero_bridged",
+    # Multi-slot setStructMember wordOffset≠0 list closure: displaced
+    # from 59 to 63 lines by the newly appended multi-slot
+    # setStructMember2 wordOffset≠0 section's doc-comment preamble +
+    # predicate, same displacement pattern as prior multi-slot list
+    # closures.
+    "compileStmtList_structMemberMultiSlotNonzero_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }
