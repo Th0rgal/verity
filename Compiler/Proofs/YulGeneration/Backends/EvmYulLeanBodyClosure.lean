@@ -7547,4 +7547,212 @@ theorem compileStmtList_returnValuesExternal_bridged
                   hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
 
+/-! ## Source statement body closure: mstore / tstore
+
+`Stmt.mstore offset value` compiles to
+`[expr (call "mstore" [compiledOffset, compiledValue])]`, where each
+sub-expression comes from `compileExpr fields dynamicSource`. Both
+compiled sub-expressions are `BridgedExpr` via `compileExpr_bridgedSource`
+when the source expressions are `BridgedSourceExpr`, so the emitted
+singleton matches `BridgedStraightStmt.expr_mstore`. Fully symmetric path
+for `Stmt.tstore` closed by `BridgedStraightStmt.expr_tstore`. -/
+
+inductive BridgedSourceMstoreStmt : Stmt → Prop
+  | mstore (offset value : Expr)
+      (hOffset : BridgedSourceExpr offset)
+      (hValue : BridgedSourceExpr value) :
+      BridgedSourceMstoreStmt (.mstore offset value)
+
+def BridgedSourceMstoreStmts (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts, BridgedSourceMstoreStmt stmt
+
+private theorem compileStmt_mstore_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (offset value : Expr)
+    (hOffset : BridgedSourceExpr offset) (hValue : BridgedSourceExpr value) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames
+        isInternal inScopeNames (.mstore offset value) = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  simp only [compileStmt, bind, Except.bind, Pure.pure, Except.pure] at hOk
+  cases hO : compileExpr fields dynamicSource offset with
+  | error err => simp [hO] at hOk
+  | ok compiledOffset =>
+      simp [hO] at hOk
+      cases hV : compileExpr fields dynamicSource value with
+      | error err => simp [hV] at hOk
+      | ok compiledValue =>
+          simp [hV] at hOk
+          subst hOk
+          have hBO : BridgedExpr compiledOffset :=
+            compileExpr_bridgedSource fields dynamicSource hOffset hO
+          have hBV : BridgedExpr compiledValue :=
+            compileExpr_bridgedSource fields dynamicSource hValue hV
+          intro yulStmt hMem
+          simp only [List.mem_singleton] at hMem
+          subst yulStmt
+          exact BridgedStmt.straight _
+            (BridgedStraightStmt.expr_mstore compiledOffset compiledValue hBO hBV)
+
+theorem compileStmt_mstore_fragment_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceMstoreStmt stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames stmt = .ok out →
+        BridgedStmts out := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | mstore offset value hOffset hValue =>
+      exact compileStmt_mstore_bridged fields events errors dynamicSource
+        internalRetNames isInternal inScopeNames offset value hOffset hValue hOk
+
+theorem compileStmtList_mstore_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceMstoreStmts stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames head with
+      | error err => simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
+              tail with
+          | error err => simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource : BridgedSourceMstoreStmt head :=
+                hSource head (by simp)
+              have hTailSource : BridgedSourceMstoreStmts tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              exact BridgedStmts_append
+                (compileStmt_mstore_fragment_bridged fields events errors
+                  dynamicSource internalRetNames isInternal inScopeNames
+                  hHeadSource hHead)
+                (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+inductive BridgedSourceTstoreStmt : Stmt → Prop
+  | tstore (offset value : Expr)
+      (hOffset : BridgedSourceExpr offset)
+      (hValue : BridgedSourceExpr value) :
+      BridgedSourceTstoreStmt (.tstore offset value)
+
+def BridgedSourceTstoreStmts (stmts : List Stmt) : Prop :=
+  ∀ stmt ∈ stmts, BridgedSourceTstoreStmt stmt
+
+private theorem compileStmt_tstore_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (offset value : Expr)
+    (hOffset : BridgedSourceExpr offset) (hValue : BridgedSourceExpr value) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames
+        isInternal inScopeNames (.tstore offset value) = .ok out →
+      BridgedStmts out := by
+  intro out hOk
+  simp only [compileStmt, bind, Except.bind, Pure.pure, Except.pure] at hOk
+  cases hO : compileExpr fields dynamicSource offset with
+  | error err => simp [hO] at hOk
+  | ok compiledOffset =>
+      simp [hO] at hOk
+      cases hV : compileExpr fields dynamicSource value with
+      | error err => simp [hV] at hOk
+      | ok compiledValue =>
+          simp [hV] at hOk
+          subst hOk
+          have hBO : BridgedExpr compiledOffset :=
+            compileExpr_bridgedSource fields dynamicSource hOffset hO
+          have hBV : BridgedExpr compiledValue :=
+            compileExpr_bridgedSource fields dynamicSource hValue hV
+          intro yulStmt hMem
+          simp only [List.mem_singleton] at hMem
+          subst yulStmt
+          exact BridgedStmt.straight _
+            (BridgedStraightStmt.expr_tstore compiledOffset compiledValue hBO hBV)
+
+theorem compileStmt_tstore_fragment_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceTstoreStmt stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames stmt = .ok out →
+        BridgedStmts out := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | tstore offset value hOffset hValue =>
+      exact compileStmt_tstore_bridged fields events errors dynamicSource
+        internalRetNames isInternal inScopeNames offset value hOffset hValue hOk
+
+theorem compileStmtList_tstore_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceTstoreStmts stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      intro stmt hMem
+      cases hMem
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames head with
+      | error err => simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
+              tail with
+          | error err => simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource : BridgedSourceTstoreStmt head :=
+                hSource head (by simp)
+              have hTailSource : BridgedSourceTstoreStmts tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              exact BridgedStmts_append
+                (compileStmt_tstore_fragment_bridged fields events errors
+                  dynamicSource internalRetNames isInternal inScopeNames
+                  hHeadSource hHead)
+                (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
 end Compiler.Proofs.YulGeneration.Backends
