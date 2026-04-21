@@ -19,7 +19,7 @@ mutual
     | ParamType.tuple elemTys => isDynamicParamTypeList elemTys
   termination_by ty => sizeOf ty
 
-  private def isDynamicParamTypeList : List ParamType → Bool
+  def isDynamicParamTypeList : List ParamType → Bool
     | [] => false
     | ty :: rest => isDynamicParamType ty || isDynamicParamTypeList rest
   termination_by tys => sizeOf tys
@@ -45,7 +45,7 @@ mutual
         if isDynamicParamTypeList elemTys then 32 else paramHeadSizeList elemTys
   termination_by ty => sizeOf ty
 
-  private def paramHeadSizeList : List ParamType → Nat
+  def paramHeadSizeList : List ParamType → Nat
     | [] => 0
     | ty :: rest => paramHeadSize ty + paramHeadSizeList rest
   termination_by tys => sizeOf tys

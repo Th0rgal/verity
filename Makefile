@@ -5,7 +5,7 @@
 
 .PHONY: help setup setup-elan setup-solc setup-foundry \
         verify verify-packages verify-targeted profile-lean test test-foundry test-python axiom-report \
-        compile generate-yul check \
+        compile generate-yul check test-evmyullean-fork \
         refresh-status all clean
 
 # Pinned versions (must match .github/workflows/verify.yml)
@@ -104,6 +104,19 @@ test-python: ## Run Python unit tests
 test-foundry: ## Run Foundry differential tests (requires solc + forge + generated Yul)
 	FOUNDRY_PROFILE=difftest forge test
 
+test-evmyullean-fork: ## Probe EVMYulLean fork conformance (audit + adapter report + EndToEnd target)
+	@echo "Checking EVMYulLean fork pin + drift audit..."
+	python3 scripts/generate_evmyullean_fork_audit.py --check
+	@echo "Checking EVMYulLean adapter report..."
+	python3 scripts/generate_evmyullean_adapter_report.py --check
+	@echo "Building EVMYulLean adapter correctness, bridge lemmas, and 123 concrete bridge tests..."
+	lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapterCorrectness
+	lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
+	lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeTest
+	@echo "Building public EVMYulLean EndToEnd target..."
+	lake build Compiler.Proofs.EndToEnd
+	@echo "EVMYulLean fork conformance probe passed."
+
 check: ## Run local CI-equivalent checks job (no Lean build, no solc)
 	@echo "Running CI-equivalent checks job..."
 	python3 scripts/check_property_manifest.py
@@ -141,6 +154,7 @@ check: ## Run local CI-equivalent checks job (no Lean build, no solc)
 	python3 scripts/check_rewrite_proof_metadata.py
 	python3 scripts/generate_evmyullean_capability_report.py --check
 	python3 scripts/generate_evmyullean_adapter_report.py --check
+	python3 scripts/generate_evmyullean_fork_audit.py --check
 	python3 scripts/generate_print_axioms.py --check
 	python3 scripts/check_proof_length.py
 	python3 scripts/check_issue_1060_integrity.py

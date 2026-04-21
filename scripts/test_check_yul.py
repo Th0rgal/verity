@@ -22,9 +22,9 @@ class YulChecksTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir=property_utils.ROOT) as tmpdir:
             root = Path(tmpdir)
             proofs = root / "Compiler" / "Proofs"
-            builtins = proofs / "YulGeneration" / "Builtins.lean"
+            builtins = proofs / "YulGeneration" / "ReferenceOracle" / "Builtins.lean"
             ir = proofs / "IRGeneration" / "IRInterpreter.lean"
-            sem = proofs / "YulGeneration" / "Semantics.lean"
+            sem = proofs / "YulGeneration" / "ReferenceOracle" / "Semantics.lean"
             builtins.parent.mkdir(parents=True, exist_ok=True)
             ir.parent.mkdir(parents=True, exist_ok=True)
             sem.parent.mkdir(parents=True, exist_ok=True)
@@ -50,7 +50,7 @@ class YulChecksTests(unittest.TestCase):
                 check_yul.RUNTIME_INTERPRETERS = old_runtime
 
     def test_comment_only_decoy_does_not_satisfy_boundary(self) -> None:
-        body = """import Compiler.Proofs.YulGeneration.Builtins
+        body = """import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
 -- decoy only: Compiler.Proofs.YulGeneration.evalBuiltinCall
 def evalExpr := 0
 """
@@ -58,14 +58,14 @@ def evalExpr := 0
         self.assertTrue(any("missing call" in failure for failure in failures))
 
     def test_string_literal_decoy_does_not_satisfy_boundary(self) -> None:
-        body = """import Compiler.Proofs.YulGeneration.Builtins
+        body = """import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
 def evalExpr := "Compiler.Proofs.YulGeneration.evalBuiltinCall"
 """
         failures = self._run_boundary_check(body, body)
         self.assertTrue(any("missing call" in failure for failure in failures))
 
     def test_eval_builtin_call_with_backend_satisfies_boundary(self) -> None:
-        body = """import Compiler.Proofs.YulGeneration.Builtins
+        body = """import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
 def evalExpr :=
   Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend
 """
@@ -73,7 +73,7 @@ def evalExpr :=
         self.assertEqual(failures, [])
 
     def test_eval_builtin_call_with_backend_context_satisfies_boundary(self) -> None:
-        body = """import Compiler.Proofs.YulGeneration.Builtins
+        body = """import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
 def evalExpr :=
   Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
 """

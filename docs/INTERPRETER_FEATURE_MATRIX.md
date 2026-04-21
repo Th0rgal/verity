@@ -12,7 +12,7 @@ Machine-readable version: [`artifacts/interpreter_feature_matrix.json`](../artif
 | Interpreter | File | Entry Point | Purpose |
 |---|---|---|---|
 | **IRInterpreter** | `Compiler/Proofs/IRGeneration/IRInterpreter.lean` | `execIRStmts` | Layer-2 preservation proofs |
-| **YulSemantics** | `Compiler/Proofs/YulGeneration/Semantics.lean` | `execYulFuel` | Layer-3 Yul execution semantics |
+| **YulSemantics reference oracle** | `Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean` | `execYulFuel` | Historical Layer-3 Yul execution semantics retained for regression comparisons |
 | **EVMYulLean bridge** | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean` | `evalBuiltinCallViaEvmYulLean` | Pure builtin evaluation via EVMYulLean UInt256 |
 
 The old `SpecInterpreter` module has been removed. Source semantics now live in
@@ -40,11 +40,11 @@ with the existing sync scripts and boundary checks.
 | Uint256-keyed mapping | `Expr.mappingUint` | ok | ok | -- | -- | proved |
 | Struct member (single) | `Expr.structMember` | ok | ok | -- | -- | proved |
 | Struct member (double) | `Expr.structMember2` | ok | ok | -- | -- | proved |
-| `caller` | `Expr.caller` | ok | ok | ok | del | proved |
+| `caller` | `Expr.caller` | ok | ok | ok | ok | proved |
 | `msg.value` | `Expr.msgValue` | ok | ok | ok | -- | proved |
 | `block.timestamp` | `Expr.blockTimestamp` | ok | ok | ok | -- | proved |
 | `block.number` | `Expr.blockNumber` | **0** | **0** | ok | -- | partial |
-| `address(this)` | `Expr.contractAddress` | **0** | **0** | ok | -- | partial |
+| `address(this)` | `Expr.contractAddress` | **0** | **0** | ok | ok | partial |
 | `chainid` | `Expr.chainid` | **0** | **0** | ok | -- | partial |
 | `mload` | `Expr.mload` | **0** | **0** | ok | -- | partial |
 | `returndataOptionalBoolAt` | `Expr.returndataOptionalBoolAt` | **0** | **0** | -- | -- | partial |
@@ -118,8 +118,12 @@ Legend: **ok** = supported, **rev** = reverts (not modeled), **nop** = no-op (co
 | `mul` | ok | ok | yes |
 | `div` | ok | ok | yes |
 | `mod` | ok | ok | yes |
+| `addmod` | ok | ok | yes |
+| `mulmod` | ok | ok | yes |
 | `lt` | ok | ok | yes |
 | `gt` | ok | ok | yes |
+| `slt` | ok | ok | yes |
+| `sgt` | ok | ok | yes |
 | `eq` | ok | ok | yes |
 | `iszero` | ok | ok | yes |
 | `and` | ok | ok | yes |
@@ -128,17 +132,27 @@ Legend: **ok** = supported, **rev** = reverts (not modeled), **nop** = no-op (co
 | `not` | ok | ok | yes |
 | `shl` | ok | ok | yes |
 | `shr` | ok | ok | yes |
-| `sload` | ok | del | -- |
-| `caller` | ok | del | -- |
-| `address` | ok | del | -- |
-| `timestamp` | ok | del | -- |
-| `chainid` | ok | del | -- |
-| `calldataload` | ok | del | -- |
-| `mappingSlot` | ok | del | -- |
+| `byte` | ok | ok | yes |
+| `exp` | ok | ok | yes |
+| `sdiv` | ok | ok | yes |
+| `smod` | ok | ok | yes |
+| `sar` | ok | ok | yes |
+| `signextend` | ok | ok | yes |
+| `sload` | ok | ok | yes |
+| `caller` | ok | ok | yes |
+| `address` | ok | ok | yes |
+| `callvalue` | ok | ok | yes |
+| `calldataload` | ok | ok | yes |
+| `timestamp` | ok | ok | yes |
+| `chainid` | ok | ok | yes |
+| `calldatasize` | ok | ok | yes |
+| `number` | ok | ok | yes |
+| `blobbasefee` | ok | ok | yes |
+| `mappingSlot` | ok | ok | yes |
 
-Legend: **ok** = native evaluation, **del** = delegated to Verity path (bridge returns `none`).
+Legend: **ok** = native evaluation.
 
-15/22 builtins have bridge agreement coverage between Verity and EVMYulLean evaluation paths. 15 are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, and none still require concrete-only regression coverage. The remaining 7 are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.
+36/36 builtins have universal bridge agreement proofs between Verity and EVMYulLean evaluation paths. 36 are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`. Of those, 25 are discharged by universal symbolic lemmas for the pure fragment, and none still require concrete-only regression coverage. No builtin remains delegated to the Verity-only evaluation path.
 
 ---
 
@@ -148,7 +162,7 @@ Legend: **ok** = native evaluation, **del** = delegated to Verity path (bridge r
 |---|---|---|---|---|
 | Expression features | 24 | 1 (`externalCall`) | 5 (`blockNumber`, `contractAddress`, `chainid`, `mload`, `returndataOptionalBoolAt`) | 4 (`keccak256`, `call`, `staticcall`, `delegatecall`) |
 | Statement features | 25 | 0 | 1 (`mstore`) | 6 (`calldatacopy`, `returndataCopy`, `revertReturndata`, `rawLog`, `externalCallBind`, `ecm`) |
-| Builtins (agreement) | 15 | 0 | 0 | 7 (delegated) |
+| Builtins (agreement) | 36 | 0 | 0 | 0 (delegated) |
 
 Proof-boundary features split across two buckets. Partially modeled features currently include runtime introspection (`blockNumber`, `contractAddress`, `chainid`) and single-word linear-memory forms (`mload`, `mstore`, `returndataOptionalBoolAt`). Fully not-modeled features currently include `keccak256`, low-level call / returndata plumbing (`call`, `staticcall`, `delegatecall`, `calldatacopy`, `returndataCopy`, `revertReturndata`), event emission (`rawLog`), and external call modules (`externalCallBind`, `ecm`). These features are still compiler-supported and are validated by differential testing (70,000+ test vectors against actual EVM execution).
 
@@ -164,5 +178,5 @@ Proof-boundary features split across two buckets. Partially modeled features cur
 
 ---
 
-**Last Updated**: 2026-03-11
+**Last Updated**: 2026-04-15
 **Machine-readable artifact**: `artifacts/interpreter_feature_matrix.json`

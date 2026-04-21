@@ -140,7 +140,7 @@
       "SpecInterpreter_basic": "supported",
       "SpecInterpreter_fuel": "supported",
       "IRInterpreter": "supported",
-      "EVMYulLean_bridge": "delegated",
+      "EVMYulLean_bridge": "supported",
       "proof_status": "proved"
     },
     {
@@ -176,7 +176,7 @@
       "SpecInterpreter_basic": "fallback_zero",
       "SpecInterpreter_fuel": "fallback_zero",
       "IRInterpreter": "supported",
-      "EVMYulLean_bridge": "n/a",
+      "EVMYulLean_bridge": "supported",
       "proof_status": "partial"
     },
     {
@@ -623,6 +623,36 @@
       "agreement_proved": true
     },
     {
+      "feature": "addmod",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
+      "feature": "mulmod",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
+      "feature": "exp",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
+      "feature": "sdiv",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
+      "feature": "smod",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
       "feature": "lt",
       "verity_path": "supported",
       "evmyullean_bridge": "supported",
@@ -630,6 +660,18 @@
     },
     {
       "feature": "gt",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
+      "feature": "slt",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
+      "feature": "sgt",
       "verity_path": "supported",
       "evmyullean_bridge": "supported",
       "agreement_proved": true
@@ -683,46 +725,88 @@
       "agreement_proved": true
     },
     {
-      "feature": "sload",
+      "feature": "sar",
       "verity_path": "supported",
-      "evmyullean_bridge": "delegated",
-      "agreement_proved": false
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
     },
     {
-      "feature": "caller",
+      "feature": "signextend",
       "verity_path": "supported",
-      "evmyullean_bridge": "delegated",
-      "agreement_proved": false
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
     },
     {
-      "feature": "address",
+      "feature": "byte",
       "verity_path": "supported",
-      "evmyullean_bridge": "delegated",
-      "agreement_proved": false
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
     },
     {
-      "feature": "timestamp",
+      "feature": "callvalue",
       "verity_path": "supported",
-      "evmyullean_bridge": "delegated",
-      "agreement_proved": false
-    },
-    {
-      "feature": "chainid",
-      "verity_path": "supported",
-      "evmyullean_bridge": "delegated",
-      "agreement_proved": false
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
     },
     {
       "feature": "calldataload",
       "verity_path": "supported",
-      "evmyullean_bridge": "delegated",
-      "agreement_proved": false
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
+      "feature": "calldatasize",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
+      "feature": "timestamp",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
+      "feature": "number",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
+      "feature": "sload",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
+      "feature": "caller",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
+      "feature": "address",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
+      "feature": "chainid",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
+    },
+    {
+      "feature": "blobbasefee",
+      "verity_path": "supported",
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
     },
     {
       "feature": "mappingSlot",
       "verity_path": "supported",
-      "evmyullean_bridge": "delegated",
-      "agreement_proved": false
+      "evmyullean_bridge": "supported",
+      "agreement_proved": true
     }
   ],
   "status_legend": {
@@ -730,6 +814,7 @@
     "unsupported": "Not handled; causes revert or returns none",
     "fallback_zero": "Returns 0 (feature not modeled in this interpreter)",
     "no_op": "Silently ignored (safe because the feature is a codegen concern, not a semantic one)",
+    "concrete_only": "Evaluated via EVMYulLean but universal proof pending; validated by concrete native_decide tests",
     "delegated": "Handled by the Verity-native path; EVMYulLean bridge returns none",
     "n/a": "Feature does not exist at this layer of the pipeline"
   },

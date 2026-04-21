@@ -16,7 +16,7 @@
 import Compiler.IR
 import Compiler.CompilationModel
 import Compiler.Proofs.MappingSlot
-import Compiler.Proofs.YulGeneration.Builtins
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
 import Verity.Core
 
 namespace Compiler.Proofs.IRGeneration
@@ -145,6 +145,87 @@ by parameter initialization and multi-return helper calls. -/
 def IRState.setVars (s : IRState) (bindings : List (String × Nat)) : IRState :=
   bindings.foldl (fun st (name, value) => st.setVar name value) s
 
+def byteWordCount (size : Nat) : Nat :=
+  (size + 31) / 32
+
+def memorySliceWords (memory : Nat → Nat) (offset size : Nat) : List Nat :=
+  (List.range (byteWordCount size)).map (fun i => memory (offset + i * 32))
+
+/-- Proof-side model of `keccak256(offset, size)` over linear memory.
+
+The proof IR keeps memory word-addressed and intentionally abstracts the
+cryptographic permutation. The important property for event proofs is that the
+same memory slice maps to the same topic in source and IR semantics. -/
+def abstractKeccakMemorySlice (memory : Nat → Nat) (offset size : Nat) : Nat :=
+  (memorySliceWords memory offset size).foldl
+    (fun acc word => ((acc * 16777619) + word) % Compiler.Constants.evmModulus)
+    (size % Compiler.Constants.evmModulus)
+
+/-- Read the word-aligned memory payload that a Yul `log*` instruction records.
+The proof IR models log data at word granularity, so byte sizes are truncated to
+complete 32-byte words. -/
+def yulLogDataWords (memory : Nat → Nat) (offset size : Nat) : List Nat :=
+  (List.range (size / 32)).map (fun i => memory (offset + i * 32))
+
+/-- Canonical proof-side encoding of a Yul log entry: topics followed by the
+word-aligned data payload. -/
+def encodeYulLogEvent (memory : Nat → Nat) (offset size : Nat)
+    (topics : List Nat) : List Nat :=
+  topics ++ yulLogDataWords memory offset size
+
+def IRState.appendYulLog (s : IRState) (offset size : Nat)
+    (topics : List Nat) : IRState :=
+  { s with events := s.events ++ [encodeYulLogEvent s.memory offset size topics] }
+
+def isYulLogName (func : String) : Bool :=
+  func == "log0" || func == "log1" || func == "log2" ||
+    func == "log3" || func == "log4"
+
+def applyYulLogCall? (state : IRState) (func : String)
+    (argVals : List Nat) : Option IRState :=
+  match func, argVals with
+  | "log0", [offset, size] =>
+      some (state.appendYulLog offset size [])
+  | "log1", [offset, size, topic0] =>
+      some (state.appendYulLog offset size [topic0])
+  | "log2", [offset, size, topic0, topic1] =>
+      some (state.appendYulLog offset size [topic0, topic1])
+  | "log3", [offset, size, topic0, topic1, topic2] =>
+      some (state.appendYulLog offset size [topic0, topic1, topic2])
+  | "log4", [offset, size, topic0, topic1, topic2, topic3] =>
+      some (state.appendYulLog offset size [topic0, topic1, topic2, topic3])
+  | _, _ => none
+
+@[simp] theorem applyYulLogCall?_log0
+    (state : IRState) (offset size : Nat) :
+    applyYulLogCall? state "log0" [offset, size] =
+      some (state.appendYulLog offset size []) := rfl
+
+@[simp] theorem applyYulLogCall?_log1
+    (state : IRState) (offset size topic0 : Nat) :
+    applyYulLogCall? state "log1" [offset, size, topic0] =
+      some (state.appendYulLog offset size [topic0]) := rfl
+
+@[simp] theorem applyYulLogCall?_log2
+    (state : IRState) (offset size topic0 topic1 : Nat) :
+    applyYulLogCall? state "log2" [offset, size, topic0, topic1] =
+      some (state.appendYulLog offset size [topic0, topic1]) := rfl
+
+@[simp] theorem applyYulLogCall?_log3
+    (state : IRState) (offset size topic0 topic1 topic2 : Nat) :
+    applyYulLogCall? state "log3" [offset, size, topic0, topic1, topic2] =
+      some (state.appendYulLog offset size [topic0, topic1, topic2]) := rfl
+
+@[simp] theorem applyYulLogCall?_log4
+    (state : IRState) (offset size topic0 topic1 topic2 topic3 : Nat) :
+    applyYulLogCall? state "log4" [offset, size, topic0, topic1, topic2, topic3] =
+      some (state.appendYulLog offset size [topic0, topic1, topic2, topic3]) := rfl
+
+@[simp] theorem IRState.appendYulLog_events
+    (s : IRState) (offset size : Nat) (topics : List Nat) :
+    (s.appendYulLog offset size topics).events =
+      s.events ++ [encodeYulLogEvent s.memory offset size topics] := rfl
+
 /-- Decoded internal helper definition from `IRContract.internalFunctions`. -/
 structure IRInternalFunctionDef where
   name : String
@@ -240,6 +321,10 @@ def evalIRCall (state : IRState) (func : String) : List YulExpr → Option Nat
     else if func = "mload" then
       match argVals with
       | [offset] => some (state.memory offset)
+      | _ => none
+    else if func = "keccak256" then
+      match argVals with
+      | [offset, size] => some (abstractKeccakMemorySlice state.memory offset size)
       | _ => none
     else
       Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
@@ -438,6 +523,10 @@ def evalIRCallWithInternals
             match argVals with
             | [offset] => .values [state'.memory offset] state'
             | _ => .revert state'
+          else if func = "keccak256" then
+            match argVals with
+            | [offset, size] => .values [abstractKeccakMemorySlice state'.memory offset size] state'
+            | _ => .revert state'
           else
             match Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
                 Compiler.Proofs.YulGeneration.defaultBuiltinBackend
@@ -586,14 +675,24 @@ def execIRStmtWithInternals
               | .return value' state' => .return value' state'
               | .revert state' => .revert state'
           | .call func args =>
-              -- Use evalIRCallWithInternals directly so that void internal
-              -- helpers (returning 0 values) succeed instead of reverting
-              -- through the single-value filter in evalIRExprWithInternals.
-              match evalIRCallWithInternals contract fuel state func args with
-              | .values _ state' => .continue state'
-              | .stop state' => .stop state'
-              | .return value' state' => .return value' state'
-              | .revert state' => .revert state'
+              if isYulLogName func then
+                match evalIRExprsWithInternals contract fuel state args with
+                | .values argVals state' =>
+                    match applyYulLogCall? state' func argVals with
+                    | some next => .continue next
+                    | none => .revert state'
+                | .stop state' => .stop state'
+                | .return value' state' => .return value' state'
+                | .revert state' => .revert state'
+              else
+                -- Use evalIRCallWithInternals directly so that void internal
+                -- helpers (returning 0 values) succeed instead of reverting
+                -- through the single-value filter in evalIRExprWithInternals.
+                match evalIRCallWithInternals contract fuel state func args with
+                | .values _ state' => .continue state'
+                | .stop state' => .stop state'
+                | .return value' state' => .return value' state'
+                | .revert state' => .revert state'
           | _ =>
               match evalIRExprWithInternals contract fuel state e with
               | .value _ state' => .continue state'
@@ -675,6 +774,77 @@ termination_by stmts => (fuel, stmts.length)
 decreasing_by all_goals simp_wf; all_goals omega
 
 end
+
+theorem execIRStmtWithInternals_log0_of_eval_args
+    {contract : IRContract}
+    {fuel : Nat}
+    {state state' : IRState}
+    {args : List YulExpr}
+    {offset size : Nat}
+    (heval :
+      evalIRExprsWithInternals contract fuel state args =
+        .values [offset, size] state') :
+    execIRStmtWithInternals contract (Nat.succ fuel) state
+        (YulStmt.expr (YulExpr.call "log0" args)) =
+      .continue (state'.appendYulLog offset size []) := by
+  simp [execIRStmtWithInternals, isYulLogName, heval]
+
+theorem execIRStmtWithInternals_log1_of_eval_args
+    {contract : IRContract}
+    {fuel : Nat}
+    {state state' : IRState}
+    {args : List YulExpr}
+    {offset size topic0 : Nat}
+    (heval :
+      evalIRExprsWithInternals contract fuel state args =
+        .values [offset, size, topic0] state') :
+    execIRStmtWithInternals contract (Nat.succ fuel) state
+        (YulStmt.expr (YulExpr.call "log1" args)) =
+      .continue (state'.appendYulLog offset size [topic0]) := by
+  simp [execIRStmtWithInternals, isYulLogName, heval]
+
+theorem execIRStmtWithInternals_log2_of_eval_args
+    {contract : IRContract}
+    {fuel : Nat}
+    {state state' : IRState}
+    {args : List YulExpr}
+    {offset size topic0 topic1 : Nat}
+    (heval :
+      evalIRExprsWithInternals contract fuel state args =
+        .values [offset, size, topic0, topic1] state') :
+    execIRStmtWithInternals contract (Nat.succ fuel) state
+        (YulStmt.expr (YulExpr.call "log2" args)) =
+      .continue (state'.appendYulLog offset size [topic0, topic1]) := by
+  simp [execIRStmtWithInternals, isYulLogName, heval]
+
+theorem execIRStmtWithInternals_log3_of_eval_args
+    {contract : IRContract}
+    {fuel : Nat}
+    {state state' : IRState}
+    {args : List YulExpr}
+    {offset size topic0 topic1 topic2 : Nat}
+    (heval :
+      evalIRExprsWithInternals contract fuel state args =
+        .values [offset, size, topic0, topic1, topic2] state') :
+    execIRStmtWithInternals contract (Nat.succ fuel) state
+        (YulStmt.expr (YulExpr.call "log3" args)) =
+      .continue (state'.appendYulLog offset size [topic0, topic1, topic2]) := by
+  simp [execIRStmtWithInternals, isYulLogName, heval]
+
+theorem execIRStmtWithInternals_log4_of_eval_args
+    {contract : IRContract}
+    {fuel : Nat}
+    {state state' : IRState}
+    {args : List YulExpr}
+    {offset size topic0 topic1 topic2 topic3 : Nat}
+    (heval :
+      evalIRExprsWithInternals contract fuel state args =
+        .values [offset, size, topic0, topic1, topic2, topic3] state') :
+    execIRStmtWithInternals contract (Nat.succ fuel) state
+        (YulStmt.expr (YulExpr.call "log4" args)) =
+      .continue (state'.appendYulLog offset size
+        [topic0, topic1, topic2, topic3]) := by
+  simp [execIRStmtWithInternals, isYulLogName, heval]
 
 /-! ## Helper Scope Sanity Checks -/
 
@@ -786,6 +956,20 @@ def execIRStmt : Nat → IRState → YulStmt → IRExecResult
                 else
                   .return 0 state
               | _, _ => .revert state
+          | .call func args =>
+              if isYulLogName func then
+                match evalIRExprs state args with
+                | some argVals =>
+                    match applyYulLogCall? state func argVals with
+                    | some next => .continue next
+                    | none => .revert state
+                | none => .revert state
+              else
+                -- Keep expression-statement behavior aligned with Yul:
+                -- evaluate the expression and revert on evaluation failure.
+                match evalIRExpr state e with
+                | some _ => .continue state
+                | none => .revert state
           | _ =>
               -- Keep expression-statement behavior aligned with Yul:
               -- evaluate the expression and revert on evaluation failure.
@@ -1217,14 +1401,23 @@ theorem evalIRExprWithInternals_eq_evalIRExpr_of_no_internal
                   cases rest with
                   | nil => simp
                   | cons _ _ => simp
-            · simp only [htload, hmload, ↓reduceIte]
-              cases hbuiltin :
-                  Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                    Compiler.Proofs.YulGeneration.defaultBuiltinBackend
-                    state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
-                    state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
-              | none => simp [hbuiltin]
-              | some value => simp [hbuiltin]
+            · by_cases hkeccak : func = "keccak256"
+              · subst hkeccak
+                cases argVals with
+                | nil => simp
+                | cons offset rest =>
+                    cases rest with
+                    | nil => simp
+                    | cons size rest =>
+                        cases rest <;> simp
+              · simp only [htload, hmload, hkeccak, ↓reduceIte]
+                cases hbuiltin :
+                    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
+                      Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                      state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
+                      state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
+                | none => simp [hbuiltin]
+                | some value => simp [hbuiltin]
 
 theorem evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal
     (contract : IRContract)
@@ -1372,14 +1565,23 @@ theorem evalIRExprWithInternals_eq_evalIRExpr_of_callsDisjoint
                   cases rest with
                   | nil => simp
                   | cons _ _ => simp
-            · simp only [htload, hmload, ↓reduceIte]
-              cases hbuiltin :
-                  Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                    Compiler.Proofs.YulGeneration.defaultBuiltinBackend
-                    state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
-                    state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
-              | none => simp [hbuiltin]
-              | some value => simp [hbuiltin]
+            · by_cases hkeccak : func = "keccak256"
+              · subst hkeccak
+                cases argVals with
+                | nil => simp
+                | cons offset rest =>
+                    cases rest with
+                    | nil => simp
+                    | cons size rest =>
+                        cases rest <;> simp
+              · simp only [htload, hmload, hkeccak, ↓reduceIte]
+                cases hbuiltin :
+                    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
+                      Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                      state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
+                      state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
+                | none => simp [hbuiltin]
+                | some value => simp [hbuiltin]
 
 /-- Expression-list conservative extension under per-expression disjointness.
 Generalizes `evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal`. -/
@@ -1532,14 +1734,23 @@ theorem evalIRCallWithInternals_stmt_eq_of_callsDisjoint
               cases rest with
               | nil => simp
               | cons _ _ => simp
-        · simp only [htload, hmload, ↓reduceIte]
-          cases hbuiltin :
-              Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                Compiler.Proofs.YulGeneration.defaultBuiltinBackend
-                state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
-                state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
-          | none => simp [hbuiltin]
-          | some value => simp [hbuiltin]
+        · by_cases hkeccak : func = "keccak256"
+          · subst hkeccak
+            cases argVals with
+            | nil => simp
+            | cons offset rest =>
+                cases rest with
+                | nil => simp
+                | cons size rest =>
+                    cases rest <;> simp
+          · simp only [htload, hmload, hkeccak, ↓reduceIte]
+            cases hbuiltin :
+                Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
+                  Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                  state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
+                  state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
+            | none => simp [hbuiltin]
+            | some value => simp [hbuiltin]
 
 /-- Statement-level collapse for call expressions when `internalFunctions = []`. -/
 theorem evalIRCallWithInternals_stmt_eq_of_no_internal
@@ -1576,14 +1787,59 @@ theorem evalIRCallWithInternals_stmt_eq_of_no_internal
               cases rest with
               | nil => simp
               | cons _ _ => simp
-        · simp only [htload, hmload, ↓reduceIte]
-          cases hbuiltin :
-              Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                Compiler.Proofs.YulGeneration.defaultBuiltinBackend
-                state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
-                state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
-          | none => simp [hbuiltin]
-          | some value => simp [hbuiltin]
+        · by_cases hkeccak : func = "keccak256"
+          · subst hkeccak
+            cases argVals with
+            | nil => simp
+            | cons offset rest =>
+                cases rest with
+                | nil => simp
+                | cons size rest =>
+                    cases rest <;> simp
+          · simp only [htload, hmload, hkeccak, ↓reduceIte]
+            cases hbuiltin :
+                Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
+                  Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                  state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
+                  state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
+            | none => simp [hbuiltin]
+            | some value => simp [hbuiltin]
+
+/-- Shared compatibility lemma for statement-position Yul logs: once the
+argument-list evaluators agree, helper-aware and helper-free log execution agree
+as well. -/
+private theorem yulLogStmtResult_eq_of_evalIRExprsWithInternals_eq
+    (contract : IRContract)
+    (fuel : Nat) (state : IRState) (func : String) (args : List YulExpr)
+    (hargs :
+      evalIRExprsWithInternals contract fuel state args =
+        match evalIRExprs state args with
+        | some values => .values values state
+        | none => .revert state) :
+    (match evalIRExprsWithInternals contract fuel state args with
+    | .values argVals state' =>
+        match applyYulLogCall? state' func argVals with
+        | some next => IRExecResultWithInternals.continue next
+        | none => IRExecResultWithInternals.revert state'
+    | .stop state' => IRExecResultWithInternals.stop state'
+    | .return value' state' => IRExecResultWithInternals.return value' state'
+    | .revert state' => IRExecResultWithInternals.revert state') =
+      match
+        (match evalIRExprs state args with
+        | some argVals =>
+            match applyYulLogCall? state func argVals with
+            | some next => IRExecResult.continue next
+            | none => IRExecResult.revert state
+        | none => IRExecResult.revert state) with
+      | .continue next => IRExecResultWithInternals.continue next
+      | .return value' state' => IRExecResultWithInternals.return value' state'
+      | .stop state' => IRExecResultWithInternals.stop state'
+      | .revert state' => IRExecResultWithInternals.revert state' := by
+  rw [hargs]
+  cases evalIRExprs state args with
+  | none => simp
+  | some values =>
+      cases hlog : applyYulLogCall? state func values <;> simp [hlog]
 
 /-- Generalized expr-stmt conservative extension under per-expression disjointness.
 This does not require `contract.internalFunctions = []`: it suffices that the
@@ -1643,19 +1899,31 @@ theorem execIRStmtWithInternals_eq_execIRStmt_expr_of_callsDisjoint
                 by_cases hstop : func = "stop"
                 · subst hstop
                   simp only [execIRStmtWithInternals, execIRStmt]
-                · cases hcall : evalIRExpr state (.call func []) <;>
-                    simp [execIRStmtWithInternals, execIRStmt,
-                      evalIRCallWithInternals_stmt_eq_of_callsDisjoint contract fuel state
-                        func [] hdisjoint,
-                      hstop, hcall]
+                · by_cases hlog : isYulLogName func = true
+                  · simpa [execIRStmtWithInternals, execIRStmt, hstop, hlog] using
+                      yulLogStmtResult_eq_of_evalIRExprsWithInternals_eq contract fuel
+                        state func []
+                        (evalIRExprsWithInternals_eq_evalIRExprs_of_callsDisjoint
+                          contract fuel state [] hargs_d)
+                  · cases hcall : evalIRExpr state (.call func []) <;>
+                      simp [execIRStmtWithInternals, execIRStmt,
+                        evalIRCallWithInternals_stmt_eq_of_callsDisjoint contract fuel state
+                          func [] hdisjoint,
+                        hstop, hlog, hcall]
             | cons arg rest =>
                 cases rest with
                 | nil =>
-                    cases hcall : evalIRExpr state (.call func [arg]) <;>
-                      simp only [execIRStmtWithInternals, execIRStmt,
-                        evalIRCallWithInternals_stmt_eq_of_callsDisjoint contract fuel state
-                          func [arg] hdisjoint,
-                        hcall]
+                    by_cases hlog : isYulLogName func = true
+                    · simpa [execIRStmtWithInternals, execIRStmt, hlog] using
+                        yulLogStmtResult_eq_of_evalIRExprsWithInternals_eq contract fuel
+                          state func [arg]
+                          (evalIRExprsWithInternals_eq_evalIRExprs_of_callsDisjoint
+                            contract fuel state [arg] hargs_d)
+                    · cases hcall : evalIRExpr state (.call func [arg]) <;>
+                        simp [execIRStmtWithInternals, execIRStmt,
+                          evalIRCallWithInternals_stmt_eq_of_callsDisjoint contract fuel state
+                            func [arg] hdisjoint,
+                          hlog, hcall]
                 | cons arg2 rest =>
                     cases rest with
                     | nil =>
@@ -1815,17 +2083,30 @@ theorem execIRStmtWithInternals_eq_execIRStmt_expr_of_callsDisjoint
                                                 contract fuel state [arg, arg2] hpair_d,
                                               hoffset, hsize, h32]
                                 · -- Generic two-arg call (not sstore/mstore/tstore/revert/return)
-                                  cases hcall : evalIRExpr state (.call func [arg, arg2]) <;>
-                                    simpa [execIRStmtWithInternals, execIRStmt,
-                                      hsstore, hmstore, htstore, hrevert, hreturn, hcall] using
-                                      evalIRCallWithInternals_stmt_eq_of_callsDisjoint contract
-                                        fuel state func [arg, arg2] hdisjoint
+                                  by_cases hlog : isYulLogName func = true
+                                  · simpa [execIRStmtWithInternals, execIRStmt,
+                                      hsstore, hmstore, htstore, hrevert, hreturn, hlog] using
+                                      yulLogStmtResult_eq_of_evalIRExprsWithInternals_eq
+                                        contract fuel state func [arg, arg2]
+                                        (evalIRExprsWithInternals_eq_evalIRExprs_of_callsDisjoint
+                                          contract fuel state [arg, arg2] hpair_d)
+                                  · cases hcall : evalIRExpr state (.call func [arg, arg2]) <;>
+                                      simpa [execIRStmtWithInternals, execIRStmt,
+                                        hsstore, hmstore, htstore, hrevert, hreturn, hlog, hcall] using
+                                        evalIRCallWithInternals_stmt_eq_of_callsDisjoint contract
+                                          fuel state func [arg, arg2] hdisjoint
                     | cons arg3 rest =>
-                        cases hcall : evalIRExpr state (.call func (arg :: arg2 :: arg3 :: rest)) <;>
-                          simp only [execIRStmtWithInternals, execIRStmt,
-                            evalIRCallWithInternals_stmt_eq_of_callsDisjoint contract fuel state
-                              func (arg :: arg2 :: arg3 :: rest) hdisjoint,
-                            hcall]
+                        by_cases hlog : isYulLogName func = true
+                        · simpa [execIRStmtWithInternals, execIRStmt, hlog] using
+                            yulLogStmtResult_eq_of_evalIRExprsWithInternals_eq
+                              contract fuel state func (arg :: arg2 :: arg3 :: rest)
+                              (evalIRExprsWithInternals_eq_evalIRExprs_of_callsDisjoint
+                                contract fuel state (arg :: arg2 :: arg3 :: rest) hargs_d)
+                        · cases hcall : evalIRExpr state (.call func (arg :: arg2 :: arg3 :: rest)) <;>
+                            simp [execIRStmtWithInternals, execIRStmt,
+                              evalIRCallWithInternals_stmt_eq_of_callsDisjoint contract fuel state
+                                func (arg :: arg2 :: arg3 :: rest) hdisjoint,
+                              hlog, hcall]
 
 /-- Statement-list conservative extension under per-statement disjointness.
 This is the generalization of `execIRStmtsWithInternals_eq_execIRStmts_of_exprCompatibility`
@@ -2453,19 +2734,31 @@ theorem execIRStmtWithInternals_eq_execIRStmt_expr_of_no_internal
                   · subst hstop
                     simpa using execIRStmtWithInternals_eq_execIRStmt_stop_of_no_internal
                       contract hinternal (Nat.succ fuel) state
-                  · cases hcall : evalIRExpr state (.call func []) <;>
-                      simp [execIRStmtWithInternals, execIRStmt,
-                        evalIRCallWithInternals_stmt_eq_of_no_internal contract hinternal
-                          fuel state func [],
-                        hstop, hcall]
+                  · by_cases hlog : isYulLogName func = true
+                    · simpa [execIRStmtWithInternals, execIRStmt, hstop, hlog] using
+                        yulLogStmtResult_eq_of_evalIRExprsWithInternals_eq contract fuel
+                          state func []
+                          (evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal
+                            contract hinternal fuel state [])
+                    · cases hcall : evalIRExpr state (.call func []) <;>
+                        simp [execIRStmtWithInternals, execIRStmt,
+                          evalIRCallWithInternals_stmt_eq_of_no_internal contract hinternal
+                            fuel state func [],
+                          hstop, hlog, hcall]
               | cons arg rest =>
                   cases rest with
                   | nil =>
-                      cases hcall : evalIRExpr state (.call func [arg]) <;>
-                        simp only [execIRStmtWithInternals, execIRStmt,
-                          evalIRCallWithInternals_stmt_eq_of_no_internal contract hinternal
-                            fuel state func [arg],
-                          hcall]
+                      by_cases hlog : isYulLogName func = true
+                      · simpa [execIRStmtWithInternals, execIRStmt, hlog] using
+                          yulLogStmtResult_eq_of_evalIRExprsWithInternals_eq contract fuel
+                            state func [arg]
+                            (evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal
+                              contract hinternal fuel state [arg])
+                      · cases hcall : evalIRExpr state (.call func [arg]) <;>
+                          simp [execIRStmtWithInternals, execIRStmt,
+                            evalIRCallWithInternals_stmt_eq_of_no_internal contract hinternal
+                              fuel state func [arg],
+                            hlog, hcall]
                   | cons arg2 rest =>
                       cases rest with
                       | nil =>
@@ -2489,17 +2782,30 @@ theorem execIRStmtWithInternals_eq_execIRStmt_expr_of_no_internal
                                   · subst hreturn
                                     simpa using execIRStmtWithInternals_eq_execIRStmt_return_of_no_internal
                                       contract hinternal (Nat.succ fuel) state arg arg2
-                                  · cases hcall : evalIRExpr state (.call func [arg, arg2]) <;>
-                                      simpa [execIRStmtWithInternals, execIRStmt,
-                                        hsstore, hmstore, htstore, hrevert, hreturn, hcall] using
-                                        evalIRCallWithInternals_stmt_eq_of_no_internal contract
-                                          hinternal fuel state func [arg, arg2]
+                                  · by_cases hlog : isYulLogName func = true
+                                    · simpa [execIRStmtWithInternals, execIRStmt,
+                                        hsstore, hmstore, htstore, hrevert, hreturn, hlog] using
+                                        yulLogStmtResult_eq_of_evalIRExprsWithInternals_eq
+                                          contract fuel state func [arg, arg2]
+                                          (evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal
+                                            contract hinternal fuel state [arg, arg2])
+                                    · cases hcall : evalIRExpr state (.call func [arg, arg2]) <;>
+                                        simpa [execIRStmtWithInternals, execIRStmt,
+                                          hsstore, hmstore, htstore, hrevert, hreturn, hlog, hcall] using
+                                          evalIRCallWithInternals_stmt_eq_of_no_internal contract
+                                            hinternal fuel state func [arg, arg2]
                       | cons arg3 rest =>
-                          cases hcall : evalIRExpr state (.call func (arg :: arg2 :: arg3 :: rest)) <;>
-                            simp only [execIRStmtWithInternals, execIRStmt,
-                              evalIRCallWithInternals_stmt_eq_of_no_internal contract hinternal
-                                fuel state func (arg :: arg2 :: arg3 :: rest),
-                              hcall]
+                          by_cases hlog : isYulLogName func = true
+                          · simpa [execIRStmtWithInternals, execIRStmt, hlog] using
+                              yulLogStmtResult_eq_of_evalIRExprsWithInternals_eq
+                                contract fuel state func (arg :: arg2 :: arg3 :: rest)
+                                (evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal
+                                  contract hinternal fuel state (arg :: arg2 :: arg3 :: rest))
+                          · cases hcall : evalIRExpr state (.call func (arg :: arg2 :: arg3 :: rest)) <;>
+                              simp [execIRStmtWithInternals, execIRStmt,
+                                evalIRCallWithInternals_stmt_eq_of_no_internal contract hinternal
+                                  fuel state func (arg :: arg2 :: arg3 :: rest),
+                                hlog, hcall]
 
 /-- Statement-list compatibility is also derivable from expression-statement
 compatibility alone on the legacy-compatible external subset. This collapses the
@@ -3286,7 +3592,8 @@ theorem evalIRCallWithInternals_of_builtin
     (hargs : evalIRExprsWithInternals contract fuel state args = .values argVals state')
     (hfind : findInternalFunction? contract func = none)
     (hnotTload : func ≠ "tload")
-    (hnotMload : func ≠ "mload") :
+    (hnotMload : func ≠ "mload")
+    (hnotKeccak : func ≠ "keccak256") :
     evalIRCallWithInternals contract fuel state func args =
       match Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
           Compiler.Proofs.YulGeneration.defaultBuiltinBackend
@@ -3295,7 +3602,8 @@ theorem evalIRCallWithInternals_of_builtin
           state'.selector state'.calldata func argVals with
       | some value => .values [value] state'
       | none => .revert state' := by
-  simp only [evalIRCallWithInternals, hargs, hfind, hnotTload, hnotMload, ↓reduceIte]
+  simp only [evalIRCallWithInternals, hargs, hfind, hnotTload, hnotMload, hnotKeccak,
+    ↓reduceIte]
 
 /-- When argument evaluation propagates a control-flow effect (stop/return/revert),
 `evalIRCallWithInternals` propagates it unchanged. -/
@@ -3756,7 +4064,8 @@ theorem execIRStmtWithInternals_expr_call_internal
     (hstop : func ≠ "stop") (hsstore : func ≠ "sstore")
     (hmstore : func ≠ "mstore") (htstore : func ≠ "tstore")
     (hrevert : func ≠ "revert")
-    (hreturn : func ≠ "return") :
+    (hreturn : func ≠ "return")
+    (hlog : isYulLogName func = false) :
     execIRStmtWithInternals contract (fuel + 2) state (.expr (.call func args)) =
       match execIRInternalFunctionWithInternals contract fuel state' helper argVals with
       | .values _ state'' => .continue state''
@@ -3769,19 +4078,19 @@ theorem execIRStmtWithInternals_expr_call_internal
   rw [show fuel + 2 = (fuel + 1) + 1 from by omega]
   cases args with
   | nil =>
-    simp [execIRStmtWithInternals, evalIRCallWithInternals, hstop, hfind]
+    simp [execIRStmtWithInternals, evalIRCallWithInternals, hstop, hlog, hfind]
     rw [hargs]
   | cons arg rest =>
     cases rest with
     | nil =>
-      simp only [execIRStmtWithInternals, evalIRCallWithInternals, hargs, hfind]
+      simp [execIRStmtWithInternals, evalIRCallWithInternals, hargs, hlog, hfind]
     | cons arg2 rest =>
       cases rest with
       | nil =>
         simp [execIRStmtWithInternals, hsstore, hmstore, htstore, hrevert, hreturn,
-          evalIRCallWithInternals, hargs, hfind]
+          evalIRCallWithInternals, hargs, hlog, hfind]
       | cons arg3 rest =>
-        simp only [execIRStmtWithInternals, evalIRCallWithInternals, hargs, hfind]
+        simp [execIRStmtWithInternals, evalIRCallWithInternals, hargs, hlog, hfind]
 
 /-- End-to-end singleton list characterization for `Stmt.internalCall` (void calls):
 when `compiledIR = [.expr (.call func args)]` with args evaluating to `argVals`
@@ -3797,7 +4106,8 @@ theorem execIRStmtsWithInternals_singleton_expr_call_internal
     (hstop : func ≠ "stop") (hsstore : func ≠ "sstore")
     (hmstore : func ≠ "mstore") (htstore : func ≠ "tstore")
     (hrevert : func ≠ "revert")
-    (hreturn : func ≠ "return") :
+    (hreturn : func ≠ "return")
+    (hlog : isYulLogName func = false) :
     execIRStmtsWithInternals contract (fuel + 3) state
       [YulStmt.expr (YulExpr.call func args)] =
       match execIRInternalFunctionWithInternals contract fuel state' helper argVals with
@@ -3809,7 +4119,7 @@ theorem execIRStmtsWithInternals_singleton_expr_call_internal
   rw [execIRStmtsWithInternals_singleton]
   exact execIRStmtWithInternals_expr_call_internal
     contract fuel state func args helper argVals state' hargs hfind
-    hstop hsstore hmstore htstore hrevert hreturn
+    hstop hsstore hmstore htstore hrevert hreturn hlog
 
 /-! ## Compilation output shape theorems
 
@@ -3952,6 +4262,30 @@ theorem compileStmt_internalCall_shape
     simp [hargs, pure, Except.pure] at hok
     exact hok.symm
 
+private theorem internalFunctionYulName_head (name : String) :
+    (CompilationModel.internalFunctionYulName name).toList.head? = some 'i' := by
+  simp [CompilationModel.internalFunctionYulName, CompilationModel.internalFunctionPrefix]
+  decide
+
+private theorem internalFunctionYulName_ne_log (name logName : String)
+    (hlogHead : logName.toList.head? = some 'l') :
+    CompilationModel.internalFunctionYulName name ≠ logName := by
+  intro hEq
+  have hHead := congrArg (fun s : String => s.toList.head?) hEq
+  change (CompilationModel.internalFunctionYulName name).toList.head? =
+    logName.toList.head? at hHead
+  rw [internalFunctionYulName_head name, hlogHead] at hHead
+  exact nomatch hHead
+
+private theorem internalFunctionYulName_isYulLogName_false (name : String) :
+    isYulLogName (CompilationModel.internalFunctionYulName name) = false := by
+  simp [isYulLogName,
+    internalFunctionYulName_ne_log name "log0" (by decide),
+    internalFunctionYulName_ne_log name "log1" (by decide),
+    internalFunctionYulName_ne_log name "log2" (by decide),
+    internalFunctionYulName_ne_log name "log3" (by decide),
+    internalFunctionYulName_ne_log name "log4" (by decide)]
+
 /-! ## End-to-end helper call execution characterization
 
 These combine compilation shape extraction with IR execution characterization
@@ -4054,7 +4388,8 @@ theorem execIRStmtsWithInternals_of_internalCall_compile
         | inr h =>
             have hcontra : (toString "internal_").data.head? ≠ some 't' := by decide
             exact hcontra h.2)
-      hrevert hreturn⟩
+      hrevert hreturn
+      (internalFunctionYulName_isYulLogName_false functionName)⟩
 
 @[simp] theorem applyIRTransactionContext_sender
     (tx : IRTransaction) (initialState : IRState) :

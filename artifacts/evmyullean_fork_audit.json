@@ -1,0 +1,52 @@
+{
+  "audit_methodology": [
+    "1. Clone lfglabs-dev/EVMYulLean at pinned commit into a local worktree.",
+    "2. Add NethermindEth/EVMYulLean as `upstream` remote and fetch.",
+    "3. Compute `git merge-base upstream/main origin/main` to find the divergence point.",
+    "4. For each commit in `upstream/main..origin/main`, record SHA, title, touched files, and categorize as {visibility, toolchain, lemma-addition, builtin-addition, semantic-change}.",
+    "5. Reject `semantic-change` category without explicit Issue #1722 scope expansion (would break upstream conformance test coverage).",
+    "6. Commit this artifact alongside Verity's lake-manifest.json pin bump."
+  ],
+  "commits": [
+    {
+      "category": "visibility",
+      "diff_summary": "1 file changed, 2 insertions(+), 1 deletion(-): strip `private` from one `def`, add a doc comment. No behavior change.",
+      "file": "EvmYul/UInt256.lean",
+      "rationale": "Remove `private` modifier from `EvmYul.UInt256.powAux` (binary-exponentiation accumulator for `UInt256.exp`). In Lean 4.22.0 private declarations cannot be unfolded across module boundaries (`simp only`, `unfold`, and `delta` all fail) because their equational theorems are also private (Lean 4 PR #8519). Exposing the function unblocks Verity's inductive bridge proof for the `exp` builtin in `EvmYulLeanBridgeLemmas.lean`.",
+      "semantic_change": false,
+      "sha": "ed9215e9ba8e3fa73128f3b67131793a01db332f",
+      "title": "feat: expose powAux for downstream formal verification",
+      "trust_impact": "Zero. Visibility is a module-system concept with no runtime or logical effect on term evaluation."
+    },
+    {
+      "category": "toolchain",
+      "diff_summary": "1 file changed, 1 insertion(+), 1 deletion(-): rename one field reference in the FFI extern-lib build step. No behavior change.",
+      "file": "lakefile.lean",
+      "rationale": "`Lake.Package.nativeLibDir` was deprecated in Lean 4.22.0 in favor of `staticLibDir`. The fork pins to Lean 4.22.0 to match Verity's toolchain, so the fix silences a build-time warning that Verity's build would otherwise promote to an error under its `-Dwarnings.toErrors=true` CI policy.",
+      "semantic_change": false,
+      "sha": "7b54b8f38bb68ee930d00d39c1b11dd60fb123c8",
+      "title": "fix: replace deprecated nativeLibDir with staticLibDir",
+      "trust_impact": "Zero. Lake build metadata only; compiled output is byte-identical up to path naming."
+    }
+  ],
+  "divergence_summary": "Fork is exactly 2 commits ahead of upstream/main. Both commits are non-semantic: one visibility change (private -> default) on an internal exponentiation accumulator, and one Lean 4.22.0 deprecation fix (nativeLibDir -> staticLibDir) in the lakefile. Neither commit changes EVM/Yul execution semantics, so upstream Ethereum conformance test coverage continues to apply transitively.",
+  "fork_ahead_by": 2,
+  "fork_behind_by": 0,
+  "fork_url": "https://github.com/lfglabs-dev/EVMYulLean",
+  "pinned_commit": "7b54b8f38bb68ee930d00d39c1b11dd60fb123c8",
+  "reproduction": {
+    "script": "scripts/generate_evmyullean_fork_audit.py",
+    "steps": [
+      "git clone https://github.com/lfglabs-dev/EVMYulLean",
+      "cd EVMYulLean",
+      "git remote add upstream https://github.com/NethermindEth/EVMYulLean.git",
+      "git fetch upstream",
+      "git log --oneline upstream/main..origin/main",
+      "git diff --stat upstream/main..origin/main"
+    ]
+  },
+  "schema_version": 1,
+  "trust_boundary": "Verity's effective trust boundary for Yul/EVM semantics is (upstream NethermindEth/EVMYulLean at commit 047f63070309f436b66c61e276ab3b6d1169265a) plus the 2 visibility/toolchain fork commits enumerated above. Neither fork commit touches EVM/Yul execution semantics, so upstream Ethereum conformance test coverage applies transitively.",
+  "upstream_base": "047f63070309f436b66c61e276ab3b6d1169265a",
+  "upstream_url": "https://github.com/NethermindEth/EVMYulLean"
+}

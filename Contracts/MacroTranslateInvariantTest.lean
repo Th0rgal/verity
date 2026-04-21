@@ -497,6 +497,8 @@ private def checkMutabilitySmoke : IO Unit := do
   expectTrue "MutabilitySmoke: view flag is preserved" owner.isView
   expectTrue "MutabilitySmoke: deposit body reads msgValue"
     (contains (reprStr deposit.body) "Expr.msgValue")
+  -- This compile-time reference fails if the auto-generated theorem is missing.
+  let _ := @Contracts.Smoke.MutabilitySmoke.currentOwner_is_view
 
 private def checkSignedBuiltinSmoke : IO Unit := do
   let functions := Contracts.Smoke.SignedBuiltinSmoke.spec.functions

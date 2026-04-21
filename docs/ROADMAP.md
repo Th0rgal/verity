@@ -180,14 +180,18 @@ Execution priorities:
 | # | Component | Approach | Effort | Status |
 |---|-----------|----------|--------|--------|
 | 1 | ~~Function Selectors~~ | keccak256 axiom + CI | — | ✅ **DONE** (PR #43, #46) |
-| 2 | Yul/EVM Semantics Bridge | EVMYulLean integration | 1-3m | 🟡 **IN PROGRESS** |
+| 2 | Yul/EVM Semantics Bridge | EVMYulLean integration | 1-3m | 🟢 **PHASE 4 COMPLETE** |
 | 3 | EVM Semantics | Strong testing + documented assumption | Ongoing | ⚪ TODO |
 
-**Yul/EVM Semantics Bridge**: EVMYulLean (NethermindEth) provides formally-defined Yul AST types and UInt256 operations. Current integration status:
+**Yul/EVM Semantics Bridge** (Issue [#1722](https://github.com/lfglabs-dev/verity/issues/1722)): EVMYulLean (NethermindEth) provides formally-defined Yul AST types and UInt256 operations. Current integration status:
 - AST adapter: all 11 statement types + 5 expression types lower to EVMYulLean AST (0 gaps)
-- Builtin bridge: 15 pure arithmetic/comparison/bitwise builtins delegate to EVMYulLean `UInt256` operations with compile-time equivalence checks
-- State-dependent builtins (sload, caller, calldataload) and Verity helpers (mappingSlot) remain on the Verity evaluation path
-- Next: full semantic evaluation via EVMYulLean interpreter, bridging proofs for state-dependent builtins
+- Builtin bridge: 36 of 36 builtins bridged (25 pure + 11 context/env/storage/helper), with all 36 fully proven and 0 sorry'd
+- 123 concrete bridge tests + 7 adapter correctness theorems + 36 context-lifted bridge theorems
+- `bridgedBuiltins` definition enumerates all 36 builtins where `.evmYulLean` and `.verity` backends agree
+- Unbridged: none; `mappingSlot` is bridged via the shared keccak-faithful `abstractMappingSlot` derivation
+- Phase 2 state bridge scaffolding: type conversions, storage round-trip, env field bridges (0 sorry)
+- **Phase 4 (safe-body EndToEnd retarget)**: `EvmYulLeanRetarget.lean` proves `backends_agree_on_bridged_builtins` and `evalYulExpr_evmYulLean_eq_on_bridged`, establishing that `.verity` and `.evmYulLean` agree for `BridgedExpr` expressions built from bridged builtin calls plus backend-independent `tload`/`mload`. It also defines `execYulFuelWithBackend`, proves `execYulFuelWithBackend_verity_eq`, proves straight-line/block/if/switch/for statement-fragment helpers, proves `execYulFuelWithBackend_eq_on_bridged_target` for recursive `BridgedTarget` values, proves `emitYul_runtimeCode_bridged`, proves `emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies`, and proves `yulCodegen_preserves_semantics_evmYulLean`: the existing Layer-3 IR→Yul preservation theorem retargeted to `interpretYulRuntimeWithBackend .evmYulLean` under bridged-body hypotheses. `EndToEnd.lean` now exposes `layers2_3_ir_matches_yul_evmYulLean` over that EVMYulLean-backed target without raw external function-body `BridgedStmts` hypotheses, deriving them from `SupportedSpec`, static-parameter witnesses, and `BridgedSafeStmts` source-body witnesses. `EvmYulLeanBodyClosure.lean` proves universal `compileStmtList_always_bridged` coverage for `BridgedSafeStmts`; the external-call family remains carved out behind explicit function-table simulation work. `EvmYulLeanSourceExprClosure.lean` proves scalar leaf closure (`compileExpr_bridgedSource_leaf`) and pure arithmetic/comparison/bit-operation expression closure (`compileExpr_bridgedSource`) for the `BridgedSourceExpr` fragment. Trust boundary shifts for bridged expressions, recursive bridged statement targets, Layer-3 contract executions, and the safe-body EndToEnd wrapper with fully proven builtin dependencies.
+- **Remaining to make retargeting whole-program**: extend `BridgedSafeStmts` or add a separate function-table simulation for the external-call family (`internalCall`, `internalCallAssign`, `externalCallBind`, and `ecm`)
 
 **EVM Semantics**: Mitigated by differential testing against actual EVM execution (Foundry). Likely remains a documented fundamental assumption.
 
@@ -315,5 +319,5 @@ See [`CONTRIBUTING.md`](../CONTRIBUTING.md) for contribution guidelines and [`VE
 
 ---
 
-**Last Updated**: 2026-04-07
+**Last Updated**: 2026-04-18
 **Status**: Layer 1 is complete for the current contract set; Layer 2 now has a generic whole-contract theorem for the current supported fragment, with remaining [#1510](https://github.com/lfglabs-dev/verity/issues/1510) work focused on fragment widening and legacy bridge migration; Layer 3 is complete. Trust reduction 1/3 done. Sum properties complete (7/7 proven). CompilationModel now supports real-world contracts (loops, branching, events, multi-mappings, internal call mechanics, verified externs).

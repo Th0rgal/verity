@@ -1,5 +1,5 @@
 import Compiler.Codegen
-import Compiler.Proofs.YulGeneration.Semantics
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 
 namespace Compiler.Proofs.YulGeneration
 

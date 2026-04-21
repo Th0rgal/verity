@@ -23,13 +23,13 @@ Compiler.Proofs.IRGeneration.SupportedSpec
 Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeTest
-Compiler.Proofs.YulGeneration.Builtins
+Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
 Compiler.Proofs.YulGeneration.Codegen
 Compiler.Proofs.YulGeneration.Equivalence
 Compiler.Proofs.YulGeneration.Lemmas
 Compiler.Proofs.YulGeneration.PatchRulesProofs
 Compiler.Proofs.YulGeneration.Preservation
-Compiler.Proofs.YulGeneration.Semantics
+Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 Compiler.Proofs.YulGeneration.StatementEquivalence
 #
 # Non-proof integration targets

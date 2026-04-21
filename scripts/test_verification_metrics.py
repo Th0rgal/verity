@@ -53,7 +53,9 @@ class VerificationMetricsTests(unittest.TestCase):
             try:
                 verification_metrics.ROOT = root
                 self.assertEqual(verification_metrics.get_axiom_count(), 1)
-                self.assertEqual(verification_metrics.get_sorry_count(), 1)
+                total_sorry, proof_sorry = verification_metrics.get_sorry_count()
+                self.assertEqual(total_sorry, 1)
+                self.assertEqual(proof_sorry, 1)
             finally:
                 verification_metrics.ROOT = old_root
 
@@ -72,6 +74,54 @@ class VerificationMetricsTests(unittest.TestCase):
                 self.assertIn("duplicate object key", str(ctx.exception))
             finally:
                 property_utils.MANIFEST = old_manifest
+
+    def test_infrastructure_sorrys_excluded_from_proof_sorry(self) -> None:
+        """Sorrys in INFRASTRUCTURE_FILES count toward total but not proof_sorry."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            # Create the infrastructure file with sorrys
+            infra = (
+                root
+                / "Compiler"
+                / "Proofs"
+                / "YulGeneration"
+                / "Backends"
+                / "EvmYulLeanBridgeLemmas.lean"
+            )
+            infra.parent.mkdir(parents=True, exist_ok=True)
+            infra.write_text("sorry\nsorry\nsorry\n", encoding="utf-8")
+
+            # Create a normal file with a sorry (should count as proof sorry)
+            normal = root / "Compiler" / "Proofs" / "Normal.lean"
+            normal.write_text("sorry\n", encoding="utf-8")
+
+            (root / "Verity").mkdir(parents=True, exist_ok=True)
+
+            old_root = verification_metrics.ROOT
+            try:
+                verification_metrics.ROOT = root
+                total, proof = verification_metrics.get_sorry_count()
+                self.assertEqual(total, 4, "all 4 sorrys counted in total")
+                self.assertEqual(proof, 1, "only non-infrastructure sorry is proof_sorry")
+            finally:
+                verification_metrics.ROOT = old_root
+
+    def test_infrastructure_sorrys_zero_when_no_infra_file(self) -> None:
+        """Without infrastructure files, all sorrys count as proof sorrys."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "Compiler").mkdir(parents=True, exist_ok=True)
+            (root / "Verity").mkdir(parents=True, exist_ok=True)
+            (root / "Compiler" / "Proof.lean").write_text("sorry\nsorry\n", encoding="utf-8")
+
+            old_root = verification_metrics.ROOT
+            try:
+                verification_metrics.ROOT = root
+                total, proof = verification_metrics.get_sorry_count()
+                self.assertEqual(total, 2)
+                self.assertEqual(proof, 2)
+            finally:
+                verification_metrics.ROOT = old_root
 
     def test_load_metrics_from_artifact_rejects_boolean_numeric_field(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

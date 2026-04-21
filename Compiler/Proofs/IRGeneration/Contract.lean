@@ -394,7 +394,7 @@ private theorem compileValidatedCore_ok_yields_compiled_functions
       "receive" model.functions hSupported.noReceive
   unfold compileValidatedCore at hcore
   rw [hSupported.normalizedFields, hSupported.noEvents, hSupported.noErrors,
-    hSupported.noConstructor, hfallback, hreceive] at hcore
+    hfallback, hreceive] at hcore
   simp only [bind, Except.bind, pure, Except.pure] at hcore
   rcases hmap :
       ((model.functions.filter
@@ -406,21 +406,25 @@ private theorem compileValidatedCore_ok_yields_compiled_functions
         (model.functions.filter (·.isInternal)).mapM
           (compileInternalFunction model.fields [] []) with _ | internalFuncDefs
     · simp [hinternal] at hcore
-    · simp [hinternal, compileConstructor] at hcore
-      have hfunctions : ir.functions = irFns := by
-        injection hcore with hir
-        cases hir
-        rfl
-      have hcompiled :
-          List.Forall₂
-            (fun (entry : FunctionSpec × Nat) irFn =>
-              compileFunctionSpec model.fields [] [] entry.2 entry.1 = Except.ok irFn)
-            ((model.functions.filter
-                (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors)
-            irFns :=
-        compiled_functions_forall₂_of_mapM_ok model.fields [] [] _ _ hmap
-      simpa [SourceSemantics.selectorFunctionPairs, selectorDispatchedFunctions,
-        hSupported.noEvents, hSupported.noErrors, hfunctions] using hcompiled
+    · rcases hctor :
+          compileConstructor model.fields [] [] model.constructor with _ | deployStmts
+      · simp [hinternal, hctor] at hcore
+        cases hcore
+      · simp [hinternal, hctor] at hcore
+        have hfunctions : ir.functions = irFns := by
+          injection hcore with hir
+          cases hir
+          rfl
+        have hcompiled :
+            List.Forall₂
+              (fun (entry : FunctionSpec × Nat) irFn =>
+                compileFunctionSpec model.fields [] [] entry.2 entry.1 = Except.ok irFn)
+              ((model.functions.filter
+                  (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors)
+              irFns :=
+          compiled_functions_forall₂_of_mapM_ok model.fields [] [] _ _ hmap
+        simpa [SourceSemantics.selectorFunctionPairs, selectorDispatchedFunctions,
+          hSupported.noEvents, hSupported.noErrors, hfunctions] using hcompiled
 
 private theorem compileValidatedCore_ok_yields_compiled_functions_except_mapping_writes
     (model : CompilationModel)
@@ -443,7 +447,7 @@ private theorem compileValidatedCore_ok_yields_compiled_functions_except_mapping
       "receive" model.functions hSupported.noReceive
   unfold compileValidatedCore at hcore
   rw [hSupported.normalizedFields, hSupported.noEvents, hSupported.noErrors,
-    hSupported.noConstructor, hfallback, hreceive] at hcore
+    hfallback, hreceive] at hcore
   simp only [bind, Except.bind, pure, Except.pure] at hcore
   rcases hmap :
       ((model.functions.filter
@@ -455,21 +459,25 @@ private theorem compileValidatedCore_ok_yields_compiled_functions_except_mapping
         (model.functions.filter (·.isInternal)).mapM
           (compileInternalFunction model.fields [] []) with _ | internalFuncDefs
     · simp [hinternal] at hcore
-    · simp [hinternal, compileConstructor] at hcore
-      have hfunctions : ir.functions = irFns := by
-        injection hcore with hir
-        cases hir
-        rfl
-      have hcompiled :
-          List.Forall₂
-            (fun (entry : FunctionSpec × Nat) irFn =>
-              compileFunctionSpec model.fields [] [] entry.2 entry.1 = Except.ok irFn)
-            ((model.functions.filter
-                (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors)
-            irFns :=
-        compiled_functions_forall₂_of_mapM_ok model.fields [] [] _ _ hmap
-      simpa [SourceSemantics.selectorFunctionPairs, selectorDispatchedFunctions,
-        hSupported.noEvents, hSupported.noErrors, hfunctions] using hcompiled
+    · rcases hctor :
+          compileConstructor model.fields [] [] model.constructor with _ | deployStmts
+      · simp [hinternal, hctor] at hcore
+        cases hcore
+      · simp [hinternal, hctor] at hcore
+        have hfunctions : ir.functions = irFns := by
+          injection hcore with hir
+          cases hir
+          rfl
+        have hcompiled :
+            List.Forall₂
+              (fun (entry : FunctionSpec × Nat) irFn =>
+                compileFunctionSpec model.fields [] [] entry.2 entry.1 = Except.ok irFn)
+              ((model.functions.filter
+                  (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors)
+              irFns :=
+          compiled_functions_forall₂_of_mapM_ok model.fields [] [] _ _ hmap
+        simpa [SourceSemantics.selectorFunctionPairs, selectorDispatchedFunctions,
+          hSupported.noEvents, hSupported.noErrors, hfunctions] using hcompiled
 
 private theorem filterInternalFunctions_eq_nil_of_all_nonInternal :
     ∀ (fns : List FunctionSpec),
@@ -525,17 +533,21 @@ private theorem compileValidatedCore_ok_yields_internalFunctions_nil
     hSupported.contractUsesDynamicBytesEq_eq_false
   unfold compileValidatedCore at hcore
   rw [hSupported.normalizedFields, hfallback, hreceive, harray, hstorageArray,
-    hdynamicBytesEq, hnoInternalFns, hSupported.noConstructor] at hcore
+    hdynamicBytesEq, hnoInternalFns] at hcore
   simp only [bind, Except.bind, pure, Except.pure, List.mapM_nil] at hcore
   rcases hmap :
       ((model.functions.filter
           (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors).mapM
         (fun x => compileFunctionSpec model.fields model.events model.errors x.2 x.1) with _ | irFns
   · simp [hmap] at hcore
-  · simp [hmap, compileConstructor] at hcore
-    injection hcore with hir
-    cases hir
-    rfl
+  · rcases hctor :
+        compileConstructor model.fields model.events model.errors model.constructor with _ | deployStmts
+    · simp [hmap, hctor] at hcore
+      cases hcore
+    · simp [hmap, hctor] at hcore
+      injection hcore with hir
+      cases hir
+      rfl
 
 theorem supported_params_of_supportedSpec
     (model : CompilationModel)
@@ -750,17 +762,21 @@ theorem compile_ok_yields_internalFunctions_nil_except_mapping_writes
   · simp [hvalidate] at hcompile
     unfold compileValidatedCore at hcompile
     rw [hSupported.normalizedFields, hfallback, hreceive, harray, hstorageArray,
-      hdynamicBytesEq, hnoInternalFns, hSupported.noConstructor] at hcompile
+      hdynamicBytesEq, hnoInternalFns] at hcompile
     simp only [bind, Except.bind, pure, Except.pure, List.mapM_nil] at hcompile
     rcases hmap :
         ((model.functions.filter
             (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors).mapM
           (fun x => compileFunctionSpec model.fields model.events model.errors x.2 x.1) with _ | irFns
     · simp [hmap] at hcompile
-    · simp [hmap, compileConstructor] at hcompile
-      injection hcompile with hir
-      cases hir
-      rfl
+    · rcases hctor :
+          compileConstructor model.fields model.events model.errors model.constructor with _ | deployStmts
+      · simp [hmap, hctor] at hcompile
+        cases hcompile
+      · simp [hmap, hctor] at hcompile
+        injection hcompile with hir
+        cases hir
+        rfl
 
 -- NOTE: compileValidatedCore_ok_yields_supportedRuntimeHelperTableInterface and
 -- compile_ok_yields_supportedRuntimeHelperTableInterface are BLOCKED by missing

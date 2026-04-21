@@ -25,5 +25,5 @@ This folder collects compiler artifacts and fixtures used by tests, CI, and docu
 
 Yul is compiled to bytecode using `solc` (trusted), and the runtime semantics are modeled in Lean. See:
 
-- Yul semantics: `Compiler/Proofs/YulGeneration/Semantics.lean`
+- Yul reference-oracle semantics: `Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean`
 - Codegen correctness: `Compiler/Proofs/YulGeneration/Preservation.lean`
