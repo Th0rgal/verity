@@ -13,15 +13,17 @@
   This module also proves the expression-level lift for `BridgedExpr`:
   `evalYulExpr_evmYulLean_eq_on_bridged`, plus the recursive target lift
   `execYulFuelWithBackend_eq_on_bridged_target` for `BridgedTarget`
-  executions. The remaining whole-program lift requires proving generated Yul
-  targets satisfy `BridgedTarget`/`BridgedStmt` and composing that theorem into
-  Layer 3; see the module summary at the bottom of this file.
+  executions. The Layer-3 runtime-code lift in this module remains parameterized
+  by embedded-body `BridgedStmts` witnesses; `EvmYulLeanBodyClosure.lean` and
+  `EndToEnd.lean` discharge those witnesses for the supported safe source-body
+  fragment.
 
   **Trust boundary shift (pointwise)**: For any builtin call using a bridged
   name, the trust boundary moves from "Verity's custom Yul builtin semantics
   are correct" to "EVMYulLean's builtin semantics match the EVM" (backed by
-  upstream conformance tests). Whole-program guarantees still require the
-  pending Layer-3 composition.
+  upstream conformance tests). Whole-program guarantees are exposed through the
+  safe-body EndToEnd wrapper, with the external-call/function-table family left
+  as the explicit carve-out.
 
   Run: lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget
 -/
@@ -595,12 +597,14 @@ theorem evalYulExpr_evmYulLean_eq_on_bridged
   rw [← evalYulExprWithBackend_verity_eq state expr]
   exact h
 
-/-! ## Statement-level backend-parameterized executor (scaffolding)
+/-! ## Statement-level backend-parameterized executor
 
 `execYulFuelWithBackend` mirrors `execYulFuel` from `Semantics.lean` but routes
-each expression evaluation through `evalYulExprWithBackend backend`. This is
-infrastructure for the pending whole-program retargeting. Bridging `.verity`
-and `.evmYulLean` on bridged statement targets is deferred to a follow-up.
+each expression evaluation through `evalYulExprWithBackend backend`. The
+statement and runtime-code theorems below bridge `.verity` and `.evmYulLean`
+on targets satisfying the `Bridged*` predicates. Source-body closure and the
+public safe-body EndToEnd wrapper live in `EvmYulLeanBodyClosure.lean` and
+`Compiler.Proofs.EndToEnd`.
 -/
 
 def execYulFuelWithBackend (backend : BuiltinBackend) :
@@ -2755,14 +2759,14 @@ theorem yulCodegen_preserves_semantics_evmYulLean
 2. **`evalYulExpr_evmYulLean_eq_on_bridged`**: Expression-level backend
    equivalence for `BridgedExpr`, covering literals, identifiers, nested calls
    to bridged builtins, and backend-independent `tload`/`mload`.
-3. **Statement-executor scaffolding**: `execYulFuelWithBackend` is a
+3. **Backend-parameterized statement executor**: `execYulFuelWithBackend` is a
    backend-parameterized mirror of `execYulFuel`, providing the executor surface
-   needed for statement-level induction.
+   used by the statement-level equivalence proofs below.
 4. **`execYulFuelWithBackend_{let,assign}_eq_on_bridged`**: First
    statement-level backend-equivalence theorems — `.let_ n v` and `.assign n v`
    produce identical results under `.verity` and `.evmYulLean` when `v` is a
-   `BridgedExpr`. These are narrow helpers a future full statement predicate
-   can dispatch to.
+   `BridgedExpr`. These are narrow helpers used by the broader statement-list
+   and recursive-target predicates below.
 5. **`execYulFuelWithBackend_eq_on_bridged_straight_stmts`**: Statement-level
    backend equivalence for straight-line statement lists whose expression
    dependencies satisfy `BridgedExpr`; the unsupported `.letMany` form is also
@@ -2786,31 +2790,30 @@ theorem yulCodegen_preserves_semantics_evmYulLean
 11. **`emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies`**: Composes
     emitted runtime-wrapper closure with recursive target equivalence to state
     that Verity `execYulFuel` equals the EVMYulLean backend executor for
-    `emitYul` runtime code, conditional on bridged embedded bodies.
+    `emitYul` runtime code when its embedded bodies are bridged.
 12. **`yulCodegen_preserves_semantics_evmYulLean`**: Composes the existing
     Layer-3 IR-to-Yul preservation theorem with the bridged-runtime equality
     above, yielding a contract-level result whose Yul side is evaluated by the
-    EVMYulLean builtin backend. This remains conditional on generated embedded
-    bodies satisfying `BridgedStmts`.
+    EVMYulLean builtin backend. This lower-level theorem is intentionally
+    parameterized by generated embedded-body `BridgedStmts` witnesses; the
+    public safe-body EndToEnd wrapper derives those witnesses for supported
+    compiler-produced contracts.
 
-This is still not an end-to-end theorem, because the full EndToEnd composition
-still targets `interpretYulFromIR`; using the EVMYulLean-targeted Layer-3
-theorem requires discharging the embedded-body `BridgedStmts` hypotheses for
-the compiled contract.
+The public safe-body EndToEnd wrapper consumes this Layer-3 theorem after
+deriving the raw `BridgedStmts` body witnesses from source-level
+`BridgedSafeStmts` and static-parameter witnesses. The lower-level theorem here
+intentionally remains useful for callers that already have explicit generated
+Yul body witnesses.
 
-### What remains:
-- **EndToEnd composition**: Replace the public end-to-end theorem's Yul target
-  with `interpretYulRuntimeWithBackend .evmYulLean` once body-closure
-  hypotheses are available for the compiled contract.
-- **0 core sorry**: all builtin bridge equivalences are proven
-
-### Trust boundary (current state):
+### Trust boundary:
 Expressions constrained by `BridgedExpr`, straight-line statement lists
 constrained by `BridgedStraightStmts`, and recursive statement targets
 constrained by `BridgedTarget` inherit EVMYulLean semantics. Contract-level
 Layer-3 preservation also targets the EVMYulLean backend when embedded bodies
-satisfy `BridgedStmts`. Whole-program guarantees still depend on EndToEnd
-composition and on the fully proven bridge equivalences above.
+satisfy `BridgedStmts`; the public safe-body EndToEnd theorem discharges those
+raw body witnesses for supported compiler-produced contracts. The remaining
+scope limit is the external-call/function-table family carved out by
+`BridgedSafeStmts`.
 -/
 
 end Compiler.Proofs.YulGeneration.Backends

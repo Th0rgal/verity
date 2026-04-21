@@ -1,15 +1,15 @@
 /-! # Nat-level Spec for Signed EVM Arithmetic
 
-This module introduces Nat-level specification functions that will mediate
+This module defines Nat-level specification functions that mediate
 between Verity's `Int256`-based signed operations and EVMYulLean's
 `UInt256`-based signed operations in the formerly admitted bridge lemmas
 (`smod_int256_eq_uint256Smod`, `sar_int256_eq_uint256Sar`).
 
-The goal of this scaffolding step (plan #1722 A1a) is to **land only the
-spec definitions and their elementary characterizations**. The actual
-discharge of those bridge lemmas — rewriting the Verity and
-EVMYulLean wrappers to both call into these specs — is deferred to plan
-#1722 A2 (smod) and A3 (sar).
+These specs are part of the fully discharged signed-arithmetic bridge:
+`EvmYulLeanBridgeLemmas.lean` reduces both the Verity wrappers and the
+EVMYulLean wrappers through these definitions to prove
+`smod_int256_eq_uint256Smod` and `sar_int256_eq_uint256Sar` without admitted
+bridge lemmas.
 
 Layout:
 
@@ -31,8 +31,6 @@ Layout:
   `specModulus - 1`.
 
 No code here is `sorry`-dependent. No declaration is marked `@[simp]`.
-None of the existing bridge artifacts reference these specs yet; that
-wiring is part of A2.
 -/
 
 namespace Compiler.Proofs.YulGeneration.Backends
@@ -108,9 +106,9 @@ def sarSpec (shift value : Nat) : Nat :=
 
 /-! ### Elementary characterizations of `smodSpec`
 
-These lemmas are the pieces A2 will need when rewriting both wrappers
-to call `smodSpec`. They stand on their own and are proven without
-any `sorry`. -/
+These lemmas are the pieces used by `EvmYulLeanBridgeLemmas.lean` when
+rewriting both wrappers through `smodSpec`. They stand on their own and are
+proven without any `sorry`. -/
 
 @[simp] theorem smodSpec_b_zero (a : Nat) : smodSpec a 0 = 0 := by
   unfold smodSpec; simp
@@ -148,7 +146,7 @@ theorem specAbs_le_specSignBit (a : Nat) :
 /-- Non-negative-`a` closed form for `smodSpec`. When `a < specSignBit`
 (the non-negative half of the two's-complement range) and `b ≠ 0`,
 `smodSpec` reduces to a plain `specAbs a % specAbs b`. This is the
-clean handle A2 will cite for the non-negative `a` sign cases,
+clean handle cited for the non-negative `a` sign cases,
 avoiding having to re-unfold `smodSpec` mid-proof. -/
 theorem smodSpec_of_nonneg (a b : Nat)
     (ha : a < specSignBit) (hb : b ≠ 0) :
@@ -160,8 +158,7 @@ theorem smodSpec_of_nonneg (a b : Nat)
 (the negative half of the two's-complement range) and `b ≠ 0`,
 `smodSpec` applies a two's-complement negation to the Nat remainder,
 with a guard for `r = 0` that keeps the result in `[0, specModulus)`.
-This is the companion to `smodSpec_of_nonneg` for the NP/NN sign
-cases of A2. -/
+This is the companion to `smodSpec_of_nonneg` for the NP/NN sign cases. -/
 theorem smodSpec_of_neg (a b : Nat)
     (ha : specSignBit ≤ a) (hb : b ≠ 0) :
     smodSpec a b =
@@ -171,7 +168,7 @@ theorem smodSpec_of_neg (a b : Nat)
   simp [hb, Nat.not_lt.mpr ha]
 
 /-- `smodSpec` always produces a value in `[0, specModulus)`. This is
-the load-bearing boundedness lemma A2 will cite when closing the
+the load-bearing boundedness lemma used when closing the
 `%` reduction on the EVMYulLean wrapper side. -/
 theorem smodSpec_lt_specModulus (a b : Nat) (hb : b < specModulus) :
     smodSpec a b < specModulus := by
