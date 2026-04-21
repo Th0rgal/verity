@@ -100,6 +100,9 @@ def storageArrayElemUsesOneStorageWord : StorageArrayElemType → Bool
 inductive FieldType
   | uint256
   | address
+  /-- Storage-backed tagged union: tag at the canonical slot followed by
+      `maxFields` payload slots. -/
+  | adt (name : String) (maxFields : Nat)
   | dynamicArray (elemType : StorageArrayElemType)
   | mappingTyped (mt : MappingType)  -- Flexible mapping types (#154)
   /-- A mapping whose value is a multi-word struct with named members.

@@ -136,18 +136,27 @@ private def mkFieldFrameConjunct (field : StorageFieldDecl) : CommandElabM Term 
       match field.ty with
       | .scalar .address | .scalar (.newtype _ .address) =>
           `(Verity.Specs.sameStorageAddrSlot $slotLit s s')
+      | .scalar (.adt _ maxFields) =>
+          let mut body : Term ← `(Verity.Specs.sameStorageSlot $slotLit s s')
+          for idx in List.range maxFields do
+            let payloadSlot : Term := ⟨Syntax.mkNumLit (toString (field.slotNum + idx + 1))⟩
+            body ← `($body ∧ Verity.Specs.sameStorageSlot $payloadSlot s s')
+          pure body
       | _ =>
           `(Verity.Specs.sameStorageSlot $slotLit s s')
   | .dynamicArray _ =>
       -- storageArray slot is unchanged
       `(s'.storageArray $slotLit = s.storageArray $slotLit)
-  | .mappingAddressToUint256 | .mappingChain _ | .mappingStruct .address _ =>
+  | .mappingAddressToUint256 | .mappingStruct .address _ =>
       -- ∀ k, s'.storageMap slot k = s.storageMap slot k
       `(∀ k, s'.storageMap $slotLit k = s.storageMap $slotLit k)
   | .mappingUintToUint256 | .mappingStruct .uint256 _ =>
       `(∀ k, s'.storageMapUint $slotLit k = s.storageMapUint $slotLit k)
-  | .mapping2AddressToAddressToUint256 | .mappingStruct2 _ _ _ =>
-      `(∀ k1 k2, s'.storageMap2 $slotLit k1 k2 = s.storageMap2 $slotLit k1 k2)
+  | .mappingChain _ | .mapping2AddressToAddressToUint256 | .mappingStruct2 _ _ _ =>
+      -- These shapes compile to hashed `storage` slots rather than the legacy
+      -- storageMap mirrors, so the conservative frame predicate must constrain
+      -- the hashed storage surface.
+      `(Verity.Specs.sameStorage s s')
 
 /-- Auto-generate a `_frame` definition and `_frame_rfl` lemma for functions
     with `modifies(...)`.  The frame is a conjunction of "unchanged" predicates
@@ -176,7 +185,7 @@ def mkFrameDefCommand
     @[simp] theorem $frameRflName (s : Verity.ContractState) : $frameName s s := by
       unfold $frameName
       simp [Verity.Specs.sameContext, Verity.Specs.sameStorageSlot,
-            Verity.Specs.sameStorageAddrSlot])
+            Verity.Specs.sameStorageAddrSlot, Verity.Specs.sameStorage])
 
   pure #[frameCmd, frameRflCmd]
 

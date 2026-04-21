@@ -970,11 +970,10 @@ def stmtListCEIViolation : List Stmt → Bool → Option String
             | Stmt.ite _ _ _ | Stmt.forEach _ _ _ | Stmt.unsafeBlock _ _
             | Stmt.matchAdt _ _ _ => true
             | _ => false
-          -- Update seenCall: only direct external calls set the flag (externalCallBind,
-          -- ecm, or expressions with call/staticcall/delegatecall/externalCall).
-          -- Internal calls are NOT treated as interactions here because each callee
-          -- function has its own CEI validation.
-          let newSeenCall := seenCall || stmtContainsExternalCall s
+          -- Update seenCall conservatively: statement-form internal calls may
+          -- perform interactions inside the callee, so callers must treat them
+          -- as interaction barriers before any later persistent write.
+          let newSeenCall := seenCall || stmtMayContainExternalCall s
           -- Write check: use `stmtMayPersistentlyWrite` which conservatively treats
           -- internal calls as potential writes (since callee bodies may write storage
           -- but are not visible at this scope).  This catches the pattern:

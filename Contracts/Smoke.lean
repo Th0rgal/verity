@@ -746,7 +746,7 @@ verity_contract DirectHelperCallSmoke where
     let current ← getStorage total
     return (current, add current offset)
 
-  function runHelpers (amount : Uint256, extra : Uint256, offset : Uint256) : Uint256 := do
+  function allow_post_interaction_writes runHelpers (amount : Uint256, extra : Uint256, offset : Uint256) : Uint256 := do
     addToTotal amount
     let combined ← readTotalPlus extra
     let (left, right) ← pairWithTotal offset
@@ -896,6 +896,7 @@ verity_contract ExternalCallSmoke where
     echoedValue : Uint256 := slot 0
   linked_externals
     external echo(Uint256) -> (Uint256)
+    external echo_try(Uint256) -> (Bool, Uint256)
 
   function allow_post_interaction_writes storeEcho (next : Uint256) : Unit := do
     let echoed := externalCall "echo" [next]
@@ -912,6 +913,7 @@ verity_contract TryExternalCallSmoke where
     callSucceeded : Uint256 := slot 1
   linked_externals
     external echo(Uint256) -> (Uint256)
+    external echo_try(Uint256) -> (Bool, Uint256)
 
   function allow_post_interaction_writes tryEcho (x : Uint256) : Unit := do
     let (success, result) ← tryExternalCall "echo" [x]
@@ -1061,6 +1063,7 @@ verity_contract ExternalCallMultiReturn where
     lastValue : Uint256 := slot 0
   linked_externals
     external fanout(Uint256) -> (Uint256, Address)
+    external fanout_try(Uint256) -> (Bool, Uint256, Address)
 
   function allow_post_interaction_writes callFanout (x : Uint256) : Unit := do
     let (success, value, addr) ← tryExternalCall "fanout" [x]

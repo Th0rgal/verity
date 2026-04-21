@@ -42,6 +42,55 @@ namespace Compiler.CompilationModel
 open Compiler
 open Compiler.Yul
 
+private def findAdtVariant (adtTypes : List AdtTypeDef) (adtName variantName : String) :
+    Except String (AdtTypeDef × AdtVariant) := do
+  match adtTypes.find? (fun adt => adt.name == adtName) with
+  | none => throw s!"Compilation error: unknown ADT '{adtName}'"
+  | some adt =>
+      match adt.variants.find? (fun variant => variant.name == variantName) with
+      | none => throw s!"Compilation error: unknown ADT variant '{adtName}.{variantName}'"
+      | some variant => pure (adt, variant)
+
+private def adtMaxFieldCount (adt : AdtTypeDef) : Nat :=
+  (adt.variants.map (fun variant => variant.fields.length)).foldl max 0
+
+private def compileAdtStorageWrite (fields : List Field)
+    (dynamicSource : DynamicDataSource) (adtTypes : List AdtTypeDef)
+    (storageField adtName variantName : String) (args : List Expr) :
+    Except String (List YulStmt) := do
+  let (adt, variant) ← findAdtVariant adtTypes adtName variantName
+  if args.length != variant.fields.length then
+    throw s!"Compilation error: ADT construct '{adtName}.{variantName}' expects {variant.fields.length} payload value(s), got {args.length}"
+  let baseSlot ←
+    match findFieldWithResolvedSlot fields storageField with
+    | some (field, slot) =>
+        match field.ty with
+        | .adt fieldAdtName fieldMaxFields =>
+            if fieldAdtName != adtName then
+              throw s!"Compilation error: storage field '{storageField}' stores ADT '{fieldAdtName}', not '{adtName}'"
+            else if fieldMaxFields < adtMaxFieldCount adt then
+              throw s!"Compilation error: storage field '{storageField}' reserves {fieldMaxFields} ADT payload slot(s), but ADT '{adtName}' needs {adtMaxFieldCount adt}"
+            else
+              pure slot
+        | _ =>
+            throw s!"Compilation error: storage field '{storageField}' is not ADT-typed"
+    | none => throw s!"Compilation error: unknown storage field '{storageField}' for ADT construct '{adtName}.{variantName}'"
+  let argExprs ← compileExprList fields dynamicSource args
+  let tagStore := YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit baseSlot, YulExpr.lit variant.tag])
+  let payloadStores :=
+    argExprs.zipIdx.map fun (argExpr, idx) =>
+      YulStmt.expr (YulExpr.call "sstore" [
+        YulExpr.lit (baseSlot + idx + 1),
+        argExpr
+      ])
+  let clearStores :=
+    (List.range (adtMaxFieldCount adt)).drop args.length |>.map fun idx =>
+      YulStmt.expr (YulExpr.call "sstore" [
+        YulExpr.lit (baseSlot + idx + 1),
+        YulExpr.lit 0
+      ])
+  pure (tagStore :: payloadStores ++ clearStores)
+
 -- Compile statement to Yul (using mutual recursion for lists).
 -- When isInternal=true, Stmt.return compiles to `__ret := value; leave` so internal
 -- function execution terminates immediately without exiting the outer EVM call.
@@ -74,7 +123,11 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
   | Stmt.assignVar name value => do
       pure [YulStmt.assign name (← compileExpr fields dynamicSource value)]
   | Stmt.setStorage field value =>
-      compileSetStorage fields dynamicSource field value
+      match value with
+      | Expr.adtConstruct adtName variantName args =>
+          compileAdtStorageWrite fields dynamicSource adtTypes field adtName variantName args
+      | _ =>
+          compileSetStorage fields dynamicSource field value
   | Stmt.setStorageAddr field value =>
       compileSetStorage fields dynamicSource field value true
   | Stmt.storageArrayPush field value =>

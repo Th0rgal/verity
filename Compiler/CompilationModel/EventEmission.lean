@@ -54,9 +54,7 @@ def eventParamScalarCompileSupported (ty : ParamType) : Bool :=
   | .uint256 | .int256 | .uint8 | .address | .bool | .bytes32 => true
   | .string | .tuple _ | .array _ | .fixedArray _ _ | .bytes => false
   | .adt _ _ => false
-  | .newtypeOf _ .uint256 | .newtypeOf _ .int256 | .newtypeOf _ .uint8
-  | .newtypeOf _ .address | .newtypeOf _ .bool | .newtypeOf _ .bytes32 => true
-  | .newtypeOf _ _ => false
+  | .newtypeOf _ baseType => eventParamScalarCompileSupported baseType
 
 def eventDefScalarCompileSupported (eventDef : EventDef) : Bool :=
   eventDef.params.all (fun param => eventParamScalarCompileSupported param.ty) &&

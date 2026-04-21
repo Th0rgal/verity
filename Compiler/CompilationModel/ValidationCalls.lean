@@ -480,6 +480,17 @@ def validateExternalCallTargetsInStmt
           let returns ← externalFunctionReturns ext
           if returns.length != resultVars.length then
             throw s!"Compilation error: {context} binds {resultVars.length} values from external function '{externalName}', but it returns {returns.length}."
+          let tryName := s!"{externalName}_try"
+          match externals.find? (fun candidate => candidate.name == tryName) with
+          | none =>
+              throw s!"Compilation error: {context} uses Stmt.tryExternalCallBind for external function '{externalName}', but required linked wrapper '{tryName}' is not declared."
+          | some tryExt => do
+              if tryExt.params != ext.params then
+                throw s!"Compilation error: try wrapper '{tryName}' must take the same parameters as external function '{externalName}'."
+              let tryReturns ← externalFunctionReturns tryExt
+              let expectedTryReturns := ParamType.bool :: returns
+              if tryReturns != expectedTryReturns then
+                throw s!"Compilation error: try wrapper '{tryName}' must return Bool followed by the return values of external function '{externalName}'."
           let allVars := successVar :: resultVars
           let rec checkDuplicateTryVars (seen : List String) : List String → Except String Unit
             | [] => pure ()

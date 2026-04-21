@@ -347,7 +347,8 @@ private def modelFieldTypeTerm (ty : StorageType) : CommandElabM Term :=
   | .scalar (.tuple _) => throwError "storage fields cannot be Tuple; use mapping encodings"
   | .scalar .unit => throwError "storage fields cannot be Unit"
   | .scalar (.newtype _ baseType) => modelFieldTypeTerm (.scalar baseType)  -- Erased to base type
-  | .scalar (.adt _ _) => `(Compiler.CompilationModel.FieldType.uint256)  -- ADT stored as tag (uint256 slot)
+  | .scalar (.adt name maxFields) =>
+      `(Compiler.CompilationModel.FieldType.adt $(Lean.quote name) $(Lean.quote maxFields))
   | .dynamicArray .uint256 => `(Compiler.CompilationModel.FieldType.dynamicArray Compiler.CompilationModel.StorageArrayElemType.uint256)
   | .dynamicArray .address => `(Compiler.CompilationModel.FieldType.dynamicArray Compiler.CompilationModel.StorageArrayElemType.address)
   | .dynamicArray .bool => `(Compiler.CompilationModel.FieldType.dynamicArray Compiler.CompilationModel.StorageArrayElemType.bool)
@@ -785,8 +786,14 @@ private def parseConstructor (newtypes : Array NewtypeDecl) (adtDecls : Array Ad
 private def immutableHiddenName (imm : ImmutableDecl) : String :=
   s!"__immutable_{imm.name}"
 
+private def storageFieldFootprintSize (field : StorageFieldDecl) : Nat :=
+  match field.ty with
+  | .scalar (.adt _ maxFields) => maxFields + 1
+  | _ => 1
+
 private def immutableSlotIndex (fields : Array StorageFieldDecl) (idx : Nat) : Nat :=
-  let nextUserSlot := fields.foldl (fun maxSlot field => max maxSlot (field.slotNum + 1)) 0
+  let nextUserSlot := fields.foldl (fun maxSlot field =>
+    max maxSlot (field.slotNum + storageFieldFootprintSize field)) 0
   nextUserSlot + idx
 
 private def immutableSlotIdent (imm : ImmutableDecl) : Ident :=
@@ -823,6 +830,21 @@ private def validateImmutableBodyType
     wrappedBody ← `(term| fun ($(param.ident) : $(← contractValueTypeTerm param.ty)) => $wrappedBody)
   liftTermElabM do
     discard <| Lean.Elab.Term.elabTerm wrappedBody none
+
+private partial def containsAdtValueType : ValueType → Bool
+  | .adt _ _ => true
+  | .newtype _ baseType => containsAdtValueType baseType
+  | .array elemTy => containsAdtValueType elemTy
+  | .tuple elemTys => elemTys.any containsAdtValueType
+  | _ => false
+
+private def rejectExecutableBoundaryAdt
+    (stx : Syntax)
+    (context : String)
+    (ty : ValueType) : CommandElabM Unit := do
+  if containsAdtValueType ty then
+    throwErrorAt stx
+      s!"{context} uses an ADT at the executable contract boundary. ADT storage is supported, but ABI/function boundary ADT lowering is not yet implemented; pass scalar fields explicitly or keep the ADT in storage."
 
 private def externalExecutableWordType? : ValueType → Bool
   | .uint256 | .int256 | .uint8 | .address | .bytes32 | .bool => true
@@ -2488,6 +2510,7 @@ private def tryExternalCallBindStmt?
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
     (params : Array ParamDecl)
     (locals : Array TypedLocal)
     (rhs : Term)
@@ -2522,9 +2545,17 @@ private def tryExternalCallBindStmt?
           [ $[$resultVarTerms],* ]
           $(strTerm extName)
           [ $[$argExprs],* ])
-      -- Types: Bool for success, Uint256 for each result var (conservative default;
-      -- the validation pass with real externalDecls checks the exact types).
-      let tys := #[ValueType.bool] ++ Array.replicate resultVars.length .uint256
+      let resultTys ←
+        match externalDecls.find? (fun ext => ext.name == extName) with
+        | some ext =>
+            if ext.returnTys.size != resultVars.length then
+              throwErrorAt rhs s!"tryExternalCall '{extName}' binds {resultVars.length} result value(s), but the external declaration returns {ext.returnTys.size}"
+            pure ext.returnTys
+        | none =>
+            -- Validation reports the unknown external with full context; keep
+            -- translation moving with word-shaped placeholders.
+            pure (Array.replicate resultVars.length .uint256)
+      let tys := #[ValueType.bool] ++ resultTys
       pure (some (stmt, tys))
   | _ => pure none
 
@@ -3458,6 +3489,7 @@ private partial def translateDoElems
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
     (functions : Array FunctionDecl)
     (params : Array ParamDecl)
     (locals : Array TypedLocal)
@@ -3468,7 +3500,7 @@ private partial def translateDoElems
   let mut stmts : Array Term := #[]
   for elem in elems do
     let (newStmts, newLocals, newMutableLocals) ←
-      translateDoElem fields constDecls immutableDecls functions params branchLocals branchMutableLocals elem
+      translateDoElem fields constDecls immutableDecls externalDecls functions params branchLocals branchMutableLocals elem
     stmts := stmts ++ newStmts
     branchLocals := newLocals
     branchMutableLocals := newMutableLocals
@@ -3478,6 +3510,7 @@ private partial def translateDoSeqToStmtTerms
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
     (functions : Array FunctionDecl)
     (params : Array ParamDecl)
     (locals : Array TypedLocal)
@@ -3485,13 +3518,14 @@ private partial def translateDoSeqToStmtTerms
     (doSeq : DoSeq) : CommandElabM (Array Term) := do
   match doSeq with
   | `(doSeq| $[$elems:doElem]*) =>
-      pure (← (translateDoElems fields constDecls immutableDecls functions params locals mutableLocals elems)).1
+      pure (← (translateDoElems fields constDecls immutableDecls externalDecls functions params locals mutableLocals elems)).1
   | _ => throwErrorAt doSeq "unsupported branch body; expected do-sequence"
 
 private partial def translateDoElem
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
     (functions : Array FunctionDecl)
     (params : Array ParamDecl)
     (locals : Array TypedLocal)
@@ -3518,7 +3552,7 @@ private partial def translateDoElem
                     name?.map (fun name => (name, valueExpr))
                   let stmts ← boundPairs.mapM fun (name, valueExpr) =>
                     `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
-                  let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls #[] functions params locals rhs
+                  let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                   match valueTys with
                   | some tys =>
                       let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
@@ -3527,14 +3561,14 @@ private partial def translateDoElem
               | none =>
                       match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls functions params locals rhs names) with
                   | some stmt =>
-                      let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls #[] functions params locals rhs
+                      let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                       match valueTys with
                       | some tys =>
                           let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
                           pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
                       | none => throwErrorAt rhs "unable to infer tuple local types"
                   | none =>
-                      match (← tryExternalCallBindStmt? fields constDecls immutableDecls params locals rhs names) with
+                      match (← tryExternalCallBindStmt? fields constDecls immutableDecls externalDecls params locals rhs names) with
                       | some (stmt, tys) =>
                           let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
                           pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
@@ -3548,7 +3582,7 @@ private partial def translateDoElem
                     name?.map (fun name => (name, valueExpr))
                   let stmts ← boundPairs.mapM fun (name, valueExpr) =>
                     `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
-                  let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls #[] functions params locals rhs
+                  let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                   match valueTys with
                   | some tys =>
                       let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
@@ -3557,14 +3591,14 @@ private partial def translateDoElem
               | none =>
                 match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls functions params locals rhs names) with
                 | some stmt =>
-                    let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls #[] functions params locals rhs
+                    let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                     match valueTys with
                     | some tys =>
                         let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
                         pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
                     | none => throwErrorAt rhs "unable to infer tuple local types"
                 | none =>
-                  match (← tryExternalCallBindStmt? fields constDecls immutableDecls params locals rhs names) with
+                  match (← tryExternalCallBindStmt? fields constDecls immutableDecls externalDecls params locals rhs names) with
                   | some (stmt, tys) =>
                       let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
                       pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
@@ -3576,7 +3610,7 @@ private partial def translateDoElem
                     name?.map (fun name => (name, valueExpr))
                   let stmts ← boundPairs.mapM fun (name, valueExpr) =>
                     `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
-                  let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls #[] functions params locals rhs
+                  let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                   match valueTys with
                   | some tys =>
                       let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
@@ -3591,14 +3625,14 @@ private partial def translateDoElem
           let rhs : Term := ⟨patDecl[2][0]⟩
           match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls functions params locals rhs names) with
           | some stmt =>
-              let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls #[] functions params locals rhs
+              let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
               match valueTys with
               | some tys =>
                   let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
                   pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
               | none => throwErrorAt rhs "unable to infer tuple local types"
           | none =>
-              match (← tryExternalCallBindStmt? fields constDecls immutableDecls params locals rhs names) with
+              match (← tryExternalCallBindStmt? fields constDecls immutableDecls externalDecls params locals rhs names) with
               | some (stmt, tys) =>
                   let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
                   pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
@@ -3614,7 +3648,7 @@ private partial def translateDoElem
           if localNames.contains varName then
             throwErrorAt name s!"duplicate local variable '{varName}'"
           let rhsExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals rhs
-          let ty ← inferPureExprType fields constDecls immutableDecls #[] params locals rhs
+          let ty ← inferPureExprType fields constDecls immutableDecls externalDecls params locals rhs
           pure
             (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
               locals.push (varName, ty),
@@ -3624,7 +3658,7 @@ private partial def translateDoElem
           if localNames.contains varName then
             throwErrorAt name s!"duplicate local variable '{varName}'"
           let rhsExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals rhs
-          let ty ← inferPureExprType fields constDecls immutableDecls #[] params locals rhs
+          let ty ← inferPureExprType fields constDecls immutableDecls externalDecls params locals rhs
           pure
             (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
               locals.push (varName, ty),
@@ -3678,7 +3712,7 @@ private partial def translateDoElem
                   pure (#[(stmt)], locals.push (varName, .uint256), mutableLocals)
               | none =>
                       let rhsExpr ← translateBindSource fields constDecls immutableDecls functions params locals rhs
-                      let ty ← inferBindSourceType fields constDecls immutableDecls #[] functions params locals rhs
+                      let ty ← inferBindSourceType fields constDecls immutableDecls externalDecls functions params locals rhs
                       pure
                         (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
                           locals.push (varName, ty),
@@ -3704,8 +3738,8 @@ private partial def translateDoElem
           pure (#[], locals, mutableLocals)
       | `(doElem| if $cond:term then $thenBranch:doSeq else $elseBranch:doSeq) =>
           let condExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals cond
-          let thenStmts ← translateDoSeqToStmtTerms fields constDecls immutableDecls functions params locals mutableLocals thenBranch
-          let elseStmts ← translateDoSeqToStmtTerms fields constDecls immutableDecls functions params locals mutableLocals elseBranch
+          let thenStmts ← translateDoSeqToStmtTerms fields constDecls immutableDecls externalDecls functions params locals mutableLocals thenBranch
+          let elseStmts ← translateDoSeqToStmtTerms fields constDecls immutableDecls externalDecls functions params locals mutableLocals elseBranch
           pure
             (#[(← `(Compiler.CompilationModel.Stmt.ite
               $condExpr
@@ -3720,7 +3754,7 @@ private partial def translateDoElem
           validateTryCatchHandlerDoesNotUsePayload handler payloadName? catchElems
           let attemptExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals attempt
           let catchTranslation ←
-            translateDoElems fields constDecls immutableDecls functions params locals mutableLocals catchElems
+            translateDoElems fields constDecls immutableDecls externalDecls functions params locals mutableLocals catchElems
           let catchStmts := catchTranslation.1
           pure
             (#[
@@ -3740,7 +3774,7 @@ private partial def translateDoElem
           let bodyStmts ←
             match stripParens body with
             | `(term| do $[$inner:doElem]*) =>
-                pure (← (translateDoElems fields constDecls immutableDecls functions params (locals.push (loopVar, .uint256)) mutableLocals inner)).1
+                pure (← (translateDoElems fields constDecls immutableDecls externalDecls functions params (locals.push (loopVar, .uint256)) mutableLocals inner)).1
             | _ => throwErrorAt body "forEach body must be a do block"
           pure
             (#[(← `(Compiler.CompilationModel.Stmt.forEach
@@ -3775,7 +3809,7 @@ private partial def translateDoElem
               locals,
               mutableLocals)
       | `(doElem| unsafe $reason:str do $body:doSeq) =>
-          let bodyStmts ← translateDoSeqToStmtTerms fields constDecls immutableDecls functions params locals mutableLocals body
+          let bodyStmts ← translateDoSeqToStmtTerms fields constDecls immutableDecls externalDecls functions params locals mutableLocals body
           let reasonStr := reason.getString
           pure
             (#[(← `(Compiler.CompilationModel.Stmt.unsafeBlock
@@ -3792,13 +3826,14 @@ private def translateBodyToStmtTerms
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
     (functions : Array FunctionDecl)
     (fn : FunctionDecl) : CommandElabM (Array Term) := do
   match fn.body with
   | `(term| do $[$elems:doElem]*) =>
       let guardPrelude ← initGuardPreludeStmtTerms fields fn
       let rolePrelude ← roleGuardPreludeStmtTerms fields fn
-      let stmts := guardPrelude ++ rolePrelude ++ (← translateDoElems fields constDecls immutableDecls functions fn.params #[] #[] elems).1
+      let stmts := guardPrelude ++ rolePrelude ++ (← translateDoElems fields constDecls immutableDecls externalDecls functions fn.params #[] #[] elems).1
       let mut stmts := stmts
       if fn.returnTy == .unit then
         stmts := stmts.push (← `(Compiler.CompilationModel.Stmt.stop))
@@ -3809,11 +3844,12 @@ private def translateConstructorBodyToStmtTerms
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
     (functions : Array FunctionDecl)
     (ctor : ConstructorDecl) : CommandElabM (Array Term) := do
   match ctor.body with
   | `(term| do $[$elems:doElem]*) =>
-      pure (← (translateDoElems fields constDecls immutableDecls functions ctor.params #[] #[] elems)).1
+      pure (← (translateDoElems fields constDecls immutableDecls externalDecls functions ctor.params #[] #[] elems)).1
   | _ => throwErrorAt ctor.body "constructor body must be a do block"
 
 private def immutableInitStmtTerms
@@ -4012,7 +4048,7 @@ private def mkSpecCommand
         let ctorPayable ← if ctor.isPayable then `(true) else `(false)
         let ctorLocalObligationTerms ← ctor.localObligations.mapM mkModelLocalObligationTerm
         let immutableInitTerms ← immutableInitStmtTerms fields constDecls immutableDecls ctor.params
-        let ctorBodyTerms ← translateConstructorBodyToStmtTerms fields constDecls immutableDecls functions ctor
+        let ctorBodyTerms ← translateConstructorBodyToStmtTerms fields constDecls immutableDecls externalDecls functions ctor
         let ctorAllTerms := immutableInitTerms ++ ctorBodyTerms
         `(some {
           params := $ctorParams
@@ -4427,10 +4463,15 @@ def validateFunctionDeclsPublic
     (functions : Array FunctionDecl) : CommandElabM Unit := do
   match ctor with
   | some ctor =>
+      for param in ctor.params do
+        rejectExecutableBoundaryAdt param.ident s!"constructor parameter '{param.name}'" param.ty
       validateLocalObligationDecls "constructor" ctor.localObligations
       validateConstructorBodyExprTypes fields errorDecls constDecls immutableDecls externalDecls functions ctor
   | none => pure ()
   for fn in functions do
+    for param in fn.params do
+      rejectExecutableBoundaryAdt param.ident s!"function '{fn.name}' parameter '{param.name}'" param.ty
+    rejectExecutableBoundaryAdt fn.ident s!"function '{fn.name}' return type" fn.returnTy
     validateLocalObligationDecls s!"function '{fn.name}'" fn.localObligations
     -- Validate modifies field names exist in the storage section
     for modField in fn.modifies do
@@ -4462,6 +4503,7 @@ def mkFunctionCommandsPublic
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
     (functions : Array FunctionDecl)
     (fn : FunctionDecl) : CommandElabM (Array Cmd) := do
   let fnType ← mkContractFnType fn.params fn.returnTy
@@ -4472,7 +4514,7 @@ def mkFunctionCommandsPublic
   let fnValue ← mkContractFnValue fn.params fnBody
   let modelBodyName ← mkSuffixedIdent fn.ident "_modelBody"
   let modelName ← mkSuffixedIdent fn.ident "_model"
-  let stmtTerms ← translateBodyToStmtTerms fields constDecls immutableDecls functions fn
+  let stmtTerms ← translateBodyToStmtTerms fields constDecls immutableDecls externalDecls functions fn
   let modelParams ← mkModelParamsTerm fn.params
   let localObligationTerms ← fn.localObligations.mapM mkModelLocalObligationTerm
   let payableTerm ← if fn.isPayable then `(true) else `(false)

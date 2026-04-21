@@ -90,6 +90,19 @@ def compileSetStorage (fields : List Field) (dynamicSource : DynamicDataSource)
             YulExpr.call "and" [valueExpr, YulExpr.hex Compiler.Constants.addressMask]
           else
             valueExpr
+        match f.ty with
+        | .adt _ maxFields =>
+            if requireAddressField then
+              throw s!"Compilation error: field '{field}' is ADT-typed; use Stmt.setStorage"
+            else
+              pure <|
+                [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, storedValueExpr])] ++
+                ((List.range maxFields).map fun idx =>
+                  YulStmt.expr (YulExpr.call "sstore" [
+                    YulExpr.lit (slot + idx + 1),
+                    YulExpr.lit 0
+                  ]))
+        | _ =>
         match slots with
         | [] =>
             throw s!"Compilation error: internal invariant failure: no write slots for field '{field}' in setStorage"

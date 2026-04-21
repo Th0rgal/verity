@@ -215,8 +215,7 @@ def firstReservedSlotWriteConflict (fields : List Field)
     | [] => none
     | f :: rest =>
         let writeSlots : List (Nat × String) :=
-          (f.slot.getD idx, f.name) ::
-            (f.aliasSlots.zipIdx.map (fun (slot, aliasIdx) => (slot, s!"{f.name}.aliasSlots[{aliasIdx}]")))
+          fieldOccupiedSlots f (f.slot.getD idx)
         match writeSlots.findSome? (fun (slot, ownerName) =>
           match ranges.zipIdx.find? (fun (range, _) => slotInReservedRange slot range) with
           | some (range, rangeIdx) => some (slot, ownerName, rangeIdx, range)
@@ -224,6 +223,18 @@ def firstReservedSlotWriteConflict (fields : List Field)
         | some conflict => some conflict
         | none => goFields rest (idx + 1)
   goFields fields 0
+
+where
+  fieldOccupiedSlots (f : Field) (slot : Nat) : List (Nat × String) :=
+    let canonical :=
+      match f.ty with
+      | FieldType.adt _ maxFields =>
+          (List.range (maxFields + 1)).map fun offset =>
+            (slot + offset, if offset == 0 then f.name else s!"{f.name}.payload[{offset - 1}]")
+      | _ => [(slot, f.name)]
+    canonical ++
+      (f.aliasSlots.zipIdx.map (fun (aliasSlot, aliasIdx) =>
+        (aliasSlot, s!"{f.name}.aliasSlots[{aliasIdx}]")))
 
 def firstInvalidPackedBits (fields : List Field) :
     Option (String × PackedBits) :=
@@ -251,6 +262,7 @@ def firstMappingPackedBits (fields : List Field) :
         | FieldType.mappingTyped _, some _ => some f.name
         | FieldType.mappingStruct _ _, some _ => some f.name
         | FieldType.mappingStruct2 _ _ _, some _ => some f.name
+        | FieldType.adt _ _, some _ => some f.name
         | _, _ => go rest
   go fields
 
@@ -313,9 +325,7 @@ def firstFieldWriteSlotConflict (fields : List Field) : Option (Nat × String ×
     | [] => none
     | f :: rest =>
       let writeSlots : List (Nat × String × Option PackedBits) :=
-        (f.slot.getD idx, f.name, f.packedBits) ::
-          (f.aliasSlots.zipIdx.map (fun (slot, aliasIdx) =>
-            (slot, s!"{f.name}.aliasSlots[{aliasIdx}]", f.packedBits)))
+        fieldOccupiedSlots f (f.slot.getD idx)
       let rec firstInFieldConflict (seenSlots : List (Nat × String × Option PackedBits)) :
           List (Nat × String × Option PackedBits) → Option (Nat × String × String)
         | [] => none
@@ -327,6 +337,20 @@ def firstFieldWriteSlotConflict (fields : List Field) : Option (Nat × String ×
       | some conflict => some conflict
       | none => go (writeSlots.reverse ++ seen) (idx + 1) rest
   go [] 0 fields
+
+where
+  fieldOccupiedSlots (f : Field) (slot : Nat) : List (Nat × String × Option PackedBits) :=
+    let canonical :=
+      match f.ty with
+      | FieldType.adt _ maxFields =>
+          (List.range (maxFields + 1)).map fun offset =>
+            (slot + offset,
+             if offset == 0 then f.name else s!"{f.name}.payload[{offset - 1}]",
+             none)
+      | _ => [(slot, f.name, f.packedBits)]
+    canonical ++
+      (f.aliasSlots.zipIdx.map (fun (aliasSlot, aliasIdx) =>
+        (aliasSlot, s!"{f.name}.aliasSlots[{aliasIdx}]", f.packedBits)))
 
 /-- Stepping lemma: firstInFieldConflict on nil. -/
 theorem firstFieldWriteSlotConflict_firstInFieldConflict_nil
@@ -356,9 +380,7 @@ theorem firstFieldWriteSlotConflict_go_cons
     (f : Field) (rest : List Field) :
     firstFieldWriteSlotConflict.go seen idx (f :: rest) =
       let writeSlots :=
-        (f.slot.getD idx, f.name, f.packedBits) ::
-          (f.aliasSlots.zipIdx.map (fun (slot, aliasIdx) =>
-            (slot, s!"{f.name}.aliasSlots[{aliasIdx}]", f.packedBits)))
+        firstFieldWriteSlotConflict.fieldOccupiedSlots f (f.slot.getD idx)
       match firstFieldWriteSlotConflict.go.firstInFieldConflict seen writeSlots with
       | some conflict => some conflict
       | none => firstFieldWriteSlotConflict.go (writeSlots.reverse ++ seen) (idx + 1) rest := rfl

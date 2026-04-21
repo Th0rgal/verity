@@ -71,33 +71,33 @@ theorem eventParamScalarProofSupported_eq_true_of_eventDefScalarProofSupported
   eventParamScalarProofSupported_eq_true_of_mem_all
     (eventDefScalarProofSupported_params_all hsupport) hmem
 
-theorem eventParamScalarProofSupported_eventIsDynamicType_eq_false
-    {ty : ParamType}
-    (hsupport : eventParamScalarProofSupported ty = true) :
-    eventIsDynamicType ty = false := by
-  cases ty <;>
-    simp [eventParamScalarProofSupported, eventParamScalarCompileSupported,
-      eventIsDynamicType, isDynamicParamType]
-      at hsupport ⊢
-  case newtypeOf name baseType =>
-    cases baseType <;>
-      simp [eventParamScalarProofSupported, eventParamScalarCompileSupported,
-        eventIsDynamicType, isDynamicParamType]
-        at hsupport ⊢
+theorem eventParamScalarProofSupported_eventIsDynamicType_eq_false :
+    ∀ {ty : ParamType},
+      eventParamScalarProofSupported ty = true →
+        eventIsDynamicType ty = false
+  | ty, hsupport => by
+      cases ty <;>
+        simp [eventParamScalarProofSupported, eventParamScalarCompileSupported,
+          eventIsDynamicType, isDynamicParamType]
+          at hsupport ⊢
+      case newtypeOf name baseType =>
+        have hbase :=
+          eventParamScalarProofSupported_eventIsDynamicType_eq_false (ty := baseType) hsupport
+        simpa [eventIsDynamicType] using hbase
 
-theorem eventParamScalarProofSupported_eventHeadWordSize_eq_thirty_two
-    {ty : ParamType}
-    (hsupport : eventParamScalarProofSupported ty = true) :
-    eventHeadWordSize ty = 32 := by
-  cases ty <;>
-    simp [eventParamScalarProofSupported, eventParamScalarCompileSupported,
-      eventHeadWordSize, paramHeadSize]
-      at hsupport ⊢
-  case newtypeOf name baseType =>
-    cases baseType <;>
-      simp [eventParamScalarProofSupported, eventParamScalarCompileSupported,
-        eventHeadWordSize, paramHeadSize]
-        at hsupport ⊢
+theorem eventParamScalarProofSupported_eventHeadWordSize_eq_thirty_two :
+    ∀ {ty : ParamType},
+      eventParamScalarProofSupported ty = true →
+        eventHeadWordSize ty = 32
+  | ty, hsupport => by
+      cases ty <;>
+        simp [eventParamScalarProofSupported, eventParamScalarCompileSupported,
+          eventHeadWordSize, paramHeadSize]
+          at hsupport ⊢
+      case newtypeOf name baseType =>
+        have hbase :=
+          eventParamScalarProofSupported_eventHeadWordSize_eq_thirty_two (ty := baseType) hsupport
+        simpa [eventHeadWordSize] using hbase
 
 theorem eventParamScalarProofSupported_ne_bytes
     {ty : ParamType}

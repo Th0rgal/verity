@@ -39,6 +39,12 @@ private def fieldTypeJson : FieldType → String
       jsonObject [("kind", jsonString "uint256")]
   | .address =>
       jsonObject [("kind", jsonString "address")]
+  | .adt name maxFields =>
+      jsonObject [
+        ("kind", jsonString "adt"),
+        ("name", jsonString name),
+        ("maxFields", jsonNat maxFields)
+      ]
   | .dynamicArray elemType =>
       jsonObject [
         ("kind", jsonString "dynamicArray"),
