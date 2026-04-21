@@ -153,6 +153,7 @@ where
   renderFieldType : FieldType → String
     | .uint256 => "uint256"
     | .address => "address"
+    | .adt name maxFields => s!"adt({name},{maxFields})"
     | .dynamicArray elemType => renderStorageArrayElemType elemType ++ "[]"
     | .mappingTyped _ => "mapping"
     | .mappingStruct _ _ => "mapping"

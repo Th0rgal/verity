@@ -1,4 +1,5 @@
 import Compiler.CompilationModel.Types
+import Compiler.CompilationModel.AdtStorageLayout
 import Compiler.CompilationModel.DynamicData
 import Compiler.CompilationModel.InternalNaming
 import Compiler.CompilationModel.ValidationHelpers
@@ -400,18 +401,13 @@ def compileExpr (fields : List Field)
       -- Tag byte: sload(baseSlot) & 0xFF
       match findFieldSlot fields storageField with
       | some baseSlot =>
-          pure (YulExpr.call "and" [
-            YulExpr.call "sload" [YulExpr.lit baseSlot],
-            YulExpr.lit 0xFF
-          ])
+          pure (compileAdtTagRead (YulExpr.lit baseSlot))
       | none => throw s!"Compilation error: unknown storage field '{storageField}' for ADT tag read"
   | Expr.adtField _adtName _variantName _fieldName fieldIndex storageField =>
       -- Field read: sload(baseSlot + fieldIndex + 1)
       match findFieldSlot fields storageField with
       | some baseSlot =>
-          pure (YulExpr.call "sload" [
-            YulExpr.call "add" [YulExpr.lit baseSlot, YulExpr.lit (fieldIndex + 1)]
-          ])
+          pure (compileAdtFieldRead (YulExpr.lit baseSlot) fieldIndex)
       | none => throw s!"Compilation error: unknown storage field '{storageField}' for ADT field read"
 end
 

@@ -108,7 +108,7 @@ where
       (spec.fields.zip effectiveFields).zipIdx.map fun ((declaredField, effectiveField), idx) =>
         fieldJson declaredField effectiveField idx
     let nsField := match spec.storageNamespace with
-      | some ns => jsonNat ns
+      | some ns => jsonString (toString ns)
       | none => "null"
     jsonObject [
       ("contract", jsonString spec.name),

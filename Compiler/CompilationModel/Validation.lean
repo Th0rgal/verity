@@ -979,7 +979,9 @@ def stmtListCEIViolation : List Stmt → Bool → Option String
           -- but are not visible at this scope).  This catches the pattern:
           --   externalCallBind(...)        -- seenCall becomes true
           --   internalCall(helper, [...])  -- may write storage → flagged
-          if !isCompound && newSeenCall && stmtMayPersistentlyWrite s then
+          if !isCompound && stmtContainsExternalCall s && stmtMayPersistentlyWrite s then
+            some "state write in same statement as external call"
+          else if !isCompound && newSeenCall && stmtMayPersistentlyWrite s then
             some "state write after external call"
           else
             stmtListCEIViolation rest newSeenCall

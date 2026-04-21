@@ -1,4 +1,5 @@
 import Compiler.CompilationModel.ExpressionCompile
+import Compiler.CompilationModel.AdtStorageLayout
 import Compiler.CompilationModel.AbiTypeLayout
 import Compiler.CompilationModel.IssueRefs
 import Compiler.CompilationModel.MappingWrites
@@ -95,13 +96,13 @@ def compileSetStorage (fields : List Field) (dynamicSource : DynamicDataSource)
             if requireAddressField then
               throw s!"Compilation error: field '{field}' is ADT-typed; use Stmt.setStorage"
             else
+              let baseSlots := slot :: f.aliasSlots
               pure <|
-                [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, storedValueExpr])] ++
-                ((List.range maxFields).map fun idx =>
-                  YulStmt.expr (YulExpr.call "sstore" [
-                    YulExpr.lit (slot + idx + 1),
-                    YulExpr.lit 0
-                  ]))
+                (baseSlots.map fun baseSlot =>
+                  YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit baseSlot, storedValueExpr])) ++
+                baseSlots.flatMap (fun baseSlot =>
+                  (List.range maxFields).map fun idx =>
+                    compileAdtFieldWrite (YulExpr.lit baseSlot) idx (YulExpr.lit 0))
         | _ =>
         match slots with
         | [] =>
