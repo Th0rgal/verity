@@ -1675,6 +1675,7 @@ private partial def inferBindSourceType
       match f.ty with
       | .scalar .uint256 => pure .uint256
       | .scalar (.newtype ntName (.uint256)) => pure (.newtype ntName .uint256)
+      | .scalar (.adt name maxFields) => pure (.adt name maxFields)
       | .scalar (.newtype _ (.address)) => throwErrorAt rhs s!"field '{f.name}' is Address-based newtype; use getStorageAddr"
       | .scalar .address => throwErrorAt rhs s!"field '{f.name}' is Address; use getStorageAddr"
       | .scalar .bool => throwErrorAt rhs s!"field '{f.name}' is Bool; encode as Uint256 and use getStorage"
@@ -4279,7 +4280,8 @@ def mkConstantDefCommandPublic (constant : ConstantDecl) : CommandElabM Cmd :=
     `parseContractSyntax` to respect custom `storage_namespace "key"`.
     (#1730, Axis 4 Step 4a) -/
 def mkStorageNamespaceCommand (contractName : String) (resolvedNamespace : Option Nat := none) : CommandElabM Cmd := do
-  let ns := resolvedNamespace.getD (computeStorageNamespace contractName)
+  let _ := contractName
+  let ns := resolvedNamespace.getD 0
   let id : Ident := mkIdent (Name.mkSimple "storageNamespace")
   `(command| def $id : Nat := $(natTerm ns))
 
@@ -4292,7 +4294,7 @@ def validateGeneratedDefNamesPublic
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (functions : Array FunctionDecl) : CommandElabM Unit := do
-  let reservedGeneratedNames : Array String := #["spec"]
+  let reservedGeneratedNames : Array String := #["spec", "storageNamespace"]
   let mut generatedHelperNames : Array String := reservedGeneratedNames
 
   let mut storageNames : Array String := #[]

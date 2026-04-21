@@ -1770,15 +1770,17 @@ verity_contract CEILadderSmoke where
   linked_externals
     external echo(Uint256) -> (Uint256)
 
-  -- Rung 3 (known-safe guard): nonreentrant bypasses CEI (write after call ok)
-  function nonreentrant(lock) callThenStoreGuarded (x : Uint256) : Unit := do
+  -- nonreentrant is recorded as metadata; it does not bypass CEI by itself.
+  function nonreentrant(lock) callThenStoreGuarded (x : Uint256) : Uint256 := do
+    setStorage counter x
     let echoed := externalCall "echo" [x]
-    setStorage counter echoed
+    return echoed
 
-  -- Rung 2 (Lean proof): cei_safe bypasses CEI with proof obligation
-  function cei_safe callThenStoreProved (x : Uint256) : Unit := do
+  -- cei_safe is recorded as metadata; it does not bypass CEI by itself.
+  function cei_safe callThenStoreProved (x : Uint256) : Uint256 := do
+    setStorage counter x
     let echoed := externalCall "echo" [x]
-    setStorage counter echoed
+    return echoed
 
   -- Normal function: CEI-compliant (effects before interactions), gets _cei_compliant
   function storeThenCall (x : Uint256) : Uint256 := do
@@ -2286,13 +2288,14 @@ verity_contract NonreentrantModifiesSmoke where
   linked_externals
     external echo(Uint256) -> (Uint256)
 
-  -- nonreentrant bypasses CEI; modifies annotates fields
-  function nonreentrant(lock) deposit (amount : Uint256) modifies(counter, balance) : Unit := do
-    let echoed := externalCall "echo" [amount]
+  -- nonreentrant metadata composes with modifies, while the body remains CEI-ordered.
+  function nonreentrant(lock) deposit (amount : Uint256) modifies(counter, balance) : Uint256 := do
     let current ← getStorage counter
     setStorage counter (add current 1)
     let bal ← getStorage balance
-    setStorage balance (add bal echoed)
+    setStorage balance (add bal amount)
+    let echoed := externalCall "echo" [amount]
+    return echoed
 
   function view getBalance () : Uint256 := do
     let bal ← getStorage balance

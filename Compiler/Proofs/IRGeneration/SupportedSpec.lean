@@ -23,6 +23,631 @@ def SupportedExternalReturnProfile : List ParamType → Prop
   | [ty] => SupportedExternalParamType ty
   | _ => False
 
+def eventParamScalarProofSupported (ty : ParamType) : Bool :=
+  eventParamScalarCompileSupported ty
+
+def eventDefScalarProofSupported (eventDef : EventDef) : Bool :=
+  eventDefScalarCompileSupported eventDef
+
+theorem eventDefScalarProofSupported_params_all
+    {eventDef : EventDef}
+    (hsupport : eventDefScalarProofSupported eventDef = true) :
+    eventDef.params.all (fun param => eventParamScalarProofSupported param.ty) = true := by
+  have hsplit :
+      (∀ param ∈ eventDef.params, eventParamScalarProofSupported param.ty = true) ∧
+        (eventDef.params.filter (fun param => param.kind == EventParamKind.indexed)).length ≤ 3 := by
+    simpa [eventDefScalarProofSupported, eventDefScalarCompileSupported,
+      eventParamScalarProofSupported, Bool.and_eq_true] using hsupport
+  simpa using hsplit.1
+
+theorem eventDefScalarProofSupported_indexed_length_le_three
+    {eventDef : EventDef}
+    (hsupport : eventDefScalarProofSupported eventDef = true) :
+    (eventDef.params.filter (fun param => param.kind == EventParamKind.indexed)).length ≤ 3 := by
+  have hsplit :
+      (∀ param ∈ eventDef.params, eventParamScalarProofSupported param.ty = true) ∧
+        (eventDef.params.filter (fun param => param.kind == EventParamKind.indexed)).length ≤ 3 := by
+    simpa [eventDefScalarProofSupported, eventDefScalarCompileSupported,
+      eventParamScalarProofSupported, Bool.and_eq_true] using hsupport
+  exact hsplit.2
+
+private theorem eventParamScalarProofSupported_eq_true_of_mem_all :
+    ∀ {params : List EventParam} {param : EventParam},
+      params.all (fun param => eventParamScalarProofSupported param.ty) = true →
+        param ∈ params →
+          eventParamScalarProofSupported param.ty = true
+  | params, param, hall, hmem => by
+      have hforall :
+          ∀ candidate ∈ params, eventParamScalarProofSupported candidate.ty = true := by
+        simpa using hall
+      exact hforall param hmem
+
+theorem eventParamScalarProofSupported_eq_true_of_eventDefScalarProofSupported
+    {eventDef : EventDef}
+    {param : EventParam}
+    (hsupport : eventDefScalarProofSupported eventDef = true)
+    (hmem : param ∈ eventDef.params) :
+    eventParamScalarProofSupported param.ty = true :=
+  eventParamScalarProofSupported_eq_true_of_mem_all
+    (eventDefScalarProofSupported_params_all hsupport) hmem
+
+theorem eventParamScalarProofSupported_eventIsDynamicType_eq_false
+    {ty : ParamType}
+    (hsupport : eventParamScalarProofSupported ty = true) :
+    eventIsDynamicType ty = false := by
+  cases ty <;>
+    simp [eventParamScalarProofSupported, eventParamScalarCompileSupported,
+      eventIsDynamicType, isDynamicParamType]
+      at hsupport ⊢
+  case newtypeOf name baseType =>
+    cases baseType <;>
+      simp [eventParamScalarProofSupported, eventParamScalarCompileSupported,
+        eventIsDynamicType, isDynamicParamType]
+        at hsupport ⊢
+
+theorem eventParamScalarProofSupported_eventHeadWordSize_eq_thirty_two
+    {ty : ParamType}
+    (hsupport : eventParamScalarProofSupported ty = true) :
+    eventHeadWordSize ty = 32 := by
+  cases ty <;>
+    simp [eventParamScalarProofSupported, eventParamScalarCompileSupported,
+      eventHeadWordSize, paramHeadSize]
+      at hsupport ⊢
+  case newtypeOf name baseType =>
+    cases baseType <;>
+      simp [eventParamScalarProofSupported, eventParamScalarCompileSupported,
+        eventHeadWordSize, paramHeadSize]
+        at hsupport ⊢
+
+theorem eventParamScalarProofSupported_ne_bytes
+    {ty : ParamType}
+    (hsupport : eventParamScalarProofSupported ty = true) :
+    ty ≠ ParamType.bytes := by
+  intro h; subst h; simp [eventParamScalarProofSupported,
+    eventParamScalarCompileSupported] at hsupport
+
+theorem eventParamScalarProofSupported_ne_string
+    {ty : ParamType}
+    (hsupport : eventParamScalarProofSupported ty = true) :
+    ty ≠ ParamType.string := by
+  intro h; subst h; simp [eventParamScalarProofSupported,
+    eventParamScalarCompileSupported] at hsupport
+
+theorem eventParamScalarProofSupported_ne_array
+    {ty elemTy : ParamType}
+    (hsupport : eventParamScalarProofSupported ty = true) :
+    ty ≠ ParamType.array elemTy := by
+  intro h; subst h; simp [eventParamScalarProofSupported,
+    eventParamScalarCompileSupported] at hsupport
+
+theorem eventParamScalarProofSupported_ne_fixedArray
+    {ty elemTy : ParamType}
+    {len : Nat}
+    (hsupport : eventParamScalarProofSupported ty = true) :
+    ty ≠ ParamType.fixedArray elemTy len := by
+  intro h; subst h; simp [eventParamScalarProofSupported,
+    eventParamScalarCompileSupported] at hsupport
+
+theorem eventParamScalarProofSupported_ne_tuple
+    {ty : ParamType}
+    {members : List ParamType}
+    (hsupport : eventParamScalarProofSupported ty = true) :
+    ty ≠ ParamType.tuple members := by
+  intro h; subst h; simp [eventParamScalarProofSupported,
+    eventParamScalarCompileSupported] at hsupport
+
+def eventEmissionProofSupported
+    (events : List EventDef) (eventName : String) (args : List Expr) : Bool :=
+  match events.find? (·.name == eventName) with
+  | none => false
+  | some eventDef =>
+      eventDefScalarProofSupported eventDef &&
+        decide (args.length = eventDef.params.length)
+
+theorem exists_eventDef_of_eventEmissionProofSupported
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    (hsupport : eventEmissionProofSupported events eventName args = true) :
+    ∃ eventDef,
+      events.find? (·.name == eventName) = some eventDef ∧
+      eventDefScalarProofSupported eventDef = true ∧
+      args.length = eventDef.params.length := by
+  unfold eventEmissionProofSupported at hsupport
+  cases hfind : events.find? (fun x => x.name == eventName) with
+  | none =>
+      simp [hfind] at hsupport
+  | some eventDef =>
+      simp [hfind, Bool.and_eq_true] at hsupport
+      exact ⟨eventDef, rfl, hsupport.1, hsupport.2⟩
+
+theorem eventEmissionProofSupported_find?_isSome
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    (hsupport : eventEmissionProofSupported events eventName args = true) :
+    (events.find? (·.name == eventName)).isSome = true := by
+  rcases exists_eventDef_of_eventEmissionProofSupported hsupport with
+    ⟨eventDef, hfind, _, _⟩
+  simp [hfind]
+
+theorem eventDefScalarProofSupported_eq_true_of_eventEmissionProofSupported
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef) :
+    eventDefScalarProofSupported eventDef = true := by
+  rcases exists_eventDef_of_eventEmissionProofSupported hsupport with
+    ⟨selected, hselected, hscalar, _⟩
+  rw [hfind] at hselected
+  injection hselected with heq
+  subst heq
+  exact hscalar
+
+theorem eventParamScalarProofSupported_eq_true_of_eventEmissionProofSupported
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    {param : EventParam}
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef)
+    (hmem : param ∈ eventDef.params) :
+    eventParamScalarProofSupported param.ty = true :=
+  eventParamScalarProofSupported_eq_true_of_eventDefScalarProofSupported
+    (eventDefScalarProofSupported_eq_true_of_eventEmissionProofSupported hsupport hfind)
+    hmem
+
+theorem eventEmissionProofSupported_indexed_length_le_three
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef) :
+    (eventDef.params.filter (fun param => param.kind == EventParamKind.indexed)).length ≤ 3 :=
+  eventDefScalarProofSupported_indexed_length_le_three
+    (eventDefScalarProofSupported_eq_true_of_eventEmissionProofSupported hsupport hfind)
+
+theorem eventEmissionProofSupported_args_length
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef) :
+    args.length = eventDef.params.length := by
+  rcases exists_eventDef_of_eventEmissionProofSupported hsupport with
+    ⟨selected, hselected, _, hlen⟩
+  rw [hfind] at hselected
+  injection hselected with heq
+  subst heq
+  exact hlen
+
+theorem eventEmissionProofSupported_param_eventIsDynamicType_eq_false
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    {param : EventParam}
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef)
+    (hmem : param ∈ eventDef.params) :
+    eventIsDynamicType param.ty = false :=
+  eventParamScalarProofSupported_eventIsDynamicType_eq_false
+    (eventParamScalarProofSupported_eq_true_of_eventEmissionProofSupported
+      hsupport hfind hmem)
+
+theorem eventEmissionProofSupported_param_eventHeadWordSize_eq_thirty_two
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    {param : EventParam}
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef)
+    (hmem : param ∈ eventDef.params) :
+    eventHeadWordSize param.ty = 32 :=
+  eventParamScalarProofSupported_eventHeadWordSize_eq_thirty_two
+    (eventParamScalarProofSupported_eq_true_of_eventEmissionProofSupported
+      hsupport hfind hmem)
+
+theorem eventEmissionProofSupported_param_not_bytes
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    {param : EventParam}
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef)
+    (hmem : param ∈ eventDef.params) :
+    param.ty ≠ ParamType.bytes :=
+  eventParamScalarProofSupported_ne_bytes
+    (eventParamScalarProofSupported_eq_true_of_eventEmissionProofSupported
+      hsupport hfind hmem)
+
+theorem eventEmissionProofSupported_param_not_string
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    {param : EventParam}
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef)
+    (hmem : param ∈ eventDef.params) :
+    param.ty ≠ ParamType.string :=
+  eventParamScalarProofSupported_ne_string
+    (eventParamScalarProofSupported_eq_true_of_eventEmissionProofSupported
+      hsupport hfind hmem)
+
+theorem eventEmissionProofSupported_zippedWithSource_param_scalar
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    {α : Type}
+    {compiledArgs : List α}
+    {entry : EventParam × Expr × α}
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef)
+    (hmem :
+      entry ∈
+        ((eventDef.params.zip args).zip compiledArgs |>.map
+          (fun ((p, srcExpr), argExpr) => (p, srcExpr, argExpr)))) :
+    eventParamScalarProofSupported entry.1.ty = true := by
+  rcases entry with ⟨param, srcExpr, argExpr⟩
+  simp only [List.mem_map] at hmem
+  rcases hmem with ⟨sourceEntry, hsourceMem, hentry⟩
+  rcases sourceEntry with ⟨paramArg, compiledArg⟩
+  rcases paramArg with ⟨sourceParam, sourceExpr⟩
+  cases hentry
+  have hparamArgMem : (sourceParam, sourceExpr) ∈ eventDef.params.zip args := by
+    exact (List.of_mem_zip hsourceMem).1
+  have hparamMem : sourceParam ∈ eventDef.params := by
+    exact (List.of_mem_zip hparamArgMem).1
+  exact eventParamScalarProofSupported_eq_true_of_eventEmissionProofSupported
+    hsupport hfind hparamMem
+
+theorem eventEmissionProofSupported_zippedWithSource_eventIsDynamicType_eq_false
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    {α : Type}
+    {compiledArgs : List α}
+    {entry : EventParam × Expr × α}
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef)
+    (hmem :
+      entry ∈
+        ((eventDef.params.zip args).zip compiledArgs |>.map
+          (fun ((p, srcExpr), argExpr) => (p, srcExpr, argExpr)))) :
+    eventIsDynamicType entry.1.ty = false :=
+  eventParamScalarProofSupported_eventIsDynamicType_eq_false
+    (eventEmissionProofSupported_zippedWithSource_param_scalar
+      hsupport hfind hmem)
+
+theorem eventEmissionProofSupported_zippedWithSource_eventHeadWordSize_eq_thirty_two
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    {α : Type}
+    {compiledArgs : List α}
+    {entry : EventParam × Expr × α}
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef)
+    (hmem :
+      entry ∈
+        ((eventDef.params.zip args).zip compiledArgs |>.map
+          (fun ((p, srcExpr), argExpr) => (p, srcExpr, argExpr)))) :
+    eventHeadWordSize entry.1.ty = 32 :=
+  eventParamScalarProofSupported_eventHeadWordSize_eq_thirty_two
+    (eventEmissionProofSupported_zippedWithSource_param_scalar
+      hsupport hfind hmem)
+
+theorem eventEmissionProofSupported_zippedWithSource_unindexed_any_dynamic_false
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    {α : Type}
+    (compiledArgs : List α)
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef) :
+    ((((eventDef.params.zip args).zip compiledArgs |>.map
+        (fun ((p, srcExpr), argExpr) => (p, srcExpr, argExpr))).filter
+          (fun (p, _, _) => p.kind == EventParamKind.unindexed)).any
+            (fun (p, _, _) => eventIsDynamicType p.ty)) = false := by
+  apply List.any_eq_false.mpr
+  intro entry hentry
+  have hstatic :
+      (match entry with
+        | (p, _, _) => eventIsDynamicType p.ty) = false :=
+    eventEmissionProofSupported_zippedWithSource_eventIsDynamicType_eq_false
+      hsupport hfind (List.mem_filter.mp hentry).1
+  simp [hstatic]
+
+private theorem foldl_eventHeadWordSize_eq_thirty_two_mul_length
+    {α : Type}
+    {entries : List (EventParam × Expr × α)}
+    (acc : Nat)
+    (hhead :
+      ∀ entry ∈ entries, eventHeadWordSize entry.1.ty = 32) :
+    (entries.map (fun entry => eventHeadWordSize entry.1.ty)).foldl (· + ·) acc =
+      acc + 32 * entries.length := by
+  induction entries generalizing acc with
+  | nil =>
+      simp
+  | cons entry rest ih =>
+      have hentry : eventHeadWordSize entry.1.ty = 32 := hhead entry (by simp)
+      have hrest :
+          ∀ tailEntry ∈ rest, eventHeadWordSize tailEntry.1.ty = 32 := by
+        intro tailEntry hmem
+        exact hhead tailEntry (by simp [hmem])
+      calc
+        ((entry :: rest).map (fun entry => eventHeadWordSize entry.1.ty)).foldl (· + ·) acc
+            = (rest.map (fun entry => eventHeadWordSize entry.1.ty)).foldl (· + ·)
+                (acc + 32) := by simp [hentry]
+        _ = (acc + 32) + 32 * rest.length := ih (acc + 32) hrest
+        _ = acc + 32 * (entry :: rest).length := by
+          simp [Nat.mul_succ, Nat.add_comm, Nat.add_assoc]
+
+theorem eventEmissionProofSupported_zippedWithSource_unindexed_head_size
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    {α : Type}
+    (compiledArgs : List α)
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef) :
+    let zipped : List (EventParam × Expr × α) :=
+      (eventDef.params.zip args).zip compiledArgs |>.map
+        (fun ((p, srcExpr), argExpr) => (p, srcExpr, argExpr))
+    let unindexed := zipped.filter (fun (p, _, _) => p.kind == EventParamKind.unindexed)
+    (unindexed.map (fun (p, _, _) => eventHeadWordSize p.ty)).foldl (· + ·) 0 =
+      32 * unindexed.length := by
+  dsimp only
+  simpa using
+    foldl_eventHeadWordSize_eq_thirty_two_mul_length (α := α) (acc := 0)
+      (entries :=
+        (((eventDef.params.zip args).zip compiledArgs |>.map
+          (fun ((p, srcExpr), argExpr) => (p, srcExpr, argExpr))).filter
+            (fun (p, _, _) => p.kind == EventParamKind.unindexed)))
+      (by
+        intro entry hentry
+        exact eventEmissionProofSupported_zippedWithSource_eventHeadWordSize_eq_thirty_two
+          hsupport hfind (List.mem_filter.mp hentry).1)
+
+theorem eventEmissionProofSupported_eventUnindexedHeadSize
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    (compiledArgs : List Compiler.Yul.YulExpr)
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef) :
+    eventUnindexedHeadSize
+        (eventUnindexedArgs (eventZippedWithSource eventDef args compiledArgs)) =
+      32 * (eventUnindexedArgs (eventZippedWithSource eventDef args compiledArgs)).length := by
+  simpa [eventUnindexedHeadSize, eventUnindexedArgs, eventZippedWithSource] using
+    eventEmissionProofSupported_zippedWithSource_unindexed_head_size
+      compiledArgs hsupport hfind
+
+theorem eventEmissionProofSupported_eventHasUnindexedDynamicData_eq_false
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    (compiledArgs : List Compiler.Yul.YulExpr)
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef) :
+    eventHasUnindexedDynamicData
+        (eventUnindexedArgs (eventZippedWithSource eventDef args compiledArgs)) = false := by
+  simpa [eventHasUnindexedDynamicData, eventUnindexedArgs, eventZippedWithSource] using
+    eventEmissionProofSupported_zippedWithSource_unindexed_any_dynamic_false
+      compiledArgs hsupport hfind
+
+private theorem eventCompiledArgs_filter_kind_length_le_params_filter_kind
+    {α : Type}
+    (params : List EventParam)
+    (args : List Expr)
+    (compiledArgs : List α)
+    (kind : EventParamKind) :
+    ((List.filter
+        (fun entry : EventParam × Expr × α => entry.1.kind == kind)
+        (List.map
+          (fun entry : (EventParam × Expr) × α => (entry.1.1, entry.1.2, entry.2))
+          ((List.zip params args).zip compiledArgs))).length) ≤
+      (params.filter (fun param => param.kind == kind)).length := by
+  induction params generalizing args compiledArgs with
+  | nil =>
+      simp
+  | cons param params ih =>
+      cases args with
+      | nil =>
+          simp
+      | cons arg args =>
+          cases compiledArgs with
+          | nil =>
+              simp
+          | cons compiledArg compiledArgs =>
+              by_cases hkind : param.kind == kind
+              · simp [hkind, ih args compiledArgs]
+              · have htail := ih args compiledArgs
+                simp [hkind]
+                exact htail
+
+theorem eventEmissionProofSupported_zippedWithSource_indexed_length_le_three
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    {α : Type}
+    (compiledArgs : List α)
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef) :
+    ((List.filter
+        (fun entry : EventParam × Expr × α => entry.1.kind == EventParamKind.indexed)
+        (List.map
+          (fun entry : (EventParam × Expr) × α => (entry.1.1, entry.1.2, entry.2))
+          ((List.zip eventDef.params args).zip compiledArgs))).length) ≤ 3 := by
+  exact Nat.le_trans
+    (eventCompiledArgs_filter_kind_length_le_params_filter_kind
+      eventDef.params args compiledArgs EventParamKind.indexed)
+    (eventEmissionProofSupported_indexed_length_le_three hsupport hfind)
+
+theorem eventEmissionProofSupported_eventIndexedArgs_length_le_three
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    {eventDef : EventDef}
+    (compiledArgs : List Compiler.Yul.YulExpr)
+    (hsupport : eventEmissionProofSupported events eventName args = true)
+    (hfind : events.find? (·.name == eventName) = some eventDef) :
+    (eventIndexedArgs (eventZippedWithSource eventDef args compiledArgs)).length ≤ 3 := by
+  simpa [eventIndexedArgs, eventZippedWithSource] using
+    eventEmissionProofSupported_zippedWithSource_indexed_length_le_three
+      compiledArgs hsupport hfind
+
+theorem eventLogFunction_mem_logBuiltins_of_le_three
+    {indexedLength : Nat}
+    (hle : indexedLength ≤ 3) :
+    eventLogFunction indexedLength ∈ ["log1", "log2", "log3", "log4"] := by
+  cases indexedLength with
+  | zero =>
+      simp [eventLogFunction]
+  | succ n =>
+      cases n with
+      | zero =>
+          simp [eventLogFunction]
+      | succ n =>
+          cases n with
+          | zero =>
+              simp [eventLogFunction]
+          | succ n =>
+              cases n with
+              | zero =>
+                  simp [eventLogFunction]
+              | succ n =>
+                  omega
+
+theorem eventLogArgs_length
+    (dataSizeExpr : Compiler.Yul.YulExpr)
+    (indexedTopicParts : List (List Compiler.Yul.YulStmt × Compiler.Yul.YulExpr)) :
+    (eventLogArgs dataSizeExpr indexedTopicParts).length =
+      indexedTopicParts.length + 3 := by
+  simp [eventLogArgs]
+
+mutual
+/-- Constructor body proofs are intentionally staged after initcode argument
+decoding. Raw constructor calldata observations therefore remain outside the
+current body-level support interface until the deploy-wrapper proof exists. -/
+def exprTouchesUnsupportedConstructorRawCalldataSurface : Expr → Bool
+  | .literal _ | .param _ | .localVar _ | .caller | .contractAddress
+  | .chainid | .msgValue | .blockTimestamp | .blockNumber
+  | .blobbasefee | .constructorArg _ | .returndataSize | .extcodesize _ => false
+  | .calldatasize => true
+  | .storage _ | .storageAddr _ | .arrayLength _ | .storageArrayLength _ => false
+  | .logicalNot a | .bitNot a | .mload a | .tload a | .returndataOptionalBoolAt a =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface a
+  | .calldataload _ =>
+      true
+  | .mapping _ a | .mappingWord _ a _ | .mappingPackedWord _ a _ _
+  | .mappingUint _ a | .structMember _ a _ | .arrayElement _ a
+  | .storageArrayElement _ a =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface a
+  | .add a b | .sub a b | .mul a b | .div a b | .mod a b
+  | .eq a b | .ge a b | .gt a b | .lt a b | .le a b
+  | .logicalAnd a b | .logicalOr a b | .shl a b | .shr a b
+  | .bitAnd a b | .bitOr a b | .bitXor a b | .min a b | .max a b
+  | .wMulDown a b | .wDivUp a b | .ceilDiv a b | .slt a b | .sgt a b
+  | .sdiv a b | .smod a b | .sar a b | .signextend a b =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface a ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface b
+  | .mapping2 _ a b | .mapping2Word _ a b _ | .structMember2 _ a b _ =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface a ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface b
+  | .dynamicBytesEq _ _ => false
+  | .ite c t e | .mulDivDown c t e | .mulDivUp c t e =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface c ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface t ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface e
+  | .mappingChain _ keys | .internalCall _ keys | .externalCall _ keys =>
+      exprListTouchesUnsupportedConstructorRawCalldataSurface keys
+  | .keccak256 a b =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface a ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface b
+  | .call g t v io is oo os =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface g ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface t ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface v ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface io ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface is ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface oo ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface os
+  | .staticcall g t io is oo os | .delegatecall g t io is oo os =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface g ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface t ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface io ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface is ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface oo ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface os
+  | .adtConstruct _ _ args =>
+      exprListTouchesUnsupportedConstructorRawCalldataSurface args
+  | .adtTag _ _ | .adtField _ _ _ _ _ => false
+
+def exprListTouchesUnsupportedConstructorRawCalldataSurface : List Expr → Bool
+  | [] => false
+  | expr :: rest =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface expr ||
+        exprListTouchesUnsupportedConstructorRawCalldataSurface rest
+
+def stmtTouchesUnsupportedConstructorRawCalldataSurface : Stmt → Bool
+  | .letVar _ value | .assignVar _ value | .setStorage _ value
+  | .setStorageAddr _ value | .require value _ | .return value
+  | .storageArrayPush _ value =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface value
+  | .setMapping _ key value | .setMappingWord _ key _ value
+  | .setMappingPackedWord _ key _ _ value | .setMappingUint _ key value
+  | .setStructMember _ key _ value | .setStorageArrayElement _ key value
+  | .mstore key value | .tstore key value =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface key ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface value
+  | .setMappingChain _ keys value =>
+      exprListTouchesUnsupportedConstructorRawCalldataSurface keys ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface value
+  | .setMapping2 _ key1 key2 value | .setMapping2Word _ key1 key2 _ value
+  | .setStructMember2 _ key1 key2 _ value =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface key1 ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface key2 ||
+        exprTouchesUnsupportedConstructorRawCalldataSurface value
+  | .emit _ args | .internalCallAssign _ _ args | .internalCall _ args
+  | .externalCallBind _ _ args | .tryExternalCallBind _ _ _ args =>
+      exprListTouchesUnsupportedConstructorRawCalldataSurface args
+  | .ite cond thenBranch elseBranch =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface cond ||
+        stmtListTouchesUnsupportedConstructorRawCalldataSurface thenBranch ||
+        stmtListTouchesUnsupportedConstructorRawCalldataSurface elseBranch
+  | .forEach _ count body =>
+      exprTouchesUnsupportedConstructorRawCalldataSurface count ||
+        stmtListTouchesUnsupportedConstructorRawCalldataSurface body
+  | .stop | .storageArrayPop _ | .requireError _ _ _ | .revertError _ _
+  | .returnValues _ | .returnArray _ | .returnBytes _ | .returnStorageWords _
+  | .calldatacopy _ _ _ | .returndataCopy _ _ _ | .revertReturndata
+  | .rawLog _ _ _ | .ecm _ _ => false
+  | .unsafeBlock _ _ | .matchAdt _ _ _ => true
+
+def stmtListTouchesUnsupportedConstructorRawCalldataSurface : List Stmt → Bool
+  | [] => false
+  | stmt :: rest =>
+      stmtTouchesUnsupportedConstructorRawCalldataSurface stmt ||
+        stmtListTouchesUnsupportedConstructorRawCalldataSurface rest
+end
+
 /-- Selector-dispatched entrypoints in the same order used by `CompilationModel.compile`. -/
 def selectorDispatchedFunctions (spec : CompilationModel) : List FunctionSpec :=
   spec.functions.filter (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)
@@ -507,7 +1132,8 @@ def stmtTouchesUnsupportedCallSurface : Stmt → Bool
   | .ecm _ _ => true
   | .stop | .storageArrayPop _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
-  | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _ => false
+  | .returnBytes _ | .returnStorageWords _ | .rawLog _ _ _ => false
+  | .emit _ args => args.any exprTouchesUnsupportedCallSurface
   | .unsafeBlock _ _ | .matchAdt _ _ _ => true
   | .ite cond thenBranch elseBranch =>
       exprTouchesUnsupportedCallSurface cond ||
@@ -545,7 +1171,8 @@ def stmtTouchesUnsupportedHelperSurface : Stmt → Bool
   | .returndataCopy _ _ _ | .revertReturndata | .externalCallBind _ _ _ | .tryExternalCallBind _ _ _ _
   | .ecm _ _ | .storageArrayPop _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
-  | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _ => false
+  | .returnBytes _ | .returnStorageWords _ | .rawLog _ _ _ => false
+  | .emit _ args => exprListTouchesUnsupportedHelperSurface args
   | .unsafeBlock _ _ | .matchAdt _ _ _ => true
   | .ite cond thenBranch elseBranch =>
       exprTouchesUnsupportedHelperSurface cond ||
@@ -714,7 +1341,8 @@ def stmtTouchesUnsupportedForeignSurface : Stmt → Bool
   | .calldatacopy _ _ _ | .returndataCopy _ _ _ | .revertReturndata
   | .storageArrayPop _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
-  | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _ => false
+  | .returnBytes _ | .returnStorageWords _ | .rawLog _ _ _ => false
+  | .emit _ args => args.any exprTouchesUnsupportedForeignSurface
   | .unsafeBlock _ _ | .matchAdt _ _ _ => true
   | .ite cond thenBranch elseBranch =>
       exprTouchesUnsupportedForeignSurface cond ||
@@ -753,7 +1381,8 @@ def stmtTouchesUnsupportedLowLevelSurface : Stmt → Bool
   | .internalCall _ _ | .internalCallAssign _ _ _ | .externalCallBind _ _ _ | .tryExternalCallBind _ _ _ _
   | .ecm _ _ | .storageArrayPop _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
-  | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _ => false
+  | .returnBytes _ | .returnStorageWords _ | .rawLog _ _ _ => false
+  | .emit _ args => args.any exprTouchesUnsupportedLowLevelSurface
   | .unsafeBlock _ _ | .matchAdt _ _ _ => true
   | .ite cond thenBranch elseBranch =>
       exprTouchesUnsupportedLowLevelSurface cond ||
@@ -791,11 +1420,30 @@ def stmtTouchesUnsupportedContractSurface (stmt : Stmt) : Bool :=
   | .rawLog _ _ _ | .externalCallBind _ _ _ | .ecm _ _
   | .tryExternalCallBind _ _ _ _ | .unsafeBlock _ _ | .matchAdt _ _ _ => true
 
+def stmtTouchesUnsupportedContractSurfaceWithEvents
+    (events : List EventDef) (stmt : Stmt) : Bool :=
+  match stmt with
+  | .emit eventName args =>
+      args.any exprTouchesUnsupportedContractSurface ||
+        !eventEmissionProofSupported events eventName args
+  | .ite cond thenBranch elseBranch =>
+      exprTouchesUnsupportedContractSurface cond ||
+        stmtListTouchesUnsupportedContractSurfaceWithEvents events thenBranch ||
+        stmtListTouchesUnsupportedContractSurfaceWithEvents events elseBranch
+  | _ => stmtTouchesUnsupportedContractSurface stmt
+
 def stmtListTouchesUnsupportedContractSurface : List Stmt → Bool
   | [] => false
   | stmt :: rest =>
       stmtTouchesUnsupportedContractSurface stmt ||
         stmtListTouchesUnsupportedContractSurface rest
+
+def stmtListTouchesUnsupportedContractSurfaceWithEvents
+    (events : List EventDef) : List Stmt → Bool
+  | [] => false
+  | stmt :: rest =>
+      stmtTouchesUnsupportedContractSurfaceWithEvents events stmt ||
+        stmtListTouchesUnsupportedContractSurfaceWithEvents events rest
 
 /-- Weaker contract-surface gate used by the Tier 2 singleton storage-write
 bridge: ordinary unsupported contract effects remain excluded, but the proved
@@ -902,6 +1550,29 @@ def stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites : List Stmt →
       stmtTouchesUnsupportedContractSurfaceExceptMappingWrites stmt ||
         stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites rest
 end
+
+theorem exprListTouchesUnsupportedContractSurface_eq_false_of_emit_contractSurfaceWithEventsClosed
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    (hsurface :
+      stmtTouchesUnsupportedContractSurfaceWithEvents events (.emit eventName args) = false) :
+    args.any exprTouchesUnsupportedContractSurface = false := by
+  simpa [stmtTouchesUnsupportedContractSurfaceWithEvents] using
+    (Bool.or_eq_false_iff.mp hsurface).1
+
+theorem eventEmissionProofSupported_eq_true_of_emit_contractSurfaceWithEventsClosed
+    {events : List EventDef}
+    {eventName : String}
+    {args : List Expr}
+    (hsurface :
+      stmtTouchesUnsupportedContractSurfaceWithEvents events (.emit eventName args) = false) :
+    eventEmissionProofSupported events eventName args = true := by
+  have hsupport :
+      (!eventEmissionProofSupported events eventName args) = false := by
+    simpa [stmtTouchesUnsupportedContractSurfaceWithEvents] using
+      (Bool.or_eq_false_iff.mp hsurface).2
+  cases h : eventEmissionProofSupported events eventName args <;> simp [h] at hsupport ⊢
 
 mutual
   /-- Collect direct internal-helper callee names mentioned by an expression. This
@@ -1326,6 +1997,8 @@ structure SupportedInternalHelperSummary (spec : CompilationModel) (callee : Fun
   foreign : stmtListTouchesUnsupportedForeignSurface callee.body = false
   lowLevel : stmtListTouchesUnsupportedLowLevelSurface callee.body = false
   effects : SupportedBodyEffectInterface callee
+  constructorRawCalldataSurfaceClosed :
+    stmtListTouchesUnsupportedConstructorRawCalldataSurface callee.body = false
   contract : InternalHelperSummaryContract
   noLocalObligations : callee.localObligations = []
 
@@ -1438,6 +2111,41 @@ structure SupportedFunctionExceptMappingWrites
   returns : SupportedReturnProfile fn
   body : SupportedBodyInterfaceExceptMappingWrites spec fn
 
+/-- Constructor bodies reuse the same statement-fragment interface as ordinary
+functions once deploy-time arguments have been decoded into local bindings. -/
+def constructorAsFunctionSpec (ctor : ConstructorSpec) : FunctionSpec :=
+  { name := "__constructor__"
+    params := ctor.params
+    returnType := none
+    returns := []
+    isPayable := ctor.isPayable
+    isView := false
+    isPure := false
+    body := ctor.body
+    isInternal := false
+    localObligations := ctor.localObligations }
+
+/-- Body-level support witness for constructors. This is intentionally local:
+it covers the user-written constructor body after argument decoding, not the
+initcode wrapper that materializes those locals. -/
+structure SupportedConstructor (spec : CompilationModel) (ctor : ConstructorSpec) where
+  params : SupportedParamProfile ctor.params
+  body : SupportedBodyInterfaceExceptMappingWrites spec (constructorAsFunctionSpec ctor)
+  rawCalldataSurfaceClosed :
+    stmtListTouchesUnsupportedConstructorRawCalldataSurface ctor.body = false
+
+theorem SupportedConstructor.paramNamesNodup
+    {spec : CompilationModel} {ctor : ConstructorSpec}
+    (hSupported : SupportedConstructor spec ctor) :
+    (ctor.params.map (·.name)).Nodup :=
+  hSupported.params.namesNodup
+
+theorem SupportedConstructor.paramsSupported
+    {spec : CompilationModel} {ctor : ConstructorSpec}
+    (hSupported : SupportedConstructor spec ctor) :
+    ∀ param ∈ ctor.params, SupportedExternalParamType param.ty :=
+  hSupported.params.supported
+
 /-- Whole-contract invariants that should remain global preconditions for the
 current generic theorem, independent of feature-local proof interfaces. -/
 structure SupportedSpecInvariants (spec : CompilationModel) (selectors : List Nat) : Prop where
@@ -1453,7 +2161,6 @@ structure SupportedSpecInvariants (spec : CompilationModel) (selectors : List Na
 kept separate from global normalization/dispatch invariants so future widening
 can replace these by dedicated proof interfaces feature-by-feature. -/
 structure SupportedSpecSurface (spec : CompilationModel) : Prop where
-  noConstructor : spec.constructor = none
   noEvents : spec.events = []
   noErrors : spec.errors = []
   noExternals : spec.externals = []
@@ -1470,6 +2177,8 @@ must already live inside the explicit supported statement fragment. -/
 structure SupportedSpec (spec : CompilationModel) (selectors : List Nat) where
   invariants : SupportedSpecInvariants spec selectors
   surface : SupportedSpecSurface spec
+  constructor :
+    ∀ ctor, spec.constructor = some ctor → SupportedConstructor spec ctor
   functions :
     ∀ fn, fn ∈ spec.functions → SupportedFunction spec fn
 
@@ -1479,6 +2188,8 @@ structure SupportedSpecExceptMappingWrites
     (spec : CompilationModel) (selectors : List Nat) where
   invariants : SupportedSpecInvariants spec selectors
   surface : SupportedSpecSurface spec
+  constructor :
+    ∀ ctor, spec.constructor = some ctor → SupportedConstructor spec ctor
   functions :
     ∀ fn, fn ∈ spec.functions → SupportedFunctionExceptMappingWrites spec fn
 
@@ -1844,6 +2555,24 @@ private theorem supportedStmtList_letStorageAddrField_helperSurfaceClosed
     exprTouchesUnsupportedHelperSurface,
         Bool.or_false, Bool.false_or]
 
+private theorem supportedStmtList_assignStorageField_helperSurfaceClosed
+    {name fieldName : String} :
+    stmtListTouchesUnsupportedHelperSurface
+      [Stmt.assignVar name (Expr.storage fieldName)] = false := by
+  simp only [stmtListTouchesUnsupportedHelperSurface,
+    stmtTouchesUnsupportedHelperSurface,
+    exprTouchesUnsupportedHelperSurface,
+        Bool.or_false, Bool.false_or]
+
+private theorem supportedStmtList_assignStorageAddrField_helperSurfaceClosed
+    {name fieldName : String} :
+    stmtListTouchesUnsupportedHelperSurface
+      [Stmt.assignVar name (Expr.storageAddr fieldName)] = false := by
+  simp only [stmtListTouchesUnsupportedHelperSurface,
+    stmtTouchesUnsupportedHelperSurface,
+    exprTouchesUnsupportedHelperSurface,
+        Bool.or_false, Bool.false_or]
+
 private theorem supportedStmtList_setStorageAddrSingleSlot_helperSurfaceClosed
     {fieldName : String}
     {value : Expr}
@@ -2045,6 +2774,14 @@ theorem SupportedStmtList.helperSurfaceClosed
       exact supportedStmtList_letStorageField_helperSurfaceClosed
   | letStorageAddrField _ _ =>
       exact supportedStmtList_letStorageAddrField_helperSurfaceClosed
+  | assignStorageField _ _ =>
+      exact supportedStmtList_assignStorageField_helperSurfaceClosed
+  | assignStorageAddrField _ _ =>
+      exact supportedStmtList_assignStorageAddrField_helperSurfaceClosed
+  | emitEvent hcoreAll _ =>
+      simpa [stmtListTouchesUnsupportedHelperSurface,
+        stmtTouchesUnsupportedHelperSurface]
+        using exprListCompileCore_helperSurfaceClosed hcoreAll
   | letMappingField hkey _ _ =>
       simp only [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
@@ -2171,6 +2908,19 @@ theorem SupportedStmtList.internalHelperCallNames_nil
         stmtInternalHelperCallNames,
         exprInternalHelperCallNames,
         List.nil_append, List.append_nil]
+  | assignStorageField _ _ =>
+      simp only [stmtListInternalHelperCallNames,
+        stmtInternalHelperCallNames,
+        exprInternalHelperCallNames,
+        List.nil_append, List.append_nil]
+  | assignStorageAddrField _ _ =>
+      simp only [stmtListInternalHelperCallNames,
+        stmtInternalHelperCallNames,
+        exprInternalHelperCallNames,
+        List.nil_append, List.append_nil]
+  | emitEvent hcoreAll _ =>
+      simpa [stmtListInternalHelperCallNames, stmtInternalHelperCallNames]
+        using exprListCompileCore_internalHelperCallNames_nil hcoreAll
   | letMappingField hkey _ _ =>
       simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
@@ -2292,6 +3042,12 @@ theorem SupportedStmtList.internalHelperCallNames_nil
 theorem SupportedBodyInterface.helperCallNames_nil
     {spec : CompilationModel} {fn : FunctionSpec}
     (hBody : SupportedBodyInterface spec fn) :
+    helperCallNames fn = [] := by
+  simp [helperCallNames, hBody.stmtList.internalHelperCallNames_nil]
+
+theorem SupportedBodyInterfaceExceptMappingWrites.helperCallNames_nil
+    {spec : CompilationModel} {fn : FunctionSpec}
+    (hBody : SupportedBodyInterfaceExceptMappingWrites spec fn) :
     helperCallNames fn = [] := by
   simp [helperCallNames, hBody.stmtList.internalHelperCallNames_nil]
 
@@ -2794,36 +3550,35 @@ private theorem exprListTouchesUnsupportedCallSurface_eq_featureOr
       rw [exprTouchesUnsupportedCallSurface_eq_featureOr, ih]
       simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
 
-theorem stmtListTouchesUnsupportedCallSurface_eq_featureOr
-    (stmts : List Stmt) :
-    stmtListTouchesUnsupportedCallSurface stmts =
-      (stmtListTouchesUnsupportedHelperSurface stmts ||
-        stmtListTouchesUnsupportedForeignSurface stmts ||
-        stmtListTouchesUnsupportedLowLevelSurface stmts) := by
-  match stmts with
-  | [] =>
-      simp [stmtListTouchesUnsupportedCallSurface, stmtListTouchesUnsupportedHelperSurface,
-        stmtListTouchesUnsupportedForeignSurface, stmtListTouchesUnsupportedLowLevelSurface]
-  | stmt :: rest =>
-      unfold stmtListTouchesUnsupportedCallSurface
-      unfold stmtListTouchesUnsupportedHelperSurface stmtListTouchesUnsupportedForeignSurface
-        stmtListTouchesUnsupportedLowLevelSurface
-      rw [stmtListTouchesUnsupportedCallSurface_eq_featureOr rest]
+private theorem stmtOrListTouchesUnsupportedCallSurface_eq_featureOr :
+    (target : Sum Stmt (List Stmt)) →
+      match target with
+      | .inl stmt =>
+          stmtTouchesUnsupportedCallSurface stmt =
+            (stmtTouchesUnsupportedHelperSurface stmt ||
+              stmtTouchesUnsupportedForeignSurface stmt ||
+              stmtTouchesUnsupportedLowLevelSurface stmt)
+      | .inr stmts =>
+          stmtListTouchesUnsupportedCallSurface stmts =
+            (stmtListTouchesUnsupportedHelperSurface stmts ||
+              stmtListTouchesUnsupportedForeignSurface stmts ||
+              stmtListTouchesUnsupportedLowLevelSurface stmts)
+  | .inl stmt => by
       cases stmt with
       | ite cond thenBranch elseBranch =>
           simp only [stmtTouchesUnsupportedCallSurface,
             stmtTouchesUnsupportedHelperSurface, stmtTouchesUnsupportedForeignSurface,
             stmtTouchesUnsupportedLowLevelSurface]
           rw [exprTouchesUnsupportedCallSurface_eq_featureOr,
-              stmtListTouchesUnsupportedCallSurface_eq_featureOr thenBranch,
-              stmtListTouchesUnsupportedCallSurface_eq_featureOr elseBranch]
+              stmtOrListTouchesUnsupportedCallSurface_eq_featureOr (.inr thenBranch),
+              stmtOrListTouchesUnsupportedCallSurface_eq_featureOr (.inr elseBranch)]
           simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
       | forEach _ count body =>
           simp only [stmtTouchesUnsupportedCallSurface,
             stmtTouchesUnsupportedHelperSurface, stmtTouchesUnsupportedForeignSurface,
             stmtTouchesUnsupportedLowLevelSurface]
           rw [exprTouchesUnsupportedCallSurface_eq_featureOr,
-              stmtListTouchesUnsupportedCallSurface_eq_featureOr body]
+              stmtOrListTouchesUnsupportedCallSurface_eq_featureOr (.inr body)]
           simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
       | setMappingChain _ keys value =>
           simp only [stmtTouchesUnsupportedCallSurface,
@@ -2832,14 +3587,50 @@ theorem stmtListTouchesUnsupportedCallSurface_eq_featureOr
           rw [exprListTouchesUnsupportedCallSurface_eq_featureOr,
               exprTouchesUnsupportedCallSurface_eq_featureOr value]
           simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
+      | emit _ args =>
+          simp only [stmtTouchesUnsupportedCallSurface,
+            stmtTouchesUnsupportedHelperSurface, stmtTouchesUnsupportedForeignSurface,
+            stmtTouchesUnsupportedLowLevelSurface]
+          rw [exprListTouchesUnsupportedCallSurface_eq_featureOr args]
+          simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
       | _ =>
           all_goals simp [stmtTouchesUnsupportedCallSurface,
             stmtTouchesUnsupportedHelperSurface, stmtTouchesUnsupportedForeignSurface,
             stmtTouchesUnsupportedLowLevelSurface,
             exprTouchesUnsupportedCallSurface_eq_featureOr,
             Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
-termination_by sizeOf stmts
-decreasing_by all_goals (subst_vars; simp_wf; simp_all [List.cons.sizeOf_spec]; omega)
+  | .inr [] => by
+      simp [stmtListTouchesUnsupportedCallSurface, stmtListTouchesUnsupportedHelperSurface,
+        stmtListTouchesUnsupportedForeignSurface, stmtListTouchesUnsupportedLowLevelSurface]
+  | .inr (stmt :: rest) => by
+      simp only [stmtListTouchesUnsupportedCallSurface, stmtListTouchesUnsupportedHelperSurface,
+        stmtListTouchesUnsupportedForeignSurface, stmtListTouchesUnsupportedLowLevelSurface,
+        List.any_cons]
+      rw [stmtOrListTouchesUnsupportedCallSurface_eq_featureOr (.inl stmt),
+          stmtOrListTouchesUnsupportedCallSurface_eq_featureOr (.inr rest)]
+      simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
+termination_by target => sizeOf target
+decreasing_by
+  all_goals
+    simp_wf
+    try simp [Stmt.ite.sizeOf_spec, Stmt.forEach.sizeOf_spec, List.cons.sizeOf_spec] at *
+    omega
+
+private theorem stmtTouchesUnsupportedCallSurface_eq_featureOr
+    (stmt : Stmt) :
+    stmtTouchesUnsupportedCallSurface stmt =
+      (stmtTouchesUnsupportedHelperSurface stmt ||
+        stmtTouchesUnsupportedForeignSurface stmt ||
+        stmtTouchesUnsupportedLowLevelSurface stmt) := by
+  simpa using stmtOrListTouchesUnsupportedCallSurface_eq_featureOr (.inl stmt)
+
+theorem stmtListTouchesUnsupportedCallSurface_eq_featureOr
+    (stmts : List Stmt) :
+    stmtListTouchesUnsupportedCallSurface stmts =
+      (stmtListTouchesUnsupportedHelperSurface stmts ||
+        stmtListTouchesUnsupportedForeignSurface stmts ||
+        stmtListTouchesUnsupportedLowLevelSurface stmts) := by
+  simpa using stmtOrListTouchesUnsupportedCallSurface_eq_featureOr (.inr stmts)
 
 
 private theorem exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed
@@ -3342,6 +4133,53 @@ theorem stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClose
       simp [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.1,
         stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.2]
+termination_by sizeOf stmts
+end
+
+mutual
+theorem stmtTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceWithEventsClosed
+    {events : List EventDef}
+    {stmt : Stmt}
+    (hsurface : stmtTouchesUnsupportedContractSurfaceWithEvents events stmt = false) :
+    stmtTouchesUnsupportedHelperSurface stmt = false := by
+  cases stmt with
+  | emit eventName args =>
+      simp only [stmtTouchesUnsupportedContractSurfaceWithEvents,
+        Bool.or_eq_false_iff] at hsurface
+      simp [stmtTouchesUnsupportedHelperSurface,
+        exprListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.1]
+  | ite cond thenBranch elseBranch =>
+      simp only [stmtTouchesUnsupportedContractSurfaceWithEvents,
+        Bool.or_eq_false_iff] at hsurface
+      show (exprTouchesUnsupportedHelperSurface cond ||
+            stmtListTouchesUnsupportedHelperSurface thenBranch ||
+            stmtListTouchesUnsupportedHelperSurface elseBranch) = false
+      rw [Bool.or_eq_false_iff, Bool.or_eq_false_iff]
+      exact ⟨⟨exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.1.1,
+        stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceWithEventsClosed
+          hsurface.1.2⟩,
+        stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceWithEventsClosed
+          hsurface.2⟩
+  | _ =>
+      exact stmtTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
+        (by simpa [stmtTouchesUnsupportedContractSurfaceWithEvents] using hsurface)
+termination_by sizeOf stmt
+
+theorem stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceWithEventsClosed
+    {events : List EventDef}
+    {stmts : List Stmt}
+    (hsurface : stmtListTouchesUnsupportedContractSurfaceWithEvents events stmts = false) :
+    stmtListTouchesUnsupportedHelperSurface stmts = false := by
+  match stmts with
+  | [] => simp [stmtListTouchesUnsupportedHelperSurface]
+  | stmt :: rest =>
+      simp only [stmtListTouchesUnsupportedContractSurfaceWithEvents,
+        Bool.or_eq_false_iff] at hsurface
+      simp [stmtListTouchesUnsupportedHelperSurface,
+        stmtTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceWithEventsClosed
+          hsurface.1,
+        stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceWithEventsClosed
+          hsurface.2]
 termination_by sizeOf stmts
 end
 
@@ -3893,6 +4731,13 @@ private theorem supportedStmtList_usesArrayElement_false
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement, Bool.false_or]
   | letStorageAddrField _ _ =>
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement, Bool.false_or]
+  | assignStorageField _ _ =>
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement, Bool.false_or]
+  | assignStorageAddrField _ _ =>
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement, Bool.false_or]
+  | emitEvent hcoreAll _ =>
+      simpa [stmtListUsesArrayElement, stmtUsesArrayElement]
+        using exprListCompileCore_usesArrayElement_false hcoreAll
   | letMappingField hkey _ _ =>
       simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement,
         exprCompileCore_usesArrayElement_false hkey, Bool.false_or]
@@ -3995,6 +4840,15 @@ private theorem supportedStmtList_usesStorageArrayElement_false
   | letStorageAddrField _ _ =>
       simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprUsesStorageArrayElement, Bool.false_or]
+  | assignStorageField _ _ =>
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprUsesStorageArrayElement, Bool.false_or]
+  | assignStorageAddrField _ _ =>
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprUsesStorageArrayElement, Bool.false_or]
+  | emitEvent hcoreAll _ =>
+      simpa [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement]
+        using exprListCompileCore_usesStorageArrayElement_false hcoreAll
   | letMappingField hkey _ _ =>
       simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprUsesStorageArrayElement,
@@ -4098,6 +4952,13 @@ private theorem supportedStmtList_usesDynamicBytesEq_false
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq, Bool.false_or]
   | letStorageAddrField _ _ =>
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq, Bool.false_or]
+  | assignStorageField _ _ =>
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq, Bool.false_or]
+  | assignStorageAddrField _ _ =>
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq, Bool.false_or]
+  | emitEvent hcoreAll _ =>
+      simpa [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq]
+        using exprListCompileCore_usesDynamicBytesEq_false hcoreAll
   | letMappingField hkey _ _ =>
       simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hkey, Bool.false_or]
@@ -4219,69 +5080,149 @@ theorem SupportedSpec.contractUsesArrayElement_eq_false
     {spec : CompilationModel} {selectors : List Nat}
     (hSupported : SupportedSpec spec selectors) :
     contractUsesArrayElement spec = false := by
-  simp [contractUsesArrayElement, hSupported.surface.noConstructor, constructorUsesArrayElement]
-  intro fn hmem
-  simp only [functionUsesArrayElement]
-  rw [← stmtListUsesArrayElement_eq_any]
-  exact supportedStmtList_usesArrayElement_false (hSupported.functions fn hmem).body.stmtList
+  have hfunctions : ∀ fn ∈ spec.functions, functionUsesArrayElement fn = false := by
+    intro fn hmem
+    simp only [functionUsesArrayElement]
+    rw [← stmtListUsesArrayElement_eq_any]
+    exact supportedStmtList_usesArrayElement_false (hSupported.functions fn hmem).body.stmtList
+  have hfunctionsAny : spec.functions.any functionUsesArrayElement = false :=
+    listAny_eq_false_of_mem_eq_false functionUsesArrayElement spec.functions hfunctions
+  cases hctor : spec.constructor with
+  | none =>
+      simp [contractUsesArrayElement, hctor, constructorUsesArrayElement, hfunctionsAny]
+  | some ctor =>
+      have hctorArray :
+          ctor.body.any stmtUsesArrayElement = false := by
+        rw [← stmtListUsesArrayElement_eq_any]
+        exact supportedStmtList_usesArrayElement_false
+          (hSupported.constructor ctor hctor).body.stmtList
+      simp [contractUsesArrayElement, hctor, constructorUsesArrayElement, hctorArray,
+        hfunctionsAny]
 
 theorem SupportedSpecExceptMappingWrites.contractUsesArrayElement_eq_false
     {spec : CompilationModel} {selectors : List Nat}
     (hSupported : SupportedSpecExceptMappingWrites spec selectors) :
     contractUsesArrayElement spec = false := by
-  simp [contractUsesArrayElement, hSupported.surface.noConstructor, constructorUsesArrayElement]
-  intro fn hmem
-  simp only [functionUsesArrayElement]
-  rw [← stmtListUsesArrayElement_eq_any]
-  exact supportedStmtList_usesArrayElement_false (hSupported.functions fn hmem).body.stmtList
+  have hfunctions : ∀ fn ∈ spec.functions, functionUsesArrayElement fn = false := by
+    intro fn hmem
+    simp only [functionUsesArrayElement]
+    rw [← stmtListUsesArrayElement_eq_any]
+    exact supportedStmtList_usesArrayElement_false (hSupported.functions fn hmem).body.stmtList
+  have hfunctionsAny : spec.functions.any functionUsesArrayElement = false :=
+    listAny_eq_false_of_mem_eq_false functionUsesArrayElement spec.functions hfunctions
+  cases hctor : spec.constructor with
+  | none =>
+      simp [contractUsesArrayElement, hctor, constructorUsesArrayElement, hfunctionsAny]
+  | some ctor =>
+      have hctorArray :
+          ctor.body.any stmtUsesArrayElement = false := by
+        rw [← stmtListUsesArrayElement_eq_any]
+        exact supportedStmtList_usesArrayElement_false
+          (hSupported.constructor ctor hctor).body.stmtList
+      simp [contractUsesArrayElement, hctor, constructorUsesArrayElement, hctorArray,
+        hfunctionsAny]
 
 theorem SupportedSpec.contractUsesStorageArrayElement_eq_false
     {spec : CompilationModel} {selectors : List Nat}
     (hSupported : SupportedSpec spec selectors) :
     contractUsesStorageArrayElement spec = false := by
-  simp [contractUsesStorageArrayElement, hSupported.surface.noConstructor,
-    constructorUsesStorageArrayElement]
-  intro fn hmem
-  simp only [functionUsesStorageArrayElement]
-  rw [← stmtListUsesStorageArrayElement_eq_any]
-  exact supportedStmtList_usesStorageArrayElement_false
-    (hSupported.functions fn hmem).body.stmtList
+  have hfunctions : ∀ fn ∈ spec.functions, functionUsesStorageArrayElement fn = false := by
+    intro fn hmem
+    simp only [functionUsesStorageArrayElement]
+    rw [← stmtListUsesStorageArrayElement_eq_any]
+    exact supportedStmtList_usesStorageArrayElement_false
+      (hSupported.functions fn hmem).body.stmtList
+  have hfunctionsAny : spec.functions.any functionUsesStorageArrayElement = false :=
+    listAny_eq_false_of_mem_eq_false functionUsesStorageArrayElement spec.functions hfunctions
+  cases hctor : spec.constructor with
+  | none =>
+      simp [contractUsesStorageArrayElement, hctor, constructorUsesStorageArrayElement,
+        hfunctionsAny]
+  | some ctor =>
+      have hctorArray :
+          ctor.body.any stmtUsesStorageArrayElement = false := by
+        rw [← stmtListUsesStorageArrayElement_eq_any]
+        exact supportedStmtList_usesStorageArrayElement_false
+          (hSupported.constructor ctor hctor).body.stmtList
+      simp [contractUsesStorageArrayElement, hctor, constructorUsesStorageArrayElement,
+        hctorArray, hfunctionsAny]
 
 theorem SupportedSpecExceptMappingWrites.contractUsesStorageArrayElement_eq_false
     {spec : CompilationModel} {selectors : List Nat}
     (hSupported : SupportedSpecExceptMappingWrites spec selectors) :
     contractUsesStorageArrayElement spec = false := by
-  simp [contractUsesStorageArrayElement, hSupported.surface.noConstructor,
-    constructorUsesStorageArrayElement]
-  intro fn hmem
-  simp only [functionUsesStorageArrayElement]
-  rw [← stmtListUsesStorageArrayElement_eq_any]
-  exact supportedStmtList_usesStorageArrayElement_false
-    (hSupported.functions fn hmem).body.stmtList
+  have hfunctions : ∀ fn ∈ spec.functions, functionUsesStorageArrayElement fn = false := by
+    intro fn hmem
+    simp only [functionUsesStorageArrayElement]
+    rw [← stmtListUsesStorageArrayElement_eq_any]
+    exact supportedStmtList_usesStorageArrayElement_false
+      (hSupported.functions fn hmem).body.stmtList
+  have hfunctionsAny : spec.functions.any functionUsesStorageArrayElement = false :=
+    listAny_eq_false_of_mem_eq_false functionUsesStorageArrayElement spec.functions hfunctions
+  cases hctor : spec.constructor with
+  | none =>
+      simp [contractUsesStorageArrayElement, hctor, constructorUsesStorageArrayElement,
+        hfunctionsAny]
+  | some ctor =>
+      have hctorArray :
+          ctor.body.any stmtUsesStorageArrayElement = false := by
+        rw [← stmtListUsesStorageArrayElement_eq_any]
+        exact supportedStmtList_usesStorageArrayElement_false
+          (hSupported.constructor ctor hctor).body.stmtList
+      simp [contractUsesStorageArrayElement, hctor, constructorUsesStorageArrayElement,
+        hctorArray, hfunctionsAny]
 
 theorem SupportedSpec.contractUsesDynamicBytesEq_eq_false
     {spec : CompilationModel} {selectors : List Nat}
     (hSupported : SupportedSpec spec selectors) :
     contractUsesDynamicBytesEq spec = false := by
-  simp [contractUsesDynamicBytesEq, hSupported.surface.noConstructor]
-  intro fn hmem
-  have := supportedStmtList_usesDynamicBytesEq_false
-    (hSupported.functions fn hmem).body.stmtList
-  rw [stmtListUsesDynamicBytesEq_eq_any] at this
-  simp at this
-  exact this
+  have hfunctions : ∀ fn ∈ spec.functions, fn.body.any stmtUsesDynamicBytesEq = false := by
+    intro fn hmem
+    have := supportedStmtList_usesDynamicBytesEq_false
+      (hSupported.functions fn hmem).body.stmtList
+    rw [stmtListUsesDynamicBytesEq_eq_any] at this
+    simpa using this
+  have hfunctionsAny :
+      spec.functions.any (fun fn => fn.body.any stmtUsesDynamicBytesEq) = false :=
+    listAny_eq_false_of_mem_eq_false
+      (fun fn => fn.body.any stmtUsesDynamicBytesEq) spec.functions hfunctions
+  cases hctor : spec.constructor with
+  | none =>
+      simp [contractUsesDynamicBytesEq, hctor, hfunctionsAny]
+  | some ctor =>
+      have hctorDynamic :
+          ctor.body.any stmtUsesDynamicBytesEq = false := by
+        have := supportedStmtList_usesDynamicBytesEq_false
+          (hSupported.constructor ctor hctor).body.stmtList
+        rw [stmtListUsesDynamicBytesEq_eq_any] at this
+        simpa using this
+      simp [contractUsesDynamicBytesEq, hctor, hctorDynamic, hfunctionsAny]
 
 theorem SupportedSpecExceptMappingWrites.contractUsesDynamicBytesEq_eq_false
     {spec : CompilationModel} {selectors : List Nat}
     (hSupported : SupportedSpecExceptMappingWrites spec selectors) :
     contractUsesDynamicBytesEq spec = false := by
-  simp [contractUsesDynamicBytesEq, hSupported.surface.noConstructor]
-  intro fn hmem
-  have := supportedStmtList_usesDynamicBytesEq_false
-    (hSupported.functions fn hmem).body.stmtList
-  rw [stmtListUsesDynamicBytesEq_eq_any] at this
-  simp at this
-  exact this
+  have hfunctions : ∀ fn ∈ spec.functions, fn.body.any stmtUsesDynamicBytesEq = false := by
+    intro fn hmem
+    have := supportedStmtList_usesDynamicBytesEq_false
+      (hSupported.functions fn hmem).body.stmtList
+    rw [stmtListUsesDynamicBytesEq_eq_any] at this
+    simpa using this
+  have hfunctionsAny :
+      spec.functions.any (fun fn => fn.body.any stmtUsesDynamicBytesEq) = false :=
+    listAny_eq_false_of_mem_eq_false
+      (fun fn => fn.body.any stmtUsesDynamicBytesEq) spec.functions hfunctions
+  cases hctor : spec.constructor with
+  | none =>
+      simp [contractUsesDynamicBytesEq, hctor, hfunctionsAny]
+  | some ctor =>
+      have hctorDynamic :
+          ctor.body.any stmtUsesDynamicBytesEq = false := by
+        have := supportedStmtList_usesDynamicBytesEq_false
+          (hSupported.constructor ctor hctor).body.stmtList
+        rw [stmtListUsesDynamicBytesEq_eq_any] at this
+        simpa using this
+      simp [contractUsesDynamicBytesEq, hctor, hctorDynamic, hfunctionsAny]
 
 
 theorem SupportedSpec.normalizedFields
@@ -4343,18 +5284,6 @@ theorem SupportedSpecExceptMappingWrites.functionNamesNodup
     (hSupported : SupportedSpecExceptMappingWrites spec selectors) :
     (spec.functions.map (·.name)).Nodup :=
   hSupported.invariants.functionNamesNodup
-
-theorem SupportedSpec.noConstructor
-    {spec : CompilationModel} {selectors : List Nat}
-    (hSupported : SupportedSpec spec selectors) :
-    spec.constructor = none :=
-  hSupported.surface.noConstructor
-
-theorem SupportedSpecExceptMappingWrites.noConstructor
-    {spec : CompilationModel} {selectors : List Nat}
-    (hSupported : SupportedSpecExceptMappingWrites spec selectors) :
-    spec.constructor = none :=
-  hSupported.surface.noConstructor
 
 theorem SupportedSpec.noEvents
     {spec : CompilationModel} {selectors : List Nat}
@@ -4603,13 +5532,15 @@ def counter_supported_spec : SupportedSpec counterSupportedSpecModel
         selectorsDistinct := by decide
         functionNamesNodup := by decide }
     surface :=
-      { noConstructor := rfl
-        noEvents := rfl
+      { noEvents := rfl
         noErrors := rfl
         noExternals := rfl
         noAdtTypes := rfl
         noFallback := counter_noFallback
         noReceive := counter_noReceive }
+    constructor := by
+      intro ctor hctor
+      simp [counterSupportedSpecModel] at hctor
     functions := counter_supported_function }
 
 
@@ -4684,13 +5615,15 @@ def simpleStorage_supported_spec : SupportedSpec simpleStorageSupportedSpecModel
         selectorsDistinct := by decide
         functionNamesNodup := by decide }
     surface :=
-      { noConstructor := rfl
-        noEvents := rfl
+      { noEvents := rfl
         noErrors := rfl
         noExternals := rfl
         noAdtTypes := rfl
         noFallback := simpleStorage_noFallback
         noReceive := simpleStorage_noReceive }
+    constructor := by
+      intro ctor hctor
+      simp [simpleStorageSupportedSpecModel] at hctor
     functions := simpleStorage_supported_function }
 
 

@@ -34,6 +34,19 @@ def parse_warnings(log_path: Path) -> tuple[Counter[str], Counter[str]]:
         if not match:
             continue
         file_path, message = match.groups()
+        # Skip warnings from dependency packages — we only track our own code.
+        # Match both absolute paths (``/.lake/packages/…``) and relative paths
+        # (``.lake/packages/…``, ``lake-packages/…``) to cover every form Lean
+        # may emit depending on the working directory.
+        if (
+            "/lake-packages/" in file_path
+            or "/.lake/packages/" in file_path
+            or file_path.startswith("lake-packages/")
+            or file_path.startswith(".lake/packages/")
+            or file_path.startswith("./lake-packages/")
+            or file_path.startswith("./.lake/packages/")
+        ):
+            continue
         by_file[file_path] += 1
         by_message[message.strip()] += 1
 

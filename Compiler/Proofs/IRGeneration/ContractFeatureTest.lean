@@ -6,6 +6,7 @@ namespace Compiler.Proofs.IRGeneration.ContractFeatureTest
 open Compiler
 open Compiler.CompilationModel
 open Compiler.Proofs.IRGeneration
+open Compiler.Yul
 
 private def literalMappingWriteFunction : FunctionSpec :=
   { name := "setFive"
@@ -109,13 +110,15 @@ private def literalMappingWrite_supported_spec :
         selectorsDistinct := by decide
         functionNamesNodup := by decide }
     surface :=
-      { noConstructor := rfl
-        noEvents := rfl
+      { noEvents := rfl
         noErrors := rfl
         noExternals := rfl
         noAdtTypes := rfl
         noFallback := literalMappingWrite_noFallback
         noReceive := literalMappingWrite_noReceive }
+    constructor := by
+      intro ctor hctor
+      simp [literalMappingWriteSpec] at hctor
     functions := literalMappingWrite_supported_function }
 
 private theorem literalMappingWrite_noConflict :
@@ -127,6 +130,295 @@ private def literalMappingWriteTx : IRTransaction :=
     functionSelector := literalMappingWriteSelector
     args := [23] }
 
+private def constructorOnlyCtor : ConstructorSpec :=
+  { params := [{ name := "initialOwner", ty := .address }]
+    body := [Stmt.setStorageAddr "owner" (.param "initialOwner"), .stop] }
+
+private def constructorBodyFunction : FunctionSpec :=
+  constructorAsFunctionSpec constructorOnlyCtor
+
+private def constructorOnlyOwnerField : Field :=
+  { name := "owner", ty := .address }
+
+private def constructorOnlySpec : CompilationModel :=
+  { name := "ConstructorOnly"
+    fields := [constructorOnlyOwnerField]
+    constructor := some constructorOnlyCtor
+    functions := [] }
+
+private theorem constructorOnly_owner_resolved :
+    findFieldWithResolvedSlot constructorOnlySpec.fields "owner" =
+      some ({ name := "owner", ty := FieldType.address }, 0) := by
+  rfl
+
+private def constructorOnlySupported :
+    SupportedConstructor constructorOnlySpec constructorOnlyCtor :=
+  { params :=
+      { namesNodup := by decide
+        supported := by
+          intro param hparam
+          simp [constructorOnlyCtor] at hparam
+          rcases hparam with rfl
+          trivial }
+    body :=
+      { stmtList :=
+          .append
+            (.setStorageAddrSingleSlot
+              (fieldName := "owner")
+              (slot := 0)
+              (.param "initialOwner")
+              (by
+                intro name hname
+                simpa [FunctionBody.exprBoundNamesInScope, FunctionBody.exprBoundNames,
+                  constructorAsFunctionSpec, constructorOnlyCtor] using hname)
+              (by
+                simpa [constructorOnlySpec, constructorOnlyOwnerField] using
+                  (findFieldWithResolvedSlot_cons constructorOnlyOwnerField [] "owner")))
+            (.terminalCore (.stop .nil))
+        core := { surfaceClosed := by decide }
+        state := { surfaceClosed := by decide }
+        calls :=
+          { helpers :=
+              { helperRank := 0
+                callNamesNodup := helperCallNames_nodup _
+                summaryOf := by
+                  intro calleeName hmem
+                  exfalso
+                  simpa [helperCallNames, constructorAsFunctionSpec, constructorOnlyCtor,
+                    stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
+                    exprInternalHelperCallNames] using hmem
+                calleeRanksDecrease := by
+                  intro calleeName hmem
+                  exfalso
+                  simpa [helperCallNames, constructorAsFunctionSpec, constructorOnlyCtor,
+                    stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
+                    exprInternalHelperCallNames] using hmem
+                exprCallsPreserveWorld := by
+                  intro calleeName hmem
+                  exfalso
+                  simpa [exprHelperCallNames, constructorAsFunctionSpec, constructorOnlyCtor,
+                    stmtListExprHelperCallNames, stmtExprHelperCallNames,
+                    exprInternalHelperCallNames] using hmem }
+            foreign := by decide
+            lowLevel := by decide }
+        effects := { surfaceClosed := by decide }
+        noLocalObligations := rfl }
+    rawCalldataSurfaceClosed := by decide }
+
+private def constructorOnlyTx : IRTransaction :=
+  { sender := 7
+    functionSelector := 0
+    args := [11] }
+
+private def constructorOnlyTrailingTx : IRTransaction :=
+  { constructorOnlyTx with args := [11, 99] }
+
+private def constructorArgCtor : ConstructorSpec :=
+  { params := [{ name := "initialValue", ty := .uint256 }]
+    body := [Stmt.setStorage "value" (.constructorArg 0), .stop] }
+
+private def constructorArgSpec : CompilationModel :=
+  { name := "ConstructorArg"
+    fields := [{ name := "value", ty := .uint256 }]
+    constructor := some constructorArgCtor
+    functions := [] }
+
+private def constructorArgTx : IRTransaction :=
+  { sender := 5
+    functionSelector := 0
+    args := [13] }
+
+private def constructorArgTrailingTx : IRTransaction :=
+  { sender := 5
+    functionSelector := 0
+    args := [13, 99] }
+
+private def constructorCalldataCtor : ConstructorSpec :=
+  { params := [{ name := "initialValue", ty := .uint256 }]
+    body := [Stmt.setStorage "value" .calldatasize, .stop] }
+
+private def constructorCalldataSpec : CompilationModel :=
+  { name := "ConstructorCalldata"
+    fields := [{ name := "value", ty := .uint256 }]
+    constructor := some constructorCalldataCtor
+    functions := [] }
+
+private def constructorCalldataTx : IRTransaction :=
+  { sender := 6
+    functionSelector := 0
+    args := [21] }
+
+example :
+    (SourceSemantics.withConstructorTransactionContext
+      Verity.defaultState
+      constructorCalldataTx).calldataSize.val = 32 := by
+  native_decide
+
+example :
+    (SourceSemantics.withTransactionContext
+      Verity.defaultState
+      constructorCalldataTx).calldataSize.val = 36 := by
+  native_decide
+
+private def constructorRightCalldataCtor : ConstructorSpec :=
+  { params := [{ name := "initialValue", ty := .uint256 }]
+    body := [Stmt.setStorage "value" (.add (.literal 1) .calldatasize), .stop] }
+
+private def constructorRightCalldataSpec : CompilationModel :=
+  { name := "ConstructorRightCalldata"
+    fields := [{ name := "value", ty := .uint256 }]
+    constructor := some constructorRightCalldataCtor
+    functions := [] }
+
+private def constructorRightCalldataloadCtor : ConstructorSpec :=
+  { params := [{ name := "initialValue", ty := .uint256 }]
+    body := [Stmt.setStorage "value" (.add (.literal 1) (.calldataload (.literal 0))), .stop] }
+
+private def constructorRightCalldataloadSpec : CompilationModel :=
+  { name := "ConstructorRightCalldataload"
+    fields := [{ name := "value", ty := .uint256 }]
+    constructor := some constructorRightCalldataloadCtor
+    functions := [] }
+
+private def constructorHelperArgCtor : ConstructorSpec :=
+  { params := [{ name := "initialValue", ty := .uint256 }]
+    body :=
+      [Stmt.internalCallAssign ["tmp"] "identity" [.constructorArg 0],
+        Stmt.setStorage "value" (.localVar "tmp"),
+        .stop] }
+
+private def constructorHelperArgTx : IRTransaction :=
+  { sender := 8
+    functionSelector := 0
+    args := [17] }
+
+private def identityInternalHelper : FunctionSpec :=
+  { name := "identity"
+    params := [{ name := "x", ty := .uint256 }]
+    returnType := some .uint256
+    isInternal := true
+    body := [Stmt.return (.param "x")] }
+
+private def constructorHelperArgSpec : CompilationModel :=
+  { name := "ConstructorHelperArg"
+    fields := [{ name := "value", ty := .uint256 }]
+    constructor := some constructorHelperArgCtor
+    functions := [identityInternalHelper] }
+
+private def rawSizeInternalHelper : FunctionSpec :=
+  { name := "rawSize"
+    params := []
+    returnType := some .uint256
+    isInternal := true
+    body := [Stmt.return .calldatasize] }
+
+private def constructorHelperRawCalldataCtor : ConstructorSpec :=
+  { params := [{ name := "initialValue", ty := .uint256 }]
+    body :=
+      [Stmt.internalCallAssign ["tmp"] "rawSize" [],
+        Stmt.setStorage "value" (.localVar "tmp"),
+        .stop] }
+
+private def constructorHelperRawCalldataSpec : CompilationModel :=
+  { name := "ConstructorHelperRawCalldata"
+    fields := [{ name := "value", ty := .uint256 }]
+    constructor := some constructorHelperRawCalldataCtor
+    functions := [rawSizeInternalHelper] }
+
+private def nestedRawSizeInternalHelper : FunctionSpec :=
+  { name := "nestedRawSize"
+    params := []
+    returnType := some .uint256
+    isInternal := true
+    body := [Stmt.internalCallAssign ["tmp"] "rawSize" [], Stmt.return (.localVar "tmp")] }
+
+private def constructorNestedHelperRawCalldataCtor : ConstructorSpec :=
+  { params := [{ name := "initialValue", ty := .uint256 }]
+    body :=
+      [Stmt.internalCallAssign ["tmp"] "nestedRawSize" [],
+        Stmt.setStorage "value" (.localVar "tmp"),
+        .stop] }
+
+private def constructorNestedHelperRawCalldataSpec : CompilationModel :=
+  { name := "ConstructorNestedHelperRawCalldata"
+    fields := [{ name := "value", ty := .uint256 }]
+    constructor := some constructorNestedHelperRawCalldataCtor
+    functions := [nestedRawSizeInternalHelper, rawSizeInternalHelper] }
+
+private def recursiveNoRawInternalHelper : FunctionSpec :=
+  { name := "recursiveNoRaw"
+    params := []
+    returnType := some .uint256
+    isInternal := true
+    body := [Stmt.internalCallAssign ["tmp"] "recursiveNoRaw" [], Stmt.return (.literal 0)] }
+
+private def constructorRecursiveNoRawCtor : ConstructorSpec :=
+  { params := [{ name := "initialValue", ty := .uint256 }]
+    body :=
+      [Stmt.internalCallAssign ["tmp"] "recursiveNoRaw" [],
+        Stmt.setStorage "value" (.localVar "tmp"),
+        .stop] }
+
+private def constructorRecursiveNoRawSpec : CompilationModel :=
+  { name := "ConstructorRecursiveNoRaw"
+    fields := [{ name := "value", ty := .uint256 }]
+    constructor := some constructorRecursiveNoRawCtor
+    functions := [recursiveNoRawInternalHelper] }
+
+private def constSevenInternalHelper : FunctionSpec :=
+  { name := "constSeven"
+    params := []
+    returnType := some .uint256
+    isInternal := true
+    body := [Stmt.return (.literal 7)] }
+
+private def helperFuelAlignSpec : CompilationModel :=
+  { name := "HelperFuelAlign"
+    fields := []
+    constructor := none
+    functions := [constSevenInternalHelper] }
+
+private def helperCallerFunction : FunctionSpec :=
+  { name := "callConstSeven"
+    params := []
+    returnType := some .uint256
+    body :=
+      [Stmt.internalCallAssign ["result"] "constSeven" []
+      , Stmt.return (.param "result")] }
+
+private def helperCallerTx : IRTransaction :=
+  { sender := 4
+    functionSelector := 0
+    args := [] }
+
+private def helperCallSpec : CompilationModel :=
+  { name := "HelperCall"
+    fields := []
+    constructor := none
+    functions := [constSevenInternalHelper, helperCallerFunction] }
+
+private def helperFuelAlignRuntime : SourceSemantics.RuntimeState :=
+  { world := Verity.defaultState
+    bindings := []
+    selector := 0 }
+
+private def stopOnlyFunction : FunctionSpec :=
+  { name := "stopOnly"
+    params := []
+    returnType := none
+    body := [Stmt.stop] }
+
+private def stopOnlySpec : CompilationModel :=
+  { name := "StopOnly"
+    fields := []
+    constructor := none
+    functions := [stopOnlyFunction] }
+
+private def stopOnlyTx : IRTransaction :=
+  { sender := 3
+    functionSelector := 0
+    args := [] }
+
 private theorem literalMappingWrite_txNormalized :
     Function.TxContextNormalized literalMappingWriteTx := by
   simp [Function.TxContextNormalized, literalMappingWriteTx, Compiler.Constants.addressModulus,
@@ -135,6 +427,330 @@ private theorem literalMappingWrite_txNormalized :
 private theorem literalMappingWrite_calldataFits :
     Function.TxCalldataSizeFitsEvm literalMappingWriteTx := by
   simp [Function.TxCalldataSizeFitsEvm, literalMappingWriteTx, Compiler.Constants.evmModulus]
+
+private theorem constructorOnly_txNormalized :
+    Function.TxContextNormalized constructorOnlyTx := by
+  simp [Function.TxContextNormalized, constructorOnlyTx, Compiler.Constants.addressModulus,
+    Compiler.Constants.evmModulus]
+
+private theorem constructorOnly_calldataFits :
+    Function.TxCalldataSizeFitsEvm constructorOnlyTx := by
+  simp [Function.TxCalldataSizeFitsEvm, constructorOnlyTx, Compiler.Constants.evmModulus]
+
+private theorem constructorOnly_constructorCalldataFits :
+    Function.TxConstructorCalldataSizeFitsEvm constructorOnlyTx := by
+  simp [Function.TxConstructorCalldataSizeFitsEvm, constructorOnlyTx, Compiler.Constants.evmModulus]
+
+example :
+    FunctionBody.constructorRuntimeStateMatchesIR
+      (SourceSemantics.effectiveFields constructorOnlySpec)
+      { world := SourceSemantics.withConstructorTransactionContext Verity.defaultState constructorOnlyTx
+        bindings := []
+        selector := constructorOnlyTx.functionSelector }
+      (FunctionBody.initialIRStateForTx constructorOnlySpec constructorOnlyTx Verity.defaultState) := by
+  exact
+    Function.initialIRStateForTx_matches_constructor_runtime
+      constructorOnlySpec
+      constructorOnlyTx
+      Verity.defaultState
+      constructorOnly_txNormalized
+      constructorOnly_constructorCalldataFits
+
+example :
+    FunctionBody.constructorRuntimeStateMatchesIR
+      (SourceSemantics.effectiveFields constructorOnlySpec)
+      { world := SourceSemantics.withConstructorTransactionContext Verity.defaultState constructorOnlyTx
+        bindings := []
+        selector := constructorOnlyTx.functionSelector }
+      (ParamLoading.applyBindingsToIRState
+        (FunctionBody.initialIRStateForTx constructorOnlySpec constructorOnlyTx Verity.defaultState)
+        [("initialOwner", Compiler.Constants.addressMask &&& 11)]) := by
+  exact
+    Function.initialIRStateForTx_matches_bound_constructor_runtime
+      constructorOnlySpec
+      constructorOnlyTx
+      Verity.defaultState
+      [("initialOwner", Compiler.Constants.addressMask &&& 11)]
+      constructorOnly_txNormalized
+      constructorOnly_constructorCalldataFits
+
+private theorem constructorArg_txNormalized :
+    Function.TxContextNormalized constructorArgTx := by
+  simp [Function.TxContextNormalized, constructorArgTx, Compiler.Constants.addressModulus,
+    Compiler.Constants.evmModulus]
+
+private theorem constructorArg_calldataFits :
+    Function.TxCalldataSizeFitsEvm constructorArgTx := by
+  simp [Function.TxCalldataSizeFitsEvm, constructorArgTx, Compiler.Constants.evmModulus]
+
+private theorem stopOnly_txNormalized :
+    Function.TxContextNormalized stopOnlyTx := by
+  simp [Function.TxContextNormalized, stopOnlyTx, Compiler.Constants.addressModulus,
+    Compiler.Constants.evmModulus]
+
+private theorem stopOnly_calldataFits :
+    Function.TxCalldataSizeFitsEvm stopOnlyTx := by
+  simp [Function.TxCalldataSizeFitsEvm, stopOnlyTx, Compiler.Constants.evmModulus]
+
+private theorem constructorOnly_noConflict :
+    firstFieldWriteSlotConflict constructorOnlySpec.fields = none := by
+  native_decide
+
+private theorem constructorOnly_compileConstructor :
+    ∃ bodyStmts,
+      compileConstructor
+          constructorOnlySpec.fields
+          constructorOnlySpec.events
+          constructorOnlySpec.errors
+          constructorOnlySpec.constructor =
+        Except.ok (genConstructorArgLoads constructorOnlyCtor.params ++ bodyStmts) ∧
+      compileStmtList
+          constructorOnlySpec.fields
+          constructorOnlySpec.events
+          constructorOnlySpec.errors
+          .memory
+          []
+          false
+          (constructorOnlyCtor.params.map (·.name))
+          constructorOnlyCtor.body =
+        Except.ok bodyStmts := by
+  rcases Function.compileConstructor_ok_components
+      constructorOnlySpec.fields
+      constructorOnlySpec.events
+      constructorOnlySpec.errors
+      constructorOnlyCtor
+      (genConstructorArgLoads constructorOnlyCtor.params ++
+        match compileStmtList
+            constructorOnlySpec.fields
+            constructorOnlySpec.events
+            constructorOnlySpec.errors
+            .memory
+            []
+            false
+            (constructorOnlyCtor.params.map (·.name))
+            constructorOnlyCtor.body with
+         | .ok body => body
+         | .error _ => [])
+      (by rfl) with ⟨bodyStmts, hbodyCompile, hdeploy⟩
+  refine ⟨bodyStmts, ?_, hbodyCompile⟩
+  exact Function.compileConstructor_some_ok_of_body
+    constructorOnlySpec.fields
+    constructorOnlySpec.events
+    constructorOnlySpec.errors
+    constructorOnlyCtor
+    bodyStmts
+    hbodyCompile
+
+example :
+    ∃ bodyStmts,
+      compileConstructor
+          constructorOnlySpec.fields
+          constructorOnlySpec.events
+          constructorOnlySpec.errors
+          constructorOnlySpec.constructor =
+        Except.ok (genConstructorArgLoads constructorOnlyCtor.params ++ bodyStmts) := by
+  rcases constructorOnly_compileConstructor with ⟨bodyStmts, hdeploy, _⟩
+  exact ⟨bodyStmts, hdeploy⟩
+
+example :
+    ∀ returns retNames bodyStmts,
+      validateFunctionSpec identityInternalHelper = Except.ok () →
+      functionReturns identityInternalHelper = Except.ok returns →
+      retNames =
+        freshInternalRetNames returns
+          (identityInternalHelper.params.map (·.name) ++
+            collectStmtListBindNames identityInternalHelper.body) →
+      compileStmtList [] [] [] .calldata retNames true
+        (identityInternalHelper.params.map (·.name) ++ retNames)
+        identityInternalHelper.body = Except.ok bodyStmts →
+      compileInternalFunction [] [] [] identityInternalHelper =
+        Except.ok
+          (YulStmt.funcDef
+            (internalFunctionYulName identityInternalHelper.name)
+            (identityInternalHelper.params.map (·.name))
+            retNames
+            bodyStmts) := by
+  intro returns retNames bodyStmts hvalidate hreturns hretNames hbody
+  exact compileInternalFunction_some_ok_of_components
+    [] [] [] identityInternalHelper returns retNames bodyStmts
+    hvalidate hreturns hretNames hbody
+
+example :
+    (SourceSemantics.interpretInternalFunctionFuel
+      helperFuelAlignSpec
+      0
+      constSevenInternalHelper
+      Verity.defaultState
+      []).returnValue = some 7 := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretFunctionWithHelpers
+      helperCallSpec
+      1
+      helperCallerFunction
+      helperCallerTx
+      Verity.defaultState).returnValue = some 7 := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructor
+      constructorArgSpec
+      constructorArgCtor
+      constructorArgTx
+      Verity.defaultState).success = true := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructor
+      constructorArgSpec
+      constructorArgCtor
+      constructorArgTx
+      Verity.defaultState).finalStorage 0 = 13 := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructorWithHelpers
+      constructorArgSpec
+      0
+      constructorArgCtor
+      constructorArgTx
+      Verity.defaultState).success = true := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructorWithHelpers
+      constructorArgSpec
+      0
+      constructorArgCtor
+      constructorArgTx
+      Verity.defaultState).finalStorage 0 = 13 := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructor
+      constructorArgSpec
+      constructorArgCtor
+      constructorArgTrailingTx
+      Verity.defaultState).success = true := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructor
+      constructorArgSpec
+      constructorArgCtor
+      constructorArgTrailingTx
+      Verity.defaultState).finalStorage 0 = 13 := by
+  native_decide
+
+example :
+    SourceSemantics.constructorExecutionBindings
+      constructorHelperArgCtor
+      constructorHelperArgTx.args =
+      some [("arg0", 17), ("initialValue", 17)] := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructorWithHelpers
+      constructorHelperArgSpec
+      1
+      constructorHelperArgCtor
+      constructorHelperArgTx
+      Verity.defaultState).success = true := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructorWithHelpers
+      constructorHelperArgSpec
+      1
+      constructorHelperArgCtor
+      constructorHelperArgTx
+      Verity.defaultState).finalStorage 0 = 17 := by
+  native_decide
+
+example :
+    SourceSemantics.directHelperTouchesUnsupportedConstructorRawCalldataSurface
+      constructorHelperRawCalldataSpec
+      (constructorAsFunctionSpec constructorHelperRawCalldataCtor) = true := by
+  native_decide
+
+example :
+    SourceSemantics.helperClosureTouchesUnsupportedConstructorRawCalldataSurface
+      constructorNestedHelperRawCalldataSpec
+      (constructorNestedHelperRawCalldataSpec.functions.length + 1)
+      (constructorAsFunctionSpec constructorNestedHelperRawCalldataCtor) = true := by
+  native_decide
+
+example :
+    SourceSemantics.helperClosureTouchesUnsupportedConstructorRawCalldataSurface
+      constructorRecursiveNoRawSpec
+      (constructorRecursiveNoRawSpec.functions.length + 1)
+      (constructorAsFunctionSpec constructorRecursiveNoRawCtor) = false := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructorWithHelpers
+      constructorHelperRawCalldataSpec
+      1
+      constructorHelperRawCalldataCtor
+      constructorHelperArgTx
+      Verity.defaultState).success = false := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructorWithHelpers
+      constructorNestedHelperRawCalldataSpec
+      2
+      constructorNestedHelperRawCalldataCtor
+      constructorHelperArgTx
+      Verity.defaultState).success = false := by
+  native_decide
+
+example :
+    stmtListTouchesUnsupportedConstructorRawCalldataSurface constructorCalldataCtor.body = true := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructor
+      constructorCalldataSpec
+      constructorCalldataCtor
+      constructorCalldataTx
+      Verity.defaultState).success = false := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructorWithHelpers
+      constructorCalldataSpec
+      0
+      constructorCalldataCtor
+      constructorCalldataTx
+      Verity.defaultState).success = false := by
+  native_decide
+
+example :
+    stmtListTouchesUnsupportedConstructorRawCalldataSurface constructorRightCalldataCtor.body = true := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructor
+      constructorRightCalldataSpec
+      constructorRightCalldataCtor
+      constructorCalldataTx
+      Verity.defaultState).success = false := by
+  native_decide
+
+example :
+    stmtListTouchesUnsupportedConstructorRawCalldataSurface constructorRightCalldataloadCtor.body = true := by
+  native_decide
+
+example :
+    (SourceSemantics.interpretConstructorWithHelpers
+      constructorRightCalldataloadSpec
+      0
+      constructorRightCalldataloadCtor
+      constructorCalldataTx
+      Verity.defaultState).success = false := by
+  native_decide
 
 example
     (ir : IRContract)
@@ -210,5 +826,315 @@ example
     (htxNormalized := literalMappingWrite_txNormalized)
     (hcalldataSizeFits := literalMappingWrite_calldataFits)
     (hcompile := hcompile)
+
+example :
+    FunctionBody.sourceResultMatchesIRResult
+      (SourceSemantics.interpretConstructorWithHelpers
+        constructorOnlySpec
+        0
+        constructorOnlyCtor
+        constructorOnlyTx
+        Verity.defaultState)
+      (Function.execResultToIRResult
+        (FunctionBody.initialIRStateForTx constructorOnlySpec constructorOnlyTx Verity.defaultState)
+        (execIRStmts
+          (sizeOf
+            (match compileStmtList
+                constructorOnlySpec.fields [] [] .memory [] false
+                []
+                [Stmt.setStorageAddr "owner" (.param "initialOwner"), .stop] with
+             | .ok body => body
+             | .error _ => []) + 1)
+          (ParamLoading.applyBindingsToIRState
+            (FunctionBody.initialIRStateForTx constructorOnlySpec constructorOnlyTx Verity.defaultState)
+            [("initialOwner", Compiler.Constants.addressMask &&& 11)])
+          (match compileStmtList
+              constructorOnlySpec.fields [] [] .memory [] false
+              (constructorOnlyCtor.params.map (·.name))
+              [Stmt.setStorageAddr "owner" (.param "initialOwner"), .stop] with
+           | .ok body => body
+           | .error _ => []))) := by
+  have hbodyCompile :
+      compileStmtList constructorOnlySpec.fields constructorOnlySpec.events constructorOnlySpec.errors
+        .memory [] false (constructorOnlyCtor.params.map (·.name)) constructorOnlyCtor.body =
+      Except.ok
+        (match compileStmtList constructorOnlySpec.fields [] [] .memory [] false
+            (constructorOnlyCtor.params.map (·.name)) constructorOnlyCtor.body with
+         | .ok body => body
+         | .error _ => []) := by
+    rfl
+  have hbind :
+      SourceSemantics.bindSupportedParams
+        [{ name := "initialOwner", ty := .address }]
+        constructorOnlyTx.args =
+      some [("initialOwner", Compiler.Constants.addressMask &&& 11)] := by
+    native_decide
+  simpa [constructorOnlySpec, constructorOnlyTx, constructorOnlySupported, Function.execResultToIRResult] using
+    Function.supported_constructor_body_correct_with_body_interface
+      (model := constructorOnlySpec)
+      (ctor := constructorOnlyCtor)
+      (helperFuel := 0)
+      (hnormalized := rfl)
+      (hfunctionNamesNodup := by decide)
+      (hSupported := constructorOnlySupported)
+      (hnoConflict := constructorOnly_noConflict)
+      (hsafety := by
+        intro stmt hmem
+        simp [constructorOnlyCtor] at hmem
+        rcases hmem with rfl | rfl
+        · simp [StmtMappingWriteSlotSafe]
+        · simp [StmtMappingWriteSlotSafe])
+      (hnoEvents := rfl)
+      (hnoErrors := rfl)
+      (tx := constructorOnlyTx)
+      (initialWorld := Verity.defaultState)
+      (bindings := [("initialOwner", Compiler.Constants.addressMask &&& 11)])
+      (bodyStmts := match compileStmtList constructorOnlySpec.fields [] [] .memory [] false
+          [] constructorOnlyCtor.body with
+        | .ok body => body
+        | .error _ => [])
+      (hbodyCompile := hbodyCompile)
+      (hbind := hbind)
+      (htxNormalized := constructorOnly_txNormalized)
+      (hcalldataSizeFits := constructorOnly_constructorCalldataFits)
+
+example :
+    ∃ bodyStmts bindings,
+      SourceSemantics.bindSupportedParams constructorOnlyCtor.params
+          (constructorOnlyTrailingTx.args.take constructorOnlyCtor.params.length) =
+        some bindings ∧
+      FunctionBody.sourceResultMatchesIRResult
+        (SourceSemantics.interpretConstructorWithHelpers
+          constructorOnlySpec 0 constructorOnlyCtor constructorOnlyTrailingTx Verity.defaultState)
+        (Function.execResultToIRResult
+          (FunctionBody.initialIRStateForTx constructorOnlySpec constructorOnlyTrailingTx
+            Verity.defaultState)
+          (execIRStmts
+            (sizeOf bodyStmts + 1)
+            (ParamLoading.applyBindingsToIRState
+              (FunctionBody.initialIRStateForTx constructorOnlySpec constructorOnlyTrailingTx
+                Verity.defaultState)
+              bindings)
+            bodyStmts)) := by
+  let bodyStmts :=
+    match compileStmtList constructorOnlySpec.fields [] [] .memory [] false
+        (constructorOnlyCtor.params.map (·.name)) constructorOnlyCtor.body with
+    | .ok body => body
+    | .error _ => []
+  let bindings := [("initialOwner", Compiler.Constants.addressMask &&& 11)]
+  refine ⟨bodyStmts, bindings, ?_, ?_⟩
+  · native_decide
+  · have hbodyCompile :
+        compileStmtList constructorOnlySpec.fields constructorOnlySpec.events constructorOnlySpec.errors
+          .memory [] false (constructorOnlyCtor.params.map (·.name)) constructorOnlyCtor.body =
+        Except.ok bodyStmts := by
+      rfl
+    have hbind :
+        SourceSemantics.bindSupportedParams constructorOnlyCtor.params
+            (constructorOnlyTrailingTx.args.take constructorOnlyCtor.params.length) =
+          some bindings := by
+      native_decide
+    simpa [constructorOnlySpec, constructorOnlyTrailingTx, constructorOnlyTx, constructorOnlySupported,
+      Function.execResultToIRResult] using
+      Function.supported_constructor_body_correct_with_body_interface
+        (model := constructorOnlySpec)
+        (ctor := constructorOnlyCtor)
+        (helperFuel := 0)
+        (hnormalized := rfl)
+        (hfunctionNamesNodup := by decide)
+        (hSupported := constructorOnlySupported)
+        (hnoConflict := constructorOnly_noConflict)
+        (hsafety := by
+          intro stmt hmem
+          simp [constructorOnlyCtor] at hmem
+          rcases hmem with rfl | rfl
+          · simp [StmtMappingWriteSlotSafe]
+          · simp [StmtMappingWriteSlotSafe])
+        (hnoEvents := rfl)
+        (hnoErrors := rfl)
+        (tx := constructorOnlyTrailingTx)
+        (initialWorld := Verity.defaultState)
+        (bindings := bindings)
+        (bodyStmts := bodyStmts)
+        (hbodyCompile := hbodyCompile)
+        (hbind := hbind)
+        (htxNormalized := by
+          simp [Function.TxContextNormalized, constructorOnlyTrailingTx, constructorOnlyTx,
+            Compiler.Constants.addressModulus, Compiler.Constants.evmModulus])
+        (hcalldataSizeFits := by
+          simp [Function.TxConstructorCalldataSizeFitsEvm, constructorOnlyTrailingTx,
+            constructorOnlyTx, Compiler.Constants.evmModulus])
+
+example :
+    FunctionBody.sourceResultMatchesIRResult
+      (SourceSemantics.interpretFunctionWithHelpers
+        stopOnlySpec
+        1
+        stopOnlyFunction
+        stopOnlyTx
+        Verity.defaultState)
+      (FunctionBody.irResultOfExecResultWithInternals
+        (FunctionBody.initialIRStateForTx stopOnlySpec stopOnlyTx Verity.defaultState)
+        (.stop (FunctionBody.initialIRStateForTx stopOnlySpec stopOnlyTx Verity.defaultState))) := by
+  have hbind :
+      SourceSemantics.bindSupportedParams stopOnlyFunction.params stopOnlyTx.args = some [] := by
+    rfl
+  have hsource :
+      SourceSemantics.execStmtListWithHelpers stopOnlySpec (SourceSemantics.effectiveFields stopOnlySpec)
+        1
+        { world := SourceSemantics.withTransactionContext Verity.defaultState stopOnlyTx
+          bindings := []
+          selector := stopOnlyTx.functionSelector }
+        stopOnlyFunction.body =
+      .stop
+        { world := SourceSemantics.withTransactionContext Verity.defaultState stopOnlyTx
+          bindings := []
+          selector := stopOnlyTx.functionSelector } := by
+    simp [stopOnlyFunction, SourceSemantics.execStmtListWithHelpers,
+      SourceSemantics.execStmtWithHelpers]
+  have hstate :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields stopOnlySpec)
+        { world := SourceSemantics.withTransactionContext Verity.defaultState stopOnlyTx
+          bindings := []
+          selector := stopOnlyTx.functionSelector }
+        (FunctionBody.initialIRStateForTx stopOnlySpec stopOnlyTx Verity.defaultState) := by
+    simpa using
+      Function.initialIRStateForTx_matches_runtime
+        stopOnlySpec
+        stopOnlyTx
+        Verity.defaultState
+        stopOnly_txNormalized
+        stopOnly_calldataFits
+  exact
+    Function.interpretFunctionWithHelpers_eq_execResultToIRResultWithInternals_of_body
+      (model := stopOnlySpec)
+      (fn := stopOnlyFunction)
+      (helperFuel := 1)
+      (tx := stopOnlyTx)
+      (initialWorld := Verity.defaultState)
+      (sourceResult := .stop
+        { world := SourceSemantics.withTransactionContext Verity.defaultState stopOnlyTx
+          bindings := []
+          selector := stopOnlyTx.functionSelector })
+      (rollback := FunctionBody.initialIRStateForTx stopOnlySpec stopOnlyTx Verity.defaultState)
+      (irResult := .stop (FunctionBody.initialIRStateForTx stopOnlySpec stopOnlyTx Verity.defaultState))
+      (bindings := [])
+      (hbind := hbind)
+      (hsource := hsource)
+      (hrollbackStorage := by simp [FunctionBody.initialIRStateForTx, stopOnlySpec, stopOnlyTx])
+      (hrollbackEvents := by simp [FunctionBody.initialIRStateForTx, stopOnlySpec, stopOnlyTx])
+      (hmatch := hstate)
+
+private def eventTrackingSpec : CompilationModel :=
+  { name := "EventTracking"
+    fields := []
+    constructor := none
+    events := [
+      { name := "Evt"
+        params := [
+          { name := "topic", ty := .uint256, kind := .indexed },
+          { name := "value", ty := .uint256, kind := .unindexed }
+        ] }
+    ]
+    functions := [] }
+
+private def eventTrackingRuntime : SourceSemantics.RuntimeState :=
+  { world := Verity.defaultState
+    bindings := []
+    selector := 0 }
+
+example :
+    SourceSemantics.execStmtWithHelpers eventTrackingSpec [] 0 eventTrackingRuntime
+      (.emit "Evt" [.literal 11, .literal 22]) =
+    match SourceSemantics.eventScratchMemoryAfterEmit?
+        eventTrackingSpec.events "Evt"
+        [11 % Compiler.Constants.evmModulus, 22 % Compiler.Constants.evmModulus]
+        eventTrackingRuntime.world.memory with
+    | some memory =>
+        .continue
+          { eventTrackingRuntime with
+            world := { eventTrackingRuntime.world with
+                memory := memory
+                events := eventTrackingRuntime.world.events ++
+                  [{ name := "Evt"
+                     args := [Verity.Core.Uint256.ofNat (22 % Compiler.Constants.evmModulus)]
+                     indexedArgs := [
+                       Verity.Core.Uint256.ofNat
+                         (SourceSemantics.eventSignatureTopic
+                           { name := "Evt"
+                             params := [
+                               { name := "topic", ty := .uint256, kind := .indexed },
+                               { name := "value", ty := .uint256, kind := .unindexed }
+                             ] }),
+                       Verity.Core.Uint256.ofNat (11 % Compiler.Constants.evmModulus)] }] } }
+    | none => .revert := by
+  have hunindexed :
+      (EventParamKind.unindexed == EventParamKind.indexed) = false := by
+    native_decide
+  have hindexed :
+      (EventParamKind.indexed == EventParamKind.indexed) = true := by
+    native_decide
+  generalize hscratch :
+      SourceSemantics.eventScratchMemoryAfterEmit?
+        [{ name := "Evt"
+           params := [
+             { name := "topic", ty := .uint256, kind := .indexed },
+             { name := "value", ty := .uint256, kind := .unindexed }
+           ] }]
+        "Evt"
+        [11 % Compiler.Constants.evmModulus, 22 % Compiler.Constants.evmModulus]
+        Verity.defaultState.memory = scratch
+  cases scratch <;>
+  simp [eventTrackingSpec, eventTrackingRuntime, SourceSemantics.execStmtWithHelpers,
+    SourceSemantics.evalExprListWithHelpers, SourceSemantics.evalExprWithHelpers,
+    SourceSemantics.eventFromResolvedArgs?, SourceSemantics.splitEventArgsByParams,
+    SourceSemantics.normalizeEventValue, hscratch,
+    hunindexed, hindexed]
+
+private def eventNormalizationSpec : CompilationModel :=
+  { name := "EventNormalization"
+    fields := []
+    constructor := none
+    events := [
+      { name := "Evt"
+        params := [
+          { name := "flag", ty := .bool, kind := .indexed },
+          { name := "owner", ty := .address, kind := .unindexed },
+          { name := "small", ty := .uint8, kind := .unindexed }
+        ] }
+    ]
+    functions := [] }
+
+example :
+    SourceSemantics.eventFromResolvedArgs? eventNormalizationSpec.events "Evt"
+      [2, Compiler.Constants.addressMask + 18, 300] =
+    some
+      { name := "Evt"
+        args := [
+          Verity.Core.Uint256.ofNat 17,
+          Verity.Core.Uint256.ofNat 44
+        ]
+        indexedArgs := [
+          Verity.Core.Uint256.ofNat
+            (SourceSemantics.eventSignatureTopic
+              { name := "Evt"
+                params := [
+                  { name := "flag", ty := .bool, kind := .indexed },
+                  { name := "owner", ty := .address, kind := .unindexed },
+                  { name := "small", ty := .uint8, kind := .unindexed }
+                ] }),
+          Verity.Core.Uint256.ofNat 1] } := by
+  have hunindexed :
+      (EventParamKind.unindexed == EventParamKind.indexed) = false := by
+    native_decide
+  have hindexed :
+      (EventParamKind.indexed == EventParamKind.indexed) = true := by
+    native_decide
+  simp [eventNormalizationSpec, SourceSemantics.eventFromResolvedArgs?,
+    SourceSemantics.splitEventArgsByParams, SourceSemantics.normalizeEventValue,
+    SourceSemantics.wordNormalize, SourceSemantics.uint8Modulus,
+    Compiler.Constants.addressMask, Compiler.Constants.evmModulus,
+    Verity.Core.Uint256.ofNat, hunindexed, hindexed]
 
 end Compiler.Proofs.IRGeneration.ContractFeatureTest

@@ -21,17 +21,7 @@ See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
 
 @[simp] private theorem interpretYulBody_eq_runtime (fn : IRFunction) (tx : IRTransaction) (state : IRState) :
     interpretYulBody fn tx state =
-      interpretYulRuntime fn.body
-        { sender := tx.sender
-          msgValue := tx.msgValue
-          thisAddress := tx.thisAddress
-          blockTimestamp := tx.blockTimestamp
-          blockNumber := tx.blockNumber
-          chainId := tx.chainId
-          blobBaseFee := tx.blobBaseFee
-          functionSelector := tx.functionSelector
-          args := tx.args }
-        state.storage state.events := by
+      interpretYulRuntime fn.body (YulTransaction.ofIR tx) state.storage state.events := by
   rfl
 
 @[simp] private theorem interpretYulRuntime_eq_yulResultOfExecWithRollback_initial
@@ -46,29 +36,9 @@ See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
     (tx : IRTransaction) (state : IRState) :
     interpretYulBody fn tx state =
       yulResultOfExecWithRollback
-        (YulState.initial
-          { sender := tx.sender
-            msgValue := tx.msgValue
-            thisAddress := tx.thisAddress
-            blockTimestamp := tx.blockTimestamp
-            blockNumber := tx.blockNumber
-            chainId := tx.chainId
-            blobBaseFee := tx.blobBaseFee
-            functionSelector := tx.functionSelector
-            args := tx.args }
-          state.storage state.events)
+        (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
         (execYulStmts
-          (YulState.initial
-            { sender := tx.sender
-              msgValue := tx.msgValue
-              thisAddress := tx.thisAddress
-              blockTimestamp := tx.blockTimestamp
-              blockNumber := tx.blockNumber
-              chainId := tx.chainId
-              blobBaseFee := tx.blobBaseFee
-              functionSelector := tx.functionSelector
-              args := tx.args }
-            state.storage state.events)
+          (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
           fn.body) := by
   simp [interpretYulBody]
 
@@ -648,29 +618,11 @@ private theorem exec_switchCaseBody_revert_of_short
     (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
     (hShort : ¬ fn.params.length ≤ tx.args.length) :
     execYulStmtsFuel (fuel + 2)
-      ((YulState.initial
-          { sender := tx.sender
-            msgValue := tx.msgValue
-            thisAddress := tx.thisAddress
-            blockTimestamp := tx.blockTimestamp
-            blockNumber := tx.blockNumber
-            chainId := tx.chainId
-            blobBaseFee := tx.blobBaseFee
-            functionSelector := tx.functionSelector
-            args := tx.args }
+      ((YulState.initial (YulTransaction.ofIR tx)
           irState.storage irState.events).setVar "__has_selector" 1)
       (switchCaseBody fn) =
         .revert
-          ((YulState.initial
-              { sender := tx.sender
-                msgValue := tx.msgValue
-                thisAddress := tx.thisAddress
-                blockTimestamp := tx.blockTimestamp
-                blockNumber := tx.blockNumber
-                chainId := tx.chainId
-                blobBaseFee := tx.blobBaseFee
-                functionSelector := tx.functionSelector
-                args := tx.args }
+          ((YulState.initial (YulTransaction.ofIR tx)
               irState.storage irState.events).setVar "__has_selector" 1) := by
   rcases hguards with ⟨hValueSafe, hParamNoWrap⟩
   let state :=
@@ -1264,54 +1216,13 @@ theorem yulCodegen_preserves_semantics
       yulStmtsLoopFree fn.body = true)
     (hbody : ∀ fn, fn ∈ contract.functions →
       resultsMatch
-        (execIRFunction fn tx.args
-          { initialState with
-            sender := tx.sender
-            msgValue := tx.msgValue
-            thisAddress := tx.thisAddress
-            blockTimestamp := tx.blockTimestamp
-            blockNumber := tx.blockNumber
-            chainId := tx.chainId
-            blobBaseFee := tx.blobBaseFee
-            calldata := tx.args
-            selector := tx.functionSelector })
-        (interpretYulBody fn tx
-          { initialState with
-            sender := tx.sender
-            msgValue := tx.msgValue
-            thisAddress := tx.thisAddress
-            blockTimestamp := tx.blockTimestamp
-            blockNumber := tx.blockNumber
-            chainId := tx.chainId
-            blobBaseFee := tx.blobBaseFee
-            calldata := tx.args
-            selector := tx.functionSelector })) :
+        (execIRFunction fn tx.args (initialState.withTx tx))
+        (interpretYulBody fn tx (initialState.withTx tx))) :
     resultsMatch
       (interpretIR contract tx initialState)
       (interpretYulFromIR contract tx initialState) := by
-  let irState := {
-    initialState with
-    sender := tx.sender
-    msgValue := tx.msgValue
-    thisAddress := tx.thisAddress
-    blockTimestamp := tx.blockTimestamp
-    blockNumber := tx.blockNumber
-    chainId := tx.chainId
-    blobBaseFee := tx.blobBaseFee
-    calldata := tx.args
-    selector := tx.functionSelector
-  }
-  let yulTx : YulTransaction := {
-    sender := tx.sender
-    msgValue := tx.msgValue
-    thisAddress := tx.thisAddress
-    blockTimestamp := tx.blockTimestamp
-    blockNumber := tx.blockNumber
-    chainId := tx.chainId
-    blobBaseFee := tx.blobBaseFee
-    functionSelector := tx.functionSelector
-    args := tx.args
-  }
+  let irState := initialState.withTx tx
+  let yulTx := YulTransaction.ofIR tx
   -- Abbreviations for the funcDef prefix and buildSwitch suffix.
   set prefix_ := (if contract.usesMapping then [Compiler.CodegenCommon.mappingSlotFuncAt 0] else []) ++
     contract.internalFunctions with hPrefixDef

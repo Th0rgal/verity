@@ -1,6 +1,6 @@
 import Compiler.Codegen
 import Compiler.Proofs.IRGeneration.IRInterpreter
-import Compiler.Proofs.YulGeneration.Semantics
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 
 namespace Compiler.Proofs.YulGeneration
 
@@ -37,33 +37,11 @@ compare results directly in smoke tests.
 -/
 
 noncomputable def interpretYulFromIR (contract : IRContract) (tx : IRTransaction) (state : IRState) : YulResult :=
-  let yulTx : YulTransaction := {
-    sender := tx.sender
-    msgValue := tx.msgValue
-    thisAddress := tx.thisAddress
-    blockTimestamp := tx.blockTimestamp
-    blockNumber := tx.blockNumber
-    chainId := tx.chainId
-    blobBaseFee := tx.blobBaseFee
-    functionSelector := tx.functionSelector
-    args := tx.args
-  }
-  interpretYulRuntime (Compiler.emitYul contract).runtimeCode yulTx state.storage state.events
+  interpretYulRuntime (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx) state.storage state.events
 
 /-- Interpret just a function body as Yul runtime code. -/
 noncomputable def interpretYulBody (fn : IRFunction) (tx : IRTransaction) (state : IRState) : YulResult :=
-  let yulTx : YulTransaction := {
-    sender := tx.sender
-    msgValue := tx.msgValue
-    thisAddress := tx.thisAddress
-    blockTimestamp := tx.blockTimestamp
-    blockNumber := tx.blockNumber
-    chainId := tx.chainId
-    blobBaseFee := tx.blobBaseFee
-    functionSelector := tx.functionSelector
-    args := tx.args
-  }
-  interpretYulRuntime fn.body yulTx state.storage state.events
+  interpretYulRuntime fn.body (YulTransaction.ofIR tx) state.storage state.events
 
 /-- Interpret a function body starting from an aligned IR-derived state. -/
 def resultsMatchOn (slots : List Nat) (mappingKeys : List (Nat × Nat))

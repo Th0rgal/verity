@@ -16,15 +16,16 @@ from pathlib import Path
 from property_utils import ROOT, report_errors, scrub_lean_code
 
 PROOFS_DIR = ROOT / "Compiler" / "Proofs"
-BUILTINS_FILE = PROOFS_DIR / "YulGeneration" / "Builtins.lean"
+BUILTINS_FILE = PROOFS_DIR / "YulGeneration" / "ReferenceOracle" / "Builtins.lean"
 DEFAULT_YUL_DIR = ROOT / "artifacts" / "yul"
 RUNTIME_INTERPRETERS = [
     PROOFS_DIR / "IRGeneration" / "IRInterpreter.lean",
-    PROOFS_DIR / "YulGeneration" / "Semantics.lean",
+    PROOFS_DIR / "YulGeneration" / "ReferenceOracle" / "Semantics.lean",
 ]
 
 IMPORT_BUILTINS_RE = re.compile(
-    r"^\s*import\s+Compiler\.Proofs\.YulGeneration\.Builtins\s*$", re.MULTILINE
+    r"^\s*import\s+Compiler\.Proofs\.YulGeneration\.ReferenceOracle\.Builtins\s*$",
+    re.MULTILINE,
 )
 BUILTIN_CALL_RE = re.compile(
     r"\bCompiler\.Proofs\.YulGeneration\.(?:"
@@ -200,7 +201,7 @@ def collect_builtin_boundary_failures() -> list[str]:
         rel = lean_file.relative_to(ROOT)
 
         if not IMPORT_BUILTINS_RE.search(text):
-            failures.append(f"{rel}: missing import Compiler.Proofs.YulGeneration.Builtins")
+            failures.append(f"{rel}: missing import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins")
 
         if not BUILTIN_CALL_RE.search(text):
             failures.append(
@@ -212,7 +213,7 @@ def collect_builtin_boundary_failures() -> list[str]:
         if INLINE_DISPATCH_RE.search(text):
             failures.append(
                 f"{rel}: inline builtin dispatch detected; move builtin semantics to "
-                "Compiler/Proofs/YulGeneration/Builtins.lean"
+                "Compiler/Proofs/YulGeneration/ReferenceOracle/Builtins.lean"
             )
 
     return failures

@@ -23,8 +23,15 @@ PURE_BUILTINS = [
     "mul",
     "div",
     "mod",
+    "addmod",
+    "mulmod",
+    "exp",
+    "sdiv",
+    "smod",
     "lt",
     "gt",
+    "slt",
+    "sgt",
     "eq",
     "iszero",
     "and",
@@ -33,7 +40,141 @@ PURE_BUILTINS = [
     "not",
     "shl",
     "shr",
+    "sar",
+    "signextend",
+    "byte",
 ]
+
+
+def _strip_lean_comments(text: str) -> str:
+    """Remove Lean line/block comments while preserving line structure."""
+    result: list[str] = []
+    i = 0
+    n = len(text)
+    block_depth = 0
+    in_string = False
+    escape = False
+    while i < n:
+        if in_string:
+            result.append(text[i])
+            if escape:
+                escape = False
+            elif text[i] == "\\":
+                escape = True
+            elif text[i] == '"':
+                in_string = False
+            i += 1
+            continue
+
+        if block_depth > 0:
+            if text.startswith("/-", i):
+                block_depth += 1
+                i += 2
+                continue
+            if text.startswith("-/", i):
+                block_depth -= 1
+                i += 2
+                continue
+            if text[i] == "\n":
+                result.append("\n")
+            i += 1
+            continue
+
+        if text.startswith("--", i):
+            newline = text.find("\n", i)
+            if newline == -1:
+                break
+            result.append("\n")
+            i = newline + 1
+            continue
+        if text.startswith("/-", i):
+            block_depth = 1
+            i += 2
+            continue
+
+        if text[i] == '"':
+            in_string = True
+            result.append(text[i])
+            i += 1
+            continue
+
+        result.append(text[i])
+        i += 1
+    return "".join(result)
+
+
+def _strip_lean_strings(text: str) -> str:
+    """Blank Lean string literal contents while preserving line structure."""
+    result: list[str] = []
+    i = 0
+    n = len(text)
+    in_string = False
+    escape = False
+    while i < n:
+        ch = text[i]
+        if in_string:
+            if ch == "\n":
+                result.append("\n")
+                escape = False
+            else:
+                result.append(" ")
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            i += 1
+            continue
+        if ch == '"':
+            in_string = True
+            result.append(" ")
+            i += 1
+            continue
+        result.append(ch)
+        i += 1
+    return "".join(result)
+
+
+DECL_KEYWORDS = (
+    r"theorem|lemma|def|abbrev|instance|example|opaque|axiom|constant|"
+    r"inductive|structure|class"
+)
+MODIFIERS = r"(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*"
+TOP_LEVEL_DECL_RE = re.compile(
+    rf"(?m)^(?:{MODIFIERS}(?:{DECL_KEYWORDS})(?:\s+([A-Za-z_][A-Za-z0-9_']*))?\b|"
+    r"(section|namespace|end)\b)"
+)
+BRIDGE_DECL_RE = re.compile(
+    rf"{MODIFIERS}theorem\s+evalBuiltinCall_([A-Za-z0-9]+)_bridge\b",
+    flags=re.DOTALL,
+)
+
+
+def _top_level_blocks(code: str) -> list[tuple[int, int, str | None, bool, bool]]:
+    """Return top-level declaration/scope blocks.
+
+    Each tuple is ``(start, end, declaration_name, is_bridge, is_scope_boundary)``.
+    The matcher is intentionally anchored at column 0 so local declarations in
+    theorem bodies remain inside the enclosing theorem block.
+    """
+    matches = list(TOP_LEVEL_DECL_RE.finditer(code))
+    blocks: list[tuple[int, int, str | None, bool, bool]] = []
+    for idx, match in enumerate(matches):
+        start = match.start()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(code)
+        block = code[start:end]
+        bridge_match = BRIDGE_DECL_RE.match(block)
+        blocks.append(
+            (
+                start,
+                end,
+                match.group(1),
+                bridge_match is not None,
+                match.group(2) is not None,
+            )
+        )
+    return blocks
 
 
 def normalize_ws(text: str) -> str:
@@ -63,17 +204,76 @@ def plain_code_subject(names: list[str]) -> str:
 
 
 def extract_universal_builtins(text: str) -> list[str]:
+    code = _strip_lean_strings(_strip_lean_comments(text))
     found = {
-        match.group(1)
-        for match in re.finditer(r"@\[simp\]\s+theorem\s+evalBuiltinCall_([A-Za-z0-9]+)_bridge\b", text)
+        BRIDGE_DECL_RE.match(code[start:end]).group(1)
+        for start, end, _name, is_bridge, _is_scope in _top_level_blocks(code)
+        if is_bridge and BRIDGE_DECL_RE.match(code[start:end])
     }
     return [name for name in PURE_BUILTINS if name in found]
 
 
-def expected_snippets(universal: list[str], remaining: list[str]) -> dict[str, list[str]]:
+def extract_admitted_builtins(text: str) -> list[str]:
+    """Detect bridge builtins whose core lemma depends on sorry.
+
+    Walks all top-level declarations (theorems, lemmas, defs, including
+    those preceded by modifiers like ``private``/``noncomputable``) and
+    attributes each ``sorry`` to the correct bridge theorem:
+
+    * ``sorry`` inside an ``evalBuiltinCall_X_bridge`` body → admit ``X``.
+    * ``sorry`` inside a helper between two bridge theorems → admit the
+      *next* bridge theorem in source order (since helpers are used by
+      the bridge theorem that follows them).
+
+    The ``@[simp]`` attribute and the ``theorem`` header may span
+    multiple lines.
+    """
+    code = _strip_lean_strings(_strip_lean_comments(text))
+    sorry_re = re.compile(r"\bsorry\b")
+    admitted: set[str] = set()
+    admitted_helpers: set[str] = set()
+    anonymous_helper_sorry = False
+    for start, end, name, is_bridge, is_scope in _top_level_blocks(code):
+        body = code[start:end]
+        body_has_sorry = sorry_re.search(body) is not None
+        referenced_admitted_helper = any(
+            re.search(rf"\b{re.escape(helper)}\b", body)
+            for helper in admitted_helpers
+        )
+        bridge_match = BRIDGE_DECL_RE.match(body)
+        if is_scope:
+            admitted_helpers.clear()
+            anonymous_helper_sorry = False
+        elif bridge_match:
+            bridge = bridge_match.group(1)
+            if body_has_sorry or referenced_admitted_helper or anonymous_helper_sorry:
+                admitted.add(bridge)
+            anonymous_helper_sorry = False
+        elif body_has_sorry or referenced_admitted_helper or anonymous_helper_sorry:
+            if name:
+                admitted_helpers.add(name)
+                anonymous_helper_sorry = False
+            else:
+                anonymous_helper_sorry = True
+    return [name for name in PURE_BUILTINS if name in admitted]
+
+
+def _admitted_qualifier(admitted: list[str], *, count: int | None = None) -> str:
+    """Return a parenthetical qualifier for sorry-dependent lemmas, or empty string."""
+    if not admitted:
+        return ""
+    n = len(admitted)
+    proven = (count if count is not None else len(PURE_BUILTINS)) - n
+    return f" ({proven} fully proven, {n} with sorry-dependent core equivalences)"
+
+
+def expected_snippets(
+    universal: list[str], remaining: list[str], *, admitted: list[str] | None = None,
+) -> dict[str, list[str]]:
     count = len(universal)
     universal_codes = code_list(universal)
     remaining_codes = code_list(remaining)
+    qualifier = _admitted_qualifier(admitted or [], count=count)
 
     audit_remaining = (
         "All pure bridge cases are now covered by universal symbolic lemmas."
@@ -98,13 +298,14 @@ def expected_snippets(universal: list[str], remaining: list[str]) -> dict[str, l
         if not remaining
         else f"concrete bridge smoke tests for {remaining_codes}"
     )
+    total = len(PURE_BUILTINS)
     arithmetic_summary = (
-        "15/15 pure EVMYulLean-backed builtins have universal bridge lemmas."
+        f"{total}/{total} pure EVMYulLean-backed builtins have universal bridge lemmas{qualifier}."
         if not remaining
         else (
-            f"{count}/15 pure EVMYulLean-backed builtins have universal bridge lemmas; {remaining_codes} still relies on concrete smoke tests."
+            f"{count}/{total} pure EVMYulLean-backed builtins have universal bridge lemmas; {remaining_codes} still relies on concrete smoke tests."
             if len(remaining) == 1
-            else f"{count}/15 pure EVMYulLean-backed builtins have universal bridge lemmas; {plain_code_subject(remaining)} still rely on concrete smoke tests."
+            else f"{count}/{total} pure EVMYulLean-backed builtins have universal bridge lemmas; {plain_code_subject(remaining)} still rely on concrete smoke tests."
         )
     )
     interpreter_remaining = (
@@ -124,7 +325,7 @@ def expected_snippets(universal: list[str], remaining: list[str]) -> dict[str, l
 
     return {
         "TRUST_ASSUMPTIONS": [
-            f"{count} universal pure bridge theorems are now proven",
+            f"{count} universal pure bridge theorems{qualifier}",
             audit_remaining,
         ],
         "AXIOMS": [
@@ -152,9 +353,11 @@ def main() -> int:
         print(f"Missing: {BRIDGE_LEMMAS.relative_to(ROOT)}", file=sys.stderr)
         return 1
 
-    universal = extract_universal_builtins(BRIDGE_LEMMAS.read_text(encoding="utf-8"))
+    lemma_text = BRIDGE_LEMMAS.read_text(encoding="utf-8")
+    universal = extract_universal_builtins(lemma_text)
     remaining = [name for name in PURE_BUILTINS if name not in universal]
-    expected = expected_snippets(universal, remaining)
+    admitted = extract_admitted_builtins(lemma_text)
+    expected = expected_snippets(universal, remaining, admitted=admitted)
 
     for label, path in TARGET_FILES.items():
         if not path.exists():
@@ -172,10 +375,12 @@ def main() -> int:
             print(error, file=sys.stderr)
         return 1
 
+    admitted_str = f"; admitted (sorry-dependent): {', '.join(admitted)}" if admitted else ""
     print(
         "bridge coverage sync passed: "
         f"{len(universal)}/{len(PURE_BUILTINS)} pure builtins universally bridged; "
         f"remaining concrete-only: {', '.join(remaining) if remaining else 'none'}"
+        f"{admitted_str}"
     )
     return 0
 

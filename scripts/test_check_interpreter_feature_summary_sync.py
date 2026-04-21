@@ -65,8 +65,8 @@ class InterpreterFeatureSummarySyncTests(unittest.TestCase):
                 {"feature": "calldatacopy", "proof_status": "not_modeled"},
             ],
             "builtin_features": [
-                {"feature": "add", "agreement_proved": True},
-                {"feature": "caller", "agreement_proved": False},
+                {"feature": "add", "agreement_proved": True, "evmyullean_bridge": "supported"},
+                {"feature": "caller", "agreement_proved": False, "evmyullean_bridge": "delegated"},
             ],
         }
 

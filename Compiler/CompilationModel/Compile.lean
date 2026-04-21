@@ -335,7 +335,11 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
       let scrutineeExpr ← compileExpr fields dynamicSource scrutinee
       -- Extract storage field name from scrutinee for field bindings
       let storageFieldName ← match scrutinee with
-        | Expr.adtTag _ fieldName => pure fieldName
+        | Expr.adtTag scrutineeAdtName fieldName =>
+            if scrutineeAdtName == adtName then
+              pure fieldName
+            else
+              throw s!"Compilation error: matchAdt declared for '{adtName}' but scrutinee reads ADT '{scrutineeAdtName}'"
         | _ => throw s!"Compilation error: matchAdt scrutinee for '{adtName}' must be an adtTag expression"
       let baseSlot ← match findFieldSlot fields storageFieldName with
         | some s => pure s

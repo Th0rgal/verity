@@ -1,5 +1,7 @@
 import Compiler.Yul.Ast
 import Compiler.Constants
+import Compiler.Proofs.MappingSlot
+import Compiler.Proofs.YulGeneration.Calldata
 import EvmYul.Yul.Ast
 import EvmYul.UInt256
 
@@ -46,12 +48,12 @@ partial def lowerStmtGroup : YulStmt → Except AdapterError (List EvmYul.Yul.As
       let body' ← lowerStmts body
       -- EVMYulLean For has no init block; emit init stmts before the loop.
       pure (init' ++ [.For (lowerExpr cond) post' body'])
-  | .switch expr cases default => do
+  | .switch expr cases defaultCase => do
       let lowerCase := fun ((tag, block) : Nat × List YulStmt) => do
         let block' ← lowerStmts block
         pure (EvmYul.UInt256.ofNat tag, block')
       let cases' ← cases.mapM lowerCase
-      let default' ← lowerStmts (default.getD [])
+      let default' ← lowerStmts (defaultCase.getD [])
       pure [.Switch (lowerExpr expr) cases' default']
   | .block stmts => do
       let stmts' ← lowerStmts stmts
@@ -70,6 +72,7 @@ partial def lowerStmt : YulStmt → Except AdapterError EvmYul.Yul.Ast.Stmt
   | stmt => do
       let stmts ← lowerStmtGroup stmt
       pure (.Block stmts)
+
 end
 
 def lowerProgram (stmts : List YulStmt) : Except AdapterError EvmYul.Yul.Ast.Stmt := do
@@ -80,25 +83,49 @@ def lowerProgram (stmts : List YulStmt) : Except AdapterError EvmYul.Yul.Ast.Stm
     Returns `none` for Verity-specific helpers (e.g. `mappingSlot`) that
     have no direct EVMYulLean counterpart. -/
 def lookupPrimOp : String → Option (EvmYul.Operation .Yul)
-  | "add"          => some .ADD
-  | "sub"          => some .SUB
-  | "mul"          => some .MUL
-  | "div"          => some .DIV
-  | "mod"          => some .MOD
-  | "lt"           => some .LT
-  | "gt"           => some .GT
-  | "eq"           => some .EQ
-  | "iszero"       => some .ISZERO
-  | "and"          => some .AND
-  | "or"           => some .OR
-  | "xor"          => some .XOR
-  | "not"          => some .NOT
-  | "shl"          => some .SHL
-  | "shr"          => some .SHR
-  | "sload"        => some .SLOAD
-  | "caller"       => some .CALLER
-  | "calldataload" => some .CALLDATALOAD
-  | _              => none
+  -- Unsigned arithmetic
+  | "add"            => some .ADD
+  | "sub"            => some .SUB
+  | "mul"            => some .MUL
+  | "div"            => some .DIV
+  | "mod"            => some .MOD
+  | "addmod"         => some .ADDMOD
+  | "mulmod"         => some .MULMOD
+  | "exp"            => some .EXP
+  -- Signed arithmetic
+  | "sdiv"           => some .SDIV
+  | "smod"           => some .SMOD
+  -- Comparison
+  | "lt"             => some .LT
+  | "gt"             => some .GT
+  | "slt"            => some .SLT
+  | "sgt"            => some .SGT
+  | "eq"             => some .EQ
+  | "iszero"         => some .ISZERO
+  -- Bitwise / byte extraction
+  | "byte"           => some .BYTE
+  | "and"            => some .AND
+  | "or"             => some .OR
+  | "xor"            => some .XOR
+  | "not"            => some .NOT
+  | "shl"            => some .SHL
+  | "shr"            => some .SHR
+  | "sar"            => some .SAR
+  | "signextend"     => some .SIGNEXTEND
+  -- Environment
+  | "address"        => some .ADDRESS
+  | "caller"         => some .CALLER
+  | "callvalue"      => some .CALLVALUE
+  | "calldataload"   => some .CALLDATALOAD
+  | "calldatasize"   => some .CALLDATASIZE
+  -- Block information
+  | "timestamp"      => some .TIMESTAMP
+  | "number"         => some .NUMBER
+  | "chainid"        => some .CHAINID
+  | "blobbasefee"    => some .BLOBBASEFEE
+  -- Storage
+  | "sload"          => some .SLOAD
+  | _                => none
 
 /-- Evaluate a pure arithmetic/comparison/bitwise builtin via EVMYulLean
     UInt256 operations. This covers the overlap set of builtins where both
@@ -115,34 +142,63 @@ def evalPureBuiltinViaEvmYulLean
   let u := EvmYul.UInt256.ofNat
   let toNat := EvmYul.UInt256.toNat
   match func, argVals with
-  | "add", [a, b]    => some (toNat (EvmYul.UInt256.add (u a) (u b)))
-  | "sub", [a, b]    => some (toNat (EvmYul.UInt256.sub (u a) (u b)))
-  | "mul", [a, b]    => some (toNat (EvmYul.UInt256.mul (u a) (u b)))
-  | "div", [a, b]    => some (toNat (EvmYul.UInt256.div (u a) (u b)))
-  | "mod", [a, b]    => some (toNat (EvmYul.UInt256.mod (u a) (u b)))
-  | "lt",  [a, b]    => some (if (u a) < (u b) then 1 else 0)
-  | "gt",  [a, b]    => some (if (u b) < (u a) then 1 else 0)
-  | "eq",  [a, b]    => some (if a % EvmYul.UInt256.size = b % EvmYul.UInt256.size then 1 else 0)
-  | "iszero", [a]    => some (if a % EvmYul.UInt256.size = 0 then 1 else 0)
-  | "and", [a, b]    => some (toNat (EvmYul.UInt256.land (u a) (u b)))
-  | "or",  [a, b]    => some (toNat (EvmYul.UInt256.lor (u a) (u b)))
-  | "xor", [a, b]    => some (toNat (EvmYul.UInt256.xor (u a) (u b)))
-  | "not", [a]       => some (toNat (EvmYul.UInt256.lnot (u a)))
-  | "shl", [s, v]    => some (toNat (EvmYul.UInt256.shiftLeft (u v) (u s)))
-  | "shr", [s, v]    => some (toNat (EvmYul.UInt256.shiftRight (u v) (u s)))
-  | _, _              => none
+  -- Unsigned arithmetic
+  | "add", [a, b]          => some (toNat (EvmYul.UInt256.add (u a) (u b)))
+  | "sub", [a, b]          => some (toNat (EvmYul.UInt256.sub (u a) (u b)))
+  | "mul", [a, b]          => some (toNat (EvmYul.UInt256.mul (u a) (u b)))
+  | "div", [a, b]          => some (toNat (EvmYul.UInt256.div (u a) (u b)))
+  | "mod", [a, b]          => some (toNat (EvmYul.UInt256.mod (u a) (u b)))
+  | "addmod", [a, b, n]    => some (toNat (EvmYul.UInt256.addMod (u a) (u b) (u n)))
+  | "mulmod", [a, b, n]    => some (toNat (EvmYul.UInt256.mulMod (u a) (u b) (u n)))
+  | "exp", [a, b]          => some (toNat (EvmYul.UInt256.exp (u a) (u b)))
+  -- Signed arithmetic
+  | "sdiv", [a, b]         => some (toNat (EvmYul.UInt256.sdiv (u a) (u b)))
+  | "smod", [a, b]         => some (toNat (EvmYul.UInt256.smod (u a) (u b)))
+  -- Unsigned comparison
+  | "lt",  [a, b]          => some (if (u a) < (u b) then 1 else 0)
+  | "gt",  [a, b]          => some (if (u b) < (u a) then 1 else 0)
+  | "eq",  [a, b]          => some (if a % EvmYul.UInt256.size = b % EvmYul.UInt256.size then 1 else 0)
+  | "iszero", [a]          => some (if a % EvmYul.UInt256.size = 0 then 1 else 0)
+  -- Signed comparison
+  | "slt", [a, b]          => some (toNat (EvmYul.UInt256.slt (u a) (u b)))
+  | "sgt", [a, b]          => some (toNat (EvmYul.UInt256.sgt (u a) (u b)))
+  -- Bitwise / byte extraction
+  | "byte", [i, x]         => some (toNat (EvmYul.UInt256.byteAt (u i) (u x)))
+  | "and", [a, b]          => some (toNat (EvmYul.UInt256.land (u a) (u b)))
+  | "or",  [a, b]          => some (toNat (EvmYul.UInt256.lor (u a) (u b)))
+  | "xor", [a, b]          => some (toNat (EvmYul.UInt256.xor (u a) (u b)))
+  | "not", [a]             => some (toNat (EvmYul.UInt256.lnot (u a)))
+  | "shl", [s, v]          => some (toNat (EvmYul.UInt256.shiftLeft (u v) (u s)))
+  | "shr", [s, v]          => some (toNat (EvmYul.UInt256.shiftRight (u v) (u s)))
+  | "sar", [s, v]          => some (toNat (EvmYul.UInt256.sar (u s) (u v)))
+  | "signextend", [b, v]   => some (toNat (EvmYul.UInt256.signextend (u b) (u v)))
+  | _, _                    => none
 
 /-- Full builtin bridge: delegates pure arithmetic/comparison/bitwise builtins
-    to EVMYulLean UInt256 operations. State-dependent builtins (`sload`,
-    `caller`, `address`, `timestamp`, `calldataload`) and Verity-specific
-    helpers (`mappingSlot`) fall through to the Verity path via `none`. -/
+    to EVMYulLean UInt256 operations. `calldataload` is handled directly because
+    its observable semantics depend only on the selector and calldata already
+    available at this boundary. `sload` is handled via
+    `abstractLoadStorageOrMapping`, the shared Verity/Phase-2 storage-read
+    helper whose EVMYulLean-state correspondence is witnessed by
+    `storageLookup_projectStorage` in `EvmYulLeanStateBridge.lean` (projecting
+    the abstract `storage : Nat → Nat` into EVMYulLean's `Storage` recovers the
+    same value). `mappingSlot` is bridged by routing through
+    `abstractMappingSlot` — the same keccak-faithful Solidity mapping-slot
+    derivation used by Verity's `evalBuiltinCallWithContext`; both backends
+    ultimately compute `keccak256(abi.encode(key, baseSlot))`. Remaining
+    context-dependent builtins (`caller`, `address`, `timestamp`, ...) are
+    routed at the `evalBuiltinCallWithBackendContext` level. -/
 def evalBuiltinCallViaEvmYulLean
-    (_storage : Nat → Nat)
+    (storage : Nat → Nat)
     (_sender : Nat)
-    (_selector : Nat)
-    (_calldata : List Nat)
+    (selector : Nat)
+    (calldata : List Nat)
     (func : String)
     (argVals : List Nat) : Option Nat :=
-  evalPureBuiltinViaEvmYulLean func argVals
+  match func, argVals with
+  | "calldataload", [offset] => some (Compiler.Proofs.YulGeneration.calldataloadWord selector calldata offset)
+  | "sload", [slot] => some (storage slot)
+  | "mappingSlot", [base, key] => some (Compiler.Proofs.abstractMappingSlot base key)
+  | _, _ => evalPureBuiltinViaEvmYulLean func argVals
 
 end Compiler.Proofs.YulGeneration.Backends

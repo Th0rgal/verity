@@ -510,8 +510,11 @@ def exprContainsExternalCall : Expr → Bool
       exprContainsExternalCall offset
   | Expr.keccak256 offset size =>
       exprContainsExternalCall offset || exprContainsExternalCall size
-  | Expr.internalCall _ args | Expr.adtConstruct _ _ args =>
+  | Expr.internalCall _ args =>
       exprListContainsExternalCall args
+  | Expr.adtConstruct _ _ args =>
+      exprListContainsExternalCall args
+  | Expr.dynamicBytesEq _ _ => false
   | _ => false
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega
@@ -519,6 +522,57 @@ decreasing_by all_goals simp_wf; all_goals omega
 def exprListContainsExternalCall : List Expr → Bool
   | [] => false
   | e :: es => exprContainsExternalCall e || exprListContainsExternalCall es
+termination_by es => sizeOf es
+decreasing_by all_goals simp_wf; all_goals omega
+end
+
+mutual
+/-- Conservative expression call detector for annotations such as
+    `no_external_calls`, where an internal helper expression may itself perform
+    an external interaction. CEI uses `exprContainsExternalCall` instead so that
+    local helper reads do not become false interaction barriers. -/
+def exprMayContainExternalCall : Expr → Bool
+  | Expr.internalCall _ _ => true
+  | Expr.call _ _ _ _ _ _ _ | Expr.staticcall _ _ _ _ _ _
+  | Expr.delegatecall _ _ _ _ _ _ | Expr.externalCall _ _ => true
+  | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
+  | Expr.mod a b | Expr.smod a b
+  | Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b | Expr.sar a b
+  | Expr.lt a b | Expr.gt a b | Expr.slt a b | Expr.sgt a b | Expr.eq a b
+  | Expr.ge a b | Expr.le a b | Expr.signextend a b
+  | Expr.logicalAnd a b | Expr.logicalOr a b
+  | Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b
+  | Expr.ceilDiv a b =>
+      exprMayContainExternalCall a || exprMayContainExternalCall b
+  | Expr.mulDivDown a b c | Expr.mulDivUp a b c =>
+      exprMayContainExternalCall a || exprMayContainExternalCall b || exprMayContainExternalCall c
+  | Expr.bitNot a | Expr.logicalNot a | Expr.extcodesize a =>
+      exprMayContainExternalCall a
+  | Expr.ite cond thenVal elseVal =>
+      exprMayContainExternalCall cond || exprMayContainExternalCall thenVal || exprMayContainExternalCall elseVal
+  | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _ | Expr.mappingUint _ key
+  | Expr.structMember _ key _ | Expr.arrayElement _ key | Expr.storageArrayElement _ key =>
+      exprMayContainExternalCall key
+  | Expr.mappingChain _ keys =>
+      exprListMayContainExternalCall keys
+  | Expr.mapping2 _ key1 key2 | Expr.mapping2Word _ key1 key2 _
+  | Expr.structMember2 _ key1 key2 _ =>
+      exprMayContainExternalCall key1 || exprMayContainExternalCall key2
+  | Expr.mload offset | Expr.tload offset | Expr.calldataload offset
+  | Expr.returndataOptionalBoolAt offset =>
+      exprMayContainExternalCall offset
+  | Expr.keccak256 offset size =>
+      exprMayContainExternalCall offset || exprMayContainExternalCall size
+  | Expr.adtConstruct _ _ args =>
+      exprListMayContainExternalCall args
+  | Expr.dynamicBytesEq _ _ => false
+  | _ => false
+termination_by e => sizeOf e
+decreasing_by all_goals simp_wf; all_goals omega
+
+def exprListMayContainExternalCall : List Expr → Bool
+  | [] => false
+  | e :: es => exprMayContainExternalCall e || exprListMayContainExternalCall es
 termination_by es => sizeOf es
 decreasing_by all_goals simp_wf; all_goals omega
 end
@@ -601,16 +655,82 @@ termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 
-/-- Conservative variant of `stmtContainsExternalCall` for `no_external_calls` and CEI
-    validation.  Returns `true` for internal calls and internal call assignments because
-    their callee bodies may contain external calls that we cannot inspect at
+mutual
+/-- Conservative variant of `stmtContainsExternalCall` for `no_external_calls`
+    validation. Returns `true` for internal calls anywhere in the statement tree,
+    because callee bodies may contain external calls that are not visible at
     single-function validation scope. -/
 def stmtMayContainExternalCall : Stmt → Bool
-  | s =>
-    -- Direct external calls or internal calls (conservative)
-    match s with
-    | Stmt.internalCall _ _ | Stmt.internalCallAssign _ _ _ => true
-    | _ => stmtContainsExternalCall s
+  | Stmt.internalCall _ _ | Stmt.internalCallAssign _ _ _ => true
+  | Stmt.ite cond thenBranch elseBranch =>
+      exprMayContainExternalCall cond ||
+        stmtListMayContainExternalCall thenBranch ||
+        stmtListMayContainExternalCall elseBranch
+  | Stmt.forEach _ count body =>
+      exprMayContainExternalCall count || stmtListMayContainExternalCall body
+  | Stmt.unsafeBlock _ body =>
+      stmtListMayContainExternalCall body
+  | Stmt.matchAdt _ scrutinee branches =>
+      exprMayContainExternalCall scrutinee || matchBranchesMayContainExternalCall branches
+  | Stmt.letVar _ value | Stmt.assignVar _ value =>
+      exprMayContainExternalCall value
+  | Stmt.setStorage _ value | Stmt.setStorageAddr _ value | Stmt.require value _ =>
+      exprMayContainExternalCall value
+  | Stmt.requireError cond _ args =>
+      exprMayContainExternalCall cond || args.any exprMayContainExternalCall
+  | Stmt.revertError _ args =>
+      args.any exprMayContainExternalCall
+  | Stmt.return value =>
+      exprMayContainExternalCall value
+  | Stmt.returnValues values =>
+      values.any exprMayContainExternalCall
+  | Stmt.storageArrayPush _ value =>
+      exprMayContainExternalCall value
+  | Stmt.setStorageArrayElement _ index value =>
+      exprMayContainExternalCall index || exprMayContainExternalCall value
+  | Stmt.setMapping _ key value | Stmt.setMappingUint _ key value =>
+      exprMayContainExternalCall key || exprMayContainExternalCall value
+  | Stmt.setMappingWord _ key _ value =>
+      exprMayContainExternalCall key || exprMayContainExternalCall value
+  | Stmt.setMappingPackedWord _ key _ _ value =>
+      exprMayContainExternalCall key || exprMayContainExternalCall value
+  | Stmt.setMappingChain _ keys value =>
+      keys.any exprMayContainExternalCall || exprMayContainExternalCall value
+  | Stmt.setMapping2 _ key1 key2 value =>
+      exprMayContainExternalCall key1 || exprMayContainExternalCall key2 || exprMayContainExternalCall value
+  | Stmt.setMapping2Word _ key1 key2 _ value =>
+      exprMayContainExternalCall key1 || exprMayContainExternalCall key2 || exprMayContainExternalCall value
+  | Stmt.setStructMember _ key _ value =>
+      exprMayContainExternalCall key || exprMayContainExternalCall value
+  | Stmt.setStructMember2 _ key1 key2 _ value =>
+      exprMayContainExternalCall key1 || exprMayContainExternalCall key2 || exprMayContainExternalCall value
+  | Stmt.emit _ args =>
+      args.any exprMayContainExternalCall
+  | Stmt.rawLog topics dataOffset dataSize =>
+      topics.any exprMayContainExternalCall || exprMayContainExternalCall dataOffset || exprMayContainExternalCall dataSize
+  | Stmt.tstore offset value | Stmt.mstore offset value =>
+      exprMayContainExternalCall offset || exprMayContainExternalCall value
+  | Stmt.calldatacopy destOffset sourceOffset size =>
+      exprMayContainExternalCall destOffset || exprMayContainExternalCall sourceOffset || exprMayContainExternalCall size
+  | Stmt.returndataCopy destOffset sourceOffset size =>
+      exprMayContainExternalCall destOffset || exprMayContainExternalCall sourceOffset || exprMayContainExternalCall size
+  | s => stmtContainsExternalCall s
+termination_by s => sizeOf s
+decreasing_by all_goals simp_wf; all_goals omega
+
+def stmtListMayContainExternalCall : List Stmt → Bool
+  | [] => false
+  | s :: ss => stmtMayContainExternalCall s || stmtListMayContainExternalCall ss
+termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def matchBranchesMayContainExternalCall : List (String × List String × List Stmt) → Bool
+  | [] => false
+  | (_, _, body) :: rest =>
+      stmtListMayContainExternalCall body || matchBranchesMayContainExternalCall rest
+termination_by bs => sizeOf bs
+decreasing_by all_goals simp_wf; all_goals omega
+end
 
 mutual
 def stmtReadsStateOrEnv : Stmt → Bool
@@ -717,15 +837,39 @@ termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 
+mutual
 /-- Conservative variant of `stmtIsPersistentWrite` for CEI validation.
     Returns `true` for internal calls and internal call assignments because
     their callee bodies may write to storage but we cannot inspect them at
-    single-function validation scope. -/
+    single-function validation scope. Recurses through compound statements so
+    nested helper calls are not missed by loop/cross-branch CEI checks. -/
 def stmtMayPersistentlyWrite : Stmt → Bool
-  | s =>
-    match s with
-    | Stmt.internalCall _ _ | Stmt.internalCallAssign _ _ _ => true
-    | _ => stmtIsPersistentWrite s
+  | Stmt.internalCall _ _ | Stmt.internalCallAssign _ _ _ => true
+  | Stmt.ite _ thenBranch elseBranch =>
+      stmtListMayPersistentlyWrite thenBranch || stmtListMayPersistentlyWrite elseBranch
+  | Stmt.forEach _ _ body =>
+      stmtListMayPersistentlyWrite body
+  | Stmt.unsafeBlock _ body =>
+      stmtListMayPersistentlyWrite body
+  | Stmt.matchAdt _ _ branches =>
+      matchBranchesMayPersistentlyWrite branches
+  | s => stmtIsPersistentWrite s
+termination_by s => sizeOf s
+decreasing_by all_goals simp_wf; all_goals omega
+
+def stmtListMayPersistentlyWrite : List Stmt → Bool
+  | [] => false
+  | s :: rest => stmtMayPersistentlyWrite s || stmtListMayPersistentlyWrite rest
+termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def matchBranchesMayPersistentlyWrite : List (String × List String × List Stmt) → Bool
+  | [] => false
+  | (_, _, body) :: rest =>
+      stmtListMayPersistentlyWrite body || matchBranchesMayPersistentlyWrite rest
+termination_by bs => sizeOf bs
+decreasing_by all_goals simp_wf; all_goals omega
+end
 
 mutual
 /-- CEI analysis: walk a statement list sequentially and return a descriptive
@@ -785,8 +929,8 @@ def stmtInternalCEIViolation : Stmt → Bool → Option String
   | Stmt.forEach _ count body, seenCall =>
       -- In a loop, if the body has both an external call and a state write,
       -- a second iteration would violate CEI even if the first doesn't
-      let bodyHasCall := body.any stmtContainsExternalCall
-      let bodyHasWrite := body.any stmtIsPersistentWrite
+      let bodyHasCall := body.any stmtMayContainExternalCall
+      let bodyHasWrite := body.any stmtMayPersistentlyWrite
       if bodyHasCall && bodyHasWrite then
         some "loop body contains both external call and state write (subsequent iterations would violate CEI)"
       else
@@ -858,12 +1002,11 @@ def validateFunctionSpec (spec : FunctionSpec) : Except String Unit := do
   -- (since callee bodies may contain external calls not visible at this scope).
   if spec.noExternalCalls && spec.body.any stmtMayContainExternalCall then
     throw s!"Compilation error: function '{spec.name}' is annotated no_external_calls but contains statements that may perform external calls (including internal function calls whose bodies cannot be verified here)"
-  -- CEI enforcement: reject state writes after external calls unless opted out via any
-  -- rung of the escalation ladder (#1728, Axis 2 Steps 2a-2b):
-  --   Rung 2: cei_safe (machine-checked proof obligation)
-  --   Rung 3: nonreentrant(field) (known-safe reentrancy guard)
-  --   Rung 4: allow_post_interaction_writes (explicit trust-surface opt-out)
-  let ceiExempt := spec.allowPostInteractionWrites || spec.nonReentrantLock.isSome || spec.ceiSafe
+  -- CEI enforcement: reject state writes after external calls unless the function
+  -- explicitly records a trust-surface opt-out. `nonreentrant(field)` and
+  -- `cei_safe` are metadata/proof hooks in the current pipeline; until they
+  -- synthesize a real guard or check a proof term, they must not suppress CEI.
+  let ceiExempt := spec.allowPostInteractionWrites
   if !ceiExempt then
     match stmtListCEIViolation spec.body false with
     | some violation =>

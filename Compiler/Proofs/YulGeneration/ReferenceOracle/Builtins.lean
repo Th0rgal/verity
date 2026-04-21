@@ -1,4 +1,5 @@
 import Compiler.Constants
+import Compiler.Proofs.YulGeneration.Calldata
 import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 import Verity.Core.Int256
@@ -6,24 +7,32 @@ import Verity.Core.Uint256
 
 namespace Compiler.Proofs.YulGeneration
 
+/-!
+Reference oracle only.
+
+This module preserves Verity's historical builtin semantics for regression
+tests and bridge comparisons. EVMYulLean is the trusted semantic target for the
+current retargeting path; this file is not part of that trust boundary.
+-/
+
 open Compiler.Proofs
 export Compiler.Constants (evmModulus selectorModulus selectorShift)
 
-def selectorWord (selector : Nat) : Nat :=
-  (selector % selectorModulus) * (2 ^ selectorShift)
+/-- Auxiliary loop for modular exponentiation via repeated squaring.
+    Exposed for downstream bridge proofs against EVMYulLean's `powAux`. -/
+def modPowAux (m b : Nat) : Nat → Nat → Nat
+  | 0, acc => acc % m
+  | e + 1, acc =>
+    let acc' := if (e + 1) % 2 = 1 then (acc * b) % m else acc
+    modPowAux m ((b * b) % m) ((e + 1) / 2) acc'
+  decreasing_by exact Nat.div_lt_self (by omega) (by omega)
 
-def calldataloadWord (selector : Nat) (calldata : List Nat) (offset : Nat) : Nat :=
-  if offset = 0 then
-    selectorWord selector
-  else if offset < 4 then
-    0
-  else
-    let wordOffset := offset - 4
-    if wordOffset % 32 != 0 then
-      0
-    else
-      let idx := wordOffset / 32
-      calldata.getD idx 0 % evmModulus
+/-- Modular exponentiation via repeated squaring.
+    `natModPow base exp modulus` computes `(base ^ exp) % modulus` without
+    materialising the full power, keeping intermediates bounded by `modulus²`. -/
+def natModPow (base exp modulus : Nat) : Nat :=
+  if modulus ≤ 1 then 0
+  else modPowAux modulus (base % modulus) exp 1
 
 def evalBuiltinCallWithContext
     (storage : Nat → Nat)
@@ -169,6 +178,36 @@ def evalBuiltinCallWithContext
           (Verity.Core.Uint256.ofNat (byteIdx % evmModulus))
           (Verity.Core.Uint256.ofNat (value % evmModulus))).val
     | _ => none
+  else if func = "addmod" then
+    match argVals with
+    | [a, b, n] =>
+        let a := toWord a
+        let b := toWord b
+        let n := toWord n
+        if n = 0 then some 0
+        else some ((a + b) % n)
+    | _ => none
+  else if func = "mulmod" then
+    match argVals with
+    | [a, b, n] =>
+        let a := toWord a
+        let b := toWord b
+        let n := toWord n
+        if n = 0 then some 0
+        else some ((a * b) % n)
+    | _ => none
+  else if func = "exp" then
+    match argVals with
+    | [a, b] => some (natModPow (toWord a) (toWord b) evmModulus)
+    | _ => none
+  else if func = "byte" then
+    match argVals with
+    | [i, x] =>
+        let i := toWord i
+        let x := toWord x
+        if i > 31 then some 0
+        else some ((x / (2 ^ ((31 - i) * 8))) % 256)
+    | _ => none
   else if func = "caller" then
     match argVals with
     | [] => some sender
@@ -203,7 +242,7 @@ def evalBuiltinCallWithContext
     | _ => none
   else if func = "calldatasize" then
     match argVals with
-    | [] => some (4 + calldata.length * 32)
+    | [] => some (toWord (4 + calldata.length * 32))
     | _ => none
   else
     none
@@ -233,8 +272,42 @@ def evalBuiltinCallWithBackendContext
   | .verity =>
       evalBuiltinCallWithContext storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata func argVals
   | .evmYulLean =>
-      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean
-        storage sender selector calldata func argVals
+      let toWord (x : Nat) : Nat := x % evmModulus
+      if func = "caller" then
+        match argVals with
+        | [] => some sender
+        | _ => none
+      else if func = "address" then
+        match argVals with
+        | [] => some (toWord thisAddress)
+        | _ => none
+      else if func = "callvalue" then
+        match argVals with
+        | [] => some (toWord msgValue)
+        | _ => none
+      else if func = "timestamp" then
+        match argVals with
+        | [] => some (toWord blockTimestamp)
+        | _ => none
+      else if func = "number" then
+        match argVals with
+        | [] => some (toWord blockNumber)
+        | _ => none
+      else if func = "chainid" then
+        match argVals with
+        | [] => some (toWord chainId)
+        | _ => none
+      else if func = "blobbasefee" then
+        match argVals with
+        | [] => some (toWord blobBaseFee)
+        | _ => none
+      else if func = "calldatasize" then
+        match argVals with
+        | [] => some (toWord (4 + calldata.length * 32))
+        | _ => none
+      else
+        Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean
+          storage sender selector calldata func argVals
 
 def evalBuiltinCallWithBackend
     (backend : BuiltinBackend)
@@ -272,7 +345,7 @@ def evalBuiltinCall
 @[simp] theorem evalBuiltinCall_calldatasize_nil
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) :
     evalBuiltinCall storage sender selector calldata "calldatasize" [] =
-      some (4 + calldata.length * 32) := by
+      some ((4 + calldata.length * 32) % evmModulus) := by
   simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCall_caller_nil

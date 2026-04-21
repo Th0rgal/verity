@@ -298,10 +298,24 @@ def revertWithCustomError (dynamicSource : DynamicDataSource)
   let argsWithHeadOffsets := attachOffsets argsWithSources 4
   let argStores ← argsWithHeadOffsets.zipIdx.mapM fun ((ty, srcExpr, argExpr, headOffset), idx) => do
     match ty with
-    | ParamType.uint256 | ParamType.int256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32
-    | ParamType.adt _ _ =>
+    | ParamType.uint256 | ParamType.int256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 =>
         let encoded ← encodeStaticCustomErrorArg errorDef.name ty argExpr
         pure [YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit headOffset, encoded])]
+    | ParamType.adt _ maxFields =>
+        match srcExpr with
+        | Expr.param name =>
+            let tagStore := YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.lit headOffset,
+              YulExpr.call "and" [argExpr, YulExpr.lit 0xFF]
+            ])
+            let fieldStores := (List.range maxFields).map fun fieldIdx =>
+              YulStmt.expr (YulExpr.call "mstore" [
+                YulExpr.lit (headOffset + (fieldIdx + 1) * 32),
+                YulExpr.ident s!"{name}_f{fieldIdx}"
+              ])
+            pure (tagStore :: fieldStores)
+        | _ =>
+            throw s!"Compilation error: custom error '{errorDef.name}' parameter of type {repr ty} currently requires direct parameter reference ({issue586Ref})."
     | ParamType.newtypeOf _ baseType =>
         -- Newtypes erased to base type (#1727 Step 3b)
         let encoded ← encodeStaticCustomErrorArg errorDef.name baseType argExpr

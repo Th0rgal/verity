@@ -21,7 +21,7 @@ mutual
     | ParamType.newtypeOf _ baseType => isDynamicParamType baseType  -- Erased to base type
   termination_by ty => sizeOf ty
 
-  private def isDynamicParamTypeList : List ParamType → Bool
+  def isDynamicParamTypeList : List ParamType → Bool
     | [] => false
     | ty :: rest => isDynamicParamType ty || isDynamicParamTypeList rest
   termination_by tys => sizeOf tys
@@ -49,7 +49,7 @@ mutual
     | ParamType.newtypeOf _ baseType => paramHeadSize baseType  -- Erased to base type
   termination_by ty => sizeOf ty
 
-  private def paramHeadSizeList : List ParamType → Nat
+  def paramHeadSizeList : List ParamType → Nat
     | [] => 0
     | ty :: rest => paramHeadSize ty + paramHeadSizeList rest
   termination_by tys => sizeOf tys

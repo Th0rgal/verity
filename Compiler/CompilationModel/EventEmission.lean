@@ -12,23 +12,90 @@ namespace Compiler.CompilationModel
 open Compiler
 open Compiler.Yul
 
-def compileEmit (fields : List Field) (events : List EventDef)
-    (dynamicSource : DynamicDataSource := .calldata)
-    (eventName : String) (args : List Expr) : Except String (List YulStmt) := do
-  let eventDef? := events.find? (·.name == eventName)
-  let eventDef ←
-    match eventDef? with
-    | some e => pure e
-    | none => throw s!"Compilation error: unknown event '{eventName}'"
-  if args.length != eventDef.params.length then
-    throw s!"Compilation error: event '{eventName}' expects {eventDef.params.length} args, got {args.length}"
-  let compiledArgs ← compileExprList fields dynamicSource args
-  let zippedWithSource := (eventDef.params.zip args).zip compiledArgs |>.map (fun ((p, srcExpr), argExpr) =>
-    (p, srcExpr, argExpr))
-  let indexed := zippedWithSource.filter (fun (p, _, _) => p.kind == EventParamKind.indexed)
-  let unindexed := zippedWithSource.filter (fun (p, _, _) => p.kind == EventParamKind.unindexed)
-  if indexed.length > 3 then
-    throw s!"Compilation error: event '{eventName}' has {indexed.length} indexed params; max is 3"
+def eventZippedWithSource
+    (eventDef : EventDef) (args : List Expr) (compiledArgs : List YulExpr) :
+    List (EventParam × Expr × YulExpr) :=
+  (eventDef.params.zip args).zip compiledArgs |>.map
+    (fun ((p, srcExpr), argExpr) => (p, srcExpr, argExpr))
+
+def eventIndexedArgs
+    (zippedWithSource : List (EventParam × Expr × YulExpr)) :
+    List (EventParam × Expr × YulExpr) :=
+  zippedWithSource.filter (fun (p, _, _) => p.kind == EventParamKind.indexed)
+
+def eventUnindexedArgs
+    (zippedWithSource : List (EventParam × Expr × YulExpr)) :
+    List (EventParam × Expr × YulExpr) :=
+  zippedWithSource.filter (fun (p, _, _) => p.kind == EventParamKind.unindexed)
+
+def eventUnindexedHeadSize
+    (unindexed : List (EventParam × Expr × YulExpr)) : Nat :=
+  (unindexed.map (fun (p, _, _) => eventHeadWordSize p.ty)).foldl (· + ·) 0
+
+def eventHasUnindexedDynamicData
+    (unindexed : List (EventParam × Expr × YulExpr)) : Bool :=
+  unindexed.any (fun (p, _, _) => eventIsDynamicType p.ty)
+
+def eventLogFunction (indexedLength : Nat) : String :=
+  match indexedLength with
+  | 0 => "log1"
+  | 1 => "log2"
+  | 2 => "log3"
+  | _ => "log4"
+
+def eventLogArgs
+    (dataSizeExpr : YulExpr) (indexedTopicParts : List (List YulStmt × YulExpr)) :
+    List YulExpr :=
+  [YulExpr.ident "__evt_ptr", dataSizeExpr, YulExpr.ident "__evt_topic0"] ++
+    indexedTopicParts.map (·.2)
+
+def eventParamScalarCompileSupported (ty : ParamType) : Bool :=
+  match ty with
+  | .uint256 | .int256 | .uint8 | .address | .bool | .bytes32 => true
+  | .string | .tuple _ | .array _ | .fixedArray _ _ | .bytes => false
+  | .adt _ _ => false
+  | .newtypeOf _ .uint256 | .newtypeOf _ .int256 | .newtypeOf _ .uint8
+  | .newtypeOf _ .address | .newtypeOf _ .bool | .newtypeOf _ .bytes32 => true
+  | .newtypeOf _ _ => false
+
+def eventDefScalarCompileSupported (eventDef : EventDef) : Bool :=
+  eventDef.params.all (fun param => eventParamScalarCompileSupported param.ty) &&
+    (eventDef.params.filter (fun param => param.kind == EventParamKind.indexed)).length <= 3
+
+def scalarEventUnindexedStoresFrom
+    (unindexed : List (EventParam × Expr × YulExpr)) (headOffset : Nat) :
+    List YulStmt :=
+  match unindexed with
+  | [] => []
+  | (p, _, argExpr) :: rest =>
+      YulStmt.expr (YulExpr.call "mstore" [
+        YulExpr.call "add" [YulExpr.ident "__evt_ptr", YulExpr.lit headOffset],
+        normalizeEventWord p.ty argExpr
+      ]) :: scalarEventUnindexedStoresFrom rest (headOffset + eventHeadWordSize p.ty)
+
+def scalarEventUnindexedStores
+    (unindexed : List (EventParam × Expr × YulExpr)) :
+    List YulStmt :=
+  scalarEventUnindexedStoresFrom unindexed 0
+
+def scalarEventIndexedTopicParts
+    (indexed : List (EventParam × Expr × YulExpr)) :
+    List (List YulStmt × YulExpr) :=
+  indexed.map fun (p, _, argExpr) =>
+    match p.ty with
+    | ParamType.address =>
+        ([], YulExpr.call "and" [argExpr, YulExpr.hex addressMask])
+    | ParamType.bool =>
+        ([], yulToBool argExpr)
+    | _ =>
+        ([], argExpr)
+
+def compileScalarEmitFromCompiledArgs
+    (eventDef : EventDef) (args : List Expr) (compiledArgs : List YulExpr) :
+    List YulStmt :=
+  let zippedWithSource := eventZippedWithSource eventDef args compiledArgs
+  let indexed := eventIndexedArgs zippedWithSource
+  let unindexed := eventUnindexedArgs zippedWithSource
   let sig := eventSignature eventDef
   let sigBytes := bytesFromString sig
   let freeMemPtr := YulExpr.call "mload" [YulExpr.lit freeMemoryPointer]
@@ -40,8 +107,47 @@ def compileEmit (fields : List Field) (events : List EventDef)
     ])
   let topic0Expr := YulExpr.call "keccak256" [YulExpr.ident "__evt_ptr", YulExpr.lit sigBytes.length]
   let topic0Store := YulStmt.let_ "__evt_topic0" topic0Expr
-  let unindexedHeadSize := (unindexed.map (fun (p, _, _) => eventHeadWordSize p.ty)).foldl (· + ·) 0
-  let hasUnindexedDynamicData := unindexed.any (fun (p, _, _) => eventIsDynamicType p.ty)
+  let unindexedStores := scalarEventUnindexedStores unindexed
+  let indexedTopicParts := scalarEventIndexedTopicParts indexed
+  let dataSizeExpr := YulExpr.lit (eventUnindexedHeadSize unindexed)
+  let logFn := eventLogFunction indexed.length
+  let logArgs := eventLogArgs dataSizeExpr indexedTopicParts
+  let logStmt := YulStmt.expr (YulExpr.call logFn logArgs)
+  [YulStmt.block ([storePtr] ++ sigStores ++ [topic0Store] ++
+    unindexedStores ++ [logStmt])]
+
+def compileEmit (fields : List Field) (events : List EventDef)
+    (dynamicSource : DynamicDataSource := .calldata)
+    (eventName : String) (args : List Expr) : Except String (List YulStmt) := do
+  let eventDef? := events.find? (·.name == eventName)
+  let eventDef ←
+    match eventDef? with
+    | some e => pure e
+    | none => throw s!"Compilation error: unknown event '{eventName}'"
+  if args.length != eventDef.params.length then
+    throw s!"Compilation error: event '{eventName}' expects {eventDef.params.length} args, got {args.length}"
+  let compiledArgs ← compileExprList fields dynamicSource args
+  let zippedWithSource := eventZippedWithSource eventDef args compiledArgs
+  let indexed := eventIndexedArgs zippedWithSource
+  let unindexed := eventUnindexedArgs zippedWithSource
+  if indexed.length > 3 then
+    throw s!"Compilation error: event '{eventName}' has {indexed.length} indexed params; max is 3"
+  if eventDefScalarCompileSupported eventDef then
+    pure (compileScalarEmitFromCompiledArgs eventDef args compiledArgs)
+  else
+  let sig := eventSignature eventDef
+  let sigBytes := bytesFromString sig
+  let freeMemPtr := YulExpr.call "mload" [YulExpr.lit freeMemoryPointer]
+  let storePtr := YulStmt.let_ "__evt_ptr" freeMemPtr
+  let sigStores := (chunkBytes32 sigBytes).zipIdx.map fun (chunk, idx) =>
+    YulStmt.expr (YulExpr.call "mstore" [
+      YulExpr.call "add" [YulExpr.ident "__evt_ptr", YulExpr.lit (idx * 32)],
+      YulExpr.hex (wordFromBytes chunk)
+    ])
+  let topic0Expr := YulExpr.call "keccak256" [YulExpr.ident "__evt_ptr", YulExpr.lit sigBytes.length]
+  let topic0Store := YulStmt.let_ "__evt_topic0" topic0Expr
+  let unindexedHeadSize := eventUnindexedHeadSize unindexed
+  let hasUnindexedDynamicData := eventHasUnindexedDynamicData unindexed
   let unindexedTailInit :=
     if hasUnindexedDynamicData then
       [YulStmt.let_ "__evt_data_tail" (YulExpr.lit unindexedHeadSize)]
@@ -460,13 +566,8 @@ def compileEmit (fields : List Field) (events : List EventDef)
     | _ =>
         pure ([], argExpr)
   let indexedTopicStmts := indexedTopicParts.flatMap (·.1)
-  let topicExprs := [YulExpr.ident "__evt_topic0"] ++ indexedTopicParts.map (·.2)
-  let logFn := match indexed.length with
-    | 0 => "log1"
-    | 1 => "log2"
-    | 2 => "log3"
-    | _ => "log4"
-  let logArgs := [YulExpr.ident "__evt_ptr", dataSizeExpr] ++ topicExprs
+  let logFn := eventLogFunction indexed.length
+  let logArgs := eventLogArgs dataSizeExpr indexedTopicParts
   let logStmt := YulStmt.expr (YulExpr.call logFn logArgs)
   pure [YulStmt.block ([storePtr] ++ sigStores ++ [topic0Store] ++ indexedTopicStmts ++ unindexedTailInit ++ unindexedStores ++ [logStmt])]
 

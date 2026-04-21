@@ -11,7 +11,7 @@ namespace Compiler.CompilationModel
 open Compiler
 open Compiler.Yul
 
-private def isScalarParamType : ParamType → Bool
+def isScalarParamType : ParamType → Bool
   | ParamType.uint256 | ParamType.int256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 => true
   | _ => false
 
@@ -91,7 +91,7 @@ def genScalarLoad
       [YulStmt.let_ name (YulExpr.call "iszero" [YulExpr.call "iszero" [load]])]
   | _ => []
 
-private partial def genStaticTypeLoads
+def genStaticTypeLoads
     (loadWord : YulExpr → YulExpr) (name : String) (ty : ParamType) (offset : Nat) :
     List YulStmt :=
   match ty with
@@ -108,8 +108,10 @@ private partial def genStaticTypeLoads
             let elemName := s!"{name}_{idx}"
             let here := genStaticTypeLoads loadWord elemName elemTy curOffset
             here ++ go rest (idx + 1) (curOffset + paramHeadSize elemTy)
+        termination_by sizeOf tys
       go elemTys 0 offset
   | _ => []
+termination_by sizeOf ty
 
 -- Generate loading stmts for a single param by type. Recurses on ParamType for newtypeOf unwrapping.
 private def genSingleParamLoad

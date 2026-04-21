@@ -22,14 +22,14 @@ ALLOWED_MAPPING_ENCODING_IMPORTERS: set[Path] = set()
 
 REQUIRED_ABSTRACTION_IMPORTS = {
     PROOFS_DIR / "IRGeneration" / "IRInterpreter.lean",
-    PROOFS_DIR / "YulGeneration" / "Semantics.lean",
+    PROOFS_DIR / "YulGeneration" / "ReferenceOracle" / "Semantics.lean",
 }
 
 LEGACY_SYMBOL_FORBIDDEN_FILES = REQUIRED_ABSTRACTION_IMPORTS
 
-BUILTINS_FILE = PROOFS_DIR / "YulGeneration" / "Builtins.lean"
+BUILTINS_FILE = PROOFS_DIR / "YulGeneration" / "ReferenceOracle" / "Builtins.lean"
 IR_INTERPRETER_FILE = PROOFS_DIR / "IRGeneration" / "IRInterpreter.lean"
-YUL_SEMANTICS_FILE = PROOFS_DIR / "YulGeneration" / "Semantics.lean"
+YUL_SEMANTICS_FILE = PROOFS_DIR / "YulGeneration" / "ReferenceOracle" / "Semantics.lean"
 
 IMPORT_MAPPING_ENCODING_RE = re.compile(r"^\s*import\s+Compiler\.Proofs\.MappingEncoding\s*$", re.MULTILINE)
 IMPORT_MAPPING_SLOT_RE = re.compile(r"^\s*import\s+Compiler\.Proofs\.MappingSlot\s*$", re.MULTILINE)

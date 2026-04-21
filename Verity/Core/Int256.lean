@@ -110,7 +110,8 @@ def mul (a b : Int256) : Int256 := ofUint256 (a.word * b.word)
 
 def neg (value : Int256) : Int256 := ofUint256 <| Uint256.ofNat (modulus - value.word.val)
 
-private def signedAbsNat (value : Int) : Nat := Int.natAbs value
+/-- Absolute value as `Nat`. Exposed for downstream bridge proofs. -/
+def signedAbsNat (value : Int) : Nat := Int.natAbs value
 
 def div (a b : Int256) : Int256 :=
   let lhs : Int := a

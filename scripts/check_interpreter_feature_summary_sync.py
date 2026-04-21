@@ -70,9 +70,44 @@ def expected_summary_rows(matrix: dict) -> list[str]:
     if builtins_proved + builtins_remaining != len(builtin_features):
         raise ValueError("builtin_features contains non-boolean agreement_proved values")
 
+    # Sorry-dependent builtins: proved but core lemma depends on sorry
+    sorry_dependent = [
+        entry for entry in builtin_features
+        if entry.get("agreement_proved") is True and entry.get("sorry_dependent") is True
+    ]
+    fully_proved = builtins_proved - len(sorry_dependent)
+
+    # Concrete-only builtins: bridge supported but not yet universally proved
+    concrete_only = [
+        entry for entry in builtin_features
+        if entry.get("agreement_proved") is False and entry.get("evmyullean_bridge") == "supported"
+    ]
+    # Delegated builtins: remain on the Verity evaluation path
+    delegated = [
+        entry for entry in builtin_features
+        if entry.get("agreement_proved") is False and entry.get("evmyullean_bridge") == "delegated"
+    ]
+    if len(concrete_only) + len(delegated) != builtins_remaining:
+        raise ValueError("builtin_features has unproved entries that are neither concrete-only nor delegated")
+
+    # Build partial cell: sorry-dependent + concrete-only
+    partial_parts: list[str] = []
+    if sorry_dependent:
+        sorry_names = ", ".join(f"`{e['feature']}`" for e in sorry_dependent)
+        partial_parts.append(f"{sorry_names} — sorry-dependent")
+    if concrete_only:
+        concrete_names = ", ".join(f"`{e['feature']}`" for e in concrete_only)
+        partial_parts.append(f"{concrete_names} — concrete-only")
+    partial_total = len(sorry_dependent) + len(concrete_only)
+    if partial_total > 0:
+        partial_cell = f"{partial_total} ({'; '.join(partial_parts)})"
+    else:
+        partial_cell = "0"
+    not_modeled_cell = f"{len(delegated)} (delegated)"
+
     expr_cells = summarize(expr_features)
     stmt_cells = summarize(stmt_features)
-    builtin_row = f"| Builtins (agreement) | {builtins_proved} | 0 | 0 | {builtins_remaining} (delegated) |"
+    builtin_row = f"| Builtins (agreement) | {fully_proved} | 0 | {partial_cell} | {not_modeled_cell} |"
     return [
         f"| Expression features | {' | '.join(expr_cells)} |",
         f"| Statement features | {' | '.join(stmt_cells)} |",

@@ -1,7 +1,7 @@
 import Compiler.Yul.Ast
 import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.MappingSlot
-import Compiler.Proofs.YulGeneration.Builtins
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
 
 namespace Compiler.Proofs.YulGeneration
 
@@ -9,6 +9,15 @@ open Compiler
 open Compiler.Yul
 open Compiler.Proofs.IRGeneration
 open Compiler.Proofs
+
+/-!
+Reference oracle only.
+
+This module preserves Verity's historical `execYulFuel` runtime semantics for
+regression tests and bridge comparisons. EVMYulLean is the trusted semantic
+target for the current retargeting path; this file is not part of that trust
+boundary.
+-/
 
 /-! ## Yul Runtime Semantics (Layer 3 Foundation)
 
@@ -62,6 +71,23 @@ structure YulTransaction where
   functionSelector : Nat
   args : List Nat
   deriving Repr
+
+/-- Convert an IR transaction to a Yul transaction. -/
+@[reducible] def YulTransaction.ofIR (tx : IRTransaction) : YulTransaction :=
+  { sender := tx.sender
+    msgValue := tx.msgValue
+    thisAddress := tx.thisAddress
+    blockTimestamp := tx.blockTimestamp
+    blockNumber := tx.blockNumber
+    chainId := tx.chainId
+    blobBaseFee := tx.blobBaseFee
+    functionSelector := tx.functionSelector
+    args := tx.args }
+
+@[simp] theorem YulTransaction.ofIR_sender (tx : IRTransaction) :
+    (YulTransaction.ofIR tx).sender = tx.sender := rfl
+@[simp] theorem YulTransaction.ofIR_args (tx : IRTransaction) :
+    (YulTransaction.ofIR tx).args = tx.args := rfl
 
 /-- Initial state for Yul execution. -/
 def YulState.initial (tx : YulTransaction) (storage : Nat → Nat)
@@ -129,6 +155,10 @@ def evalYulCall (state : YulState) (func : String) : List YulExpr → Option Nat
       match argVals with
       | [offset] => some (state.memory offset)
       | _ => none
+    else if func = "keccak256" then
+      match argVals with
+      | [offset, size] => some (abstractKeccakMemorySlice state.memory offset size)
+      | _ => none
     else
       Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
         Compiler.Proofs.YulGeneration.defaultBuiltinBackend
@@ -152,6 +182,25 @@ decreasing_by
 end
 
 /-! ## Yul Statement Execution -/
+
+def YulState.appendYulLog (s : YulState) (offset size : Nat)
+    (topics : List Nat) : YulState :=
+  { s with events := s.events ++ [encodeYulLogEvent s.memory offset size topics] }
+
+def applyYulLogCall? (state : YulState) (func : String)
+    (argVals : List Nat) : Option YulState :=
+  match func, argVals with
+  | "log0", [offset, size] =>
+      some (state.appendYulLog offset size [])
+  | "log1", [offset, size, topic0] =>
+      some (state.appendYulLog offset size [topic0])
+  | "log2", [offset, size, topic0, topic1] =>
+      some (state.appendYulLog offset size [topic0, topic1])
+  | "log3", [offset, size, topic0, topic1, topic2] =>
+      some (state.appendYulLog offset size [topic0, topic1, topic2])
+  | "log4", [offset, size, topic0, topic1, topic2, topic3] =>
+      some (state.appendYulLog offset size [topic0, topic1, topic2, topic3])
+  | _, _ => none
 
 inductive YulExecResult
   | continue (state : YulState)
@@ -231,6 +280,18 @@ def execYulFuel : Nat → YulState → YulExecTarget → YulExecResult
                         .return 0 state
                   | _, _ => .revert state
               | .call "revert" [_, _] => .revert state
+              | .call func args =>
+                  if isYulLogName func then
+                    match evalYulExprs state args with
+                    | some argVals =>
+                        match applyYulLogCall? state func argVals with
+                        | some next => .continue next
+                        | none => .revert state
+                    | none => .revert state
+                  else
+                    match evalYulExpr state e with
+                    | some _ => .continue state
+                    | none => .revert state
               | _ =>
                   match evalYulExpr state e with
                   | some _ => .continue state

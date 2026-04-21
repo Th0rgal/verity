@@ -5,7 +5,7 @@
 <h1 align="center">Verity</h1>
 
 <p align="center">
-  <strong>A formally verified smart contract compiler. Read the <a href="https://www.lfglabs.dev/verity">paper</a>.</strong>
+  <strong>A formally verified smart contract compiler. Read the <a href="https://lfglabs.dev/research/verity">paper</a>.</strong>
 </p>
 
 <p align="center">
@@ -92,13 +92,14 @@ Verity is complementary to these tools. It is for cases where you need mathemati
 | [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md) | Theorem counts, proof status, test coverage |
 | [TRUST_ASSUMPTIONS.md](TRUST_ASSUMPTIONS.md) | What is verified vs. what is trusted |
 | [AXIOMS.md](AXIOMS.md) | Documented axioms (currently 0) |
+| [AUDIT.md](AUDIT.md) | Trust-boundary audit evidence and CI guards |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |
 
 ### Research
 
-- [Verity: A Formally Verified Smart Contract Compiler](https://www.lfglabs.dev/verity)
-- [Verity Benchmark: AI-Driven Proof Generation](https://www.lfglabs.dev/verity-benchmark)
-- [What is a formal proof?](https://www.lfglabs.dev/what-is-a-formal-proof)
+- [Verity: A Formally Verified Smart Contract Compiler](https://lfglabs.dev/research/verity)
+- [Verity Benchmark: AI-Driven Proof Generation](https://lfglabs.dev/research/verity-benchmark)
+- [What is a formal proof?](https://lfglabs.dev/research/what-is-a-formal-proof)
 
 ## Support
 

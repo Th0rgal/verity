@@ -96,6 +96,33 @@ structurally via `Compiler/Keccak/SpongeProperties.lean`.
 - End-to-end regression suites that exercise mapping reads/writes.
 - CI cross-checks kernel Keccak output against FFI Keccak output.
 
+## EVMYulLean Runtime Semantics (Non-Axiom)
+
+**Location**:
+`Compiler/Proofs/YulGeneration/Backends/EvmYulLean*.lean`,
+`lake-manifest.json`, `artifacts/evmyullean_fork_audit.json`
+
+**Role**:
+EVMYulLean is the authoritative Yul runtime target for the safe-body EndToEnd
+retargeting path. This is not a Lean axiom: Verity proves the adapter, builtin
+bridge, recursive target equality, safe-body closure, and public EndToEnd
+wrappers in Lean, then trusts that the pinned EVMYulLean execution model matches
+the EVM.
+
+**What we trust**:
+- The pinned `lfglabs-dev/EVMYulLean` fork matches the intended EVM/Yul
+  semantics inherited from upstream `NethermindEth/EVMYulLean`.
+- The audited fork delta remains non-semantic unless explicitly reviewed.
+
+**Soundness controls**:
+- `make check` validates the fork-audit artifact against `lake-manifest.json`.
+- `make test-evmyullean-fork` rechecks the fork audit, checks the adapter
+  report, rebuilds adapter correctness and the public EndToEnd EVMYulLean
+  target, and runs the concrete `native_decide` bridge-equivalence tests.
+- `.github/workflows/evmyullean-fork-conformance.yml` runs the conformance probe
+  weekly; after the burn-in ending 2026-05-04, scheduled/manual failures fail
+  the workflow and open or update a GitHub issue for drift triage.
+
 ## External Call Module (ECM) Assumptions
 
 When your contract calls an external contract (like an ERC-20 token), Verity
@@ -146,12 +173,14 @@ scoped to contracts that use the module.
 
 ## Non-Axiom: Arithmetic
 
-All 15 low-level EVM arithmetic builtins are **proven correct** — not assumed.
+All 25 pure EVM arithmetic builtins have universal bridge equivalence lemmas
+(all 25 fully proven).
 The proofs show that Verity's arithmetic matches EVM arithmetic (wrapping at
 2^256) for *all* possible inputs, not just test cases. The EVMYulLean bridge
-currently has universal equivalence lemmas for 15 of them (`add`, `sub`, `mul`,
-`div`, `mod`, `lt`, `gt`, `eq`, `iszero`, `and`, `or`, `xor`, `not`, `shl`,
-`shr`), with no remaining pure builtins relying only on concrete bridge checks.
+currently has universal equivalence lemmas for 25 of them (`add`, `sub`, `mul`,
+`div`, `mod`, `addmod`, `mulmod`, `exp`, `sdiv`, `smod`, `lt`, `gt`, `slt`, `sgt`, `eq`, `iszero`, `and`, `or`,
+`xor`, `not`, `shl`, `shr`, `sar`, `signextend`, `byte`),
+with no remaining pure builtins relying only on concrete bridge checks.
 
 Additionally, 8 higher-level expression operators have proven compilation
 correctness in the `ExprCompileCore` fragment: `min`, `max`, `ceilDiv`, `ite`

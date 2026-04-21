@@ -1,5 +1,5 @@
 import Compiler.Proofs.YulGeneration.Equivalence
-import Compiler.Proofs.YulGeneration.Semantics
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 import Compiler.Proofs.IRGeneration.IRInterpreter
 
 namespace Compiler.Proofs.YulGeneration
@@ -75,6 +75,62 @@ end
 attribute [simp] evalIRExpr_eq_evalYulExpr evalIRExprs_eq_evalYulExprs evalIRCall_eq_evalYulCall
 
 /-! ## Proven Theorems -/
+
+private theorem applyYulLogCall?_aligned
+    (selector : Nat) (irState : IRState) (func : String) (argVals : List Nat) :
+    applyYulLogCall? (yulStateOfIR selector irState) func argVals =
+      (IRGeneration.applyYulLogCall? irState func argVals).map
+        (fun next => yulStateOfIR selector next) := by
+  cases argVals with
+  | nil => simp [applyYulLogCall?, IRGeneration.applyYulLogCall?]
+  | cons a rest =>
+      cases rest with
+      | nil => simp [applyYulLogCall?, IRGeneration.applyYulLogCall?]
+      | cons b rest =>
+          cases rest with
+          | nil =>
+              by_cases h0 : func = "log0" <;>
+                simp [applyYulLogCall?, IRGeneration.applyYulLogCall?,
+                  YulState.appendYulLog, IRState.appendYulLog, yulStateOfIR, h0]
+          | cons c rest =>
+              cases rest with
+              | nil =>
+                  by_cases h1 : func = "log1" <;>
+                    simp [applyYulLogCall?, IRGeneration.applyYulLogCall?,
+                      YulState.appendYulLog, IRState.appendYulLog, yulStateOfIR, h1]
+              | cons d rest =>
+                  cases rest with
+                  | nil =>
+                      by_cases h2 : func = "log2" <;>
+                        simp [applyYulLogCall?, IRGeneration.applyYulLogCall?,
+                          YulState.appendYulLog, IRState.appendYulLog, yulStateOfIR, h2]
+                  | cons e rest =>
+                      cases rest with
+                      | nil =>
+                          by_cases h3 : func = "log3" <;>
+                            simp [applyYulLogCall?, IRGeneration.applyYulLogCall?,
+                              YulState.appendYulLog, IRState.appendYulLog, yulStateOfIR, h3]
+                      | cons f rest =>
+                          cases rest with
+                          | nil =>
+                              by_cases h4 : func = "log4" <;>
+                                simp [applyYulLogCall?, IRGeneration.applyYulLogCall?,
+                                  YulState.appendYulLog, IRState.appendYulLog, yulStateOfIR, h4]
+                          | cons _ _ =>
+                              simp [applyYulLogCall?, IRGeneration.applyYulLogCall?]
+
+private theorem execResultsAligned_log_call
+    (selector : Nat) (irState : IRState) (func : String) (argVals : List Nat) :
+    execResultsAligned selector
+      (match IRGeneration.applyYulLogCall? irState func argVals with
+      | some next => IRExecResult.continue next
+      | none => IRExecResult.revert irState)
+      (match applyYulLogCall? (yulStateOfIR selector irState) func argVals with
+      | some next => YulExecResult.continue next
+      | none => YulExecResult.revert (yulStateOfIR selector irState)) := by
+  rw [applyYulLogCall?_aligned]
+  cases IRGeneration.applyYulLogCall? irState func argVals <;>
+    simp [execResultsAligned, statesAligned]
 
 theorem assign_equiv (selector : Nat) (fuel : Nat) (varName : String) (valueExpr : YulExpr)
     (irState : IRState) (yulState : YulState)
@@ -202,7 +258,21 @@ private theorem stmt_and_stmts_equiv :
                   simp only [evalIRExpr_eq_evalYulExpr selector, yulStateOfIR] at *
                   repeat' split
                   all_goals simp_all only [execResultsAligned, statesAligned, yulStateOfIR, and_self, and_true, true_and, Option.some.injEq, not_true_eq_false, Bool.false_eq_true]
-                · -- catch-all: match on eval of full expr
+                · -- log call or generic call: match on log dispatch, then eval/log result
+                  rename_i funcLog argsLog _ _ _ _ _ _
+                  simp only [evalIRExpr_eq_evalYulExpr selector,
+                    evalIRExprs_eq_evalYulExprs selector, yulStateOfIR] at *
+                  split
+                  · split
+                    · rename_i values hargs
+                      simpa [hargs] using
+                        execResultsAligned_log_call selector irState _ values
+                    · rename_i hargs
+                      simp [hargs, execResultsAligned, statesAligned, yulStateOfIR]
+                  · split <;>
+                      simp_all only [execResultsAligned, statesAligned, yulStateOfIR,
+                        and_self, and_true, true_and, Option.some.injEq]
+                · -- non-call catch-all: match on eval of full expr
                   simp only [evalIRExpr_eq_evalYulExpr selector, yulStateOfIR] at *
                   split <;> simp_all only [execResultsAligned, statesAligned, yulStateOfIR, and_self, and_true, true_and, Option.some.injEq]
             | lit val =>

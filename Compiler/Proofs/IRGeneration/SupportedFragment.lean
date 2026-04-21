@@ -93,6 +93,34 @@ inductive SupportedStmtList (fields : List Field) : List String → List Stmt �
         some ({ name := fieldName, ty := FieldType.address }, slot) →
       fieldName ∈ scope →
       SupportedStmtList fields scope [Stmt.letVar tmp (Expr.storageAddr fieldName)]
+  | assignStorageField
+      {scope : List String}
+      {name : String}
+      {fieldName : String}
+      {slot : Nat} :
+      findFieldWithResolvedSlot fields fieldName =
+        some ({ name := fieldName, ty := FieldType.uint256 }, slot) →
+      fieldName ∈ scope →
+      SupportedStmtList fields scope [Stmt.assignVar name (Expr.storage fieldName)]
+  | assignStorageAddrField
+      {scope : List String}
+      {name : String}
+      {fieldName : String}
+      {slot : Nat} :
+      findFieldWithResolvedSlot fields fieldName =
+        some ({ name := fieldName, ty := FieldType.address }, slot) →
+      fieldName ∈ scope →
+      SupportedStmtList fields scope [Stmt.assignVar name (Expr.storageAddr fieldName)]
+  /-- Event emission: evaluates all argument expressions and continues execution.
+  Events are state-preserving side effects (they don't modify storage, memory,
+  or bindings). -/
+  | emitEvent
+      {scope : List String}
+      {eventName : String}
+      {args : List Expr} :
+      (∀ arg ∈ args, FunctionBody.ExprCompileCore arg) →
+      (∀ arg ∈ args, FunctionBody.exprBoundNamesInScope arg scope) →
+      SupportedStmtList fields scope [Stmt.emit eventName args]
   | letMappingField
       {scope : List String}
       {tmp : String}
