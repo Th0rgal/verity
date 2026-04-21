@@ -523,6 +523,9 @@ private def parseAdtDecl (newtypes : Array NewtypeDecl) (stx : Syntax) : Command
       let parsedVariants ← variants.mapM (parseAdtVariant newtypes)
       if parsedVariants.isEmpty then
         throwErrorAt name s!"ADT '{toString name.getId}' must have at least one variant"
+      if parsedVariants.size > 256 then
+        throwErrorAt name
+          s!"ADT '{toString name.getId}' has {parsedVariants.size} variants, but ADT tags are encoded as Uint8 and support at most 256 variants"
       -- Validate: no duplicate variant names within this ADT
       let mut seenVariantNames : Array String := #[]
       for v in parsedVariants do
