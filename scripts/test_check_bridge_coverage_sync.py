@@ -339,6 +339,23 @@ class BridgeCoverageSyncTests(unittest.TestCase):
         admitted = check.extract_admitted_builtins(text)
         self.assertEqual(admitted, ["exp", "sar"])
 
+    def test_extract_admitted_tracks_transitive_helper_dependencies(self) -> None:
+        text = textwrap.dedent("""\
+            private theorem core_sorry : True := by
+              sorry
+
+            private theorem wrapped_core : True := by
+              exact core_sorry
+
+            @[simp] theorem evalBuiltinCall_sar_bridge := by
+              exact wrapped_core
+
+            @[simp] theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+        """)
+        admitted = check.extract_admitted_builtins(text)
+        self.assertEqual(admitted, ["sar"])
+
     def test_extract_admitted_resets_helper_sorry_at_scope_boundary(self) -> None:
         text = textwrap.dedent("""\
             namespace Scratch

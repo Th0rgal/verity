@@ -58,14 +58,21 @@ def eventDefScalarCompileSupported (eventDef : EventDef) : Bool :=
   eventDef.params.all (fun param => eventParamScalarCompileSupported param.ty) &&
     (eventDef.params.filter (fun param => param.kind == EventParamKind.indexed)).length <= 3
 
+def scalarEventUnindexedStoresFrom
+    (unindexed : List (EventParam × Expr × YulExpr)) (headOffset : Nat) :
+    List YulStmt :=
+  match unindexed with
+  | [] => []
+  | (p, _, argExpr) :: rest =>
+      YulStmt.expr (YulExpr.call "mstore" [
+        YulExpr.call "add" [YulExpr.ident "__evt_ptr", YulExpr.lit headOffset],
+        normalizeEventWord p.ty argExpr
+      ]) :: scalarEventUnindexedStoresFrom rest (headOffset + eventHeadWordSize p.ty)
+
 def scalarEventUnindexedStores
     (unindexed : List (EventParam × Expr × YulExpr)) :
     List YulStmt :=
-  unindexed.zipIdx.map fun ((p, _, argExpr), idx) =>
-    YulStmt.expr (YulExpr.call "mstore" [
-      YulExpr.call "add" [YulExpr.ident "__evt_ptr", YulExpr.lit (idx * 32)],
-      normalizeEventWord p.ty argExpr
-    ])
+  scalarEventUnindexedStoresFrom unindexed 0
 
 def scalarEventIndexedTopicParts
     (indexed : List (EventParam × Expr × YulExpr)) :

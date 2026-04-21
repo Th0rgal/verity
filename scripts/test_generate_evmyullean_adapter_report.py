@@ -234,6 +234,25 @@ class ParseBridgeLemmasTests(unittest.TestCase):
         self.assertEqual(all_lemmas, ["add", "exp", "sar"])
         self.assertEqual(admitted, ["exp", "sar"])
 
+    def test_tracks_transitive_admitted_helper_dependencies(self) -> None:
+        p = self._write_lemma_file("""\
+            private theorem core_sorry : True := by
+              sorry
+
+            private theorem wrapped_core : True := by
+              exact core_sorry
+
+            theorem evalBuiltinCall_sar_bridge := by
+              exact wrapped_core
+
+            theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+        """)
+        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+            all_lemmas, admitted = gen._parse_bridge_lemmas()
+        self.assertEqual(all_lemmas, ["add", "sar"])
+        self.assertEqual(admitted, ["sar"])
+
     def test_resets_sorry_helper_at_scope_boundary(self) -> None:
         p = self._write_lemma_file("""\
             namespace Scratch

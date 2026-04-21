@@ -231,27 +231,28 @@ def extract_admitted_builtins(text: str) -> list[str]:
     code = _strip_lean_strings(_strip_lean_comments(text))
     sorry_re = re.compile(r"\bsorry\b")
     admitted: set[str] = set()
-    sorry_helpers: set[str] = set()
+    admitted_helpers: set[str] = set()
     anonymous_helper_sorry = False
     for start, end, name, is_bridge, is_scope in _top_level_blocks(code):
         body = code[start:end]
         body_has_sorry = sorry_re.search(body) is not None
+        referenced_admitted_helper = any(
+            re.search(rf"\b{re.escape(helper)}\b", body)
+            for helper in admitted_helpers
+        )
         bridge_match = BRIDGE_DECL_RE.match(body)
         if is_scope:
-            sorry_helpers.clear()
+            admitted_helpers.clear()
             anonymous_helper_sorry = False
         elif bridge_match:
             bridge = bridge_match.group(1)
-            helper_used = any(
-                re.search(rf"\b{re.escape(helper)}\b", body)
-                for helper in sorry_helpers
-            )
-            if body_has_sorry or helper_used or anonymous_helper_sorry:
+            if body_has_sorry or referenced_admitted_helper or anonymous_helper_sorry:
                 admitted.add(bridge)
             anonymous_helper_sorry = False
-        elif body_has_sorry:
+        elif body_has_sorry or referenced_admitted_helper or anonymous_helper_sorry:
             if name:
-                sorry_helpers.add(name)
+                admitted_helpers.add(name)
+                anonymous_helper_sorry = False
             else:
                 anonymous_helper_sorry = True
     return [name for name in PURE_BUILTINS if name in admitted]

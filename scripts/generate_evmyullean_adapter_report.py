@@ -303,27 +303,28 @@ def _parse_bridge_lemmas() -> tuple[list[str], list[str]]:
         r'theorem\s+evalBuiltinCall_(\w+)_bridge\b'
     )
     admitted: set[str] = set()
-    sorry_helpers: set[str] = set()
+    admitted_helpers: set[str] = set()
     anonymous_helper_sorry = False
     for start, end, name, is_scope in _top_level_blocks(code):
         body = code[start:end]
         body_has_sorry = sorry_re.search(body) is not None
+        referenced_admitted_helper = any(
+            re.search(rf'\b{re.escape(helper)}\b', body)
+            for helper in admitted_helpers
+        )
         bridge_match = bridge_name_re.match(body)
         if is_scope:
-            sorry_helpers.clear()
+            admitted_helpers.clear()
             anonymous_helper_sorry = False
         elif bridge_match:
             bridge = bridge_match.group(1)
-            helper_used = any(
-                re.search(rf'\b{re.escape(helper)}\b', body)
-                for helper in sorry_helpers
-            )
-            if body_has_sorry or helper_used or anonymous_helper_sorry:
+            if body_has_sorry or referenced_admitted_helper or anonymous_helper_sorry:
                 admitted.add(bridge)
             anonymous_helper_sorry = False
-        elif body_has_sorry:
+        elif body_has_sorry or referenced_admitted_helper or anonymous_helper_sorry:
             if name:
-                sorry_helpers.add(name)
+                admitted_helpers.add(name)
+                anonymous_helper_sorry = False
             else:
                 anonymous_helper_sorry = True
     return all_lemmas, sorted(admitted)
