@@ -2044,6 +2044,8 @@ theorem findDynamicArrayElementAtSlot_withTransactionContext
           simpa [findDynamicArrayElementAtSlot.go, withTransactionContext, hty] using ih (idx + 1)
       | address =>
           simpa [findDynamicArrayElementAtSlot.go, withTransactionContext, hty] using ih (idx + 1)
+      | adt name maxFields =>
+          simpa [findDynamicArrayElementAtSlot.go, withTransactionContext, hty] using ih (idx + 1)
       | dynamicArray elemType =>
           cases hscan :
               findDynamicArrayElementAtSlot.scanElements slot
@@ -2083,6 +2085,8 @@ theorem findDynamicArrayElementAtSlot_congr_storageArray
       | uint256 =>
           simpa [findDynamicArrayElementAtSlot.go, hty] using ih (idx + 1)
       | address =>
+          simpa [findDynamicArrayElementAtSlot.go, hty] using ih (idx + 1)
+      | adt name maxFields =>
           simpa [findDynamicArrayElementAtSlot.go, hty] using ih (idx + 1)
       | dynamicArray elemType =>
           cases hscan :
