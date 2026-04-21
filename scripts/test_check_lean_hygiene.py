@@ -256,6 +256,14 @@ class SorryAllowlistTests(HygieneFixtureTestBase):
         self.assertNotEqual(rc, 0)
         self.assertIn("non-allowlisted files", output)
 
+    def test_multiple_sorry_tokens_on_one_line_are_counted(self) -> None:
+        rogue = self.root / "Compiler" / "Rogue.lean"
+        rogue.write_text("theorem bad : True := by sorry; sorry\n", encoding="utf-8")
+        rc, output = self._run_main()
+        self.assertNotEqual(rc, 0)
+        self.assertIn("Compiler/Rogue.lean:1:26", output)
+        self.assertIn("Compiler/Rogue.lean:1:33", output)
+
     def test_sorry_in_comment_ignored(self) -> None:
         lean_file = self.root / "Compiler" / "Commented.lean"
         lean_file.write_text("-- sorry this is a comment\n", encoding="utf-8")

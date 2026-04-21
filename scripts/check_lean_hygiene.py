@@ -115,21 +115,23 @@ def main() -> None:
         rel_str = str(rel)
         scrubbed_lines = scrub_lean_code(lean_file.read_text(encoding="utf-8")).splitlines()
         for i, line in enumerate(scrubbed_lines, 1):
-            if SORRY_RE.search(line):
+            matches = list(SORRY_RE.finditer(line))
+            for match in matches:
                 sorry_count += 1
-                loc = f"{rel}:{i}"
+                loc = f"{rel}:{i}:{match.start() + 1}"
                 sorry_locations.append(loc)
                 if rel_str not in ALLOWED_SORRY_THEOREMS:
                     unexpected_sorry_locations.append(loc)
+                    continue
+
+                sorry_per_file[rel_str] = sorry_per_file.get(rel_str, 0) + 1
+                thm = _find_enclosing_theorem(scrubbed_lines, i - 1)
+                if thm:
+                    theorem_counts = sorry_counts_per_theorem.setdefault(rel_str, {})
+                    theorem_counts[thm] = theorem_counts.get(thm, 0) + 1
                 else:
-                    sorry_per_file[rel_str] = sorry_per_file.get(rel_str, 0) + 1
-                    thm = _find_enclosing_theorem(scrubbed_lines, i - 1)
-                    if thm:
-                        theorem_counts = sorry_counts_per_theorem.setdefault(rel_str, {})
-                        theorem_counts[thm] = theorem_counts.get(thm, 0) + 1
-                    else:
-                        # sorry not inside any theorem/lemma/def — flag it
-                        unexpected_sorry_locations.append(loc)
+                    # sorry not inside any theorem/lemma/def — flag it
+                    unexpected_sorry_locations.append(loc)
 
     if unexpected_sorry_locations:
         errors.append(

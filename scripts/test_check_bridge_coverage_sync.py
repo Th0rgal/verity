@@ -278,6 +278,27 @@ class BridgeCoverageSyncTests(unittest.TestCase):
         universal = check.extract_universal_builtins(text)
         self.assertEqual(universal, ["add"])
 
+    def test_extract_universal_ignores_string_literal_theorem_text(self) -> None:
+        text = textwrap.dedent('''\
+            def msg : String :=
+              "@[simp] theorem evalBuiltinCall_exp_bridge := by exact trivial"
+
+            @[simp] theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+        ''')
+        universal = check.extract_universal_builtins(text)
+        self.assertEqual(universal, ["add"])
+
+    def test_extract_universal_ignores_indented_local_theorem(self) -> None:
+        text = textwrap.dedent("""\
+            @[simp] theorem evalBuiltinCall_add_bridge := by
+              local theorem evalBuiltinCall_exp_bridge : True := by
+                trivial
+              exact trivial
+        """)
+        universal = check.extract_universal_builtins(text)
+        self.assertEqual(universal, ["add"])
+
     def test_extract_admitted_keeps_comment_markers_inside_strings(self) -> None:
         text = textwrap.dedent("""\
             private theorem byte_status : String := "INT256_MIN/-1 overflow"
@@ -290,6 +311,60 @@ class BridgeCoverageSyncTests(unittest.TestCase):
         """)
         admitted = check.extract_admitted_builtins(text)
         self.assertEqual(admitted, ["byte"])
+
+    def test_extract_admitted_ignores_sorry_in_string_literals(self) -> None:
+        text = textwrap.dedent('''\
+            private theorem helper : String := "sorry is documentation text"
+
+            @[simp] theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+        ''')
+        admitted = check.extract_admitted_builtins(text)
+        self.assertEqual(admitted, [])
+
+    def test_extract_admitted_marks_each_bridge_using_sorry_helper(self) -> None:
+        text = textwrap.dedent("""\
+            private theorem shared_core : True := by
+              sorry
+
+            @[simp] theorem evalBuiltinCall_exp_bridge := by
+              exact shared_core
+
+            @[simp] theorem evalBuiltinCall_sar_bridge := by
+              exact shared_core
+
+            @[simp] theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+        """)
+        admitted = check.extract_admitted_builtins(text)
+        self.assertEqual(admitted, ["exp", "sar"])
+
+    def test_extract_admitted_resets_helper_sorry_at_scope_boundary(self) -> None:
+        text = textwrap.dedent("""\
+            namespace Scratch
+            private theorem scoped_core : True := by
+              sorry
+            end Scratch
+
+            @[simp] theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+        """)
+        admitted = check.extract_admitted_builtins(text)
+        self.assertEqual(admitted, [])
+
+    def test_extract_admitted_handles_anonymous_instance_boundary(self) -> None:
+        text = textwrap.dedent("""\
+            @[simp] theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+
+            instance : Inhabited True := by
+              sorry
+
+            @[simp] theorem evalBuiltinCall_exp_bridge := by
+              exact trivial
+        """)
+        admitted = check.extract_admitted_builtins(text)
+        self.assertEqual(admitted, ["exp"])
 
     def test_admitted_qualifier_generates_parenthetical(self) -> None:
         q = check._admitted_qualifier(["exp", "slt", "sgt"])

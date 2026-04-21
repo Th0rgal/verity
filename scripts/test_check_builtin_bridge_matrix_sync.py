@@ -218,6 +218,36 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
             check.EXPECTED_BUILTINS = old_expected
             check.ADMITTED_BUILTINS = old_admitted
 
+    def test_expected_builtin_without_category_fails_closed(self) -> None:
+        old_expected = check.EXPECTED_BUILTINS
+        old_proved = check.PROVED_BUILTINS
+        old_concrete = check.CONCRETE_ONLY_BUILTINS
+        old_delegated = check.DELEGATED_BUILTINS
+        try:
+            check.PROVED_BUILTINS = [b for b in old_proved if b != "add"]
+            check.CONCRETE_ONLY_BUILTINS = [b for b in old_concrete if b != "add"]
+            check.DELEGATED_BUILTINS = [b for b in old_delegated if b != "add"]
+            check.EXPECTED_BUILTINS = old_expected
+            features = _make_builtin_features(
+                proved=check.PROVED_BUILTINS,
+                concrete_only=check.CONCRETE_ONLY_BUILTINS,
+                delegated=check.DELEGATED_BUILTINS,
+            )
+            features.insert(0, {
+                "feature": "add",
+                "verity_path": "supported",
+                "evmyullean_bridge": "supported",
+                "agreement_proved": True,
+            })
+            matrix = {"builtin_features": features}
+            with self.assertRaisesRegex(ValueError, "not categorized"):
+                check.validate_builtin_features(matrix)
+        finally:
+            check.EXPECTED_BUILTINS = old_expected
+            check.PROVED_BUILTINS = old_proved
+            check.CONCRETE_ONLY_BUILTINS = old_concrete
+            check.DELEGATED_BUILTINS = old_delegated
+
     def test_adapter_report_admitted_set_drives_validation(self) -> None:
         """Repository check should use the adapter report, not the fallback constant."""
         features = _make_builtin_features()

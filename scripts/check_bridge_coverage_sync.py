@@ -103,6 +103,80 @@ def _strip_lean_comments(text: str) -> str:
     return "".join(result)
 
 
+def _strip_lean_strings(text: str) -> str:
+    """Blank Lean string literal contents while preserving line structure."""
+    result: list[str] = []
+    i = 0
+    n = len(text)
+    in_string = False
+    escape = False
+    while i < n:
+        ch = text[i]
+        if in_string:
+            if ch == "\n":
+                result.append("\n")
+                escape = False
+            else:
+                result.append(" ")
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            i += 1
+            continue
+        if ch == '"':
+            in_string = True
+            result.append(" ")
+            i += 1
+            continue
+        result.append(ch)
+        i += 1
+    return "".join(result)
+
+
+DECL_KEYWORDS = (
+    r"theorem|lemma|def|abbrev|instance|example|opaque|axiom|constant|"
+    r"inductive|structure|class"
+)
+MODIFIERS = r"(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*"
+TOP_LEVEL_DECL_RE = re.compile(
+    rf"(?m)^(?:{MODIFIERS}(?:{DECL_KEYWORDS})(?:\s+([A-Za-z_][A-Za-z0-9_']*))?\b|"
+    r"(section|namespace|end)\b)"
+)
+BRIDGE_DECL_RE = re.compile(
+    rf"{MODIFIERS}theorem\s+evalBuiltinCall_([A-Za-z0-9]+)_bridge\b",
+    flags=re.DOTALL,
+)
+
+
+def _top_level_blocks(code: str) -> list[tuple[int, int, str | None, bool, bool]]:
+    """Return top-level declaration/scope blocks.
+
+    Each tuple is ``(start, end, declaration_name, is_bridge, is_scope_boundary)``.
+    The matcher is intentionally anchored at column 0 so local declarations in
+    theorem bodies remain inside the enclosing theorem block.
+    """
+    matches = list(TOP_LEVEL_DECL_RE.finditer(code))
+    blocks: list[tuple[int, int, str | None, bool, bool]] = []
+    for idx, match in enumerate(matches):
+        start = match.start()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(code)
+        block = code[start:end]
+        bridge_match = BRIDGE_DECL_RE.match(block)
+        blocks.append(
+            (
+                start,
+                end,
+                match.group(1),
+                bridge_match is not None,
+                match.group(2) is not None,
+            )
+        )
+    return blocks
+
+
 def normalize_ws(text: str) -> str:
     return " ".join(text.split())
 
@@ -130,16 +204,11 @@ def plain_code_subject(names: list[str]) -> str:
 
 
 def extract_universal_builtins(text: str) -> list[str]:
-    code = _strip_lean_comments(text)
-    # Match across line breaks so that valid Lean formatting like
-    # ``@[simp]\ntheorem evalBuiltinCall_add_bridge`` is recognised.
+    code = _strip_lean_strings(_strip_lean_comments(text))
     found = {
-        match.group(1)
-        for match in re.finditer(
-            r"@\[simp\]\s+theorem\s+evalBuiltinCall_([A-Za-z0-9]+)_bridge\b",
-            code,
-            flags=re.DOTALL,
-        )
+        BRIDGE_DECL_RE.match(code[start:end]).group(1)
+        for start, end, _name, is_bridge, _is_scope in _top_level_blocks(code)
+        if is_bridge and BRIDGE_DECL_RE.match(code[start:end])
     }
     return [name for name in PURE_BUILTINS if name in found]
 
@@ -159,41 +228,32 @@ def extract_admitted_builtins(text: str) -> list[str]:
     The ``@[simp]`` attribute and the ``theorem`` header may span
     multiple lines.
     """
-    code = _strip_lean_comments(text)
+    code = _strip_lean_strings(_strip_lean_comments(text))
     sorry_re = re.compile(r"\bsorry\b")
-    decl_keywords = (
-        r"theorem|lemma|def|abbrev|instance|example|opaque|axiom|constant|"
-        r"inductive|structure|class"
-    )
-    boundary_re = re.compile(
-        r"(?m)^(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*"
-        rf"(?:{decl_keywords})\s+(\w+)"
-    )
-    bridge_name_re = re.compile(
-        r"(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*"
-        r"theorem\s+evalBuiltinCall_([A-Za-z0-9]+)_bridge\b",
-        flags=re.DOTALL,
-    )
-
-    declarations = [(m.start(), m.group(1)) for m in boundary_re.finditer(code)]
     admitted: set[str] = set()
-    pending_helper_sorry = False
-    for idx, (start, _name) in enumerate(declarations):
-        end = (
-            declarations[idx + 1][0]
-            if idx + 1 < len(declarations)
-            else len(code)
-        )
+    sorry_helpers: set[str] = set()
+    anonymous_helper_sorry = False
+    for start, end, name, is_bridge, is_scope in _top_level_blocks(code):
         body = code[start:end]
         body_has_sorry = sorry_re.search(body) is not None
-        bridge_match = bridge_name_re.match(body)
-        if bridge_match:
+        bridge_match = BRIDGE_DECL_RE.match(body)
+        if is_scope:
+            sorry_helpers.clear()
+            anonymous_helper_sorry = False
+        elif bridge_match:
             bridge = bridge_match.group(1)
-            if body_has_sorry or pending_helper_sorry:
+            helper_used = any(
+                re.search(rf"\b{re.escape(helper)}\b", body)
+                for helper in sorry_helpers
+            )
+            if body_has_sorry or helper_used or anonymous_helper_sorry:
                 admitted.add(bridge)
-            pending_helper_sorry = False
+            anonymous_helper_sorry = False
         elif body_has_sorry:
-            pending_helper_sorry = True
+            if name:
+                sorry_helpers.add(name)
+            else:
+                anonymous_helper_sorry = True
     return [name for name in PURE_BUILTINS if name in admitted]
 
 

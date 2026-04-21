@@ -54,13 +54,13 @@ BRIDGE_LEMMA_RE = re.compile(
 # Regex for context-lifted bridge theorems:
 # evalBuiltinCallWithBackendContext_evmYulLean_NAME_bridge
 CONTEXT_BRIDGE_RE = re.compile(
-    r'theorem\s+evalBuiltinCallWithBackendContext_evmYulLean_(\w+)_bridge\b'
+    r'evalBuiltinCallWithBackendContext_evmYulLean_(\w+)_bridge\b'
 )
 
 # Regex for fallthrough (none) theorems:
 # evalBuiltinCallWithBackendContext_evmYulLean_NAME_none
 FALLTHROUGH_RE = re.compile(
-    r'theorem\s+evalBuiltinCallWithBackendContext_evmYulLean_(\w+)_none\b'
+    r'evalBuiltinCallWithBackendContext_evmYulLean_(\w+)_none\b'
 )
 
 # Regex for bridgedBuiltins/unbridgedBuiltins definitions
@@ -100,8 +100,19 @@ CORRECTNESS_THEOREM_RE = re.compile(
 )
 DECLARATION_RE = re.compile(
     r"^(?:@\[[^\]]*\]\s*)*(?:(?:noncomputable|private|protected|unsafe|partial|local)\s+)*"
-    r"(?:theorem|lemma|def|abbrev|instance|opaque|structure|class|inductive)\b",
+    r"(?:theorem|lemma|def|abbrev|instance|example|opaque|axiom|constant|structure|class|inductive)\b"
+    r"|^(?:section|namespace|end)\b",
     re.MULTILINE,
+)
+
+DECL_KEYWORDS = (
+    r"theorem|lemma|def|abbrev|instance|example|opaque|axiom|constant|"
+    r"inductive|structure|class"
+)
+MODIFIERS = r"(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*"
+TOP_LEVEL_DECL_RE = re.compile(
+    rf"(?m)^(?:{MODIFIERS}(?:{DECL_KEYWORDS})(?:\s+([A-Za-z_][A-Za-z0-9_']*))?\b|"
+    r"(section|namespace|end)\b)"
 )
 
 
@@ -271,15 +282,10 @@ def _parse_bridge_lemmas() -> tuple[list[str], list[str]]:
     if not BRIDGE_LEMMAS_FILE.exists():
         raise FileNotFoundError(f"Bridge lemmas file not found: {BRIDGE_LEMMAS_FILE}")
     text = BRIDGE_LEMMAS_FILE.read_text(encoding="utf-8")
-    code = _strip_lean_comments(text)
-    # Filter out matches whose start position lies inside a Lean string literal
-    # so that theorem-shaped text embedded in a quoted string (e.g. an error
-    # message or doc reference) cannot be counted as a real bridge theorem.
-    in_string_mask = _compute_in_string_mask(code)
+    code = _strip_lean_strings(_strip_lean_comments(text))
     all_lemmas = sorted({
         m.group(1)
         for m in BRIDGE_LEMMA_RE.finditer(code)
-        if not (m.start() < len(in_string_mask) and in_string_mask[m.start()])
     })
 
     # Attribute each ``sorry`` correctly:
@@ -292,37 +298,34 @@ def _parse_bridge_lemmas() -> tuple[list[str], list[str]]:
     # The prior scan was purely forward and, when a bridge's own body
     # contained ``sorry``, misattributed the admission to the *next* bridge.
     sorry_re = re.compile(r'\bsorry\b')
-    decl_keywords = (
-        r'theorem|lemma|def|abbrev|instance|example|opaque|axiom|constant|'
-        r'inductive|structure|class'
-    )
-    boundary_re = re.compile(
-        r'(?m)^(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*'
-        rf'(?:{decl_keywords})\s+(\w+)'
-    )
     bridge_name_re = re.compile(
-        r'(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*'
+        rf'{MODIFIERS}'
         r'theorem\s+evalBuiltinCall_(\w+)_bridge\b'
     )
-    declarations = [
-        (m.start(), m.group(1))
-        for m in boundary_re.finditer(code)
-        if not (m.start() < len(in_string_mask) and in_string_mask[m.start()])
-    ]
     admitted: set[str] = set()
-    pending_helper_sorry = False
-    for idx, (start, _name) in enumerate(declarations):
-        end = declarations[idx + 1][0] if idx + 1 < len(declarations) else len(code)
+    sorry_helpers: set[str] = set()
+    anonymous_helper_sorry = False
+    for start, end, name, is_scope in _top_level_blocks(code):
         body = code[start:end]
         body_has_sorry = sorry_re.search(body) is not None
         bridge_match = bridge_name_re.match(body)
-        if bridge_match:
+        if is_scope:
+            sorry_helpers.clear()
+            anonymous_helper_sorry = False
+        elif bridge_match:
             bridge = bridge_match.group(1)
-            if body_has_sorry or pending_helper_sorry:
+            helper_used = any(
+                re.search(rf'\b{re.escape(helper)}\b', body)
+                for helper in sorry_helpers
+            )
+            if body_has_sorry or helper_used or anonymous_helper_sorry:
                 admitted.add(bridge)
-            pending_helper_sorry = False
+            anonymous_helper_sorry = False
         elif body_has_sorry:
-            pending_helper_sorry = True
+            if name:
+                sorry_helpers.add(name)
+            else:
+                anonymous_helper_sorry = True
     return all_lemmas, sorted(admitted)
 
 
@@ -401,6 +404,21 @@ def _compute_in_string_mask(code: str) -> list[bool]:
     return mask
 
 
+def _top_level_blocks(code: str) -> list[tuple[int, int, str | None, bool]]:
+    """Return top-level declaration/scope blocks.
+
+    The declaration matcher is anchored at column 0 so local declarations in
+    theorem bodies are kept inside the enclosing theorem slice.
+    """
+    matches = list(TOP_LEVEL_DECL_RE.finditer(code))
+    blocks: list[tuple[int, int, str | None, bool]] = []
+    for idx, match in enumerate(matches):
+        start = match.start()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(code)
+        blocks.append((start, end, match.group(1), match.group(2) is not None))
+    return blocks
+
+
 def _parse_context_bridge_lemmas() -> tuple[list[str], list[str]]:
     """Extract builtins with context-lifted bridge and fallthrough theorems.
 
@@ -411,12 +429,27 @@ def _parse_context_bridge_lemmas() -> tuple[list[str], list[str]]:
     if not BRIDGE_LEMMAS_FILE.exists():
         raise FileNotFoundError(f"Bridge lemmas file not found: {BRIDGE_LEMMAS_FILE}")
     text = BRIDGE_LEMMAS_FILE.read_text(encoding="utf-8")
-    code = _strip_lean_comments(text)
-    context_bridged = sorted(
-        name for name in set(CONTEXT_BRIDGE_RE.findall(code))
-        if name != "pure"
-    )
-    fallthrough = sorted(set(FALLTHROUGH_RE.findall(code)))
+    code = _strip_lean_strings(_strip_lean_comments(text))
+    context_bridged: set[str] = set()
+    fallthrough: set[str] = set()
+    theorem_re = re.compile(rf"{MODIFIERS}theorem\s+([A-Za-z_][A-Za-z0-9_']*)\b", re.DOTALL)
+    for start, end, _name, is_scope in _top_level_blocks(code):
+        if is_scope:
+            continue
+        block = code[start:end]
+        theorem_match = theorem_re.match(block)
+        if not theorem_match:
+            continue
+        theorem_name = theorem_match.group(1)
+        context_match = CONTEXT_BRIDGE_RE.fullmatch(theorem_name)
+        if context_match and context_match.group(1) != "pure":
+            context_bridged.add(context_match.group(1))
+            continue
+        fallthrough_match = FALLTHROUGH_RE.fullmatch(theorem_name)
+        if fallthrough_match:
+            fallthrough.add(fallthrough_match.group(1))
+    context_bridged = sorted(context_bridged)
+    fallthrough = sorted(fallthrough)
     return context_bridged, fallthrough
 
 
@@ -447,7 +480,7 @@ def _parse_correctness_proofs() -> dict[str, object]:
     if not CORRECTNESS_FILE.exists():
         raise FileNotFoundError(f"Correctness proof file not found: {CORRECTNESS_FILE}")
     text = CORRECTNESS_FILE.read_text(encoding="utf-8")
-    code = _strip_lean_comments(text)
+    code = _strip_lean_strings(_strip_lean_comments(text))
     theorem_matches = list(CORRECTNESS_THEOREM_RE.finditer(code))
     theorem_status: dict[str, str] = {}
     for idx, match in enumerate(theorem_matches):
@@ -464,18 +497,22 @@ def _parse_correctness_proofs() -> dict[str, object]:
             f"No correctness theorems found in {CORRECTNESS_FILE.relative_to(ROOT)} "
             f"— expected assign_equiv_let or for_init theorems"
         )
-    assign_thms = [t for t in theorems if "assign" in t]
-    for_thms = [t for t in theorems if "for_" in t or "for_init" in t or "for_empty" in t]
-    if not assign_thms:
+    required_assign = ["assign_equiv_let"]
+    required_for = ["for_init_hoist"]
+    missing_assign = [name for name in required_assign if name not in theorem_status]
+    missing_for = [name for name in required_for if name not in theorem_status]
+    if missing_assign:
         raise ValueError(
             f"Missing assign/let correctness theorem family in {CORRECTNESS_FILE.relative_to(ROOT)} "
-            f"— expected theorem names containing 'assign'"
+            f"— expected exact theorem name(s): {', '.join(required_assign)}"
         )
-    if not for_thms:
+    if missing_for:
         raise ValueError(
             f"Missing for-init-hoisting correctness theorem family in {CORRECTNESS_FILE.relative_to(ROOT)} "
-            f"— expected theorem names containing 'for_' or 'for_init'"
+            f"— expected exact theorem name(s): {', '.join(required_for)}"
         )
+    assign_thms = sorted(t for t in theorems if t.startswith("assign_equiv_let"))
+    for_thms = sorted(t for t in theorems if t.startswith("for_init_hoist"))
 
     def family_status(names: list[str]) -> str:
         if any(theorem_status[name] == "sorry" for name in names):
@@ -571,9 +608,17 @@ def build_report() -> dict[str, object]:
             # declaration to isolate this theorem's body.
             next_decl = re.compile(
                 r'\n[ \t]{0,2}(?:(?:private|protected|noncomputable|unsafe|partial|local|@\[[^\]]*\])\s+)*'
-                r'(?:theorem|lemma|def|abbrev|instance|example|end\b)'
+                r'(?:theorem|lemma|def|abbrev|instance|example|opaque|axiom|constant|structure|class|inductive)\b'
+                r'|\n[ \t]{0,2}(?:section|namespace|end)\b'
             )
-            nxt = next_decl.search(code, pos=m.end())
+            nxt = None
+            for candidate in next_decl.finditer(code, pos=m.end()):
+                prefix = code[:candidate.start()]
+                prev_lines = [line.strip() for line in prefix.splitlines() if line.strip()]
+                if prev_lines and prev_lines[-1] == "where":
+                    continue
+                nxt = candidate
+                break
             end = nxt.start() if nxt else len(code)
             return code[start:end]
 
@@ -1146,6 +1191,9 @@ def build_report() -> dict[str, object]:
         ):
             phase4_status = "universal-safe-body-closure"
         elif (
+            has_end_to_end_evm_retarget
+            and not end_to_end_evm_retarget_has_sorry
+            and
             has_layer3_evm_retarget
             and not layer3_evm_retarget_has_sorry
             and

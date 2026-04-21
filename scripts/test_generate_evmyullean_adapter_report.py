@@ -203,6 +203,66 @@ class ParseBridgeLemmasTests(unittest.TestCase):
         self.assertEqual(all_lemmas, ["add"])
         self.assertEqual(admitted, [])
 
+    def test_ignores_sorry_inside_string_literal(self) -> None:
+        p = self._write_lemma_file('''\
+            private theorem diagnostic : String := "sorry appears only in text"
+
+            theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+        ''')
+        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+            all_lemmas, admitted = gen._parse_bridge_lemmas()
+        self.assertEqual(all_lemmas, ["add"])
+        self.assertEqual(admitted, [])
+
+    def test_marks_each_bridge_that_uses_sorry_helper(self) -> None:
+        p = self._write_lemma_file("""\
+            private theorem shared_core : True := by
+              sorry
+
+            theorem evalBuiltinCall_exp_bridge := by
+              exact shared_core
+
+            theorem evalBuiltinCall_sar_bridge := by
+              exact shared_core
+
+            theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+        """)
+        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+            all_lemmas, admitted = gen._parse_bridge_lemmas()
+        self.assertEqual(all_lemmas, ["add", "exp", "sar"])
+        self.assertEqual(admitted, ["exp", "sar"])
+
+    def test_resets_sorry_helper_at_scope_boundary(self) -> None:
+        p = self._write_lemma_file("""\
+            namespace Scratch
+            private theorem scoped_core : True := by
+              sorry
+            end Scratch
+
+            theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+        """)
+        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+            _all_lemmas, admitted = gen._parse_bridge_lemmas()
+        self.assertEqual(admitted, [])
+
+    def test_anonymous_instance_is_separate_bridge_boundary(self) -> None:
+        p = self._write_lemma_file("""\
+            theorem evalBuiltinCall_add_bridge := by
+              exact trivial
+
+            instance : Inhabited True := by
+              sorry
+
+            theorem evalBuiltinCall_exp_bridge := by
+              exact trivial
+        """)
+        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+            _all_lemmas, admitted = gen._parse_bridge_lemmas()
+        self.assertEqual(admitted, ["exp"])
+
 
 class ParseLookupPrimOpTests(unittest.TestCase):
     """Tests for _parse_lookup_primop extraction."""
@@ -424,7 +484,7 @@ class ParseCorrectnessProofsTests(unittest.TestCase):
         p = self._write_correctness_file("""\
             theorem assign_equiv_let : True := by
               trivial
-            theorem for_init_hoisting : True := by
+            theorem for_init_hoist : True := by
               trivial
         """)
         with patch.object(gen, "CORRECTNESS_FILE", p), \
@@ -439,7 +499,7 @@ class ParseCorrectnessProofsTests(unittest.TestCase):
         p = self._write_correctness_file("""\
             theorem assign_equiv_let : True := by
               trivial
-            theorem for_init_hoisting : True := by
+            theorem for_init_hoist : True := by
               sorry
         """)
         with patch.object(gen, "CORRECTNESS_FILE", p), \
@@ -447,6 +507,28 @@ class ParseCorrectnessProofsTests(unittest.TestCase):
             result = gen._parse_correctness_proofs()
         self.assertIn("proven", result["assign_to_let"])
         self.assertIn("sorry", result["for_init_hoisting"])
+
+    def test_ignores_correctness_theorem_names_inside_strings(self) -> None:
+        p = self._write_correctness_file('''\
+            def msg : String :=
+              "theorem assign_equiv_let : True := by trivial\\ntheorem for_init_hoist : True := by trivial"
+        ''')
+        with patch.object(gen, "CORRECTNESS_FILE", p), \
+             patch.object(gen, "ROOT", Path(self._tmpdir.name)):
+            with self.assertRaises(ValueError, msg="No correctness theorems found"):
+                gen._parse_correctness_proofs()
+
+    def test_requires_exact_correctness_theorem_names(self) -> None:
+        p = self._write_correctness_file("""\
+            theorem assign_equiv_let_decoy : True := by
+              trivial
+            theorem for_init_hoist_decoy : True := by
+              trivial
+        """)
+        with patch.object(gen, "CORRECTNESS_FILE", p), \
+             patch.object(gen, "ROOT", Path(self._tmpdir.name)):
+            with self.assertRaisesRegex(ValueError, "assign_equiv_let"):
+                gen._parse_correctness_proofs()
 
     def test_empty_theorems_raises(self) -> None:
         p = self._write_correctness_file("""\
@@ -463,7 +545,7 @@ class ParseCorrectnessProofsTests(unittest.TestCase):
             /-
             theorem assign_equiv_let := by
               trivial
-            theorem for_init_hoisting := by
+            theorem for_init_hoist := by
               trivial
             -/
             def helper := 42
@@ -844,6 +926,52 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         self.assertEqual(phase4["backends_agree_on_bridged_builtins"], "proven")
         self.assertEqual(phase4["evalYulExpr_evmYulLean_eq_on_bridged"], "proven")
 
+    def test_retarget_theorem_body_includes_where_helper_sorry(self) -> None:
+        with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:
+            retarget = Path(tmp) / "EvmYulLeanRetarget.lean"
+            retarget.write_text(
+                textwrap.dedent("""\
+                    theorem backends_agree_on_bridged_builtins : True := by
+                      exact helper
+                    where
+                      helper : True := by
+                        sorry
+
+                    theorem evalYulExpr_evmYulLean_eq_on_bridged : True := by
+                      trivial
+                """),
+                encoding="utf-8",
+            )
+            with patch.object(gen, "RETARGET_FILE", retarget):
+                with patch.object(gen, "_parse_bridge_lemmas", return_value=(["add"], [])):
+                    report = gen.build_report()
+        phase4 = report["phase4_retarget"]
+        self.assertIn("sorry", phase4["backends_agree_on_bridged_builtins"])
+        self.assertEqual(phase4["evalYulExpr_evmYulLean_eq_on_bridged"], "proven")
+
+    def test_opaque_between_retarget_theorems_is_own_boundary(self) -> None:
+        with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:
+            retarget = Path(tmp) / "EvmYulLeanRetarget.lean"
+            retarget.write_text(
+                textwrap.dedent("""\
+                    theorem backends_agree_on_bridged_builtins : True := by
+                      trivial
+
+                    opaque helper : True := by
+                      sorry
+
+                    theorem evalYulExpr_evmYulLean_eq_on_bridged : True := by
+                      trivial
+                """),
+                encoding="utf-8",
+            )
+            with patch.object(gen, "RETARGET_FILE", retarget):
+                with patch.object(gen, "_parse_bridge_lemmas", return_value=(["add"], [])):
+                    report = gen.build_report()
+        phase4 = report["phase4_retarget"]
+        self.assertEqual(phase4["backends_agree_on_bridged_builtins"], "proven")
+        self.assertEqual(phase4["evalYulExpr_evmYulLean_eq_on_bridged"], "proven")
+
     def test_nested_local_theorem_does_not_satisfy_retarget_presence(self) -> None:
         with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:
             retarget = Path(tmp) / "EvmYulLeanRetarget.lean"
@@ -1205,6 +1333,32 @@ class ParseContextBridgeLemmasTests(unittest.TestCase):
             /-
             @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_fake_bridge := by sorry
             -/
+            @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_add_bridge := by sorry
+        """)
+        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+            context, fallthrough = gen._parse_context_bridge_lemmas()
+        self.assertEqual(context, ["add"])
+        self.assertEqual(fallthrough, [])
+
+    def test_ignores_string_literal_theorem_text(self) -> None:
+        p = self._write_lemma_file('''\
+            def msg : String :=
+              "theorem evalBuiltinCallWithBackendContext_evmYulLean_fake_bridge := by sorry"
+
+            @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_add_bridge := by sorry
+        ''')
+        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+            context, fallthrough = gen._parse_context_bridge_lemmas()
+        self.assertEqual(context, ["add"])
+        self.assertEqual(fallthrough, [])
+
+    def test_ignores_nested_local_context_theorem(self) -> None:
+        p = self._write_lemma_file("""\
+            theorem wrapper : True := by
+              local theorem evalBuiltinCallWithBackendContext_evmYulLean_fake_bridge : True := by
+                trivial
+              trivial
+
             @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_add_bridge := by sorry
         """)
         with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):

@@ -166,6 +166,11 @@ def validate_builtin_features(
                 raise ValueError(f"{feature} should have agreement_proved=false")
             if entry.get("sorry_dependent", False) is not False:
                 raise ValueError(f"{feature} is delegated and must not have sorry_dependent=true")
+        else:
+            raise ValueError(
+                f"{feature} is listed in EXPECTED_BUILTINS but is not categorized "
+                "as proved, concrete-only, or delegated"
+            )
 
     return builtin_features
 
