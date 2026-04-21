@@ -50,8 +50,9 @@ theorem is proved.
 - `make check` validates generated reports, bridge coverage synchronization,
   builtin bridge matrix synchronization, Lean hygiene, proof length, and
   documentation counters.
-- `make test-evmyullean-fork` validates the pinned fork audit, rebuilds the
-  universal bridge lemmas, and runs the concrete bridge-equivalence tests.
+- `make test-evmyullean-fork` validates the pinned fork audit, checks the
+  adapter report, rebuilds adapter correctness and the public EndToEnd
+  EVMYulLean target, and runs the concrete bridge-equivalence tests.
 - `.github/workflows/evmyullean-fork-conformance.yml` runs the EVMYulLean fork
   conformance probe weekly. During the burn-in ending 2026-05-04, failures are
   warnings; after burn-in, scheduled/manual failures open or update a GitHub

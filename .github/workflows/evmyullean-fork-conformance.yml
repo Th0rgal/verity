@@ -1,9 +1,10 @@
 name: EVMYulLean fork conformance
 
 # Weekly probe that the pinned lfglabs-dev/EVMYulLean fork still
-# satisfies Verity's bridge assumptions: the fork audit artifact is
-# in sync with `lake-manifest.json`, all universal bridge lemmas
-# still build, and all 123 concrete `native_decide`
+# satisfies Verity's bridge assumptions: the fork audit and adapter
+# report artifacts are in sync, adapter correctness still builds,
+# all universal bridge lemmas still build, the public EndToEnd
+# EVMYulLean target still builds, and all 123 concrete `native_decide`
 # bridge-equivalence tests still pass.
 #
 # Burn-in: the probe step is captured with `continue-on-error: true`
@@ -23,26 +24,46 @@ on:
     paths:
       - '.github/workflows/evmyullean-fork-conformance.yml'
       - 'Makefile'
+      - 'Compiler/Proofs/EndToEnd.lean'
+      - 'scripts/generate_evmyullean_adapter_report.py'
       - 'scripts/generate_evmyullean_fork_audit.py'
       - 'scripts/test_evmyullean_fork_conformance_workflow.py'
       - 'artifacts/evmyullean_fork_audit.json'
       - 'artifacts/evmyullean_adapter_report.json'
       - 'lake-manifest.json'
+      - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean'
+      - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapterCorrectness.lean'
+      - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean'
       - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean'
       - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean'
+      - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean'
+      - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSignedArithSpec.lean'
+      - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSourceExprClosure.lean'
+      - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean'
       - 'Compiler/Proofs/YulGeneration/ReferenceOracle/Builtins.lean'
+      - 'Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean'
   pull_request:
     paths:
       - '.github/workflows/evmyullean-fork-conformance.yml'
       - 'Makefile'
+      - 'Compiler/Proofs/EndToEnd.lean'
+      - 'scripts/generate_evmyullean_adapter_report.py'
       - 'scripts/generate_evmyullean_fork_audit.py'
       - 'scripts/test_evmyullean_fork_conformance_workflow.py'
       - 'artifacts/evmyullean_fork_audit.json'
       - 'artifacts/evmyullean_adapter_report.json'
       - 'lake-manifest.json'
+      - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean'
+      - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapterCorrectness.lean'
+      - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean'
       - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean'
       - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean'
+      - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean'
+      - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSignedArithSpec.lean'
+      - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSourceExprClosure.lean'
+      - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean'
       - 'Compiler/Proofs/YulGeneration/ReferenceOracle/Builtins.lean'
+      - 'Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean'
 
 permissions:
   contents: read
@@ -139,7 +160,7 @@ jobs:
               "make test-evmyullean-fork",
               "```",
               "",
-              "This guard checks the pinned EVMYulLean fork audit, rebuilds the universal bridge lemmas, and runs the concrete bridge-equivalence tests."
+              "This guard checks the pinned EVMYulLean fork audit, checks the adapter report, rebuilds adapter correctness and the public EndToEnd target, and runs the concrete bridge-equivalence tests."
             ];
             const body = bodyLines.join("\n");
 

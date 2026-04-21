@@ -43,11 +43,21 @@ class EvmYulLeanForkConformanceWorkflowTests(unittest.TestCase):
 
         self.assertIn("BURN_IN_END_UTC: '2026-05-04T00:00:00Z'", text)
         for path in [
+            "Compiler/Proofs/EndToEnd.lean",
+            "scripts/generate_evmyullean_adapter_report.py",
             "scripts/test_evmyullean_fork_conformance_workflow.py",
             "artifacts/evmyullean_adapter_report.json",
+            "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean",
+            "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapterCorrectness.lean",
+            "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean",
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean",
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean",
+            "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean",
+            "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSignedArithSpec.lean",
+            "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSourceExprClosure.lean",
+            "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean",
             "Compiler/Proofs/YulGeneration/ReferenceOracle/Builtins.lean",
+            "Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean",
         ]:
             self.assertEqual(
                 text.count(path),
@@ -82,6 +92,10 @@ class EvmYulLeanForkConformanceWorkflowTests(unittest.TestCase):
         self.assertIn("github.rest.issues.createComment", text)
         self.assertIn("github.rest.issues.create({", text)
         self.assertIn("make test-evmyullean-fork", text)
+        makefile_text = MAKEFILE.read_text(encoding="utf-8")
+        self.assertIn("python3 scripts/generate_evmyullean_adapter_report.py --check", makefile_text)
+        self.assertIn("lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapterCorrectness", makefile_text)
+        self.assertIn("lake build Compiler.Proofs.EndToEnd", makefile_text)
 
         issue_step = re.search(
             r"- name: Open or update drift issue\n(?P<body>.*?)(?=\n      - name:|\Z)",

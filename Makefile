@@ -104,12 +104,17 @@ test-python: ## Run Python unit tests
 test-foundry: ## Run Foundry differential tests (requires solc + forge + generated Yul)
 	FOUNDRY_PROFILE=difftest forge test
 
-test-evmyullean-fork: ## Probe EVMYulLean fork conformance (audit + 123 native_decide bridge tests)
+test-evmyullean-fork: ## Probe EVMYulLean fork conformance (audit + adapter report + EndToEnd target)
 	@echo "Checking EVMYulLean fork pin + drift audit..."
 	python3 scripts/generate_evmyullean_fork_audit.py --check
-	@echo "Building EVMYulLean bridge modules (all bridge lemmas proven; 123 concrete bridge tests)..."
+	@echo "Checking EVMYulLean adapter report..."
+	python3 scripts/generate_evmyullean_adapter_report.py --check
+	@echo "Building EVMYulLean adapter correctness, bridge lemmas, and 123 concrete bridge tests..."
+	lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapterCorrectness
 	lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 	lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeTest
+	@echo "Building public EVMYulLean EndToEnd target..."
+	lake build Compiler.Proofs.EndToEnd
 	@echo "EVMYulLean fork conformance probe passed."
 
 check: ## Run local CI-equivalent checks job (no Lean build, no solc)
