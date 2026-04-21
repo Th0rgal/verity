@@ -31,12 +31,13 @@
   per-builtin equivalences through expression evaluation and recursive
   `BridgedTarget` statement execution. It also proves that the emitted runtime
   wrapper satisfies that predicate, and executes equivalently under the
-  EVMYulLean backend, when the IR bodies it contains do. It now also exposes a
-  conditional Layer-3 theorem whose Yul side is
-  `interpretYulRuntimeWithBackend .evmYulLean`. This file composes that theorem
-  into public EndToEnd wrappers, deriving raw external function-body bridge
-  witnesses from source-level `SupportedSpec`, static-parameter, and
-  `BridgedSafeStmts` witnesses where the public theorem applies.
+  EVMYulLean backend, when the IR bodies it contains do. It also exposes a
+  lower-level Layer-3 theorem whose Yul side is
+  `interpretYulRuntimeWithBackend .evmYulLean` and whose body witnesses are
+  supplied by this file's public wrappers. Those wrappers derive raw external
+  function-body bridge witnesses from source-level `SupportedSpec`,
+  static-parameter, and `BridgedSafeStmts` witnesses where the public theorem
+  applies.
 
   Run: lake build Compiler.Proofs.EndToEnd
 -/
@@ -337,13 +338,13 @@ theorem layer3_contract_preserves_semantics_general
 
 /-! ## Layer 3 Contract-Level: IR → EVMYulLean-backed Yul -/
 
-/-- Conditional Layer 3 contract-level preservation targeting the
-EVMYulLean-backed Yul runtime. This is the public EndToEnd-facing wrapper
-around `yulCodegen_preserves_semantics_evmYulLean`; it remains conditional on
-the existing function-body simulation hypotheses plus `BridgedStmts` witnesses
-for emitted external function bodies. Fallback/receive witnesses are discharged
-from the existing `none` hypotheses, and the internal-function table witness is
-derived from `ContractWF`. -/
+/-- Lower-level Layer 3 contract-level preservation targeting the
+EVMYulLean-backed Yul runtime. This is the EndToEnd-facing wrapper around
+`yulCodegen_preserves_semantics_evmYulLean`; callers supply the existing
+function-body simulation hypotheses plus `BridgedStmts` witnesses for emitted
+external function bodies. Fallback/receive witnesses are discharged from the
+existing `none` hypotheses, and the internal-function table witness is derived
+from `ContractWF`. -/
 theorem layer3_contract_preserves_semantics_evmYulLean_general
     (contract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (hselector : tx.functionSelector < selectorModulus)
@@ -378,8 +379,8 @@ theorem layer3_contract_preserves_semantics_evmYulLean_general
     (by intro rc hSome; rw [hNoReceive] at hSome; cases hSome)
     (internalFunctions_bridged_of_contractWF contract hWF)
 
-/-- Conditional Layer 3 contract-level preservation targeting EVMYulLean,
-using the same entry-state normalization hypotheses as
+/-- Layer 3 contract-level preservation targeting EVMYulLean under explicit
+function-body bridge witnesses, using the same entry-state normalization hypotheses as
 `layer3_contract_preserves_semantics`. -/
 theorem layer3_contract_preserves_semantics_evmYulLean
     (contract : IRContract) (tx : IRTransaction) (initialState : IRState)
@@ -679,12 +680,13 @@ block, if, switch, and for cases, and now proves recursive
 `BridgedTarget` execution equivalence. It also proves
 `emitYul_runtimeCode_bridged`, the emitted-runtime closure witness conditional
 on bridged IR function, entrypoint, and internal helper bodies, and
-`emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies`, the corresponding
-  conditional emitted-runtime equality between Verity `execYulFuel` and the
-  EVMYulLean backend executor. These theorems compose the fully proven
-  builtin bridge equivalences. It also proves `yulCodegen_preserves_semantics_evmYulLean`, a
-  conditional Layer-3 theorem whose Yul side is the EVMYulLean backend runtime.
-  This file now exposes EndToEnd wrappers
+  `emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies`, the corresponding
+  emitted-runtime equality between Verity `execYulFuel` and the EVMYulLean
+  backend executor under those body witnesses. These theorems compose the
+  fully proven builtin bridge equivalences. It also proves
+  `yulCodegen_preserves_semantics_evmYulLean`, the lower-level Layer-3 theorem
+  whose Yul side is the EVMYulLean backend runtime. This file now exposes
+  EndToEnd wrappers
   `layer3_contract_preserves_semantics_evmYulLean_general`,
   `layer3_contract_preserves_semantics_evmYulLean`,
   `layers2_3_ir_matches_yul_evmYulLean`, and
@@ -707,8 +709,9 @@ on bridged IR function, entrypoint, and internal helper bodies, and
 - The generated runtime dispatch wrapper is now known to satisfy `BridgedTarget`
   and execute equivalently under the EVMYulLean backend when the IR bodies it
   embeds satisfy `BridgedStmt`.
-- Layer 3 now has a conditional contract-level theorem targeting
-  `interpretYulRuntimeWithBackend .evmYulLean`.
+- Layer 3 now has a contract-level theorem targeting
+  `interpretYulRuntimeWithBackend .evmYulLean`; the public safe-body wrapper
+  derives its raw body witnesses from supported source bodies.
 - This public EndToEnd module now has a safe-body wrapper targeting
   `interpretYulRuntimeWithBackend .evmYulLean` without raw `BridgedStmts`
   body hypotheses; the historical wrappers remain available for the
