@@ -13,7 +13,7 @@
   Run: lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeTest
 -/
 
-import Compiler.Proofs.YulGeneration.Builtins
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 

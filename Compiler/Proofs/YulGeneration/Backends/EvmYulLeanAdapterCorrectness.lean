@@ -23,7 +23,7 @@
   - "`For` initializer: EVMYulLean `For` has no init block"
 -/
 
-import Compiler.Proofs.YulGeneration.Semantics
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 
 namespace Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness
 

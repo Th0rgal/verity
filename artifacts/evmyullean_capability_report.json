@@ -41,7 +41,7 @@
   "allowed_verity_helpers": [
     "mappingSlot"
   ],
-  "builtins_file": "Compiler/Proofs/YulGeneration/Builtins.lean",
+  "builtins_file": "Compiler/Proofs/YulGeneration/ReferenceOracle/Builtins.lean",
   "found_builtins": [
     "add",
     "addmod",

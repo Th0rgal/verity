@@ -107,7 +107,7 @@ test-foundry: ## Run Foundry differential tests (requires solc + forge + generat
 test-evmyullean-fork: ## Probe EVMYulLean fork conformance (audit + 113 native_decide bridge tests)
 	@echo "Checking EVMYulLean fork pin + drift audit..."
 	python3 scripts/generate_evmyullean_fork_audit.py --check
-	@echo "Building EVMYulLean bridge modules (smod/sar admitted; 113 concrete bridge tests)..."
+	@echo "Building EVMYulLean bridge modules (all bridge lemmas proven; 113 concrete bridge tests)..."
 	lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 	lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeTest
 	@echo "EVMYulLean fork conformance probe passed."

@@ -20,8 +20,8 @@
   - This file: compose them into a single theorem statement.
 
   **EVMYulLean note (Phase 4)**: This file now exposes both the historical
-  Verity-backed Yul target (`interpretYulFromIR`) and conditional public
-  wrappers targeting `interpretYulRuntimeWithBackend .evmYulLean`.
+  Verity-backed Yul target (`interpretYulFromIR`) and safe-body public wrappers
+  targeting `interpretYulRuntimeWithBackend .evmYulLean`.
   The default Yul execution semantics (`interpretYulFromIR`, `interpretYulRuntime`)
   are still defined in terms of `evalBuiltinCallWithBackend` which defaults to
   the Verity backend. The EVMYulLean bridge is established in
@@ -34,15 +34,18 @@
   EVMYulLean backend, when the IR bodies it contains do. It now also exposes a
   conditional Layer-3 theorem whose Yul side is
   `interpretYulRuntimeWithBackend .evmYulLean`. This file composes that theorem
-  into public EndToEnd wrappers, still conditional on the embedded body
-  predicates and the smod/sar bridge dependencies documented in the retargeting
-  module.
+  into public EndToEnd wrappers, deriving raw external function-body bridge
+  witnesses from source-level `SupportedSpec`, static-parameter, and
+  `BridgedSafeStmts` witnesses where the public theorem applies.
 
   Run: lake build Compiler.Proofs.EndToEnd
 -/
 
 import Compiler.Proofs.YulGeneration.Preservation
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBodyClosure
+import Compiler.Proofs.IRGeneration.Contract
+import Compiler.Proofs.IRGeneration.Function
 import Compiler.Proofs.IRGeneration.Expr
 
 namespace Compiler.Proofs.EndToEnd
@@ -137,6 +140,98 @@ theorem execYulStmts_paramState_eq_emptyVars
     (hparamErase : paramLoadErasure fn tx state) :
     paramLoadErasure fn tx state :=
   hparamErase
+
+/-- Internal function tables are bridged whenever the Layer-3 well-formedness
+predicate says they contain only Yul function definitions. The retargeting
+bridge treats function-definition nodes as straight-line declarations; the
+called-body simulation remains covered by the existing function-body
+hypotheses. -/
+private theorem internalFunctions_bridged_of_contractWF
+    (contract : IRContract) (hWF : ContractWF contract) :
+    Compiler.Proofs.YulGeneration.Backends.BridgedStmts
+      contract.internalFunctions := by
+  intro stmt hMem
+  rcases hWF stmt hMem with ⟨name, params, rets, body, hStmt⟩
+  subst hStmt
+  exact Compiler.Proofs.YulGeneration.Backends.bridgedStmt_funcDef
+    name params rets body
+
+/-- Convert the new source-level safe-body closure theorem into the low-level
+`BridgedStmts fn.body` witness still consumed by the EVMYulLean runtime
+retargeting theorem. This is the key local bridge from compiler-produced
+`FunctionSpec` bodies to emitted IR function bodies: static scalar parameter
+loads are bridged by the prologue theorem, and the compiled source body is
+bridged by `compileStmtList_always_bridged`. -/
+theorem compileFunctionSpec_bridged_of_safe_static_params
+    (fields : List CompilationModel.Field)
+    (events : List CompilationModel.EventDef)
+    (errors : List CompilationModel.ErrorDef)
+    (selector : Nat) (spec : CompilationModel.FunctionSpec)
+    (irFn : IRFunction)
+    (hStaticParams :
+      Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams spec.params)
+    (hSafeBody :
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+        fields errors .calldata [] false spec.body)
+    (hcompile :
+      CompilationModel.compileFunctionSpec fields events errors selector spec =
+        Except.ok irFn) :
+    Compiler.Proofs.YulGeneration.Backends.BridgedStmts irFn.body := by
+  rcases Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_ok_components
+      fields events errors selector spec irFn hcompile with
+    ⟨returns, bodyStmts, _hvalidate, _hreturns, hbody, hirFn⟩
+  subst irFn
+  change
+    Compiler.Proofs.YulGeneration.Backends.BridgedStmts
+      (CompilationModel.genParamLoads spec.params ++ bodyStmts)
+  exact Compiler.Proofs.YulGeneration.Backends.BridgedStmts_append
+    (Compiler.Proofs.YulGeneration.Backends.genParamLoads_static_scalar_bridged
+      spec.params hStaticParams)
+    (Compiler.Proofs.YulGeneration.Backends.compileStmtList_always_bridged
+      fields events errors .calldata [] false spec.body
+      (spec.params.map (·.name)) hSafeBody hbody)
+
+/-- Lift the one-function bridge closure theorem across the compiled external
+function table. This keeps the public EndToEnd theorem from exposing raw
+`BridgedStmts fn.body` obligations when callers already have source-level
+safe-body/static-param witnesses for every selector-dispatched function. -/
+theorem compiledExternalFunctions_bridged_of_safe_static
+    (fields : List CompilationModel.Field)
+    (events : List CompilationModel.EventDef)
+    (errors : List CompilationModel.ErrorDef) :
+    ∀ {entries : List (CompilationModel.FunctionSpec × Nat)}
+      {irFns : List IRFunction},
+      List.Forall₂
+        (fun entry irFn =>
+          CompilationModel.compileFunctionSpec fields events errors
+            entry.2 entry.1 = Except.ok irFn)
+        entries irFns →
+      (∀ entry, entry ∈ entries →
+        Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams
+          entry.1.params) →
+      (∀ entry, entry ∈ entries →
+        Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+          fields errors .calldata [] false entry.1.body) →
+      ∀ irFn, irFn ∈ irFns →
+        Compiler.Proofs.YulGeneration.Backends.BridgedStmts irFn.body := by
+  intro entries irFns hcompiled hStatic hSafe
+  induction hcompiled with
+  | nil =>
+      intro irFn hmem
+      cases hmem
+  | @cons entry irFn entries irFns hhead htail ih =>
+      intro target hmem
+      simp only [List.mem_cons] at hmem
+      rcases hmem with rfl | hmemTail
+      · exact compileFunctionSpec_bridged_of_safe_static_params
+          fields events errors entry.2 entry.1 target
+          (hStatic entry (by simp))
+          (hSafe entry (by simp))
+          hhead
+      · exact ih
+          (fun next hnext => hStatic next (by simp [hnext]))
+          (fun next hnext => hSafe next (by simp [hnext]))
+          target hmemTail
 
 /-- Bridging: the two Yul execution entry points produce the same result
 when the IR state has empty vars and zero memory. -/
@@ -246,7 +341,9 @@ theorem layer3_contract_preserves_semantics_general
 EVMYulLean-backed Yul runtime. This is the public EndToEnd-facing wrapper
 around `yulCodegen_preserves_semantics_evmYulLean`; it remains conditional on
 the existing function-body simulation hypotheses plus `BridgedStmts` witnesses
-for every embedded runtime body. -/
+for emitted external function bodies. Fallback/receive witnesses are discharged
+from the existing `none` hypotheses, and the internal-function table witness is
+derived from `ContractWF`. -/
 theorem layer3_contract_preserves_semantics_evmYulLean_general
     (contract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (hselector : tx.functionSelector < selectorModulus)
@@ -267,14 +364,7 @@ theorem layer3_contract_preserves_semantics_evmYulLean_general
         (execIRFunction fn tx.args (initialState.withTx tx))
         (interpretYulBody fn tx (initialState.withTx tx)))
     (hFunctions : ∀ fn, fn ∈ contract.functions →
-      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body)
-    (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb →
-      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fb.body)
-    (hReceive : ∀ rc, contract.receiveEntrypoint = some rc →
-      Compiler.Proofs.YulGeneration.Backends.BridgedStmts rc.body)
-    (hInternals :
-      Compiler.Proofs.YulGeneration.Backends.BridgedStmts
-        contract.internalFunctions) :
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR contract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
@@ -283,7 +373,10 @@ theorem layer3_contract_preserves_semantics_evmYulLean_general
   Compiler.Proofs.YulGeneration.Backends.yulCodegen_preserves_semantics_evmYulLean
     contract tx initialState hselector hNoWrap hWF hNoFallback hNoReceive
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hbody
-    hFunctions hFallback hReceive hInternals
+    hFunctions
+    (by intro fb hSome; rw [hNoFallback] at hSome; cases hSome)
+    (by intro rc hSome; rw [hNoReceive] at hSome; cases hSome)
+    (internalFunctions_bridged_of_contractWF contract hWF)
 
 /-- Conditional Layer 3 contract-level preservation targeting EVMYulLean,
 using the same entry-state normalization hypotheses as
@@ -310,14 +403,7 @@ theorem layer3_contract_preserves_semantics_evmYulLean
     (hNoFallback : contract.fallbackEntrypoint = none)
     (hNoReceive : contract.receiveEntrypoint = none)
     (hFunctions : ∀ fn, fn ∈ contract.functions →
-      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body)
-    (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb →
-      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fb.body)
-    (hReceive : ∀ rc, contract.receiveEntrypoint = some rc →
-      Compiler.Proofs.YulGeneration.Backends.BridgedStmts rc.body)
-    (hInternals :
-      Compiler.Proofs.YulGeneration.Backends.BridgedStmts
-        contract.internalFunctions) :
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR contract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
@@ -335,9 +421,6 @@ theorem layer3_contract_preserves_semantics_evmYulLean
       (by simpa using hvars)
       (hparamErase fn hmem))
   · exact hFunctions
-  · exact hFallback
-  · exact hReceive
-  · exact hInternals
 
 /-! ## Layers 2+3 Composition -/
 
@@ -373,9 +456,12 @@ theorem layers2_3_ir_matches_yul
     hselector hNoWrap hvars hmemory htransient hreturn hparamErase hdispatchGuardSafe hNoHasSelector
     hHasSelectorDead hLoopFree hWF hNoFallback hNoReceive
 
-/-- End-to-end: given a successfully compiled contract, IR execution matches
-EVMYulLean-backed Yul execution under the current body-closure hypotheses. -/
-theorem layers2_3_ir_matches_yul_evmYulLean
+/-- End-to-end bridge-witness variant: given a successfully compiled contract,
+IR execution matches EVMYulLean-backed Yul execution under explicit
+function-body closure hypotheses. Fallback/receive bridge witnesses are
+vacuous under the public `none` hypotheses and are discharged internally, as is
+the internal function table witness via `ContractWF`. -/
+theorem layers2_3_ir_matches_yul_evmYulLean_with_function_bridge
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (_hCompile : CompilationModel.compile spec selectors = .ok irContract)
@@ -399,14 +485,7 @@ theorem layers2_3_ir_matches_yul_evmYulLean
     (hNoFallback : irContract.fallbackEntrypoint = none)
     (hNoReceive : irContract.receiveEntrypoint = none)
     (hFunctions : ∀ fn, fn ∈ irContract.functions →
-      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body)
-    (hFallback : ∀ fb, irContract.fallbackEntrypoint = some fb →
-      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fb.body)
-    (hReceive : ∀ rc, irContract.receiveEntrypoint = some rc →
-      Compiler.Proofs.YulGeneration.Backends.BridgedStmts rc.body)
-    (hInternals :
-      Compiler.Proofs.YulGeneration.Backends.BridgedStmts
-        irContract.internalFunctions) :
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR irContract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
@@ -415,7 +494,60 @@ theorem layers2_3_ir_matches_yul_evmYulLean
   layer3_contract_preserves_semantics_evmYulLean irContract tx initialState
     hselector hNoWrap hvars hmemory htransient hreturn hparamErase
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
-    hNoReceive hFunctions hFallback hReceive hInternals
+    hNoReceive hFunctions
+
+/-- End-to-end: for a supported compiler-produced contract whose
+selector-dispatched function bodies are in the EVMYulLean-safe source fragment
+and whose ABI parameters compile through the static-scalar prologue bridge, IR
+execution matches EVMYulLean-backed Yul execution without exposing a raw
+`BridgedStmts fn.body` hypothesis to callers. -/
+theorem layers2_3_ir_matches_yul_evmYulLean
+    (spec : CompilationModel.CompilationModel) (selectors : List Nat)
+    (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hStaticParams :
+      ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+        Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams
+          entry.1.params)
+    (hSafeBodies :
+      ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+        Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+          spec.fields spec.errors .calldata [] false entry.1.body)
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hvars : initialState.vars = [])
+    (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0)
+    (hreturn : initialState.returnValue = none)
+    (hparamErase : ∀ fn, fn ∈ irContract.functions →
+      paramLoadErasure fn tx (initialState.withTx tx))
+    (hdispatchGuardSafe : ∀ fn, fn ∈ irContract.functions →
+      DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ irContract.functions →
+      yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ irContract.functions →
+      HasSelectorDeadBridge fn.body)
+    (hLoopFree : ∀ fn, fn ∈ irContract.functions →
+      yulStmtsLoopFree fn.body = true)
+    (hWF : ContractWF irContract)
+    (hNoFallback : irContract.fallbackEntrypoint = none)
+    (hNoReceive : irContract.receiveEntrypoint = none) :
+    Compiler.Proofs.YulGeneration.resultsMatch
+      (interpretIR irContract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
+        .evmYulLean (Compiler.emitYul irContract).runtimeCode
+        (YulTransaction.ofIR tx) initialState.storage initialState.events) :=
+  layers2_3_ir_matches_yul_evmYulLean_with_function_bridge
+    spec selectors irContract tx initialState
+    hCompile hselector hNoWrap hvars hmemory htransient hreturn hparamErase
+    hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
+    hNoReceive
+    (compiledExternalFunctions_bridged_of_safe_static
+      spec.fields spec.events spec.errors
+      (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_compiled_functions
+        spec selectors hSupported irContract hCompile)
+      hStaticParams hSafeBodies)
 
 /-! ## Concrete Instantiation: SimpleStorage -/
 
@@ -476,9 +608,6 @@ theorem simpleStorage_endToEnd_evmYulLean
     (by intro fn hmem; simp [simpleStorageIRContract] at hmem ⊢; rcases hmem with rfl | rfl <;> rfl)
     (by intro s hs; simp [simpleStorageIRContract] at hs) rfl rfl
     hFunctions
-    (by intro fb hSome; simp [simpleStorageIRContract] at hSome)
-    (by intro rc hSome; simp [simpleStorageIRContract] at hSome)
-    (by intro stmt hMem; simp [simpleStorageIRContract] at hMem)
 
 /-! ## Universal Pure Arithmetic Bridge
 
@@ -514,24 +643,23 @@ block, if, switch, and for cases, and now proves recursive
 on bridged IR function, entrypoint, and internal helper bodies, and
 `emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies`, the corresponding
   conditional emitted-runtime equality between Verity `execYulFuel` and the
-  EVMYulLean backend executor. These theorems still transitively depend on the
-  two sorry-backed smod/sar core equivalences where they invoke backend
-  equivalence. It also proves `yulCodegen_preserves_semantics_evmYulLean`, a
+  EVMYulLean backend executor. These theorems compose the fully proven
+  builtin bridge equivalences. It also proves `yulCodegen_preserves_semantics_evmYulLean`, a
   conditional Layer-3 theorem whose Yul side is the EVMYulLean backend runtime.
-  This file now exposes public EndToEnd wrappers
+  This file now exposes EndToEnd wrappers
   `layer3_contract_preserves_semantics_evmYulLean_general`,
   `layer3_contract_preserves_semantics_evmYulLean`,
   `layers2_3_ir_matches_yul_evmYulLean`, and
-  `simpleStorage_endToEnd_evmYulLean` over that target.
-  Body-closure increments also prove scalar and static-scalar
-  calldata parameter prologues satisfy `BridgedStmts`, pure source-expression
-  fragments compile to `BridgedExpr`, and scalar-leaf plus pure-expression
-  `letVar`/`assignVar` statement lists, pure-binding/single-slot storage-write
-  lists, external terminators, internal return terminators, and plain
-  `require` statements with bridged failure conditions compile to
-  `BridgedStmts`.
+  `simpleStorage_endToEnd_evmYulLean` over that target. The public
+  `layers2_3_ir_matches_yul_evmYulLean` wrapper discharges raw external
+  function-body bridge witnesses from `SupportedSpec`, static-parameter
+  witnesses, and `BridgedSafeStmts` source-body witnesses.
+  Body-closure increments also prove scalar and static-scalar calldata
+  parameter prologues satisfy `BridgedStmts`, pure source-expression fragments
+  compile to `BridgedExpr`, and universal `compileStmtList_always_bridged`
+  coverage for source bodies admitted by `BridgedSafeStmts`.
 
-**Trust boundary after Phase 4 (sorry-dependent recursive statement-target fragment)**:
+**Trust boundary after Phase 4 (recursive statement-target fragment)**:
 - For any single bridged-builtin call whose bridge dependencies are fully
   proven, the Yul semantics trust assumption shifts from "Verity's custom
   builtin implementations are correct" to "EVMYulLean's execution model
@@ -543,9 +671,10 @@ on bridged IR function, entrypoint, and internal helper bodies, and
   embeds satisfy `BridgedStmt`.
 - Layer 3 now has a conditional contract-level theorem targeting
   `interpretYulRuntimeWithBackend .evmYulLean`.
-- This public EndToEnd module now has conditional wrappers targeting
-  `interpretYulRuntimeWithBackend .evmYulLean`; the historical wrappers remain
-  available for the Verity-backed `interpretYulFromIR` target.
+- This public EndToEnd module now has a safe-body wrapper targeting
+  `interpretYulRuntimeWithBackend .evmYulLean` without raw `BridgedStmts`
+  body hypotheses; the historical wrappers remain available for the
+  Verity-backed `interpretYulFromIR` target.
 - Scalar and static-scalar calldata parameter-loading prologues are now known
   to satisfy `BridgedStmts`.
 - Scalar source expression leaves and the pure arithmetic/comparison/bit-operation
@@ -562,13 +691,10 @@ on bridged IR function, entrypoint, and internal helper bodies, and
   is hypothesis-free).
 - 36 of 36 builtins are bridged, including `mappingSlot` via the shared
   keccak-faithful `abstractMappingSlot` derivation.
-- 2 bridge lemmas use `sorry` (smod, sar) — blocked by complex Int↔UInt256
-  sign/bit semantics, not privacy.
-- Closure of compiler-produced IR function/entrypoint bodies beyond scalar
-  calldata parameter prologues, scalar/pure-expression let/assign statement
-  lists, pure-binding plus single-slot storage-write lists, external
-  terminators, internal return terminators, and plain `require` with bridged
-  failure conditions are not yet proven.
+- 0 bridge lemmas use `sorry`; all builtin bridge equivalences are proven.
+- The external-call/function-table family remains outside `BridgedSafeStmts`
+  and needs separate simulation work before it can be admitted into the
+  safe-body EndToEnd wrapper.
 
 See `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean` for
 the Phase 4 retargeting theorems.

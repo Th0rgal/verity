@@ -952,15 +952,16 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             phase4["yulCodegen_preserves_semantics_evmYulLean"],
         )
 
-    def test_universal_body_closure_missing_by_default(self) -> None:
-        """Baseline: the new compileStmtList_always_bridged field defaults to
-        'missing' because plan #1722 B7 has not landed yet."""
+    def test_universal_body_closure_proven_in_repo(self) -> None:
+        """The repo artifact tracks the landed plan #1722 B7/B8 theorem stack."""
         report = gen.build_report()
         phase4 = report["phase4_retarget"]
-        self.assertEqual(phase4["compileStmtList_always_bridged"], "missing")
-        # And the phase4 cascade must NOT report full_semantic_integration
-        # until that theorem lands.
-        self.assertNotEqual(phase4["status"], "full_semantic_integration")
+        self.assertIn("proven", phase4["compileStmtList_always_bridged"])
+        self.assertEqual(phase4["status"], "full_semantic_integration")
+        self.assertEqual(
+            phase4["layers2_3_ir_matches_yul_evmYulLean"],
+            "proven (body hypotheses discharged)",
+        )
 
     def _retarget_all_proven(self) -> str:
         return textwrap.dedent("""\
@@ -1083,8 +1084,52 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         self.assertNotEqual(phase4["status"], "full_semantic_integration")
         self.assertEqual(phase4["compileStmtList_always_bridged"], "sorry")
 
+    def test_body_closure_with_conditional_end_to_end_does_not_flip_to_full(self) -> None:
+        """B7 alone is not the final status: B8 must remove explicit
+        BridgedStmts body hypotheses from the public EndToEnd theorem."""
+        with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:
+            tmp_path = Path(tmp)
+            retarget = tmp_path / "EvmYulLeanRetarget.lean"
+            retarget.write_text(self._retarget_all_proven(), encoding="utf-8")
+
+            end_to_end = tmp_path / "EndToEnd.lean"
+            end_to_end.write_text(
+                textwrap.dedent("""\
+                    theorem layers2_3_ir_matches_yul_evmYulLean
+                        (hFunctions : BridgedStmts body)
+                        (hInternals : BridgedStmts internals) : True := by
+                      trivial
+                """),
+                encoding="utf-8",
+            )
+
+            body_closure = tmp_path / "EvmYulLeanBodyClosure.lean"
+            body_closure.write_text(
+                textwrap.dedent("""\
+                    theorem compileStmtList_always_bridged : True := by
+                      trivial
+                """),
+                encoding="utf-8",
+            )
+
+            with patch.object(gen, "RETARGET_FILE", retarget), \
+                 patch.object(gen, "END_TO_END_FILE", end_to_end), \
+                 patch.object(gen, "BODY_CLOSURE_FILE", body_closure), \
+                 patch.object(
+                     gen,
+                     "_parse_bridge_lemmas",
+                     return_value=(["add"], []),
+                 ):
+                report = gen.build_report()
+        phase4 = report["phase4_retarget"]
+        self.assertEqual(phase4["status"], "universal-safe-body-closure")
+        self.assertEqual(
+            phase4["layers2_3_ir_matches_yul_evmYulLean"],
+            "proven (conditional on bridged IR bodies)",
+        )
+
     def test_universal_body_closure_with_admitted_deps_does_not_flip(self) -> None:
-        """If compileStmtList_always_bridged is proven but smod/sar remain
+        """If compileStmtList_always_bridged is proven but sar remains
         admitted, phase4 status must not advance to full_semantic_integration."""
         with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:
             tmp_path = Path(tmp)

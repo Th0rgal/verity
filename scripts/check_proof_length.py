@@ -264,6 +264,12 @@ ALLOWLIST: set[str] = {
     # Thin public wrapper; the scanner counts the trailing Phase 4 summary
     # comment in its theorem span.
     "simpleStorage_endToEnd_evmYulLean",
+    # Safe-body public EVMYulLean wrapper derives the raw BridgedStmts function
+    # hypotheses from compile output, static parameter closure, and
+    # BridgedSafeStmts witnesses before delegating to the function-bridge
+    # variant. Splitting it would only move the hypothesis threading into a
+    # single-use helper.
+    "layers2_3_ir_matches_yul_evmYulLean",
     # --- Contract proofs (Contracts/) ---
     "constructor_increment_getCount",
     "add_one_preserves_order_iff_no_overflow",
@@ -276,12 +282,26 @@ ALLOWLIST: set[str] = {
     "smod_int256_eq_uint256Smod",
     # Verity-side half of A2 (smod); 5-case sign decomposition mirroring sdiv.
     "int256_mod_toUint256_val_eq_smodSpec",
+    # EVMYulLean-side half of A2 (smod); mirrors the UInt256.smod definition
+    # across divisor-zero, sign, and zero-remainder cases before composing
+    # through the shared Nat-level smodSpec.
+    "uint256_smod_toNat_eq_smodSpec",
+    # EVMYulLean-side half of A3 (sar); it must split on sign and saturated
+    # shift, then normalize complement-shift-complement through Fin and Nat.
+    "uint256_sar_toNat_eq_sarSpec",
+    # Verity-side half of A3 (sar); it must split on sign and saturated
+    # shift, then connect Int.fdiv on negative two's-complement words to the
+    # shared Nat-level sarSpec used by the EVMYulLean-side proof.
+    "int256_sar_toUint256_val_eq_sarSpec",
     # signextend proof requires 4-case byte-index analysis + bit-level shift
     # semantics matching; structural complexity is inherent to the operation.
     "signextend_uint256_eq",
     # backends_agree dispatch proof case-splits all 36 bridged builtins;
     # each branch is one line but 36 builtins + headers exceed 50 lines.
     "backends_agree_on_bridged_builtins",
+    # Pure-context dispatch is the same 25-builtin case split specialized to
+    # context-free builtins; each branch delegates to an individual bridge.
+    "evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge",
     # Backend-parameterized mirror of execYulFuel; long by construction because
     # it preserves all statement cases while swapping only expression backend.
     "execYulFuelWithBackend",
@@ -879,12 +899,22 @@ ALLOWLIST: set[str] = {
     # unchanged; same displacement pattern as prior adjacent
     # closures).
     "compileStmtList_mappingPackedWordMultiSlot_bridged",
+    # Multi-slot setMappingPackedWord wordOffset≠0 list closure: same
+    # compileStmtList head/tail skeleton as its wordOffset=0 sibling; the
+    # extra span is the adjacent safe-body aggregation preamble, not unique
+    # proof logic.
+    "compileStmtList_mappingPackedWordMultiSlotNonzero_bridged",
     # Multi-slot setStructMember2 wordOffset≠0 list closure: displaced
     # from 45 to 63 lines by the newly appended single-slot
     # setMappingPackedWord section's doc-comment preamble + predicate,
     # same displacement pattern as prior multi-slot list closures
     # (proof body unchanged).
     "compileStmtList_structMember2MultiSlotNonzero_bridged",
+    # Universal safe-body aggregation is one constructor dispatch over
+    # BridgedSafeStmts. Each branch delegates to an existing fragment-specific
+    # closure theorem; splitting would create a parallel dispatch helper with
+    # the same 24-case shape.
+    "compileStmtList_always_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
 }

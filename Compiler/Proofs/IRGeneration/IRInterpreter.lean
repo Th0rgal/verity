@@ -16,7 +16,7 @@
 import Compiler.IR
 import Compiler.CompilationModel
 import Compiler.Proofs.MappingSlot
-import Compiler.Proofs.YulGeneration.Builtins
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
 import Verity.Core
 
 namespace Compiler.Proofs.IRGeneration

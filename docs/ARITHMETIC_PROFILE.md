@@ -34,7 +34,7 @@ Wrapping semantics are **proven** (not assumed) across all three verification la
 |-------|---------------|----------------|
 | Layer 1 (EDSL) | `Verity/Core/Uint256.lean` | `Uint256.add`, `sub`, `mul`, `div`, `mod` are wrapping modular |
 | Layer 1 (EDSL) | `Verity/Proofs/Stdlib/Math.lean` | `safeAdd`, `safeSub`, `safeMul` correctness |
-| Compiler | `Compiler/Proofs/YulGeneration/Builtins.lean` | `evalBuiltinCall` implements wrapping for all 15 pure builtins |
+| Compiler reference oracle | `Compiler/Proofs/YulGeneration/ReferenceOracle/Builtins.lean` | `evalBuiltinCall` implements wrapping for all 15 pure builtins |
 | Compiler | `Compiler/Proofs/ArithmeticProfile.lean` | `add_wraps`, `sub_wraps`, `mul_wraps`, `div_by_zero`, `mod_by_zero` |
 | EVMYulLean bridge | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` | Universal bridge lemmas for all 25 pure builtins (see list below) |
 | EVMYulLean bridge tests | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean` | Regression vectors for the universal pure-builtin bridge lemmas |
@@ -110,7 +110,7 @@ The arithmetic model is invariant across profiles. See [`docs/SOLIDITY_PARITY_PR
 - **Gas semantics**: proofs establish result correctness, not gas cost or bounded liveness.
 - **Compiler-layer overflow detection**: the compiler does not insert overflow checks. Use EDSL `safeAdd`/`safeSub`/`safeMul` for checked behavior.
 - **Cryptographic primitives**: keccak256 is axiomatized (see [`AXIOMS.md`](../AXIOMS.md)).
-- **Universal bridge equivalence**: 25/25 pure EVMYulLean-backed builtins have universal bridge lemmas (23 fully proven, 2 with sorry-dependent core equivalences). All 25 also have context-lifted backend bridge theorems for Phase 4 retargeting. All 8 higher-level expression operators also have proven compilation correctness.
+- **Universal bridge equivalence**: 25/25 pure EVMYulLean-backed builtins have universal bridge lemmas. All 25 also have context-lifted backend bridge theorems for Phase 4 retargeting. All 8 higher-level expression operators also have proven compilation correctness.
 
 ## Auditor Checklist
 

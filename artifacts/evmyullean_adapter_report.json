@@ -5,10 +5,7 @@
     "for_init_hoisting": "proven (for_init_hoist, for_init_hoist_return, for_init_hoist_revert, for_init_hoist_stop)"
   },
   "adapter_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean",
-  "admitted_bridge_lemmas": [
-    "sar",
-    "smod"
-  ],
+  "admitted_bridge_lemmas": [],
   "bridged_builtins": [
     "add",
     "addmod",
@@ -168,6 +165,7 @@
     "mulmod",
     "not",
     "or",
+    "sar",
     "sdiv",
     "sgt",
     "shl",
@@ -175,6 +173,7 @@
     "signextend",
     "sload",
     "slt",
+    "smod",
     "sub",
     "xor"
   ],
@@ -218,14 +217,11 @@
   "missing_expr_cases": [],
   "missing_stmt_cases": [],
   "phase4_retarget": {
-    "admitted_bridge_dependencies": [
-      "sar",
-      "smod"
-    ],
-    "backends_agree_on_bridged_builtins": "sorry-dependent (depends on admitted bridge lemmas: sar, smod)",
+    "admitted_bridge_dependencies": [],
+    "backends_agree_on_bridged_builtins": "proven",
     "compileExpr_bridgedSource": "proven (pure source-expression fragment)",
     "compileExpr_bridgedSource_leaf": "proven (scalar source-expression leaves)",
-    "compileStmtList_always_bridged": "missing",
+    "compileStmtList_always_bridged": "proven (universal compileStmtList body closure for BridgedSafeStmts; external-call family carved out)",
     "compileStmtList_binding_leaf_bridged": "proven (scalar let/assign statement lists)",
     "compileStmtList_external_body_fragment_bridged": "proven (mixed external body fragment)",
     "compileStmtList_external_nested_body_fragment_bridged": "proven (mixed external body fragment plus two ite layers)",
@@ -241,29 +237,23 @@
     "compileStmtList_storage_fragment_bridged": "proven (pure bindings plus single-slot setStorage statement lists)",
     "compileStmtList_terminator_external_bridged": "proven (external stop/return statement lists)",
     "emitYul_runtimeCode_bridged": "proven (conditional on bridged IR bodies)",
-    "emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies": "sorry-dependent (depends on admitted bridge lemmas: sar, smod)",
-    "evalYulExpr_evmYulLean_eq_on_bridged": "sorry-dependent (depends on admitted bridge lemmas: sar, smod)",
-    "execYulFuelWithBackend_block_eq_on_bridged_straight_stmts": "sorry-dependent (depends on admitted bridge lemmas: sar, smod)",
-    "execYulFuelWithBackend_eq_on_bridged_straight_stmts": "sorry-dependent (depends on admitted bridge lemmas: sar, smod)",
-    "execYulFuelWithBackend_eq_on_bridged_target": "sorry-dependent (depends on admitted bridge lemmas: sar, smod)",
-    "execYulFuelWithBackend_for_eq_on_bridged_parts": "sorry-dependent (depends on admitted bridge lemmas: sar, smod)",
-    "execYulFuelWithBackend_if_eq_on_bridged_body": "sorry-dependent (depends on admitted bridge lemmas: sar, smod)",
-    "execYulFuelWithBackend_switch_eq_on_bridged_cases": "sorry-dependent (depends on admitted bridge lemmas: sar, smod)",
+    "emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies": "proven (conditional on bridged IR bodies)",
+    "evalYulExpr_evmYulLean_eq_on_bridged": "proven",
+    "execYulFuelWithBackend_block_eq_on_bridged_straight_stmts": "proven",
+    "execYulFuelWithBackend_eq_on_bridged_straight_stmts": "proven",
+    "execYulFuelWithBackend_eq_on_bridged_target": "proven",
+    "execYulFuelWithBackend_for_eq_on_bridged_parts": "proven",
+    "execYulFuelWithBackend_if_eq_on_bridged_body": "proven",
+    "execYulFuelWithBackend_switch_eq_on_bridged_cases": "proven",
     "genParamLoads_scalar_bridged": "proven (scalar calldata parameters)",
     "genParamLoads_static_scalar_bridged": "proven (static scalar calldata parameters)",
     "genStaticTypeLoads_calldataload_bridged": "proven (static scalar calldata leaves)",
-    "layers2_3_ir_matches_yul_evmYulLean": "sorry-dependent (depends on admitted bridge lemmas: sar, smod)",
-    "remaining_for_whole_program_retargeting": [
-      "smod/sar core equivalences (complex Int\u2194UInt256 sign/bit semantics)",
-      "ABI-encoded return/error closures: returnArray, returnBytes, returnStorageWords, emit, revertError/requireError with args",
-      "new BridgedStraightStmt ctors for calldatacopy, returndatacopy, and revertReturndata (currently no bridged ctor)",
-      "universal compileStmtList_always_bridged metatheorem with a BridgedSafeStmts whitelist predicate (external-call family \u2014 internalCall, internalCallAssign, externalCallBind, ecm \u2014 remains explicitly carved out behind hFunctions/hInternals hypotheses)",
-      "discharge the conditional EndToEnd theorem's bridged-body hypotheses for full compiler-produced contracts"
-    ],
+    "layers2_3_ir_matches_yul_evmYulLean": "proven (body hypotheses discharged)",
+    "remaining_for_whole_program_retargeting": [],
     "retarget_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean",
-    "status": "incomplete",
-    "trust_boundary": "recursive BridgedTarget statement fragment: EVMYulLean execution model matches EVM (upstream conformance tests) for BridgedExpr expressions, BridgedStraightStmts (including mapping-slot, literal-slot, and identifier-slot sstore), and recursively nested BridgedStmt targets; generated runtime-code closure and emitted-runtime backend equality are proven conditional on bridged IR bodies; Layer-3 contract preservation now has an EVMYulLean-backend Yul target under the same body hypotheses; the public EndToEnd module now exposes a conditional wrapper over that EVMYulLean-backed target; scalar and static-scalar calldata parameter prologue body closure, pure source-expression closure, scalar/pure let/assign statement-list body closure, pure-binding/single-slot setStorage body closure, external stop/return terminator closure, and require statement closure are proven, mixed external/internal body-fragment closure composes those pieces, one-layer and two-level Stmt.ite closures are proven, and recursive Stmt.ite closure wraps mixed body fragments",
-    "yulCodegen_preserves_semantics_evmYulLean": "sorry-dependent (depends on admitted bridge lemmas: sar, smod)"
+    "status": "full_semantic_integration",
+    "trust_boundary": "recursive BridgedTarget statement fragment: EVMYulLean execution model matches EVM (upstream conformance tests) for BridgedExpr expressions, BridgedStraightStmts (including mapping-slot, literal-slot, and identifier-slot sstore), and recursively nested BridgedStmt targets; generated runtime-code closure and emitted-runtime backend equality are proven conditional on bridged IR bodies; Layer-3 contract preservation now has an EVMYulLean-backend Yul target under the same body hypotheses; the public EndToEnd module now discharges raw BridgedStmts body hypotheses from SupportedSpec, static-parameter, and BridgedSafeStmts source witnesses; compileStmtList_always_bridged proves a universal BridgedSafeStmts aggregation theorem with the external-call family carved out behind explicit function-table hypotheses",
+    "yulCodegen_preserves_semantics_evmYulLean": "proven (conditional on bridged IR bodies)"
   },
   "schema_version": 7,
   "status": "ok",

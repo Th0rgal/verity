@@ -8151,9 +8151,9 @@ theorem compileStmt_setStorageArrayElement_singleSlot_bridged
   | ok indexExpr =>
       simp [hIdxExpr, Pure.pure, Except.pure] at hOk
       cases hValExpr : compileExpr fields dynamicSource value with
-      | error err => simp [hValExpr, Pure.pure, Except.pure] at hOk
+      | error err => simp [hValExpr] at hOk
       | ok valueExpr =>
-          simp [hValExpr, Pure.pure, Except.pure] at hOk
+          simp [hValExpr] at hOk
           subst out
           have hIdxBridged : BridgedExpr indexExpr :=
             compileExpr_bridgedSource fields dynamicSource hIndex hIdxExpr
@@ -11901,5 +11901,190 @@ theorem compileStmtList_mappingPackedWordMultiSlotNonzero_bridged
                   events errors dynamicSource internalRetNames isInternal
                   inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+/-!
+## Universal safe-body closure
+
+`BridgedSafeStmts` is the source-level whitelist used by the EVMYulLean
+retargeting report: it collects the statement-list fragments that this module
+has proved to compile into `BridgedStmts`. The external-call family
+(`internalCall`, `internalCallAssign`, `externalCallBind`, and `ecm`) is
+intentionally absent; those statements still need function-table simulation
+before they can be discharged without explicit hypotheses.
+-/
+
+inductive BridgedSafeStmts
+    (fields : List Field) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String) :
+    Bool → List Stmt → Prop
+  | externalRecursiveRawLog {stmts : List Stmt}
+      (hStmts : BridgedSourceExternalRecursiveBodyWithRawLogStmts
+        fields errors dynamicSource stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames false stmts
+  | internalRecursiveRawLog {stmts : List Stmt}
+      (hStmts : BridgedSourceInternalRecursiveBodyWithRawLogStmts
+        fields errors dynamicSource stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames true stmts
+  | setStorageArrayElement {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceSetStorageArrayElementStmts fields stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+  | mappingChain {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceMappingChainStmts fields stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+  | mappingWriteMultiSlot {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceMappingWriteMultiSlotStmts fields stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+  | mappingWrite2MultiSlot {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceMappingWrite2MultiSlotStmts fields stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+  | structMemberMultiSlot {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceStructMemberMultiSlotStmts fields stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+  | structMember2MultiSlot {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceStructMember2MultiSlotStmts fields stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+  | mappingWordMultiSlot {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceMappingWordMultiSlotStmts fields stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+  | mapping2WordMultiSlot {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceMapping2WordMultiSlotStmts fields stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+  | mappingWordMultiSlotNonzero {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceMappingWordMultiSlotNonzeroStmts fields stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+  | mapping2WordMultiSlotNonzero {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceMapping2WordMultiSlotNonzeroStmts fields stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+  | structMemberMultiSlotNonzero {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceStructMemberMultiSlotNonzeroStmts fields stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+  | structMember2MultiSlotNonzero {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceStructMember2MultiSlotNonzeroStmts fields stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+  | mappingPackedWord {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceMappingPackedWordStmts fields stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+  | mappingPackedWordNonzero {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceMappingPackedWordNonzeroStmts fields stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+  | mappingPackedWordMultiSlot {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceMappingPackedWordMultiSlotStmts fields stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+  | mappingPackedWordMultiSlotNonzero {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceMappingPackedWordMultiSlotNonzeroStmts fields stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+  | returnValuesExternal {stmts : List Stmt}
+      (hStmts : BridgedSourceReturnValuesExternalStmts stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames false stmts
+  | returnValuesInternal {stmts : List Stmt}
+      (hStmts : BridgedSourceReturnValuesInternalStmts internalRetNames stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames true stmts
+  | mstore {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceMstoreStmts stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+  | tstore {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceTstoreStmts stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+  | storageArrayPush {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceStorageArrayPushStmts fields stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+  | storageArrayPop {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceStorageArrayPopStmts fields stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+
+/-- Every source statement list accepted by `BridgedSafeStmts` compiles to a
+Yul statement list accepted by `BridgedStmts`. This is the B7 aggregation
+theorem: callers use one whitelist witness instead of choosing a fragment-
+specific closure lemma manually. -/
+theorem compileStmtList_always_bridged
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSafeStmts fields errors dynamicSource internalRetNames
+        isInternal stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts inScopeNames hSafe out hOk
+  cases hSafe with
+  | externalRecursiveRawLog hStmts =>
+      exact compileStmtList_external_recursive_body_with_raw_log_bridged fields
+        events errors dynamicSource internalRetNames hStmts inScopeNames hOk
+  | internalRecursiveRawLog hStmts =>
+      exact compileStmtList_internal_recursive_body_with_raw_log_bridged fields
+        events errors dynamicSource internalRetNames hStmts inScopeNames hOk
+  | setStorageArrayElement hStmts =>
+      exact compileStmtList_setStorageArrayElement_bridged fields events errors
+        dynamicSource internalRetNames isInternal stmts inScopeNames hStmts hOk
+  | mappingChain hStmts =>
+      exact compileStmtList_mappingChain_bridged fields events errors
+        dynamicSource internalRetNames isInternal stmts inScopeNames hStmts hOk
+  | mappingWriteMultiSlot hStmts =>
+      exact compileStmtList_mappingWriteMultiSlot_bridged fields events errors
+        dynamicSource internalRetNames isInternal stmts inScopeNames hStmts hOk
+  | mappingWrite2MultiSlot hStmts =>
+      exact compileStmtList_mappingWrite2MultiSlot_bridged fields events errors
+        dynamicSource internalRetNames isInternal stmts inScopeNames hStmts hOk
+  | structMemberMultiSlot hStmts =>
+      exact compileStmtList_structMemberMultiSlot_bridged fields events errors
+        dynamicSource internalRetNames isInternal stmts inScopeNames hStmts hOk
+  | structMember2MultiSlot hStmts =>
+      exact compileStmtList_structMember2MultiSlot_bridged fields events errors
+        dynamicSource internalRetNames isInternal stmts inScopeNames hStmts hOk
+  | mappingWordMultiSlot hStmts =>
+      exact compileStmtList_mappingWordMultiSlot_bridged fields events errors
+        dynamicSource internalRetNames isInternal stmts inScopeNames hStmts hOk
+  | mapping2WordMultiSlot hStmts =>
+      exact compileStmtList_mapping2WordMultiSlot_bridged fields events errors
+        dynamicSource internalRetNames isInternal stmts inScopeNames hStmts hOk
+  | mappingWordMultiSlotNonzero hStmts =>
+      exact compileStmtList_mappingWordMultiSlotNonzero_bridged fields events
+        errors dynamicSource internalRetNames isInternal stmts inScopeNames
+        hStmts hOk
+  | mapping2WordMultiSlotNonzero hStmts =>
+      exact compileStmtList_mapping2WordMultiSlotNonzero_bridged fields events
+        errors dynamicSource internalRetNames isInternal stmts inScopeNames
+        hStmts hOk
+  | structMemberMultiSlotNonzero hStmts =>
+      exact compileStmtList_structMemberMultiSlotNonzero_bridged fields events
+        errors dynamicSource internalRetNames isInternal stmts inScopeNames
+        hStmts hOk
+  | structMember2MultiSlotNonzero hStmts =>
+      exact compileStmtList_structMember2MultiSlotNonzero_bridged fields events
+        errors dynamicSource internalRetNames isInternal stmts inScopeNames
+        hStmts hOk
+  | mappingPackedWord hStmts =>
+      exact compileStmtList_mappingPackedWord_bridged fields events errors
+        dynamicSource internalRetNames isInternal stmts inScopeNames hStmts hOk
+  | mappingPackedWordNonzero hStmts =>
+      exact compileStmtList_mappingPackedWordNonzero_bridged fields events errors
+        dynamicSource internalRetNames isInternal stmts inScopeNames hStmts hOk
+  | mappingPackedWordMultiSlot hStmts =>
+      exact compileStmtList_mappingPackedWordMultiSlot_bridged fields events errors
+        dynamicSource internalRetNames isInternal stmts inScopeNames hStmts hOk
+  | mappingPackedWordMultiSlotNonzero hStmts =>
+      exact compileStmtList_mappingPackedWordMultiSlotNonzero_bridged fields
+        events errors dynamicSource internalRetNames isInternal stmts inScopeNames
+        hStmts hOk
+  | returnValuesExternal hStmts =>
+      exact compileStmtList_returnValuesExternal_bridged fields events errors
+        dynamicSource internalRetNames stmts inScopeNames hStmts hOk
+  | returnValuesInternal hStmts =>
+      exact compileStmtList_returnValuesInternal_bridged fields events errors
+        dynamicSource internalRetNames stmts inScopeNames hStmts hOk
+  | mstore hStmts =>
+      exact compileStmtList_mstore_bridged fields events errors dynamicSource
+        internalRetNames isInternal stmts inScopeNames hStmts hOk
+  | tstore hStmts =>
+      exact compileStmtList_tstore_bridged fields events errors dynamicSource
+        internalRetNames isInternal stmts inScopeNames hStmts hOk
+  | storageArrayPush hStmts =>
+      exact compileStmtList_storageArrayPush_bridged fields events errors
+        dynamicSource internalRetNames isInternal stmts inScopeNames hStmts hOk
+  | storageArrayPop hStmts =>
+      exact compileStmtList_storageArrayPop_bridged fields events errors
+        dynamicSource internalRetNames isInternal stmts inScopeNames hStmts hOk
 
 end Compiler.Proofs.YulGeneration.Backends

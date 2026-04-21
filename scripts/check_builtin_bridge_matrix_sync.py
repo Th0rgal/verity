@@ -52,7 +52,7 @@ PROVED_BUILTINS = [
 # Fallback for tests that call helpers directly. The repository check derives
 # this list from artifacts/evmyullean_adapter_report.json so trust docs cannot
 # drift when the admitted bridge set changes.
-ADMITTED_BUILTINS = ["smod", "sar"]
+ADMITTED_BUILTINS: list[str] = []
 CONCRETE_ONLY_BUILTINS: list[str] = []
 PURE_BUILTINS = PROVED_BUILTINS + CONCRETE_ONLY_BUILTINS
 DELEGATED_BUILTINS: list[str] = []
@@ -177,7 +177,8 @@ def _sorry_qualifier(builtin_features: list[dict]) -> str:
         return ""
     proved_total = sum(1 for e in builtin_features if e["agreement_proved"])
     fully = proved_total - admitted
-    return f" ({fully} fully proven, {admitted} with sorry-dependent core equivalences)"
+    equivalence = "equivalence" if admitted == 1 else "equivalences"
+    return f" ({fully} fully proven, {admitted} with sorry-dependent core {equivalence})"
 
 
 def expected_doc_snippets(builtin_features: list[dict]) -> list[str]:

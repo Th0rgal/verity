@@ -2,8 +2,8 @@ name: EVMYulLean fork conformance
 
 # Weekly probe that the pinned lfglabs-dev/EVMYulLean fork still
 # satisfies Verity's bridge assumptions: the fork audit artifact is
-# in sync with `lake-manifest.json`, the universal bridge lemmas
-# (23 proven + 2 admitted: smod/sar) still build, and all 113
+# in sync with `lake-manifest.json`, all universal bridge lemmas
+# still build, and all 113
 # concrete `native_decide` bridge-equivalence tests still pass.
 #
 # Burn-in: the probe step runs with `continue-on-error: true` for a

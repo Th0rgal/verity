@@ -54,9 +54,9 @@ import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSignedArithSpec
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSourceExprClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanStateBridge
-import Compiler.Proofs.YulGeneration.Builtins
 import Compiler.Proofs.YulGeneration.Equivalence
-import Compiler.Proofs.YulGeneration.Semantics
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 
 -- Contracts/Counter/Proofs/Basic.lean
 #print axioms Contracts.Counter.Proofs.setStorage_updates_count
@@ -675,12 +675,16 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.EndToEnd.interpretYulRuntime_eq_yulResultOfExec
 #print axioms Compiler.Proofs.EndToEnd.yulStateOfIR_eq_initial
 #print axioms Compiler.Proofs.EndToEnd.execYulStmts_paramState_eq_emptyVars
+-- #print axioms Compiler.Proofs.EndToEnd.internalFunctions_bridged_of_contractWF  -- private
+#print axioms Compiler.Proofs.EndToEnd.compileFunctionSpec_bridged_of_safe_static_params
+#print axioms Compiler.Proofs.EndToEnd.compiledExternalFunctions_bridged_of_safe_static
 #print axioms Compiler.Proofs.EndToEnd.yulBody_from_state_eq_yulBody
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_general
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_evmYulLean_general
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_evmYulLean
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul
+#print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_evmYulLean_with_function_bridge
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_evmYulLean
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_evmYulLean
@@ -2505,6 +2509,7 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingPackedWord_multiSlot_nonzero_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingPackedWordMultiSlotNonzero_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingPackedWordMultiSlotNonzero_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_always_bridged
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.word_lt_uint256_size  -- private
@@ -2626,11 +2631,23 @@ import Compiler.Proofs.YulGeneration.Semantics
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_mod_toNat_of_nonzero  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_toSigned_ofNat_toNat_of_lt  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_toSigned_negSucc_toNat_of_lt  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_smod_toNat_eq_smodSpec  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.smod_int256_eq_uint256Smod  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_smod_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_smod_bridge
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_sar_normalized  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_sar_normalized  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_lt_zero_false  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_complement_val  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_complement_eq  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_shiftRight_val  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.uint256_sar_toNat_eq_sarSpec  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.int_two_pow_eq_nat  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.int_fdiv_ofNat_two_pow  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.int_sub_modulus_eq_negSucc  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.int_fdiv_neg_raw_two_pow  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.int256_ofInt_negSucc_toUint256_val  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.int256_sar_toUint256_val_eq_sarSpec  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.sar_int256_eq_uint256Sar  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_sar_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_sar_bridge
@@ -2894,6 +2911,11 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.SignedArithSpec.smodSpec_of_nonneg
 #print axioms Compiler.Proofs.YulGeneration.Backends.SignedArithSpec.smodSpec_of_neg
 #print axioms Compiler.Proofs.YulGeneration.Backends.SignedArithSpec.smodSpec_lt_specModulus
+#print axioms Compiler.Proofs.YulGeneration.Backends.SignedArithSpec.sarSpec_of_shift_ge_nonneg
+#print axioms Compiler.Proofs.YulGeneration.Backends.SignedArithSpec.sarSpec_of_shift_ge_neg
+#print axioms Compiler.Proofs.YulGeneration.Backends.SignedArithSpec.sarSpec_of_nonneg
+#print axioms Compiler.Proofs.YulGeneration.Backends.SignedArithSpec.sarSpec_of_neg
+#print axioms Compiler.Proofs.YulGeneration.Backends.SignedArithSpec.sarSpec_lt_specModulus
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSourceExprClosure.lean
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_bridgedSource_leaf
@@ -2929,22 +2951,6 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.storageLookup_projectStorage
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.uint256_roundtrip
 
--- Compiler/Proofs/YulGeneration/Builtins.lean
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_callvalue_nil
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_callvalue_context
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_calldatasize_nil
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_caller_nil
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_address_nil
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_timestamp_nil
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_number_nil
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_chainid_nil
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_blobbasefee_nil
-#print axioms Compiler.Proofs.YulGeneration.calldataloadWord_offset4
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_calldataload_offset4_single
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend_calldataload_offset4_single
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_sload_single
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend_sload_single
-
 -- Compiler/Proofs/YulGeneration/Equivalence.lean
 #print axioms Compiler.Proofs.YulGeneration.resultsMatch_of_execResultsAligned
 #print axioms Compiler.Proofs.YulGeneration.statesAligned_refl
@@ -2964,7 +2970,23 @@ import Compiler.Proofs.YulGeneration.Semantics
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
 
--- Compiler/Proofs/YulGeneration/Semantics.lean
+-- Compiler/Proofs/YulGeneration/ReferenceOracle/Builtins.lean
+#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_callvalue_nil
+#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_callvalue_context
+#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_calldatasize_nil
+#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_caller_nil
+#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_address_nil
+#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_timestamp_nil
+#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_number_nil
+#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_chainid_nil
+#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_blobbasefee_nil
+#print axioms Compiler.Proofs.YulGeneration.calldataloadWord_offset4
+#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_calldataload_offset4_single
+#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend_calldataload_offset4_single
+#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_sload_single
+#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend_sload_single
+
+-- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2800 theorems/lemmas (1937 public, 863 private, 0 sorry'd)
+-- Total: 2822 theorems/lemmas (1946 public, 876 private, 0 sorry'd)

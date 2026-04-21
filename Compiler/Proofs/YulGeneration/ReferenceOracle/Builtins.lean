@@ -7,6 +7,14 @@ import Verity.Core.Uint256
 
 namespace Compiler.Proofs.YulGeneration
 
+/-!
+Reference oracle only.
+
+This module preserves Verity's historical builtin semantics for regression
+tests and bridge comparisons. EVMYulLean is the trusted semantic target for the
+current retargeting path; this file is not part of that trust boundary.
+-/
+
 open Compiler.Proofs
 export Compiler.Constants (evmModulus selectorModulus selectorShift)
 

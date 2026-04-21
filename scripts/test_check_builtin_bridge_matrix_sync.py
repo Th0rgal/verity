@@ -142,7 +142,7 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
         features = _make_builtin_features(admitted=[])  # No sorry flags
         matrix = {"builtin_features": features}
         with self.assertRaisesRegex(ValueError, "should have sorry_dependent=true"):
-            check.validate_builtin_features(matrix, check.ADMITTED_BUILTINS)
+            check.validate_builtin_features(matrix, ["sar"])
 
     def test_sorry_dependent_on_non_admitted_fails(self) -> None:
         """Fully proved builtin with sorry_dependent=true should fail."""
@@ -222,7 +222,7 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
         """Repository check should use the adapter report, not the fallback constant."""
         features = _make_builtin_features()
         matrix = {"builtin_features": features}
-        with self.assertRaisesRegex(ValueError, "sar should not have sorry_dependent=true"):
+        with self.assertRaisesRegex(ValueError, "smod should have sorry_dependent=true"):
             check.validate_builtin_features(matrix, ["smod"])
 
         validated = check.validate_builtin_features(matrix, check.ADMITTED_BUILTINS)
@@ -237,10 +237,10 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
 
     def test_sorry_qualifier_in_snippets(self) -> None:
         """Doc snippets should include sorry qualifier when admitted builtins exist."""
-        features = _make_builtin_features()
+        features = _make_builtin_features(admitted=["sar"])
         snippets = check.expected_doc_snippets(features)
         self.assertTrue(
-            any("34 fully proven, 2 with sorry-dependent core equivalences" in s for s in snippets),
+            any("35 fully proven, 1 with sorry-dependent core equivalence" in s for s in snippets),
             f"Expected sorry qualifier in snippets: {snippets}",
         )
 

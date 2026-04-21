@@ -555,8 +555,8 @@ def build_report() -> dict[str, object]:
         def _has_theorem(name: str) -> bool:
             return _has_theorem_in(retarget_code, name)
 
-        def _theorem_body_has_sorry_in(code: str, name: str) -> bool:
-            """Return True iff the body of ``theorem name`` contains ``sorry``."""
+        def _theorem_block_in(code: str, name: str) -> str:
+            """Return the declaration block for ``theorem name`` if present."""
             header_re = re.compile(
                 r'^[ \t]{0,2}(?:@\[[^\]]*\]\s*)*'
                 r'(?:(?:private|protected|noncomputable|unsafe|partial)\s+)*'
@@ -565,7 +565,7 @@ def build_report() -> dict[str, object]:
             )
             m = header_re.search(code)
             if not m:
-                return False
+                return ""
             start = m.start()
             # Slice to the next top-level ``theorem``/``lemma``/``def``/``end``
             # declaration to isolate this theorem's body.
@@ -575,7 +575,12 @@ def build_report() -> dict[str, object]:
             )
             nxt = next_decl.search(code, pos=m.end())
             end = nxt.start() if nxt else len(code)
-            return re.search(r'\bsorry\b', code[start:end]) is not None
+            return code[start:end]
+
+        def _theorem_body_has_sorry_in(code: str, name: str) -> bool:
+            """Return True iff the body of ``theorem name`` contains ``sorry``."""
+            block = _theorem_block_in(code, name)
+            return bool(block and re.search(r'\bsorry\b', block))
 
         def _theorem_body_has_sorry(name: str) -> bool:
             return _theorem_body_has_sorry_in(retarget_code, name)
@@ -617,9 +622,20 @@ def build_report() -> dict[str, object]:
             end_to_end_evm_retarget_has_sorry = _theorem_body_has_sorry_in(
                 end_to_end_code, "layers2_3_ir_matches_yul_evmYulLean"
             )
+            end_to_end_evm_retarget_block = _theorem_block_in(
+                end_to_end_code, "layers2_3_ir_matches_yul_evmYulLean"
+            )
+            end_to_end_evm_retarget_has_body_hypotheses = bool(
+                re.search(
+                    r'\b(?:hFunctions|hFallback|hReceive|hBodyBridged|hInternals)\b'
+                    r'|BridgedStmts',
+                    end_to_end_evm_retarget_block,
+                )
+            )
         else:
             has_end_to_end_evm_retarget = False
             end_to_end_evm_retarget_has_sorry = False
+            end_to_end_evm_retarget_has_body_hypotheses = False
         backends_agree_has_sorry = _theorem_body_has_sorry("backends_agree_on_bridged_builtins")
         expr_retarget_has_sorry = _theorem_body_has_sorry("evalYulExpr_evmYulLean_eq_on_bridged")
         straight_stmt_retarget_has_sorry = _theorem_body_has_sorry(
@@ -745,8 +761,12 @@ def build_report() -> dict[str, object]:
             end_to_end_evm_retarget_status = "sorry"
         elif admitted_deps:
             end_to_end_evm_retarget_status = admitted_dep_status
+        elif end_to_end_evm_retarget_has_body_hypotheses:
+            end_to_end_evm_retarget_status = (
+                "proven (conditional on bridged IR bodies)"
+            )
         else:
-            end_to_end_evm_retarget_status = "proven (conditional on bridged IR bodies)"
+            end_to_end_evm_retarget_status = "proven (body hypotheses discharged)"
         if BODY_CLOSURE_FILE.exists():
             body_closure_code = _strip_lean_strings(
                 _strip_lean_comments(BODY_CLOSURE_FILE.read_text(encoding="utf-8"))
@@ -856,8 +876,9 @@ def build_report() -> dict[str, object]:
             # Universal body-closure metatheorem (plan #1722 B7). When present and
             # proven, every compileStmtList output for external-safe source
             # statement lists discharges `BridgedStmts` without per-call
-            # hypotheses. Together with an empty `admitted_bridge_dependencies`
-            # set this promotes phase4_status to "full_semantic_integration".
+            # hypotheses. The phase4 status only reaches
+            # "full_semantic_integration" after the public EndToEnd theorem
+            # stops carrying explicit BridgedStmts body hypotheses as well.
             has_universal_body_closure = _has_theorem_in(
                 body_closure_code, "compileStmtList_always_bridged"
             )
@@ -1065,6 +1086,7 @@ def build_report() -> dict[str, object]:
             and not universal_body_closure_has_sorry
             and has_end_to_end_evm_retarget
             and not end_to_end_evm_retarget_has_sorry
+            and not end_to_end_evm_retarget_has_body_hypotheses
             and has_layer3_evm_retarget
             and not layer3_evm_retarget_has_sorry
             and
@@ -1095,6 +1117,34 @@ def build_report() -> dict[str, object]:
             and not admitted_deps
         ):
             phase4_status = "full_semantic_integration"
+        elif (
+            has_universal_body_closure
+            and not universal_body_closure_has_sorry
+            and has_end_to_end_evm_retarget
+            and not end_to_end_evm_retarget_has_sorry
+            and has_layer3_evm_retarget
+            and not layer3_evm_retarget_has_sorry
+            and has_runtime_backend_eq
+            and not runtime_backend_eq_has_sorry
+            and has_runtime_closure
+            and not runtime_closure_has_sorry
+            and has_recursive_target_retarget
+            and not recursive_target_retarget_has_sorry
+            and has_for_stmt_retarget
+            and not for_stmt_retarget_has_sorry
+            and has_switch_stmt_retarget
+            and not switch_stmt_retarget_has_sorry
+            and has_if_stmt_retarget
+            and not if_stmt_retarget_has_sorry
+            and has_block_stmt_retarget
+            and not block_stmt_retarget_has_sorry
+            and has_straight_stmt_retarget
+            and not straight_stmt_retarget_has_sorry
+            and has_expr_retarget
+            and not expr_retarget_has_sorry
+            and not admitted_deps
+        ):
+            phase4_status = "universal-safe-body-closure"
         elif (
             has_layer3_evm_retarget
             and not layer3_evm_retarget_has_sorry
@@ -1271,6 +1321,45 @@ def build_report() -> dict[str, object]:
         else:
             phase4_status = "incomplete"
 
+        remaining_for_whole_program_retargeting = []
+        if admitted_deps:
+            remaining_for_whole_program_retargeting.append(
+                f"{'/'.join(admitted_deps)} core equivalence"
+                f"{'s' if len(admitted_deps) != 1 else ''} "
+                "(complex Int↔UInt256 sign/bit semantics)"
+            )
+        if not has_universal_body_closure or universal_body_closure_has_sorry:
+            remaining_for_whole_program_retargeting.extend(
+                [
+                    "ABI-encoded return/error closures: returnArray, returnBytes, returnStorageWords, emit, revertError/requireError with args",
+                    "new BridgedStraightStmt ctors for calldatacopy, returndatacopy, and revertReturndata (currently no bridged ctor)",
+                    "universal compileStmtList_always_bridged metatheorem with a BridgedSafeStmts whitelist predicate (external-call family — internalCall, internalCallAssign, externalCallBind, ecm — remains explicitly carved out behind hFunctions hypotheses)",
+                ]
+            )
+        if (
+            not has_end_to_end_evm_retarget
+            or end_to_end_evm_retarget_has_sorry
+            or end_to_end_evm_retarget_has_body_hypotheses
+        ):
+            remaining_for_whole_program_retargeting.append(
+                "discharge the conditional EndToEnd theorem's bridged-body hypotheses for full compiler-produced contracts"
+            )
+
+        phase4_trust_boundary = (
+            "recursive BridgedTarget statement fragment: EVMYulLean execution model "
+            "matches EVM (upstream conformance tests) for BridgedExpr expressions, "
+            "BridgedStraightStmts (including mapping-slot, literal-slot, and "
+            "identifier-slot sstore), and recursively nested BridgedStmt targets; "
+            "generated runtime-code closure and emitted-runtime backend equality are proven "
+            "conditional on bridged IR bodies; Layer-3 contract preservation now has an "
+            "EVMYulLean-backend Yul target under the same body hypotheses; "
+            "the public EndToEnd module now discharges raw BridgedStmts body hypotheses "
+            "from SupportedSpec, static-parameter, and BridgedSafeStmts source witnesses; "
+            "compileStmtList_always_bridged proves a universal BridgedSafeStmts aggregation "
+            "theorem with the external-call family carved out behind explicit function-table "
+            "hypotheses"
+        )
+
         phase4_retarget = {
             "retarget_file": str(retarget_file.relative_to(ROOT)),
             "status": phase4_status,
@@ -1307,30 +1396,8 @@ def build_report() -> dict[str, object]:
             "compileExpr_bridgedSource_leaf": source_expr_leaf_closure_status,
             "compileExpr_bridgedSource": source_expr_pure_closure_status,
             "compileStmtList_always_bridged": universal_body_closure_status,
-            "trust_boundary": (
-                "recursive BridgedTarget statement fragment: EVMYulLean execution model "
-                "matches EVM (upstream conformance tests) for BridgedExpr expressions, "
-                "BridgedStraightStmts (including mapping-slot, literal-slot, and "
-                "identifier-slot sstore), and recursively nested BridgedStmt targets; "
-                "generated runtime-code closure and emitted-runtime backend equality are proven "
-                "conditional on bridged IR bodies; Layer-3 contract preservation now has an "
-                "EVMYulLean-backend Yul target under the same body hypotheses; "
-                "the public EndToEnd module now exposes a conditional wrapper over that "
-                "EVMYulLean-backed target; scalar and static-scalar calldata "
-                "parameter prologue body closure, pure source-expression closure, scalar/pure "
-                "let/assign statement-list body closure, pure-binding/single-slot setStorage "
-                "body closure, external stop/return terminator closure, and require statement "
-                "closure are proven, mixed external/internal body-fragment closure composes "
-                "those pieces, one-layer and two-level Stmt.ite closures are proven, "
-                "and recursive Stmt.ite closure wraps mixed body fragments"
-            ),
-            "remaining_for_whole_program_retargeting": [
-                "smod/sar core equivalences (complex Int↔UInt256 sign/bit semantics)",
-                "ABI-encoded return/error closures: returnArray, returnBytes, returnStorageWords, emit, revertError/requireError with args",
-                "new BridgedStraightStmt ctors for calldatacopy, returndatacopy, and revertReturndata (currently no bridged ctor)",
-                "universal compileStmtList_always_bridged metatheorem with a BridgedSafeStmts whitelist predicate (external-call family — internalCall, internalCallAssign, externalCallBind, ecm — remains explicitly carved out behind hFunctions/hInternals hypotheses)",
-                "discharge the conditional EndToEnd theorem's bridged-body hypotheses for full compiler-produced contracts",
-            ],
+            "trust_boundary": phase4_trust_boundary,
+            "remaining_for_whole_program_retargeting": remaining_for_whole_program_retargeting,
         }
 
     report: dict[str, object] = {

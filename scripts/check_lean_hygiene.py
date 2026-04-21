@@ -99,14 +99,9 @@ def main() -> None:
         )
 
     # Check 3: Fixed sorry baseline after the merged proof-reduction pass.
-    # Each allowed sorry is pinned to a specific theorem with an explicit
-    # per-theorem limit so redistributing obligations between pinned theorems
-    # still fails even if the file-level total stays constant.
+    # The bridge proof stack is now expected to be sorry-free; keep the
+    # allowlist structure so future temporary carve-outs must be explicit.
     ALLOWED_SORRY_THEOREMS: dict[str, dict[str, int]] = {
-        "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean": {
-            "smod_int256_eq_uint256Smod": 1,
-            "sar_int256_eq_uint256Sar": 1,
-        },
     }
     sorry_count = 0
     sorry_locations: list[str] = []

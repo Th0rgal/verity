@@ -12,7 +12,7 @@ Machine-readable version: [`artifacts/interpreter_feature_matrix.json`](../artif
 | Interpreter | File | Entry Point | Purpose |
 |---|---|---|---|
 | **IRInterpreter** | `Compiler/Proofs/IRGeneration/IRInterpreter.lean` | `execIRStmts` | Layer-2 preservation proofs |
-| **YulSemantics** | `Compiler/Proofs/YulGeneration/Semantics.lean` | `execYulFuel` | Layer-3 Yul execution semantics |
+| **YulSemantics reference oracle** | `Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean` | `execYulFuel` | Historical Layer-3 Yul execution semantics retained for regression comparisons |
 | **EVMYulLean bridge** | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean` | `evalBuiltinCallViaEvmYulLean` | Pure builtin evaluation via EVMYulLean UInt256 |
 
 The old `SpecInterpreter` module has been removed. Source semantics now live in
@@ -152,7 +152,7 @@ Legend: **ok** = supported, **rev** = reverts (not modeled), **nop** = no-op (co
 
 Legend: **ok** = native evaluation.
 
-36/36 builtins have universal bridge agreement proofs between Verity and EVMYulLean evaluation paths (34 fully proven, 2 with sorry-dependent core equivalences). 36 are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`. Of those, 25 are discharged by universal symbolic lemmas for the pure fragment, and none still require concrete-only regression coverage. No builtin remains delegated to the Verity-only evaluation path.
+36/36 builtins have universal bridge agreement proofs between Verity and EVMYulLean evaluation paths. 36 are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`. Of those, 25 are discharged by universal symbolic lemmas for the pure fragment, and none still require concrete-only regression coverage. No builtin remains delegated to the Verity-only evaluation path.
 
 ---
 
@@ -162,7 +162,7 @@ Legend: **ok** = native evaluation.
 |---|---|---|---|---|
 | Expression features | 24 | 1 (`externalCall`) | 5 (`blockNumber`, `contractAddress`, `chainid`, `mload`, `returndataOptionalBoolAt`) | 4 (`keccak256`, `call`, `staticcall`, `delegatecall`) |
 | Statement features | 25 | 0 | 1 (`mstore`) | 6 (`calldatacopy`, `returndataCopy`, `revertReturndata`, `rawLog`, `externalCallBind`, `ecm`) |
-| Builtins (agreement) | 34 | 0 | 2 (`smod`, `sar` — sorry-dependent) | 0 (delegated) |
+| Builtins (agreement) | 36 | 0 | 0 | 0 (delegated) |
 
 Proof-boundary features split across two buckets. Partially modeled features currently include runtime introspection (`blockNumber`, `contractAddress`, `chainid`) and single-word linear-memory forms (`mload`, `mstore`, `returndataOptionalBoolAt`). Fully not-modeled features currently include `keccak256`, low-level call / returndata plumbing (`call`, `staticcall`, `delegatecall`, `calldatacopy`, `returndataCopy`, `revertReturndata`), event emission (`rawLog`), and external call modules (`externalCallBind`, `ecm`). These features are still compiler-supported and are validated by differential testing (70,000+ test vectors against actual EVM execution).
 

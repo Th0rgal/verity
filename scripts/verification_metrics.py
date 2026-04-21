@@ -79,9 +79,8 @@ def get_sorry_count() -> tuple[int, int]:
     infrastructure scaffolding files that don't affect contract theorem proofs.
     """
     # Infrastructure files whose sorrys are Phase 2 proof obligations,
-    # not regressions in contract theorem proofs.  Bridge lemma sorrys
-    # (sdiv/smod/sar core equivalences) live in
-    # EvmYulLeanBridgeLemmas.lean and are not reachable from contract proofs.
+    # not regressions in contract theorem proofs. Keep the bridge file listed
+    # here so future bridge obligations stay classified consistently.
     INFRASTRUCTURE_FILES: set[str] = {
         "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean",
     }

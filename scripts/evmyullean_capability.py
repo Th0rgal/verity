@@ -7,7 +7,9 @@ from pathlib import Path
 
 from property_utils import ROOT
 
-BUILTINS_FILE = ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Builtins.lean"
+BUILTINS_FILE = (
+    ROOT / "Compiler" / "Proofs" / "YulGeneration" / "ReferenceOracle" / "Builtins.lean"
+)
 
 BUILTIN_NAME_RE = re.compile(r'func\s*=\s*"([^"]+)"')
 FUNC_COMPARE_RE = re.compile(r"\bfunc\s*=\s*(.+?)\s+then\b")

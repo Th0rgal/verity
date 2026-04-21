@@ -2,12 +2,12 @@
 
 This module introduces Nat-level specification functions that will mediate
 between Verity's `Int256`-based signed operations and EVMYulLean's
-`UInt256`-based signed operations in the two remaining admitted bridge
-lemmas (`smod_int256_eq_uint256Smod`, `sar_int256_eq_uint256Sar`).
+`UInt256`-based signed operations in the formerly admitted bridge lemmas
+(`smod_int256_eq_uint256Smod`, `sar_int256_eq_uint256Sar`).
 
 The goal of this scaffolding step (plan #1722 A1a) is to **land only the
 spec definitions and their elementary characterizations**. The actual
-discharge of the admitted bridge lemmas — rewriting the Verity and
+discharge of those bridge lemmas — rewriting the Verity and
 EVMYulLean wrappers to both call into these specs — is deferred to plan
 #1722 A2 (smod) and A3 (sar).
 
@@ -22,10 +22,13 @@ Layout:
   `Int256.mod b = 0` early return and EVMYulLean's `b.toNat == 0`
   guard in `EvmYul.UInt256.smod`.
 
-* Future (A1b): `sarSpec shift value` — this file will gain a `sar`
-  spec once the S1/S2 strategy decision for `sar` lands (see plan
-  Bucket A fallback note: `sar` may drop to a `BitVec 256` round-trip
-  rather than Nat-level sign extension).
+* `sarSpec shift value` encodes the EVM `sar` opcode at the Nat level.
+  For non-negative values it is ordinary division by `2^shift`. For
+  negative values it uses the equivalent two's-complement identity
+  `-ceil(abs / 2^shift) = -(floor((abs - 1) / 2^shift) + 1)`, written
+  directly in raw-word form as `specModulus - 1 - ((specModulus - 1 -
+  value) / 2^shift)`. Shifts at least 256 saturate to `0` or
+  `specModulus - 1`.
 
 No code here is `sorry`-dependent. No declaration is marked `@[simp]`.
 None of the existing bridge artifacts reference these specs yet; that
@@ -39,8 +42,7 @@ namespace SignedArithSpec
 /-- The 256-bit modulus used by the EVM, materialized as a Nat so the
 spec can live at the Nat level without dragging in `UInt256`/`Int256`
 imports. Kept local to this module to avoid colliding with
-`Compiler.Proofs.YulGeneration.Builtins.evmModulus`; a later A2 commit
-will prove they are propositionally equal. -/
+`Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins.evmModulus`. -/
 def specModulus : Nat := 2 ^ 256
 
 /-- The 256-bit sign bit boundary: the smallest Nat whose top word-bit
@@ -86,6 +88,23 @@ def smodSpec (a b : Nat) : Nat :=
     let r := absA % absB
     if a < specSignBit then r
     else if r = 0 then 0 else specModulus - r
+
+/-- Signed arithmetic right shift at the Nat level.
+
+Inputs are raw 256-bit words. `shift` is the raw shift word after the
+caller has reduced through the 256-bit modulus. If `shift ≥ 256`, EVM
+`sar` saturates: non-negative values become `0`, negative values become
+all ones (`specModulus - 1`). Below 256, non-negative values use ordinary
+Nat division by `2^shift`; negative values shift the complemented
+magnitude and complement back, matching EVMYulLean's
+`complement (complement value >>> shift)` definition. -/
+def sarSpec (shift value : Nat) : Nat :=
+  if 256 ≤ shift then
+    if value < specSignBit then 0 else specModulus - 1
+  else if value < specSignBit then
+    value / 2 ^ shift
+  else
+    specModulus - 1 - ((specModulus - 1 - value) / 2 ^ shift)
 
 /-! ### Elementary characterizations of `smodSpec`
 
@@ -183,6 +202,54 @@ theorem smodSpec_lt_specModulus (a b : Nat) (hb : b < specModulus) :
     · simp [hr0]
       have hpos : 0 < specAbs a % specAbs b := Nat.pos_of_ne_zero hr0
       omega
+
+/-! ### Elementary characterizations of `sarSpec`
+
+These lemmas isolate the four cases that both the Verity `Int256.sar`
+wrapper and EVMYulLean `UInt256.sar` wrapper need: saturated/non-saturated
+shift crossed with the sign bit of the value. -/
+
+theorem sarSpec_of_shift_ge_nonneg (shift value : Nat)
+    (hshift : 256 ≤ shift) (hvalue : value < specSignBit) :
+    sarSpec shift value = 0 := by
+  unfold sarSpec
+  simp [hshift, hvalue]
+
+theorem sarSpec_of_shift_ge_neg (shift value : Nat)
+    (hshift : 256 ≤ shift) (hvalue : specSignBit ≤ value) :
+    sarSpec shift value = specModulus - 1 := by
+  unfold sarSpec
+  simp [hshift, Nat.not_lt.mpr hvalue]
+
+theorem sarSpec_of_nonneg (shift value : Nat)
+    (hshift : shift < 256) (hvalue : value < specSignBit) :
+    sarSpec shift value = value / 2 ^ shift := by
+  unfold sarSpec
+  simp [Nat.not_le.mpr hshift, hvalue]
+
+theorem sarSpec_of_neg (shift value : Nat)
+    (hshift : shift < 256) (hvalue : specSignBit ≤ value) :
+    sarSpec shift value =
+      specModulus - 1 - ((specModulus - 1 - value) / 2 ^ shift) := by
+  unfold sarSpec
+  simp [Nat.not_le.mpr hshift, Nat.not_lt.mpr hvalue]
+
+theorem sarSpec_lt_specModulus (shift value : Nat) (hvalue : value < specModulus) :
+    sarSpec shift value < specModulus := by
+  unfold sarSpec
+  by_cases hshift : 256 ≤ shift
+  · simp only [hshift, ↓reduceIte]
+    by_cases hsign : value < specSignBit
+    · simp [hsign, specModulus_pos]
+    · simp [hsign]
+      exact Nat.sub_lt (by exact specModulus_pos) (by decide : 0 < 1)
+  · simp only [hshift, ↓reduceIte]
+    by_cases hsign : value < specSignBit
+    · simp [hsign]
+      exact Nat.lt_of_le_of_lt (Nat.div_le_self value (2 ^ shift)) hvalue
+    · simp [hsign]
+      exact Nat.lt_of_le_of_lt (Nat.sub_le _ _)
+        (Nat.sub_lt (by exact specModulus_pos) (by decide : 0 < 1))
 
 end SignedArithSpec
 

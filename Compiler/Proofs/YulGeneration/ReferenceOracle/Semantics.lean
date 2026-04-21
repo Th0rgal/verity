@@ -1,7 +1,7 @@
 import Compiler.Yul.Ast
 import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.MappingSlot
-import Compiler.Proofs.YulGeneration.Builtins
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
 
 namespace Compiler.Proofs.YulGeneration
 
@@ -9,6 +9,15 @@ open Compiler
 open Compiler.Yul
 open Compiler.Proofs.IRGeneration
 open Compiler.Proofs
+
+/-!
+Reference oracle only.
+
+This module preserves Verity's historical `execYulFuel` runtime semantics for
+regression tests and bridge comparisons. EVMYulLean is the trusted semantic
+target for the current retargeting path; this file is not part of that trust
+boundary.
+-/
 
 /-! ## Yul Runtime Semantics (Layer 3 Foundation)
 

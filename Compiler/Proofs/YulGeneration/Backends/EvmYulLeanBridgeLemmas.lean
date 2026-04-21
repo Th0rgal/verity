@@ -1,4 +1,4 @@
-import Compiler.Proofs.YulGeneration.Builtins
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSignedArithSpec
 import Mathlib.Data.Nat.Bitwise
@@ -1715,10 +1715,190 @@ private theorem uint256_toSigned_negSucc_toNat_of_lt
     omega
   exact Nat.mod_eq_of_lt h
 
+/-! ### EVMYulLean-side smod reduction to smodSpec (A2c)
+
+Symmetric to `int256_mod_toUint256_val_eq_smodSpec`: reduces
+`toNat (UInt256.smod a b)` to `SignedArithSpec.smodSpec a.toNat b.toNat`.
+
+The EVMYulLean definition is
+```
+smod a b = if b.toNat == 0 then ⟨0⟩
+           else toSigned (sgn a * (abs a % abs b).toNat)
+```
+Each branch is discharged by composing the previously-landed scaffolds:
+
+* Zero-divisor: direct from `smodSpec_b_zero`.
+* Non-negative `a` (`a < specSignBit`), `a = 0`: `sgn = 0`, product `= 0 = Int.ofNat 0`, `toSigned` gives `0`; `smodSpec_a_zero` gives `0`.
+* Non-negative `a`, `a ≠ 0`: `sgn = 1`, product `= Int.ofNat r` with `r < specSignBit < size`; `toSigned` collapses via `uint256_toSigned_ofNat_toNat_of_lt`; RHS matches `smodSpec_of_nonneg`.
+* Negative `a` (`specSignBit ≤ a`), `r = 0`: `sgn * 0 = 0`; `toSigned 0 = 0`; RHS matches `smodSpec_of_neg` at its `r = 0` branch.
+* Negative `a`, `r > 0`: `sgn * r = -r = Int.negSucc (r-1)`; `toSigned` collapses via `uint256_toSigned_negSucc_toNat_of_lt` to `size - r = specModulus - r`; RHS matches `smodSpec_of_neg`.
+-/
+private theorem uint256_smod_toNat_eq_smodSpec (a b : Nat)
+    (ha : a < evmModulus) (hb : b < evmModulus) :
+    EvmYul.UInt256.toNat
+      (EvmYul.UInt256.smod ⟨⟨a, by rw [EvmYul.UInt256.size]; exact ha⟩⟩
+                           ⟨⟨b, by rw [EvmYul.UInt256.size]; exact hb⟩⟩) =
+    SignedArithSpec.smodSpec a b := by
+  -- Size bounds
+  have hsize_a : a < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact ha
+  have hsize_b : b < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact hb
+  -- Working abbreviations
+  let ua : EvmYul.UInt256 := ⟨⟨a, hsize_a⟩⟩
+  let ub : EvmYul.UInt256 := ⟨⟨b, hsize_b⟩⟩
+  have hua_toNat : EvmYul.UInt256.toNat ua = a := rfl
+  have hub_toNat : EvmYul.UInt256.toNat ub = b := rfl
+  -- Zero-divisor split
+  by_cases hb0 : b = 0
+  · subst hb0
+    rw [SignedArithSpec.smodSpec_b_zero]
+    show EvmYul.UInt256.toNat (EvmYul.UInt256.smod ua ub) = 0
+    unfold EvmYul.UInt256.smod
+    have h_beq : (EvmYul.UInt256.toNat ub == 0) = true := by
+      rw [hub_toNat]; rfl
+    rw [h_beq]
+    rfl
+  · -- b ≠ 0
+    show EvmYul.UInt256.toNat (EvmYul.UInt256.smod ua ub) = SignedArithSpec.smodSpec a b
+    unfold EvmYul.UInt256.smod
+    have h_beq : (EvmYul.UInt256.toNat ub == 0) = false := by
+      rw [hub_toNat]
+      simp [hb0]
+    rw [h_beq]
+    simp only [Bool.false_eq_true, ↓reduceIte]
+    -- Goal: toNat (toSigned (sgn ua * ↑(toNat (abs ua % abs ub)))) = smodSpec a b
+    -- Reduce abs operations
+    have habs_ua_toNat : EvmYul.UInt256.toNat (EvmYul.UInt256.abs ua) = SignedArithSpec.specAbs a :=
+      uint256_abs_toNat_eq_specAbs a ha
+    have habs_ub_toNat : EvmYul.UInt256.toNat (EvmYul.UInt256.abs ub) = SignedArithSpec.specAbs b :=
+      uint256_abs_toNat_eq_specAbs b hb
+    -- specAbs b is nonzero
+    have habs_b_ne : SignedArithSpec.specAbs b ≠ 0 := by
+      unfold SignedArithSpec.specAbs
+      by_cases hbs : b < SignedArithSpec.specSignBit
+      · simp [hbs]; exact hb0
+      · simp [hbs]
+        have hbmod : b < SignedArithSpec.specModulus := by
+          show b < 2^256
+          exact hb
+        omega
+    have habs_b_pos : 0 < SignedArithSpec.specAbs b := Nat.pos_of_ne_zero habs_b_ne
+    have habs_ub_ne : EvmYul.UInt256.toNat (EvmYul.UInt256.abs ub) ≠ 0 := by
+      rw [habs_ub_toNat]; exact habs_b_ne
+    -- Reduce abs % abs via uint256_mod_toNat_of_nonzero
+    have hmod_toNat :
+        EvmYul.UInt256.toNat (EvmYul.UInt256.abs ua % EvmYul.UInt256.abs ub) =
+        SignedArithSpec.specAbs a % SignedArithSpec.specAbs b := by
+      rw [uint256_mod_toNat_of_nonzero _ _ habs_ub_ne, habs_ua_toNat, habs_ub_toNat]
+    -- Let r := specAbs a % specAbs b
+    set r : Nat := SignedArithSpec.specAbs a % SignedArithSpec.specAbs b with hr_def
+    -- r bounds
+    have hr_lt_absB : r < SignedArithSpec.specAbs b := Nat.mod_lt _ habs_b_pos
+    have habs_b_le : SignedArithSpec.specAbs b ≤ SignedArithSpec.specSignBit :=
+      SignedArithSpec.specAbs_le_specSignBit b
+    have hSB_lt_size : SignedArithSpec.specSignBit < EvmYul.UInt256.size := by
+      show (2:Nat)^255 < 2^256; decide
+    have hr_lt_size : r < EvmYul.UInt256.size := by
+      have hr_le_SB : r < SignedArithSpec.specSignBit := by omega
+      omega
+    have hr_lt_SB : r < SignedArithSpec.specSignBit := by omega
+    -- Case split on sgn a (non-negative vs negative)
+    unfold EvmYul.UInt256.sgn
+    by_cases haS : a < SignedArithSpec.specSignBit
+    · -- Non-negative a: 2^255 ≤ a is false
+      have h_not_neg : ¬ (2:Nat)^255 ≤ EvmYul.UInt256.toNat ua := by
+        rw [hua_toNat]
+        have : a < (2:Nat)^255 := haS
+        omega
+      simp only [h_not_neg, ↓reduceIte]
+      by_cases ha0 : a = 0
+      · -- a = 0: eq0 ua = true, sgn = 0
+        have hua_val : ua.val = 0 := by
+          show (⟨a, hsize_a⟩ : Fin EvmYul.UInt256.size) = 0
+          apply Fin.ext
+          show a = 0
+          exact ha0
+        have h_eq0 : EvmYul.UInt256.eq0 ua = true := eq0_true_of_val_eq_zero ua hua_val
+        simp only [h_eq0]
+        -- sgn = 0 → 0 * _ = 0 = Int.ofNat 0
+        show EvmYul.UInt256.toNat
+            (EvmYul.UInt256.toSigned
+              ((0 : Int) * ((EvmYul.UInt256.toNat
+                  (EvmYul.UInt256.abs ua % EvmYul.UInt256.abs ub)) : Int))) =
+            SignedArithSpec.smodSpec a b
+        rw [zero_mul]
+        rw [show (0 : Int) = Int.ofNat 0 from rfl]
+        rw [uint256_toSigned_ofNat_toNat_of_lt 0
+              (by unfold EvmYul.UInt256.size; decide)]
+        -- RHS: smodSpec 0 b = 0
+        subst ha0
+        rw [SignedArithSpec.smodSpec_a_zero]
+      · -- a ≠ 0: eq0 ua = false, sgn = 1
+        have hua_val_ne : ua.val ≠ 0 := by
+          intro h
+          apply ha0
+          show a = 0
+          exact congrArg Fin.val h
+        have h_eq0 : EvmYul.UInt256.eq0 ua = false := eq0_false_of_val_ne_zero ua hua_val_ne
+        simp only [h_eq0]
+        -- sgn = 1 → 1 * ↑r = ↑r = Int.ofNat r
+        show EvmYul.UInt256.toNat
+            (EvmYul.UInt256.toSigned
+              ((1 : Int) * ((EvmYul.UInt256.toNat
+                  (EvmYul.UInt256.abs ua % EvmYul.UInt256.abs ub)) : Int))) =
+            SignedArithSpec.smodSpec a b
+        rw [one_mul, hmod_toNat]
+        rw [show ((r : Int)) = Int.ofNat r from rfl]
+        rw [uint256_toSigned_ofNat_toNat_of_lt r hr_lt_size]
+        rw [SignedArithSpec.smodSpec_of_nonneg a b haS hb0]
+    · -- Negative a: 2^255 ≤ a
+      have hge : SignedArithSpec.specSignBit ≤ a := Nat.le_of_not_lt haS
+      have h_is_neg : (2:Nat)^255 ≤ EvmYul.UInt256.toNat ua := by
+        rw [hua_toNat]
+        exact hge
+      simp only [h_is_neg, ↓reduceIte]
+      -- sgn = -1 → -1 * ↑r
+      show EvmYul.UInt256.toNat
+          (EvmYul.UInt256.toSigned
+            ((-1 : Int) * ((EvmYul.UInt256.toNat
+                (EvmYul.UInt256.abs ua % EvmYul.UInt256.abs ub)) : Int))) =
+          SignedArithSpec.smodSpec a b
+      rw [hmod_toNat]
+      rw [SignedArithSpec.smodSpec_of_neg a b hge hb0]
+      by_cases hr0 : r = 0
+      · -- r = 0
+        rw [hr0]
+        simp only [Int.natCast_zero, mul_zero]
+        rw [show (0 : Int) = Int.ofNat 0 from rfl]
+        rw [uint256_toSigned_ofNat_toNat_of_lt 0 (by unfold EvmYul.UInt256.size; decide)]
+        have hr0spec : SignedArithSpec.specAbs a % SignedArithSpec.specAbs b = 0 := by
+          rw [← hr_def]
+          exact hr0
+        rw [if_pos hr0spec]
+      · -- r > 0
+        have hr_pos : 0 < r := Nat.pos_of_ne_zero hr0
+        -- -1 * ↑r = Int.negSucc (r - 1)
+        have hprod : (-1 : Int) * (r : Int) = Int.negSucc (r - 1) := by
+          cases h : r with
+          | zero => exact False.elim (hr0 h)
+          | succ k =>
+            simp [Int.negSucc_eq]
+        rw [hprod]
+        have hr_bound : (r - 1) + 1 < EvmYul.UInt256.size := by omega
+        rw [uint256_toSigned_negSucc_toNat_of_lt (r - 1) hr_bound]
+        -- Goal: size - 1 - (r-1) = if r = 0 then 0 else specModulus - r
+        rw [if_neg hr0]
+        show EvmYul.UInt256.size - 1 - (r - 1) = SignedArithSpec.specModulus - r
+        have hr_pos : 0 < r := Nat.pos_of_ne_zero hr0
+        have h_eq : EvmYul.UInt256.size = SignedArithSpec.specModulus := rfl
+        rw [h_eq]
+        omega
+
 /-- Core smod equivalence: Verity's `Int256.mod` agrees with EVMYulLean's `UInt256.smod`.
 
-**Status**: sorry — requires showing Int sign-magnitude remainder matches
-UInt256 sgn/abs decomposition. Validated by concrete tests. -/
+**Closed via A2a + A2c**: Verity-side reduction
+`int256_mod_toUint256_val_eq_smodSpec` and EVMYulLean-side reduction
+`uint256_smod_toNat_eq_smodSpec` both go through the shared
+`SignedArithSpec.smodSpec`, and the composition discharges the wrapper. -/
 private theorem smod_int256_eq_uint256Smod (a b : Nat)
     (ha : a < evmModulus) (hb : b < evmModulus) :
     (Verity.Core.Int256.mod
@@ -1726,7 +1906,8 @@ private theorem smod_int256_eq_uint256Smod (a b : Nat)
       (Verity.Core.Int256.ofUint256 ⟨b, hb⟩)).toUint256.val =
     EvmYul.UInt256.toNat (EvmYul.UInt256.smod ⟨⟨a, by rw [EvmYul.UInt256.size]; exact ha⟩⟩
                                                ⟨⟨b, by rw [EvmYul.UInt256.size]; exact hb⟩⟩) := by
-  sorry
+  rw [int256_mod_toUint256_val_eq_smodSpec a b ha hb]
+  rw [uint256_smod_toNat_eq_smodSpec a b ha hb]
 
 /-- Universal bridge theorem for `smod`. -/
 @[simp] theorem evalBuiltinCall_smod_bridge
@@ -1776,10 +1957,323 @@ private theorem bridge_eval_sar_normalized (shift value : Nat) :
         (EvmYul.UInt256.sar (EvmYul.UInt256.ofNat shift) (EvmYul.UInt256.ofNat value))) := by
   rfl
 
+private theorem uint256_lt_zero_false (value : Nat) (hv : value < EvmYul.UInt256.size) :
+    ¬ ((⟨⟨value, hv⟩⟩ : EvmYul.UInt256) < ⟨0⟩) := by
+  intro h
+  change (⟨value, hv⟩ : Fin EvmYul.UInt256.size) < (0 : Fin EvmYul.UInt256.size) at h
+  exact Nat.not_lt_zero _ h
+
+private theorem uint256_complement_val (value : Nat) (hv : value < EvmYul.UInt256.size) :
+    EvmYul.UInt256.toNat (EvmYul.UInt256.complement ⟨⟨value, hv⟩⟩) =
+      EvmYul.UInt256.size - 1 - value := by
+  simp [EvmYul.UInt256.complement, EvmYul.UInt256.toNat, Fin.add_def, Fin.neg_def]
+  have hle : value + 1 ≤ EvmYul.UInt256.size := by omega
+  by_cases hlast : value + 1 = EvmYul.UInt256.size
+  · rw [hlast]
+    simp
+    omega
+  · have hlt : value + 1 < EvmYul.UInt256.size := Nat.lt_of_le_of_ne hle hlast
+    rw [Nat.mod_eq_of_lt hlt]
+    have hsub_lt : EvmYul.UInt256.size - (value + 1) < EvmYul.UInt256.size := by
+      unfold EvmYul.UInt256.size
+      omega
+    rw [Nat.mod_eq_of_lt hsub_lt]
+    omega
+
+private theorem uint256_complement_eq (value : Nat) (hv : value < EvmYul.UInt256.size) (hout) :
+    EvmYul.UInt256.complement ⟨⟨value, hv⟩⟩ =
+      ⟨⟨EvmYul.UInt256.size - 1 - value, hout⟩⟩ := by
+  rw [EvmYul.UInt256.mk.injEq]
+  apply Fin.ext
+  exact uint256_complement_val value hv
+
+private theorem uint256_shiftRight_val (value shift : Nat)
+    (hv : value < EvmYul.UInt256.size) (hs : shift < EvmYul.UInt256.size) :
+    EvmYul.UInt256.toNat (EvmYul.UInt256.shiftRight ⟨⟨value, hv⟩⟩ ⟨⟨shift, hs⟩⟩) =
+      if shift < 256 then value / 2 ^ shift else 0 := by
+  by_cases hshift : shift < 256
+  · have hg : ¬ 256 ≤ (⟨⟨shift, hs⟩⟩ : EvmYul.UInt256).val := by
+      change ¬ 256 ≤ shift
+      exact Nat.not_le_of_lt hshift
+    simp [EvmYul.UInt256.shiftRight, EvmYul.UInt256.toNat, hg, hshift,
+      Nat.shiftRight_eq_div_pow]
+  · have hg : 256 ≤ (⟨⟨shift, hs⟩⟩ : EvmYul.UInt256).val := by
+      change 256 ≤ shift
+      exact Nat.not_lt.mp hshift
+    simp [EvmYul.UInt256.shiftRight, EvmYul.UInt256.toNat, hg, hshift]
+
+/-- EVMYulLean-side `sar` reduction through the shared Nat-level spec. -/
+private theorem uint256_sar_toNat_eq_sarSpec (shift value : Nat)
+    (hs : shift < EvmYul.UInt256.size) (hv : value < EvmYul.UInt256.size) :
+    EvmYul.UInt256.toNat (EvmYul.UInt256.sar ⟨⟨shift, hs⟩⟩ ⟨⟨value, hv⟩⟩) =
+      SignedArithSpec.sarSpec shift value := by
+  unfold EvmYul.UInt256.sar
+  by_cases hvalue : value < SignedArithSpec.specSignBit
+  · have hslFalse : EvmYul.UInt256.sltBool
+        (⟨⟨value, hv⟩⟩ : EvmYul.UInt256) ⟨0⟩ = false := by
+      unfold EvmYul.UInt256.sltBool
+      have hnotSign : ¬ 2 ^ 255 ≤ (⟨⟨value, hv⟩⟩ : EvmYul.UInt256).toNat := by
+        change ¬ 2 ^ 255 ≤ value
+        exact Nat.not_le_of_lt (by simpa [SignedArithSpec.specSignBit] using hvalue)
+      rw [if_neg hnotSign]
+      have hzeroNotSign : ¬ 2 ^ 255 ≤ (⟨0⟩ : EvmYul.UInt256).toNat := by decide
+      rw [if_neg hzeroNotSign]
+      simp [uint256_lt_zero_false value hv]
+    rw [hslFalse]
+    simp
+    show EvmYul.UInt256.toNat
+        (EvmYul.UInt256.shiftRight ⟨⟨value, hv⟩⟩ ⟨⟨shift, hs⟩⟩) =
+      SignedArithSpec.sarSpec shift value
+    rw [uint256_shiftRight_val value shift hv hs]
+    by_cases hshift : shift < 256
+    · rw [SignedArithSpec.sarSpec_of_nonneg shift value hshift hvalue]
+      simp [hshift]
+    · have hge : 256 ≤ shift := Nat.not_lt.mp hshift
+      rw [SignedArithSpec.sarSpec_of_shift_ge_nonneg shift value hge hvalue]
+      simp [hshift]
+  · have hgeValue : SignedArithSpec.specSignBit ≤ value := Nat.le_of_not_lt hvalue
+    have hslTrue : EvmYul.UInt256.sltBool
+        (⟨⟨value, hv⟩⟩ : EvmYul.UInt256) ⟨0⟩ = true := by
+      unfold EvmYul.UInt256.sltBool
+      have hsign : 2 ^ 255 ≤ (⟨⟨value, hv⟩⟩ : EvmYul.UInt256).toNat := by
+        change 2 ^ 255 ≤ value
+        simpa [SignedArithSpec.specSignBit] using hgeValue
+      rw [if_pos hsign]
+      have hzeroNotSign : ¬ 2 ^ 255 ≤ (⟨0⟩ : EvmYul.UInt256).toNat := by decide
+      rw [if_neg hzeroNotSign]
+    rw [hslTrue]
+    simp
+    have hc_lt : EvmYul.UInt256.size - 1 - value < EvmYul.UInt256.size := by
+      unfold EvmYul.UInt256.size
+      omega
+    rw [uint256_complement_eq value hv hc_lt]
+    by_cases hshift : shift < 256
+    · rw [SignedArithSpec.sarSpec_of_neg shift value hshift hgeValue]
+      have hdiv_lt :
+          (EvmYul.UInt256.size - 1 - value) / 2 ^ shift < EvmYul.UInt256.size :=
+        Nat.lt_of_le_of_lt (Nat.div_le_self _ _) hc_lt
+      have hshiftEq :
+          EvmYul.UInt256.shiftRight
+            ⟨⟨EvmYul.UInt256.size - 1 - value, hc_lt⟩⟩ ⟨⟨shift, hs⟩⟩ =
+          ⟨⟨(EvmYul.UInt256.size - 1 - value) / 2 ^ shift, hdiv_lt⟩⟩ := by
+        rw [EvmYul.UInt256.mk.injEq]
+        apply Fin.ext
+        change EvmYul.UInt256.toNat
+            (EvmYul.UInt256.shiftRight
+              ⟨⟨EvmYul.UInt256.size - 1 - value, hc_lt⟩⟩ ⟨⟨shift, hs⟩⟩) =
+          (EvmYul.UInt256.size - 1 - value) / 2 ^ shift
+        rw [uint256_shiftRight_val (EvmYul.UInt256.size - 1 - value) shift hc_lt hs]
+        simp [hshift]
+      show EvmYul.UInt256.toNat
+          (EvmYul.UInt256.complement
+            (EvmYul.UInt256.shiftRight
+              ⟨⟨EvmYul.UInt256.size - 1 - value, hc_lt⟩⟩ ⟨⟨shift, hs⟩⟩)) =
+        SignedArithSpec.specModulus - 1 -
+          (SignedArithSpec.specModulus - 1 - value) / 2 ^ shift
+      rw [hshiftEq]
+      rw [uint256_complement_val ((EvmYul.UInt256.size - 1 - value) / 2 ^ shift) hdiv_lt]
+      simp [EvmYul.UInt256.size, SignedArithSpec.specModulus]
+    · have hge : 256 ≤ shift := Nat.not_lt.mp hshift
+      rw [SignedArithSpec.sarSpec_of_shift_ge_neg shift value hge hgeValue]
+      have hzeroLt : 0 < EvmYul.UInt256.size := by
+        unfold EvmYul.UInt256.size
+        omega
+      have hshiftEq :
+          EvmYul.UInt256.shiftRight
+            ⟨⟨EvmYul.UInt256.size - 1 - value, hc_lt⟩⟩ ⟨⟨shift, hs⟩⟩ =
+          ⟨⟨0, hzeroLt⟩⟩ := by
+        rw [EvmYul.UInt256.mk.injEq]
+        apply Fin.ext
+        change EvmYul.UInt256.toNat
+            (EvmYul.UInt256.shiftRight
+              ⟨⟨EvmYul.UInt256.size - 1 - value, hc_lt⟩⟩ ⟨⟨shift, hs⟩⟩) = 0
+        rw [uint256_shiftRight_val (EvmYul.UInt256.size - 1 - value) shift hc_lt hs]
+        simp [hshift]
+      show EvmYul.UInt256.toNat
+          (EvmYul.UInt256.complement
+            (EvmYul.UInt256.shiftRight
+              ⟨⟨EvmYul.UInt256.size - 1 - value, hc_lt⟩⟩ ⟨⟨shift, hs⟩⟩)) =
+        SignedArithSpec.specModulus - 1
+      rw [hshiftEq]
+      rw [uint256_complement_val 0 hzeroLt]
+      simp [EvmYul.UInt256.size, SignedArithSpec.specModulus]
+
+private theorem int_two_pow_eq_nat (shift : Nat) :
+    ((2 : Int) ^ shift) = Int.ofNat (2 ^ shift) := by
+  induction shift with
+  | zero => simp
+  | succ n ih =>
+      rw [pow_succ, pow_succ, ih]
+      norm_num
+
+private theorem int_fdiv_ofNat_two_pow (value shift : Nat) :
+    (Int.ofNat value).fdiv ((2 : Int) ^ shift) =
+      Int.ofNat (value / 2 ^ shift) := by
+  rw [int_two_pow_eq_nat]
+  have hpos : 0 < 2 ^ shift := Nat.pow_pos (by decide : 0 < 2)
+  cases hp : 2 ^ shift with
+  | zero => omega
+  | succ n =>
+      cases value with
+      | zero => simp [Int.fdiv]
+      | succ m => simp [Int.fdiv]
+
+private theorem int_sub_modulus_eq_negSucc (value : Nat)
+    (_hge : SignedArithSpec.specSignBit ≤ value) (hv : value < evmModulus) :
+    Int.ofNat value - Int.ofNat evmModulus =
+      Int.negSucc (evmModulus - 1 - value) := by
+  unfold evmModulus at hv ⊢
+  rw [Int.negSucc_eq]
+  have hdiff : 2 ^ 256 - 1 - value + 1 = 2 ^ 256 - value := by omega
+  change Int.ofNat value - Int.ofNat (2 ^ 256) =
+    -Int.ofNat ((2 ^ 256 - 1 - value) + 1)
+  rw [hdiff]
+  have hcast : Int.ofNat (2 ^ 256 - value) =
+      Int.ofNat (2 ^ 256) - Int.ofNat value := by
+    exact Int.ofNat_sub (Nat.le_of_lt hv)
+  rw [hcast]
+  omega
+
+private theorem int_fdiv_neg_raw_two_pow (shift value : Nat)
+    (hge : SignedArithSpec.specSignBit ≤ value) (hv : value < evmModulus) :
+    (Int.ofNat value - Int.ofNat evmModulus).fdiv ((2 : Int) ^ shift) =
+      Int.negSucc ((evmModulus - 1 - value) / 2 ^ shift) := by
+  rw [int_sub_modulus_eq_negSucc value hge hv]
+  rw [int_two_pow_eq_nat]
+  have hpos : 0 < 2 ^ shift := Nat.pow_pos (by decide : 0 < 2)
+  cases hp : 2 ^ shift with
+  | zero => omega
+  | succ n =>
+      simp [Int.fdiv]
+
+private theorem int256_ofInt_negSucc_toUint256_val (n : Nat)
+    (hn : n + 1 < evmModulus) :
+    (Verity.Core.Int256.ofInt (Int.negSucc n)).toUint256.val =
+      evmModulus - (n + 1) := by
+  have hneg : (Int.negSucc n) < 0 := by simp
+  have hnatAbs : (Int.negSucc n).natAbs = n + 1 := by
+    have hnegSucc : Int.negSucc n = -Int.ofNat (n + 1) := by
+      rw [Int.negSucc_eq]
+      simp
+    rw [hnegSucc, Int.natAbs_neg]
+    exact Int.natAbs_natCast (n + 1)
+  have hmod_eq : Verity.Core.Int256.modulus = evmModulus := by
+    simp [Verity.Core.Int256.modulus, Verity.Core.Uint256.modulus,
+          Verity.Core.UINT256_MODULUS, evmModulus]
+  have hn_lt_mod : n + 1 < Verity.Core.Int256.modulus := by
+    rw [hmod_eq]
+    exact hn
+  have hmod_n : (n + 1) % Verity.Core.Int256.modulus = n + 1 :=
+    Nat.mod_eq_of_lt hn_lt_mod
+  have hsub_lt : Verity.Core.Int256.modulus - (n + 1) <
+      Verity.Core.Int256.modulus := by
+    have hpos_mod : 0 < Verity.Core.Int256.modulus := by
+      rw [hmod_eq]
+      unfold evmModulus
+      omega
+    omega
+  simp only [Verity.Core.Int256.ofInt, if_pos hneg,
+    Verity.Core.Int256.toUint256, Verity.Core.Int256.ofUint256,
+    Verity.Core.Uint256.ofNat, hnatAbs, hmod_n]
+  show (Verity.Core.Int256.modulus - (n + 1)) %
+      Verity.Core.Uint256.modulus = evmModulus - (n + 1)
+  have hmod_eq' : Verity.Core.Int256.modulus = Verity.Core.Uint256.modulus := rfl
+  rw [hmod_eq', Nat.mod_eq_of_lt (by rw [← hmod_eq']; exact hsub_lt)]
+  show Verity.Core.Uint256.modulus - (n + 1) = evmModulus - (n + 1)
+  rw [← hmod_eq', hmod_eq]
+
+private theorem int256_sar_toUint256_val_eq_sarSpec (shift value : Nat)
+    (hs : shift < evmModulus) (hv : value < evmModulus) :
+    (Verity.Core.Int256.sar
+      (Verity.Core.Int256.ofUint256 ⟨shift, hs⟩)
+      (Verity.Core.Int256.ofUint256 ⟨value, hv⟩)).toUint256.val =
+      SignedArithSpec.sarSpec shift value := by
+  simp [Verity.Core.Int256.sar, Verity.Core.Int256.ofUint256,
+    Verity.Core.Int256.toUint256]
+  have hsMod : shift % Verity.Core.Int256.modulus = shift := by
+    rw [Verity.Core.Int256.modulus, Verity.Core.Uint256.modulus,
+      Verity.Core.UINT256_MODULUS]
+    exact Nat.mod_eq_of_lt hs
+  rw [hsMod]
+  by_cases hshift : shift < 256
+  · have hnot : ¬ 256 ≤ shift := Nat.not_le_of_lt hshift
+    rw [if_neg hnot]
+    by_cases hval : value < SignedArithSpec.specSignBit
+    · have hto :
+          ({ word := { val := value, isLt := hv } } : Verity.Core.Int256).toInt =
+            Int.ofNat value := by
+        rw [Verity.Core.Int256.toInt_of_lt_signBit]
+        simpa [Verity.Core.Int256.signBit, SignedArithSpec.specSignBit] using hval
+      rw [hto]
+      rw [SignedArithSpec.sarSpec_of_nonneg shift value hshift hval]
+      rw [int_fdiv_ofNat_two_pow]
+      have hbound : value / 2 ^ shift < evmModulus :=
+        Nat.lt_of_le_of_lt (Nat.div_le_self _ _) hv
+      exact int256_ofInt_nat_toUint256_val (value / 2 ^ shift) hbound
+    · have hge : SignedArithSpec.specSignBit ≤ value := Nat.le_of_not_lt hval
+      have hto :
+          ({ word := { val := value, isLt := hv } } : Verity.Core.Int256).toInt =
+            Int.ofNat value - Int.ofNat evmModulus := by
+        rw [Verity.Core.Int256.toInt_of_ge_signBit]
+        · simp [Verity.Core.Int256.modulus, Verity.Core.Uint256.modulus,
+            Verity.Core.UINT256_MODULUS, evmModulus]
+        · simpa [Verity.Core.Int256.signBit, SignedArithSpec.specSignBit] using hge
+      rw [hto]
+      rw [SignedArithSpec.sarSpec_of_neg shift value hshift hge]
+      rw [int_fdiv_neg_raw_two_pow shift value hge hv]
+      have hn_bound : (evmModulus - 1 - value) / 2 ^ shift + 1 < evmModulus := by
+        unfold evmModulus at hv ⊢
+        unfold SignedArithSpec.specSignBit at hge
+        have hle : (2 ^ 256 - 1 - value) / 2 ^ shift ≤
+            2 ^ 256 - 1 - value := Nat.div_le_self _ _
+        omega
+      have hwrap :=
+        int256_ofInt_negSucc_toUint256_val
+          ((evmModulus - 1 - value) / 2 ^ shift) hn_bound
+      change
+        (Verity.Core.Int256.ofInt
+          (Int.negSucc ((evmModulus - 1 - value) / 2 ^ shift))).toUint256.val =
+        SignedArithSpec.specModulus - 1 -
+          (SignedArithSpec.specModulus - 1 - value) / 2 ^ shift
+      rw [hwrap]
+      unfold SignedArithSpec.specModulus evmModulus
+      omega
+  · have hgeShift : 256 ≤ shift := Nat.not_lt.mp hshift
+    rw [if_pos hgeShift]
+    by_cases hval : value < SignedArithSpec.specSignBit
+    · have hto :
+          ¬ ({ word := { val := value, isLt := hv } } : Verity.Core.Int256).toInt < 0 := by
+        rw [Verity.Core.Int256.toInt_of_lt_signBit]
+        · exact not_lt.mpr (Int.natCast_nonneg _)
+        · simpa [Verity.Core.Int256.signBit, SignedArithSpec.specSignBit] using hval
+      rw [if_neg hto]
+      rw [SignedArithSpec.sarSpec_of_shift_ge_nonneg shift value hgeShift hval]
+      change (Verity.Core.Uint256.ofNat 0).val = 0
+      rfl
+    · have hge : SignedArithSpec.specSignBit ≤ value := Nat.le_of_not_lt hval
+      have hto :
+          ({ word := { val := value, isLt := hv } } : Verity.Core.Int256).toInt < 0 := by
+        rw [Verity.Core.Int256.toInt_of_ge_signBit]
+        · unfold evmModulus at hv
+          unfold SignedArithSpec.specSignBit at hge
+          simp [Verity.Core.Int256.modulus, Verity.Core.Uint256.modulus,
+            Verity.Core.UINT256_MODULUS]
+          omega
+        · simpa [Verity.Core.Int256.signBit, SignedArithSpec.specSignBit] using hge
+      rw [if_pos hto]
+      rw [SignedArithSpec.sarSpec_of_shift_ge_neg shift value hgeShift hge]
+      have hnegOne := int256_ofInt_negSucc_toUint256_val 0 (by
+        unfold evmModulus
+        omega)
+      simpa [Int.negSucc_eq, Verity.Core.Int256.toUint256,
+        SignedArithSpec.specModulus] using hnegOne
+
 /-- Core sar equivalence: Verity's `Int256.sar` agrees with EVMYulLean's `UInt256.sar`.
 
-**Status**: sorry — requires showing Int.fdiv-based shift matches complement-shift-
-complement. Validated by concrete tests. -/
+Both sides reduce through `SignedArithSpec.sarSpec`: the EVMYulLean side
+uses complement-shift-complement for negative words, while the Verity side
+uses `Int.fdiv`; the helpers above identify the negative `fdiv` branch with
+the same two's-complement raw-word result. -/
 private theorem sar_int256_eq_uint256Sar (shift value : Nat)
     (hs : shift < evmModulus) (hv : value < evmModulus) :
     (Verity.Core.Int256.sar
@@ -1787,7 +2281,8 @@ private theorem sar_int256_eq_uint256Sar (shift value : Nat)
       (Verity.Core.Int256.ofUint256 ⟨value, hv⟩)).toUint256.val =
     EvmYul.UInt256.toNat (EvmYul.UInt256.sar ⟨⟨shift, by rw [EvmYul.UInt256.size]; exact hs⟩⟩
                                                ⟨⟨value, by rw [EvmYul.UInt256.size]; exact hv⟩⟩) := by
-  sorry
+  rw [uint256_sar_toNat_eq_sarSpec]
+  exact int256_sar_toUint256_val_eq_sarSpec shift value hs hv
 
 /-- Universal bridge theorem for `sar`. -/
 @[simp] theorem evalBuiltinCall_sar_bridge
@@ -2697,8 +3192,7 @@ can rewrite against. -/
 /-! ## Composite Backend Equivalence Theorem
 
 This is the key Phase 4 composition lemma. For any pure builtin `func` in the
-set of 25 universally-bridged builtins (23 fully proven, 2 with sorry-dependent
-core equivalences), all with context-lifted bridge theorems, the EVMYulLean
+set of 25 universally-bridged builtins (all fully proven), all with context-lifted bridge theorems, the EVMYulLean
 backend agrees with the Verity backend
 (represented by `evalBuiltinCallWithContext`).
 
@@ -2753,12 +3247,13 @@ will invoke.
 | Pure extended (addmod, mulmod, byte) | 3 | Fully proven |
 | Pure signed (slt, sgt) | 2 | Fully proven |
 | Pure signed arith (exp, sdiv) | 2 | Fully proven |
-| Pure signed arith (smod, sar) | 2 | Sorry-dependent core equivalences |
+| Pure signed arith (smod) | 1 | Fully proven |
+| Pure signed arith (sar) | 1 | Fully proven |
 | Pure signed arith (signextend) | 1 | Fully proven |
 | Context/env (caller, address, callvalue, timestamp, number, chainid, blobbasefee) | 7 | Fully proven |
 | Calldata (calldataload, calldatasize) | 2 | Fully proven |
 | State (sload, mappingSlot) | 2 | Fully proven (Phase 3 keccak-semantic bridge) |
-| **Total bridged** | **36** | **34 proven, 2 sorry** |
+| **Total bridged** | **36** | **36 proven, 0 sorry** |
 -/
 
 /-- The set of builtins for which the `.evmYulLean` and `.verity` backends
@@ -2789,14 +3284,15 @@ def unbridgedBuiltins : List String := []
 /-! ## Remaining Core Equivalence Proofs — Status
 
 All 25 pure builtins now have universal bridge theorems
-(`evalBuiltinCall_*_bridge`). Two core equivalence lemmas still use
-`sorry` pending fundamentally different proof strategies:
-
-- `smod_int256_eq_uint256Smod` — Int sign-magnitude remainder ↔ UInt256 sgn/abs
-- `sar_int256_eq_uint256Sar` — Int.fdiv ↔ complement-shift-complement
+(`evalBuiltinCall_*_bridge`). No core equivalence lemma still uses
+`sorry`.
 
 The `exp` bridge was fully proved by strong induction on the exponent after
 making `powAux` public in the EVMYulLean fork (commit `ed9215e9`).
+The `smod` bridge is fully proved through the shared `SignedArithSpec.smodSpec`
+Nat-level specification.
+The `sar` bridge is fully proved through the shared `SignedArithSpec.sarSpec`
+Nat-level specification.
 The `sdiv` bridge was proved by 5-way case analysis (b=0, PP, PN, NP, NN)
 with `fin_val_mul_neg1` handling EVMYulLean's negation-via-Fin-multiplication.
 The `signextend` bridge was proved by 4-case byte-index analysis.

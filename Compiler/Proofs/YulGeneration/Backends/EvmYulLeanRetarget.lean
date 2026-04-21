@@ -352,8 +352,7 @@ private theorem backends_agree_mappingSlot s se mv ta bt bn ci bb sl cd av :
 
 The `.evmYulLean` and `.verity` backends agree on all 36 bridged builtins.
 This is the pointwise equivalence theorem that Phase 4 retargeting relies on.
-The 2 sorry-dependent builtins (smod, sar) contribute
-to this through their sorry-backed bridge lemmas in `EvmYulLeanBridgeLemmas.lean`.
+All bridged builtin dependencies are fully proven in `EvmYulLeanBridgeLemmas.lean`.
 -/
 
 /-- For any builtin in `bridgedBuiltins`, the `.verity` and `.evmYulLean` backends
@@ -364,9 +363,8 @@ to this through their sorry-backed bridge lemmas in `EvmYulLeanBridgeLemmas.lean
     Every builtin handled by `evalBuiltinCallWithContext` is now bridged, so
     `unbridgedBuiltins` is empty.
 
-    This theorem is sorry-free at the dispatch level; the 2 remaining sorry's
-    (smod, sar) are isolated in the per-builtin bridge lemmas
-    in `EvmYulLeanBridgeLemmas.lean`. -/
+    This theorem is sorry-free, composing the fully proven per-builtin bridge
+    lemmas in `EvmYulLeanBridgeLemmas.lean`. -/
 theorem backends_agree_on_bridged_builtins
     (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
     (calldata : List Nat)
@@ -2753,8 +2751,7 @@ theorem yulCodegen_preserves_semantics_evmYulLean
 1. **`backends_agree_on_bridged_builtins`**: Pointwise backend equivalence for
    the full bridged-builtin set at the `evalBuiltinCallWithBackendContext`
    level. For every `func ∈ bridgedBuiltins`, `.verity` and `.evmYulLean`
-   return the same result. The dispatch proof is sorry-free; the 2 sorry-backed
-   core equivalences (smod, sar) are isolated in `EvmYulLeanBridgeLemmas.lean`.
+   return the same result. The dispatch proof and all per-builtin bridge dependencies are sorry-free.
 2. **`evalYulExpr_evmYulLean_eq_on_bridged`**: Expression-level backend
    equivalence for `BridgedExpr`, covering literals, identifiers, nested calls
    to bridged builtins, and backend-independent `tload`/`mload`.
@@ -2805,7 +2802,7 @@ the compiled contract.
 - **EndToEnd composition**: Replace the public end-to-end theorem's Yul target
   with `interpretYulRuntimeWithBackend .evmYulLean` once body-closure
   hypotheses are available for the compiled contract.
-- **2 core sorry's**: smod/sar (complex Int↔UInt256 sign/bit semantics)
+- **0 core sorry**: all builtin bridge equivalences are proven
 
 ### Trust boundary (current state):
 Expressions constrained by `BridgedExpr`, straight-line statement lists
@@ -2813,7 +2810,7 @@ constrained by `BridgedStraightStmts`, and recursive statement targets
 constrained by `BridgedTarget` inherit EVMYulLean semantics. Contract-level
 Layer-3 preservation also targets the EVMYulLean backend when embedded bodies
 satisfy `BridgedStmts`. Whole-program guarantees still depend on EndToEnd
-composition and on the two sorry-dependent core equivalences above.
+composition and on the fully proven bridge equivalences above.
 -/
 
 end Compiler.Proofs.YulGeneration.Backends

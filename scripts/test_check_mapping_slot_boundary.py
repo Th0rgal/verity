@@ -23,12 +23,12 @@ class MappingSlotBoundaryTests(unittest.TestCase):
             root = Path(tmpdir)
             proofs = root / "Compiler" / "Proofs"
             (proofs / "IRGeneration").mkdir(parents=True)
-            (proofs / "YulGeneration").mkdir(parents=True)
+            (proofs / "YulGeneration" / "ReferenceOracle").mkdir(parents=True)
 
             mapping_slot = proofs / "MappingSlot.lean"
             ir = proofs / "IRGeneration" / "IRInterpreter.lean"
-            sem = proofs / "YulGeneration" / "Semantics.lean"
-            builtins = proofs / "YulGeneration" / "Builtins.lean"
+            sem = proofs / "YulGeneration" / "ReferenceOracle" / "Semantics.lean"
+            builtins = proofs / "YulGeneration" / "ReferenceOracle" / "Builtins.lean"
             trust = root / "TRUST_ASSUMPTIONS.md"
 
             mapping_slot.write_text(
