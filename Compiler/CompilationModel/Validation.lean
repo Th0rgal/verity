@@ -1039,6 +1039,161 @@ termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 
+mutual
+def exprContainsAdtConstruct : Expr → Bool
+  | Expr.adtConstruct _ _ _ => true
+  | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
+  | Expr.mod a b | Expr.smod a b
+  | Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b | Expr.sar a b
+  | Expr.lt a b | Expr.gt a b | Expr.slt a b | Expr.sgt a b | Expr.eq a b
+  | Expr.ge a b | Expr.le a b | Expr.signextend a b
+  | Expr.logicalAnd a b | Expr.logicalOr a b
+  | Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b
+  | Expr.ceilDiv a b =>
+      exprContainsAdtConstruct a || exprContainsAdtConstruct b
+  | Expr.mulDivDown a b c | Expr.mulDivUp a b c =>
+      exprContainsAdtConstruct a || exprContainsAdtConstruct b || exprContainsAdtConstruct c
+  | Expr.bitNot a | Expr.logicalNot a | Expr.extcodesize a
+  | Expr.mload a | Expr.tload a | Expr.calldataload a
+  | Expr.returndataOptionalBoolAt a
+  | Expr.storageArrayElement _ a | Expr.arrayElement _ a =>
+      exprContainsAdtConstruct a
+  | Expr.ite cond thenVal elseVal =>
+      exprContainsAdtConstruct cond || exprContainsAdtConstruct thenVal ||
+        exprContainsAdtConstruct elseVal
+  | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _
+  | Expr.mappingUint _ key | Expr.structMember _ key _ =>
+      exprContainsAdtConstruct key
+  | Expr.mappingChain _ keys =>
+      exprListContainsAdtConstruct keys
+  | Expr.mapping2 _ key1 key2 | Expr.mapping2Word _ key1 key2 _
+  | Expr.structMember2 _ key1 key2 _ =>
+      exprContainsAdtConstruct key1 || exprContainsAdtConstruct key2
+  | Expr.keccak256 offset size =>
+      exprContainsAdtConstruct offset || exprContainsAdtConstruct size
+  | Expr.call gas target value inOffset inSize outOffset outSize =>
+      exprContainsAdtConstruct gas || exprContainsAdtConstruct target ||
+        exprContainsAdtConstruct value || exprContainsAdtConstruct inOffset ||
+        exprContainsAdtConstruct inSize || exprContainsAdtConstruct outOffset ||
+        exprContainsAdtConstruct outSize
+  | Expr.staticcall gas target inOffset inSize outOffset outSize =>
+      exprContainsAdtConstruct gas || exprContainsAdtConstruct target ||
+        exprContainsAdtConstruct inOffset || exprContainsAdtConstruct inSize ||
+        exprContainsAdtConstruct outOffset || exprContainsAdtConstruct outSize
+  | Expr.delegatecall gas target inOffset inSize outOffset outSize =>
+      exprContainsAdtConstruct gas || exprContainsAdtConstruct target ||
+        exprContainsAdtConstruct inOffset || exprContainsAdtConstruct inSize ||
+        exprContainsAdtConstruct outOffset || exprContainsAdtConstruct outSize
+  | Expr.externalCall _ args | Expr.internalCall _ args =>
+      exprListContainsAdtConstruct args
+  | Expr.dynamicBytesEq _ _ | Expr.literal _ | Expr.param _ | Expr.constructorArg _
+  | Expr.storage _ | Expr.storageAddr _ | Expr.caller | Expr.contractAddress
+  | Expr.chainid | Expr.msgValue | Expr.blockTimestamp | Expr.blockNumber
+  | Expr.blobbasefee | Expr.calldatasize | Expr.returndataSize
+  | Expr.localVar _
+  | Expr.arrayLength _ | Expr.storageArrayLength _
+  | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
+      false
+termination_by e => sizeOf e
+decreasing_by all_goals simp_wf; all_goals omega
+
+def exprListContainsAdtConstruct : List Expr → Bool
+  | [] => false
+  | expr :: rest => exprContainsAdtConstruct expr || exprListContainsAdtConstruct rest
+termination_by es => sizeOf es
+decreasing_by all_goals simp_wf; all_goals omega
+end
+
+mutual
+def validateNoUnsupportedAdtConstructInStmt : Stmt → Except String Unit
+  | Stmt.setStorage _ (Expr.adtConstruct _ _ args) =>
+      if exprListContainsAdtConstruct args then
+        throw "Compilation error: ADT construction arguments cannot themselves contain ADT construction; construct nested ADTs in storage explicitly."
+      else
+        pure ()
+  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value
+  | Stmt.setStorageAddr _ value | Stmt.storageArrayPush _ value
+  | Stmt.setStorageArrayElement _ _ value | Stmt.setMapping _ _ value
+  | Stmt.setMappingUint _ _ value | Stmt.setMappingWord _ _ _ value
+  | Stmt.setMapping2 _ _ _ value | Stmt.setMapping2Word _ _ _ _ value
+  | Stmt.setMappingPackedWord _ _ _ _ value
+  | Stmt.setMappingChain _ _ value | Stmt.setStructMember _ _ _ value
+  | Stmt.setStructMember2 _ _ _ _ value | Stmt.require value _
+  | Stmt.return value =>
+      if exprContainsAdtConstruct value then
+        throw "Compilation error: ADT construction is only supported as the direct value of setStorage for ADT storage fields; expression-position ADT values are not scalar Yul expressions."
+      else
+        pure ()
+  | Stmt.requireError cond _ args =>
+      if exprContainsAdtConstruct cond || exprListContainsAdtConstruct args then
+        throw "Compilation error: ADT construction is only supported as the direct value of setStorage for ADT storage fields; expression-position ADT values are not scalar Yul expressions."
+      else
+        pure ()
+  | Stmt.revertError _ args | Stmt.returnValues args | Stmt.emit _ args =>
+      if exprListContainsAdtConstruct args then
+        throw "Compilation error: ADT construction is only supported as the direct value of setStorage for ADT storage fields; expression-position ADT values are not scalar Yul expressions."
+      else
+        pure ()
+  | Stmt.rawLog topics dataOffset dataSize =>
+      if exprListContainsAdtConstruct topics || exprContainsAdtConstruct dataOffset ||
+          exprContainsAdtConstruct dataSize then
+        throw "Compilation error: ADT construction is only supported as the direct value of setStorage for ADT storage fields; expression-position ADT values are not scalar Yul expressions."
+      else
+        pure ()
+  | Stmt.ite cond thenBranch elseBranch => do
+      if exprContainsAdtConstruct cond then
+        throw "Compilation error: ADT construction cannot be used as an if condition."
+      validateNoUnsupportedAdtConstructInStmtList thenBranch
+      validateNoUnsupportedAdtConstructInStmtList elseBranch
+  | Stmt.forEach _ count body => do
+      if exprContainsAdtConstruct count then
+        throw "Compilation error: ADT construction cannot be used as a loop bound."
+      validateNoUnsupportedAdtConstructInStmtList body
+  | Stmt.unsafeBlock _ body =>
+      validateNoUnsupportedAdtConstructInStmtList body
+  | Stmt.matchAdt _ scrutinee branches => do
+      if exprContainsAdtConstruct scrutinee then
+        throw "Compilation error: ADT construction cannot be used as a match scrutinee; match storage-backed ADT tags instead."
+      validateNoUnsupportedAdtConstructInBranches branches
+  | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args
+  | Stmt.externalCallBind _ _ args | Stmt.tryExternalCallBind _ _ _ args
+  | Stmt.ecm _ args =>
+      if exprListContainsAdtConstruct args then
+        throw "Compilation error: ADT construction cannot be passed as a call argument; ABI/function boundary ADT lowering is not implemented."
+      else
+        pure ()
+  | Stmt.mstore offset value | Stmt.tstore offset value => do
+      if exprContainsAdtConstruct offset || exprContainsAdtConstruct value then
+        throw "Compilation error: ADT construction cannot be used in raw memory/transient-storage operations."
+  | Stmt.calldatacopy destOffset sourceOffset size
+  | Stmt.returndataCopy destOffset sourceOffset size => do
+      if exprContainsAdtConstruct destOffset || exprContainsAdtConstruct sourceOffset ||
+          exprContainsAdtConstruct size then
+        throw "Compilation error: ADT construction cannot be used in copy offsets or sizes."
+  | Stmt.storageArrayPop _ | Stmt.returnArray _ | Stmt.returnBytes _
+  | Stmt.returnStorageWords _ | Stmt.revertReturndata | Stmt.stop =>
+      pure ()
+termination_by s => sizeOf s
+decreasing_by all_goals simp_wf; all_goals omega
+
+def validateNoUnsupportedAdtConstructInStmtList : List Stmt → Except String Unit
+  | [] => pure ()
+  | stmt :: rest => do
+      validateNoUnsupportedAdtConstructInStmt stmt
+      validateNoUnsupportedAdtConstructInStmtList rest
+termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def validateNoUnsupportedAdtConstructInBranches :
+    List (String × List String × List Stmt) → Except String Unit
+  | [] => pure ()
+  | (_, _, body) :: rest => do
+      validateNoUnsupportedAdtConstructInStmtList body
+      validateNoUnsupportedAdtConstructInBranches rest
+termination_by bs => sizeOf bs
+decreasing_by all_goals simp_wf; all_goals omega
+end
+
 def validateFunctionSpec (spec : FunctionSpec) : Except String Unit := do
   -- Check for unsafe boundary mechanics outside `unsafe "reason" do` blocks.
   -- Mechanics inside `unsafe` blocks are documented by the reason string and
@@ -1058,6 +1213,7 @@ def validateFunctionSpec (spec : FunctionSpec) : Except String Unit := do
     throw s!"Compilation error: function '{spec.name}' is marked pure but reads state/environment ({issue734Ref})"
   if spec.body.any stmtContainsUnsafeLogicalCallLike then
     throw s!"Compilation error: function '{spec.name}' uses Expr.logicalAnd/Expr.logicalOr/Expr.ite or arithmetic helpers (mulDivUp/wDivUp/min/max) with call-like operand(s) that would be duplicated in Yul output ({issue748Ref}). Move call-like expressions into Stmt.letVar before combining."
+  validateNoUnsupportedAdtConstructInStmtList spec.body
   let returns ← functionReturns spec
   spec.body.forM (validateReturnShapesInStmt spec.name spec.params returns spec.isInternal)
   if !returns.isEmpty && !stmtListAlwaysReturnsOrReverts spec.body then
@@ -1135,6 +1291,7 @@ def validateConstructorSpec (ctor : Option ConstructorSpec) : Except String Unit
         throw s!"Compilation error: constructor uses low-level/assembly mechanic(s) {String.intercalate ", " unguardedMechanics} outside an unsafe block without any local_obligations entry ({issue1424Ref}). Wrap the low-level code in `unsafe \"reason\" do` or add local_obligations [...] to make the trust boundary explicit."
       if spec.body.any stmtContainsUnsafeLogicalCallLike then
         throw s!"Compilation error: constructor uses Expr.logicalAnd/Expr.logicalOr/Expr.ite or arithmetic helpers (mulDivUp/wDivUp/min/max) with call-like operand(s) that would be duplicated in Yul output ({issue748Ref}). Move call-like expressions into Stmt.letVar before combining."
+      validateNoUnsupportedAdtConstructInStmtList spec.body
       spec.body.forM validateNoRuntimeReturnsInConstructorStmt
       spec.body.forM (validateStmtParamReferences "constructor" spec.params)
       validateConstructorIdentifierReferences ctor
