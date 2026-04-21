@@ -754,30 +754,30 @@ private def parseFunction (newtypes : Array NewtypeDecl) (adtDecls : Array AdtDe
       }
   | _ => throwErrorAt stx "invalid function declaration"
 
-private def parseConstructor (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM ConstructorDecl := do
+private def parseConstructor (newtypes : Array NewtypeDecl) (adtDecls : Array AdtDecl := #[]) (stx : Syntax) : CommandElabM ConstructorDecl := do
   match stx with
   | `(verityConstructor| constructor ($[$params:verityParam],*) payable local_obligations [ $[$obligations:verityLocalObligation],* ] := $body:term) =>
       pure {
-        params := ← params.mapM (parseParam newtypes #[])
+        params := ← params.mapM (parseParam newtypes adtDecls)
         isPayable := true
         localObligations := ← obligations.mapM parseLocalObligation
         body := body
       }
   | `(verityConstructor| constructor ($[$params:verityParam],*) payable := $body:term) =>
       pure {
-        params := ← params.mapM (parseParam newtypes #[])
+        params := ← params.mapM (parseParam newtypes adtDecls)
         isPayable := true
         body := body
       }
   | `(verityConstructor| constructor ($[$params:verityParam],*) local_obligations [ $[$obligations:verityLocalObligation],* ] := $body:term) =>
       pure {
-        params := ← params.mapM (parseParam newtypes #[])
+        params := ← params.mapM (parseParam newtypes adtDecls)
         localObligations := ← obligations.mapM parseLocalObligation
         body := body
       }
   | `(verityConstructor| constructor ($[$params:verityParam],*) := $body:term) =>
       pure {
-        params := ← params.mapM (parseParam newtypes #[])
+        params := ← params.mapM (parseParam newtypes adtDecls)
         body := body
       }
   | _ => throwErrorAt stx "invalid constructor declaration"
@@ -4260,7 +4260,7 @@ def parseContractSyntax
         , parsedConstants
         , parsedImmutables
         , parsedExternals
-        , (← ctor.mapM (parseConstructor parsedNewtypes))
+        , (← ctor.mapM (parseConstructor parsedNewtypes parsedAdts))
         , (← entrypoints.mapM parseSpecialEntrypoint) ++ (← functions.mapM (parseFunction parsedNewtypes parsedAdts))
         , namespaceOpt
         )

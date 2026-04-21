@@ -441,6 +441,52 @@ decreasing_by all_goals simp_wf; all_goals omega
 end
 
 mutual
+/-- Detect expression-position internal helper calls whose callee write set is
+    not visible to single-function `modifies(...)` validation. -/
+def exprHasUntrackableWrites : Expr → Bool
+  | Expr.internalCall _ _ => true
+  | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
+  | Expr.mod a b | Expr.smod a b
+  | Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b | Expr.sar a b
+  | Expr.lt a b | Expr.gt a b | Expr.slt a b | Expr.sgt a b | Expr.eq a b
+  | Expr.ge a b | Expr.le a b | Expr.signextend a b
+  | Expr.logicalAnd a b | Expr.logicalOr a b
+  | Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b
+  | Expr.ceilDiv a b =>
+      exprHasUntrackableWrites a || exprHasUntrackableWrites b
+  | Expr.mulDivDown a b c | Expr.mulDivUp a b c =>
+      exprHasUntrackableWrites a || exprHasUntrackableWrites b || exprHasUntrackableWrites c
+  | Expr.bitNot a | Expr.logicalNot a | Expr.extcodesize a =>
+      exprHasUntrackableWrites a
+  | Expr.ite cond thenVal elseVal =>
+      exprHasUntrackableWrites cond || exprHasUntrackableWrites thenVal || exprHasUntrackableWrites elseVal
+  | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _ | Expr.mappingUint _ key
+  | Expr.structMember _ key _ | Expr.arrayElement _ key | Expr.storageArrayElement _ key =>
+      exprHasUntrackableWrites key
+  | Expr.mappingChain _ keys =>
+      exprListHasUntrackableWrites keys
+  | Expr.mapping2 _ key1 key2 | Expr.mapping2Word _ key1 key2 _
+  | Expr.structMember2 _ key1 key2 _ =>
+      exprHasUntrackableWrites key1 || exprHasUntrackableWrites key2
+  | Expr.mload offset | Expr.tload offset | Expr.calldataload offset
+  | Expr.returndataOptionalBoolAt offset =>
+      exprHasUntrackableWrites offset
+  | Expr.keccak256 offset size =>
+      exprHasUntrackableWrites offset || exprHasUntrackableWrites size
+  | Expr.adtConstruct _ _ args =>
+      exprListHasUntrackableWrites args
+  | _ => false
+termination_by e => sizeOf e
+decreasing_by all_goals simp_wf; all_goals omega
+
+def exprListHasUntrackableWrites : List Expr → Bool
+  | [] => false
+  | e :: es => exprHasUntrackableWrites e || exprListHasUntrackableWrites es
+termination_by es => sizeOf es
+decreasing_by all_goals simp_wf; all_goals omega
+end
+
+mutual
 /-- Check whether a statement may write to storage fields that `stmtWrittenFields`
     cannot track — specifically internal calls whose callee bodies are not visible
     at single-function validation scope.  External calls (`externalCallBind`,
@@ -450,14 +496,45 @@ mutual
     write-set tracking is incomplete. -/
 def stmtHasUntrackableWrites : Stmt → Bool
   | Stmt.internalCall _ _ | Stmt.internalCallAssign _ _ _ => true
-  | Stmt.ite _ thenBranch elseBranch =>
-      stmtListHasUntrackableWrites thenBranch || stmtListHasUntrackableWrites elseBranch
-  | Stmt.forEach _ _ body =>
-      stmtListHasUntrackableWrites body
+  | Stmt.letVar _ value | Stmt.assignVar _ value =>
+      exprHasUntrackableWrites value
+  | Stmt.setStorage _ value | Stmt.setStorageAddr _ value | Stmt.require value _ =>
+      exprHasUntrackableWrites value
+  | Stmt.requireError cond _ args =>
+      exprHasUntrackableWrites cond || args.any exprHasUntrackableWrites
+  | Stmt.revertError _ args | Stmt.returnValues args | Stmt.emit _ args =>
+      args.any exprHasUntrackableWrites
+  | Stmt.return value | Stmt.storageArrayPush _ value =>
+      exprHasUntrackableWrites value
+  | Stmt.setStorageArrayElement _ index value =>
+      exprHasUntrackableWrites index || exprHasUntrackableWrites value
+  | Stmt.setMapping _ key value | Stmt.setMappingUint _ key value =>
+      exprHasUntrackableWrites key || exprHasUntrackableWrites value
+  | Stmt.setMappingWord _ key _ value | Stmt.setMappingPackedWord _ key _ _ value =>
+      exprHasUntrackableWrites key || exprHasUntrackableWrites value
+  | Stmt.setMappingChain _ keys value =>
+      keys.any exprHasUntrackableWrites || exprHasUntrackableWrites value
+  | Stmt.setMapping2 _ key1 key2 value | Stmt.setMapping2Word _ key1 key2 _ value
+  | Stmt.setStructMember2 _ key1 key2 _ value =>
+      exprHasUntrackableWrites key1 || exprHasUntrackableWrites key2 || exprHasUntrackableWrites value
+  | Stmt.setStructMember _ key _ value =>
+      exprHasUntrackableWrites key || exprHasUntrackableWrites value
+  | Stmt.rawLog topics dataOffset dataSize =>
+      topics.any exprHasUntrackableWrites || exprHasUntrackableWrites dataOffset || exprHasUntrackableWrites dataSize
+  | Stmt.mstore offset value | Stmt.tstore offset value =>
+      exprHasUntrackableWrites offset || exprHasUntrackableWrites value
+  | Stmt.calldatacopy destOffset sourceOffset size | Stmt.returndataCopy destOffset sourceOffset size =>
+      exprHasUntrackableWrites destOffset || exprHasUntrackableWrites sourceOffset || exprHasUntrackableWrites size
+  | Stmt.ite cond thenBranch elseBranch =>
+      exprHasUntrackableWrites cond ||
+        stmtListHasUntrackableWrites thenBranch ||
+        stmtListHasUntrackableWrites elseBranch
+  | Stmt.forEach _ count body =>
+      exprHasUntrackableWrites count || stmtListHasUntrackableWrites body
   | Stmt.unsafeBlock _ body =>
       stmtListHasUntrackableWrites body
-  | Stmt.matchAdt _ _ branches =>
-      matchBranchesHasUntrackableWrites branches
+  | Stmt.matchAdt _ scrutinee branches =>
+      exprHasUntrackableWrites scrutinee || matchBranchesHasUntrackableWrites branches
   | _ => false
 termination_by s => sizeOf s
 decreasing_by all_goals simp_wf; all_goals omega
