@@ -186,7 +186,7 @@ Execution priorities:
 **Yul/EVM Semantics Bridge** (Issue [#1722](https://github.com/lfglabs-dev/verity/issues/1722)): EVMYulLean (NethermindEth) provides formally-defined Yul AST types and UInt256 operations. Current integration status:
 - AST adapter: all 11 statement types + 5 expression types lower to EVMYulLean AST (0 gaps)
 - Builtin bridge: 36 of 36 builtins bridged (25 pure + 11 context/env/storage/helper), with all 36 fully proven and 0 sorry'd
-- 114 concrete bridge tests + 7 adapter correctness theorems + 36 context-lifted bridge theorems
+- 123 concrete bridge tests + 7 adapter correctness theorems + 36 context-lifted bridge theorems
 - `bridgedBuiltins` definition enumerates all 36 builtins where `.evmYulLean` and `.verity` backends agree
 - Unbridged: none; `mappingSlot` is bridged via the shared keccak-faithful `abstractMappingSlot` derivation
 - Phase 2 state bridge scaffolding: type conversions, storage round-trip, env field bridges (0 sorry)

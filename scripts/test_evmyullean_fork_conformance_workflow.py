@@ -1,3 +1,4 @@
+import json
 import re
 import unittest
 from pathlib import Path
@@ -7,14 +8,43 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "evmyullean-fork-conformance.yml"
 TRUST_ASSUMPTIONS = ROOT / "TRUST_ASSUMPTIONS.md"
 AXIOMS = ROOT / "AXIOMS.md"
+MAKEFILE = ROOT / "Makefile"
+ADAPTER_REPORT = ROOT / "artifacts" / "evmyullean_adapter_report.json"
+ROADMAP = ROOT / "docs" / "ROADMAP.md"
 
 
 class EvmYulLeanForkConformanceWorkflowTests(unittest.TestCase):
+    def test_concrete_bridge_test_count_matches_adapter_report(self) -> None:
+        report = json.loads(ADAPTER_REPORT.read_text(encoding="utf-8"))
+        count = report["concrete_test_count"]
+        test_count_re = re.compile(
+            r"\b(\d+)\s+(?:concrete\s+)?(?:`native_decide`\s+|native_decide\s+)?"
+            r"bridge(?:-equivalence)?\s+tests\b",
+        )
+
+        for path in [MAKEFILE, WORKFLOW, TRUST_ASSUMPTIONS, ROADMAP]:
+            text = path.read_text(encoding="utf-8")
+            normalized_text = re.sub(r"(?m)^\s*#\s?", "", text)
+            normalized_text = re.sub(r"\s+", " ", normalized_text)
+            documented_counts = {int(match) for match in test_count_re.findall(normalized_text)}
+            self.assertIn(
+                count,
+                documented_counts,
+                f"{path.relative_to(ROOT)} should document the generated concrete bridge-test count",
+            )
+            self.assertEqual(
+                {count},
+                documented_counts,
+                f"{path.relative_to(ROOT)} should not contain stale concrete bridge-test counts",
+            )
+
     def test_post_burn_in_failures_open_or_update_issue(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
 
         self.assertIn("BURN_IN_END_UTC: '2026-05-04T00:00:00Z'", text)
         for path in [
+            "scripts/test_evmyullean_fork_conformance_workflow.py",
+            "artifacts/evmyullean_adapter_report.json",
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean",
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean",
             "Compiler/Proofs/YulGeneration/ReferenceOracle/Builtins.lean",
