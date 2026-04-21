@@ -309,8 +309,9 @@ theorem layer3_contract_preserves_semantics
       (by simpa using hvars)
       (hparamErase fn hmem))
 
-/-- Unconditioned version: delegates directly to `yulCodegen_preserves_semantics`. -/
-theorem layer3_contract_preserves_semantics_general
+/-- Reference-oracle version: delegates directly to the historical
+`execYulFuel`-backed `yulCodegen_preserves_semantics` theorem. -/
+theorem layer3_contract_preserves_semantics_via_reference_oracle
     (contract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (hselector : tx.functionSelector < selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
@@ -345,7 +346,7 @@ function-body simulation hypotheses plus `BridgedStmts` witnesses for emitted
 external function bodies. Fallback/receive witnesses are discharged from the
 existing `none` hypotheses, and the internal-function table witness is derived
 from `ContractWF`. -/
-theorem layer3_contract_preserves_semantics_evmYulLean_general
+theorem layer3_contract_preserves_semantics_evmYulLean_with_function_bridge
     (contract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (hselector : tx.functionSelector < selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
@@ -410,7 +411,7 @@ theorem layer3_contract_preserves_semantics_evmYulLean
       (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
         .evmYulLean (Compiler.emitYul contract).runtimeCode
         (YulTransaction.ofIR tx) initialState.storage initialState.events) := by
-  apply layer3_contract_preserves_semantics_evmYulLean_general contract tx initialState
+  apply layer3_contract_preserves_semantics_evmYulLean_with_function_bridge contract tx initialState
     hselector hNoWrap hWF hNoFallback hNoReceive hdispatchGuardSafe hNoHasSelector
     hHasSelectorDead hLoopFree
   · intro fn hmem
@@ -687,7 +688,7 @@ on bridged IR function, entrypoint, and internal helper bodies, and
   `yulCodegen_preserves_semantics_evmYulLean`, the lower-level Layer-3 theorem
   whose Yul side is the EVMYulLean backend runtime. This file now exposes
   EndToEnd wrappers
-  `layer3_contract_preserves_semantics_evmYulLean_general`,
+  `layer3_contract_preserves_semantics_evmYulLean_with_function_bridge`,
   `layer3_contract_preserves_semantics_evmYulLean`,
   `layers2_3_ir_matches_yul_evmYulLean`, and
   `simpleStorage_endToEnd_evmYulLean` over that target. The public
