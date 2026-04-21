@@ -35,17 +35,6 @@ def lookupAdtVariant (def_ : AdtTypeDef) (variantName : String) :
 def adtMaxFieldSlots (def_ : AdtTypeDef) : Nat :=
   def_.variants.foldl (fun acc v => max acc v.fields.length) 0
 
-/-- Total storage slots for an ADT: 1 (tag) + max field slots. -/
-def adtTotalSlots (def_ : AdtTypeDef) : Nat :=
-  1 + adtMaxFieldSlots def_
-
-/-- Find the field within a variant by name and return its 0-based index. -/
-def lookupAdtFieldIndex (variant : AdtVariant) (fieldName : String) :
-    Except String Nat :=
-  match variant.fields.findIdx? (·.name == fieldName) with
-  | some idx => pure idx
-  | none => throw s!"Compilation error: unknown field '{fieldName}' in variant '{variant.name}'"
-
 /-! ### Yul compilation helpers for ADT storage operations
 
 These generate Yul AST fragments for reading/writing ADT values
