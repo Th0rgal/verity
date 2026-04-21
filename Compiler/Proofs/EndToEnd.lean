@@ -577,8 +577,48 @@ theorem simpleStorage_endToEnd
     (by intro fn hmem; simp [simpleStorageIRContract] at hmem ⊢; rcases hmem with rfl | rfl <;> rfl)
     (by intro s hs; simp [simpleStorageIRContract] at hs) rfl rfl
 
+/-- The concrete SimpleStorage IR fixture uses only EVMYulLean-bridged Yul
+shapes: calldata parameter loading, one literal-slot storage write, one memory
+write from `sload`, and `stop`/`return` terminators. -/
+private theorem simpleStorage_functions_bridged :
+    ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body := by
+  intro fn hmem
+  simp [simpleStorageIRContract] at hmem
+  rcases hmem with rfl | rfl
+  · apply Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_let
+    · exact Compiler.Proofs.YulGeneration.Backends.BridgedExpr.call
+        "calldataload" [Yul.YulExpr.lit 4]
+        (by
+          left
+          simp [Compiler.Proofs.YulGeneration.Backends.bridgedBuiltins])
+        (by
+          intro arg harg
+          simp at harg
+          subst arg
+          exact Compiler.Proofs.YulGeneration.Backends.BridgedExpr.lit 4)
+    · apply Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_sstore_lit
+      · exact Compiler.Proofs.YulGeneration.Backends.BridgedExpr.ident "value"
+      · exact Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_stop
+  · apply Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_mstore
+    · exact Compiler.Proofs.YulGeneration.Backends.BridgedExpr.lit 0
+    · exact Compiler.Proofs.YulGeneration.Backends.BridgedExpr.call
+        "sload" [Yul.YulExpr.lit 0]
+        (by
+          left
+          simp [Compiler.Proofs.YulGeneration.Backends.bridgedBuiltins])
+        (by
+          intro arg harg
+          simp at harg
+          subst arg
+          exact Compiler.Proofs.YulGeneration.Backends.BridgedExpr.lit 0)
+    · exact Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_return
+        (Yul.YulExpr.lit 0) (Yul.YulExpr.lit 32)
+        (Compiler.Proofs.YulGeneration.Backends.BridgedExpr.lit 0)
+        (Compiler.Proofs.YulGeneration.Backends.BridgedExpr.lit 32)
+
 /-- SimpleStorage end-to-end: compile → IR → EVMYulLean-backed Yul preserves
-semantics, conditional on bridged-body witnesses for the emitted functions. -/
+semantics. The concrete function-body bridge witnesses are discharged above. -/
 theorem simpleStorage_endToEnd_evmYulLean
     (tx : IRTransaction) (initialState : IRState)
     (hselector : tx.functionSelector < selectorModulus)
@@ -594,9 +634,7 @@ theorem simpleStorage_endToEnd_evmYulLean
     (hHasSelectorDead : ∀ fn, fn ∈ simpleStorageIRContract.functions →
       HasSelectorDeadBridge fn.body)
     (hparamErase : ∀ fn, fn ∈ simpleStorageIRContract.functions →
-      paramLoadErasure fn tx (initialState.withTx tx))
-    (hFunctions : ∀ fn, fn ∈ simpleStorageIRContract.functions →
-      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body) :
+      paramLoadErasure fn tx (initialState.withTx tx)) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR simpleStorageIRContract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
@@ -607,7 +645,7 @@ theorem simpleStorage_endToEnd_evmYulLean
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead
     (by intro fn hmem; simp [simpleStorageIRContract] at hmem ⊢; rcases hmem with rfl | rfl <;> rfl)
     (by intro s hs; simp [simpleStorageIRContract] at hs) rfl rfl
-    hFunctions
+    simpleStorage_functions_bridged
 
 /-! ## Universal Pure Arithmetic Bridge
 
