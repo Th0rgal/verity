@@ -426,9 +426,11 @@ theorem layer3_contract_preserves_semantics_evmYulLean
 
 /-! ## Layers 2+3 Composition -/
 
-/-- End-to-end: given a successfully compiled contract, IR execution matches
-Yul execution. -/
-theorem layers2_3_ir_matches_yul
+/-- Reference-oracle end-to-end wrapper: given a successfully compiled
+contract, IR execution matches the historical Verity-backed Yul execution
+target. The EVMYulLean-backed theorem below is the authoritative safe-body
+target after the Phase 4 retarget. -/
+theorem layers2_3_ir_matches_yul_via_reference_oracle
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (_hCompile : CompilationModel.compile spec selectors = .ok irContract)
@@ -715,8 +717,9 @@ on bridged IR function, entrypoint, and internal helper bodies, and
   derives its raw body witnesses from supported source bodies.
 - This public EndToEnd module now has a safe-body wrapper targeting
   `interpretYulRuntimeWithBackend .evmYulLean` without raw `BridgedStmts`
-  body hypotheses; the historical wrappers remain available for the
-  Verity-backed `interpretYulFromIR` target.
+  body hypotheses; the historical
+  `layers2_3_ir_matches_yul_via_reference_oracle` wrapper remains available
+  for the Verity-backed `interpretYulFromIR` target.
 - Scalar and static-scalar calldata parameter-loading prologues are now known
   to satisfy `BridgedStmts`.
 - Scalar source expression leaves and the pure arithmetic/comparison/bit-operation
