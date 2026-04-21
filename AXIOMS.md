@@ -96,6 +96,32 @@ structurally via `Compiler/Keccak/SpongeProperties.lean`.
 - End-to-end regression suites that exercise mapping reads/writes.
 - CI cross-checks kernel Keccak output against FFI Keccak output.
 
+## EVMYulLean Runtime Semantics (Non-Axiom)
+
+**Location**:
+`Compiler/Proofs/YulGeneration/Backends/EvmYulLean*.lean`,
+`lake-manifest.json`, `artifacts/evmyullean_fork_audit.json`
+
+**Role**:
+EVMYulLean is the authoritative Yul runtime target for the safe-body EndToEnd
+retargeting path. This is not a Lean axiom: Verity proves the adapter, builtin
+bridge, recursive target equality, safe-body closure, and public EndToEnd
+wrappers in Lean, then trusts that the pinned EVMYulLean execution model matches
+the EVM.
+
+**What we trust**:
+- The pinned `lfglabs-dev/EVMYulLean` fork matches the intended EVM/Yul
+  semantics inherited from upstream `NethermindEth/EVMYulLean`.
+- The audited fork delta remains non-semantic unless explicitly reviewed.
+
+**Soundness controls**:
+- `make check` validates the fork-audit artifact against `lake-manifest.json`.
+- `make test-evmyullean-fork` rechecks the fork audit, rebuilds the universal
+  bridge lemmas, and runs the concrete `native_decide` bridge-equivalence tests.
+- `.github/workflows/evmyullean-fork-conformance.yml` runs the conformance probe
+  weekly; after the burn-in ending 2026-05-04, scheduled/manual failures fail
+  the workflow and open or update a GitHub issue for drift triage.
+
 ## External Call Module (ECM) Assumptions
 
 When your contract calls an external contract (like an ERC-20 token), Verity
