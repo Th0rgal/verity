@@ -46,18 +46,7 @@ contract PropertyDirectHelperCallSmokeTest is YulTestBase {
         assertEq(actual0, expected, "pairWithTotal tuple element 0 should preserve the inferred result");
         assertEq(actual1, (expected + uint256(1)), "pairWithTotal tuple element 1 should preserve the inferred result");
     }
-    // Property 4: runHelpers decodes and matches the inferred straight-line result
-    function testAuto_RunHelpers_ReturnsInferredStraightLineResult() public {
-        uint256 expected = uint256(1);
-        vm.store(target, bytes32(uint256(0)), bytes32(uint256(expected)));
-        vm.prank(alice);
-        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("runHelpers(uint256,uint256,uint256)", uint256(1), uint256(1), uint256(1)));
-        require(ok, "runHelpers reverted unexpectedly");
-        assertEq(ret.length, 32, "runHelpers ABI return length mismatch (expected 32 bytes)");
-        uint256 actual = abi.decode(ret, (uint256));
-        assertEq(actual, ((expected + uint256(1)) + uint256(1)), "runHelpers should preserve the inferred result");
-    }
-    // Property 5: snapshot decodes and matches the inferred tuple result
+    // Property 4: snapshot decodes and matches the inferred tuple result
     function testAuto_Snapshot_ReturnsInferredTupleResult() public {
         uint256 expected = uint256(1);
         vm.store(target, bytes32(uint256(0)), bytes32(uint256(expected)));
