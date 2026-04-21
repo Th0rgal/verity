@@ -18,6 +18,7 @@ def normalizeEventWord (ty : ParamType) (expr : YulExpr) : YulExpr :=
   | ParamType.uint8 => YulExpr.call "and" [expr, YulExpr.lit 255]
   | ParamType.address => YulExpr.call "and" [expr, YulExpr.hex addressMask]
   | ParamType.bool => yulToBool expr
+  | ParamType.newtypeOf _ baseType => normalizeEventWord baseType expr
   | _ => expr
 
 partial def staticCompositeLeaves (baseName : String) (ty : ParamType) :

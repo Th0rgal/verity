@@ -80,13 +80,29 @@ def scalarEventIndexedTopicParts
     (indexed : List (EventParam × Expr × YulExpr)) :
     List (List YulStmt × YulExpr) :=
   indexed.map fun (p, _, argExpr) =>
-    match p.ty with
-    | ParamType.address =>
-        ([], YulExpr.call "and" [argExpr, YulExpr.hex addressMask])
-    | ParamType.bool =>
-        ([], yulToBool argExpr)
-    | _ =>
-        ([], argExpr)
+    ([], normalizeEventWord p.ty argExpr)
+
+def adtEventWordStores (basePtr : YulExpr) (sourceName : String)
+    (maxFields : Nat) (tagExpr : YulExpr) : List YulStmt :=
+  let tagStore := YulStmt.expr (YulExpr.call "mstore" [
+    basePtr,
+    normalizeEventWord ParamType.uint8 tagExpr
+  ])
+  let fieldStores := (List.range maxFields).map fun fieldIdx =>
+    YulStmt.expr (YulExpr.call "mstore" [
+      YulExpr.call "add" [basePtr, YulExpr.lit ((fieldIdx + 1) * 32)],
+      YulExpr.ident s!"{sourceName}_f{fieldIdx}"
+    ])
+  tagStore :: fieldStores
+
+def compileAdtEventWordStores (eventName : String) (paramName : String)
+    (srcExpr : Expr) (argExpr basePtr : YulExpr) (maxFields : Nat) :
+    Except String (List YulStmt) :=
+  match srcExpr with
+  | Expr.param sourceName =>
+      pure (adtEventWordStores basePtr sourceName maxFields argExpr)
+  | _ =>
+      throw s!"Compilation error: ADT event param '{paramName}' in event '{eventName}' currently requires direct ADT parameter reference so payload fields can be encoded ({issue586Ref})."
 
 def compileScalarEmitFromCompiledArgs
     (eventDef : EventDef) (args : List Expr) (compiledArgs : List YulExpr) :
@@ -376,6 +392,8 @@ def compileEmit (fields : List Field) (events : List EventDef)
                     pure stores
                 | _ =>
                     throw s!"Compilation error: unindexed static composite event param '{p.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
+          | ParamType.adt _ maxFields =>
+              compileAdtEventWordStores eventName p.name srcExpr argExpr curHeadPtr maxFields
           | _ =>
               pure [YulStmt.expr (YulExpr.call "mstore" [curHeadPtr, normalizeEventWord p.ty argExpr])]
         let tail ← compileUnindexedStores rest (argIdx + 1) (headOffset + eventHeadWordSize p.ty)
@@ -557,12 +575,16 @@ def compileEmit (fields : List Field) (events : List EventDef)
               ])], YulExpr.ident topicName)
           | _ =>
               throw s!"Compilation error: indexed static composite event param '{p.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
-    | ParamType.address =>
-        pure ([], YulExpr.call "and" [argExpr, YulExpr.hex addressMask])
-    | ParamType.bool =>
-        pure ([], yulToBool argExpr)
+    | ParamType.adt _ maxFields =>
+        let topicName := s!"__evt_topic{idx + 1}"
+        let stores ← compileAdtEventWordStores eventName p.name srcExpr argExpr
+          (YulExpr.ident "__evt_ptr") maxFields
+        pure (stores ++ [YulStmt.let_ topicName (YulExpr.call "keccak256" [
+          YulExpr.ident "__evt_ptr",
+          YulExpr.lit (eventHeadWordSize p.ty)
+        ])], YulExpr.ident topicName)
     | _ =>
-        pure ([], argExpr)
+        pure ([], normalizeEventWord p.ty argExpr)
   let indexedTopicStmts := indexedTopicParts.flatMap (·.1)
   let logFn := eventLogFunction indexed.length
   let logArgs := eventLogArgs dataSizeExpr indexedTopicParts

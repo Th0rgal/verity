@@ -2050,6 +2050,49 @@ private def stringEventMismatchSpec : CompilationModel := {
   ]
 }
 
+private def eventEncodingRegressionSpec : CompilationModel := {
+  name := "EventEncodingRegression"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "log"
+      params := [
+        { name := "choice", ty := ParamType.adt "Choice" 2 },
+        { name := "who", ty := ParamType.newtypeOf "SafeAddress" ParamType.address }
+      ]
+      returnType := none
+      body := [
+        Stmt.emit "ChoiceStored" [Expr.param "choice"],
+        Stmt.emit "ChoiceIndexed" [Expr.param "choice"],
+        Stmt.emit "WhoIndexed" [Expr.param "who"],
+        Stmt.stop
+      ]
+    }
+  ]
+  events := [
+    { name := "ChoiceStored"
+      params := [{ name := "choice", ty := ParamType.adt "Choice" 2, kind := EventParamKind.unindexed }]
+    },
+    { name := "ChoiceIndexed"
+      params := [{ name := "choice", ty := ParamType.adt "Choice" 2, kind := EventParamKind.indexed }]
+    },
+    { name := "WhoIndexed"
+      params := [{ name := "who", ty := ParamType.newtypeOf "SafeAddress" ParamType.address, kind := EventParamKind.indexed }]
+    }
+  ]
+  adtTypes := [
+    { name := "Choice"
+      variants := [
+        { name := "None", tag := 0, fields := [] },
+        { name := "Some", tag := 1, fields := [
+          { name := "amount", ty := ParamType.uint256 },
+          { name := "recipient", ty := ParamType.address }
+        ] }
+      ]
+    }
+  ]
+}
+
 private def addressArrayReturnSpec : CompilationModel := {
   name := "AddressArrayReturn"
   fields := []
@@ -2801,6 +2844,16 @@ set_option maxRecDepth 4096 in
       (contains stringArrayErrorAbi "\"inputs\": [{\"name\": \"\", \"type\": \"uint256\"}, {\"name\": \"\", \"type\": \"string[]\"}]") &&
       (contains stringArrayErrorAbi "\"name\": \"SecondMessages\"") &&
       (contains stringArrayErrorAbi "\"inputs\": [{\"name\": \"\", \"type\": \"string[]\"}, {\"name\": \"\", \"type\": \"string[]\"}]"))
+  let eventEncodingRegressionYul ← expectCompileToYul
+    "ADT and newtype event encoding regression spec compiles"
+    eventEncodingRegressionSpec
+  expectTrue "ADT event encoding stores payload fields before logging"
+    ((contains eventEncodingRegressionYul "choice_f0") &&
+      (contains eventEncodingRegressionYul "choice_f1") &&
+      (contains eventEncodingRegressionYul "keccak256(__evt_ptr, 96)"))
+  expectTrue "newtype event topics normalize through the erased base type"
+    (contains eventEncodingRegressionYul
+      "and(who, 0xffffffffffffffffffffffffffffffffffffffff)")
   let addressArrayReturnCompiled :=
     match Compiler.CompilationModel.compile addressArrayReturnSpec (selectorsFor addressArrayReturnSpec) with
     | .ok _ => true
