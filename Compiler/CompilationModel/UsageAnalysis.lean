@@ -242,6 +242,308 @@ def contractUsesArrayElement (spec : CompilationModel) : Bool :=
   constructorUsesArrayElement spec.constructor || spec.functions.any functionUsesArrayElement
 
 mutual
+def exprUsesPlainArrayElement : Expr → Bool
+  | Expr.arrayElement _ _ => true
+  | Expr.arrayElementWord _ index _ _ => exprUsesPlainArrayElement index
+  | Expr.mapping _ key => exprUsesPlainArrayElement key
+  | Expr.mappingWord _ key _ => exprUsesPlainArrayElement key
+  | Expr.mappingPackedWord _ key _ _ => exprUsesPlainArrayElement key
+  | Expr.mappingChain _ keys => exprListUsesPlainArrayElement keys
+  | Expr.structMember _ key _ => exprUsesPlainArrayElement key
+  | Expr.mapping2 _ key1 key2 | Expr.mapping2Word _ key1 key2 _
+  | Expr.structMember2 _ key1 key2 _ => exprUsesPlainArrayElement key1 || exprUsesPlainArrayElement key2
+  | Expr.mappingUint _ key => exprUsesPlainArrayElement key
+  | Expr.call gas target value inOffset inSize outOffset outSize =>
+      exprUsesPlainArrayElement gas || exprUsesPlainArrayElement target || exprUsesPlainArrayElement value ||
+      exprUsesPlainArrayElement inOffset || exprUsesPlainArrayElement inSize ||
+      exprUsesPlainArrayElement outOffset || exprUsesPlainArrayElement outSize
+  | Expr.staticcall gas target inOffset inSize outOffset outSize =>
+      exprUsesPlainArrayElement gas || exprUsesPlainArrayElement target ||
+      exprUsesPlainArrayElement inOffset || exprUsesPlainArrayElement inSize ||
+      exprUsesPlainArrayElement outOffset || exprUsesPlainArrayElement outSize
+  | Expr.delegatecall gas target inOffset inSize outOffset outSize =>
+      exprUsesPlainArrayElement gas || exprUsesPlainArrayElement target ||
+      exprUsesPlainArrayElement inOffset || exprUsesPlainArrayElement inSize ||
+      exprUsesPlainArrayElement outOffset || exprUsesPlainArrayElement outSize
+  | Expr.extcodesize addr => exprUsesPlainArrayElement addr
+  | Expr.mload offset =>
+      exprUsesPlainArrayElement offset
+  | Expr.tload offset =>
+      exprUsesPlainArrayElement offset
+  | Expr.calldataload offset =>
+      exprUsesPlainArrayElement offset
+  | Expr.keccak256 offset size =>
+      exprUsesPlainArrayElement offset || exprUsesPlainArrayElement size
+  | Expr.returndataOptionalBoolAt outOffset => exprUsesPlainArrayElement outOffset
+  | Expr.externalCall _ args | Expr.internalCall _ args =>
+      exprListUsesPlainArrayElement args
+  | Expr.storageArrayElement _ index =>
+      exprUsesPlainArrayElement index
+  | Expr.dynamicBytesEq _ _ =>
+      false
+  | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
+  | Expr.mod a b | Expr.smod a b |
+    Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b
+  | Expr.sar a b | Expr.signextend a b |
+    Expr.eq a b | Expr.ge a b | Expr.gt a b | Expr.sgt a b | Expr.lt a b | Expr.slt a b | Expr.le a b |
+    Expr.logicalAnd a b | Expr.logicalOr a b |
+    Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b |
+    Expr.ceilDiv a b =>
+      exprUsesPlainArrayElement a || exprUsesPlainArrayElement b
+  | Expr.mulDivDown a b c | Expr.mulDivUp a b c =>
+      exprUsesPlainArrayElement a || exprUsesPlainArrayElement b || exprUsesPlainArrayElement c
+  | Expr.bitNot a | Expr.logicalNot a =>
+      exprUsesPlainArrayElement a
+  | Expr.ite cond thenVal elseVal =>
+      exprUsesPlainArrayElement cond || exprUsesPlainArrayElement thenVal || exprUsesPlainArrayElement elseVal
+  | Expr.adtConstruct _ _ args => exprListUsesPlainArrayElement args
+  | Expr.adtField _ _ _ _ _ => false
+  | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
+  | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
+  | Expr.blockNumber | Expr.blobbasefee
+  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
+  | Expr.storageArrayLength _
+  | Expr.adtTag _ _ =>
+      false
+termination_by e => sizeOf e
+decreasing_by all_goals simp_wf; all_goals omega
+
+def exprListUsesPlainArrayElement : List Expr → Bool
+  | [] => false
+  | e :: es => exprUsesPlainArrayElement e || exprListUsesPlainArrayElement es
+termination_by es => sizeOf es
+decreasing_by all_goals simp_wf; all_goals omega
+
+def stmtUsesPlainArrayElement : Stmt → Bool
+  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value
+  | Stmt.setStorageWord _ _ value |
+    Stmt.storageArrayPush _ value |
+    Stmt.return value | Stmt.require value _ =>
+      exprUsesPlainArrayElement value
+  | Stmt.setStorageArrayElement _ index value =>
+      exprUsesPlainArrayElement index || exprUsesPlainArrayElement value
+  | Stmt.storageArrayPop _ =>
+      false
+  | Stmt.requireError cond _ args =>
+      exprUsesPlainArrayElement cond || exprListUsesPlainArrayElement args
+  | Stmt.revertError _ args | Stmt.emit _ args | Stmt.returnValues args =>
+      exprListUsesPlainArrayElement args
+  | Stmt.mstore offset value =>
+      exprUsesPlainArrayElement offset || exprUsesPlainArrayElement value
+  | Stmt.tstore offset value =>
+      exprUsesPlainArrayElement offset || exprUsesPlainArrayElement value
+  | Stmt.calldatacopy destOffset sourceOffset size =>
+      exprUsesPlainArrayElement destOffset || exprUsesPlainArrayElement sourceOffset || exprUsesPlainArrayElement size
+  | Stmt.returndataCopy destOffset sourceOffset size =>
+      exprUsesPlainArrayElement destOffset || exprUsesPlainArrayElement sourceOffset || exprUsesPlainArrayElement size
+  | Stmt.setMapping _ key value | Stmt.setMappingWord _ key _ value | Stmt.setMappingPackedWord _ key _ _ value | Stmt.setMappingUint _ key value
+  | Stmt.setStructMember _ key _ value =>
+      exprUsesPlainArrayElement key || exprUsesPlainArrayElement value
+  | Stmt.setMappingChain _ keys value =>
+      exprListUsesPlainArrayElement keys || exprUsesPlainArrayElement value
+  | Stmt.setMapping2 _ key1 key2 value | Stmt.setMapping2Word _ key1 key2 _ value
+  | Stmt.setStructMember2 _ key1 key2 _ value =>
+      exprUsesPlainArrayElement key1 || exprUsesPlainArrayElement key2 || exprUsesPlainArrayElement value
+  | Stmt.ite cond thenBranch elseBranch =>
+      exprUsesPlainArrayElement cond || stmtListUsesPlainArrayElement thenBranch || stmtListUsesPlainArrayElement elseBranch
+  | Stmt.forEach _ count body =>
+      exprUsesPlainArrayElement count || stmtListUsesPlainArrayElement body
+  | Stmt.unsafeBlock _ body =>
+      stmtListUsesPlainArrayElement body
+  | Stmt.matchAdt _ scrutinee branches =>
+      exprUsesPlainArrayElement scrutinee ||
+        matchBranchesUsePlainArrayElement branches
+  | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args =>
+      exprListUsesPlainArrayElement args
+  | Stmt.rawLog topics dataOffset dataSize =>
+      exprListUsesPlainArrayElement topics || exprUsesPlainArrayElement dataOffset || exprUsesPlainArrayElement dataSize
+  | Stmt.externalCallBind _ _ args | Stmt.tryExternalCallBind _ _ _ args =>
+      exprListUsesPlainArrayElement args
+  | Stmt.ecm _ args =>
+      exprListUsesPlainArrayElement args
+  | Stmt.returnArray _ | Stmt.returnBytes _ | Stmt.returnStorageWords _
+  | Stmt.revertReturndata | Stmt.stop =>
+      false
+termination_by s => sizeOf s
+decreasing_by all_goals simp_wf; all_goals omega
+
+def stmtListUsesPlainArrayElement : List Stmt → Bool
+  | [] => false
+  | s :: ss => stmtUsesPlainArrayElement s || stmtListUsesPlainArrayElement ss
+termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def matchBranchesUsePlainArrayElement : List (String × List String × List Stmt) → Bool
+  | [] => false
+  | (_, _, body) :: rest =>
+      stmtListUsesPlainArrayElement body || matchBranchesUsePlainArrayElement rest
+termination_by bs => sizeOf bs
+decreasing_by all_goals simp_wf; all_goals omega
+end
+
+def functionUsesPlainArrayElement (fn : FunctionSpec) : Bool :=
+  fn.body.any stmtUsesPlainArrayElement
+
+def constructorUsesPlainArrayElement : Option ConstructorSpec → Bool
+  | none => false
+  | some ctor => ctor.body.any stmtUsesPlainArrayElement
+
+def contractUsesPlainArrayElement (spec : CompilationModel) : Bool :=
+  contractUsesArrayElement spec &&
+    (constructorUsesPlainArrayElement spec.constructor || spec.functions.any functionUsesPlainArrayElement)
+
+mutual
+def exprUsesArrayElementWord : Expr → Bool
+  | Expr.arrayElementWord _ _ _ _ => true
+  | Expr.arrayElement _ index => exprUsesArrayElementWord index
+  | Expr.mapping _ key => exprUsesArrayElementWord key
+  | Expr.mappingWord _ key _ => exprUsesArrayElementWord key
+  | Expr.mappingPackedWord _ key _ _ => exprUsesArrayElementWord key
+  | Expr.mappingChain _ keys => exprListUsesArrayElementWord keys
+  | Expr.structMember _ key _ => exprUsesArrayElementWord key
+  | Expr.mapping2 _ key1 key2 | Expr.mapping2Word _ key1 key2 _
+  | Expr.structMember2 _ key1 key2 _ => exprUsesArrayElementWord key1 || exprUsesArrayElementWord key2
+  | Expr.mappingUint _ key => exprUsesArrayElementWord key
+  | Expr.call gas target value inOffset inSize outOffset outSize =>
+      exprUsesArrayElementWord gas || exprUsesArrayElementWord target || exprUsesArrayElementWord value ||
+      exprUsesArrayElementWord inOffset || exprUsesArrayElementWord inSize ||
+      exprUsesArrayElementWord outOffset || exprUsesArrayElementWord outSize
+  | Expr.staticcall gas target inOffset inSize outOffset outSize =>
+      exprUsesArrayElementWord gas || exprUsesArrayElementWord target ||
+      exprUsesArrayElementWord inOffset || exprUsesArrayElementWord inSize ||
+      exprUsesArrayElementWord outOffset || exprUsesArrayElementWord outSize
+  | Expr.delegatecall gas target inOffset inSize outOffset outSize =>
+      exprUsesArrayElementWord gas || exprUsesArrayElementWord target ||
+      exprUsesArrayElementWord inOffset || exprUsesArrayElementWord inSize ||
+      exprUsesArrayElementWord outOffset || exprUsesArrayElementWord outSize
+  | Expr.extcodesize addr => exprUsesArrayElementWord addr
+  | Expr.mload offset =>
+      exprUsesArrayElementWord offset
+  | Expr.tload offset =>
+      exprUsesArrayElementWord offset
+  | Expr.calldataload offset =>
+      exprUsesArrayElementWord offset
+  | Expr.keccak256 offset size =>
+      exprUsesArrayElementWord offset || exprUsesArrayElementWord size
+  | Expr.returndataOptionalBoolAt outOffset => exprUsesArrayElementWord outOffset
+  | Expr.externalCall _ args | Expr.internalCall _ args =>
+      exprListUsesArrayElementWord args
+  | Expr.storageArrayElement _ index =>
+      exprUsesArrayElementWord index
+  | Expr.dynamicBytesEq _ _ =>
+      false
+  | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
+  | Expr.mod a b | Expr.smod a b |
+    Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b
+  | Expr.sar a b | Expr.signextend a b |
+    Expr.eq a b | Expr.ge a b | Expr.gt a b | Expr.sgt a b | Expr.lt a b | Expr.slt a b | Expr.le a b |
+    Expr.logicalAnd a b | Expr.logicalOr a b |
+    Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b |
+    Expr.ceilDiv a b =>
+      exprUsesArrayElementWord a || exprUsesArrayElementWord b
+  | Expr.mulDivDown a b c | Expr.mulDivUp a b c =>
+      exprUsesArrayElementWord a || exprUsesArrayElementWord b || exprUsesArrayElementWord c
+  | Expr.bitNot a | Expr.logicalNot a =>
+      exprUsesArrayElementWord a
+  | Expr.ite cond thenVal elseVal =>
+      exprUsesArrayElementWord cond || exprUsesArrayElementWord thenVal || exprUsesArrayElementWord elseVal
+  | Expr.adtConstruct _ _ args => exprListUsesArrayElementWord args
+  | Expr.adtField _ _ _ _ _ => false
+  | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
+  | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
+  | Expr.blockNumber | Expr.blobbasefee
+  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
+  | Expr.storageArrayLength _
+  | Expr.adtTag _ _ =>
+      false
+termination_by e => sizeOf e
+decreasing_by all_goals simp_wf; all_goals omega
+
+def exprListUsesArrayElementWord : List Expr → Bool
+  | [] => false
+  | e :: es => exprUsesArrayElementWord e || exprListUsesArrayElementWord es
+termination_by es => sizeOf es
+decreasing_by all_goals simp_wf; all_goals omega
+
+def stmtUsesArrayElementWord : Stmt → Bool
+  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value
+  | Stmt.setStorageWord _ _ value |
+    Stmt.storageArrayPush _ value |
+    Stmt.return value | Stmt.require value _ =>
+      exprUsesArrayElementWord value
+  | Stmt.setStorageArrayElement _ index value =>
+      exprUsesArrayElementWord index || exprUsesArrayElementWord value
+  | Stmt.storageArrayPop _ =>
+      false
+  | Stmt.requireError cond _ args =>
+      exprUsesArrayElementWord cond || exprListUsesArrayElementWord args
+  | Stmt.revertError _ args | Stmt.emit _ args | Stmt.returnValues args =>
+      exprListUsesArrayElementWord args
+  | Stmt.mstore offset value =>
+      exprUsesArrayElementWord offset || exprUsesArrayElementWord value
+  | Stmt.tstore offset value =>
+      exprUsesArrayElementWord offset || exprUsesArrayElementWord value
+  | Stmt.calldatacopy destOffset sourceOffset size =>
+      exprUsesArrayElementWord destOffset || exprUsesArrayElementWord sourceOffset || exprUsesArrayElementWord size
+  | Stmt.returndataCopy destOffset sourceOffset size =>
+      exprUsesArrayElementWord destOffset || exprUsesArrayElementWord sourceOffset || exprUsesArrayElementWord size
+  | Stmt.setMapping _ key value | Stmt.setMappingWord _ key _ value | Stmt.setMappingPackedWord _ key _ _ value | Stmt.setMappingUint _ key value
+  | Stmt.setStructMember _ key _ value =>
+      exprUsesArrayElementWord key || exprUsesArrayElementWord value
+  | Stmt.setMappingChain _ keys value =>
+      exprListUsesArrayElementWord keys || exprUsesArrayElementWord value
+  | Stmt.setMapping2 _ key1 key2 value | Stmt.setMapping2Word _ key1 key2 _ value
+  | Stmt.setStructMember2 _ key1 key2 _ value =>
+      exprUsesArrayElementWord key1 || exprUsesArrayElementWord key2 || exprUsesArrayElementWord value
+  | Stmt.ite cond thenBranch elseBranch =>
+      exprUsesArrayElementWord cond || stmtListUsesArrayElementWord thenBranch || stmtListUsesArrayElementWord elseBranch
+  | Stmt.forEach _ count body =>
+      exprUsesArrayElementWord count || stmtListUsesArrayElementWord body
+  | Stmt.unsafeBlock _ body =>
+      stmtListUsesArrayElementWord body
+  | Stmt.matchAdt _ scrutinee branches =>
+      exprUsesArrayElementWord scrutinee ||
+        matchBranchesUseArrayElementWord branches
+  | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args =>
+      exprListUsesArrayElementWord args
+  | Stmt.rawLog topics dataOffset dataSize =>
+      exprListUsesArrayElementWord topics || exprUsesArrayElementWord dataOffset || exprUsesArrayElementWord dataSize
+  | Stmt.externalCallBind _ _ args | Stmt.tryExternalCallBind _ _ _ args =>
+      exprListUsesArrayElementWord args
+  | Stmt.ecm _ args =>
+      exprListUsesArrayElementWord args
+  | Stmt.returnArray _ | Stmt.returnBytes _ | Stmt.returnStorageWords _
+  | Stmt.revertReturndata | Stmt.stop =>
+      false
+termination_by s => sizeOf s
+decreasing_by all_goals simp_wf; all_goals omega
+
+def stmtListUsesArrayElementWord : List Stmt → Bool
+  | [] => false
+  | s :: ss => stmtUsesArrayElementWord s || stmtListUsesArrayElementWord ss
+termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def matchBranchesUseArrayElementWord : List (String × List String × List Stmt) → Bool
+  | [] => false
+  | (_, _, body) :: rest =>
+      stmtListUsesArrayElementWord body || matchBranchesUseArrayElementWord rest
+termination_by bs => sizeOf bs
+decreasing_by all_goals simp_wf; all_goals omega
+end
+
+def functionUsesArrayElementWord (fn : FunctionSpec) : Bool :=
+  fn.body.any stmtUsesArrayElementWord
+
+def constructorUsesArrayElementWord : Option ConstructorSpec → Bool
+  | none => false
+  | some ctor => ctor.body.any stmtUsesArrayElementWord
+
+def contractUsesArrayElementWord (spec : CompilationModel) : Bool :=
+  contractUsesArrayElement spec &&
+    (constructorUsesArrayElementWord spec.constructor || spec.functions.any functionUsesArrayElementWord)
+
+mutual
 def exprUsesStorageArrayElement : Expr → Bool
   | Expr.storageArrayElement _ _ => true
   | Expr.mapping _ key => exprUsesStorageArrayElement key

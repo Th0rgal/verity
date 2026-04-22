@@ -12,13 +12,19 @@ import Compiler.CompilationModel.UsageAnalysis
 namespace Compiler.CompilationModel
 
 def reservedExternalNames
-    (mappingHelpersRequired arrayHelpersRequired storageArrayHelpersRequired dynamicBytesEqHelpersRequired : Bool) : List String :=
+    (mappingHelpersRequired arrayHelpersRequired arrayElementWordHelpersRequired
+      storageArrayHelpersRequired dynamicBytesEqHelpersRequired : Bool) : List String :=
   let mappingHelpers := if mappingHelpersRequired then ["mappingSlot"] else []
   let arrayHelpers :=
     if arrayHelpersRequired then
       [ checkedArrayElementCalldataHelperName
       , checkedArrayElementMemoryHelperName
-      , checkedArrayElementWordCalldataHelperName
+      ]
+    else
+      []
+  let arrayElementWordHelpers :=
+    if arrayElementWordHelpersRequired then
+      [ checkedArrayElementWordCalldataHelperName
       , checkedArrayElementWordMemoryHelperName
       ]
     else
@@ -34,14 +40,20 @@ def reservedExternalNames
     else
       []
   let entrypoints := ["fallback", "receive"]
-  (mappingHelpers ++ arrayHelpers ++ storageArrayHelpers ++ dynamicBytesEqHelpers ++ entrypoints).eraseDups
+  (mappingHelpers ++ arrayHelpers ++ arrayElementWordHelpers ++ storageArrayHelpers ++ dynamicBytesEqHelpers ++ entrypoints).eraseDups
 
 def firstReservedExternalCollision
     (spec : CompilationModel)
-    (mappingHelpersRequired arrayHelpersRequired storageArrayHelpersRequired dynamicBytesEqHelpersRequired : Bool) : Option String :=
+    (mappingHelpersRequired arrayHelpersRequired arrayElementWordHelpersRequired
+      storageArrayHelpersRequired dynamicBytesEqHelpersRequired : Bool) : Option String :=
   (spec.externals.map (·.name)).find? (fun name =>
     name.startsWith internalFunctionPrefix ||
-      (reservedExternalNames mappingHelpersRequired arrayHelpersRequired storageArrayHelpersRequired dynamicBytesEqHelpersRequired).contains name)
+      (reservedExternalNames
+        mappingHelpersRequired
+        arrayHelpersRequired
+        arrayElementWordHelpersRequired
+        storageArrayHelpersRequired
+        dynamicBytesEqHelpersRequired).contains name)
 
 def firstInternalDynamicParam
     (fns : List FunctionSpec) : Option (String × String × ParamType) :=

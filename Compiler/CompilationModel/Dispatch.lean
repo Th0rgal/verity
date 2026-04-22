@@ -366,11 +366,13 @@ def validateCompileInputs (spec : CompilationModel) (selectors : List Nat) : Exc
   | none =>
       pure ()
   let mappingHelpersRequired := usesMapping fields
-  let arrayHelpersRequired := contractUsesArrayElement spec
+  let arrayHelpersRequired := contractUsesPlainArrayElement spec
+  let arrayElementWordHelpersRequired := contractUsesArrayElementWord spec
   let storageArrayHelpersRequired := contractUsesStorageArrayElement spec
   let dynamicBytesEqHelpersRequired := contractUsesDynamicBytesEq spec
   match firstReservedExternalCollision
-      spec mappingHelpersRequired arrayHelpersRequired storageArrayHelpersRequired dynamicBytesEqHelpersRequired with
+      spec mappingHelpersRequired arrayHelpersRequired arrayElementWordHelpersRequired
+        storageArrayHelpersRequired dynamicBytesEqHelpersRequired with
   | some name =>
       if name.startsWith internalFunctionPrefix then
         throw s!"Compilation error: external declaration '{name}' uses reserved prefix '{internalFunctionPrefix}' ({issue756Ref})."
@@ -394,7 +396,8 @@ def compileValidatedCore (spec : CompilationModel) (selectors : List Nat) : Exce
   let externalFns := spec.functions.filter (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)
   let internalFns := spec.functions.filter (·.isInternal)
   let mappingHelpersRequired := usesMapping fields
-  let arrayHelpersRequired := contractUsesArrayElement spec
+  let arrayHelpersRequired := contractUsesPlainArrayElement spec
+  let arrayElementWordHelpersRequired := contractUsesArrayElementWord spec
   let storageArrayHelpersRequired := contractUsesStorageArrayElement spec
   let dynamicBytesEqHelpersRequired := contractUsesDynamicBytesEq spec
   let fallbackSpec ← pickUniqueFunctionByName "fallback" spec.functions
@@ -403,14 +406,18 @@ def compileValidatedCore (spec : CompilationModel) (selectors : List Nat) : Exce
     compileFunctionSpec fields spec.events spec.errors spec.adtTypes sel fnSpec
   let internalFuncDefs ← internalFns.mapM (compileInternalFunction fields spec.events spec.errors spec.adtTypes)
   let arrayElementHelpers :=
-    if arrayHelpersRequired then
+    (if arrayHelpersRequired then
       [ checkedArrayElementCalldataHelper
       , checkedArrayElementMemoryHelper
-      , checkedArrayElementWordCalldataHelper
+      ]
+    else
+      []) ++
+    (if arrayElementWordHelpersRequired then
+      [ checkedArrayElementWordCalldataHelper
       , checkedArrayElementWordMemoryHelper
       ]
     else
-      []
+      [])
   let storageArrayElementHelpers :=
     if storageArrayHelpersRequired then
       [checkedStorageArrayElementHelper]

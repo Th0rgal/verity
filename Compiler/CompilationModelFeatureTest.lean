@@ -2363,6 +2363,32 @@ private def bytesArrayElementWordSpec : CompilationModel := {
   ]
 }
 
+private def uintArrayElementOnlySpec : CompilationModel := {
+  name := "UintArrayElementOnly"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "head"
+      params := [{ name := "values", ty := ParamType.array ParamType.uint256 }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.arrayElement "values" (Expr.literal 0))]
+    }
+  ]
+}
+
+private def tupleArrayElementWordOnlySpec : CompilationModel := {
+  name := "TupleArrayElementWordOnly"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "second"
+      params := [{ name := "values", ty := ParamType.array (ParamType.tuple [ParamType.uint256, ParamType.uint256]) }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.arrayElementWord "values" (Expr.literal 0) 2 1)]
+    }
+  ]
+}
+
 private def storageArrayUint256SmokeSpec : CompilationModel := {
   name := "StorageArrayUint256Smoke"
   fields := [{ name := "queue", ty := FieldType.dynamicArray .uint256, «slot» := some 7 }]
@@ -3109,6 +3135,22 @@ set_option maxRecDepth 4096 in
     "arrayElementWord rejects bytes[] params until dynamic-element word indexing lands"
     bytesArrayElementWordSpec
     "Expr.arrayElementWord 'calls' requires an array parameter with static ABI-word elements"
+  let uintArrayElementOnlyYul ←
+    expectCompileToYul "uint256[] arrayElement-only smoke spec" uintArrayElementOnlySpec
+  expectTrue "arrayElement-only specs emit the tuple-array helpers"
+    ((contains uintArrayElementOnlyYul checkedArrayElementCalldataHelperName) &&
+      (contains uintArrayElementOnlyYul checkedArrayElementMemoryHelperName))
+  expectTrue "arrayElement-only specs do not emit word-array helpers"
+    (!(contains uintArrayElementOnlyYul checkedArrayElementWordCalldataHelperName) &&
+      !(contains uintArrayElementOnlyYul checkedArrayElementWordMemoryHelperName))
+  let tupleArrayElementWordOnlyYul ←
+    expectCompileToYul "tuple[] arrayElementWord-only smoke spec" tupleArrayElementWordOnlySpec
+  expectTrue "arrayElementWord-only specs emit the word-array helpers"
+    ((contains tupleArrayElementWordOnlyYul checkedArrayElementWordCalldataHelperName) &&
+      (contains tupleArrayElementWordOnlyYul checkedArrayElementWordMemoryHelperName))
+  expectTrue "arrayElementWord-only specs do not emit tuple-array helpers"
+    (!(contains tupleArrayElementWordOnlyYul checkedArrayElementCalldataHelperName) &&
+      !(contains tupleArrayElementWordOnlyYul checkedArrayElementMemoryHelperName))
   let storageArrayUint256Yul ←
     expectCompileToYul "storage uint256[] smoke spec" storageArrayUint256SmokeSpec
   expectTrue "storage uint256[] length lowers to sload(slot)"
