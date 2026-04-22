@@ -115,8 +115,10 @@ scope so the native path does not look more complete than it is:
 
    Current smoke coverage exercises primop lowering, including critical
    halt/log builtins, helper function maps, duplicate-helper failure, emitted
-   dispatcher lowering shape and selector expression, selector cases with their
-   lowered storage-write bodies,
+   dispatcher lowering shape and selector expression, dispatcher/helper
+   partitioning that keeps helper definitions in the function map while
+   dispatcher calls remain native user-function calls,
+   selector cases with their lowered storage-write bodies,
    selector/calldata byte layout, storage writes, `sload` through explicit
    observable pre-state slots, omitted-slot default reads, `tstore`/`tload`
    execution through copied observable storage, callvalue,

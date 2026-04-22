@@ -296,6 +296,42 @@ private def emittedDispatchNativeSelectorCaseBodies : Bool :=
         nativeStmtSwitchCaseStores 0x22222222 11 202 contract.dispatcher
   | .error _ => false
 
+private partial def nativeExprContainsUserCall (name : String) : EvmYul.Yul.Ast.Expr → Bool
+  | .Call (.inr got) args =>
+      got == name || args.any (nativeExprContainsUserCall name)
+  | .Call (.inl _) args =>
+      args.any (nativeExprContainsUserCall name)
+  | _ => false
+
+private partial def nativeStmtContainsUserCall (name : String) : EvmYul.Yul.Ast.Stmt → Bool
+  | .Let _ (some expr) => nativeExprContainsUserCall name expr
+  | .ExprStmtCall expr => nativeExprContainsUserCall name expr
+  | .Switch discr cases defaultBody =>
+      nativeExprContainsUserCall name discr ||
+        cases.any (fun (_, body) => body.any (nativeStmtContainsUserCall name)) ||
+        defaultBody.any (nativeStmtContainsUserCall name)
+  | .For cond post body =>
+      nativeExprContainsUserCall name cond ||
+        post.any (nativeStmtContainsUserCall name) ||
+        body.any (nativeStmtContainsUserCall name)
+  | .Block stmts => stmts.any (nativeStmtContainsUserCall name)
+  | .If cond body =>
+      nativeExprContainsUserCall name cond ||
+        body.any (nativeStmtContainsUserCall name)
+  | _ => false
+
+private def helperFuncDefMovesToMapAndCallStaysUserCall : Bool :=
+  match lowerRuntimeContractNative [
+    .funcDef "inc" ["x"] ["r"] [
+      .let_ "r" (.call "add" [.ident "x", .lit 1])
+    ],
+    .letMany ["y"] (.call "inc" [.lit 41])
+  ] with
+  | .ok contract =>
+      (contract.functions.lookup "inc").isSome &&
+        nativeStmtContainsUserCall "inc" contract.dispatcher
+  | .error _ => false
+
 private def lowersAddAsPrim : Bool :=
   match lowerExprNative (.call "add" [.lit 1, .lit 2]) with
   | .Call (.inl op) args =>
@@ -550,6 +586,10 @@ example :
 
 example :
     duplicateNativeHelperFailsClosed = true := by
+  native_decide
+
+example :
+    helperFuncDefMovesToMapAndCallStaysUserCall = true := by
   native_decide
 
 example :
