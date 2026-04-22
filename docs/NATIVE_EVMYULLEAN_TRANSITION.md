@@ -90,8 +90,10 @@ scope so the native path does not look more complete than it is:
    Required facts:
    - top-level `funcDef` nodes are partitioned into `YulContract.functions`,
    - dispatcher code contains no function definitions,
-   - known runtime builtins lower to native `.inl` primops,
-   - user/helper calls remain `.inr` function calls,
+   - known runtime builtins lower to native `.inl` primops, now named by
+     `lowerExprNative_call_runtimePrimOp`,
+   - user/helper calls remain `.inr` function calls, now named by
+     `lowerExprNative_call_userFunction`,
    - duplicate helper definitions fail closed.
 
 2. Prove native state bridge lemmas.
@@ -122,7 +124,10 @@ scope so the native path does not look more complete than it is:
    dispatcher lowering shape and selector expression, dispatcher/helper
    partitioning that keeps helper definitions in the function map while
    dispatcher calls remain native user-function calls, fail-closed rejection
-   of nested native function definitions in dispatcher/helper bodies,
+   of nested native function definitions in dispatcher/helper bodies, the named
+   `lowerExprNative_call_runtimePrimOp` and
+   `lowerExprNative_call_userFunction` lemmas for native expression-call
+   lowering,
    selector cases with their lowered storage-write and memory-return bodies,
    selector/calldata byte layout, storage writes, `sload` through explicit
    observable pre-state slots, omitted-slot default reads, IR storage-read

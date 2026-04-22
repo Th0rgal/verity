@@ -47,6 +47,7 @@ import Compiler.Proofs.IRGeneration.SupportedSpec
 import Compiler.Proofs.KeccakBound
 import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.StorageBounds
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapterCorrectness
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBodyClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
@@ -2198,6 +2199,10 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.StorageBounds.writeStorageArray_storage_unchanged
 #print axioms Compiler.Proofs.StorageBounds.writeStorageArray_events_unchanged
 
+-- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerExprNative_call_runtimePrimOp
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerExprNative_call_userFunction
+
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapterCorrectness.lean
 #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let
 #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let'
@@ -3053,4 +3058,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2883 theorems/lemmas (2000 public, 883 private, 0 sorry'd)
+-- Total: 2885 theorems/lemmas (2002 public, 883 private, 0 sorry'd)

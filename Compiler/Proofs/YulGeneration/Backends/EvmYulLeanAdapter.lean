@@ -180,6 +180,23 @@ def lowerExprNative : YulExpr → EvmYul.Yul.Ast.Expr
       | some prim => .Call (.inl prim) loweredArgs
       | none => .Call (.inr func) loweredArgs
 
+@[simp] theorem lowerExprNative_call_runtimePrimOp
+    (func : String)
+    (args : List YulExpr)
+    (op : EvmYul.Operation .Yul)
+    (hOp : lookupRuntimePrimOp func = some op) :
+    lowerExprNative (.call func args) =
+      .Call (.inl op) (args.map lowerExprNative) := by
+  simp [lowerExprNative, hOp]
+
+@[simp] theorem lowerExprNative_call_userFunction
+    (func : String)
+    (args : List YulExpr)
+    (hOp : lookupRuntimePrimOp func = none) :
+    lowerExprNative (.call func args) =
+      .Call (.inr func) (args.map lowerExprNative) := by
+  simp [lowerExprNative, hOp]
+
 mutual
 partial def lowerStmtsNative :
     List YulStmt → Except AdapterError (List EvmYul.Yul.Ast.Stmt)
