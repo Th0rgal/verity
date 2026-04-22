@@ -777,20 +777,49 @@ verity_contract ConstantFunctionHelperCollisionRejected where
     return 3
 
 /--
-error: function 'quote' generates internal declaration 'quote__uint256' that conflicts with a contract constant of the same name
+error: function 'quote' generates internal declaration 'quote__scalar_uint256' that conflicts with a contract constant of the same name
 -/
 #guard_msgs in
 verity_contract ConstantOverloadGeneratedNameCollisionRejected where
   storage
 
   constants
-    quote__uint256 : Uint256 := 7
+    quote__scalar_uint256 : Uint256 := 7
 
   function quote (amount : Uint256) : Uint256 := do
     return amount
 
   function quote (recipient : Address) : Uint256 := do
     return (addressToWord recipient)
+
+/--
+error: function 'quote' generates internal declaration 'quote__scalar_uint256' that conflicts with an immutable of the same name
+-/
+#guard_msgs in
+verity_contract ImmutableOverloadGeneratedNameCollisionRejected where
+  storage
+
+  immutables
+    quote__scalar_uint256 : Uint256 := 7
+
+  function quote (amount : Uint256) : Uint256 := do
+    return amount
+
+  function quote (recipient : Address) : Uint256 := do
+    return (addressToWord recipient)
+
+#guard_msgs in
+verity_contract OverloadSignatureEncodingSmoke where
+  types
+    tuple_uint256 : Uint256
+  storage
+
+  function quote (amount : tuple_uint256) : Uint256 := do
+    return amount
+
+  function quote (pair : Tuple [Uint256, Uint256]) : Uint256 := do
+    let _pairValue := pair
+    return pair_0
 
 verity_contract TupleSmoke where
   storage

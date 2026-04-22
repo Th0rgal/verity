@@ -163,19 +163,19 @@ structure FunctionDecl where
   body : Term
 
 private partial def valueTypeSignatureComponent : ValueType → String
-  | .uint256 => "uint256"
-  | .int256 => "int256"
-  | .uint8 => "uint8"
-  | .address => "address"
-  | .bool => "bool"
-  | .bytes32 => "bytes32"
-  | .string => "string"
-  | .bytes => "bytes"
-  | .unit => "unit"
-  | .array ty => valueTypeSignatureComponent ty ++ "Array"
-  | .tuple tys => "tuple_" ++ String.intercalate "_" (tys.map valueTypeSignatureComponent)
-  | .newtype name baseType => name ++ "_" ++ valueTypeSignatureComponent baseType
-  | .adt name _ => name
+  | .uint256 => "scalar_uint256"
+  | .int256 => "scalar_int256"
+  | .uint8 => "scalar_uint8"
+  | .address => "scalar_address"
+  | .bool => "scalar_bool"
+  | .bytes32 => "scalar_bytes32"
+  | .string => "scalar_string"
+  | .bytes => "scalar_bytes"
+  | .unit => "scalar_unit"
+  | .array ty => "array_" ++ valueTypeSignatureComponent ty
+  | .tuple tys => "tuple" ++ toString tys.length ++ "_" ++ String.intercalate "__" (tys.map valueTypeSignatureComponent)
+  | .newtype name baseType => "newtype_" ++ name ++ "_" ++ valueTypeSignatureComponent baseType
+  | .adt name _ => "adt_" ++ name
 
 private def functionSignatureKey (fn : FunctionDecl) : String :=
   fn.name ++ "(" ++ String.intercalate "," (fn.params.toList.map (fun p => valueTypeSignatureComponent p.ty)) ++ ")"
@@ -4793,6 +4793,7 @@ def validateConstantDeclsPublic (constDecls : Array ConstantDecl) : CommandElabM
 def validateGeneratedDefNamesPublic
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
     (functions : Array FunctionDecl) : CommandElabM Unit := do
   let reservedGeneratedNames : Array String := #["spec", "storageNamespace"]
   let mut generatedHelperNames : Array String := reservedGeneratedNames
@@ -4819,6 +4820,8 @@ def validateGeneratedDefNamesPublic
         s!"duplicate constant declaration '{constant.name}'"
     constantNames := constantNames.push constant.name
 
+  let immutableNames := immutableDecls.map (·.name)
+
   let mut functionNames : Array String := #[]
   let mut functionSignatures : Array String := #[]
   for fn in functions do
@@ -4833,12 +4836,18 @@ def validateGeneratedDefNamesPublic
     if constantNames.contains fn.name then
       throwErrorAt fn.ident
         s!"function '{fn.name}' conflicts with a contract constant of the same name"
+    if immutableNames.contains fn.name then
+      throwErrorAt fn.ident
+        s!"function '{fn.name}' conflicts with an immutable of the same name"
     if storageNames.contains generatedFnName then
       throwErrorAt fn.ident
         s!"function '{fn.name}' generates internal declaration '{generatedFnName}' that conflicts with a storage field of the same name"
     if constantNames.contains generatedFnName then
       throwErrorAt fn.ident
         s!"function '{fn.name}' generates internal declaration '{generatedFnName}' that conflicts with a contract constant of the same name"
+    if immutableNames.contains generatedFnName then
+      throwErrorAt fn.ident
+        s!"function '{fn.name}' generates internal declaration '{generatedFnName}' that conflicts with an immutable of the same name"
     if generatedHelperNames.contains generatedFnName then
       throwErrorAt fn.ident
         s!"function '{fn.name}' generates internal declaration '{generatedFnName}' that conflicts with reserved generated declaration '{generatedFnName}'"
@@ -4874,6 +4883,9 @@ def validateGeneratedDefNamesPublic
       if constantNames.contains helperName then
         throwErrorAt fn.ident
           s!"function '{fn.name}' generates helper '{helperName}' that conflicts with a contract constant of the same name"
+      if immutableNames.contains helperName then
+        throwErrorAt fn.ident
+          s!"function '{fn.name}' generates helper '{helperName}' that conflicts with an immutable of the same name"
       if functionNames.contains helperName then
         throwErrorAt fn.ident
           s!"function '{fn.name}' generates helper '{helperName}' that conflicts with a function of the same name"
