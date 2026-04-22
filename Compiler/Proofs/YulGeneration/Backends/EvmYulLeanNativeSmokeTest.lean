@@ -68,6 +68,14 @@ private def nativeCopiesSloadToSlot
   | .ok result => result.success && result.finalStorage 8 == expected
   | .error _ => false
 
+private def nativeCopiesTransientLoadToStorage : Bool :=
+  match Native.interpretRuntimeNative 128 [
+    .expr (.call "tstore" [.lit 3, .lit 88]),
+    .expr (.call "sstore" [.lit 9, .call "tload" [.lit 3]])
+  ] sampleTx zeroStorage [9] with
+  | .ok result => result.success && result.finalStorage 9 == 88
+  | .error _ => false
+
 private def dispatchSmokeContract : Compiler.IRContract :=
   { name := "NativeDispatchSmoke"
     deploy := []
@@ -303,6 +311,10 @@ example :
 
 example :
     nativeCopiesSloadToSlot [8] 0 = true := by
+  native_decide
+
+example :
+    nativeCopiesTransientLoadToStorage = true := by
   native_decide
 
 example :
