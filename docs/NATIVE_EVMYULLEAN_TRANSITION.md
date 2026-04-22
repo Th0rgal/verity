@@ -41,10 +41,16 @@ materializes pre-state storage for those slots.
 - The EndToEnd layer now exposes the native-facing theorem seam
   `layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge`. Its
   conclusion targets `Native.interpretIRRuntimeNative` through
-  `nativeResultsMatch`, but it still requires the explicit
+  `nativeResultsMatchOn`, comparing success, return value, events, and the
+  explicitly observable final-storage slots, but it still requires the explicit
   `nativeIRRuntimeAgreesWithInterpreter` obligation for the generated runtime.
-  That obligation is the exact remaining native-vs-interpreter equivalence
-  theorem, not a completed public flip.
+  That obligation is observable-slot and fuel-aligned with the native run through
+  `interpretYulRuntimeWithBackendFuel`, and the theorem seam currently requires
+  that fuel to equal the interpreter proof stack's default runtime fuel
+  `sizeOf (Compiler.emitYul contract).runtimeCode + 1`. This is the exact
+  remaining native-vs-interpreter equivalence theorem plus a named
+  full-storage-projection and fuel-parametric-preservation gap, not a completed
+  public flip.
 - The native harness remains separate from the existing retargeting theorem, so
   the proof tree does not claim a theorem that is not yet proved.
 
@@ -158,6 +164,13 @@ scope so the native path does not look more complete than it is:
    - hard native errors mapping to conservative failure.
 
 4. Add wider executable coverage for the native path.
+
+   The native theorem seam now compares native execution and the interpreter
+   oracle under the same explicit fuel, but the existing Layer 3 preservation
+   theorem is still only composed at the default runtime fuel. Before the
+   public target can accept arbitrary native fuel, either prove the Layer 3
+   preservation theorem fuel-parametrically or keep the public native wrapper
+   total by choosing that default fuel internally.
 
    Current smoke coverage exercises primop lowering, including critical
    halt/log builtins, helper function maps, duplicate-helper failure, emitted

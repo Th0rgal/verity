@@ -64,6 +64,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         errors = check.check_public_theorem_target(
             check.END_TO_END.read_text(encoding="utf-8"),
             check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
         )
         self.assertEqual(errors, [])
 
@@ -76,6 +77,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         errors = check.check_public_theorem_target(
             end_to_end_text,
             check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
         )
         self.assertTrue(
             any("interpretYulRuntimeWithBackend .evmYulLean" in error for error in errors),
@@ -90,6 +92,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         errors = check.check_public_theorem_target(
             end_to_end_text,
             check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
         )
         self.assertEqual(errors, [])
 
@@ -101,6 +104,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         errors = check.check_public_theorem_target(
             end_to_end_text,
             check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
         )
         self.assertTrue(
             any("nativeIRRuntimeAgreesWithInterpreter" in error for error in errors),
@@ -115,8 +119,24 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         errors = check.check_public_theorem_target(
             end_to_end_text,
             check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
         )
         self.assertTrue(any("callDispatcher" in error for error in errors), errors)
+
+    def test_public_theorem_target_guard_rejects_missing_fuel_aligned_oracle(self) -> None:
+        retarget_text = check.RETARGET.read_text(encoding="utf-8").replace(
+            "interpretYulRuntimeWithBackendFuel",
+            "interpretYulRuntimeWithBackendDefaultFuel",
+        )
+        errors = check.check_public_theorem_target(
+            check.END_TO_END.read_text(encoding="utf-8"),
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            retarget_text,
+        )
+        self.assertTrue(
+            any("interpretYulRuntimeWithBackendFuel" in error for error in errors),
+            errors,
+        )
 
     def test_unbridged_environment_boundary_accepts_current_shape(self) -> None:
         errors = check.check_unbridged_environment_boundary(

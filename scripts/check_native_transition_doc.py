@@ -23,6 +23,14 @@ NATIVE_HARNESS = (
     / "Backends"
     / "EvmYulLeanNativeHarness.lean"
 )
+RETARGET = (
+    ROOT
+    / "Compiler"
+    / "Proofs"
+    / "YulGeneration"
+    / "Backends"
+    / "EvmYulLeanRetarget.lean"
+)
 NATIVE_ADAPTER = (
     ROOT
     / "Compiler"
@@ -51,7 +59,11 @@ REQUIRED_SNIPPETS = (
     "only materializes pre-state storage for those slots",
     "layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge",
     "nativeIRRuntimeAgreesWithInterpreter",
-    "nativeResultsMatch",
+    "nativeResultsMatchOn",
+    "explicitly observable final-storage slots",
+    "full-storage-projection",
+    "same explicit fuel",
+    "default runtime fuel",
     "native public theorem pending",
     "not yet proved",
     "#1741",
@@ -109,7 +121,9 @@ def check_doc(text: str) -> list[str]:
     return errors
 
 
-def check_public_theorem_target(end_to_end_text: str, native_harness_text: str) -> list[str]:
+def check_public_theorem_target(
+    end_to_end_text: str, native_harness_text: str, retarget_text: str
+) -> list[str]:
     """Pin the current transition boundary until the native theorem flips.
 
     This guard should be updated in the same PR that proves the native
@@ -121,6 +135,7 @@ def check_public_theorem_target(end_to_end_text: str, native_harness_text: str) 
     errors: list[str] = []
     normalized_end_to_end = normalize_ws(end_to_end_text)
     normalized_native_harness = normalize_ws(native_harness_text)
+    normalized_retarget = normalize_ws(retarget_text)
 
     if "interpretYulRuntimeWithBackend .evmYulLean" not in normalized_end_to_end:
         errors.append(
@@ -131,7 +146,11 @@ def check_public_theorem_target(end_to_end_text: str, native_harness_text: str) 
 
     for required_native_seam in (
         "def nativeResultsMatch",
+        "def yulResultsAgreeOn",
+        "def nativeResultsMatchOn",
         "def nativeIRRuntimeAgreesWithInterpreter",
+        "interpretYulRuntimeWithBackendFuel .evmYulLean fuel",
+        "hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1",
         "theorem layer3_contract_preserves_semantics_native_of_interpreter_bridge",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge",
     ):
@@ -140,6 +159,17 @@ def check_public_theorem_target(end_to_end_text: str, native_harness_text: str) 
                 "Compiler/Proofs/EndToEnd.lean must keep the native theorem seam "
                 f"`{required_native_seam}` explicit until the generated-fragment "
                 "native bridge is discharged"
+            )
+
+    for required_fuel_surface in (
+        "def interpretYulRuntimeWithBackendFuel",
+        "theorem interpretYulRuntimeWithBackend_eq_fuel",
+    ):
+        if required_fuel_surface not in normalized_retarget:
+            errors.append(
+                "Compiler/Proofs/YulGeneration/Backends/"
+                "EvmYulLeanRetarget.lean must keep the fuel-aligned "
+                f"interpreter oracle surface `{required_fuel_surface}` explicit"
             )
 
     forbidden_native_in_end_to_end = ("interpretRuntimeNative", "EvmYul.Yul.callDispatcher")
@@ -253,7 +283,7 @@ def main() -> int:
     if not DOC.exists():
         print(f"Missing: {DOC.relative_to(ROOT)}", file=sys.stderr)
         return 1
-    for path in (END_TO_END, NATIVE_HARNESS, NATIVE_ADAPTER, NATIVE_SMOKE_TEST):
+    for path in (END_TO_END, NATIVE_HARNESS, RETARGET, NATIVE_ADAPTER, NATIVE_SMOKE_TEST):
         if not path.exists():
             print(f"Missing: {path.relative_to(ROOT)}", file=sys.stderr)
             return 1
@@ -265,6 +295,7 @@ def main() -> int:
         check_public_theorem_target(
             END_TO_END.read_text(encoding="utf-8"),
             native_harness_text,
+            RETARGET.read_text(encoding="utf-8"),
         )
     )
     errors.extend(

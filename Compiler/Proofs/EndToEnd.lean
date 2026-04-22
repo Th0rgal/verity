@@ -71,13 +71,57 @@ def nativeResultsMatch
   | .ok yul => Compiler.Proofs.YulGeneration.resultsMatch ir yul
   | .error _ => False
 
+/-- Observable native result comparison for the current native bridge.
+
+The native EVMYulLean state bridge materializes only the storage slots supplied
+by the caller. Until the generated-fragment bridge proves a complete storage
+projection, native-facing theorems compare success, return value, events, and
+the explicitly observable final-storage slots. -/
+def yulResultsAgreeOn
+    (observableSlots : List Nat) (left right : YulResult) : Prop :=
+  left.success = right.success ∧
+  left.returnValue = right.returnValue ∧
+  (∀ slot, slot ∈ observableSlots → left.finalStorage slot = right.finalStorage slot) ∧
+  left.events = right.events
+
+/-- Observable result comparison surface for native EVMYulLean execution. -/
+def nativeResultsMatchOn
+    (observableSlots : List Nat)
+    (ir : IRResult)
+    (native : Except Compiler.Proofs.YulGeneration.Backends.AdapterError YulResult) :
+    Prop :=
+  match native with
+  | .ok yul =>
+      ir.success = yul.success ∧
+      ir.returnValue = yul.returnValue ∧
+      (∀ slot, slot ∈ observableSlots → ir.finalStorage slot = yul.finalStorage slot) ∧
+      ir.events = yul.events
+  | .error _ => False
+
+theorem nativeResultsMatchOn_ok_of_resultsMatch_of_yulResultsAgreeOn
+    {observableSlots : List Nat} {ir : IRResult} {native oracle : YulResult}
+    (hLayer : Compiler.Proofs.YulGeneration.resultsMatch ir oracle)
+    (hNative : yulResultsAgreeOn observableSlots native oracle) :
+    nativeResultsMatchOn observableSlots ir (.ok native) := by
+  rcases hLayer with ⟨hsuccess, hreturnValue, hstorage, _hmappings, hevents⟩
+  rcases hNative with ⟨hnativeSuccess, hnativeReturnValue, hnativeStorage, hnativeEvents⟩
+  exact ⟨
+    hsuccess.trans hnativeSuccess.symm,
+    hreturnValue.trans hnativeReturnValue.symm,
+    (by
+      intro slot hslot
+      exact (hstorage slot).trans (hnativeStorage slot hslot).symm),
+    hevents.trans hnativeEvents.symm
+  ⟩
+
 /-- The exact semantic bridge still needed before the public theorem can be
 retargeted unconditionally to native EVMYulLean.
 
 This predicate is intentionally concrete: it compares the current
-EVMYulLean-backed interpreter target with `Native.interpretIRRuntimeNative` on
-the actual `Compiler.emitYul` runtime code for an `IRContract`, under an
-explicit fuel bound and observable storage-slot set. -/
+fuel-aligned EVMYulLean-backed interpreter oracle with
+`Native.interpretIRRuntimeNative` on the actual `Compiler.emitYul` runtime code
+for an `IRContract`, under the same explicit fuel bound and observable
+storage-slot set. -/
 def nativeIRRuntimeAgreesWithInterpreter
     (fuel : Nat)
     (contract : IRContract)
@@ -85,11 +129,14 @@ def nativeIRRuntimeAgreesWithInterpreter
     (state : IRState)
     (observableSlots : List Nat) :
     Prop :=
-  Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
-      fuel contract tx state observableSlots =
-    .ok (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
-      .evmYulLean (Compiler.emitYul contract).runtimeCode
-      (YulTransaction.ofIR tx) state.storage state.events)
+  match Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+      fuel contract tx state observableSlots with
+  | .ok native =>
+      yulResultsAgreeOn observableSlots native
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackendFuel
+          .evmYulLean fuel (Compiler.emitYul contract).runtimeCode
+          (YulTransaction.ofIR tx) state.storage state.events)
+  | .error _ => False
 
 /-! ## Layer 3: IR → Yul (Generic) -/
 
@@ -460,51 +507,44 @@ theorem layer3_contract_preserves_semantics_evmYulLean
         (hparamErase fn hmem))
   · exact hFunctions
 
-/-- Native Layer 3 bridge theorem: once the generated-fragment native runtime
-bridge is discharged for this contract/transaction/state/observable-slot set,
-IR execution matches the result returned by `Native.interpretIRRuntimeNative`.
-
-This is the theorem seam needed for the public native target: it names the
-remaining obligation as `nativeIRRuntimeAgreesWithInterpreter` instead of
-letting callers depend directly on the custom interpreter path. -/
+/-- Native Layer 3 bridge theorem under the named generated-fragment bridge obligation. -/
 theorem layer3_contract_preserves_semantics_native_of_interpreter_bridge
-    (fuel : Nat)
-    (contract : IRContract) (tx : IRTransaction) (initialState : IRState)
-    (observableSlots : List Nat)
-    (hselector : tx.functionSelector < selectorModulus)
-    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
-    (hvars : initialState.vars = [])
-    (hmemory : initialState.memory = fun _ => 0)
-    (htransient : initialState.transientStorage = fun _ => 0)
-    (hreturn : initialState.returnValue = none)
-    (hparamErase : ∀ fn, fn ∈ contract.functions →
-      paramLoadErasure fn tx (initialState.withTx tx))
-    (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions →
-      DispatchGuardsSafe fn tx)
-    (hNoHasSelector : ∀ fn, fn ∈ contract.functions →
-      yulStmtsNoRef "__has_selector" fn.body)
-    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions →
-      HasSelectorDeadBridge fn.body)
-    (hLoopFree : ∀ fn, fn ∈ contract.functions →
-      yulStmtsLoopFree fn.body = true)
-    (hWF : ContractWF contract)
-    (hNoFallback : contract.fallbackEntrypoint = none)
+    (fuel : Nat) (contract : IRContract) (tx : IRTransaction)
+    (initialState : IRState) (observableSlots : List Nat)
+    (hselector : tx.functionSelector < selectorModulus) (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hvars : initialState.vars = []) (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0) (hreturn : initialState.returnValue = none)
+    (hparamErase : ∀ fn, fn ∈ contract.functions → paramLoadErasure fn tx (initialState.withTx tx))
+    (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions → DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ contract.functions → yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions → HasSelectorDeadBridge fn.body)
+    (hLoopFree : ∀ fn, fn ∈ contract.functions → yulStmtsLoopFree fn.body = true)
+    (hWF : ContractWF contract) (hNoFallback : contract.fallbackEntrypoint = none)
     (hNoReceive : contract.receiveEntrypoint = none)
-    (hFunctions : ∀ fn, fn ∈ contract.functions →
-      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body)
-    (hNativeBridge :
-      nativeIRRuntimeAgreesWithInterpreter fuel contract tx initialState
-        observableSlots) :
-    nativeResultsMatch
-      (interpretIR contract tx initialState)
+    (hFunctions : ∀ fn, fn ∈ contract.functions → Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body)
+    (hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1)
+    (hNativeBridge : nativeIRRuntimeAgreesWithInterpreter fuel contract tx initialState observableSlots) :
+    nativeResultsMatchOn observableSlots (interpretIR contract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         fuel contract tx initialState observableSlots) := by
+  subst fuel
+  have hLayer :=
+    layer3_contract_preserves_semantics_evmYulLean contract tx initialState
+      hselector hNoWrap hvars hmemory htransient hreturn hparamErase
+      hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
+      hNoReceive hFunctions
   unfold nativeIRRuntimeAgreesWithInterpreter at hNativeBridge
-  rw [hNativeBridge]
-  exact layer3_contract_preserves_semantics_evmYulLean contract tx initialState
-    hselector hNoWrap hvars hmemory htransient hreturn hparamErase
-    hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
-    hNoReceive hFunctions
+  cases hNative :
+      Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        (sizeOf (Compiler.emitYul contract).runtimeCode + 1)
+        contract tx initialState observableSlots with
+  | error err =>
+      rw [hNative] at hNativeBridge
+      exact False.elim hNativeBridge
+  | ok native =>
+      rw [hNative] at hNativeBridge
+      exact nativeResultsMatchOn_ok_of_resultsMatch_of_yulResultsAgreeOn hLayer
+        hNativeBridge
 
 /-! ## Layers 2+3 Composition -/
 
@@ -670,9 +710,10 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge
     (hLoopFree : ∀ fn, fn ∈ irContract.functions → yulStmtsLoopFree fn.body = true)
     (hWF : ContractWF irContract) (hNoFallback : irContract.fallbackEntrypoint = none)
     (hNoReceive : irContract.receiveEntrypoint = none)
+    (hFuel : fuel = sizeOf (Compiler.emitYul irContract).runtimeCode + 1)
     (hNativeBridge : nativeIRRuntimeAgreesWithInterpreter fuel irContract tx
       initialState observableSlots) :
-    nativeResultsMatch
+    nativeResultsMatchOn observableSlots
       (interpretIR irContract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         fuel irContract tx initialState observableSlots) :=
@@ -686,6 +727,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge
       (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_compiled_functions
         spec selectors hSupported irContract hCompile)
       hStaticParams hSafeBodies)
+    hFuel
     hNativeBridge
 
 /-! ## Concrete Instantiation: SimpleStorage -/
