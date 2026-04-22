@@ -33,6 +33,59 @@ private def sampleTx : Compiler.Proofs.YulGeneration.YulTransaction :=
 
 private def zeroStorage : Nat → Nat := fun _ => 0
 
+private def nativeStoresBuiltin (builtin : String) (slot expected : Nat) : Bool :=
+  match Native.interpretRuntimeNative 128 [
+    .let_ "v" (.call builtin []),
+    .expr (.call "sstore" [.lit slot, .ident "v"])
+  ] sampleTx zeroStorage [slot] with
+  | .ok result => result.success && result.finalStorage slot == expected
+  | .error _ => false
+
+private def dispatchSmokeContract : Compiler.IRContract :=
+  { name := "NativeDispatchSmoke"
+    deploy := []
+    functions := [
+      { name := "left"
+        selector := 0x11111111
+        params := []
+        ret := .unit
+        body := [
+          .expr (.call "sstore" [.lit 11, .lit 101])
+        ] },
+      { name := "right"
+        selector := 0x22222222
+        params := []
+        ret := .unit
+        body := [
+          .expr (.call "sstore" [.lit 11, .lit 202])
+        ] }
+    ]
+    usesMapping := false }
+
+private partial def nativeStmtContainsSwitch : EvmYul.Yul.Ast.Stmt → Bool
+  | .Switch _ _ _ => true
+  | .Block stmts => stmts.any nativeStmtContainsSwitch
+  | .If _ body => body.any nativeStmtContainsSwitch
+  | .For _ post body =>
+      post.any nativeStmtContainsSwitch || body.any nativeStmtContainsSwitch
+  | _ => false
+
+private def emittedDispatchLowersToNativeSwitch : Bool :=
+  match lowerRuntimeContractNative (Compiler.emitYul dispatchSmokeContract).runtimeCode with
+  | .ok contract =>
+      nativeStmtContainsSwitch contract.dispatcher &&
+        (contract.functions.lookup "left").isNone &&
+        (contract.functions.lookup "right").isNone
+  | .error _ => false
+
+private def duplicateNativeHelperFailsClosed : Bool :=
+  match lowerRuntimeContractNative [
+    .funcDef "dup" [] [] [],
+    .funcDef "dup" [] [] []
+  ] with
+  | .ok _ => false
+  | .error _ => true
+
 private def lowersAddAsPrim : Bool :=
   match lowerExprNative (.call "add" [.lit 1, .lit 2]) with
   | .Call (.inl op) args =>
@@ -119,30 +172,35 @@ example :
   native_decide
 
 example :
-    (match Native.interpretRuntimeNative 128 [
-      .let_ "v" (.call "callvalue" []),
-      .expr (.call "sstore" [.lit 8, .ident "v"])
-    ] sampleTx zeroStorage [8] with
-    | .ok result => result.success && result.finalStorage 8 == sampleTx.msgValue
-    | .error _ => false) = true := by
+    nativeStoresBuiltin "callvalue" 8 sampleTx.msgValue = true := by
   native_decide
 
 example :
-    (match Native.interpretRuntimeNative 128 [
-      .let_ "v" (.call "timestamp" []),
-      .expr (.call "sstore" [.lit 9, .ident "v"])
-    ] sampleTx zeroStorage [9] with
-    | .ok result => result.success && result.finalStorage 9 == sampleTx.blockTimestamp
-    | .error _ => false) = true := by
+    nativeStoresBuiltin "timestamp" 9 sampleTx.blockTimestamp = true := by
   native_decide
 
 example :
-    (match Native.interpretRuntimeNative 128 [
-      .let_ "v" (.call "number" []),
-      .expr (.call "sstore" [.lit 10, .ident "v"])
-    ] sampleTx zeroStorage [10] with
-    | .ok result => result.success && result.finalStorage 10 == sampleTx.blockNumber
-    | .error _ => false) = true := by
+    nativeStoresBuiltin "number" 10 sampleTx.blockNumber = true := by
+  native_decide
+
+example :
+    nativeStoresBuiltin "caller" 12 sampleTx.sender = true := by
+  native_decide
+
+example :
+    nativeStoresBuiltin "address" 13 sampleTx.thisAddress = true := by
+  native_decide
+
+example :
+    nativeStoresBuiltin "calldatasize" 14 36 = true := by
+  native_decide
+
+example :
+    emittedDispatchLowersToNativeSwitch = true := by
+  native_decide
+
+example :
+    duplicateNativeHelperFailsClosed = true := by
   native_decide
 
 example :

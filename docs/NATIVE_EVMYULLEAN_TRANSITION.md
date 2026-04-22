@@ -109,9 +109,10 @@ scope so the native path does not look more complete than it is:
 4. Add wider executable coverage for the native path.
 
    Current smoke coverage exercises primop lowering, helper function maps,
-   storage writes, callvalue, return projection, and log projection. Next
-   coverage should include:
-   - dispatcher selector selection from emitted runtime code,
+   duplicate-helper failure, emitted dispatcher lowering shape, storage writes,
+   callvalue, caller/address, calldatasize, timestamp/number, return
+   projection, and log projection. Next coverage should include:
+   - executable dispatcher selector selection from emitted runtime code,
    - memory-heavy `return` and `revert`,
    - `log0` through `log4`,
    - returndata and external-call outcomes,
