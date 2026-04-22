@@ -180,6 +180,18 @@ def projectLogEntry (entry : EvmYul.LogEntry) : List Nat :=
 def projectLogsFromState (state : EvmYul.Yul.State) : List (List Nat) :=
   state.sharedState.substate.logSeries.toList.map projectLogEntry
 
+@[simp] theorem projectLogEntry_topicsAndWordData
+    (entry : EvmYul.LogEntry) :
+    projectLogEntry entry =
+      entry.topics.toList.map uint256ToNat ++ byteArrayLogWords entry.data := by
+  rfl
+
+@[simp] theorem projectLogsFromState_logSeries
+    (state : EvmYul.Yul.State) :
+    projectLogsFromState state =
+      state.sharedState.substate.logSeries.toList.map projectLogEntry := by
+  rfl
+
 /-- Project a native Yul halt produced by `return`/`stop` to Verity's single-word
     return observable. EVMYulLean represents `stop` as `YulHalt _ 0`; `return`
     goes through `H_return`, matching the proof oracle's 32-byte return case. -/
@@ -270,6 +282,27 @@ def projectResult
       events := initialEvents ++ projectLogsFromState state } := by
   rfl
 
+@[simp] theorem projectResult_ok_events
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.Yul.Ast.Literal) :
+    (projectResult tx initialStorage initialEvents (.ok (state, values))).events =
+      initialEvents ++ projectLogsFromState state := by
+  rfl
+
+@[simp] theorem projectResult_yulHalt_events
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (state : EvmYul.Yul.State)
+    (value : EvmYul.Yul.Ast.Literal) :
+    (projectResult tx initialStorage initialEvents
+      (.error (.YulHalt state value))).events =
+      initialEvents ++ projectLogsFromState state := by
+  rfl
+
 @[simp] theorem projectResult_stop
     (tx : YulTransaction)
     (initialStorage : Nat → Nat)
@@ -316,6 +349,15 @@ def projectResult
       events := initialEvents } := by
   rfl
 
+@[simp] theorem projectResult_revert_events
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat)) :
+    (projectResult tx initialStorage initialEvents
+      (.error EvmYul.Yul.Exception.Revert)).events =
+      initialEvents := by
+  rfl
+
 @[simp] theorem projectResult_hardError
     (tx : YulTransaction)
     (initialStorage : Nat → Nat)
@@ -328,6 +370,28 @@ def projectResult
       finalStorage := initialStorage
       finalMappings := Compiler.Proofs.storageAsMappings initialStorage
       events := initialEvents } := by
+  cases err with
+  | YulHalt state value =>
+      exact False.elim (hNotHalt state value rfl)
+  | InvalidArguments => rfl
+  | NotEncodableRLP => rfl
+  | InvalidInstruction => rfl
+  | OutOfFuel => rfl
+  | StaticModeViolation => rfl
+  | MissingContract s => rfl
+  | MissingContractFunction s => rfl
+  | InvalidExpression => rfl
+  | YulEXTCODESIZENotImplemented => rfl
+  | Revert => rfl
+
+@[simp] theorem projectResult_hardError_events
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (err : EvmYul.Yul.Exception)
+    (hNotHalt : ∀ state value, err ≠ EvmYul.Yul.Exception.YulHalt state value) :
+    (projectResult tx initialStorage initialEvents (.error err)).events =
+      initialEvents := by
   cases err with
   | YulHalt state value =>
       exact False.elim (hNotHalt state value rfl)

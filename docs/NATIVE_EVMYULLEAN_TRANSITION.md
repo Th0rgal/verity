@@ -147,20 +147,25 @@ scope so the native path does not look more complete than it is:
    caller/address, calldatasize, timestamp/number, native
    `chainid`/`blobbasefee` default behavior, executable `stop` halt
    projection, the named `projectHaltReturn_stop` and `projectResult_stop`
-   lemmas for `stop`/zero-halt return projection, successful native value
-   result projection with committed storage/logs and matching `finalMappings`,
-   the named
-   `projectResult_ok` lemma for successful native value results, native return
+   lemmas for `stop`/zero-halt return projection, native log projection from
+   topics plus word-aligned data with the named
+   `projectLogEntry_topicsAndWordData` and `projectLogsFromState_logSeries`
+   lemmas, successful native value result projection with committed
+   storage/logs and matching `finalMappings`, the named
+   `projectResult_ok` and `projectResult_ok_events` lemmas for successful
+   native value results and event-history append behavior, native return
    halt projection with committed storage/logs and matching `finalMappings`,
    the named `projectHaltReturn_32ByteReturn`, `projectResult_yulHalt`, and
-   `projectResult_32ByteReturn` lemmas for 32-byte `return` halt projection,
-   log projection for `log0` through
+   `projectResult_yulHalt_events` lemmas for halt event-history append
+   behavior, and the named `projectResult_32ByteReturn` lemma for 32-byte
+   `return` halt projection, log projection for `log0` through
    `log4` topic arities, conservative rollback projection for native errors,
    explicit hard-error rollback for `OutOfFuel`, explicit `Revert` rollback
    projection with no return value, the named `projectResult_revert` rollback
-   lemma, conservative `finalMappings` rollback on
-   native errors, the named `projectResult_hardError` lemma for every
-   non-halt native error, named `interpretRuntimeNative_loweringError` and
+   and `projectResult_revert_events` event-history preservation lemmas,
+   conservative `finalMappings` rollback on native errors, the named
+   `projectResult_hardError` and `projectResult_hardError_events` lemmas for
+   every non-halt native error, named `interpretRuntimeNative_loweringError` and
    `interpretRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative`
    lemmas for fail-closed lowering and the successful lower/build/call/project
    native execution pipeline, `interpretIRRuntimeNative`
