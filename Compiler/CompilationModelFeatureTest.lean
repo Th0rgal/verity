@@ -1751,6 +1751,25 @@ private def duplicateInternalNameSpec : CompilationModel := {
   ]
 }
 
+private def internalExternalNameCollisionSpec : CompilationModel := {
+  name := "InternalExternalNameCollision"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "helper"
+      params := [{ name := "amount", ty := ParamType.uint256 }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.param "amount")]
+    },
+    { name := "helper"
+      params := [{ name := "target", ty := ParamType.address }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.literal 1)]
+      isInternal := true
+    }
+  ]
+}
+
 private def reservedFieldSpec : CompilationModel := {
   name := "ReservedField"
   fields := [{ name := "__compat_value", ty := FieldType.uint256 }]
@@ -2810,6 +2829,10 @@ set_option maxRecDepth 4096 in
     "same-name internal helpers are rejected before Yul lowering"
     duplicateInternalNameSpec
     "duplicate internal function name 'helper'"
+  expectCompileErrorContains
+    "internal helpers cannot collide with external dispatch names"
+    internalExternalNameCollisionSpec
+    "internal function name 'helper' collides with an external function name"
   let reservedFieldRejected :=
     match validateCompileInputs reservedFieldSpec (selectorsFor reservedFieldSpec) with
     | .ok _ => false
