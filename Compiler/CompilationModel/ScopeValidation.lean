@@ -137,7 +137,15 @@ def validateScopedExprIdentifiers
       else if wordOffset >= elementWords then
         throw s!"Compilation error: {context} Expr.arrayElementWord '{name}' wordOffset {wordOffset} is outside element width {elementWords}"
       match findParamType params name with
-      | some (ParamType.array _) => pure ()
+      | some ty@(ParamType.array elemTy) =>
+          if isDynamicParamType elemTy then
+            throw s!"Compilation error: {context} Expr.arrayElementWord '{name}' requires an array parameter with static ABI-word elements, got {repr ty}"
+          else
+            let expectedWords := paramHeadSize elemTy / 32
+            if elementWords == expectedWords then
+              pure ()
+            else
+              throw s!"Compilation error: {context} Expr.arrayElementWord '{name}' element width {elementWords} does not match ABI width {expectedWords} for {repr ty}"
       | some ty =>
           throw s!"Compilation error: {context} Expr.arrayElementWord '{name}' requires array parameter, got {repr ty}"
       | none =>

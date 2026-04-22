@@ -422,7 +422,8 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("StringEqSmoke", ["same(string,string)", "different(string,string)", "choose(string,string)"])
   , ("BytesEqSmoke", ["same(bytes,bytes)", "different(bytes,bytes)", "choose(bytes,bytes)"])
   , ("TupleSmoke", ["setFromPair((uint256,uint256))", "getPair(uint256)", "processConfig((address,address,uint256))"])
-  , ("CurveCutArraySmoke", ["firstCutXt((uint256,uint256,int256)[])", "storeCut((uint256,uint256,int256)[],uint256)"])
+  , ("CurveCutArraySmoke", ["firstCutXt((uint256,uint256,int256)[])", "returnCut((uint256,uint256,int256)[],uint256)",
+      "storeCut((uint256,uint256,int256)[],uint256)", "storeTwoCuts((uint256,uint256,int256)[],uint256,uint256)"])
   , ("PackedStorageWriteSmoke", ["writeSlot0(bool,uint256)", "writeSlot1(uint256,uint256)"])
   , ("Uint8Smoke", ["acceptSig((uint8,bytes32,bytes32))", "sigV()"])
   , ("AddressHelpersSmoke", ["setDelegate(address,address)", "getDelegate(address)", "clearDelegate(address)",
@@ -524,7 +525,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("StringEqSmoke", ["0x6df1667c", "0x1ce8f655", "0xc9e9b0e3"])
   , ("BytesEqSmoke", ["0xfc39552e", "0x2c16057d", "0x3eb6f0de"])
   , ("TupleSmoke", ["0x712ea680", "0xbdf391cc", "0x01b427d2"])
-  , ("CurveCutArraySmoke", ["0xefca8f0f", "0x0d7610a3"])
+  , ("CurveCutArraySmoke", ["0xefca8f0f", "0x6f413e6b", "0x0d7610a3", "0xbea7dfd2"])
   , ("PackedStorageWriteSmoke", ["0xa0522387", "0x233ab149"])
   , ("Uint8Smoke", ["0xc233eaa7", "0x62fc458b"])
   , ("AddressHelpersSmoke", ["0x5c873849", "0x544d8564", "0xcc21cc2a", "0x480005cd", "0x67129177",
@@ -870,9 +871,37 @@ private def curveCutArrayStoreMemoizesIndex : Bool :=
     _ => true
   | _ => false
 
+private def curveCutArrayReturnMemoizesIndex : Bool :=
+  match Contracts.Smoke.CurveCutArraySmoke.returnCut_modelBody with
+  | Stmt.letVar "arrayElement_index" (Expr.param "idx") ::
+    Stmt.returnValues [
+      Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index") 3 0,
+      Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index") 3 1,
+      Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index") 3 2
+    ] ::
+    _ => true
+  | _ => false
+
+private def curveCutArrayRepeatedDestructuresUseFreshSyntheticIndexes : Bool :=
+  match Contracts.Smoke.CurveCutArraySmoke.storeTwoCuts_modelBody with
+  | Stmt.letVar "arrayElement_index" (Expr.param "firstIdx") ::
+    Stmt.letVar "firstXt" (Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index") 3 0) ::
+    Stmt.letVar "_firstLiq" (Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index") 3 1) ::
+    Stmt.letVar "_firstOffset" (Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index") 3 2) ::
+    Stmt.letVar "arrayElement_index_1" (Expr.param "secondIdx") ::
+    Stmt.letVar "secondXt" (Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index_1") 3 0) ::
+    Stmt.letVar "_secondLiq" (Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index_1") 3 1) ::
+    Stmt.letVar "_secondOffset" (Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index_1") 3 2) ::
+    _ => true
+  | _ => false
+
 private def checkCurveCutArraySmoke : IO Unit := do
   expectTrue "CurveCutArraySmoke: tuple arrayElement destructuring memoizes the index once"
     curveCutArrayStoreMemoizesIndex
+  expectTrue "CurveCutArraySmoke: tuple arrayElement return memoizes the index once"
+    curveCutArrayReturnMemoizesIndex
+  expectTrue "CurveCutArraySmoke: repeated tuple arrayElement destructures use fresh synthetic indexes"
+    curveCutArrayRepeatedDestructuresUseFreshSyntheticIndexes
 
 private def checkSpec (spec : CompilationModel) : IO Unit := do
   let extFns := externalFunctions spec

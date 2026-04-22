@@ -823,11 +823,20 @@ verity_contract CurveCutArraySmoke where
     let (xtReserve, _liqSquare, _offset) := arrayElement cuts 0
     return xtReserve
 
+  function returnCut (cuts : Array (Tuple [Uint256, Uint256, Int256]), idx : Uint256) : Tuple [Uint256, Uint256, Int256] := do
+    return arrayElement cuts idx
+
   function storeCut (cuts : Array (Tuple [Uint256, Uint256, Int256]), idx : Uint256) : Unit := do
     let (xtReserve, liqSquare, offset) := arrayElement cuts idx
     setStorage lastXt xtReserve
     setStorage lastLiq liqSquare
     setStorage lastOffset (toUint256 offset)
+
+  function storeTwoCuts (cuts : Array (Tuple [Uint256, Uint256, Int256]), firstIdx : Uint256, secondIdx : Uint256) : Unit := do
+    let (firstXt, _firstLiq, _firstOffset) := arrayElement cuts firstIdx
+    let (secondXt, _secondLiq, _secondOffset) := arrayElement cuts secondIdx
+    setStorage lastXt firstXt
+    setStorage lastLiq secondXt
 
 def curveCutArrayExecutableReadsTupleElement : Bool :=
   match CurveCutArraySmoke.firstCutXt #[(11, 13, toInt256 17)] Verity.defaultState with

@@ -2339,6 +2339,19 @@ private def bytesArrayElementSpec : CompilationModel := {
   ]
 }
 
+private def bytesArrayElementWordSpec : CompilationModel := {
+  name := "BytesArrayElementWord"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "headWord"
+      params := [{ name := "calls", ty := ParamType.array ParamType.bytes }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.arrayElementWord "calls" (Expr.literal 0) 1 0)]
+    }
+  ]
+}
+
 private def storageArrayUint256SmokeSpec : CompilationModel := {
   name := "StorageArrayUint256Smoke"
   fields := [{ name := "queue", ty := FieldType.dynamicArray .uint256, «slot» := some 7 }]
@@ -3081,6 +3094,10 @@ set_option maxRecDepth 4096 in
     "arrayElement rejects bytes[] params until dynamic-element indexing lands"
     bytesArrayElementSpec
     "Expr.arrayElement 'calls' requires an array with single-word static elements"
+  expectCompileErrorContains
+    "arrayElementWord rejects bytes[] params until dynamic-element word indexing lands"
+    bytesArrayElementWordSpec
+    "Expr.arrayElementWord 'calls' requires an array parameter with static ABI-word elements"
   let storageArrayUint256Yul ←
     expectCompileToYul "storage uint256[] smoke spec" storageArrayUint256SmokeSpec
   expectTrue "storage uint256[] length lowers to sload(slot)"

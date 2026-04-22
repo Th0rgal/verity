@@ -2545,7 +2545,7 @@ private def arrayElementTupleDestructureStmts?
     (locals : Array TypedLocal)
     (mutableLocals : Array String)
     (rhs : Term)
-    (names : Array (Option String)) : CommandElabM (Option (Array Term)) := do
+    (names : Array (Option String)) : CommandElabM (Option (Array Term × TypedLocal)) := do
   match stripParens rhs with
   | `(term| arrayElement $name:term $index:term) =>
       let paramName := ← expectStringOrIdent name
@@ -2589,7 +2589,56 @@ private def arrayElementTupleDestructureStmts?
             name?.map (fun name => (name, valueExpr))
           let boundStmts ← boundPairs.mapM fun (name, valueExpr) =>
             `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
-          pure (some (#[indexStmt] ++ boundStmts))
+          pure (some (#[indexStmt] ++ boundStmts, (indexName, .uint256)))
+      | _ => pure none
+  | _ => pure none
+
+private def arrayElementTupleReturnStmts?
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (mutableLocals : Array String)
+    (rhs : Term) : CommandElabM (Option (Array Term)) := do
+  match stripParens rhs with
+  | `(term| arrayElement $name:term $index:term) =>
+      let paramName := ← expectStringOrIdent name
+      match params.find? (fun p => p.name == paramName) with
+      | some { ty := .array (.tuple elemTys), .. } =>
+          let elementWords ←
+            match staticAbiWordCount? (.tuple elemTys) with
+            | some n => pure n
+            | none =>
+                throwErrorAt rhs
+                  "arrayElement tuple return requires a static ABI-word tuple element type"
+          let indexName := freshSyntheticLocalName "arrayElement_index" params locals mutableLocals
+          let indexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index
+          let indexStmt ←
+            `(Compiler.CompilationModel.Stmt.letVar $(strTerm indexName) $indexExpr)
+          let indexLocal ←
+            `(Compiler.CompilationModel.Expr.localVar $(strTerm indexName))
+          let mut offset := 0
+          let mut valueExprs : Array Term := #[]
+          for elemTy in elemTys do
+            let elemWords ←
+              match staticAbiWordCount? elemTy with
+              | some n => pure n
+              | none =>
+                  throwErrorAt rhs
+                    "arrayElement tuple return requires static ABI-word tuple members"
+            if elemWords != 1 then
+              throwErrorAt rhs
+                "arrayElement tuple return currently supports top-level single-word tuple members"
+            valueExprs := valueExprs.push (← `(Compiler.CompilationModel.Expr.arrayElementWord
+              $(strTerm paramName)
+              $indexLocal
+              $(natTerm elementWords)
+              $(natTerm offset)))
+            offset := offset + elemWords
+          let returnStmt ←
+            `(Compiler.CompilationModel.Stmt.returnValues [ $[$valueExprs],* ])
+          pure (some #[indexStmt, returnStmt])
       | _ => pure none
   | _ => pure none
 
@@ -3866,12 +3915,12 @@ private partial def translateDoElem
                       | none => throwErrorAt rhs "tuple destructuring currently requires a tuple literal, tuple-typed parameter, structMembers/structMembers2 source, internal helper call, or tryExternalCall"
           | _ =>
               match (← arrayElementTupleDestructureStmts? fields constDecls immutableDecls params locals mutableLocals rhs names) with
-              | some stmts =>
+              | some (stmts, syntheticLocal) =>
                   let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                   match valueTys with
                   | some tys =>
                       let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
-                      pure (some (stmts, locals ++ typedPairs, mutableLocals))
+                      pure (some (stmts, locals.push syntheticLocal ++ typedPairs, mutableLocals))
                   | none => throwErrorAt rhs "unable to infer tuple local types"
               | none =>
                   match (← tupleLiteralOrStructValueExprs? fields constDecls immutableDecls params locals rhs) with
@@ -4029,11 +4078,15 @@ private partial def translateDoElem
               locals,
               mutableLocals)
       | `(doElem| return $value:term) =>
-          match (← tupleReturnValueExprs? fields constDecls immutableDecls params locals value) with
-          | some valueExprs =>
-              pure (#[(← `(Compiler.CompilationModel.Stmt.returnValues [ $[$valueExprs],* ]))], locals, mutableLocals)
+          match (← arrayElementTupleReturnStmts? fields constDecls immutableDecls params locals mutableLocals value) with
+          | some stmts =>
+              pure (stmts, locals, mutableLocals)
           | none =>
-              pure (#[(← `(Compiler.CompilationModel.Stmt.return $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value)))], locals, mutableLocals)
+              match (← tupleReturnValueExprs? fields constDecls immutableDecls params locals value) with
+              | some valueExprs =>
+                  pure (#[(← `(Compiler.CompilationModel.Stmt.returnValues [ $[$valueExprs],* ]))], locals, mutableLocals)
+              | none =>
+                  pure (#[(← `(Compiler.CompilationModel.Stmt.return $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value)))], locals, mutableLocals)
       | `(doElem| pure ()) =>
           pure (#[], locals, mutableLocals)
       | `(doElem| if $cond:term then $thenBranch:doSeq else $elseBranch:doSeq) =>
