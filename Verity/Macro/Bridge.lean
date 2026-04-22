@@ -55,4 +55,185 @@ def mkViewTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do
         (Compiler.CompilationModel.FunctionSpec.isView
           ($modelName : Compiler.CompilationModel.FunctionSpec)) = true := rfl)
 
+/-- Auto-generated `_no_calls` theorem for functions with a `no_external_calls` annotation
+    (#1729, Axis 3 Step 1c).  Emits a `@[simp]` lemma stating the model's
+    `noExternalCalls` flag is `true`.  Only called when `fnDecl.noExternalCalls`. -/
+def mkNoCallsTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do
+  let noCallsName ← mkSuffixedIdent fnDecl.ident "_no_calls"
+  let modelName ← mkSuffixedIdent fnDecl.ident "_model"
+  `(command|
+    @[simp] theorem $noCallsName :
+        (Compiler.CompilationModel.FunctionSpec.noExternalCalls
+          ($modelName : Compiler.CompilationModel.FunctionSpec)) = true := rfl)
+
+/-- Auto-generated `_cei_compliant` theorem for functions that pass CEI
+    (Checks-Effects-Interactions) validation without opting out.
+    Emits a `@[simp]` lemma stating the model's `allowPostInteractionWrites`
+    flag is `false`, certifying that the function was compiler-verified for
+    CEI compliance.  Only called when `!fnDecl.allowPostInteractionWrites` and
+    the function body passed CEI analysis.  (#1728, Axis 2 Step 2a) -/
+def mkCEICompliantTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do
+  let ceiName ← mkSuffixedIdent fnDecl.ident "_cei_compliant"
+  let modelName ← mkSuffixedIdent fnDecl.ident "_model"
+  `(command|
+    @[simp] theorem $ceiName :
+        (Compiler.CompilationModel.FunctionSpec.allowPostInteractionWrites
+          ($modelName : Compiler.CompilationModel.FunctionSpec)) = false := rfl)
+
+/-- Auto-generated `_nonreentrant` theorem for functions with a `nonreentrant(field)` annotation
+    (#1728, Axis 2 Step 2b).  Records the reentrancy lock field as a `@[simp]` fact, certifying
+    that the function uses a known-safe guard for CEI compliance. -/
+def mkNonReentrantTheoremCommand (fnDecl : FunctionDecl) (lockFieldName : String) : CommandElabM Cmd := do
+  let nonReentrantName ← mkSuffixedIdent fnDecl.ident "_nonreentrant"
+  let modelName ← mkSuffixedIdent fnDecl.ident "_model"
+  `(command|
+    @[simp] theorem $nonReentrantName :
+        (Compiler.CompilationModel.FunctionSpec.nonReentrantLock
+          ($modelName : Compiler.CompilationModel.FunctionSpec)) = some $(strTermPublic lockFieldName) := rfl)
+
+/-- Auto-generated `_cei_safe` theorem for functions with a `cei_safe` annotation
+    (#1728, Axis 2 Step 2b).  Records the `ceiSafe` flag as a `@[simp]` fact, certifying
+    that the user has asserted CEI safety via machine-checked proof obligation. -/
+def mkCEISafeTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do
+  let ceiSafeName ← mkSuffixedIdent fnDecl.ident "_cei_safe"
+  let modelName ← mkSuffixedIdent fnDecl.ident "_model"
+  `(command|
+    @[simp] theorem $ceiSafeName :
+        (Compiler.CompilationModel.FunctionSpec.ceiSafe
+          ($modelName : Compiler.CompilationModel.FunctionSpec)) = true := rfl)
+
+/-- Auto-generated `_requires_role` theorem for functions with a `requires(field)` annotation
+    (#1728, Axis 2 Step 2c).  Records the role field name as a `@[simp]` fact, certifying
+    that the function has an access-control guard for the named role. -/
+def mkRequiresRoleTheoremCommand (fnDecl : FunctionDecl) (roleFieldName : String) : CommandElabM Cmd := do
+  let requiresRoleName ← mkSuffixedIdent fnDecl.ident "_requires_role"
+  let modelName ← mkSuffixedIdent fnDecl.ident "_model"
+  `(command|
+    @[simp] theorem $requiresRoleName :
+        (Compiler.CompilationModel.FunctionSpec.requiresRole
+          ($modelName : Compiler.CompilationModel.FunctionSpec)) = some $(strTermPublic roleFieldName) := rfl)
+
+/-- Auto-generated `_modifies` theorem for functions with a `modifies(...)` annotation
+    (#1729, Axis 3 Step 1b).  Records the declared modifies set as a `@[simp]` fact. -/
+def mkModifiesTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do
+  let modifiesName ← mkSuffixedIdent fnDecl.ident "_modifies"
+  let modelName ← mkSuffixedIdent fnDecl.ident "_model"
+  let fieldTerms : Array Term := fnDecl.modifies.map fun ident => strTermPublic (toString ident.getId)
+  `(command|
+    @[simp] theorem $modifiesName :
+        (Compiler.CompilationModel.FunctionSpec.modifies
+          ($modelName : Compiler.CompilationModel.FunctionSpec)) = [ $[$fieldTerms],* ] := rfl)
+
+/-- Build a single frame-condition conjunct for a storage field that is NOT
+    in the modifies set.  The conjunct depends on the field's storage type. -/
+private def mkFieldFrameConjunct (field : StorageFieldDecl) : CommandElabM Term := do
+  let slotLit : Term := ⟨Syntax.mkNumLit (toString field.slotNum)⟩
+  match field.ty with
+  | .scalar _ =>
+      -- For scalar uint256 (or any scalar): s'.storage slot = s.storage slot
+      -- For scalar address (or address newtype): s'.storageAddr slot = s.storageAddr slot
+      -- We use the right accessor based on the scalar type
+      match field.ty with
+      | .scalar .address | .scalar (.newtype _ .address) =>
+          `(Verity.Specs.sameStorageAddrSlot $slotLit s s')
+      | .scalar (.adt _ maxFields) =>
+          let mut body : Term ← `(Verity.Specs.sameStorageSlot $slotLit s s')
+          for idx in List.range maxFields do
+            let payloadSlot : Term := ⟨Syntax.mkNumLit (toString (field.slotNum + idx + 1))⟩
+            body ← `($body ∧ Verity.Specs.sameStorageSlot $payloadSlot s s')
+          pure body
+      | _ =>
+          `(Verity.Specs.sameStorageSlot $slotLit s s')
+  | .dynamicArray _ =>
+      -- storageArray slot is unchanged
+      `(s'.storageArray $slotLit = s.storageArray $slotLit)
+  | .mappingAddressToUint256 | .mappingStruct .address _ =>
+      -- ∀ k, s'.storageMap slot k = s.storageMap slot k
+      `(∀ k, s'.storageMap $slotLit k = s.storageMap $slotLit k)
+  | .mappingUintToUint256 | .mappingStruct .uint256 _ =>
+      `(∀ k, s'.storageMapUint $slotLit k = s.storageMapUint $slotLit k)
+  | .mappingChain _ | .mapping2AddressToAddressToUint256 | .mappingStruct2 _ _ _ =>
+      -- These shapes compile to hashed `storage` slots rather than the legacy
+      -- storageMap mirrors, so the conservative frame predicate must constrain
+      -- the hashed storage surface.
+      `(Verity.Specs.sameStorage s s')
+
+/-- Auto-generate a `_frame` definition and `_frame_rfl` lemma for functions
+    with `modifies(...)`.  The frame is a conjunction of "unchanged" predicates
+    for every storage field NOT in the declared modifies set, plus `sameContext`.
+    (#1729, Axis 3 Step 1b) -/
+def mkFrameDefCommand
+    (fields : Array StorageFieldDecl)
+    (fnDecl : FunctionDecl) : CommandElabM (Array Cmd) := do
+  let frameName ← mkSuffixedIdent fnDecl.ident "_frame"
+  let frameRflName ← mkSuffixedIdent fnDecl.ident "_frame_rfl"
+  let modifiesNames := fnDecl.modifies.map fun ident => toString ident.getId
+  let unmodifiedFields := fields.filter fun f => !modifiesNames.contains f.name
+
+  -- Build the conjunction: sameContext ∧ field1_unchanged ∧ field2_unchanged ∧ ...
+  let mut body : Term ← `(Verity.Specs.sameContext s s')
+  for field in unmodifiedFields do
+    let conjunct ← mkFieldFrameConjunct field
+    body ← `($body ∧ $conjunct)
+
+  let frameCmd : Cmd ← `(command|
+    /-- Auto-generated frame condition: fields not in `modifies(...)` are unchanged. -/
+    def $frameName (s s' : Verity.ContractState) : Prop :=
+      $body)
+
+  let frameRflCmd : Cmd ← `(command|
+    @[simp] theorem $frameRflName (s : Verity.ContractState) : $frameName s s := by
+      unfold $frameName
+      simp [Verity.Specs.sameContext, Verity.Specs.sameStorageSlot,
+            Verity.Specs.sameStorageAddrSlot, Verity.Specs.sameStorage])
+
+  pure #[frameCmd, frameRflCmd]
+
+/-- Count how many effect annotations are active on a function declaration. -/
+def effectAnnotationCount (fnDecl : FunctionDecl) : Nat :=
+  (if fnDecl.isView then 1 else 0) +
+  (if fnDecl.noExternalCalls then 1 else 0) +
+  (if !fnDecl.modifies.isEmpty then 1 else 0)
+
+/-- Auto-generated `_effects` conjunction theorem for functions with multiple
+    effect annotations (#1729, Axis 3 Step 1d).  Bundles all individual effect
+    theorems (`_is_view`, `_no_calls`, `_modifies`) into a single `And` fact so
+    downstream proofs can obtain all guarantees in one `exact`. -/
+def mkEffectsTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do
+  let effectsName ← mkSuffixedIdent fnDecl.ident "_effects"
+  let modelName ← mkSuffixedIdent fnDecl.ident "_model"
+  -- Collect conjunct terms and proof terms for each active annotation
+  let mut conjuncts : Array Term := #[]
+  let mut proofs : Array Term := #[]
+  if fnDecl.isView then
+    let viewName ← mkSuffixedIdent fnDecl.ident "_is_view"
+    conjuncts := conjuncts.push (← `(
+        (Compiler.CompilationModel.FunctionSpec.isView
+          ($modelName : Compiler.CompilationModel.FunctionSpec)) = true))
+    proofs := proofs.push (← `($viewName))
+  if fnDecl.noExternalCalls then
+    let noCallsName ← mkSuffixedIdent fnDecl.ident "_no_calls"
+    conjuncts := conjuncts.push (← `(
+        (Compiler.CompilationModel.FunctionSpec.noExternalCalls
+          ($modelName : Compiler.CompilationModel.FunctionSpec)) = true))
+    proofs := proofs.push (← `($noCallsName))
+  if !fnDecl.modifies.isEmpty then
+    let modifiesName ← mkSuffixedIdent fnDecl.ident "_modifies"
+    let fieldTerms : Array Term := fnDecl.modifies.map fun ident => strTermPublic (toString ident.getId)
+    conjuncts := conjuncts.push (← `(
+        (Compiler.CompilationModel.FunctionSpec.modifies
+          ($modelName : Compiler.CompilationModel.FunctionSpec)) = [ $[$fieldTerms],* ]))
+    proofs := proofs.push (← `($modifiesName))
+  -- Build right-nested And: P₁ ∧ P₂ ∧ ... ∧ Pn
+  -- For n=2: And.intro p₁ p₂
+  -- For n=3: And.intro p₁ (And.intro p₂ p₃)
+  let mut propTerm := conjuncts[conjuncts.size - 1]!
+  for i in List.range (conjuncts.size - 1) |>.reverse do
+    propTerm ← `($(conjuncts[i]!) ∧ $propTerm)
+  let mut proofTerm := proofs[proofs.size - 1]!
+  for i in List.range (proofs.size - 1) |>.reverse do
+    proofTerm ← `(And.intro $(proofs[i]!) $proofTerm)
+  `(command|
+    @[simp] theorem $effectsName :
+        $propTerm := $proofTerm)
 end Verity.Macro

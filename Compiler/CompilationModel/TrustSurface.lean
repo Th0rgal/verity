@@ -186,9 +186,14 @@ private partial def collectLowLevelStmtMechanics : Stmt → List String
       collectLowLevelExprMechanics cond ++ thenBr.flatMap collectLowLevelStmtMechanics ++ elseBr.flatMap collectLowLevelStmtMechanics
   | .forEach _ count body =>
       collectLowLevelExprMechanics count ++ body.flatMap collectLowLevelStmtMechanics
+  | .unsafeBlock _ body =>
+      body.flatMap collectLowLevelStmtMechanics
+  | .matchAdt _ scrutinee branches =>
+      collectLowLevelExprMechanics scrutinee ++
+        branches.flatMap fun (_, _, body) => body.flatMap collectLowLevelStmtMechanics
   | .emit _ args
   | .internalCall _ args
-  | .externalCallBind _ _ args
+  | .externalCallBind _ _ args | .tryExternalCallBind _ _ _ args
   | .returnValues args
   | .ecm _ args
   | .internalCallAssign _ _ args =>
@@ -244,9 +249,14 @@ private partial def collectAxiomatizedStmtPrimitives : Stmt → List String
         elseBr.flatMap collectAxiomatizedStmtPrimitives
   | .forEach _ count body =>
       collectAxiomatizedExprPrimitives count ++ body.flatMap collectAxiomatizedStmtPrimitives
+  | .unsafeBlock _ body =>
+      body.flatMap collectAxiomatizedStmtPrimitives
+  | .matchAdt _ scrutinee branches =>
+      collectAxiomatizedExprPrimitives scrutinee ++
+        branches.flatMap fun (_, _, body) => body.flatMap collectAxiomatizedStmtPrimitives
   | .emit _ args
   | .internalCall _ args
-  | .externalCallBind _ _ args
+  | .externalCallBind _ _ args | .tryExternalCallBind _ _ _ args
   | .returnValues args
   | .ecm _ args
   | .internalCallAssign _ _ args =>
@@ -278,6 +288,105 @@ private def isUnsafeBoundaryMechanic (mechanic : String) : Bool :=
 /-- Collect assembly-shaped low-level mechanics that require an explicit local obligation. -/
 def collectUnsafeBoundaryMechanicsFromStmts (stmts : List Stmt) : List String :=
   dedupPreserve ((collectLowLevelMechanicsFromStmts stmts).filter isUnsafeBoundaryMechanic)
+
+/-- Like `collectLowLevelStmtMechanics` but skips `unsafeBlock` bodies —
+    returns only mechanics that appear *outside* any `unsafe` wrapper. -/
+private partial def collectUnguardedLowLevelStmtMechanics : Stmt → List String
+  | .letVar _ value
+  | .assignVar _ value
+  | .setStorage _ value
+  | .setStorageAddr _ value
+  | .storageArrayPush _ value
+  | .return value
+  | .require value _ =>
+      collectLowLevelExprMechanics value
+  | .setStorageArrayElement _ index value =>
+      collectLowLevelExprMechanics index ++ collectLowLevelExprMechanics value
+  | .storageArrayPop _ =>
+      []
+  | .requireError cond _ args =>
+      collectLowLevelExprMechanics cond ++ args.flatMap collectLowLevelExprMechanics
+  | .revertError _ args =>
+      args.flatMap collectLowLevelExprMechanics
+  | .mstore offset value =>
+      ["mstore"] ++ collectLowLevelExprMechanics offset ++ collectLowLevelExprMechanics value
+  | .tstore offset value =>
+      ["tstore"] ++ collectLowLevelExprMechanics offset ++ collectLowLevelExprMechanics value
+  | .calldatacopy destOffset sourceOffset size =>
+      ["calldatacopy"] ++ collectLowLevelExprMechanics destOffset ++
+        collectLowLevelExprMechanics sourceOffset ++ collectLowLevelExprMechanics size
+  | .returndataCopy destOffset sourceOffset size =>
+      ["returndataCopy"] ++ collectLowLevelExprMechanics destOffset ++ collectLowLevelExprMechanics sourceOffset ++ collectLowLevelExprMechanics size
+  | .revertReturndata =>
+      ["revertReturndata"]
+  | .setMapping _ key value
+  | .setMappingWord _ key _ value
+  | .setMappingPackedWord _ key _ _ value
+  | .setMappingUint _ key value
+  | .setStructMember _ key _ value =>
+      collectLowLevelExprMechanics key ++ collectLowLevelExprMechanics value
+  | .setMappingChain _ keys value =>
+      keys.flatMap collectLowLevelExprMechanics ++ collectLowLevelExprMechanics value
+  | .setMapping2 _ key1 key2 value
+  | .setMapping2Word _ key1 key2 _ value
+  | .setStructMember2 _ key1 key2 _ value =>
+      collectLowLevelExprMechanics key1 ++ collectLowLevelExprMechanics key2 ++ collectLowLevelExprMechanics value
+  | .ite cond thenBr elseBr =>
+      collectLowLevelExprMechanics cond ++ thenBr.flatMap collectUnguardedLowLevelStmtMechanics ++ elseBr.flatMap collectUnguardedLowLevelStmtMechanics
+  | .forEach _ count body =>
+      collectLowLevelExprMechanics count ++ body.flatMap collectUnguardedLowLevelStmtMechanics
+  | .unsafeBlock _ _ =>
+      []
+  | .matchAdt _ scrutinee branches =>
+      collectLowLevelExprMechanics scrutinee ++
+        branches.flatMap fun (_, _, body) => body.flatMap collectUnguardedLowLevelStmtMechanics
+  | .emit _ args
+  | .internalCall _ args
+  | .externalCallBind _ _ args | .tryExternalCallBind _ _ _ args
+  | .returnValues args
+  | .ecm _ args
+  | .internalCallAssign _ _ args =>
+      args.flatMap collectLowLevelExprMechanics
+  | .rawLog topics dataOffset dataSize =>
+      topics.flatMap collectLowLevelExprMechanics ++ collectLowLevelExprMechanics dataOffset ++ collectLowLevelExprMechanics dataSize
+  | .returnArray _
+  | .returnBytes _
+  | .returnStorageWords _
+  | .stop =>
+      []
+
+private def collectUnguardedLowLevelMechanicsFromStmts (stmts : List Stmt) : List String :=
+  dedupPreserve (stmts.flatMap collectUnguardedLowLevelStmtMechanics)
+
+/-- Collect unsafe boundary mechanics that appear *outside* any `unsafe "reason" do` block.
+    Operations inside `unsafe` blocks are considered documented and do not require
+    `local_obligations`. -/
+def collectUnguardedUnsafeBoundaryMechanicsFromStmts (stmts : List Stmt) : List String :=
+  dedupPreserve ((collectUnguardedLowLevelMechanicsFromStmts stmts).filter isUnsafeBoundaryMechanic)
+
+/-- Collect `unsafe "reason" do` block reason strings from a statement, recursing into branches. -/
+private partial def collectUnsafeBlockReasonsInStmt : Stmt → List String
+  | .unsafeBlock reason body =>
+      [reason] ++ body.flatMap collectUnsafeBlockReasonsInStmt
+  | .ite _ thenBr elseBr =>
+      thenBr.flatMap collectUnsafeBlockReasonsInStmt ++ elseBr.flatMap collectUnsafeBlockReasonsInStmt
+  | .forEach _ _ body =>
+      body.flatMap collectUnsafeBlockReasonsInStmt
+  | .matchAdt _ _ branches =>
+      branches.flatMap fun (_, _, body) => body.flatMap collectUnsafeBlockReasonsInStmt
+  | _ => []
+
+private def collectUnsafeBlockReasonsFromStmts (stmts : List Stmt) : List String :=
+  stmts.flatMap collectUnsafeBlockReasonsInStmt
+
+/-- Collect all `unsafe "reason" do` block reasons used by a spec. -/
+def collectUnsafeBlockReasons (spec : CompilationModel) : List String :=
+  let stmtsFromFn (fn : FunctionSpec) := fn.body
+  let stmtsFromCtor : List Stmt := match spec.constructor with
+    | some ctor => ctor.body
+    | none => []
+  let allStmts := stmtsFromCtor ++ spec.functions.flatMap stmtsFromFn
+  collectUnsafeBlockReasonsFromStmts allStmts
 
 private def isLinearMemoryMechanic (mechanic : String) : Bool :=
   match mechanic with
@@ -399,9 +508,14 @@ private partial def collectEventEmissionStmtMechanics : Stmt → List String
         elseBr.flatMap collectEventEmissionStmtMechanics
   | .forEach _ count body =>
       collectEventEmissionExprMechanics count ++ body.flatMap collectEventEmissionStmtMechanics
+  | .unsafeBlock _ body =>
+      body.flatMap collectEventEmissionStmtMechanics
+  | .matchAdt _ scrutinee branches =>
+      collectEventEmissionExprMechanics scrutinee ++
+        branches.flatMap fun (_, _, body) => body.flatMap collectEventEmissionStmtMechanics
   | .emit _ args
   | .internalCall _ args
-  | .externalCallBind _ _ args
+  | .externalCallBind _ _ args | .tryExternalCallBind _ _ _ args
   | .returnValues args
   | .ecm _ args
   | .internalCallAssign _ _ args =>
@@ -554,13 +668,18 @@ private partial def collectRuntimeIntrospectionStmtMechanics : Stmt → List Str
         elseBr.flatMap collectRuntimeIntrospectionStmtMechanics
   | .forEach _ count body =>
       collectRuntimeIntrospectionExprMechanics count ++ body.flatMap collectRuntimeIntrospectionStmtMechanics
+  | .unsafeBlock _ body =>
+      body.flatMap collectRuntimeIntrospectionStmtMechanics
+  | .matchAdt _ scrutinee branches =>
+      collectRuntimeIntrospectionExprMechanics scrutinee ++
+        branches.flatMap fun (_, _, body) => body.flatMap collectRuntimeIntrospectionStmtMechanics
   | .emit _ args
   | .internalCall _ args
   | .returnValues args
   | .ecm _ args
   | .internalCallAssign _ _ args =>
       args.flatMap collectRuntimeIntrospectionExprMechanics
-  | .externalCallBind _ _ args =>
+  | .externalCallBind _ _ args | .tryExternalCallBind _ _ _ args =>
       args.flatMap collectRuntimeIntrospectionExprMechanics
   | .rawLog topics dataOffset dataSize =>
       topics.flatMap collectRuntimeIntrospectionExprMechanics ++
@@ -692,6 +811,11 @@ private partial def collectExternalStmtNames : Stmt → List String
       collectExternalExprNames cond ++ thenBr.flatMap collectExternalStmtNames ++ elseBr.flatMap collectExternalStmtNames
   | .forEach _ count body =>
       collectExternalExprNames count ++ body.flatMap collectExternalStmtNames
+  | .unsafeBlock _ body =>
+      body.flatMap collectExternalStmtNames
+  | .matchAdt _ scrutinee branches =>
+      collectExternalExprNames scrutinee ++
+        branches.flatMap fun (_, _, body) => body.flatMap collectExternalStmtNames
   | .emit _ args
   | .internalCall _ args
   | .returnValues args
@@ -699,6 +823,8 @@ private partial def collectExternalStmtNames : Stmt → List String
   | .internalCallAssign _ _ args =>
       args.flatMap collectExternalExprNames
   | .externalCallBind _ externalName args =>
+      externalName :: args.flatMap collectExternalExprNames
+  | .tryExternalCallBind _ _ externalName args =>
       externalName :: args.flatMap collectExternalExprNames
   | .rawLog topics dataOffset dataSize =>
       topics.flatMap collectExternalExprNames ++ collectExternalExprNames dataOffset ++ collectExternalExprNames dataSize
@@ -748,6 +874,10 @@ private partial def collectUsedEcmModulesInStmt : Stmt → List ECM.ExternalCall
       thenBr.flatMap collectUsedEcmModulesInStmt ++ elseBr.flatMap collectUsedEcmModulesInStmt
   | .forEach _ _ body =>
       body.flatMap collectUsedEcmModulesInStmt
+  | .unsafeBlock _ body =>
+      body.flatMap collectUsedEcmModulesInStmt
+  | .matchAdt _ _ branches =>
+      branches.flatMap fun (_, _, body) => body.flatMap collectUsedEcmModulesInStmt
   | _ =>
       []
 
@@ -942,6 +1072,7 @@ private structure UsageSiteSummary where
   externals : List ExternalFunction
   modules : List ECM.ExternalCallModule
   localObligations : List LocalObligation
+  unsafeBlocks : List String
 
 private def ecmAxiomsFromModules (modules : List ECM.ExternalCallModule) : List (String × String) :=
   modules.flatMap (fun mod => mod.axioms.map (fun assumption => (mod.name, assumption)))
@@ -957,7 +1088,8 @@ private def siteHasTrustSurface
     !(collectAxiomatizedPrimitivesFromStmts stmts).isEmpty ||
     !(collectUsedExternalAssumptionsFromStmts externals stmts).isEmpty ||
     !(collectUsedEcmModulesFromStmts stmts).isEmpty ||
-    !(collectLocalObligationsFromStmts localObligations stmts).isEmpty
+    !(collectLocalObligationsFromStmts localObligations stmts).isEmpty ||
+    !(collectUnsafeBlockReasonsFromStmts stmts).isEmpty
 
 private def usageSiteSummary
     (spec : CompilationModel)
@@ -973,6 +1105,7 @@ private def usageSiteSummary
   let siteExternals := collectUsedExternalAssumptionsFromStmts spec.externals stmts
   let siteModules := collectUsedEcmModulesFromStmts stmts
   let siteLocalObligations := collectLocalObligationsFromStmts localObligations stmts
+  let siteUnsafeBlocks := collectUnsafeBlockReasonsFromStmts stmts
   { kind := kind
     name := name
     mechanics := mechanics
@@ -982,7 +1115,8 @@ private def usageSiteSummary
     primitives := primitives
     externals := siteExternals
     modules := siteModules
-    localObligations := siteLocalObligations }
+    localObligations := siteLocalObligations
+    unsafeBlocks := siteUnsafeBlocks }
 
 private def collectUsageSiteSummaries (spec : CompilationModel) : List UsageSiteSummary :=
   let constructorSites :=
@@ -1017,6 +1151,7 @@ private def usageSitesJson (spec : CompilationModel) : String :=
       ("axiomatizedPrimitives", jsonArray (site.primitives.map jsonString)),
       ("proofStatus", proofStatusJsonForSite site.primitives site.externals site.modules site.localObligations),
       ("localObligations", jsonArray (site.localObligations.map localObligationJson)),
+      ("unsafeBlocks", jsonArray (site.unsafeBlocks.map jsonString)),
       ("hasUncheckedDependencies",
         if hasUncheckedDependenciesForSite site.externals site.modules then "true" else "false"),
       ("externalAssumptions", jsonObject [
@@ -1186,6 +1321,10 @@ def emitVerboseUsageSiteLines (specs : List CompilationModel) : List String :=
                   else
                     modAcc ++ assumptionLines)
                 []
+            let unsafeBlockLines :=
+              if site.unsafeBlocks.isEmpty then [] else
+                [s!"    unsafe blocks: {site.unsafeBlocks.length}"] ++
+                site.unsafeBlocks.map (fun reason => s!"    [unsafe] \"{reason}\"")
             let localObligationLines :=
               site.localObligations.map
                 (fun obligation =>
@@ -1206,6 +1345,7 @@ def emitVerboseUsageSiteLines (specs : List CompilationModel) : List String :=
               uncheckedLines ++
               externalAssumptionLines ++
               ecmAxiomLines ++
+              unsafeBlockLines ++
               localObligationLines)
           []
       acc ++ siteLines)
@@ -1378,6 +1518,23 @@ def hasAssumedDependencies (spec : CompilationModel) : Bool :=
     (collectUsedExternalAssumptions spec)
     (collectUsedEcmModules spec)
 
+/-- Render localized unsafe-block lines for `--deny-unsafe` diagnostics. -/
+def emitUnsafeBlockUsageSiteLines (specs : List CompilationModel) : List String :=
+  specs.foldl
+    (fun acc spec =>
+      let siteLines :=
+        (collectUsageSiteSummaries spec).foldl
+          (fun siteAcc site =>
+            if site.unsafeBlocks.isEmpty then
+              siteAcc
+            else
+              siteAcc ++
+                site.unsafeBlocks.map (fun reason =>
+                  s!"- {spec.name} [{site.kind}:{site.name}]: unsafe \"{reason}\""))
+          []
+      acc ++ siteLines)
+    []
+
 /-- Render the machine-readable trust report consumed by CLI/tests. -/
 def emitTrustReportJson (specs : List CompilationModel) : String :=
   jsonObject [
@@ -1394,6 +1551,7 @@ where
       ("partiallyModeledRuntimeIntrospection", jsonArray ((collectRuntimeIntrospectionMechanics spec).map jsonString)),
       ("axiomatizedPrimitives", jsonArray ((collectAxiomatizedPrimitives spec).map jsonString)),
       ("localObligations", jsonArray ((collectLocalObligations spec).map localObligationJson)),
+      ("unsafeBlocks", jsonArray ((collectUnsafeBlockReasons spec).map jsonString)),
       ("proofStatus", proofStatusJson spec),
       ("hasUncheckedDependencies", if hasUncheckedDependencies spec then "true" else "false"),
       ("proofBoundary", jsonObject [

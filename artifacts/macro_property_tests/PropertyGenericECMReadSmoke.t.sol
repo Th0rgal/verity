@@ -17,16 +17,4 @@ contract PropertyGenericECMReadSmokeTest is YulTestBase {
         require(target != address(0), "Deploy failed");
     }
 
-    // Property 1: snapshotQuote decodes the mocked ECM oracle read
-    function testAuto_SnapshotQuote_ReturnsMockedEcmRead() public {
-        uint256 expected = uint256(1);
-        vm.mockCall(alice, abi.encodeWithSelector(bytes4(0x12345678), alice), abi.encode(expected));
-        vm.prank(alice);
-        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("snapshotQuote(address,address)", alice, alice));
-        require(ok, "snapshotQuote reverted unexpectedly");
-        assertEq(ret.length, 32, "snapshotQuote ABI return length mismatch (expected 32 bytes)");
-        uint256 actual = abi.decode(ret, (uint256));
-        assertEq(actual, expected, "snapshotQuote should return the mocked external read");
-        assertEq(vm.load(target, bytes32(uint256(0))), bytes32(uint256(expected)), "snapshotQuote should persist the mocked external read");
-    }
 }

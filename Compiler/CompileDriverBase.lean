@@ -38,12 +38,13 @@ def compileSpecsWithOptions
     (denyProxyUpgradeability : Bool := false)
     (layoutReportPath : Option String := none)
     (layoutCompatibilityReportPath : Option String := none)
-    (denyLayoutIncompatibility : Bool := false) : IO Unit :=
+    (denyLayoutIncompatibility : Bool := false)
+    (denyUnsafe : Bool := false) : IO Unit :=
   Compiler.CompileDriverCommon.compileSpecsWithOptions
     backend specs outDir verbose libraryPaths options patchReportPath trustReportPath assumptionReportPath abiOutDir
     denyUncheckedDependencies denyAssumedDependencies denyAxiomatizedPrimitives denyLocalObligations denyLinearMemoryMechanics
     denyEventEmission denyLowLevelMechanics denyRuntimeIntrospection denyProxyUpgradeability layoutReportPath
-    layoutCompatibilityReportPath denyLayoutIncompatibility
+    layoutCompatibilityReportPath denyLayoutIncompatibility denyUnsafe
 
 unsafe def compileModulesWithOptions
     (outDir : String)
@@ -66,11 +67,12 @@ unsafe def compileModulesWithOptions
     (denyProxyUpgradeability : Bool := false)
     (layoutReportPath : Option String := none)
     (layoutCompatibilityReportPath : Option String := none)
-    (denyLayoutIncompatibility : Bool := false) : IO Unit := do
+    (denyLayoutIncompatibility : Bool := false)
+    (denyUnsafe : Bool := false) : IO Unit := do
   Compiler.CompileDriverCommon.compileModulesWithOptions
     backend outDir modules verbose libraryPaths options patchReportPath trustReportPath assumptionReportPath
     abiOutDir denyUncheckedDependencies denyAssumedDependencies denyAxiomatizedPrimitives denyLocalObligations
     denyLinearMemoryMechanics denyEventEmission denyLowLevelMechanics denyRuntimeIntrospection
-    denyProxyUpgradeability layoutReportPath layoutCompatibilityReportPath denyLayoutIncompatibility
+    denyProxyUpgradeability layoutReportPath layoutCompatibilityReportPath denyLayoutIncompatibility denyUnsafe
 
 end Compiler.Base

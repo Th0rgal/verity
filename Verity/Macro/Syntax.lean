@@ -16,6 +16,12 @@ declare_syntax_cat verityLocalObligations
 declare_syntax_cat verityConstructor
 declare_syntax_cat verityMutability
 declare_syntax_cat verityInitGuard
+declare_syntax_cat verityModifies
+declare_syntax_cat verityRequiresRole
+declare_syntax_cat verityNewtype
+declare_syntax_cat verityAdtVariant
+declare_syntax_cat verityAdtDecl
+declare_syntax_cat verityNamespaceSpec
 declare_syntax_cat veritySpecialEntrypoint
 declare_syntax_cat verityFunction
 
@@ -33,22 +39,44 @@ syntax ident " := " ident ppSpace str : verityLocalObligation
 syntax "local_obligations " "[" sepBy(verityLocalObligation, ",") "]" : verityLocalObligations
 syntax "payable" : verityMutability
 syntax "view" : verityMutability
+syntax "no_external_calls" : verityMutability
+syntax "allow_post_interaction_writes" : verityMutability
+syntax "nonreentrant(" ident ")" : verityMutability
+syntax "cei_safe" : verityMutability
+syntax "modifies(" sepBy1(ident, ",") ")" : verityModifies
+syntax "requires(" ident ")" : verityRequiresRole
+syntax ident " : " term:max : verityNewtype
+syntax "| " ident "(" sepBy(verityParam, ",") ")" : verityAdtVariant
+syntax "| " ident : verityAdtVariant
+syntax ident " := " verityAdtVariant+ : verityAdtDecl
+syntax "storage_namespace " : verityNamespaceSpec
+syntax "storage_namespace " str : verityNamespaceSpec
 syntax "initializer(" ident ")" : verityInitGuard
 syntax "reinitializer(" ident ", " num ")" : verityInitGuard
 syntax "ecmCall " term:max ppSpace term:max : term
 syntax "ecmDo " term:max ppSpace term:max : term
+syntax "adt " str : term
+syntax "adt " str " [" sepBy(term, ",") "]" : term
 syntax "tryCatch " term:max ppSpace term:max : doElem
+
+macro_rules
+  | `(adt $_variant:str) => `(0)
+  | `(adt $_variant:str [ $[$_args:term],* ]) => `(0)
 syntax "revert " ident "(" sepBy(term, ",") ")" : doElem
 syntax "revertError " ident "(" sepBy(term, ",") ")" : doElem
 syntax "requireError " term:max ppSpace ident "(" sepBy(term, ",") ")" : doElem
+syntax (priority := high) "unsafe " str " do " doSeq : doElem
 syntax "constructor " "(" sepBy(verityParam, ",") ")" (ppSpace verityLocalObligations)? " := " term : verityConstructor
 syntax "constructor " "(" sepBy(verityParam, ",") ")" " payable" (ppSpace verityLocalObligations)? " := " term : verityConstructor
 syntax "receive" (ppSpace verityLocalObligations)? " := " term : veritySpecialEntrypoint
 syntax "fallback" (ppSpace verityLocalObligations)? " := " term : veritySpecialEntrypoint
-syntax "function " verityMutability* ident " (" sepBy(verityParam, ",") ")" (ppSpace verityInitGuard)? (ppSpace verityLocalObligations)? " : " term " := " term : verityFunction
+syntax "function " verityMutability* ident " (" sepBy(verityParam, ",") ")" (ppSpace verityInitGuard)? (ppSpace verityRequiresRole)? (ppSpace verityModifies)? (ppSpace verityLocalObligations)? " : " term " := " term : verityFunction
 
 syntax (name := verityContractCmd)
   "verity_contract " ident " where "
+  ("types " verityNewtype+)?
+  ("inductive " verityAdtDecl+)?
+  (verityNamespaceSpec)?
   "storage " verityStorageField*
   ("errors " verityError+)?
   ("constants " verityConstant+)?

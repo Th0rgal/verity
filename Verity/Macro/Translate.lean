@@ -2,6 +2,7 @@ import Lean
 import Compiler.Modules.ERC20
 import Compiler.Modules.Precompiles
 import Compiler.CompilationModel.InternalNaming
+import Compiler.Keccak.Sponge
 import Verity.Macro.Syntax
 
 namespace Verity.Macro
@@ -29,6 +30,8 @@ inductive ValueType where
   | array (elemTy : ValueType)
   | tuple (elemTys : List ValueType)
   | unit
+  | newtype (name : String) (baseType : ValueType)  -- Semantic newtype; erased to baseType (#1727 Steps 3b/3c)
+  | adt (name : String) (maxFields : Nat)  -- User-defined ADT (tagged union); maxFields = max variant field count (#1727 Step 5b)
   deriving Repr, BEq
 
 inductive MappingKeyType where
@@ -58,6 +61,7 @@ structure StorageFieldDecl where
   name : String
   ty : StorageType
   slotNum : Nat
+  adtInfo? : Option (String × Nat) := none
 
 structure ParamDecl where
   ident : Ident
@@ -87,6 +91,32 @@ structure ExternalDecl where
   params : Array ValueType
   returnTys : Array ValueType
 
+/-- A user-defined semantic newtype declared in the `types` section.
+    At the language level the type is distinct from its base type; at the
+    EVM/Yul level it is erased to the base type (zero overhead).
+    (#1727, Axis 1 Step 3a) -/
+structure NewtypeDecl where
+  ident : Ident
+  name : String
+  baseType : ValueType
+
+/-- A single variant (constructor) of a user-defined algebraic data type.
+    E.g. `| Ok(value : Uint256)` or `| None`.
+    (#1727, Axis 1 Step 5a) -/
+structure AdtVariantDecl where
+  ident : Ident
+  name : String
+  fields : Array ParamDecl
+
+/-- A user-defined algebraic data type (tagged union) declared in the `inductive` section.
+    E.g. `Result := | Ok(value : Uint256) | Err(code : Uint256)`.
+    At the EVM level, ADTs use max-width tagged union encoding.
+    (#1727, Axis 1 Step 5a) -/
+structure AdtDecl where
+  ident : Ident
+  name : String
+  variants : Array AdtVariantDecl
+
 structure LocalObligationDecl where
   ident : Ident
   name : String
@@ -104,7 +134,31 @@ structure FunctionDecl where
   returnTy : ValueType
   isPayable : Bool := false
   isView : Bool := false
+  noExternalCalls : Bool := false
+  /-- When true, the function is annotated `allow_post_interaction_writes` and
+      CEI (Checks-Effects-Interactions) enforcement is bypassed.  This is the
+      explicit trust-surface opt-out in the escalation ladder (#1728, Axis 2 Step 2a). -/
+  allowPostInteractionWrites : Bool := false
+  /-- When `some fieldIdent`, the function is annotated `nonreentrant(field)`.
+      The named storage field is used as a reentrancy lock.  CEI enforcement is
+      bypassed because the lock prevents reentrant state corruption.
+      (#1728, Axis 2 Step 2b — known-safe guard rung) -/
+  nonReentrantLock : Option Ident := none
+  /-- When true, the function is annotated `cei_safe` — the user asserts CEI
+      safety via a machine-checked proof obligation.  CEI enforcement is bypassed
+      and a proof obligation is generated.
+      (#1728, Axis 2 Step 2b — Lean proof rung) -/
+  ceiSafe : Bool := false
+  /-- When `some fieldIdent`, the function is annotated `requires(field)`.
+      The named Address-typed storage field is an access-control role.
+      A `require(caller == roleHolder)` check is auto-injected at the start
+      of the function body.  (#1728, Axis 2 Step 2c) -/
+  requiresRole : Option Ident := none
   initGuard? : Option InitGuardDecl := none
+  /-- Storage field names declared via `modifies(field1, field2)`.
+      When non-empty, the compiler validates that the function body only
+      writes to fields in this set and auto-generates a `_frame` theorem. -/
+  modifies : Array Ident := #[]
   localObligations : Array LocalObligationDecl := #[]
   body : Term
 
@@ -152,7 +206,7 @@ private def natFromSyntax (stx : Syntax) : CommandElabM Nat :=
   | some n => pure n
   | none => throwErrorAt stx "expected natural literal"
 
-private partial def valueTypeFromSyntax (ty : Term) : CommandElabM ValueType := do
+private partial def valueTypeFromSyntax (newtypes : Array NewtypeDecl) (adtDecls : Array AdtDecl) (ty : Term) : CommandElabM ValueType := do
   match ty with
   | `(term| Uint256) => pure .uint256
   | `(term| Int256) => pure .int256
@@ -163,20 +217,33 @@ private partial def valueTypeFromSyntax (ty : Term) : CommandElabM ValueType := 
   | `(term| String) => pure .string
   | `(term| Bytes) => pure .bytes
   | `(term| Array $elemTy:term) =>
-      let elem ← valueTypeFromSyntax elemTy
+      let elem ← valueTypeFromSyntax newtypes adtDecls elemTy
       match elem with
       | .unit => throwErrorAt ty "unsupported type '{ty}'; Array Unit is not allowed"
       | .array _ => throwErrorAt ty "unsupported type '{ty}'; nested arrays are not supported"
       | _ => pure (.array elem)
   | `(term| Tuple [ $[$elemTys:term],* ]) =>
-      let elems ← elemTys.mapM valueTypeFromSyntax
+      let elems ← elemTys.mapM (valueTypeFromSyntax newtypes adtDecls)
       if elems.size < 2 then
         throwErrorAt ty "tuple types must have at least 2 elements"
       pure (.tuple elems.toList)
   | `(term| Unit) => pure .unit
-  | _ => throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Int256, Uint8, Address, Bytes32, Bool, String, Bytes, Array <type>, Tuple [...], or Unit"
+  | `(term| $id:ident) =>
+      let tyName := toString id.getId
+      -- Try resolving as a user-defined newtype (#1727, Axis 1 Steps 3a/3b)
+      match newtypes.find? (fun nt => nt.name == tyName) with
+      | some nt => pure (.newtype nt.name nt.baseType)
+      | none =>
+        -- Try resolving as a user-defined ADT (#1727, Axis 1 Step 5b)
+        match adtDecls.find? (fun a => a.name == tyName) with
+        | some decl =>
+            let maxFields := decl.variants.foldl (fun acc v => max acc v.fields.size) 0
+            pure (.adt decl.name maxFields)
+        | none => throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Int256, Uint8, Address, Bytes32, Bool, String, Bytes, Array <type>, Tuple [...], Unit, or a user-defined type from the `types` or `inductive` section"
+  | _ =>
+      throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Int256, Uint8, Address, Bytes32, Bool, String, Bytes, Array <type>, Tuple [...], Unit, or a user-defined type from the `types` or `inductive` section"
 
-private def storageTypeFromSyntax (ty : Term) : CommandElabM StorageType := do
+private def storageTypeFromSyntax (newtypes : Array NewtypeDecl) (adtDecls : Array AdtDecl := #[]) (ty : Term) : CommandElabM StorageType := do
   let keyTypeFromSyntax (stx : Term) : CommandElabM MappingKeyType := do
     match stx with
     | `(term| Address) => pure .address
@@ -232,7 +299,7 @@ private def storageTypeFromSyntax (ty : Term) : CommandElabM StorageType := do
         (← keyTypeFromSyntax innerKey)
         ((← members.mapM structMemberFromSyntax).toList)
   | _ => do
-      let vt ← valueTypeFromSyntax ty
+      let vt ← valueTypeFromSyntax newtypes adtDecls ty
       match vt with
       | .array elemTy => pure (.dynamicArray (← storageArrayElemTypeFromValueType elemTy))
       | .tuple _ => throwErrorAt ty "storage fields cannot be Tuple; use mapping encodings"
@@ -280,6 +347,9 @@ private def modelFieldTypeTerm (ty : StorageType) : CommandElabM Term :=
   | .scalar (.array _) => throwError "storage fields cannot be Array; use mapping encodings"
   | .scalar (.tuple _) => throwError "storage fields cannot be Tuple; use mapping encodings"
   | .scalar .unit => throwError "storage fields cannot be Unit"
+  | .scalar (.newtype _ baseType) => modelFieldTypeTerm (.scalar baseType)  -- Erased to base type
+  | .scalar (.adt name maxFields) =>
+      `(Compiler.CompilationModel.FieldType.adt $(Lean.quote name) $(Lean.quote maxFields))
   | .dynamicArray .uint256 => `(Compiler.CompilationModel.FieldType.dynamicArray Compiler.CompilationModel.StorageArrayElemType.uint256)
   | .dynamicArray .address => `(Compiler.CompilationModel.FieldType.dynamicArray Compiler.CompilationModel.StorageArrayElemType.address)
   | .dynamicArray .bool => `(Compiler.CompilationModel.FieldType.dynamicArray Compiler.CompilationModel.StorageArrayElemType.bool)
@@ -326,6 +396,11 @@ private partial def modelParamTypeTerm (ty : ValueType) : CommandElabM Term :=
       let elemTerms ← elemTys.mapM modelParamTypeTerm
       `(Compiler.CompilationModel.ParamType.tuple [ $[$elemTerms.toArray],* ])
   | .unit => throwError "function parameters cannot be Unit"
+  | .newtype name baseType => do
+      let baseTerm ← modelParamTypeTerm baseType
+      `(Compiler.CompilationModel.ParamType.newtypeOf $(Lean.quote name) $baseTerm)
+  | .adt name maxFields => do
+      `(Compiler.CompilationModel.ParamType.adt $(Lean.quote name) $(Lean.quote maxFields))
 
 private def modelReturnTypeTerm (ty : ValueType) : CommandElabM Term :=
   match ty with
@@ -340,6 +415,8 @@ private def modelReturnTypeTerm (ty : ValueType) : CommandElabM Term :=
   | .bytes => `(none)
   | .array _ => `(none)
   | .tuple _ => `(none)
+  | .newtype _ baseType => modelReturnTypeTerm baseType
+  | .adt _ _ => `(none)  -- ADTs are not directly returnable as single FieldType
 
 private partial def modelReturnsTerm (ty : ValueType) : CommandElabM Term :=
   match ty with
@@ -357,6 +434,11 @@ private partial def modelReturnsTerm (ty : ValueType) : CommandElabM Term :=
   | .tuple elemTys => do
       let elemTerms ← elemTys.mapM modelParamTypeTerm
       `([ $[$elemTerms.toArray],* ])
+  | .newtype name baseType => do
+      let baseTerm ← modelParamTypeTerm baseType
+      `([Compiler.CompilationModel.ParamType.newtypeOf $(Lean.quote name) $baseTerm])
+  | .adt name maxFields => do
+      `([Compiler.CompilationModel.ParamType.adt $(Lean.quote name) $(Lean.quote maxFields)])
 
 mutual
 private partial def mkTupleContractType (elemTys : List ValueType) : CommandElabM Term := do
@@ -381,75 +463,131 @@ private partial def contractValueTypeTerm (ty : ValueType) : CommandElabM Term :
       `(Array $(← contractValueTypeTerm elemTy))
   | .tuple elemTys => mkTupleContractType elemTys
   | .unit => `(Unit)
+  | .newtype _ baseType => contractValueTypeTerm baseType  -- Erased to base type at contract level
+  | .adt _ _ => `(Uint256)  -- ADTs represented as tag value at contract level
 end
 
-private def parseStorageField (stx : Syntax) : CommandElabM StorageFieldDecl := do
+private def parseStorageField (newtypes : Array NewtypeDecl) (adtDecls : Array AdtDecl := #[]) (stx : Syntax) : CommandElabM StorageFieldDecl := do
   match stx with
   | `(verityStorageField| $name:ident : $ty:term := slot $slotNum:num) =>
+      let parsedTy ← storageTypeFromSyntax newtypes adtDecls ty
+      let adtInfo? :=
+        match parsedTy with
+        | .scalar (.adt adtName maxFields) => some (adtName, maxFields)
+        | _ => none
       pure {
         ident := name
         name := toString name.getId
-        ty := ← storageTypeFromSyntax ty
+        ty := parsedTy
         slotNum := ← natFromSyntax slotNum
+        adtInfo? := adtInfo?
       }
   | _ => throwErrorAt stx "invalid storage field declaration"
 
-private def parseParam (stx : Syntax) : CommandElabM ParamDecl := do
+private def parseParam (newtypes : Array NewtypeDecl) (adtDecls : Array AdtDecl) (stx : Syntax) : CommandElabM ParamDecl := do
   match stx with
   | `(verityParam| $name:ident : $ty:term) =>
       pure {
         ident := name
         name := toString name.getId
-        ty := ← valueTypeFromSyntax ty
+        ty := ← valueTypeFromSyntax newtypes adtDecls ty
       }
   | _ => throwErrorAt stx "invalid parameter declaration"
 
-private def parseError (stx : Syntax) : CommandElabM ErrorDecl := do
+private def parseNewtype (stx : Syntax) : CommandElabM NewtypeDecl := do
+  match stx with
+  | `(verityNewtype| $name:ident : $ty:term) =>
+      let baseType ← valueTypeFromSyntax #[] #[] ty
+      -- Validate: newtypes must be based on scalar types (not arrays, tuples, or unit)
+      match baseType with
+      | .array _ => throwErrorAt ty "newtype base type must be a scalar type, not an array"
+      | .tuple _ => throwErrorAt ty "newtype base type must be a scalar type, not a tuple"
+      | .unit => throwErrorAt ty "newtype base type must be a scalar type, not Unit"
+      | _ => pure ()
+      pure {
+        ident := name
+        name := toString name.getId
+        baseType := baseType
+      }
+  | _ => throwErrorAt stx "invalid type declaration"
+
+/-- Parse a single ADT variant: `| Name(field1 : Type1, field2 : Type2)` or `| Name`.
+    (#1727, Axis 1 Step 5a) -/
+private def parseAdtVariant (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM AdtVariantDecl := do
+  match stx with
+  | `(verityAdtVariant| | $name:ident ($[$params:verityParam],*)) =>
+      let parsedParams ← params.mapM (parseParam newtypes #[])
+      pure { ident := name, name := toString name.getId, fields := parsedParams }
+  | `(verityAdtVariant| | $name:ident) =>
+      pure { ident := name, name := toString name.getId, fields := #[] }
+  | _ => throwErrorAt stx "invalid ADT variant declaration"
+
+/-- Parse a full ADT declaration: `Name := | Variant1(...) | Variant2(...)`.
+    (#1727, Axis 1 Step 5a) -/
+private def parseAdtDecl (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM AdtDecl := do
+  match stx with
+  | `(verityAdtDecl| $name:ident := $[$variants:verityAdtVariant]*) =>
+      let parsedVariants ← variants.mapM (parseAdtVariant newtypes)
+      if parsedVariants.isEmpty then
+        throwErrorAt name s!"ADT '{toString name.getId}' must have at least one variant"
+      if parsedVariants.size > 256 then
+        throwErrorAt name
+          s!"ADT '{toString name.getId}' has {parsedVariants.size} variants, but ADT tags are encoded as Uint8 and support at most 256 variants"
+      -- Validate: no duplicate variant names within this ADT
+      let mut seenVariantNames : Array String := #[]
+      for v in parsedVariants do
+        if seenVariantNames.contains v.name then
+          throwErrorAt v.ident s!"duplicate variant name '{v.name}' in ADT '{toString name.getId}'"
+        seenVariantNames := seenVariantNames.push v.name
+      pure { ident := name, name := toString name.getId, variants := parsedVariants }
+  | _ => throwErrorAt stx "invalid ADT declaration"
+
+private def parseError (newtypes : Array NewtypeDecl) (adtDecls : Array AdtDecl) (stx : Syntax) : CommandElabM ErrorDecl := do
   match stx with
   | `(verityError| error $name:ident ($[$params:term],*)) =>
       pure {
         ident := name
         name := toString name.getId
-        params := ← params.mapM valueTypeFromSyntax
+        params := ← params.mapM (valueTypeFromSyntax newtypes adtDecls)
       }
   | _ => throwErrorAt stx "invalid custom error declaration"
 
-private def parseConstant (stx : Syntax) : CommandElabM ConstantDecl := do
+private def parseConstant (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM ConstantDecl := do
   match stx with
   | `(verityConstant| $name:ident : $ty:term := $body:term) =>
       pure {
         ident := name
         name := toString name.getId
-        ty := ← valueTypeFromSyntax ty
+        ty := ← valueTypeFromSyntax newtypes #[] ty
         body := body
       }
   | _ => throwErrorAt stx "invalid constant declaration"
 
-private def parseImmutable (stx : Syntax) : CommandElabM ImmutableDecl := do
+private def parseImmutable (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM ImmutableDecl := do
   match stx with
   | `(verityImmutable| $name:ident : $ty:term := $body:term) =>
       pure {
         ident := name
         name := toString name.getId
-        ty := ← valueTypeFromSyntax ty
+        ty := ← valueTypeFromSyntax newtypes #[] ty
         body := body
       }
   | _ => throwErrorAt stx "invalid immutable declaration"
 
-private def parseExternal (stx : Syntax) : CommandElabM ExternalDecl := do
+private def parseExternal (newtypes : Array NewtypeDecl) (adtDecls : Array AdtDecl) (stx : Syntax) : CommandElabM ExternalDecl := do
   match stx with
   | `(verityExternal| external $name:ident ($[$params:term],*) -> ($[$returnTys:term],*)) =>
       pure {
         ident := name
         name := toString name.getId
-        params := ← params.mapM valueTypeFromSyntax
-        returnTys := ← returnTys.mapM valueTypeFromSyntax
+        params := ← params.mapM (valueTypeFromSyntax newtypes adtDecls)
+        returnTys := ← returnTys.mapM (valueTypeFromSyntax newtypes adtDecls)
       }
   | `(verityExternal| external $name:ident ($[$params:term],*)) =>
       pure {
         ident := name
         name := toString name.getId
-        params := ← params.mapM valueTypeFromSyntax
+        params := ← params.mapM (valueTypeFromSyntax newtypes adtDecls)
         returnTys := #[]
       }
   | _ => throwErrorAt stx "invalid external declaration"
@@ -476,23 +614,60 @@ private def parseLocalObligation (stx : Syntax) : CommandElabM LocalObligationDe
       }
   | _ => throwErrorAt stx "invalid local obligation declaration"
 
+private structure ParsedMutability where
+  isPayable : Bool := false
+  isView : Bool := false
+  noExternalCalls : Bool := false
+  allowPostInteractionWrites : Bool := false
+  nonReentrantLock : Option Ident := none
+  ceiSafe : Bool := false
+
 private def parseMutabilityModifiers
     (mods : Array (TSyntax `verityMutability))
-    (stx : Syntax) : CommandElabM (Bool × Bool) := do
-  let mut isPayable := false
-  let mut isView := false
+    (stx : Syntax) : CommandElabM ParsedMutability := do
+  let mut result : ParsedMutability := {}
   for mod in mods do
     match mod with
     | `(verityMutability| payable) =>
-        if isPayable then
+        if result.isPayable then
           throwErrorAt mod "duplicate 'payable' modifier"
-        isPayable := true
+        result := { result with isPayable := true }
     | `(verityMutability| view) =>
-        if isView then
+        if result.isView then
           throwErrorAt mod "duplicate 'view' modifier"
-        isView := true
+        result := { result with isView := true }
+    | `(verityMutability| no_external_calls) =>
+        if result.noExternalCalls then
+          throwErrorAt mod "duplicate 'no_external_calls' modifier"
+        result := { result with noExternalCalls := true }
+    | `(verityMutability| allow_post_interaction_writes) =>
+        if result.allowPostInteractionWrites then
+          throwErrorAt mod "duplicate 'allow_post_interaction_writes' modifier"
+        result := { result with allowPostInteractionWrites := true }
+    | `(verityMutability| nonreentrant($field:ident)) =>
+        if result.nonReentrantLock.isSome then
+          throwErrorAt mod "duplicate 'nonreentrant' modifier"
+        result := { result with nonReentrantLock := some field }
+    | `(verityMutability| cei_safe) =>
+        if result.ceiSafe then
+          throwErrorAt mod "duplicate 'cei_safe' modifier"
+        result := { result with ceiSafe := true }
     | _ => throwErrorAt stx "invalid function mutability modifier"
-  pure (isPayable, isView)
+  pure result
+
+private def parseModifies (stx : TSyntax `verityModifies) : CommandElabM (Array Ident) := do
+  match stx with
+  | `(verityModifies| modifies($[$fields:ident],*)) =>
+      let result := fields
+      -- Check for duplicates
+      let mut seen : Array String := #[]
+      for f in result do
+        let s := toString f.getId
+        if seen.contains s then
+          throwErrorAt f s!"duplicate field '{s}' in modifies annotation"
+        seen := seen.push s
+      pure result
+  | _ => throwErrorAt stx "invalid modifies annotation"
 
 private def parseInitGuard (stx : TSyntax `verityInitGuard) : CommandElabM InitGuardDecl := do
   match stx with
@@ -546,16 +721,27 @@ private def parseSpecialEntrypoint (stx : Syntax) : CommandElabM FunctionDecl :=
       }
   | _ => throwErrorAt stx "invalid special entrypoint declaration"
 
-private def parseFunction (stx : Syntax) : CommandElabM FunctionDecl := do
+private def parseFunction (newtypes : Array NewtypeDecl) (adtDecls : Array AdtDecl := #[]) (stx : Syntax) : CommandElabM FunctionDecl := do
   match stx with
-  | `(verityFunction| function $[$mods:verityMutability]* $name:ident ($[$params:verityParam],*) $[$guard?:verityInitGuard]? $[$localObligations?:verityLocalObligations]? : $retTy:term := $body:term) => do
-      let (isPayable, isView) ← parseMutabilityModifiers mods stx
-      let parsedParams ← params.mapM parseParam
-      let parsedReturnTy ← valueTypeFromSyntax retTy
+  | `(verityFunction| function $[$mods:verityMutability]* $name:ident ($[$params:verityParam],*) $[$guard?:verityInitGuard]? $[$requiresRoleClause?:verityRequiresRole]? $[$modifiesClause?:verityModifies]? $[$localObligations?:verityLocalObligations]? : $retTy:term := $body:term) => do
+      let mut_ ← parseMutabilityModifiers mods stx
+      let parsedParams ← params.mapM (parseParam newtypes adtDecls)
+      let parsedReturnTy ← valueTypeFromSyntax newtypes adtDecls retTy
       let parsedGuard? ←
         match guard? with
         | some guard => pure (some (← parseInitGuard guard))
         | none => pure none
+      let parsedRequiresRole ←
+        match requiresRoleClause? with
+        | some roleClause =>
+            match roleClause with
+            | `(verityRequiresRole| requires($roleField:ident)) => pure (some roleField)
+            | _ => throwErrorAt roleClause "invalid requires annotation"
+        | none => pure none
+      let parsedModifies ←
+        match modifiesClause? with
+        | some modClause => parseModifies modClause
+        | none => pure #[]
       let parsedLocalObligations ←
         match localObligations? with
         | some obligations => parseLocalObligations obligations
@@ -565,38 +751,44 @@ private def parseFunction (stx : Syntax) : CommandElabM FunctionDecl := do
         name := toString name.getId
         params := parsedParams
         returnTy := parsedReturnTy
-        isPayable := isPayable
-        isView := isView
+        isPayable := mut_.isPayable
+        isView := mut_.isView
+        noExternalCalls := mut_.noExternalCalls
+        allowPostInteractionWrites := mut_.allowPostInteractionWrites
+        nonReentrantLock := mut_.nonReentrantLock
+        ceiSafe := mut_.ceiSafe
+        requiresRole := parsedRequiresRole
         initGuard? := parsedGuard?
+        modifies := parsedModifies
         localObligations := parsedLocalObligations
         body := body
       }
   | _ => throwErrorAt stx "invalid function declaration"
 
-private def parseConstructor (stx : Syntax) : CommandElabM ConstructorDecl := do
+private def parseConstructor (newtypes : Array NewtypeDecl) (adtDecls : Array AdtDecl := #[]) (stx : Syntax) : CommandElabM ConstructorDecl := do
   match stx with
   | `(verityConstructor| constructor ($[$params:verityParam],*) payable local_obligations [ $[$obligations:verityLocalObligation],* ] := $body:term) =>
       pure {
-        params := ← params.mapM parseParam
+        params := ← params.mapM (parseParam newtypes adtDecls)
         isPayable := true
         localObligations := ← obligations.mapM parseLocalObligation
         body := body
       }
   | `(verityConstructor| constructor ($[$params:verityParam],*) payable := $body:term) =>
       pure {
-        params := ← params.mapM parseParam
+        params := ← params.mapM (parseParam newtypes adtDecls)
         isPayable := true
         body := body
       }
   | `(verityConstructor| constructor ($[$params:verityParam],*) local_obligations [ $[$obligations:verityLocalObligation],* ] := $body:term) =>
       pure {
-        params := ← params.mapM parseParam
+        params := ← params.mapM (parseParam newtypes adtDecls)
         localObligations := ← obligations.mapM parseLocalObligation
         body := body
       }
   | `(verityConstructor| constructor ($[$params:verityParam],*) := $body:term) =>
       pure {
-        params := ← params.mapM parseParam
+        params := ← params.mapM (parseParam newtypes adtDecls)
         body := body
       }
   | _ => throwErrorAt stx "invalid constructor declaration"
@@ -604,8 +796,14 @@ private def parseConstructor (stx : Syntax) : CommandElabM ConstructorDecl := do
 private def immutableHiddenName (imm : ImmutableDecl) : String :=
   s!"__immutable_{imm.name}"
 
+private def storageFieldFootprintSize (field : StorageFieldDecl) : Nat :=
+  match field.ty with
+  | .scalar (.adt _ maxFields) => maxFields + 1
+  | _ => 1
+
 private def immutableSlotIndex (fields : Array StorageFieldDecl) (idx : Nat) : Nat :=
-  let nextUserSlot := fields.foldl (fun maxSlot field => max maxSlot (field.slotNum + 1)) 0
+  let nextUserSlot := fields.foldl (fun maxSlot field =>
+    max maxSlot (field.slotNum + storageFieldFootprintSize field)) 0
   nextUserSlot + idx
 
 private def immutableSlotIdent (imm : ImmutableDecl) : Ident :=
@@ -623,6 +821,7 @@ def immutableStorageFieldDecl
       | .address => .scalar .address
       | _ => .scalar imm.ty
     slotNum := immutableSlotIndex fields idx
+    adtInfo? := none
   }
 
 private def validateImmutableType (imm : ImmutableDecl) : CommandElabM Unit :=
@@ -643,8 +842,24 @@ private def validateImmutableBodyType
   liftTermElabM do
     discard <| Lean.Elab.Term.elabTerm wrappedBody none
 
+private partial def containsAdtValueType : ValueType → Bool
+  | .adt _ _ => true
+  | .newtype _ baseType => containsAdtValueType baseType
+  | .array elemTy => containsAdtValueType elemTy
+  | .tuple elemTys => elemTys.any containsAdtValueType
+  | _ => false
+
+private def rejectExecutableBoundaryAdt
+    (stx : Syntax)
+    (context : String)
+    (ty : ValueType) : CommandElabM Unit := do
+  if containsAdtValueType ty then
+    throwErrorAt stx
+      s!"{context} uses an ADT at the executable contract boundary. ADT storage is supported, but ABI/function boundary ADT lowering is not yet implemented; pass scalar fields explicitly or keep the ADT in storage."
+
 private def externalExecutableWordType? : ValueType → Bool
   | .uint256 | .int256 | .uint8 | .address | .bytes32 | .bool => true
+  | .newtype _ baseType => externalExecutableWordType? baseType
   | _ => false
 
 private def validateExternalExecutableType
@@ -775,6 +990,62 @@ private def mkInitGuardedBody
                   require ($currentVersion < $(initGuardVersionTerm version)) $message
                   setStorage $field.ident $(initGuardVersionTerm version)
                   $[$elems:doElem]*)
+      | _ => throwErrorAt fn.body "function body must be a do block"
+
+/-- Resolve the storage field referenced by a `requires(role)` annotation.
+    The role must be an Address-typed scalar storage field. -/
+private def resolveRoleField
+    (fields : Array StorageFieldDecl) (roleIdent : Ident) (fnIdent : Ident)
+    : CommandElabM StorageFieldDecl := do
+  let roleName := toString roleIdent.getId
+  match fields.find? (fun f => f.name == roleName) with
+  | none =>
+      throwErrorAt roleIdent s!"function '{toString fnIdent.getId}': requires references unknown storage field '{roleName}'; known fields: {(fields.map (·.name)).toList}"
+  | some field =>
+      match field.ty with
+      | .scalar .address | .scalar (.newtype _ .address) => pure field
+      | _ => throwErrorAt roleIdent s!"function '{toString fnIdent.getId}': requires({roleName}) must reference an Address-typed storage field, but '{roleName}' has a different type"
+
+/-- Generate IR-level prelude statements for a `requires(role)` annotation.
+    Injects `Stmt.require (Expr.eq Expr.caller (Expr.storage roleField)) "Access denied: only role"`.
+    (#1728, Axis 2 Step 2c) -/
+private def roleGuardPreludeStmtTerms
+    (fields : Array StorageFieldDecl)
+    (fn : FunctionDecl) : CommandElabM (Array Term) := do
+  match fn.requiresRole with
+  | none => pure #[]
+  | some roleIdent =>
+      let field ← resolveRoleField fields roleIdent fn.ident
+      let message := strTerm s!"Access denied: caller is not {field.name}"
+      pure #[
+        ← `(Compiler.CompilationModel.Stmt.require
+              (Compiler.CompilationModel.Expr.eq
+                (Compiler.CompilationModel.Expr.caller)
+                (Compiler.CompilationModel.Expr.storageAddr $(strTerm field.name)))
+              $message)
+      ]
+
+/-- Transform the source-level do-block body to inject a role access control check
+    at the start.  Injects `let __sender ← msgSender; let __roleHolder ← getStorageAddr field;
+    require (__sender == __roleHolder) "Access denied: caller is not role"`.
+    (#1728, Axis 2 Step 2c) -/
+private def mkRoleGuardedBody
+    (fields : Array StorageFieldDecl)
+    (fn : FunctionDecl) : CommandElabM Term := do
+  match fn.requiresRole with
+  | none => pure fn.body
+  | some roleIdent =>
+      let field ← resolveRoleField fields roleIdent fn.ident
+      let senderVar := mkIdent (Name.mkSimple s!"__verity_role_sender_{field.name}")
+      let holderVar := mkIdent (Name.mkSimple s!"__verity_role_holder_{field.name}")
+      let message := strTerm s!"Access denied: caller is not {field.name}"
+      match fn.body with
+      | `(term| do $[$elems:doElem]*) =>
+          `(do
+              let $senderVar ← msgSender
+              let $holderVar ← getStorageAddr $field.ident
+              require ($senderVar == $holderVar) $message
+              $[$elems:doElem]*)
       | _ => throwErrorAt fn.body "function body must be a do block"
 
 private def mkImmutableBoundBody
@@ -910,14 +1181,17 @@ private def typedLocalNames (locals : Array TypedLocal) : Array String :=
 
 private def isSignedWordValueType : ValueType → Bool
   | .int256 => true
+  | .newtype _ baseType => isSignedWordValueType baseType
   | _ => false
 
 private def isWordLikeValueType : ValueType → Bool
   | .uint256 | .int256 | .uint8 | .address | .bytes32 => true
+  | .newtype _ baseType => isWordLikeValueType baseType
   | _ => false
 
 private def isSingleWordStaticValueType : ValueType → Bool
   | .bool => true
+  | .newtype _ baseType => isSingleWordStaticValueType baseType
   | ty => isWordLikeValueType ty
 
 private def classifyWordArithmeticResultType
@@ -1116,6 +1390,8 @@ private def requireDeclaredValueType
 private partial def localBindingUsesDynamicData : ValueType → Bool
   | .string | .bytes | .array _ => true
   | .tuple elemTys => elemTys.any localBindingUsesDynamicData
+  | .newtype _ baseType => localBindingUsesDynamicData baseType
+  | .adt _ _ => false  -- ADTs are stored as tag + fixed-width slots, not dynamic
   | .uint256 | .int256 | .uint8 | .address | .bytes32 | .bool | .unit => false
 
 private def requireSupportedLocalBindingType
@@ -1128,6 +1404,7 @@ private def requireSupportedLocalBindingType
 
 private def customErrorRequiresDirectParamRef : ValueType → Bool
   | .uint256 | .int256 | .uint8 | .address | .bool | .bytes32 => false
+  | .newtype _ baseType => customErrorRequiresDirectParamRef baseType
   | _ => true
 
 private def directParamRefName? (stx : Term) : Option String :=
@@ -1386,7 +1663,8 @@ private partial def inferPureExprType
       | some ext =>
           match ext.returnTys.toList with
           | [retTy] => pure retTy
-          | _ => pure .uint256
+          | [] => throwErrorAt name s!"externalCall '{extName}' returns no values; use `let success ← tryExternalCall \"{extName}\" [...]` instead"
+          | _ => throwErrorAt name s!"externalCall '{extName}' returns {ext.returnTys.size} values; use `let (success, ...) ← tryExternalCall \"{extName}\" [...]` for multi-return"
       | none => pure .uint256
   | `(term| structMember $field:term $key:term $member:term) => do
       let fieldName := ← expectStringOrIdent field
@@ -1429,6 +1707,9 @@ private partial def inferBindSourceType
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
       | .scalar .uint256 => pure .uint256
+      | .scalar (.newtype ntName (.uint256)) => pure (.newtype ntName .uint256)
+      | .scalar (.adt name maxFields) => pure (.adt name maxFields)
+      | .scalar (.newtype _ (.address)) => throwErrorAt rhs s!"field '{f.name}' is Address-based newtype; use getStorageAddr"
       | .scalar .address => throwErrorAt rhs s!"field '{f.name}' is Address; use getStorageAddr"
       | .scalar .bool => throwErrorAt rhs s!"field '{f.name}' is Bool; encode as Uint256 and use getStorage"
       | .dynamicArray _ => throwErrorAt rhs s!"field '{f.name}' is a storage dynamic array; use getStorageArrayLength/getStorageArrayElement"
@@ -1439,6 +1720,8 @@ private partial def inferBindSourceType
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
       | .scalar .address => pure .address
+      | .scalar (.newtype ntName (.address)) => pure (.newtype ntName .address)
+      | .scalar (.newtype _ (.uint256)) => throwErrorAt rhs s!"field '{f.name}' is Uint256-based newtype; use getStorage"
       | .scalar .uint256 => throwErrorAt rhs s!"field '{f.name}' is Uint256; use getStorage"
       | .scalar .bool => throwErrorAt rhs s!"field '{f.name}' is Bool; use getStorage"
       | .dynamicArray _ => throwErrorAt rhs s!"field '{f.name}' is a storage dynamic array; use getStorageArrayLength/getStorageArrayElement"
@@ -1563,6 +1846,22 @@ private partial def inferBindSourceType
               (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x)
       | _ => throwErrorAt args "expected list literal [..]"
       pure .uint256
+  | `(term| tryExternalCall $name:term $args:term) => do
+      let extName := ← expectStringOrIdent name
+      match stripParens args with
+      | `(term| [ $[$xs],* ]) =>
+          for x in xs do
+            requireWordLikeType x s!"tryExternalCall '{extName}' argument"
+              (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x)
+      | _ => throwErrorAt args "expected list literal [..]"
+      match externalDecls.find? (fun ext => ext.name == extName) with
+      | some ext =>
+          if ext.returnTys.size > 0 then
+            throwErrorAt rhs s!"tryExternalCall '{extName}' returns {ext.returnTys.size} value(s); use tuple destructuring: `let (success, ...) ← tryExternalCall ...`"
+          -- Zero-return external: success flag only
+          pure .bool
+      | none =>
+          throwErrorAt rhs s!"unknown external function '{extName}'"
   | `(term| requireSomeUint $optExpr:term $_msg:term) =>
       match stripParens optExpr with
       | `(term| safeAdd $a:term $b:term) | `(term| safeSub $a:term $b:term) => do
@@ -1625,6 +1924,23 @@ private partial def inferTupleSourceTypes?
           requireWordLikeType key1 "structMembers2 key" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals key1)
           requireWordLikeType key2 "structMembers2 key" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals key2)
           pure (some (Array.replicate memberNames.size .uint256))
+      | `(term| tryExternalCall $name:term $args:term) =>
+          let extName := ← expectStringOrIdent name
+          match stripParens args with
+          | `(term| [ $[$xs],* ]) =>
+              for x in xs do
+                requireWordLikeType x s!"tryExternalCall '{extName}' argument"
+                  (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x)
+          | _ => throwErrorAt args "expected list literal [..]"
+          match externalDecls.find? (fun ext => ext.name == extName) with
+          | some ext =>
+              -- tryExternalCall returns (success : Bool, result₁ : T₁, ..., resultₙ : Tₙ)
+              pure (some (#[.bool] ++ ext.returnTys))
+          | none =>
+              -- When called from translation path with empty externalDecls, return none
+              -- to let the tryExternalCallBindStmt? helper handle translation.
+              -- The validation path (with real externalDecls) catches actual errors.
+              pure none
       | other =>
           match matchLocalFunctionApp? functions other with
           | some (fn, argTerms) =>
@@ -2195,6 +2511,65 @@ private def tupleInternalCallAssignStmt?
   | none =>
       pure none
 
+/-- Try to translate a tuple‐destructured `tryExternalCall "name" [args]` RHS into
+    a `Stmt.tryExternalCallBind` term.  Returns `none` when the RHS is not a
+    `tryExternalCall` application.  Returns the statement term and the inferred
+    types for each bound name (Bool for success flag, Uint256 for all result
+    vars — precise return types require external decl lookup which happens in
+    the validation pass).  (#1727, Axis 1 Step 5f) -/
+private def tryExternalCallBindStmt?
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (rhs : Term)
+    (names : Array (Option String)) : CommandElabM (Option (Term × Array ValueType)) := do
+  let rhs := stripParens rhs
+  match rhs with
+  | `(term| tryExternalCall $name:term $args:term) =>
+      let extName := ← expectStringOrIdent name
+      let argExprs ← match stripParens args with
+        | `(term| [ $[$xs],* ]) =>
+            xs.mapM (translatePureExprWithTypes fields constDecls immutableDecls params locals)
+        | _ => throwErrorAt args "expected list literal [..]"
+      -- names[0] is the success flag, names[1..] are result vars
+      let initialUsedNames := (params.toList.map (fun p => p.name)) ++ (typedLocalNames locals).toList ++ (names.filterMap id).toList
+      let (_, targetNamesRev) := names.toList.zipIdx.foldl
+        (fun (acc : List String × List String) (name?, idx) =>
+          let (usedNames, targetNamesRev) := acc
+          let targetName := match name? with
+            | some name => name
+            | none => freshDiscardName usedNames idx
+          (targetName :: usedNames, targetName :: targetNamesRev))
+        (initialUsedNames, [])
+      let targetNames := targetNamesRev.reverse
+      let successVar := match targetNames.head? with
+        | some n => n
+        | none => "_try_success"
+      let resultVars := targetNames.drop 1
+      let successVarTerm := strTerm successVar
+      let resultVarTerms := resultVars.toArray.map strTerm
+      let stmt ← `(Compiler.CompilationModel.Stmt.tryExternalCallBind
+          $successVarTerm
+          [ $[$resultVarTerms],* ]
+          $(strTerm extName)
+          [ $[$argExprs],* ])
+      let resultTys ←
+        match externalDecls.find? (fun ext => ext.name == extName) with
+        | some ext =>
+            if ext.returnTys.size != resultVars.length then
+              throwErrorAt rhs s!"tryExternalCall '{extName}' binds {resultVars.length} result value(s), but the external declaration returns {ext.returnTys.size}"
+            pure ext.returnTys
+        | none =>
+            -- Validation reports the unknown external with full context; keep
+            -- translation moving with word-shaped placeholders.
+            pure (Array.replicate resultVars.length .uint256)
+      let tys := #[ValueType.bool] ++ resultTys
+      pure (some (stmt, tys))
+  | _ => pure none
+
 private def expectExprList
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
@@ -2220,9 +2595,11 @@ private def translateBindSource
   | `(term| getStorage $field:ident) =>
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
-      | .scalar .uint256 => `(Compiler.CompilationModel.Expr.storage $(strTerm f.name))
+      | .scalar .uint256 | .scalar (.newtype _ .uint256) | .scalar (.adt _ _) =>
+          `(Compiler.CompilationModel.Expr.storage $(strTerm f.name))
       | .scalar .bool => throwErrorAt rhs s!"field '{f.name}' is Bool; encode as Uint256 and use getStorage"
-      | .scalar .address => throwErrorAt rhs s!"field '{f.name}' is Address; use getStorageAddr"
+      | .scalar .address | .scalar (.newtype _ .address) =>
+          throwErrorAt rhs s!"field '{f.name}' is Address; use getStorageAddr"
       | .scalar .unit => throwErrorAt rhs "invalid field type"
       | .dynamicArray _ => throwErrorAt rhs s!"field '{f.name}' is a storage dynamic array; use getStorageArrayLength/getStorageArrayElement"
       | .mappingStruct _ _ | .mappingStruct2 _ _ _ =>
@@ -2231,8 +2608,10 @@ private def translateBindSource
   | `(term| getStorageAddr $field:ident) =>
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
-      | .scalar .address => `(Compiler.CompilationModel.Expr.storageAddr $(strTerm f.name))
-      | .scalar .uint256 => throwErrorAt rhs s!"field '{f.name}' is Uint256; use getStorage"
+      | .scalar .address | .scalar (.newtype _ .address) =>
+          `(Compiler.CompilationModel.Expr.storageAddr $(strTerm f.name))
+      | .scalar .uint256 | .scalar (.newtype _ .uint256) =>
+          throwErrorAt rhs s!"field '{f.name}' is Uint256; use getStorage"
       | .scalar .bool => throwErrorAt rhs s!"field '{f.name}' is Bool; use getStorage"
       | .scalar .unit => throwErrorAt rhs "invalid field type"
       | .dynamicArray _ => throwErrorAt rhs s!"field '{f.name}' is a storage dynamic array; use getStorageArrayLength/getStorageArrayElement"
@@ -2591,6 +2970,9 @@ private partial def validateDoElemExprTypes
           validateTryCatchHandlerDoesNotUsePayload handler payloadName? catchElems
           let _ ← validateDoElemsExprTypes ownerName fields constDecls immutableDecls externalDecls errorDecls functions params locals catchElems
           pure locals
+      | `(doElem| unsafe $_reason:str do $body:doSeq) =>
+          validateDoSeqExprTypes ownerName fields constDecls immutableDecls externalDecls errorDecls functions params locals body
+          pure locals
       | `(doElem| $stmt:term) =>
           validateEffectStmtExprTypes fields constDecls immutableDecls externalDecls functions params locals stmt
           pure locals
@@ -2616,7 +2998,15 @@ private partial def validateEffectStmtExprTypes
   | `(term| safeApprove $token:term $spender:term $amount:term) =>
       for arg in [token, spender, amount] do
         requireWordLikeType arg "ERC-20 helper" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals arg)
-  | `(term| setStorage $_field:ident $value:term) | `(term| setStorageAddr $_field:ident $value:term)
+  | `(term| setStorage $field:ident $value:term) =>
+      let f ← lookupStorageField fields (toString field.getId)
+      match f.adtInfo?, f.ty with
+      | some _, _ => pure ()
+      | none, .scalar (.adt _ _) => pure ()
+      | _, _ =>
+          let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals value
+          pure ()
+  | `(term| setStorageAddr $_field:ident $value:term)
     | `(term| require $value:term $_msg) =>
       let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals value
       pure ()
@@ -2682,7 +3072,8 @@ private partial def validateEffectStmtExprTypes
       requireSupportedReturnStorageWordsType name "returnStorageWords" ty
   | `(term| internalCall $_fnName:term $args:term)
     | `(term| internalCallAssign $_names:term $_fnName:term $args:term)
-    | `(term| externalCallBind $_names:term $_fnName:term $args:term) =>
+    | `(term| externalCallBind $_names:term $_fnName:term $args:term)
+    | `(term| tryExternalCallBind $_successVar:term $_names:term $_fnName:term $args:term) =>
       match stripParens args with
       | `(term| [ $[$xs],* ]) =>
           for x in xs do
@@ -2785,6 +3176,66 @@ private def translateERC20BindStmt?
             [$tokenExpr]))
   | _ => pure none
 
+private def adtConstructorApp? (stx : Term) : Option (Ident × Array Term) :=
+  let stx := stripParens stx
+  match stx with
+  | `(term| $ctor:ident) => some (ctor, #[])
+  | `(term| $ctor:ident $args:term*) => some (ctor, args)
+  | _ => none
+
+private def adtConstructorSyntax? (stx : Term) : Option (String × Array Term) :=
+  let stx := stripParens stx
+  match stx with
+  | `(term| $variant:str) => some (variant.getString, #[])
+  | `(term| ($variant:str, [ $[$args:term],* ])) => some (variant.getString, args)
+  | `(term| adt $variant:str) => some (variant.getString, #[])
+  | `(term| adt $variant:str [ $[$args:term],* ]) => some (variant.getString, args)
+  | _ =>
+      match adtConstructorApp? stx with
+      | some (variant, args) =>
+          if toString variant.getId == "adt" then
+            match args with
+            | #[arg] =>
+                match stripParens arg with
+                | `(term| $variant:str) => some (variant.getString, #[])
+                | _ => none
+            | #[arg, argList] =>
+                match stripParens arg, stripParens argList with
+                | `(term| $variant:str), `(term| [ $[$payloadArgs:term],* ]) =>
+                    some (variant.getString, payloadArgs)
+                | _, _ => none
+            | _ => none
+          else
+            some (toString variant.getId, args)
+      | none => none
+
+private def translateAdtConstructForStorage
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (adtName : String)
+    (value : Term) : CommandElabM Term := do
+  match adtConstructorSyntax? value with
+  | some (variantName, args) =>
+      let argExprs ← args.mapM (translatePureExprWithTypes fields constDecls immutableDecls params locals)
+      `(Compiler.CompilationModel.Expr.adtConstruct
+          $(strTerm adtName)
+          $(strTerm variantName)
+          [ $[$argExprs],* ])
+  | none =>
+      throwErrorAt value
+        s!"ADT storage assignment for '{adtName}' must use a variant constructor so payload slots are preserved"
+
+private def storageFieldAdtName? (field : StorageFieldDecl) : Option String :=
+  match field.adtInfo? with
+  | some (adtName, _) => some adtName
+  | none =>
+      match field.ty with
+      | .scalar (.adt adtName _) => some adtName
+      | _ => none
+
 private def translateEffectStmt
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
@@ -2838,23 +3289,33 @@ private def translateEffectStmt
       `(Compiler.CompilationModel.Stmt.ecm
           $module
           [ $[$argExprs],* ])
-  | `(term| setStorage $field:ident $value) =>
+  | `(term| setStorage $field:ident $value:term) =>
       let f ← lookupStorageField fields (toString field.getId)
-      match f.ty with
-      | .scalar .uint256 =>
-          `(Compiler.CompilationModel.Stmt.setStorage $(strTerm f.name) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value))
-      | .scalar .address =>
-          throwErrorAt stx s!"field '{f.name}' is Address-valued; use setStorageAddr"
-      | .dynamicArray _ =>
-          throwErrorAt stx s!"field '{f.name}' is a storage dynamic array; use pushStorageArray/popStorageArray/setStorageArrayElement"
-      | _ =>
-          throwErrorAt stx s!"field '{f.name}' is not Uint256; use setStorageAddr"
+      match storageFieldAdtName? f with
+      | some adtName =>
+          `(Compiler.CompilationModel.Stmt.setStorage
+              $(strTerm f.name)
+              $(← translateAdtConstructForStorage fields constDecls immutableDecls params locals adtName value))
+      | none =>
+          match f.ty with
+          | .scalar .uint256 | .scalar (.newtype _ .uint256) =>
+              `(Compiler.CompilationModel.Stmt.setStorage $(strTerm f.name) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value))
+          | .scalar (.adt adtName _) =>
+              `(Compiler.CompilationModel.Stmt.setStorage
+                  $(strTerm f.name)
+                  $(← translateAdtConstructForStorage fields constDecls immutableDecls params locals adtName value))
+          | .scalar .address | .scalar (.newtype _ .address) =>
+              throwErrorAt stx s!"field '{f.name}' is Address-valued; use setStorageAddr"
+          | .dynamicArray _ =>
+              throwErrorAt stx s!"field '{f.name}' is a storage dynamic array; use pushStorageArray/popStorageArray/setStorageArrayElement"
+          | _ =>
+              throwErrorAt stx s!"field '{f.name}' is not Uint256; use setStorageAddr"
   | `(term| setStorageAddr $field:ident $value) =>
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
-      | .scalar .address =>
+      | .scalar .address | .scalar (.newtype _ .address) =>
           `(Compiler.CompilationModel.Stmt.setStorageAddr $(strTerm f.name) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value))
-      | .scalar .uint256 =>
+      | .scalar .uint256 | .scalar (.newtype _ .uint256) =>
           throwErrorAt stx s!"field '{f.name}' is Uint256-valued; use setStorage"
       | .dynamicArray _ =>
           throwErrorAt stx s!"field '{f.name}' is a storage dynamic array; use pushStorageArray/popStorageArray/setStorageArrayElement"
@@ -3117,6 +3578,7 @@ private partial def translateDoElems
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
     (functions : Array FunctionDecl)
     (params : Array ParamDecl)
     (locals : Array TypedLocal)
@@ -3127,7 +3589,7 @@ private partial def translateDoElems
   let mut stmts : Array Term := #[]
   for elem in elems do
     let (newStmts, newLocals, newMutableLocals) ←
-      translateDoElem fields constDecls immutableDecls functions params branchLocals branchMutableLocals elem
+      translateDoElem fields constDecls immutableDecls externalDecls functions params branchLocals branchMutableLocals elem
     stmts := stmts ++ newStmts
     branchLocals := newLocals
     branchMutableLocals := newMutableLocals
@@ -3137,6 +3599,7 @@ private partial def translateDoSeqToStmtTerms
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
     (functions : Array FunctionDecl)
     (params : Array ParamDecl)
     (locals : Array TypedLocal)
@@ -3144,13 +3607,14 @@ private partial def translateDoSeqToStmtTerms
     (doSeq : DoSeq) : CommandElabM (Array Term) := do
   match doSeq with
   | `(doSeq| $[$elems:doElem]*) =>
-      pure (← (translateDoElems fields constDecls immutableDecls functions params locals mutableLocals elems)).1
+      pure (← (translateDoElems fields constDecls immutableDecls externalDecls functions params locals mutableLocals elems)).1
   | _ => throwErrorAt doSeq "unsupported branch body; expected do-sequence"
 
 private partial def translateDoElem
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
     (functions : Array FunctionDecl)
     (params : Array ParamDecl)
     (locals : Array TypedLocal)
@@ -3177,7 +3641,7 @@ private partial def translateDoElem
                     name?.map (fun name => (name, valueExpr))
                   let stmts ← boundPairs.mapM fun (name, valueExpr) =>
                     `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
-                  let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls #[] functions params locals rhs
+                  let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                   match valueTys with
                   | some tys =>
                       let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
@@ -3186,13 +3650,18 @@ private partial def translateDoElem
               | none =>
                       match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls functions params locals rhs names) with
                   | some stmt =>
-                      let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls #[] functions params locals rhs
+                      let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                       match valueTys with
                       | some tys =>
                           let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
                           pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
                       | none => throwErrorAt rhs "unable to infer tuple local types"
-                  | none => throwErrorAt rhs "tuple destructuring currently requires a tuple literal, tuple-typed parameter, structMembers/structMembers2 source, or internal helper call"
+                  | none =>
+                      match (← tryExternalCallBindStmt? fields constDecls immutableDecls externalDecls params locals rhs names) with
+                      | some (stmt, tys) =>
+                          let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                          pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
+                      | none => throwErrorAt rhs "tuple destructuring currently requires a tuple literal, tuple-typed parameter, structMembers/structMembers2 source, internal helper call, or tryExternalCall"
           | _ =>
               match (← tupleLiteralOrStructValueExprs? fields constDecls immutableDecls params locals rhs) with
               | some valueExprs =>
@@ -3202,7 +3671,7 @@ private partial def translateDoElem
                     name?.map (fun name => (name, valueExpr))
                   let stmts ← boundPairs.mapM fun (name, valueExpr) =>
                     `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
-                  let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls #[] functions params locals rhs
+                  let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                   match valueTys with
                   | some tys =>
                       let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
@@ -3211,13 +3680,18 @@ private partial def translateDoElem
               | none =>
                 match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls functions params locals rhs names) with
                 | some stmt =>
-                    let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls #[] functions params locals rhs
+                    let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                     match valueTys with
                     | some tys =>
                         let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
                         pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
                     | none => throwErrorAt rhs "unable to infer tuple local types"
                 | none =>
+                  match (← tryExternalCallBindStmt? fields constDecls immutableDecls externalDecls params locals rhs names) with
+                  | some (stmt, tys) =>
+                      let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                      pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
+                  | none =>
                   let valueExprs ← tupleValueExprs fields constDecls immutableDecls params locals rhs
                   if names.size != valueExprs.size then
                     throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueExprs.size} values"
@@ -3225,7 +3699,7 @@ private partial def translateDoElem
                     name?.map (fun name => (name, valueExpr))
                   let stmts ← boundPairs.mapM fun (name, valueExpr) =>
                     `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
-                  let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls #[] functions params locals rhs
+                  let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                   match valueTys with
                   | some tys =>
                       let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
@@ -3240,13 +3714,18 @@ private partial def translateDoElem
           let rhs : Term := ⟨patDecl[2][0]⟩
           match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls functions params locals rhs names) with
           | some stmt =>
-              let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls #[] functions params locals rhs
+              let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
               match valueTys with
               | some tys =>
                   let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
                   pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
               | none => throwErrorAt rhs "unable to infer tuple local types"
-          | none => throwErrorAt rhs "tuple bind sources must be internal helper calls"
+          | none =>
+              match (← tryExternalCallBindStmt? fields constDecls immutableDecls externalDecls params locals rhs names) with
+              | some (stmt, tys) =>
+                  let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                  pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
+              | none => throwErrorAt rhs "tuple bind sources must be internal helper calls or tryExternalCall"
       | none => pure none
     else
       pure none
@@ -3258,7 +3737,7 @@ private partial def translateDoElem
           if localNames.contains varName then
             throwErrorAt name s!"duplicate local variable '{varName}'"
           let rhsExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals rhs
-          let ty ← inferPureExprType fields constDecls immutableDecls #[] params locals rhs
+          let ty ← inferPureExprType fields constDecls immutableDecls externalDecls params locals rhs
           pure
             (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
               locals.push (varName, ty),
@@ -3268,7 +3747,7 @@ private partial def translateDoElem
           if localNames.contains varName then
             throwErrorAt name s!"duplicate local variable '{varName}'"
           let rhsExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals rhs
-          let ty ← inferPureExprType fields constDecls immutableDecls #[] params locals rhs
+          let ty ← inferPureExprType fields constDecls immutableDecls externalDecls params locals rhs
           pure
             (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
               locals.push (varName, ty),
@@ -3299,6 +3778,19 @@ private partial def translateDoElem
                         [$hashExpr, $vExpr, $rExpr, $sExpr]))],
                   locals.push (varName, .address),
                   mutableLocals)
+          | `(term| tryExternalCall $extName:term $args:term) =>
+              -- Zero-return tryExternalCall: `let success ← tryExternalCall "fn" [args]`
+              -- produces Stmt.tryExternalCallBind successVar [] externalName args
+              let targetFn := ← expectStringOrIdent extName
+              let argExprs ← expectExprList fields constDecls immutableDecls params locals args
+              pure
+                (#[(← `(Compiler.CompilationModel.Stmt.tryExternalCallBind
+                        $(strTerm varName)
+                        []
+                        $(strTerm targetFn)
+                        [ $[$argExprs],* ]))],
+                  locals.push (varName, .bool),
+                  mutableLocals)
           | _ =>
               let safeBind? ← translateSafeRequireBind fields constDecls immutableDecls params locals varName rhs
               match safeBind? with
@@ -3309,7 +3801,7 @@ private partial def translateDoElem
                   pure (#[(stmt)], locals.push (varName, .uint256), mutableLocals)
               | none =>
                       let rhsExpr ← translateBindSource fields constDecls immutableDecls functions params locals rhs
-                      let ty ← inferBindSourceType fields constDecls immutableDecls #[] functions params locals rhs
+                      let ty ← inferBindSourceType fields constDecls immutableDecls externalDecls functions params locals rhs
                       pure
                         (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
                           locals.push (varName, ty),
@@ -3335,8 +3827,8 @@ private partial def translateDoElem
           pure (#[], locals, mutableLocals)
       | `(doElem| if $cond:term then $thenBranch:doSeq else $elseBranch:doSeq) =>
           let condExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals cond
-          let thenStmts ← translateDoSeqToStmtTerms fields constDecls immutableDecls functions params locals mutableLocals thenBranch
-          let elseStmts ← translateDoSeqToStmtTerms fields constDecls immutableDecls functions params locals mutableLocals elseBranch
+          let thenStmts ← translateDoSeqToStmtTerms fields constDecls immutableDecls externalDecls functions params locals mutableLocals thenBranch
+          let elseStmts ← translateDoSeqToStmtTerms fields constDecls immutableDecls externalDecls functions params locals mutableLocals elseBranch
           pure
             (#[(← `(Compiler.CompilationModel.Stmt.ite
               $condExpr
@@ -3351,7 +3843,7 @@ private partial def translateDoElem
           validateTryCatchHandlerDoesNotUsePayload handler payloadName? catchElems
           let attemptExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals attempt
           let catchTranslation ←
-            translateDoElems fields constDecls immutableDecls functions params locals mutableLocals catchElems
+            translateDoElems fields constDecls immutableDecls externalDecls functions params locals mutableLocals catchElems
           let catchStmts := catchTranslation.1
           pure
             (#[
@@ -3371,7 +3863,7 @@ private partial def translateDoElem
           let bodyStmts ←
             match stripParens body with
             | `(term| do $[$inner:doElem]*) =>
-                pure (← (translateDoElems fields constDecls immutableDecls functions params (locals.push (loopVar, .uint256)) mutableLocals inner)).1
+                pure (← (translateDoElems fields constDecls immutableDecls externalDecls functions params (locals.push (loopVar, .uint256)) mutableLocals inner)).1
             | _ => throwErrorAt body "forEach body must be a do block"
           pure
             (#[(← `(Compiler.CompilationModel.Stmt.forEach
@@ -3405,6 +3897,15 @@ private partial def translateDoElem
                     [ $[$argExprs],* ]))],
               locals,
               mutableLocals)
+      | `(doElem| unsafe $reason:str do $body:doSeq) =>
+          let bodyStmts ← translateDoSeqToStmtTerms fields constDecls immutableDecls externalDecls functions params locals mutableLocals body
+          let reasonStr := reason.getString
+          pure
+            (#[(← `(Compiler.CompilationModel.Stmt.unsafeBlock
+                    $(Lean.Quote.quote reasonStr)
+                    [ $[$bodyStmts],* ]))],
+              locals,
+              mutableLocals)
       | `(doElem| $stmt:term) =>
           pure (#[(← translateEffectStmt fields constDecls immutableDecls functions params locals stmt)], locals, mutableLocals)
       | _ => throwErrorAt elem "unsupported do element"
@@ -3414,12 +3915,14 @@ private def translateBodyToStmtTerms
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
     (functions : Array FunctionDecl)
     (fn : FunctionDecl) : CommandElabM (Array Term) := do
   match fn.body with
   | `(term| do $[$elems:doElem]*) =>
       let guardPrelude ← initGuardPreludeStmtTerms fields fn
-      let stmts := guardPrelude ++ (← translateDoElems fields constDecls immutableDecls functions fn.params #[] #[] elems).1
+      let rolePrelude ← roleGuardPreludeStmtTerms fields fn
+      let stmts := guardPrelude ++ rolePrelude ++ (← translateDoElems fields constDecls immutableDecls externalDecls functions fn.params #[] #[] elems).1
       let mut stmts := stmts
       if fn.returnTy == .unit then
         stmts := stmts.push (← `(Compiler.CompilationModel.Stmt.stop))
@@ -3430,11 +3933,12 @@ private def translateConstructorBodyToStmtTerms
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
     (functions : Array FunctionDecl)
     (ctor : ConstructorDecl) : CommandElabM (Array Term) := do
   match ctor.body with
   | `(term| do $[$elems:doElem]*) =>
-      pure (← (translateDoElems fields constDecls immutableDecls functions ctor.params #[] #[] elems)).1
+      pure (← (translateDoElems fields constDecls immutableDecls externalDecls functions ctor.params #[] #[] elems)).1
   | _ => throwErrorAt ctor.body "constructor body must be a do block"
 
 private def immutableInitStmtTerms
@@ -3526,6 +4030,13 @@ private def mkStorageDefCommand (field : StorageFieldDecl) : CommandElabM Cmd :=
     | .scalar (.array _) => throwError "storage field cannot be Array; use mapping encodings"
     | .scalar (.tuple _) => throwError "storage field cannot be Tuple; use mapping encodings"
     | .scalar .unit => throwError "storage field cannot be Unit"
+    | .scalar (.newtype _ baseType) =>
+        -- Newtypes erased to base type for storage (#1727 Step 3b)
+        match baseType with
+        | .uint256 => `(Uint256)
+        | .address => `(Address)
+        | _ => throwError "storage field with newtype base type not supported; use Uint256 or Address"
+    | .scalar (.adt _ _) => `(Uint256)  -- ADTs stored as tag value in storage (#1727 Step 5b)
     | .dynamicArray .uint256 => `(List Uint256)
     | .dynamicArray .address => `(List Address)
     | .dynamicArray .bool => `(List Bool)
@@ -3585,6 +4096,23 @@ private def mkModelLocalObligationTerm (obligation : LocalObligationDecl) : Comm
       $(strTerm obligation.obligation)
       $proofStatusTerm)
 
+private def mkAdtVariantTerm (variant : AdtVariantDecl) (tag : Nat) : CommandElabM Term := do
+  let fieldTerms ← variant.fields.mapM fun p => do
+    let tyTerm ← modelParamTypeTerm p.ty
+    `(Compiler.CompilationModel.Param.mk $(strTerm p.name) $tyTerm)
+  `(Compiler.CompilationModel.AdtVariant.mk
+      $(strTerm variant.name)
+      $(natTerm tag)
+      [ $[$fieldTerms],* ])
+
+private def mkAdtTypeDefTerm (adtDecl : AdtDecl) : CommandElabM Term := do
+  let mut variantTerms : Array Term := #[]
+  for (variant, idx) in adtDecl.variants.zipIdx do
+    variantTerms := variantTerms.push (← mkAdtVariantTerm variant idx)
+  `(Compiler.CompilationModel.AdtTypeDef.mk
+      $(strTerm adtDecl.name)
+      [ $[$variantTerms],* ])
+
 private def mkSpecCommand
     (contractName : String)
     (fields : Array StorageFieldDecl)
@@ -3593,7 +4121,9 @@ private def mkSpecCommand
     (immutableDecls : Array ImmutableDecl)
     (externalDecls : Array ExternalDecl)
     (ctor : Option ConstructorDecl)
-    (functions : Array FunctionDecl) : CommandElabM Cmd := do
+    (functions : Array FunctionDecl)
+    (adtDecls : Array AdtDecl)
+    (storageNamespace : Option Nat) : CommandElabM Cmd := do
   let immutableFields := immutableDecls.zipIdx.map (fun (imm, idx) => immutableStorageFieldDecl fields imm idx)
   let allFields := fields ++ immutableFields
   let fieldTerms ← allFields.mapM mkModelFieldTerm
@@ -3607,7 +4137,7 @@ private def mkSpecCommand
         let ctorPayable ← if ctor.isPayable then `(true) else `(false)
         let ctorLocalObligationTerms ← ctor.localObligations.mapM mkModelLocalObligationTerm
         let immutableInitTerms ← immutableInitStmtTerms fields constDecls immutableDecls ctor.params
-        let ctorBodyTerms ← translateConstructorBodyToStmtTerms fields constDecls immutableDecls functions ctor
+        let ctorBodyTerms ← translateConstructorBodyToStmtTerms fields constDecls immutableDecls externalDecls functions ctor
         let ctorAllTerms := immutableInitTerms ++ ctorBodyTerms
         `(some {
           params := $ctorParams
@@ -3631,6 +4161,16 @@ private def mkSpecCommand
       let localObligationTerms ← fn.localObligations.mapM mkModelLocalObligationTerm
       let payableTerm ← if fn.isPayable then `(true) else `(false)
       let viewTerm ← if fn.isView then `(true) else `(false)
+      let noExternalCallsTerm ← if fn.noExternalCalls then `(true) else `(false)
+      let allowPostInteractionWritesTerm ← if fn.allowPostInteractionWrites then `(true) else `(false)
+      let nonReentrantLockTerm ← match fn.nonReentrantLock with
+        | some lockIdent => `(some $(strTerm (toString lockIdent.getId)))
+        | none => `(none)
+      let ceiSafeTerm ← if fn.ceiSafe then `(true) else `(false)
+      let requiresRoleTerm ← match fn.requiresRole with
+        | some roleIdent => `(some $(strTerm (toString roleIdent.getId)))
+        | none => `(none)
+      let internalModifiesTerms : Array Term := fn.modifies.map fun ident => strTerm (toString ident.getId)
       let returnTypeTerm ← modelReturnTypeTerm fn.returnTy
       let returnsTerm ← modelReturnsTerm fn.returnTy
       pure <| some (← `( ({
@@ -3640,12 +4180,22 @@ private def mkSpecCommand
         «returns» := $returnsTerm
         isPayable := $payableTerm
         isView := $viewTerm
+        noExternalCalls := $noExternalCallsTerm
+        allowPostInteractionWrites := $allowPostInteractionWritesTerm
+        nonReentrantLock := $nonReentrantLockTerm
+        ceiSafe := $ceiSafeTerm
+        requiresRole := $requiresRoleTerm
+        modifies := [ $[$internalModifiesTerms],* ]
         localObligations := [ $[$localObligationTerms],* ]
         body := $modelBodyName
         isInternal := true
       } : Compiler.CompilationModel.FunctionSpec) ))
     else
       pure none
+  let adtTypeTerms ← adtDecls.mapM mkAdtTypeDefTerm
+  let namespaceTerm ← match storageNamespace with
+    | some ns => `(some $(natTerm ns))
+    | none => `(none)
   `(command| def spec : Compiler.CompilationModel.CompilationModel := {
     name := $(strTerm contractName)
     fields := [ $[$fieldTerms],* ]
@@ -3653,6 +4203,8 @@ private def mkSpecCommand
     «constructor» := $constructorTerm
     functions := [ $[$functionModelIds],*, $[$internalFunctionTerms],* ]
     «externals» := [ $[$externalTerms],* ]
+    adtTypes := [ $[$adtTypeTerms],* ]
+    storageNamespace := $namespaceTerm
   })
 
 private def mkFindIdxFieldSimpCommands
@@ -3733,37 +4285,114 @@ private def mkFindIdxParamSimpCommands
     cmds := cmds ++ fnCmds
   pure cmds
 
+/-- Convert a big-endian `ByteArray` to a `Nat`, treating byte 0 as most
+    significant.  Used for storage namespace computation (#1730, Axis 4). -/
+private def byteArrayToNatBE (ba : ByteArray) : Nat :=
+  ba.foldl (fun acc byte => acc * 256 + byte.toNat) 0
+
+/-- Compute the storage namespace for a contract.
+    `storageNamespace("Foo") = keccak256("Foo.storage.v0")` as a 256-bit Nat.
+    The result can be used as a base offset so different contracts never collide
+    in the shared 2^256 storage address space.
+    (#1730, Axis 4 Step 4a) -/
+def computeStorageNamespace (contractName : String) : Nat :=
+  byteArrayToNatBE (KeccakEngine.keccak256_str s!"{contractName}.storage.v0")
+
+/-- Compute a storage namespace from an explicit user-provided namespace key. -/
+def computeStorageNamespaceKey (key : String) : Nat :=
+  byteArrayToNatBE (KeccakEngine.keccak256_str key)
+
 def parseContractSyntax
     (stx : Syntax)
     : CommandElabM
-        (Ident × Array StorageFieldDecl × Array ErrorDecl × Array ConstantDecl × Array ImmutableDecl × Array ExternalDecl × Option ConstructorDecl × Array FunctionDecl) := do
+        (Ident × Array NewtypeDecl × Array AdtDecl × Array StorageFieldDecl × Array ErrorDecl × Array ConstantDecl × Array ImmutableDecl × Array ExternalDecl × Option ConstructorDecl × Array FunctionDecl × Option Nat) := do
   match stx with
-  | `(command| verity_contract $contractName:ident where storage $[$storageFields:verityStorageField]* $[errors $[$errorDecls:verityError]*]? $[constants $[$constantDecls:verityConstant]*]? $[immutables $[$immutableDecls:verityImmutable]*]? $[linked_externals $[$externalDecls:verityExternal]*]? $[$ctor:verityConstructor]? $[$entrypoints:veritySpecialEntrypoint]* $[$functions:verityFunction]*) =>
+  | `(command| verity_contract $contractName:ident where $[types $[$newtypeDecls:verityNewtype]*]? $[inductive $[$adtDecls:verityAdtDecl]*]? $[$nsSpec:verityNamespaceSpec]? storage $[$storageFields:verityStorageField]* $[errors $[$errorDecls:verityError]*]? $[constants $[$constantDecls:verityConstant]*]? $[immutables $[$immutableDecls:verityImmutable]*]? $[linked_externals $[$externalDecls:verityExternal]*]? $[$ctor:verityConstructor]? $[$entrypoints:veritySpecialEntrypoint]* $[$functions:verityFunction]*) =>
+      -- Parse newtypes first — they are needed by all downstream type resolution
+      let parsedNewtypes ←
+        match newtypeDecls with
+        | some decls => decls.mapM parseNewtype
+        | none => pure #[]
+      -- Validate: no duplicate type names
+      let mut seenNames : Array String := #[]
+      for nt in parsedNewtypes do
+        if seenNames.contains nt.name then
+          throwErrorAt nt.ident s!"duplicate type name '{nt.name}'"
+        seenNames := seenNames.push nt.name
+      -- Validate: type names don't shadow built-in types
+      let builtinTypeNames := #["Uint256", "Int256", "Uint8", "Address", "Bytes32", "Bool", "String", "Bytes", "Unit", "Array", "Tuple"]
+      for nt in parsedNewtypes do
+        if builtinTypeNames.contains nt.name then
+          throwErrorAt nt.ident s!"type name '{nt.name}' shadows a built-in type"
+      -- Parse ADT declarations (#1727, Axis 1 Step 5a)
+      let parsedAdts ←
+        match adtDecls with
+        | some decls => decls.mapM (parseAdtDecl parsedNewtypes)
+        | none => pure #[]
+      -- Validate: no duplicate ADT names
+      for adtDecl in parsedAdts do
+        if seenNames.contains adtDecl.name then
+          throwErrorAt adtDecl.ident s!"duplicate type name '{adtDecl.name}'"
+        seenNames := seenNames.push adtDecl.name
+      -- Validate: ADT names don't shadow built-in types
+      for adtDecl in parsedAdts do
+        if builtinTypeNames.contains adtDecl.name then
+          throwErrorAt adtDecl.ident s!"ADT name '{adtDecl.name}' shadows a built-in type"
+      -- Compute namespace offset (#1730, Axis 4 Steps 4b/4c): when `storage_namespace`
+      -- is present, every user-declared slot N becomes (namespaceBase + N).
+      -- With `storage_namespace "custom"`, the custom string replaces the default
+      -- "{ContractName}.storage.v0" key.
+      let namespaceOffset : Nat ←
+        match nsSpec with
+        | some spec =>
+            -- `storage_namespace` alone → default; `storage_namespace "key"` → custom.
+            -- Match the syntax category directly so the custom string is not lost
+            -- behind parser wrapper nodes.
+            match spec with
+            | `(verityNamespaceSpec| storage_namespace $customKey:str) =>
+                match customKey.raw.isStrLit? with
+                | some key => pure (computeStorageNamespaceKey key)
+                | none => throwErrorAt customKey "expected storage namespace string literal"
+            | `(verityNamespaceSpec| storage_namespace) =>
+                pure (computeStorageNamespace (toString contractName.getId))
+            | _ =>
+                throwErrorAt spec "unsupported storage namespace syntax"
+        | none => pure 0
       let parsedErrors ←
         match errorDecls with
-        | some decls => decls.mapM parseError
+        | some decls => decls.mapM (parseError parsedNewtypes parsedAdts)
         | none => pure #[]
       let parsedConstants ←
         match constantDecls with
-        | some decls => decls.mapM parseConstant
+        | some decls => decls.mapM (parseConstant parsedNewtypes)
         | none => pure #[]
       let parsedImmutables ←
         match immutableDecls with
-        | some decls => decls.mapM parseImmutable
+        | some decls => decls.mapM (parseImmutable parsedNewtypes)
         | none => pure #[]
       let parsedExternals ←
         match externalDecls with
-        | some decls => decls.mapM parseExternal
+        | some decls => decls.mapM (parseExternal parsedNewtypes parsedAdts)
         | none => pure #[]
+      -- Apply namespace offset to parsed storage fields (#1730, Axis 4 Step 4b)
+      let parsedFields ← storageFields.mapM (parseStorageField parsedNewtypes parsedAdts)
+      let parsedFields := parsedFields.map fun field =>
+        { field with slotNum := field.slotNum + namespaceOffset }
+      -- Compute the Option Nat for the spec's storageNamespace field (#1730, Axis 4 Step 4d)
+      let namespaceOpt : Option Nat :=
+        if nsSpec.isSome then some namespaceOffset else none
       pure
         ( contractName
-        , (← storageFields.mapM parseStorageField)
+        , parsedNewtypes
+        , parsedAdts
+        , parsedFields
         , parsedErrors
         , parsedConstants
         , parsedImmutables
         , parsedExternals
-        , (← ctor.mapM parseConstructor)
-        , (← entrypoints.mapM parseSpecialEntrypoint) ++ (← functions.mapM parseFunction)
+        , (← ctor.mapM (parseConstructor parsedNewtypes parsedAdts))
+        , (← entrypoints.mapM parseSpecialEntrypoint) ++ (← functions.mapM (parseFunction parsedNewtypes parsedAdts))
+        , namespaceOpt
         )
   | _ => throwErrorAt stx "invalid verity_contract declaration"
 
@@ -3776,6 +4405,16 @@ def mkStorageDefCommandPublic (field : StorageFieldDecl) : CommandElabM Cmd :=
 def mkConstantDefCommandPublic (constant : ConstantDecl) : CommandElabM Cmd :=
   mkConstantDefCommand constant
 
+/-- Generate a `def storageNamespace : Nat := <keccak-value>` command for
+    the current contract.  Uses the resolved namespace value from
+    `parseContractSyntax` to respect custom `storage_namespace "key"`.
+    (#1730, Axis 4 Step 4a) -/
+def mkStorageNamespaceCommand (contractName : String) (resolvedNamespace : Option Nat := none) : CommandElabM Cmd := do
+  let _ := contractName
+  let ns := resolvedNamespace.getD 0
+  let id : Ident := mkIdent (Name.mkSimple "storageNamespace")
+  `(command| def $id : Nat := $(natTerm ns))
+
 def validateConstantDeclsPublic (constDecls : Array ConstantDecl) : CommandElabM Unit := do
   for constant in constDecls do
     validateConstantBody constDecls constant.body [constant.name]
@@ -3785,7 +4424,7 @@ def validateGeneratedDefNamesPublic
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (functions : Array FunctionDecl) : CommandElabM Unit := do
-  let reservedGeneratedNames : Array String := #["spec"]
+  let reservedGeneratedNames : Array String := #["spec", "storageNamespace"]
   let mut generatedHelperNames : Array String := reservedGeneratedNames
 
   let mut storageNames : Array String := #[]
@@ -3831,12 +4470,17 @@ def validateGeneratedDefNamesPublic
        , s!"{fn.name}_model"
        , s!"{fn.name}_bridge"
        , s!"{fn.name}_semantic_preservation"
+       , s!"{fn.name}_is_view"
+       , s!"{fn.name}_no_calls"
+       , s!"{fn.name}_modifies"
+       , s!"{fn.name}_frame"
+       , s!"{fn.name}_frame_rfl"
+       , s!"{fn.name}_effects"
+       , s!"{fn.name}_cei_compliant"
+       , s!"{fn.name}_nonreentrant"
+       , s!"{fn.name}_cei_safe"
+       , s!"{fn.name}_requires_role"
        ]
-    let helperNames :=
-      if fn.isView then
-        helperNames.push s!"{fn.name}_is_view"
-      else
-        helperNames
     for helperName in helperNames do
       if storageNames.contains helperName then
         throwErrorAt fn.ident
@@ -3881,9 +4525,9 @@ def validateExternalDeclsPublic
     if seenNames.contains ext.name then
       throwErrorAt ext.ident
         s!"duplicate external declaration '{ext.name}'"
-    if ext.returnTys.size > 1 then
-      throwErrorAt ext.ident
-        s!"linked external '{ext.name}' currently supports at most one return value; statement-style external bindings are not exposed from verity_contract yet"
+    -- Multi-return externals are allowed; the auto-revert expression form (externalCall)
+    -- only supports single-return, but tryExternalCall supports any return count.
+    -- (#1727, Axis 1 Step 5f)
     for paramTy in ext.params do
       validateExternalExecutableType ext.ident ext.name paramTy "parameter"
     for returnTy in ext.returnTys do
@@ -3913,30 +4557,78 @@ def validateFunctionDeclsPublic
     (functions : Array FunctionDecl) : CommandElabM Unit := do
   match ctor with
   | some ctor =>
+      for param in ctor.params do
+        rejectExecutableBoundaryAdt param.ident s!"constructor parameter '{param.name}'" param.ty
       validateLocalObligationDecls "constructor" ctor.localObligations
       validateConstructorBodyExprTypes fields errorDecls constDecls immutableDecls externalDecls functions ctor
   | none => pure ()
   for fn in functions do
+    for param in fn.params do
+      rejectExecutableBoundaryAdt param.ident s!"function '{fn.name}' parameter '{param.name}'" param.ty
+    rejectExecutableBoundaryAdt fn.ident s!"function '{fn.name}' return type" fn.returnTy
     validateLocalObligationDecls s!"function '{fn.name}'" fn.localObligations
+    -- Validate modifies field names exist in the storage section
+    for modField in fn.modifies do
+      let modName := toString modField.getId
+      let allFieldNames := fields.map (·.name)
+      if !allFieldNames.contains modName then
+        throwErrorAt modField s!"function '{fn.name}': modifies references unknown storage field '{modName}'; known fields: {allFieldNames.toList}"
+    -- view functions must not use modifies (they already imply no writes)
+    if fn.isView && !fn.modifies.isEmpty then
+      throwErrorAt fn.ident s!"function '{fn.name}' is marked view and modifies(...); view already guarantees no state writes"
+    -- Validate nonreentrant lock field references a valid storage field of scalar uint256 type
+    match fn.nonReentrantLock with
+    | some lockField =>
+        let lockName := toString lockField.getId
+        let allFieldNames := fields.map (·.name)
+        match fields.find? (fun field => field.name == lockName) with
+        | none =>
+          throwErrorAt lockField s!"function '{fn.name}': nonreentrant references unknown storage field '{lockName}'; known fields: {allFieldNames.toList}"
+        | some field =>
+            match field.ty with
+            | .scalar .uint256 => pure ()
+            | _ =>
+                throwErrorAt lockField s!"function '{fn.name}': nonreentrant lock field '{lockName}' must be a scalar Uint256 storage field"
+    | none => pure ()
+    -- cei_safe and allow_post_interaction_writes are mutually exclusive with nonreentrant
+    if fn.ceiSafe && fn.allowPostInteractionWrites then
+      throwErrorAt fn.ident s!"function '{fn.name}': cei_safe and allow_post_interaction_writes are mutually exclusive"
+    if fn.nonReentrantLock.isSome && fn.allowPostInteractionWrites then
+      throwErrorAt fn.ident s!"function '{fn.name}': nonreentrant and allow_post_interaction_writes are mutually exclusive"
+    if fn.nonReentrantLock.isSome && fn.ceiSafe then
+      throwErrorAt fn.ident s!"function '{fn.name}': nonreentrant and cei_safe are mutually exclusive"
     validateFunctionBodyExprTypes fields errorDecls constDecls immutableDecls externalDecls functions fn
 
 def mkFunctionCommandsPublic
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
     (functions : Array FunctionDecl)
     (fn : FunctionDecl) : CommandElabM (Array Cmd) := do
   let fnType ← mkContractFnType fn.params fn.returnTy
-  let fnGuardedBody ← mkInitGuardedBody fields fn
+  let fnRoleGuardedBody ← mkRoleGuardedBody fields fn
+  let fnDecl := { fn with body := fnRoleGuardedBody }
+  let fnGuardedBody ← mkInitGuardedBody fields fnDecl
   let fnBody ← mkImmutableBoundBody fields immutableDecls fn fnGuardedBody
   let fnValue ← mkContractFnValue fn.params fnBody
   let modelBodyName ← mkSuffixedIdent fn.ident "_modelBody"
   let modelName ← mkSuffixedIdent fn.ident "_model"
-  let stmtTerms ← translateBodyToStmtTerms fields constDecls immutableDecls functions fn
+  let stmtTerms ← translateBodyToStmtTerms fields constDecls immutableDecls externalDecls functions fn
   let modelParams ← mkModelParamsTerm fn.params
   let localObligationTerms ← fn.localObligations.mapM mkModelLocalObligationTerm
   let payableTerm ← if fn.isPayable then `(true) else `(false)
   let viewTerm ← if fn.isView then `(true) else `(false)
+  let noExternalCallsTerm ← if fn.noExternalCalls then `(true) else `(false)
+  let allowPostInteractionWritesTerm ← if fn.allowPostInteractionWrites then `(true) else `(false)
+  let nonReentrantLockTerm ← match fn.nonReentrantLock with
+    | some lockIdent => `(some $(strTerm (toString lockIdent.getId)))
+    | none => `(none)
+  let ceiSafeTerm ← if fn.ceiSafe then `(true) else `(false)
+  let requiresRoleTerm ← match fn.requiresRole with
+    | some roleIdent => `(some $(strTerm (toString roleIdent.getId)))
+    | none => `(none)
+  let modifiesTerms : Array Term := fn.modifies.map fun ident => strTerm (toString ident.getId)
   let returnTypeTerm ← modelReturnTypeTerm fn.returnTy
   let returnsTerm ← modelReturnsTerm fn.returnTy
 
@@ -3949,6 +4641,12 @@ def mkFunctionCommandsPublic
     «returns» := $returnsTerm
     isPayable := $payableTerm
     isView := $viewTerm
+    noExternalCalls := $noExternalCallsTerm
+    allowPostInteractionWrites := $allowPostInteractionWritesTerm
+    nonReentrantLock := $nonReentrantLockTerm
+    ceiSafe := $ceiSafeTerm
+    requiresRole := $requiresRoleTerm
+    modifies := [ $[$modifiesTerms],* ]
     localObligations := [ $[$localObligationTerms],* ]
     body := $modelBodyName
   })
@@ -3962,8 +4660,10 @@ def mkSpecCommandPublic
     (immutableDecls : Array ImmutableDecl)
     (externalDecls : Array ExternalDecl)
     (ctor : Option ConstructorDecl)
-    (functions : Array FunctionDecl) : CommandElabM Cmd :=
-  mkSpecCommand contractName fields errorDecls constDecls immutableDecls externalDecls ctor functions
+    (functions : Array FunctionDecl)
+    (adtDecls : Array AdtDecl)
+    (storageNamespace : Option Nat) : CommandElabM Cmd :=
+  mkSpecCommand contractName fields errorDecls constDecls immutableDecls externalDecls ctor functions adtDecls storageNamespace
 
 def mkFindIdxFieldSimpCommandsPublic
     (contractIdent : Ident)

@@ -209,6 +209,11 @@ def validateInternalCallShapesInStmt
   | Stmt.forEach _ count body => do
       validateInternalCallShapesInExpr functions callerName count
       validateInternalCallShapesInStmtList functions callerName body
+  | Stmt.unsafeBlock _ body =>
+      validateInternalCallShapesInStmtList functions callerName body
+  | Stmt.matchAdt _ scrutinee branches => do
+      validateInternalCallShapesInExpr functions callerName scrutinee
+      validateInternalCallShapesInMatchBranches functions callerName branches
   | Stmt.emit _ args =>
       validateInternalCallShapesInExprList functions callerName args
   | Stmt.returnValues values =>
@@ -249,6 +254,8 @@ def validateInternalCallShapesInStmt
       validateInternalCallShapesInExpr functions callerName dataSize
   | Stmt.externalCallBind _resultVars _ args =>
       validateInternalCallShapesInExprList functions callerName args
+  | Stmt.tryExternalCallBind _ _resultVars _ args =>
+      validateInternalCallShapesInExprList functions callerName args
   | Stmt.ecm _ args =>
       validateInternalCallShapesInExprList functions callerName args
   | _ =>
@@ -263,6 +270,16 @@ def validateInternalCallShapesInStmtList
       validateInternalCallShapesInStmt functions callerName s
       validateInternalCallShapesInStmtList functions callerName ss
 termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def validateInternalCallShapesInMatchBranches
+    (functions : List FunctionSpec) (callerName : String) :
+    List (String × List String × List Stmt) → Except String Unit
+  | [] => pure ()
+  | (_, _, body) :: rest => do
+      validateInternalCallShapesInStmtList functions callerName body
+      validateInternalCallShapesInMatchBranches functions callerName rest
+termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 
@@ -422,6 +439,11 @@ def validateExternalCallTargetsInStmt
   | Stmt.forEach _ count body => do
       validateExternalCallTargetsInExpr externals context count
       validateExternalCallTargetsInStmtList externals context body
+  | Stmt.unsafeBlock _ body =>
+      validateExternalCallTargetsInStmtList externals context body
+  | Stmt.matchAdt _ scrutinee branches => do
+      validateExternalCallTargetsInExpr externals context scrutinee
+      validateExternalCallTargetsInMatchBranches externals context branches
   | Stmt.emit _ args =>
       validateExternalCallTargetsInExprList externals context args
   | Stmt.internalCall _ args =>
@@ -447,6 +469,37 @@ def validateExternalCallTargetsInStmt
                 else
                   checkDuplicateVars (name :: seen) rest
           checkDuplicateVars [] resultVars
+  | Stmt.tryExternalCallBind successVar resultVars externalName args => do
+      validateExternalCallTargetsInExprList externals context args
+      match externals.find? (fun ext => ext.name == externalName) with
+      | none =>
+          throw s!"Compilation error: {context} uses Stmt.tryExternalCallBind with unknown external function '{externalName}'."
+      | some ext => do
+          if args.length != ext.params.length then
+            throw s!"Compilation error: {context} calls external function '{externalName}' with {args.length} args, expected {ext.params.length}."
+          let returns ← externalFunctionReturns ext
+          if returns.length != resultVars.length then
+            throw s!"Compilation error: {context} binds {resultVars.length} values from external function '{externalName}', but it returns {returns.length}."
+          let tryName := s!"{externalName}_try"
+          match externals.find? (fun candidate => candidate.name == tryName) with
+          | none =>
+              throw s!"Compilation error: {context} uses Stmt.tryExternalCallBind for external function '{externalName}', but required linked wrapper '{tryName}' is not declared."
+          | some tryExt => do
+              if tryExt.params != ext.params then
+                throw s!"Compilation error: try wrapper '{tryName}' must take the same parameters as external function '{externalName}'."
+              let tryReturns ← externalFunctionReturns tryExt
+              let expectedTryReturns := ParamType.bool :: returns
+              if tryReturns != expectedTryReturns then
+                throw s!"Compilation error: try wrapper '{tryName}' must return Bool followed by the return values of external function '{externalName}'."
+          let allVars := successVar :: resultVars
+          let rec checkDuplicateTryVars (seen : List String) : List String → Except String Unit
+            | [] => pure ()
+            | name :: rest =>
+                if seen.contains name then
+                  throw s!"Compilation error: {context} uses Stmt.tryExternalCallBind with duplicate result variable '{name}'."
+                else
+                  checkDuplicateTryVars (name :: seen) rest
+          checkDuplicateTryVars [] allVars
   | Stmt.returnValues values =>
       validateExternalCallTargetsInExprList externals context values
   | Stmt.rawLog topics dataOffset dataSize => do
@@ -468,6 +521,16 @@ def validateExternalCallTargetsInStmtList
       validateExternalCallTargetsInStmtList externals context ss
 termination_by ss => sizeOf ss
 decreasing_by all_goals simp_wf; all_goals omega
+
+def validateExternalCallTargetsInMatchBranches
+    (externals : List ExternalFunction) (context : String) :
+    List (String × List String × List Stmt) → Except String Unit
+  | [] => pure ()
+  | (_, _, body) :: rest => do
+      validateExternalCallTargetsInStmtList externals context body
+      validateExternalCallTargetsInMatchBranches externals context rest
+termination_by bs => sizeOf bs
+decreasing_by all_goals simp_wf; all_goals omega
 end
 
 def validateExternalCallTargetsInFunction
@@ -487,6 +550,8 @@ def supportedCustomErrorParamType : ParamType → Bool
   | ParamType.array elemTy => supportedCustomErrorParamType elemTy
   | ParamType.fixedArray elemTy _ => supportedCustomErrorParamType elemTy
   | ParamType.tuple elemTys => supportedCustomErrorParamTypes elemTys
+  | ParamType.adt _ _ => true
+  | ParamType.newtypeOf _ baseType => supportedCustomErrorParamType baseType
 termination_by ty => sizeOf ty
 decreasing_by
   all_goals simp_wf

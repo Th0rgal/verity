@@ -35,11 +35,48 @@ import Compiler.CompilationModel.SelectorInteropHelpers
 import Compiler.CompilationModel.ExpressionCompile
 import Compiler.CompilationModel.StorageWrites
 import Compiler.CompilationModel.Validation
+import Compiler.CompilationModel.AdtStorageLayout
 
 namespace Compiler.CompilationModel
 
 open Compiler
 open Compiler.Yul
+
+private def compileAdtStorageWrite (fields : List Field)
+    (dynamicSource : DynamicDataSource) (adtTypes : List AdtTypeDef)
+    (storageField adtName variantName : String) (args : List Expr) :
+    Except String (List YulStmt) := do
+  let adt ← lookupAdtTypeDef adtTypes adtName
+  let variant ← lookupAdtVariant adt variantName
+  if args.length != variant.fields.length then
+    throw s!"Compilation error: ADT construct '{adtName}.{variantName}' expects {variant.fields.length} payload value(s), got {args.length}"
+  let (baseSlot, aliasSlots) ←
+    match findFieldWithResolvedSlot fields storageField with
+    | some (field, slot) =>
+        match field.ty with
+        | .adt fieldAdtName fieldMaxFields =>
+          if fieldAdtName != adtName then
+            throw s!"Compilation error: storage field '{storageField}' stores ADT '{fieldAdtName}', not '{adtName}'"
+          else if fieldMaxFields < adtMaxFieldSlots adt then
+            throw s!"Compilation error: storage field '{storageField}' reserves {fieldMaxFields} ADT payload slot(s), but ADT '{adtName}' needs {adtMaxFieldSlots adt}"
+          else
+            pure (slot, field.aliasSlots)
+        | _ =>
+            throw s!"Compilation error: storage field '{storageField}' is not ADT-typed"
+    | none => throw s!"Compilation error: unknown storage field '{storageField}' for ADT construct '{adtName}.{variantName}'"
+  let baseSlots := baseSlot :: aliasSlots
+  let argExprs ← compileExprList fields dynamicSource args
+  let tagStores := baseSlots.map fun slot =>
+    compileAdtTagWrite (YulExpr.lit slot) variant.tag
+  let payloadStores :=
+    baseSlots.flatMap fun slot =>
+      argExprs.zipIdx.map fun (argExpr, idx) =>
+        compileAdtFieldWrite (YulExpr.lit slot) idx argExpr
+  let clearStores :=
+    baseSlots.flatMap fun slot =>
+      (List.range (adtMaxFieldSlots adt)).drop args.length |>.map fun idx =>
+        compileAdtFieldWrite (YulExpr.lit slot) idx (YulExpr.lit 0)
+  pure (tagStores ++ payloadStores ++ clearStores)
 
 -- Compile statement to Yul (using mutual recursion for lists).
 -- When isInternal=true, Stmt.return compiles to `__ret := value; leave` so internal
@@ -50,13 +87,14 @@ def compileStmtList (fields : List Field) (events : List EventDef := [])
     (dynamicSource : DynamicDataSource := .calldata)
     (internalRetNames : List String := [])
     (isInternal : Bool := false)
-    (inScopeNames : List String := []) :
+    (inScopeNames : List String := [])
+    (adtTypes : List AdtTypeDef := []) :
     List Stmt → Except String (List YulStmt)
   | [] => pure []
   | s :: ss => do
-      let head ← compileStmt fields events errors dynamicSource internalRetNames isInternal inScopeNames s
+      let head ← compileStmt fields events errors dynamicSource internalRetNames isInternal inScopeNames adtTypes s
       let nextScopeNames := collectStmtNames s ++ inScopeNames
-      let tail ← compileStmtList fields events errors dynamicSource internalRetNames isInternal nextScopeNames ss
+      let tail ← compileStmtList fields events errors dynamicSource internalRetNames isInternal nextScopeNames adtTypes ss
       pure (head ++ tail)
 
 def compileStmt (fields : List Field) (events : List EventDef := [])
@@ -64,14 +102,22 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
     (dynamicSource : DynamicDataSource := .calldata)
     (internalRetNames : List String := [])
     (isInternal : Bool := false)
-    (inScopeNames : List String := []) :
+    (inScopeNames : List String := [])
+    (adtTypes : List AdtTypeDef := []) :
     Stmt → Except String (List YulStmt)
   | Stmt.letVar name value => do
       pure [YulStmt.let_ name (← compileExpr fields dynamicSource value)]
   | Stmt.assignVar name value => do
       pure [YulStmt.assign name (← compileExpr fields dynamicSource value)]
   | Stmt.setStorage field value =>
-      compileSetStorage fields dynamicSource field value
+      match adtTypes with
+      | [] => compileSetStorage fields dynamicSource field value
+      | _ =>
+          match value with
+          | Expr.adtConstruct adtName variantName args =>
+              compileAdtStorageWrite fields dynamicSource adtTypes field adtName variantName args
+          | _ =>
+              compileSetStorage fields dynamicSource field value
   | Stmt.setStorageAddr field value =>
       compileSetStorage fields dynamicSource field value true
   | Stmt.storageArrayPush field value =>
@@ -152,8 +198,8 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
   | Stmt.ite cond thenBranch elseBranch => do
       -- If/else: compile to Yul if + negated if (#179)
       let condExpr ← compileExpr fields dynamicSource cond
-      let thenStmts ← compileStmtList fields events errors dynamicSource internalRetNames isInternal inScopeNames thenBranch
-      let elseStmts ← compileStmtList fields events errors dynamicSource internalRetNames isInternal inScopeNames elseBranch
+      let thenStmts ← compileStmtList fields events errors dynamicSource internalRetNames isInternal inScopeNames adtTypes thenBranch
+      let elseStmts ← compileStmtList fields events errors dynamicSource internalRetNames isInternal inScopeNames adtTypes elseBranch
       if elseBranch.isEmpty then
         -- Simple if (no else)
         pure [YulStmt.if_ condExpr thenStmts]
@@ -173,11 +219,15 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
   | Stmt.forEach varName count body => do
       -- Bounded loop: for { let i := 0 } lt(i, count) { i := add(i, 1) } { body } (#179)
       let countExpr ← compileExpr fields dynamicSource count
-      let bodyStmts ← compileStmtList fields events errors dynamicSource internalRetNames isInternal (varName :: inScopeNames) body
+      let bodyStmts ← compileStmtList fields events errors dynamicSource internalRetNames isInternal (varName :: inScopeNames) adtTypes body
       let initStmts := [YulStmt.let_ varName (YulExpr.lit 0)]
       let condExpr := YulExpr.call "lt" [YulExpr.ident varName, countExpr]
       let postStmts := [YulStmt.assign varName (YulExpr.call "add" [YulExpr.ident varName, YulExpr.lit 1])]
       pure [YulStmt.for_ initStmts condExpr postStmts bodyStmts]
+
+  | Stmt.unsafeBlock _ body => do
+      -- Unsafe block: transparent wrapper, compile inner body directly (#1728, Axis 6 Step 6a)
+      compileStmtList fields events errors dynamicSource internalRetNames isInternal inScopeNames adtTypes body
 
   | Stmt.emit eventName args => do
       compileEmit fields events dynamicSource eventName args
@@ -195,6 +245,12 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
         pure [YulStmt.expr (YulExpr.call externalName argExprs)]
       else
         pure [YulStmt.letMany resultVars (YulExpr.call externalName argExprs)]
+  -- Try-call variant: calls {externalName}_try which returns (success, result...)
+  -- instead of reverting on failure. (#1727, Axis 1 Step 5f)
+  | Stmt.tryExternalCallBind successVar resultVars externalName args => do
+      let argExprs ← compileExprList fields dynamicSource args
+      let tryFnName := s!"{externalName}_try"
+      pure [YulStmt.letMany (successVar :: resultVars) (YulExpr.call tryFnName argExprs)]
   -- NOTE: safeTransfer, safeTransferFrom, externalCallWithReturn, callback, ecrecover
   -- have been removed. Use Stmt.ecm with the appropriate module from Compiler/Modules/.
   | Stmt.ecm mod args => do
@@ -315,6 +371,48 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
       let sizeExpr ← compileExpr fields dynamicSource dataSize
       let logFn := s!"log{topics.length}"
       pure [YulStmt.expr (YulExpr.call logFn ([offsetExpr, sizeExpr] ++ topicExprs))]
+  -- ADT pattern match: compile to YulStmt.switch on tag value (#1727 Steps 5c/5d)
+  | Stmt.matchAdt adtName scrutinee branches => do
+      let def_ ← lookupAdtTypeDef adtTypes adtName
+      -- Compile the scrutinee (tag value expression)
+      let scrutineeExpr ← compileExpr fields dynamicSource scrutinee
+      -- Extract storage field name from scrutinee for field bindings
+      let storageFieldName ← match scrutinee with
+        | Expr.adtTag scrutineeAdtName fieldName =>
+            if scrutineeAdtName == adtName then
+              pure fieldName
+            else
+              throw s!"Compilation error: matchAdt declared for '{adtName}' but scrutinee reads ADT '{scrutineeAdtName}'"
+        | _ => throw s!"Compilation error: matchAdt scrutinee for '{adtName}' must be an adtTag expression"
+      let baseSlot ← match findFieldSlot fields storageFieldName with
+        | some s => pure s
+        | none => throw s!"Compilation error: unknown storage field '{storageFieldName}' for matchAdt on '{adtName}'"
+      -- Build switch cases: each branch matches on the variant's tag
+      let cases ← compileMatchAdtBranches fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames adtTypes def_ baseSlot branches
+      -- Default case: revert (should be unreachable for exhaustive matches)
+      let defaultCase := [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])]
+      pure [YulStmt.switch scrutineeExpr cases (some defaultCase)]
+
+def compileMatchAdtBranches (fields : List Field) (events : List EventDef)
+    (errors : List ErrorDef) (dynamicSource : DynamicDataSource)
+    (internalRetNames : List String) (isInternal : Bool)
+    (inScopeNames : List String) (adtTypes : List AdtTypeDef)
+    (def_ : AdtTypeDef) (baseSlot : Nat) :
+    List (String × List String × List Stmt) → Except String (List (Nat × List YulStmt))
+  | [] => pure []
+  | (variantName, boundVarNames, body) :: rest => do
+      let variant ← lookupAdtVariant def_ variantName
+      if boundVarNames.length != variant.fields.length then
+        throw s!"Compilation error: match branch '{variantName}' of ADT '{def_.name}' binds {boundVarNames.length} variables, but the variant has {variant.fields.length} fields"
+      -- Bind each variable to sload(baseSlot + 1 + idx)
+      let fieldBindings := boundVarNames.zipIdx.map fun (varName, idx) =>
+        YulStmt.let_ varName (compileAdtFieldRead (YulExpr.lit baseSlot) idx)
+      let bodyStmts ← compileStmtList fields events errors dynamicSource internalRetNames isInternal
+        (boundVarNames.reverse ++ inScopeNames) adtTypes body
+      let restCases ← compileMatchAdtBranches fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames adtTypes def_ baseSlot rest
+      pure ((variant.tag, fieldBindings ++ bodyStmts) :: restCases)
 end
 
 end Compiler.CompilationModel

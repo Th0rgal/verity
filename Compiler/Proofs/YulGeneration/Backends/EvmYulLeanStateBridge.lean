@@ -26,7 +26,8 @@
     The bridge converts between word-level and byte-level representations.
 -/
 
-import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
+import Compiler.Proofs.YulGeneration.ReferenceOracle.State
 import EvmYul.Yul.State
 import EvmYul.SharedState
 import EvmYul.State.Account

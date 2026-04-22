@@ -1,4 +1,5 @@
 import Compiler.CompilationModel.ExpressionCompile
+import Compiler.CompilationModel.AdtStorageLayout
 import Compiler.CompilationModel.AbiTypeLayout
 import Compiler.CompilationModel.IssueRefs
 import Compiler.CompilationModel.MappingWrites
@@ -90,28 +91,32 @@ def compileSetStorage (fields : List Field) (dynamicSource : DynamicDataSource)
             YulExpr.call "and" [valueExpr, YulExpr.hex Compiler.Constants.addressMask]
           else
             valueExpr
-        match slots with
-        | [] =>
-            throw s!"Compilation error: internal invariant failure: no write slots for field '{field}' in setStorage"
-        | [singleSlot] =>
-            match f.packedBits with
-            | none =>
-                pure [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit singleSlot, storedValueExpr])]
-            | some packed =>
-                pure (compilePackedStorageWrite (YulExpr.lit singleSlot) storedValueExpr packed)
+        match f.ty with
+        | .adt _ _ =>
+            throw s!"Compilation error: field '{field}' is ADT-typed; assign it with an ADT constructor so payload slots are preserved"
         | _ =>
-            let writeSlots := slots.map YulExpr.lit
-            match f.packedBits with
-            | none =>
-                pure [
-                  YulStmt.block (
-                    [YulStmt.let_ "__compat_value" storedValueExpr] ++
-                    writeSlots.map (fun writeSlot =>
-                      YulStmt.expr (YulExpr.call "sstore" [writeSlot, YulExpr.ident "__compat_value"]))
-                  )
-                ]
-            | some packed =>
-                pure (compileCompatPackedStorageWrites writeSlots storedValueExpr packed)
+            match slots with
+            | [] =>
+                throw s!"Compilation error: internal invariant failure: no write slots for field '{field}' in setStorage"
+            | [singleSlot] =>
+                match f.packedBits with
+                | none =>
+                    pure [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit singleSlot, storedValueExpr])]
+                | some packed =>
+                    pure (compilePackedStorageWrite (YulExpr.lit singleSlot) storedValueExpr packed)
+            | _ =>
+                let writeSlots := slots.map YulExpr.lit
+                match f.packedBits with
+                | none =>
+                    pure [
+                      YulStmt.block (
+                        [YulStmt.let_ "__compat_value" storedValueExpr] ++
+                        writeSlots.map (fun writeSlot =>
+                          YulStmt.expr (YulExpr.call "sstore" [writeSlot, YulExpr.ident "__compat_value"]))
+                      )
+                    ]
+                | some packed =>
+                    pure (compileCompatPackedStorageWrites writeSlots storedValueExpr packed)
     | none => throw s!"Compilation error: unknown storage field '{field}' in setStorage"
 
 def compileStorageArrayPush (fields : List Field) (dynamicSource : DynamicDataSource)

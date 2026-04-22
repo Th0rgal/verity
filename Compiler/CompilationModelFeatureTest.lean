@@ -233,7 +233,7 @@ verity_contract MacroExternal where
   linked_externals
     external echo(Uint256) -> (Uint256)
 
-  function storeEcho (next : Uint256) : Unit := do
+  function allow_post_interaction_writes storeEcho (next : Uint256) : Unit := do
     let echoed := externalCall "echo" [next]
     setStorage echoedValue echoed
 
@@ -2050,6 +2050,100 @@ private def stringEventMismatchSpec : CompilationModel := {
   ]
 }
 
+private def eventEncodingRegressionSpec : CompilationModel := {
+  name := "EventEncodingRegression"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "log"
+      params := [
+        { name := "choice", ty := ParamType.adt "Choice" 2 },
+        { name := "who", ty := ParamType.newtypeOf "SafeAddress" ParamType.address }
+      ]
+      returnType := none
+      body := [
+        Stmt.emit "ChoiceStored" [Expr.param "choice"],
+        Stmt.emit "ChoiceIndexed" [Expr.param "choice"],
+        Stmt.emit "WhoIndexed" [Expr.param "who"],
+        Stmt.stop
+      ]
+    }
+  ]
+  events := [
+    { name := "ChoiceStored"
+      params := [{ name := "choice", ty := ParamType.adt "Choice" 2, kind := EventParamKind.unindexed }]
+    },
+    { name := "ChoiceIndexed"
+      params := [{ name := "choice", ty := ParamType.adt "Choice" 2, kind := EventParamKind.indexed }]
+    },
+    { name := "WhoIndexed"
+      params := [{ name := "who", ty := ParamType.newtypeOf "SafeAddress" ParamType.address, kind := EventParamKind.indexed }]
+    }
+  ]
+  adtTypes := [
+    { name := "Choice"
+      variants := [
+        { name := "None", tag := 0, fields := [] },
+        { name := "Some", tag := 1, fields := [
+          { name := "amount", ty := ParamType.uint256 },
+          { name := "recipient", ty := ParamType.address }
+        ] }
+      ]
+    }
+  ]
+}
+
+private def adtParamPayloadNameCollisionSpec : CompilationModel := {
+  name := "AdtParamPayloadNameCollision"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "store"
+      params := [
+        { name := "choice", ty := ParamType.adt "Choice" 1 },
+        { name := "choice_f0", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      body := [Stmt.stop]
+    }
+  ]
+  adtTypes := [
+    { name := "Choice"
+      variants := [
+        { name := "None", tag := 0, fields := [] },
+        { name := "Some", tag := 1, fields := [{ name := "amount", ty := ParamType.uint256 }] }
+      ]
+    }
+  ]
+}
+
+private def adtAliasPayloadReservedSlotSpec : CompilationModel := {
+  name := "AdtAliasPayloadReservedSlot"
+  fields := [
+    { name := "choice", ty := FieldType.adt "Choice" 2, «slot» := some 10, aliasSlots := [100] }
+  ]
+  reservedSlotRanges := [{ start := 101, end_ := 101 }]
+  «constructor» := none
+  functions := [
+    { name := "noop"
+      params := []
+      returnType := none
+      body := [Stmt.stop]
+    }
+  ]
+  adtTypes := [
+    { name := "Choice"
+      variants := [
+        { name := "None", tag := 0, fields := [] },
+        { name := "Some", tag := 1, fields := [
+          { name := "amount", ty := ParamType.uint256 },
+          { name := "recipient", ty := ParamType.address }
+        ] }
+      ]
+    }
+  ]
+}
+
 private def addressArrayReturnSpec : CompilationModel := {
   name := "AddressArrayReturn"
   fields := []
@@ -2801,6 +2895,24 @@ set_option maxRecDepth 4096 in
       (contains stringArrayErrorAbi "\"inputs\": [{\"name\": \"\", \"type\": \"uint256\"}, {\"name\": \"\", \"type\": \"string[]\"}]") &&
       (contains stringArrayErrorAbi "\"name\": \"SecondMessages\"") &&
       (contains stringArrayErrorAbi "\"inputs\": [{\"name\": \"\", \"type\": \"string[]\"}, {\"name\": \"\", \"type\": \"string[]\"}]"))
+  let eventEncodingRegressionYul ← expectCompileToYul
+    "ADT and newtype event encoding regression spec compiles"
+    eventEncodingRegressionSpec
+  expectTrue "ADT event encoding stores payload fields before logging"
+    ((contains eventEncodingRegressionYul "choice_f0") &&
+      (contains eventEncodingRegressionYul "choice_f1") &&
+      (contains eventEncodingRegressionYul "keccak256(__evt_ptr, 96)"))
+  expectTrue "newtype event topics normalize through the erased base type"
+    (contains eventEncodingRegressionYul
+      "and(who, 0xffffffffffffffffffffffffffffffffffffffff)")
+  expectCompileErrorContains
+    "ADT payload parameter locals are reserved against parameter collisions"
+    adtParamPayloadNameCollisionSpec
+    "function parameter binding name 'choice_f0' collides"
+  expectCompileErrorContains
+    "ADT alias payload slots are checked against reserved slot ranges"
+    adtAliasPayloadReservedSlotSpec
+    "choice.aliasSlots[0].payload[0]"
   let addressArrayReturnCompiled :=
     match Compiler.CompilationModel.compile addressArrayReturnSpec (selectorsFor addressArrayReturnSpec) with
     | .ok _ => true

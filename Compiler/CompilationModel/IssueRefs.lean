@@ -36,4 +36,7 @@ def issue1424Ref : String :=
 def issue1571Ref : String :=
   "Issue #1571 (dynamic arrays in storage)"
 
+def issue1728Ref : String :=
+  "Issue #1728 (CEI enforcement — Checks-Effects-Interactions ordering)"
+
 end Compiler.CompilationModel

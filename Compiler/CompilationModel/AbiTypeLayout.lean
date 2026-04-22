@@ -17,6 +17,8 @@ mutual
     | ParamType.bytes => true
     | ParamType.fixedArray elemTy _ => isDynamicParamType elemTy
     | ParamType.tuple elemTys => isDynamicParamTypeList elemTys
+    | ParamType.adt _ _ => false  -- ADTs are statically-sized tagged unions
+    | ParamType.newtypeOf _ baseType => isDynamicParamType baseType  -- Erased to base type
   termination_by ty => sizeOf ty
 
   def isDynamicParamTypeList : List ParamType → Bool
@@ -43,6 +45,8 @@ mutual
         if isDynamicParamType elemTy then 32 else n * paramHeadSize elemTy
     | ParamType.tuple elemTys =>
         if isDynamicParamTypeList elemTys then 32 else paramHeadSizeList elemTys
+    | ParamType.adt _ maxFields => 32 * (1 + maxFields)  -- ADTs: uint8 tag word + maxFields field words (#1727 Step 5e)
+    | ParamType.newtypeOf _ baseType => paramHeadSize baseType  -- Erased to base type
   termination_by ty => sizeOf ty
 
   def paramHeadSizeList : List ParamType → Nat

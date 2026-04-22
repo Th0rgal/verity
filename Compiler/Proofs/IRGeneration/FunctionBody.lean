@@ -970,6 +970,10 @@ theorem decodeSupportedParamWord_lt_evmModulus
       simp [SourceSemantics.decodeSupportedParamWord] at hdecode
   | fixedArray _ _ =>
       simp [SourceSemantics.decodeSupportedParamWord] at hdecode
+  | adt _ _ =>
+      simp [SourceSemantics.decodeSupportedParamWord] at hdecode
+  | newtypeOf _ _ =>
+      simp [SourceSemantics.decodeSupportedParamWord] at hdecode
   | bytes =>
       simp [SourceSemantics.decodeSupportedParamWord] at hdecode
 
@@ -7133,12 +7137,18 @@ inductive StmtCompileCore : Stmt → Prop where
       ExprCompileCore value → StmtCompileCore (.return value)
   | stop :
       StmtCompileCore .stop
+  | mstore {offset value : Expr} :
+      ExprCompileCore offset → ExprCompileCore value →
+        StmtCompileCore (.mstore offset value)
+  | tstore {offset value : Expr} :
+      ExprCompileCore offset → ExprCompileCore value →
+        StmtCompileCore (.tstore offset value)
 
 theorem compileStmt_core_ok
     {fields : List Field}
     {stmt : Stmt}
     (hcore : StmtCompileCore stmt) :
-    ∃ bodyIR, CompilationModel.compileStmt fields [] [] .calldata [] false [] stmt = Except.ok bodyIR := by
+    ∃ bodyIR, CompilationModel.compileStmt fields [] [] .calldata [] false [] [] stmt = Except.ok bodyIR := by
   cases hcore with
   | letVar hvalue =>
       rename_i name value
@@ -7167,6 +7177,20 @@ theorem compileStmt_core_ok
   | stop =>
       exact ⟨[YulStmt.expr (YulExpr.call "stop" [])], by
         rw [CompilationModel.compileStmt]
+        rfl⟩
+  | mstore hoffset hvalue =>
+      rename_i offset value
+      rcases compileExpr_core_ok hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      exact ⟨[YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])], by
+        rw [CompilationModel.compileStmt, hoffsetIR, hvalueIR]
+        rfl⟩
+  | tstore hoffset hvalue =>
+      rename_i offset value
+      rcases compileExpr_core_ok hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      exact ⟨[YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])], by
+        rw [CompilationModel.compileStmt, hoffsetIR, hvalueIR]
         rfl⟩
 
 theorem runtimeStateMatchesIR_setBothMemory
@@ -7409,7 +7433,7 @@ theorem exec_compileStmt_letVar_core
     (hpresent : exprBoundNamesPresent value runtime.bindings)
     (hruntime : runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
-      CompilationModel.compileStmt fields [] [] .calldata [] false [] (.letVar name value) = Except.ok bodyIR ∧
+      CompilationModel.compileStmt fields [] [] .calldata [] false [] [] (.letVar name value) = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmt fields runtime (.letVar name value)
       let irExec := execIRStmts (bodyIR.length + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec ∧
@@ -7452,7 +7476,7 @@ theorem exec_compileStmt_assignVar_core
     (hpresent : exprBoundNamesPresent value runtime.bindings)
     (hruntime : runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
-      CompilationModel.compileStmt fields [] [] .calldata [] false [] (.assignVar name value) = Except.ok bodyIR ∧
+      CompilationModel.compileStmt fields [] [] .calldata [] false [] [] (.assignVar name value) = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmt fields runtime (.assignVar name value)
       let irExec := execIRStmts (bodyIR.length + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec ∧
@@ -7485,7 +7509,7 @@ theorem exec_compileStmt_return_core
     (hpresent : exprBoundNamesPresent value runtime.bindings)
     (hruntime : runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
-      CompilationModel.compileStmt fields [] [] .calldata [] false [] (.return value) = Except.ok bodyIR ∧
+      CompilationModel.compileStmt fields [] [] .calldata [] false [] [] (.return value) = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmt fields runtime (.return value)
       let irExec := execIRStmts (bodyIR.length + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec ∧
@@ -7521,7 +7545,7 @@ theorem exec_compileStmt_return_core_extraFuel
     (hpresent : exprBoundNamesPresent value runtime.bindings)
     (hruntime : runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
-      CompilationModel.compileStmt fields [] [] .calldata [] false [] (.return value) = Except.ok bodyIR ∧
+      CompilationModel.compileStmt fields [] [] .calldata [] false [] [] (.return value) = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmt fields runtime (.return value)
       let irExec := execIRStmts (bodyIR.length + extraFuel + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec ∧
@@ -7569,7 +7593,7 @@ theorem exec_compileStmt_stop_core
     (hbounded : bindingsBounded runtime.bindings)
     (hruntime : runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
-      CompilationModel.compileStmt fields [] [] .calldata [] false [] .stop = Except.ok bodyIR ∧
+      CompilationModel.compileStmt fields [] [] .calldata [] false [] [] .stop = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmt fields runtime .stop
       let irExec := execIRStmts (bodyIR.length + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec ∧
@@ -7600,7 +7624,7 @@ theorem exec_compileStmt_stop_core_extraFuel
     (hbounded : bindingsBounded runtime.bindings)
     (hruntime : runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
-      CompilationModel.compileStmt fields [] [] .calldata [] false [] .stop = Except.ok bodyIR ∧
+      CompilationModel.compileStmt fields [] [] .calldata [] false [] [] .stop = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmt fields runtime .stop
       let irExec := execIRStmts (bodyIR.length + extraFuel + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec ∧
@@ -7798,7 +7822,7 @@ theorem compileStmt_core_ok_any_scope
     (hcore : StmtCompileCore stmt) :
     ∃ bodyIR,
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames stmt = Except.ok bodyIR := by
+        fields [] [] .calldata [] false inScopeNames [] stmt = Except.ok bodyIR := by
   cases hcore with
   | letVar hvalue =>
       rename_i name value
@@ -7828,6 +7852,20 @@ theorem compileStmt_core_ok_any_scope
       exact ⟨[YulStmt.expr (YulExpr.call "stop" [])], by
         rw [CompilationModel.compileStmt]
         rfl⟩
+  | mstore hoffset hvalue =>
+      rename_i offset value
+      rcases compileExpr_core_ok hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      exact ⟨[YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])], by
+        rw [CompilationModel.compileStmt, hoffsetIR, hvalueIR]
+        rfl⟩
+  | tstore hoffset hvalue =>
+      rename_i offset value
+      rcases compileExpr_core_ok hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      exact ⟨[YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])], by
+        rw [CompilationModel.compileStmt, hoffsetIR, hvalueIR]
+        rfl⟩
 
 /-! ### Scope-independence of compileStmt / compileStmtList success
 
@@ -7842,15 +7880,15 @@ private theorem compileStmt_ok_any_scope_aux
     (fields : List Field) :
     (∀ (stmt : Stmt) (scope1 scope2 : List String),
       sizeOf stmt < n →
-      (∃ ir, CompilationModel.compileStmt fields [] [] .calldata [] false scope1 stmt =
+      (∃ ir, CompilationModel.compileStmt fields [] [] .calldata [] false scope1 [] stmt =
         Except.ok ir) →
-      ∃ ir', CompilationModel.compileStmt fields [] [] .calldata [] false scope2 stmt =
+      ∃ ir', CompilationModel.compileStmt fields [] [] .calldata [] false scope2 [] stmt =
         Except.ok ir') ∧
     (∀ (stmts : List Stmt) (scope1 scope2 : List String),
       sizeOf stmts < n →
-      (∃ ir, CompilationModel.compileStmtList fields [] [] .calldata [] false scope1 stmts =
+      (∃ ir, CompilationModel.compileStmtList fields [] [] .calldata [] false scope1 [] stmts =
         Except.ok ir) →
-      ∃ ir', CompilationModel.compileStmtList fields [] [] .calldata [] false scope2 stmts =
+      ∃ ir', CompilationModel.compileStmtList fields [] [] .calldata [] false scope2 [] stmts =
         Except.ok ir') := by
   induction n with
   | zero => exact ⟨fun _ _ _ h => absurd h (Nat.not_lt_zero _),
@@ -7868,12 +7906,12 @@ private theorem compileStmt_ok_any_scope_aux
           | ok condIR =>
             simp only [hcond] at hir ⊢
             cases hthen1 : CompilationModel.compileStmtList
-                fields [] [] .calldata [] false scope1 thenBranch with
+                fields [] [] .calldata [] false scope1 [] thenBranch with
             | error e => simp [hthen1] at hir
             | ok thenIR1 =>
               simp only [hthen1] at hir
               cases helse1 : CompilationModel.compileStmtList
-                  fields [] [] .calldata [] false scope1 elseBranch with
+                  fields [] [] .calldata [] false scope1 [] elseBranch with
               | error e => simp [helse1] at hir
               | ok elseIR1 =>
                 rcases ih.2 thenBranch scope1 scope2
@@ -7892,7 +7930,7 @@ private theorem compileStmt_ok_any_scope_aux
           | ok countIR =>
             simp only [hcount] at hir ⊢
             cases hbody1 : CompilationModel.compileStmtList
-                fields [] [] .calldata [] false (varName :: scope1) body with
+                fields [] [] .calldata [] false (varName :: scope1) [] body with
             | error e => simp [hbody1] at hir
             | ok bodyIR1 =>
               rcases ih.2 body (varName :: scope1) (varName :: scope2)
@@ -7900,6 +7938,16 @@ private theorem compileStmt_ok_any_scope_aux
                 with ⟨bodyIR2, hbody2⟩
               simp only [hbody2]
               exact ⟨_, rfl⟩
+      | unsafeBlock _ body =>
+          rcases hok with ⟨ir, hir⟩
+          simp only [CompilationModel.compileStmt] at hir ⊢
+          rcases ih.2 body scope1 scope2
+              (by simp [Stmt.unsafeBlock.sizeOf_spec] at hlt; omega) ⟨ir, hir⟩
+            with ⟨bodyIR2, hbody2⟩
+          exact ⟨bodyIR2, hbody2⟩
+      | matchAdt adtName scrutinee branches =>
+          rcases hok with ⟨ir, hir⟩
+          simp [CompilationModel.compileStmt, lookupAdtTypeDef, Except.bind, bind] at hir
       -- All remaining cases: inScopeNames is unused, so the result is identical
       | letVar | assignVar | setStorage | setStorageAddr | storageArrayPush
       | storageArrayPop | setStorageArrayElement | setMapping | setMappingWord
@@ -7908,7 +7956,7 @@ private theorem compileStmt_ok_any_scope_aux
       | requireError | revertError | «return» | returnValues | returnArray
       | returnBytes | returnStorageWords | mstore | tstore | calldatacopy
       | returndataCopy | revertReturndata | stop | emit | internalCall
-      | internalCallAssign | externalCallBind | ecm | rawLog =>
+      | internalCallAssign | externalCallBind | tryExternalCallBind | ecm | rawLog =>
           simp only [CompilationModel.compileStmt] at hok ⊢; exact hok
     · -- compileStmtList part
       intro stmts scope1 scope2 hlt hok
@@ -7918,12 +7966,12 @@ private theorem compileStmt_ok_any_scope_aux
           rcases hok with ⟨ir, hir⟩
           simp only [CompilationModel.compileStmtList, bind, Except.bind] at hir ⊢
           cases hs1 : CompilationModel.compileStmt
-              fields [] [] .calldata [] false scope1 s with
+              fields [] [] .calldata [] false scope1 [] s with
           | error e => simp [hs1] at hir
           | ok headIR1 =>
             simp only [hs1] at hir
             cases hss1 : CompilationModel.compileStmtList
-                fields [] [] .calldata [] false (collectStmtNames s ++ scope1) ss with
+                fields [] [] .calldata [] false (collectStmtNames s ++ scope1) [] ss with
             | error e => simp [hss1] at hir
             | ok tailIR1 =>
               rcases ih.1 s scope1 scope2 (by simp [List.cons.sizeOf_spec] at hlt; omega)
@@ -7939,9 +7987,9 @@ theorem compileStmt_ok_any_scope
     {scope1 scope2 : List String}
     {stmt : Stmt}
     (hok : ∃ ir, CompilationModel.compileStmt
-      fields [] [] .calldata [] false scope1 stmt = Except.ok ir) :
+      fields [] [] .calldata [] false scope1 [] stmt = Except.ok ir) :
     ∃ ir', CompilationModel.compileStmt
-      fields [] [] .calldata [] false scope2 stmt = Except.ok ir' :=
+      fields [] [] .calldata [] false scope2 [] stmt = Except.ok ir' :=
   (compileStmt_ok_any_scope_aux (sizeOf stmt + 1) fields).1 stmt scope1 scope2
     (Nat.lt_succ_of_le (Nat.le_refl _)) hok
 
@@ -7952,15 +8000,15 @@ private theorem compileStmt_ok_any_scope_with_surface_aux
     (errors : List ErrorDef) :
     (∀ (stmt : Stmt) (scope1 scope2 : List String),
       sizeOf stmt < n →
-      (∃ ir, CompilationModel.compileStmt fields events errors .calldata [] false scope1 stmt =
+      (∃ ir, CompilationModel.compileStmt fields events errors .calldata [] false scope1 [] stmt =
         Except.ok ir) →
-      ∃ ir', CompilationModel.compileStmt fields events errors .calldata [] false scope2 stmt =
+      ∃ ir', CompilationModel.compileStmt fields events errors .calldata [] false scope2 [] stmt =
         Except.ok ir') ∧
     (∀ (stmts : List Stmt) (scope1 scope2 : List String),
       sizeOf stmts < n →
-      (∃ ir, CompilationModel.compileStmtList fields events errors .calldata [] false scope1 stmts =
+      (∃ ir, CompilationModel.compileStmtList fields events errors .calldata [] false scope1 [] stmts =
         Except.ok ir) →
-      ∃ ir', CompilationModel.compileStmtList fields events errors .calldata [] false scope2 stmts =
+      ∃ ir', CompilationModel.compileStmtList fields events errors .calldata [] false scope2 [] stmts =
         Except.ok ir') := by
   induction n with
   | zero => exact ⟨fun _ _ _ h => absurd h (Nat.not_lt_zero _),
@@ -7977,12 +8025,12 @@ private theorem compileStmt_ok_any_scope_with_surface_aux
           | ok condIR =>
             simp only [hcond] at hir ⊢
             cases hthen1 : CompilationModel.compileStmtList
-                fields events errors .calldata [] false scope1 thenBranch with
+                fields events errors .calldata [] false scope1 [] thenBranch with
             | error e => simp [hthen1] at hir
             | ok thenIR1 =>
               simp only [hthen1] at hir
               cases helse1 : CompilationModel.compileStmtList
-                  fields events errors .calldata [] false scope1 elseBranch with
+                  fields events errors .calldata [] false scope1 [] elseBranch with
               | error e => simp [helse1] at hir
               | ok elseIR1 =>
                 rcases ih.2 thenBranch scope1 scope2
@@ -8001,7 +8049,7 @@ private theorem compileStmt_ok_any_scope_with_surface_aux
           | ok countIR =>
             simp only [hcount] at hir ⊢
             cases hbody1 : CompilationModel.compileStmtList
-                fields events errors .calldata [] false (varName :: scope1) body with
+                fields events errors .calldata [] false (varName :: scope1) [] body with
             | error e => simp [hbody1] at hir
             | ok bodyIR1 =>
               rcases ih.2 body (varName :: scope1) (varName :: scope2)
@@ -8009,6 +8057,15 @@ private theorem compileStmt_ok_any_scope_with_surface_aux
                 with ⟨bodyIR2, hbody2⟩
               simp only [hbody2]
               exact ⟨_, rfl⟩
+      | unsafeBlock reason body =>
+          rcases hok with ⟨ir, hir⟩
+          simp only [CompilationModel.compileStmt] at hir ⊢
+          exact ih.2 body scope1 scope2
+            (by simp [Stmt.unsafeBlock.sizeOf_spec] at hlt; omega)
+            ⟨ir, hir⟩
+      | matchAdt adtName scrutinee branches =>
+          rcases hok with ⟨ir, hir⟩
+          simp [CompilationModel.compileStmt, lookupAdtTypeDef, Except.bind, bind] at hir
       | letVar | assignVar | setStorage | setStorageAddr | storageArrayPush
       | storageArrayPop | setStorageArrayElement | setMapping | setMappingWord
       | setMappingPackedWord | setMapping2 | setMapping2Word | setMappingUint
@@ -8016,7 +8073,8 @@ private theorem compileStmt_ok_any_scope_with_surface_aux
       | requireError | revertError | «return» | returnValues | returnArray
       | returnBytes | returnStorageWords | mstore | tstore | calldatacopy
       | returndataCopy | revertReturndata | stop | emit | internalCall
-      | internalCallAssign | externalCallBind | ecm | rawLog =>
+      | internalCallAssign | externalCallBind | tryExternalCallBind
+      | ecm | rawLog =>
           simp only [CompilationModel.compileStmt] at hok ⊢; exact hok
     · intro stmts scope1 scope2 hlt hok
       cases stmts with
@@ -8025,12 +8083,12 @@ private theorem compileStmt_ok_any_scope_with_surface_aux
           rcases hok with ⟨ir, hir⟩
           simp only [CompilationModel.compileStmtList, bind, Except.bind] at hir ⊢
           cases hs1 : CompilationModel.compileStmt
-              fields events errors .calldata [] false scope1 s with
+              fields events errors .calldata [] false scope1 [] s with
           | error e => simp [hs1] at hir
           | ok headIR1 =>
             simp only [hs1] at hir
             cases hss1 : CompilationModel.compileStmtList
-                fields events errors .calldata [] false (collectStmtNames s ++ scope1) ss with
+                fields events errors .calldata [] false (collectStmtNames s ++ scope1) [] ss with
             | error e => simp [hss1] at hir
             | ok tailIR1 =>
               rcases ih.1 s scope1 scope2 (by simp [List.cons.sizeOf_spec] at hlt; omega)
@@ -8048,9 +8106,9 @@ theorem compileStmt_ok_any_scope_with_surface
     {scope1 scope2 : List String}
     {stmt : Stmt}
     (hok : ∃ ir, CompilationModel.compileStmt
-      fields events errors .calldata [] false scope1 stmt = Except.ok ir) :
+      fields events errors .calldata [] false scope1 [] stmt = Except.ok ir) :
     ∃ ir', CompilationModel.compileStmt
-      fields events errors .calldata [] false scope2 stmt = Except.ok ir' :=
+      fields events errors .calldata [] false scope2 [] stmt = Except.ok ir' :=
   (compileStmt_ok_any_scope_with_surface_aux (sizeOf stmt + 1) fields events errors).1
     stmt scope1 scope2 (Nat.lt_succ_of_le (Nat.le_refl _)) hok
 
@@ -8061,9 +8119,9 @@ theorem compileStmtList_ok_any_scope_with_surface
     {scope1 scope2 : List String}
     {stmts : List Stmt}
     (hok : ∃ ir, CompilationModel.compileStmtList
-      fields events errors .calldata [] false scope1 stmts = Except.ok ir) :
+      fields events errors .calldata [] false scope1 [] stmts = Except.ok ir) :
     ∃ ir', CompilationModel.compileStmtList
-      fields events errors .calldata [] false scope2 stmts = Except.ok ir' :=
+      fields events errors .calldata [] false scope2 [] stmts = Except.ok ir' :=
   (compileStmt_ok_any_scope_with_surface_aux (sizeOf stmts + 1) fields events errors).2
     stmts scope1 scope2 (Nat.lt_succ_of_le (Nat.le_refl _)) hok
 
@@ -8072,9 +8130,9 @@ theorem compileStmtList_ok_any_scope
     {scope1 scope2 : List String}
     {stmts : List Stmt}
     (hok : ∃ ir, CompilationModel.compileStmtList
-      fields [] [] .calldata [] false scope1 stmts = Except.ok ir) :
+      fields [] [] .calldata [] false scope1 [] stmts = Except.ok ir) :
     ∃ ir', CompilationModel.compileStmtList
-      fields [] [] .calldata [] false scope2 stmts = Except.ok ir' :=
+      fields [] [] .calldata [] false scope2 [] stmts = Except.ok ir' :=
   (compileStmt_ok_any_scope_aux (sizeOf stmts + 1) fields).2 stmts scope1 scope2
     (Nat.lt_succ_of_le (Nat.le_refl _)) hok
 
@@ -8088,13 +8146,13 @@ theorem compileStmtList_cons_ok_of_compileStmt_ok_with_surface
     {headIR tailIR : List YulStmt}
     (hhead :
       CompilationModel.compileStmt
-        fields events errors .calldata [] false inScopeNames stmt = Except.ok headIR)
+        fields events errors .calldata [] false inScopeNames [] stmt = Except.ok headIR)
     (htail :
       CompilationModel.compileStmtList
         fields events errors .calldata [] false
-          (collectStmtNames stmt ++ inScopeNames) rest = Except.ok tailIR) :
+          (collectStmtNames stmt ++ inScopeNames) [] rest = Except.ok tailIR) :
     CompilationModel.compileStmtList
-      fields events errors .calldata [] false inScopeNames (stmt :: rest) =
+      fields events errors .calldata [] false inScopeNames [] (stmt :: rest) =
         Except.ok (headIR ++ tailIR) := by
   rw [CompilationModel.compileStmtList, hhead]
   dsimp
@@ -8109,13 +8167,13 @@ theorem compileStmtList_cons_ok_of_compileStmt_ok
     {headIR tailIR : List YulStmt}
     (hhead :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames stmt = Except.ok headIR)
+        fields [] [] .calldata [] false inScopeNames [] stmt = Except.ok headIR)
     (htail :
       CompilationModel.compileStmtList
         fields [] [] .calldata [] false
-          (collectStmtNames stmt ++ inScopeNames) rest = Except.ok tailIR) :
+          (collectStmtNames stmt ++ inScopeNames) [] rest = Except.ok tailIR) :
     CompilationModel.compileStmtList
-      fields [] [] .calldata [] false inScopeNames (stmt :: rest) =
+      fields [] [] .calldata [] false inScopeNames [] (stmt :: rest) =
         Except.ok (headIR ++ tailIR) := by
   rw [CompilationModel.compileStmtList, hhead]
   dsimp
@@ -8124,31 +8182,34 @@ theorem compileStmtList_cons_ok_of_compileStmt_ok
 
 theorem compileStmtList_cons_ok_inv
     {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
     {inScopeNames : List String}
+    {adtTypes : List AdtTypeDef}
     {stmt : Stmt}
     {rest : List Stmt}
     {bodyIR : List YulStmt}
     (hcompile :
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames (stmt :: rest) =
+        fields events errors .calldata [] false inScopeNames adtTypes (stmt :: rest) =
           Except.ok bodyIR) :
     ∃ headIR tailIR,
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames stmt = Except.ok headIR ∧
+        fields events errors .calldata [] false inScopeNames adtTypes stmt = Except.ok headIR ∧
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false
-          (collectStmtNames stmt ++ inScopeNames) rest = Except.ok tailIR ∧
+        fields events errors .calldata [] false
+          (collectStmtNames stmt ++ inScopeNames) adtTypes rest = Except.ok tailIR ∧
       bodyIR = headIR ++ tailIR := by
   rw [CompilationModel.compileStmtList] at hcompile
   cases hhead : CompilationModel.compileStmt
-      fields [] [] .calldata [] false inScopeNames stmt with
+      fields events errors .calldata [] false inScopeNames adtTypes stmt with
   | error err =>
       simp [hhead] at hcompile
       cases hcompile
   | ok headIR =>
       cases htail : CompilationModel.compileStmtList
-          fields [] [] .calldata [] false
-            (collectStmtNames stmt ++ inScopeNames) rest with
+          fields events errors .calldata [] false
+            (collectStmtNames stmt ++ inScopeNames) adtTypes rest with
       | error err =>
           simp [hhead, htail] at hcompile
           cases hcompile
@@ -8169,14 +8230,14 @@ theorem compileStmt_terminal_ite_ok_inv
     (helseNonempty : elseBranch.isEmpty = false)
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames
+        fields [] [] .calldata [] false inScopeNames []
           (.ite cond thenBranch elseBranch) = Except.ok bodyIR) :
     ∃ condIR thenIR elseIR tempName,
       CompilationModel.compileExpr fields .calldata cond = Except.ok condIR ∧
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames thenBranch = Except.ok thenIR ∧
+        fields [] [] .calldata [] false inScopeNames [] thenBranch = Except.ok thenIR ∧
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames elseBranch = Except.ok elseIR ∧
+        fields [] [] .calldata [] false inScopeNames [] elseBranch = Except.ok elseIR ∧
       tempName =
         CompilationModel.pickFreshName "__ite_cond"
           (inScopeNames ++ collectExprNames cond ++
@@ -8193,13 +8254,13 @@ theorem compileStmt_terminal_ite_ok_inv
       cases hcompile
   | ok condIR =>
       cases hthen : CompilationModel.compileStmtList
-          fields [] [] .calldata [] false inScopeNames thenBranch with
+          fields [] [] .calldata [] false inScopeNames [] thenBranch with
       | error err =>
           simp [hcond, hthen] at hcompile
           cases hcompile
       | ok thenIR =>
           cases helse : CompilationModel.compileStmtList
-              fields [] [] .calldata [] false inScopeNames elseBranch with
+              fields [] [] .calldata [] false inScopeNames [] elseBranch with
           | error err =>
               simp [hcond, hthen, helse] at hcompile
               cases hcompile
@@ -8225,17 +8286,17 @@ theorem compileStmtList_terminal_ite_ok_inv
     (helseNonempty : elseBranch.isEmpty = false)
     (hcompile :
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames
+        fields [] [] .calldata [] false inScopeNames []
           (.ite cond thenBranch elseBranch :: rest) = Except.ok bodyIR) :
     ∃ condIR thenIR elseIR tailIR tempName,
       CompilationModel.compileExpr fields .calldata cond = Except.ok condIR ∧
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames thenBranch = Except.ok thenIR ∧
+        fields [] [] .calldata [] false inScopeNames [] thenBranch = Except.ok thenIR ∧
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames elseBranch = Except.ok elseIR ∧
+        fields [] [] .calldata [] false inScopeNames [] elseBranch = Except.ok elseIR ∧
       CompilationModel.compileStmtList
         fields [] [] .calldata [] false
-          (collectStmtNames (.ite cond thenBranch elseBranch) ++ inScopeNames) rest =
+          (collectStmtNames (.ite cond thenBranch elseBranch) ++ inScopeNames) [] rest =
           Except.ok tailIR ∧
       tempName =
         CompilationModel.pickFreshName "__ite_cond"
@@ -8274,7 +8335,7 @@ theorem compileStmtList_core_ok
     (hcore : StmtListCompileCore scope stmts) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by
+        fields [] [] .calldata [] false inScopeNames [] stmts = Except.ok bodyIR := by
   induction hcore generalizing inScopeNames
   case nil =>
       exact ⟨[], rfl⟩
@@ -8328,6 +8389,26 @@ theorem compileStmtList_core_ok
       dsimp
       rw [htailIR]
       rfl
+  case mstore scope offset value rest hoffset _ hvalue _ hrest ih =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .mstore offset value) (.mstore hoffset hvalue) with ⟨headIR, hheadIR⟩
+      rcases ih (inScopeNames := collectStmtNames (.mstore offset value) ++ inScopeNames) with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
+  case tstore scope offset value rest hoffset _ hvalue _ hrest ih =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .tstore offset value) (.tstore hoffset hvalue) with ⟨headIR, hheadIR⟩
+      rcases ih (inScopeNames := collectStmtNames (.tstore offset value) ++ inScopeNames) with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
 
 theorem compileStmtList_terminal_core_ok
     {fields : List Field}
@@ -8336,7 +8417,7 @@ theorem compileStmtList_terminal_core_ok
     (hterminal : StmtListTerminalCore scope stmts) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by
+        fields [] [] .calldata [] false inScopeNames [] stmts = Except.ok bodyIR := by
   induction hterminal generalizing inScopeNames
   case letVar scope name value rest hvalue _ hrest ih =>
       rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
@@ -8388,6 +8469,26 @@ theorem compileStmtList_terminal_core_ok
           (scope := scope)
           (inScopeNames := collectStmtNames (.stop) ++ inScopeNames)
           (stmts := rest) hrest with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
+  case mstore scope offset value rest hoffset _ hvalue _ hrest ih =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .mstore offset value) (.mstore hoffset hvalue) with ⟨headIR, hheadIR⟩
+      rcases ih (inScopeNames := collectStmtNames (.mstore offset value) ++ inScopeNames) with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
+  case tstore scope offset value rest hoffset _ hvalue _ hrest ih =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .tstore offset value) (.tstore hoffset hvalue) with ⟨headIR, hheadIR⟩
+      rcases ih (inScopeNames := collectStmtNames (.tstore offset value) ++ inScopeNames) with
         ⟨tailIR, htailIR⟩
       refine ⟨headIR ++ tailIR, ?_⟩
       rw [CompilationModel.compileStmtList, hheadIR]
@@ -8447,7 +8548,7 @@ theorem compileStmtList_terminal_core_ok_nonempty
     (hterminal : StmtListTerminalCore scope stmts)
     (hcompile :
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR) :
+        fields [] [] .calldata [] false inScopeNames [] stmts = Except.ok bodyIR) :
     bodyIR ≠ [] := by
   induction hterminal generalizing inScopeNames bodyIR with
   | letVar hvalue hinScope hrest ih =>
@@ -8499,6 +8600,28 @@ theorem compileStmtList_terminal_core_ok_nonempty
       injection hhead with hheadEq
       subst hheadEq
       simp [hbody]
+  | mstore hoffset hinScopeOffset hvalue hinScopeValue hrest ih =>
+      rename_i scope offset value rest
+      rcases compileExpr_core_ok (fields := fields) hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok (fields := fields) hvalue with ⟨valueIR, hvalueIR⟩
+      rcases compileStmtList_cons_ok_inv (fields := fields) (inScopeNames := inScopeNames)
+          (stmt := .mstore offset value) (rest := rest) hcompile with
+        ⟨headIR, tailIR, hhead, _, hbody⟩
+      rw [CompilationModel.compileStmt, hoffsetIR, hvalueIR] at hhead
+      injection hhead with hheadEq
+      subst hheadEq
+      simp [hbody]
+  | tstore hoffset hinScopeOffset hvalue hinScopeValue hrest ih =>
+      rename_i scope offset value rest
+      rcases compileExpr_core_ok (fields := fields) hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok (fields := fields) hvalue with ⟨valueIR, hvalueIR⟩
+      rcases compileStmtList_cons_ok_inv (fields := fields) (inScopeNames := inScopeNames)
+          (stmt := .tstore offset value) (rest := rest) hcompile with
+        ⟨headIR, tailIR, hhead, _, hbody⟩
+      rw [CompilationModel.compileStmt, hoffsetIR, hvalueIR] at hhead
+      injection hhead with hheadEq
+      subst hheadEq
+      simp [hbody]
   | ite hcond hinScope hthen helse hrest ihThen ihElse =>
       rename_i scope cond thenBranch elseBranch rest
       rcases compileStmtList_cons_ok_inv (fields := fields) (inScopeNames := inScopeNames)
@@ -8525,14 +8648,14 @@ theorem compileStmtList_terminal_core_ok_nonempty
       | ok condIR =>
           cases hthenIR :
               CompilationModel.compileStmtList
-                fields [] [] .calldata [] false inScopeNames thenBranch with
+                fields [] [] .calldata [] false inScopeNames [] thenBranch with
           | error err =>
               rw [hthenOk] at hthenIR
               cases hthenIR
           | ok thenIR =>
               cases helseIR :
                   CompilationModel.compileStmtList
-                    fields [] [] .calldata [] false inScopeNames elseBranch with
+                    fields [] [] .calldata [] false inScopeNames [] elseBranch with
               | error err =>
                   rw [helseOk] at helseIR
                   cases helseIR
@@ -9664,7 +9787,7 @@ theorem exec_compileStmtList_core
     (hruntime : runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR ∧
+        fields [] [] .calldata [] false inScopeNames [] stmts = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmtList fields runtime stmts
       let irExec := execIRStmts (bodyIR.length + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec ∧
@@ -9944,6 +10067,128 @@ theorem exec_compileStmtList_core
         rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
         simp [hirExec]
         exact ⟨hruntime, ⟨hexact, hbounded⟩⟩
+  | mstore hoffset hinScopeOffset hvalue hinScopeValue hrest ih =>
+      rename_i scope offset value rest
+      have hpresentOffset : exprBoundNamesPresent offset runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeOffset
+      have hpresentValue : exprBoundNamesPresent value runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeValue
+      rcases compileExpr_core_ok hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      have hevalOffset := eval_compileExpr_core hoffset hexact hbounded hpresentOffset hruntime
+      rw [hoffsetIR] at hevalOffset; simp [Except.toOption] at hevalOffset
+      have hevalValue := eval_compileExpr_core hvalue hexact hbounded hpresentValue hruntime
+      rw [hvalueIR] at hevalValue; simp [Except.toOption] at hevalValue
+      rcases hIROffset : evalIRExpr state offsetIR with _ | offsetNat
+      · simp [hIROffset, Option.bind] at hevalOffset
+      · simp [hIROffset, Option.bind] at hevalOffset
+        rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+        · simp [hIRValue, Option.bind] at hevalValue
+        · simp [hIRValue, Option.bind] at hevalValue
+          have hOffsetSrc : SourceSemantics.evalExpr fields runtime offset = some offsetNat :=
+            hevalOffset.symm
+          have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+            hevalValue.symm
+          let runtime' :=
+            { runtime with
+              world := {
+                runtime.world with
+                memory := fun o => if o = offsetNat then valueNat else runtime.world.memory o
+              } }
+          let state' := { state with memory := fun o => if o = offsetNat then valueNat else state.memory o }
+          have hvalueLt := evalExpr_lt_evmModulus_core_onExpr hvalue
+            (bindingsExactlyMatchIRVars_implies_onExpr hexact) hbounded hpresentValue hruntime
+          rw [hValueSrc] at hvalueLt
+          have hruntime' : runtimeStateMatchesIR fields runtime' state' :=
+            runtimeStateMatchesIR_setBothMemory hruntime offsetNat valueNat hvalueLt
+          have hexact' : bindingsExactlyMatchIRVars runtime'.bindings state' :=
+            bindingsExactlyMatchIRVars_setMemory hexact offsetNat valueNat
+          have hbounded' : bindingsBounded runtime'.bindings := by
+            simpa [runtime'] using hbounded
+          rcases ih (runtime := runtime') (state := state')
+              (inScopeNames := collectStmtNames (.mstore offset value) ++ inScopeNames)
+              hscope hexact' hbounded' hruntime' with
+            ⟨tailIR, htailCompile, htailSem, htailExact⟩
+          refine ⟨[YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])] ++ tailIR, ?_, ?_⟩
+          · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+            rw [hoffsetIR, hvalueIR]
+            simp [htailCompile]
+            exact rfl
+          · have hstmt :
+                execIRStmt (tailIR.length + 1) state
+                  (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])) = .continue state' := by
+              simp [execIRStmt, evalIRExprs, hIROffset, hIRValue, state']
+            have hirExec :
+                execIRStmts (tailIR.length + 2) state
+                  (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR]) :: tailIR) =
+                    execIRStmts (tailIR.length + 1) state' tailIR := by
+              simpa using
+                (execIRStmts_cons_of_execIRStmt_continue state state'
+                  (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])) tailIR hstmt)
+            rw [SourceSemantics.execStmtList, SourceSemantics.execStmt, hOffsetSrc, hValueSrc]
+            simp [hirExec]
+            exact ⟨htailSem, htailExact⟩
+  | tstore hoffset hinScopeOffset hvalue hinScopeValue hrest ih =>
+      rename_i scope offset value rest
+      have hpresentOffset : exprBoundNamesPresent offset runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeOffset
+      have hpresentValue : exprBoundNamesPresent value runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeValue
+      rcases compileExpr_core_ok hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      have hevalOffset := eval_compileExpr_core hoffset hexact hbounded hpresentOffset hruntime
+      rw [hoffsetIR] at hevalOffset; simp [Except.toOption] at hevalOffset
+      have hevalValue := eval_compileExpr_core hvalue hexact hbounded hpresentValue hruntime
+      rw [hvalueIR] at hevalValue; simp [Except.toOption] at hevalValue
+      rcases hIROffset : evalIRExpr state offsetIR with _ | offsetNat
+      · simp [hIROffset, Option.bind] at hevalOffset
+      · simp [hIROffset, Option.bind] at hevalOffset
+        rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+        · simp [hIRValue, Option.bind] at hevalValue
+        · simp [hIRValue, Option.bind] at hevalValue
+          have hOffsetSrc : SourceSemantics.evalExpr fields runtime offset = some offsetNat :=
+            hevalOffset.symm
+          have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+            hevalValue.symm
+          let runtime' :=
+            { runtime with
+              world := {
+                runtime.world with
+                transientStorage := fun o => if o = offsetNat then valueNat else runtime.world.transientStorage o
+              } }
+          let state' := { state with transientStorage := fun o => if o = offsetNat then valueNat else state.transientStorage o }
+          have hvalueLt := evalExpr_lt_evmModulus_core_onExpr hvalue
+            (bindingsExactlyMatchIRVars_implies_onExpr hexact) hbounded hpresentValue hruntime
+          rw [hValueSrc] at hvalueLt
+          have hruntime' : runtimeStateMatchesIR fields runtime' state' :=
+            runtimeStateMatchesIR_setTransientStorage hruntime offsetNat valueNat hvalueLt
+          have hexact' : bindingsExactlyMatchIRVars runtime'.bindings state' := by
+            intro name; simpa [IRState.getVar, state'] using hexact name
+          have hbounded' : bindingsBounded runtime'.bindings := by
+            simpa [runtime'] using hbounded
+          rcases ih (runtime := runtime') (state := state')
+              (inScopeNames := collectStmtNames (.tstore offset value) ++ inScopeNames)
+              hscope hexact' hbounded' hruntime' with
+            ⟨tailIR, htailCompile, htailSem, htailExact⟩
+          refine ⟨[YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])] ++ tailIR, ?_, ?_⟩
+          · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+            rw [hoffsetIR, hvalueIR]
+            simp [htailCompile]
+            exact rfl
+          · have hstmt :
+                execIRStmt (tailIR.length + 1) state
+                  (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])) = .continue state' := by
+              simp [execIRStmt, evalIRExprs, hIROffset, hIRValue, state']
+            have hirExec :
+                execIRStmts (tailIR.length + 2) state
+                  (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR]) :: tailIR) =
+                    execIRStmts (tailIR.length + 1) state' tailIR := by
+              simpa using
+                (execIRStmts_cons_of_execIRStmt_continue state state'
+                  (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])) tailIR hstmt)
+            rw [SourceSemantics.execStmtList, SourceSemantics.execStmt, hOffsetSrc, hValueSrc]
+            simp [hirExec]
+            exact ⟨htailSem, htailExact⟩
 
 theorem exec_compileStmtList_core_extraFuel
     {fields : List Field}
@@ -9959,7 +10204,7 @@ theorem exec_compileStmtList_core_extraFuel
     (hruntime : runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR ∧
+        fields [] [] .calldata [] false inScopeNames [] stmts = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmtList fields runtime stmts
       let irExec := execIRStmts (bodyIR.length + extraFuel + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec ∧
@@ -10286,6 +10531,138 @@ theorem exec_compileStmtList_core_extraFuel
         rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
         simp [hirExec']
         exact ⟨hruntime, ⟨hexact, hbounded⟩⟩
+  | mstore hoffset hinScopeOffset hvalue hinScopeValue hrest ih =>
+      rename_i scope offset value rest
+      have hpresentOffset : exprBoundNamesPresent offset runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeOffset
+      have hpresentValue : exprBoundNamesPresent value runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeValue
+      rcases compileExpr_core_ok hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      have hevalOffset := eval_compileExpr_core hoffset hexact hbounded hpresentOffset hruntime
+      rw [hoffsetIR] at hevalOffset; simp [Except.toOption] at hevalOffset
+      have hevalValue := eval_compileExpr_core hvalue hexact hbounded hpresentValue hruntime
+      rw [hvalueIR] at hevalValue; simp [Except.toOption] at hevalValue
+      rcases hIROffset : evalIRExpr state offsetIR with _ | offsetNat
+      · simp [hIROffset, Option.bind] at hevalOffset
+      · simp [hIROffset, Option.bind] at hevalOffset
+        rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+        · simp [hIRValue, Option.bind] at hevalValue
+        · simp [hIRValue, Option.bind] at hevalValue
+          have hOffsetSrc : SourceSemantics.evalExpr fields runtime offset = some offsetNat :=
+            hevalOffset.symm
+          have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+            hevalValue.symm
+          let runtime' :=
+            { runtime with
+              world := {
+                runtime.world with
+                memory := fun o => if o = offsetNat then valueNat else runtime.world.memory o
+              } }
+          let state' := { state with memory := fun o => if o = offsetNat then valueNat else state.memory o }
+          have hvalueLt := evalExpr_lt_evmModulus_core_onExpr hvalue
+            (bindingsExactlyMatchIRVars_implies_onExpr hexact) hbounded hpresentValue hruntime
+          rw [hValueSrc] at hvalueLt
+          have hruntime' : runtimeStateMatchesIR fields runtime' state' :=
+            runtimeStateMatchesIR_setBothMemory hruntime offsetNat valueNat hvalueLt
+          have hexact' : bindingsExactlyMatchIRVars runtime'.bindings state' :=
+            bindingsExactlyMatchIRVars_setMemory hexact offsetNat valueNat
+          have hbounded' : bindingsBounded runtime'.bindings := by
+            simpa [runtime'] using hbounded
+          rcases ih (runtime := runtime') (state := state')
+              (inScopeNames := collectStmtNames (.mstore offset value) ++ inScopeNames)
+              hscope hexact' hbounded' hruntime' with
+            ⟨tailIR, htailCompile, htailSem, htailExact⟩
+          refine ⟨[YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])] ++ tailIR, ?_, ?_⟩
+          · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+            rw [hoffsetIR, hvalueIR]
+            simp [htailCompile]
+            exact rfl
+          · have hstmt :
+                execIRStmt (tailIR.length + extraFuel + 1) state
+                  (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])) = .continue state' := by
+              simp [execIRStmt, evalIRExprs, hIROffset, hIRValue, state']
+            have hirExec :
+                execIRStmts (tailIR.length + extraFuel + 2) state
+                  (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR]) :: tailIR) =
+                    execIRStmts (tailIR.length + extraFuel + 1) state' tailIR := by
+              simpa using
+                (execIRStmts_cons_of_execIRStmt_continue_extraFuel extraFuel state state'
+                  (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])) tailIR hstmt)
+            have hirExec' :
+                execIRStmts (tailIR.length + 1 + extraFuel + 1) state
+                  (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR]) :: tailIR) =
+                    execIRStmts (tailIR.length + extraFuel + 1) state' tailIR := by
+              simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using hirExec
+            rw [SourceSemantics.execStmtList, SourceSemantics.execStmt, hOffsetSrc, hValueSrc]
+            simp [hirExec']
+            exact ⟨htailSem, htailExact⟩
+  | tstore hoffset hinScopeOffset hvalue hinScopeValue hrest ih =>
+      rename_i scope offset value rest
+      have hpresentOffset : exprBoundNamesPresent offset runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeOffset
+      have hpresentValue : exprBoundNamesPresent value runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeValue
+      rcases compileExpr_core_ok hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      have hevalOffset := eval_compileExpr_core hoffset hexact hbounded hpresentOffset hruntime
+      rw [hoffsetIR] at hevalOffset; simp [Except.toOption] at hevalOffset
+      have hevalValue := eval_compileExpr_core hvalue hexact hbounded hpresentValue hruntime
+      rw [hvalueIR] at hevalValue; simp [Except.toOption] at hevalValue
+      rcases hIROffset : evalIRExpr state offsetIR with _ | offsetNat
+      · simp [hIROffset, Option.bind] at hevalOffset
+      · simp [hIROffset, Option.bind] at hevalOffset
+        rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+        · simp [hIRValue, Option.bind] at hevalValue
+        · simp [hIRValue, Option.bind] at hevalValue
+          have hOffsetSrc : SourceSemantics.evalExpr fields runtime offset = some offsetNat :=
+            hevalOffset.symm
+          have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+            hevalValue.symm
+          let runtime' :=
+            { runtime with
+              world := {
+                runtime.world with
+                transientStorage := fun o => if o = offsetNat then valueNat else runtime.world.transientStorage o
+              } }
+          let state' := { state with transientStorage := fun o => if o = offsetNat then valueNat else state.transientStorage o }
+          have hvalueLt := evalExpr_lt_evmModulus_core_onExpr hvalue
+            (bindingsExactlyMatchIRVars_implies_onExpr hexact) hbounded hpresentValue hruntime
+          rw [hValueSrc] at hvalueLt
+          have hruntime' : runtimeStateMatchesIR fields runtime' state' :=
+            runtimeStateMatchesIR_setTransientStorage hruntime offsetNat valueNat hvalueLt
+          have hexact' : bindingsExactlyMatchIRVars runtime'.bindings state' := by
+            intro name; simpa [IRState.getVar, state'] using hexact name
+          have hbounded' : bindingsBounded runtime'.bindings := by
+            simpa [runtime'] using hbounded
+          rcases ih (runtime := runtime') (state := state')
+              (inScopeNames := collectStmtNames (.tstore offset value) ++ inScopeNames)
+              hscope hexact' hbounded' hruntime' with
+            ⟨tailIR, htailCompile, htailSem, htailExact⟩
+          refine ⟨[YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])] ++ tailIR, ?_, ?_⟩
+          · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+            rw [hoffsetIR, hvalueIR]
+            simp [htailCompile]
+            exact rfl
+          · have hstmt :
+                execIRStmt (tailIR.length + extraFuel + 1) state
+                  (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])) = .continue state' := by
+              simp [execIRStmt, evalIRExprs, hIROffset, hIRValue, state']
+            have hirExec :
+                execIRStmts (tailIR.length + extraFuel + 2) state
+                  (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR]) :: tailIR) =
+                    execIRStmts (tailIR.length + extraFuel + 1) state' tailIR := by
+              simpa using
+                (execIRStmts_cons_of_execIRStmt_continue_extraFuel extraFuel state state'
+                  (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])) tailIR hstmt)
+            have hirExec' :
+                execIRStmts (tailIR.length + 1 + extraFuel + 1) state
+                  (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR]) :: tailIR) =
+                    execIRStmts (tailIR.length + extraFuel + 1) state' tailIR := by
+              simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using hirExec
+            rw [SourceSemantics.execStmtList, SourceSemantics.execStmt, hOffsetSrc, hValueSrc]
+            simp [hirExec']
+            exact ⟨htailSem, htailExact⟩
 
 private theorem compiled_terminal_ite_body_block_extraFuel_eq
     (extraFuel : Nat)
@@ -12264,6 +12641,16 @@ theorem execStmtList_terminal_core_not_continue
   | stop hrest =>
       intro next
       simp [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+  | mstore hoffset hinScopeOffset hvalue hinScopeValue hrest ih =>
+      intro next
+      simp only [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+      cases SourceSemantics.evalExpr fields runtime _ <;> simp_all
+      cases SourceSemantics.evalExpr fields runtime _ <;> simp_all
+  | tstore hoffset hinScopeOffset hvalue hinScopeValue hrest ih =>
+      intro next
+      simp only [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+      cases SourceSemantics.evalExpr fields runtime _ <;> simp_all
+      cases SourceSemantics.evalExpr fields runtime _ <;> simp_all
   | ite hcond hinScope hthen helse hrest ih_then ih_else =>
       intro next
       simp only [SourceSemantics.execStmtList, SourceSemantics.execStmt]
@@ -13743,7 +14130,7 @@ theorem exec_compileStmtList_terminal_core_sizeOf_extraFuel
     (hruntime : runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR ∧
+        fields [] [] .calldata [] false inScopeNames [] stmts = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmtList fields runtime stmts
       let irExec := execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec := by
@@ -13971,6 +14358,142 @@ theorem exec_compileStmtList_terminal_core_sizeOf_extraFuel
       refine ⟨[YulStmt.expr (YulExpr.call "stop" [])] ++ tailIR, ?_, ?_⟩
       · simpa [CompilationModel.compileStmtList, CompilationModel.compileStmt, htailCompile]
       · exact stmtResultMatchesIRExec_compiled_stop_core_append_wholeFuel hruntime
+  | mstore hoffset hinScopeOffset hvalue hinScopeValue hrest ih =>
+      rename_i scope offset value rest
+      have hpresentOffset : exprBoundNamesPresent offset runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeOffset
+      have hpresentValue : exprBoundNamesPresent value runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeValue
+      rcases compileExpr_core_ok hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      have hevalOffset := eval_compileExpr_core_of_scope hoffset hexact hinScopeOffset hbounded hpresentOffset hruntime
+      rw [hoffsetIR] at hevalOffset; simp [Except.toOption] at hevalOffset
+      have hevalValue := eval_compileExpr_core_of_scope hvalue hexact hinScopeValue hbounded hpresentValue hruntime
+      rw [hvalueIR] at hevalValue; simp [Except.toOption] at hevalValue
+      rcases hIROffset : evalIRExpr state offsetIR with _ | offsetNat
+      · simp [hIROffset, Option.bind] at hevalOffset
+      · simp [hIROffset, Option.bind] at hevalOffset
+        rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+        · simp [hIRValue, Option.bind] at hevalValue
+        · simp [hIRValue, Option.bind] at hevalValue
+          have hOffsetSrc : SourceSemantics.evalExpr fields runtime offset = some offsetNat :=
+            hevalOffset.symm
+          have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+            hevalValue.symm
+          let runtime' :=
+            { runtime with
+              world := {
+                runtime.world with
+                memory := fun o => if o = offsetNat then valueNat else runtime.world.memory o
+              } }
+          let state' := { state with memory := fun o => if o = offsetNat then valueNat else state.memory o }
+          have hvalueLt := evalExpr_lt_evmModulus_core_of_scope hvalue hexact hinScopeValue hbounded hpresentValue hruntime
+          rw [hValueSrc] at hvalueLt; simp at hvalueLt
+          have hruntime' : runtimeStateMatchesIR fields runtime' state' :=
+            runtimeStateMatchesIR_setBothMemory hruntime offsetNat valueNat hvalueLt
+          have hexact' : bindingsExactlyMatchIRVarsOnScope scope runtime'.bindings state' :=
+            bindingsExactlyMatchIRVarsOnScope_setMemory hexact offsetNat valueNat
+          have hbounded' : bindingsBounded runtime'.bindings := by
+            simpa [runtime'] using hbounded
+          have hscope' : scopeNamesPresent scope runtime'.bindings := by
+            simpa [runtime'] using hscope
+          have hincluded' : scopeNamesIncluded scope
+              (collectStmtNames (.mstore offset value) ++ inScopeNames) :=
+            scopeNamesIncluded_collectStmtNames_tail hincluded
+          rcases ih (extraFuel + sizeOf (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])))
+              (runtime := runtime') (state := state')
+              (inScopeNames := collectStmtNames (.mstore offset value) ++ inScopeNames)
+              hincluded' hscope' hexact' hbounded' hruntime' with
+            ⟨tailIR, htailCompile, htailSem⟩
+          refine ⟨[YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])] ++ tailIR, ?_, ?_⟩
+          · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+            rw [hoffsetIR, hvalueIR]
+            simp [htailCompile]
+            exact rfl
+          · have hstmt :
+                execIRStmt (sizeOf ([YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])] ++ tailIR) + extraFuel) state
+                  (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])) = .continue state' := by
+              have hfuelNe : sizeOf ([YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])] ++ tailIR) + extraFuel ≠ 0 :=
+                sizeOf_singleton_append_extraFuel_ne_zero _ _ _
+              cases hfuel : sizeOf ([YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])] ++ tailIR) + extraFuel with
+              | zero => exact absurd hfuel hfuelNe
+              | succ n => simp [execIRStmt, evalIRExprs, hIROffset, hIRValue, state']
+            have hirExec :=
+              execIRStmts_singleton_append_of_execIRStmt_continue_wholeFuel
+                extraFuel state state' (YulStmt.expr (YulExpr.call "mstore" [offsetIR, valueIR])) tailIR hstmt
+            simp only [SourceSemantics.execStmtList, SourceSemantics.execStmt, hOffsetSrc, hValueSrc, hirExec]
+            dsimp [runtime', state']
+            convert htailSem using 2
+            simp
+            omega
+  | tstore hoffset hinScopeOffset hvalue hinScopeValue hrest ih =>
+      rename_i scope offset value rest
+      have hpresentOffset : exprBoundNamesPresent offset runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeOffset
+      have hpresentValue : exprBoundNamesPresent value runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScopeValue
+      rcases compileExpr_core_ok hoffset with ⟨offsetIR, hoffsetIR⟩
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      have hevalOffset := eval_compileExpr_core_of_scope hoffset hexact hinScopeOffset hbounded hpresentOffset hruntime
+      rw [hoffsetIR] at hevalOffset; simp [Except.toOption] at hevalOffset
+      have hevalValue := eval_compileExpr_core_of_scope hvalue hexact hinScopeValue hbounded hpresentValue hruntime
+      rw [hvalueIR] at hevalValue; simp [Except.toOption] at hevalValue
+      rcases hIROffset : evalIRExpr state offsetIR with _ | offsetNat
+      · simp [hIROffset, Option.bind] at hevalOffset
+      · simp [hIROffset, Option.bind] at hevalOffset
+        rcases hIRValue : evalIRExpr state valueIR with _ | valueNat
+        · simp [hIRValue, Option.bind] at hevalValue
+        · simp [hIRValue, Option.bind] at hevalValue
+          have hOffsetSrc : SourceSemantics.evalExpr fields runtime offset = some offsetNat :=
+            hevalOffset.symm
+          have hValueSrc : SourceSemantics.evalExpr fields runtime value = some valueNat :=
+            hevalValue.symm
+          let runtime' :=
+            { runtime with
+              world := {
+                runtime.world with
+                transientStorage := fun o => if o = offsetNat then valueNat else runtime.world.transientStorage o
+              } }
+          let state' := { state with transientStorage := fun o => if o = offsetNat then valueNat else state.transientStorage o }
+          have hvalueLt := evalExpr_lt_evmModulus_core_of_scope hvalue hexact hinScopeValue hbounded hpresentValue hruntime
+          rw [hValueSrc] at hvalueLt; simp at hvalueLt
+          have hruntime' : runtimeStateMatchesIR fields runtime' state' :=
+            runtimeStateMatchesIR_setTransientStorage hruntime offsetNat valueNat hvalueLt
+          have hexact' : bindingsExactlyMatchIRVarsOnScope scope runtime'.bindings state' := by
+            intro name hname; simpa [IRState.getVar, state'] using hexact name hname
+          have hbounded' : bindingsBounded runtime'.bindings := by
+            simpa [runtime'] using hbounded
+          have hscope' : scopeNamesPresent scope runtime'.bindings := by
+            simpa [runtime'] using hscope
+          have hincluded' : scopeNamesIncluded scope
+              (collectStmtNames (.tstore offset value) ++ inScopeNames) :=
+            scopeNamesIncluded_collectStmtNames_tail hincluded
+          rcases ih (extraFuel + sizeOf (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])))
+              (runtime := runtime') (state := state')
+              (inScopeNames := collectStmtNames (.tstore offset value) ++ inScopeNames)
+              hincluded' hscope' hexact' hbounded' hruntime' with
+            ⟨tailIR, htailCompile, htailSem⟩
+          refine ⟨[YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])] ++ tailIR, ?_, ?_⟩
+          · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+            rw [hoffsetIR, hvalueIR]
+            simp [htailCompile]
+            exact rfl
+          · have hstmt :
+                execIRStmt (sizeOf ([YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])] ++ tailIR) + extraFuel) state
+                  (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])) = .continue state' := by
+              have hfuelNe : sizeOf ([YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])] ++ tailIR) + extraFuel ≠ 0 :=
+                sizeOf_singleton_append_extraFuel_ne_zero _ _ _
+              cases hfuel : sizeOf ([YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])] ++ tailIR) + extraFuel with
+              | zero => exact absurd hfuel hfuelNe
+              | succ n => simp [execIRStmt, evalIRExprs, hIROffset, hIRValue, state']
+            have hirExec :=
+              execIRStmts_singleton_append_of_execIRStmt_continue_wholeFuel
+                extraFuel state state' (YulStmt.expr (YulExpr.call "tstore" [offsetIR, valueIR])) tailIR hstmt
+            simp only [SourceSemantics.execStmtList, SourceSemantics.execStmt, hOffsetSrc, hValueSrc, hirExec]
+            dsimp [runtime', state']
+            convert htailSem using 2
+            simp
+            omega
   | ite hcond hinScope hthen helse hrest ih_then ih_else =>
       rename_i scope cond thenBranch elseBranch rest
       have hpresent : exprBoundNamesPresent cond runtime.bindings :=

@@ -1,4 +1,5 @@
 import Compiler.CompilationModel.Types
+import Compiler.CompilationModel.AdtStorageLayout
 import Compiler.CompilationModel.DynamicData
 import Compiler.CompilationModel.InternalNaming
 import Compiler.CompilationModel.ValidationHelpers
@@ -393,6 +394,21 @@ def compileExpr (fields : List Field)
         YulExpr.call "mul" [condBool, thenExpr],
         YulExpr.call "mul" [condNeg, elseExpr]
       ])
+  -- ADT expressions: storage-backed tagged unions (#1727 Steps 5c/5d)
+  | Expr.adtConstruct adtName variantName _args =>
+      throw s!"Compilation error: ADT construct '{adtName}.{variantName}' cannot be used in expression position. ADT construction expands to multiple sstores and must be compiled at the statement level."
+  | Expr.adtTag _adtName storageField =>
+      -- Tag byte: sload(baseSlot) & 0xFF
+      match findFieldSlot fields storageField with
+      | some baseSlot =>
+          pure (compileAdtTagRead (YulExpr.lit baseSlot))
+      | none => throw s!"Compilation error: unknown storage field '{storageField}' for ADT tag read"
+  | Expr.adtField _adtName _variantName _fieldName fieldIndex storageField =>
+      -- Field read: sload(baseSlot + fieldIndex + 1)
+      match findFieldSlot fields storageField with
+      | some baseSlot =>
+          pure (compileAdtFieldRead (YulExpr.lit baseSlot) fieldIndex)
+      | none => throw s!"Compilation error: unknown storage field '{storageField}' for ADT field read"
 end
 
 -- Compile require condition to a "failure" predicate to avoid double-negation.

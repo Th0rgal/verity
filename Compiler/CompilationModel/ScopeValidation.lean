@@ -22,6 +22,10 @@ partial def staticParamBindingNames (name : String) (ty : ParamType) : List Stri
         | elemTy :: rest =>
             staticParamBindingNames s!"{name}_{idx}" elemTy ++ go rest (idx + 1)
       go elemTys 0
+  | ParamType.adt _ maxFields =>
+      name :: (List.range maxFields).map (fun i => s!"{name}_f{i}")
+  | ParamType.newtypeOf _ baseType =>
+      staticParamBindingNames name baseType
   | _ => []
 
 def dynamicParamBindingNames (name : String) : List String :=
@@ -40,6 +44,8 @@ mutual
     | ParamType.bytes => true
     | ParamType.fixedArray elemTy _ => isDynamicParamTypeForScope elemTy
     | ParamType.tuple elemTys => paramTypeListAnyDynamicForScope elemTys
+    | ParamType.adt _ _ => false
+    | ParamType.newtypeOf _ baseType => isDynamicParamTypeForScope baseType
 termination_by ty => sizeOf ty
 decreasing_by all_goals simp_wf; all_goals omega
 
@@ -219,6 +225,12 @@ def validateScopedExprIdentifiers
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount cond
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount thenVal
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount elseVal
+  | Expr.adtConstruct _ _ args =>
+      validateScopedExprIdentifiersList context params paramScope dynamicParams localScope constructorArgCount args
+  | Expr.adtTag _ _ =>
+      pure ()
+  | Expr.adtField _ _ _ _ _ =>
+      pure ()
   | Expr.literal _ | Expr.storage _ | Expr.storageAddr _ | Expr.caller | Expr.contractAddress | Expr.chainid
   | Expr.msgValue | Expr.blockTimestamp | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize =>
@@ -312,6 +324,13 @@ def validateScopedStmtIdentifiers
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount count
       let _ ← validateScopedStmtListIdentifiers context params paramScope dynamicParams (varName :: localScope) constructorArgCount body
       pure localScope
+  | Stmt.unsafeBlock _ body => do
+      let _ ← validateScopedStmtListIdentifiers context params paramScope dynamicParams localScope constructorArgCount body
+      pure localScope
+  | Stmt.matchAdt _ scrutinee branches => do
+      validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount scrutinee
+      validateScopedMatchBranches context params paramScope dynamicParams localScope constructorArgCount branches
+      pure localScope
   | Stmt.internalCall _ args => do
       validateScopedExprIdentifiersList context params paramScope dynamicParams localScope constructorArgCount args
       pure localScope
@@ -326,6 +345,9 @@ def validateScopedStmtIdentifiers
   | Stmt.externalCallBind resultVars _ args => do
       validateScopedExprIdentifiersList context params paramScope dynamicParams localScope constructorArgCount args
       pure (resultVars.reverse ++ localScope)
+  | Stmt.tryExternalCallBind successVar resultVars _ args => do
+      validateScopedExprIdentifiersList context params paramScope dynamicParams localScope constructorArgCount args
+      pure ((successVar :: resultVars).reverse ++ localScope)
   | Stmt.ecm mod args => do
       if args.length != mod.numArgs then
         throw s!"Compilation error: {context} uses ECM '{mod.name}' with {args.length} arguments but it expects {mod.numArgs}"
@@ -352,6 +374,18 @@ def validateScopedStmtListIdentifiers
       let nextScope ← validateScopedStmtIdentifiers context params paramScope dynamicParams localScope constructorArgCount stmt
       validateScopedStmtListIdentifiers context params paramScope dynamicParams nextScope constructorArgCount rest
 termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def validateScopedMatchBranches
+    (context : String) (params : List Param) (paramScope : List String) (dynamicParams : List String)
+    (localScope : List String) (constructorArgCount : Option Nat) :
+    List (String × List String × List Stmt) → Except String Unit
+  | [] => pure ()
+  | (_, varNames, body) :: rest => do
+      let branchScope := varNames.reverse ++ localScope
+      let _ ← validateScopedStmtListIdentifiers context params paramScope dynamicParams branchScope constructorArgCount body
+      validateScopedMatchBranches context params paramScope dynamicParams localScope constructorArgCount rest
+termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 

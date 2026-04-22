@@ -4133,8 +4133,9 @@ theorem compileInternalFunction_output_shape
     {fields : List CompilationModel.Field}
     {events : List CompilationModel.EventDef}
     {errors : List CompilationModel.ErrorDef}
+    {adtTypes : List CompilationModel.AdtTypeDef}
     {spec : CompilationModel.FunctionSpec} {stmt : YulStmt}
-    (hok : CompilationModel.compileInternalFunction fields events errors spec = Except.ok stmt) :
+    (hok : CompilationModel.compileInternalFunction fields events errors adtTypes spec = Except.ok stmt) :
     ∃ retNames bodyStmts,
       stmt = YulStmt.funcDef
         (CompilationModel.internalFunctionYulName spec.name)
@@ -4154,7 +4155,7 @@ theorem compileInternalFunction_output_shape
       -- The private `freshInternalRetNames` is opaque; we just split on the
       -- remaining compileStmtList result.
       revert hok
-      generalize CompilationModel.compileStmtList _ _ _ _ _ _ _ _ = compileResult
+      generalize CompilationModel.compileStmtList _ _ _ _ _ _ _ _ _ = compileResult
       intro hok
       match compileResult with
       | .error e => simp at hok
@@ -4169,9 +4170,10 @@ theorem findInternalFunction?_of_compileInternalFunction_mem
     {fields : List CompilationModel.Field}
     {events : List CompilationModel.EventDef}
     {errors : List CompilationModel.ErrorDef}
+    {adtTypes : List CompilationModel.AdtTypeDef}
     {spec : CompilationModel.FunctionSpec} {compiledStmt : YulStmt}
     {contract : IRContract}
-    (hok : CompilationModel.compileInternalFunction fields events errors spec = Except.ok compiledStmt)
+    (hok : CompilationModel.compileInternalFunction fields events errors adtTypes spec = Except.ok compiledStmt)
     (hmem : compiledStmt ∈ contract.internalFunctions) :
     (findInternalFunction? contract (CompilationModel.internalFunctionYulName spec.name)).isSome = true := by
   obtain ⟨retNames, bodyStmts, hshape⟩ := compileInternalFunction_output_shape hok
@@ -4186,9 +4188,10 @@ theorem findInternalFunction?_exact_of_compileInternalFunction_mem_unique
     {fields : List CompilationModel.Field}
     {events : List CompilationModel.EventDef}
     {errors : List CompilationModel.ErrorDef}
+    {adtTypes : List CompilationModel.AdtTypeDef}
     {spec : CompilationModel.FunctionSpec} {compiledStmt : YulStmt}
     {contract : IRContract}
-    (hok : CompilationModel.compileInternalFunction fields events errors spec = Except.ok compiledStmt)
+    (hok : CompilationModel.compileInternalFunction fields events errors adtTypes spec = Except.ok compiledStmt)
     (hmem : compiledStmt ∈ contract.internalFunctions)
     (hunique : ∀ stmt ∈ contract.internalFunctions,
       ∀ p r b, irInternalFunctionDefOfStmt? stmt =
@@ -4227,7 +4230,7 @@ theorem compileStmt_internalCallAssign_shape
     {names : List String} {functionName : String}
     {args : List CompilationModel.Expr}
     {compiledIR : List YulStmt}
-    (hok : CompilationModel.compileStmt fields [] [] .calldata [] false scope
+    (hok : CompilationModel.compileStmt fields [] [] .calldata [] false scope []
       (CompilationModel.Stmt.internalCallAssign names functionName args) = Except.ok compiledIR) :
     ∃ argExprs,
       CompilationModel.compileExprList fields .calldata args = Except.ok argExprs ∧
@@ -4248,7 +4251,7 @@ theorem compileStmt_internalCall_shape
     {fields : List CompilationModel.Field} {scope : List String}
     {functionName : String} {args : List CompilationModel.Expr}
     {compiledIR : List YulStmt}
-    (hok : CompilationModel.compileStmt fields [] [] .calldata [] false scope
+    (hok : CompilationModel.compileStmt fields [] [] .calldata [] false scope []
       (CompilationModel.Stmt.internalCall functionName args) = Except.ok compiledIR) :
     ∃ argExprs,
       CompilationModel.compileExprList fields .calldata args = Except.ok argExprs ∧
@@ -4304,7 +4307,7 @@ theorem execIRStmtsWithInternals_of_internalCallAssign_compile
     {compiledIR : List YulStmt}
     (contract : IRContract) (fuel : Nat) (state : IRState)
     (helper : IRInternalFunctionDef) (argVals : List Nat) (state' : IRState)
-    (hok : CompilationModel.compileStmt fields [] [] .calldata [] false scope
+    (hok : CompilationModel.compileStmt fields [] [] .calldata [] false scope []
       (CompilationModel.Stmt.internalCallAssign names functionName args) = Except.ok compiledIR)
     (hfind : findInternalFunction? contract
       (CompilationModel.internalFunctionYulName functionName) = some helper)
@@ -4345,7 +4348,7 @@ theorem execIRStmtsWithInternals_of_internalCall_compile
     {compiledIR : List YulStmt}
     (contract : IRContract) (fuel : Nat) (state : IRState)
     (helper : IRInternalFunctionDef) (argVals : List Nat) (state' : IRState)
-    (hok : CompilationModel.compileStmt fields [] [] .calldata [] false scope
+    (hok : CompilationModel.compileStmt fields [] [] .calldata [] false scope []
       (CompilationModel.Stmt.internalCall functionName args) = Except.ok compiledIR)
     (hfind : findInternalFunction? contract
       (CompilationModel.internalFunctionYulName functionName) = some helper)

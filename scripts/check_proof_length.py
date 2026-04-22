@@ -45,9 +45,11 @@ ALLOWLIST: set[str] = {
     # --- Core expression/statement compilation ---
     "compileExpr_core_ok",
     "compileRequireFailCond_core_ok",
+    "compileStmt_core_ok_any_scope",  # mstore/tstore widening — mechanical per-constructor cases
     "compileStmtList_core_ok",
     "compileStmtList_terminal_core_ok",
     "compileStmtList_terminal_core_ok_nonempty",
+    "execStmtList_terminal_core_not_continue",  # mstore/tstore widening — 9 per-constructor cases
     "compileStmtList_terminal_ite_ok_inv",
     "compileStmt_terminal_ite_ok_inv",
     "compileStmt_ok_any_scope_aux",
@@ -133,7 +135,9 @@ ALLOWLIST: set[str] = {
     "exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed",
     "exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed",
     "stmtTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed",
+    "stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNames",
     "stmtTouchesUnsupportedContractSurface_eq_false_of_featureClosed",
+    "stmtListTerminalCore_helperSurfaceClosed",  # mstore/tstore widening — mechanical per-constructor cases
     "SupportedStmtList.helperSurfaceClosed",
     "SupportedStmtList.internalHelperCallNames_nil",
     "supportedStmtList_usesStorageArrayElement_false",

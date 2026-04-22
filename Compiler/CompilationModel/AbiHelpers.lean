@@ -56,6 +56,10 @@ mutual
     | ParamType.array t => paramTypeToSolidityString t ++ "[]"
     | ParamType.fixedArray t n => paramTypeToSolidityString t ++ "[" ++ toString n ++ "]"
     | ParamType.bytes => "bytes"
+    | ParamType.adt _name maxFields =>
+        -- ABI-encoded as static tuple: (uint8, uint256, ..., uint256)
+        "(" ++ String.intercalate "," ("uint8" :: List.replicate maxFields "uint256") ++ ")"
+    | ParamType.newtypeOf _ baseType => paramTypeToSolidityString baseType  -- Erased to base type
 
   private def paramTypeListToSolidityStrings : List ParamType → List String
     | [] => []
@@ -79,6 +83,7 @@ def storageArrayElemTypeToParamType : StorageArrayElemType → ParamType
 def fieldTypeToParamType : FieldType → ParamType
   | FieldType.uint256 => ParamType.uint256
   | FieldType.address => ParamType.address
+  | FieldType.adt name maxFields => ParamType.adt name maxFields
   | FieldType.dynamicArray elemType => ParamType.array (storageArrayElemTypeToParamType elemType)
   | FieldType.mappingTyped _ => ParamType.uint256
   | FieldType.mappingStruct _ _ => ParamType.uint256

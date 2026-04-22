@@ -1373,6 +1373,10 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.findDynamicArrayElementAtSlot_go_eq_copy  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.findDynamicArrayElementAtSlotCopy_eq  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_eq_copy  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.fieldWriteEntriesAt_base_mem  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.exists_mem_zipIdx_of_mem  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.fieldWriteEntriesAt_alias_mem  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.fieldWriteEntriesAt_packed_none_of_unpacked  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.list_findSlotPackedNone_ne_none  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.firstInFieldConflictCopy_ne_none_of_seen_slot_unpacked  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.firstFieldWriteSlotConflictCopyFrom_some_of_seen_slot_member  -- private
@@ -2005,7 +2009,9 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.List.mem_of_mem_eraseDups  -- private
 #print axioms Compiler.Proofs.IRGeneration.helperCallNames_nodup
 #print axioms Compiler.Proofs.IRGeneration.exprHelperCallNames_nodup
+-- #print axioms Compiler.Proofs.IRGeneration.matchAdtBranchesExprSubsetInternal_aux  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNames  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.matchAdtBranchesExprHelperCallNames_subset_internalHelperCallNames  -- private
 #print axioms Compiler.Proofs.IRGeneration.stmtExprHelperCallNames_subset_stmtInternalHelperCallNames
 #print axioms Compiler.Proofs.IRGeneration.exprHelperCallNames_subset_helperCallNames
 #print axioms Compiler.Proofs.IRGeneration.SupportedConstructor.paramNamesNodup
@@ -2139,6 +2145,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.noErrors
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.noExternals
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.noExternals
+#print axioms Compiler.Proofs.IRGeneration.SupportedSpec.noAdtTypes
+#print axioms Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.noAdtTypes
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.noFallback
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.noFallback
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.noReceive
@@ -2990,4 +2998,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2823 theorems/lemmas (1946 public, 877 private, 0 sorry'd)
+-- Total: 2831 theorems/lemmas (1948 public, 883 private, 0 sorry'd)

@@ -39,6 +39,12 @@ private def fieldTypeJson : FieldType → String
       jsonObject [("kind", jsonString "uint256")]
   | .address =>
       jsonObject [("kind", jsonString "address")]
+  | .adt name maxFields =>
+      jsonObject [
+        ("kind", jsonString "adt"),
+        ("name", jsonString name),
+        ("maxFields", jsonNat maxFields)
+      ]
   | .dynamicArray elemType =>
       jsonObject [
         ("kind", jsonString "dynamicArray"),
@@ -101,8 +107,12 @@ where
     let fieldsJson :=
       (spec.fields.zip effectiveFields).zipIdx.map fun ((declaredField, effectiveField), idx) =>
         fieldJson declaredField effectiveField idx
+    let nsField := match spec.storageNamespace with
+      | some ns => jsonString (toString ns)
+      | none => "null"
     jsonObject [
       ("contract", jsonString spec.name),
+      ("storageNamespace", nsField),
       ("fields", jsonArray fieldsJson),
       ("reservedSlotRanges", jsonArray (spec.reservedSlotRanges.map reservedSlotRangeJson)),
       ("slotAliasRanges", jsonArray (spec.slotAliasRanges.map slotAliasRangeJson))

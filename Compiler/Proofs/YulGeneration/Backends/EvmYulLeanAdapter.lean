@@ -4,6 +4,7 @@ import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.YulGeneration.Calldata
 import EvmYul.Yul.Ast
 import EvmYul.UInt256
+import Mathlib.Data.Finmap
 
 namespace Compiler.Proofs.YulGeneration.Backends
 
@@ -78,6 +79,195 @@ end
 def lowerProgram (stmts : List YulStmt) : Except AdapterError EvmYul.Yul.Ast.Stmt := do
   let stmts' ← lowerStmts stmts
   pure (.Block stmts')
+
+/-! ## Native EVMYulLean runtime lowering
+
+The historical `lowerExpr` path above is intentionally preserved because the
+existing bridge/report machinery reasons about the old structural adapter.
+The native runtime path below is the #1737 migration entry point: it lowers
+known Yul builtins to EVMYulLean primops (`.inl`) and leaves user/helper calls
+as Yul function calls (`.inr`).
+-/
+
+/-- Map runtime Yul builtin names to native EVMYulLean primops.
+
+This is broader than `lookupPrimOp`: it includes effectful/runtime operations
+needed by `EvmYul.Yul.exec`, while unknown names remain user/helper functions.
+-/
+def lookupRuntimePrimOp : String → Option (EvmYul.Operation .Yul)
+  | "stop"           => some .STOP
+  | "add"            => some .ADD
+  | "sub"            => some .SUB
+  | "mul"            => some .MUL
+  | "div"            => some .DIV
+  | "sdiv"           => some .SDIV
+  | "mod"            => some .MOD
+  | "smod"           => some .SMOD
+  | "addmod"         => some .ADDMOD
+  | "mulmod"         => some .MULMOD
+  | "exp"            => some .EXP
+  | "signextend"     => some .SIGNEXTEND
+  | "lt"             => some .LT
+  | "gt"             => some .GT
+  | "slt"            => some .SLT
+  | "sgt"            => some .SGT
+  | "eq"             => some .EQ
+  | "iszero"         => some .ISZERO
+  | "and"            => some .AND
+  | "or"             => some .OR
+  | "xor"            => some .XOR
+  | "not"            => some .NOT
+  | "byte"           => some .BYTE
+  | "shl"            => some .SHL
+  | "shr"            => some .SHR
+  | "sar"            => some .SAR
+  | "keccak256"      => some .KECCAK256
+  | "address"        => some .ADDRESS
+  | "balance"        => some .BALANCE
+  | "origin"         => some .ORIGIN
+  | "caller"         => some .CALLER
+  | "callvalue"      => some .CALLVALUE
+  | "calldataload"   => some .CALLDATALOAD
+  | "calldatacopy"   => some .CALLDATACOPY
+  | "calldatasize"   => some .CALLDATASIZE
+  | "codesize"       => some .CODESIZE
+  | "codecopy"       => some .CODECOPY
+  | "gasprice"       => some .GASPRICE
+  | "extcodesize"    => some .EXTCODESIZE
+  | "extcodecopy"    => some .EXTCODECOPY
+  | "extcodehash"    => some .EXTCODEHASH
+  | "returndatasize" => some .RETURNDATASIZE
+  | "returndatacopy" => some .RETURNDATACOPY
+  | "blockhash"      => some .BLOCKHASH
+  | "coinbase"       => some .COINBASE
+  | "timestamp"      => some .TIMESTAMP
+  | "number"         => some .NUMBER
+  | "gaslimit"       => some .GASLIMIT
+  | "chainid"        => some .CHAINID
+  | "blobbasefee"    => some .BLOBBASEFEE
+  | "selfbalance"    => some .SELFBALANCE
+  | "mload"          => some .MLOAD
+  | "mstore"         => some .MSTORE
+  | "mstore8"        => some .MSTORE8
+  | "sload"          => some .SLOAD
+  | "sstore"         => some .SSTORE
+  | "tload"          => some .TLOAD
+  | "tstore"         => some .TSTORE
+  | "msize"          => some .MSIZE
+  | "gas"            => some .GAS
+  | "pop"            => some .POP
+  | "log0"           => some .LOG0
+  | "log1"           => some .LOG1
+  | "log2"           => some .LOG2
+  | "log3"           => some .LOG3
+  | "log4"           => some .LOG4
+  | "return"         => some .RETURN
+  | "revert"         => some .REVERT
+  | "call"           => some .CALL
+  | "staticcall"     => some .STATICCALL
+  | "delegatecall"   => some .DELEGATECALL
+  | "callcode"       => some .CALLCODE
+  | _                => none
+
+def lowerExprNative : YulExpr → EvmYul.Yul.Ast.Expr
+  | .lit n => .Lit (EvmYul.UInt256.ofNat n)
+  | .hex n => .Lit (EvmYul.UInt256.ofNat n)
+  | .str s => .Var s
+  | .ident name => .Var name
+  | .call func args =>
+      let loweredArgs := args.map lowerExprNative
+      match lookupRuntimePrimOp func with
+      | some prim => .Call (.inl prim) loweredArgs
+      | none => .Call (.inr func) loweredArgs
+
+mutual
+partial def lowerStmtsNative :
+    List YulStmt → Except AdapterError (List EvmYul.Yul.Ast.Stmt)
+  | [] => pure []
+  | stmt :: rest => do
+      let stmts' ← lowerStmtGroupNative stmt
+      let rest' ← lowerStmtsNative rest
+      pure (stmts' ++ rest')
+
+/-- Lower a statement for native `EvmYul.Yul.exec`.
+
+Top-level function definitions are intentionally rejected here; callers that
+need executable contracts should use `lowerRuntimeContractNative`, which places
+them in `YulContract.functions`.
+-/
+partial def lowerStmtGroupNative :
+    YulStmt → Except AdapterError (List EvmYul.Yul.Ast.Stmt)
+  | .comment _ => pure [.Block []]
+  | .let_ name value => pure [.Let [name] (some (lowerExprNative value))]
+  | .letMany names value => pure [.Let names (some (lowerExprNative value))]
+  | .assign name value => pure [.Let [name] (some (lowerExprNative value))]
+  | .expr e => pure [.ExprStmtCall (lowerExprNative e)]
+  | .leave => pure [.Leave]
+  | .if_ cond body => do
+      let body' ← lowerStmtsNative body
+      pure [.If (lowerExprNative cond) body']
+  | .for_ init cond post body => do
+      let init' ← lowerStmtsNative init
+      let post' ← lowerStmtsNative post
+      let body' ← lowerStmtsNative body
+      pure (init' ++ [.For (lowerExprNative cond) post' body'])
+  | .switch expr cases defaultCase => do
+      let lowerCase := fun ((tag, block) : Nat × List YulStmt) => do
+        let block' ← lowerStmtsNative block
+        pure (EvmYul.UInt256.ofNat tag, block')
+      let cases' ← cases.mapM lowerCase
+      let default' ← lowerStmtsNative (defaultCase.getD [])
+      pure [.Switch (lowerExprNative expr) cases' default']
+  | .block stmts => do
+      let stmts' ← lowerStmtsNative stmts
+      pure [.Block stmts']
+  | .funcDef name _ _ _ =>
+      throw s!"native EVMYulLean statement lowering cannot inline function definition '{name}'; use lowerRuntimeContractNative"
+end
+
+def lowerFunctionDefinitionNative (params rets : List String) (body : List YulStmt) :
+    Except AdapterError EvmYul.Yul.Ast.FunctionDefinition := do
+  let body' ← lowerStmtsNative body
+  pure (.Def params rets body')
+
+abbrev NativeFunctionMap :=
+  Finmap (fun (_ : EvmYul.Yul.Ast.YulFunctionName) =>
+    EvmYul.Yul.Ast.FunctionDefinition)
+
+private def insertNativeFunction
+    (functions : NativeFunctionMap)
+    (name : String) (definition : EvmYul.Yul.Ast.FunctionDefinition) :
+    Except AdapterError NativeFunctionMap :=
+  if functions.lookup name |>.isSome then
+    throw s!"duplicate native Yul function definition '{name}'"
+  else
+    pure (functions.insert name definition)
+
+partial def lowerRuntimeContractNativeAux
+    (stmts : List YulStmt)
+    (dispatcherAcc : List EvmYul.Yul.Ast.Stmt)
+    (functionsAcc : NativeFunctionMap) :
+    Except AdapterError (List EvmYul.Yul.Ast.Stmt × NativeFunctionMap) := do
+  match stmts with
+  | [] => pure (dispatcherAcc.reverse, functionsAcc)
+  | .funcDef name params rets body :: rest =>
+      let definition ← lowerFunctionDefinitionNative params rets body
+      let functionsAcc ← insertNativeFunction functionsAcc name definition
+      lowerRuntimeContractNativeAux rest dispatcherAcc functionsAcc
+  | stmt :: rest =>
+      let lowered ← lowerStmtGroupNative stmt
+      lowerRuntimeContractNativeAux rest (lowered.reverse ++ dispatcherAcc) functionsAcc
+
+/-- Lower generated runtime Yul into an executable EVMYulLean contract shape. -/
+def lowerRuntimeContractNative (stmts : List YulStmt) :
+    Except AdapterError EvmYul.Yul.Ast.YulContract := do
+  let emptyFunctions : NativeFunctionMap := ∅
+  let (dispatcher, functions) ←
+    lowerRuntimeContractNativeAux stmts [] emptyFunctions
+  pure {
+    dispatcher := .Block dispatcher,
+    functions := functions
+  }
 
 /-- Map a Verity builtin name to the corresponding EVMYulLean PrimOp.
     Returns `none` for Verity-specific helpers (e.g. `mappingSlot`) that

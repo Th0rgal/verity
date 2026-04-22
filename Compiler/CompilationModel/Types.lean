@@ -100,6 +100,9 @@ def storageArrayElemUsesOneStorageWord : StorageArrayElemType → Bool
 inductive FieldType
   | uint256
   | address
+  /-- Storage-backed tagged union: tag at the canonical slot followed by
+      `maxFields` payload slots. -/
+  | adt (name : String) (maxFields : Nat)
   | dynamicArray (elemType : StorageArrayElemType)
   | mappingTyped (mt : MappingType)  -- Flexible mapping types (#154)
   /-- A mapping whose value is a multi-word struct with named members.
@@ -162,12 +165,14 @@ inductive ParamType
   | array (elemType : ParamType)           -- Dynamic array: uint256[], address[]
   | fixedArray (elemType : ParamType) (size : Nat)  -- Fixed array: uint256[3]
   | bytes                                  -- Dynamic bytes
+  | adt (name : String) (maxFields : Nat)  -- User-defined ADT; maxFields = max variant field count (#1727 Steps 5b/5e)
+  | newtypeOf (name : String) (baseType : ParamType)  -- Semantic newtype; erased to baseType at Yul level (zero overhead) (#1727 Steps 3b/3c)
   deriving Repr, BEq
 
 structure Param where
   name : String
   ty : ParamType
-  deriving Repr
+  deriving Repr, BEq
 
 -- Convert to IR types
 def ParamType.toIRType : ParamType → IRType
@@ -182,6 +187,8 @@ def ParamType.toIRType : ParamType → IRType
   | array _ => IRType.uint256  -- Arrays are represented as calldata offsets
   | fixedArray _ _ => IRType.uint256
   | bytes => IRType.uint256
+  | adt _ _ => IRType.uint256  -- ADTs are represented as storage offsets
+  | newtypeOf _ baseType => baseType.toIRType  -- Erased to base type
 
 def Param.toIRParam (p : Param) : IRParam :=
   { name := p.name, ty := p.ty.toIRType }
@@ -243,6 +250,28 @@ structure LocalObligation where
   /-- Proof-accounting status for this local boundary. -/
   proofStatus : Compiler.ProofStatus := .assumed
   deriving Repr
+
+/-!
+### ADT Type Definitions (#1727, Phase 5 Step 5b)
+
+IR-level representation of user-defined algebraic data types (tagged unions).
+Each variant carries a tag byte and typed fields.
+-/
+
+/-- A single variant of an ADT at the IR level.
+    `tag` is the 0-based index used for storage encoding. -/
+structure AdtVariant where
+  name : String
+  tag : Nat
+  fields : List Param
+  deriving Repr, BEq
+
+/-- A user-defined algebraic data type at the IR level.
+    Storage layout: tag byte (1 slot) + max-width fields in consecutive slots. -/
+structure AdtTypeDef where
+  name : String
+  variants : List AdtVariant
+  deriving Repr, BEq
 
 /-!
 ## Function Body DSL
@@ -366,6 +395,17 @@ inductive Expr
       Both branches are eagerly evaluated; `cond` is evaluated twice.
       For complex conditions with side effects, bind to a local variable first. -/
   | ite (cond thenVal elseVal : Expr)
+  /-- Construct an ADT value: `adtConstruct adtName variantName args`.
+      Produces the tagged-union encoding for the given variant. (#1727 Step 5b) -/
+  | adtConstruct (adtName variantName : String) (args : List Expr)
+  /-- Read the tag byte of an ADT value: `adtTag adtName field`.
+      Returns the 0-based tag index. (#1727 Step 5b) -/
+  | adtTag (adtName field : String)
+  /-- Read a field from an ADT value stored in contract storage.
+      `storageField` names the contract storage field holding the ADT.
+      `fieldIndex` is the 0-based index within the variant's field list,
+      pre-resolved at IR construction time. (#1727 Steps 5b/5c) -/
+  | adtField (adtName variantName fieldName : String) (fieldIndex : Nat) (storageField : String)
   deriving Repr
 
 inductive Stmt
@@ -424,10 +464,28 @@ inductive Stmt
       (resultVars : List String)  -- local vars to bind return values to
       (externalName : String)     -- name of the external function declaration
       (args : List Expr)          -- call arguments
+  /-- Perform an external call without auto-reverting on failure.
+      Binds a success flag (0/1) to `successVar` and return values to `resultVars`.
+      The caller is responsible for checking the success flag and handling failures.
+      (#1727, Axis 1 Step 5f) -/
+  | tryExternalCallBind
+      (successVar : String)       -- local var bound to success flag (0 = failure, 1 = success)
+      (resultVars : List String)  -- local vars to bind return values to (only valid if success == 1)
+      (externalName : String)     -- name of the external function declaration
+      (args : List Expr)          -- call arguments
   /-- Invoke an External Call Module with the given arguments.
       This generic variant delegates validation, compilation, and state analysis
       to the module's metadata and compile function. See Compiler.ECM (#964). -/
   | ecm (mod : ECM.ExternalCallModule) (args : List Expr)
+  /-- Unsafe block: `unsafe "reason" do body`.
+      Marks a region where restricted operations (Step 6b) are permitted.
+      The reason string is preserved for trust reporting (Step 6c). -/
+  | unsafeBlock (reason : String) (body : List Stmt)
+  /-- Pattern match on an ADT value: `matchAdt adtName scrutinee branches`.
+      Each branch is `(variantName, boundVarNames, body)`.
+      Compiles to `YulStmt.switch` on the tag byte. (#1727 Step 5b) -/
+  | matchAdt (adtName : String) (scrutinee : Expr)
+      (branches : List (String × List String × List Stmt))
   deriving Repr
 
 structure FunctionSpec where
@@ -442,6 +500,30 @@ structure FunctionSpec where
   /-- Whether this entrypoint is ABI-marked as `pure` (no state/environment reads intent). -/
   isPure : Bool := false
   body : List Stmt
+  /-- Storage field names declared in `modifies(...)`.  When non-empty the
+      compiler validates that the body only writes to these fields and emits
+      a frame theorem for all other fields.  (#1729, Axis 3 Step 1b) -/
+  modifies : List String := []
+  /-- Whether this function is annotated `no_external_calls`.  When true the
+      compiler validates that the body contains no external call statements
+      and emits a `_no_calls` theorem.  (#1729, Axis 3 Step 1c) -/
+  noExternalCalls : Bool := false
+  /-- Whether this function is annotated `allow_post_interaction_writes`.
+      When true, CEI enforcement is bypassed for this function.
+      (#1728, Axis 2 Step 2a) -/
+  allowPostInteractionWrites : Bool := false
+  /-- Storage field name used as reentrancy lock when annotated `nonreentrant(field)`.
+      When non-empty, CEI enforcement is bypassed because the lock prevents
+      reentrant state corruption.  (#1728, Axis 2 Step 2b) -/
+  nonReentrantLock : Option String := none
+  /-- Whether this function is annotated `cei_safe` — the user asserts CEI
+      safety via a machine-checked proof obligation.  CEI enforcement is bypassed
+      and a proof obligation is generated.  (#1728, Axis 2 Step 2b) -/
+  ceiSafe : Bool := false
+  /-- Storage field name used as access-control role when annotated `requires(field)`.
+      A `require(caller == roleHolder)` check is auto-injected at the start of the
+      function body.  (#1728, Axis 2 Step 2c) -/
+  requiresRole : Option String := none
   /-- Whether this is an internal-only function (not exposed via selector dispatch) -/
   isInternal : Bool := false
   /-- Local proof obligations that isolate unsafe/assembly-shaped trust
@@ -474,6 +556,13 @@ structure CompilationModel where
   events : List EventDef := []  -- Event definitions (#153)
   errors : List ErrorDef := []  -- Custom errors (#586)
   externals : List ExternalFunction := []  -- External function declarations (#184)
+  /-- User-defined algebraic data types (tagged unions). (#1727 Step 5b) -/
+  adtTypes : List AdtTypeDef := []
+  /-- EIP-7201 storage namespace offset.  When `some n`, every user-declared
+      `slot k` was already shifted by `n` during macro elaboration.  The value
+      is `keccak256("{ContractName}.storage.v0")` as a 256-bit Nat.
+      (#1730, Axis 4 Step 4d) -/
+  storageNamespace : Option Nat := none
   deriving Repr
 
 /-!

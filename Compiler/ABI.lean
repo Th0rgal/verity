@@ -22,6 +22,8 @@ private def abiTypeString : ParamType → String
   | .tuple _ => "tuple"
   | .array t => abiTypeString t ++ "[]"
   | .fixedArray t n => abiTypeString t ++ "[" ++ toString n ++ "]"
+  | .adt _ _ => "tuple"  -- ADTs are ABI-encoded as static tuples
+  | .newtypeOf _ baseType => abiTypeString baseType  -- Erased to base type
 
 -- Uses `fieldTypeToParamType` from CompilationModel (shared, not duplicated).
 -- Uses `isInteropEntrypointName` from CompilationModel for consistent filtering.
@@ -39,6 +41,13 @@ mutual
     | .tuple elems =>
         let rendered := elems.map (fun ty => renderParam "" ty none)
         some ("[" ++ String.intercalate ", " rendered ++ "]")
+    | .adt _ maxFields =>
+        -- ADTs encode as (uint8 tag, uint256 field₀, ..., uint256 fieldₙ)
+        let tagComponent := renderParam "tag" .uint8 none
+        let fieldComponents := List.range maxFields |>.map fun i =>
+          renderParam s!"field{i}" .uint256 none
+        some ("[" ++ String.intercalate ", " (tagComponent :: fieldComponents) ++ "]")
+    | .newtypeOf _ baseType => abiComponents? baseType
     | .array t => abiComponents? t
     | .fixedArray t _ => abiComponents? t
     | _ => none
@@ -125,5 +134,51 @@ def writeContractABIFile (outDir : String) (spec : CompilationModel) : IO Unit :
   IO.FS.createDirAll outDir
   let path := s!"{outDir}/{spec.name}.abi.json"
   IO.FS.writeFile path (emitContractABIJson spec)
+
+/-- Render the storage layout for a contract as a JSON object.
+    Includes EIP-7201 namespace when present (#1730, Axis 4 Step 4d).
+    The output is a JSON object with `"contract"`, `"storageNamespace"`,
+    and `"fields"` keys. -/
+def emitContractStorageLayoutJson (spec : CompilationModel) : String :=
+  let nsTerm := match spec.storageNamespace with
+    | some ns => jsonString (toString ns)
+    | none => "null"
+  let fieldEntries := renderFields spec.fields 0
+  "{" ++ joinJsonFields [
+    s!"\"contract\": {jsonString spec.name}",
+    s!"\"storageNamespace\": {nsTerm}",
+    s!"\"fields\": [{String.intercalate ", " fieldEntries}]"
+  ] ++ "}\n"
+where
+  renderFieldType : FieldType → String
+    | .uint256 => "uint256"
+    | .address => "address"
+    | .adt name maxFields => s!"adt({name},{maxFields})"
+    | .dynamicArray elemType => renderStorageArrayElemType elemType ++ "[]"
+    | .mappingTyped _ => "mapping"
+    | .mappingStruct _ _ => "mapping"
+    | .mappingStruct2 _ _ _ => "mapping"
+  renderStorageArrayElemType : StorageArrayElemType → String
+    | .uint256 => "uint256"
+    | .address => "address"
+    | .bool => "bool"
+    | .uint8 => "uint8"
+    | .bytes32 => "bytes32"
+  renderFields (fields : List Field) (idx : Nat) : List String :=
+    match fields with
+    | [] => []
+    | f :: rest =>
+        let slot := f.slot.getD idx
+        let entry := "{" ++ joinJsonFields [
+          s!"\"name\": {jsonString f.name}",
+          s!"\"slot\": {jsonString (toString slot)}",
+          s!"\"type\": {jsonString (renderFieldType f.ty)}"
+        ] ++ "}"
+        entry :: renderFields rest (idx + 1)
+
+def writeContractStorageLayoutFile (outDir : String) (spec : CompilationModel) : IO Unit := do
+  IO.FS.createDirAll outDir
+  let path := s!"{outDir}/{spec.name}.storage.json"
+  IO.FS.writeFile path (emitContractStorageLayoutJson spec)
 
 end Compiler.ABI

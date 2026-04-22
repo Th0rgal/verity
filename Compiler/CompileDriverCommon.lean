@@ -142,6 +142,12 @@ private def ensureNoLowLevelMechanics (specs : List CompilationModel) : IO Unit 
     throw (IO.userError
       s!"Low-level mechanics remain:\n{String.intercalate "\n" lowLevelSites}")
 
+private def ensureNoUnsafeBlocks (specs : List CompilationModel) : IO Unit := do
+  let unsafeSites := emitUnsafeBlockUsageSiteLines specs
+  if !unsafeSites.isEmpty then
+    throw (IO.userError
+      s!"Unsafe blocks remain:\n{String.intercalate "\n" unsafeSites}")
+
 private def ensureLayoutCompatible (specs : List CompilationModel) : IO Unit := do
   let (baseline, candidate) ← requireLayoutCompatibilityPair specs
   let incompatibilities := emitIncompatibleLayoutChangeLines baseline candidate
@@ -205,7 +211,8 @@ def compileSpecsWithOptions
     (denyProxyUpgradeability : Bool := false)
     (layoutReportPath : Option String := none)
     (layoutCompatibilityReportPath : Option String := none)
-    (denyLayoutIncompatibility : Bool := false) : IO Unit := do
+    (denyLayoutIncompatibility : Bool := false)
+    (denyUnsafe : Bool := false) : IO Unit := do
   IO.FS.createDirAll outDir
   match abiOutDir with
   | some dir => IO.FS.createDirAll dir
@@ -225,8 +232,10 @@ def compileSpecsWithOptions
         match abiOutDir with
         | some dir =>
             Compiler.ABI.writeContractABIFile dir spec
+            Compiler.ABI.writeContractStorageLayoutFile dir spec
             if verbose then
               IO.println s!"✓ Wrote ABI {dir}/{spec.name}.abi.json"
+              IO.println s!"✓ Wrote storage layout {dir}/{spec.name}.storage.json"
         | none => pure ()
         patchRows := (contract.name, patchReport) :: patchRows
         if verbose then
@@ -283,6 +292,8 @@ def compileSpecsWithOptions
     ensureNoAssumedDependencies specs
   if denyUncheckedDependencies then
     ensureNoUncheckedDependencies specs
+  if denyUnsafe then
+    ensureNoUnsafeBlocks specs
   if verbose then
     IO.println ""
     IO.println "Linear memory mechanics report:"
@@ -363,6 +374,19 @@ def compileSpecsWithOptions
     if !anyLocalObligations then
       IO.println "  (no local unsafe/refinement obligations declared)"
     IO.println "  Proof boundary: local obligations isolate unsafe/assembly-shaped trust boundaries to one usage site and can later be discharged from `assumed`/`unchecked` to `proved`."
+    IO.println ""
+    IO.println "Unsafe block report:"
+    let mut anyUnsafeBlocks := false
+    for spec in specs do
+      let unsafeReasons := collectUnsafeBlockReasons spec
+      if !unsafeReasons.isEmpty then
+        anyUnsafeBlocks := true
+        IO.println s!"  {spec.name}:"
+        for reason in unsafeReasons do
+          IO.println s!"    [unsafe] \"{reason}\""
+    if !anyUnsafeBlocks then
+      IO.println "  (no unsafe blocks used)"
+    IO.println "  Trust boundary: each `unsafe \"reason\" do` block suppresses restricted-operation gating for its body. Use `--deny-unsafe` to reject all unsafe blocks."
     IO.println ""
     IO.println "Proof-status summary:"
     let mut anyForeignStatus := false
@@ -502,7 +526,8 @@ unsafe def compileModulesWithOptions
     (denyProxyUpgradeability : Bool := false)
     (layoutReportPath : Option String := none)
     (layoutCompatibilityReportPath : Option String := none)
-    (denyLayoutIncompatibility : Bool := false) : IO Unit := do
+    (denyLayoutIncompatibility : Bool := false)
+    (denyUnsafe : Bool := false) : IO Unit := do
   let specs ←
     match ← Compiler.ModuleInput.loadSpecsFromRawModules modules with
     | .ok specs => pure specs
@@ -511,6 +536,6 @@ unsafe def compileModulesWithOptions
     backend specs outDir verbose libraryPaths options patchReportPath trustReportPath assumptionReportPath abiOutDir
     denyUncheckedDependencies denyAssumedDependencies denyAxiomatizedPrimitives denyLocalObligations denyLinearMemoryMechanics
     denyEventEmission denyLowLevelMechanics denyRuntimeIntrospection denyProxyUpgradeability layoutReportPath
-    layoutCompatibilityReportPath denyLayoutIncompatibility
+    layoutCompatibilityReportPath denyLayoutIncompatibility denyUnsafe
 
 end Compiler.CompileDriverCommon

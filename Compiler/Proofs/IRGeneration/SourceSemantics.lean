@@ -2044,6 +2044,8 @@ theorem findDynamicArrayElementAtSlot_withTransactionContext
           simpa [findDynamicArrayElementAtSlot.go, withTransactionContext, hty] using ih (idx + 1)
       | address =>
           simpa [findDynamicArrayElementAtSlot.go, withTransactionContext, hty] using ih (idx + 1)
+      | adt name maxFields =>
+          simpa [findDynamicArrayElementAtSlot.go, withTransactionContext, hty] using ih (idx + 1)
       | dynamicArray elemType =>
           cases hscan :
               findDynamicArrayElementAtSlot.scanElements slot
@@ -2083,6 +2085,8 @@ theorem findDynamicArrayElementAtSlot_congr_storageArray
       | uint256 =>
           simpa [findDynamicArrayElementAtSlot.go, hty] using ih (idx + 1)
       | address =>
+          simpa [findDynamicArrayElementAtSlot.go, hty] using ih (idx + 1)
+      | adt name maxFields =>
           simpa [findDynamicArrayElementAtSlot.go, hty] using ih (idx + 1)
       | dynamicArray elemType =>
           cases hscan :
@@ -3458,6 +3462,8 @@ mutual
     cases expr with
     | internalCall _ _ =>
         simp [exprTouchesUnsupportedHelperSurface] at hsurface
+    | adtConstruct _ _ _ | adtTag _ _ | adtField _ _ _ _ _ =>
+        simp [exprTouchesUnsupportedHelperSurface] at hsurface
     | mappingChain _ _ =>
         simp [exprTouchesUnsupportedHelperSurface] at hsurface
     | literal _ =>
@@ -4034,6 +4040,7 @@ private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux
         evalExprList_eq_mapM]
   | .rawLog _ _ _ => simp [execStmtWithHelpers, execStmtWithEvents]
   | .externalCallBind _ _ _ => simp [execStmtWithHelpers, execStmtWithEvents]
+  | .tryExternalCallBind _ _ _ _ => simp [execStmtWithHelpers, execStmtWithEvents]
   | .ecm _ _ => simp [execStmtWithHelpers, execStmtWithEvents]
   | .forEach _ _ _ =>
       simp only [stmtTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface

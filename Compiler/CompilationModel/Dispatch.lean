@@ -28,7 +28,7 @@ def freshInternalRetNames (returns : List ParamType) (usedNames : List String) :
 
 -- Compile internal function to a Yul function definition (#181)
 def compileInternalFunction (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
-    (spec : FunctionSpec) :
+    (adtTypes : List AdtTypeDef := []) (spec : FunctionSpec) :
     Except String YulStmt := do
   validateFunctionSpec spec
   let returns ← functionReturns spec
@@ -36,18 +36,18 @@ def compileInternalFunction (fields : List Field) (events : List EventDef) (erro
   let usedNames := paramNames ++ collectStmtListBindNames spec.body
   let retNames := freshInternalRetNames returns usedNames
   let bodyStmts ← compileStmtList fields events errors .calldata retNames true
-    (paramNames ++ retNames) spec.body
+    (paramNames ++ retNames) adtTypes spec.body
   pure (YulStmt.funcDef (internalFunctionYulName spec.name) paramNames retNames bodyStmts)
 
 theorem compileInternalFunction_ok_components
     (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
     (spec : FunctionSpec) (stmt : YulStmt)
-    (hcompile : compileInternalFunction fields events errors spec = Except.ok stmt) :
+    (hcompile : compileInternalFunction fields events errors [] spec = Except.ok stmt) :
     ∃ returns retNames bodyStmts,
       validateFunctionSpec spec = Except.ok () ∧
       functionReturns spec = Except.ok returns ∧
       compileStmtList fields events errors .calldata retNames true
-        (spec.params.map (·.name) ++ retNames) spec.body = Except.ok bodyStmts ∧
+        (spec.params.map (·.name) ++ retNames) [] spec.body = Except.ok bodyStmts ∧
       stmt = YulStmt.funcDef
         (internalFunctionYulName spec.name)
         (spec.params.map (·.name))
@@ -72,6 +72,7 @@ theorem compileInternalFunction_ok_components
             (spec.params.map (·.name) ++
               freshInternalRetNames returns
                 (spec.params.map (·.name) ++ collectStmtListBindNames spec.body))
+            []
             spec.body
       · rw [hbody] at hcompile
         cases hcompile
@@ -99,8 +100,8 @@ theorem compileInternalFunction_some_ok_of_components
           (spec.params.map (·.name) ++ collectStmtListBindNames spec.body))
     (hbody :
       compileStmtList fields events errors .calldata retNames true
-        (spec.params.map (·.name) ++ retNames) spec.body = Except.ok bodyStmts) :
-    compileInternalFunction fields events errors spec =
+        (spec.params.map (·.name) ++ retNames) [] spec.body = Except.ok bodyStmts) :
+    compileInternalFunction fields events errors [] spec =
       Except.ok
         (YulStmt.funcDef
           (internalFunctionYulName spec.name)
@@ -115,6 +116,7 @@ theorem compileInternalFunction_some_ok_of_components
         (spec.params.map (·.name) ++
           freshInternalRetNames returns
             (spec.params.map (·.name) ++ collectStmtListBindNames spec.body))
+        []
         spec.body = Except.ok bodyStmts := by
     simpa [hretNames] using hbody
   let paramNames := spec.params.map (·.name)
@@ -128,6 +130,7 @@ theorem compileInternalFunction_some_ok_of_components
           (freshInternalRetNames returns (paramNames ++ collectStmtListBindNames spec.body))
           true
           (paramNames ++ freshInternalRetNames returns (paramNames ++ collectStmtListBindNames spec.body))
+          []
           spec.body =
       Except.ok
         (YulStmt.funcDef
@@ -153,13 +156,13 @@ theorem compileInternalFunction_some_ok_of_components
 
 -- Compile function spec to IR function
 def compileFunctionSpec (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
-    (selector : Nat) (spec : FunctionSpec) :
+    (adtTypes : List AdtTypeDef := []) (selector : Nat) (spec : FunctionSpec) :
     Except String IRFunction := do
   validateFunctionSpec spec
   let returns ← functionReturns spec
   let paramLoads := genParamLoads spec.params
   let bodyStmts ← compileStmtList fields events errors .calldata [] false
-    (spec.params.map (·.name)) spec.body
+    (spec.params.map (·.name)) adtTypes spec.body
   let allStmts := paramLoads ++ bodyStmts
   let retType := match returns with
     | [single] => single.toIRType
@@ -174,9 +177,9 @@ def compileFunctionSpec (fields : List Field) (events : List EventDef) (errors :
   }
 
 private def compileSpecialEntrypoint (fields : List Field) (events : List EventDef)
-    (errors : List ErrorDef) (spec : FunctionSpec) :
+    (errors : List ErrorDef) (adtTypes : List AdtTypeDef := []) (spec : FunctionSpec) :
     Except String IREntrypoint := do
-  let bodyChunks ← compileStmtList fields events errors .calldata [] false [] spec.body
+  let bodyChunks ← compileStmtList fields events errors .calldata [] false [] adtTypes spec.body
   pure {
     payable := spec.isPayable
     body := bodyChunks
@@ -196,14 +199,14 @@ def usesMapping (fields : List Field) : Bool :=
 -- Compile deploy code (constructor)
 -- Note: Don't append datacopy/return here - Codegen.deployCode does that
 def compileConstructor (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
-    (ctor : Option ConstructorSpec) :
+    (adtTypes : List AdtTypeDef := []) (ctor : Option ConstructorSpec) :
     Except String (List YulStmt) := do
   match ctor with
   | none => return []
   | some spec =>
     let argLoads := genConstructorArgLoads spec.params
     let bodyChunks ← compileStmtList fields events errors .memory [] false
-      (spec.params.map (·.name)) spec.body
+      (spec.params.map (·.name)) adtTypes spec.body
     return argLoads ++ bodyChunks
 
 -- Main compilation function
@@ -235,9 +238,24 @@ private def validateCompileInputsBeforeFieldWriteConflict
       throw s!"Compilation error: duplicate parameter name '{dup}' in function '{fnName}'"
   | none =>
       pure ()
+  for fn in spec.functions do
+    match firstDuplicateName (fn.params.flatMap paramBindingNames) with
+    | some dup =>
+        throw s!"Compilation error: function parameter binding name '{dup}' collides with a compiler-generated parameter local in function '{fn.name}'"
+    | none =>
+        pure ()
   match firstDuplicateConstructorParamName spec.constructor with
   | some dup =>
       throw s!"Compilation error: duplicate parameter name '{dup}' in constructor"
+  | none =>
+      pure ()
+  match spec.constructor with
+  | some ctor =>
+      match firstDuplicateName (ctor.params.flatMap paramBindingNames) with
+      | some dup =>
+          throw s!"Compilation error: constructor parameter binding name '{dup}' collides with a compiler-generated parameter local"
+      | none =>
+          pure ()
   | none =>
       pure ()
   for fn in spec.functions do
@@ -368,8 +386,8 @@ def compileValidatedCore (spec : CompilationModel) (selectors : List Nat) : Exce
   let fallbackSpec ← pickUniqueFunctionByName "fallback" spec.functions
   let receiveSpec ← pickUniqueFunctionByName "receive" spec.functions
   let functions ← (externalFns.zip selectors).mapM fun (fnSpec, sel) =>
-    compileFunctionSpec fields spec.events spec.errors sel fnSpec
-  let internalFuncDefs ← internalFns.mapM (compileInternalFunction fields spec.events spec.errors)
+    compileFunctionSpec fields spec.events spec.errors spec.adtTypes sel fnSpec
+  let internalFuncDefs ← internalFns.mapM (compileInternalFunction fields spec.events spec.errors spec.adtTypes)
   let arrayElementHelpers :=
     if arrayHelpersRequired then
       [checkedArrayElementCalldataHelper, checkedArrayElementMemoryHelper]
@@ -385,11 +403,11 @@ def compileValidatedCore (spec : CompilationModel) (selectors : List Nat) : Exce
       [dynamicBytesEqCalldataHelper, dynamicBytesEqMemoryHelper]
     else
       []
-  let fallbackEntrypoint ← fallbackSpec.mapM (compileSpecialEntrypoint fields spec.events spec.errors)
-  let receiveEntrypoint ← receiveSpec.mapM (compileSpecialEntrypoint fields spec.events spec.errors)
+  let fallbackEntrypoint ← fallbackSpec.mapM (compileSpecialEntrypoint fields spec.events spec.errors spec.adtTypes)
+  let receiveEntrypoint ← receiveSpec.mapM (compileSpecialEntrypoint fields spec.events spec.errors spec.adtTypes)
   return {
     name := spec.name
-    deploy := (← compileConstructor fields spec.events spec.errors spec.constructor)
+    deploy := (← compileConstructor fields spec.events spec.errors spec.adtTypes spec.constructor)
     constructorPayable := spec.constructor.map (·.isPayable) |>.getD false
     functions := functions
     fallbackEntrypoint := fallbackEntrypoint

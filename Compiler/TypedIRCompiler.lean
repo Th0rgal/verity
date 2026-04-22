@@ -59,10 +59,13 @@ private def paramTypeToTy : ParamType → Except String Ty
   | .array _ => Except.ok Ty.uint256
   | .fixedArray _ _ => Except.ok Ty.uint256
   | .bytes => Except.ok Ty.uint256
+  | .adt _ _ => Except.ok Ty.uint256  -- ADTs represented as storage offsets
+  | .newtypeOf _ baseType => paramTypeToTy baseType  -- Erased to base type
 
 private def fieldTypeToTy : FieldType → Except String Ty
   | .uint256 => Except.ok Ty.uint256
   | .address => Except.ok Ty.address
+  | .adt _ _ => Except.ok Ty.uint256
   | .dynamicArray _ => Except.ok Ty.uint256
   | .mappingTyped _ => Except.ok Ty.uint256
   | .mappingStruct _ _ => Except.ok Ty.uint256

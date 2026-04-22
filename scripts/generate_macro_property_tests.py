@@ -26,6 +26,9 @@ FUNCTION_RE = re.compile(
 )
 CONSTRUCTOR_RE = re.compile(r"^\s*constructor\s*\(([^)]*)\)\s*:=\s*")
 PARAM_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+?)\s*$")
+NEWTYPE_RE = re.compile(
+    r"^\s*([A-Z][A-Za-z0-9_]*)\s*:\s*([A-Za-z0-9_]+)\s*$",
+)
 STORAGE_RE = re.compile(
     r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+?)\s*:=\s*slot\s+([0-9]+)\s*$",
 )
@@ -122,6 +125,7 @@ class ContractDecl:
     storage_slots: dict[str, int]
     source: Path
     storage_types: dict[str, str] = field(default_factory=dict)
+    newtypes: dict[str, str] = field(default_factory=dict)
     constants: dict[str, ValueDecl] = field(default_factory=dict)
     immutables: dict[str, ValueDecl] = field(default_factory=dict)
 
@@ -187,18 +191,37 @@ def _split_params(params_src: str) -> tuple[ParamDecl, ...]:
     return tuple(out)
 
 
+def _resolve_newtypes_in_params(
+    params: tuple[ParamDecl, ...], newtypes: dict[str, str]
+) -> tuple[ParamDecl, ...]:
+    """Replace newtype names with their base types in param declarations."""
+    if not newtypes:
+        return params
+    return tuple(
+        ParamDecl(name=p.name, lean_type=newtypes.get(p.lean_type, p.lean_type))
+        for p in params
+    )
+
+
+def _resolve_newtype(ty: str, newtypes: dict[str, str]) -> str:
+    """Replace a newtype name with its base type if found."""
+    return newtypes.get(ty, ty)
+
+
 def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
     contracts: dict[str, ContractDecl] = {}
     current_name: str | None = None
     current_constructor: ConstructorDecl | None = None
     current_storage_slots: dict[str, int] = {}
     current_storage_types: dict[str, str] = {}
+    current_newtypes: dict[str, str] = {}
     current_constants: dict[str, ValueDecl] = {}
     current_immutables: dict[str, ValueDecl] = {}
     current_functions: list[FunctionDecl] = []
     current_function: FunctionDecl | None = None
     current_body: list[str] = []
     guard_pending = False
+    in_types_block = False
     in_storage_block = False
     in_constants_block = False
     in_immutables_block = False
@@ -220,7 +243,7 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
         current_body = []
 
     def flush_current() -> None:
-        nonlocal current_name, current_constructor, current_storage_slots, current_storage_types, current_constants, current_immutables, current_functions, in_storage_block, in_constants_block, in_immutables_block, pending_storage_lines
+        nonlocal current_name, current_constructor, current_storage_slots, current_storage_types, current_newtypes, current_constants, current_immutables, current_functions, in_types_block, in_storage_block, in_constants_block, in_immutables_block, pending_storage_lines
         if current_name is None:
             return
         flush_function()
@@ -231,6 +254,7 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
             storage_slots=dict(current_storage_slots),
             source=source,
             storage_types=dict(current_storage_types),
+            newtypes=dict(current_newtypes),
             constants=dict(current_constants),
             immutables=dict(current_immutables),
         )
@@ -238,9 +262,11 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
         current_constructor = None
         current_storage_slots = {}
         current_storage_types = {}
+        current_newtypes = {}
         current_constants = {}
         current_immutables = {}
         current_functions = []
+        in_types_block = False
         in_storage_block = False
         in_constants_block = False
         in_immutables_block = False
@@ -260,13 +286,37 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
             current_name = cm.group(1)
             continue
 
+        # Clear guard_pending on any non-blank, non-comment line that isn't
+        # a verity_contract (e.g. `#check_contract Foo` after `#guard_msgs in`)
+        if guard_pending and line.strip() and not line.strip().startswith("--"):
+            guard_pending = False
+
         if current_name is None:
             continue
 
         if current_function is not None and line.strip() and not line.startswith("    "):
             flush_function()
 
+        if line.strip() == "types":
+            in_types_block = True
+            in_storage_block = False
+            in_constants_block = False
+            in_immutables_block = False
+            pending_storage_lines = []
+            continue
+
+        if in_types_block:
+            stripped = line.strip()
+            nt = NEWTYPE_RE.match(stripped)
+            if nt:
+                current_newtypes[nt.group(1)] = _normalize_type(nt.group(2))
+                continue
+            if stripped and not nt:
+                in_types_block = False
+                # fall through to check other sections
+
         if line.strip() == "storage":
+            in_types_block = False
             in_storage_block = True
             in_constants_block = False
             in_immutables_block = False
@@ -292,7 +342,8 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
             flush_function()
             if current_constructor is not None:
                 raise ValueError(f"duplicate constructor in contract '{current_name}'")
-            current_constructor = ConstructorDecl(params=_split_params(ctor.group(1)))
+            current_constructor = ConstructorDecl(params=_resolve_newtypes_in_params(_split_params(ctor.group(1)), current_newtypes))
+            in_types_block = False
             in_storage_block = False
             in_constants_block = False
             in_immutables_block = False
@@ -303,10 +354,10 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
             flush_function()
             fn_name = fm.group(1)
             params_src = fm.group(2)
-            ret_ty = _normalize_type(fm.group(3))
+            ret_ty = _resolve_newtype(_normalize_type(fm.group(3)), current_newtypes)
             current_function = FunctionDecl(
                 name=fn_name,
-                params=_split_params(params_src),
+                params=_resolve_newtypes_in_params(_split_params(params_src), current_newtypes),
                 return_type=ret_ty,
             )
             in_storage_block = False

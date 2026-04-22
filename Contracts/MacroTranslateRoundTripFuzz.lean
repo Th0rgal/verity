@@ -73,10 +73,38 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.ZeroAddressShadowSmoke.spec
   , Contracts.Smoke.StructMappingSmoke.spec
   , Contracts.Smoke.ExternalCallSmoke.spec
+  , Contracts.Smoke.TryExternalCallSmoke.spec
+  , Contracts.Smoke.ExternalCallMultiReturn.spec
   , Contracts.Smoke.ERC20HelperSmoke.spec
   , Contracts.Smoke.GenericECMReadSmoke.spec
   , Contracts.Smoke.GenericECMWriteSmoke.spec
   , Contracts.Smoke.LowLevelTryCatchSmoke.spec
+  , Contracts.Smoke.ModifiesSmoke.spec
+  , Contracts.Smoke.NoExternalCallsSmoke.spec
+  , Contracts.Smoke.EffectCompositionSmoke.spec
+  , Contracts.Smoke.CEISmoke.spec
+  , Contracts.Smoke.CEILadderSmoke.spec
+  , Contracts.Smoke.RolesSmoke.spec
+  , Contracts.Smoke.NewtypeSmoke.spec
+  , Contracts.Smoke.NewtypeStorageSmoke.spec
+  , Contracts.Smoke.NamespacedStorageSmoke.spec
+  , Contracts.Smoke.CustomNamespacedSmoke.spec
+  , Contracts.Smoke.UnsafeBlockSmoke.spec
+  , Contracts.Smoke.UnsafeGatingAccepted.spec
+  , Contracts.Smoke.AdtSmoke.spec
+  , Contracts.Smoke.ModifiesRolesSmoke.spec
+  , Contracts.Smoke.ModifiesNamespaceSmoke.spec
+  , Contracts.Smoke.AdtSingleVariant.spec
+  , Contracts.Smoke.AdtMixedFieldCounts.spec
+  , Contracts.Smoke.NewtypeModifiesSmoke.spec
+  , Contracts.Smoke.NewtypeNamespaceSmoke.spec
+  , Contracts.Smoke.UnsafeCEICompliant.spec
+  , Contracts.Smoke.RolesCEISmoke.spec
+  , Contracts.Smoke.NonreentrantModifiesSmoke.spec
+  , Contracts.Smoke.AdtNewtypeCombo.spec
+  , Contracts.Smoke.FullComboSmoke.spec
+  -- CEIWriteInBranchAfterCall, CEICallBothBranchesWrite, UnsafeCEIViolation are
+  -- intentionally invalid (CEI violations); tested via #guard_msgs in Smoke.lean
   ]
 
 private structure FuzzRng where

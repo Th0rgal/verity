@@ -114,6 +114,9 @@ def collectExprNames : Expr → List String
   | Expr.min a b => collectExprNames a ++ collectExprNames b
   | Expr.max a b => collectExprNames a ++ collectExprNames b
   | Expr.ite cond thenVal elseVal => collectExprNames cond ++ collectExprNames thenVal ++ collectExprNames elseVal
+  | Expr.adtConstruct _ _ args => collectExprListNames args
+  | Expr.adtTag _ field => [field]
+  | Expr.adtField _ _ _ _ _ => []
 termination_by expr => sizeOf expr
 decreasing_by
   all_goals simp_wf
@@ -170,6 +173,10 @@ def collectStmtNames : Stmt → List String
       collectExprNames cond ++ collectStmtListNames thenBranch ++ collectStmtListNames elseBranch
   | Stmt.forEach varName count body =>
       varName :: collectExprNames count ++ collectStmtListNames body
+  | Stmt.unsafeBlock _ body =>
+      collectStmtListNames body
+  | Stmt.matchAdt _ scrutinee branches =>
+      collectExprNames scrutinee ++ collectMatchBranchNames branches
   | Stmt.emit eventName args => eventName :: collectExprListNames args
   | Stmt.internalCall functionName args => functionName :: collectExprListNames args
   | Stmt.internalCallAssign names functionName args =>
@@ -178,9 +185,20 @@ def collectStmtNames : Stmt → List String
       collectExprListNames topics ++ collectExprNames dataOffset ++ collectExprNames dataSize
   | Stmt.externalCallBind resultVars externalName args =>
       resultVars ++ externalName :: collectExprListNames args
+  | Stmt.tryExternalCallBind successVar resultVars externalName args =>
+      successVar :: resultVars ++ externalName :: collectExprListNames args
   | Stmt.ecm mod args =>
       mod.resultVars ++ collectExprListNames args
 termination_by stmt => sizeOf stmt
+decreasing_by
+  all_goals simp_wf
+  all_goals omega
+
+def collectMatchBranchNames : List (String × List String × List Stmt) → List String
+  | [] => []
+  | (_, varNames, body) :: rest =>
+      varNames ++ collectStmtListNames body ++ collectMatchBranchNames rest
+termination_by bs => sizeOf bs
 decreasing_by
   all_goals simp_wf
   all_goals omega

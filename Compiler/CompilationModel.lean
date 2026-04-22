@@ -7,6 +7,7 @@
 import Compiler.CompilationModel.Types
 import Compiler.CompilationModel.AbiHelpers
 import Compiler.CompilationModel.AbiTypeLayout
+import Compiler.CompilationModel.AdtStorageLayout
 import Compiler.CompilationModel.AbiEncoding
 import Compiler.CompilationModel.DynamicData
 import Compiler.CompilationModel.EcmAxiomCollection

@@ -323,7 +323,7 @@ private theorem genParamLoadBodyFrom_cons_scalar
   match hTy : param.ty, hScalar with
   | ParamType.uint256, _ | ParamType.int256, _ | ParamType.uint8, _
   | ParamType.address, _ | ParamType.bool, _ | ParamType.bytes32, _ =>
-      simp [genParamLoadBodyFrom, hTy]
+      simp [genParamLoadBodyFrom, genSingleParamLoad, hTy]
 
 /-- For scalar-only parameter lists, `genParamLoadBodyFrom` with the calldata
 loader produces only bridged statements. Each per-parameter stmt block is
@@ -399,21 +399,21 @@ private theorem genParamLoadBodyFrom_calldataload_static_scalar_bridged
           · exact genScalarLoad_calldataload_bridged paramName paramTy headOffset hScalar
           · exact hTail
       | @fixedArray elemTy n hElem =>
-          simp only [genParamLoadBodyFrom,
+          simp [genParamLoadBodyFrom, genSingleParamLoad,
             isDynamicParamType_false_of_static_scalar _ (IsStaticScalarParamType.fixedArray hElem)]
           apply BridgedStmts_append
-          · by_cases hN : n == 0
-            · simp [hN]
-              exact (genStaticTypeLoads_calldataload_bridged paramName
-                (.fixedArray elemTy n) headOffset (IsStaticScalarParamType.fixedArray hElem))
-            · simp [hN]
-              apply BridgedStmts_append
-              · exact (genStaticTypeLoads_calldataload_bridged paramName
+          · by_cases hN : n = 0
+            · simpa only [if_pos hN] using
+                (genStaticTypeLoads_calldataload_bridged paramName
                   (.fixedArray elemTy n) headOffset (IsStaticScalarParamType.fixedArray hElem))
-              · simpa [hN] using fixedArrayFirstAlias_bridged paramName elemTy n
+            · simpa only [if_neg hN] using
+                (BridgedStmts_append
+                  (genStaticTypeLoads_calldataload_bridged paramName
+                    (.fixedArray elemTy n) headOffset (IsStaticScalarParamType.fixedArray hElem))
+                  (by simpa [hN] using fixedArrayFirstAlias_bridged paramName elemTy n))
           · exact hTail
       | @tuple elemTys hElems =>
-          simp only [genParamLoadBodyFrom,
+          simp [genParamLoadBodyFrom, genSingleParamLoad,
             isDynamicParamType_false_of_static_scalar _ (IsStaticScalarParamType.tuple hElems)]
           apply BridgedStmts_append
           · exact genStaticTypeLoads_calldataload_bridged paramName (.tuple elemTys)
@@ -499,7 +499,7 @@ theorem compileStmt_binding_leaf_bridged
     ∀ {stmt : Stmt}, BridgedSourceBindingStmt stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -545,7 +545,7 @@ theorem compileStmtList_binding_leaf_bridged
       BridgedSourceBindingStmts stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmts = .ok out →
+          inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -559,13 +559,13 @@ theorem compileStmtList_binding_leaf_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err =>
           simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource internalRetNames
-              isInternal (collectStmtNames head ++ inScopeNames) tail with
+              isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err =>
               simp [hTail] at hOk
           | ok tailOut =>
@@ -590,7 +590,7 @@ theorem compileStmt_pure_binding_bridged
     ∀ {stmt : Stmt}, BridgedSourcePureBindingStmt stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -635,7 +635,7 @@ theorem compileStmtList_pure_binding_bridged
       BridgedSourcePureBindingStmts stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmts = .ok out →
+          inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -649,13 +649,13 @@ theorem compileStmtList_pure_binding_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err =>
           simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource internalRetNames
-              isInternal (collectStmtNames head ++ inScopeNames) tail with
+              isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err =>
               simp [hTail] at hOk
           | ok tailOut =>
@@ -688,7 +688,8 @@ inductive BridgedSourceStorageStmt (fields : List Field) : Stmt → Prop
       (hNotMapping : isMapping fields field = false)
       (hFind :
         findFieldWithResolvedSlot fields field =
-          some ({ f with packedBits := none, aliasSlots := [] }, slot)) :
+          some ({ f with packedBits := none, aliasSlots := [] }, slot))
+      (hNotAdt : ∀ name maxFields, f.ty ≠ FieldType.adt name maxFields) :
       BridgedSourceStorageStmt fields (.setStorage field value)
 
 def BridgedSourceStorageStmts (fields : List Field) (stmts : List Stmt) : Prop :=
@@ -706,28 +707,33 @@ theorem compileStmt_setStorage_singleSlot_pure_bridged
     (hNotMapping : isMapping fields field = false)
     (hFind :
       findFieldWithResolvedSlot fields field =
-        some ({ f with packedBits := none, aliasSlots := [] }, slot)) :
+        some ({ f with packedBits := none, aliasSlots := [] }, slot))
+    (hNotAdt : ∀ name maxFields, f.ty ≠ FieldType.adt name maxFields) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setStorage field value) = .ok out →
+        inScopeNames [] (.setStorage field value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt] at hOk
   unfold compileSetStorage at hOk
   simp [hNotMapping, hFind] at hOk
-  cases hExpr : compileExpr fields dynamicSource value with
-  | error err =>
-      simp [hExpr] at hOk
-  | ok valueExpr =>
-      simp [hExpr] at hOk
-      subst out
-      have hBridged : BridgedExpr valueExpr :=
-        compileExpr_bridgedSource fields dynamicSource hValue hExpr
-      intro yulStmt hMem
-      simp only [List.mem_singleton] at hMem
-      subst yulStmt
-      exact BridgedStmt.straight _
-        (BridgedStraightStmt.expr_sstore_lit slot valueExpr hBridged)
+  cases hty : f.ty with
+  | adt name maxFields =>
+      exact False.elim (hNotAdt name maxFields hty)
+  | uint256 | address | dynamicArray | mappingTyped | mappingStruct | mappingStruct2 =>
+      cases hExpr : compileExpr fields dynamicSource value with
+      | error err =>
+          simp [hExpr, hty] at hOk
+      | ok valueExpr =>
+          simp [hExpr, hty] at hOk
+          subst out
+          have hBridged : BridgedExpr valueExpr :=
+            compileExpr_bridgedSource fields dynamicSource hValue hExpr
+          intro yulStmt hMem
+          simp only [List.mem_singleton] at hMem
+          subst yulStmt
+          exact BridgedStmt.straight _
+            (BridgedStraightStmt.expr_sstore_lit slot valueExpr hBridged)
 
 /-- Each statement in the storage fragment compiles to Yul satisfying
 `BridgedStmts`. -/
@@ -738,17 +744,17 @@ theorem compileStmt_storage_fragment_bridged
     ∀ {stmt : Stmt}, BridgedSourceStorageStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
   | pureBinding hPure =>
       exact compileStmt_pure_binding_bridged fields events errors dynamicSource
         internalRetNames isInternal inScopeNames hPure hOk
-  | setStorage field value f slot hValue hNotMapping hFind =>
+  | setStorage field value f slot hValue hNotMapping hFind hNotAdt =>
       exact compileStmt_setStorage_singleSlot_pure_bridged fields events errors
         dynamicSource internalRetNames isInternal inScopeNames field value f slot
-        hValue hNotMapping hFind hOk
+        hValue hNotMapping hFind hNotAdt hOk
 
 /-- Lists made of pure `letVar`/`assignVar` statements and unpacked single-slot
 `setStorage` statements compile to Yul lists satisfying `BridgedStmts`. -/
@@ -760,7 +766,7 @@ theorem compileStmtList_storage_fragment_bridged
       BridgedSourceStorageStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmts = .ok out →
+          inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -774,13 +780,13 @@ theorem compileStmtList_storage_fragment_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err =>
           simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource internalRetNames
-              isInternal (collectStmtNames head ++ inScopeNames) tail with
+              isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err =>
               simp [hTail] at hOk
           | ok tailOut =>
@@ -831,7 +837,7 @@ private theorem compileStmt_stop_bridged
     (isInternal : Bool) (inScopeNames : List String) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames .stop = .ok out →
+        inScopeNames [] .stop = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, Pure.pure, Except.pure] at hOk
@@ -851,7 +857,7 @@ private theorem compileStmt_return_external_bridged
     {value : Expr} (hValue : BridgedSourceExpr value) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames
-        (isInternal := false) inScopeNames (.return value) = .ok out →
+        (isInternal := false) inScopeNames [] (.return value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, bind, Except.bind] at hOk
@@ -880,7 +886,7 @@ theorem compileStmt_terminator_external_bridged
     ∀ {stmt : Stmt}, BridgedSourceTerminatorStmt stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          (isInternal := false) inScopeNames stmt = .ok out →
+          (isInternal := false) inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -900,7 +906,7 @@ theorem compileStmtList_terminator_external_bridged
       BridgedSourceTerminatorStmts stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          (isInternal := false) inScopeNames stmts = .ok out →
+          (isInternal := false) inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -914,13 +920,13 @@ theorem compileStmtList_terminator_external_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          false inScopeNames head with
+          false inScopeNames [] head with
       | error err =>
           simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource internalRetNames
-              false (collectStmtNames head ++ inScopeNames) tail with
+              false (collectStmtNames head ++ inScopeNames) [] tail with
           | error err =>
               simp [hTail] at hOk
           | ok tailOut =>
@@ -963,7 +969,7 @@ theorem compileStmt_return_internal_bridged
     {value : Expr} (hValue : BridgedSourceExpr value) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames
-        (isInternal := true) inScopeNames (.return value) = .ok out →
+        (isInternal := true) inScopeNames [] (.return value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, bind, Except.bind] at hOk
@@ -994,7 +1000,7 @@ theorem compileStmt_internal_return_bridged
     ∀ {stmt : Stmt}, BridgedSourceInternalReturnStmt stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          (isInternal := true) inScopeNames stmt = .ok out →
+          (isInternal := true) inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -1011,7 +1017,7 @@ theorem compileStmtList_internal_return_bridged
       BridgedSourceInternalReturnStmts stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          (isInternal := true) inScopeNames stmts = .ok out →
+          (isInternal := true) inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -1025,13 +1031,13 @@ theorem compileStmtList_internal_return_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          true inScopeNames head with
+          true inScopeNames [] head with
       | error err =>
           simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource internalRetNames
-              true (collectStmtNames head ++ inScopeNames) tail with
+              true (collectStmtNames head ++ inScopeNames) [] tail with
           | error err =>
               simp [hTail] at hOk
           | ok tailOut =>
@@ -1119,7 +1125,7 @@ theorem compileStmt_require_bridged
         BridgedExpr failCond) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.require cond message) = .ok out →
+        inScopeNames [] (.require cond message) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, bind, Except.bind] at hOk
@@ -1145,7 +1151,7 @@ theorem compileStmtList_require_bridged
       BridgedSourceRequireStmts fields dynamicSource stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmts = .ok out →
+          inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -1159,13 +1165,13 @@ theorem compileStmtList_require_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err =>
           simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource internalRetNames
-              isInternal (collectStmtNames head ++ inScopeNames) tail with
+              isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err =>
               simp [hTail] at hOk
           | ok tailOut =>
@@ -1246,7 +1252,7 @@ theorem compileStmt_setMapping_singleSlot_bridged
     (hSlots : findFieldWriteSlots fields field = some [slot]) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setMapping field key value) = .ok out →
+        inScopeNames [] (.setMapping field key value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, bind, Except.bind] at hOk
@@ -1276,7 +1282,7 @@ theorem compileStmt_setMappingUint_singleSlot_bridged
     (hSlots : findFieldWriteSlots fields field = some [slot]) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setMappingUint field key value) = .ok out →
+        inScopeNames [] (.setMappingUint field key value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, bind, Except.bind] at hOk
@@ -1302,7 +1308,7 @@ theorem compileStmt_mappingWrite_bridged
     ∀ {stmt : Stmt}, BridgedSourceMappingWriteStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -1325,7 +1331,7 @@ theorem compileStmtList_mappingWrite_bridged
       BridgedSourceMappingWriteStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -1339,13 +1345,13 @@ theorem compileStmtList_mappingWrite_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err =>
           simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource internalRetNames
-              isInternal (collectStmtNames head ++ inScopeNames) tail with
+              isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err =>
               simp [hTail] at hOk
           | ok tailOut =>
@@ -1411,7 +1417,7 @@ theorem compileStmt_external_body_fragment_bridged
     ∀ {stmt : Stmt}, BridgedSourceExternalBodyStmt fields dynamicSource stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          (isInternal := false) inScopeNames stmt = .ok out →
+          (isInternal := false) inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -1436,7 +1442,7 @@ theorem compileStmtList_external_body_fragment_bridged
       BridgedSourceExternalBodyStmts fields dynamicSource stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          (isInternal := false) inScopeNames stmts = .ok out →
+          (isInternal := false) inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -1450,13 +1456,13 @@ theorem compileStmtList_external_body_fragment_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          false inScopeNames head with
+          false inScopeNames [] head with
       | error err =>
           simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource internalRetNames
-              false (collectStmtNames head ++ inScopeNames) tail with
+              false (collectStmtNames head ++ inScopeNames) [] tail with
           | error err =>
               simp [hTail] at hOk
           | ok tailOut =>
@@ -1483,7 +1489,7 @@ theorem compileStmt_internal_body_fragment_bridged
     ∀ {stmt : Stmt}, BridgedSourceInternalBodyStmt fields dynamicSource stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          (isInternal := true) inScopeNames stmt = .ok out →
+          (isInternal := true) inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -1511,7 +1517,7 @@ theorem compileStmtList_internal_body_fragment_bridged
       BridgedSourceInternalBodyStmts fields dynamicSource stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          (isInternal := true) inScopeNames stmts = .ok out →
+          (isInternal := true) inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -1525,13 +1531,13 @@ theorem compileStmtList_internal_body_fragment_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          true inScopeNames head with
+          true inScopeNames [] head with
       | error err =>
           simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource internalRetNames
-              true (collectStmtNames head ++ inScopeNames) tail with
+              true (collectStmtNames head ++ inScopeNames) [] tail with
           | error err =>
               simp [hTail] at hOk
           | ok tailOut =>
@@ -1606,7 +1612,7 @@ theorem compileStmt_ite_external_body_fragment_bridged
     (hElse : BridgedSourceExternalBodyStmts fields dynamicSource elseBranch) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames
-        (isInternal := false) inScopeNames (.ite cond thenBranch elseBranch) = .ok out →
+        (isInternal := false) inScopeNames [] (.ite cond thenBranch elseBranch) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, bind, Except.bind] at hOk
@@ -1615,12 +1621,12 @@ theorem compileStmt_ite_external_body_fragment_bridged
       simp [hCondExpr] at hOk
   | ok condExpr =>
       cases hThenCompile : compileStmtList fields events errors dynamicSource
-          internalRetNames false inScopeNames thenBranch with
+          internalRetNames false inScopeNames [] thenBranch with
       | error err =>
           simp [hCondExpr, hThenCompile] at hOk
       | ok thenOut =>
           cases hElseCompile : compileStmtList fields events errors dynamicSource
-              internalRetNames false inScopeNames elseBranch with
+              internalRetNames false inScopeNames [] elseBranch with
           | error err =>
               simp [hCondExpr, hThenCompile, hElseCompile] at hOk
           | ok elseOut =>
@@ -1671,7 +1677,7 @@ theorem compileStmt_ite_internal_body_fragment_bridged
     (hElse : BridgedSourceInternalBodyStmts fields dynamicSource elseBranch) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames
-        (isInternal := true) inScopeNames (.ite cond thenBranch elseBranch) = .ok out →
+        (isInternal := true) inScopeNames [] (.ite cond thenBranch elseBranch) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, bind, Except.bind] at hOk
@@ -1680,12 +1686,12 @@ theorem compileStmt_ite_internal_body_fragment_bridged
       simp [hCondExpr] at hOk
   | ok condExpr =>
       cases hThenCompile : compileStmtList fields events errors dynamicSource
-          internalRetNames true inScopeNames thenBranch with
+          internalRetNames true inScopeNames [] thenBranch with
       | error err =>
           simp [hCondExpr, hThenCompile] at hOk
       | ok thenOut =>
           cases hElseCompile : compileStmtList fields events errors dynamicSource
-              internalRetNames true inScopeNames elseBranch with
+              internalRetNames true inScopeNames [] elseBranch with
           | error err =>
               simp [hCondExpr, hThenCompile, hElseCompile] at hOk
           | ok elseOut =>
@@ -1733,7 +1739,7 @@ theorem compileStmt_external_structured_body_fragment_bridged
     ∀ {stmt : Stmt}, BridgedSourceExternalStructuredBodyStmt fields dynamicSource stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          (isInternal := false) inScopeNames stmt = .ok out →
+          (isInternal := false) inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -1753,7 +1759,7 @@ theorem compileStmtList_external_structured_body_fragment_bridged
       BridgedSourceExternalStructuredBodyStmts fields dynamicSource stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          (isInternal := false) inScopeNames stmts = .ok out →
+          (isInternal := false) inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -1767,13 +1773,13 @@ theorem compileStmtList_external_structured_body_fragment_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          false inScopeNames head with
+          false inScopeNames [] head with
       | error err =>
           simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource internalRetNames
-              false (collectStmtNames head ++ inScopeNames) tail with
+              false (collectStmtNames head ++ inScopeNames) [] tail with
           | error err =>
               simp [hTail] at hOk
           | ok tailOut =>
@@ -1800,7 +1806,7 @@ theorem compileStmt_internal_structured_body_fragment_bridged
     ∀ {stmt : Stmt}, BridgedSourceInternalStructuredBodyStmt fields dynamicSource stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          (isInternal := true) inScopeNames stmt = .ok out →
+          (isInternal := true) inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -1820,7 +1826,7 @@ theorem compileStmtList_internal_structured_body_fragment_bridged
       BridgedSourceInternalStructuredBodyStmts fields dynamicSource stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          (isInternal := true) inScopeNames stmts = .ok out →
+          (isInternal := true) inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -1834,13 +1840,13 @@ theorem compileStmtList_internal_structured_body_fragment_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          true inScopeNames head with
+          true inScopeNames [] head with
       | error err =>
           simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource internalRetNames
-              true (collectStmtNames head ++ inScopeNames) tail with
+              true (collectStmtNames head ++ inScopeNames) [] tail with
           | error err =>
               simp [hTail] at hOk
           | ok tailOut =>
@@ -1913,7 +1919,7 @@ theorem compileStmt_ite_external_nested_body_fragment_bridged
     (hElse : BridgedSourceExternalStructuredBodyStmts fields dynamicSource elseBranch) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames
-        (isInternal := false) inScopeNames (.ite cond thenBranch elseBranch) = .ok out →
+        (isInternal := false) inScopeNames [] (.ite cond thenBranch elseBranch) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, bind, Except.bind] at hOk
@@ -1922,12 +1928,12 @@ theorem compileStmt_ite_external_nested_body_fragment_bridged
       simp [hCondExpr] at hOk
   | ok condExpr =>
       cases hThenCompile : compileStmtList fields events errors dynamicSource
-          internalRetNames false inScopeNames thenBranch with
+          internalRetNames false inScopeNames [] thenBranch with
       | error err =>
           simp [hCondExpr, hThenCompile] at hOk
       | ok thenOut =>
           cases hElseCompile : compileStmtList fields events errors dynamicSource
-              internalRetNames false inScopeNames elseBranch with
+              internalRetNames false inScopeNames [] elseBranch with
           | error err =>
               simp [hCondExpr, hThenCompile, hElseCompile] at hOk
           | ok elseOut =>
@@ -1978,7 +1984,7 @@ theorem compileStmt_ite_internal_nested_body_fragment_bridged
     (hElse : BridgedSourceInternalStructuredBodyStmts fields dynamicSource elseBranch) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames
-        (isInternal := true) inScopeNames (.ite cond thenBranch elseBranch) = .ok out →
+        (isInternal := true) inScopeNames [] (.ite cond thenBranch elseBranch) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, bind, Except.bind] at hOk
@@ -1987,12 +1993,12 @@ theorem compileStmt_ite_internal_nested_body_fragment_bridged
       simp [hCondExpr] at hOk
   | ok condExpr =>
       cases hThenCompile : compileStmtList fields events errors dynamicSource
-          internalRetNames true inScopeNames thenBranch with
+          internalRetNames true inScopeNames [] thenBranch with
       | error err =>
           simp [hCondExpr, hThenCompile] at hOk
       | ok thenOut =>
           cases hElseCompile : compileStmtList fields events errors dynamicSource
-              internalRetNames true inScopeNames elseBranch with
+              internalRetNames true inScopeNames [] elseBranch with
           | error err =>
               simp [hCondExpr, hThenCompile, hElseCompile] at hOk
           | ok elseOut =>
@@ -2038,7 +2044,7 @@ theorem compileStmt_external_nested_body_fragment_bridged
     ∀ {stmt : Stmt}, BridgedSourceExternalNestedBodyStmt fields dynamicSource stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          (isInternal := false) inScopeNames stmt = .ok out →
+          (isInternal := false) inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -2056,7 +2062,7 @@ theorem compileStmtList_external_nested_body_fragment_bridged
       BridgedSourceExternalNestedBodyStmts fields dynamicSource stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          (isInternal := false) inScopeNames stmts = .ok out →
+          (isInternal := false) inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -2070,13 +2076,13 @@ theorem compileStmtList_external_nested_body_fragment_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          false inScopeNames head with
+          false inScopeNames [] head with
       | error err =>
           simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource internalRetNames
-              false (collectStmtNames head ++ inScopeNames) tail with
+              false (collectStmtNames head ++ inScopeNames) [] tail with
           | error err =>
               simp [hTail] at hOk
           | ok tailOut =>
@@ -2102,7 +2108,7 @@ theorem compileStmt_internal_nested_body_fragment_bridged
     ∀ {stmt : Stmt}, BridgedSourceInternalNestedBodyStmt fields dynamicSource stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          (isInternal := true) inScopeNames stmt = .ok out →
+          (isInternal := true) inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -2120,7 +2126,7 @@ theorem compileStmtList_internal_nested_body_fragment_bridged
       BridgedSourceInternalNestedBodyStmts fields dynamicSource stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          (isInternal := true) inScopeNames stmts = .ok out →
+          (isInternal := true) inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -2134,13 +2140,13 @@ theorem compileStmtList_internal_nested_body_fragment_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          true inScopeNames head with
+          true inScopeNames [] head with
       | error err =>
           simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource internalRetNames
-              true (collectStmtNames head ++ inScopeNames) tail with
+              true (collectStmtNames head ++ inScopeNames) [] tail with
           | error err =>
               simp [hTail] at hOk
           | ok tailOut =>
@@ -2228,7 +2234,7 @@ mutual
         BridgedSourceExternalRecursiveBodyStmt fields dynamicSource stmt →
         ∀ {out : List YulStmt},
           compileStmt fields events errors dynamicSource internalRetNames
-            (isInternal := false) inScopeNames stmt = .ok out →
+            (isInternal := false) inScopeNames [] stmt = .ok out →
           BridgedStmts out := by
     intro stmt hStmt out hOk
     cases hStmt with
@@ -2242,12 +2248,12 @@ mutual
             simp [hCondExpr] at hOk
         | ok condExpr =>
             cases hThenCompile : compileStmtList fields events errors dynamicSource
-                internalRetNames false inScopeNames thenBranch with
+                internalRetNames false inScopeNames [] thenBranch with
             | error err =>
                 simp [hCondExpr, hThenCompile] at hOk
             | ok thenOut =>
                 cases hElseCompile : compileStmtList fields events errors dynamicSource
-                    internalRetNames false inScopeNames elseBranch with
+                    internalRetNames false inScopeNames [] elseBranch with
                 | error err =>
                     simp [hCondExpr, hThenCompile, hElseCompile] at hOk
                 | ok elseOut =>
@@ -2293,7 +2299,7 @@ mutual
         BridgedSourceExternalRecursiveBodyStmts fields dynamicSource stmts →
         ∀ (inScopeNames : List String) {out : List YulStmt},
           compileStmtList fields events errors dynamicSource internalRetNames
-            (isInternal := false) inScopeNames stmts = .ok out →
+            (isInternal := false) inScopeNames [] stmts = .ok out →
           BridgedStmts out := by
     intro stmts hSource inScopeNames out hOk
     cases hSource with
@@ -2305,13 +2311,13 @@ mutual
     | @cons head tail hHead hTail =>
         simp only [compileStmtList, bind, Except.bind] at hOk
         cases hHeadCompile : compileStmt fields events errors dynamicSource
-            internalRetNames false inScopeNames head with
+            internalRetNames false inScopeNames [] head with
         | error err =>
             simp [hHeadCompile] at hOk
         | ok headOut =>
             simp [hHeadCompile] at hOk
             cases hTailCompile : compileStmtList fields events errors dynamicSource
-                internalRetNames false (collectStmtNames head ++ inScopeNames) tail with
+                internalRetNames false (collectStmtNames head ++ inScopeNames) [] tail with
             | error err =>
                 simp [hTailCompile] at hOk
             | ok tailOut =>
@@ -2335,7 +2341,7 @@ mutual
         BridgedSourceInternalRecursiveBodyStmt fields dynamicSource stmt →
         ∀ {out : List YulStmt},
           compileStmt fields events errors dynamicSource internalRetNames
-            (isInternal := true) inScopeNames stmt = .ok out →
+            (isInternal := true) inScopeNames [] stmt = .ok out →
           BridgedStmts out := by
     intro stmt hStmt out hOk
     cases hStmt with
@@ -2349,12 +2355,12 @@ mutual
             simp [hCondExpr] at hOk
         | ok condExpr =>
             cases hThenCompile : compileStmtList fields events errors dynamicSource
-                internalRetNames true inScopeNames thenBranch with
+                internalRetNames true inScopeNames [] thenBranch with
             | error err =>
                 simp [hCondExpr, hThenCompile] at hOk
             | ok thenOut =>
                 cases hElseCompile : compileStmtList fields events errors dynamicSource
-                    internalRetNames true inScopeNames elseBranch with
+                    internalRetNames true inScopeNames [] elseBranch with
                 | error err =>
                     simp [hCondExpr, hThenCompile, hElseCompile] at hOk
                 | ok elseOut =>
@@ -2400,7 +2406,7 @@ mutual
         BridgedSourceInternalRecursiveBodyStmts fields dynamicSource stmts →
         ∀ (inScopeNames : List String) {out : List YulStmt},
           compileStmtList fields events errors dynamicSource internalRetNames
-            (isInternal := true) inScopeNames stmts = .ok out →
+            (isInternal := true) inScopeNames [] stmts = .ok out →
           BridgedStmts out := by
     intro stmts hSource inScopeNames out hOk
     cases hSource with
@@ -2412,13 +2418,13 @@ mutual
     | @cons head tail hHead hTail =>
         simp only [compileStmtList, bind, Except.bind] at hOk
         cases hHeadCompile : compileStmt fields events errors dynamicSource
-            internalRetNames true inScopeNames head with
+            internalRetNames true inScopeNames [] head with
         | error err =>
             simp [hHeadCompile] at hOk
         | ok headOut =>
             simp [hHeadCompile] at hOk
             cases hTailCompile : compileStmtList fields events errors dynamicSource
-                internalRetNames true (collectStmtNames head ++ inScopeNames) tail with
+                internalRetNames true (collectStmtNames head ++ inScopeNames) [] tail with
             | error err =>
                 simp [hTailCompile] at hOk
             | ok tailOut =>
@@ -2464,7 +2470,7 @@ theorem compileStmt_memoryWrite_bridged
     ∀ {stmt : Stmt}, BridgedSourceMemoryWriteStmt stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -2519,7 +2525,7 @@ theorem compileStmtList_memoryWrite_bridged
       BridgedSourceMemoryWriteStmts stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -2533,13 +2539,12 @@ theorem compileStmtList_memoryWrite_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -2575,11 +2580,11 @@ theorem compileStmt_forEach_with_bridged_body
     (hCount : BridgedSourceExpr count)
     (hBody : ∀ {out : List YulStmt},
       compileStmtList fields events errors dynamicSource internalRetNames
-        isInternal (varName :: inScopeNames) body = .ok out →
+        isInternal (varName :: inScopeNames) [] body = .ok out →
       BridgedStmts out) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.forEach varName count body) = .ok out →
+        inScopeNames [] (.forEach varName count body) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, bind, Except.bind] at hOk
@@ -2588,7 +2593,7 @@ theorem compileStmt_forEach_with_bridged_body
   | ok countExpr =>
       simp [hCExpr] at hOk
       cases hBodyOk : compileStmtList fields events errors dynamicSource
-          internalRetNames isInternal (varName :: inScopeNames) body with
+          internalRetNames isInternal (varName :: inScopeNames) [] body with
       | error err => simp [hBodyOk] at hOk
       | ok bodyOut =>
           simp [hBodyOk, Pure.pure, Except.pure] at hOk
@@ -2796,7 +2801,7 @@ theorem compileStmt_revertError_zero_bridged
     (hZeroParams : errorDef.params = []) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.revertError errorName []) = .ok out →
+        inScopeNames [] (.revertError errorName []) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, bind, Except.bind, hLookup, compileExprList,
@@ -2817,7 +2822,7 @@ theorem compileStmt_requireError_zero_bridged
       BridgedExpr failCond) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.requireError cond errorName []) = .ok out →
+        inScopeNames [] (.requireError cond errorName []) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, bind, Except.bind] at hOk
@@ -2847,7 +2852,7 @@ theorem compileStmt_customError_zero_bridged
     (hStmt : BridgedSourceCustomErrorStmt fields errors dynamicSource stmt) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames stmt = .ok out →
+        inScopeNames [] stmt = .ok out →
       BridgedStmts out := by
   cases hStmt with
   | revertError errorName errorDef hLookup hZeroParams =>
@@ -2867,7 +2872,7 @@ theorem compileStmtList_customError_zero_bridged
       BridgedSourceCustomErrorStmts fields errors dynamicSource stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmts = .ok out →
+          inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -2881,12 +2886,12 @@ theorem compileStmtList_customError_zero_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -2972,7 +2977,7 @@ theorem compileStmt_external_body_with_errors_bridged
       BridgedSourceExternalBodyWithErrorsStmt fields errors dynamicSource stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          (isInternal := false) inScopeNames stmt = .ok out →
+          (isInternal := false) inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -2999,7 +3004,7 @@ theorem compileStmt_internal_body_with_errors_bridged
       BridgedSourceInternalBodyWithErrorsStmt fields errors dynamicSource stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          (isInternal := true) inScopeNames stmt = .ok out →
+          (isInternal := true) inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -3025,7 +3030,7 @@ theorem compileStmtList_external_body_with_errors_bridged
       BridgedSourceExternalBodyWithErrorsStmts fields errors dynamicSource stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          (isInternal := false) inScopeNames stmts = .ok out →
+          (isInternal := false) inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -3039,12 +3044,12 @@ theorem compileStmtList_external_body_with_errors_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          false inScopeNames head with
+          false inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames false (collectStmtNames head ++ inScopeNames) tail with
+              internalRetNames false (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -3078,7 +3083,7 @@ theorem compileStmtList_internal_body_with_errors_bridged
       BridgedSourceInternalBodyWithErrorsStmts fields errors dynamicSource stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          (isInternal := true) inScopeNames stmts = .ok out →
+          (isInternal := true) inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -3092,12 +3097,12 @@ theorem compileStmtList_internal_body_with_errors_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          true inScopeNames head with
+          true inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames true (collectStmtNames head ++ inScopeNames) tail with
+              internalRetNames true (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -3136,7 +3141,7 @@ theorem compileStmt_ite_external_body_with_errors_bridged
       dynamicSource elseBranch) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames
-        (isInternal := false) inScopeNames (.ite cond thenBranch elseBranch) = .ok out →
+        (isInternal := false) inScopeNames [] (.ite cond thenBranch elseBranch) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, bind, Except.bind] at hOk
@@ -3145,12 +3150,12 @@ theorem compileStmt_ite_external_body_with_errors_bridged
       simp [hCondExpr] at hOk
   | ok condExpr =>
       cases hThenCompile : compileStmtList fields events errors dynamicSource
-          internalRetNames false inScopeNames thenBranch with
+          internalRetNames false inScopeNames [] thenBranch with
       | error err =>
           simp [hCondExpr, hThenCompile] at hOk
       | ok thenOut =>
           cases hElseCompile : compileStmtList fields events errors dynamicSource
-              internalRetNames false inScopeNames elseBranch with
+              internalRetNames false inScopeNames [] elseBranch with
           | error err =>
               simp [hCondExpr, hThenCompile, hElseCompile] at hOk
           | ok elseOut =>
@@ -3203,7 +3208,7 @@ theorem compileStmt_ite_internal_body_with_errors_bridged
       dynamicSource elseBranch) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames
-        (isInternal := true) inScopeNames (.ite cond thenBranch elseBranch) = .ok out →
+        (isInternal := true) inScopeNames [] (.ite cond thenBranch elseBranch) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, bind, Except.bind] at hOk
@@ -3212,12 +3217,12 @@ theorem compileStmt_ite_internal_body_with_errors_bridged
       simp [hCondExpr] at hOk
   | ok condExpr =>
       cases hThenCompile : compileStmtList fields events errors dynamicSource
-          internalRetNames true inScopeNames thenBranch with
+          internalRetNames true inScopeNames [] thenBranch with
       | error err =>
           simp [hCondExpr, hThenCompile] at hOk
       | ok thenOut =>
           cases hElseCompile : compileStmtList fields events errors dynamicSource
-              internalRetNames true inScopeNames elseBranch with
+              internalRetNames true inScopeNames [] elseBranch with
           | error err =>
               simp [hCondExpr, hThenCompile, hElseCompile] at hOk
           | ok elseOut =>
@@ -3315,7 +3320,7 @@ theorem compileStmt_external_structured_body_with_errors_bridged
         dynamicSource stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          (isInternal := false) inScopeNames stmt = .ok out →
+          (isInternal := false) inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -3336,7 +3341,7 @@ theorem compileStmtList_external_structured_body_with_errors_bridged
         dynamicSource stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          (isInternal := false) inScopeNames stmts = .ok out →
+          (isInternal := false) inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -3350,13 +3355,13 @@ theorem compileStmtList_external_structured_body_with_errors_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          false inScopeNames head with
+          false inScopeNames [] head with
       | error err =>
           simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames false (collectStmtNames head ++ inScopeNames) tail with
+              internalRetNames false (collectStmtNames head ++ inScopeNames) [] tail with
           | error err =>
               simp [hTail] at hOk
           | ok tailOut =>
@@ -3388,7 +3393,7 @@ theorem compileStmt_internal_structured_body_with_errors_bridged
         dynamicSource stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          (isInternal := true) inScopeNames stmt = .ok out →
+          (isInternal := true) inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -3409,7 +3414,7 @@ theorem compileStmtList_internal_structured_body_with_errors_bridged
         dynamicSource stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          (isInternal := true) inScopeNames stmts = .ok out →
+          (isInternal := true) inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -3423,13 +3428,13 @@ theorem compileStmtList_internal_structured_body_with_errors_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          true inScopeNames head with
+          true inScopeNames [] head with
       | error err =>
           simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames true (collectStmtNames head ++ inScopeNames) tail with
+              internalRetNames true (collectStmtNames head ++ inScopeNames) [] tail with
           | error err =>
               simp [hTail] at hOk
           | ok tailOut =>
@@ -3520,7 +3525,7 @@ theorem compileStmt_ite_external_nested_body_with_errors_bridged
       dynamicSource elseBranch) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames
-        (isInternal := false) inScopeNames (.ite cond thenBranch elseBranch) = .ok out →
+        (isInternal := false) inScopeNames [] (.ite cond thenBranch elseBranch) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, bind, Except.bind] at hOk
@@ -3529,12 +3534,12 @@ theorem compileStmt_ite_external_nested_body_with_errors_bridged
       simp [hCondExpr] at hOk
   | ok condExpr =>
       cases hThenCompile : compileStmtList fields events errors dynamicSource
-          internalRetNames false inScopeNames thenBranch with
+          internalRetNames false inScopeNames [] thenBranch with
       | error err =>
           simp [hCondExpr, hThenCompile] at hOk
       | ok thenOut =>
           cases hElseCompile : compileStmtList fields events errors dynamicSource
-              internalRetNames false inScopeNames elseBranch with
+              internalRetNames false inScopeNames [] elseBranch with
           | error err =>
               simp [hCondExpr, hThenCompile, hElseCompile] at hOk
           | ok elseOut =>
@@ -3587,7 +3592,7 @@ theorem compileStmt_ite_internal_nested_body_with_errors_bridged
       dynamicSource elseBranch) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames
-        (isInternal := true) inScopeNames (.ite cond thenBranch elseBranch) = .ok out →
+        (isInternal := true) inScopeNames [] (.ite cond thenBranch elseBranch) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, bind, Except.bind] at hOk
@@ -3596,12 +3601,12 @@ theorem compileStmt_ite_internal_nested_body_with_errors_bridged
       simp [hCondExpr] at hOk
   | ok condExpr =>
       cases hThenCompile : compileStmtList fields events errors dynamicSource
-          internalRetNames true inScopeNames thenBranch with
+          internalRetNames true inScopeNames [] thenBranch with
       | error err =>
           simp [hCondExpr, hThenCompile] at hOk
       | ok thenOut =>
           cases hElseCompile : compileStmtList fields events errors dynamicSource
-              internalRetNames true inScopeNames elseBranch with
+              internalRetNames true inScopeNames [] elseBranch with
           | error err =>
               simp [hCondExpr, hThenCompile, hElseCompile] at hOk
           | ok elseOut =>
@@ -3651,7 +3656,7 @@ theorem compileStmt_external_nested_body_with_errors_bridged
         dynamicSource stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          (isInternal := false) inScopeNames stmt = .ok out →
+          (isInternal := false) inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -3672,7 +3677,7 @@ theorem compileStmtList_external_nested_body_with_errors_bridged
         dynamicSource stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          (isInternal := false) inScopeNames stmts = .ok out →
+          (isInternal := false) inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -3686,13 +3691,13 @@ theorem compileStmtList_external_nested_body_with_errors_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          false inScopeNames head with
+          false inScopeNames [] head with
       | error err =>
           simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames false (collectStmtNames head ++ inScopeNames) tail with
+              internalRetNames false (collectStmtNames head ++ inScopeNames) [] tail with
           | error err =>
               simp [hTail] at hOk
           | ok tailOut =>
@@ -3724,7 +3729,7 @@ theorem compileStmt_internal_nested_body_with_errors_bridged
         dynamicSource stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          (isInternal := true) inScopeNames stmt = .ok out →
+          (isInternal := true) inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -3745,7 +3750,7 @@ theorem compileStmtList_internal_nested_body_with_errors_bridged
         dynamicSource stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          (isInternal := true) inScopeNames stmts = .ok out →
+          (isInternal := true) inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -3759,13 +3764,13 @@ theorem compileStmtList_internal_nested_body_with_errors_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          true inScopeNames head with
+          true inScopeNames [] head with
       | error err =>
           simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames true (collectStmtNames head ++ inScopeNames) tail with
+              internalRetNames true (collectStmtNames head ++ inScopeNames) [] tail with
           | error err =>
               simp [hTail] at hOk
           | ok tailOut =>
@@ -3850,7 +3855,7 @@ theorem compileStmt_external_forEach_body_with_errors_bridged
         dynamicSource stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          (isInternal := false) inScopeNames stmt = .ok out →
+          (isInternal := false) inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -3876,7 +3881,7 @@ theorem compileStmtList_external_forEach_body_with_errors_bridged
         dynamicSource stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          (isInternal := false) inScopeNames stmts = .ok out →
+          (isInternal := false) inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -3890,13 +3895,13 @@ theorem compileStmtList_external_forEach_body_with_errors_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          false inScopeNames head with
+          false inScopeNames [] head with
       | error err =>
           simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames false (collectStmtNames head ++ inScopeNames) tail with
+              internalRetNames false (collectStmtNames head ++ inScopeNames) [] tail with
           | error err =>
               simp [hTail] at hOk
           | ok tailOut =>
@@ -3928,7 +3933,7 @@ theorem compileStmt_internal_forEach_body_with_errors_bridged
         dynamicSource stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          (isInternal := true) inScopeNames stmt = .ok out →
+          (isInternal := true) inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -3954,7 +3959,7 @@ theorem compileStmtList_internal_forEach_body_with_errors_bridged
         dynamicSource stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          (isInternal := true) inScopeNames stmts = .ok out →
+          (isInternal := true) inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -3968,13 +3973,13 @@ theorem compileStmtList_internal_forEach_body_with_errors_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          true inScopeNames head with
+          true inScopeNames [] head with
       | error err =>
           simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames true (collectStmtNames head ++ inScopeNames) tail with
+              internalRetNames true (collectStmtNames head ++ inScopeNames) [] tail with
           | error err =>
               simp [hTail] at hOk
           | ok tailOut =>
@@ -4099,7 +4104,7 @@ mutual
           dynamicSource stmt →
         ∀ {out : List YulStmt},
           compileStmt fields events errors dynamicSource internalRetNames
-            (isInternal := false) inScopeNames stmt = .ok out →
+            (isInternal := false) inScopeNames [] stmt = .ok out →
           BridgedStmts out := by
     intro stmt hStmt out hOk
     cases hStmt with
@@ -4113,12 +4118,12 @@ mutual
             simp [hCondExpr] at hOk
         | ok condExpr =>
             cases hThenCompile : compileStmtList fields events errors dynamicSource
-                internalRetNames false inScopeNames thenBranch with
+                internalRetNames false inScopeNames [] thenBranch with
             | error err =>
                 simp [hCondExpr, hThenCompile] at hOk
             | ok thenOut =>
                 cases hElseCompile : compileStmtList fields events errors dynamicSource
-                    internalRetNames false inScopeNames elseBranch with
+                    internalRetNames false inScopeNames [] elseBranch with
                 | error err =>
                     simp [hCondExpr, hThenCompile, hElseCompile] at hOk
                 | ok elseOut =>
@@ -4173,7 +4178,7 @@ mutual
           dynamicSource stmts →
         ∀ (inScopeNames : List String) {out : List YulStmt},
           compileStmtList fields events errors dynamicSource internalRetNames
-            (isInternal := false) inScopeNames stmts = .ok out →
+            (isInternal := false) inScopeNames [] stmts = .ok out →
           BridgedStmts out := by
     intro stmts hSource inScopeNames out hOk
     cases hSource with
@@ -4185,13 +4190,13 @@ mutual
     | @cons head tail hHead hTail =>
         simp only [compileStmtList, bind, Except.bind] at hOk
         cases hHeadCompile : compileStmt fields events errors dynamicSource
-            internalRetNames false inScopeNames head with
+            internalRetNames false inScopeNames [] head with
         | error err =>
             simp [hHeadCompile] at hOk
         | ok headOut =>
             simp [hHeadCompile] at hOk
             cases hTailCompile : compileStmtList fields events errors dynamicSource
-                internalRetNames false (collectStmtNames head ++ inScopeNames) tail with
+                internalRetNames false (collectStmtNames head ++ inScopeNames) [] tail with
             | error err =>
                 simp [hTailCompile] at hOk
             | ok tailOut =>
@@ -4216,7 +4221,7 @@ mutual
           dynamicSource stmt →
         ∀ {out : List YulStmt},
           compileStmt fields events errors dynamicSource internalRetNames
-            (isInternal := true) inScopeNames stmt = .ok out →
+            (isInternal := true) inScopeNames [] stmt = .ok out →
           BridgedStmts out := by
     intro stmt hStmt out hOk
     cases hStmt with
@@ -4230,12 +4235,12 @@ mutual
             simp [hCondExpr] at hOk
         | ok condExpr =>
             cases hThenCompile : compileStmtList fields events errors dynamicSource
-                internalRetNames true inScopeNames thenBranch with
+                internalRetNames true inScopeNames [] thenBranch with
             | error err =>
                 simp [hCondExpr, hThenCompile] at hOk
             | ok thenOut =>
                 cases hElseCompile : compileStmtList fields events errors dynamicSource
-                    internalRetNames true inScopeNames elseBranch with
+                    internalRetNames true inScopeNames [] elseBranch with
                 | error err =>
                     simp [hCondExpr, hThenCompile, hElseCompile] at hOk
                 | ok elseOut =>
@@ -4290,7 +4295,7 @@ mutual
           dynamicSource stmts →
         ∀ (inScopeNames : List String) {out : List YulStmt},
           compileStmtList fields events errors dynamicSource internalRetNames
-            (isInternal := true) inScopeNames stmts = .ok out →
+            (isInternal := true) inScopeNames [] stmts = .ok out →
           BridgedStmts out := by
     intro stmts hSource inScopeNames out hOk
     cases hSource with
@@ -4302,13 +4307,13 @@ mutual
     | @cons head tail hHead hTail =>
         simp only [compileStmtList, bind, Except.bind] at hOk
         cases hHeadCompile : compileStmt fields events errors dynamicSource
-            internalRetNames true inScopeNames head with
+            internalRetNames true inScopeNames [] head with
         | error err =>
             simp [hHeadCompile] at hOk
         | ok headOut =>
             simp [hHeadCompile] at hOk
             cases hTailCompile : compileStmtList fields events errors dynamicSource
-                internalRetNames true (collectStmtNames head ++ inScopeNames) tail with
+                internalRetNames true (collectStmtNames head ++ inScopeNames) [] tail with
             | error err =>
                 simp [hTailCompile] at hOk
             | ok tailOut =>
@@ -5604,7 +5609,7 @@ theorem compileStmt_rawLog_bridged
     ∀ {stmt : Stmt}, BridgedSourceRawLogStmt stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -5668,7 +5673,7 @@ theorem compileStmtList_rawLog_bridged
       BridgedSourceRawLogStmts stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -5682,13 +5687,12 @@ theorem compileStmtList_rawLog_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -5760,7 +5764,7 @@ theorem compileStmt_external_body_with_raw_log_bridged
       BridgedSourceExternalBodyWithRawLogStmt fields errors dynamicSource stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          (isInternal := false) inScopeNames stmt = .ok out →
+          (isInternal := false) inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -5781,7 +5785,7 @@ theorem compileStmt_internal_body_with_raw_log_bridged
       BridgedSourceInternalBodyWithRawLogStmt fields errors dynamicSource stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          (isInternal := true) inScopeNames stmt = .ok out →
+          (isInternal := true) inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -5801,7 +5805,7 @@ theorem compileStmtList_external_body_with_raw_log_bridged
       BridgedSourceExternalBodyWithRawLogStmts fields errors dynamicSource stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          (isInternal := false) inScopeNames stmts = .ok out →
+          (isInternal := false) inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -5815,12 +5819,12 @@ theorem compileStmtList_external_body_with_raw_log_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          false inScopeNames head with
+          false inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames false (collectStmtNames head ++ inScopeNames) tail with
+              internalRetNames false (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -5854,7 +5858,7 @@ theorem compileStmtList_internal_body_with_raw_log_bridged
       BridgedSourceInternalBodyWithRawLogStmts fields errors dynamicSource stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          (isInternal := true) inScopeNames stmts = .ok out →
+          (isInternal := true) inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -5868,12 +5872,12 @@ theorem compileStmtList_internal_body_with_raw_log_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          true inScopeNames head with
+          true inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames true (collectStmtNames head ++ inScopeNames) tail with
+              internalRetNames true (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -6003,7 +6007,7 @@ mutual
           dynamicSource stmt →
         ∀ {out : List YulStmt},
           compileStmt fields events errors dynamicSource internalRetNames
-            (isInternal := false) inScopeNames stmt = .ok out →
+            (isInternal := false) inScopeNames [] stmt = .ok out →
           BridgedStmts out := by
     intro stmt hStmt out hOk
     cases hStmt with
@@ -6017,12 +6021,12 @@ mutual
             simp [hCondExpr] at hOk
         | ok condExpr =>
             cases hThenCompile : compileStmtList fields events errors dynamicSource
-                internalRetNames false inScopeNames thenBranch with
+                internalRetNames false inScopeNames [] thenBranch with
             | error err =>
                 simp [hCondExpr, hThenCompile] at hOk
             | ok thenOut =>
                 cases hElseCompile : compileStmtList fields events errors dynamicSource
-                    internalRetNames false inScopeNames elseBranch with
+                    internalRetNames false inScopeNames [] elseBranch with
                 | error err =>
                     simp [hCondExpr, hThenCompile, hElseCompile] at hOk
                 | ok elseOut =>
@@ -6077,7 +6081,7 @@ mutual
           dynamicSource stmts →
         ∀ (inScopeNames : List String) {out : List YulStmt},
           compileStmtList fields events errors dynamicSource internalRetNames
-            (isInternal := false) inScopeNames stmts = .ok out →
+            (isInternal := false) inScopeNames [] stmts = .ok out →
           BridgedStmts out := by
     intro stmts hSource inScopeNames out hOk
     cases hSource with
@@ -6089,13 +6093,13 @@ mutual
     | @cons head tail hHead hTail =>
         simp only [compileStmtList, bind, Except.bind] at hOk
         cases hHeadCompile : compileStmt fields events errors dynamicSource
-            internalRetNames false inScopeNames head with
+            internalRetNames false inScopeNames [] head with
         | error err =>
             simp [hHeadCompile] at hOk
         | ok headOut =>
             simp [hHeadCompile] at hOk
             cases hTailCompile : compileStmtList fields events errors dynamicSource
-                internalRetNames false (collectStmtNames head ++ inScopeNames) tail with
+                internalRetNames false (collectStmtNames head ++ inScopeNames) [] tail with
             | error err =>
                 simp [hTailCompile] at hOk
             | ok tailOut =>
@@ -6120,7 +6124,7 @@ mutual
           dynamicSource stmt →
         ∀ {out : List YulStmt},
           compileStmt fields events errors dynamicSource internalRetNames
-            (isInternal := true) inScopeNames stmt = .ok out →
+            (isInternal := true) inScopeNames [] stmt = .ok out →
           BridgedStmts out := by
     intro stmt hStmt out hOk
     cases hStmt with
@@ -6134,12 +6138,12 @@ mutual
             simp [hCondExpr] at hOk
         | ok condExpr =>
             cases hThenCompile : compileStmtList fields events errors dynamicSource
-                internalRetNames true inScopeNames thenBranch with
+                internalRetNames true inScopeNames [] thenBranch with
             | error err =>
                 simp [hCondExpr, hThenCompile] at hOk
             | ok thenOut =>
                 cases hElseCompile : compileStmtList fields events errors dynamicSource
-                    internalRetNames true inScopeNames elseBranch with
+                    internalRetNames true inScopeNames [] elseBranch with
                 | error err =>
                     simp [hCondExpr, hThenCompile, hElseCompile] at hOk
                 | ok elseOut =>
@@ -6194,7 +6198,7 @@ mutual
           dynamicSource stmts →
         ∀ (inScopeNames : List String) {out : List YulStmt},
           compileStmtList fields events errors dynamicSource internalRetNames
-            (isInternal := true) inScopeNames stmts = .ok out →
+            (isInternal := true) inScopeNames [] stmts = .ok out →
           BridgedStmts out := by
     intro stmts hSource inScopeNames out hOk
     cases hSource with
@@ -6206,13 +6210,13 @@ mutual
     | @cons head tail hHead hTail =>
         simp only [compileStmtList, bind, Except.bind] at hOk
         cases hHeadCompile : compileStmt fields events errors dynamicSource
-            internalRetNames true inScopeNames head with
+            internalRetNames true inScopeNames [] head with
         | error err =>
             simp [hHeadCompile] at hOk
         | ok headOut =>
             simp [hHeadCompile] at hOk
             cases hTailCompile : compileStmtList fields events errors dynamicSource
-                internalRetNames true (collectStmtNames head ++ inScopeNames) tail with
+                internalRetNames true (collectStmtNames head ++ inScopeNames) [] tail with
             | error err =>
                 simp [hTailCompile] at hOk
             | ok tailOut =>
@@ -6264,7 +6268,7 @@ theorem compileStmt_setMapping2_singleSlot_bridged
     (hSlots : findFieldWriteSlots fields field = some [slot]) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setMapping2 field key1 key2 value) = .ok out →
+        inScopeNames [] (.setMapping2 field key1 key2 value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt] at hOk
@@ -6313,7 +6317,7 @@ theorem compileStmt_mappingWrite2_bridged
     ∀ {stmt : Stmt}, BridgedSourceMappingWrite2Stmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -6332,7 +6336,7 @@ theorem compileStmtList_mappingWrite2_bridged
       BridgedSourceMappingWrite2Stmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -6346,13 +6350,13 @@ theorem compileStmtList_mappingWrite2_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err =>
           simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource internalRetNames
-              isInternal (collectStmtNames head ++ inScopeNames) tail with
+              isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err =>
               simp [hTail] at hOk
           | ok tailOut =>
@@ -6408,7 +6412,7 @@ theorem compileStmt_setStorageAddr_singleSlot_bridged
         some ({ f with packedBits := none, aliasSlots := [] }, slot)) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setStorageAddr field value) = .ok out →
+        inScopeNames [] (.setStorageAddr field value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt] at hOk
@@ -6446,7 +6450,7 @@ theorem compileStmt_storageAddr_bridged
     ∀ {stmt : Stmt}, BridgedSourceStorageAddrStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -6465,7 +6469,7 @@ theorem compileStmtList_storageAddr_bridged
       BridgedSourceStorageAddrStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -6479,13 +6483,12 @@ theorem compileStmtList_storageAddr_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -6546,7 +6549,7 @@ theorem compileStmt_setStructMember_singleSlot_bridged
     (hSlots : findFieldWriteSlots fields field = some [slot]) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setStructMember field key memberName value) = .ok out →
+        inScopeNames [] (.setStructMember field key memberName value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, compileSetStructMember, hNotMapping2, hMembers,
@@ -6574,7 +6577,7 @@ theorem compileStmt_structMember_bridged
     ∀ {stmt : Stmt}, BridgedSourceStructMemberStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -6595,7 +6598,7 @@ theorem compileStmtList_structMember_bridged
       BridgedSourceStructMemberStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -6609,13 +6612,12 @@ theorem compileStmtList_structMember_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -6678,7 +6680,7 @@ theorem compileStmt_setStructMember2_singleSlot_bridged
     (hSlots : findFieldWriteSlots fields field = some [slot]) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setStructMember2 field key1 key2 memberName value) = .ok out →
+        inScopeNames [] (.setStructMember2 field key1 key2 memberName value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt] at hOk
@@ -6727,7 +6729,7 @@ theorem compileStmt_structMember2_bridged
     ∀ {stmt : Stmt}, BridgedSourceStructMember2Stmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -6748,7 +6750,7 @@ theorem compileStmtList_structMember2_bridged
       BridgedSourceStructMember2Stmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -6762,13 +6764,12 @@ theorem compileStmtList_structMember2_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -6821,7 +6822,7 @@ theorem compileStmt_setMappingWord_singleSlot_bridged
     (hWordOffset : wordOffset = 0) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setMappingWord field key wordOffset value) = .ok out →
+        inScopeNames [] (.setMappingWord field key wordOffset value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   subst hWordOffset
@@ -6848,7 +6849,7 @@ theorem compileStmt_mappingWord_bridged
     ∀ {stmt : Stmt}, BridgedSourceMappingWordStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -6867,7 +6868,7 @@ theorem compileStmtList_mappingWord_bridged
       BridgedSourceMappingWordStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -6881,13 +6882,12 @@ theorem compileStmtList_mappingWord_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -6942,7 +6942,7 @@ theorem compileStmt_setMapping2Word_singleSlot_bridged
     (hWordOffset : wordOffset = 0) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setMapping2Word field key1 key2 wordOffset value) = .ok out →
+        inScopeNames [] (.setMapping2Word field key1 key2 wordOffset value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   subst hWordOffset
@@ -6992,7 +6992,7 @@ theorem compileStmt_mapping2Word_bridged
     ∀ {stmt : Stmt}, BridgedSourceMapping2WordStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -7011,7 +7011,7 @@ theorem compileStmtList_mapping2Word_bridged
       BridgedSourceMapping2WordStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -7025,13 +7025,12 @@ theorem compileStmtList_mapping2Word_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -7069,7 +7068,7 @@ private theorem compileStmt_returnValuesEmpty_external_bridged
     (inScopeNames : List String) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames
-        (isInternal := false) inScopeNames (.returnValues []) = .ok out →
+        (isInternal := false) inScopeNames [] (.returnValues []) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp [compileStmt, Pure.pure, Except.pure] at hOk
@@ -7090,7 +7089,7 @@ theorem compileStmt_returnValuesEmpty_bridged
     ∀ {stmt : Stmt}, BridgedSourceReturnValuesEmptyStmt stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          (isInternal := false) inScopeNames stmt = .ok out →
+          (isInternal := false) inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -7107,7 +7106,7 @@ theorem compileStmtList_returnValuesEmpty_bridged
       BridgedSourceReturnValuesEmptyStmts stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          (isInternal := false) inScopeNames stmts = .ok out →
+          (isInternal := false) inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -7121,13 +7120,12 @@ theorem compileStmtList_returnValuesEmpty_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          false inScopeNames head with
+          false inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames false (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames false (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -7165,7 +7163,7 @@ private theorem compileStmt_returnValuesEmpty_internal_bridged
     (dynamicSource : DynamicDataSource) (inScopeNames : List String) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource (internalRetNames := [])
-        (isInternal := true) inScopeNames (.returnValues []) = .ok out →
+        (isInternal := true) inScopeNames [] (.returnValues []) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp [compileStmt, compileExprList, bind, Except.bind, Pure.pure, Except.pure] at hOk
@@ -7183,7 +7181,7 @@ theorem compileStmt_returnValuesEmpty_internal_fragment_bridged
     ∀ {stmt : Stmt}, BridgedSourceReturnValuesEmptyInternalStmt stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource (internalRetNames := [])
-          (isInternal := true) inScopeNames stmt = .ok out →
+          (isInternal := true) inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -7200,7 +7198,7 @@ theorem compileStmtList_returnValuesEmpty_internal_bridged
       BridgedSourceReturnValuesEmptyInternalStmts stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource (internalRetNames := [])
-          (isInternal := true) inScopeNames stmts = .ok out →
+          (isInternal := true) inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -7214,12 +7212,12 @@ theorem compileStmtList_returnValuesEmpty_internal_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource []
-          true inScopeNames head with
+          true inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              [] true (collectStmtNames head ++ inScopeNames) tail with
+              [] true (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -7303,7 +7301,7 @@ private theorem compileStmt_returnValuesInternal_bridged
     (hLen : values.length = internalRetNames.length) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames
-        (isInternal := true) inScopeNames (.returnValues values) = .ok out →
+        (isInternal := true) inScopeNames [] (.returnValues values) = .ok out →
       BridgedStmts out := by
   intro out hOk
   have hLenFalse : (values.length != internalRetNames.length) = false := by
@@ -7331,7 +7329,7 @@ theorem compileStmt_returnValuesInternal_fragment_bridged
       BridgedSourceReturnValuesInternalStmt internalRetNames stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          (isInternal := true) inScopeNames stmt = .ok out →
+          (isInternal := true) inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -7349,7 +7347,7 @@ theorem compileStmtList_returnValuesInternal_bridged
       BridgedSourceReturnValuesInternalStmts internalRetNames stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          (isInternal := true) inScopeNames stmts = .ok out →
+          (isInternal := true) inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -7363,13 +7361,12 @@ theorem compileStmtList_returnValuesInternal_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          true inScopeNames head with
+          true inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames true (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames true (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -7455,7 +7452,7 @@ private theorem compileStmt_returnValuesExternal_bridged
     (hValues : ∀ v ∈ values, BridgedSourceExpr v) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames
-        (isInternal := false) inScopeNames (.returnValues values) = .ok out →
+        (isInternal := false) inScopeNames [] (.returnValues values) = .ok out →
       BridgedStmts out := by
   intro out hOk
   by_cases hValuesNil : values = []
@@ -7494,7 +7491,7 @@ theorem compileStmt_returnValuesExternal_fragment_bridged
     ∀ {stmt : Stmt}, BridgedSourceReturnValuesExternalStmt stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          (isInternal := false) inScopeNames stmt = .ok out →
+          (isInternal := false) inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -7511,7 +7508,7 @@ theorem compileStmtList_returnValuesExternal_bridged
       BridgedSourceReturnValuesExternalStmts stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          (isInternal := false) inScopeNames stmts = .ok out →
+          (isInternal := false) inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -7525,13 +7522,12 @@ theorem compileStmtList_returnValuesExternal_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          false inScopeNames head with
+          false inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames false (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames false (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -7574,7 +7570,7 @@ private theorem compileStmt_mstore_bridged
     (hOffset : BridgedSourceExpr offset) (hValue : BridgedSourceExpr value) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames
-        isInternal inScopeNames (.mstore offset value) = .ok out →
+        isInternal inScopeNames [] (.mstore offset value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, bind, Except.bind, Pure.pure, Except.pure] at hOk
@@ -7604,7 +7600,7 @@ theorem compileStmt_mstore_fragment_bridged
     ∀ {stmt : Stmt}, BridgedSourceMstoreStmt stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmt = .ok out →
+          isInternal inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -7620,7 +7616,7 @@ theorem compileStmtList_mstore_bridged
       BridgedSourceMstoreStmts stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -7634,13 +7630,12 @@ theorem compileStmtList_mstore_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -7673,7 +7668,7 @@ private theorem compileStmt_tstore_bridged
     (hOffset : BridgedSourceExpr offset) (hValue : BridgedSourceExpr value) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames
-        isInternal inScopeNames (.tstore offset value) = .ok out →
+        isInternal inScopeNames [] (.tstore offset value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, bind, Except.bind, Pure.pure, Except.pure] at hOk
@@ -7703,7 +7698,7 @@ theorem compileStmt_tstore_fragment_bridged
     ∀ {stmt : Stmt}, BridgedSourceTstoreStmt stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmt = .ok out →
+          isInternal inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -7719,7 +7714,7 @@ theorem compileStmtList_tstore_bridged
       BridgedSourceTstoreStmts stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -7733,13 +7728,12 @@ theorem compileStmtList_tstore_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -7797,7 +7791,7 @@ theorem compileStmt_storageArrayPush_singleSlot_bridged
     (hDynArr : f.ty = .dynamicArray elemType) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.storageArrayPush field value) = .ok out →
+        inScopeNames [] (.storageArrayPush field value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt] at hOk
@@ -7860,7 +7854,7 @@ theorem compileStmt_storageArrayPush_bridged
     ∀ {stmt : Stmt}, BridgedSourceStorageArrayPushStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmt = .ok out →
+          isInternal inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -7879,7 +7873,7 @@ theorem compileStmtList_storageArrayPush_bridged
       BridgedSourceStorageArrayPushStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -7893,13 +7887,12 @@ theorem compileStmtList_storageArrayPush_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -7959,7 +7952,7 @@ theorem compileStmt_storageArrayPop_singleSlot_bridged
     (hDynArr : f.ty = .dynamicArray elemType) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.storageArrayPop field) = .ok out →
+        inScopeNames [] (.storageArrayPop field) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt] at hOk
@@ -8036,7 +8029,7 @@ theorem compileStmt_storageArrayPop_bridged
     ∀ {stmt : Stmt}, BridgedSourceStorageArrayPopStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmt = .ok out →
+          isInternal inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -8055,7 +8048,7 @@ theorem compileStmtList_storageArrayPop_bridged
       BridgedSourceStorageArrayPopStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -8069,13 +8062,12 @@ theorem compileStmtList_storageArrayPop_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -8139,7 +8131,7 @@ theorem compileStmt_setStorageArrayElement_singleSlot_bridged
     (hDynArr : f.ty = .dynamicArray elemType) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setStorageArrayElement field index value) = .ok out →
+        inScopeNames [] (.setStorageArrayElement field index value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt] at hOk
@@ -8224,7 +8216,7 @@ theorem compileStmt_setStorageArrayElement_bridged
     ∀ {stmt : Stmt}, BridgedSourceSetStorageArrayElementStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmt = .ok out →
+          isInternal inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -8244,7 +8236,7 @@ theorem compileStmtList_setStorageArrayElement_bridged
       BridgedSourceSetStorageArrayElementStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -8258,13 +8250,12 @@ theorem compileStmtList_setStorageArrayElement_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -8354,7 +8345,7 @@ theorem compileStmt_setMappingWord_singleSlot_nonzero_bridged
     (hNonzero : wordOffset ≠ 0) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setMappingWord field key wordOffset value) = .ok out →
+        inScopeNames [] (.setMappingWord field key wordOffset value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, bind, Except.bind] at hOk
@@ -8380,7 +8371,7 @@ theorem compileStmt_mappingWordNonzero_bridged
     ∀ {stmt : Stmt}, BridgedSourceMappingWordNonzeroStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -8399,7 +8390,7 @@ theorem compileStmtList_mappingWordNonzero_bridged
       BridgedSourceMappingWordNonzeroStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -8413,13 +8404,12 @@ theorem compileStmtList_mappingWordNonzero_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -8475,7 +8465,7 @@ theorem compileStmt_setMapping2Word_singleSlot_nonzero_bridged
     (hNonzero : wordOffset ≠ 0) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setMapping2Word field key1 key2 wordOffset value) = .ok out →
+        inScopeNames [] (.setMapping2Word field key1 key2 wordOffset value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   have hBeq : (wordOffset == 0) = false := by
@@ -8540,7 +8530,7 @@ theorem compileStmt_mapping2WordNonzero_bridged
     ∀ {stmt : Stmt}, BridgedSourceMapping2WordNonzeroStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -8559,7 +8549,7 @@ theorem compileStmtList_mapping2WordNonzero_bridged
       BridgedSourceMapping2WordNonzeroStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -8573,13 +8563,12 @@ theorem compileStmtList_mapping2WordNonzero_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -8668,7 +8657,7 @@ theorem compileStmt_setMappingChain_singleSlot_bridged
     (hSlots : findFieldWriteSlots fields field = some [slot]) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setMappingChain field keys value) = .ok out →
+        inScopeNames [] (.setMappingChain field keys value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt] at hOk
@@ -8721,7 +8710,7 @@ theorem compileStmt_mappingChain_bridged
     ∀ {stmt : Stmt}, BridgedSourceMappingChainStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -8740,7 +8729,7 @@ theorem compileStmtList_mappingChain_bridged
       BridgedSourceMappingChainStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -8754,13 +8743,12 @@ theorem compileStmtList_mappingChain_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -8917,7 +8905,7 @@ theorem compileStmt_setMapping_multiSlot_bridged
       some (slot0 :: slot1 :: slotsRest)) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setMapping field key value) = .ok out →
+        inScopeNames [] (.setMapping field key value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, bind, Except.bind] at hOk
@@ -8949,7 +8937,7 @@ theorem compileStmt_setMappingUint_multiSlot_bridged
       some (slot0 :: slot1 :: slotsRest)) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setMappingUint field key value) = .ok out →
+        inScopeNames [] (.setMappingUint field key value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, bind, Except.bind] at hOk
@@ -8975,7 +8963,7 @@ theorem compileStmt_mappingWriteMultiSlot_bridged
     ∀ {stmt : Stmt}, BridgedSourceMappingWriteMultiSlotStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -8998,7 +8986,7 @@ theorem compileStmtList_mappingWriteMultiSlot_bridged
       BridgedSourceMappingWriteMultiSlotStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -9012,13 +9000,12 @@ theorem compileStmtList_mappingWriteMultiSlot_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -9130,7 +9117,7 @@ theorem compileStmt_setMapping2_multiSlot_bridged
       some (slot0 :: slot1 :: slotsRest)) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setMapping2 field key1 key2 value) = .ok out →
+        inScopeNames [] (.setMapping2 field key1 key2 value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt] at hOk
@@ -9222,7 +9209,7 @@ theorem compileStmt_mappingWrite2MultiSlot_bridged
     ∀ {stmt : Stmt}, BridgedSourceMappingWrite2MultiSlotStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -9241,7 +9228,7 @@ theorem compileStmtList_mappingWrite2MultiSlot_bridged
       BridgedSourceMappingWrite2MultiSlotStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -9255,13 +9242,12 @@ theorem compileStmtList_mappingWrite2MultiSlot_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -9331,7 +9317,7 @@ theorem compileStmt_setStructMember_multiSlot_bridged
       some (slot0 :: slot1 :: slotsRest)) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setStructMember field key memberName value) = .ok out →
+        inScopeNames [] (.setStructMember field key memberName value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, compileSetStructMember, hNotMapping2, hMembers,
@@ -9359,7 +9345,7 @@ theorem compileStmt_structMemberMultiSlot_bridged
     ∀ {stmt : Stmt}, BridgedSourceStructMemberMultiSlotStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -9380,7 +9366,7 @@ theorem compileStmtList_structMemberMultiSlot_bridged
       BridgedSourceStructMemberMultiSlotStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -9394,13 +9380,12 @@ theorem compileStmtList_structMemberMultiSlot_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -9471,7 +9456,7 @@ theorem compileStmt_setStructMember2_multiSlot_bridged
       some (slot0 :: slot1 :: slotsRest)) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setStructMember2 field key1 key2 memberName value) =
+        inScopeNames [] (.setStructMember2 field key1 key2 memberName value) =
           .ok out →
       BridgedStmts out := by
   intro out hOk
@@ -9564,7 +9549,7 @@ theorem compileStmt_structMember2MultiSlot_bridged
     ∀ {stmt : Stmt}, BridgedSourceStructMember2MultiSlotStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -9585,7 +9570,7 @@ theorem compileStmtList_structMember2MultiSlot_bridged
       BridgedSourceStructMember2MultiSlotStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -9599,13 +9584,12 @@ theorem compileStmtList_structMember2MultiSlot_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -9669,7 +9653,7 @@ theorem compileStmt_setMappingWord_multiSlot_bridged
     (hWordOffset : wordOffset = 0) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setMappingWord field key wordOffset value) = .ok out →
+        inScopeNames [] (.setMappingWord field key wordOffset value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   subst hWordOffset
@@ -9696,7 +9680,7 @@ theorem compileStmt_mappingWordMultiSlot_bridged
     ∀ {stmt : Stmt}, BridgedSourceMappingWordMultiSlotStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -9715,7 +9699,7 @@ theorem compileStmtList_mappingWordMultiSlot_bridged
       BridgedSourceMappingWordMultiSlotStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -9729,13 +9713,12 @@ theorem compileStmtList_mappingWordMultiSlot_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -9800,7 +9783,7 @@ theorem compileStmt_setMapping2Word_multiSlot_bridged
     (hWordOffset : wordOffset = 0) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setMapping2Word field key1 key2 wordOffset value) = .ok out →
+        inScopeNames [] (.setMapping2Word field key1 key2 wordOffset value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   subst hWordOffset
@@ -9890,7 +9873,7 @@ theorem compileStmt_mapping2WordMultiSlot_bridged
     ∀ {stmt : Stmt}, BridgedSourceMapping2WordMultiSlotStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -9909,7 +9892,7 @@ theorem compileStmtList_mapping2WordMultiSlot_bridged
       BridgedSourceMapping2WordMultiSlotStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -9923,13 +9906,12 @@ theorem compileStmtList_mapping2WordMultiSlot_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -10080,7 +10062,7 @@ theorem compileStmt_setMappingWord_multiSlot_nonzero_bridged
     (hNonzero : wordOffset ≠ 0) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setMappingWord field key wordOffset value) = .ok out →
+        inScopeNames [] (.setMappingWord field key wordOffset value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, bind, Except.bind] at hOk
@@ -10106,7 +10088,7 @@ theorem compileStmt_mappingWordMultiSlotNonzero_bridged
     ∀ {stmt : Stmt}, BridgedSourceMappingWordMultiSlotNonzeroStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -10125,7 +10107,7 @@ theorem compileStmtList_mappingWordMultiSlotNonzero_bridged
       BridgedSourceMappingWordMultiSlotNonzeroStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -10139,13 +10121,12 @@ theorem compileStmtList_mappingWordMultiSlotNonzero_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -10281,7 +10262,7 @@ theorem compileStmt_setMapping2Word_multiSlot_nonzero_bridged
     (hNonzero : wordOffset ≠ 0) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setMapping2Word field key1 key2 wordOffset value) = .ok out →
+        inScopeNames [] (.setMapping2Word field key1 key2 wordOffset value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   have hBeq : (wordOffset == 0) = false := by
@@ -10400,7 +10381,7 @@ theorem compileStmt_mapping2WordMultiSlotNonzero_bridged
     ∀ {stmt : Stmt}, BridgedSourceMapping2WordMultiSlotNonzeroStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -10419,7 +10400,7 @@ theorem compileStmtList_mapping2WordMultiSlotNonzero_bridged
       BridgedSourceMapping2WordMultiSlotNonzeroStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -10433,13 +10414,12 @@ theorem compileStmtList_mapping2WordMultiSlotNonzero_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -10511,7 +10491,7 @@ theorem compileStmt_setStructMember_multiSlot_nonzero_bridged
       some (slot0 :: slot1 :: slotsRest)) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setStructMember field key memberName value) = .ok out →
+        inScopeNames [] (.setStructMember field key memberName value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   simp only [compileStmt, compileSetStructMember, hNotMapping2, hMembers,
@@ -10540,7 +10520,7 @@ theorem compileStmt_structMemberMultiSlotNonzero_bridged
     ∀ {stmt : Stmt}, BridgedSourceStructMemberMultiSlotNonzeroStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -10561,7 +10541,7 @@ theorem compileStmtList_structMemberMultiSlotNonzero_bridged
       BridgedSourceStructMemberMultiSlotNonzeroStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -10575,13 +10555,12 @@ theorem compileStmtList_structMemberMultiSlotNonzero_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -10657,7 +10636,7 @@ theorem compileStmt_setStructMember2_multiSlot_nonzero_bridged
       some (slot0 :: slot1 :: slotsRest)) :
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
-        inScopeNames (.setStructMember2 field key1 key2 memberName value) =
+        inScopeNames [] (.setStructMember2 field key1 key2 memberName value) =
           .ok out →
       BridgedStmts out := by
   intro out hOk
@@ -10777,7 +10756,7 @@ theorem compileStmt_structMember2MultiSlotNonzero_bridged
     ∀ {stmt : Stmt}, BridgedSourceStructMember2MultiSlotNonzeroStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames isInternal
-          inScopeNames stmt = .ok out →
+          inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -10798,7 +10777,7 @@ theorem compileStmtList_structMember2MultiSlotNonzero_bridged
       BridgedSourceStructMember2MultiSlotNonzeroStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -10812,13 +10791,12 @@ theorem compileStmtList_structMember2MultiSlotNonzero_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames head with
+          isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -10886,7 +10864,7 @@ theorem compileStmt_setMappingPackedWord_singleSlot_bridged
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
         inScopeNames
-        (.setMappingPackedWord field key wordOffset packed value) = .ok out →
+        [] (.setMappingPackedWord field key wordOffset packed value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   subst hWordOffset
@@ -10994,7 +10972,7 @@ theorem compileStmt_mappingPackedWord_bridged
     ∀ {stmt : Stmt}, BridgedSourceMappingPackedWordStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmt = .ok out →
+          isInternal inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -11014,7 +10992,7 @@ theorem compileStmtList_mappingPackedWord_bridged
       BridgedSourceMappingPackedWordStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -11028,13 +11006,12 @@ theorem compileStmtList_mappingPackedWord_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource
-          internalRetNames isInternal inScopeNames head with
+          internalRetNames isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -11098,7 +11075,7 @@ theorem compileStmt_setMappingPackedWord_singleSlot_nonzero_bridged
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
         inScopeNames
-        (.setMappingPackedWord field key wordOffset packed value) = .ok out →
+        [] (.setMappingPackedWord field key wordOffset packed value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   have hBeq : (wordOffset == 0) = false := by
@@ -11223,7 +11200,7 @@ theorem compileStmt_mappingPackedWordNonzero_bridged
     ∀ {stmt : Stmt}, BridgedSourceMappingPackedWordNonzeroStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmt = .ok out →
+          isInternal inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -11243,7 +11220,7 @@ theorem compileStmtList_mappingPackedWordNonzero_bridged
       BridgedSourceMappingPackedWordNonzeroStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -11257,13 +11234,12 @@ theorem compileStmtList_mappingPackedWordNonzero_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource
-          internalRetNames isInternal inScopeNames head with
+          internalRetNames isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -11462,7 +11438,7 @@ theorem compileStmt_setMappingPackedWord_multiSlot_bridged
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
         inScopeNames
-        (.setMappingPackedWord field key wordOffset packed value) = .ok out →
+        [] (.setMappingPackedWord field key wordOffset packed value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   subst hWordOffset
@@ -11522,7 +11498,7 @@ theorem compileStmt_mappingPackedWordMultiSlot_bridged
       BridgedSourceMappingPackedWordMultiSlotStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmt = .ok out →
+          isInternal inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -11542,7 +11518,7 @@ theorem compileStmtList_mappingPackedWordMultiSlot_bridged
       BridgedSourceMappingPackedWordMultiSlotStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -11556,13 +11532,12 @@ theorem compileStmtList_mappingPackedWordMultiSlot_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource
-          internalRetNames isInternal inScopeNames head with
+          internalRetNames isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -11779,7 +11754,7 @@ theorem compileStmt_setMappingPackedWord_multiSlot_nonzero_bridged
     ∀ {out : List YulStmt},
       compileStmt fields events errors dynamicSource internalRetNames isInternal
         inScopeNames
-        (.setMappingPackedWord field key wordOffset packed value) = .ok out →
+        [] (.setMappingPackedWord field key wordOffset packed value) = .ok out →
       BridgedStmts out := by
   intro out hOk
   have hBeq : (wordOffset == 0) = false := by
@@ -11842,7 +11817,7 @@ theorem compileStmt_mappingPackedWordMultiSlotNonzero_bridged
       BridgedSourceMappingPackedWordMultiSlotNonzeroStmt fields stmt →
       ∀ {out : List YulStmt},
         compileStmt fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmt = .ok out →
+          isInternal inScopeNames [] stmt = .ok out →
         BridgedStmts out := by
   intro stmt hStmt out hOk
   cases hStmt with
@@ -11862,7 +11837,7 @@ theorem compileStmtList_mappingPackedWordMultiSlotNonzero_bridged
       BridgedSourceMappingPackedWordMultiSlotNonzeroStmts fields stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts
   induction stmts with
@@ -11876,13 +11851,12 @@ theorem compileStmtList_mappingPackedWordMultiSlotNonzero_bridged
       intro inScopeNames hSource out hOk
       simp only [compileStmtList, bind, Except.bind] at hOk
       cases hHead : compileStmt fields events errors dynamicSource
-          internalRetNames isInternal inScopeNames head with
+          internalRetNames isInternal inScopeNames [] head with
       | error err => simp [hHead] at hOk
       | ok headOut =>
           simp [hHead] at hOk
           cases hTail : compileStmtList fields events errors dynamicSource
-              internalRetNames isInternal (collectStmtNames head ++ inScopeNames)
-              tail with
+              internalRetNames isInternal (collectStmtNames head ++ inScopeNames) [] tail with
           | error err => simp [hTail] at hOk
           | ok tailOut =>
               simp [hTail, Pure.pure, Except.pure] at hOk
@@ -12005,7 +11979,7 @@ theorem compileStmtList_always_bridged
         isInternal stmts →
       ∀ {out : List YulStmt},
         compileStmtList fields events errors dynamicSource internalRetNames
-          isInternal inScopeNames stmts = .ok out →
+          isInternal inScopeNames [] stmts = .ok out →
         BridgedStmts out := by
   intro stmts inScopeNames hSafe out hOk
   cases hSafe with
