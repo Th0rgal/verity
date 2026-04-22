@@ -13,7 +13,7 @@ private def seededStorage : Nat -> Nat := fun slot =>
 
 private def sampleIRTx (selector : Nat) (args : List Nat := []) : IRTransaction :=
   { sender := 0xCAFE
-    msgValue := 7
+    msgValue := 0
     thisAddress := 0x1234
     blockTimestamp := 12345
     blockNumber := 678
@@ -73,6 +73,25 @@ private def storageReadIRContract : IRContract :=
         ] }
     ]
     usesMapping := false }
+
+private def mappingWriteSlot : Nat :=
+  Compiler.Proofs.abstractMappingSlot 21 5
+
+private def mappingHelperDispatchSmokeContract : IRContract :=
+  { name := "NativeMappingHelperDispatchOracleSmoke"
+    deploy := []
+    functions := [
+      { name := "storeMapped"
+        selector := 0x88888888
+        params := [{ name := "key", ty := .uint256 }]
+        ret := .unit
+        body := [
+          .expr (.call "sstore" [
+            .call "mappingSlot" [.lit 21, .call "calldataload" [.lit 4]],
+            .lit 909])
+        ] }
+    ]
+    usesMapping := true }
 
 private def calldataArgDispatchSmokeContract : IRContract :=
   { name := "NativeCalldataArgDispatchOracleSmoke"
@@ -152,16 +171,28 @@ private def resultsMatchOnSlots
     slots.all (fun slot =>
       nativeResult.finalStorage slot == referenceResult.finalStorage slot)
 
-private def emittedDispatchMatchesReference
+private def emittedDispatchMatchesReferenceWithExpected
     (contract : IRContract) (tx : IRTransaction)
-    (observableSlots compareSlots : List Nat) : Except String Bool :=
+    (observableSlots compareSlots : List Nat)
+    (expectedSuccess : Bool) (expectedReturn : Option Nat)
+    (expectedSlots : List (Nat × Nat)) : Except String Bool := do
   let yulTx := YulTransaction.ofIR tx
   let reference :=
     referenceRuntimeWithBackendFuel 256 (Compiler.emitYul contract).runtimeCode
       yulTx sampleIRState.storage sampleIRState.events
-  match Native.interpretIRRuntimeNative 256 contract tx sampleIRState observableSlots with
-  | .ok nativeResult => .ok (resultsMatchOnSlots compareSlots nativeResult reference)
-  | .error _ => .error "native runtime lowering failed"
+  let nativeResult ←
+    match Native.interpretIRRuntimeNative 256 contract tx sampleIRState observableSlots with
+    | .ok result => .ok result
+    | .error _ => .error "native runtime lowering failed"
+  pure (
+    resultsMatchOnSlots compareSlots nativeResult reference &&
+    nativeResult.success == expectedSuccess &&
+    reference.success == expectedSuccess &&
+    nativeResult.returnValue == expectedReturn &&
+    reference.returnValue == expectedReturn &&
+    expectedSlots.all (fun (slot, value) =>
+      nativeResult.finalStorage slot == value &&
+        reference.finalStorage slot == value))
 
 private def check (label : String) (actual : Except String Bool) : IO Unit := do
   match actual with
@@ -171,26 +202,30 @@ private def check (label : String) (actual : Except String Bool) : IO Unit := do
 
 def main : IO Unit := do
   check "emitted dispatcher selects first storage-writing case"
-    (emittedDispatchMatchesReference dispatchSmokeContract
-      (sampleIRTx 0x11111111) [11] [11])
+    (emittedDispatchMatchesReferenceWithExpected dispatchSmokeContract
+      (sampleIRTx 0x11111111) [11] [11] true none [(11, 101)])
   check "emitted dispatcher selects second storage-writing case"
-    (emittedDispatchMatchesReference dispatchSmokeContract
-      (sampleIRTx 0x22222222) [11] [11])
+    (emittedDispatchMatchesReferenceWithExpected dispatchSmokeContract
+      (sampleIRTx 0x22222222) [11] [11] true none [(11, 202)])
   check "emitted dispatcher forwards observable storage reads"
-    (emittedDispatchMatchesReference storageReadIRContract
-      (sampleIRTx 0x44444444) [7, 8] [7, 8])
+    (emittedDispatchMatchesReferenceWithExpected storageReadIRContract
+      (sampleIRTx 0x44444444) [7, 8] [7, 8] true none [(7, 77), (8, 77)])
   check "emitted dispatcher decodes ABI argument words"
-    (emittedDispatchMatchesReference calldataArgDispatchSmokeContract
-      (sampleIRTx 0x77777777 [0xABCD]) [12] [12])
+    (emittedDispatchMatchesReferenceWithExpected calldataArgDispatchSmokeContract
+      (sampleIRTx 0x77777777 [0xABCD]) [12] [12] true none [(12, 0xABCD)])
+  check "emitted dispatcher executes mappingSlot helper writes"
+    (emittedDispatchMatchesReferenceWithExpected mappingHelperDispatchSmokeContract
+      (sampleIRTx 0x88888888 [5]) [mappingWriteSlot] [mappingWriteSlot] true none
+      [(mappingWriteSlot, 909)])
   check "emitted dispatcher projects 32-byte return halts"
-    (emittedDispatchMatchesReference returnDispatchSmokeContract
-      (sampleIRTx 0x33333333) [] [])
+    (emittedDispatchMatchesReferenceWithExpected returnDispatchSmokeContract
+      (sampleIRTx 0x33333333) [] [] true (some 42) [])
   check "emitted dispatcher projects multi-word return fallback"
-    (emittedDispatchMatchesReference multiWordReturnDispatchSmokeContract
-      (sampleIRTx 0x55555555) [] [])
+    (emittedDispatchMatchesReferenceWithExpected multiWordReturnDispatchSmokeContract
+      (sampleIRTx 0x55555555) [] [] true (some 0) [])
   check "emitted dispatcher rolls back memory-backed revert"
-    (emittedDispatchMatchesReference memoryRevertDispatchSmokeContract
-      (sampleIRTx 0x66666666) [7] [7])
+    (emittedDispatchMatchesReferenceWithExpected memoryRevertDispatchSmokeContract
+      (sampleIRTx 0x66666666) [7] [7] false none [(7, 77)])
 
 end Compiler.Proofs.YulGeneration.Backends.NativeDispatchOracleTest
 

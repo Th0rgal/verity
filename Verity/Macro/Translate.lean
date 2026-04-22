@@ -1536,6 +1536,10 @@ private def ensureSupportsInternalHelperSpec
     throwErrorAt stx
       s!"helper call '{fn.name}' uses a parameter or return type that direct macro helper lowering does not support yet; only static non-fallback/non-receive helpers can be lowered to internal specs"
 
+private def throwPureContextAccessorError (stx : Syntax) (name : String) : CommandElabM α :=
+  throwErrorAt stx
+    s!"context accessor '{name}' is monadic; use `let x ← {name}` before using it in a pure expression"
+
 mutual
 private partial def inferPureExprType
     (fields : Array StorageFieldDecl)
@@ -1553,13 +1557,20 @@ private partial def inferPureExprType
       match params[(← natFromSyntax idx)]? with
       | some param => pure param.ty
       | none => throwErrorAt stx s!"constructorArg index {idx.raw.reprint.getD ""} is out of bounds"
-  | `(term| msgValue) | `(term| blockTimestamp) | `(term| Verity.blockTimestamp)
-    | `(term| blockNumber) | `(term| Verity.blockNumber)
-    | `(term| blobbasefee) | `(term| chainid) | `(term| Verity.chainid)
-    | `(term| calldatasize) | `(term| returndataSize) =>
+  | `(term| msgValue) | `(term| Verity.msgValue) =>
+      throwPureContextAccessorError stx "msgValue"
+  | `(term| blockTimestamp) | `(term| Verity.blockTimestamp) =>
+      throwPureContextAccessorError stx "blockTimestamp"
+  | `(term| blockNumber) | `(term| Verity.blockNumber) =>
+      throwPureContextAccessorError stx "blockNumber"
+  | `(term| blobbasefee) =>
+      throwPureContextAccessorError stx "blobbasefee"
+  | `(term| chainid) | `(term| Verity.chainid) =>
+      throwPureContextAccessorError stx "chainid"
+  | `(term| calldatasize) | `(term| returndataSize) =>
       pure .uint256
   | `(term| contractAddress) | `(term| Verity.contractAddress) =>
-      pure .address
+      throwPureContextAccessorError stx "contractAddress"
   | `(term| zeroAddress) =>
       match lookupTypedLocalType? locals "zeroAddress" <|> params.findSome? (fun p =>
           if p.name == "zeroAddress" then some p.ty else none) with
@@ -2155,16 +2166,20 @@ partial def translatePureExprWithTypes
   | `(term| false) => `(Compiler.CompilationModel.Expr.literal 0)
   | `(term| constructorArg $idx:num) =>
       `(Compiler.CompilationModel.Expr.constructorArg $idx)
-  | `(term| msgValue) => `(Compiler.CompilationModel.Expr.msgValue)
+  | `(term| msgSender) | `(term| Verity.msgSender) =>
+      throwPureContextAccessorError stx "msgSender"
+  | `(term| msgValue) | `(term| Verity.msgValue) =>
+      throwPureContextAccessorError stx "msgValue"
   | `(term| blockTimestamp) | `(term| Verity.blockTimestamp) =>
-      `(Compiler.CompilationModel.Expr.blockTimestamp)
+      throwPureContextAccessorError stx "blockTimestamp"
   | `(term| blockNumber) | `(term| Verity.blockNumber) =>
-      `(Compiler.CompilationModel.Expr.blockNumber)
-  | `(term| blobbasefee) => `(Compiler.CompilationModel.Expr.blobbasefee)
+      throwPureContextAccessorError stx "blockNumber"
+  | `(term| blobbasefee) =>
+      throwPureContextAccessorError stx "blobbasefee"
   | `(term| contractAddress) | `(term| Verity.contractAddress) =>
-      `(Compiler.CompilationModel.Expr.contractAddress)
+      throwPureContextAccessorError stx "contractAddress"
   | `(term| chainid) | `(term| Verity.chainid) =>
-      `(Compiler.CompilationModel.Expr.chainid)
+      throwPureContextAccessorError stx "chainid"
   | `(term| calldatasize) => `(Compiler.CompilationModel.Expr.calldatasize)
   | `(term| returndataSize) => `(Compiler.CompilationModel.Expr.returndataSize)
   | `(term| zeroAddress) =>
@@ -4797,10 +4812,16 @@ def validateGeneratedDefNamesPublic
     (functions : Array FunctionDecl) : CommandElabM Unit := do
   let reservedGeneratedNames : Array String := #["spec", "storageNamespace"]
   let mut generatedHelperNames : Array String := reservedGeneratedNames
+  if hasStructMapping fields then
+    generatedHelperNames := generatedHelperNames.push "structMember"
+    generatedHelperNames := generatedHelperNames.push "setStructMember"
+  if hasStructMapping2 fields then
+    generatedHelperNames := generatedHelperNames.push "structMember2"
+    generatedHelperNames := generatedHelperNames.push "setStructMember2"
 
   let mut storageNames : Array String := #[]
   for field in fields do
-    if reservedGeneratedNames.contains field.name then
+    if generatedHelperNames.contains field.name then
       throwErrorAt field.ident
         s!"storage field '{field.name}' conflicts with reserved generated declaration '{field.name}'"
     if storageNames.contains field.name then
@@ -4809,7 +4830,7 @@ def validateGeneratedDefNamesPublic
 
   let mut constantNames : Array String := #[]
   for constant in constDecls do
-    if reservedGeneratedNames.contains constant.name then
+    if generatedHelperNames.contains constant.name then
       throwErrorAt constant.ident
         s!"constant '{constant.name}' conflicts with reserved generated declaration '{constant.name}'"
     if storageNames.contains constant.name then
@@ -4820,7 +4841,12 @@ def validateGeneratedDefNamesPublic
         s!"duplicate constant declaration '{constant.name}'"
     constantNames := constantNames.push constant.name
 
-  let immutableNames := immutableDecls.map (·.name)
+  let mut immutableNames : Array String := #[]
+  for imm in immutableDecls do
+    if generatedHelperNames.contains imm.name then
+      throwErrorAt imm.ident
+        s!"immutable '{imm.name}' conflicts with reserved generated declaration '{imm.name}'"
+    immutableNames := immutableNames.push imm.name
 
   let mut functionNames : Array String := #[]
   let mut functionSignatures : Array String := #[]

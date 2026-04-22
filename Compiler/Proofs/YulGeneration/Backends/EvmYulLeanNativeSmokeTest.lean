@@ -370,8 +370,28 @@ private def nativeExprIsSelectorLoad : EvmYul.Yul.Ast.Expr → Bool
         StateBridge.uint256ToNat offset == 0
   | _ => false
 
+private def nativeSwitchDiscrName : String :=
+  "__verity_native_switch_discr_0"
+
+private def nativeExprSwitchCaseLabel? : EvmYul.Yul.Ast.Expr → Option Nat
+  | .Call (.inl op) [.Var name, .Lit label] =>
+      if op == (EvmYul.Operation.EQ : EvmYul.Operation .Yul) &&
+          name == nativeSwitchDiscrName then
+        some (StateBridge.uint256ToNat label)
+      else
+        none
+  | .Call (.inl op) [.Lit label, .Var name] =>
+      if op == (EvmYul.Operation.EQ : EvmYul.Operation .Yul) &&
+          name == nativeSwitchDiscrName then
+        some (StateBridge.uint256ToNat label)
+      else
+        none
+  | _ => none
+
 private partial def nativeStmtContainsSelectorSwitch : EvmYul.Yul.Ast.Stmt → Bool
   | .Switch selector _ _ => nativeExprIsSelectorLoad selector
+  | .Let [name] (some selector) =>
+      name == nativeSwitchDiscrName && nativeExprIsSelectorLoad selector
   | .Block stmts => stmts.any nativeStmtContainsSelectorSwitch
   | .If _ body => body.any nativeStmtContainsSelectorSwitch
   | .For _ post body =>
@@ -384,8 +404,11 @@ private partial def nativeStmtSwitchCaseLabels : EvmYul.Yul.Ast.Stmt → List Na
         defaultBody.foldl (fun acc stmt => acc ++ nativeStmtSwitchCaseLabels stmt) []
   | .Block stmts =>
       stmts.foldl (fun acc stmt => acc ++ nativeStmtSwitchCaseLabels stmt) []
-  | .If _ body =>
-      body.foldl (fun acc stmt => acc ++ nativeStmtSwitchCaseLabels stmt) []
+  | .If cond body =>
+      let nested := body.foldl (fun acc stmt => acc ++ nativeStmtSwitchCaseLabels stmt) []
+      match nativeExprSwitchCaseLabel? cond with
+      | some label => label :: nested
+      | none => nested
   | .For _ post body =>
       post.foldl (fun acc stmt => acc ++ nativeStmtSwitchCaseLabels stmt) [] ++
         body.foldl (fun acc stmt => acc ++ nativeStmtSwitchCaseLabels stmt) []
@@ -455,8 +478,10 @@ private partial def nativeStmtSwitchCaseStores
         defaultBody.any (nativeStmtSwitchCaseStores label slot value)
   | .Block stmts =>
       stmts.any (nativeStmtSwitchCaseStores label slot value)
-  | .If _ body =>
-      body.any (nativeStmtSwitchCaseStores label slot value)
+  | .If cond body =>
+      (nativeExprSwitchCaseLabel? cond == some label &&
+        body.any (nativeStmtContainsSstore slot value)) ||
+        body.any (nativeStmtSwitchCaseStores label slot value)
   | .For _ post body =>
       post.any (nativeStmtSwitchCaseStores label slot value) ||
         body.any (nativeStmtSwitchCaseStores label slot value)
@@ -472,17 +497,20 @@ private partial def nativeStmtSwitchCaseContainsPrimCall
         defaultBody.any (nativeStmtSwitchCaseContainsPrimCall label op args)
   | .Block stmts =>
       stmts.any (nativeStmtSwitchCaseContainsPrimCall label op args)
-  | .If _ body =>
-      body.any (nativeStmtSwitchCaseContainsPrimCall label op args)
+  | .If cond body =>
+      (nativeExprSwitchCaseLabel? cond == some label &&
+        body.any (nativeStmtContainsPrimCall op args)) ||
+        body.any (nativeStmtSwitchCaseContainsPrimCall label op args)
   | .For _ post body =>
       post.any (nativeStmtSwitchCaseContainsPrimCall label op args) ||
         body.any (nativeStmtSwitchCaseContainsPrimCall label op args)
   | _ => false
 
-private def emittedDispatchLowersToNativeSwitch : Bool :=
+private def emittedDispatchLowersToLazyNativeDispatcher : Bool :=
   match lowerRuntimeContractNative (Compiler.emitYul dispatchSmokeContract).runtimeCode with
   | .ok contract =>
-      nativeStmtContainsSwitch contract.dispatcher &&
+      !nativeStmtContainsSwitch contract.dispatcher &&
+        nativeStmtContainsSelectorSwitch contract.dispatcher &&
         (contract.functions.lookup "left").isNone &&
         (contract.functions.lookup "right").isNone
   | .error _ => false
@@ -839,7 +867,7 @@ example :
   native_decide
 
 example :
-    emittedDispatchLowersToNativeSwitch = true := by
+    emittedDispatchLowersToLazyNativeDispatcher = true := by
   native_decide
 
 example :

@@ -151,7 +151,9 @@ scope so the native path does not look more complete than it is:
 
    Current smoke coverage exercises primop lowering, including critical
    halt/log builtins, helper function maps, duplicate-helper failure, emitted
-   dispatcher lowering shape and selector expression, dispatcher/helper
+   dispatcher lowering shape and selector expression, lazy native dispatcher
+   guards used instead of native `Switch` so matched selectors do not execute
+   reverting default branches, dispatcher/helper
    partitioning that keeps helper definitions in the function map while
    dispatcher calls remain native user-function calls, fail-closed rejection
    of nested native function definitions in dispatcher/helper bodies, the named
@@ -247,8 +249,10 @@ scope so the native path does not look more complete than it is:
    lemmas for fail-closed lowering and the successful lower/build/call/project
    native execution pipeline, `interpretIRRuntimeNative`
    forwarding/fail-closed lowering behavior, executable native-vs-reference
-   oracle coverage for actual `Compiler.emitYul` dispatcher selection,
-   ABI argument-word decoding, observable storage reads, 32-byte return halt projection, multi-word
+   oracle coverage for actual `Compiler.emitYul` dispatcher selection with
+   explicit expected success/return/storage outcomes,
+   ABI argument-word decoding, observable storage reads, generated
+   `mappingSlot` helper execution for mapping writes, 32-byte return halt projection, multi-word
    memory-return fallback projection, and memory-backed revert rollback, and named
    `interpretIRRuntimeNative_loweringError` and
    `interpretIRRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative`
@@ -256,7 +260,7 @@ scope so the native path does not look more complete than it is:
    pipeline at the IR entry point. Next coverage should include:
    - returndata and external-call outcomes,
    - static-call permission behavior,
-   - mapping helper lowering or replacement with native keccak/memory code.
+   - broader mapping read/write shapes beyond the singleton helper-write oracle.
 
 5. Introduce the public native preservation theorem.
 

@@ -740,6 +740,17 @@ example :
   decide
 
 /--
+error: context accessor 'blockTimestamp' is monadic; use `let x ← blockTimestamp` before using it in a pure expression
+-/
+#guard_msgs in
+verity_contract PureBlockTimestampAccessorRejected where
+  storage
+
+  function nowish () : Uint256 := do
+    let t := blockTimestamp
+    return t
+
+/--
 error: storage field 'spec' conflicts with reserved generated declaration 'spec'
 -/
 #guard_msgs in
@@ -775,6 +786,35 @@ verity_contract ConstantFunctionHelperCollisionRejected where
 
   function price () : Uint256 := do
     return 3
+
+/--
+error: function 'structMember' conflicts with reserved generated declaration 'structMember'
+-/
+#guard_msgs in
+verity_contract StructMappingGeneratedReadHelperCollisionRejected where
+  storage
+    positions : MappingStruct(Address,[delegate @word 0]) := slot 0
+
+  function structMember () : Uint256 := do
+    return 1
+
+/--
+error: immutable 'setStructMember2' conflicts with reserved generated declaration 'setStructMember2'
+-/
+#guard_msgs in
+verity_contract StructMappingGeneratedWriteHelperImmutableCollisionRejected where
+  storage
+    approvals : MappingStruct2(Address,Address,[allowance @word 0]) := slot 0
+
+  immutables
+    setStructMember2 : Uint256 := 1
+
+  constructor () := do
+    pure ()
+
+  function allowanceOf (owner : Address, spender : Address) : Uint256 := do
+    let amount ← structMember2 "approvals" owner spender "allowance"
+    return amount
 
 /--
 error: function 'quote' generates internal declaration 'quote__scalar_uint256' that conflicts with a contract constant of the same name

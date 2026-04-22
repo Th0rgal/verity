@@ -200,11 +200,20 @@ def lowerExprNative : YulExpr → EvmYul.Yul.Ast.Expr
 mutual
 partial def lowerStmtsNative :
     List YulStmt → Except AdapterError (List EvmYul.Yul.Ast.Stmt)
-  | [] => pure []
+  | stmts => do
+      let (lowered, _) ← lowerStmtsNativeWithSwitchIds 0 stmts
+      pure lowered
+
+partial def lowerStmtsNativeWithSwitchIds
+    (nextSwitchId : Nat) :
+    List YulStmt → Except AdapterError (List EvmYul.Yul.Ast.Stmt × Nat)
+  | [] => pure ([], nextSwitchId)
   | stmt :: rest => do
-      let stmts' ← lowerStmtGroupNative stmt
-      let rest' ← lowerStmtsNative rest
-      pure (stmts' ++ rest')
+      let (stmts', nextSwitchId) ←
+        lowerStmtGroupNativeWithSwitchIds nextSwitchId stmt
+      let (rest', nextSwitchId) ←
+        lowerStmtsNativeWithSwitchIds nextSwitchId rest
+      pure (stmts' ++ rest', nextSwitchId)
 
 /-- Lower a statement for native `EvmYul.Yul.exec`.
 
@@ -214,30 +223,62 @@ them in `YulContract.functions`.
 -/
 partial def lowerStmtGroupNative :
     YulStmt → Except AdapterError (List EvmYul.Yul.Ast.Stmt)
-  | .comment _ => pure [.Block []]
-  | .let_ name value => pure [.Let [name] (some (lowerExprNative value))]
-  | .letMany names value => pure [.Let names (some (lowerExprNative value))]
-  | .assign name value => pure [.Let [name] (some (lowerExprNative value))]
-  | .expr e => pure [.ExprStmtCall (lowerExprNative e)]
-  | .leave => pure [.Leave]
+  | stmt => do
+      let (lowered, _) ← lowerStmtGroupNativeWithSwitchIds 0 stmt
+      pure lowered
+
+partial def lowerStmtGroupNativeWithSwitchIds
+    (nextSwitchId : Nat) :
+    YulStmt → Except AdapterError (List EvmYul.Yul.Ast.Stmt × Nat)
+  | .comment _ => pure ([.Block []], nextSwitchId)
+  | .let_ name value => pure ([.Let [name] (some (lowerExprNative value))], nextSwitchId)
+  | .letMany names value => pure ([.Let names (some (lowerExprNative value))], nextSwitchId)
+  | .assign name value => pure ([.Let [name] (some (lowerExprNative value))], nextSwitchId)
+  | .expr e => pure ([.ExprStmtCall (lowerExprNative e)], nextSwitchId)
+  | .leave => pure ([.Leave], nextSwitchId)
   | .if_ cond body => do
-      let body' ← lowerStmtsNative body
-      pure [.If (lowerExprNative cond) body']
+      let (body', nextSwitchId) ← lowerStmtsNativeWithSwitchIds nextSwitchId body
+      pure ([.If (lowerExprNative cond) body'], nextSwitchId)
   | .for_ init cond post body => do
-      let init' ← lowerStmtsNative init
-      let post' ← lowerStmtsNative post
-      let body' ← lowerStmtsNative body
-      pure (init' ++ [.For (lowerExprNative cond) post' body'])
+      let (init', nextSwitchId) ← lowerStmtsNativeWithSwitchIds nextSwitchId init
+      let (post', nextSwitchId) ← lowerStmtsNativeWithSwitchIds nextSwitchId post
+      let (body', nextSwitchId) ← lowerStmtsNativeWithSwitchIds nextSwitchId body
+      pure (init' ++ [.For (lowerExprNative cond) post' body'], nextSwitchId)
   | .switch expr cases defaultCase => do
-      let lowerCase := fun ((tag, block) : Nat × List YulStmt) => do
-        let block' ← lowerStmtsNative block
-        pure (EvmYul.UInt256.ofNat tag, block')
-      let cases' ← cases.mapM lowerCase
-      let default' ← lowerStmtsNative (defaultCase.getD [])
-      pure [.Switch (lowerExprNative expr) cases' default']
+      -- EVMYulLean's `Switch` executor currently evaluates the default branch
+      -- before selecting a case. Lower to lazy `if` guards so generated
+      -- dispatchers do not revert on matched selectors.
+      let discrName := s!"__verity_native_switch_discr_{nextSwitchId}"
+      let nextSwitchId := nextSwitchId + 1
+      let lowerCase := fun (nextSwitchId : Nat) ((tag, block) : Nat × List YulStmt) => do
+        let (block', nextSwitchId) ←
+          lowerStmtsNativeWithSwitchIds nextSwitchId block
+        pure ((tag, block'), nextSwitchId)
+      let (cases', nextSwitchId) ← cases.foldlM
+        (fun (acc, nextSwitchId) c => do
+          let (case', nextSwitchId) ← lowerCase nextSwitchId c
+          pure (acc ++ [case'], nextSwitchId))
+        ([], nextSwitchId)
+      let (default', nextSwitchId) ← lowerStmtsNativeWithSwitchIds nextSwitchId (defaultCase.getD [])
+      let discr := EvmYul.Yul.Ast.Expr.Var discrName
+      let matchExpr (tag : Nat) : EvmYul.Yul.Ast.Expr :=
+        .Call (.inl (EvmYul.Operation.EQ : EvmYul.Operation .Yul))
+          [discr, .Lit (EvmYul.UInt256.ofNat tag)]
+      let anyMatch :=
+        cases'.foldr
+          (fun (entry : Nat × List EvmYul.Yul.Ast.Stmt) acc =>
+            .Call (.inl (EvmYul.Operation.OR : EvmYul.Operation .Yul))
+              [matchExpr entry.fst, acc])
+          (.Lit (EvmYul.UInt256.ofNat 0))
+      let defaultGuard :=
+        .Call (.inl (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)) [anyMatch]
+      let caseIfs := cases'.map (fun (tag, body) => .If (matchExpr tag) body)
+      let defaultIf := if default'.isEmpty then [] else [.If defaultGuard default']
+      pure ([.Let [discrName] (some (lowerExprNative expr))] ++ caseIfs ++ defaultIf,
+        nextSwitchId)
   | .block stmts => do
-      let stmts' ← lowerStmtsNative stmts
-      pure [.Block stmts']
+      let (stmts', nextSwitchId) ← lowerStmtsNativeWithSwitchIds nextSwitchId stmts
+      pure ([.Block stmts'], nextSwitchId)
   | .funcDef name _ _ _ =>
       throw s!"native EVMYulLean statement lowering cannot inline function definition '{name}'; use lowerRuntimeContractNative"
 end
