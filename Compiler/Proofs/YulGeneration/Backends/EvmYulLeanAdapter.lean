@@ -197,6 +197,13 @@ def lowerExprNative : YulExpr → EvmYul.Yul.Ast.Expr
       .Call (.inr func) (args.map lowerExprNative) := by
   simp [lowerExprNative, hOp]
 
+/-- EVMYulLean's Yul AST represents both declaration-style bindings and
+    reassignment-style bindings with `Stmt.Let`; its interpreter updates the
+    `VarStore` by inserting the target name, replacing any previous binding.
+    Keep this helper named so the native assignment boundary is explicit. -/
+def lowerAssignNative (name : String) (value : YulExpr) : EvmYul.Yul.Ast.Stmt :=
+  .Let [name] (some (lowerExprNative value))
+
 mutual
 partial def lowerStmtsNative :
     List YulStmt → Except AdapterError (List EvmYul.Yul.Ast.Stmt)
@@ -233,7 +240,7 @@ partial def lowerStmtGroupNativeWithSwitchIds
   | .comment _ => pure ([.Block []], nextSwitchId)
   | .let_ name value => pure ([.Let [name] (some (lowerExprNative value))], nextSwitchId)
   | .letMany names value => pure ([.Let names (some (lowerExprNative value))], nextSwitchId)
-  | .assign name value => pure ([.Let [name] (some (lowerExprNative value))], nextSwitchId)
+  | .assign name value => pure ([lowerAssignNative name value], nextSwitchId)
   | .expr e => pure ([.ExprStmtCall (lowerExprNative e)], nextSwitchId)
   | .leave => pure ([.Leave], nextSwitchId)
   | .if_ cond body => do
@@ -274,7 +281,7 @@ partial def lowerStmtGroupNativeWithSwitchIds
         .Call (.inl (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)) [anyMatch]
       let caseIfs := cases'.map (fun (tag, body) => .If (matchExpr tag) body)
       let defaultIf := if default'.isEmpty then [] else [.If defaultGuard default']
-      pure ([.Let [discrName] (some (lowerExprNative expr))] ++ caseIfs ++ defaultIf,
+      pure ([.Block ([.Let [discrName] (some (lowerExprNative expr))] ++ caseIfs ++ defaultIf)],
         nextSwitchId)
   | .block stmts => do
       let (stmts', nextSwitchId) ← lowerStmtsNativeWithSwitchIds nextSwitchId stmts

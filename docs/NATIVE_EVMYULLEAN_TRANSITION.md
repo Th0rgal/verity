@@ -153,7 +153,10 @@ scope so the native path does not look more complete than it is:
    halt/log builtins, helper function maps, duplicate-helper failure, emitted
    dispatcher lowering shape and selector expression, lazy native dispatcher
    guards used instead of native `Switch` so matched selectors do not execute
-   reverting default branches, dispatcher/helper
+   reverting default branches, block-scoped discriminator bindings for those
+   lazy dispatcher guards, native assignment lowering through the named
+   `lowerAssignNative` helper plus executable rebinding smoke coverage,
+   dispatcher/helper
    partitioning that keeps helper definitions in the function map while
    dispatcher calls remain native user-function calls, fail-closed rejection
    of nested native function definitions in dispatcher/helper bodies, the named

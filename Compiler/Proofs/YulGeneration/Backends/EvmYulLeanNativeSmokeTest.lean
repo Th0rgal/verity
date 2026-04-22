@@ -353,6 +353,15 @@ private def calldataBridgePinsSelectorAndFirstArg : Bool :=
     bytes.get? 3 == some (UInt8.ofNat 0x44) &&
     Native.byteArrayWord bytes 4 == 42
 
+private def nativeAssignRebindsExistingLocal : Bool :=
+  match runNativeProgram [
+    .let_ "x" (.lit 1),
+    .assign "x" (.lit 2),
+    .let_ "y" (.ident "x")
+  ] with
+  | some state => varIs "x" 2 state && varIs "y" 2 state
+  | none => false
+
 private partial def nativeStmtContainsSwitch : EvmYul.Yul.Ast.Stmt → Bool
   | .Switch _ _ _ => true
   | .Block stmts => stmts.any nativeStmtContainsSwitch
@@ -396,6 +405,18 @@ private partial def nativeStmtContainsSelectorSwitch : EvmYul.Yul.Ast.Stmt → B
   | .If _ body => body.any nativeStmtContainsSelectorSwitch
   | .For _ post body =>
       post.any nativeStmtContainsSelectorSwitch || body.any nativeStmtContainsSelectorSwitch
+  | _ => false
+
+private partial def nativeStmtContainsScopedSelectorSwitch : EvmYul.Yul.Ast.Stmt → Bool
+  | .Block stmts =>
+      stmts.any (fun stmt =>
+        match stmt with
+        | .Block inner => inner.any nativeStmtContainsSelectorSwitch
+        | _ => nativeStmtContainsScopedSelectorSwitch stmt)
+  | .If _ body => body.any nativeStmtContainsScopedSelectorSwitch
+  | .For _ post body =>
+      post.any nativeStmtContainsScopedSelectorSwitch ||
+        body.any nativeStmtContainsScopedSelectorSwitch
   | _ => false
 
 private partial def nativeStmtSwitchCaseLabels : EvmYul.Yul.Ast.Stmt → List Nat
@@ -513,6 +534,11 @@ private def emittedDispatchLowersToLazyNativeDispatcher : Bool :=
         nativeStmtContainsSelectorSwitch contract.dispatcher &&
         (contract.functions.lookup "left").isNone &&
         (contract.functions.lookup "right").isNone
+  | .error _ => false
+
+private def emittedDispatchScopesLazyNativeDispatcher : Bool :=
+  match lowerRuntimeContractNative (Compiler.emitYul dispatchSmokeContract).runtimeCode with
+  | .ok contract => nativeStmtContainsScopedSelectorSwitch contract.dispatcher
   | .error _ => false
 
 private def duplicateNativeHelperFailsClosed : Bool :=
@@ -892,6 +918,14 @@ example :
 
 example :
     calldataBridgePinsSelectorAndFirstArg = true := by
+  native_decide
+
+example :
+    nativeAssignRebindsExistingLocal = true := by
+  native_decide
+
+example :
+    emittedDispatchScopesLazyNativeDispatcher = true := by
   native_decide
 
 example :
