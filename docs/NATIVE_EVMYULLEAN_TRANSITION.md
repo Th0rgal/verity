@@ -121,10 +121,10 @@ scope so the native path does not look more complete than it is:
    execution through copied observable storage, callvalue,
    caller/address, calldatasize, timestamp/number, native
    `chainid`/`blobbasefee` default behavior, executable `stop` halt
-   projection, successful native value result projection, return projection,
-   and log
-   projection for `log0` through `log4` topic arities, conservative rollback
-   projection for native errors, and `interpretIRRuntimeNative`
+   projection, successful native value result projection, native return halt
+   projection with committed storage/logs, and log projection for `log0`
+   through `log4` topic arities, conservative rollback projection for native
+   errors, and `interpretIRRuntimeNative`
    forwarding/fail-closed lowering behavior. Next coverage should include:
    - executable dispatcher selector selection from emitted runtime code; the
      lowered selector expression is already pinned, but build-time execution

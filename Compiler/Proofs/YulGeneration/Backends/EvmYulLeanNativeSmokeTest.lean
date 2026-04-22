@@ -52,6 +52,17 @@ private def stateWithLogEntries (entries : List EvmYul.LogEntry) : EvmYul.Yul.St
     (Compiler.Proofs.YulGeneration.YulState.initial sampleTx zeroStorage) []
   .Ok { shared with substate := { shared.substate with logSeries := entries.toArray } } ∅
 
+private def stateWithStorageLogReturn
+    (storage : Nat → Nat) (observableSlots : List Nat)
+    (entries : List EvmYul.LogEntry) (returnWord : Nat) : EvmYul.Yul.State :=
+  let shared := StateBridge.toSharedState
+    (Compiler.Proofs.YulGeneration.YulState.initial sampleTx storage) observableSlots
+  .Ok
+    { shared with
+      substate := { shared.substate with logSeries := entries.toArray }
+      H_return := wordByteArray returnWord }
+    ∅
+
 private def nativeStoresBuiltin (builtin : String) (slot expected : Nat) : Bool :=
   match Native.interpretRuntimeNative 128 [
     .let_ "v" (.call builtin []),
@@ -87,6 +98,19 @@ private def nativeStopCommitsStorageAndPreservesEvents : Bool :=
         result.finalStorage 7 == 99 &&
         result.events == [[1, 2, 3]]
   | .error _ => false
+
+private def nativeReturnHaltProjectsStorageReturnAndEvents : Bool :=
+  let finalStorage : Nat → Nat := fun slot => if slot = 7 then 99 else 0
+  let result :=
+    Native.projectResult sampleTx seededStorage [[1, 2, 3]]
+      (.error (.YulHalt
+        (stateWithStorageLogReturn finalStorage [7] [sampleLogEntry [5] 88] 44)
+        (EvmYul.UInt256.ofNat 1)))
+  result.success &&
+    result.returnValue == some 44 &&
+    result.finalStorage 7 == 99 &&
+    result.events == [[1, 2, 3], [5, 88]]
+
 
 private def dispatchSmokeContract : Compiler.IRContract :=
   { name := "NativeDispatchSmoke"
@@ -331,6 +355,10 @@ example :
 
 example :
     nativeStopCommitsStorageAndPreservesEvents = true := by
+  native_decide
+
+example :
+    nativeReturnHaltProjectsStorageReturnAndEvents = true := by
   native_decide
 
 example :
