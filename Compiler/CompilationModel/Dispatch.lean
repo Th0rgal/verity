@@ -283,6 +283,11 @@ private def validateCompileInputsBeforeFieldWriteConflict
       throw s!"Compilation error: duplicate function signature '{dup}' in {spec.name}"
   | none =>
       pure ()
+  match firstDuplicateName ((spec.functions.filter (·.isInternal)).map (·.name)) with
+  | some dup =>
+      throw s!"Compilation error: duplicate internal function name '{dup}' in {spec.name}; internal function Yul definitions are keyed by name"
+  | none =>
+      pure ()
   match firstDuplicateName (spec.errors.map (·.name)) with
   | some dup =>
       throw s!"Compilation error: duplicate custom error declaration '{dup}'"

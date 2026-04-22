@@ -74,6 +74,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.AddressHelpersSmoke.spec
   , Contracts.Smoke.ZeroAddressShadowSmoke.spec
   , Contracts.Smoke.FunctionOverloadSmoke.spec
+  , Contracts.Smoke.HelperExternalArgumentSmoke.spec
   , Contracts.Smoke.BlockTimestampSmoke.spec
   , Contracts.Smoke.StructMappingSmoke.spec
   , Contracts.Smoke.ExternalCallSmoke.spec

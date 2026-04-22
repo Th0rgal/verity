@@ -289,11 +289,11 @@ verity_contract MacroERC20 where
     lastAllowance : Uint256 := slot 1
     lastSupply : Uint256 := slot 2
 
-  function pushTokens (token : Address, to : Address, amount : Uint256) : Unit := do
-    safeTransfer token to amount
+  function pushTokens (token : Address, toAddr : Address, amount : Uint256) : Unit := do
+    safeTransfer token toAddr amount
 
-  function pullTokens (token : Address, fromAddr : Address, to : Address, amount : Uint256) : Unit := do
-    safeTransferFrom token fromAddr to amount
+  function pullTokens (token : Address, fromAddr : Address, toAddr : Address, amount : Uint256) : Unit := do
+    safeTransferFrom token fromAddr toAddr amount
 
   function approveTokens (token : Address, spender : Address, amount : Uint256) : Unit := do
     safeApprove token spender amount
@@ -315,7 +315,7 @@ verity_contract MacroERC20 where
 
 def pushTokensModelUsesSafeTransfer : Bool :=
   match MacroERC20.pushTokens_modelBody with
-  | [Stmt.ecm mod [Expr.param "token", Expr.param "to", Expr.param "amount"], Stmt.stop] =>
+  | [Stmt.ecm mod [Expr.param "token", Expr.param "toAddr", Expr.param "amount"], Stmt.stop] =>
       mod.name == "safeTransfer" &&
       mod.resultVars.isEmpty &&
       mod.axioms == ["erc20_transfer_interface"]
@@ -325,7 +325,7 @@ example : pushTokensModelUsesSafeTransfer = true := by native_decide
 
 def pullTokensModelUsesSafeTransferFrom : Bool :=
   match MacroERC20.pullTokens_modelBody with
-  | [Stmt.ecm mod [Expr.param "token", Expr.param "fromAddr", Expr.param "to", Expr.param "amount"], Stmt.stop] =>
+  | [Stmt.ecm mod [Expr.param "token", Expr.param "fromAddr", Expr.param "toAddr", Expr.param "amount"], Stmt.stop] =>
       mod.name == "safeTransferFrom" &&
       mod.resultVars.isEmpty &&
       mod.axioms == ["erc20_transferFrom_interface"]
@@ -517,22 +517,23 @@ verity_contract MacroBlobbasefee where
   storage
 
   function currentBlobBaseFee () : Uint256 := do
-    return blobbasefee
+    let fee ← blobbasefee
+    return fee
 
 def modelReturnsBlobbasefeeBuiltin : Bool :=
   match MacroBlobbasefee.currentBlobBaseFee_modelBody with
-  | [Stmt.return Expr.blobbasefee] => true
+  | [Stmt.letVar "fee" Expr.blobbasefee, Stmt.return (Expr.localVar "fee")] => true
   | _ => false
 
 example : modelReturnsBlobbasefeeBuiltin = true := by native_decide
 
-def executableUsesRuntimeStub : Bool :=
-  match MacroBlobbasefee.currentBlobBaseFee Verity.defaultState with
+def executableUsesContractState : Bool :=
+  match MacroBlobbasefee.currentBlobBaseFee { Verity.defaultState with blobBaseFee := 19 } with
   | .success fee state =>
-      fee == 0 && state.sender == Verity.defaultState.sender
+      fee == 19 && state.sender == Verity.defaultState.sender
   | .revert _ _ => false
 
-example : executableUsesRuntimeStub = true := by native_decide
+example : executableUsesContractState = true := by native_decide
 
 end MacroBlobbasefeeSmoke
 
@@ -1730,6 +1731,26 @@ private def reservedParamSpec : CompilationModel := {
   ]
 }
 
+private def duplicateInternalNameSpec : CompilationModel := {
+  name := "DuplicateInternalName"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "helper"
+      params := [{ name := "amount", ty := ParamType.uint256 }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.param "amount")]
+      isInternal := true
+    },
+    { name := "helper"
+      params := [{ name := "target", ty := ParamType.address }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.literal 1)]
+      isInternal := true
+    }
+  ]
+}
+
 private def reservedFieldSpec : CompilationModel := {
   name := "ReservedField"
   fields := [{ name := "__compat_value", ty := FieldType.uint256 }]
@@ -2785,6 +2806,10 @@ set_option maxRecDepth 4096 in
     "reserved compiler prefix is rejected in function parameters"
     reservedParamSpec
     "function parameter '__has_selector' uses reserved compiler prefix '__'"
+  expectCompileErrorContains
+    "same-name internal helpers are rejected before Yul lowering"
+    duplicateInternalNameSpec
+    "duplicate internal function name 'helper'"
   let reservedFieldRejected :=
     match validateCompileInputs reservedFieldSpec (selectorsFor reservedFieldSpec) with
     | .ok _ => false
@@ -3289,8 +3314,8 @@ set_option maxRecDepth 4096 in
     expectCompileToYul "macro blobbasefee smoke spec" MacroBlobbasefeeSmoke.MacroBlobbasefee.spec
   expectTrue "macro blobbasefee lowers to the Yul blobbasefee builtin"
     (contains macroBlobbasefeeYul "blobbasefee()")
-  expectTrue "macro blobbasefee executable path uses the runtime stub"
-    MacroBlobbasefeeSmoke.executableUsesRuntimeStub
+  expectTrue "macro blobbasefee executable path uses ContractState"
+    MacroBlobbasefeeSmoke.executableUsesContractState
   let macroBlobbasefeeTrustReport := emitTrustReportJson [MacroBlobbasefeeSmoke.MacroBlobbasefee.spec]
   expectTrue "macro blobbasefee trust report surfaces the post-core builtin"
     (contains macroBlobbasefeeTrustReport "\"modeledLowLevelMechanics\"" &&

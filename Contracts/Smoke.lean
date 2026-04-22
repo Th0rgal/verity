@@ -682,6 +682,33 @@ verity_contract FunctionOverloadSmoke where
   function echo (a : Uint256, b : Uint256) : Uint256 := do
     return (add a b)
 
+verity_contract HelperExternalArgumentSmoke where
+  storage
+    saved : Uint256 := slot 0
+
+  linked_externals
+    external echo(Uint256) -> (Uint256)
+
+  function idWord (a : Uint256) : Uint256 := do
+    return a
+
+  function pair (a : Uint256) : Tuple [Uint256, Uint256] := do
+    return (a, add a 1)
+
+  function put (a : Uint256) : Unit := do
+    setStorage saved a
+
+  function bindExternalArg (x : Uint256) : Uint256 := do
+    let y ← idWord (externalCall "echo" [x])
+    return y
+
+  function tupleExternalArg (x : Uint256) : Uint256 := do
+    let (a, b) ← pair (externalCall "echo" [x])
+    return (add a b)
+
+  function statementExternalArg (x : Uint256) : Unit := do
+    put (externalCall "echo" [x])
+
 verity_contract BlockTimestampSmoke where
   storage
 
@@ -1401,6 +1428,7 @@ end SpecGenSmoke
 #check_contract AddressHelpersSmoke
 #check_contract ZeroAddressShadowSmoke
 #check_contract FunctionOverloadSmoke
+#check_contract HelperExternalArgumentSmoke
 #check_contract BlockTimestampSmoke
 #check_contract StructMappingSmoke
 #check_contract ExternalCallSmoke

@@ -2614,6 +2614,7 @@ private def tupleInternalCallAssignStmt?
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
     (functions : Array FunctionDecl)
     (params : Array ParamDecl)
     (locals : Array TypedLocal)
@@ -2631,7 +2632,7 @@ private def tupleInternalCallAssignStmt?
     (initialUsedNames, [])
   let targetNames := targetNamesRev.reverse
   let resultNameTerms := targetNames.toArray.map strTerm
-  match ← resolveLocalFunctionApp? fields constDecls immutableDecls #[] functions params locals rhs with
+  match ← resolveLocalFunctionApp? fields constDecls immutableDecls externalDecls functions params locals rhs with
   | some (fn, argTerms) =>
       ensureSupportsInternalHelperSpec rhs fn
       let argExprs ← argTerms.mapM
@@ -2718,6 +2719,7 @@ private def translateBindSource
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
     (functions : Array FunctionDecl)
     (params : Array ParamDecl)
     (locals : Array TypedLocal)
@@ -2909,7 +2911,7 @@ private def translateBindSource
       `(Compiler.CompilationModel.Expr.tload
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals offset))
   | _ =>
-      match ← resolveLocalFunctionApp? fields constDecls immutableDecls #[] functions params locals rhs with
+      match ← resolveLocalFunctionApp? fields constDecls immutableDecls externalDecls functions params locals rhs with
       | some (fn, argTerms) =>
           ensureSupportsInternalHelperSpec rhs fn
           let argExprs ← argTerms.mapM
@@ -3383,6 +3385,7 @@ private def translateEffectStmt
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
     (functions : Array FunctionDecl)
     (params : Array ParamDecl)
     (locals : Array TypedLocal)
@@ -3702,7 +3705,7 @@ private def translateEffectStmt
           $(strTerm memberName)
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value))
   | _ =>
-      match ← resolveLocalFunctionApp? fields constDecls immutableDecls #[] functions params locals stx with
+      match ← resolveLocalFunctionApp? fields constDecls immutableDecls externalDecls functions params locals stx with
       | some (fn, argTerms) =>
           ensureSupportsInternalHelperSpec stx fn
           if fn.returnTy != .unit then
@@ -3791,7 +3794,7 @@ private partial def translateDoElem
                       pure (some (stmts, locals ++ typedPairs, mutableLocals))
                   | none => throwErrorAt rhs "unable to infer tuple local types"
               | none =>
-                      match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls functions params locals rhs names) with
+                      match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls externalDecls functions params locals rhs names) with
                   | some stmt =>
                       let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                       match valueTys with
@@ -3821,7 +3824,7 @@ private partial def translateDoElem
                       pure (some (stmts, locals ++ typedPairs, mutableLocals))
                   | none => throwErrorAt rhs "unable to infer tuple local types"
               | none =>
-                match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls functions params locals rhs names) with
+                match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls externalDecls functions params locals rhs names) with
                 | some stmt =>
                     let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                     match valueTys with
@@ -3855,7 +3858,7 @@ private partial def translateDoElem
       | some names =>
           ensureFreshLocalNames localNames names stx
           let rhs : Term := ⟨patDecl[2][0]⟩
-          match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls functions params locals rhs names) with
+          match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls externalDecls functions params locals rhs names) with
           | some stmt =>
               let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
               match valueTys with
@@ -3943,7 +3946,7 @@ private partial def translateDoElem
               | some stmt =>
                   pure (#[(stmt)], locals.push (varName, .uint256), mutableLocals)
               | none =>
-                      let rhsExpr ← translateBindSource fields constDecls immutableDecls functions params locals rhs
+                      let rhsExpr ← translateBindSource fields constDecls immutableDecls externalDecls functions params locals rhs
                       let ty ← inferBindSourceType fields constDecls immutableDecls externalDecls functions params locals rhs
                       pure
                         (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
@@ -4050,7 +4053,7 @@ private partial def translateDoElem
               locals,
               mutableLocals)
       | `(doElem| $stmt:term) =>
-          pure (#[(← translateEffectStmt fields constDecls immutableDecls functions params locals stmt)], locals, mutableLocals)
+          pure (#[(← translateEffectStmt fields constDecls immutableDecls externalDecls functions params locals stmt)], locals, mutableLocals)
       | _ => throwErrorAt elem "unsupported do element"
 end
 

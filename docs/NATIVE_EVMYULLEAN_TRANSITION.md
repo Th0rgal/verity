@@ -87,9 +87,12 @@ scope so the native path does not look more complete than it is:
   declarations, duplicate validation, and direct internal-call lowering while
   preserving the Solidity-facing source name for selectors/ABI dispatch.
   Same-name/same-arity declarations are accepted when their parameter types
-  differ. Native EVM dispatch is selector-based; the remaining transition work
-  is theorem coverage around the widened frontend surface and any future
-  executable `.run` overload-dispatch extensions.
+  differ. The macro-generated compilation model still gives internal helpers
+  unique Yul-level names, and the lower-level `CompilationModel` rejects
+  duplicate same-name internal functions because native/Yul function
+  definitions are keyed by name. Native EVM dispatch is selector-based; the
+  remaining transition work is theorem coverage around the widened frontend
+  surface and any future executable `.run` overload-dispatch extensions.
 - [#1740](https://github.com/lfglabs-dev/verity/issues/1740): the
   `verity_contract` source surface intentionally models internal delegation with
   ordinary direct function-name calls, not user-written `internalCall`/
