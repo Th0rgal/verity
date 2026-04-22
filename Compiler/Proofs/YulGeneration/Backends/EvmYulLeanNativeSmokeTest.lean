@@ -28,6 +28,8 @@ private def sampleTx : Compiler.Proofs.YulGeneration.YulTransaction :=
     thisAddress := 0x1234
     blockTimestamp := 12345
     blockNumber := 678
+    chainId := 31337
+    blobBaseFee := 19
     functionSelector := 0x01020304
     args := [41] }
 
@@ -181,6 +183,14 @@ example :
 
 example :
     nativeStoresBuiltin "number" 10 sampleTx.blockNumber = true := by
+  native_decide
+
+example :
+    nativeStoresBuiltin "chainid" 15 1 = true := by
+  native_decide
+
+example :
+    nativeStoresBuiltin "blobbasefee" 16 1 = true := by
   native_decide
 
 example :

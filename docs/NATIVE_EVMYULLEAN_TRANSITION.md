@@ -62,10 +62,13 @@ scope so the native path does not look more complete than it is:
 
 - [#1741](https://github.com/lfglabs-dev/verity/issues/1741):
   `blockTimestamp` is bridged through native EVMYulLean execution, and native
-  smoke coverage now checks `timestamp()`/`number()` state reads. The separate
-  follow-up is the `verity_contract` surface and executable `.run` path:
-  monadic `let t <- blockTimestamp` needs macro support, and contract-side
-  helpers must read from `ContractState` instead of placeholder constants.
+  smoke coverage now checks `timestamp()`/`number()` state reads. Native
+  smoke coverage also records the current EVMYulLean defaults for `chainid()`
+  and `blobbasefee()`; those are not yet bridged from `YulTransaction.chainId`
+  or `YulTransaction.blobBaseFee`. The separate follow-up is the
+  `verity_contract` surface and executable `.run` path: monadic
+  `let t <- blockTimestamp` needs macro support, and contract-side helpers
+  must read from `ContractState` instead of placeholder constants.
 - [#1738](https://github.com/lfglabs-dev/verity/issues/1738): mapping-struct
   storage compiles, but `.run` helpers for struct member reads/writes are still
   stubs. Before native execution becomes authoritative, the executable helper
@@ -110,8 +113,9 @@ scope so the native path does not look more complete than it is:
 
    Current smoke coverage exercises primop lowering, helper function maps,
    duplicate-helper failure, emitted dispatcher lowering shape, storage writes,
-   callvalue, caller/address, calldatasize, timestamp/number, return
-   projection, and log projection. Next coverage should include:
+   callvalue, caller/address, calldatasize, timestamp/number, native
+   `chainid`/`blobbasefee` default behavior, return projection, and log
+   projection. Next coverage should include:
    - executable dispatcher selector selection from emitted runtime code,
    - memory-heavy `return` and `revert`,
    - `log0` through `log4`,
