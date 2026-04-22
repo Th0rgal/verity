@@ -380,6 +380,17 @@ def projectResult
       values.head?.map uint256ToNat := by
   rfl
 
+@[simp] theorem projectResult_ok_finalMappings
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.Yul.Ast.Literal) :
+    (projectResult tx initialStorage initialEvents
+      (.ok (state, values))).finalMappings =
+      Compiler.Proofs.storageAsMappings (projectStorageFromState tx state) := by
+  rfl
+
 @[simp] theorem projectResult_ok_finalStorageSlot
     (tx : YulTransaction)
     (initialStorage : Nat → Nat)
@@ -459,6 +470,17 @@ def projectResult
     (projectResult tx initialStorage initialEvents
       (.error (.YulHalt state value))).returnValue =
       projectHaltReturn state value := by
+  rfl
+
+@[simp] theorem projectResult_yulHalt_finalMappings
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (state : EvmYul.Yul.State)
+    (value : EvmYul.Yul.Ast.Literal) :
+    (projectResult tx initialStorage initialEvents
+      (.error (.YulHalt state value))).finalMappings =
+      Compiler.Proofs.storageAsMappings (projectStorageFromState tx state) := by
   rfl
 
 @[simp] theorem projectResult_yulHalt_finalStorageSlot
@@ -582,6 +604,15 @@ def projectResult
       (.error EvmYul.Yul.Exception.Revert)).returnValue = none := by
   rfl
 
+@[simp] theorem projectResult_revert_finalMappings
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat)) :
+    (projectResult tx initialStorage initialEvents
+      (.error EvmYul.Yul.Exception.Revert)).finalMappings =
+      Compiler.Proofs.storageAsMappings initialStorage := by
+  rfl
+
 @[simp] theorem projectResult_revert_finalStorageSlot
     (tx : YulTransaction)
     (initialStorage : Nat → Nat)
@@ -669,6 +700,28 @@ def projectResult
     (hNotHalt : ∀ state value, err ≠ EvmYul.Yul.Exception.YulHalt state value) :
     (projectResult tx initialStorage initialEvents (.error err)).finalStorage slot =
       initialStorage slot := by
+  cases err with
+  | YulHalt state value =>
+      exact False.elim (hNotHalt state value rfl)
+  | InvalidArguments => rfl
+  | NotEncodableRLP => rfl
+  | InvalidInstruction => rfl
+  | OutOfFuel => rfl
+  | StaticModeViolation => rfl
+  | MissingContract s => rfl
+  | MissingContractFunction s => rfl
+  | InvalidExpression => rfl
+  | YulEXTCODESIZENotImplemented => rfl
+  | Revert => rfl
+
+@[simp] theorem projectResult_hardError_finalMappings
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (err : EvmYul.Yul.Exception)
+    (hNotHalt : ∀ state value, err ≠ EvmYul.Yul.Exception.YulHalt state value) :
+    (projectResult tx initialStorage initialEvents (.error err)).finalMappings =
+      Compiler.Proofs.storageAsMappings initialStorage := by
   cases err with
   | YulHalt state value =>
       exact False.elim (hNotHalt state value rfl)

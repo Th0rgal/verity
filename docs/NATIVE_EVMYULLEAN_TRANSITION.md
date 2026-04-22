@@ -161,17 +161,20 @@ scope so the native path does not look more complete than it is:
    `projectResult_ok` and `projectResult_ok_events` lemmas for successful
    native value results and event-history append behavior, native return
    halt projection with committed storage/logs and matching `finalMappings`,
-   the named `projectResult_ok_success` and `projectResult_ok_returnValue`
-   lemmas for successful value-result projection, the named
+   the named `projectResult_ok_success`, `projectResult_ok_returnValue`, and
+   `projectResult_ok_finalMappings` lemmas for successful value-result
+   projection, the named
    `projectHaltReturn_32ByteReturn`, `projectResult_yulHalt`,
-   `projectResult_yulHalt_success`, `projectResult_yulHalt_returnValue`, and
-   `projectResult_yulHalt_events` lemmas for halt success, return-value, and
-   event-history append behavior, and the named `projectResult_32ByteReturn`
-   lemma for 32-byte `return` halt projection, log projection for `log0` through
-   `log4` topic arities, conservative rollback projection for native errors,
+   `projectResult_yulHalt_success`, `projectResult_yulHalt_returnValue`,
+   `projectResult_yulHalt_finalMappings`, and `projectResult_yulHalt_events`
+   lemmas for halt success, return-value, final-mapping, and event-history
+   append behavior, and the named `projectResult_32ByteReturn` lemma for
+   32-byte `return` halt projection, log projection for `log0` through `log4`
+   topic arities, conservative rollback projection for native errors,
    explicit hard-error rollback for `OutOfFuel`, explicit `Revert` rollback
    projection with no return value, the named `projectResult_revert` rollback,
    `projectResult_revert_success`, `projectResult_revert_returnValue`, and
+   `projectResult_revert_finalMappings` final-mapping rollback and
    `projectResult_revert_events` event-history preservation lemmas, the named
    `projectResult_hardError_success` and `projectResult_hardError_returnValue`
    lemmas for hard native failure observables, the named
@@ -186,7 +189,8 @@ scope so the native path does not look more complete than it is:
    `projectResult_revert_finalStorageSlot` and
    `projectResult_hardError_finalStorageSlot` lemmas for rollback final-storage
    slot projection,
-   conservative `finalMappings` rollback on native errors, the named
+   conservative `finalMappings` rollback on native errors with the named
+   `projectResult_hardError_finalMappings` lemma, the named
    `projectResult_hardError` and `projectResult_hardError_events` lemmas for
    every non-halt native error, the named `projectResult_finalMappings` lemma
    showing every native projection keeps `finalMappings` synchronized with
