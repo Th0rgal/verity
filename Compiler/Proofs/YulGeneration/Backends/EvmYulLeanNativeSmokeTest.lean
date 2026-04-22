@@ -585,6 +585,16 @@ private def topLevelNativeSwitchIdsAreThreaded : Bool :=
         second == "__verity_native_switch_discr_1"
   | _ => false
 
+private def nativeSwitchTempNamesAvoidUserNames : Bool :=
+  nativeMatchesReferenceRuntime [
+    .let_ "__verity_native_switch_discr_0" (.lit 99),
+    .let_ "__verity_native_switch_matched_0" (.lit 77),
+    .switch (.lit 1)
+      [(1, [.expr (.call "sstore" [.lit 7, .ident "__verity_native_switch_discr_0"])])]
+      none,
+    .expr (.call "sstore" [.lit 8, .ident "__verity_native_switch_matched_0"])
+  ] [7, 8] [7, 8]
+
 private def nativeSwitchExecutesOnlyFirstMatchingNonHaltingCase : Bool :=
   nativeMatchesReferenceRuntime [
     .switch (.lit 1)
@@ -993,6 +1003,10 @@ example :
 
 example :
     topLevelNativeSwitchIdsAreThreaded = true := by
+  native_decide
+
+example :
+    nativeSwitchTempNamesAvoidUserNames = true := by
   native_decide
 
 example :

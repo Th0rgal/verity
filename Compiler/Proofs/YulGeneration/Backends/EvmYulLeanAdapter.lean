@@ -209,25 +209,73 @@ private def nativePrimCall
     EvmYul.Yul.Ast.Expr :=
   .Call (.inl op) args
 
+/-! ### Native switch temporary freshness -/
+
+partial def yulExprIdentifierNames : YulExpr → List String
+  | .lit _ | .hex _ => []
+  | .str name | .ident name => [name]
+  | .call _ args => args.foldl (fun acc arg => acc ++ yulExprIdentifierNames arg) []
+
+mutual
+  partial def yulStmtIdentifierNames : YulStmt → List String
+    | .comment _ | .leave => []
+    | .let_ name value => name :: yulExprIdentifierNames value
+    | .letMany names value => names ++ yulExprIdentifierNames value
+    | .assign name value => name :: yulExprIdentifierNames value
+    | .expr e => yulExprIdentifierNames e
+    | .if_ cond body => yulExprIdentifierNames cond ++ yulStmtsIdentifierNames body
+    | .for_ init cond post body =>
+        yulStmtsIdentifierNames init ++
+          yulExprIdentifierNames cond ++
+          yulStmtsIdentifierNames post ++
+          yulStmtsIdentifierNames body
+    | .switch discr cases defaultBody =>
+        yulExprIdentifierNames discr ++
+          cases.foldl (fun acc (_, body) => acc ++ yulStmtsIdentifierNames body) [] ++
+          yulStmtsIdentifierNames (defaultBody.getD [])
+    | .block stmts => yulStmtsIdentifierNames stmts
+    | .funcDef name params rets body => name :: params ++ rets ++ yulStmtsIdentifierNames body
+
+  partial def yulStmtsIdentifierNames (stmts : List YulStmt) : List String :=
+    stmts.foldl (fun acc stmt => acc ++ yulStmtIdentifierNames stmt) []
+end
+
+def nativeSwitchDiscrTempName (switchId : Nat) : String :=
+  s!"__verity_native_switch_discr_{switchId}"
+
+def nativeSwitchMatchedTempName (switchId : Nat) : String :=
+  s!"__verity_native_switch_matched_{switchId}"
+
+partial def freshNativeSwitchId (reservedNames : List String) (candidate : Nat) : Nat :=
+  let discrName := nativeSwitchDiscrTempName candidate
+  let matchedName := nativeSwitchMatchedTempName candidate
+  if reservedNames.contains discrName || reservedNames.contains matchedName then
+    freshNativeSwitchId reservedNames (candidate + 1)
+  else
+    candidate
+
 mutual
 partial def lowerStmtsNative :
     List YulStmt → Except AdapterError (List EvmYul.Yul.Ast.Stmt)
   | stmts => do
-      let (lowered, _) ← lowerStmtsNativeWithSwitchIds 0 stmts
+      let (lowered, _) ←
+        lowerStmtsNativeWithSwitchIds (yulStmtsIdentifierNames stmts) 0 stmts
       pure lowered
 
 partial def lowerStmtsNativeWithSwitchIds
+    (reservedNames : List String)
     (nextSwitchId : Nat) :
     List YulStmt → Except AdapterError (List EvmYul.Yul.Ast.Stmt × Nat)
   | [] => pure ([], nextSwitchId)
   | stmt :: rest => do
       let (stmts', nextSwitchId) ←
-        lowerStmtGroupNativeWithSwitchIds nextSwitchId stmt
+        lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId stmt
       let (rest', nextSwitchId) ←
-        lowerStmtsNativeWithSwitchIds nextSwitchId rest
+        lowerStmtsNativeWithSwitchIds reservedNames nextSwitchId rest
       pure (stmts' ++ rest', nextSwitchId)
 
 partial def lowerStmtGroupNativeWithSwitchIds
+    (reservedNames : List String)
     (nextSwitchId : Nat) :
     YulStmt → Except AdapterError (List EvmYul.Yul.Ast.Stmt × Nat)
   | .comment _ => pure ([.Block []], nextSwitchId)
@@ -237,30 +285,34 @@ partial def lowerStmtGroupNativeWithSwitchIds
   | .expr e => pure ([.ExprStmtCall (lowerExprNative e)], nextSwitchId)
   | .leave => pure ([.Leave], nextSwitchId)
   | .if_ cond body => do
-      let (body', nextSwitchId) ← lowerStmtsNativeWithSwitchIds nextSwitchId body
+      let (body', nextSwitchId) ← lowerStmtsNativeWithSwitchIds reservedNames nextSwitchId body
       pure ([.If (lowerExprNative cond) body'], nextSwitchId)
   | .for_ init cond post body => do
-      let (init', nextSwitchId) ← lowerStmtsNativeWithSwitchIds nextSwitchId init
-      let (post', nextSwitchId) ← lowerStmtsNativeWithSwitchIds nextSwitchId post
-      let (body', nextSwitchId) ← lowerStmtsNativeWithSwitchIds nextSwitchId body
+      let (init', nextSwitchId) ← lowerStmtsNativeWithSwitchIds reservedNames nextSwitchId init
+      let (post', nextSwitchId) ← lowerStmtsNativeWithSwitchIds reservedNames nextSwitchId post
+      let (body', nextSwitchId) ← lowerStmtsNativeWithSwitchIds reservedNames nextSwitchId body
       pure (init' ++ [.For (lowerExprNative cond) post' body'], nextSwitchId)
   | .switch expr cases defaultCase => do
       -- EVMYulLean's `Switch` executor currently evaluates the default branch
       -- before selecting a case. Lower to lazy `if` guards with an explicit
-      -- match flag so exactly one non-halting branch can execute.
-      let discrName := s!"__verity_native_switch_discr_{nextSwitchId}"
-      let matchedName := s!"__verity_native_switch_matched_{nextSwitchId}"
-      let nextSwitchId := nextSwitchId + 1
+      -- match flag so exactly one non-halting branch can execute. Generate
+      -- temporary names outside the source identifier surface to avoid
+      -- shadowing user-visible Yul variables.
+      let switchId := freshNativeSwitchId reservedNames nextSwitchId
+      let discrName := nativeSwitchDiscrTempName switchId
+      let matchedName := nativeSwitchMatchedTempName switchId
+      let nextSwitchId := switchId + 1
       let lowerCase := fun (nextSwitchId : Nat) ((tag, block) : Nat × List YulStmt) => do
         let (block', nextSwitchId) ←
-          lowerStmtsNativeWithSwitchIds nextSwitchId block
+          lowerStmtsNativeWithSwitchIds reservedNames nextSwitchId block
         pure ((tag, block'), nextSwitchId)
       let (cases', nextSwitchId) ← cases.foldlM
         (fun (acc, nextSwitchId) c => do
           let (case', nextSwitchId) ← lowerCase nextSwitchId c
           pure (acc ++ [case'], nextSwitchId))
         ([], nextSwitchId)
-      let (default', nextSwitchId) ← lowerStmtsNativeWithSwitchIds nextSwitchId (defaultCase.getD [])
+      let (default', nextSwitchId) ←
+        lowerStmtsNativeWithSwitchIds reservedNames nextSwitchId (defaultCase.getD [])
       let discr := EvmYul.Yul.Ast.Expr.Var discrName
       let matched := EvmYul.Yul.Ast.Expr.Var matchedName
       let matchExpr (tag : Nat) : EvmYul.Yul.Ast.Expr :=
@@ -281,16 +333,23 @@ partial def lowerStmtGroupNativeWithSwitchIds
                     caseIfs ++ defaultIf)],
         nextSwitchId)
   | .block stmts => do
-      let (stmts', nextSwitchId) ← lowerStmtsNativeWithSwitchIds nextSwitchId stmts
+      let (stmts', nextSwitchId) ← lowerStmtsNativeWithSwitchIds reservedNames nextSwitchId stmts
       pure ([.Block stmts'], nextSwitchId)
   | .funcDef name _ _ _ =>
       throw s!"native EVMYulLean statement lowering cannot inline function definition '{name}'; use lowerRuntimeContractNative"
 end
 
+def lowerFunctionDefinitionNativeWithReserved
+    (reservedNames : List String)
+    (params rets : List String)
+    (body : List YulStmt) :
+    Except AdapterError EvmYul.Yul.Ast.FunctionDefinition := do
+  let (body', _) ← lowerStmtsNativeWithSwitchIds reservedNames 0 body
+  pure (.Def params rets body')
+
 def lowerFunctionDefinitionNative (params rets : List String) (body : List YulStmt) :
     Except AdapterError EvmYul.Yul.Ast.FunctionDefinition := do
-  let body' ← lowerStmtsNative body
-  pure (.Def params rets body')
+  lowerFunctionDefinitionNativeWithReserved (yulStmtsIdentifierNames body) params rets body
 
 abbrev NativeFunctionMap :=
   Finmap (fun (_ : EvmYul.Yul.Ast.YulFunctionName) =>
@@ -306,6 +365,7 @@ private def insertNativeFunction
     pure (functions.insert name definition)
 
 partial def lowerRuntimeContractNativeAux
+    (reservedNames : List String)
     (stmts : List YulStmt)
     (dispatcherAcc : List EvmYul.Yul.Ast.Stmt)
     (functionsAcc : NativeFunctionMap)
@@ -314,20 +374,22 @@ partial def lowerRuntimeContractNativeAux
   match stmts with
   | [] => pure (dispatcherAcc.reverse, functionsAcc, nextSwitchId)
   | .funcDef name params rets body :: rest =>
-      let definition ← lowerFunctionDefinitionNative params rets body
+      let definition ← lowerFunctionDefinitionNativeWithReserved reservedNames params rets body
       let functionsAcc ← insertNativeFunction functionsAcc name definition
-      lowerRuntimeContractNativeAux rest dispatcherAcc functionsAcc nextSwitchId
+      lowerRuntimeContractNativeAux reservedNames rest dispatcherAcc functionsAcc nextSwitchId
   | stmt :: rest =>
-      let (lowered, nextSwitchId) ← lowerStmtGroupNativeWithSwitchIds nextSwitchId stmt
-      lowerRuntimeContractNativeAux rest (lowered.reverse ++ dispatcherAcc) functionsAcc
+      let (lowered, nextSwitchId) ←
+        lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId stmt
+      lowerRuntimeContractNativeAux reservedNames rest (lowered.reverse ++ dispatcherAcc) functionsAcc
         nextSwitchId
 
 /-- Lower generated runtime Yul into an executable EVMYulLean contract shape. -/
 def lowerRuntimeContractNative (stmts : List YulStmt) :
     Except AdapterError EvmYul.Yul.Ast.YulContract := do
   let emptyFunctions : NativeFunctionMap := ∅
+  let reservedNames := yulStmtsIdentifierNames stmts
   let (dispatcher, functions, _) ←
-    lowerRuntimeContractNativeAux stmts [] emptyFunctions 0
+    lowerRuntimeContractNativeAux reservedNames stmts [] emptyFunctions 0
   pure {
     dispatcher := .Block dispatcher,
     functions := functions

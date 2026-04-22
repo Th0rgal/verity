@@ -147,6 +147,35 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         )
         self.assertTrue(any("blobbasefee" in error for error in errors), errors)
 
+    def test_native_switch_lowering_boundary_accepts_current_shape(self) -> None:
+        errors = check.check_native_switch_lowering_boundary(
+            check.NATIVE_ADAPTER.read_text(encoding="utf-8"),
+            check.NATIVE_SMOKE_TEST.read_text(encoding="utf-8"),
+        )
+        self.assertEqual(errors, [])
+
+    def test_native_switch_lowering_boundary_rejects_missing_freshness_helper(self) -> None:
+        adapter_text = check.NATIVE_ADAPTER.read_text(encoding="utf-8").replace(
+            "freshNativeSwitchId",
+            "staleNativeSwitchId",
+        )
+        errors = check.check_native_switch_lowering_boundary(
+            adapter_text,
+            check.NATIVE_SMOKE_TEST.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(any("freshNativeSwitchId" in error for error in errors), errors)
+
+    def test_native_switch_lowering_boundary_rejects_missing_collision_smoke(self) -> None:
+        smoke_text = check.NATIVE_SMOKE_TEST.read_text(encoding="utf-8").replace(
+            "nativeSwitchTempNamesAvoidUserNames = true",
+            "nativeSwitchTempNamesCollideWithUserNames = true",
+        )
+        errors = check.check_native_switch_lowering_boundary(
+            check.NATIVE_ADAPTER.read_text(encoding="utf-8"),
+            smoke_text,
+        )
+        self.assertTrue(any("nativeSwitchTempNamesAvoidUserNames" in error for error in errors), errors)
+
 
 if __name__ == "__main__":
     unittest.main()

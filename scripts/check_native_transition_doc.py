@@ -23,6 +23,14 @@ NATIVE_HARNESS = (
     / "Backends"
     / "EvmYulLeanNativeHarness.lean"
 )
+NATIVE_ADAPTER = (
+    ROOT
+    / "Compiler"
+    / "Proofs"
+    / "YulGeneration"
+    / "Backends"
+    / "EvmYulLeanAdapter.lean"
+)
 NATIVE_SMOKE_TEST = (
     ROOT
     / "Compiler"
@@ -158,6 +166,40 @@ def check_public_theorem_target(end_to_end_text: str, native_harness_text: str) 
     return errors
 
 
+def check_native_switch_lowering_boundary(native_adapter_text: str, native_smoke_text: str) -> list[str]:
+    """Keep native switch lowering fresh and regression-tested."""
+
+    errors: list[str] = []
+    normalized_adapter = normalize_ws(native_adapter_text)
+    normalized_smoke = normalize_ws(native_smoke_text)
+
+    for required_boundary in (
+        "freshNativeSwitchId",
+        "nativeSwitchDiscrTempName",
+        "nativeSwitchMatchedTempName",
+        "yulStmtsIdentifierNames",
+    ):
+        if required_boundary not in normalized_adapter:
+            errors.append(
+                "Compiler/Proofs/YulGeneration/Backends/"
+                "EvmYulLeanAdapter.lean must keep native switch temporary "
+                f"freshness explicit with `{required_boundary}`"
+            )
+
+    for required_smoke in (
+        "nativeSwitchTempNamesAvoidUserNames = true",
+        "nativeSwitchExecutesOnlyFirstMatchingNonHaltingCase = true",
+    ):
+        if required_smoke not in normalized_smoke:
+            errors.append(
+                "Compiler/Proofs/YulGeneration/Backends/"
+                "EvmYulLeanNativeSmokeTest.lean must pin native switch "
+                f"lowering behavior with `{required_smoke}`"
+            )
+
+    return errors
+
+
 def check_unbridged_environment_boundary(native_harness_text: str, native_smoke_text: str) -> list[str]:
     """Keep the native environment-read limitation explicit and tested.
 
@@ -210,12 +252,13 @@ def main() -> int:
     if not DOC.exists():
         print(f"Missing: {DOC.relative_to(ROOT)}", file=sys.stderr)
         return 1
-    for path in (END_TO_END, NATIVE_HARNESS, NATIVE_SMOKE_TEST):
+    for path in (END_TO_END, NATIVE_HARNESS, NATIVE_ADAPTER, NATIVE_SMOKE_TEST):
         if not path.exists():
             print(f"Missing: {path.relative_to(ROOT)}", file=sys.stderr)
             return 1
 
     native_harness_text = NATIVE_HARNESS.read_text(encoding="utf-8")
+    native_smoke_text = NATIVE_SMOKE_TEST.read_text(encoding="utf-8")
     errors = check_doc(DOC.read_text(encoding="utf-8"))
     errors.extend(
         check_public_theorem_target(
@@ -226,7 +269,13 @@ def main() -> int:
     errors.extend(
         check_unbridged_environment_boundary(
             native_harness_text,
-            NATIVE_SMOKE_TEST.read_text(encoding="utf-8"),
+            native_smoke_text,
+        )
+    )
+    errors.extend(
+        check_native_switch_lowering_boundary(
+            NATIVE_ADAPTER.read_text(encoding="utf-8"),
+            native_smoke_text,
         )
     )
     if errors:
