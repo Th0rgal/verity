@@ -252,15 +252,17 @@ scope so the native path does not look more complete than it is:
    oracle coverage for actual `Compiler.emitYul` dispatcher selection with
    explicit expected success/return/storage outcomes,
    ABI argument-word decoding, observable storage reads, generated
-   `mappingSlot` helper execution for mapping writes, 32-byte return halt projection, multi-word
-   memory-return fallback projection, and memory-backed revert rollback, and named
+   `mappingSlot` helper execution for singleton mapping writes, singleton
+   mapping reads, and nested mapping writes, 32-byte return halt projection,
+   multi-word memory-return fallback projection, and memory-backed revert rollback, and named
    `interpretIRRuntimeNative_loweringError` and
    `interpretIRRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative`
    lemmas pinning the same fail-closed and exact native call-dispatcher
    pipeline at the IR entry point. Next coverage should include:
    - returndata and external-call outcomes,
    - static-call permission behavior,
-   - broader mapping read/write shapes beyond the singleton helper-write oracle.
+   - packed and multi-word mapping member shapes beyond the singleton/nested
+     helper-oracle cases.
 
 5. Introduce the public native preservation theorem.
 

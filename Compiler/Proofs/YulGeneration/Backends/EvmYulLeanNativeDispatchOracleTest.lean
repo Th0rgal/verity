@@ -8,8 +8,18 @@ open Compiler.Proofs.IRGeneration
 open Compiler.Proofs.YulGeneration
 open Compiler.Proofs.YulGeneration.Backends
 
+private def mappingReadSlot : Nat :=
+  Compiler.Proofs.abstractMappingSlot 21 5
+
+private def mappingWriteSlot : Nat :=
+  Compiler.Proofs.abstractMappingSlot 21 5
+
+private def nestedMappingWriteSlot : Nat :=
+  Compiler.Proofs.abstractMappingSlot (Compiler.Proofs.abstractMappingSlot 22 3) 4
+
 private def seededStorage : Nat -> Nat := fun slot =>
-  if slot = 7 then 77 else 0
+  if slot = 7 then 77 else
+  if slot = mappingReadSlot then 515 else 0
 
 private def sampleIRTx (selector : Nat) (args : List Nat := []) : IRTransaction :=
   { sender := 0xCAFE
@@ -74,9 +84,6 @@ private def storageReadIRContract : IRContract :=
     ]
     usesMapping := false }
 
-private def mappingWriteSlot : Nat :=
-  Compiler.Proofs.abstractMappingSlot 21 5
-
 private def mappingHelperDispatchSmokeContract : IRContract :=
   { name := "NativeMappingHelperDispatchOracleSmoke"
     deploy := []
@@ -89,6 +96,46 @@ private def mappingHelperDispatchSmokeContract : IRContract :=
           .expr (.call "sstore" [
             .call "mappingSlot" [.lit 21, .call "calldataload" [.lit 4]],
             .lit 909])
+        ] }
+    ]
+    usesMapping := true }
+
+private def mappingHelperReadDispatchSmokeContract : IRContract :=
+  { name := "NativeMappingHelperReadDispatchOracleSmoke"
+    deploy := []
+    functions := [
+      { name := "loadMapped"
+        selector := 0x99999999
+        params := [{ name := "key", ty := .uint256 }]
+        ret := .unit
+        body := [
+          .expr (.call "sstore" [
+            .lit 15,
+            .call "sload" [
+              .call "mappingSlot" [.lit 21, .call "calldataload" [.lit 4]]
+            ]])
+        ] }
+    ]
+    usesMapping := true }
+
+private def nestedMappingHelperDispatchSmokeContract : IRContract :=
+  { name := "NativeNestedMappingHelperDispatchOracleSmoke"
+    deploy := []
+    functions := [
+      { name := "storeNestedMapped"
+        selector := 0xAAAAAAAA
+        params := [
+          { name := "outerKey", ty := .uint256 },
+          { name := "innerKey", ty := .uint256 }
+        ]
+        ret := .unit
+        body := [
+          .expr (.call "sstore" [
+            .call "mappingSlot" [
+              .call "mappingSlot" [.lit 22, .call "calldataload" [.lit 4]],
+              .call "calldataload" [.lit 36]
+            ],
+            .lit 808])
         ] }
     ]
     usesMapping := true }
@@ -217,6 +264,14 @@ def main : IO Unit := do
     (emittedDispatchMatchesReferenceWithExpected mappingHelperDispatchSmokeContract
       (sampleIRTx 0x88888888 [5]) [mappingWriteSlot] [mappingWriteSlot] true none
       [(mappingWriteSlot, 909)])
+  check "emitted dispatcher executes mappingSlot helper reads"
+    (emittedDispatchMatchesReferenceWithExpected mappingHelperReadDispatchSmokeContract
+      (sampleIRTx 0x99999999 [5]) [mappingReadSlot, 15] [mappingReadSlot, 15] true none
+      [(mappingReadSlot, 515), (15, 515)])
+  check "emitted dispatcher executes nested mappingSlot helper writes"
+    (emittedDispatchMatchesReferenceWithExpected nestedMappingHelperDispatchSmokeContract
+      (sampleIRTx 0xAAAAAAAA [3, 4]) [nestedMappingWriteSlot] [nestedMappingWriteSlot]
+      true none [(nestedMappingWriteSlot, 808)])
   check "emitted dispatcher projects 32-byte return halts"
     (emittedDispatchMatchesReferenceWithExpected returnDispatchSmokeContract
       (sampleIRTx 0x33333333) [] [] true (some 42) [])
