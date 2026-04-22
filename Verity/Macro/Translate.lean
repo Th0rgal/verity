@@ -4298,6 +4298,10 @@ private def byteArrayToNatBE (ba : ByteArray) : Nat :=
 def computeStorageNamespace (contractName : String) : Nat :=
   byteArrayToNatBE (KeccakEngine.keccak256_str s!"{contractName}.storage.v0")
 
+/-- Compute a storage namespace from an explicit user-provided namespace key. -/
+def computeStorageNamespaceKey (key : String) : Nat :=
+  byteArrayToNatBE (KeccakEngine.keccak256_str key)
+
 def parseContractSyntax
     (stx : Syntax)
     : CommandElabM
@@ -4338,21 +4342,22 @@ def parseContractSyntax
       -- is present, every user-declared slot N becomes (namespaceBase + N).
       -- With `storage_namespace "custom"`, the custom string replaces the default
       -- "{ContractName}.storage.v0" key.
-      let namespaceOffset : Nat :=
+      let namespaceOffset : Nat ←
         match nsSpec with
         | some spec =>
-            -- Extract optional custom namespace string from the syntax node.
             -- `storage_namespace` alone → default; `storage_namespace "key"` → custom.
-            let args := spec.raw.getArgs
-            if h : args.size > 1 then
-              match args[1].isStrLit? with
-              | some customKey =>
-                  byteArrayToNatBE (KeccakEngine.keccak256_str customKey)
-              | none =>
-                  computeStorageNamespace (toString contractName.getId)
-            else
-              computeStorageNamespace (toString contractName.getId)
-        | none => 0
+            -- Match the syntax category directly so the custom string is not lost
+            -- behind parser wrapper nodes.
+            match spec with
+            | `(verityNamespaceSpec| storage_namespace $customKey:str) =>
+                match customKey.raw.isStrLit? with
+                | some key => pure (computeStorageNamespaceKey key)
+                | none => throwErrorAt customKey "expected storage namespace string literal"
+            | `(verityNamespaceSpec| storage_namespace) =>
+                pure (computeStorageNamespace (toString contractName.getId))
+            | _ =>
+                throwErrorAt spec "unsupported storage namespace syntax"
+        | none => pure 0
       let parsedErrors ←
         match errorDecls with
         | some decls => decls.mapM (parseError parsedNewtypes parsedAdts)
@@ -4576,8 +4581,14 @@ def validateFunctionDeclsPublic
     | some lockField =>
         let lockName := toString lockField.getId
         let allFieldNames := fields.map (·.name)
-        if !allFieldNames.contains lockName then
+        match fields.find? (fun field => field.name == lockName) with
+        | none =>
           throwErrorAt lockField s!"function '{fn.name}': nonreentrant references unknown storage field '{lockName}'; known fields: {allFieldNames.toList}"
+        | some field =>
+            match field.ty with
+            | .scalar .uint256 => pure ()
+            | _ =>
+                throwErrorAt lockField s!"function '{fn.name}': nonreentrant lock field '{lockName}' must be a scalar Uint256 storage field"
     | none => pure ()
     -- cei_safe and allow_post_interaction_writes are mutually exclusive with nonreentrant
     if fn.ceiSafe && fn.allowPostInteractionWrites then

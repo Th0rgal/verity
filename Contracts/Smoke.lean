@@ -1941,6 +1941,8 @@ example : CustomNamespacedSmoke.balance.slot ≠ NamespacedStorageSmoke.balance.
 example : CustomNamespacedSmoke.spec.storageNamespace.isSome = true := rfl
 -- Verify the exported storageNamespace constant matches the spec value (not the default contract name hash).
 example : CustomNamespacedSmoke.storageNamespace = CustomNamespacedSmoke.spec.storageNamespace.get! := rfl
+example : CustomNamespacedSmoke.storageNamespace = 105542539407630759878214364786123406227647255732885741380220581264062975076298 := rfl
+example : CustomNamespacedSmoke.storageNamespace ≠ 67387409610395734986217237394999073412260967828994783805404864304835768435504 := by decide
 
 -- ADT (inductive) section smoke test (#1727, Axis 1 Steps 5a/5b)
 -- Declares algebraic data types with typed variant fields.
@@ -2033,6 +2035,17 @@ error: #check_contract failed for 'Contracts.Smoke.CEIViolationRejected': Compil
 -/
 #guard_msgs in
 #check_contract CEIViolationRejected
+
+/--
+error: function 'guarded': nonreentrant lock field 'lock' must be a scalar Uint256 storage field
+-/
+#guard_msgs in
+verity_contract NonreentrantAddressLockRejected where
+  storage
+    lock : Address := slot 0
+
+  function nonreentrant(lock) guarded () : Unit := do
+    pure ()
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Stress-test contracts: edge-case coverage for Language Design Axes (#1731)
