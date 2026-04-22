@@ -118,7 +118,11 @@ scope so the native path does not look more complete than it is:
    calldatasize, timestamp/number, native
    `chainid`/`blobbasefee` default behavior, return projection, and log
    projection. Next coverage should include:
-   - executable dispatcher selector selection from emitted runtime code,
+   - executable dispatcher selector selection from emitted runtime code; the
+     lowered selector expression is already pinned, but build-time execution
+     through EVMYulLean `CALLDATALOAD` currently needs
+     `ffi.ByteArray.zeroes` native support before this can be promoted to a
+     Lean smoke proof,
    - memory-heavy `return` and `revert`,
    - `log0` through `log4`,
    - returndata and external-call outcomes,
