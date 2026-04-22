@@ -159,7 +159,7 @@ scope so the native path does not look more complete than it is:
    `lowerExprNative_call_userFunction` lemmas for native expression-call
    lowering,
    selector cases with their lowered storage-write and memory-return bodies,
-   selector/calldata byte layout, storage writes, `sload` through explicit
+   selector/calldata byte layout, ABI argument-word decoding, storage writes, `sload` through explicit
    observable pre-state slots, omitted-slot default reads, IR storage-read
    dispatcher lowering to native `SLOAD`, `interpretIRRuntimeNative` storage
    forwarding with explicit observable slots and prior events, the named
@@ -248,7 +248,7 @@ scope so the native path does not look more complete than it is:
    native execution pipeline, `interpretIRRuntimeNative`
    forwarding/fail-closed lowering behavior, executable native-vs-reference
    oracle coverage for actual `Compiler.emitYul` dispatcher selection,
-   observable storage reads, 32-byte return halt projection, multi-word
+   ABI argument-word decoding, observable storage reads, 32-byte return halt projection, multi-word
    memory-return fallback projection, and memory-backed revert rollback, and named
    `interpretIRRuntimeNative_loweringError` and
    `interpretIRRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative`

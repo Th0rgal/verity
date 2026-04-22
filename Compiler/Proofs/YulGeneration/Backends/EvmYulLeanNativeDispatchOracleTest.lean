@@ -74,6 +74,21 @@ private def storageReadIRContract : IRContract :=
     ]
     usesMapping := false }
 
+private def calldataArgDispatchSmokeContract : IRContract :=
+  { name := "NativeCalldataArgDispatchOracleSmoke"
+    deploy := []
+    functions := [
+      { name := "storeArg"
+        selector := 0x77777777
+        params := [{ name := "x", ty := .uint256 }]
+        ret := .unit
+        body := [
+          .let_ "x" (.call "calldataload" [.lit 4]),
+          .expr (.call "sstore" [.lit 12, .ident "x"])
+        ] }
+    ]
+    usesMapping := false }
+
 private def returnDispatchSmokeContract : IRContract :=
   { name := "NativeReturnDispatchOracleSmoke"
     deploy := []
@@ -164,6 +179,9 @@ def main : IO Unit := do
   check "emitted dispatcher forwards observable storage reads"
     (emittedDispatchMatchesReference storageReadIRContract
       (sampleIRTx 0x44444444) [7, 8] [7, 8])
+  check "emitted dispatcher decodes ABI argument words"
+    (emittedDispatchMatchesReference calldataArgDispatchSmokeContract
+      (sampleIRTx 0x77777777 [0xABCD]) [12] [12])
   check "emitted dispatcher projects 32-byte return halts"
     (emittedDispatchMatchesReference returnDispatchSmokeContract
       (sampleIRTx 0x33333333) [] [])
