@@ -169,8 +169,11 @@ scope so the native path does not look more complete than it is:
    `projectResult_yulHalt_finalMappings`, and `projectResult_yulHalt_events`
    lemmas for halt success, return-value, final-mapping, and event-history
    append behavior, and the named `projectResult_32ByteReturn` lemma for
-   32-byte `return` halt projection, log projection for `log0` through `log4`
-   topic arities, conservative rollback projection for native errors,
+   32-byte `return` halt projection, the named
+   `projectHaltReturn_non32ByteReturn` and `projectResult_non32ByteReturn`
+   lemmas pinning the current conservative non-word-sized return-buffer
+   fallback until wider returndata support lands, log projection for `log0`
+   through `log4` topic arities, conservative rollback projection for native errors,
    explicit hard-error rollback for `OutOfFuel`, explicit `Revert` rollback
    projection with no return value, the named `projectResult_revert` rollback,
    `projectResult_revert_success`, `projectResult_revert_returnValue`, and

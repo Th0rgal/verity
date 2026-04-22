@@ -285,6 +285,17 @@ def projectHaltReturn (state : EvmYul.Yul.State) (haltValue : EvmYul.Yul.Ast.Lit
       some (byteArrayWord state.sharedState.H_return 0) := by
   simp [projectHaltReturn, hHalt, hSize]
 
+/-- Until wider returndata support lands, a non-`stop` halt with a native return
+    buffer whose size is not exactly one ABI word projects to the conservative
+    single-word fallback used by the current proof-side observable model. -/
+@[simp] theorem projectHaltReturn_non32ByteReturn
+    (state : EvmYul.Yul.State)
+    (haltValue : EvmYul.Yul.Ast.Literal)
+    (hHalt : haltValue ≠ ⟨0⟩)
+    (hSize : state.sharedState.H_return.size ≠ 32) :
+    projectHaltReturn state haltValue = some 0 := by
+  simp [projectHaltReturn, hHalt, hSize]
+
 /-- Convert a native `callDispatcher` result to the current Verity observable
     result shape. Reverts and hard native errors conservatively roll storage
     back to the supplied initial storage function. -/
@@ -560,6 +571,24 @@ def projectResult
       (.error (.YulHalt state value)) =
     { success := true
       returnValue := some (byteArrayWord state.sharedState.H_return 0)
+      finalStorage := projectStorageFromState tx state
+      finalMappings :=
+        Compiler.Proofs.storageAsMappings (projectStorageFromState tx state)
+      events := initialEvents ++ projectLogsFromState state } := by
+  simp [projectResult, hHalt, hSize]
+
+@[simp] theorem projectResult_non32ByteReturn
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (state : EvmYul.Yul.State)
+    (value : EvmYul.Yul.Ast.Literal)
+    (hHalt : value ≠ ⟨0⟩)
+    (hSize : state.sharedState.H_return.size ≠ 32) :
+    projectResult tx initialStorage initialEvents
+      (.error (.YulHalt state value)) =
+    { success := true
+      returnValue := some 0
       finalStorage := projectStorageFromState tx state
       finalMappings :=
         Compiler.Proofs.storageAsMappings (projectStorageFromState tx state)
