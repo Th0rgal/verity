@@ -1,6 +1,7 @@
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanStateBridge
 import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
+import Compiler.Codegen
 import EvmYul.Yul.Interpreter
 
 namespace Compiler.Proofs.YulGeneration.Backends.Native
@@ -97,6 +98,7 @@ def projectHaltReturn (state : EvmYul.Yul.State) (haltValue : EvmYul.Yul.Ast.Lit
 def projectResult
     (tx : YulTransaction)
     (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
     (result :
       Except EvmYul.Yul.Exception
         (EvmYul.Yul.State × List EvmYul.Yul.Ast.Literal)) :
@@ -108,20 +110,20 @@ def projectResult
         returnValue := values.head?.map uint256ToNat
         finalStorage := finalStorage
         finalMappings := Compiler.Proofs.storageAsMappings finalStorage
-        events := projectLogsFromState state }
+        events := initialEvents ++ projectLogsFromState state }
   | .error (.YulHalt state value) =>
       let finalStorage := projectStorageFromState tx state
       { success := true
         returnValue := projectHaltReturn state value
         finalStorage := finalStorage
         finalMappings := Compiler.Proofs.storageAsMappings finalStorage
-        events := projectLogsFromState state }
+        events := initialEvents ++ projectLogsFromState state }
   | .error _ =>
       { success := false
         returnValue := none
         finalStorage := initialStorage
         finalMappings := Compiler.Proofs.storageAsMappings initialStorage
-        events := [] }
+        events := initialEvents }
 
 /-- Lower and execute Verity runtime Yul through EVMYulLean's native
     dispatcher. -/
@@ -130,11 +132,29 @@ def interpretRuntimeNative
     (runtimeCode : List YulStmt)
     (tx : YulTransaction)
     (storage : Nat → Nat)
-    (observableSlots : List Nat := []) :
+    (observableSlots : List Nat := [])
+    (events : List (List Nat) := []) :
     Except AdapterError YulResult := do
   let contract ← lowerRuntimeContractNative runtimeCode
   let initial := initialState contract tx storage observableSlots
   let result := EvmYul.Yul.callDispatcher fuel (some contract) initial
-  pure (projectResult tx storage result)
+  pure (projectResult tx storage events result)
+
+/-- Native EVMYulLean execution target for emitted IR-contract runtime Yul.
+
+This is the executable target that #1737 will promote into the public theorem
+path once the state/result bridge lemmas are proved. It intentionally returns
+`Except AdapterError YulResult` today because native lowering can still fail
+closed for duplicate helper definitions or unsupported runtime shapes.
+-/
+def interpretIRRuntimeNative
+    (fuel : Nat)
+    (contract : Compiler.IRContract)
+    (tx : Compiler.Proofs.IRGeneration.IRTransaction)
+    (state : Compiler.Proofs.IRGeneration.IRState)
+    (observableSlots : List Nat := []) :
+    Except AdapterError YulResult :=
+  interpretRuntimeNative fuel (Compiler.emitYul contract).runtimeCode
+    (YulTransaction.ofIR tx) state.storage observableSlots state.events
 
 end Compiler.Proofs.YulGeneration.Backends.Native

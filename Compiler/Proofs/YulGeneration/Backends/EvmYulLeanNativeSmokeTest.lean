@@ -125,4 +125,11 @@ example :
     | .error _ => false) = true := by
   native_decide
 
+example :
+    (match Native.interpretRuntimeNative 128 []
+      sampleTx zeroStorage [] [[1, 2, 3]] with
+    | .ok result => result.success && result.events == [[1, 2, 3]]
+    | .error _ => false) = true := by
+  native_decide
+
 end Compiler.Proofs.YulGeneration.Backends

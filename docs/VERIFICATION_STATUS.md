@@ -145,10 +145,13 @@ The retargeting module [`EvmYulLeanRetarget.lean`](../Compiler/Proofs/YulGenerat
 
 The backend-parameterized executor now has a proved `.verity = .evmYulLean` theorem for recursive statement targets constrained by `BridgedTarget`, the generated runtime wrapper is proved to preserve that predicate and to execute equivalently under explicit body-closure hypotheses, Layer 3 now has a contract-level theorem whose Yul side is `interpretYulRuntimeWithBackend .evmYulLean`, and the public EndToEnd module exposes a safe-body wrapper over that target. Body closure now has a universal safe-body aggregation theorem for `BridgedSafeStmts`, and the public EndToEnd theorem uses that closure to discharge raw `BridgedStmts` body hypotheses for supported compiler-produced contracts while keeping the external-call/function-table family carved out where needed.
 
-Trust boundary (safe-body EndToEnd target): `BridgedExpr` expressions, `BridgedStraightStmts` statement lists, recursively nested `BridgedTarget` executions, source statement lists admitted by `BridgedSafeStmts`, emitted runtime wrappers whose embedded bodies are bridged, and public EndToEnd wrappers deriving those body bridges from source-level safe-body/static-param witnesses now inherit EVMYulLean semantics with fully proven builtin bridge dependencies — "EVMYulLean's execution model matches the EVM" (backed by upstream Ethereum conformance tests) — rather than "Verity's custom builtin implementations are correct."
+Native-runtime transition status: the current theorem target is still the backend-parameterized Verity statement interpreter. The executable native EVMYulLean path lives in [`EvmYulLeanNativeHarness.lean`](../Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean), and the remaining theorem-transition plan is tracked in [`NATIVE_EVMYULLEAN_TRANSITION.md`](NATIVE_EVMYULLEAN_TRANSITION.md).
+
+Trust boundary (safe-body EndToEnd target): `BridgedExpr` expressions, `BridgedStraightStmts` statement lists, recursively nested `BridgedTarget` executions, source statement lists admitted by `BridgedSafeStmts`, emitted runtime wrappers whose embedded bodies are bridged, and public EndToEnd wrappers deriving those body bridges from source-level safe-body/static-param witnesses now inherit EVMYulLean builtin semantics with fully proven bridge dependencies. The stronger claim that native `EvmYul.Yul.callDispatcher` is the public semantic target remains pending until the native theorem path replaces `execYulFuelWithBackend`.
 
 Not yet proven in this module:
 - external-call/function-table body closure beyond the current `BridgedSafeStmts` whitelist
+- native `EvmYul.Yul.callDispatcher` preservation for emitted runtime Yul
 
 Remaining gaps for whole-program retargeting:
 - 0 sorry-backed core equivalences
