@@ -76,7 +76,7 @@ contract PropertyERC721Test is YulTestBase {
     }
     // Property 7: mint returns the minted token id and persists the success-path writes
     function testAuto_Mint_ReturnsMintedTokenIdAndUpdatesState() public {
-        address to = alice;
+        address toAddr = alice;
         address expectedOwner = alice;
         uint256 mintedTokenId = uint256(1);
         uint256 currentSupply = uint256(2);
@@ -84,7 +84,7 @@ contract PropertyERC721Test is YulTestBase {
         vm.store(target, bytes32(uint256(0)), bytes32(uint256(uint160(expectedOwner))));
         vm.store(target, bytes32(uint256(1)), bytes32(uint256(currentSupply)));
         vm.store(target, bytes32(uint256(2)), bytes32(uint256(mintedTokenId)));
-        vm.store(target, _mappingSlot(bytes32(uint256(uint160(to))), 3), bytes32(uint256(recipientBalance)));
+        vm.store(target, _mappingSlot(bytes32(uint256(uint160(toAddr))), 3), bytes32(uint256(recipientBalance)));
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("mint(address)", alice));
         require(ok, "mint reverted unexpectedly");
@@ -93,11 +93,11 @@ contract PropertyERC721Test is YulTestBase {
         assertEq(actual, mintedTokenId, "mint should return the seeded next token id");
         assertEq(
             vm.load(target, _mappingSlot(bytes32(uint256(actual)), 4)),
-            bytes32(uint256(uint160(to))),
+            bytes32(uint256(uint160(toAddr))),
             "mint should persist the new owner word"
         );
         assertEq(
-            vm.load(target, _mappingSlot(bytes32(uint256(uint160(to))), 3)),
+            vm.load(target, _mappingSlot(bytes32(uint256(uint160(toAddr))), 3)),
             bytes32(uint256((uint256(3) + 1))),
             "mint should increment the recipient balance"
         );

@@ -5,7 +5,7 @@
   across any list of addresses:
   1. Deposit: new_sum = old_sum + countOcc(sender, addrs) * amount
   2. Withdraw: new_sum + countOcc(sender, addrs) * amount = old_sum (when guarded)
-  3. Transfer: new_sum + countOcc(sender, addrs) * amount = old_sum + countOcc(to, addrs) * amount
+  3. Transfer: new_sum + countOcc(sender, addrs) * amount = old_sum + countOcc(toAddr, addrs) * amount
 
   These are the strongest correct statements about sum changes. The countOcc
   factor accounts for addresses appearing multiple times in the list.
@@ -28,7 +28,7 @@ open Verity.Proofs.Stdlib.Automation (evm_add_eq_hadd)
 
 /-- Exact sum relationship after deposit: the new sum equals the old sum plus
     count(sender, addrs) * amount. Each occurrence of the sender in the list
-    contributes an additional `amount` to the sum. -/
+    contributes an additional `amount` toAddr the sum. -/
 theorem deposit_sum_equation (s : ContractState) (amount : Uint256)
   :
   ∀ addrs : List Address,
@@ -56,7 +56,7 @@ theorem deposit_sum_singleton_sender (s : ContractState) (amount : Uint256)
 
 /-- Exact sum relationship after withdraw (when balance sufficient):
     new_sum + count(sender, addrs) * amount = old_sum.
-    Each occurrence of the sender in the list contributes `amount` less to the new sum. -/
+    Each occurrence of the sender in the list contributes `amount` less toAddr the new sum. -/
 theorem withdraw_sum_equation (s : ContractState) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount) :
   ∀ addrs : List Address,
@@ -88,45 +88,45 @@ theorem withdraw_sum_singleton_sender (s : ContractState) (amount : Uint256)
 /-! ## Transfer: Exact Sum Conservation Equation -/
 
 /-- Exact sum conservation equation for transfer:
-    new_sum + count(sender, addrs) * amount = old_sum + count(to, addrs) * amount.
+    new_sum + count(sender, addrs) * amount = old_sum + count(toAddr, addrs) * amount.
 
     This is the fundamental conservation law for Ledger transfer: each occurrence
     of the sender in the list loses `amount`, and each occurrence of the recipient
     gains `amount`. The equation holds exactly (not just as an inequality). -/
-theorem transfer_sum_equation (s : ContractState) (to : Address) (amount : Uint256)
+theorem transfer_sum_equation (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount)
-  (h_ne : s.sender ≠ to) :
+  (h_ne : s.sender ≠ toAddr) :
   ∀ addrs : List Address,
-    (addrs.map (fun addr => ((transfer to amount).run s).snd.storageMap 0 addr)).sum
+    (addrs.map (fun addr => ((transfer toAddr amount).run s).snd.storageMap 0 addr)).sum
       + countOccU s.sender addrs * amount
     = (addrs.map (fun addr => s.storageMap 0 addr)).sum
-      + countOccU to addrs * amount := by
-  have h_spec := transfer_meets_spec s to amount h_balance
+      + countOccU toAddr addrs * amount := by
+  have h_spec := transfer_meets_spec s toAddr amount h_balance
   simp [transfer_spec, h_ne, beq_iff_eq] at h_spec
   obtain ⟨h_sender_bal, h_recip_bal, h_other_bal, _, _, _⟩ := h_spec
   have h_recip_bal' :
-      ((transfer to amount).run s).snd.storageMap 0 to =
-        s.storageMap 0 to + amount := by
+      ((transfer toAddr amount).run s).snd.storageMap 0 toAddr =
+        s.storageMap 0 toAddr + amount := by
     simpa [evm_add_eq_hadd] using h_recip_bal
   exact map_sum_transfer_eq
     (fun addr => s.storageMap 0 addr)
-    (fun addr => ((transfer to amount).run s).snd.storageMap 0 addr)
-    s.sender to amount h_ne h_sender_bal h_recip_bal'
+    (fun addr => ((transfer toAddr amount).run s).snd.storageMap 0 addr)
+    s.sender toAddr amount h_ne h_sender_bal h_recip_bal'
     h_other_bal.1
 
-/-- Corollary: for NoDup lists where sender and to each appear once,
+/-- Corollary: for NoDup lists where sender and toAddr each appear once,
     the total sum is exactly preserved by transfer. -/
-theorem transfer_sum_preserved_unique (s : ContractState) (to : Address) (amount : Uint256)
+theorem transfer_sum_preserved_unique (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount)
-  (h_ne : s.sender ≠ to)
+  (h_ne : s.sender ≠ toAddr)
   (addrs : List Address)
   (h_sender_once : countOcc s.sender addrs = 1)
-  (h_to_once : countOcc to addrs = 1) :
-  (addrs.map (fun addr => ((transfer to amount).run s).snd.storageMap 0 addr)).sum
+  (h_to_once : countOcc toAddr addrs = 1) :
+  (addrs.map (fun addr => ((transfer toAddr amount).run s).snd.storageMap 0 addr)).sum
   = (addrs.map (fun addr => s.storageMap 0 addr)).sum := by
-  have h := transfer_sum_equation s to amount h_balance h_ne addrs
+  have h := transfer_sum_equation s toAddr amount h_balance h_ne addrs
   simp [countOccU, h_sender_once, h_to_once] at h
-  have h' : (addrs.map (fun addr => ((transfer to amount).run s).snd.storageMap 0 addr)).sum + amount =
+  have h' : (addrs.map (fun addr => ((transfer toAddr amount).run s).snd.storageMap 0 addr)).sum + amount =
       (addrs.map (fun addr => s.storageMap 0 addr)).sum + amount := by
     simpa [Verity.Core.Uint256.add_comm] using h
   exact Verity.Core.Uint256.add_right_cancel h'
@@ -152,7 +152,7 @@ theorem deposit_withdraw_sum_cancel (s : ContractState) (amount : Uint256)
     have h_inc_val : (s1.storageMap 0 s.sender : Nat) =
         (s.storageMap 0 s.sender : Nat) + (amount : Nat) :=
       (congrArg (fun x => x.val) h_inc).trans (Verity.Core.Uint256.add_eq_of_lt h_no_overflow)
-    -- Convert to Uint256 order
+    -- Convert toAddr Uint256 order
     simp [Verity.Core.Uint256.le_def, h_inc_val, h_le]
   have h_dep := deposit_sum_equation s amount addrs
   have h_wd := withdraw_sum_equation (s := s1) amount h_balance addrs
@@ -173,8 +173,8 @@ Withdraw conservation:
 4. withdraw_sum_singleton_sender — for unique sender: new_sum + amount = old_sum
 
 Transfer conservation:
-5. transfer_sum_equation — new_sum + count(sender)*amt = old_sum + count(to)*amt
-6. transfer_sum_preserved_unique — for unique sender & to: new_sum = old_sum
+5. transfer_sum_equation — new_sum + count(sender)*amt = old_sum + count(toAddr)*amt
+6. transfer_sum_preserved_unique — for unique sender & toAddr: new_sum = old_sum
 
 Composition:
 7. deposit_withdraw_sum_cancel — deposit then withdraw preserves sum

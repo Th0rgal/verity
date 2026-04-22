@@ -658,7 +658,7 @@ verity_contract FunctionConstantNameConflictRejected where
     return 0
 
 /--
-error: duplicate function declaration 'echo'
+error: duplicate function declaration 'echo()'
 -/
 #guard_msgs in
 verity_contract DuplicateFunctionRejected where
@@ -669,6 +669,36 @@ verity_contract DuplicateFunctionRejected where
 
   function echo () : Uint256 := do
     return 2
+
+verity_contract FunctionOverloadSmoke where
+  storage
+
+  function echo (a : Uint256) : Uint256 := do
+    return a
+
+  function echo (a : Uint256, b : Uint256) : Uint256 := do
+    return (add a b)
+
+verity_contract BlockTimestampSmoke where
+  storage
+
+  function nowish () : Uint256 := do
+    let t ← Verity.blockTimestamp
+    return t
+
+  function timestampPlus (delta : Uint256) : Uint256 := do
+    let t ← blockTimestamp
+    return (add t delta)
+
+example :
+    (BlockTimestampSmoke.nowish.run { Verity.defaultState with blockTimestamp := 123 }).getValue? =
+      some 123 := by
+  decide
+
+example :
+    (BlockTimestampSmoke.timestampPlus 7 |>.run { Verity.defaultState with blockTimestamp := 123 }).getValue? =
+      some 130 := by
+  decide
 
 /--
 error: storage field 'spec' conflicts with reserved generated declaration 'spec'
@@ -891,6 +921,19 @@ verity_contract StructMappingSmoke where
     let nextNonce ← structMember2 "approvals" owner spender "nonce"
     return nextNonce
 
+private def _structMemberExecutableHelper :
+    String → Address → String → Contract Uint256 :=
+  StructMappingSmoke.structMember
+private def _setStructMemberExecutableHelper :
+    String → Address → String → Uint256 → Contract Unit :=
+  StructMappingSmoke.setStructMember
+private def _structMember2ExecutableHelper :
+    String → Address → Address → String → Contract Uint256 :=
+  StructMappingSmoke.structMember2
+private def _setStructMember2ExecutableHelper :
+    String → Address → Address → String → Uint256 → Contract Unit :=
+  StructMappingSmoke.setStructMember2
+
 verity_contract ExternalCallSmoke where
   storage
     echoedValue : Uint256 := slot 0
@@ -929,11 +972,11 @@ verity_contract ERC20HelperSmoke where
     lastAllowance : Uint256 := slot 1
     lastSupply : Uint256 := slot 2
 
-  function pushTokens (token : Address, to : Address, amount : Uint256) : Unit := do
-    safeTransfer token to amount
+  function pushTokens (token : Address, toAddr : Address, amount : Uint256) : Unit := do
+    safeTransfer token toAddr amount
 
-  function pullTokens (token : Address, fromAddr : Address, to : Address, amount : Uint256) : Unit := do
-    safeTransferFrom token fromAddr to amount
+  function pullTokens (token : Address, fromAddr : Address, toAddr : Address, amount : Uint256) : Unit := do
+    safeTransferFrom token fromAddr toAddr amount
 
   function approveTokens (token : Address, spender : Address, amount : Uint256) : Unit := do
     safeApprove token spender amount
@@ -1041,8 +1084,8 @@ verity_contract ERC20HelperShadowWriteRejected where
   function safeTransfer (_token : Address, _to : Address, amount : Uint256) : Unit := do
     setStorage lastTransfer amount
 
-  function writeShadowedTransfer (token : Address, to : Address, amount : Uint256) : Unit := do
-    safeTransfer token to amount
+  function writeShadowedTransfer (token : Address, toAddr : Address, amount : Uint256) : Unit := do
+    safeTransfer token toAddr amount
 
 /--
  error: linked external 'describe' uses unsupported parameter type; executable externalCall currently supports only Uint256, Int256, Uint8, Address, Bytes32, and Bool
@@ -1298,6 +1341,8 @@ end SpecGenSmoke
 #check_contract Uint8Smoke
 #check_contract AddressHelpersSmoke
 #check_contract ZeroAddressShadowSmoke
+#check_contract FunctionOverloadSmoke
+#check_contract BlockTimestampSmoke
 #check_contract StructMappingSmoke
 #check_contract ExternalCallSmoke
 #check_contract TryExternalCallSmoke

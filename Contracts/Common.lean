@@ -1,4 +1,5 @@
 import Compiler.CompilationModel
+import Compiler.Proofs.MappingSlot
 import Verity.Core
 import Verity.Core.Semantics
 import Verity.EVM.Uint256
@@ -204,7 +205,7 @@ def returndataCopy (_destOffset _sourceOffset _size : Uint256) : Contract Unit :
 def revertReturndata : Contract Unit := pure ()
 def arrayLength {α : Type} (values : Array α) : Uint256 := values.size
 def arrayElement {α : Type} [Inhabited α] (values : Array α) (index : Uint256) : α :=
-  values.getD (index : Nat) default
+  values.getD (index : Nat) (Inhabited.default : α)
 def arrayElementChecked {α : Type} (values : Array α) (index : Uint256) : Contract α := fun state =>
   if h : (index : Nat) < values.size then
     ContractResult.success (values[(index : Nat)]'h) state
@@ -255,7 +256,7 @@ private def externalCallStubWord (name : String) (args : List Uint256) : Uint256
 def externalCallWords {α : Type} [ExternalResult α] (name : String) (args : List Uint256) : α :=
   ExternalResult.fromWord (externalCallStubWord name args)
 def tryExternalCallWords {α : Type} [Inhabited α] (_name : String) (_args : List Uint256) : Contract (Bool × α) :=
-  pure (false, default)
+  pure (false, (Inhabited.default : α))
 private def erc20ReadStubWord (name : String) (args : List Uint256) : Uint256 :=
   externalCallStubWord name args
 macro_rules
@@ -277,13 +278,15 @@ def setMappingN {κ α : Type} (_slot : StorageSlot α) (_keys : List κ) (_valu
     Contract Unit := pure ()
 
 def structMember {κ α : Type} [Inhabited α] (_field : String) (_key : κ) (_member : String) :
-    Contract α := pure default
+    Contract α := pure (Inhabited.default : α)
 def structMember2 {κ₁ κ₂ α : Type} [Inhabited α]
-    (_field : String) (_key1 : κ₁) (_key2 : κ₂) (_member : String) : Contract α := pure default
+    (_field : String) (_key1 : κ₁) (_key2 : κ₂) (_member : String) : Contract α :=
+  pure (Inhabited.default : α)
 def structMembers {κ α : Type} [Inhabited α]
-    (_field : String) (_key : κ) (_members : List String) : α := default
+    (_field : String) (_key : κ) (_members : List String) : α := (Inhabited.default : α)
 def structMembers2 {κ₁ κ₂ α : Type} [Inhabited α]
-    (_field : String) (_key1 : κ₁) (_key2 : κ₂) (_members : List String) : α := default
+    (_field : String) (_key1 : κ₁) (_key2 : κ₂) (_members : List String) : α :=
+  (Inhabited.default : α)
 def setStructMember {κ α : Type} (_field : String) (_key : κ) (_member : String) (_value : α) :
     Contract Unit := pure ()
 def setStructMember2 {κ₁ κ₂ α : Type}
@@ -295,11 +298,105 @@ def balanceOf (token owner : Address) : Contract Uint256 := pure <| erc20ReadStu
 def allowance (token owner spender : Address) : Contract Uint256 := pure <| erc20ReadStubWord "allowance" [token.toNat, owner.toNat, spender.toNat]
 def totalSupply (token : Address) : Contract Uint256 := pure <| erc20ReadStubWord "totalSupply" [token.toNat]
 def forEach (_name : String) (_count : Uint256) (body : Contract Unit) : Contract Unit := body
-def blockTimestamp : Uint256 := 0
-def blockNumber : Uint256 := 0
-def blobbasefee : Uint256 := 0
-def contractAddress : Uint256 := 0
-def chainid : Uint256 := 0
+def blockTimestamp : Contract Uint256 := Verity.blockTimestamp
+def blockNumber : Contract Uint256 := Verity.blockNumber
+def blobbasefee : Contract Uint256 :=
+  fun state => ContractResult.success state.blobBaseFee state
+def contractAddress : Contract Address := Verity.contractAddress
+def chainid : Contract Uint256 := Verity.chainid
+
+class StorageKey (α : Type) where
+  toWord : α → Nat
+
+instance : StorageKey Uint256 where
+  toWord key := key.val
+
+instance : StorageKey Address where
+  toWord key := key.toNat
+
+class StorageWord (α : Type) where
+  fromWord : Uint256 → α
+  toWord : α → Uint256
+
+instance : StorageWord Uint256 where
+  fromWord word := word
+  toWord word := word
+
+instance : StorageWord Address where
+  fromWord word := Verity.wordToAddress word
+  toWord addr := Verity.addressToWord addr
+
+def structSlot (baseSlot : Nat) (key : Nat) (wordOffset : Nat) : Nat :=
+  (Compiler.Proofs.abstractMappingSlot baseSlot key + wordOffset) % Compiler.Constants.evmModulus
+
+def structSlot2 (baseSlot : Nat) (key1 key2 : Nat) (wordOffset : Nat) : Nat :=
+  (Compiler.Proofs.abstractMappingSlot (Compiler.Proofs.abstractMappingSlot baseSlot key1) key2 + wordOffset) %
+    Compiler.Constants.evmModulus
+
+private def packedMask (width : Nat) : Nat :=
+  2 ^ width - 1
+
+private def decodePackedWord (word : Uint256) (offset width : Nat) : Uint256 :=
+  Verity.Core.Uint256.and (Verity.Core.Uint256.shr offset word) (packedMask width)
+
+private def encodePackedWord (current value : Uint256) (offset width : Nat) : Uint256 :=
+  let mask := packedMask width
+  let shiftedMask := Verity.Core.Uint256.shl offset mask
+  let packedValue := Verity.Core.Uint256.and value mask
+  let cleared := Verity.Core.Uint256.and current (Verity.Core.Uint256.not shiftedMask)
+  Verity.Core.Uint256.or cleared (Verity.Core.Uint256.shl offset packedValue)
+
+def structMemberAt {κ α : Type} [StorageKey κ] [StorageWord α]
+    (baseSlot : Nat) (wordOffset : Nat) (packed : Option (Nat × Nat)) (key : κ) :
+    Contract α :=
+  fun state =>
+    let targetSlot := structSlot baseSlot (StorageKey.toWord key) wordOffset
+    let raw := state.storage targetSlot
+    let word := match packed with
+      | none => raw
+      | some (offset, width) => decodePackedWord raw offset width
+    ContractResult.success (StorageWord.fromWord word) state
+
+def structMember2At {κ₁ κ₂ α : Type} [StorageKey κ₁] [StorageKey κ₂] [StorageWord α]
+    (baseSlot : Nat) (wordOffset : Nat) (packed : Option (Nat × Nat)) (key1 : κ₁) (key2 : κ₂) :
+    Contract α :=
+  fun state =>
+    let targetSlot := structSlot2 baseSlot (StorageKey.toWord key1) (StorageKey.toWord key2) wordOffset
+    let raw := state.storage targetSlot
+    let word := match packed with
+      | none => raw
+      | some (offset, width) => decodePackedWord raw offset width
+    ContractResult.success (StorageWord.fromWord word) state
+
+def setStructMemberAt {κ α : Type} [StorageKey κ] [StorageWord α]
+    (baseSlot : Nat) (wordOffset : Nat) (packed : Option (Nat × Nat)) (key : κ) (value : α) :
+    Contract Unit :=
+  fun state =>
+    let targetSlot := structSlot baseSlot (StorageKey.toWord key) wordOffset
+    let word := StorageWord.toWord value
+    let stored :=
+      match packed with
+      | none => word
+      | some (offset, width) => encodePackedWord (state.storage targetSlot) word offset width
+    let updatedStorage := fun target => if target == targetSlot then stored else state.storage target
+    ContractResult.success () { state with
+      «storage» := updatedStorage
+    }
+
+def setStructMember2At {κ₁ κ₂ α : Type} [StorageKey κ₁] [StorageKey κ₂] [StorageWord α]
+    (baseSlot : Nat) (wordOffset : Nat) (packed : Option (Nat × Nat)) (key1 : κ₁) (key2 : κ₂)
+    (value : α) : Contract Unit :=
+  fun state =>
+    let targetSlot := structSlot2 baseSlot (StorageKey.toWord key1) (StorageKey.toWord key2) wordOffset
+    let word := StorageWord.toWord value
+    let stored :=
+      match packed with
+      | none => word
+      | some (offset, width) => encodePackedWord (state.storage targetSlot) word offset width
+    let updatedStorage := fun target => if target == targetSlot then stored else state.storage target
+    ContractResult.success () { state with
+      «storage» := updatedStorage
+    }
 
 
 end Contracts

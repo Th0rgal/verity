@@ -71,19 +71,23 @@ scope so the native path does not look more complete than it is:
   boundary with `initialState_unbridgedEnvironmentDefaults`, pinning
   base-fee/blob fields and native `chainid` to their current EVMYulLean
   default/global behavior until the follow-up widens the state bridge. The
-  separate follow-up is the `verity_contract` surface and executable `.run`
-  path: monadic
-  `let t <- blockTimestamp` needs macro support, and contract-side helpers
-  must read from `ContractState` instead of placeholder constants.
+  `verity_contract` surface now accepts monadic environment reads such as
+  `let t <- blockTimestamp`, `let t <- Verity.blockTimestamp`, `blockNumber`,
+  `chainid`, `contractAddress`, `msgSender`, and `msgValue`, and the
+  executable `.run` helpers read those values from `ContractState` instead of
+  placeholder constants.
 - [#1738](https://github.com/lfglabs-dev/verity/issues/1738): mapping-struct
-  storage compiles, but `.run` helpers for struct member reads/writes are still
-  stubs. Before native execution becomes authoritative, the executable helper
-  semantics, compiler storage layout, and native `sload`/`sstore` projection
-  need one shared slot formula and read-after-write coverage.
+  storage now has contract-local executable `.run` helpers for struct member
+  reads/writes that use the same abstract Solidity mapping-slot formula as the
+  compiler/native storage projection, including packed member masking. Before
+  native execution becomes authoritative, this still needs proof-level source
+  semantics and preservation coverage for the packed struct-member cases.
 - [#1742](https://github.com/lfglabs-dev/verity/issues/1742): overloaded
-  source functions still need a signature-based identity model. Native EVM
-  dispatch is selector-based, so the frontend should eventually track
-  `name(types...)` rather than rejecting duplicate bare names.
+  source functions now use a signature-based identity model for generated
+  declarations and duplicate validation while preserving the Solidity-facing
+  source name for selectors/ABI dispatch. Native EVM dispatch is selector-based;
+  the remaining transition work is theorem coverage around the widened frontend
+  surface and any future internal-call overload extensions.
 
 1. Prove lowering invariants for the native contract shape.
 

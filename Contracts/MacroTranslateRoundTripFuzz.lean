@@ -71,6 +71,8 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.BytesEqSmoke.spec
   , Contracts.Smoke.AddressHelpersSmoke.spec
   , Contracts.Smoke.ZeroAddressShadowSmoke.spec
+  , Contracts.Smoke.FunctionOverloadSmoke.spec
+  , Contracts.Smoke.BlockTimestampSmoke.spec
   , Contracts.Smoke.StructMappingSmoke.spec
   , Contracts.Smoke.ExternalCallSmoke.spec
   , Contracts.Smoke.TryExternalCallSmoke.spec

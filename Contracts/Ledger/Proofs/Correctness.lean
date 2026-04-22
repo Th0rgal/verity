@@ -3,8 +3,8 @@
 
   Proves deeper properties beyond Basic.lean:
   - Invariant preservation: transfer preserves WellFormedState
-  - End-to-end composition: withdraw→getBalance, transfer→getBalance
-  - Deposit-withdraw cancellation: deposit then withdraw returns to original balance
+  - End-toAddr-end composition: withdraw→getBalance, transfer→getBalance
+  - Deposit-withdraw cancellation: deposit then withdraw returns toAddr original balance
 -/
 
 import Contracts.Ledger.Proofs.Basic
@@ -20,13 +20,13 @@ open Contracts.Ledger.Invariants
 /-! ## Invariant Preservation -/
 
 /-- Transfer preserves WellFormedState (sender ≠ recipient). -/
-theorem transfer_preserves_wellformedness (s : ContractState) (to : Address) (amount : Uint256)
+theorem transfer_preserves_wellformedness (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h : WellFormedState s)
   (h_balance : s.storageMap 0 s.sender >= amount)
-  (h_ne : s.sender ≠ to) :
-  let s' := ((transfer to amount).run s).snd
+  (h_ne : s.sender ≠ toAddr) :
+  let s' := ((transfer toAddr amount).run s).snd
   WellFormedState s' := by
-  have h_spec := transfer_meets_spec s to amount h_balance
+  have h_spec := transfer_meets_spec s toAddr amount h_balance
   simp [transfer_spec, h_ne, beq_iff_eq] at h_spec
   have h_frame := h_spec.2.2.2
   constructor
@@ -34,17 +34,17 @@ theorem transfer_preserves_wellformedness (s : ContractState) (to : Address) (am
   · exact h_frame.2.2.2.2.1 ▸ h.contract_nonzero
 
 /-- Transfer preserves non-mapping storage. -/
-theorem transfer_preserves_non_mapping (s : ContractState) (to : Address) (amount : Uint256)
-  (h_balance : s.storageMap 0 s.sender >= amount) (h_ne : s.sender ≠ to) :
-  let s' := ((transfer to amount).run s).snd
+theorem transfer_preserves_non_mapping (s : ContractState) (toAddr : Address) (amount : Uint256)
+  (h_balance : s.storageMap 0 s.sender >= amount) (h_ne : s.sender ≠ toAddr) :
+  let s' := ((transfer toAddr amount).run s).snd
   non_mapping_storage_unchanged s s' := by
-  have h_spec := transfer_meets_spec s to amount h_balance
+  have h_spec := transfer_meets_spec s toAddr amount h_balance
   simp [transfer_spec, h_ne, beq_iff_eq] at h_spec
   have h_frame := h_spec.2.2.2
   simp [non_mapping_storage_unchanged]
   exact ⟨h_frame.1, h_frame.2.1, h_frame.2.2.1⟩
 
-/-! ## End-to-End Composition -/
+/-! ## End-toAddr-End Composition -/
 
 /-- After withdraw, getBalance returns the decreased balance. -/
 theorem withdraw_getBalance_correct (s : ContractState) (amount : Uint256)
@@ -55,28 +55,28 @@ theorem withdraw_getBalance_correct (s : ContractState) (amount : Uint256)
   exact withdraw_decreases_balance s amount h_balance
 
 /-- After transfer, sender's balance is decreased. -/
-theorem transfer_getBalance_sender_correct (s : ContractState) (to : Address) (amount : Uint256)
-  (h_balance : s.storageMap 0 s.sender >= amount) (h_ne : s.sender ≠ to) :
-  let s' := ((transfer to amount).run s).snd
+theorem transfer_getBalance_sender_correct (s : ContractState) (toAddr : Address) (amount : Uint256)
+  (h_balance : s.storageMap 0 s.sender >= amount) (h_ne : s.sender ≠ toAddr) :
+  let s' := ((transfer toAddr amount).run s).snd
   ((getBalance s.sender).run s').fst = EVM.Uint256.sub (s.storageMap 0 s.sender) amount := by
   simp only [getBalance_returns_balance]
-  exact transfer_decreases_sender s to amount h_balance h_ne
+  exact transfer_decreases_sender s toAddr amount h_balance h_ne
 
 /-- After transfer, recipient's balance is increased. -/
-theorem transfer_getBalance_recipient_correct (s : ContractState) (to : Address) (amount : Uint256)
-  (h_balance : s.storageMap 0 s.sender >= amount) (h_ne : s.sender ≠ to) :
-  let s' := ((transfer to amount).run s).snd
-  ((getBalance to).run s').fst = EVM.Uint256.add (s.storageMap 0 to) amount := by
+theorem transfer_getBalance_recipient_correct (s : ContractState) (toAddr : Address) (amount : Uint256)
+  (h_balance : s.storageMap 0 s.sender >= amount) (h_ne : s.sender ≠ toAddr) :
+  let s' := ((transfer toAddr amount).run s).snd
+  ((getBalance toAddr).run s').fst = EVM.Uint256.add (s.storageMap 0 toAddr) amount := by
   simp only [getBalance_returns_balance]
-  exact transfer_increases_recipient s to amount h_balance h_ne
+  exact transfer_increases_recipient s toAddr amount h_balance h_ne
 
 /-! ## Deposit-Withdraw Cancellation
 
 A key property: depositing and then withdrawing the same amount
-returns to the original balance. This proves operations are inverses.
+returns toAddr the original balance. This proves operations are inverses.
 -/
 
-/-- Deposit then withdraw of the same amount returns to original balance.
+/-- Deposit then withdraw of the same amount returns toAddr original balance.
     Requires that the intermediate balance (original + amount) is sufficient
     for withdrawal, which is trivially true. -/
 theorem deposit_withdraw_cancel (s : ContractState) (amount : Uint256)
@@ -104,7 +104,7 @@ Invariant preservation:
 1. transfer_preserves_wellformedness
 2. transfer_preserves_non_mapping
 
-End-to-end composition:
+End-toAddr-end composition:
 3. withdraw_getBalance_correct
 4. transfer_getBalance_sender_correct
 5. transfer_getBalance_recipient_correct

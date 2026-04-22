@@ -26,9 +26,9 @@ open Verity.Specs.Common (sumBalances balancesFinite)
 #gen_spec_map withdraw_spec for (amount : Uint256)
   (0, s.sender, (fun st => sub (st.storageMap 0 st.sender) amount), sameStorageAddrContext)
 
-/-- transfer: moves amount from sender to recipient -/
-def transfer_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
-  storageMapTransferSpec 0 s.sender to amount sameStorageAddrContext s s'
+/-- transfer: moves amount from sender toAddr recipient -/
+def transfer_spec (toAddr : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
+  storageMapTransferSpec 0 s.sender toAddr amount sameStorageAddrContext s s'
 
 /-- getBalance: returns balance at given address, no state change -/
 def getBalance_spec (addr : Address) (result : Uint256) (s : ContractState) : Prop :=

@@ -58,11 +58,11 @@ theorem constructor_owner_addr_isolated (s : ContractState) (initialOwner : Addr
 
 -- All three mint isolation properties share the same proof structure:
 -- unfold mint, case-split on both safeAdd calls, simp in each branch.
-private theorem mint_isolation (s : ContractState) (to : Address) (amount : Uint256)
+private theorem mint_isolation (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_owner : s.sender = s.storageAddr 0) (slotIdx : Nat) :
-  (slotIdx ≠ 2 → ((mint to amount).run s).snd.storage slotIdx = s.storage slotIdx) ∧
-  (slotIdx ≠ 1 → ∀ addr, ((mint to amount).run s).snd.storageMap slotIdx addr = s.storageMap slotIdx addr) ∧
-  (slotIdx ≠ 0 → ((mint to amount).run s).snd.storageAddr slotIdx = s.storageAddr slotIdx) := by
+  (slotIdx ≠ 2 → ((mint toAddr amount).run s).snd.storage slotIdx = s.storage slotIdx) ∧
+  (slotIdx ≠ 1 → ∀ addr, ((mint toAddr amount).run s).snd.storageMap slotIdx addr = s.storageMap slotIdx addr) ∧
+  (slotIdx ≠ 0 → ((mint toAddr amount).run s).snd.storageAddr slotIdx = s.storageAddr slotIdx) := by
   simp only [mint,
     Contracts.SimpleToken.ownerSlot, Contracts.SimpleToken.balancesSlot, Contracts.SimpleToken.totalSupplySlot,
     msgSender, getStorageAddr, getStorage, setStorage, getMapping, setMapping,
@@ -70,39 +70,39 @@ private theorem mint_isolation (s : ContractState) (to : Address) (amount : Uint
     Contract.run, ContractResult.snd,
     h_owner, beq_self_eq_true, ite_true]
   unfold Stdlib.Math.requireSomeUint
-  cases safeAdd (s.storageMap 1 to) amount <;>
+  cases safeAdd (s.storageMap 1 toAddr) amount <;>
     simp_all [Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure, beq_iff_eq]
   cases safeAdd (s.storage 2) amount <;>
     simp_all [Verity.require, Verity.pure, Verity.bind]
 
 /-- Mint only writes Uint256 slotIdx 2. -/
-theorem mint_supply_storage_isolated (s : ContractState) (to : Address) (amount : Uint256)
+theorem mint_supply_storage_isolated (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_owner : s.sender = s.storageAddr 0) (slotIdx : Nat) :
-  supply_storage_isolated s ((mint to amount).run s).snd slotIdx := by
-  unfold supply_storage_isolated; exact (mint_isolation s to amount h_owner slotIdx).1
+  supply_storage_isolated s ((mint toAddr amount).run s).snd slotIdx := by
+  unfold supply_storage_isolated; exact (mint_isolation s toAddr amount h_owner slotIdx).1
 
 /-- Mint only writes Mapping slotIdx 1. -/
-theorem mint_balance_mapping_isolated (s : ContractState) (to : Address) (amount : Uint256)
+theorem mint_balance_mapping_isolated (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_owner : s.sender = s.storageAddr 0) (slotIdx : Nat) :
-  balance_mapping_isolated s ((mint to amount).run s).snd slotIdx := by
-  unfold balance_mapping_isolated; exact (mint_isolation s to amount h_owner slotIdx).2.1
+  balance_mapping_isolated s ((mint toAddr amount).run s).snd slotIdx := by
+  unfold balance_mapping_isolated; exact (mint_isolation s toAddr amount h_owner slotIdx).2.1
 
 /-- Mint doesn't write any Address slotIdx (owner unchanged). -/
-theorem mint_owner_addr_isolated (s : ContractState) (to : Address) (amount : Uint256)
+theorem mint_owner_addr_isolated (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_owner : s.sender = s.storageAddr 0) (slotIdx : Nat) :
-  owner_addr_isolated s ((mint to amount).run s).snd slotIdx := by
-  unfold owner_addr_isolated; exact (mint_isolation s to amount h_owner slotIdx).2.2
+  owner_addr_isolated s ((mint toAddr amount).run s).snd slotIdx := by
+  unfold owner_addr_isolated; exact (mint_isolation s toAddr amount h_owner slotIdx).2.2
 
 /-! ## Transfer Isolation -/
 
 -- All three transfer isolation properties share the same proof structure:
--- case-split on sender = to, then simp in each branch.
-private theorem transfer_isolation (s : ContractState) (to : Address) (amount : Uint256)
+-- case-split on sender = toAddr, then simp in each branch.
+private theorem transfer_isolation (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_balance : s.storageMap 1 s.sender ≥ amount) (slotIdx : Nat) :
-  (((transfer to amount).run s).snd.storage slotIdx = s.storage slotIdx) ∧
-  (slotIdx ≠ 1 → ∀ addr, ((transfer to amount).run s).snd.storageMap slotIdx addr = s.storageMap slotIdx addr) ∧
-  (((transfer to amount).run s).snd.storageAddr slotIdx = s.storageAddr slotIdx) := by
-  by_cases h_eq : s.sender = to
+  (((transfer toAddr amount).run s).snd.storage slotIdx = s.storage slotIdx) ∧
+  (slotIdx ≠ 1 → ∀ addr, ((transfer toAddr amount).run s).snd.storageMap slotIdx addr = s.storageMap slotIdx addr) ∧
+  (((transfer toAddr amount).run s).snd.storageAddr slotIdx = s.storageAddr slotIdx) := by
+  by_cases h_eq : s.sender = toAddr
   · have h_balance' := uint256_ge_val_le (h_eq ▸ h_balance)
     simp [transfer, Contracts.SimpleToken.balancesSlot,
       msgSender, getMapping,
@@ -114,26 +114,26 @@ private theorem transfer_isolation (s : ContractState) (to : Address) (amount : 
         Verity.require, Verity.bind, Bind.bind, Pure.pure,
         Contract.run, ContractResult.snd,
         h_balance, h_eq, beq_iff_eq]
-    all_goals cases safeAdd (s.storageMap 1 to) amount <;>
+    all_goals cases safeAdd (s.storageMap 1 toAddr) amount <;>
         simp_all [Verity.require, Verity.pure, Verity.bind]
 
 /-- Transfer doesn't write any Uint256 slotIdx (supply unchanged). -/
-theorem transfer_supply_storage_isolated (s : ContractState) (to : Address) (amount : Uint256)
+theorem transfer_supply_storage_isolated (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_balance : s.storageMap 1 s.sender ≥ amount) (slotIdx : Nat) :
-  supply_storage_isolated s ((transfer to amount).run s).snd slotIdx := by
-  unfold supply_storage_isolated; intro _; exact (transfer_isolation s to amount h_balance slotIdx).1
+  supply_storage_isolated s ((transfer toAddr amount).run s).snd slotIdx := by
+  unfold supply_storage_isolated; intro _; exact (transfer_isolation s toAddr amount h_balance slotIdx).1
 
 /-- Transfer only writes Mapping slotIdx 1. -/
-theorem transfer_balance_mapping_isolated (s : ContractState) (to : Address) (amount : Uint256)
+theorem transfer_balance_mapping_isolated (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_balance : s.storageMap 1 s.sender ≥ amount) (slotIdx : Nat) :
-  balance_mapping_isolated s ((transfer to amount).run s).snd slotIdx := by
-  unfold balance_mapping_isolated; exact (transfer_isolation s to amount h_balance slotIdx).2.1
+  balance_mapping_isolated s ((transfer toAddr amount).run s).snd slotIdx := by
+  unfold balance_mapping_isolated; exact (transfer_isolation s toAddr amount h_balance slotIdx).2.1
 
 /-- Transfer doesn't write any Address slotIdx (owner unchanged). -/
-theorem transfer_owner_addr_isolated (s : ContractState) (to : Address) (amount : Uint256)
+theorem transfer_owner_addr_isolated (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_balance : s.storageMap 1 s.sender ≥ amount) (slotIdx : Nat) :
-  owner_addr_isolated s ((transfer to amount).run s).snd slotIdx := by
-  unfold owner_addr_isolated; intro _; exact (transfer_isolation s to amount h_balance slotIdx).2.2
+  owner_addr_isolated s ((transfer toAddr amount).run s).snd slotIdx := by
+  unfold owner_addr_isolated; intro _; exact (transfer_isolation s toAddr amount h_balance slotIdx).2.2
 
 /-! ## Summary
 

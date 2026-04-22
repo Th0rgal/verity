@@ -11,7 +11,7 @@ Checks:
 7) Selector shift constant sync between CompilationModel, Codegen, and Builtins.
 8) Internal function prefix sync between CompilationModel and CI script.
 9) Special entrypoint names sync between CompilationModel and CI script.
-10) No duplicate function names per contract; compile has all five duplicate-name guards.
+10) No duplicate function signatures per contract; compile has all five duplicate guards.
 11) Free memory pointer constant matches Solidity convention (0x40).
 """
 
@@ -75,6 +75,7 @@ class SpecInfo:
     signatures: List[str]
     has_externals: bool = False
     all_function_names: List[str] = field(default_factory=list)
+    all_function_signatures: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -133,7 +134,7 @@ def _extract_macro_spec(def_name: str, contract_name: str) -> SpecInfo:
     for fn_name, params, _ret in MACRO_FUNCTION_RE.findall(content):
         all_names.append(fn_name)
         signatures.append(f"{fn_name}({','.join(_split_macro_params(params))})")
-    return SpecInfo(def_name, contract_name, signatures, False, all_names)
+    return SpecInfo(def_name, contract_name, signatures, False, all_names, signatures)
 
 
 def _extract_filtered_macro_spec(
@@ -157,6 +158,7 @@ def _extract_filtered_macro_spec(
         filtered_signatures,
         canonical.has_externals,
         filtered_names,
+        filtered_signatures,
     )
 
 
@@ -178,7 +180,8 @@ def extract_specs(text: str) -> List[SpecInfo]:
         signatures = extract_functions(block)
         has_externals = has_nonempty_externals(block)
         all_names = extract_all_function_names(block)
-        specs.append(SpecInfo(def_name, contract_name, signatures, has_externals, all_names))
+        all_signatures = extract_all_function_signatures(block)
+        specs.append(SpecInfo(def_name, contract_name, signatures, has_externals, all_names, all_signatures))
         seen_def_names.add(def_name)
 
     for def_name, contract_name in COMPILER_ALIAS_RE.findall(text):
@@ -284,6 +287,11 @@ def extract_functions(spec_block: str) -> List[str]:
 def extract_all_function_names(spec_block: str) -> List[str]:
     """Extract ALL function names from a spec block (including internal/special)."""
     return [fn_name for fn_name, _ in _iter_function_blocks(spec_block)]
+
+
+def extract_all_function_signatures(spec_block: str) -> List[str]:
+    """Extract ALL function signatures from a spec block (including internal/special)."""
+    return [_build_signature(fn_block, fn_name) for fn_name, fn_block in _iter_function_blocks(spec_block)]
 
 
 def _skip_ws(text: str, pos: int) -> int:
@@ -454,21 +462,21 @@ def check_reserved_prefix_collisions(specs: List[SpecInfo]) -> List[str]:
     return errors
 
 
-def check_unique_function_names(specs: List[SpecInfo]) -> List[str]:
-    """Check that no contract has duplicate function names.
+def check_unique_function_signatures(specs: List[SpecInfo]) -> List[str]:
+    """Check that no contract has duplicate function signatures.
 
-    Mirrors the ``firstDuplicateName (spec.functions.map (·.name))`` check in
+    Mirrors the ``firstDuplicateName (spec.functions.map functionSignature)`` check in
     ``CompilationModel.compile``.
     """
     errors: List[str] = []
     for spec in specs:
         seen: set[str] = set()
-        for name in spec.all_function_names:
-            if name in seen:
+        for signature in spec.all_function_signatures:
+            if signature in seen:
                 errors.append(
-                    f"{spec.contract_name}: duplicate function name '{name}'"
+                    f"{spec.contract_name}: duplicate function signature '{signature}'"
                 )
-            seen.add(name)
+            seen.add(signature)
     return errors
 
 
@@ -785,7 +793,7 @@ def main(argv: list[str] | None = None) -> int:
 
     errors: List[str] = []
     errors.extend(check_unique_selectors(specs))
-    errors.extend(check_unique_function_names(specs))
+    errors.extend(check_unique_function_signatures(specs))
     errors.extend(check_reserved_prefix_collisions(specs))
     errors.extend(check_compile_lists(specs, compile_lists))
 
@@ -812,7 +820,7 @@ def main(argv: list[str] | None = None) -> int:
     # Validate free memory pointer matches Solidity convention.
     errors.extend(check_free_memory_pointer_sync())
 
-    # Validate compile function has all five duplicate-name guards.
+    # Validate compile function has all five duplicate guards.
     errors.extend(check_compile_duplicate_name_guard())
 
     # Validate #check_contract computes selectors before invoking compile.

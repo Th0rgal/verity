@@ -8,11 +8,6 @@ namespace Compiler.Selector
 open Compiler.CompilationModel
 open Compiler.Hex
 
-private def functionSignature (fn : FunctionSpec) : String :=
-  let params := fn.params.map (fun p => paramTypeToSolidityString p.ty)
-  let paramStr := String.intercalate "," params
-  s!"{fn.name}({paramStr})"
-
 private def externalFunctions (spec : CompilationModel) : List FunctionSpec :=
   spec.functions.filter (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)
 

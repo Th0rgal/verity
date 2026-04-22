@@ -1916,21 +1916,22 @@ def _render_erc721_mint_assertion(
     if contract.storage_slots.get("owner") != 0:
         return None
 
+    to_name = fn.params[0].name
     body = list(fn.body)
     expected_body = [
         "let sender ← msgSender",
         "let currentOwner ← getStorageAddr owner",
         'require (sender == currentOwner) "Caller is not the owner"',
-        'require (to != zeroAddress) "Invalid recipient"',
+        f'require ({to_name} != zeroAddress) "Invalid recipient"',
         "let tokenId ← getStorage nextTokenId",
         "let currentOwnerWord ← getMappingUint owners tokenId",
         'require (currentOwnerWord == 0) "Token already minted"',
-        "let recipientBalance ← getMapping balances to",
+        f"let recipientBalance ← getMapping balances {to_name}",
         'let newRecipientBalance ← requireSomeUint (safeAdd recipientBalance 1) "Balance overflow"',
         "let currentSupply ← getStorage totalSupply",
         'let newSupply ← requireSomeUint (safeAdd currentSupply 1) "Supply overflow"',
-        "setMappingUintAddr owners tokenId to",
-        "setMapping balances to newRecipientBalance",
+        f"setMappingUintAddr owners tokenId {to_name}",
+        f"setMapping balances {to_name} newRecipientBalance",
         "setStorage totalSupply newSupply",
         "setStorage nextTokenId (add tokenId 1)",
         "return tokenId",
@@ -1938,7 +1939,6 @@ def _render_erc721_mint_assertion(
     if body != expected_body:
         return None
 
-    to_name = fn.params[0].name
     owner_slot = contract.storage_slots.get("owner")
     total_supply_slot = contract.storage_slots.get("totalSupply")
     next_token_id_slot = contract.storage_slots.get("nextTokenId")

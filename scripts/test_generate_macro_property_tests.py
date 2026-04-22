@@ -1583,22 +1583,22 @@ class RenderTests(unittest.TestCase):
             functions=(
                 gen.FunctionDecl(
                     "mint",
-                    (gen.ParamDecl("to", "Address"),),
+                    (gen.ParamDecl("toAddr", "Address"),),
                     "Uint256",
                     body=(
                         "let sender ← msgSender",
                         "let currentOwner ← getStorageAddr owner",
                         'require (sender == currentOwner) "Caller is not the owner"',
-                        'require (to != zeroAddress) "Invalid recipient"',
+                        'require (toAddr != zeroAddress) "Invalid recipient"',
                         "let tokenId ← getStorage nextTokenId",
                         "let currentOwnerWord ← getMappingUint owners tokenId",
                         'require (currentOwnerWord == 0) "Token already minted"',
-                        "let recipientBalance ← getMapping balances to",
+                        "let recipientBalance ← getMapping balances toAddr",
                         'let newRecipientBalance ← requireSomeUint (safeAdd recipientBalance 1) "Balance overflow"',
                         "let currentSupply ← getStorage totalSupply",
                         'let newSupply ← requireSomeUint (safeAdd currentSupply 1) "Supply overflow"',
-                        "setMappingUintAddr owners tokenId to",
-                        "setMapping balances to newRecipientBalance",
+                        "setMappingUintAddr owners tokenId toAddr",
+                        "setMapping balances toAddr newRecipientBalance",
                         "setStorage totalSupply newSupply",
                         "setStorage nextTokenId (add tokenId 1)",
                         "return tokenId",
@@ -1615,7 +1615,7 @@ class RenderTests(unittest.TestCase):
             rendered,
         )
         self.assertIn(
-            "vm.store(target, _mappingSlot(bytes32(uint256(uint160(to))), 3), bytes32(uint256(recipientBalance)));",
+            "vm.store(target, _mappingSlot(bytes32(uint256(uint160(toAddr))), 3), bytes32(uint256(recipientBalance)));",
             rendered,
         )
         self.assertIn(

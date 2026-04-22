@@ -21,17 +21,17 @@ verity_contract Ledger where
     require (currentBalance >= amount) "Insufficient balance"
     setMapping balances sender (sub currentBalance amount)
 
-  function transfer (to : Address, amount : Uint256) : Unit := do
+  function transfer (toAddr : Address, amount : Uint256) : Unit := do
     let sender ← msgSender
     let senderBalance ← getMapping balances sender
     require (senderBalance >= amount) "Insufficient balance"
 
-    if sender == to then
+    if sender == toAddr then
       pure ()
     else
-      let recipientBalance ← getMapping balances to
+      let recipientBalance ← getMapping balances toAddr
       setMapping balances sender (sub senderBalance amount)
-      setMapping balances to (add recipientBalance amount)
+      setMapping balances toAddr (add recipientBalance amount)
 
   function getBalance (addr : Address) : Uint256 := do
     let currentBalance ← getMapping balances addr

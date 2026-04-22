@@ -162,6 +162,39 @@ structure FunctionDecl where
   localObligations : Array LocalObligationDecl := #[]
   body : Term
 
+private partial def valueTypeSignatureComponent : ValueType → String
+  | .uint256 => "uint256"
+  | .int256 => "int256"
+  | .uint8 => "uint8"
+  | .address => "address"
+  | .bool => "bool"
+  | .bytes32 => "bytes32"
+  | .string => "string"
+  | .bytes => "bytes"
+  | .unit => "unit"
+  | .array ty => valueTypeSignatureComponent ty ++ "Array"
+  | .tuple tys => "tuple_" ++ String.intercalate "_" (tys.map valueTypeSignatureComponent)
+  | .newtype name baseType => name ++ "_" ++ valueTypeSignatureComponent baseType
+  | .adt name _ => name
+
+private def functionSignatureKey (fn : FunctionDecl) : String :=
+  fn.name ++ "(" ++ String.intercalate "," (fn.params.toList.map (fun p => valueTypeSignatureComponent p.ty)) ++ ")"
+
+private def overloadedFunctionIdentName (fn : FunctionDecl) : String :=
+  let suffix :=
+    match fn.params.toList.map (fun p => valueTypeSignatureComponent p.ty) with
+    | [] => "0"
+    | parts => String.intercalate "_" parts
+  fn.name ++ "__" ++ suffix
+
+private def assignOverloadInternalIdents (functions : Array FunctionDecl) :
+    Array FunctionDecl :=
+  functions.map fun fn =>
+    if functions.any (fun other => other.name == fn.name && functionSignatureKey other != functionSignatureKey fn) then
+      { fn with ident := mkIdentFrom fn.ident (Name.mkSimple (overloadedFunctionIdentName fn)) }
+    else
+      fn
+
 structure ConstructorDecl where
   params : Array ParamDecl
   isPayable : Bool := false
@@ -1475,6 +1508,9 @@ private def internalHelperSpecName
     (Compiler.CompilationModel.internalFunctionPrefix ++ fnName)
     (functions.map (·.name)).toList
 
+private def internalHelperSpecNameFor (fn : FunctionDecl) : String :=
+  Compiler.CompilationModel.internalFunctionPrefix ++ toString fn.ident.getId
+
 private partial def hasDynamicInternalHelperType (ty : ValueType) : Bool :=
   match ty with
   | .string | .bytes | .array _ => true
@@ -1511,10 +1547,12 @@ private partial def inferPureExprType
       match params[(← natFromSyntax idx)]? with
       | some param => pure param.ty
       | none => throwErrorAt stx s!"constructorArg index {idx.raw.reprint.getD ""} is out of bounds"
-  | `(term| msgValue) | `(term| blockTimestamp) | `(term| blockNumber) | `(term| blobbasefee)
-    | `(term| chainid) | `(term| calldatasize) | `(term| returndataSize) =>
+  | `(term| msgValue) | `(term| blockTimestamp) | `(term| Verity.blockTimestamp)
+    | `(term| blockNumber) | `(term| Verity.blockNumber)
+    | `(term| blobbasefee) | `(term| chainid) | `(term| Verity.chainid)
+    | `(term| calldatasize) | `(term| returndataSize) =>
       pure .uint256
-  | `(term| contractAddress) =>
+  | `(term| contractAddress) | `(term| Verity.contractAddress) =>
       pure .address
   | `(term| zeroAddress) =>
       match lookupTypedLocalType? locals "zeroAddress" <|> params.findSome? (fun p =>
@@ -1816,10 +1854,14 @@ private partial def inferBindSourceType
       requireWordLikeType key1 "structMember2 key" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals key1)
       requireWordLikeType key2 "structMember2 key" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals key2)
       pure .uint256
-  | `(term| msgSender) =>
+  | `(term| msgSender) | `(term| Verity.msgSender) =>
       pure .address
-  | `(term| msgValue) =>
+  | `(term| msgValue) | `(term| Verity.msgValue) | `(term| blockTimestamp)
+    | `(term| Verity.blockTimestamp) | `(term| blockNumber) | `(term| Verity.blockNumber)
+    | `(term| chainid) | `(term| Verity.chainid) =>
       pure .uint256
+  | `(term| contractAddress) | `(term| Verity.contractAddress) =>
+      pure .address
   | `(term| tload $offset:term) => do
       requireWordLikeType offset "tload offset" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals offset)
       pure .uint256
@@ -2071,11 +2113,15 @@ partial def translatePureExprWithTypes
   | `(term| constructorArg $idx:num) =>
       `(Compiler.CompilationModel.Expr.constructorArg $idx)
   | `(term| msgValue) => `(Compiler.CompilationModel.Expr.msgValue)
-  | `(term| blockTimestamp) => `(Compiler.CompilationModel.Expr.blockTimestamp)
-  | `(term| blockNumber) => `(Compiler.CompilationModel.Expr.blockNumber)
+  | `(term| blockTimestamp) | `(term| Verity.blockTimestamp) =>
+      `(Compiler.CompilationModel.Expr.blockTimestamp)
+  | `(term| blockNumber) | `(term| Verity.blockNumber) =>
+      `(Compiler.CompilationModel.Expr.blockNumber)
   | `(term| blobbasefee) => `(Compiler.CompilationModel.Expr.blobbasefee)
-  | `(term| contractAddress) => `(Compiler.CompilationModel.Expr.contractAddress)
-  | `(term| chainid) => `(Compiler.CompilationModel.Expr.chainid)
+  | `(term| contractAddress) | `(term| Verity.contractAddress) =>
+      `(Compiler.CompilationModel.Expr.contractAddress)
+  | `(term| chainid) | `(term| Verity.chainid) =>
+      `(Compiler.CompilationModel.Expr.chainid)
   | `(term| calldatasize) => `(Compiler.CompilationModel.Expr.calldatasize)
   | `(term| returndataSize) => `(Compiler.CompilationModel.Expr.returndataSize)
   | `(term| zeroAddress) =>
@@ -2506,7 +2552,7 @@ private def tupleInternalCallAssignStmt?
         (translatePureExprWithTypes fields constDecls immutableDecls params locals)
       pure (some (← `(Compiler.CompilationModel.Stmt.internalCallAssign
         [ $[$resultNameTerms],* ]
-        $(strTerm (internalHelperSpecName functions fn.name))
+        $(strTerm (internalHelperSpecNameFor fn))
         [ $[$argExprs],* ])))
   | none =>
       pure none
@@ -2761,8 +2807,16 @@ private def translateBindSource
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals key1)
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals key2)
           $(strTerm memberName))
-  | `(term| msgSender) => `(Compiler.CompilationModel.Expr.caller)
-  | `(term| msgValue) => `(Compiler.CompilationModel.Expr.msgValue)
+  | `(term| msgSender) | `(term| Verity.msgSender) => `(Compiler.CompilationModel.Expr.caller)
+  | `(term| msgValue) | `(term| Verity.msgValue) => `(Compiler.CompilationModel.Expr.msgValue)
+  | `(term| blockTimestamp) | `(term| Verity.blockTimestamp) =>
+      `(Compiler.CompilationModel.Expr.blockTimestamp)
+  | `(term| blockNumber) | `(term| Verity.blockNumber) =>
+      `(Compiler.CompilationModel.Expr.blockNumber)
+  | `(term| contractAddress) | `(term| Verity.contractAddress) =>
+      `(Compiler.CompilationModel.Expr.contractAddress)
+  | `(term| chainid) | `(term| Verity.chainid) =>
+      `(Compiler.CompilationModel.Expr.chainid)
   | `(term| tload $offset:term) =>
       `(Compiler.CompilationModel.Expr.tload
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals offset))
@@ -2773,7 +2827,7 @@ private def translateBindSource
           let argExprs ← argTerms.mapM
             (translatePureExprWithTypes fields constDecls immutableDecls params locals)
           `(Compiler.CompilationModel.Expr.internalCall
-              $(strTerm (internalHelperSpecName functions fn.name))
+              $(strTerm (internalHelperSpecNameFor fn))
               [ $[$argExprs],* ])
       | none =>
           throwErrorAt rhs
@@ -3568,7 +3622,7 @@ private def translateEffectStmt
           let argExprs ← argTerms.mapM
             (translatePureExprWithTypes fields constDecls immutableDecls params locals)
           `(Compiler.CompilationModel.Stmt.internalCall
-              $(strTerm (internalHelperSpecName functions fn.name))
+              $(strTerm (internalHelperSpecNameFor fn))
               [ $[$argExprs],* ])
       | none =>
           throwErrorAt stx "unsupported statement in do block"
@@ -4055,6 +4109,110 @@ private def mkStorageDefCommand (field : StorageFieldDecl) : CommandElabM Cmd :=
   let fid := field.ident
   `(command| def $fid : Verity.StorageSlot $storageTy := ⟨$(natTerm field.slotNum)⟩)
 
+private def packedOptionTerm (packed : Option (Nat × Nat)) : CommandElabM Term := do
+  match packed with
+  | none => `(none)
+  | some (offset, width) => `(some ($(natTerm offset), $(natTerm width)))
+
+private def mkStructMemberReadBranches
+    (fields : Array StorageFieldDecl)
+    (nested : Bool)
+    (fallbackTerm : Term) : CommandElabM Term := do
+  let mut acc := fallbackTerm
+  for field in fields.reverse do
+    match nested, field.ty with
+    | false, .mappingStruct _ members =>
+        for member in members.reverse do
+          let packedTerm ← packedOptionTerm member.packed
+          acc ← `(if field == $(strTerm field.name) && member == $(strTerm member.name) then
+              _root_.Contracts.structMemberAt $(natTerm field.slotNum) $(natTerm member.wordOffset)
+                $packedTerm key
+            else
+              $acc)
+    | true, .mappingStruct2 _ _ members =>
+        for member in members.reverse do
+          let packedTerm ← packedOptionTerm member.packed
+          acc ← `(if field == $(strTerm field.name) && member == $(strTerm member.name) then
+              _root_.Contracts.structMember2At $(natTerm field.slotNum) $(natTerm member.wordOffset)
+                $packedTerm key1 key2
+            else
+              $acc)
+    | _, _ => pure ()
+  pure acc
+
+private def mkStructMemberWriteBranches
+    (fields : Array StorageFieldDecl)
+    (nested : Bool)
+    (fallbackTerm : Term) : CommandElabM Term := do
+  let mut acc := fallbackTerm
+  for field in fields.reverse do
+    match nested, field.ty with
+    | false, .mappingStruct _ members =>
+        for member in members.reverse do
+          let packedTerm ← packedOptionTerm member.packed
+          acc ← `(if field == $(strTerm field.name) && member == $(strTerm member.name) then
+              _root_.Contracts.setStructMemberAt $(natTerm field.slotNum) $(natTerm member.wordOffset)
+                $packedTerm key value
+            else
+              $acc)
+    | true, .mappingStruct2 _ _ members =>
+        for member in members.reverse do
+          let packedTerm ← packedOptionTerm member.packed
+          acc ← `(if field == $(strTerm field.name) && member == $(strTerm member.name) then
+              _root_.Contracts.setStructMember2At $(natTerm field.slotNum) $(natTerm member.wordOffset)
+                $packedTerm key1 key2 value
+            else
+              $acc)
+    | _, _ => pure ()
+  pure acc
+
+private def hasStructMapping (fields : Array StorageFieldDecl) : Bool :=
+  fields.any fun field =>
+    match field.ty with
+    | .mappingStruct _ _ => true
+    | _ => false
+
+private def hasStructMapping2 (fields : Array StorageFieldDecl) : Bool :=
+  fields.any fun field =>
+    match field.ty with
+    | .mappingStruct2 _ _ _ => true
+    | _ => false
+
+def mkExecutableStructMappingCommandsPublic (fields : Array StorageFieldDecl) :
+    CommandElabM (Array Cmd) := do
+  let mut cmds : Array Cmd := #[]
+  if hasStructMapping fields then
+    let readFallback : Term ← `(pure default)
+    let writeFallback : Term ← `(pure ())
+    let readBranches ← mkStructMemberReadBranches fields false readFallback
+    let writeBranches ← mkStructMemberWriteBranches fields false writeFallback
+    cmds := cmds.push (← `(command|
+      def structMember {κ α : Type} [Inhabited α] [_root_.Contracts.StorageKey κ]
+          [_root_.Contracts.StorageWord α] (field : String) (key : κ) (member : String) :
+          Verity.Contract α :=
+        $readBranches))
+    cmds := cmds.push (← `(command|
+      def setStructMember {κ α : Type} [_root_.Contracts.StorageKey κ]
+          [_root_.Contracts.StorageWord α] (field : String) (key : κ) (member : String)
+          (value : α) : Verity.Contract Unit :=
+        $writeBranches))
+  if hasStructMapping2 fields then
+    let readFallback : Term ← `(pure default)
+    let writeFallback : Term ← `(pure ())
+    let readBranches ← mkStructMemberReadBranches fields true readFallback
+    let writeBranches ← mkStructMemberWriteBranches fields true writeFallback
+    cmds := cmds.push (← `(command|
+      def structMember2 {κ₁ κ₂ α : Type} [Inhabited α] [_root_.Contracts.StorageKey κ₁]
+          [_root_.Contracts.StorageKey κ₂] [_root_.Contracts.StorageWord α] (field : String)
+          (key1 : κ₁) (key2 : κ₂) (member : String) : Verity.Contract α :=
+        $readBranches))
+    cmds := cmds.push (← `(command|
+      def setStructMember2 {κ₁ κ₂ α : Type} [_root_.Contracts.StorageKey κ₁]
+          [_root_.Contracts.StorageKey κ₂] [_root_.Contracts.StorageWord α] (field : String)
+          (key1 : κ₁) (key2 : κ₂) (member : String) (value : α) : Verity.Contract Unit :=
+        $writeBranches))
+  pure cmds
+
 private def mkModelFieldTerm (field : StorageFieldDecl) : CommandElabM Term := do
   `(Compiler.CompilationModel.Field.mk
       $(strTerm field.name)
@@ -4174,7 +4332,7 @@ private def mkSpecCommand
       let returnTypeTerm ← modelReturnTypeTerm fn.returnTy
       let returnsTerm ← modelReturnsTerm fn.returnTy
       pure <| some (← `( ({
-        name := $(strTerm (internalHelperSpecName functions fn.name))
+        name := $(strTerm (internalHelperSpecNameFor fn))
         params := $modelParams
         returnType := $returnTypeTerm
         «returns» := $returnsTerm
@@ -4281,7 +4439,7 @@ private def mkFindIdxParamSimpCommands
       cmds := cmds ++ ctorCmds
   | none => pure ()
   for fn in functions do
-    let fnCmds ← mkFindIdxParamSimpCommandsForScope contractName fn.name fn.params
+    let fnCmds ← mkFindIdxParamSimpCommandsForScope contractName (toString fn.ident.getId) fn.params
     cmds := cmds ++ fnCmds
   pure cmds
 
@@ -4391,9 +4549,11 @@ def parseContractSyntax
         , parsedImmutables
         , parsedExternals
         , (← ctor.mapM (parseConstructor parsedNewtypes parsedAdts))
-        , (← entrypoints.mapM parseSpecialEntrypoint) ++ (← functions.mapM (parseFunction parsedNewtypes parsedAdts))
-        , namespaceOpt
-        )
+          , assignOverloadInternalIdents
+              ((← entrypoints.mapM parseSpecialEntrypoint) ++
+                (← functions.mapM (parseFunction parsedNewtypes parsedAdts)))
+          , namespaceOpt
+          )
   | _ => throwErrorAt stx "invalid verity_contract declaration"
 
 private def mkConstantDefCommand (constant : ConstantDecl) : CommandElabM Cmd := do
@@ -4450,7 +4610,10 @@ def validateGeneratedDefNamesPublic
     constantNames := constantNames.push constant.name
 
   let mut functionNames : Array String := #[]
+  let mut functionSignatures : Array String := #[]
   for fn in functions do
+    let generatedFnName := toString fn.ident.getId
+    let signature := functionSignatureKey fn
     if generatedHelperNames.contains fn.name then
       throwErrorAt fn.ident
         s!"function '{fn.name}' conflicts with reserved generated declaration '{fn.name}'"
@@ -4460,26 +4623,30 @@ def validateGeneratedDefNamesPublic
     if constantNames.contains fn.name then
       throwErrorAt fn.ident
         s!"function '{fn.name}' conflicts with a contract constant of the same name"
-    if functionNames.contains fn.name then
+    if functionSignatures.contains signature then
       throwErrorAt fn.ident
-        s!"duplicate function declaration '{fn.name}'"
-    functionNames := functionNames.push fn.name
+        s!"duplicate function declaration '{signature}'"
+    if functionNames.contains generatedFnName then
+      throwErrorAt fn.ident
+        s!"function '{fn.name}' generates duplicate internal declaration '{generatedFnName}'"
+    functionNames := functionNames.push generatedFnName
+    functionSignatures := functionSignatures.push signature
 
     let helperNames :=
-      #[ s!"{fn.name}_modelBody"
-       , s!"{fn.name}_model"
-       , s!"{fn.name}_bridge"
-       , s!"{fn.name}_semantic_preservation"
-       , s!"{fn.name}_is_view"
-       , s!"{fn.name}_no_calls"
-       , s!"{fn.name}_modifies"
-       , s!"{fn.name}_frame"
-       , s!"{fn.name}_frame_rfl"
-       , s!"{fn.name}_effects"
-       , s!"{fn.name}_cei_compliant"
-       , s!"{fn.name}_nonreentrant"
-       , s!"{fn.name}_cei_safe"
-       , s!"{fn.name}_requires_role"
+      #[ s!"{generatedFnName}_modelBody"
+       , s!"{generatedFnName}_model"
+       , s!"{generatedFnName}_bridge"
+       , s!"{generatedFnName}_semantic_preservation"
+       , s!"{generatedFnName}_is_view"
+       , s!"{generatedFnName}_no_calls"
+       , s!"{generatedFnName}_modifies"
+       , s!"{generatedFnName}_frame"
+       , s!"{generatedFnName}_frame_rfl"
+       , s!"{generatedFnName}_effects"
+       , s!"{generatedFnName}_cei_compliant"
+       , s!"{generatedFnName}_nonreentrant"
+       , s!"{generatedFnName}_cei_safe"
+       , s!"{generatedFnName}_requires_role"
        ]
     for helperName in helperNames do
       if storageNames.contains helperName then
