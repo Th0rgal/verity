@@ -326,4 +326,15 @@ example :
     | .error _ => false) = true := by
   native_decide
 
+example :
+    (let result :=
+      Native.projectResult sampleTx
+        (fun slot => if slot = 7 then 5 else 0)
+        [[1, 2, 3]]
+        (.error EvmYul.Yul.Exception.Revert)
+     !result.success &&
+       result.finalStorage 7 == 5 &&
+       result.events == [[1, 2, 3]]) = true := by
+  native_decide
+
 end Compiler.Proofs.YulGeneration.Backends
