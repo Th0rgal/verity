@@ -1480,25 +1480,18 @@ private def validateCustomErrorCall
     if customErrorRequiresDirectParamRef expectedTy then
       validateDirectParamCustomErrorArg arg fnName errorName params expectedTy argIdx
 
-private def matchLocalFunctionApp?
-    (functions : Array FunctionDecl)
-    (stx : Term) : Option (FunctionDecl × Array Term) :=
+private def localFunctionAppSyntax?
+    (stx : Term) : Option (String × Array Term) :=
   let stx := stripParens stx
-  let findFn := fun (fnName : String) (arity : Nat) =>
-    functions.find? fun fn => fn.name == fnName && fn.params.size == arity
   match stx.raw with
   | .node _ `Lean.Parser.Term.app args =>
       match args.getD 0 Syntax.missing with
       | .ident _ raw _ _ =>
           let argTerms := (args.getD 1 Syntax.missing).getArgs.map (fun syn => ⟨syn⟩)
-          match findFn raw.toString argTerms.size with
-          | some fn => some (fn, argTerms)
-          | none => none
+          some (raw.toString, argTerms)
       | _ => none
   | .ident _ raw _ _ =>
-      match findFn raw.toString 0 with
-      | some fn => some (fn, #[])
-      | none => none
+      some (raw.toString, #[])
   | _ => none
 
 private def internalHelperSpecName
@@ -1858,7 +1851,7 @@ private partial def inferBindSourceType
       pure .address
   | `(term| msgValue) | `(term| Verity.msgValue) | `(term| blockTimestamp)
     | `(term| Verity.blockTimestamp) | `(term| blockNumber) | `(term| Verity.blockNumber)
-    | `(term| chainid) | `(term| Verity.chainid) =>
+    | `(term| blobbasefee) | `(term| chainid) | `(term| Verity.chainid) =>
       pure .uint256
   | `(term| contractAddress) | `(term| Verity.contractAddress) =>
       pure .address
@@ -1912,11 +1905,9 @@ private partial def inferBindSourceType
           pure .uint256
       | _ => throwErrorAt rhs "unsupported requireSomeUint source; expected safeAdd or safeSub"
   | _ =>
-      match matchLocalFunctionApp? functions rhs with
-      | some (fn, argTerms) =>
+      match ← resolveLocalFunctionApp? fields constDecls immutableDecls externalDecls functions params locals rhs with
+      | some (fn, _argTerms) =>
           ensureSupportsInternalHelperSpec rhs fn
-          for arg in argTerms do
-            let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals arg
           match fn.returnTy with
           | .tuple _ =>
               throwErrorAt rhs
@@ -1984,15 +1975,45 @@ private partial def inferTupleSourceTypes?
               -- The validation path (with real externalDecls) catches actual errors.
               pure none
       | other =>
-          match matchLocalFunctionApp? functions other with
-          | some (fn, argTerms) =>
+          match ← resolveLocalFunctionApp? fields constDecls immutableDecls externalDecls functions params locals other with
+          | some (fn, _argTerms) =>
               ensureSupportsInternalHelperSpec rhs fn
-              for arg in argTerms do
-                let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals arg
               match fn.returnTy with
               | .tuple elemTys => pure (some elemTys.toArray)
               | _ => pure none
           | none => pure none
+
+private partial def resolveLocalFunctionApp?
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
+    (functions : Array FunctionDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (stx : Term) : CommandElabM (Option (FunctionDecl × Array Term)) := do
+  let some (fnName, argTerms) := localFunctionAppSyntax? stx
+    | pure none
+  let candidates := functions.filter (fun fn => fn.name == fnName && fn.params.size == argTerms.size)
+  if candidates.isEmpty then
+    pure none
+  else
+    let argTypes ← argTerms.mapM (inferPureExprType fields constDecls immutableDecls externalDecls params locals)
+    let matchedFns := candidates.filter (fun fn =>
+      fn.params.map (fun param => param.ty) == argTypes)
+    match matchedFns.toList with
+    | [fn] => pure (some (fn, argTerms))
+    | [] =>
+        let expected :=
+          String.intercalate ", "
+            (candidates.toList.map functionSignatureKey)
+        let actual :=
+          fnName ++ "(" ++ String.intercalate "," (argTypes.toList.map renderValueType) ++ ")"
+        throwErrorAt stx
+          s!"no overload of '{fnName}' matches argument types {actual}; candidates: {expected}"
+    | _ =>
+        throwErrorAt stx
+          s!"ambiguous overload resolution for '{fnName}'"
 end
 
 mutual
@@ -2545,7 +2566,7 @@ private def tupleInternalCallAssignStmt?
     (initialUsedNames, [])
   let targetNames := targetNamesRev.reverse
   let resultNameTerms := targetNames.toArray.map strTerm
-  match matchLocalFunctionApp? functions rhs with
+  match ← resolveLocalFunctionApp? fields constDecls immutableDecls #[] functions params locals rhs with
   | some (fn, argTerms) =>
       ensureSupportsInternalHelperSpec rhs fn
       let argExprs ← argTerms.mapM
@@ -2813,6 +2834,8 @@ private def translateBindSource
       `(Compiler.CompilationModel.Expr.blockTimestamp)
   | `(term| blockNumber) | `(term| Verity.blockNumber) =>
       `(Compiler.CompilationModel.Expr.blockNumber)
+  | `(term| blobbasefee) =>
+      `(Compiler.CompilationModel.Expr.blobbasefee)
   | `(term| contractAddress) | `(term| Verity.contractAddress) =>
       `(Compiler.CompilationModel.Expr.contractAddress)
   | `(term| chainid) | `(term| Verity.chainid) =>
@@ -2821,7 +2844,7 @@ private def translateBindSource
       `(Compiler.CompilationModel.Expr.tload
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals offset))
   | _ =>
-      match matchLocalFunctionApp? functions rhs with
+      match ← resolveLocalFunctionApp? fields constDecls immutableDecls #[] functions params locals rhs with
       | some (fn, argTerms) =>
           ensureSupportsInternalHelperSpec rhs fn
           let argExprs ← argTerms.mapM
@@ -3136,7 +3159,7 @@ private partial def validateEffectStmtExprTypes
   | `(term| revertReturndata) =>
       pure ()
   | _ =>
-      match matchLocalFunctionApp? functions stx with
+      match ← resolveLocalFunctionApp? fields constDecls immutableDecls externalDecls functions params locals stx with
       | some (fn, argTerms) =>
           ensureSupportsInternalHelperSpec stx fn
           if fn.returnTy != .unit then
@@ -3613,7 +3636,7 @@ private def translateEffectStmt
           $(strTerm memberName)
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value))
   | _ =>
-      match matchLocalFunctionApp? functions stx with
+      match ← resolveLocalFunctionApp? fields constDecls immutableDecls #[] functions params locals stx with
       | some (fn, argTerms) =>
           ensureSupportsInternalHelperSpec stx fn
           if fn.returnTy != .unit then

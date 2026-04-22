@@ -73,7 +73,7 @@ scope so the native path does not look more complete than it is:
   default/global behavior until the follow-up widens the state bridge. The
   `verity_contract` surface now accepts monadic environment reads such as
   `let t <- blockTimestamp`, `let t <- Verity.blockTimestamp`, `blockNumber`,
-  `chainid`, `contractAddress`, `msgSender`, and `msgValue`, and the
+  `chainid`, `blobbasefee`, `contractAddress`, `msgSender`, and `msgValue`, and the
   executable `.run` helpers read those values from `ContractState` instead of
   placeholder constants.
 - [#1738](https://github.com/lfglabs-dev/verity/issues/1738): mapping-struct
@@ -84,10 +84,12 @@ scope so the native path does not look more complete than it is:
   semantics and preservation coverage for the packed struct-member cases.
 - [#1742](https://github.com/lfglabs-dev/verity/issues/1742): overloaded
   source functions now use a signature-based identity model for generated
-  declarations and duplicate validation while preserving the Solidity-facing
-  source name for selectors/ABI dispatch. Native EVM dispatch is selector-based;
-  the remaining transition work is theorem coverage around the widened frontend
-  surface and any future internal-call overload extensions.
+  declarations, duplicate validation, and direct internal-call lowering while
+  preserving the Solidity-facing source name for selectors/ABI dispatch.
+  Same-name/same-arity declarations are accepted when their parameter types
+  differ. Native EVM dispatch is selector-based; the remaining transition work
+  is theorem coverage around the widened frontend surface and any future
+  executable `.run` overload-dispatch extensions.
 
 1. Prove lowering invariants for the native contract shape.
 

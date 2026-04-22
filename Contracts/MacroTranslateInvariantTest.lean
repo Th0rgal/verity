@@ -423,8 +423,8 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("AddressHelpersSmoke", ["setDelegate(address,address)", "getDelegate(address)", "clearDelegate(address)",
       "hasDelegate(address)", "isDelegateZero(address)", "setOwnerForId(uint256,address)", "getOwnerForId(uint256)"])
   , ("ZeroAddressShadowSmoke", ["shadowWrite(address)"])
-  , ("FunctionOverloadSmoke", ["echo(uint256)", "echo(uint256,uint256)"])
-  , ("BlockTimestampSmoke", ["nowish()", "timestampPlus(uint256)"])
+  , ("FunctionOverloadSmoke", ["echo(uint256)", "echo(address)", "echo(uint256,uint256)"])
+  , ("BlockTimestampSmoke", ["nowish()", "timestampPlus(uint256)", "blobFeePlus(uint256)"])
   , ("StructMappingSmoke", ["setPosition(address,uint256,uint256,address)", "totalPositionShares(address)",
       "delegateOf(address)", "setApproval(address,address,uint256,uint256)", "approvalOf(address,address)",
       "approvalNonce(address,address)"])
@@ -521,8 +521,8 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("AddressHelpersSmoke", ["0x5c873849", "0x544d8564", "0xcc21cc2a", "0x480005cd", "0x67129177",
       "0x0b0126c5", "0x85a9cdd0"])
   , ("ZeroAddressShadowSmoke", ["0xc0aab575"])
-  , ("FunctionOverloadSmoke", ["0x6279e43c", "0x3bb2bcd0"])
-  , ("BlockTimestampSmoke", ["0xa676760e", "0x8c041599"])
+  , ("FunctionOverloadSmoke", ["0x6279e43c", "0x2ffdbf1a", "0x3bb2bcd0"])
+  , ("BlockTimestampSmoke", ["0xa676760e", "0x8c041599", "0x7150df5e"])
   , ("StructMappingSmoke", ["0x468c900e", "0xe7933b6a", "0x8d22ea2a", "0xf4536007", "0xcb01943e",
       "0x6c241120"])
   , ("ExternalCallSmoke", ["0x32fdff86", "0x21209dbd"])

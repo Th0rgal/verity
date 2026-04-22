@@ -676,6 +676,9 @@ verity_contract FunctionOverloadSmoke where
   function echo (a : Uint256) : Uint256 := do
     return a
 
+  function echo (a : Address) : Uint256 := do
+    return (addressToWord a)
+
   function echo (a : Uint256, b : Uint256) : Uint256 := do
     return (add a b)
 
@@ -690,6 +693,10 @@ verity_contract BlockTimestampSmoke where
     let t ← blockTimestamp
     return (add t delta)
 
+  function blobFeePlus (delta : Uint256) : Uint256 := do
+    let fee ← blobbasefee
+    return (add fee delta)
+
 example :
     (BlockTimestampSmoke.nowish.run { Verity.defaultState with blockTimestamp := 123 }).getValue? =
       some 123 := by
@@ -697,6 +704,11 @@ example :
 
 example :
     (BlockTimestampSmoke.timestampPlus 7 |>.run { Verity.defaultState with blockTimestamp := 123 }).getValue? =
+      some 130 := by
+  decide
+
+example :
+    (BlockTimestampSmoke.blobFeePlus 7 |>.run { Verity.defaultState with blobBaseFee := 123 }).getValue? =
       some 130 := by
   decide
 
