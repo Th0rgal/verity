@@ -14,6 +14,15 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DOC = ROOT / "docs" / "NATIVE_EVMYULLEAN_TRANSITION.md"
+END_TO_END = ROOT / "Compiler" / "Proofs" / "EndToEnd.lean"
+NATIVE_HARNESS = (
+    ROOT
+    / "Compiler"
+    / "Proofs"
+    / "YulGeneration"
+    / "Backends"
+    / "EvmYulLeanNativeHarness.lean"
+)
 
 REQUIRED_SNIPPETS = (
     "interpretYulRuntimeWithBackend .evmYulLean",
@@ -76,12 +85,68 @@ def check_doc(text: str) -> list[str]:
     return errors
 
 
+def check_public_theorem_target(end_to_end_text: str, native_harness_text: str) -> list[str]:
+    """Pin the current transition boundary until the native theorem flips.
+
+    This guard should be updated in the same PR that proves the native
+    preservation theorem and retargets the public EndToEnd path. Until then,
+    the public theorem must still visibly target the backend-parameterized
+    interpreter, while the native harness remains an executable side path.
+    """
+
+    errors: list[str] = []
+    normalized_end_to_end = normalize_ws(end_to_end_text)
+    normalized_native_harness = normalize_ws(native_harness_text)
+
+    if "interpretYulRuntimeWithBackend .evmYulLean" not in normalized_end_to_end:
+        errors.append(
+            "Compiler/Proofs/EndToEnd.lean must still expose the current "
+            "`interpretYulRuntimeWithBackend .evmYulLean` public theorem target "
+            "until the native preservation theorem is proved and this guard is updated"
+        )
+
+    for native_target in (
+        "interpretIRRuntimeNative",
+        "interpretRuntimeNative",
+        "EvmYul.Yul.callDispatcher",
+    ):
+        if native_target in normalized_end_to_end:
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean mentions native runtime target "
+                f"`{native_target}` before the public theorem flip is documented"
+            )
+
+    for required_native_entrypoint in (
+        "def interpretRuntimeNative",
+        "def interpretIRRuntimeNative",
+        "EvmYul.Yul.callDispatcher",
+    ):
+        if required_native_entrypoint not in normalized_native_harness:
+            errors.append(
+                "Compiler/Proofs/YulGeneration/Backends/"
+                "EvmYulLeanNativeHarness.lean is missing native harness surface "
+                f"`{required_native_entrypoint}`"
+            )
+
+    return errors
+
+
 def main() -> int:
     if not DOC.exists():
         print(f"Missing: {DOC.relative_to(ROOT)}", file=sys.stderr)
         return 1
+    for path in (END_TO_END, NATIVE_HARNESS):
+        if not path.exists():
+            print(f"Missing: {path.relative_to(ROOT)}", file=sys.stderr)
+            return 1
 
     errors = check_doc(DOC.read_text(encoding="utf-8"))
+    errors.extend(
+        check_public_theorem_target(
+            END_TO_END.read_text(encoding="utf-8"),
+            NATIVE_HARNESS.read_text(encoding="utf-8"),
+        )
+    )
     if errors:
         for error in errors:
             print(error, file=sys.stderr)
