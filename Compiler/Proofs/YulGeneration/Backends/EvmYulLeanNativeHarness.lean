@@ -66,6 +66,18 @@ def initialState
       true := by
   simp [initialState, EvmYul.Yul.State.sharedState]
 
+@[simp] theorem initialState_installsCurrentAccountContract
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    ((initialState contract tx storage observableSlots).sharedState.accountMap.find?
+        (natToAddress tx.thisAddress)).map (fun account => account.code) =
+      some contract := by
+  simp only [initialState, EvmYul.Yul.State.sharedState]
+  rw [Batteries.RBMap.find?_insert_of_eq _ Std.ReflCmp.compare_self]
+  split <;> simp
+
 @[simp] theorem initialState_transactionEnvironment
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)

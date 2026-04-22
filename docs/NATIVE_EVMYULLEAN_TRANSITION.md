@@ -128,7 +128,9 @@ scope so the native path does not look more complete than it is:
    forwarding contract, `tstore`/`tload`
    execution through copied observable storage, initial native state contract
    installation, the named `initialState_installsExecutionContract` lemma for
-   installed dispatcher code and mutable execution permission, observable
+   installed dispatcher code and mutable execution permission, the named
+   `initialState_installsCurrentAccountContract` lemma for account-map runtime
+   code installation at the current contract address, observable
    storage seeding, the named `initialState_observableStorageSlot` lemma for
    explicit observable pre-state slots, omitted pre-state slot defaults, and direct
    transaction-environment seeding for sender/source, value, current address,
