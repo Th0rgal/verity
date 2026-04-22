@@ -125,6 +125,19 @@ def projectResult
         finalMappings := Compiler.Proofs.storageAsMappings initialStorage
         events := initialEvents }
 
+@[simp] theorem projectResult_revert
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat)) :
+    projectResult tx initialStorage initialEvents
+      (.error EvmYul.Yul.Exception.Revert) =
+    { success := false
+      returnValue := none
+      finalStorage := initialStorage
+      finalMappings := Compiler.Proofs.storageAsMappings initialStorage
+      events := initialEvents } := by
+  rfl
+
 /-- Lower and execute Verity runtime Yul through EVMYulLean's native
     dispatcher. -/
 def interpretRuntimeNative
@@ -161,5 +174,16 @@ def interpretIRRuntimeNative
     Except AdapterError YulResult :=
   interpretRuntimeNative fuel (Compiler.emitYul contract).runtimeCode
     (YulTransaction.ofIR tx) state.storage observableSlots state.events
+
+@[simp] theorem interpretIRRuntimeNative_eq_interpretRuntimeNative
+    (fuel : Nat)
+    (contract : Compiler.IRContract)
+    (tx : Compiler.Proofs.IRGeneration.IRTransaction)
+    (state : Compiler.Proofs.IRGeneration.IRState)
+    (observableSlots : List Nat) :
+    interpretIRRuntimeNative fuel contract tx state observableSlots =
+      interpretRuntimeNative fuel (Compiler.emitYul contract).runtimeCode
+        (YulTransaction.ofIR tx) state.storage observableSlots state.events := by
+  rfl
 
 end Compiler.Proofs.YulGeneration.Backends.Native

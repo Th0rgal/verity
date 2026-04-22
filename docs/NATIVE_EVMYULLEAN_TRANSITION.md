@@ -123,7 +123,9 @@ scope so the native path does not look more complete than it is:
    selector/calldata byte layout, storage writes, `sload` through explicit
    observable pre-state slots, omitted-slot default reads, IR storage-read
    dispatcher lowering to native `SLOAD`, `interpretIRRuntimeNative` storage
-   forwarding with explicit observable slots and prior events, `tstore`/`tload`
+   forwarding with explicit observable slots and prior events, the named
+   `interpretIRRuntimeNative_eq_interpretRuntimeNative` lemma for that
+   forwarding contract, `tstore`/`tload`
    execution through copied observable storage, initial native state contract
    installation, observable storage seeding, omitted pre-state slot defaults,
    and direct transaction-environment seeding for sender/source, value, current
@@ -136,7 +138,8 @@ scope so the native path does not look more complete than it is:
    for `log0` through
    `log4` topic arities, conservative rollback projection for native errors,
    explicit hard-error rollback for `OutOfFuel`, explicit `Revert` rollback
-   projection with no return value, conservative `finalMappings` rollback on
+   projection with no return value, the named `projectResult_revert` rollback
+   lemma, conservative `finalMappings` rollback on
    native errors, and `interpretIRRuntimeNative`
    forwarding/fail-closed lowering behavior. Next coverage should include:
    - executable dispatcher selector selection from emitted runtime code; the
