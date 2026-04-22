@@ -682,6 +682,22 @@ verity_contract FunctionOverloadSmoke where
   function echo (a : Uint256, b : Uint256) : Uint256 := do
     return (add a b)
 
+/--
+error: duplicate function ABI signature 'echo(scalar_uint256)' after newtype erasure
+-/
+#guard_msgs in
+verity_contract NewtypeErasedOverloadRejected where
+  types
+    Amount : Uint256
+    Shares : Uint256
+  storage
+
+  function echo (a : Amount) : Uint256 := do
+    return a
+
+  function echo (a : Shares) : Uint256 := do
+    return a
+
 verity_contract HelperExternalArgumentSmoke where
   storage
     saved : Uint256 := slot 0

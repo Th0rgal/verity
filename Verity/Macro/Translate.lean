@@ -180,6 +180,15 @@ private partial def valueTypeSignatureComponent : ValueType → String
 private def functionSignatureKey (fn : FunctionDecl) : String :=
   fn.name ++ "(" ++ String.intercalate "," (fn.params.toList.map (fun p => valueTypeSignatureComponent p.ty)) ++ ")"
 
+private partial def valueTypeAbiSignatureComponent : ValueType → String
+  | .newtype _ baseType => valueTypeAbiSignatureComponent baseType
+  | .array ty => "array_" ++ valueTypeAbiSignatureComponent ty
+  | .tuple tys => "tuple" ++ toString tys.length ++ "_" ++ String.intercalate "__" (tys.map valueTypeAbiSignatureComponent)
+  | ty => valueTypeSignatureComponent ty
+
+private def functionAbiSignatureKey (fn : FunctionDecl) : String :=
+  fn.name ++ "(" ++ String.intercalate "," (fn.params.toList.map (fun p => valueTypeAbiSignatureComponent p.ty)) ++ ")"
+
 private def overloadedFunctionIdentName (fn : FunctionDecl) : String :=
   let suffix :=
     match fn.params.toList.map (fun p => valueTypeSignatureComponent p.ty) with
@@ -4852,9 +4861,11 @@ def validateGeneratedDefNamesPublic
 
   let mut functionNames : Array String := #[]
   let mut functionSignatures : Array String := #[]
+  let mut functionAbiSignatures : Array String := #[]
   for fn in functions do
     let generatedFnName := toString fn.ident.getId
     let signature := functionSignatureKey fn
+    let abiSignature := functionAbiSignatureKey fn
     if generatedHelperNames.contains fn.name then
       throwErrorAt fn.ident
         s!"function '{fn.name}' conflicts with reserved generated declaration '{fn.name}'"
@@ -4882,11 +4893,15 @@ def validateGeneratedDefNamesPublic
     if functionSignatures.contains signature then
       throwErrorAt fn.ident
         s!"duplicate function declaration '{signature}'"
+    if functionAbiSignatures.contains abiSignature then
+      throwErrorAt fn.ident
+        s!"duplicate function ABI signature '{abiSignature}' after newtype erasure"
     if functionNames.contains generatedFnName then
       throwErrorAt fn.ident
         s!"function '{fn.name}' generates duplicate internal declaration '{generatedFnName}'"
     functionNames := functionNames.push generatedFnName
     functionSignatures := functionSignatures.push signature
+    functionAbiSignatures := functionAbiSignatures.push abiSignature
 
     let helperNames :=
       #[ s!"{generatedFnName}_modelBody"
