@@ -2144,6 +2144,78 @@ private def adtAliasPayloadReservedSlotSpec : CompilationModel := {
   ]
 }
 
+private def adtAliasPayloadMemoizesExprSpec : CompilationModel := {
+  name := "AdtAliasPayloadMemoizesExpr"
+  fields := [
+    { name := "choice", ty := FieldType.adt "Choice" 1, «slot» := some 10, aliasSlots := [100] }
+  ]
+  «constructor» := none
+  functions := [
+    { name := "store"
+      params := [{ name := "input", ty := ParamType.uint256 }]
+      returnType := none
+      allowPostInteractionWrites := true
+      body := [
+        Stmt.setStorage "choice"
+          (Expr.adtConstruct "Choice" "Some" [Expr.externalCall "echo" [Expr.param "input"]]),
+        Stmt.stop
+      ]
+    }
+  ]
+  adtTypes := [
+    { name := "Choice"
+      variants := [
+        { name := "None", tag := 0, fields := [] },
+        { name := "Some", tag := 1, fields := [{ name := "amount", ty := ParamType.uint256 }] }
+      ]
+    }
+  ]
+}
+
+private def ceiInitialInternalCallAllowedSpec : CompilationModel := {
+  name := "CEIInitialInternalCallAllowed"
+  fields := [{ name := "value", ty := FieldType.uint256 }]
+  «constructor» := none
+  functions := [
+    { name := "helper"
+      params := []
+      returnType := none
+      isInternal := true
+      body := [Stmt.setStorage "value" (Expr.literal 1), Stmt.stop]
+    },
+    { name := "run"
+      params := []
+      returnType := none
+      body := [Stmt.internalCall "helper" [], Stmt.stop]
+    }
+  ]
+}
+
+private def ceiEcmWriteAfterCallRejectedSpec : CompilationModel := {
+  name := "CEIEcmWriteAfterCallRejected"
+  fields := [{ name := "value", ty := FieldType.uint256 }]
+  «constructor» := none
+  functions := [
+    { name := "run"
+      params := []
+      returnType := none
+      body := [
+        Stmt.externalCallBind [] "notify" [],
+        Stmt.ecm
+          { name := "writeEffect"
+            numArgs := 0
+            resultVars := []
+            writesState := true
+            readsState := false
+            compile := fun _ _ => pure []
+          }
+          [],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
 private def addressArrayReturnSpec : CompilationModel := {
   name := "AddressArrayReturn"
   fields := []
@@ -2913,6 +2985,25 @@ set_option maxRecDepth 4096 in
     "ADT alias payload slots are checked against reserved slot ranges"
     adtAliasPayloadReservedSlotSpec
     "choice.aliasSlots[0].payload[0]"
+  let adtAliasPayloadMemoYul ← expectCompileToYul
+    "ADT alias payload expressions are memoized before duplicate alias writes"
+    adtAliasPayloadMemoizesExprSpec
+  expectTrue "ADT alias payload expression is evaluated once"
+    (countOccurrences adtAliasPayloadMemoYul "echo(input)" == 1)
+  expectTrue "ADT alias writes reuse the generated payload local"
+    ((contains adtAliasPayloadMemoYul "let __adt_payload_0 := echo(input)") &&
+      (countOccurrences adtAliasPayloadMemoYul "__adt_payload_0" >= 3))
+  let ceiInitialInternalCallCompiled :=
+    match Compiler.CompilationModel.compile ceiInitialInternalCallAllowedSpec
+        (selectorsFor ceiInitialInternalCallAllowedSpec) with
+    | .ok _ => true
+    | .error _ => false
+  expectTrue "CEI allows an initial internal-call statement without a prior interaction"
+    ceiInitialInternalCallCompiled
+  expectCompileErrorContains
+    "CEI rejects writing ECMs after an external call"
+    ceiEcmWriteAfterCallRejectedSpec
+    "violates CEI"
   let addressArrayReturnCompiled :=
     match Compiler.CompilationModel.compile addressArrayReturnSpec (selectorsFor addressArrayReturnSpec) with
     | .ok _ => true

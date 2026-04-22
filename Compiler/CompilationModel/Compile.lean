@@ -66,17 +66,23 @@ private def compileAdtStorageWrite (fields : List Field)
     | none => throw s!"Compilation error: unknown storage field '{storageField}' for ADT construct '{adtName}.{variantName}'"
   let baseSlots := baseSlot :: aliasSlots
   let argExprs ← compileExprList fields dynamicSource args
+  let payloadBindings :=
+    argExprs.zipIdx.map fun (argExpr, idx) =>
+      YulStmt.let_ s!"__adt_payload_{idx}" argExpr
+  let payloadExprs :=
+    argExprs.zipIdx.map fun (_, idx) =>
+      YulExpr.ident s!"__adt_payload_{idx}"
   let tagStores := baseSlots.map fun slot =>
     compileAdtTagWrite (YulExpr.lit slot) variant.tag
   let payloadStores :=
     baseSlots.flatMap fun slot =>
-      argExprs.zipIdx.map fun (argExpr, idx) =>
+      payloadExprs.zipIdx.map fun (argExpr, idx) =>
         compileAdtFieldWrite (YulExpr.lit slot) idx argExpr
   let clearStores :=
     baseSlots.flatMap fun slot =>
       (List.range (adtMaxFieldSlots adt)).drop args.length |>.map fun idx =>
         compileAdtFieldWrite (YulExpr.lit slot) idx (YulExpr.lit 0)
-  pure (tagStores ++ payloadStores ++ clearStores)
+  pure (payloadBindings ++ tagStores ++ payloadStores ++ clearStores)
 
 -- Compile statement to Yul (using mutual recursion for lists).
 -- When isInternal=true, Stmt.return compiles to `__ret := value; leave` so internal

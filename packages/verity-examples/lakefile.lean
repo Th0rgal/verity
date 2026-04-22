@@ -2,7 +2,7 @@ import Lake
 open Lake DSL
 
 package «verity-examples» where
-  version := v!"0.1.0"
+  version := v!"1.0.0"
 
 require «verity-edsl» from "../verity-edsl"
 require «verity-compiler» from "../verity-compiler"

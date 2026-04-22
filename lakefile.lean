@@ -2,7 +2,7 @@ import Lake
 open Lake DSL
 
 package «verity» where
-  version := v!"0.1.0"
+  version := v!"1.0.0"
 
 require evmyul from git
   "https://github.com/lfglabs-dev/EVMYulLean.git"@"7b54b8f38bb68ee930d00d39c1b11dd60fb123c8"

@@ -947,6 +947,7 @@ mutual
     nested helper calls are not missed by loop/cross-branch CEI checks. -/
 def stmtMayPersistentlyWrite : Stmt → Bool
   | Stmt.internalCall _ _ | Stmt.internalCallAssign _ _ _ => true
+  | Stmt.ecm mod _ => mod.writesState
   | Stmt.ite _ thenBranch elseBranch =>
       stmtListMayPersistentlyWrite thenBranch || stmtListMayPersistentlyWrite elseBranch
   | Stmt.forEach _ _ body =>
@@ -1004,10 +1005,10 @@ def stmtListCEIViolation : List Stmt → Bool → Option String
           -- but are not visible at this scope).  This catches the pattern:
           --   externalCallBind(...)        -- seenCall becomes true
           --   internalCall(helper, [...])  -- may write storage → flagged
-          if !isCompound && stmtContainsExternalCall s && stmtMayPersistentlyWrite s then
-            some "state write in same statement as external call"
-          else if !isCompound && newSeenCall && stmtMayPersistentlyWrite s then
+          if !isCompound && seenCall && stmtMayPersistentlyWrite s then
             some "state write after external call"
+          else if !isCompound && stmtContainsExternalCall s && stmtIsPersistentWrite s then
+            some "state write in same statement as external call"
           else
             stmtListCEIViolation rest newSeenCall
 termination_by ss => sizeOf ss
