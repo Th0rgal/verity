@@ -1563,7 +1563,7 @@ private partial def inferPureExprType
       throwPureContextAccessorError stx "blockTimestamp"
   | `(term| blockNumber) | `(term| Verity.blockNumber) =>
       throwPureContextAccessorError stx "blockNumber"
-  | `(term| blobbasefee) =>
+  | `(term| blobbasefee) | `(term| Verity.blobbasefee) =>
       throwPureContextAccessorError stx "blobbasefee"
   | `(term| chainid) | `(term| Verity.chainid) =>
       throwPureContextAccessorError stx "chainid"
@@ -1875,7 +1875,8 @@ private partial def inferBindSourceType
       pure .address
   | `(term| msgValue) | `(term| Verity.msgValue) | `(term| blockTimestamp)
     | `(term| Verity.blockTimestamp) | `(term| blockNumber) | `(term| Verity.blockNumber)
-    | `(term| blobbasefee) | `(term| chainid) | `(term| Verity.chainid) =>
+    | `(term| blobbasefee) | `(term| Verity.blobbasefee) | `(term| chainid)
+    | `(term| Verity.chainid) =>
       pure .uint256
   | `(term| contractAddress) | `(term| Verity.contractAddress) =>
       pure .address
@@ -2062,7 +2063,8 @@ private partial def validateConstantBody
   | `(term| msgValue) => throwNonCompileTimeConstantError stx "msgValue"
   | `(term| blockTimestamp) => throwNonCompileTimeConstantError stx "blockTimestamp"
   | `(term| blockNumber) => throwNonCompileTimeConstantError stx "blockNumber"
-  | `(term| blobbasefee) => throwNonCompileTimeConstantError stx "blobbasefee"
+  | `(term| blobbasefee) | `(term| Verity.blobbasefee) =>
+      throwNonCompileTimeConstantError stx "blobbasefee"
   | `(term| contractAddress) => throwNonCompileTimeConstantError stx "contractAddress"
   | `(term| chainid) => throwNonCompileTimeConstantError stx "chainid"
   | `(term| calldatasize) => throwNonCompileTimeConstantError stx "calldatasize"
@@ -2174,7 +2176,7 @@ partial def translatePureExprWithTypes
       throwPureContextAccessorError stx "blockTimestamp"
   | `(term| blockNumber) | `(term| Verity.blockNumber) =>
       throwPureContextAccessorError stx "blockNumber"
-  | `(term| blobbasefee) =>
+  | `(term| blobbasefee) | `(term| Verity.blobbasefee) =>
       throwPureContextAccessorError stx "blobbasefee"
   | `(term| contractAddress) | `(term| Verity.contractAddress) =>
       throwPureContextAccessorError stx "contractAddress"
@@ -3021,7 +3023,7 @@ private def translateBindSource
       `(Compiler.CompilationModel.Expr.blockTimestamp)
   | `(term| blockNumber) | `(term| Verity.blockNumber) =>
       `(Compiler.CompilationModel.Expr.blockNumber)
-  | `(term| blobbasefee) =>
+  | `(term| blobbasefee) | `(term| Verity.blobbasefee) =>
       `(Compiler.CompilationModel.Expr.blobbasefee)
   | `(term| contractAddress) | `(term| Verity.contractAddress) =>
       `(Compiler.CompilationModel.Expr.contractAddress)

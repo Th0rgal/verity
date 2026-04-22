@@ -529,6 +529,9 @@ def blockTimestamp : Contract Uint256 :=
 def blockNumber : Contract Uint256 :=
   fun state => ContractResult.success state.blockNumber state
 
+protected def blobbasefee : Contract Uint256 :=
+  fun state => ContractResult.success state.blobBaseFee state
+
 def chainid : Contract Uint256 :=
   fun state => ContractResult.success state.chainId state
 
@@ -546,6 +549,9 @@ def chainid : Contract Uint256 :=
 
 @[simp] theorem blockNumber_run (state : ContractState) :
   blockNumber.run state = ContractResult.success state.blockNumber state := rfl
+
+@[simp] theorem blobbasefee_run (state : ContractState) :
+  Verity.blobbasefee.run state = ContractResult.success state.blobBaseFee state := rfl
 
 @[simp] theorem chainid_run (state : ContractState) :
   chainid.run state = ContractResult.success state.chainId state := rfl

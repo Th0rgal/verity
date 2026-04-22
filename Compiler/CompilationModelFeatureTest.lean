@@ -520,12 +520,23 @@ verity_contract MacroBlobbasefee where
     let fee ← blobbasefee
     return fee
 
+  function qualifiedCurrentBlobBaseFee () : Uint256 := do
+    let fee ← Verity.blobbasefee
+    return fee
+
 def modelReturnsBlobbasefeeBuiltin : Bool :=
   match MacroBlobbasefee.currentBlobBaseFee_modelBody with
   | [Stmt.letVar "fee" Expr.blobbasefee, Stmt.return (Expr.localVar "fee")] => true
   | _ => false
 
 example : modelReturnsBlobbasefeeBuiltin = true := by native_decide
+
+def qualifiedModelReturnsBlobbasefeeBuiltin : Bool :=
+  match MacroBlobbasefee.qualifiedCurrentBlobBaseFee_modelBody with
+  | [Stmt.letVar "fee" Expr.blobbasefee, Stmt.return (Expr.localVar "fee")] => true
+  | _ => false
+
+example : qualifiedModelReturnsBlobbasefeeBuiltin = true := by native_decide
 
 def executableUsesContractState : Bool :=
   match MacroBlobbasefee.currentBlobBaseFee { Verity.defaultState with blobBaseFee := 19 } with
