@@ -100,6 +100,16 @@ def initialState
   simp [initialState, EvmYul.Yul.State.sharedState, YulState.initial, toSharedState,
     mkBlockHeader]
 
+@[simp] theorem initialState_calldataSize
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    (initialState contract tx storage observableSlots).sharedState.executionEnv.calldata.size =
+      4 + tx.args.length * 32 := by
+  simp [initialState, EvmYul.Yul.State.sharedState, YulState.initial, toSharedState,
+    calldataToByteArray_size]
+
 @[simp] theorem initialState_unbridgedEnvironmentDefaults
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
