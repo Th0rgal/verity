@@ -146,12 +146,15 @@ scope so the native path does not look more complete than it is:
    base-fee/blob-field defaults and native-global `chainid` behavior, callvalue,
    caller/address, calldatasize, timestamp/number, native
    `chainid`/`blobbasefee` default behavior, executable `stop` halt
-   projection, successful native value result projection with committed
-   storage/logs and matching `finalMappings`, the named
+   projection, the named `projectHaltReturn_stop` and `projectResult_stop`
+   lemmas for `stop`/zero-halt return projection, successful native value
+   result projection with committed storage/logs and matching `finalMappings`,
+   the named
    `projectResult_ok` lemma for successful native value results, native return
    halt projection with committed storage/logs and matching `finalMappings`,
-   the named `projectResult_yulHalt` lemma for `return`/`stop` halt
-   projection, log projection for `log0` through
+   the named `projectHaltReturn_32ByteReturn`, `projectResult_yulHalt`, and
+   `projectResult_32ByteReturn` lemmas for 32-byte `return` halt projection,
+   log projection for `log0` through
    `log4` topic arities, conservative rollback projection for native errors,
    explicit hard-error rollback for `OutOfFuel`, explicit `Revert` rollback
    projection with no return value, the named `projectResult_revert` rollback

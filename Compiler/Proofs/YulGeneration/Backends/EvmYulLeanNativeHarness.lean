@@ -192,6 +192,20 @@ def projectHaltReturn (state : EvmYul.Yul.State) (haltValue : EvmYul.Yul.Ast.Lit
   else
     some 0
 
+@[simp] theorem projectHaltReturn_stop
+    (state : EvmYul.Yul.State) :
+    projectHaltReturn state ⟨0⟩ = none := by
+  simp [projectHaltReturn]
+
+@[simp] theorem projectHaltReturn_32ByteReturn
+    (state : EvmYul.Yul.State)
+    (haltValue : EvmYul.Yul.Ast.Literal)
+    (hHalt : haltValue ≠ ⟨0⟩)
+    (hSize : state.sharedState.H_return.size = 32) :
+    projectHaltReturn state haltValue =
+      some (byteArrayWord state.sharedState.H_return 0) := by
+  simp [projectHaltReturn, hHalt, hSize]
+
 /-- Convert a native `callDispatcher` result to the current Verity observable
     result shape. Reverts and hard native errors conservatively roll storage
     back to the supplied initial storage function. -/
@@ -255,6 +269,39 @@ def projectResult
         Compiler.Proofs.storageAsMappings (projectStorageFromState tx state)
       events := initialEvents ++ projectLogsFromState state } := by
   rfl
+
+@[simp] theorem projectResult_stop
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (state : EvmYul.Yul.State) :
+    projectResult tx initialStorage initialEvents
+      (.error (.YulHalt state ⟨0⟩)) =
+    { success := true
+      returnValue := none
+      finalStorage := projectStorageFromState tx state
+      finalMappings :=
+        Compiler.Proofs.storageAsMappings (projectStorageFromState tx state)
+      events := initialEvents ++ projectLogsFromState state } := by
+  simp [projectResult]
+
+@[simp] theorem projectResult_32ByteReturn
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (state : EvmYul.Yul.State)
+    (value : EvmYul.Yul.Ast.Literal)
+    (hHalt : value ≠ ⟨0⟩)
+    (hSize : state.sharedState.H_return.size = 32) :
+    projectResult tx initialStorage initialEvents
+      (.error (.YulHalt state value)) =
+    { success := true
+      returnValue := some (byteArrayWord state.sharedState.H_return 0)
+      finalStorage := projectStorageFromState tx state
+      finalMappings :=
+        Compiler.Proofs.storageAsMappings (projectStorageFromState tx state)
+      events := initialEvents ++ projectLogsFromState state } := by
+  simp [projectResult, hHalt, hSize]
 
 @[simp] theorem projectResult_revert
     (tx : YulTransaction)
