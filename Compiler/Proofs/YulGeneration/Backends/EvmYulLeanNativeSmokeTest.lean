@@ -105,6 +105,20 @@ private def nativeInitialStateInstallsContractAndStorage : Bool :=
         | none => false)
   | _ => false
 
+private def nativeInitialStateOmittedSlotDefaultsToZero : Bool :=
+  let contract : EvmYul.Yul.Ast.YulContract :=
+    { dispatcher := .Block []
+      functions := ∅ }
+  let addr := StateBridge.natToAddress sampleTx.thisAddress
+  match Native.initialState contract sampleTx seededStorage [8] with
+  | .Ok shared _ =>
+      match shared.accountMap.find? addr with
+      | some account =>
+          StateBridge.storageLookup account.storage
+            (StateBridge.natToUInt256 7) == EvmYul.UInt256.ofNat 0
+      | none => false
+  | _ => false
+
 private def nativeStopCommitsStorageAndPreservesEvents : Bool :=
   match Native.interpretRuntimeNative 128 [
     .expr (.call "sstore" [.lit 7, .lit 99]),
@@ -226,6 +240,20 @@ private def duplicateHelperIRContract : Compiler.IRContract :=
     ]
     usesMapping := false }
 
+private def storageReadIRContract : Compiler.IRContract :=
+  { name := "NativeStorageReadSmoke"
+    deploy := []
+    functions := [
+      { name := "copySlot"
+        selector := 0x44444444
+        params := []
+        ret := .unit
+        body := [
+          .expr (.call "sstore" [.lit 8, .call "sload" [.lit 7]])
+        ] }
+    ]
+    usesMapping := false }
+
 private def calldataBridgePinsSelectorAndFirstArg : Bool :=
   let bytes := StateBridge.calldataToByteArray 0x11223344 [42]
   bytes.get? 0 == some (UInt8.ofNat 0x11) &&
@@ -298,11 +326,23 @@ private def nativeExprsMatchLits
   args.length == expected.length &&
     (args.zip expected).all (fun (arg, value) => nativeExprMatchesLit value arg)
 
+private partial def nativeExprContainsPrimCall
+    (op : EvmYul.Operation .Yul) (args : List Nat) :
+    EvmYul.Yul.Ast.Expr → Bool
+  | .Call (.inl got) gotArgs =>
+      (got == op && nativeExprsMatchLits gotArgs args) ||
+        gotArgs.any (nativeExprContainsPrimCall op args)
+  | .Call (.inr _) gotArgs =>
+      gotArgs.any (nativeExprContainsPrimCall op args)
+  | _ => false
+
 private partial def nativeStmtContainsPrimCall
     (op : EvmYul.Operation .Yul) (args : List Nat) :
     EvmYul.Yul.Ast.Stmt → Bool
-  | .ExprStmtCall (.Call (.inl got) gotArgs) =>
-      got == op && nativeExprsMatchLits gotArgs args
+  | .Let _ (some expr) =>
+      nativeExprContainsPrimCall op args expr
+  | .ExprStmtCall expr =>
+      nativeExprContainsPrimCall op args expr
   | .Block stmts =>
       stmts.any (nativeStmtContainsPrimCall op args)
   | .If _ body =>
@@ -405,6 +445,13 @@ private def emittedReturnDispatchLowersNativeMemoryReturn : Bool :=
       nativeStmtSwitchCaseContainsPrimCall 0x33333333 .MSTORE [0, 42]
         contract.dispatcher &&
       nativeStmtSwitchCaseContainsPrimCall 0x33333333 .RETURN [0, 32]
+        contract.dispatcher
+  | .error _ => false
+
+private def emittedStorageReadDispatchLowersNativeSloadBody : Bool :=
+  match lowerRuntimeContractNative (Compiler.emitYul storageReadIRContract).runtimeCode with
+  | .ok contract =>
+      nativeStmtSwitchCaseContainsPrimCall 0x44444444 .SLOAD [7]
         contract.dispatcher
   | .error _ => false
 
@@ -533,6 +580,10 @@ example :
 
 example :
     nativeInitialStateInstallsContractAndStorage = true := by
+  native_decide
+
+example :
+    nativeInitialStateOmittedSlotDefaultsToZero = true := by
   native_decide
 
 example :
@@ -702,6 +753,10 @@ example :
 
 example :
     emittedReturnDispatchLowersNativeMemoryReturn = true := by
+  native_decide
+
+example :
+    emittedStorageReadDispatchLowersNativeSloadBody = true := by
   native_decide
 
 example :
