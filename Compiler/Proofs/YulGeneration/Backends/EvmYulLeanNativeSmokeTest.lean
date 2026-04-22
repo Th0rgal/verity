@@ -64,6 +64,14 @@ private def dispatchSmokeContract : Compiler.IRContract :=
     ]
     usesMapping := false }
 
+private def calldataBridgePinsSelectorAndFirstArg : Bool :=
+  let bytes := StateBridge.calldataToByteArray 0x11223344 [42]
+  bytes.get? 0 == some (UInt8.ofNat 0x11) &&
+    bytes.get? 1 == some (UInt8.ofNat 0x22) &&
+    bytes.get? 2 == some (UInt8.ofNat 0x33) &&
+    bytes.get? 3 == some (UInt8.ofNat 0x44) &&
+    Native.byteArrayWord bytes 4 == 42
+
 private partial def nativeStmtContainsSwitch : EvmYul.Yul.Ast.Stmt → Bool
   | .Switch _ _ _ => true
   | .Block stmts => stmts.any nativeStmtContainsSwitch
@@ -275,6 +283,10 @@ example :
 
 example :
     emittedDispatchNativeSelectorCaseBodies = true := by
+  native_decide
+
+example :
+    calldataBridgePinsSelectorAndFirstArg = true := by
   native_decide
 
 example :
