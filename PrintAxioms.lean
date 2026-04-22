@@ -2736,7 +2736,10 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_revert
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_hardError
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_eq_interpretRuntimeNative
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean
@@ -3003,4 +3006,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2833 theorems/lemmas (1950 public, 883 private, 0 sorry'd)
+-- Total: 2836 theorems/lemmas (1953 public, 883 private, 0 sorry'd)
