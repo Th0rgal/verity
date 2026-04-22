@@ -159,7 +159,8 @@ scope so the native path does not look more complete than it is:
    selector-plus-ABI-word calldata length, the named
    `initialState_unbridgedEnvironmentDefaults` lemma for
    base-fee/blob-field defaults and native-global `chainid` behavior, callvalue,
-   caller/address, calldatasize, timestamp/number, native
+   caller/address, calldatasize, timestamp/number, a native-vs-reference-oracle
+   runtime comparison for those bridged environment fields, native
    `chainid`/`blobbasefee` default behavior, executable `stop` halt
    projection, the named `projectHaltReturn_stop` and `projectResult_stop`
    lemmas for `stop`/zero-halt return projection, native log projection from

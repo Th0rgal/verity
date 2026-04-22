@@ -71,6 +71,63 @@ private def nativeStoresBuiltin (builtin : String) (slot expected : Nat) : Bool 
   | .ok result => result.success && result.finalStorage slot == expected
   | .error _ => false
 
+private def referenceRuntimeWithFuel
+    (fuel : Nat) (stmts : List YulStmt) (tx : Compiler.Proofs.YulGeneration.YulTransaction)
+    (storage : Nat → Nat) (events : List (List Nat)) :
+    Compiler.Proofs.YulGeneration.YulResult :=
+  let initialState := Compiler.Proofs.YulGeneration.YulState.initial tx storage events
+  match Compiler.Proofs.YulGeneration.execYulFuel fuel initialState (.stmts stmts) with
+  | .continue s =>
+      { success := true
+        returnValue := s.returnValue
+        finalStorage := s.storage
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
+  | .return v s =>
+      { success := true
+        returnValue := some v
+        finalStorage := s.storage
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
+  | .stop s =>
+      { success := true
+        returnValue := none
+        finalStorage := s.storage
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
+  | .revert _ =>
+      { success := false
+        returnValue := none
+        finalStorage := storage
+        finalMappings := Compiler.Proofs.storageAsMappings storage
+        events := events }
+
+private def resultsMatchOnSlots
+    (slots : List Nat)
+    (nativeResult referenceResult : Compiler.Proofs.YulGeneration.YulResult) : Bool :=
+  nativeResult.success == referenceResult.success &&
+    nativeResult.returnValue == referenceResult.returnValue &&
+    nativeResult.events == referenceResult.events &&
+    slots.all (fun slot => nativeResult.finalStorage slot == referenceResult.finalStorage slot)
+
+private def nativeMatchesReferenceRuntime
+    (stmts : List YulStmt) (observableSlots compareSlots : List Nat) : Bool :=
+  match Native.interpretRuntimeNative 128 stmts sampleTx zeroStorage observableSlots with
+  | .ok nativeResult =>
+      resultsMatchOnSlots compareSlots nativeResult
+        (referenceRuntimeWithFuel 128 stmts sampleTx zeroStorage [])
+  | .error _ => false
+
+private def nativeEnvironmentMatchesReferenceRuntime : Bool :=
+  nativeMatchesReferenceRuntime [
+    .expr (.call "sstore" [.lit 8, .call "callvalue" []]),
+    .expr (.call "sstore" [.lit 9, .call "timestamp" []]),
+    .expr (.call "sstore" [.lit 10, .call "number" []]),
+    .expr (.call "sstore" [.lit 12, .call "caller" []]),
+    .expr (.call "sstore" [.lit 13, .call "address" []]),
+    .expr (.call "sstore" [.lit 14, .call "calldatasize" []])
+  ] [8, 9, 10, 12, 13, 14] [8, 9, 10, 12, 13, 14]
+
 private def nativeCopiesSloadToSlot
     (observableSlots : List Nat) (expected : Nat) : Bool :=
   match Native.interpretRuntimeNative 128 [
@@ -622,6 +679,10 @@ example :
 
 example :
     nativeInitialStatePinsTransactionEnvironment = true := by
+  native_decide
+
+example :
+    nativeEnvironmentMatchesReferenceRuntime = true := by
   native_decide
 
 example :
