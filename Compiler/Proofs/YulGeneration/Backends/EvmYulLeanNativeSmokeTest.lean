@@ -111,7 +111,6 @@ private def nativeReturnHaltProjectsStorageReturnAndEvents : Bool :=
     result.finalStorage 7 == 99 &&
     result.events == [[1, 2, 3], [5, 88]]
 
-
 private def dispatchSmokeContract : Compiler.IRContract :=
   { name := "NativeDispatchSmoke"
     deploy := []
@@ -296,10 +295,29 @@ private def lowersHelperAsUserFunction : Bool :=
   | .Call (.inr name) args => name == "helper" && args.length == 1
   | _ => false
 
+private def lowerCallIsPrim
+    (name : String) (args : List YulExpr) (op : EvmYul.Operation .Yul) : Bool :=
+  match lowerExprNative (.call name args) with
+  | .Call (.inl got) lowered => got == op && lowered.length == args.length
+  | _ => false
+
+private def lowersNativeHaltAndLogBuiltinsAsPrims : Bool :=
+  lowerCallIsPrim "stop" [] .STOP &&
+    lowerCallIsPrim "return" [.lit 0, .lit 32] .RETURN &&
+    lowerCallIsPrim "revert" [.lit 0, .lit 0] .REVERT &&
+    lowerCallIsPrim "log0" [.lit 0, .lit 32] .LOG0 &&
+    lowerCallIsPrim "log1" [.lit 0, .lit 32, .lit 1] .LOG1 &&
+    lowerCallIsPrim "log2" [.lit 0, .lit 32, .lit 1, .lit 2] .LOG2 &&
+    lowerCallIsPrim "log3" [.lit 0, .lit 32, .lit 1, .lit 2, .lit 3] .LOG3 &&
+    lowerCallIsPrim "log4" [.lit 0, .lit 32, .lit 1, .lit 2, .lit 3, .lit 4] .LOG4
+
 example : lowersAddAsPrim = true := by
   native_decide
 
 example : lowersHelperAsUserFunction = true := by
+  native_decide
+
+example : lowersNativeHaltAndLogBuiltinsAsPrims = true := by
   native_decide
 
 example :

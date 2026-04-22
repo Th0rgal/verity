@@ -113,18 +113,19 @@ scope so the native path does not look more complete than it is:
 
 4. Add wider executable coverage for the native path.
 
-   Current smoke coverage exercises primop lowering, helper function maps,
-   duplicate-helper failure, emitted dispatcher lowering shape and selector
-   expression, selector cases with their lowered storage-write bodies,
+   Current smoke coverage exercises primop lowering, including critical
+   halt/log builtins, helper function maps, duplicate-helper failure, emitted
+   dispatcher lowering shape and selector expression, selector cases with their
+   lowered storage-write bodies,
    selector/calldata byte layout, storage writes, `sload` through explicit
    observable pre-state slots, omitted-slot default reads, `tstore`/`tload`
    execution through copied observable storage, callvalue,
    caller/address, calldatasize, timestamp/number, native
    `chainid`/`blobbasefee` default behavior, executable `stop` halt
    projection, successful native value result projection, native return halt
-   projection with committed storage/logs, and log projection for `log0`
-   through `log4` topic arities, conservative rollback projection for native
-   errors, and `interpretIRRuntimeNative`
+   projection with committed storage/logs, log projection for `log0` through
+   `log4` topic arities, conservative rollback projection for native errors,
+   and `interpretIRRuntimeNative`
    forwarding/fail-closed lowering behavior. Next coverage should include:
    - executable dispatcher selector selection from emitted runtime code; the
      lowered selector expression is already pinned, but build-time execution
