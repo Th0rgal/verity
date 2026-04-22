@@ -111,6 +111,18 @@ private def nativeReturnHaltProjectsStorageReturnAndEvents : Bool :=
     result.finalStorage 7 == 99 &&
     result.events == [[1, 2, 3], [5, 88]]
 
+private def nativeValueResultProjectsStorageReturnAndEvents : Bool :=
+  let finalStorage : Nat → Nat := fun slot => if slot = 7 then 99 else 0
+  let result :=
+    Native.projectResult sampleTx seededStorage [[1, 2, 3]]
+      (.ok
+        (stateWithStorageLogReturn finalStorage [7] [sampleLogEntry [5] 88] 0,
+          [EvmYul.UInt256.ofNat 44]))
+  result.success &&
+    result.returnValue == some 44 &&
+    result.finalStorage 7 == 99 &&
+    result.events == [[1, 2, 3], [5, 88]]
+
 private def dispatchSmokeContract : Compiler.IRContract :=
   { name := "NativeDispatchSmoke"
     deploy := []
@@ -377,6 +389,10 @@ example :
 
 example :
     nativeReturnHaltProjectsStorageReturnAndEvents = true := by
+  native_decide
+
+example :
+    nativeValueResultProjectsStorageReturnAndEvents = true := by
   native_decide
 
 example :
