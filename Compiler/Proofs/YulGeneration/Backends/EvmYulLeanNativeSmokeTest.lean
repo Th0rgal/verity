@@ -378,6 +378,17 @@ example :
   native_decide
 
 example :
+    (let result :=
+      Native.projectResult sampleTx zeroStorage [[9]]
+        (.ok
+          (stateWithLogEntries [sampleLogEntry [7] 70],
+            [EvmYul.UInt256.ofNat 44]))
+     result.success &&
+       result.returnValue == some 44 &&
+       result.events == [[9], [7, 70]]) = true := by
+  native_decide
+
+example :
     (let state : EvmYul.Yul.State :=
       .Ok
         { (StateBridge.toSharedState
