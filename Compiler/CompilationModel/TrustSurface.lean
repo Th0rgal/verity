@@ -58,7 +58,8 @@ private partial def collectLowLevelExprMechanics : Expr → List String
       collectLowLevelExprMechanics key1 ++ collectLowLevelExprMechanics key2
   | .mappingUint _ key
   | .storageArrayElement _ key
-  | .arrayElement _ key =>
+  | .arrayElement _ key
+  | .arrayElementWord _ key _ _ =>
       collectLowLevelExprMechanics key
   | .mload key =>
       ["mload"] ++ collectLowLevelExprMechanics key
@@ -121,7 +122,8 @@ private partial def collectAxiomatizedExprPrimitives : Expr → List String
       collectAxiomatizedExprPrimitives key1 ++ collectAxiomatizedExprPrimitives key2
   | .mappingUint _ key
   | .storageArrayElement _ key
-  | .arrayElement _ key =>
+  | .arrayElement _ key
+  | .arrayElementWord _ key _ _ =>
       collectAxiomatizedExprPrimitives key
   | .externalCall _ args
   | .internalCall _ args =>
@@ -449,7 +451,8 @@ private partial def collectEventEmissionExprMechanics : Expr → List String
   | .mappingChain _ keys =>
       keys.flatMap collectEventEmissionExprMechanics
   | .mappingUint _ key
-  | .arrayElement _ key =>
+  | .arrayElement _ key
+  | .arrayElementWord _ key _ _ =>
       collectEventEmissionExprMechanics key
   | .add a b | .sub a b | .mul a b | .div a b | .sdiv a b | .mod a b | .smod a b
   | .bitAnd a b | .bitOr a b | .bitXor a b | .shl a b | .shr a b | .sar a b | .signextend a b
@@ -609,7 +612,8 @@ private partial def collectRuntimeIntrospectionExprMechanics : Expr → List Str
   | .mappingChain _ keys =>
       keys.flatMap collectRuntimeIntrospectionExprMechanics
   | .mappingUint _ key
-  | .arrayElement _ key =>
+  | .arrayElement _ key
+  | .arrayElementWord _ key _ _ =>
       collectRuntimeIntrospectionExprMechanics key
   | .add a b | .sub a b | .mul a b | .div a b | .sdiv a b | .mod a b | .smod a b
   | .bitAnd a b | .bitOr a b | .bitXor a b | .shl a b | .shr a b | .sar a b | .signextend a b
@@ -757,7 +761,8 @@ private partial def collectExternalExprNames : Expr → List String
   | .mappingChain _ keys =>
       keys.flatMap collectExternalExprNames
   | .mappingUint _ key
-  | .arrayElement _ key =>
+  | .arrayElement _ key
+  | .arrayElementWord _ key _ _ =>
       collectExternalExprNames key
   | .internalCall _ args =>
       args.flatMap collectExternalExprNames
@@ -775,6 +780,33 @@ private partial def collectExternalExprNames : Expr → List String
       collectExternalExprNames cond ++ collectExternalExprNames thenVal ++ collectExternalExprNames elseVal
   | _ =>
       []
+
+private def arrayElementWordLowLevelIndexSmoke : Expr :=
+  Expr.arrayElementWord "cuts"
+    (Expr.call (Expr.literal 5000) (Expr.literal 1) (Expr.literal 0)
+      (Expr.literal 0) (Expr.literal 0) (Expr.literal 0) (Expr.literal 32))
+    3 1
+
+private def arrayElementWordAxiomatizedIndexSmoke : Expr :=
+  Expr.arrayElementWord "cuts" (Expr.keccak256 (Expr.literal 0) (Expr.literal 64)) 3 1
+
+private def arrayElementWordRuntimeIndexSmoke : Expr :=
+  Expr.arrayElementWord "cuts" Expr.blockNumber 3 1
+
+private def arrayElementWordExternalIndexSmoke : Expr :=
+  Expr.arrayElementWord "cuts" (Expr.externalCall "oracle" []) 3 1
+
+example : collectLowLevelExprMechanics arrayElementWordLowLevelIndexSmoke = ["call"] := by
+  native_decide
+
+example : collectAxiomatizedExprPrimitives arrayElementWordAxiomatizedIndexSmoke = ["keccak256"] := by
+  native_decide
+
+example : collectRuntimeIntrospectionExprMechanics arrayElementWordRuntimeIndexSmoke = ["blockNumber"] := by
+  native_decide
+
+example : collectExternalExprNames arrayElementWordExternalIndexSmoke = ["oracle"] := by
+  native_decide
 
 private partial def collectExternalStmtNames : Stmt → List String
   | .letVar _ value
