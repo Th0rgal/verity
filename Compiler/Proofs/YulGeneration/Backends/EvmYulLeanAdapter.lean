@@ -340,10 +340,11 @@ partial def lowerStmtGroupNativeWithSwitchIds
 end
 
 def lowerFunctionDefinitionNativeWithReserved
-    (reservedNames : List String)
+    (globalReservedNames : List String)
     (params rets : List String)
     (body : List YulStmt) :
     Except AdapterError EvmYul.Yul.Ast.FunctionDefinition := do
+  let reservedNames := globalReservedNames ++ params ++ rets ++ yulStmtsIdentifierNames body
   let (body', _) ← lowerStmtsNativeWithSwitchIds reservedNames 0 body
   pure (.Def params rets body')
 

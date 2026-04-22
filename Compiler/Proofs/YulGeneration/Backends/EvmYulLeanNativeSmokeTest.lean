@@ -595,6 +595,23 @@ private def nativeSwitchTempNamesAvoidUserNames : Bool :=
     .expr (.call "sstore" [.lit 8, .ident "__verity_native_switch_matched_0"])
   ] [7, 8] [7, 8]
 
+private def nativeFunctionSwitchTempNamesAvoidLocalUserNames : Bool :=
+  match lowerFunctionDefinitionNativeWithReserved [] [] [] [
+    .let_ "__verity_native_switch_discr_0" (.lit 99),
+    .let_ "__verity_native_switch_matched_0" (.lit 77),
+    .switch (.lit 1)
+      [(1, [.let_ "after" (.ident "__verity_native_switch_discr_0")])]
+      none
+  ] with
+  | .ok (.Def _ _ [
+      .Let ["__verity_native_switch_discr_0"] (some _),
+      .Let ["__verity_native_switch_matched_0"] (some _),
+      .Block (.Let [freshDiscr] (some _) :: .Let [freshMatched] (some _) :: _)
+    ]) =>
+      freshDiscr != "__verity_native_switch_discr_0" &&
+        freshMatched != "__verity_native_switch_matched_0"
+  | _ => false
+
 private def nativeSwitchExecutesOnlyFirstMatchingNonHaltingCase : Bool :=
   nativeMatchesReferenceRuntime [
     .switch (.lit 1)
@@ -1007,6 +1024,10 @@ example :
 
 example :
     nativeSwitchTempNamesAvoidUserNames = true := by
+  native_decide
+
+example :
+    nativeFunctionSwitchTempNamesAvoidLocalUserNames = true := by
   native_decide
 
 example :

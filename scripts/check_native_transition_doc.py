@@ -188,6 +188,7 @@ def check_native_switch_lowering_boundary(native_adapter_text: str, native_smoke
 
     for required_smoke in (
         "nativeSwitchTempNamesAvoidUserNames = true",
+        "nativeFunctionSwitchTempNamesAvoidLocalUserNames = true",
         "nativeSwitchExecutesOnlyFirstMatchingNonHaltingCase = true",
     ):
         if required_smoke not in normalized_smoke:
