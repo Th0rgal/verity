@@ -119,6 +119,26 @@ private def nativeInitialStateOmittedSlotDefaultsToZero : Bool :=
       | none => false
   | _ => false
 
+private def nativeInitialStatePinsTransactionEnvironment : Bool :=
+  let contract : EvmYul.Yul.Ast.YulContract :=
+    { dispatcher := .Block []
+      functions := ∅ }
+  match Native.initialState contract sampleTx zeroStorage [] with
+  | .Ok shared _ =>
+      shared.executionEnv.source == StateBridge.natToAddress sampleTx.sender &&
+        shared.executionEnv.sender == StateBridge.natToAddress sampleTx.sender &&
+        shared.executionEnv.codeOwner == StateBridge.natToAddress sampleTx.thisAddress &&
+        shared.executionEnv.weiValue == EvmYul.UInt256.ofNat sampleTx.msgValue &&
+        shared.executionEnv.header.timestamp == sampleTx.blockTimestamp &&
+        shared.executionEnv.header.number == sampleTx.blockNumber &&
+        shared.executionEnv.calldata.size == 36 &&
+        shared.executionEnv.calldata.get? 0 == some (UInt8.ofNat 0x01) &&
+        shared.executionEnv.calldata.get? 1 == some (UInt8.ofNat 0x02) &&
+        shared.executionEnv.calldata.get? 2 == some (UInt8.ofNat 0x03) &&
+        shared.executionEnv.calldata.get? 3 == some (UInt8.ofNat 0x04) &&
+        Native.byteArrayWord shared.executionEnv.calldata 4 == 41
+  | _ => false
+
 private def nativeStopCommitsStorageAndPreservesEvents : Bool :=
   match Native.interpretRuntimeNative 128 [
     .expr (.call "sstore" [.lit 7, .lit 99]),
@@ -598,6 +618,10 @@ example :
 
 example :
     nativeInitialStateOmittedSlotDefaultsToZero = true := by
+  native_decide
+
+example :
+    nativeInitialStatePinsTransactionEnvironment = true := by
   native_decide
 
 example :
