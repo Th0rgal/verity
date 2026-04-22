@@ -685,9 +685,11 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_via_reference_oracle
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_evmYulLean_with_function_bridge
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_evmYulLean
+#print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_interpreter_bridge
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_via_reference_oracle
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_evmYulLean_with_function_bridge
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_evmYulLean
+#print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd
 -- #print axioms Compiler.Proofs.EndToEnd.simpleStorage_functions_bridged  -- private
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_evmYulLean
@@ -3073,4 +3075,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2900 theorems/lemmas (2013 public, 887 private, 0 sorry'd)
+-- Total: 2902 theorems/lemmas (2015 public, 887 private, 0 sorry'd)

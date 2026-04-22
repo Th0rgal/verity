@@ -41,6 +41,9 @@ REQUIRED_SNIPPETS = (
     "EvmYul.Yul.callDispatcher",
     "observable storage slot set explicitly",
     "only materializes pre-state storage for those slots",
+    "layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge",
+    "nativeIRRuntimeAgreesWithInterpreter",
+    "nativeResultsMatch",
     "native public theorem pending",
     "not yet proved",
     "#1741",
@@ -116,15 +119,26 @@ def check_public_theorem_target(end_to_end_text: str, native_harness_text: str) 
             "until the native preservation theorem is proved and this guard is updated"
         )
 
-    for native_target in (
-        "interpretIRRuntimeNative",
-        "interpretRuntimeNative",
-        "EvmYul.Yul.callDispatcher",
+    for required_native_seam in (
+        "def nativeResultsMatch",
+        "def nativeIRRuntimeAgreesWithInterpreter",
+        "theorem layer3_contract_preserves_semantics_native_of_interpreter_bridge",
+        "theorem layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge",
     ):
+        if required_native_seam not in normalized_end_to_end:
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean must keep the native theorem seam "
+                f"`{required_native_seam}` explicit until the generated-fragment "
+                "native bridge is discharged"
+            )
+
+    forbidden_native_in_end_to_end = ("interpretRuntimeNative", "EvmYul.Yul.callDispatcher")
+    for native_target in forbidden_native_in_end_to_end:
         if native_target in normalized_end_to_end:
             errors.append(
-                "Compiler/Proofs/EndToEnd.lean mentions native runtime target "
-                f"`{native_target}` before the public theorem flip is documented"
+                "Compiler/Proofs/EndToEnd.lean should target the native IR "
+                "runtime seam, not the lower-level harness implementation "
+                f"`{native_target}`"
             )
 
     for required_native_entrypoint in (

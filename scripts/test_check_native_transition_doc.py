@@ -82,7 +82,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
-    def test_public_theorem_target_guard_rejects_premature_native_target(self) -> None:
+    def test_public_theorem_target_guard_accepts_native_theorem_seam(self) -> None:
         end_to_end_text = (
             check.END_TO_END.read_text(encoding="utf-8")
             + "\n-- theorem target: interpretIRRuntimeNative\n"
@@ -91,7 +91,32 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             end_to_end_text,
             check.NATIVE_HARNESS.read_text(encoding="utf-8"),
         )
-        self.assertTrue(any("interpretIRRuntimeNative" in error for error in errors), errors)
+        self.assertEqual(errors, [])
+
+    def test_public_theorem_target_guard_rejects_missing_native_bridge_obligation(self) -> None:
+        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
+            "nativeIRRuntimeAgreesWithInterpreter",
+            "nativeRuntimeBridgeObligation",
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("nativeIRRuntimeAgreesWithInterpreter" in error for error in errors),
+            errors,
+        )
+
+    def test_public_theorem_target_guard_rejects_low_level_native_target(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + "\n-- theorem target: EvmYul.Yul.callDispatcher\n"
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(any("callDispatcher" in error for error in errors), errors)
 
     def test_unbridged_environment_boundary_accepts_current_shape(self) -> None:
         errors = check.check_unbridged_environment_boundary(

@@ -38,6 +38,13 @@ materializes pre-state storage for those slots.
 - Native result projection preserves pre-existing event history and appends
   native EVMYulLean logs, matching the observable shape expected by the current
   proof-side `YulResult`.
+- The EndToEnd layer now exposes the native-facing theorem seam
+  `layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge`. Its
+  conclusion targets `Native.interpretIRRuntimeNative` through
+  `nativeResultsMatch`, but it still requires the explicit
+  `nativeIRRuntimeAgreesWithInterpreter` obligation for the generated runtime.
+  That obligation is the exact remaining native-vs-interpreter equivalence
+  theorem, not a completed public flip.
 - The native harness remains separate from the existing retargeting theorem, so
   the proof tree does not claim a theorem that is not yet proved.
 
@@ -274,9 +281,26 @@ scope so the native path does not look more complete than it is:
 
 5. Introduce the public native preservation theorem.
 
-   The successor theorem should target `interpretIRRuntimeNative`, or a
-   total wrapper around it once the remaining closed-failure cases are ruled
-   out by syntactic invariants.
+   The EndToEnd module now has a named native theorem seam:
+
+   ```lean
+   layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge
+   ```
+
+   It targets `Native.interpretIRRuntimeNative` directly, but only under:
+
+   ```lean
+   nativeIRRuntimeAgreesWithInterpreter fuel irContract tx initialState
+     observableSlots
+   ```
+
+   This makes the remaining proof obligation concrete: for the supported
+   generated fragment, native `lowerRuntimeContractNative` plus
+   `EvmYul.Yul.callDispatcher` must produce the same projected `YulResult` as
+   the current `interpretYulRuntimeWithBackend .evmYulLean` interpreter oracle.
+   The successor theorem should discharge that bridge, or target a total native
+   wrapper once the remaining closed-failure cases are ruled out by syntactic
+   invariants.
 
    A clean intermediate theorem is:
 
