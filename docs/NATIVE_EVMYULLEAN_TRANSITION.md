@@ -177,8 +177,11 @@ scope so the native path does not look more complete than it is:
    lemmas for hard native failure observables, the named
    `projectResult_ok_finalStorageSlot` and
    `projectResult_yulHalt_finalStorageSlot` lemmas for committed final-storage
-   slot projection, the named `projectResult_ok_missingFinalStorageAccountSlot`
-   and `projectResult_yulHalt_missingFinalStorageAccountSlot` lemmas for
+   slot projection, the named `projectResult_ok_missingFinalStorageSlot` and
+   `projectResult_yulHalt_missingFinalStorageSlot` lemmas for present-account
+   missing-slot default projection, the named
+   `projectResult_ok_missingFinalStorageAccountSlot` and
+   `projectResult_yulHalt_missingFinalStorageAccountSlot` lemmas for
    absent-account final-storage default projection, the named
    `projectResult_revert_finalStorageSlot` and
    `projectResult_hardError_finalStorageSlot` lemmas for rollback final-storage

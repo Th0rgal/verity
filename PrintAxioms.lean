@@ -2757,11 +2757,13 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_returnValue
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_finalStorageSlot
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_missingFinalStorageAccountSlot
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_missingFinalStorageSlot
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_events
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_success
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_returnValue
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_finalStorageSlot
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_missingFinalStorageAccountSlot
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_missingFinalStorageSlot
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_stop
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_32ByteReturn
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_revert
@@ -3045,4 +3047,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2875 theorems/lemmas (1992 public, 883 private, 0 sorry'd)
+-- Total: 2877 theorems/lemmas (1994 public, 883 private, 0 sorry'd)

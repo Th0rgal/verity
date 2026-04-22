@@ -412,6 +412,23 @@ def projectResult
       (.ok (state, values))).finalStorage slot = 0 := by
   simp [projectResult, projectStorageFromState_missingAccount, hAccount]
 
+@[simp] theorem projectResult_ok_missingFinalStorageSlot
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.Yul.Ast.Literal)
+    (slot : Nat)
+    (account : EvmYul.Account .Yul)
+    (hAccount :
+      state.sharedState.accountMap.find? (natToAddress tx.thisAddress) =
+        some account)
+    (hSlot : account.storage.find? (natToUInt256 slot) = none) :
+    (projectResult tx initialStorage initialEvents
+      (.ok (state, values))).finalStorage slot = 0 := by
+  simp [projectResult, projectStorageFromState_missingAccountStorageSlot,
+    hAccount, hSlot]
+
 @[simp] theorem projectResult_yulHalt_events
     (tx : YulTransaction)
     (initialStorage : Nat → Nat)
@@ -476,6 +493,23 @@ def projectResult
     (projectResult tx initialStorage initialEvents
       (.error (.YulHalt state value))).finalStorage slot = 0 := by
   simp [projectResult, projectStorageFromState_missingAccount, hAccount]
+
+@[simp] theorem projectResult_yulHalt_missingFinalStorageSlot
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (state : EvmYul.Yul.State)
+    (value : EvmYul.Yul.Ast.Literal)
+    (slot : Nat)
+    (account : EvmYul.Account .Yul)
+    (hAccount :
+      state.sharedState.accountMap.find? (natToAddress tx.thisAddress) =
+        some account)
+    (hSlot : account.storage.find? (natToUInt256 slot) = none) :
+    (projectResult tx initialStorage initialEvents
+      (.error (.YulHalt state value))).finalStorage slot = 0 := by
+  simp [projectResult, projectStorageFromState_missingAccountStorageSlot,
+    hAccount, hSlot]
 
 @[simp] theorem projectResult_stop
     (tx : YulTransaction)
