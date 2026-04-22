@@ -100,6 +100,76 @@ def initialState
   simp [initialState, EvmYul.Yul.State.sharedState, YulState.initial, toSharedState,
     mkBlockHeader]
 
+@[simp] theorem initialState_source
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    (initialState contract tx storage observableSlots).sharedState.executionEnv.source =
+      natToAddress tx.sender := by
+  simp [initialState, EvmYul.Yul.State.sharedState, YulState.initial, toSharedState,
+    mkBlockHeader]
+
+@[simp] theorem initialState_sender
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    (initialState contract tx storage observableSlots).sharedState.executionEnv.sender =
+      natToAddress tx.sender := by
+  simp [initialState, EvmYul.Yul.State.sharedState, YulState.initial, toSharedState,
+    mkBlockHeader]
+
+@[simp] theorem initialState_codeOwner
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    (initialState contract tx storage observableSlots).sharedState.executionEnv.codeOwner =
+      natToAddress tx.thisAddress := by
+  simp [initialState, EvmYul.Yul.State.sharedState, YulState.initial, toSharedState,
+    mkBlockHeader]
+
+@[simp] theorem initialState_weiValue
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    (initialState contract tx storage observableSlots).sharedState.executionEnv.weiValue =
+      natToUInt256 tx.msgValue := by
+  simp [initialState, EvmYul.Yul.State.sharedState, YulState.initial, toSharedState,
+    mkBlockHeader]
+
+@[simp] theorem initialState_blockTimestamp
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    (initialState contract tx storage observableSlots).sharedState.executionEnv.header.timestamp =
+      tx.blockTimestamp := by
+  simp [initialState, EvmYul.Yul.State.sharedState, YulState.initial, toSharedState,
+    mkBlockHeader]
+
+@[simp] theorem initialState_blockNumber
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    (initialState contract tx storage observableSlots).sharedState.executionEnv.header.number =
+      tx.blockNumber := by
+  simp [initialState, EvmYul.Yul.State.sharedState, YulState.initial, toSharedState,
+    mkBlockHeader]
+
+@[simp] theorem initialState_calldata
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    (initialState contract tx storage observableSlots).sharedState.executionEnv.calldata =
+      calldataToByteArray tx.functionSelector tx.args := by
+  simp [initialState, EvmYul.Yul.State.sharedState, YulState.initial, toSharedState,
+    mkBlockHeader]
+
 @[simp] theorem initialState_calldataSize
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)

@@ -151,7 +151,11 @@ scope so the native path does not look more complete than it is:
    and direct transaction-environment seeding for sender/source, value, current
    address, calldata selector/argument bytes, timestamp, and block number, the
    named `initialState_transactionEnvironment` lemma for those initial
-   environment fields, the named `initialState_calldataSize` lemma for the native
+   environment fields, the named `initialState_source`,
+   `initialState_sender`, `initialState_codeOwner`, `initialState_weiValue`,
+   `initialState_blockTimestamp`, `initialState_blockNumber`, and
+   `initialState_calldata` lemmas for direct downstream rewriting of those
+   native state bridge fields, the named `initialState_calldataSize` lemma for the native
    selector-plus-ABI-word calldata length, the named
    `initialState_unbridgedEnvironmentDefaults` lemma for
    base-fee/blob-field defaults and native-global `chainid` behavior, callvalue,

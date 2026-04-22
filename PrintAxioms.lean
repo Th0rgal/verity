@@ -2744,6 +2744,13 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_installsExecutionContract
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_installsCurrentAccountContract
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_transactionEnvironment
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_source
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_sender
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_codeOwner
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_weiValue
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_blockTimestamp
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_blockNumber
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldata
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataSize
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_unbridgedEnvironmentDefaults
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_accountStorageSlot
@@ -3058,4 +3065,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2885 theorems/lemmas (2002 public, 883 private, 0 sorry'd)
+-- Total: 2892 theorems/lemmas (2009 public, 883 private, 0 sorry'd)
