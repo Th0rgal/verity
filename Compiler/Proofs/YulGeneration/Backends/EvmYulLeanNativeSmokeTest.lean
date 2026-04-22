@@ -80,6 +80,23 @@ private partial def nativeStmtContainsSwitch : EvmYul.Yul.Ast.Stmt → Bool
       post.any nativeStmtContainsSwitch || body.any nativeStmtContainsSwitch
   | _ => false
 
+private def nativeExprIsSelectorLoad : EvmYul.Yul.Ast.Expr → Bool
+  | .Call (.inl op)
+      [.Lit shift, .Call (.inl loadOp) [.Lit offset]] =>
+      op == (EvmYul.Operation.SHR : EvmYul.Operation .Yul) &&
+        StateBridge.uint256ToNat shift == Compiler.Constants.selectorShift &&
+        loadOp == (EvmYul.Operation.CALLDATALOAD : EvmYul.Operation .Yul) &&
+        StateBridge.uint256ToNat offset == 0
+  | _ => false
+
+private partial def nativeStmtContainsSelectorSwitch : EvmYul.Yul.Ast.Stmt → Bool
+  | .Switch selector _ _ => nativeExprIsSelectorLoad selector
+  | .Block stmts => stmts.any nativeStmtContainsSelectorSwitch
+  | .If _ body => body.any nativeStmtContainsSelectorSwitch
+  | .For _ post body =>
+      post.any nativeStmtContainsSelectorSwitch || body.any nativeStmtContainsSelectorSwitch
+  | _ => false
+
 private partial def nativeStmtSwitchCaseLabels : EvmYul.Yul.Ast.Stmt → List Nat
   | .Switch _ cases defaultBody =>
       cases.map (fun (label, _) => StateBridge.uint256ToNat label) ++
@@ -147,6 +164,11 @@ private def emittedDispatchLowersNativeSelectorCases : Bool :=
   | .ok contract =>
       let labels := nativeStmtSwitchCaseLabels contract.dispatcher
       labels.contains 0x11111111 && labels.contains 0x22222222
+  | .error _ => false
+
+private def emittedDispatchLowersNativeSelectorExpr : Bool :=
+  match lowerRuntimeContractNative (Compiler.emitYul dispatchSmokeContract).runtimeCode with
+  | .ok contract => nativeStmtContainsSelectorSwitch contract.dispatcher
   | .error _ => false
 
 private def emittedDispatchNativeSelectorCaseBodies : Bool :=
@@ -279,6 +301,10 @@ example :
 
 example :
     emittedDispatchLowersNativeSelectorCases = true := by
+  native_decide
+
+example :
+    emittedDispatchLowersNativeSelectorExpr = true := by
   native_decide
 
 example :
