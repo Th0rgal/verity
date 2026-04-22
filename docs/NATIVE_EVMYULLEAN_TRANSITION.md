@@ -148,7 +148,10 @@ scope so the native path does not look more complete than it is:
    projection with no return value, the named `projectResult_revert` rollback
    lemma, conservative `finalMappings` rollback on
    native errors, the named `projectResult_hardError` lemma for every
-   non-halt native error, and `interpretIRRuntimeNative`
+   non-halt native error, named `interpretRuntimeNative_loweringError` and
+   `interpretRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative`
+   lemmas for fail-closed lowering and the successful lower/build/call/project
+   native execution pipeline, and `interpretIRRuntimeNative`
    forwarding/fail-closed lowering behavior. Next coverage should include:
    - executable dispatcher selector selection from emitted runtime code; the
      lowered selector expression is already pinned, but build-time execution

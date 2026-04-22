@@ -269,6 +269,34 @@ def interpretRuntimeNative
   let result := EvmYul.Yul.callDispatcher fuel (some contract) initial
   pure (projectResult tx storage events result)
 
+@[simp] theorem interpretRuntimeNative_loweringError
+    (fuel : Nat)
+    (runtimeCode : List YulStmt)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (events : List (List Nat))
+    (err : AdapterError)
+    (hLower : lowerRuntimeContractNative runtimeCode = .error err) :
+    interpretRuntimeNative fuel runtimeCode tx storage observableSlots events =
+      .error err := by
+  simp [interpretRuntimeNative, hLower]
+
+@[simp] theorem interpretRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative
+    (fuel : Nat)
+    (runtimeCode : List YulStmt)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (events : List (List Nat))
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (hLower : lowerRuntimeContractNative runtimeCode = .ok contract) :
+    interpretRuntimeNative fuel runtimeCode tx storage observableSlots events =
+      .ok (projectResult tx storage events
+        (EvmYul.Yul.callDispatcher fuel (some contract)
+          (initialState contract tx storage observableSlots))) := by
+  simp [interpretRuntimeNative, hLower]
+
 /-- Native EVMYulLean execution target for emitted IR-contract runtime Yul.
 
 This is the executable target that #1737 will promote into the public theorem
