@@ -227,18 +227,6 @@ partial def lowerStmtsNativeWithSwitchIds
         lowerStmtsNativeWithSwitchIds nextSwitchId rest
       pure (stmts' ++ rest', nextSwitchId)
 
-/-- Lower a statement for native `EvmYul.Yul.exec`.
-
-Top-level function definitions are intentionally rejected here; callers that
-need executable contracts should use `lowerRuntimeContractNative`, which places
-them in `YulContract.functions`.
--/
-partial def lowerStmtGroupNative :
-    YulStmt → Except AdapterError (List EvmYul.Yul.Ast.Stmt)
-  | stmt => do
-      let (lowered, _) ← lowerStmtGroupNativeWithSwitchIds 0 stmt
-      pure lowered
-
 partial def lowerStmtGroupNativeWithSwitchIds
     (nextSwitchId : Nat) :
     YulStmt → Except AdapterError (List EvmYul.Yul.Ast.Stmt × Nat)
