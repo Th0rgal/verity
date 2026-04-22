@@ -166,6 +166,17 @@ private def nativeHardErrorRollsBackStorageAndEvents : Bool :=
     result.finalStorage 7 == 5 &&
     result.events == [[1, 2, 3]]
 
+private def nativeRevertErrorRollsBackStorageAndEvents : Bool :=
+  let result :=
+    Native.projectResult sampleTx
+      (fun slot => if slot = 7 then 5 else 0)
+      [[1, 2, 3]]
+      (.error EvmYul.Yul.Exception.Revert)
+  !result.success &&
+    result.returnValue.isNone &&
+    result.finalStorage 7 == 5 &&
+    result.events == [[1, 2, 3]]
+
 private def dispatchSmokeContract : Compiler.IRContract :=
   { name := "NativeDispatchSmoke"
     deploy := []
@@ -600,6 +611,10 @@ example :
 
 example :
     nativeHardErrorRollsBackStorageAndEvents = true := by
+  native_decide
+
+example :
+    nativeRevertErrorRollsBackStorageAndEvents = true := by
   native_decide
 
 example :

@@ -132,8 +132,9 @@ scope so the native path does not look more complete than it is:
    with committed storage/logs and matching `finalMappings`, log projection
    for `log0` through
    `log4` topic arities, conservative rollback projection for native errors,
-   explicit hard-error rollback for `OutOfFuel`, conservative `finalMappings`
-   rollback on native errors, and `interpretIRRuntimeNative`
+   explicit hard-error rollback for `OutOfFuel`, explicit `Revert` rollback
+   projection with no return value, conservative `finalMappings` rollback on
+   native errors, and `interpretIRRuntimeNative`
    forwarding/fail-closed lowering behavior. Next coverage should include:
    - executable dispatcher selector selection from emitted runtime code; the
      lowered selector expression is already pinned, but build-time execution
