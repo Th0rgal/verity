@@ -558,6 +558,7 @@ def exprTouchesUnsupportedConstructorRawCalldataSurface : Expr → Bool
       true
   | .mapping _ a | .mappingWord _ a _ | .mappingPackedWord _ a _ _
   | .mappingUint _ a | .structMember _ a _ | .arrayElement _ a
+  | .arrayElementWord _ a _ _
   | .storageArrayElement _ a =>
       exprTouchesUnsupportedConstructorRawCalldataSurface a
   | .add a b | .sub a b | .mul a b | .div a b | .mod a b
@@ -608,7 +609,8 @@ def exprListTouchesUnsupportedConstructorRawCalldataSurface : List Expr → Bool
 
 def stmtTouchesUnsupportedConstructorRawCalldataSurface : Stmt → Bool
   | .letVar _ value | .assignVar _ value | .setStorage _ value
-  | .setStorageAddr _ value | .require value _ | .return value
+  | .setStorageAddr _ value | .setStorageWord _ _ value
+  | .require value _ | .return value
   | .storageArrayPush _ value =>
       exprTouchesUnsupportedConstructorRawCalldataSurface value
   | .setMapping _ key value | .setMappingWord _ key _ value
@@ -701,7 +703,8 @@ def exprTouchesUnsupportedCoreSurface : Expr → Bool
   | .call _ _ _ _ _ _ _ | .staticcall _ _ _ _ _ _ | .delegatecall _ _ _ _ _ _
   | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
-  | .arrayLength _ | .arrayElement _ _ | .storageArrayLength _ | .storageArrayElement _ _
+  | .arrayLength _ | .arrayElement _ _ | .arrayElementWord _ _ _ _
+  | .storageArrayLength _ | .storageArrayElement _ _
   | .dynamicBytesEq _ _
   | .adtConstruct _ _ _ | .adtTag _ _ | .adtField _ _ _ _ _ => true
 
@@ -737,7 +740,7 @@ def exprTouchesUnsupportedStateSurface : Expr → Bool
   | .call _ _ _ _ _ _ _ | .staticcall _ _ _ _ _ _ | .delegatecall _ _ _ _ _ _
   | .calldatasize | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
-  | .arrayLength _ | .arrayElement _ _
+  | .arrayLength _ | .arrayElement _ _ | .arrayElementWord _ _ _ _
   | .dynamicBytesEq _ _ => false
   | .mload a | .tload a | .calldataload a => exprTouchesUnsupportedStateSurface a
   | .adtConstruct _ _ _ | .adtTag _ _ | .adtField _ _ _ _ _ => true
@@ -762,7 +765,8 @@ def exprTouchesUnsupportedCallSurface : Expr → Bool
       exprTouchesUnsupportedCallSurface a || exprTouchesUnsupportedCallSurface b
   | .min a b | .max a b | .wMulDown a b | .wDivUp a b | .ceilDiv a b =>
       exprTouchesUnsupportedCallSurface a || exprTouchesUnsupportedCallSurface b
-  | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .storageArrayElement _ b =>
+  | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .arrayElementWord _ b _ _
+  | .storageArrayElement _ b =>
       exprTouchesUnsupportedCallSurface b
   | .mappingChain _ _ => true
   | .bitNot a | .logicalNot a | .mappingWord _ a _ | .mappingPackedWord _ a _ _
@@ -802,7 +806,8 @@ def exprTouchesUnsupportedHelperSurface : Expr → Bool
       exprTouchesUnsupportedHelperSurface a || exprTouchesUnsupportedHelperSurface b
   | .min a b | .max a b | .wMulDown a b | .wDivUp a b | .ceilDiv a b =>
       exprTouchesUnsupportedHelperSurface a || exprTouchesUnsupportedHelperSurface b
-  | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .storageArrayElement _ b =>
+  | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .arrayElementWord _ b _ _
+  | .storageArrayElement _ b =>
       exprTouchesUnsupportedHelperSurface b
   | .mappingChain _ _ => true
   | .bitNot a | .logicalNot a | .mappingWord _ a _ | .mappingPackedWord _ a _ _
@@ -850,7 +855,8 @@ def exprTouchesInternalHelperSurface : Expr → Bool
       exprTouchesInternalHelperSurface a || exprTouchesInternalHelperSurface b
   | .min a b | .max a b | .wMulDown a b | .wDivUp a b | .ceilDiv a b =>
       exprTouchesInternalHelperSurface a || exprTouchesInternalHelperSurface b
-  | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .storageArrayElement _ b =>
+  | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .arrayElementWord _ b _ _
+  | .storageArrayElement _ b =>
       exprTouchesInternalHelperSurface b
   | .mappingChain _ [] => false
   | .mappingChain field (k :: ks) =>
@@ -892,7 +898,8 @@ def exprTouchesUnsupportedForeignSurface : Expr → Bool
       exprTouchesUnsupportedForeignSurface a || exprTouchesUnsupportedForeignSurface b
   | .min a b | .max a b | .wMulDown a b | .wDivUp a b | .ceilDiv a b =>
       exprTouchesUnsupportedForeignSurface a || exprTouchesUnsupportedForeignSurface b
-  | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .storageArrayElement _ b =>
+  | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .arrayElementWord _ b _ _
+  | .storageArrayElement _ b =>
       exprTouchesUnsupportedForeignSurface b
   | .mappingChain _ _ => true
   | .bitNot a | .logicalNot a | .mappingWord _ a _ | .mappingPackedWord _ a _ _
@@ -931,7 +938,8 @@ def exprTouchesUnsupportedLowLevelSurface : Expr → Bool
       exprTouchesUnsupportedLowLevelSurface a || exprTouchesUnsupportedLowLevelSurface b
   | .min a b | .max a b | .wMulDown a b | .wDivUp a b | .ceilDiv a b =>
       exprTouchesUnsupportedLowLevelSurface a || exprTouchesUnsupportedLowLevelSurface b
-  | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .storageArrayElement _ b =>
+  | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .arrayElementWord _ b _ _
+  | .storageArrayElement _ b =>
       exprTouchesUnsupportedLowLevelSurface b
   | .mappingChain _ _ => true
   | .bitNot a | .logicalNot a | .mappingWord _ a _ | .mappingPackedWord _ a _ _
@@ -987,7 +995,8 @@ def exprTouchesUnsupportedContractSurface (expr : Expr) : Bool :=
   | .call _ _ _ _ _ _ _ | .staticcall _ _ _ _ _ _ | .delegatecall _ _ _ _ _ _
   | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
-  | .arrayLength _ | .arrayElement _ _ | .storageArrayLength _ | .storageArrayElement _ _
+  | .arrayLength _ | .arrayElement _ _ | .arrayElementWord _ _ _ _
+  | .storageArrayLength _ | .storageArrayElement _ _
   | .dynamicBytesEq _ _
   | .adtConstruct _ _ _ | .adtTag _ _ | .adtField _ _ _ _ _ => true
 
@@ -999,6 +1008,7 @@ def stmtTouchesUnsupportedEffectSurface : Stmt → Bool
   | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _
   | .externalCallBind _ _ _ | .tryExternalCallBind _ _ _ _ | .ecm _ _ => true
   | .letVar _ _ | .assignVar _ _ | .setStorage _ _ | .setStorageAddr _ _
+  | .setStorageWord _ _ _
   | .require _ _ | .return _ | .mstore _ _ | .tstore _ _ | .stop
   | .setMapping _ _ _ | .setMappingWord _ _ _ _
   | .setMappingPackedWord _ _ _ _ _ | .setMapping2 _ _ _ _
@@ -1021,6 +1031,8 @@ def stmtTouchesUnsupportedCoreSurface : Stmt → Bool
   | .letVar _ value | .assignVar _ value | .setStorage _ value =>
       exprTouchesUnsupportedCoreSurface value
   | .setStorageAddr _ value =>
+      exprTouchesUnsupportedCoreSurface value
+  | .setStorageWord _ _ value =>
       exprTouchesUnsupportedCoreSurface value
   | .setMapping _ key value | .setMappingWord _ key _ value
   | .setMappingPackedWord _ key _ _ value | .setMappingUint _ key value
@@ -1068,7 +1080,7 @@ def stmtTouchesUnsupportedStateSurface : Stmt → Bool
       exprTouchesUnsupportedStateSurface cond
   | .setStorageAddr _ value =>
       exprTouchesUnsupportedStateSurface value
-  | .setMapping _ _ _ | .setMappingWord _ _ _ _ | .setMappingPackedWord _ _ _ _ _
+  | .setStorageWord _ _ _ | .setMapping _ _ _ | .setMappingWord _ _ _ _ | .setMappingPackedWord _ _ _ _ _
   | .setMapping2 _ _ _ _ | .setMapping2Word _ _ _ _ _ | .setMappingUint _ _ _
   | .setMappingChain _ _ _
   | .setStructMember _ _ _ _ | .setStructMember2 _ _ _ _ _
@@ -1105,7 +1117,7 @@ def stmtTouchesUnsupportedStateSurfaceExceptMappingWrites : Stmt → Bool
 generic theorem. -/
 def stmtTouchesUnsupportedCallSurface : Stmt → Bool
   | .letVar _ value | .assignVar _ value | .setStorage _ value
-  | .setStorageAddr _ value | .storageArrayPush _ value =>
+  | .setStorageAddr _ value | .setStorageWord _ _ value | .storageArrayPush _ value =>
       exprTouchesUnsupportedCallSurface value
   | .setMapping _ key value | .setMappingWord _ key _ value
   | .setMappingPackedWord _ key _ _ value | .setMappingUint _ key value
@@ -1145,7 +1157,7 @@ def stmtTouchesUnsupportedCallSurface : Stmt → Bool
 
 def stmtTouchesUnsupportedHelperSurface : Stmt → Bool
   | .letVar _ value | .assignVar _ value | .setStorage _ value
-  | .setStorageAddr _ value | .storageArrayPush _ value =>
+  | .setStorageAddr _ value | .setStorageWord _ _ value | .storageArrayPush _ value =>
       exprTouchesUnsupportedHelperSurface value
   | .setMapping _ key value | .setMappingWord _ key _ value
   | .setMappingPackedWord _ key _ _ value | .setMappingUint _ key value
@@ -1187,7 +1199,7 @@ this isolates heads that genuinely execute internal helpers, leaving residual
 non-helper unsupported cases to be tracked separately. -/
 def stmtTouchesInternalHelperSurface : Stmt → Bool
   | .letVar _ value | .assignVar _ value | .setStorage _ value
-  | .setStorageAddr _ value | .storageArrayPush _ value =>
+  | .setStorageAddr _ value | .setStorageWord _ _ value | .storageArrayPush _ value =>
       exprTouchesInternalHelperSurface value
   | .setMapping _ key value | .setMappingWord _ key _ value
   | .setMappingPackedWord _ key _ _ value | .setMappingUint _ key value
@@ -1252,7 +1264,7 @@ soundness and world-preservation lemmas directly, rather than bundling them
 with direct helper statements or recursive structural transport. -/
 def stmtTouchesExprInternalHelperSurface : Stmt → Bool
   | .letVar _ value | .assignVar _ value | .setStorage _ value
-  | .setStorageAddr _ value | .storageArrayPush _ value =>
+  | .setStorageAddr _ value | .setStorageWord _ _ value | .storageArrayPush _ value =>
       exprTouchesInternalHelperSurface value
   | .setMapping _ key value | .setMappingWord _ key _ value
   | .setMappingPackedWord _ key _ _ value | .setMappingUint _ key value
@@ -1297,7 +1309,7 @@ def stmtTouchesStructuralInternalHelperSurface : Stmt → Bool
       stmtListTouchesInternalHelperSurface body
   | .letVar _ _ | .assignVar _ _ | .setStorage _ _ | .require _ _
   | .return _ | .internalCall _ _ | .internalCallAssign _ _ _
-  | .stop | .setStorageAddr _ _ | .mstore _ _ | .tstore _ _
+  | .stop | .setStorageAddr _ _ | .setStorageWord _ _ _ | .mstore _ _ | .tstore _ _
   | .calldatacopy _ _ _ | .returndataCopy _ _ _
   | .revertReturndata | .externalCallBind _ _ _ | .tryExternalCallBind _ _ _ _ | .ecm _ _
   | .setMapping _ _ _ | .setMappingWord _ _ _ _
@@ -1314,7 +1326,7 @@ def stmtTouchesStructuralInternalHelperSurface : Stmt → Bool
 
 def stmtTouchesUnsupportedForeignSurface : Stmt → Bool
   | .letVar _ value | .assignVar _ value | .setStorage _ value
-  | .setStorageAddr _ value | .storageArrayPush _ value =>
+  | .setStorageAddr _ value | .setStorageWord _ _ value | .storageArrayPush _ value =>
       exprTouchesUnsupportedForeignSurface value
   | .setMapping _ key value | .setMappingWord _ key _ value
   | .setMappingPackedWord _ key _ _ value | .setMappingUint _ key value
@@ -1354,7 +1366,7 @@ def stmtTouchesUnsupportedForeignSurface : Stmt → Bool
 
 def stmtTouchesUnsupportedLowLevelSurface : Stmt → Bool
   | .letVar _ value | .assignVar _ value | .setStorage _ value
-  | .setStorageAddr _ value | .storageArrayPush _ value =>
+  | .setStorageAddr _ value | .setStorageWord _ _ value | .storageArrayPush _ value =>
       exprTouchesUnsupportedLowLevelSurface value
   | .setMapping _ key value | .setMappingWord _ key _ value
   | .setMappingPackedWord _ key _ _ value | .setMappingUint _ key value
@@ -1397,6 +1409,8 @@ def stmtTouchesUnsupportedContractSurface (stmt : Stmt) : Bool :=
   | .letVar _ value | .assignVar _ value | .setStorage _ value =>
       exprTouchesUnsupportedContractSurface value
   | .setStorageAddr _ value =>
+      exprTouchesUnsupportedContractSurface value
+  | .setStorageWord _ _ value =>
       exprTouchesUnsupportedContractSurface value
   | .require cond _ | .return cond =>
       exprTouchesUnsupportedContractSurface cond
@@ -1583,6 +1597,7 @@ mutual
         calleeName :: exprListInternalHelperCallNames args
     | .mapping _ key | .mappingWord _ key _ | .mappingPackedWord _ key _ _
     | .mappingUint _ key | .structMember _ key _ | .arrayElement _ key
+    | .arrayElementWord _ key _ _
     | .storageArrayElement _ key | .mload key | .tload key | .calldataload key
     | .extcodesize key | .returndataOptionalBoolAt key =>
         exprInternalHelperCallNames key
@@ -1641,6 +1656,7 @@ mutual
   helper-aware expression semantics returns only a value. -/
   def stmtExprHelperCallNames : Stmt → List String
     | .letVar _ value | .assignVar _ value | .setStorage _ value | .setStorageAddr _ value
+    | .setStorageWord _ _ value
     | .storageArrayPush _ value | .return value | .require value _ =>
         exprInternalHelperCallNames value
     | .setStorageArrayElement _ index value =>
@@ -1704,6 +1720,7 @@ mutual
   /-- Collect direct internal-helper callee names mentioned by a statement list. -/
   def stmtInternalHelperCallNames : Stmt → List String
     | .letVar _ value | .assignVar _ value | .setStorage _ value | .setStorageAddr _ value
+    | .setStorageWord _ _ value
     | .storageArrayPush _ value | .return value | .require value _ =>
         exprInternalHelperCallNames value
     | .setStorageArrayElement _ index value =>
@@ -3105,7 +3122,8 @@ mutual
         simp only [exprTouchesUnsupportedHelperSurface] at hsurface
         simp [exprTouchesInternalHelperSurface,
           exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed hsurface]
-    | mapping _ b | mappingUint _ b | arrayElement _ b | storageArrayElement _ b
+    | mapping _ b | mappingUint _ b | arrayElement _ b | arrayElementWord _ b _ _
+    | storageArrayElement _ b
     | mappingWord _ b _ | mappingPackedWord _ b _ _ | structMember _ b _ =>
         simp only [exprTouchesUnsupportedHelperSurface] at hsurface
         simp [exprTouchesInternalHelperSurface,
@@ -3155,7 +3173,7 @@ mutual
       stmtTouchesInternalHelperSurface stmt = false := by
     cases stmt with
     | letVar _ value | assignVar _ value | setStorage _ value
-    | setStorageAddr _ value | storageArrayPush _ value =>
+    | setStorageAddr _ value | setStorageWord _ _ value | storageArrayPush _ value =>
         simp only [stmtTouchesUnsupportedHelperSurface] at hsurface
         simp [stmtTouchesInternalHelperSurface,
           exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed hsurface]
@@ -3487,7 +3505,7 @@ private theorem exprTouchesUnsupportedCallSurface_eq_featureOr
       simp only [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedForeignSurface, exprTouchesUnsupportedLowLevelSurface]
       exact exprTouchesUnsupportedCallSurface_eq_featureOr a
-  | mapping _ b | mappingUint _ b | arrayElement _ b
+  | mapping _ b | mappingUint _ b | arrayElement _ b | arrayElementWord _ b _ _
   | storageArrayElement _ b =>
       simp only [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedForeignSurface, exprTouchesUnsupportedLowLevelSurface]
@@ -3724,7 +3742,7 @@ private theorem exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed
   | mapping _ _ | mappingWord _ _ _ | mappingPackedWord _ _ _ _
   | mapping2 _ _ _ | mapping2Word _ _ _ _ | mappingUint _ _
   | mappingChain _ _ | structMember _ _ _ | structMember2 _ _ _ _
-  | arrayElement _ _ | storageArrayElement _ _
+  | arrayElement _ _ | arrayElementWord _ _ _ _ | storageArrayElement _ _
   | call _ _ _ _ _ _ _ | staticcall _ _ _ _ _ _ | delegatecall _ _ _ _ _ _
   | externalCall _ _ | internalCall _ _ =>
       cases hcore
@@ -3921,6 +3939,7 @@ private theorem stmtTouchesUnsupportedContractSurface_eq_false_of_featureClosed
         stmtListTouchesUnsupportedContractSurface_eq_false_of_featureClosed
           elseBranch hcore.2 hstate.2 hcalls.2 heffects.2⟩
   | forEach _ _ _ => cases hcore
+  | setStorageWord _ _ _ => cases hstate
   | _ =>
       all_goals (simp only [stmtTouchesUnsupportedContractSurface]; first | assumption | cases hcore | cases heffects | cases hcalls)
 termination_by sizeOf stmt
@@ -4021,7 +4040,7 @@ theorem exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
   | mapping _ _ | mappingWord _ _ _ | mappingPackedWord _ _ _ _
   | mapping2 _ _ _ | mapping2Word _ _ _ _ | mappingUint _ _
   | structMember _ _ _ | structMember2 _ _ _ _
-  | arrayElement _ _ | storageArrayElement _ _
+  | arrayElement _ _ | arrayElementWord _ _ _ _ | storageArrayElement _ _
   | mappingChain _ _ =>
       simp [exprTouchesUnsupportedContractSurface] at hsurface
   | tload a | calldataload a | mload a =>
@@ -4090,6 +4109,7 @@ theorem stmtTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
     stmtTouchesUnsupportedHelperSurface stmt = false := by
   cases stmt with
   | letVar _ value | assignVar _ value | setStorage _ value | setStorageAddr _ value
+  | setStorageWord _ _ value
   | storageArrayPush _ value | require value _ | «return» value =>
       simp [stmtTouchesUnsupportedHelperSurface, stmtTouchesUnsupportedContractSurface] at hsurface ⊢
       all_goals exact exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface

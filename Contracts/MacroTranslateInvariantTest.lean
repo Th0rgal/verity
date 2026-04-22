@@ -861,6 +861,19 @@ private def checkDirectHelperCallSmoke : IO Unit := do
     (contains (reprStr runHelpers.body) "Stmt.internalCallAssign" &&
       contains (reprStr runHelpers.body) "\"internal_pairWithTotal\"")
 
+private def curveCutArrayStoreMemoizesIndex : Bool :=
+  match Contracts.Smoke.CurveCutArraySmoke.storeCut_modelBody with
+  | Stmt.letVar "arrayElement_index" (Expr.param "idx") ::
+    Stmt.letVar "xtReserve" (Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index") 3 0) ::
+    Stmt.letVar "liqSquare" (Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index") 3 1) ::
+    Stmt.letVar "offset" (Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index") 3 2) ::
+    _ => true
+  | _ => false
+
+private def checkCurveCutArraySmoke : IO Unit := do
+  expectTrue "CurveCutArraySmoke: tuple arrayElement destructuring memoizes the index once"
+    curveCutArrayStoreMemoizesIndex
+
 private def checkSpec (spec : CompilationModel) : IO Unit := do
   let extFns := externalFunctions spec
   let fnNames := extFns.map (·.name)
@@ -981,6 +994,7 @@ private def checkSpec (spec : CompilationModel) : IO Unit := do
   checkLowLevelTryCatchSmoke
   checkSpecialEntrypointSmoke
   checkDirectHelperCallSmoke
+  checkCurveCutArraySmoke
   for spec in macroSpecs do
     checkSpec spec
 

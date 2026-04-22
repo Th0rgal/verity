@@ -2537,6 +2537,62 @@ private def arrayElementTupleElemExprs?
       | _ => pure none
   | _ => pure none
 
+private def arrayElementTupleDestructureStmts?
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (mutableLocals : Array String)
+    (rhs : Term)
+    (names : Array (Option String)) : CommandElabM (Option (Array Term)) := do
+  match stripParens rhs with
+  | `(term| arrayElement $name:term $index:term) =>
+      let paramName := ← expectStringOrIdent name
+      match params.find? (fun p => p.name == paramName) with
+      | some { ty := .array (.tuple elemTys), .. } =>
+          let elementWords ←
+            match staticAbiWordCount? (.tuple elemTys) with
+            | some n => pure n
+            | none =>
+                throwErrorAt rhs
+                  "arrayElement tuple destructuring requires a static ABI-word tuple element type"
+          if names.size != elemTys.length then
+            throwErrorAt rhs
+              s!"tuple destructuring binds {names.size} names, but the source provides {elemTys.length} values"
+          let syntheticUsed := mutableLocals ++ names.filterMap id
+          let indexName := freshSyntheticLocalName "arrayElement_index" params locals syntheticUsed
+          let indexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index
+          let indexStmt ←
+            `(Compiler.CompilationModel.Stmt.letVar $(strTerm indexName) $indexExpr)
+          let indexLocal ←
+            `(Compiler.CompilationModel.Expr.localVar $(strTerm indexName))
+          let mut offset := 0
+          let mut valueExprs : Array Term := #[]
+          for elemTy in elemTys do
+            let elemWords ←
+              match staticAbiWordCount? elemTy with
+              | some n => pure n
+              | none =>
+                  throwErrorAt rhs
+                    "arrayElement tuple destructuring requires static ABI-word tuple members"
+            if elemWords != 1 then
+              throwErrorAt rhs
+                "arrayElement tuple destructuring currently supports top-level single-word tuple members"
+            valueExprs := valueExprs.push (← `(Compiler.CompilationModel.Expr.arrayElementWord
+              $(strTerm paramName)
+              $indexLocal
+              $(natTerm elementWords)
+              $(natTerm offset)))
+            offset := offset + elemWords
+          let boundPairs := (names.zip valueExprs).filterMap fun (name?, valueExpr) =>
+            name?.map (fun name => (name, valueExpr))
+          let boundStmts ← boundPairs.mapM fun (name, valueExpr) =>
+            `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
+          pure (some (#[indexStmt] ++ boundStmts))
+      | _ => pure none
+  | _ => pure none
+
 private def tupleLiteralOrStructValueExprs?
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
@@ -3794,7 +3850,7 @@ private partial def translateDoElem
                       pure (some (stmts, locals ++ typedPairs, mutableLocals))
                   | none => throwErrorAt rhs "unable to infer tuple local types"
               | none =>
-                      match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls externalDecls functions params locals rhs names) with
+                  match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls externalDecls functions params locals rhs names) with
                   | some stmt =>
                       let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                       match valueTys with
@@ -3809,14 +3865,8 @@ private partial def translateDoElem
                           pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
                       | none => throwErrorAt rhs "tuple destructuring currently requires a tuple literal, tuple-typed parameter, structMembers/structMembers2 source, internal helper call, or tryExternalCall"
           | _ =>
-              match (← tupleLiteralOrStructValueExprs? fields constDecls immutableDecls params locals rhs) with
-              | some valueExprs =>
-                  if names.size != valueExprs.size then
-                    throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueExprs.size} values"
-                  let boundPairs := (names.zip valueExprs).filterMap fun (name?, valueExpr) =>
-                    name?.map (fun name => (name, valueExpr))
-                  let stmts ← boundPairs.mapM fun (name, valueExpr) =>
-                    `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
+              match (← arrayElementTupleDestructureStmts? fields constDecls immutableDecls params locals mutableLocals rhs names) with
+              | some stmts =>
                   let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                   match valueTys with
                   | some tys =>
@@ -3824,33 +3874,48 @@ private partial def translateDoElem
                       pure (some (stmts, locals ++ typedPairs, mutableLocals))
                   | none => throwErrorAt rhs "unable to infer tuple local types"
               | none =>
-                match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls externalDecls functions params locals rhs names) with
-                | some stmt =>
-                    let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
-                    match valueTys with
-                    | some tys =>
-                        let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
-                        pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
-                    | none => throwErrorAt rhs "unable to infer tuple local types"
-                | none =>
-                  match (← tryExternalCallBindStmt? fields constDecls immutableDecls externalDecls params locals rhs names) with
-                  | some (stmt, tys) =>
-                      let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
-                      pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
+                  match (← tupleLiteralOrStructValueExprs? fields constDecls immutableDecls params locals rhs) with
+                  | some valueExprs =>
+                      if names.size != valueExprs.size then
+                        throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueExprs.size} values"
+                      let boundPairs := (names.zip valueExprs).filterMap fun (name?, valueExpr) =>
+                        name?.map (fun name => (name, valueExpr))
+                      let stmts ← boundPairs.mapM fun (name, valueExpr) =>
+                        `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
+                      let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
+                      match valueTys with
+                      | some tys =>
+                          let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                          pure (some (stmts, locals ++ typedPairs, mutableLocals))
+                      | none => throwErrorAt rhs "unable to infer tuple local types"
                   | none =>
-                  let valueExprs ← tupleValueExprs fields constDecls immutableDecls params locals rhs
-                  if names.size != valueExprs.size then
-                    throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueExprs.size} values"
-                  let boundPairs := (names.zip valueExprs).filterMap fun (name?, valueExpr) =>
-                    name?.map (fun name => (name, valueExpr))
-                  let stmts ← boundPairs.mapM fun (name, valueExpr) =>
-                    `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
-                  let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
-                  match valueTys with
-                  | some tys =>
-                      let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
-                      pure (some (stmts, locals ++ typedPairs, mutableLocals))
-                  | none => throwErrorAt rhs "unable to infer tuple local types"
+                      match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls externalDecls functions params locals rhs names) with
+                      | some stmt =>
+                          let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
+                          match valueTys with
+                          | some tys =>
+                              let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                              pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
+                          | none => throwErrorAt rhs "unable to infer tuple local types"
+                      | none =>
+                          match (← tryExternalCallBindStmt? fields constDecls immutableDecls externalDecls params locals rhs names) with
+                          | some (stmt, tys) =>
+                              let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                              pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
+                          | none =>
+                              let valueExprs ← tupleValueExprs fields constDecls immutableDecls params locals rhs
+                              if names.size != valueExprs.size then
+                                throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueExprs.size} values"
+                              let boundPairs := (names.zip valueExprs).filterMap fun (name?, valueExpr) =>
+                                name?.map (fun name => (name, valueExpr))
+                              let stmts ← boundPairs.mapM fun (name, valueExpr) =>
+                                `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
+                              let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
+                              match valueTys with
+                              | some tys =>
+                                  let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                                  pure (some (stmts, locals ++ typedPairs, mutableLocals))
+                              | none => throwErrorAt rhs "unable to infer tuple local types"
       | none => pure none
     else if stx.getKind == `Lean.Parser.Term.doLetArrow then
       let patDecl := stx[2]
