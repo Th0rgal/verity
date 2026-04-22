@@ -62,6 +62,23 @@ class MeasureProofsTests(unittest.TestCase):
         self.assertEqual(results[0][0], "first")
         self.assertEqual(results[1][0], "second")
 
+    def test_proof_ends_at_partial_def(self) -> None:
+        path = self._write_lean(
+            """\
+            theorem before_partial : True := by
+              trivial
+
+            partial def recursiveHelper : Nat -> Nat
+              | 0 => 0
+              | n + 1 => recursiveHelper n
+            """
+        )
+        results = check_proof_length.measure_proofs(path)
+        self.assertEqual(len(results), 1)
+        name, _, length = results[0]
+        self.assertEqual(name, "before_partial")
+        self.assertLessEqual(length, 5)
+
     def test_lemma_detected(self) -> None:
         path = self._write_lean(
             """\
