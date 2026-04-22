@@ -50,13 +50,21 @@ modifier onlyOwner() {
 Verity pattern:
 
 ```lean
-private def onlyOwner : Contract Unit := do
-  let owner <- getStorage ownerSlot
-  let sender <- msgSender
-  require (sender == owner) "not owner"
+verity_contract OwnedExample where
+  storage
+    owner : Address := slot 0
+
+  function onlyOwner () : Unit := do
+    let currentOwner ← getStorageAddr owner
+    let sender ← msgSender
+    require (sender == currentOwner) "not owner"
+
+  function restricted () : Unit := do
+    onlyOwner
+    -- restricted body
 ```
 
-Then call `onlyOwner` at function start.
+Call helpers directly by name. `internalCall` and `internalCallAssign` are the lowered compilation-model nodes for helper calls, not the source syntax to write in `verity_contract`.
 
 ### try/catch
 
