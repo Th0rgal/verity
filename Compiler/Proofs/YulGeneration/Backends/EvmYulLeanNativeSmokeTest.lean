@@ -395,6 +395,14 @@ private def nativeExprSwitchCaseLabel? : EvmYul.Yul.Ast.Expr → Option Nat
         some (StateBridge.uint256ToNat label)
       else
         none
+  | .Call (.inl op) [left, right] =>
+      if op == (EvmYul.Operation.AND : EvmYul.Operation .Yul) ||
+          op == (EvmYul.Operation.OR : EvmYul.Operation .Yul) then
+        match nativeExprSwitchCaseLabel? left with
+        | some label => some label
+        | none => nativeExprSwitchCaseLabel? right
+      else
+        none
   | _ => none
 
 private partial def nativeStmtContainsSelectorSwitch : EvmYul.Yul.Ast.Stmt → Bool
@@ -553,6 +561,15 @@ private def topLevelNativeSwitchIdsAreThreaded : Bool :=
       first == "__verity_native_switch_discr_0" &&
         second == "__verity_native_switch_discr_1"
   | _ => false
+
+private def nativeSwitchExecutesOnlyFirstMatchingNonHaltingCase : Bool :=
+  nativeMatchesReferenceRuntime [
+    .switch (.lit 1)
+      [ (1, [.expr (.call "sstore" [.lit 7, .lit 11])])
+      , (1, [.expr (.call "sstore" [.lit 7, .lit 22])]) ]
+      (some [.expr (.call "sstore" [.lit 7, .lit 33])]),
+    .expr (.call "sstore" [.lit 8, .lit 44])
+  ] [7, 8] [7, 8]
 
 private def duplicateNativeHelperFailsClosed : Bool :=
   match lowerRuntimeContractNative [
@@ -943,6 +960,10 @@ example :
 
 example :
     topLevelNativeSwitchIdsAreThreaded = true := by
+  native_decide
+
+example :
+    nativeSwitchExecutesOnlyFirstMatchingNonHaltingCase = true := by
   native_decide
 
 example :

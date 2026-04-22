@@ -204,6 +204,11 @@ def lowerExprNative : YulExpr → EvmYul.Yul.Ast.Expr
 def lowerAssignNative (name : String) (value : YulExpr) : EvmYul.Yul.Ast.Stmt :=
   .Let [name] (some (lowerExprNative value))
 
+private def nativePrimCall
+    (op : EvmYul.Operation .Yul) (args : List EvmYul.Yul.Ast.Expr) :
+    EvmYul.Yul.Ast.Expr :=
+  .Call (.inl op) args
+
 mutual
 partial def lowerStmtsNative :
     List YulStmt → Except AdapterError (List EvmYul.Yul.Ast.Stmt)
@@ -253,9 +258,10 @@ partial def lowerStmtGroupNativeWithSwitchIds
       pure (init' ++ [.For (lowerExprNative cond) post' body'], nextSwitchId)
   | .switch expr cases defaultCase => do
       -- EVMYulLean's `Switch` executor currently evaluates the default branch
-      -- before selecting a case. Lower to lazy `if` guards so generated
-      -- dispatchers do not revert on matched selectors.
+      -- before selecting a case. Lower to lazy `if` guards with an explicit
+      -- match flag so exactly one non-halting branch can execute.
       let discrName := s!"__verity_native_switch_discr_{nextSwitchId}"
+      let matchedName := s!"__verity_native_switch_matched_{nextSwitchId}"
       let nextSwitchId := nextSwitchId + 1
       let lowerCase := fun (nextSwitchId : Nat) ((tag, block) : Nat × List YulStmt) => do
         let (block', nextSwitchId) ←
@@ -268,20 +274,23 @@ partial def lowerStmtGroupNativeWithSwitchIds
         ([], nextSwitchId)
       let (default', nextSwitchId) ← lowerStmtsNativeWithSwitchIds nextSwitchId (defaultCase.getD [])
       let discr := EvmYul.Yul.Ast.Expr.Var discrName
+      let matched := EvmYul.Yul.Ast.Expr.Var matchedName
       let matchExpr (tag : Nat) : EvmYul.Yul.Ast.Expr :=
-        .Call (.inl (EvmYul.Operation.EQ : EvmYul.Operation .Yul))
+        nativePrimCall (EvmYul.Operation.EQ : EvmYul.Operation .Yul)
           [discr, .Lit (EvmYul.UInt256.ofNat tag)]
-      let anyMatch :=
-        cases'.foldr
-          (fun (entry : Nat × List EvmYul.Yul.Ast.Stmt) acc =>
-            .Call (.inl (EvmYul.Operation.OR : EvmYul.Operation .Yul))
-              [matchExpr entry.fst, acc])
-          (.Lit (EvmYul.UInt256.ofNat 0))
+      let unmatched : EvmYul.Yul.Ast.Expr :=
+        nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul) [matched]
+      let guardedMatch (tag : Nat) : EvmYul.Yul.Ast.Expr :=
+        nativePrimCall (EvmYul.Operation.AND : EvmYul.Operation .Yul)
+          [unmatched, matchExpr tag]
       let defaultGuard :=
-        .Call (.inl (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)) [anyMatch]
-      let caseIfs := cases'.map (fun (tag, body) => .If (matchExpr tag) body)
+        nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul) [matched]
+      let markMatched := lowerAssignNative matchedName (.lit 1)
+      let caseIfs := cases'.map (fun (tag, body) => .If (guardedMatch tag) (markMatched :: body))
       let defaultIf := if default'.isEmpty then [] else [.If defaultGuard default']
-      pure ([.Block ([.Let [discrName] (some (lowerExprNative expr))] ++ caseIfs ++ defaultIf)],
+      pure ([.Block ([ .Let [discrName] (some (lowerExprNative expr))
+                     , .Let [matchedName] (some (.Lit (EvmYul.UInt256.ofNat 0))) ] ++
+                    caseIfs ++ defaultIf)],
         nextSwitchId)
   | .block stmts => do
       let (stmts', nextSwitchId) ← lowerStmtsNativeWithSwitchIds nextSwitchId stmts

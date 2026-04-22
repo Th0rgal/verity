@@ -155,7 +155,9 @@ scope so the native path does not look more complete than it is:
    guards used instead of native `Switch` so matched selectors do not execute
    reverting default branches, block-scoped discriminator bindings for those
    lazy dispatcher guards, threaded native switch-discriminator ids across
-   dispatcher statement lowering, native assignment lowering through the named
+   dispatcher statement lowering, per-switch matched flags that prevent
+   non-halting duplicate case bodies from falling through, native assignment
+   lowering through the named
    `lowerAssignNative` helper plus executable rebinding smoke coverage,
    dispatcher/helper
    partitioning that keeps helper definitions in the function map while
