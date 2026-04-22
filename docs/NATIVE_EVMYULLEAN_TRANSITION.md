@@ -120,16 +120,15 @@ scope so the native path does not look more complete than it is:
    observable pre-state slots, omitted-slot default reads, callvalue,
    caller/address, calldatasize, timestamp/number, native
    `chainid`/`blobbasefee` default behavior, return projection, and log
-   projection, conservative rollback projection for native errors, and
-   `interpretIRRuntimeNative` forwarding/fail-closed lowering behavior. Next
-   coverage should include:
+   projection for `log0` through `log4` topic arities, conservative rollback
+   projection for native errors, and `interpretIRRuntimeNative`
+   forwarding/fail-closed lowering behavior. Next coverage should include:
    - executable dispatcher selector selection from emitted runtime code; the
      lowered selector expression is already pinned, but build-time execution
      through EVMYulLean `CALLDATALOAD` currently needs
      `ffi.ByteArray.zeroes` native support before this can be promoted to a
      Lean smoke proof,
    - memory-heavy `return` and `revert`,
-   - `log0` through `log4`,
    - returndata and external-call outcomes,
    - static-call permission behavior,
    - mapping helper lowering or replacement with native keccak/memory code.

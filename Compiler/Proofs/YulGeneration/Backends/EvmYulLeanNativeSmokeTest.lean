@@ -38,6 +38,20 @@ private def zeroStorage : Nat → Nat := fun _ => 0
 private def seededStorage : Nat → Nat := fun slot =>
   if slot = 7 then 77 else 0
 
+private def wordByteArray (value : Nat) : ByteArray :=
+  ByteArray.ofFn fun i : Fin 32 =>
+    if i.1 = 31 then UInt8.ofNat value else UInt8.ofNat 0
+
+private def sampleLogEntry (topics : List Nat) (dataWord : Nat) : EvmYul.LogEntry :=
+  { address := StateBridge.natToAddress sampleTx.thisAddress
+    topics := topics.toArray.map EvmYul.UInt256.ofNat
+    data := wordByteArray dataWord }
+
+private def stateWithLogEntries (entries : List EvmYul.LogEntry) : EvmYul.Yul.State :=
+  let shared := StateBridge.toSharedState
+    (Compiler.Proofs.YulGeneration.YulState.initial sampleTx zeroStorage) []
+  .Ok { shared with substate := { shared.substate with logSeries := entries.toArray } } ∅
+
 private def nativeStoresBuiltin (builtin : String) (slot expected : Nat) : Bool :=
   match Native.interpretRuntimeNative 128 [
     .let_ "v" (.call builtin []),
@@ -302,10 +316,37 @@ example :
     Native.projectLogEntry
       { address := StateBridge.natToAddress sampleTx.thisAddress
         topics := #[EvmYul.UInt256.ofNat 7]
-        data :=
-          ByteArray.ofFn fun i : Fin 32 =>
-            if i.1 = 31 then UInt8.ofNat 55 else UInt8.ofNat 0 } =
+        data := wordByteArray 55 } =
       [7, 55] := by
+  native_decide
+
+example :
+    Native.projectLogsFromState
+      (stateWithLogEntries [
+        sampleLogEntry [] 50,
+        sampleLogEntry [1] 51,
+        sampleLogEntry [1, 2] 52,
+        sampleLogEntry [1, 2, 3] 53,
+        sampleLogEntry [1, 2, 3, 4] 54
+      ]) =
+      [[50], [1, 51], [1, 2, 52], [1, 2, 3, 53], [1, 2, 3, 4, 54]] := by
+  native_decide
+
+example :
+    (let result :=
+      Native.projectResult sampleTx zeroStorage [[9]]
+        (.error (.YulHalt
+          (stateWithLogEntries [
+            sampleLogEntry [] 50,
+            sampleLogEntry [1] 51,
+            sampleLogEntry [1, 2] 52,
+            sampleLogEntry [1, 2, 3] 53,
+            sampleLogEntry [1, 2, 3, 4] 54
+          ])
+          (EvmYul.UInt256.ofNat 0)))
+     result.success &&
+       result.events ==
+        [[9], [50], [1, 51], [1, 2, 52], [1, 2, 3, 53], [1, 2, 3, 4, 54]]) = true := by
   native_decide
 
 example :
