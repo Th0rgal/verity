@@ -66,8 +66,9 @@ scope so the native path does not look more complete than it is:
   `blockTimestamp` is bridged through native EVMYulLean execution, and native
   smoke coverage now checks `timestamp()`/`number()` state reads. Native
   smoke coverage also records the current EVMYulLean defaults for `chainid()`
-  and `blobbasefee()`; those are not yet bridged from `YulTransaction.chainId`
-  or `YulTransaction.blobBaseFee`. The native harness now also names this
+  and `blobbasefee()`; `chainid()` is not yet bridged from
+  `YulTransaction.chainId`, and `blobbasefee()` is not yet bridged from
+  `YulTransaction.blobBaseFee`. The native harness now also names this
   boundary with `initialState_unbridgedEnvironmentDefaults`, pinning
   base-fee/blob fields and native `chainid` to their current EVMYulLean
   default/global behavior until the follow-up widens the state bridge. The

@@ -23,6 +23,14 @@ NATIVE_HARNESS = (
     / "Backends"
     / "EvmYulLeanNativeHarness.lean"
 )
+NATIVE_SMOKE_TEST = (
+    ROOT
+    / "Compiler"
+    / "Proofs"
+    / "YulGeneration"
+    / "Backends"
+    / "EvmYulLeanNativeSmokeTest.lean"
+)
 
 REQUIRED_SNIPPETS = (
     "interpretYulRuntimeWithBackend .evmYulLean",
@@ -41,6 +49,9 @@ REQUIRED_SNIPPETS = (
     "`blockTimestamp`",
     "mapping-struct",
     "signature-based identity model",
+    "not yet bridged from `YulTransaction.chainId`",
+    "not yet bridged from `YulTransaction.blobBaseFee`",
+    "`initialState_unbridgedEnvironmentDefaults`",
 )
 
 FORBIDDEN_SNIPPETS = (
@@ -131,20 +142,70 @@ def check_public_theorem_target(end_to_end_text: str, native_harness_text: str) 
     return errors
 
 
+def check_unbridged_environment_boundary(native_harness_text: str, native_smoke_text: str) -> list[str]:
+    """Keep the native environment-read limitation explicit and tested.
+
+    EVMYulLean currently evaluates `CHAINID` from its own global constant, and
+    `BLOBBASEFEE` from the block-header blob gas price formula. The native
+    harness does not yet derive those fields from Verity's `YulTransaction`.
+    Until that bridge is widened, the transition must keep both the named lemma
+    and executable smoke expectations for the current default behavior.
+    """
+
+    errors: list[str] = []
+    normalized_native_harness = normalize_ws(native_harness_text)
+    normalized_native_smoke = normalize_ws(native_smoke_text)
+
+    for required_boundary in (
+        "initialState_unbridgedEnvironmentDefaults",
+        "EvmYul.State.chainId",
+        "EvmYul.chainId",
+        "header.blobGasUsed",
+        "header.excessBlobGas",
+    ):
+        if required_boundary not in normalized_native_harness:
+            errors.append(
+                "Compiler/Proofs/YulGeneration/Backends/"
+                "EvmYulLeanNativeHarness.lean must keep the unbridged "
+                f"environment boundary explicit with `{required_boundary}`"
+            )
+
+    for pinned_default in (
+        'nativeStoresBuiltin "chainid" 15 1 = true',
+        'nativeStoresBuiltin "blobbasefee" 16 1 = true',
+    ):
+        if pinned_default not in normalized_native_smoke:
+            errors.append(
+                "Compiler/Proofs/YulGeneration/Backends/"
+                "EvmYulLeanNativeSmokeTest.lean must pin the current native "
+                f"default environment behavior with `{pinned_default}` until "
+                "YulTransaction bridging is implemented"
+            )
+
+    return errors
+
+
 def main() -> int:
     if not DOC.exists():
         print(f"Missing: {DOC.relative_to(ROOT)}", file=sys.stderr)
         return 1
-    for path in (END_TO_END, NATIVE_HARNESS):
+    for path in (END_TO_END, NATIVE_HARNESS, NATIVE_SMOKE_TEST):
         if not path.exists():
             print(f"Missing: {path.relative_to(ROOT)}", file=sys.stderr)
             return 1
 
+    native_harness_text = NATIVE_HARNESS.read_text(encoding="utf-8")
     errors = check_doc(DOC.read_text(encoding="utf-8"))
     errors.extend(
         check_public_theorem_target(
             END_TO_END.read_text(encoding="utf-8"),
-            NATIVE_HARNESS.read_text(encoding="utf-8"),
+            native_harness_text,
+        )
+    )
+    errors.extend(
+        check_unbridged_environment_boundary(
+            native_harness_text,
+            NATIVE_SMOKE_TEST.read_text(encoding="utf-8"),
         )
     )
     if errors:
