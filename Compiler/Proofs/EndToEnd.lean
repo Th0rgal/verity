@@ -138,6 +138,29 @@ def nativeIRRuntimeAgreesWithInterpreter
           (YulTransaction.ofIR tx) state.storage state.events)
   | .error _ => False
 
+/-- Intro form for the native/interpreter bridge obligation.
+
+Native-lowering proofs can stay at the harness level: prove that
+`interpretIRRuntimeNative` succeeds and that its projected result agrees with
+the current interpreter oracle on the requested observable slots. This packages
+those two facts as the public `nativeIRRuntimeAgreesWithInterpreter`
+obligation consumed by the native EndToEnd seam. -/
+theorem nativeIRRuntimeAgreesWithInterpreter_of_ok_agree
+    {fuel : Nat} {contract : IRContract} {tx : IRTransaction}
+    {state : IRState} {observableSlots : List Nat} {native : YulResult}
+    (hNative :
+      Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        fuel contract tx state observableSlots = .ok native)
+    (hAgree :
+      yulResultsAgreeOn observableSlots native
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackendFuel
+          .evmYulLean fuel (Compiler.emitYul contract).runtimeCode
+          (YulTransaction.ofIR tx) state.storage state.events)) :
+    nativeIRRuntimeAgreesWithInterpreter fuel contract tx state observableSlots := by
+  unfold nativeIRRuntimeAgreesWithInterpreter
+  rw [hNative]
+  exact hAgree
+
 /-! ## Layer 3: IR → Yul (Generic) -/
 
 /-- Layer 3 function-level preservation: any IR function body produces equivalent
