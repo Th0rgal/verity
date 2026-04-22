@@ -265,6 +265,9 @@ private def storageReadIRContract : Compiler.IRContract :=
     ]
     usesMapping := false }
 
+private def storageReadIRTx : Compiler.Proofs.IRGeneration.IRTransaction :=
+  { sampleIRTx with functionSelector := 0x44444444 }
+
 private def calldataBridgePinsSelectorAndFirstArg : Bool :=
   let bytes := StateBridge.calldataToByteArray 0x11223344 [42]
   bytes.get? 0 == some (UInt8.ofNat 0x11) &&
@@ -797,6 +800,24 @@ example :
       (Compiler.emitYul dispatchSmokeContract).runtimeCode
       (Compiler.Proofs.YulGeneration.YulTransaction.ofIR sampleIRTx)
       sampleIRState.storage [11] sampleIRState.events := by
+  rfl
+
+example :
+    Native.interpretIRRuntimeNative 128 storageReadIRContract storageReadIRTx
+      sampleIRState [7, 8] =
+    Native.interpretRuntimeNative 128
+      (Compiler.emitYul storageReadIRContract).runtimeCode
+      (Compiler.Proofs.YulGeneration.YulTransaction.ofIR storageReadIRTx)
+      sampleIRState.storage [7, 8] sampleIRState.events := by
+  rfl
+
+example :
+    Native.interpretIRRuntimeNative 128 storageReadIRContract storageReadIRTx
+      sampleIRState [8] =
+    Native.interpretRuntimeNative 128
+      (Compiler.emitYul storageReadIRContract).runtimeCode
+      (Compiler.Proofs.YulGeneration.YulTransaction.ofIR storageReadIRTx)
+      sampleIRState.storage [8] sampleIRState.events := by
   rfl
 
 example :

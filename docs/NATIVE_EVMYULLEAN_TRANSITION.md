@@ -122,8 +122,9 @@ scope so the native path does not look more complete than it is:
    selector cases with their lowered storage-write and memory-return bodies,
    selector/calldata byte layout, storage writes, `sload` through explicit
    observable pre-state slots, omitted-slot default reads, IR storage-read
-   dispatcher lowering to native `SLOAD`, `tstore`/`tload` execution through
-   copied observable storage, initial native state contract installation,
+   dispatcher lowering to native `SLOAD`, `interpretIRRuntimeNative` storage
+   forwarding with explicit observable slots and prior events, `tstore`/`tload`
+   execution through copied observable storage, initial native state contract installation,
    observable storage seeding, and omitted pre-state slot defaults, callvalue,
    caller/address, calldatasize, timestamp/number, native
    `chainid`/`blobbasefee` default behavior, executable `stop` halt
