@@ -923,6 +923,18 @@ verity_contract CurveCutArraySmoke where
     setStorage lastXt firstXt
     setStorage lastLiq secondXt
 
+/--
+error: arrayElement currently supports only arrays with single-word static elements on the compilation-model path, got Verity.Macro.ValueType.array
+  (Verity.Macro.ValueType.tuple [Verity.Macro.ValueType.uint256, Verity.Macro.ValueType.uint256])
+-/
+#guard_msgs in
+verity_contract CurveCutPlainTupleArrayElementRejected where
+  storage
+
+  function badPlainRead (cuts : Array (Tuple [Uint256, Uint256])) : Uint256 := do
+    let cut := arrayElement cuts 0
+    return 0
+
 def curveCutArrayExecutableReadsTupleElement : Bool :=
   match CurveCutArraySmoke.firstCutXt #[(11, 13, toInt256 17)] Verity.defaultState with
   | .success value _ => value == 11

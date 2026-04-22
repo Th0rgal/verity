@@ -679,7 +679,7 @@ private def parseArgNat? (s : String) : Option Nat :=
 
 -- Generic parser for "slot:value,slot:value,..." storage formats.
 -- Takes a value parser and default, returns a slot→value lookup function.
-private def parseSlotPairs (storageStr : String) (parseVal : String → Option α) (default : α) : Nat → α :=
+private def parseSlotPairs (storageStr : String) (parseVal : String → Option α) (defaultValue : α) : Nat → α :=
   let pairs := storageStr.splitOn ","
   let entries := pairs.foldl (fun acc pair =>
     if pair.isEmpty then acc
@@ -690,7 +690,7 @@ private def parseSlotPairs (storageStr : String) (parseVal : String → Option �
         | _, _ => acc
       | _ => acc
   ) []
-  fun slotIdx => (entries.find? (fun (s, _) => s == slotIdx)).map Prod.snd |>.getD default
+  fun slotIdx => (entries.find? (fun (s, _) => s == slotIdx)).map Prod.snd |>.getD defaultValue
 
 -- Parse storage state: "slot0:value0,slot1:value1,..."
 def parseStorage (storageStr : String) : Nat → Uint256 :=

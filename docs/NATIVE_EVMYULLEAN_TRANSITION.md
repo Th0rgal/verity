@@ -126,11 +126,14 @@ scope so the native path does not look more complete than it is:
   `Stmt.setStorageWord`, keeping explicit slot boundaries visible without an
   unsafe raw-Yul block.
 - [#1745](https://github.com/lfglabs-dev/verity/issues/1745): dynamic array
-  parameters with static tuple elements are now accepted on the
-  `arrayLength`/`arrayElement` path. Tuple destructuring such as
+  parameters with static tuple elements are now accepted on the tuple
+  destructuring/tuple-return `arrayElement` path. Tuple destructuring such as
   `let (xtReserve, liqSquare, offset) := arrayElement cuts idx` lowers to
-  checked word reads with the element ABI stride. Dynamic element types such as
-  `Array String` and `Array Bytes` remain rejected.
+  checked word reads with the element ABI stride. Plain scalar `arrayElement`
+  remains limited to single-word static element arrays until the general
+  multi-word element read path lowers through `Expr.arrayElementWord` instead
+  of the 32-byte-stride helper. Dynamic element types such as `Array String`
+  and `Array Bytes` remain rejected.
 
 1. Prove lowering invariants for the native contract shape.
 

@@ -237,7 +237,7 @@ verity_contract BytesArrayReturnUnsupported where
     returnArray calls
 
 /--
-error: arrayElement currently supports only arrays with static ABI-word elements on the compilation-model path, got Verity.Macro.ValueType.array (Verity.Macro.ValueType.string)
+error: arrayElement currently supports only arrays with single-word static elements on the compilation-model path, got Verity.Macro.ValueType.array (Verity.Macro.ValueType.string)
 -/
 #guard_msgs in
 verity_contract StringArrayElementUnsupported where
@@ -248,7 +248,7 @@ verity_contract StringArrayElementUnsupported where
     return (arrayElement messages 0)
 
 /--
-error: arrayElement currently supports only arrays with static ABI-word elements on the compilation-model path, got Verity.Macro.ValueType.array (Verity.Macro.ValueType.bytes)
+error: arrayElement currently supports only arrays with single-word static elements on the compilation-model path, got Verity.Macro.ValueType.array (Verity.Macro.ValueType.bytes)
 -/
 #guard_msgs in
 verity_contract BytesArrayElementUnsupported where

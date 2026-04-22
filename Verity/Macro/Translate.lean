@@ -1338,11 +1338,24 @@ private def requireSupportedArrayElementSourceType
     (ty : ValueType) : CommandElabM ValueType := do
   match ty with
   | .array elemTy =>
+      unless isSingleWordStaticValueType elemTy do
+        throwErrorAt stx
+          s!"{context} currently supports only arrays with single-word static elements on the compilation-model path, got {renderValueType ty}"
+      pure elemTy
+  | _ =>
+      throwErrorAt stx s!"{context} requires an Array parameter, got {renderValueType ty}"
+
+private def requireSupportedArrayElementTupleSourceType
+    (stx : Syntax)
+    (context : String)
+    (ty : ValueType) : CommandElabM ValueType := do
+  match ty with
+  | .array elemTy =>
       match staticAbiWordCount? elemTy with
       | some _ => pure elemTy
       | none =>
           throwErrorAt stx
-            s!"{context} currently supports only arrays with static ABI-word elements on the compilation-model path, got {renderValueType ty}"
+            s!"{context} currently supports only arrays with static ABI-word elements on the tuple arrayElement path, got {renderValueType ty}"
   | _ =>
       throwErrorAt stx s!"{context} requires an Array parameter, got {renderValueType ty}"
 
@@ -1997,7 +2010,7 @@ private partial def inferTupleSourceTypes?
           let sourceTy ← requireDirectParamRef name "arrayElement" params
           match sourceTy with
           | .array (.tuple elemTys) =>
-              let _ ← requireSupportedArrayElementSourceType name "arrayElement" sourceTy
+              let _ ← requireSupportedArrayElementTupleSourceType name "arrayElement tuple destructuring" sourceTy
               pure (some elemTys.toArray)
           | _ => pure none
       | `(term| tryExternalCall $name:term $args:term) =>
