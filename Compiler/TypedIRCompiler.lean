@@ -574,11 +574,25 @@ def compileFunctionToTBlock (spec : CompilationModel) (fn : FunctionSpec) : Exce
            locals := st.locals.toList
            body := st.body.toList }
 
-/-- Compile a named function from a `CompilationModel` to typed IR. -/
-def compileFunctionNamed (spec : CompilationModel) (functionName : String) : Except String TBlock := do
-  match spec.functions.find? (fun fn => fn.name == functionName) with
+/-- Compile a function by full ABI signature from a `CompilationModel` to typed IR. -/
+def compileFunctionWithSignature (spec : CompilationModel) (signature : String) :
+    Except String TBlock := do
+  match spec.functions.find? (fun fn => functionSignature fn == signature) with
   | some fn => compileFunctionToTBlock spec fn
-  | none => throw s!"Typed IR compile error: function '{functionName}' not found in spec '{spec.name}'"
+  | none => throw s!"Typed IR compile error: function signature '{signature}' not found in spec '{spec.name}'"
+
+/-- Compile a named function from a `CompilationModel` to typed IR.
+
+Name-only lookup is accepted only when the source name is unambiguous. Specs with
+overloads must use `compileFunctionWithSignature` so typed-IR callers cannot
+silently select the first same-name declaration.
+-/
+def compileFunctionNamed (spec : CompilationModel) (functionName : String) : Except String TBlock := do
+  match spec.functions.filter (fun fn => fn.name == functionName) with
+  | [] => throw s!"Typed IR compile error: function '{functionName}' not found in spec '{spec.name}'"
+  | [fn] => compileFunctionToTBlock spec fn
+  | _ =>
+      throw s!"Typed IR compile error: function '{functionName}' is overloaded in spec '{spec.name}'; use compileFunctionWithSignature"
 
 private def abiHeadParamSmokeFn : FunctionSpec := {
   name := "acceptHeads"
@@ -617,6 +631,54 @@ private def abiHeadExpectedParamTys : List Ty := [
   Ty.uint256,
   Ty.uint256
 ]
+
+private def typedIROverloadSmokeSpec : CompilationModel := {
+  name := "TypedIROverloadSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "echo"
+      params := [{ name := "amount", ty := ParamType.uint256 }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.param "amount")]
+    },
+    { name := "echo"
+      params := [{ name := "recipient", ty := ParamType.address }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.literal 2)]
+    }
+  ]
+}
+
+private def stringContains (haystack needle : String) : Bool :=
+  let h := haystack.toList
+  let n := needle.toList
+  if n.isEmpty then true
+  else
+    let rec go : List Char → Bool
+      | [] => false
+      | c :: cs =>
+        if (c :: cs).take n.length == n then true
+        else go cs
+    go h
+
+example :
+    (match compileFunctionNamed typedIROverloadSmokeSpec "echo" with
+    | Except.ok _ => false
+    | Except.error msg => stringContains msg "function 'echo' is overloaded") = true := by
+  native_decide
+
+example :
+    (match compileFunctionWithSignature typedIROverloadSmokeSpec "echo(uint256)" with
+    | Except.ok block => decide (block.params.map TVar.ty = [Ty.uint256])
+    | Except.error _ => false) = true := by
+  native_decide
+
+example :
+    (match compileFunctionWithSignature typedIROverloadSmokeSpec "echo(address)" with
+    | Except.ok block => decide (block.params.map TVar.ty = [Ty.address])
+    | Except.error _ => false) = true := by
+  native_decide
 
 example :
     (match compileFunctionNamed abiHeadParamSmokeSpec "acceptHeads" with

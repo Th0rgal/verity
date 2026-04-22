@@ -776,6 +776,22 @@ verity_contract ConstantFunctionHelperCollisionRejected where
   function price () : Uint256 := do
     return 3
 
+/--
+error: function 'quote' generates internal declaration 'quote__uint256' that conflicts with a contract constant of the same name
+-/
+#guard_msgs in
+verity_contract ConstantOverloadGeneratedNameCollisionRejected where
+  storage
+
+  constants
+    quote__uint256 : Uint256 := 7
+
+  function quote (amount : Uint256) : Uint256 := do
+    return amount
+
+  function quote (recipient : Address) : Uint256 := do
+    return (addressToWord recipient)
+
 verity_contract TupleSmoke where
   storage
     values : Uint256 → Uint256 := slot 0

@@ -4780,6 +4780,15 @@ def validateGeneratedDefNamesPublic
     if constantNames.contains fn.name then
       throwErrorAt fn.ident
         s!"function '{fn.name}' conflicts with a contract constant of the same name"
+    if storageNames.contains generatedFnName then
+      throwErrorAt fn.ident
+        s!"function '{fn.name}' generates internal declaration '{generatedFnName}' that conflicts with a storage field of the same name"
+    if constantNames.contains generatedFnName then
+      throwErrorAt fn.ident
+        s!"function '{fn.name}' generates internal declaration '{generatedFnName}' that conflicts with a contract constant of the same name"
+    if generatedHelperNames.contains generatedFnName then
+      throwErrorAt fn.ident
+        s!"function '{fn.name}' generates internal declaration '{generatedFnName}' that conflicts with reserved generated declaration '{generatedFnName}'"
     if functionSignatures.contains signature then
       throwErrorAt fn.ident
         s!"duplicate function declaration '{signature}'"
