@@ -151,8 +151,12 @@ scope so the native path does not look more complete than it is:
    non-halt native error, named `interpretRuntimeNative_loweringError` and
    `interpretRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative`
    lemmas for fail-closed lowering and the successful lower/build/call/project
-   native execution pipeline, and `interpretIRRuntimeNative`
-   forwarding/fail-closed lowering behavior. Next coverage should include:
+   native execution pipeline, `interpretIRRuntimeNative`
+   forwarding/fail-closed lowering behavior, and named
+   `interpretIRRuntimeNative_loweringError` and
+   `interpretIRRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative`
+   lemmas pinning the same fail-closed and exact native call-dispatcher
+   pipeline at the IR entry point. Next coverage should include:
    - executable dispatcher selector selection from emitted runtime code; the
      lowered selector expression is already pinned, but build-time execution
      through EVMYulLean `CALLDATALOAD` currently needs

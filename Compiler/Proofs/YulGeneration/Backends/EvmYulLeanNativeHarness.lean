@@ -330,4 +330,32 @@ def interpretIRRuntimeNative
         (YulTransaction.ofIR tx) state.storage observableSlots state.events := by
   rfl
 
+@[simp] theorem interpretIRRuntimeNative_loweringError
+    (fuel : Nat)
+    (contract : Compiler.IRContract)
+    (tx : Compiler.Proofs.IRGeneration.IRTransaction)
+    (state : Compiler.Proofs.IRGeneration.IRState)
+    (observableSlots : List Nat)
+    (err : AdapterError)
+    (hLower : lowerRuntimeContractNative (Compiler.emitYul contract).runtimeCode =
+      .error err) :
+    interpretIRRuntimeNative fuel contract tx state observableSlots = .error err := by
+  simp [interpretIRRuntimeNative, interpretRuntimeNative, hLower]
+
+@[simp] theorem interpretIRRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative
+    (fuel : Nat)
+    (irContract : Compiler.IRContract)
+    (tx : Compiler.Proofs.IRGeneration.IRTransaction)
+    (state : Compiler.Proofs.IRGeneration.IRState)
+    (observableSlots : List Nat)
+    (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (hLower : lowerRuntimeContractNative (Compiler.emitYul irContract).runtimeCode =
+      .ok nativeContract) :
+    interpretIRRuntimeNative fuel irContract tx state observableSlots =
+      .ok (projectResult (YulTransaction.ofIR tx) state.storage state.events
+        (EvmYul.Yul.callDispatcher fuel (some nativeContract)
+          (initialState nativeContract (YulTransaction.ofIR tx) state.storage
+            observableSlots))) := by
+  simp [interpretIRRuntimeNative, interpretRuntimeNative, hLower]
+
 end Compiler.Proofs.YulGeneration.Backends.Native
