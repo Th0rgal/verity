@@ -94,6 +94,32 @@ def projectStorageFromState (tx : YulTransaction) (state : EvmYul.Yul.State) :
     Nat → Nat :=
   extractStorage state.sharedState (natToAddress tx.thisAddress)
 
+/-- Native initial-state storage materialization agrees with Verity storage on
+    every explicit observable slot. Slots and values are interpreted in the
+    EVM word domain, so the result is modulo `UInt256.size`. -/
+theorem initialState_observableStorageSlot
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (slot : Nat)
+    (hSlot : slot ∈ observableSlots)
+    (hRange : ∀ s ∈ observableSlots, s < EvmYul.UInt256.size) :
+    projectStorageFromState tx
+      (initialState contract tx storage observableSlots) slot =
+      storage slot % EvmYul.UInt256.size := by
+  simp only [projectStorageFromState, extractStorage, initialState,
+    EvmYul.Yul.State.sharedState, YulState.initial, toSharedState]
+  rw [Batteries.RBMap.find?_insert_of_eq _ Std.ReflCmp.compare_self]
+  rw [Batteries.RBMap.find?_insert_of_eq _ Std.ReflCmp.compare_self]
+  simp only at *
+  have h := storageLookup_projectStorage storage observableSlots slot hSlot hRange
+  unfold storageLookup at h
+  generalize hfind : Batteries.RBMap.find? (projectStorage storage observableSlots)
+      (natToUInt256 slot) = found at h ⊢
+  cases found <;>
+    simpa [uint256ToNat, EvmYul.UInt256.toNat] using h
+
 /-- Decode one 32-byte big-endian word from an EVMYulLean byte array. -/
 def byteArrayWord (bytes : ByteArray) (offset : Nat) : Nat :=
   (List.range 32).foldl

@@ -129,7 +129,8 @@ scope so the native path does not look more complete than it is:
    execution through copied observable storage, initial native state contract
    installation, the named `initialState_installsExecutionContract` lemma for
    installed dispatcher code and mutable execution permission, observable
-   storage seeding, omitted pre-state slot defaults, and direct
+   storage seeding, the named `initialState_observableStorageSlot` lemma for
+   explicit observable pre-state slots, omitted pre-state slot defaults, and direct
    transaction-environment seeding for sender/source, value, current address,
    calldata selector/argument bytes, timestamp, and block number, the named
    `initialState_transactionEnvironment` lemma for those initial environment
