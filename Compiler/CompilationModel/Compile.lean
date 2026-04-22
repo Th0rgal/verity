@@ -110,11 +110,14 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
   | Stmt.assignVar name value => do
       pure [YulStmt.assign name (← compileExpr fields dynamicSource value)]
   | Stmt.setStorage field value =>
-      match value with
-      | Expr.adtConstruct adtName variantName args =>
-          compileAdtStorageWrite fields dynamicSource adtTypes field adtName variantName args
+      match adtTypes with
+      | [] => compileSetStorage fields dynamicSource field value
       | _ =>
-          compileSetStorage fields dynamicSource field value
+          match value with
+          | Expr.adtConstruct adtName variantName args =>
+              compileAdtStorageWrite fields dynamicSource adtTypes field adtName variantName args
+          | _ =>
+              compileSetStorage fields dynamicSource field value
   | Stmt.setStorageAddr field value =>
       compileSetStorage fields dynamicSource field value true
   | Stmt.storageArrayPush field value =>

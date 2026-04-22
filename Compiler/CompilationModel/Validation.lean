@@ -997,7 +997,7 @@ def stmtInternalCEIViolation : Stmt → Bool → Option String
   | Stmt.ite cond thenBranch elseBranch, seenCall =>
       -- Include external calls from the condition expression itself, so
       -- `if externalCall(...) then setStorage ...` is correctly flagged
-      let condSeenCall := seenCall || exprContainsExternalCall cond
+      let condSeenCall := seenCall || exprMayContainExternalCall cond
       match stmtListCEIViolation thenBranch condSeenCall with
       | some msg => some s!"in if-then branch: {msg}"
       | none =>
@@ -1014,7 +1014,7 @@ def stmtInternalCEIViolation : Stmt → Bool → Option String
       else
         -- Include external calls from the loop count expression, so
         -- `forEach i (externalCall ...) do setStorage ...` is correctly flagged
-        let countSeenCall := seenCall || exprContainsExternalCall count
+        let countSeenCall := seenCall || exprMayContainExternalCall count
         match stmtListCEIViolation body countSeenCall with
         | some msg => some s!"in loop body: {msg}"
         | none => none
@@ -1025,7 +1025,7 @@ def stmtInternalCEIViolation : Stmt → Bool → Option String
   | Stmt.matchAdt _ scrutinee branches, seenCall =>
       -- Include external calls from the scrutinee expression, so
       -- `match adtTag (externalCall ...) { ... setStorage ... }` is correctly flagged
-      let scrutineeSeenCall := seenCall || exprContainsExternalCall scrutinee
+      let scrutineeSeenCall := seenCall || exprMayContainExternalCall scrutinee
       matchBranchesCEIViolation branches scrutineeSeenCall
   | _, _ => none
 termination_by s => sizeOf s

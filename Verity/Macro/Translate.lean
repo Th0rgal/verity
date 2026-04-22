@@ -61,6 +61,7 @@ structure StorageFieldDecl where
   name : String
   ty : StorageType
   slotNum : Nat
+  adtInfo? : Option (String × Nat) := none
 
 structure ParamDecl where
   ident : Ident
@@ -469,11 +470,17 @@ end
 private def parseStorageField (newtypes : Array NewtypeDecl) (adtDecls : Array AdtDecl := #[]) (stx : Syntax) : CommandElabM StorageFieldDecl := do
   match stx with
   | `(verityStorageField| $name:ident : $ty:term := slot $slotNum:num) =>
+      let parsedTy ← storageTypeFromSyntax newtypes adtDecls ty
+      let adtInfo? :=
+        match parsedTy with
+        | .scalar (.adt adtName maxFields) => some (adtName, maxFields)
+        | _ => none
       pure {
         ident := name
         name := toString name.getId
-        ty := ← storageTypeFromSyntax newtypes adtDecls ty
+        ty := parsedTy
         slotNum := ← natFromSyntax slotNum
+        adtInfo? := adtInfo?
       }
   | _ => throwErrorAt stx "invalid storage field declaration"
 
@@ -814,6 +821,7 @@ def immutableStorageFieldDecl
       | .address => .scalar .address
       | _ => .scalar imm.ty
     slotNum := immutableSlotIndex fields idx
+    adtInfo? := none
   }
 
 private def validateImmutableType (imm : ImmutableDecl) : CommandElabM Unit :=
@@ -2990,7 +2998,15 @@ private partial def validateEffectStmtExprTypes
   | `(term| safeApprove $token:term $spender:term $amount:term) =>
       for arg in [token, spender, amount] do
         requireWordLikeType arg "ERC-20 helper" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals arg)
-  | `(term| setStorage $_field:ident $value:term) | `(term| setStorageAddr $_field:ident $value:term)
+  | `(term| setStorage $field:ident $value:term) =>
+      let f ← lookupStorageField fields (toString field.getId)
+      match f.adtInfo?, f.ty with
+      | some _, _ => pure ()
+      | none, .scalar (.adt _ _) => pure ()
+      | _, _ =>
+          let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals value
+          pure ()
+  | `(term| setStorageAddr $_field:ident $value:term)
     | `(term| require $value:term $_msg) =>
       let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals value
       pure ()
@@ -3160,6 +3176,66 @@ private def translateERC20BindStmt?
             [$tokenExpr]))
   | _ => pure none
 
+private def adtConstructorApp? (stx : Term) : Option (Ident × Array Term) :=
+  let stx := stripParens stx
+  match stx with
+  | `(term| $ctor:ident) => some (ctor, #[])
+  | `(term| $ctor:ident $args:term*) => some (ctor, args)
+  | _ => none
+
+private def adtConstructorSyntax? (stx : Term) : Option (String × Array Term) :=
+  let stx := stripParens stx
+  match stx with
+  | `(term| $variant:str) => some (variant.getString, #[])
+  | `(term| ($variant:str, [ $[$args:term],* ])) => some (variant.getString, args)
+  | `(term| adt $variant:str) => some (variant.getString, #[])
+  | `(term| adt $variant:str [ $[$args:term],* ]) => some (variant.getString, args)
+  | _ =>
+      match adtConstructorApp? stx with
+      | some (variant, args) =>
+          if toString variant.getId == "adt" then
+            match args with
+            | #[arg] =>
+                match stripParens arg with
+                | `(term| $variant:str) => some (variant.getString, #[])
+                | _ => none
+            | #[arg, argList] =>
+                match stripParens arg, stripParens argList with
+                | `(term| $variant:str), `(term| [ $[$payloadArgs:term],* ]) =>
+                    some (variant.getString, payloadArgs)
+                | _, _ => none
+            | _ => none
+          else
+            some (toString variant.getId, args)
+      | none => none
+
+private def translateAdtConstructForStorage
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (adtName : String)
+    (value : Term) : CommandElabM Term := do
+  match adtConstructorSyntax? value with
+  | some (variantName, args) =>
+      let argExprs ← args.mapM (translatePureExprWithTypes fields constDecls immutableDecls params locals)
+      `(Compiler.CompilationModel.Expr.adtConstruct
+          $(strTerm adtName)
+          $(strTerm variantName)
+          [ $[$argExprs],* ])
+  | none =>
+      throwErrorAt value
+        s!"ADT storage assignment for '{adtName}' must use a variant constructor so payload slots are preserved"
+
+private def storageFieldAdtName? (field : StorageFieldDecl) : Option String :=
+  match field.adtInfo? with
+  | some (adtName, _) => some adtName
+  | none =>
+      match field.ty with
+      | .scalar (.adt adtName _) => some adtName
+      | _ => none
+
 private def translateEffectStmt
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
@@ -3213,17 +3289,27 @@ private def translateEffectStmt
       `(Compiler.CompilationModel.Stmt.ecm
           $module
           [ $[$argExprs],* ])
-  | `(term| setStorage $field:ident $value) =>
+  | `(term| setStorage $field:ident $value:term) =>
       let f ← lookupStorageField fields (toString field.getId)
-      match f.ty with
-      | .scalar .uint256 | .scalar (.newtype _ .uint256) | .scalar (.adt _ _) =>
-          `(Compiler.CompilationModel.Stmt.setStorage $(strTerm f.name) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value))
-      | .scalar .address | .scalar (.newtype _ .address) =>
-          throwErrorAt stx s!"field '{f.name}' is Address-valued; use setStorageAddr"
-      | .dynamicArray _ =>
-          throwErrorAt stx s!"field '{f.name}' is a storage dynamic array; use pushStorageArray/popStorageArray/setStorageArrayElement"
-      | _ =>
-          throwErrorAt stx s!"field '{f.name}' is not Uint256; use setStorageAddr"
+      match storageFieldAdtName? f with
+      | some adtName =>
+          `(Compiler.CompilationModel.Stmt.setStorage
+              $(strTerm f.name)
+              $(← translateAdtConstructForStorage fields constDecls immutableDecls params locals adtName value))
+      | none =>
+          match f.ty with
+          | .scalar .uint256 | .scalar (.newtype _ .uint256) =>
+              `(Compiler.CompilationModel.Stmt.setStorage $(strTerm f.name) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value))
+          | .scalar (.adt adtName _) =>
+              `(Compiler.CompilationModel.Stmt.setStorage
+                  $(strTerm f.name)
+                  $(← translateAdtConstructForStorage fields constDecls immutableDecls params locals adtName value))
+          | .scalar .address | .scalar (.newtype _ .address) =>
+              throwErrorAt stx s!"field '{f.name}' is Address-valued; use setStorageAddr"
+          | .dynamicArray _ =>
+              throwErrorAt stx s!"field '{f.name}' is a storage dynamic array; use pushStorageArray/popStorageArray/setStorageArrayElement"
+          | _ =>
+              throwErrorAt stx s!"field '{f.name}' is not Uint256; use setStorageAddr"
   | `(term| setStorageAddr $field:ident $value) =>
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
@@ -4019,12 +4105,12 @@ private def mkAdtVariantTerm (variant : AdtVariantDecl) (tag : Nat) : CommandEla
       $(natTerm tag)
       [ $[$fieldTerms],* ])
 
-private def mkAdtTypeDefTerm (adt : AdtDecl) : CommandElabM Term := do
+private def mkAdtTypeDefTerm (adtDecl : AdtDecl) : CommandElabM Term := do
   let mut variantTerms : Array Term := #[]
-  for (variant, idx) in adt.variants.zipIdx do
+  for (variant, idx) in adtDecl.variants.zipIdx do
     variantTerms := variantTerms.push (← mkAdtVariantTerm variant idx)
   `(Compiler.CompilationModel.AdtTypeDef.mk
-      $(strTerm adt.name)
+      $(strTerm adtDecl.name)
       [ $[$variantTerms],* ])
 
 private def mkSpecCommand
@@ -4240,14 +4326,14 @@ def parseContractSyntax
         | some decls => decls.mapM (parseAdtDecl parsedNewtypes)
         | none => pure #[]
       -- Validate: no duplicate ADT names
-      for adt in parsedAdts do
-        if seenNames.contains adt.name then
-          throwErrorAt adt.ident s!"duplicate type name '{adt.name}'"
-        seenNames := seenNames.push adt.name
+      for adtDecl in parsedAdts do
+        if seenNames.contains adtDecl.name then
+          throwErrorAt adtDecl.ident s!"duplicate type name '{adtDecl.name}'"
+        seenNames := seenNames.push adtDecl.name
       -- Validate: ADT names don't shadow built-in types
-      for adt in parsedAdts do
-        if builtinTypeNames.contains adt.name then
-          throwErrorAt adt.ident s!"ADT name '{adt.name}' shadows a built-in type"
+      for adtDecl in parsedAdts do
+        if builtinTypeNames.contains adtDecl.name then
+          throwErrorAt adtDecl.ident s!"ADT name '{adtDecl.name}' shadows a built-in type"
       -- Compute namespace offset (#1730, Axis 4 Steps 4b/4c): when `storage_namespace`
       -- is present, every user-declared slot N becomes (namespaceBase + N).
       -- With `storage_namespace "custom"`, the custom string replaces the default

@@ -114,7 +114,7 @@ def genStaticTypeLoads
 termination_by sizeOf ty
 
 -- Generate loading stmts for a single param by type. Recurses on ParamType for newtypeOf unwrapping.
-private def genSingleParamLoad
+def genSingleParamLoad
     (loadWord : YulExpr → YulExpr) (sizeExpr : YulExpr)
     (headSize : Nat) (baseOffset : Nat) (name : String) (ty : ParamType) (headOffset : Nat) :
     List YulStmt :=

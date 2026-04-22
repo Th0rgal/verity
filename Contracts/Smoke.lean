@@ -2140,7 +2140,7 @@ verity_contract AdtSingleVariant where
     tag : Sentinel := slot 0
 
   function store () : Unit := do
-    setStorage tag 0
+    setStorage tag (adt "Active")
 
 #check_contract AdtSingleVariant
 
@@ -2153,10 +2153,10 @@ verity_contract AdtMixedFieldCounts where
     result : Maybe := slot 0
 
   function clear () : Unit := do
-    setStorage result 0
+    setStorage result (adt "Nothing")
 
-  function set (value : Uint256) : Unit := do
-    setStorage result value
+  function set (_value : Uint256) : Unit := do
+    setStorage result (adt "Just" [_value])
 
 #check_contract AdtMixedFieldCounts
 
@@ -2319,13 +2319,13 @@ verity_contract AdtNewtypeCombo where
     lastTokenId : OptionalId := slot 1
 
   function pause () : Unit := do
-    setStorage contractStatus 1
+    setStorage contractStatus (adt "Paused")
 
   function unpause () : Unit := do
-    setStorage contractStatus 0
+    setStorage contractStatus (adt "Active")
 
-  function setLastId (id : TokenId) : Unit := do
-    setStorage lastTokenId id
+  function setLastId (_id : TokenId) : Unit := do
+    setStorage lastTokenId (adt "SomeId" [_id])
 
 #check_contract AdtNewtypeCombo
 
@@ -2355,7 +2355,7 @@ verity_contract FullComboSmoke where
     setStorage balance (add current amount)
 
   function no_external_calls freeze () requires(admin) modifies(status) : Unit := do
-    setStorage status 1
+    setStorage status (adt "Frozen")
 
   function view no_external_calls getBalance () : Uint256 := do
     let current ← getStorage balance

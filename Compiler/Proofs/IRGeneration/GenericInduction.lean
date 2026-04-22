@@ -608,15 +608,19 @@ private theorem legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPa
         rcases hve : CompilationModel.compileExpr fields .calldata value with err | valueExpr
         · simp [hve, Bind.bind, Except.bind] at hcompile
         · simp only [hve, Except.ok.injEq] at hcompile
-          cases hslots : f.aliasSlots with
-          | nil =>
-              simp [hslots, hunpacked] at hcompile; subst hcompile
-              exact .expr _ [] .nil
-          | cons s rest =>
-              simp [hslots, hunpacked] at hcompile; subst hcompile
-              refine .block _ [] (.let_ _ _ _ ?_) .nil
-              simp only [← List.map_cons, ← List.map_map, ← Function.comp_def]
-              exact legacyCompatibleExternalStmtList_of_exprStmtExprs _
+          cases hty : f.ty with
+          | adt name maxFields =>
+              simp [hty] at hcompile
+          | uint256 | address | dynamicArray | mappingTyped | mappingStruct | mappingStruct2 =>
+              cases hslots : f.aliasSlots with
+              | nil =>
+                  simp [hslots, hunpacked, hty] at hcompile; subst hcompile
+                  exact .expr _ [] .nil
+              | cons s rest =>
+                  simp [hslots, hunpacked, hty] at hcompile; subst hcompile
+                  refine .block _ [] (.let_ _ _ _ ?_) .nil
+                  simp only [← List.map_cons, ← List.map_map, ← Function.comp_def]
+                  exact legacyCompatibleExternalStmtList_of_exprStmtExprs _
     | true =>
         simp only [ite_true, Bind.bind, Except.bind, pure, Except.pure] at hcompile
         cases hty : f.ty <;> simp [hty, Bind.bind, Except.bind, pure, Except.pure] at hcompile
@@ -1775,14 +1779,14 @@ structure EventHeadStepBridgeCatalog
       args.any exprTouchesUnsupportedContractSurface = false →
       ∃ compiledIR,
         CompilationModel.compileStmt fields spec.events spec.errors .calldata
-          [] false scope (Stmt.emit eventName args) = Except.ok compiledIR
+          [] false scope [] (Stmt.emit eventName args) = Except.ok compiledIR
   bridge :
     ∀ {scope : List String} {eventName : String} {args : List Expr}
         {compiledIR : List YulStmt},
       eventEmissionProofSupported spec.events eventName args = true →
       args.any exprTouchesUnsupportedContractSurface = false →
       CompilationModel.compileStmt fields spec.events spec.errors .calldata
-        [] false scope (Stmt.emit eventName args) = Except.ok compiledIR →
+        [] false scope [] (Stmt.emit eventName args) = Except.ok compiledIR →
       ∀ (runtime : SourceSemantics.RuntimeState)
         (state : IRState)
         (helperFuel : Nat)
@@ -1815,7 +1819,7 @@ structure EventHeadStepSemanticBridgeCatalog
       eventEmissionProofSupported spec.events eventName args = true →
       args.any exprTouchesUnsupportedContractSurface = false →
       CompilationModel.compileStmt fields spec.events spec.errors .calldata
-        [] false scope (Stmt.emit eventName args) = Except.ok compiledIR →
+        [] false scope [] (Stmt.emit eventName args) = Except.ok compiledIR →
       ∀ (runtime : SourceSemantics.RuntimeState)
         (state : IRState)
         (helperFuel : Nat)
@@ -5347,9 +5351,68 @@ private theorem encodeStorageAt_eq_copy
 
 private def fieldWriteEntriesAt
     (idx : Nat) (field : Field) : List (Nat × String × Option PackedBits) :=
-  (field.slot.getD idx, field.name, field.packedBits) ::
-    (field.aliasSlots.zipIdx.map (fun (slot, aliasIdx) =>
-      (slot, s!"{field.name}.aliasSlots[{aliasIdx}]", field.packedBits)))
+  firstFieldWriteSlotConflict.fieldOccupiedSlots field (field.slot.getD idx)
+
+private theorem fieldWriteEntriesAt_base_mem
+    (idx : Nat) (field : Field) :
+    field.slot.getD idx ∈ (fieldWriteEntriesAt idx field).map (fun entry => entry.1) := by
+  obtain ⟨name, ty, slotOpt, packedBits, aliasSlots⟩ := field
+  cases ty <;>
+    simp [fieldWriteEntriesAt, firstFieldWriteSlotConflict.fieldOccupiedSlots]
+
+private theorem exists_mem_zipIdx_of_mem
+    {α : Type} {x : α} {xs : List α} {start : Nat}
+    (hmem : x ∈ xs) :
+    ∃ i, (x, i) ∈ xs.zipIdx start := by
+  induction xs generalizing start with
+  | nil => simp at hmem
+  | cons y ys ih =>
+      simp at hmem
+      rcases hmem with rfl | hmem
+      · exact ⟨start, by simp [List.zipIdx]⟩
+      · obtain ⟨i, hi⟩ := ih (start := start + 1) hmem
+        exact ⟨i, by simp [List.zipIdx, hi]⟩
+
+private theorem fieldWriteEntriesAt_alias_mem
+    {idx : Nat} {field : Field} {slot : Nat}
+    (hmem : slot ∈ field.aliasSlots) :
+    slot ∈ (fieldWriteEntriesAt idx field).map (fun entry => entry.1) := by
+  obtain ⟨name, ty, slotOpt, packedBits, aliasSlots⟩ := field
+  have halias : ∃ i, (slot, i) ∈ aliasSlots.zipIdx :=
+    exists_mem_zipIdx_of_mem hmem
+  cases ty <;>
+    simp [fieldWriteEntriesAt, firstFieldWriteSlotConflict.fieldOccupiedSlots, halias]
+
+private theorem fieldWriteEntriesAt_packed_none_of_unpacked
+    {idx : Nat} {field : Field} {packed : Option PackedBits}
+    (hunpacked : field.packedBits = none)
+    (hmem : packed ∈ (fieldWriteEntriesAt idx field).map (fun entry => entry.2.2)) :
+    packed = none := by
+  obtain ⟨name, ty, slotOpt, packedBits, aliasSlots⟩ := field
+  simp at hunpacked
+  subst hunpacked
+  cases ty <;> simp [fieldWriteEntriesAt, firstFieldWriteSlotConflict.fieldOccupiedSlots] at hmem
+  · rcases hmem with hcanon | halias
+    · simpa using hcanon
+    · exact halias.2.symm
+  · rcases hmem with hcanon | halias
+    · simpa using hcanon
+    · exact halias.2.symm
+  · rcases hmem with hcanon | halias
+    · exact hcanon.2.symm
+    · exact halias.2.symm
+  · rcases hmem with hcanon | halias
+    · simpa using hcanon
+    · exact halias.2.symm
+  · rcases hmem with hcanon | halias
+    · simpa using hcanon
+    · exact halias.2.symm
+  · rcases hmem with hcanon | halias
+    · simpa using hcanon
+    · exact halias.2.symm
+  · rcases hmem with hcanon | halias
+    · simpa using hcanon
+    · exact halias.2.symm
 
 private def firstInFieldConflictCopy
     (seen : List (Nat × String × Option PackedBits))
@@ -5473,28 +5536,18 @@ private theorem firstFieldWriteSlotConflictCopyFrom_some_of_seen_slot_member
         -- targetSlot ∈ writeSlots = (field.slot.getD idx :: field.aliasSlots)
         -- fieldWriteEntriesAt produces entries with first components matching writeSlots
         -- and all packed bits = field.packedBits = none
-        -- The first components of fieldWriteEntriesAt entries are exactly the write slots
-        have hwriteEntrySlots :
-            (fieldWriteEntriesAt idx field).map (fun entry => entry.1) =
-              field.slot.getD idx :: field.aliasSlots := by
-          simp only [fieldWriteEntriesAt, List.map_cons, List.map_map]
-          congr 1
-          show List.map (fun x : Nat × Nat => x.1)
-            field.aliasSlots.zipIdx = field.aliasSlots
-          exact List.zipIdx_map_fst 0 field.aliasSlots
         have htarget_in_entries :
             targetSlot ∈ (fieldWriteEntriesAt idx field).map (fun entry => entry.1) := by
-          rw [hwriteEntrySlots]; exact hslot
+          simp only [List.mem_cons] at hslot
+          rcases hslot with hslot | halias
+          · subst targetSlot
+            exact fieldWriteEntriesAt_base_mem idx field
+          · exact fieldWriteEntriesAt_alias_mem halias
         have hunpacked_entries :
             ∀ packed ∈ (fieldWriteEntriesAt idx field).map (fun entry => entry.2.2),
               packed = none := by
-          unfold fieldWriteEntriesAt
-          simp only [List.map_cons, List.map_map, List.mem_cons]
-          rintro packed (rfl | hmem)
-          · exact hunpacked
-          · rw [List.mem_map] at hmem
-            obtain ⟨_, _, rfl⟩ := hmem
-            exact hunpacked
+          intro packed hmem
+          exact fieldWriteEntriesAt_packed_none_of_unpacked hunpacked hmem
         have hconflict := firstInFieldConflictCopy_ne_none_of_seen_slot_unpacked
           hseen htarget_in_entries hunpacked_entries
         cases hc : firstInFieldConflictCopy seen (fieldWriteEntriesAt idx field) with
@@ -5570,17 +5623,11 @@ private theorem findResolvedFieldAtSlotCopyFrom_of_member
         by_cases hcapture :
             field.slot.getD idx = targetSlot ∨ targetSlot ∈ field.aliasSlots
         · exfalso
-          have hwriteEntrySlots :
-              (fieldWriteEntriesAt idx field).map (fun entry => entry.1) =
-                field.slot.getD idx :: field.aliasSlots := by
-            simp only [fieldWriteEntriesAt, List.map_cons, List.map_map]
-            congr 1; exact List.zipIdx_map_fst 0 field.aliasSlots
           have htargetInEntries :
               targetSlot ∈ (fieldWriteEntriesAt idx field).map (fun entry => entry.1) := by
-            rw [hwriteEntrySlots]
             rcases hcapture with rfl | h
-            · exact .head _
-            · exact .tail _ h
+            · exact fieldWriteEntriesAt_base_mem idx field
+            · exact fieldWriteEntriesAt_alias_mem h
           have htargetInSeen :
               targetSlot ∈ ((fieldWriteEntriesAt idx field).reverse ++ seen).map
                 (fun entry => entry.1) := by
@@ -5625,11 +5672,20 @@ private theorem firstFieldWriteSlotConflict_go_eq_CopyFrom
   | cons fld rest ih =>
     rw [firstFieldWriteSlotConflict_go_cons]
     dsimp only []
-    simp only [firstFieldWriteSlotConflictCopyFrom, fieldWriteEntriesAt]
     rw [firstInFieldConflict_eq_Copy]
-    cases firstInFieldConflictCopy seen _ with
-    | none => exact ih _ _
-    | some _ => rfl
+    change
+      (match firstInFieldConflictCopy seen (fieldWriteEntriesAt i fld) with
+       | some conflict => some conflict
+       | none =>
+           firstFieldWriteSlotConflict.go
+             ((fieldWriteEntriesAt i fld).reverse ++ seen) (i + 1) rest) =
+        firstFieldWriteSlotConflictCopyFrom seen i (fld :: rest)
+    simp only [firstFieldWriteSlotConflictCopyFrom]
+    cases hc : firstInFieldConflictCopy seen (fieldWriteEntriesAt i fld) with
+    | none =>
+        simpa [hc] using ih ((fieldWriteEntriesAt i fld).reverse ++ seen) (i + 1)
+    | some _ =>
+        simp [hc]
 
 private theorem findResolvedFieldAtSlotCopy_of_findFieldWithResolvedSlot_member
     {fields : List Field}
@@ -6983,6 +7039,7 @@ theorem compiledStmtStep_setStorage_singleSlot
     (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
     (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
     (hNotMapping : isMapping fields fieldName = false)
+    (hNotAdt : ∀ name maxFields, f.ty ≠ FieldType.adt name maxFields)
     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
     CompiledStmtStep fields scope (.setStorage fieldName value)
       [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, valueIR])] where
@@ -7674,7 +7731,7 @@ private theorem compileStmt_emit_scalar_supported_ok
     (hsurface : args.any exprTouchesUnsupportedContractSurface = false) :
     ∃ compiledIR,
       CompilationModel.compileStmt fields spec.events spec.errors .calldata
-        [] false scope (Stmt.emit eventName args) = Except.ok compiledIR := by
+        [] false scope [] (Stmt.emit eventName args) = Except.ok compiledIR := by
   have hcore : ∀ expr ∈ args, FunctionBody.ExprCompileCore expr := by
     intro expr hmem
     have hnotTrue :
@@ -10582,6 +10639,7 @@ theorem compiledStmtStep_setStorage_aliasSlots
     (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
     (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
     (hNotMapping : isMapping fields fieldName = false)
+    (hNotAdt : ∀ name maxFields, f.ty ≠ FieldType.adt name maxFields)
     (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
     CompiledStmtStep fields scope (.setStorage fieldName value)
       [YulStmt.block
@@ -10590,8 +10648,13 @@ theorem compiledStmtStep_setStorage_aliasSlots
             YulStmt.expr
               (YulExpr.call "sstore" [YulExpr.lit writeSlot, YulExpr.ident "__compat_value"])))] where
   compileOk := by
-    simp [CompilationModel.compileStmt, CompilationModel.compileSetStorage,
-      hNotMapping, hfind, hwriteSlots, halias, hunpacked, hvalueIR]
+    cases hty : f.ty with
+    | adt name maxFields =>
+        exact False.elim (hNotAdt name maxFields hty)
+    | uint256 | address | dynamicArray | mappingTyped | mappingStruct | mappingStruct2 =>
+        simp [CompilationModel.compileStmt, CompilationModel.compileSetStorage,
+          hNotMapping, hfind, hwriteSlots, halias, hunpacked, hvalueIR, hty,
+          pure, Except.pure, Bind.bind, Except.bind]
   preserves runtime state extraFuel hexact hscope hbounded hruntime hslack := by
     let slots := slot :: f.aliasSlots
     let blockBody :=
@@ -10756,6 +10819,7 @@ theorem compiledStmtStep_setStorage_of_validateIdentifierShapes
     (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
     (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
     (hNotMapping : isMapping spec.fields fieldName = false)
+    (hNotAdt : ∀ name maxFields, f.ty ≠ FieldType.adt name maxFields)
     (hvalueIR : CompilationModel.compileExpr spec.fields .calldata value = Except.ok valueIR) :
     ∃ compiledIR, CompiledStmtStep spec.fields scope (.setStorage fieldName value) compiledIR := by
   by_cases halias : f.aliasSlots = []
@@ -10771,6 +10835,7 @@ theorem compiledStmtStep_setStorage_of_validateIdentifierShapes
       (hnotAddr := hnotAddr)
       (hnotDyn := hnotDyn)
       (hNotMapping := hNotMapping)
+      (hNotAdt := hNotAdt)
       (hvalueIR := hvalueIR)
     simpa [halias] using hwriteSlots
   · refine
@@ -10793,6 +10858,7 @@ theorem compiledStmtStep_setStorage_of_validateIdentifierShapes
       (hnotAddr := hnotAddr)
       (hnotDyn := hnotDyn)
       (hNotMapping := hNotMapping)
+      (hNotAdt := hNotAdt)
       (hvalueIR := hvalueIR)
 
 theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_scopeDiscipline
@@ -10824,6 +10890,7 @@ theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_scopeDiscipli
     (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
     (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
     (hNotMapping : isMapping spec.fields fieldName = false)
+    (hNotAdt : ∀ name maxFields, f.ty ≠ FieldType.adt name maxFields)
     (hvalueIR : CompilationModel.compileExpr spec.fields .calldata value = Except.ok valueIR) :
     ∃ compiledIR,
       CompiledStmtStep spec.fields
@@ -10844,6 +10911,7 @@ theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_scopeDiscipli
     (hnotAddr := hnotAddr)
     (hnotDyn := hnotDyn)
     (hNotMapping := hNotMapping)
+    (hNotAdt := hNotAdt)
     (hvalueIR := hvalueIR)
   intro name hmem
   have hscopeNames := stmtListScopeDiscipline_scope_names hprefix name hmem
@@ -10905,6 +10973,7 @@ theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunct
     (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
     (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
     (hNotMapping : isMapping spec.fields fieldName = false)
+    (hNotAdt : ∀ name maxFields, f.ty ≠ FieldType.adt name maxFields)
     (hvalueIR : CompilationModel.compileExpr spec.fields .calldata value = Except.ok valueIR) :
     ∃ compiledIR,
       CompiledStmtStep spec.fields
@@ -10927,6 +10996,7 @@ theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunct
     (hnotAddr := hnotAddr)
     (hnotDyn := hnotDyn)
     (hNotMapping := hNotMapping)
+    (hNotAdt := hNotAdt)
     (hvalueIR := hvalueIR)
 
 -- NOTE: The _of_compileStmtList intermediate was superseded by _of_bodySurface below.
@@ -10980,9 +11050,16 @@ theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunct
     rcases compileStmt_ok_of_compileStmtList_append_cons
       (by simpa [hbody] using hbodyCompile) with ⟨stmtIR, hstmt⟩
     exact isMapping_false_of_compileStmt_setStorage_ok hstmt
+  have hNotAdt : ∀ name maxFields, f.ty ≠ FieldType.adt name maxFields := by
+    intro name maxFields hty
+    rcases compileStmt_ok_of_compileStmtList_append_cons
+      (by simpa [hbody] using hbodyCompile) with ⟨stmtIR, hstmt⟩
+    simp [CompilationModel.compileStmt, CompilationModel.compileSetStorage,
+      hNotMapping, hfind, hty, hvalueIR, pure, Pure.pure, Except.pure,
+      Bind.bind, Except.bind] at hstmt
   exact compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences
     hvalidateShapes hvalidateRefs hfn hparamScope hprefixCore hbody hvalueCore hinScope
-    hfind hwriteSlots hunpacked hnoConflict hnotAddr hnotDyn hNotMapping hvalueIR
+    hfind hwriteSlots hunpacked hnoConflict hnotAddr hnotDyn hNotMapping hNotAdt hvalueIR
 
 private theorem terminal_stmtResultMatchesIRExec_implies_stmtStepMatchesIRExec
     {fields : List Field}
@@ -11616,6 +11693,9 @@ private theorem stmtListGenericCore_singleton_setStorage_singleSlot
       (hnotAddr := by rfl)
       (hnotDyn := by rfl)
       (hNotMapping := isMapping_false_of_findFieldWithResolvedSlot_uint256 hfind rfl)
+      (hNotAdt := by
+        intro name maxFields hty
+        cases hty)
       (hvalueIR := hvalueIR))
     StmtListGenericCore.nil
 
@@ -16367,9 +16447,10 @@ theorem
         (SourceSemantics.effectiveFields model)
         (fn.params.map (·.name))
         fn.body)
+    (hnoAdtTypes : model.adtTypes = [])
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+        (fn.params.map (·.name)) model.adtTypes fn.body = Except.ok bodyStmts)
     (hscope :
       FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
     (hbounded : FunctionBody.bindingsBounded bindings)
@@ -16389,7 +16470,7 @@ theorem
     supported_function_body_correct_from_exact_state_generic_finer_split_internal_helper_surface_steps_and_helper_ir_callsDisjoint
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
-      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hhelperFree
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hnoAdtTypes hhelperFree
       (stmtListDirectInternalHelperCallStepInterface_of_directCallSurfaceClosed
         (runtimeContract := runtimeContract)
         (spec := model)
@@ -16414,7 +16495,7 @@ theorem
         hstructClosed)
       hresidual
       hdisjoint
-      hbodyCompile
+      (by simpa [hnoAdtTypes] using hbodyCompile)
       hscope hbounded hstateRuntime hstateBindings
 
 /-- Current-fragment disjointness-based wrapper that lands directly in the exact
