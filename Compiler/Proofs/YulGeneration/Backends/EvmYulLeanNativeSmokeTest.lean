@@ -87,4 +87,42 @@ example :
     | .error _ => false) = true := by
   native_decide
 
+example :
+    Native.byteArrayWord
+      (ByteArray.ofFn fun i : Fin 32 =>
+        if i.1 = 31 then UInt8.ofNat 210 else UInt8.ofNat 0)
+      0 = 210 := by
+  native_decide
+
+example :
+    Native.projectLogEntry
+      { address := StateBridge.natToAddress sampleTx.thisAddress
+        topics := #[EvmYul.UInt256.ofNat 7]
+        data :=
+          ByteArray.ofFn fun i : Fin 32 =>
+            if i.1 = 31 then UInt8.ofNat 55 else UInt8.ofNat 0 } =
+      [7, 55] := by
+  native_decide
+
+example :
+    (let state : EvmYul.Yul.State :=
+      .Ok
+        { (StateBridge.toSharedState
+            (Compiler.Proofs.YulGeneration.YulState.initial sampleTx zeroStorage) []) with
+          H_return :=
+            ByteArray.ofFn fun i : Fin 32 =>
+              if i.1 = 31 then UInt8.ofNat 99 else UInt8.ofNat 0 }
+        ∅
+     Native.projectHaltReturn state (EvmYul.UInt256.ofNat 1)) = some 99 := by
+  native_decide
+
+example :
+    (match Native.interpretRuntimeNative 128 [
+      .let_ "v" (.call "callvalue" []),
+      .expr (.call "sstore" [.lit 8, .ident "v"])
+    ] sampleTx zeroStorage [8] with
+    | .ok result => result.success && result.finalStorage 8 == sampleTx.msgValue
+    | .error _ => false) = true := by
+  native_decide
+
 end Compiler.Proofs.YulGeneration.Backends
