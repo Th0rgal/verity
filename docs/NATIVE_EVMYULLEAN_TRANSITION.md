@@ -136,11 +136,12 @@ scope so the native path does not look more complete than it is:
    `initialState_installsCurrentAccountContract` lemma for account-map runtime
    code installation at the current contract address, observable
    storage seeding, the named `initialState_observableStorageSlot` lemma for
-   explicit observable pre-state slots, omitted pre-state slot defaults, and direct
-   transaction-environment seeding for sender/source, value, current address,
-   calldata selector/argument bytes, timestamp, and block number, the named
-   `initialState_transactionEnvironment` lemma for those initial environment
-   fields, the named `initialState_calldataSize` lemma for the native
+   explicit observable pre-state slots, the named
+   `initialState_omittedStorageSlot` lemma for omitted pre-state slot defaults,
+   and direct transaction-environment seeding for sender/source, value, current
+   address, calldata selector/argument bytes, timestamp, and block number, the
+   named `initialState_transactionEnvironment` lemma for those initial
+   environment fields, the named `initialState_calldataSize` lemma for the native
    selector-plus-ABI-word calldata length, the named
    `initialState_unbridgedEnvironmentDefaults` lemma for
    base-fee/blob-field defaults and native-global `chainid` behavior, callvalue,

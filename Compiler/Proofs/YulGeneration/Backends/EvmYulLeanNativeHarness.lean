@@ -161,6 +161,32 @@ theorem initialState_observableStorageSlot
   cases found <;>
     simpa [uint256ToNat, EvmYul.UInt256.toNat] using h
 
+/-- Native initial-state storage materialization defaults omitted observable
+    pre-state slots to zero. The in-range hypotheses rule out modular aliasing
+    through the EVM word key used by the finite native storage map. -/
+theorem initialState_omittedStorageSlot
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (slot : Nat)
+    (hNotSlot : slot ∉ observableSlots)
+    (hRange : ∀ s ∈ observableSlots, s < EvmYul.UInt256.size)
+    (hSlotRange : slot < EvmYul.UInt256.size) :
+    projectStorageFromState tx
+      (initialState contract tx storage observableSlots) slot = 0 := by
+  simp only [projectStorageFromState, extractStorage, initialState,
+    EvmYul.Yul.State.sharedState, YulState.initial, toSharedState]
+  rw [Batteries.RBMap.find?_insert_of_eq _ Std.ReflCmp.compare_self]
+  rw [Batteries.RBMap.find?_insert_of_eq _ Std.ReflCmp.compare_self]
+  simp only
+  have h := foldl_insert_find_not_mem storage observableSlots slot hNotSlot
+    hRange hSlotRange (Batteries.RBMap.empty : EvmYul.Storage)
+  have hNone :
+      (projectStorage storage observableSlots).find? (natToUInt256 slot) = none := by
+    simpa [projectStorage] using h
+  rw [hNone]
+
 /-- Decode one 32-byte big-endian word from an EVMYulLean byte array. -/
 def byteArrayWord (bytes : ByteArray) (offset : Nat) : Nat :=
   (List.range 32).foldl
