@@ -30,9 +30,9 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         errors = check.check_doc(text)
         self.assertTrue(any("observable storage slot set explicitly" in error for error in errors), errors)
 
-    def test_rejects_missing_unbridged_chainid_caveat(self) -> None:
+    def test_rejects_missing_chainid_validation_caveat(self) -> None:
         text = check.DOC.read_text(encoding="utf-8").replace(
-            "`YulTransaction.chainId`",
+            "`YulTransaction.chainId` must match",
             "`YulTransaction.chainIdStatus`",
         )
         errors = check.check_doc(text)
@@ -41,14 +41,14 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
-    def test_rejects_missing_unbridged_blobbasefee_caveat(self) -> None:
+    def test_rejects_missing_blobbasefee_validation_caveat(self) -> None:
         text = check.DOC.read_text(encoding="utf-8").replace(
-            "`YulTransaction.blobBaseFee`",
+            "`chainid()` and `blobbasefee()` now fail closed",
             "`YulTransaction.blobBaseFeeStatus`",
         )
         errors = check.check_doc(text)
         self.assertTrue(
-            any("YulTransaction.blobBaseFee" in error for error in errors),
+            any("blobbasefee" in error for error in errors),
             errors,
         )
 
@@ -125,21 +125,21 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         )
         self.assertEqual(errors, [])
 
-    def test_unbridged_environment_boundary_rejects_missing_chainid_pin(self) -> None:
+    def test_unbridged_environment_boundary_rejects_missing_chainid_rejection_pin(self) -> None:
         smoke_text = check.NATIVE_SMOKE_TEST.read_text(encoding="utf-8").replace(
-            'nativeStoresBuiltin "chainid" 15 1 = true',
-            'nativeStoresBuiltin "chainid" 15 sampleTx.chainId = true',
+            'nativeRejectsUnsupportedChainId = true',
+            'nativeAcceptsUnsupportedChainId = true',
         )
         errors = check.check_unbridged_environment_boundary(
             check.NATIVE_HARNESS.read_text(encoding="utf-8"),
             smoke_text,
         )
-        self.assertTrue(any("chainid" in error for error in errors), errors)
+        self.assertTrue(any("chainid" in error.lower() for error in errors), errors)
 
-    def test_unbridged_environment_boundary_rejects_missing_blobbasefee_pin(self) -> None:
+    def test_unbridged_environment_boundary_rejects_missing_blobbasefee_rejection_pin(self) -> None:
         smoke_text = check.NATIVE_SMOKE_TEST.read_text(encoding="utf-8").replace(
-            'nativeStoresBuiltin "blobbasefee" 16 1 = true',
-            'nativeStoresBuiltin "blobbasefee" 16 sampleTx.blobBaseFee = true',
+            'nativeRejectsUnsupportedBlobBaseFee = true',
+            'nativeAcceptsUnsupportedBlobBaseFee = true',
         )
         errors = check.check_unbridged_environment_boundary(
             check.NATIVE_HARNESS.read_text(encoding="utf-8"),

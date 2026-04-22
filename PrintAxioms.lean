@@ -2745,6 +2745,13 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable_global
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeBlobBaseFeeRepresentable_minimum
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_noChainId_noBlobBaseFee
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_representableBlobBaseFee
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_representableEnvironment
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_unsupportedChainId
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_unsupportedBlobBaseFee
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_installsExecutionContract
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_installsCurrentAccountContract
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_transactionEnvironment
@@ -2801,6 +2808,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_finalMappings
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative_loweringError
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative_environmentError
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_eq_interpretRuntimeNative
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_loweringError
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative
@@ -3075,4 +3083,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2902 theorems/lemmas (2015 public, 887 private, 0 sorry'd)
+-- Total: 2910 theorems/lemmas (2023 public, 887 private, 0 sorry'd)

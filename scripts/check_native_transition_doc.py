@@ -52,8 +52,10 @@ REQUIRED_SNIPPETS = (
     "`blockTimestamp`",
     "mapping-struct",
     "signature-based identity model",
-    "not yet bridged from `YulTransaction.chainId`",
-    "not yet bridged from `YulTransaction.blobBaseFee`",
+    "`YulTransaction.chainId` must match",
+    "EvmYul.chainId",
+    "`chainid()` and `blobbasefee()` now fail closed",
+    "EvmYul.MIN_BASE_FEE_PER_BLOB_GAS",
     "`initialState_unbridgedEnvironmentDefaults`",
 )
 
@@ -171,6 +173,9 @@ def check_unbridged_environment_boundary(native_harness_text: str, native_smoke_
     normalized_native_smoke = normalize_ws(native_smoke_text)
 
     for required_boundary in (
+        "validateNativeRuntimeEnvironment",
+        "nativeChainIdRepresentable",
+        "nativeBlobBaseFeeRepresentable",
         "initialState_unbridgedEnvironmentDefaults",
         "EvmYul.State.chainId",
         "EvmYul.chainId",
@@ -185,15 +190,17 @@ def check_unbridged_environment_boundary(native_harness_text: str, native_smoke_
             )
 
     for pinned_default in (
-        'nativeStoresBuiltin "chainid" 15 1 = true',
-        'nativeStoresBuiltin "blobbasefee" 16 1 = true',
+        'nativeRejectsUnsupportedChainId = true',
+        'nativeStoresBuiltinWithTx "chainid" 15 EvmYul.chainId',
+        'nativeRejectsUnsupportedBlobBaseFee = true',
+        'nativeStoresBuiltinWithTx "blobbasefee" 16 EvmYul.MIN_BASE_FEE_PER_BLOB_GAS',
     ):
         if pinned_default not in normalized_native_smoke:
             errors.append(
                 "Compiler/Proofs/YulGeneration/Backends/"
                 "EvmYulLeanNativeSmokeTest.lean must pin the current native "
-                f"default environment behavior with `{pinned_default}` until "
-                "YulTransaction bridging is implemented"
+                f"environment behavior with `{pinned_default}` until "
+                "the blobbasefee bridge is widened"
             )
 
     return errors

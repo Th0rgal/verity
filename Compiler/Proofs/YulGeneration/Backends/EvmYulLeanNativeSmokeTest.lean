@@ -63,13 +63,36 @@ private def stateWithStorageLogReturn
       H_return := wordByteArray returnWord }
     ∅
 
-private def nativeStoresBuiltin (builtin : String) (slot expected : Nat) : Bool :=
+private def nativeStoresBuiltinWithTx
+    (builtin : String)
+    (slot expected : Nat)
+    (tx : Compiler.Proofs.YulGeneration.YulTransaction) :
+    Bool :=
   match Native.interpretRuntimeNative 128 [
     .let_ "v" (.call builtin []),
     .expr (.call "sstore" [.lit slot, .ident "v"])
-  ] sampleTx zeroStorage [slot] with
+  ] tx zeroStorage [slot] with
   | .ok result => result.success && result.finalStorage slot == expected
   | .error _ => false
+
+private def nativeStoresBuiltin (builtin : String) (slot expected : Nat) : Bool :=
+  nativeStoresBuiltinWithTx builtin slot expected sampleTx
+
+private def nativeRejectsUnsupportedBlobBaseFee : Bool :=
+  match Native.interpretRuntimeNative 128 [
+    .let_ "v" (.call "blobbasefee" []),
+    .expr (.call "sstore" [.lit 16, .ident "v"])
+  ] sampleTx zeroStorage [16] with
+  | .error _ => true
+  | .ok _ => false
+
+private def nativeRejectsUnsupportedChainId : Bool :=
+  match Native.interpretRuntimeNative 128 [
+    .let_ "v" (.call "chainid" []),
+    .expr (.call "sstore" [.lit 15, .ident "v"])
+  ] sampleTx zeroStorage [15] with
+  | .error _ => true
+  | .ok _ => false
 
 private def referenceRuntimeWithFuel
     (fuel : Nat) (stmts : List YulStmt) (tx : Compiler.Proofs.YulGeneration.YulTransaction)
@@ -903,11 +926,21 @@ example :
   native_decide
 
 example :
-    nativeStoresBuiltin "chainid" 15 1 = true := by
+    nativeStoresBuiltinWithTx "chainid" 15 EvmYul.chainId
+      { sampleTx with chainId := EvmYul.chainId } = true := by
   native_decide
 
 example :
-    nativeStoresBuiltin "blobbasefee" 16 1 = true := by
+    nativeRejectsUnsupportedChainId = true := by
+  native_decide
+
+example :
+    nativeStoresBuiltinWithTx "blobbasefee" 16 EvmYul.MIN_BASE_FEE_PER_BLOB_GAS
+      { sampleTx with blobBaseFee := EvmYul.MIN_BASE_FEE_PER_BLOB_GAS } = true := by
+  native_decide
+
+example :
+    nativeRejectsUnsupportedBlobBaseFee = true := by
   native_decide
 
 example :

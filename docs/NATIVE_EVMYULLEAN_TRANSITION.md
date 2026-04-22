@@ -72,13 +72,15 @@ scope so the native path does not look more complete than it is:
 - [#1741](https://github.com/lfglabs-dev/verity/issues/1741):
   `blockTimestamp` is bridged through native EVMYulLean execution, and native
   smoke coverage now checks `timestamp()`/`number()` state reads. Native
-  smoke coverage also records the current EVMYulLean defaults for `chainid()`
-  and `blobbasefee()`; `chainid()` is not yet bridged from
-  `YulTransaction.chainId`, and `blobbasefee()` is not yet bridged from
-  `YulTransaction.blobBaseFee`. The native harness now also names this
-  boundary with `initialState_unbridgedEnvironmentDefaults`, pinning
-  base-fee/blob fields and native `chainid` to their current EVMYulLean
-  default/global behavior until the follow-up widens the state bridge. The
+  `chainid()` and `blobbasefee()` now fail closed unless the corresponding
+  `YulTransaction` field is representable by EVMYulLean's current environment
+  model. Today that means `YulTransaction.chainId` must match the EVMYulLean
+  global `EvmYul.chainId`, and `YulTransaction.blobBaseFee` must match the
+  minimum blob gas price `EvmYul.MIN_BASE_FEE_PER_BLOB_GAS`. The native harness
+  names the remaining unbridged boundary with
+  `initialState_unbridgedEnvironmentDefaults`, pinning base-fee/blob fields and
+  native `chainid` to their current EVMYulLean default/global behavior until
+  the follow-up widens the state bridge. The
   `verity_contract` surface now accepts monadic environment reads such as
   `let t <- blockTimestamp`, `let t <- Verity.blockTimestamp`, `blockNumber`,
   `chainid`, `blobbasefee`, `contractAddress`, `msgSender`, and `msgValue`, and the
@@ -211,8 +213,9 @@ scope so the native path does not look more complete than it is:
    `initialState_unbridgedEnvironmentDefaults` lemma for
    base-fee/blob-field defaults and native-global `chainid` behavior, callvalue,
    caller/address, calldatasize, timestamp/number, a native-vs-reference-oracle
-   runtime comparison for those bridged environment fields, native
-   `chainid`/`blobbasefee` default behavior, executable `stop` halt
+   runtime comparison for those bridged environment fields, fail-closed
+   `chainid`/`blobbasefee` validation for non-representable
+   `YulTransaction.chainId`/`YulTransaction.blobBaseFee`, executable `stop` halt
    projection, the named `projectHaltReturn_stop` and `projectResult_stop`
    lemmas for `stop`/zero-halt return projection, native log projection from
    topics plus word-aligned data with the named

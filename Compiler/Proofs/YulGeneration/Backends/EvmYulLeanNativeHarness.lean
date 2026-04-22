@@ -55,6 +55,118 @@ def initialState
           perm := true } }
   .Ok shared' ∅
 
+/-! ## Native Environment Support Boundary -/
+
+partial def yulExprUsesBuiltin (builtin : String) : YulExpr → Bool
+  | .call func args => func == builtin || args.any (yulExprUsesBuiltin builtin)
+  | _ => false
+
+mutual
+  partial def yulStmtUsesBuiltin (builtin : String) : YulStmt → Bool
+    | .let_ _ value => yulExprUsesBuiltin builtin value
+    | .letMany _ value => yulExprUsesBuiltin builtin value
+    | .assign _ value => yulExprUsesBuiltin builtin value
+    | .expr e => yulExprUsesBuiltin builtin e
+    | .if_ cond body =>
+        yulExprUsesBuiltin builtin cond || yulStmtsUseBuiltin builtin body
+    | .for_ init cond post body =>
+        yulStmtsUseBuiltin builtin init ||
+          yulExprUsesBuiltin builtin cond ||
+          yulStmtsUseBuiltin builtin post ||
+          yulStmtsUseBuiltin builtin body
+    | .switch discr cases defaultBody =>
+        yulExprUsesBuiltin builtin discr ||
+          cases.any (fun (_, body) => yulStmtsUseBuiltin builtin body) ||
+          defaultBody.any (yulStmtsUseBuiltin builtin)
+    | .block stmts => yulStmtsUseBuiltin builtin stmts
+    | .funcDef _ _ _ body => yulStmtsUseBuiltin builtin body
+    | .comment _ | .leave => false
+
+  partial def yulStmtsUseBuiltin (builtin : String) (stmts : List YulStmt) : Bool :=
+    stmts.any (yulStmtUsesBuiltin builtin)
+end
+
+def nativeBlobBaseFeeRepresentable (fee : Nat) : Bool :=
+  fee == EvmYul.MIN_BASE_FEE_PER_BLOB_GAS
+
+def nativeChainIdRepresentable (chainId : Nat) : Bool :=
+  chainId == EvmYul.chainId
+
+def unsupportedNativeBlobBaseFeeError : AdapterError :=
+  "native EVMYulLean blobbasefee requires representable blobBaseFee; \
+  current bridge supports only EVMYulLean minimum blob gas price"
+
+def unsupportedNativeChainIdError : AdapterError :=
+  "native EVMYulLean chainid requires representable chainId; \
+  current bridge supports only EVMYulLean global chain id"
+
+def validateNativeRuntimeEnvironment
+    (runtimeCode : List YulStmt)
+    (tx : YulTransaction) :
+    Except AdapterError Unit :=
+  if yulStmtsUseBuiltin "chainid" runtimeCode &&
+      !nativeChainIdRepresentable tx.chainId then
+    .error unsupportedNativeChainIdError
+  else if yulStmtsUseBuiltin "blobbasefee" runtimeCode &&
+      !nativeBlobBaseFeeRepresentable tx.blobBaseFee then
+    .error unsupportedNativeBlobBaseFeeError
+  else
+    .ok ()
+
+@[simp] theorem nativeChainIdRepresentable_global :
+    nativeChainIdRepresentable EvmYul.chainId = true := by
+  simp [nativeChainIdRepresentable]
+
+@[simp] theorem nativeBlobBaseFeeRepresentable_minimum :
+    nativeBlobBaseFeeRepresentable EvmYul.MIN_BASE_FEE_PER_BLOB_GAS = true := by
+  simp [nativeBlobBaseFeeRepresentable]
+
+@[simp] theorem validateNativeRuntimeEnvironment_noChainId_noBlobBaseFee
+    (runtimeCode : List YulStmt)
+    (tx : YulTransaction)
+    (hNoChainId : yulStmtsUseBuiltin "chainid" runtimeCode = false)
+    (hNoBlobBaseFee : yulStmtsUseBuiltin "blobbasefee" runtimeCode = false) :
+    validateNativeRuntimeEnvironment runtimeCode tx = .ok () := by
+  simp [validateNativeRuntimeEnvironment, hNoChainId, hNoBlobBaseFee]
+
+@[simp] theorem validateNativeRuntimeEnvironment_representableBlobBaseFee
+    (runtimeCode : List YulStmt)
+    (tx : YulTransaction)
+    (hNoChainId : yulStmtsUseBuiltin "chainid" runtimeCode = false)
+    (hBlobBaseFee :
+      nativeBlobBaseFeeRepresentable tx.blobBaseFee = true) :
+    validateNativeRuntimeEnvironment runtimeCode tx = .ok () := by
+  simp [validateNativeRuntimeEnvironment, hNoChainId, hBlobBaseFee]
+
+@[simp] theorem validateNativeRuntimeEnvironment_representableEnvironment
+    (runtimeCode : List YulStmt)
+    (tx : YulTransaction)
+    (hChainId : nativeChainIdRepresentable tx.chainId = true)
+    (hBlobBaseFee :
+      nativeBlobBaseFeeRepresentable tx.blobBaseFee = true) :
+    validateNativeRuntimeEnvironment runtimeCode tx = .ok () := by
+  simp [validateNativeRuntimeEnvironment, hChainId, hBlobBaseFee]
+
+@[simp] theorem validateNativeRuntimeEnvironment_unsupportedChainId
+    (runtimeCode : List YulStmt)
+    (tx : YulTransaction)
+    (hUsesChainId : yulStmtsUseBuiltin "chainid" runtimeCode = true)
+    (hChainId : nativeChainIdRepresentable tx.chainId = false) :
+    validateNativeRuntimeEnvironment runtimeCode tx =
+      .error unsupportedNativeChainIdError := by
+  simp [validateNativeRuntimeEnvironment, hUsesChainId, hChainId]
+
+@[simp] theorem validateNativeRuntimeEnvironment_unsupportedBlobBaseFee
+    (runtimeCode : List YulStmt)
+    (tx : YulTransaction)
+    (hNoChainId : yulStmtsUseBuiltin "chainid" runtimeCode = false)
+    (hUsesBlobBaseFee : yulStmtsUseBuiltin "blobbasefee" runtimeCode = true)
+    (hBlobBaseFee :
+      nativeBlobBaseFeeRepresentable tx.blobBaseFee = false) :
+    validateNativeRuntimeEnvironment runtimeCode tx =
+      .error unsupportedNativeBlobBaseFeeError := by
+  simp [validateNativeRuntimeEnvironment, hNoChainId, hUsesBlobBaseFee, hBlobBaseFee]
+
 @[simp] theorem initialState_installsExecutionContract
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
@@ -885,6 +997,7 @@ def interpretRuntimeNative
     (events : List (List Nat) := []) :
     Except AdapterError YulResult := do
   let contract ← lowerRuntimeContractNative runtimeCode
+  validateNativeRuntimeEnvironment runtimeCode tx
   let initial := initialState contract tx storage observableSlots
   let result := EvmYul.Yul.callDispatcher fuel (some contract) initial
   pure (projectResult tx storage events result)
@@ -900,7 +1013,8 @@ def interpretRuntimeNative
     (hLower : lowerRuntimeContractNative runtimeCode = .error err) :
     interpretRuntimeNative fuel runtimeCode tx storage observableSlots events =
       .error err := by
-  simp [interpretRuntimeNative, hLower]
+  rw [interpretRuntimeNative, hLower]
+  rfl
 
 @[simp] theorem interpretRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative
     (fuel : Nat)
@@ -910,12 +1024,30 @@ def interpretRuntimeNative
     (observableSlots : List Nat)
     (events : List (List Nat))
     (contract : EvmYul.Yul.Ast.YulContract)
-    (hLower : lowerRuntimeContractNative runtimeCode = .ok contract) :
+    (hLower : lowerRuntimeContractNative runtimeCode = .ok contract)
+    (hEnv : validateNativeRuntimeEnvironment runtimeCode tx = .ok ()) :
     interpretRuntimeNative fuel runtimeCode tx storage observableSlots events =
       .ok (projectResult tx storage events
         (EvmYul.Yul.callDispatcher fuel (some contract)
           (initialState contract tx storage observableSlots))) := by
-  simp [interpretRuntimeNative, hLower]
+  rw [interpretRuntimeNative, hLower, hEnv]
+  rfl
+
+@[simp] theorem interpretRuntimeNative_environmentError
+    (fuel : Nat)
+    (runtimeCode : List YulStmt)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (events : List (List Nat))
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (err : AdapterError)
+    (hLower : lowerRuntimeContractNative runtimeCode = .ok contract)
+    (hEnv : validateNativeRuntimeEnvironment runtimeCode tx = .error err) :
+    interpretRuntimeNative fuel runtimeCode tx storage observableSlots events =
+      .error err := by
+  rw [interpretRuntimeNative, hLower, hEnv]
+  rfl
 
 /-- Native EVMYulLean execution target for emitted IR-contract runtime Yul.
 
@@ -960,7 +1092,8 @@ def interpretIRRuntimeNative
     (hLower : lowerRuntimeContractNative (Compiler.emitYul contract).runtimeCode =
       .error err) :
     interpretIRRuntimeNative fuel contract tx state observableSlots = .error err := by
-  simp [interpretIRRuntimeNative, interpretRuntimeNative, hLower]
+  rw [interpretIRRuntimeNative, interpretRuntimeNative, hLower]
+  rfl
 
 @[simp] theorem interpretIRRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative
     (fuel : Nat)
@@ -970,12 +1103,16 @@ def interpretIRRuntimeNative
     (observableSlots : List Nat)
     (nativeContract : EvmYul.Yul.Ast.YulContract)
     (hLower : lowerRuntimeContractNative (Compiler.emitYul irContract).runtimeCode =
-      .ok nativeContract) :
+      .ok nativeContract)
+    (hEnv :
+      validateNativeRuntimeEnvironment (Compiler.emitYul irContract).runtimeCode
+        (YulTransaction.ofIR tx) = .ok ()) :
     interpretIRRuntimeNative fuel irContract tx state observableSlots =
       .ok (projectResult (YulTransaction.ofIR tx) state.storage state.events
         (EvmYul.Yul.callDispatcher fuel (some nativeContract)
           (initialState nativeContract (YulTransaction.ofIR tx) state.storage
             observableSlots))) := by
-  simp [interpretIRRuntimeNative, interpretRuntimeNative, hLower]
+  rw [interpretIRRuntimeNative, interpretRuntimeNative, hLower, hEnv]
+  rfl
 
 end Compiler.Proofs.YulGeneration.Backends.Native
