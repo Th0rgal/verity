@@ -75,6 +75,44 @@ private def dispatchSmokeContract : Compiler.IRContract :=
     ]
     usesMapping := false }
 
+private def sampleIRTx : Compiler.Proofs.IRGeneration.IRTransaction :=
+  { sender := sampleTx.sender
+    msgValue := sampleTx.msgValue
+    thisAddress := sampleTx.thisAddress
+    blockTimestamp := sampleTx.blockTimestamp
+    blockNumber := sampleTx.blockNumber
+    chainId := sampleTx.chainId
+    blobBaseFee := sampleTx.blobBaseFee
+    functionSelector := 0x11111111
+    args := [] }
+
+private def sampleIRState : Compiler.Proofs.IRGeneration.IRState :=
+  { vars := []
+    storage := seededStorage
+    transientStorage := fun _ => 0
+    memory := fun _ => 0
+    calldata := []
+    returnValue := none
+    sender := 0
+    msgValue := 0
+    thisAddress := 0
+    blockTimestamp := 0
+    blockNumber := 0
+    chainId := 0
+    blobBaseFee := 0
+    selector := 0
+    events := [[9, 9]] }
+
+private def duplicateHelperIRContract : Compiler.IRContract :=
+  { name := "DuplicateHelperIR"
+    deploy := []
+    functions := []
+    internalFunctions := [
+      .funcDef "dup" [] [] [],
+      .funcDef "dup" [] [] []
+    ]
+    usesMapping := false }
+
 private def calldataBridgePinsSelectorAndFirstArg : Bool :=
   let bytes := StateBridge.calldataToByteArray 0x11223344 [42]
   bytes.get? 0 == some (UInt8.ofNat 0x11) &&
@@ -336,6 +374,22 @@ example :
 
 example :
     duplicateNativeHelperFailsClosed = true := by
+  native_decide
+
+example :
+    Native.interpretIRRuntimeNative 128 dispatchSmokeContract sampleIRTx
+      sampleIRState [11] =
+    Native.interpretRuntimeNative 128
+      (Compiler.emitYul dispatchSmokeContract).runtimeCode
+      (Compiler.Proofs.YulGeneration.YulTransaction.ofIR sampleIRTx)
+      sampleIRState.storage [11] sampleIRState.events := by
+  rfl
+
+example :
+    (match Native.interpretIRRuntimeNative 128 duplicateHelperIRContract
+      sampleIRTx sampleIRState [] with
+    | .ok _ => false
+    | .error _ => true) = true := by
   native_decide
 
 example :
