@@ -295,6 +295,22 @@ private def duplicateNativeHelperFailsClosed : Bool :=
   | .ok _ => false
   | .error _ => true
 
+private def nestedNativeFunctionDefinitionsFailClosed : Bool :=
+  (match lowerRuntimeContractNative [
+    .block [
+      .funcDef "nested_dispatcher" [] [] []
+    ]
+  ] with
+  | .ok _ => false
+  | .error _ => true) &&
+  (match lowerRuntimeContractNative [
+    .funcDef "outer" [] [] [
+      .funcDef "nested_helper" [] [] []
+    ]
+  ] with
+  | .ok _ => false
+  | .error _ => true)
+
 private def emittedDispatchLowersNativeSelectorCases : Bool :=
   match lowerRuntimeContractNative (Compiler.emitYul dispatchSmokeContract).runtimeCode with
   | .ok contract =>
@@ -608,6 +624,10 @@ example :
 
 example :
     duplicateNativeHelperFailsClosed = true := by
+  native_decide
+
+example :
+    nestedNativeFunctionDefinitionsFailClosed = true := by
   native_decide
 
 example :
