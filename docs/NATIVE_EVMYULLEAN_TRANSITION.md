@@ -57,6 +57,25 @@ oracle, not as the semantic target in the public theorem stack.
 
 ## Remaining Work
 
+The following verified user reports should stay explicit in the transition
+scope so the native path does not look more complete than it is:
+
+- [#1741](https://github.com/lfglabs-dev/verity/issues/1741):
+  `blockTimestamp` is bridged through native EVMYulLean execution, and native
+  smoke coverage now checks `timestamp()`/`number()` state reads. The separate
+  follow-up is the `verity_contract` surface and executable `.run` path:
+  monadic `let t <- blockTimestamp` needs macro support, and contract-side
+  helpers must read from `ContractState` instead of placeholder constants.
+- [#1738](https://github.com/lfglabs-dev/verity/issues/1738): mapping-struct
+  storage compiles, but `.run` helpers for struct member reads/writes are still
+  stubs. Before native execution becomes authoritative, the executable helper
+  semantics, compiler storage layout, and native `sload`/`sstore` projection
+  need one shared slot formula and read-after-write coverage.
+- [#1742](https://github.com/lfglabs-dev/verity/issues/1742): overloaded
+  source functions still need a signature-based identity model. Native EVM
+  dispatch is selector-based, so the frontend should eventually track
+  `name(types...)` rather than rejecting duplicate bare names.
+
 1. Prove lowering invariants for the native contract shape.
 
    Required facts:

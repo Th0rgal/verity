@@ -26,6 +26,8 @@ private def sampleTx : Compiler.Proofs.YulGeneration.YulTransaction :=
   { sender := 0xCAFE
     msgValue := 7
     thisAddress := 0x1234
+    blockTimestamp := 12345
+    blockNumber := 678
     functionSelector := 0x01020304
     args := [41] }
 
@@ -122,6 +124,24 @@ example :
       .expr (.call "sstore" [.lit 8, .ident "v"])
     ] sampleTx zeroStorage [8] with
     | .ok result => result.success && result.finalStorage 8 == sampleTx.msgValue
+    | .error _ => false) = true := by
+  native_decide
+
+example :
+    (match Native.interpretRuntimeNative 128 [
+      .let_ "v" (.call "timestamp" []),
+      .expr (.call "sstore" [.lit 9, .ident "v"])
+    ] sampleTx zeroStorage [9] with
+    | .ok result => result.success && result.finalStorage 9 == sampleTx.blockTimestamp
+    | .error _ => false) = true := by
+  native_decide
+
+example :
+    (match Native.interpretRuntimeNative 128 [
+      .let_ "v" (.call "number" []),
+      .expr (.call "sstore" [.lit 10, .ident "v"])
+    ] sampleTx zeroStorage [10] with
+    | .ok result => result.success && result.finalStorage 10 == sampleTx.blockNumber
     | .error _ => false) = true := by
   native_decide
 
