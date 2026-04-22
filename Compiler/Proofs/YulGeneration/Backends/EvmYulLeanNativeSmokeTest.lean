@@ -141,6 +141,17 @@ private def nativeValueResultProjectsStorageReturnAndEvents : Bool :=
     result.finalStorage 7 == 99 &&
     result.events == [[1, 2, 3], [5, 88]]
 
+private def nativeHardErrorRollsBackStorageAndEvents : Bool :=
+  let result :=
+    Native.projectResult sampleTx
+      (fun slot => if slot = 7 then 5 else 0)
+      [[1, 2, 3]]
+      (.error EvmYul.Yul.Exception.OutOfFuel)
+  !result.success &&
+    result.returnValue.isNone &&
+    result.finalStorage 7 == 5 &&
+    result.events == [[1, 2, 3]]
+
 private def dispatchSmokeContract : Compiler.IRContract :=
   { name := "NativeDispatchSmoke"
     deploy := []
@@ -467,6 +478,10 @@ example :
 
 example :
     nativeValueResultProjectsStorageReturnAndEvents = true := by
+  native_decide
+
+example :
+    nativeHardErrorRollsBackStorageAndEvents = true := by
   native_decide
 
 example :
