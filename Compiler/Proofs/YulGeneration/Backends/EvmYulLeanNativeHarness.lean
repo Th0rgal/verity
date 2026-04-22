@@ -100,6 +100,25 @@ def initialState
   simp [initialState, EvmYul.Yul.State.sharedState, YulState.initial, toSharedState,
     mkBlockHeader]
 
+@[simp] theorem initialState_unbridgedEnvironmentDefaults
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    (initialState contract tx storage observableSlots).sharedState.executionEnv.header.baseFeePerGas =
+      0 ∧
+    (initialState contract tx storage observableSlots).sharedState.executionEnv.header.blobGasUsed =
+      (0 : UInt64) ∧
+    (initialState contract tx storage observableSlots).sharedState.executionEnv.header.excessBlobGas =
+      (0 : UInt64) ∧
+    (initialState contract tx storage observableSlots).sharedState.executionEnv.blobVersionedHashes =
+      [] ∧
+    EvmYul.State.chainId
+        (initialState contract tx storage observableSlots).sharedState.toState =
+      EvmYul.UInt256.ofNat EvmYul.chainId := by
+  simp [initialState, EvmYul.Yul.State.sharedState, YulState.initial, toSharedState,
+    mkBlockHeader, EvmYul.State.chainId]
+
 /-- Project the account storage for the current contract back to Verity's
     `Nat → Nat` storage view. -/
 def projectStorageFromState (tx : YulTransaction) (state : EvmYul.Yul.State) :

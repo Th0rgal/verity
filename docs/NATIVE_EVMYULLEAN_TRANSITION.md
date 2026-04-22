@@ -67,8 +67,12 @@ scope so the native path does not look more complete than it is:
   smoke coverage now checks `timestamp()`/`number()` state reads. Native
   smoke coverage also records the current EVMYulLean defaults for `chainid()`
   and `blobbasefee()`; those are not yet bridged from `YulTransaction.chainId`
-  or `YulTransaction.blobBaseFee`. The separate follow-up is the
-  `verity_contract` surface and executable `.run` path: monadic
+  or `YulTransaction.blobBaseFee`. The native harness now also names this
+  boundary with `initialState_unbridgedEnvironmentDefaults`, pinning
+  base-fee/blob fields and native `chainid` to their current EVMYulLean
+  default/global behavior until the follow-up widens the state bridge. The
+  separate follow-up is the `verity_contract` surface and executable `.run`
+  path: monadic
   `let t <- blockTimestamp` needs macro support, and contract-side helpers
   must read from `ContractState` instead of placeholder constants.
 - [#1738](https://github.com/lfglabs-dev/verity/issues/1738): mapping-struct
@@ -136,7 +140,8 @@ scope so the native path does not look more complete than it is:
    transaction-environment seeding for sender/source, value, current address,
    calldata selector/argument bytes, timestamp, and block number, the named
    `initialState_transactionEnvironment` lemma for those initial environment
-   fields, callvalue,
+   fields, the named `initialState_unbridgedEnvironmentDefaults` lemma for
+   base-fee/blob-field defaults and native-global `chainid` behavior, callvalue,
    caller/address, calldatasize, timestamp/number, native
    `chainid`/`blobbasefee` default behavior, executable `stop` halt
    projection, successful native value result projection with committed
