@@ -23,6 +23,7 @@ from property_utils import ROOT, THEOREM_RE, strip_lean_comments
 # Any new declaration keyword that ends the current proof span.
 _DECL_RE = re.compile(
     r"^\s*(?:@\[[^\]]*\]\s*)*(?:(?:private|protected|noncomputable|unsafe)\s+)*"
+    r"(?:(?:partial)\s+)?"
     r"(?:theorem|lemma|def|example|instance|inductive|structure|class|abbrev|opaque)\s+"
 )
 _END_RE = re.compile(r"^\s*end\b")
