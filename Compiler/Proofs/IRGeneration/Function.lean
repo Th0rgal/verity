@@ -268,25 +268,25 @@ theorem compileFunctionSpec_ok_components
 theorem compileConstructor_some_ok_of_body
     (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
     (ctor : ConstructorSpec) (bodyStmts : List YulStmt)
-    (hbody :
-      compileStmtList fields events errors .memory [] false
-        (ctor.params.map (·.name)) ctor.body = Except.ok bodyStmts) :
-    compileConstructor fields events errors (some ctor) =
-      Except.ok (genConstructorArgLoads ctor.params ++ bodyStmts) := by
+      (hbody :
+        compileStmtList fields events errors .memory [] false
+          (ctor.params.map (·.name)) [] ctor.body = Except.ok bodyStmts) :
+      compileConstructor fields events errors [] (some ctor) =
+        Except.ok (genConstructorArgLoads ctor.params ++ bodyStmts) := by
   simp [CompilationModel.compileConstructor, hbody]
 
 theorem compileConstructor_ok_components
     (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
-    (ctor : ConstructorSpec) (deployStmts : List YulStmt)
-    (hcompile :
-      compileConstructor fields events errors (some ctor) = Except.ok deployStmts) :
-  ∃ bodyStmts,
-      compileStmtList fields events errors .memory [] false
-        (ctor.params.map (·.name)) ctor.body = Except.ok bodyStmts ∧
-      deployStmts = genConstructorArgLoads ctor.params ++ bodyStmts := by
-  cases hbody :
-      compileStmtList fields events errors .memory [] false
-        (ctor.params.map (·.name)) ctor.body with
+      (ctor : ConstructorSpec) (deployStmts : List YulStmt)
+      (hcompile :
+        compileConstructor fields events errors [] (some ctor) = Except.ok deployStmts) :
+    ∃ bodyStmts,
+        compileStmtList fields events errors .memory [] false
+          (ctor.params.map (·.name)) [] ctor.body = Except.ok bodyStmts ∧
+        deployStmts = genConstructorArgLoads ctor.params ++ bodyStmts := by
+    cases hbody :
+        compileStmtList fields events errors .memory [] false
+          (ctor.params.map (·.name)) [] ctor.body with
   | error err =>
       simp [CompilationModel.compileConstructor, hbody] at hcompile
   | ok bodyStmts =>
@@ -2161,8 +2161,8 @@ private theorem compileStmt_constructor_mode_eq
     (hcoreClosed : stmtTouchesUnsupportedCoreSurface stmt = false)
     (hcallClosed : stmtTouchesUnsupportedCallSurface stmt = false)
     (hrawClosed : stmtTouchesUnsupportedConstructorRawCalldataSurface stmt = false) :
-    compileStmt fields events errors .memory [] false scope stmt =
-      compileStmt fields [] [] .calldata [] false scope stmt := by
+      compileStmt fields events errors .memory [] false scope [] stmt =
+        compileStmt fields [] [] .calldata [] false scope [] stmt := by
   cases stmt <;>
     try simp [stmtTouchesUnsupportedEffectSurface] at heffectsClosed <;>
     try simp [stmtTouchesUnsupportedCoreSurface] at hcoreClosed <;>
@@ -2184,8 +2184,8 @@ private theorem compileStmtList_constructor_mode_eq'
       stmtListTouchesUnsupportedCoreSurface body = false →
       stmtListTouchesUnsupportedCallSurface body = false →
       stmtListTouchesUnsupportedConstructorRawCalldataSurface body = false →
-      compileStmtList fields events errors .memory [] false scope body =
-        compileStmtList fields [] [] .calldata [] false scope body
+        compileStmtList fields events errors .memory [] false scope [] body =
+          compileStmtList fields [] [] .calldata [] false scope [] body
   | [], _, _, _, _ => by simp [compileStmtList]
   | stmt :: rest, heffectsClosed, hcoreClosed, hcallClosed, hrawClosed => by
       simp only [stmtListTouchesUnsupportedEffectSurface,
@@ -2223,8 +2223,8 @@ private theorem compileStmtList_constructor_mode_eq
     (hcoreClosed : stmtListTouchesUnsupportedCoreSurface body = false)
     (hcallClosed : stmtListTouchesUnsupportedCallSurface body = false)
     (hrawClosed : stmtListTouchesUnsupportedConstructorRawCalldataSurface body = false) :
-    compileStmtList fields events errors .memory [] false [] body =
-      compileStmtList fields [] [] .calldata [] false [] body := by
+      compileStmtList fields events errors .memory [] false [] [] body =
+        compileStmtList fields [] [] .calldata [] false [] [] body := by
   exact compileStmtList_constructor_mode_eq' (events := events) (errors := errors)
     (scope := []) heffectsClosed hcoreClosed hcallClosed hrawClosed
 
@@ -2375,9 +2375,9 @@ theorem supported_constructor_body_correct_with_body_interface
     (initialWorld : Verity.ContractState)
     (bindings : List (String × Nat))
     (bodyStmts : List YulStmt)
-    (hbodyCompile :
-      compileStmtList model.fields model.events model.errors .memory [] false
-        (ctor.params.map (·.name)) ctor.body = Except.ok bodyStmts)
+      (hbodyCompile :
+        compileStmtList model.fields model.events model.errors .memory [] false
+          (ctor.params.map (·.name)) [] ctor.body = Except.ok bodyStmts)
     (hbind :
       SourceSemantics.bindSupportedParams ctor.params (tx.args.take ctor.params.length) =
         some bindings)
@@ -2412,7 +2412,7 @@ theorem supported_constructor_body_correct_with_body_interface
       simp [SourceSemantics.constructorExecutionBindings, hbind, hguard]
     have hbodyCompileCalldata :
         compileStmtList model.fields [] [] .calldata [] false
-          (ctor.params.map (·.name)) ctor.body = Except.ok bodyStmts := by
+          (ctor.params.map (·.name)) [] ctor.body = Except.ok bodyStmts := by
       have hmode :=
         compileStmtList_constructor_mode_eq' (fields := model.fields)
           (events := model.events) (errors := model.errors)
@@ -2426,7 +2426,7 @@ theorem supported_constructor_body_correct_with_body_interface
       exact hmode.symm
     have hbodyCompileEffective :
         compileStmtList (SourceSemantics.effectiveFields model) [] [] .calldata [] false
-          (ctor.params.map (·.name)) ctor.body = Except.ok bodyStmts := by
+          (ctor.params.map (·.name)) [] ctor.body = Except.ok bodyStmts := by
       simpa [SourceSemantics.effectiveFields, hnormalized] using hbodyCompileCalldata
     have hstateRuntime :
         FunctionBody.runtimeStateMatchesIR

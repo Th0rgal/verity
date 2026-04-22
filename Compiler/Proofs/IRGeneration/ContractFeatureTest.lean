@@ -502,6 +502,7 @@ private theorem constructorOnly_compileConstructor :
           constructorOnlySpec.fields
           constructorOnlySpec.events
           constructorOnlySpec.errors
+          []
           constructorOnlySpec.constructor =
         Except.ok (genConstructorArgLoads constructorOnlyCtor.params ++ bodyStmts) ∧
       compileStmtList
@@ -512,6 +513,7 @@ private theorem constructorOnly_compileConstructor :
           []
           false
           (constructorOnlyCtor.params.map (·.name))
+          []
           constructorOnlyCtor.body =
         Except.ok bodyStmts := by
   rcases Function.compileConstructor_ok_components
@@ -528,6 +530,7 @@ private theorem constructorOnly_compileConstructor :
             []
             false
             (constructorOnlyCtor.params.map (·.name))
+            []
             constructorOnlyCtor.body with
          | .ok body => body
          | .error _ => [])
@@ -547,6 +550,7 @@ example :
           constructorOnlySpec.fields
           constructorOnlySpec.events
           constructorOnlySpec.errors
+          []
           constructorOnlySpec.constructor =
         Except.ok (genConstructorArgLoads constructorOnlyCtor.params ++ bodyStmts) := by
   rcases constructorOnly_compileConstructor with ⟨bodyStmts, hdeploy, _⟩
@@ -562,8 +566,9 @@ example :
             collectStmtListBindNames identityInternalHelper.body) →
       compileStmtList [] [] [] .calldata retNames true
         (identityInternalHelper.params.map (·.name) ++ retNames)
+        []
         identityInternalHelper.body = Except.ok bodyStmts →
-      compileInternalFunction [] [] [] identityInternalHelper =
+      compileInternalFunction [] [] [] [] identityInternalHelper =
         Except.ok
           (YulStmt.funcDef
             (internalFunctionYulName identityInternalHelper.name)
@@ -841,6 +846,7 @@ example :
           (sizeOf
             (match compileStmtList
                 constructorOnlySpec.fields [] [] .memory [] false
+                (constructorOnlyCtor.params.map (·.name))
                 []
                 [Stmt.setStorageAddr "owner" (.param "initialOwner"), .stop] with
              | .ok body => body
@@ -851,15 +857,16 @@ example :
           (match compileStmtList
               constructorOnlySpec.fields [] [] .memory [] false
               (constructorOnlyCtor.params.map (·.name))
+              []
               [Stmt.setStorageAddr "owner" (.param "initialOwner"), .stop] with
            | .ok body => body
            | .error _ => []))) := by
   have hbodyCompile :
       compileStmtList constructorOnlySpec.fields constructorOnlySpec.events constructorOnlySpec.errors
-        .memory [] false (constructorOnlyCtor.params.map (·.name)) constructorOnlyCtor.body =
+        .memory [] false (constructorOnlyCtor.params.map (·.name)) [] constructorOnlyCtor.body =
       Except.ok
         (match compileStmtList constructorOnlySpec.fields [] [] .memory [] false
-            (constructorOnlyCtor.params.map (·.name)) constructorOnlyCtor.body with
+            (constructorOnlyCtor.params.map (·.name)) [] constructorOnlyCtor.body with
          | .ok body => body
          | .error _ => []) := by
     rfl
@@ -890,7 +897,7 @@ example :
       (initialWorld := Verity.defaultState)
       (bindings := [("initialOwner", Compiler.Constants.addressMask &&& 11)])
       (bodyStmts := match compileStmtList constructorOnlySpec.fields [] [] .memory [] false
-          [] constructorOnlyCtor.body with
+          (constructorOnlyCtor.params.map (·.name)) [] constructorOnlyCtor.body with
         | .ok body => body
         | .error _ => [])
       (hbodyCompile := hbodyCompile)
@@ -918,7 +925,7 @@ example :
             bodyStmts)) := by
   let bodyStmts :=
     match compileStmtList constructorOnlySpec.fields [] [] .memory [] false
-        (constructorOnlyCtor.params.map (·.name)) constructorOnlyCtor.body with
+        (constructorOnlyCtor.params.map (·.name)) [] constructorOnlyCtor.body with
     | .ok body => body
     | .error _ => []
   let bindings := [("initialOwner", Compiler.Constants.addressMask &&& 11)]
@@ -926,7 +933,7 @@ example :
   · native_decide
   · have hbodyCompile :
         compileStmtList constructorOnlySpec.fields constructorOnlySpec.events constructorOnlySpec.errors
-          .memory [] false (constructorOnlyCtor.params.map (·.name)) constructorOnlyCtor.body =
+          .memory [] false (constructorOnlyCtor.params.map (·.name)) [] constructorOnlyCtor.body =
         Except.ok bodyStmts := by
       rfl
     have hbind :

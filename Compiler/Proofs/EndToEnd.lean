@@ -175,7 +175,7 @@ theorem compileFunctionSpec_bridged_of_safe_static_params
       Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
         fields errors .calldata [] false spec.body)
     (hcompile :
-      CompilationModel.compileFunctionSpec fields events errors selector spec =
+      CompilationModel.compileFunctionSpec fields events errors [] selector spec =
         Except.ok irFn) :
     Compiler.Proofs.YulGeneration.Backends.BridgedStmts irFn.body := by
   rcases Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_ok_components
@@ -205,7 +205,7 @@ theorem compiledExternalFunctions_bridged_of_safe_static
       List.Forall₂
         (fun entry irFn =>
           CompilationModel.compileFunctionSpec fields events errors
-            entry.2 entry.1 = Except.ok irFn)
+            [] entry.2 entry.1 = Except.ok irFn)
         entries irFns →
       (∀ entry, entry ∈ entries →
         Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams

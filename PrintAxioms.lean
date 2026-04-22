@@ -53,6 +53,7 @@ import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSignedArithSpec
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSourceExprClosure
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanStateBridge
 import Compiler.Proofs.YulGeneration.Equivalence
 import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
