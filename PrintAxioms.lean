@@ -1373,6 +1373,10 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.findDynamicArrayElementAtSlot_go_eq_copy  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.findDynamicArrayElementAtSlotCopy_eq  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_eq_copy  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.fieldWriteEntriesAt_base_mem  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.exists_mem_zipIdx_of_mem  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.fieldWriteEntriesAt_alias_mem  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.fieldWriteEntriesAt_packed_none_of_unpacked  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.list_findSlotPackedNone_ne_none  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.firstInFieldConflictCopy_ne_none_of_seen_slot_unpacked  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.firstFieldWriteSlotConflictCopyFrom_some_of_seen_slot_member  -- private
@@ -2994,4 +2998,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2827 theorems/lemmas (1948 public, 879 private, 0 sorry'd)
+-- Total: 2831 theorems/lemmas (1948 public, 883 private, 0 sorry'd)
