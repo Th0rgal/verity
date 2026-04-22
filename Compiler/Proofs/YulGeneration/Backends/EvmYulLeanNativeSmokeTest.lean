@@ -76,6 +76,18 @@ private def nativeCopiesTransientLoadToStorage : Bool :=
   | .ok result => result.success && result.finalStorage 9 == 88
   | .error _ => false
 
+private def nativeStopCommitsStorageAndPreservesEvents : Bool :=
+  match Native.interpretRuntimeNative 128 [
+    .expr (.call "sstore" [.lit 7, .lit 99]),
+    .expr (.call "stop" [])
+  ] sampleTx seededStorage [7] [[1, 2, 3]] with
+  | .ok result =>
+      result.success &&
+        result.returnValue.isNone &&
+        result.finalStorage 7 == 99 &&
+        result.events == [[1, 2, 3]]
+  | .error _ => false
+
 private def dispatchSmokeContract : Compiler.IRContract :=
   { name := "NativeDispatchSmoke"
     deploy := []
@@ -315,6 +327,10 @@ example :
 
 example :
     nativeCopiesTransientLoadToStorage = true := by
+  native_decide
+
+example :
+    nativeStopCommitsStorageAndPreservesEvents = true := by
   native_decide
 
 example :

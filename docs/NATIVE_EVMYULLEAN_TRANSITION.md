@@ -120,7 +120,8 @@ scope so the native path does not look more complete than it is:
    observable pre-state slots, omitted-slot default reads, `tstore`/`tload`
    execution through copied observable storage, callvalue,
    caller/address, calldatasize, timestamp/number, native
-   `chainid`/`blobbasefee` default behavior, return projection, and log
+   `chainid`/`blobbasefee` default behavior, executable `stop` halt
+   projection, return projection, and log
    projection for `log0` through `log4` topic arities, conservative rollback
    projection for native errors, and `interpretIRRuntimeNative`
    forwarding/fail-closed lowering behavior. Next coverage should include:
