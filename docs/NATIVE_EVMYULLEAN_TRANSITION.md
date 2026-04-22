@@ -154,7 +154,8 @@ scope so the native path does not look more complete than it is:
    dispatcher lowering shape and selector expression, lazy native dispatcher
    guards used instead of native `Switch` so matched selectors do not execute
    reverting default branches, block-scoped discriminator bindings for those
-   lazy dispatcher guards, native assignment lowering through the named
+   lazy dispatcher guards, threaded native switch-discriminator ids across
+   dispatcher statement lowering, native assignment lowering through the named
    `lowerAssignNative` helper plus executable rebinding smoke coverage,
    dispatcher/helper
    partitioning that keeps helper definitions in the function map while
@@ -257,7 +258,8 @@ scope so the native path does not look more complete than it is:
    ABI argument-word decoding, observable storage reads, generated
    `mappingSlot` helper execution for singleton mapping writes, singleton
    mapping reads, nested mapping writes, and `CompilationModel`-compiled
-   packed mapping-struct member reads/writes, 32-byte return halt projection,
+   packed mapping-struct member reads/writes plus singleton and nested
+   multi-word mapping-struct member reads/writes, 32-byte return halt projection,
    multi-word memory-return fallback projection, and memory-backed revert rollback, and named
    `interpretIRRuntimeNative_loweringError` and
    `interpretIRRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative`
@@ -265,8 +267,7 @@ scope so the native path does not look more complete than it is:
    pipeline at the IR entry point. Next coverage should include:
    - returndata and external-call outcomes,
    - static-call permission behavior,
-   - multi-word mapping member shapes beyond the singleton/nested/packed
-     helper-oracle cases.
+   - proof-level preservation for the covered mapping member oracle cases.
 
 5. Introduce the public native preservation theorem.
 

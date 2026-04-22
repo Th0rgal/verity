@@ -21,10 +21,26 @@ private def nestedMappingWriteSlot : Nat :=
 private def packedMappingSlot : Nat :=
   Compiler.Proofs.abstractMappingSlot 23 6
 
+private def multiWordMappingBaseSlot : Nat :=
+  Compiler.Proofs.abstractMappingSlot 24 7
+
+private def multiWordMappingMemberSlot : Nat :=
+  multiWordMappingBaseSlot + 1
+
+private def nestedMultiWordMappingBaseSlot : Nat :=
+  Compiler.Proofs.abstractMappingSlot (Compiler.Proofs.abstractMappingSlot 25 3) 4
+
+private def nestedMultiWordMappingMemberSlot : Nat :=
+  nestedMultiWordMappingBaseSlot + 1
+
 private def seededStorage : Nat -> Nat := fun slot =>
   if slot = 7 then 77 else
   if slot = mappingReadSlot then 515 else
-  if slot = packedMappingSlot then 0x123456 else 0
+  if slot = packedMappingSlot then 0x123456 else
+  if slot = multiWordMappingBaseSlot then 0xAAAA else
+  if slot = multiWordMappingMemberSlot then 0xBBBB else
+  if slot = nestedMultiWordMappingBaseSlot then 0xCCCC else
+  if slot = nestedMultiWordMappingMemberSlot then 0xDDDD else 0
 
 private def sampleIRTx (selector : Nat) (args : List Nat := []) : IRTransaction :=
   { sender := 0xCAFE
@@ -182,6 +198,68 @@ private def packedMappingModel : Compiler.CompilationModel.CompilationModel :=
 private def packedMappingDispatchSmokeContract : Except String IRContract :=
   Compiler.CompilationModel.compile packedMappingModel [0xBBBBBBBB, 0xCCCCCCCC]
 
+private def multiWordMember : Compiler.CompilationModel.StructMember :=
+  { name := "balance"
+    wordOffset := 1
+    packed := none }
+
+private def multiWordMappingModel : Compiler.CompilationModel.CompilationModel :=
+  { name := "NativeMultiWordMappingOracleSmoke"
+    fields := [
+      { name := "accounts"
+        ty := .mappingStruct .uint256 [multiWordMember]
+        slot := some 24 },
+      { name := "nestedAccounts"
+        ty := .mappingStruct2 .uint256 .uint256 [multiWordMember]
+        slot := some 25 },
+      { name := "scratch"
+        ty := .uint256
+        slot := some 17 }
+    ]
+    constructor := none
+    functions := [
+      { name := "readBalance"
+        params := [{ name := "key", ty := .uint256 }]
+        returnType := none
+        body := [
+          .setStorage "scratch" (.structMember "accounts" (.param "key") "balance")
+        ] },
+      { name := "writeBalance"
+        params := [
+          { name := "key", ty := .uint256 },
+          { name := "value", ty := .uint256 }
+        ]
+        returnType := none
+        body := [
+          .setStructMember "accounts" (.param "key") "balance" (.param "value")
+        ] },
+      { name := "readNestedBalance"
+        params := [
+          { name := "outerKey", ty := .uint256 },
+          { name := "innerKey", ty := .uint256 }
+        ]
+        returnType := none
+        body := [
+          .setStorage "scratch"
+            (.structMember2 "nestedAccounts" (.param "outerKey") (.param "innerKey") "balance")
+        ] },
+      { name := "writeNestedBalance"
+        params := [
+          { name := "outerKey", ty := .uint256 },
+          { name := "innerKey", ty := .uint256 },
+          { name := "value", ty := .uint256 }
+        ]
+        returnType := none
+        body := [
+          .setStructMember2 "nestedAccounts" (.param "outerKey") (.param "innerKey")
+            "balance" (.param "value")
+        ] }
+    ] }
+
+private def multiWordMappingDispatchSmokeContract : Except String IRContract :=
+  Compiler.CompilationModel.compile multiWordMappingModel
+    [0xDDDDDDDD, 0xEEEEEEEE, 0xDADADADA, 0xEFEFEFEF]
+
 private def calldataArgDispatchSmokeContract : IRContract :=
   { name := "NativeCalldataArgDispatchOracleSmoke"
     deploy := []
@@ -331,6 +409,35 @@ def main : IO Unit := do
     (emittedCompiledDispatchMatchesReferenceWithExpected packedMappingDispatchSmokeContract
       (sampleIRTx 0xCCCCCCCC [6, 0xABCD]) [packedMappingSlot] [packedMappingSlot]
       true none [(packedMappingSlot, 0x12CD56)])
+  check "compiled dispatcher reads multi-word mapping struct members"
+    (emittedCompiledDispatchMatchesReferenceWithExpected multiWordMappingDispatchSmokeContract
+      (sampleIRTx 0xDDDDDDDD [7])
+      [multiWordMappingBaseSlot, multiWordMappingMemberSlot, 17]
+      [multiWordMappingBaseSlot, multiWordMappingMemberSlot, 17]
+      true none
+      [(multiWordMappingBaseSlot, 0xAAAA), (multiWordMappingMemberSlot, 0xBBBB), (17, 0xBBBB)])
+  check "compiled dispatcher writes multi-word mapping struct members"
+    (emittedCompiledDispatchMatchesReferenceWithExpected multiWordMappingDispatchSmokeContract
+      (sampleIRTx 0xEEEEEEEE [7, 0x1234])
+      [multiWordMappingBaseSlot, multiWordMappingMemberSlot]
+      [multiWordMappingBaseSlot, multiWordMappingMemberSlot]
+      true none
+      [(multiWordMappingBaseSlot, 0xAAAA), (multiWordMappingMemberSlot, 0x1234)])
+  check "compiled dispatcher reads nested multi-word mapping struct members"
+    (emittedCompiledDispatchMatchesReferenceWithExpected multiWordMappingDispatchSmokeContract
+      (sampleIRTx 0xDADADADA [3, 4])
+      [nestedMultiWordMappingBaseSlot, nestedMultiWordMappingMemberSlot, 17]
+      [nestedMultiWordMappingBaseSlot, nestedMultiWordMappingMemberSlot, 17]
+      true none
+      [(nestedMultiWordMappingBaseSlot, 0xCCCC), (nestedMultiWordMappingMemberSlot, 0xDDDD),
+        (17, 0xDDDD)])
+  check "compiled dispatcher writes nested multi-word mapping struct members"
+    (emittedCompiledDispatchMatchesReferenceWithExpected multiWordMappingDispatchSmokeContract
+      (sampleIRTx 0xEFEFEFEF [3, 4, 0x5678])
+      [nestedMultiWordMappingBaseSlot, nestedMultiWordMappingMemberSlot]
+      [nestedMultiWordMappingBaseSlot, nestedMultiWordMappingMemberSlot]
+      true none
+      [(nestedMultiWordMappingBaseSlot, 0xCCCC), (nestedMultiWordMappingMemberSlot, 0x5678)])
   check "emitted dispatcher projects 32-byte return halts"
     (emittedDispatchMatchesReferenceWithExpected returnDispatchSmokeContract
       (sampleIRTx 0x33333333) [] [] true (some 42) [])

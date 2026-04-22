@@ -311,24 +311,26 @@ private def insertNativeFunction
 partial def lowerRuntimeContractNativeAux
     (stmts : List YulStmt)
     (dispatcherAcc : List EvmYul.Yul.Ast.Stmt)
-    (functionsAcc : NativeFunctionMap) :
-    Except AdapterError (List EvmYul.Yul.Ast.Stmt × NativeFunctionMap) := do
+    (functionsAcc : NativeFunctionMap)
+    (nextSwitchId : Nat) :
+    Except AdapterError (List EvmYul.Yul.Ast.Stmt × NativeFunctionMap × Nat) := do
   match stmts with
-  | [] => pure (dispatcherAcc.reverse, functionsAcc)
+  | [] => pure (dispatcherAcc.reverse, functionsAcc, nextSwitchId)
   | .funcDef name params rets body :: rest =>
       let definition ← lowerFunctionDefinitionNative params rets body
       let functionsAcc ← insertNativeFunction functionsAcc name definition
-      lowerRuntimeContractNativeAux rest dispatcherAcc functionsAcc
+      lowerRuntimeContractNativeAux rest dispatcherAcc functionsAcc nextSwitchId
   | stmt :: rest =>
-      let lowered ← lowerStmtGroupNative stmt
+      let (lowered, nextSwitchId) ← lowerStmtGroupNativeWithSwitchIds nextSwitchId stmt
       lowerRuntimeContractNativeAux rest (lowered.reverse ++ dispatcherAcc) functionsAcc
+        nextSwitchId
 
 /-- Lower generated runtime Yul into an executable EVMYulLean contract shape. -/
 def lowerRuntimeContractNative (stmts : List YulStmt) :
     Except AdapterError EvmYul.Yul.Ast.YulContract := do
   let emptyFunctions : NativeFunctionMap := ∅
-  let (dispatcher, functions) ←
-    lowerRuntimeContractNativeAux stmts [] emptyFunctions
+  let (dispatcher, functions, _) ←
+    lowerRuntimeContractNativeAux stmts [] emptyFunctions 0
   pure {
     dispatcher := .Block dispatcher,
     functions := functions

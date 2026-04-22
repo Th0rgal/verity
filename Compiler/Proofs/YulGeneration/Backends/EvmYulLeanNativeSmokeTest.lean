@@ -541,6 +541,19 @@ private def emittedDispatchScopesLazyNativeDispatcher : Bool :=
   | .ok contract => nativeStmtContainsScopedSelectorSwitch contract.dispatcher
   | .error _ => false
 
+private def topLevelNativeSwitchIdsAreThreaded : Bool :=
+  match lowerRuntimeContractNative [
+    .switch (.lit 1) [(1, [.expr (.call "sstore" [.lit 1, .lit 11])])] none,
+    .switch (.lit 2) [(2, [.expr (.call "sstore" [.lit 2, .lit 22])])] none
+  ] with
+  | .ok { dispatcher := .Block [
+      .Block (.Let [first] (some _) :: _),
+      .Block (.Let [second] (some _) :: _)
+    ], .. } =>
+      first == "__verity_native_switch_discr_0" &&
+        second == "__verity_native_switch_discr_1"
+  | _ => false
+
 private def duplicateNativeHelperFailsClosed : Bool :=
   match lowerRuntimeContractNative [
     .funcDef "dup" [] [] [],
@@ -926,6 +939,10 @@ example :
 
 example :
     emittedDispatchScopesLazyNativeDispatcher = true := by
+  native_decide
+
+example :
+    topLevelNativeSwitchIdsAreThreaded = true := by
   native_decide
 
 example :
