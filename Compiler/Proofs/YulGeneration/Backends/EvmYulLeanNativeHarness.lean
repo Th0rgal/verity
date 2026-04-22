@@ -125,6 +125,37 @@ def projectResult
         finalMappings := Compiler.Proofs.storageAsMappings initialStorage
         events := initialEvents }
 
+@[simp] theorem projectResult_ok
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.Yul.Ast.Literal) :
+    projectResult tx initialStorage initialEvents (.ok (state, values)) =
+    { success := true
+      returnValue := values.head?.map uint256ToNat
+      finalStorage := projectStorageFromState tx state
+      finalMappings :=
+        Compiler.Proofs.storageAsMappings (projectStorageFromState tx state)
+      events := initialEvents ++ projectLogsFromState state } := by
+  rfl
+
+@[simp] theorem projectResult_yulHalt
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (state : EvmYul.Yul.State)
+    (value : EvmYul.Yul.Ast.Literal) :
+    projectResult tx initialStorage initialEvents
+      (.error (.YulHalt state value)) =
+    { success := true
+      returnValue := projectHaltReturn state value
+      finalStorage := projectStorageFromState tx state
+      finalMappings :=
+        Compiler.Proofs.storageAsMappings (projectStorageFromState tx state)
+      events := initialEvents ++ projectLogsFromState state } := by
+  rfl
+
 @[simp] theorem projectResult_revert
     (tx : YulTransaction)
     (initialStorage : Nat → Nat)
@@ -137,6 +168,32 @@ def projectResult
       finalMappings := Compiler.Proofs.storageAsMappings initialStorage
       events := initialEvents } := by
   rfl
+
+@[simp] theorem projectResult_hardError
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (err : EvmYul.Yul.Exception)
+    (hNotHalt : ∀ state value, err ≠ EvmYul.Yul.Exception.YulHalt state value) :
+    projectResult tx initialStorage initialEvents (.error err) =
+    { success := false
+      returnValue := none
+      finalStorage := initialStorage
+      finalMappings := Compiler.Proofs.storageAsMappings initialStorage
+      events := initialEvents } := by
+  cases err with
+  | YulHalt state value =>
+      exact False.elim (hNotHalt state value rfl)
+  | InvalidArguments => rfl
+  | NotEncodableRLP => rfl
+  | InvalidInstruction => rfl
+  | OutOfFuel => rfl
+  | StaticModeViolation => rfl
+  | MissingContract s => rfl
+  | MissingContractFunction s => rfl
+  | InvalidExpression => rfl
+  | YulEXTCODESIZENotImplemented => rfl
+  | Revert => rfl
 
 /-- Lower and execute Verity runtime Yul through EVMYulLean's native
     dispatcher. -/

@@ -133,14 +133,17 @@ scope so the native path does not look more complete than it is:
    caller/address, calldatasize, timestamp/number, native
    `chainid`/`blobbasefee` default behavior, executable `stop` halt
    projection, successful native value result projection with committed
-   storage/logs and matching `finalMappings`, native return halt projection
-   with committed storage/logs and matching `finalMappings`, log projection
-   for `log0` through
+   storage/logs and matching `finalMappings`, the named
+   `projectResult_ok` lemma for successful native value results, native return
+   halt projection with committed storage/logs and matching `finalMappings`,
+   the named `projectResult_yulHalt` lemma for `return`/`stop` halt
+   projection, log projection for `log0` through
    `log4` topic arities, conservative rollback projection for native errors,
    explicit hard-error rollback for `OutOfFuel`, explicit `Revert` rollback
    projection with no return value, the named `projectResult_revert` rollback
    lemma, conservative `finalMappings` rollback on
-   native errors, and `interpretIRRuntimeNative`
+   native errors, the named `projectResult_hardError` lemma for every
+   non-halt native error, and `interpretIRRuntimeNative`
    forwarding/fail-closed lowering behavior. Next coverage should include:
    - executable dispatcher selector selection from emitted runtime code; the
      lowered selector expression is already pinned, but build-time execution
