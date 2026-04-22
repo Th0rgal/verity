@@ -187,6 +187,11 @@ scope so the native path does not look more complete than it is:
    `initialState_calldata` lemmas for direct downstream rewriting of those
    native state bridge fields, the named `initialState_calldataSize` lemma for the native
    selector-plus-ABI-word calldata length, the named
+   `calldataToByteArray_selectorByte0`,
+   `calldataToByteArray_selectorByte1`,
+   `calldataToByteArray_selectorByte2`, and
+   `calldataToByteArray_selectorByte3` lemmas pinning the native calldata
+   selector byte layout needed by dispatcher-selection proofs, the named
    `initialState_unbridgedEnvironmentDefaults` lemma for
    base-fee/blob-field defaults and native-global `chainid` behavior, callvalue,
    caller/address, calldatasize, timestamp/number, a native-vs-reference-oracle

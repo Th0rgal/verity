@@ -195,6 +195,42 @@ private theorem calldataToByteArray_fold_size
       simp [List.foldl_cons, ByteArray.size_append, hWord, ih, Nat.add_assoc]
       omega
 
+private theorem byteArray_get?_append_left
+    {a b : ByteArray} {i : Nat} (h : i < a.size) :
+    (a ++ b).get? i = a.get? i := by
+  unfold ByteArray.get?
+  split
+  · apply congrArg some
+    have hEq : (a ++ b)[i] = a[i] := ByteArray.get_append_left h
+    convert hEq using 1
+  · exact False.elim (by
+      rename_i hAppend
+      exact hAppend (by
+        rw [ByteArray.size_append]
+        exact Nat.lt_of_lt_of_le h (Nat.le_add_right a.size b.size)))
+
+private theorem calldataToByteArray_fold_get?_left
+    (wordBytes : Nat → ByteArray)
+    (hWord : ∀ w, (wordBytes w).size = 32) :
+    ∀ (acc : ByteArray) (calldata : List Nat) (i : Nat), i < acc.size →
+      (calldata.foldl (init := acc) fun acc w => acc ++ wordBytes w).get? i =
+        acc.get? i := by
+  intro acc calldata
+  induction calldata generalizing acc with
+  | nil =>
+      intro i h
+      rfl
+  | cons w ws ih =>
+      intro i h
+      simp only [List.foldl_cons]
+      calc
+        (ws.foldl (init := acc ++ wordBytes w) fun acc w => acc ++ wordBytes w).get? i
+            = (acc ++ wordBytes w).get? i := by
+                apply ih
+                rw [ByteArray.size_append, hWord]
+                omega
+        _ = acc.get? i := byteArray_get?_append_left h
+
 /-- The bridged calldata byte array has the same observable length as Verity's
     `calldatasize`: 4 selector bytes plus 32 bytes per calldata word. -/
 theorem calldataToByteArray_size (selector : Nat) (calldata : List Nat) :
@@ -217,6 +253,98 @@ theorem calldataToByteArray_size (selector : Nat) (calldata : List Nat) :
     simp [wordBytes]
   have hFold := calldataToByteArray_fold_size wordBytes hWord selectorBytes calldata
   simpa [selectorBytes, wordBytes, hSel] using hFold
+
+@[simp] theorem calldataToByteArray_selectorByte0 (selector : Nat) (calldata : List Nat) :
+    (calldataToByteArray selector calldata).get? 0 =
+      some (UInt8.ofNat (selector / 2^24 % 256)) := by
+  unfold calldataToByteArray
+  let selectorBytes : ByteArray :=
+    ByteArray.ofFn fun i : Fin 4 =>
+      match i.1 with
+      | 0 => UInt8.ofNat (selector / 2^24 % 256)
+      | 1 => UInt8.ofNat (selector / 2^16 % 256)
+      | 2 => UInt8.ofNat (selector / 2^8 % 256)
+      | _ => UInt8.ofNat (selector % 256)
+  let wordBytes : Nat → ByteArray := fun w =>
+    ByteArray.ofFn fun i : Fin 32 =>
+      UInt8.ofNat (w / 2^((31 - i.1) * 8) % 256)
+  have hWord : ∀ w, (wordBytes w).size = 32 := by intro w; simp [wordBytes]
+  rw [calldataToByteArray_fold_get?_left wordBytes hWord]
+  · unfold ByteArray.get?
+    split
+    · apply congrArg some
+      simp [ByteArray.get]
+    · simp at *
+  · simp
+
+@[simp] theorem calldataToByteArray_selectorByte1 (selector : Nat) (calldata : List Nat) :
+    (calldataToByteArray selector calldata).get? 1 =
+      some (UInt8.ofNat (selector / 2^16 % 256)) := by
+  unfold calldataToByteArray
+  let selectorBytes : ByteArray :=
+    ByteArray.ofFn fun i : Fin 4 =>
+      match i.1 with
+      | 0 => UInt8.ofNat (selector / 2^24 % 256)
+      | 1 => UInt8.ofNat (selector / 2^16 % 256)
+      | 2 => UInt8.ofNat (selector / 2^8 % 256)
+      | _ => UInt8.ofNat (selector % 256)
+  let wordBytes : Nat → ByteArray := fun w =>
+    ByteArray.ofFn fun i : Fin 32 =>
+      UInt8.ofNat (w / 2^((31 - i.1) * 8) % 256)
+  have hWord : ∀ w, (wordBytes w).size = 32 := by intro w; simp [wordBytes]
+  rw [calldataToByteArray_fold_get?_left wordBytes hWord]
+  · unfold ByteArray.get?
+    split
+    · apply congrArg some
+      simp [ByteArray.get]
+    · simp at *
+  · simp
+
+@[simp] theorem calldataToByteArray_selectorByte2 (selector : Nat) (calldata : List Nat) :
+    (calldataToByteArray selector calldata).get? 2 =
+      some (UInt8.ofNat (selector / 2^8 % 256)) := by
+  unfold calldataToByteArray
+  let selectorBytes : ByteArray :=
+    ByteArray.ofFn fun i : Fin 4 =>
+      match i.1 with
+      | 0 => UInt8.ofNat (selector / 2^24 % 256)
+      | 1 => UInt8.ofNat (selector / 2^16 % 256)
+      | 2 => UInt8.ofNat (selector / 2^8 % 256)
+      | _ => UInt8.ofNat (selector % 256)
+  let wordBytes : Nat → ByteArray := fun w =>
+    ByteArray.ofFn fun i : Fin 32 =>
+      UInt8.ofNat (w / 2^((31 - i.1) * 8) % 256)
+  have hWord : ∀ w, (wordBytes w).size = 32 := by intro w; simp [wordBytes]
+  rw [calldataToByteArray_fold_get?_left wordBytes hWord]
+  · unfold ByteArray.get?
+    split
+    · apply congrArg some
+      simp [ByteArray.get]
+    · simp at *
+  · simp
+
+@[simp] theorem calldataToByteArray_selectorByte3 (selector : Nat) (calldata : List Nat) :
+    (calldataToByteArray selector calldata).get? 3 =
+      some (UInt8.ofNat (selector % 256)) := by
+  unfold calldataToByteArray
+  let selectorBytes : ByteArray :=
+    ByteArray.ofFn fun i : Fin 4 =>
+      match i.1 with
+      | 0 => UInt8.ofNat (selector / 2^24 % 256)
+      | 1 => UInt8.ofNat (selector / 2^16 % 256)
+      | 2 => UInt8.ofNat (selector / 2^8 % 256)
+      | _ => UInt8.ofNat (selector % 256)
+  let wordBytes : Nat → ByteArray := fun w =>
+    ByteArray.ofFn fun i : Fin 32 =>
+      UInt8.ofNat (w / 2^((31 - i.1) * 8) % 256)
+  have hWord : ∀ w, (wordBytes w).size = 32 := by intro w; simp [wordBytes]
+  rw [calldataToByteArray_fold_get?_left wordBytes hWord]
+  · unfold ByteArray.get?
+    split
+    · apply congrArg some
+      simp [ByteArray.get]
+    · simp at *
+  · simp
 
 /-! ## Full State Conversion
 

@@ -1282,6 +1282,14 @@ private theorem evalExpr_arrayElement
     (index : Expr) :
     evalExpr fields state (.arrayElement name index) = none := rfl
 
+private theorem evalExpr_arrayElementWord
+    (fields : List Field)
+    (state : RuntimeState)
+    (name : String)
+    (index : Expr)
+    (elementWords wordOffset : Nat) :
+    evalExpr fields state (.arrayElementWord name index elementWords wordOffset) = none := rfl
+
 private theorem evalExpr_mappingWord
     (fields : List Field)
     (state : RuntimeState)
@@ -3583,6 +3591,8 @@ mutual
         simpa [evalExprWithHelpers, evalExpr_mapping, evalExpr_mappingUint, hb]
     | arrayElement _ b =>
         simp [evalExprWithHelpers, evalExpr_arrayElement]
+    | arrayElementWord _ b _ _ =>
+        simp [evalExprWithHelpers, evalExpr_arrayElementWord]
     | mappingWord _ b _ | mappingPackedWord _ b _ _ | structMember _ b _ =>
         simp only [exprTouchesUnsupportedHelperSurface] at hsurface
         have hb :=
@@ -3935,6 +3945,9 @@ private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux
       simp only [stmtTouchesUnsupportedHelperSurface] at hsurface
       simp [execStmtWithHelpers, execStmtWithEvents,
         evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface]
+  | .setStorageWord _ _ value =>
+      simp only [stmtTouchesUnsupportedHelperSurface] at hsurface
+      simp [execStmtWithHelpers, execStmtWithEvents]
   | .setStorageAddr _ value =>
       simp only [stmtTouchesUnsupportedHelperSurface] at hsurface
       simp [execStmtWithHelpers, execStmtWithEvents,

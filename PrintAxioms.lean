@@ -1885,6 +1885,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mapping  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mappingUint  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElement  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElementWord  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mappingWord  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mappingPackedWord  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_structMember  -- private
@@ -3010,7 +3011,13 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorBytes_size  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_wordBytes_size  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_fold_size  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.byteArray_get?_append_left  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_fold_get?_left  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_size
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorByte0
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorByte1
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorByte2
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorByte3
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.callvalue_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.timestamp_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.number_bridge
@@ -3065,4 +3072,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2892 theorems/lemmas (2009 public, 883 private, 0 sorry'd)
+-- Total: 2899 theorems/lemmas (2013 public, 886 private, 0 sorry'd)
