@@ -50,6 +50,7 @@ import Compiler.Proofs.StorageBounds
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapterCorrectness
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBodyClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSignedArithSpec
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSourceExprClosure
@@ -2734,6 +2735,10 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_mappingSlot_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
 
+-- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_revert
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_eq_interpretRuntimeNative
+
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_add  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_sub  -- private
@@ -2998,4 +3003,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2831 theorems/lemmas (1948 public, 883 private, 0 sorry'd)
+-- Total: 2833 theorems/lemmas (1950 public, 883 private, 0 sorry'd)
