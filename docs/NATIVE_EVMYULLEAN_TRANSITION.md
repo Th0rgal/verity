@@ -159,15 +159,21 @@ scope so the native path does not look more complete than it is:
    `projectResult_ok` and `projectResult_ok_events` lemmas for successful
    native value results and event-history append behavior, native return
    halt projection with committed storage/logs and matching `finalMappings`,
-   the named `projectHaltReturn_32ByteReturn`, `projectResult_yulHalt`, and
-   `projectResult_yulHalt_events` lemmas for halt event-history append
-   behavior, and the named `projectResult_32ByteReturn` lemma for 32-byte
-   `return` halt projection, log projection for `log0` through
+   the named `projectResult_ok_success` and `projectResult_ok_returnValue`
+   lemmas for successful value-result projection, the named
+   `projectHaltReturn_32ByteReturn`, `projectResult_yulHalt`,
+   `projectResult_yulHalt_success`, `projectResult_yulHalt_returnValue`, and
+   `projectResult_yulHalt_events` lemmas for halt success, return-value, and
+   event-history append behavior, and the named `projectResult_32ByteReturn`
+   lemma for 32-byte `return` halt projection, log projection for `log0` through
    `log4` topic arities, conservative rollback projection for native errors,
    explicit hard-error rollback for `OutOfFuel`, explicit `Revert` rollback
-   projection with no return value, the named `projectResult_revert` rollback
-   and `projectResult_revert_events` event-history preservation lemmas, the
-   named `projectResult_ok_finalStorageSlot` and
+   projection with no return value, the named `projectResult_revert` rollback,
+   `projectResult_revert_success`, `projectResult_revert_returnValue`, and
+   `projectResult_revert_events` event-history preservation lemmas, the named
+   `projectResult_hardError_success` and `projectResult_hardError_returnValue`
+   lemmas for hard native failure observables, the named
+   `projectResult_ok_finalStorageSlot` and
    `projectResult_yulHalt_finalStorageSlot` lemmas for committed final-storage
    slot projection, the named `projectResult_revert_finalStorageSlot` and
    `projectResult_hardError_finalStorageSlot` lemmas for rollback final-storage

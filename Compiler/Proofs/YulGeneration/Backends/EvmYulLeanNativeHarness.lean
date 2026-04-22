@@ -347,6 +347,27 @@ def projectResult
       initialEvents ++ projectLogsFromState state := by
   rfl
 
+@[simp] theorem projectResult_ok_success
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.Yul.Ast.Literal) :
+    (projectResult tx initialStorage initialEvents
+      (.ok (state, values))).success = true := by
+  rfl
+
+@[simp] theorem projectResult_ok_returnValue
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.Yul.Ast.Literal) :
+    (projectResult tx initialStorage initialEvents
+      (.ok (state, values))).returnValue =
+      values.head?.map uint256ToNat := by
+  rfl
+
 @[simp] theorem projectResult_ok_finalStorageSlot
     (tx : YulTransaction)
     (initialStorage : Nat → Nat)
@@ -374,6 +395,27 @@ def projectResult
     (projectResult tx initialStorage initialEvents
       (.error (.YulHalt state value))).events =
       initialEvents ++ projectLogsFromState state := by
+  rfl
+
+@[simp] theorem projectResult_yulHalt_success
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (state : EvmYul.Yul.State)
+    (value : EvmYul.Yul.Ast.Literal) :
+    (projectResult tx initialStorage initialEvents
+      (.error (.YulHalt state value))).success = true := by
+  rfl
+
+@[simp] theorem projectResult_yulHalt_returnValue
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (state : EvmYul.Yul.State)
+    (value : EvmYul.Yul.Ast.Literal) :
+    (projectResult tx initialStorage initialEvents
+      (.error (.YulHalt state value))).returnValue =
+      projectHaltReturn state value := by
   rfl
 
 @[simp] theorem projectResult_yulHalt_finalStorageSlot
@@ -450,6 +492,22 @@ def projectResult
       initialEvents := by
   rfl
 
+@[simp] theorem projectResult_revert_success
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat)) :
+    (projectResult tx initialStorage initialEvents
+      (.error EvmYul.Yul.Exception.Revert)).success = false := by
+  rfl
+
+@[simp] theorem projectResult_revert_returnValue
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat)) :
+    (projectResult tx initialStorage initialEvents
+      (.error EvmYul.Yul.Exception.Revert)).returnValue = none := by
+  rfl
+
 @[simp] theorem projectResult_revert_finalStorageSlot
     (tx : YulTransaction)
     (initialStorage : Nat → Nat)
@@ -472,6 +530,48 @@ def projectResult
       finalStorage := initialStorage
       finalMappings := Compiler.Proofs.storageAsMappings initialStorage
       events := initialEvents } := by
+  cases err with
+  | YulHalt state value =>
+      exact False.elim (hNotHalt state value rfl)
+  | InvalidArguments => rfl
+  | NotEncodableRLP => rfl
+  | InvalidInstruction => rfl
+  | OutOfFuel => rfl
+  | StaticModeViolation => rfl
+  | MissingContract s => rfl
+  | MissingContractFunction s => rfl
+  | InvalidExpression => rfl
+  | YulEXTCODESIZENotImplemented => rfl
+  | Revert => rfl
+
+@[simp] theorem projectResult_hardError_success
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (err : EvmYul.Yul.Exception)
+    (hNotHalt : ∀ state value, err ≠ EvmYul.Yul.Exception.YulHalt state value) :
+    (projectResult tx initialStorage initialEvents (.error err)).success = false := by
+  cases err with
+  | YulHalt state value =>
+      exact False.elim (hNotHalt state value rfl)
+  | InvalidArguments => rfl
+  | NotEncodableRLP => rfl
+  | InvalidInstruction => rfl
+  | OutOfFuel => rfl
+  | StaticModeViolation => rfl
+  | MissingContract s => rfl
+  | MissingContractFunction s => rfl
+  | InvalidExpression => rfl
+  | YulEXTCODESIZENotImplemented => rfl
+  | Revert => rfl
+
+@[simp] theorem projectResult_hardError_returnValue
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (err : EvmYul.Yul.Exception)
+    (hNotHalt : ∀ state value, err ≠ EvmYul.Yul.Exception.YulHalt state value) :
+    (projectResult tx initialStorage initialEvents (.error err)).returnValue = none := by
   cases err with
   | YulHalt state value =>
       exact False.elim (hNotHalt state value rfl)
