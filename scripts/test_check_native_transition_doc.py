@@ -43,7 +43,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
 
     def test_rejects_missing_blobbasefee_validation_caveat(self) -> None:
         text = check.DOC.read_text(encoding="utf-8").replace(
-            "`chainid()` and `blobbasefee()` now fail closed",
+            "`chainid()` and `blobbasefee()` now fail closed on the selected native runtime",
             "`YulTransaction.blobBaseFeeStatus`",
         )
         errors = check.check_doc(text)

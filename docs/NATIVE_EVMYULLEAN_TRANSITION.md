@@ -78,12 +78,13 @@ scope so the native path does not look more complete than it is:
 - [#1741](https://github.com/lfglabs-dev/verity/issues/1741):
   `blockTimestamp` is bridged through native EVMYulLean execution, and native
   smoke coverage now checks `timestamp()`/`number()` state reads. Native
-  `chainid()` and `blobbasefee()` now fail closed unless the corresponding
-  `YulTransaction` field is representable by EVMYulLean's current environment
-  model. Today that means `YulTransaction.chainId` must match the EVMYulLean
-  global `EvmYul.chainId`, and `YulTransaction.blobBaseFee` must match the
-  minimum blob gas price `EvmYul.MIN_BASE_FEE_PER_BLOB_GAS`. The native harness
-  names the remaining unbridged boundary with
+  `chainid()` and `blobbasefee()` now fail closed on the selected native runtime
+  path unless the corresponding `YulTransaction` field is representable by
+  EVMYulLean's current environment model. Today that means
+  `YulTransaction.chainId` must match the EVMYulLean global `EvmYul.chainId`, and
+  `YulTransaction.blobBaseFee` must match the minimum blob gas price
+  `EvmYul.MIN_BASE_FEE_PER_BLOB_GAS`. The native harness names the remaining
+  unbridged boundary with
   `initialState_unbridgedEnvironmentDefaults`, pinning base-fee/blob fields and
   native `chainid` to their current EVMYulLean default/global behavior until
   the follow-up widens the state bridge. The
@@ -226,8 +227,8 @@ scope so the native path does not look more complete than it is:
    `initialState_unbridgedEnvironmentDefaults` lemma for
    base-fee/blob-field defaults and native-global `chainid` behavior, callvalue,
    caller/address, calldatasize, timestamp/number, a native-vs-reference-oracle
-   runtime comparison for those bridged environment fields, fail-closed
-   `chainid`/`blobbasefee` validation for non-representable
+   runtime comparison for those bridged environment fields, selected-path
+   fail-closed `chainid`/`blobbasefee` validation for non-representable
    `YulTransaction.chainId`/`YulTransaction.blobBaseFee`, executable `stop` halt
    projection, the named `projectHaltReturn_stop` and `projectResult_stop`
    lemmas for `stop`/zero-halt return projection, native log projection from

@@ -61,6 +61,10 @@ partial def yulExprUsesBuiltin (builtin : String) : YulExpr → Bool
   | .call func args => func == builtin || args.any (yulExprUsesBuiltin builtin)
   | _ => false
 
+partial def yulExprCalledFunctions : YulExpr → List String
+  | .call func args => func :: args.flatMap yulExprCalledFunctions
+  | _ => []
+
 mutual
   partial def yulStmtUsesBuiltin (builtin : String) : YulStmt → Bool
     | .let_ _ value => yulExprUsesBuiltin builtin value
@@ -86,6 +90,117 @@ mutual
     stmts.any (yulStmtUsesBuiltin builtin)
 end
 
+mutual
+  partial def yulStmtCalledFunctions : YulStmt → List String
+    | .let_ _ value => yulExprCalledFunctions value
+    | .letMany _ value => yulExprCalledFunctions value
+    | .assign _ value => yulExprCalledFunctions value
+    | .expr e => yulExprCalledFunctions e
+    | .if_ cond body => yulExprCalledFunctions cond ++ yulStmtsCalledFunctions body
+    | .for_ init cond post body =>
+        yulStmtsCalledFunctions init ++
+          yulExprCalledFunctions cond ++
+          yulStmtsCalledFunctions post ++
+          yulStmtsCalledFunctions body
+    | .switch discr cases defaultBody =>
+        yulExprCalledFunctions discr ++
+          cases.flatMap (fun entry => yulStmtsCalledFunctions entry.2) ++
+          (defaultBody.map yulStmtsCalledFunctions).getD []
+    | .block stmts => yulStmtsCalledFunctions stmts
+    | .funcDef _ _ _ body => yulStmtsCalledFunctions body
+    | .comment _ | .leave => []
+
+  partial def yulStmtsCalledFunctions (stmts : List YulStmt) : List String :=
+    stmts.flatMap yulStmtCalledFunctions
+end
+
+def yulFunctionBodies (runtimeCode : List YulStmt) : List (String × List YulStmt) :=
+  runtimeCode.filterMap fun
+    | .funcDef name _ _ body => some (name, body)
+    | _ => none
+
+def selectorExprMatchesGeneratedDispatcher : YulExpr → Bool
+  | .call "shr" [.lit shift, .call "calldataload" [.lit 0]] =>
+      shift == Compiler.Constants.selectorShift
+  | _ => false
+
+def selectedSwitchBody
+    (selector : Nat)
+    (cases : List (Nat × List YulStmt))
+    (defaultBody : Option (List YulStmt)) :
+    List YulStmt :=
+  match cases.find? (fun entry => entry.1 == selector) with
+  | some (_, body) => body
+  | none => defaultBody.getD []
+
+partial def yulStmtsUseBuiltinWithCalledFunctions
+    (fuel : Nat)
+    (builtin : String)
+    (functionBodies : List (String × List YulStmt))
+    (stmts : List YulStmt) :
+    Bool :=
+  yulStmtsUseBuiltin builtin stmts ||
+    match fuel with
+    | 0 => false
+    | fuel' + 1 =>
+        (yulStmtsCalledFunctions stmts).any fun name =>
+          match functionBodies.find? (fun entry => entry.1 == name) with
+          | some (_, body) =>
+              yulStmtsUseBuiltinWithCalledFunctions fuel' builtin functionBodies body
+          | none => false
+
+mutual
+  partial def yulStmtUsesBuiltinOnNativeRuntimePath
+      (builtin : String)
+      (selector : Nat)
+      (functionBodies : List (String × List YulStmt)) :
+      YulStmt → Bool
+    | .funcDef _ _ _ _ => false
+    | .block [
+        .let_ "__has_selector" _,
+        .if_ (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]) _,
+        .if_ (YulExpr.ident "__has_selector") [
+          .switch discr cases defaultBody
+        ]
+      ] =>
+        if selectorExprMatchesGeneratedDispatcher discr then
+          yulExprUsesBuiltin builtin discr ||
+            yulStmtsUseBuiltinWithCalledFunctions (functionBodies.length + 1)
+              builtin functionBodies (selectedSwitchBody selector cases defaultBody)
+        else
+          yulStmtsUseBuiltinWithCalledFunctions (functionBodies.length + 1)
+            builtin functionBodies [
+              .block [
+                .let_ "__has_selector" (.lit 0),
+                .if_ (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]) [],
+                .if_ (YulExpr.ident "__has_selector") [
+                  .switch discr cases defaultBody
+                ]
+              ]
+            ]
+    | .block stmts =>
+        yulStmtsUseBuiltinOnNativeRuntimePath builtin selector functionBodies stmts
+    | stmt =>
+        yulStmtsUseBuiltinWithCalledFunctions (functionBodies.length + 1)
+          builtin functionBodies [stmt]
+
+  partial def yulStmtsUseBuiltinOnNativeRuntimePath
+      (builtin : String)
+      (selector : Nat)
+      (functionBodies : List (String × List YulStmt))
+      (stmts : List YulStmt) :
+      Bool :=
+    stmts.any (yulStmtUsesBuiltinOnNativeRuntimePath builtin selector functionBodies)
+end
+
+def nativeRuntimePathUsesBuiltin
+    (builtin : String)
+    (runtimeCode : List YulStmt)
+    (tx : YulTransaction) :
+    Bool :=
+  yulStmtsUseBuiltinOnNativeRuntimePath builtin tx.functionSelector
+    (yulFunctionBodies runtimeCode) runtimeCode
+
 def nativeBlobBaseFeeRepresentable (fee : Nat) : Bool :=
   fee == EvmYul.MIN_BASE_FEE_PER_BLOB_GAS
 
@@ -104,10 +219,10 @@ def validateNativeRuntimeEnvironment
     (runtimeCode : List YulStmt)
     (tx : YulTransaction) :
     Except AdapterError Unit :=
-  if yulStmtsUseBuiltin "chainid" runtimeCode &&
+  if nativeRuntimePathUsesBuiltin "chainid" runtimeCode tx &&
       !nativeChainIdRepresentable tx.chainId then
     .error unsupportedNativeChainIdError
-  else if yulStmtsUseBuiltin "blobbasefee" runtimeCode &&
+  else if nativeRuntimePathUsesBuiltin "blobbasefee" runtimeCode tx &&
       !nativeBlobBaseFeeRepresentable tx.blobBaseFee then
     .error unsupportedNativeBlobBaseFeeError
   else
@@ -124,15 +239,15 @@ def validateNativeRuntimeEnvironment
 @[simp] theorem validateNativeRuntimeEnvironment_noChainId_noBlobBaseFee
     (runtimeCode : List YulStmt)
     (tx : YulTransaction)
-    (hNoChainId : yulStmtsUseBuiltin "chainid" runtimeCode = false)
-    (hNoBlobBaseFee : yulStmtsUseBuiltin "blobbasefee" runtimeCode = false) :
+    (hNoChainId : nativeRuntimePathUsesBuiltin "chainid" runtimeCode tx = false)
+    (hNoBlobBaseFee : nativeRuntimePathUsesBuiltin "blobbasefee" runtimeCode tx = false) :
     validateNativeRuntimeEnvironment runtimeCode tx = .ok () := by
   simp [validateNativeRuntimeEnvironment, hNoChainId, hNoBlobBaseFee]
 
 @[simp] theorem validateNativeRuntimeEnvironment_representableBlobBaseFee
     (runtimeCode : List YulStmt)
     (tx : YulTransaction)
-    (hNoChainId : yulStmtsUseBuiltin "chainid" runtimeCode = false)
+    (hNoChainId : nativeRuntimePathUsesBuiltin "chainid" runtimeCode tx = false)
     (hBlobBaseFee :
       nativeBlobBaseFeeRepresentable tx.blobBaseFee = true) :
     validateNativeRuntimeEnvironment runtimeCode tx = .ok () := by
@@ -150,7 +265,7 @@ def validateNativeRuntimeEnvironment
 @[simp] theorem validateNativeRuntimeEnvironment_unsupportedChainId
     (runtimeCode : List YulStmt)
     (tx : YulTransaction)
-    (hUsesChainId : yulStmtsUseBuiltin "chainid" runtimeCode = true)
+    (hUsesChainId : nativeRuntimePathUsesBuiltin "chainid" runtimeCode tx = true)
     (hChainId : nativeChainIdRepresentable tx.chainId = false) :
     validateNativeRuntimeEnvironment runtimeCode tx =
       .error unsupportedNativeChainIdError := by
@@ -159,8 +274,8 @@ def validateNativeRuntimeEnvironment
 @[simp] theorem validateNativeRuntimeEnvironment_unsupportedBlobBaseFee
     (runtimeCode : List YulStmt)
     (tx : YulTransaction)
-    (hNoChainId : yulStmtsUseBuiltin "chainid" runtimeCode = false)
-    (hUsesBlobBaseFee : yulStmtsUseBuiltin "blobbasefee" runtimeCode = true)
+    (hNoChainId : nativeRuntimePathUsesBuiltin "chainid" runtimeCode tx = false)
+    (hUsesBlobBaseFee : nativeRuntimePathUsesBuiltin "blobbasefee" runtimeCode tx = true)
     (hBlobBaseFee :
       nativeBlobBaseFeeRepresentable tx.blobBaseFee = false) :
     validateNativeRuntimeEnvironment runtimeCode tx =

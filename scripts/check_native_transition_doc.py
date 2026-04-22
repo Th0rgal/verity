@@ -74,7 +74,7 @@ REQUIRED_SNIPPETS = (
     "signature-based identity model",
     "`YulTransaction.chainId` must match",
     "EvmYul.chainId",
-    "`chainid()` and `blobbasefee()` now fail closed",
+    "`chainid()` and `blobbasefee()` now fail closed on the selected native runtime path",
     "EvmYul.MIN_BASE_FEE_PER_BLOB_GAS",
     "`initialState_unbridgedEnvironmentDefaults`",
 )
@@ -247,6 +247,9 @@ def check_unbridged_environment_boundary(native_harness_text: str, native_smoke_
 
     for required_boundary in (
         "validateNativeRuntimeEnvironment",
+        "nativeRuntimePathUsesBuiltin",
+        "yulStmtsUseBuiltinOnNativeRuntimePath",
+        "selectedSwitchBody",
         "nativeChainIdRepresentable",
         "nativeBlobBaseFeeRepresentable",
         "initialState_unbridgedEnvironmentDefaults",
@@ -267,6 +270,7 @@ def check_unbridged_environment_boundary(native_harness_text: str, native_smoke_
         'nativeStoresBuiltinWithTx "chainid" 15 EvmYul.chainId',
         'nativeRejectsUnsupportedBlobBaseFee = true',
         'nativeStoresBuiltinWithTx "blobbasefee" 16 EvmYul.MIN_BASE_FEE_PER_BLOB_GAS',
+        'nativeAllowsUnselectedUnsupportedEnvironmentBuiltin = true',
     ):
         if pinned_default not in normalized_native_smoke:
             errors.append(

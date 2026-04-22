@@ -94,6 +94,38 @@ private def nativeRejectsUnsupportedChainId : Bool :=
   | .error _ => true
   | .ok _ => false
 
+private def runtimeWithUnselectedUnsupportedEnvironmentBuiltin : List YulStmt :=
+  let selectorExpr :=
+    YulExpr.call "shr" [
+      YulExpr.lit Compiler.Constants.selectorShift,
+      YulExpr.call "calldataload" [YulExpr.lit 0]
+    ]
+  let runtimeCode := [
+    YulStmt.funcDef "unusedEnvHelper" [] [] [
+      .let_ "v" (.call "chainid" []),
+      .expr (.call "sstore" [.lit 15, .ident "v"])
+    ],
+    YulStmt.block [
+      .let_ "__has_selector"
+        (.call "iszero" [.call "lt" [.call "calldatasize" [], .lit 4]]),
+      .if_ (.call "iszero" [.ident "__has_selector"]) [],
+      .if_ (.ident "__has_selector") [
+        .switch selectorExpr [
+          (sampleTx.functionSelector, [
+            .expr (.call "sstore" [.lit 1, .lit 7])
+          ])
+        ] (some [])
+      ]
+    ]
+  ]
+  runtimeCode
+
+private def nativeAllowsUnselectedUnsupportedEnvironmentBuiltin : Bool :=
+  match Native.validateNativeRuntimeEnvironment
+      runtimeWithUnselectedUnsupportedEnvironmentBuiltin sampleTx with
+  | .ok () => true
+  | .error _ => false
+
 private def referenceRuntimeWithFuel
     (fuel : Nat) (stmts : List YulStmt) (tx : Compiler.Proofs.YulGeneration.YulTransaction)
     (storage : Nat → Nat) (events : List (List Nat)) :
@@ -959,6 +991,10 @@ example :
 
 example :
     nativeRejectsUnsupportedChainId = true := by
+  native_decide
+
+example :
+    nativeAllowsUnselectedUnsupportedEnvironmentBuiltin = true := by
   native_decide
 
 example :
