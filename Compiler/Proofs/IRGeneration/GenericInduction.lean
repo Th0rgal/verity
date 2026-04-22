@@ -5378,10 +5378,30 @@ private theorem fieldWriteEntriesAt_alias_mem
     (hmem : slot ∈ field.aliasSlots) :
     slot ∈ (fieldWriteEntriesAt idx field).map (fun entry => entry.1) := by
   obtain ⟨name, ty, slotOpt, packedBits, aliasSlots⟩ := field
-  have halias : ∃ i, (slot, i) ∈ aliasSlots.zipIdx :=
+  obtain ⟨aliasIdx, halias⟩ : ∃ i, (slot, i) ∈ aliasSlots.zipIdx :=
     exists_mem_zipIdx_of_mem hmem
-  cases ty <;>
-    simp [fieldWriteEntriesAt, firstFieldWriteSlotConflict.fieldOccupiedSlots, halias]
+  cases ty with
+  | uint256 =>
+      simp [fieldWriteEntriesAt, firstFieldWriteSlotConflict.fieldOccupiedSlots]
+      exact Or.inr ⟨_, _, _, _, halias, rfl, rfl, rfl⟩
+  | address =>
+      simp [fieldWriteEntriesAt, firstFieldWriteSlotConflict.fieldOccupiedSlots]
+      exact Or.inr ⟨_, _, _, _, halias, rfl, rfl, rfl⟩
+  | adt _ maxFields =>
+      simp [fieldWriteEntriesAt, firstFieldWriteSlotConflict.fieldOccupiedSlots]
+      exact Or.inr ⟨s!"{name}.aliasSlots[{aliasIdx}]", none, slot, aliasIdx, halias, 0, by omega, by simp⟩
+  | dynamicArray _ =>
+      simp [fieldWriteEntriesAt, firstFieldWriteSlotConflict.fieldOccupiedSlots]
+      exact Or.inr ⟨_, _, _, _, halias, rfl, rfl, rfl⟩
+  | mappingTyped _ =>
+      simp [fieldWriteEntriesAt, firstFieldWriteSlotConflict.fieldOccupiedSlots]
+      exact Or.inr ⟨_, _, _, _, halias, rfl, rfl, rfl⟩
+  | mappingStruct _ _ =>
+      simp [fieldWriteEntriesAt, firstFieldWriteSlotConflict.fieldOccupiedSlots]
+      exact Or.inr ⟨_, _, _, _, halias, rfl, rfl, rfl⟩
+  | mappingStruct2 _ _ _ =>
+      simp [fieldWriteEntriesAt, firstFieldWriteSlotConflict.fieldOccupiedSlots]
+      exact Or.inr ⟨_, _, _, _, halias, rfl, rfl, rfl⟩
 
 private theorem fieldWriteEntriesAt_packed_none_of_unpacked
     {idx : Nat} {field : Field} {packed : Option PackedBits}
@@ -5391,28 +5411,9 @@ private theorem fieldWriteEntriesAt_packed_none_of_unpacked
   obtain ⟨name, ty, slotOpt, packedBits, aliasSlots⟩ := field
   simp at hunpacked
   subst hunpacked
-  cases ty <;> simp [fieldWriteEntriesAt, firstFieldWriteSlotConflict.fieldOccupiedSlots] at hmem
-  · rcases hmem with hcanon | halias
-    · simpa using hcanon
-    · exact halias.2.symm
-  · rcases hmem with hcanon | halias
-    · simpa using hcanon
-    · exact halias.2.symm
-  · rcases hmem with hcanon | halias
-    · exact hcanon.2.symm
-    · exact halias.2.symm
-  · rcases hmem with hcanon | halias
-    · simpa using hcanon
-    · exact halias.2.symm
-  · rcases hmem with hcanon | halias
-    · simpa using hcanon
-    · exact halias.2.symm
-  · rcases hmem with hcanon | halias
-    · simpa using hcanon
-    · exact halias.2.symm
-  · rcases hmem with hcanon | halias
-    · simpa using hcanon
-    · exact halias.2.symm
+  cases ty <;>
+    simp [fieldWriteEntriesAt, firstFieldWriteSlotConflict.fieldOccupiedSlots] at hmem <;>
+    aesop
 
 private def firstInFieldConflictCopy
     (seen : List (Nat × String × Option PackedBits))

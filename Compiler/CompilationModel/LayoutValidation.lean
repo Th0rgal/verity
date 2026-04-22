@@ -233,8 +233,17 @@ where
             (slot + offset, if offset == 0 then f.name else s!"{f.name}.payload[{offset - 1}]")
       | _ => [(slot, f.name)]
     canonical ++
-      (f.aliasSlots.zipIdx.map (fun (aliasSlot, aliasIdx) =>
-        (aliasSlot, s!"{f.name}.aliasSlots[{aliasIdx}]")))
+      (f.aliasSlots.zipIdx.flatMap (fun (aliasSlot, aliasIdx) =>
+        match f.ty with
+        | FieldType.adt _ maxFields =>
+            (List.range (maxFields + 1)).map fun offset =>
+              (aliasSlot + offset,
+               if offset == 0 then
+                 s!"{f.name}.aliasSlots[{aliasIdx}]"
+               else
+                 s!"{f.name}.aliasSlots[{aliasIdx}].payload[{offset - 1}]")
+        | _ =>
+            [(aliasSlot, s!"{f.name}.aliasSlots[{aliasIdx}]")]))
 
 def firstInvalidPackedBits (fields : List Field) :
     Option (String × PackedBits) :=
@@ -349,8 +358,18 @@ where
              none)
       | _ => [(slot, f.name, f.packedBits)]
     canonical ++
-      (f.aliasSlots.zipIdx.map (fun (aliasSlot, aliasIdx) =>
-        (aliasSlot, s!"{f.name}.aliasSlots[{aliasIdx}]", f.packedBits)))
+      (f.aliasSlots.zipIdx.flatMap (fun (aliasSlot, aliasIdx) =>
+        match f.ty with
+        | FieldType.adt _ maxFields =>
+            (List.range (maxFields + 1)).map fun offset =>
+              (aliasSlot + offset,
+               if offset == 0 then
+                 s!"{f.name}.aliasSlots[{aliasIdx}]"
+               else
+                 s!"{f.name}.aliasSlots[{aliasIdx}].payload[{offset - 1}]",
+               none)
+        | _ =>
+            [(aliasSlot, s!"{f.name}.aliasSlots[{aliasIdx}]", f.packedBits)]))
 
 /-- Stepping lemma: firstInFieldConflict on nil. -/
 theorem firstFieldWriteSlotConflict_firstInFieldConflict_nil

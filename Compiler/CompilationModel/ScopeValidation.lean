@@ -22,6 +22,10 @@ partial def staticParamBindingNames (name : String) (ty : ParamType) : List Stri
         | elemTy :: rest =>
             staticParamBindingNames s!"{name}_{idx}" elemTy ++ go rest (idx + 1)
       go elemTys 0
+  | ParamType.adt _ maxFields =>
+      name :: (List.range maxFields).map (fun i => s!"{name}_f{i}")
+  | ParamType.newtypeOf _ baseType =>
+      staticParamBindingNames name baseType
   | _ => []
 
 def dynamicParamBindingNames (name : String) : List String :=

@@ -238,9 +238,24 @@ private def validateCompileInputsBeforeFieldWriteConflict
       throw s!"Compilation error: duplicate parameter name '{dup}' in function '{fnName}'"
   | none =>
       pure ()
+  for fn in spec.functions do
+    match firstDuplicateName (fn.params.flatMap paramBindingNames) with
+    | some dup =>
+        throw s!"Compilation error: function parameter binding name '{dup}' collides with a compiler-generated parameter local in function '{fn.name}'"
+    | none =>
+        pure ()
   match firstDuplicateConstructorParamName spec.constructor with
   | some dup =>
       throw s!"Compilation error: duplicate parameter name '{dup}' in constructor"
+  | none =>
+      pure ()
+  match spec.constructor with
+  | some ctor =>
+      match firstDuplicateName (ctor.params.flatMap paramBindingNames) with
+      | some dup =>
+          throw s!"Compilation error: constructor parameter binding name '{dup}' collides with a compiler-generated parameter local"
+      | none =>
+          pure ()
   | none =>
       pure ()
   for fn in spec.functions do

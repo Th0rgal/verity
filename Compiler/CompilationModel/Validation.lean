@@ -27,6 +27,31 @@ namespace Compiler.CompilationModel
 open Compiler
 open Compiler.Yul
 
+private def firstDuplicateString : List String → Option String
+  | [] => none
+  | name :: rest =>
+      if rest.contains name then some name else firstDuplicateString rest
+
+private def adtPayloadParamNames (params : List Param) : List String :=
+  params.flatMap fun param =>
+    match param.ty with
+    | ParamType.adt _ maxFields =>
+        (List.range maxFields).map fun idx => s!"{param.name}_f{idx}"
+    | _ => []
+
+private def validateAdtPayloadParamNameCollisions
+    (context : String) (params : List Param) (body : List Stmt) : Except String Unit := do
+  let generated := adtPayloadParamNames params
+  match firstDuplicateString generated with
+  | some name =>
+      throw s!"Compilation error: {context} has ADT parameters whose generated payload local '{name}' collides. Rename the ADT parameters so generated '<param>_f<i>' locals are unique."
+  | none => pure ()
+  let userNames := params.map (·.name) ++ collectStmtListBindNames body
+  match generated.find? (fun name => userNames.contains name) with
+  | some name =>
+      throw s!"Compilation error: {context} reserves generated ADT payload local '{name}'. Rename the parameter or local binding that conflicts with generated '<param>_f<i>' locals."
+  | none => pure ()
+
 def isStorageWordArrayParam : ParamType → Bool
   | ty => isWordArrayParam ty
 
@@ -1215,6 +1240,7 @@ def validateFunctionSpec (spec : FunctionSpec) : Except String Unit := do
     throw s!"Compilation error: function '{spec.name}' is marked pure but reads state/environment ({issue734Ref})"
   if spec.body.any stmtContainsUnsafeLogicalCallLike then
     throw s!"Compilation error: function '{spec.name}' uses Expr.logicalAnd/Expr.logicalOr/Expr.ite or arithmetic helpers (mulDivUp/wDivUp/min/max) with call-like operand(s) that would be duplicated in Yul output ({issue748Ref}). Move call-like expressions into Stmt.letVar before combining."
+  validateAdtPayloadParamNameCollisions s!"function '{spec.name}'" spec.params spec.body
   validateNoUnsupportedAdtConstructInStmtList spec.body
   let returns ← functionReturns spec
   spec.body.forM (validateReturnShapesInStmt spec.name spec.params returns spec.isInternal)
@@ -1293,6 +1319,7 @@ def validateConstructorSpec (ctor : Option ConstructorSpec) : Except String Unit
         throw s!"Compilation error: constructor uses low-level/assembly mechanic(s) {String.intercalate ", " unguardedMechanics} outside an unsafe block without any local_obligations entry ({issue1424Ref}). Wrap the low-level code in `unsafe \"reason\" do` or add local_obligations [...] to make the trust boundary explicit."
       if spec.body.any stmtContainsUnsafeLogicalCallLike then
         throw s!"Compilation error: constructor uses Expr.logicalAnd/Expr.logicalOr/Expr.ite or arithmetic helpers (mulDivUp/wDivUp/min/max) with call-like operand(s) that would be duplicated in Yul output ({issue748Ref}). Move call-like expressions into Stmt.letVar before combining."
+      validateAdtPayloadParamNameCollisions "constructor" spec.params spec.body
       validateNoUnsupportedAdtConstructInStmtList spec.body
       spec.body.forM validateNoRuntimeReturnsInConstructorStmt
       spec.body.forM (validateStmtParamReferences "constructor" spec.params)
