@@ -432,6 +432,23 @@ def projectResult
   | YulEXTCODESIZENotImplemented => rfl
   | Revert => rfl
 
+@[simp] theorem projectResult_finalMappings
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (result :
+      Except EvmYul.Yul.Exception
+        (EvmYul.Yul.State × List EvmYul.Yul.Ast.Literal)) :
+    (projectResult tx initialStorage initialEvents result).finalMappings =
+      Compiler.Proofs.storageAsMappings
+        (projectResult tx initialStorage initialEvents result).finalStorage := by
+  cases result with
+  | ok value =>
+      cases value with
+      | mk state values => rfl
+  | error err =>
+      cases err <;> rfl
+
 /-- Lower and execute Verity runtime Yul through EVMYulLean's native
     dispatcher. -/
 def interpretRuntimeNative

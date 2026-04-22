@@ -166,7 +166,9 @@ scope so the native path does not look more complete than it is:
    and `projectResult_revert_events` event-history preservation lemmas,
    conservative `finalMappings` rollback on native errors, the named
    `projectResult_hardError` and `projectResult_hardError_events` lemmas for
-   every non-halt native error, named `interpretRuntimeNative_loweringError` and
+   every non-halt native error, the named `projectResult_finalMappings` lemma
+   showing every native projection keeps `finalMappings` synchronized with
+   `finalStorage`, named `interpretRuntimeNative_loweringError` and
    `interpretRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative`
    lemmas for fail-closed lowering and the successful lower/build/call/project
    native execution pipeline, `interpretIRRuntimeNative`
