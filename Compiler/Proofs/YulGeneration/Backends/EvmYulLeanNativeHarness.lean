@@ -164,6 +164,18 @@ def projectStorageFromState (tx : YulTransaction) (state : EvmYul.Yul.State) :
     projectStorageFromState tx state slot = 0 := by
   simp [projectStorageFromState, extractStorage, hAccount, hSlot]
 
+/-- Projecting final native storage defaults to zero when the current contract
+    account is absent from the native account map. -/
+@[simp] theorem projectStorageFromState_missingAccount
+    (tx : YulTransaction)
+    (state : EvmYul.Yul.State)
+    (slot : Nat)
+    (hAccount :
+      state.sharedState.accountMap.find? (natToAddress tx.thisAddress) =
+        none) :
+    projectStorageFromState tx state slot = 0 := by
+  simp [projectStorageFromState, extractStorage, hAccount]
+
 /-- Native initial-state storage materialization agrees with Verity storage on
     every explicit observable slot. Slots and values are interpreted in the
     EVM word domain, so the result is modulo `UInt256.size`. -/
@@ -386,6 +398,20 @@ def projectResult
   simp [projectResult, projectStorageFromState_accountStorageSlot,
     hAccount, hSlot]
 
+@[simp] theorem projectResult_ok_missingFinalStorageAccountSlot
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.Yul.Ast.Literal)
+    (slot : Nat)
+    (hAccount :
+      state.sharedState.accountMap.find? (natToAddress tx.thisAddress) =
+        none) :
+    (projectResult tx initialStorage initialEvents
+      (.ok (state, values))).finalStorage slot = 0 := by
+  simp [projectResult, projectStorageFromState_missingAccount, hAccount]
+
 @[simp] theorem projectResult_yulHalt_events
     (tx : YulTransaction)
     (initialStorage : Nat → Nat)
@@ -436,6 +462,20 @@ def projectResult
         uint256ToNat slotValue := by
   simp [projectResult, projectStorageFromState_accountStorageSlot,
     hAccount, hSlot]
+
+@[simp] theorem projectResult_yulHalt_missingFinalStorageAccountSlot
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (state : EvmYul.Yul.State)
+    (value : EvmYul.Yul.Ast.Literal)
+    (slot : Nat)
+    (hAccount :
+      state.sharedState.accountMap.find? (natToAddress tx.thisAddress) =
+        none) :
+    (projectResult tx initialStorage initialEvents
+      (.error (.YulHalt state value))).finalStorage slot = 0 := by
+  simp [projectResult, projectStorageFromState_missingAccount, hAccount]
 
 @[simp] theorem projectResult_stop
     (tx : YulTransaction)
