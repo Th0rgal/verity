@@ -21,6 +21,14 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         errors = check.check_doc(text)
         self.assertTrue(any("#1738" in error for error in errors), errors)
 
+    def test_rejects_missing_observable_slot_caveat(self) -> None:
+        text = check.DOC.read_text(encoding="utf-8").replace(
+            "observable storage slot set explicitly",
+            "observable storage slot set",
+        )
+        errors = check.check_doc(text)
+        self.assertTrue(any("observable storage slot set explicitly" in error for error in errors), errors)
+
     def test_rejects_authoritative_native_claim(self) -> None:
         text = (
             check.DOC.read_text(encoding="utf-8")

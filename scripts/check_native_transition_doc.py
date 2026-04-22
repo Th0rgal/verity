@@ -22,6 +22,8 @@ REQUIRED_SNIPPETS = (
     "Native.interpretRuntimeNative",
     "Native.interpretIRRuntimeNative",
     "EvmYul.Yul.callDispatcher",
+    "observable storage slot set explicitly",
+    "only materializes pre-state storage for those slots",
     "native public theorem pending",
     "not yet proved",
     "#1741",
