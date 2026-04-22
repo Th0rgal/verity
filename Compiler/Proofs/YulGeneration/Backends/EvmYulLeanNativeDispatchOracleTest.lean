@@ -89,6 +89,38 @@ private def returnDispatchSmokeContract : IRContract :=
     ]
     usesMapping := false }
 
+private def multiWordReturnDispatchSmokeContract : IRContract :=
+  { name := "NativeMultiWordReturnDispatchOracleSmoke"
+    deploy := []
+    functions := [
+      { name := "pair"
+        selector := 0x55555555
+        params := []
+        ret := .unit
+        body := [
+          .expr (.call "mstore" [.lit 0, .lit 41]),
+          .expr (.call "mstore" [.lit 32, .lit 42]),
+          .expr (.call "return" [.lit 0, .lit 64])
+        ] }
+    ]
+    usesMapping := false }
+
+private def memoryRevertDispatchSmokeContract : IRContract :=
+  { name := "NativeMemoryRevertDispatchOracleSmoke"
+    deploy := []
+    functions := [
+      { name := "fail"
+        selector := 0x66666666
+        params := []
+        ret := .unit
+        body := [
+          .expr (.call "sstore" [.lit 7, .lit 99]),
+          .expr (.call "mstore" [.lit 0, .lit 0xDEAD]),
+          .expr (.call "revert" [.lit 0, .lit 32])
+        ] }
+    ]
+    usesMapping := false }
+
 private def referenceRuntimeWithBackendFuel
     (fuel : Nat) (runtimeCode : List Compiler.Yul.YulStmt)
     (tx : YulTransaction) (storage : Nat -> Nat) (events : List (List Nat)) :
@@ -135,6 +167,12 @@ def main : IO Unit := do
   check "emitted dispatcher projects 32-byte return halts"
     (emittedDispatchMatchesReference returnDispatchSmokeContract
       (sampleIRTx 0x33333333) [] [])
+  check "emitted dispatcher projects multi-word return fallback"
+    (emittedDispatchMatchesReference multiWordReturnDispatchSmokeContract
+      (sampleIRTx 0x55555555) [] [])
+  check "emitted dispatcher rolls back memory-backed revert"
+    (emittedDispatchMatchesReference memoryRevertDispatchSmokeContract
+      (sampleIRTx 0x66666666) [7] [7])
 
 end Compiler.Proofs.YulGeneration.Backends.NativeDispatchOracleTest
 

@@ -248,12 +248,12 @@ scope so the native path does not look more complete than it is:
    native execution pipeline, `interpretIRRuntimeNative`
    forwarding/fail-closed lowering behavior, executable native-vs-reference
    oracle coverage for actual `Compiler.emitYul` dispatcher selection,
-   observable storage reads, and 32-byte return halt projection, and named
+   observable storage reads, 32-byte return halt projection, multi-word
+   memory-return fallback projection, and memory-backed revert rollback, and named
    `interpretIRRuntimeNative_loweringError` and
    `interpretIRRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative`
    lemmas pinning the same fail-closed and exact native call-dispatcher
    pipeline at the IR entry point. Next coverage should include:
-   - memory-heavy `return` and `revert`,
    - returndata and external-call outcomes,
    - static-call permission behavior,
    - mapping helper lowering or replacement with native keccak/memory code.
