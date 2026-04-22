@@ -147,6 +147,7 @@ private partial def collectLowLevelStmtMechanics : Stmt → List String
   | .assignVar _ value
   | .setStorage _ value
   | .setStorageAddr _ value
+  | .setStorageWord _ _ value
   | .storageArrayPush _ value
   | .return value
   | .require value _ =>
@@ -211,6 +212,7 @@ private partial def collectAxiomatizedStmtPrimitives : Stmt → List String
   | .assignVar _ value
   | .setStorage _ value
   | .setStorageAddr _ value
+  | .setStorageWord _ _ value
   | .storageArrayPush _ value
   | .return value
   | .require value _ =>
@@ -296,6 +298,7 @@ private partial def collectUnguardedLowLevelStmtMechanics : Stmt → List String
   | .assignVar _ value
   | .setStorage _ value
   | .setStorageAddr _ value
+  | .setStorageWord _ _ value
   | .storageArrayPush _ value
   | .return value
   | .require value _ =>
@@ -470,6 +473,7 @@ private partial def collectEventEmissionStmtMechanics : Stmt → List String
   | .assignVar _ value
   | .setStorage _ value
   | .setStorageAddr _ value
+  | .setStorageWord _ _ value
   | .storageArrayPush _ value
   | .return value
   | .require value _ =>
@@ -629,6 +633,7 @@ private partial def collectRuntimeIntrospectionStmtMechanics : Stmt → List Str
   | .assignVar _ value
   | .setStorage _ value
   | .setStorageAddr _ value
+  | .setStorageWord _ _ value
   | .storageArrayPush _ value
   | .return value
   | .require value _ =>
@@ -776,6 +781,7 @@ private partial def collectExternalStmtNames : Stmt → List String
   | .assignVar _ value
   | .setStorage _ value
   | .setStorageAddr _ value
+  | .setStorageWord _ _ value
   | .storageArrayPush _ value
   | .return value
   | .require value _ =>

@@ -97,6 +97,7 @@ Legend: **ok** = supported, **0** = returns 0 (not modeled), **del** = delegated
 | Event emission | `Stmt.emit` | ok | ok | -- | proved |
 | Internal call (stmt) | `Stmt.internalCall` | **rev** | ok | -- | proved |
 | Internal call assign | `Stmt.internalCallAssign` | **rev** | ok | -- | proved |
+| Manual full-word storage write | `Stmt.setStorageWord` | ok | ok | -- | n/m |
 | Memory store | `Stmt.mstore` | **rev** | **rev** | ok | partial |
 | Calldatacopy | `Stmt.calldatacopy` | nop | nop | -- | n/m |
 | Returndatacopy | `Stmt.returndataCopy` | **rev** | **rev** | -- | n/m |
@@ -174,7 +175,7 @@ Proof-boundary features split across two buckets. Partially modeled features cur
 
 2. **Low-level calls**: `call`/`staticcall`/`delegatecall` and `externalCallBind`/`ecm` are compiler-only features validated by Foundry testing, not modeled in proof interpreters. `delegatecall` additionally remains a dedicated proxy / upgradeability trust boundary; use `--trust-report` / `--deny-proxy-upgradeability` when those semantics must stay outside the selected verification envelope (issue [#1420](https://github.com/lfglabs-dev/verity/issues/1420)).
 
-3. **Internal helper compositional proofs**: `Stmt.internalCall` / `Expr.internalCall` execute in the fuel-based interpreter path, but helper-level theorem reuse across callers is not yet surfaced as a first-class proof interface. The current proof-level gap is tracked under the Layer 2 completeness roadmap in [#1630](https://github.com/lfglabs-dev/verity/issues/1630), with the interface/boundary refactor in [#1633](https://github.com/lfglabs-dev/verity/pull/1633).
+3. **Internal helper compositional proofs**: `Stmt.internalCall` / `Expr.internalCall` execute in the fuel-based interpreter path, but helper-level theorem reuse across callers is not yet surfaced as a first-class proof interface. The `verity_contract` user surface for these is ordinary direct function-name calls; `internalCall` / `internalCallAssign` remain lower-level compilation-model constructors. The current proof-level gap is tracked under the Layer 2 completeness roadmap in [#1630](https://github.com/lfglabs-dev/verity/issues/1630), with the interface/boundary refactor in [#1633](https://github.com/lfglabs-dev/verity/pull/1633).
 
 ---
 

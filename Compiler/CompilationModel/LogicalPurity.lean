@@ -19,7 +19,8 @@ partial def exprContainsCallLike (expr : Expr) : Bool :=
   | Expr.structMember2 _ key1 key2 _ =>
       exprContainsCallLike key1 || exprContainsCallLike key2
   | Expr.storageArrayElement _ index
-  | Expr.arrayElement _ index =>
+  | Expr.arrayElement _ index
+  | Expr.arrayElementWord _ index _ _ =>
       exprContainsCallLike index
   | Expr.dynamicBytesEq _ _ =>
       false
@@ -110,7 +111,8 @@ def exprContainsUnsafeLogicalCallLike (expr : Expr) : Bool :=
   | Expr.mapping2 _ key1 key2 | Expr.mapping2Word _ key1 key2 _
   | Expr.structMember2 _ key1 key2 _ =>
       exprContainsUnsafeLogicalCallLike key1 || exprContainsUnsafeLogicalCallLike key2
-  | Expr.storageArrayElement _ index | Expr.arrayElement _ index | Expr.returndataOptionalBoolAt index =>
+  | Expr.storageArrayElement _ index | Expr.arrayElement _ index
+  | Expr.arrayElementWord _ index _ _ | Expr.returndataOptionalBoolAt index =>
       exprContainsUnsafeLogicalCallLike index
   | Expr.dynamicBytesEq _ _ =>
       false
@@ -152,7 +154,8 @@ termination_by es => sizeOf es
 decreasing_by all_goals simp_wf; all_goals omega
 
 def stmtContainsUnsafeLogicalCallLike : Stmt → Bool
-  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value |
+  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value
+  | Stmt.setStorageWord _ _ value |
     Stmt.storageArrayPush _ value |
     Stmt.return value | Stmt.require value _ =>
       exprContainsUnsafeLogicalCallLike value

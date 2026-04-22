@@ -18,7 +18,7 @@ def collectStmtBindNames : Stmt → List String
   | Stmt.tryExternalCallBind successVar resultVars _ _ => successVar :: resultVars
   | Stmt.ecm mod _ => mod.resultVars
   -- Statements that never bind new names.
-  | Stmt.assignVar _ _ | Stmt.setStorage _ _ | Stmt.setStorageAddr _ _
+  | Stmt.assignVar _ _ | Stmt.setStorage _ _ | Stmt.setStorageAddr _ _ | Stmt.setStorageWord _ _ _
   | Stmt.storageArrayPush _ _ | Stmt.storageArrayPop _ | Stmt.setStorageArrayElement _ _ _
   | Stmt.return _
   | Stmt.setMapping _ _ _ | Stmt.setMappingWord _ _ _ _ | Stmt.setMappingPackedWord _ _ _ _ _ | Stmt.setMappingUint _ _ _
@@ -59,7 +59,7 @@ def collectStmtAssignedNames : Stmt → List String
       collectStmtListAssignedNames body
   | Stmt.matchAdt _ _ branches =>
       collectMatchBranchAssignedNames branches
-  | Stmt.letVar _ _ | Stmt.setStorage _ _ | Stmt.setStorageAddr _ _
+  | Stmt.letVar _ _ | Stmt.setStorage _ _ | Stmt.setStorageAddr _ _ | Stmt.setStorageWord _ _ _
   | Stmt.storageArrayPush _ _ | Stmt.storageArrayPop _ | Stmt.setStorageArrayElement _ _ _
   | Stmt.return _
   | Stmt.setMapping _ _ _ | Stmt.setMappingWord _ _ _ _ | Stmt.setMappingPackedWord _ _ _ _ _ | Stmt.setMappingUint _ _ _
@@ -92,7 +92,7 @@ end
 
 mutual
 def exprUsesArrayElement : Expr → Bool
-  | Expr.arrayElement _ _ => true
+  | Expr.arrayElement _ _ | Expr.arrayElementWord _ _ _ _ => true
   | Expr.mapping _ key => exprUsesArrayElement key
   | Expr.mappingWord _ key _ => exprUsesArrayElement key
   | Expr.mappingPackedWord _ key _ _ => exprUsesArrayElement key
@@ -150,7 +150,8 @@ def exprUsesArrayElement : Expr → Bool
   | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
   | Expr.blockNumber | Expr.blobbasefee
-  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _
+  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
+  | Expr.storageArrayLength _
   | Expr.adtTag _ _ =>
       false
 termination_by e => sizeOf e
@@ -163,7 +164,8 @@ termination_by es => sizeOf es
 decreasing_by all_goals simp_wf; all_goals omega
 
 def stmtUsesArrayElement : Stmt → Bool
-  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value |
+  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value
+  | Stmt.setStorageWord _ _ value |
     Stmt.storageArrayPush _ value |
     Stmt.return value | Stmt.require value _ =>
       exprUsesArrayElement value
@@ -293,7 +295,7 @@ def exprUsesStorageArrayElement : Expr → Bool
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
   | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _
-  | Expr.arrayElement _ _ | Expr.adtTag _ _ =>
+  | Expr.arrayElement _ _ | Expr.arrayElementWord _ _ _ _ | Expr.adtTag _ _ =>
       false
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega
@@ -305,7 +307,8 @@ termination_by es => sizeOf es
 decreasing_by all_goals simp_wf; all_goals omega
 
 def stmtUsesStorageArrayElement : Stmt → Bool
-  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value |
+  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value
+  | Stmt.setStorageWord _ _ value |
     Stmt.storageArrayPush _ value |
     Stmt.return value | Stmt.require value _ =>
       exprUsesStorageArrayElement value
@@ -410,7 +413,8 @@ def exprUsesDynamicBytesEq : Expr → Bool
   | Expr.returndataOptionalBoolAt outOffset => exprUsesDynamicBytesEq outOffset
   | Expr.externalCall _ args | Expr.internalCall _ args =>
       exprListUsesDynamicBytesEq args
-  | Expr.storageArrayElement _ index | Expr.arrayElement _ index => exprUsesDynamicBytesEq index
+  | Expr.storageArrayElement _ index | Expr.arrayElement _ index
+  | Expr.arrayElementWord _ index _ _ => exprUsesDynamicBytesEq index
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
   | Expr.mod a b | Expr.smod a b
   | Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b
@@ -445,6 +449,7 @@ decreasing_by all_goals simp_wf; all_goals omega
 
 def stmtUsesDynamicBytesEq : Stmt → Bool
   | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value
+  | Stmt.setStorageWord _ _ value
   | Stmt.storageArrayPush _ value
   | Stmt.return value | Stmt.require value _ =>
       exprUsesDynamicBytesEq value

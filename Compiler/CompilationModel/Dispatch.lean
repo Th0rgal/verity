@@ -390,7 +390,11 @@ def compileValidatedCore (spec : CompilationModel) (selectors : List Nat) : Exce
   let internalFuncDefs ← internalFns.mapM (compileInternalFunction fields spec.events spec.errors spec.adtTypes)
   let arrayElementHelpers :=
     if arrayHelpersRequired then
-      [checkedArrayElementCalldataHelper, checkedArrayElementMemoryHelper]
+      [ checkedArrayElementCalldataHelper
+      , checkedArrayElementMemoryHelper
+      , checkedArrayElementWordCalldataHelper
+      , checkedArrayElementWordMemoryHelper
+      ]
     else
       []
   let storageArrayElementHelpers :=

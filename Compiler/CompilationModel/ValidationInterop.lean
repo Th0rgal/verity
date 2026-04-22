@@ -83,7 +83,7 @@ def validateInteropExpr (context : String) : Expr → Except String Unit
       validateInteropExprList context args
   | Expr.storageArrayElement _ index =>
       validateInteropExpr context index
-  | Expr.arrayElement _ index =>
+  | Expr.arrayElement _ index | Expr.arrayElementWord _ index _ _ =>
       validateInteropExpr context index
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b | Expr.mod a b | Expr.smod a b |
     Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b |
@@ -118,7 +118,8 @@ termination_by es => sizeOf es
 decreasing_by all_goals simp_wf; all_goals omega
 
 def validateInteropStmt (context : String) : Stmt → Except String Unit
-  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value |
+  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value
+  | Stmt.setStorageWord _ _ value |
     Stmt.storageArrayPush _ value |
     Stmt.return value | Stmt.require value _ =>
       validateInteropExpr context value

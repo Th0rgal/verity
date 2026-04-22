@@ -90,6 +90,27 @@ scope so the native path does not look more complete than it is:
   differ. Native EVM dispatch is selector-based; the remaining transition work
   is theorem coverage around the widened frontend surface and any future
   executable `.run` overload-dispatch extensions.
+- [#1740](https://github.com/lfglabs-dev/verity/issues/1740): the
+  `verity_contract` source surface intentionally models internal delegation with
+  ordinary direct function-name calls, not user-written `internalCall`/
+  `internalCallAssign`. Statement-position calls lower to
+  `Stmt.internalCall`, single-result binds lower to `Expr.internalCall`, and
+  tuple-result binds lower to `Stmt.internalCallAssign`; the lower-level
+  constructors remain compilation-model IR, not the recommended executable
+  contract-body syntax.
+- [#1744](https://github.com/lfglabs-dev/verity/issues/1744): near-literal
+  manual packed-slot writes now have a first-class `verity_contract` surface:
+  construct the packed word with ordinary word operations such as `bitOr` and
+  `shl`, then write it with `setPackedStorage root offset word`. This lowers to
+  a full-word `sstore(root.slot + offset, word)` via
+  `Stmt.setStorageWord`, keeping explicit slot boundaries visible without an
+  unsafe raw-Yul block.
+- [#1745](https://github.com/lfglabs-dev/verity/issues/1745): dynamic array
+  parameters with static tuple elements are now accepted on the
+  `arrayLength`/`arrayElement` path. Tuple destructuring such as
+  `let (xtReserve, liqSquare, offset) := arrayElement cuts idx` lowers to
+  checked word reads with the element ABI stride. Dynamic element types such as
+  `Array String` and `Array Bytes` remain rejected.
 
 1. Prove lowering invariants for the native contract shape.
 

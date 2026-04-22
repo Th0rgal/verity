@@ -20,6 +20,12 @@ def checkedArrayElementCalldataHelperName : String :=
 def checkedArrayElementMemoryHelperName : String :=
   "__verity_array_element_memory_checked"
 
+def checkedArrayElementWordCalldataHelperName : String :=
+  "__verity_array_element_word_calldata_checked"
+
+def checkedArrayElementWordMemoryHelperName : String :=
+  "__verity_array_element_word_memory_checked"
+
 def checkedStorageArrayElementHelperName : String :=
   "__verity_storage_array_element_checked"
 
@@ -49,6 +55,33 @@ def checkedArrayElementCalldataHelper : YulStmt :=
 
 def checkedArrayElementMemoryHelper : YulStmt :=
   checkedArrayElementHelper checkedArrayElementMemoryHelperName "mload"
+
+private def checkedArrayElementWordHelper (helperName loadOp : String) : YulStmt :=
+  YulStmt.funcDef helperName ["data_offset", "length", "index", "element_words", "word_offset"] ["word"] [
+    YulStmt.if_ (YulExpr.call "iszero" [
+      YulExpr.call "lt" [YulExpr.ident "index", YulExpr.ident "length"]
+    ]) [
+      YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+    ],
+    YulStmt.assign "word" (YulExpr.call loadOp [
+      YulExpr.call "add" [
+        YulExpr.ident "data_offset",
+        YulExpr.call "mul" [
+          YulExpr.call "add" [
+            YulExpr.call "mul" [YulExpr.ident "index", YulExpr.ident "element_words"],
+            YulExpr.ident "word_offset"
+          ],
+          YulExpr.lit 32
+        ]
+      ]
+    ])
+  ]
+
+def checkedArrayElementWordCalldataHelper : YulStmt :=
+  checkedArrayElementWordHelper checkedArrayElementWordCalldataHelperName "calldataload"
+
+def checkedArrayElementWordMemoryHelper : YulStmt :=
+  checkedArrayElementWordHelper checkedArrayElementWordMemoryHelperName "mload"
 
 def checkedStorageArrayElementHelper : YulStmt :=
   YulStmt.funcDef checkedStorageArrayElementHelperName ["slot", "index"] ["word"] [

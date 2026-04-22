@@ -131,6 +131,18 @@ def validateScopedExprIdentifiers
       | none =>
           throw s!"Compilation error: {context} references unknown parameter '{name}' in Expr.arrayElement"
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount index
+  | Expr.arrayElementWord name index elementWords wordOffset => do
+      if elementWords == 0 then
+        throw s!"Compilation error: {context} Expr.arrayElementWord '{name}' requires elementWords > 0"
+      else if wordOffset >= elementWords then
+        throw s!"Compilation error: {context} Expr.arrayElementWord '{name}' wordOffset {wordOffset} is outside element width {elementWords}"
+      match findParamType params name with
+      | some (ParamType.array _) => pure ()
+      | some ty =>
+          throw s!"Compilation error: {context} Expr.arrayElementWord '{name}' requires array parameter, got {repr ty}"
+      | none =>
+          throw s!"Compilation error: {context} references unknown parameter '{name}' in Expr.arrayElementWord"
+      validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount index
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _ | Expr.mappingUint _ key
   | Expr.structMember _ key _ =>
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount key
@@ -263,7 +275,8 @@ def validateScopedStmtIdentifiers
         throw s!"Compilation error: {context} assigns to undeclared local variable '{name}'"
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount value
       pure localScope
-  | Stmt.setStorage _ value | Stmt.setStorageAddr _ value | Stmt.return value | Stmt.require value _ => do
+  | Stmt.setStorage _ value | Stmt.setStorageAddr _ value | Stmt.setStorageWord _ _ value
+  | Stmt.return value | Stmt.require value _ => do
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount value
       pure localScope
   | Stmt.storageArrayPush _ value => do

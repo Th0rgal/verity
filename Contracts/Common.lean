@@ -56,6 +56,11 @@ macro_rules
   | `(doElem| let $name:ident := arrayElement $values:term $index:term) => do
       let checked := Lean.mkIdentFrom name `_root_.Contracts.arrayElementChecked
       `(doElem| let $name ← $checked:ident $values $index)
+  | `(doElem| let $pat:term := arrayElement $values:term $index:term) => do
+      if pat.raw.getKind != `Lean.Parser.Term.tuple then
+        Lean.Macro.throwUnsupported
+      let checked := Lean.mkIdentFrom values `_root_.Contracts.arrayElementChecked
+      `(doElem| let $pat:term ← $checked:ident $values $index)
   | `(doElem| let $name:ident := tload $offset:term) => do
       let load := Lean.mkIdentFrom name `_root_.Contracts.tload
       `(doElem| let $name ← $load:ident $offset)
@@ -216,6 +221,12 @@ def returnValues (_values : List Uint256) : Contract Unit := pure ()
 def returnBytes {α : Type} (value : α) : Contract α := pure value
 def returnStorageWords {α : Type} (_slots : Array α) : Contract (Array Uint256) := pure #[]
 def emit (name : String) (args : List Uint256) : Contract Unit := emitEvent name args
+def setPackedStorage {α : Type} (rootSlot : StorageSlot α) (wordOffset : Nat)
+    (word : Uint256) : Contract Unit := fun state =>
+  let targetSlot := (rootSlot.slot + wordOffset) % Compiler.Constants.evmModulus
+  ContractResult.success () { state with
+    «storage» := fun target => if target == targetSlot then word else state.storage target
+  }
 def rawLog (topics : List Uint256) (dataOffset dataSize : Uint256) : Contract Unit := fun state =>
   if topics.length > 4 then
     ContractResult.revert s!"rawLog supports at most 4 topics, got {topics.length}" state

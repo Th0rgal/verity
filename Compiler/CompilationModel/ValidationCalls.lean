@@ -16,7 +16,11 @@ def reservedExternalNames
   let mappingHelpers := if mappingHelpersRequired then ["mappingSlot"] else []
   let arrayHelpers :=
     if arrayHelpersRequired then
-      [checkedArrayElementCalldataHelperName, checkedArrayElementMemoryHelperName]
+      [ checkedArrayElementCalldataHelperName
+      , checkedArrayElementMemoryHelperName
+      , checkedArrayElementWordCalldataHelperName
+      , checkedArrayElementWordMemoryHelperName
+      ]
     else
       []
   let storageArrayHelpers :=
@@ -123,7 +127,8 @@ def validateInternalCallShapesInExpr
   | Expr.mappingUint _ key =>
       validateInternalCallShapesInExpr functions callerName key
   | Expr.storageArrayElement _ index
-  | Expr.arrayElement _ index =>
+  | Expr.arrayElement _ index
+  | Expr.arrayElementWord _ index _ _ =>
       validateInternalCallShapesInExpr functions callerName index
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b | Expr.mod a b | Expr.smod a b |
     Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b |
@@ -160,7 +165,8 @@ decreasing_by all_goals simp_wf; all_goals omega
 
 def validateInternalCallShapesInStmt
     (functions : List FunctionSpec) (callerName : String) : Stmt → Except String Unit
-  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value |
+  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value
+  | Stmt.setStorageWord _ _ value |
     Stmt.storageArrayPush _ value |
     Stmt.return value | Stmt.require value _ =>
       validateInternalCallShapesInExpr functions callerName value
@@ -353,7 +359,8 @@ def validateExternalCallTargetsInExpr
   | Expr.internalCall _ args =>
       validateExternalCallTargetsInExprList externals context args
   | Expr.storageArrayElement _ index
-  | Expr.arrayElement _ index =>
+  | Expr.arrayElement _ index
+  | Expr.arrayElementWord _ index _ _ =>
       validateExternalCallTargetsInExpr externals context index
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b | Expr.mod a b | Expr.smod a b |
     Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b |
@@ -390,7 +397,8 @@ decreasing_by all_goals simp_wf; all_goals omega
 
 def validateExternalCallTargetsInStmt
     (externals : List ExternalFunction) (context : String) : Stmt → Except String Unit
-  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value |
+  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value
+  | Stmt.setStorageWord _ _ value |
     Stmt.storageArrayPush _ value |
     Stmt.return value | Stmt.require value _ =>
       validateExternalCallTargetsInExpr externals context value

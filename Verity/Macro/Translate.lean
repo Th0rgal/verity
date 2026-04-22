@@ -239,7 +239,13 @@ private def natFromSyntax (stx : Syntax) : CommandElabM Nat :=
   | some n => pure n
   | none => throwErrorAt stx "expected natural literal"
 
+private partial def stripParens (stx : Term) : Term :=
+  match stx with
+  | `(term| ($inner)) => stripParens inner
+  | _ => stx
+
 private partial def valueTypeFromSyntax (newtypes : Array NewtypeDecl) (adtDecls : Array AdtDecl) (ty : Term) : CommandElabM ValueType := do
+  let ty := stripParens ty
   match ty with
   | `(term| Uint256) => pure .uint256
   | `(term| Int256) => pure .int256
@@ -904,11 +910,6 @@ private def validateExternalExecutableType
     throwErrorAt extIdent
       s!"linked external '{extName}' uses unsupported {role} type; executable externalCall currently supports only Uint256, Int256, Uint8, Address, Bytes32, and Bool"
 
-private partial def stripParens (stx : Term) : Term :=
-  match stx with
-  | `(term| ($inner)) => stripParens inner
-  | _ => stx
-
 private def tupleElemsFromTerm? (stx : Term) : Option (Array Term) :=
   tupleElemsFromSyntax? (stripParens stx).raw |>.map (·.map (fun syn => ⟨syn⟩))
 
@@ -1227,6 +1228,18 @@ private def isSingleWordStaticValueType : ValueType → Bool
   | .newtype _ baseType => isSingleWordStaticValueType baseType
   | ty => isWordLikeValueType ty
 
+private partial def staticAbiWordCount? : ValueType → Option Nat
+  | .uint256 | .int256 | .uint8 | .address | .bytes32 | .bool => some 1
+  | .tuple elemTys =>
+      elemTys.foldl
+        (fun acc ty =>
+          match acc, staticAbiWordCount? ty with
+          | some n, some m => some (n + m)
+          | _, _ => none)
+        (some 0)
+  | .newtype _ baseType => staticAbiWordCount? baseType
+  | _ => none
+
 private def classifyWordArithmeticResultType
     (stx : Syntax)
     (context : String)
@@ -1316,11 +1329,11 @@ private def requireSupportedArrayElementSourceType
     (ty : ValueType) : CommandElabM ValueType := do
   match ty with
   | .array elemTy =>
-      if isSingleWordStaticValueType elemTy then
-        pure elemTy
-      else
-        throwErrorAt stx
-          s!"{context} currently supports only arrays with single-word static elements on the compilation-model path, got {renderValueType ty}"
+      match staticAbiWordCount? elemTy with
+      | some _ => pure elemTy
+      | none =>
+          throwErrorAt stx
+            s!"{context} currently supports only arrays with static ABI-word elements on the compilation-model path, got {renderValueType ty}"
   | _ =>
       throwErrorAt stx s!"{context} requires an Array parameter, got {renderValueType ty}"
 
@@ -1957,6 +1970,15 @@ private partial def inferTupleSourceTypes?
           requireWordLikeType key1 "structMembers2 key" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals key1)
           requireWordLikeType key2 "structMembers2 key" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals key2)
           pure (some (Array.replicate memberNames.size .uint256))
+      | `(term| arrayElement $name:term $index:term) => do
+          requireWordLikeType index "arrayElement index"
+            (← inferPureExprType fields constDecls immutableDecls externalDecls params locals index)
+          let sourceTy ← requireDirectParamRef name "arrayElement" params
+          match sourceTy with
+          | .array (.tuple elemTys) =>
+              let _ ← requireSupportedArrayElementSourceType name "arrayElement" sourceTy
+              pure (some elemTys.toArray)
+          | _ => pure none
       | `(term| tryExternalCall $name:term $args:term) =>
           let extName := ← expectStringOrIdent name
           match stripParens args with
@@ -2474,6 +2496,47 @@ private def validateSingleResultEcmModuleTerm
     throwErrorAt moduleTerm
       s!"ecmCall must elaborate to an ECM module binding exactly ['{boundVarName}'], but '{mod.name}' binds {repr mod.resultVars}"
 
+private def arrayElementTupleElemExprs?
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (rhs : Term) : CommandElabM (Option (Array Term)) := do
+  match stripParens rhs with
+  | `(term| arrayElement $name:term $index:term) =>
+      let paramName := ← expectStringOrIdent name
+      match params.find? (fun p => p.name == paramName) with
+      | some { ty := .array (.tuple elemTys), .. } =>
+          let elementWords ←
+            match staticAbiWordCount? (.tuple elemTys) with
+            | some n => pure n
+            | none =>
+                throwErrorAt rhs
+                  "arrayElement tuple destructuring requires a static ABI-word tuple element type"
+          let indexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index
+          let mut offset := 0
+          let mut exprs : Array Term := #[]
+          for elemTy in elemTys do
+            let elemWords ←
+              match staticAbiWordCount? elemTy with
+              | some n => pure n
+              | none =>
+                  throwErrorAt rhs
+                    "arrayElement tuple destructuring requires static ABI-word tuple members"
+            if elemWords != 1 then
+              throwErrorAt rhs
+                "arrayElement tuple destructuring currently supports top-level single-word tuple members"
+            exprs := exprs.push (← `(Compiler.CompilationModel.Expr.arrayElementWord
+              $(strTerm paramName)
+              $indexExpr
+              $(natTerm elementWords)
+              $(natTerm offset)))
+            offset := offset + elemWords
+          pure (some exprs)
+      | _ => pure none
+  | _ => pure none
+
 private def tupleLiteralOrStructValueExprs?
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
@@ -2509,7 +2572,9 @@ private def tupleLiteralOrStructValueExprs?
   | some elems =>
       pure (some (← elems.mapM (translatePureExprWithTypes fields constDecls immutableDecls params locals)))
   | none =>
-      structValueExprs?
+      match ← arrayElementTupleElemExprs? fields constDecls immutableDecls params locals rhs with
+      | some exprs => pure (some exprs)
+      | none => structValueExprs?
 
 private def tupleValueExprs
     (fields : Array StorageFieldDecl)
@@ -3087,6 +3152,9 @@ private partial def validateEffectStmtExprTypes
     | `(term| require $value:term $_msg) =>
       let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals value
       pure ()
+  | `(term| setPackedStorage $_field:ident $_wordOffset:num $value:term) =>
+      let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals value
+      pure ()
   | `(term| pushStorageArray $_field:ident $value:term) => do
       let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals value
       pure ()
@@ -3398,6 +3466,19 @@ private def translateEffectStmt
           throwErrorAt stx s!"field '{f.name}' is a storage dynamic array; use pushStorageArray/popStorageArray/setStorageArrayElement"
       | _ =>
           throwErrorAt stx s!"field '{f.name}' is not Address; use setStorage"
+  | `(term| setPackedStorage $field:ident $wordOffset:num $value:term) =>
+      let f ← lookupStorageField fields (toString field.getId)
+      match f.ty with
+      | .scalar _ =>
+          `(Compiler.CompilationModel.Stmt.setStorageWord
+              $(strTerm f.name)
+              $(natTerm (← natFromSyntax wordOffset))
+              $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value))
+      | .dynamicArray _ =>
+          throwErrorAt stx s!"field '{f.name}' is a storage dynamic array; setPackedStorage requires a scalar root slot"
+      | .mappingAddressToUint256 | .mappingUintToUint256 | .mapping2AddressToAddressToUint256
+      | .mappingChain _ | .mappingStruct _ _ | .mappingStruct2 _ _ _ =>
+          throwErrorAt stx s!"field '{f.name}' is a mapping; setPackedStorage requires a scalar root slot"
   | `(term| setMapping $field:ident $key:term $value:term) =>
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with

@@ -311,6 +311,8 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.StringEqSmoke.spec
   , Contracts.BytesEqSmoke.spec
   , Contracts.Smoke.TupleSmoke.spec
+  , Contracts.Smoke.CurveCutArraySmoke.spec
+  , Contracts.Smoke.PackedStorageWriteSmoke.spec
   , Contracts.Smoke.Uint8Smoke.spec
   , Contracts.Smoke.AddressHelpersSmoke.spec
   , Contracts.Smoke.ZeroAddressShadowSmoke.spec
@@ -419,6 +421,8 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("StringEqSmoke", ["same(string,string)", "different(string,string)", "choose(string,string)"])
   , ("BytesEqSmoke", ["same(bytes,bytes)", "different(bytes,bytes)", "choose(bytes,bytes)"])
   , ("TupleSmoke", ["setFromPair((uint256,uint256))", "getPair(uint256)", "processConfig((address,address,uint256))"])
+  , ("CurveCutArraySmoke", ["firstCutXt((uint256,uint256,int256)[])", "storeCut((uint256,uint256,int256)[],uint256)"])
+  , ("PackedStorageWriteSmoke", ["writeSlot0(bool,uint256)", "writeSlot1(uint256,uint256)"])
   , ("Uint8Smoke", ["acceptSig((uint8,bytes32,bytes32))", "sigV()"])
   , ("AddressHelpersSmoke", ["setDelegate(address,address)", "getDelegate(address)", "clearDelegate(address)",
       "hasDelegate(address)", "isDelegateZero(address)", "setOwnerForId(uint256,address)", "getOwnerForId(uint256)"])
@@ -517,6 +521,8 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("StringEqSmoke", ["0x6df1667c", "0x1ce8f655", "0xc9e9b0e3"])
   , ("BytesEqSmoke", ["0xfc39552e", "0x2c16057d", "0x3eb6f0de"])
   , ("TupleSmoke", ["0x712ea680", "0xbdf391cc", "0x01b427d2"])
+  , ("CurveCutArraySmoke", ["0xefca8f0f", "0x0d7610a3"])
+  , ("PackedStorageWriteSmoke", ["0xa0522387", "0x233ab149"])
   , ("Uint8Smoke", ["0xc233eaa7", "0x62fc458b"])
   , ("AddressHelpersSmoke", ["0x5c873849", "0x544d8564", "0xcc21cc2a", "0x480005cd", "0x67129177",
       "0x0b0126c5", "0x85a9cdd0"])

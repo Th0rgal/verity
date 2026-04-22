@@ -770,6 +770,51 @@ verity_contract TupleSmoke where
     let flag := cfg_2
     setMapping authorized owner flag
 
+verity_contract CurveCutArraySmoke where
+  storage
+    lastXt : Uint256 := slot 0
+    lastLiq : Uint256 := slot 1
+    lastOffset : Uint256 := slot 2
+
+  function firstCutXt (cuts : Array (Tuple [Uint256, Uint256, Int256])) : Uint256 := do
+    let (xtReserve, _liqSquare, _offset) := arrayElement cuts 0
+    return xtReserve
+
+  function storeCut (cuts : Array (Tuple [Uint256, Uint256, Int256]), idx : Uint256) : Unit := do
+    let (xtReserve, liqSquare, offset) := arrayElement cuts idx
+    setStorage lastXt xtReserve
+    setStorage lastLiq liqSquare
+    setStorage lastOffset (toUint256 offset)
+
+def curveCutArrayExecutableReadsTupleElement : Bool :=
+  match CurveCutArraySmoke.firstCutXt #[(11, 13, toInt256 17)] Verity.defaultState with
+  | .success value _ => value == 11
+  | _ => false
+
+example : curveCutArrayExecutableReadsTupleElement = true := by decide
+
+verity_contract PackedStorageWriteSmoke where
+  storage
+    stateRoot : Uint256 := slot 0
+
+  function writeSlot0 (isClosed : Bool, maxTotalSupply : Uint256) : Unit := do
+    let closedWord := boolToWord isClosed
+    let slot0 := bitOr closedWord (shl 8 maxTotalSupply)
+    setPackedStorage stateRoot 0 slot0
+
+  function writeSlot1 (accruedProtocolFees : Uint256, normalizedUnclaimedWithdrawals : Uint256) : Unit := do
+    let slot1 := bitOr accruedProtocolFees (shl 128 normalizedUnclaimedWithdrawals)
+    setPackedStorage stateRoot 1 slot1
+
+def packedStorageExecutableWritesExplicitWordOffset : Bool :=
+  match PackedStorageWriteSmoke.writeSlot1 7 9 Verity.defaultState with
+  | .success _ state =>
+      state.storage 0 == 0 &&
+      state.storage 1 == bitOr 7 (shl 128 9)
+  | _ => false
+
+example : packedStorageExecutableWritesExplicitWordOffset = true := by decide
+
 verity_contract DirectHelperCallSmoke where
   storage
     total : Uint256 := slot 0
@@ -1349,6 +1394,8 @@ end SpecGenSmoke
 #check_contract StatelessSmoke
 #check_contract SpecialEntrypointSmoke
 #check_contract TupleSmoke
+#check_contract CurveCutArraySmoke
+#check_contract PackedStorageWriteSmoke
 #check_contract DirectHelperCallSmoke
 #check_contract Uint8Smoke
 #check_contract AddressHelpersSmoke

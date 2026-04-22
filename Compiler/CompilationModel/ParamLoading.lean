@@ -56,10 +56,12 @@ private def genDynamicParamLoads
           ]) [
             YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
           ]]
-    | ParamType.array _ =>
+    | ParamType.array elemTy =>
+        let elemWords :=
+          if isDynamicParamType elemTy then 1 else paramHeadSize elemTy / 32
         [YulStmt.if_ (YulExpr.call "gt" [
             YulExpr.ident s!"{name}_length",
-            YulExpr.call "div" [YulExpr.ident tailRemainingName, YulExpr.lit 32]
+            YulExpr.call "div" [YulExpr.ident tailRemainingName, YulExpr.lit (32 * elemWords)]
           ]) [
             YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
           ]]

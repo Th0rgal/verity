@@ -273,7 +273,7 @@ def exprReadsStateOrEnv : Expr → Bool
   | Expr.arrayLength _ => false
   | Expr.storageArrayLength _ => true
   | Expr.storageArrayElement _ index => true || exprReadsStateOrEnv index
-  | Expr.arrayElement _ index => exprReadsStateOrEnv index
+  | Expr.arrayElement _ index | Expr.arrayElementWord _ index _ _ => exprReadsStateOrEnv index
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
   | Expr.mod a b | Expr.smod a b |
     Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b
@@ -345,7 +345,7 @@ def exprWritesState : Expr → Bool
       false
   | Expr.storageArrayElement _ index =>
       exprWritesState index
-  | Expr.arrayElement _ index =>
+  | Expr.arrayElement _ index | Expr.arrayElementWord _ index _ _ =>
       exprWritesState index
   | _ =>
       false
@@ -361,7 +361,7 @@ decreasing_by all_goals simp_wf; all_goals omega
 def stmtWritesState : Stmt → Bool
   | Stmt.letVar _ value | Stmt.assignVar _ value =>
       exprWritesState value
-  | Stmt.setStorage _ _ | Stmt.setStorageAddr _ _
+  | Stmt.setStorage _ _ | Stmt.setStorageAddr _ _ | Stmt.setStorageWord _ _ _
   | Stmt.storageArrayPush _ _ | Stmt.storageArrayPop _ | Stmt.setStorageArrayElement _ _ _
   | Stmt.setMapping _ _ _ | Stmt.setMappingWord _ _ _ _ | Stmt.setMappingPackedWord _ _ _ _ _ | Stmt.setMappingUint _ _ _
   | Stmt.setMappingChain _ _ _
@@ -432,7 +432,7 @@ mutual
     `setMapping*`, `storageArray*`, and `setStructMember*` constructors.
     Used by `modifies(...)` validation (#1729, Axis 3 Step 1b). -/
 def stmtWrittenFields : Stmt → List String
-  | Stmt.setStorage field _ | Stmt.setStorageAddr field _
+  | Stmt.setStorage field _ | Stmt.setStorageAddr field _ | Stmt.setStorageWord field _ _
   | Stmt.storageArrayPush field _ | Stmt.storageArrayPop field | Stmt.setStorageArrayElement field _ _
   | Stmt.setMapping field _ _ | Stmt.setMappingWord field _ _ _ | Stmt.setMappingPackedWord field _ _ _ _
   | Stmt.setMappingUint field _ _
@@ -486,7 +486,8 @@ def exprHasUntrackableWrites : Expr → Bool
   | Expr.ite cond thenVal elseVal =>
       exprHasUntrackableWrites cond || exprHasUntrackableWrites thenVal || exprHasUntrackableWrites elseVal
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _ | Expr.mappingUint _ key
-  | Expr.structMember _ key _ | Expr.arrayElement _ key | Expr.storageArrayElement _ key =>
+  | Expr.structMember _ key _ | Expr.arrayElement _ key | Expr.arrayElementWord _ key _ _
+  | Expr.storageArrayElement _ key =>
       exprHasUntrackableWrites key
   | Expr.mappingChain _ keys =>
       exprListHasUntrackableWrites keys
@@ -523,7 +524,8 @@ def stmtHasUntrackableWrites : Stmt → Bool
   | Stmt.internalCall _ _ | Stmt.internalCallAssign _ _ _ => true
   | Stmt.letVar _ value | Stmt.assignVar _ value =>
       exprHasUntrackableWrites value
-  | Stmt.setStorage _ value | Stmt.setStorageAddr _ value | Stmt.require value _ =>
+  | Stmt.setStorage _ value | Stmt.setStorageAddr _ value | Stmt.setStorageWord _ _ value
+  | Stmt.require value _ =>
       exprHasUntrackableWrites value
   | Stmt.requireError cond _ args =>
       exprHasUntrackableWrites cond || args.any exprHasUntrackableWrites
@@ -600,7 +602,8 @@ def exprContainsExternalCall : Expr → Bool
   | Expr.ite cond thenVal elseVal =>
       exprContainsExternalCall cond || exprContainsExternalCall thenVal || exprContainsExternalCall elseVal
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _ | Expr.mappingUint _ key
-  | Expr.structMember _ key _ | Expr.arrayElement _ key | Expr.storageArrayElement _ key =>
+  | Expr.structMember _ key _ | Expr.arrayElement _ key | Expr.arrayElementWord _ key _ _
+  | Expr.storageArrayElement _ key =>
       exprContainsExternalCall key
   | Expr.mappingChain _ keys =>
       exprListContainsExternalCall keys
@@ -653,7 +656,8 @@ def exprMayContainExternalCall : Expr → Bool
   | Expr.ite cond thenVal elseVal =>
       exprMayContainExternalCall cond || exprMayContainExternalCall thenVal || exprMayContainExternalCall elseVal
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _ | Expr.mappingUint _ key
-  | Expr.structMember _ key _ | Expr.arrayElement _ key | Expr.storageArrayElement _ key =>
+  | Expr.structMember _ key _ | Expr.arrayElement _ key | Expr.arrayElementWord _ key _ _
+  | Expr.storageArrayElement _ key =>
       exprMayContainExternalCall key
   | Expr.mappingChain _ keys =>
       exprListMayContainExternalCall keys
@@ -688,7 +692,8 @@ def stmtContainsExternalCall : Stmt → Bool
   | Stmt.ecm _ _ => true
   | Stmt.letVar _ value | Stmt.assignVar _ value =>
       exprContainsExternalCall value
-  | Stmt.setStorage _ value | Stmt.setStorageAddr _ value | Stmt.require value _ =>
+  | Stmt.setStorage _ value | Stmt.setStorageAddr _ value | Stmt.setStorageWord _ _ value
+  | Stmt.require value _ =>
       exprContainsExternalCall value
   | Stmt.requireError cond _ args =>
       exprContainsExternalCall cond || args.any exprContainsExternalCall
@@ -776,7 +781,8 @@ def stmtMayContainExternalCall : Stmt → Bool
       exprMayContainExternalCall scrutinee || matchBranchesMayContainExternalCall branches
   | Stmt.letVar _ value | Stmt.assignVar _ value =>
       exprMayContainExternalCall value
-  | Stmt.setStorage _ value | Stmt.setStorageAddr _ value | Stmt.require value _ =>
+  | Stmt.setStorage _ value | Stmt.setStorageAddr _ value | Stmt.setStorageWord _ _ value
+  | Stmt.require value _ =>
       exprMayContainExternalCall value
   | Stmt.requireError cond _ args =>
       exprMayContainExternalCall cond || args.any exprMayContainExternalCall
@@ -836,7 +842,8 @@ end
 
 mutual
 def stmtReadsStateOrEnv : Stmt → Bool
-  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value |
+  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value
+  | Stmt.setStorageWord _ _ value |
     Stmt.return value | Stmt.require value _ =>
       exprReadsStateOrEnv value
   | Stmt.storageArrayPush _ value =>
@@ -905,7 +912,7 @@ mutual
     NOT considered persistent state writes for CEI purposes.
     (#1728, Axis 2 Step 2a) -/
 def stmtIsPersistentWrite : Stmt → Bool
-  | Stmt.setStorage _ _ | Stmt.setStorageAddr _ _
+  | Stmt.setStorage _ _ | Stmt.setStorageAddr _ _ | Stmt.setStorageWord _ _ _
   | Stmt.storageArrayPush _ _ | Stmt.storageArrayPop _ | Stmt.setStorageArrayElement _ _ _
   | Stmt.setMapping _ _ _ | Stmt.setMappingWord _ _ _ _ | Stmt.setMappingPackedWord _ _ _ _ _ | Stmt.setMappingUint _ _ _
   | Stmt.setMappingChain _ _ _
@@ -1084,7 +1091,7 @@ def exprContainsAdtConstruct : Expr → Bool
   | Expr.bitNot a | Expr.logicalNot a | Expr.extcodesize a
   | Expr.mload a | Expr.tload a | Expr.calldataload a
   | Expr.returndataOptionalBoolAt a
-  | Expr.storageArrayElement _ a | Expr.arrayElement _ a =>
+  | Expr.storageArrayElement _ a | Expr.arrayElement _ a | Expr.arrayElementWord _ a _ _ =>
       exprContainsAdtConstruct a
   | Expr.ite cond thenVal elseVal =>
       exprContainsAdtConstruct cond || exprContainsAdtConstruct thenVal ||
@@ -1140,7 +1147,7 @@ def validateNoUnsupportedAdtConstructInStmt : Stmt → Except String Unit
       else
         pure ()
   | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value
-  | Stmt.setStorageAddr _ value | Stmt.storageArrayPush _ value
+  | Stmt.setStorageAddr _ value | Stmt.setStorageWord _ _ value | Stmt.storageArrayPush _ value
   | Stmt.setStorageArrayElement _ _ value | Stmt.setMapping _ _ value
   | Stmt.setMappingUint _ _ value | Stmt.setMappingWord _ _ _ value
   | Stmt.setMapping2 _ _ _ value | Stmt.setMapping2Word _ _ _ _ value
