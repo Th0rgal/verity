@@ -87,6 +87,24 @@ private def nativeCopiesTransientLoadToStorage : Bool :=
   | .ok result => result.success && result.finalStorage 9 == 88
   | .error _ => false
 
+private def nativeInitialStateInstallsContractAndStorage : Bool :=
+  let contract : EvmYul.Yul.Ast.YulContract :=
+    { dispatcher := .Block []
+      functions := ∅ }
+  let addr := StateBridge.natToAddress sampleTx.thisAddress
+  match Native.initialState contract sampleTx seededStorage [7] with
+  | .Ok shared _ =>
+      shared.executionEnv.code == contract &&
+        shared.executionEnv.codeOwner == addr &&
+        shared.executionEnv.perm &&
+        (match shared.accountMap.find? addr with
+        | some account =>
+            account.code == contract &&
+              StateBridge.storageLookup account.storage
+                (StateBridge.natToUInt256 7) == EvmYul.UInt256.ofNat 77
+        | none => false)
+  | _ => false
+
 private def nativeStopCommitsStorageAndPreservesEvents : Bool :=
   match Native.interpretRuntimeNative 128 [
     .expr (.call "sstore" [.lit 7, .lit 99]),
@@ -417,6 +435,10 @@ example :
 
 example :
     nativeCopiesTransientLoadToStorage = true := by
+  native_decide
+
+example :
+    nativeInitialStateInstallsContractAndStorage = true := by
   native_decide
 
 example :
