@@ -135,6 +135,35 @@ def projectStorageFromState (tx : YulTransaction) (state : EvmYul.Yul.State) :
     Nat → Nat :=
   extractStorage state.sharedState (natToAddress tx.thisAddress)
 
+/-- Projecting final native storage reads the current contract account storage
+    entry for the requested slot. -/
+@[simp] theorem projectStorageFromState_accountStorageSlot
+    (tx : YulTransaction)
+    (state : EvmYul.Yul.State)
+    (slot : Nat)
+    (account : EvmYul.Account .Yul)
+    (value : EvmYul.UInt256)
+    (hAccount :
+      state.sharedState.accountMap.find? (natToAddress tx.thisAddress) =
+        some account)
+    (hSlot : account.storage.find? (natToUInt256 slot) = some value) :
+    projectStorageFromState tx state slot = uint256ToNat value := by
+  simp [projectStorageFromState, extractStorage, hAccount, hSlot]
+
+/-- Projecting final native storage defaults to zero when the current contract
+    account has no native storage entry for the requested slot. -/
+@[simp] theorem projectStorageFromState_missingAccountStorageSlot
+    (tx : YulTransaction)
+    (state : EvmYul.Yul.State)
+    (slot : Nat)
+    (account : EvmYul.Account .Yul)
+    (hAccount :
+      state.sharedState.accountMap.find? (natToAddress tx.thisAddress) =
+        some account)
+    (hSlot : account.storage.find? (natToUInt256 slot) = none) :
+    projectStorageFromState tx state slot = 0 := by
+  simp [projectStorageFromState, extractStorage, hAccount, hSlot]
+
 /-- Native initial-state storage materialization agrees with Verity storage on
     every explicit observable slot. Slots and values are interpreted in the
     EVM word domain, so the result is modulo `UInt256.size`. -/
@@ -318,6 +347,24 @@ def projectResult
       initialEvents ++ projectLogsFromState state := by
   rfl
 
+@[simp] theorem projectResult_ok_finalStorageSlot
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.Yul.Ast.Literal)
+    (slot : Nat)
+    (account : EvmYul.Account .Yul)
+    (value : EvmYul.UInt256)
+    (hAccount :
+      state.sharedState.accountMap.find? (natToAddress tx.thisAddress) =
+        some account)
+    (hSlot : account.storage.find? (natToUInt256 slot) = some value) :
+    (projectResult tx initialStorage initialEvents
+      (.ok (state, values))).finalStorage slot = uint256ToNat value := by
+  simp [projectResult, projectStorageFromState_accountStorageSlot,
+    hAccount, hSlot]
+
 @[simp] theorem projectResult_yulHalt_events
     (tx : YulTransaction)
     (initialStorage : Nat → Nat)
@@ -328,6 +375,25 @@ def projectResult
       (.error (.YulHalt state value))).events =
       initialEvents ++ projectLogsFromState state := by
   rfl
+
+@[simp] theorem projectResult_yulHalt_finalStorageSlot
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (state : EvmYul.Yul.State)
+    (value : EvmYul.Yul.Ast.Literal)
+    (slot : Nat)
+    (account : EvmYul.Account .Yul)
+    (slotValue : EvmYul.UInt256)
+    (hAccount :
+      state.sharedState.accountMap.find? (natToAddress tx.thisAddress) =
+        some account)
+    (hSlot : account.storage.find? (natToUInt256 slot) = some slotValue) :
+    (projectResult tx initialStorage initialEvents
+      (.error (.YulHalt state value))).finalStorage slot =
+        uint256ToNat slotValue := by
+  simp [projectResult, projectStorageFromState_accountStorageSlot,
+    hAccount, hSlot]
 
 @[simp] theorem projectResult_stop
     (tx : YulTransaction)
@@ -384,6 +450,16 @@ def projectResult
       initialEvents := by
   rfl
 
+@[simp] theorem projectResult_revert_finalStorageSlot
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (slot : Nat) :
+    (projectResult tx initialStorage initialEvents
+      (.error EvmYul.Yul.Exception.Revert)).finalStorage slot =
+      initialStorage slot := by
+  rfl
+
 @[simp] theorem projectResult_hardError
     (tx : YulTransaction)
     (initialStorage : Nat → Nat)
@@ -396,6 +472,29 @@ def projectResult
       finalStorage := initialStorage
       finalMappings := Compiler.Proofs.storageAsMappings initialStorage
       events := initialEvents } := by
+  cases err with
+  | YulHalt state value =>
+      exact False.elim (hNotHalt state value rfl)
+  | InvalidArguments => rfl
+  | NotEncodableRLP => rfl
+  | InvalidInstruction => rfl
+  | OutOfFuel => rfl
+  | StaticModeViolation => rfl
+  | MissingContract s => rfl
+  | MissingContractFunction s => rfl
+  | InvalidExpression => rfl
+  | YulEXTCODESIZENotImplemented => rfl
+  | Revert => rfl
+
+@[simp] theorem projectResult_hardError_finalStorageSlot
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (err : EvmYul.Yul.Exception)
+    (slot : Nat)
+    (hNotHalt : ∀ state value, err ≠ EvmYul.Yul.Exception.YulHalt state value) :
+    (projectResult tx initialStorage initialEvents (.error err)).finalStorage slot =
+      initialStorage slot := by
   cases err with
   | YulHalt state value =>
       exact False.elim (hNotHalt state value rfl)

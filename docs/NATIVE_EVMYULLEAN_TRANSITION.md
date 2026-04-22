@@ -138,6 +138,9 @@ scope so the native path does not look more complete than it is:
    storage seeding, the named `initialState_observableStorageSlot` lemma for
    explicit observable pre-state slots, the named
    `initialState_omittedStorageSlot` lemma for omitted pre-state slot defaults,
+   the named `projectStorageFromState_accountStorageSlot` and
+   `projectStorageFromState_missingAccountStorageSlot` lemmas for final native
+   account storage projection,
    and direct transaction-environment seeding for sender/source, value, current
    address, calldata selector/argument bytes, timestamp, and block number, the
    named `initialState_transactionEnvironment` lemma for those initial
@@ -163,7 +166,12 @@ scope so the native path does not look more complete than it is:
    `log4` topic arities, conservative rollback projection for native errors,
    explicit hard-error rollback for `OutOfFuel`, explicit `Revert` rollback
    projection with no return value, the named `projectResult_revert` rollback
-   and `projectResult_revert_events` event-history preservation lemmas,
+   and `projectResult_revert_events` event-history preservation lemmas, the
+   named `projectResult_ok_finalStorageSlot` and
+   `projectResult_yulHalt_finalStorageSlot` lemmas for committed final-storage
+   slot projection, the named `projectResult_revert_finalStorageSlot` and
+   `projectResult_hardError_finalStorageSlot` lemmas for rollback final-storage
+   slot projection,
    conservative `finalMappings` rollback on native errors, the named
    `projectResult_hardError` and `projectResult_hardError_events` lemmas for
    every non-halt native error, the named `projectResult_finalMappings` lemma
