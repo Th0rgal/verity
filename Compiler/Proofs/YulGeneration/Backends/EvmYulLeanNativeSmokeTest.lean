@@ -173,6 +173,21 @@ private def dispatchSmokeContract : Compiler.IRContract :=
     ]
     usesMapping := false }
 
+private def returnDispatchSmokeContract : Compiler.IRContract :=
+  { name := "NativeReturnDispatchSmoke"
+    deploy := []
+    functions := [
+      { name := "answer"
+        selector := 0x33333333
+        params := []
+        ret := .uint256
+        body := [
+          .expr (.call "mstore" [.lit 0, .lit 42]),
+          .expr (.call "return" [.lit 0, .lit 32])
+        ] }
+    ]
+    usesMapping := false }
+
 private def sampleIRTx : Compiler.Proofs.IRGeneration.IRTransaction :=
   { sender := sampleTx.sender
     msgValue := sampleTx.msgValue
@@ -274,6 +289,32 @@ private partial def nativeStmtContainsSstore (slot value : Nat) : EvmYul.Yul.Ast
         body.any (nativeStmtContainsSstore slot value)
   | _ => false
 
+private def nativeExprMatchesLit (expected : Nat) : EvmYul.Yul.Ast.Expr → Bool
+  | .Lit got => StateBridge.uint256ToNat got == expected
+  | _ => false
+
+private def nativeExprsMatchLits
+    (args : List EvmYul.Yul.Ast.Expr) (expected : List Nat) : Bool :=
+  args.length == expected.length &&
+    (args.zip expected).all (fun (arg, value) => nativeExprMatchesLit value arg)
+
+private partial def nativeStmtContainsPrimCall
+    (op : EvmYul.Operation .Yul) (args : List Nat) :
+    EvmYul.Yul.Ast.Stmt → Bool
+  | .ExprStmtCall (.Call (.inl got) gotArgs) =>
+      got == op && nativeExprsMatchLits gotArgs args
+  | .Block stmts =>
+      stmts.any (nativeStmtContainsPrimCall op args)
+  | .If _ body =>
+      body.any (nativeStmtContainsPrimCall op args)
+  | .Switch _ cases defaultBody =>
+      cases.any (fun (_, body) => body.any (nativeStmtContainsPrimCall op args)) ||
+        defaultBody.any (nativeStmtContainsPrimCall op args)
+  | .For _ post body =>
+      post.any (nativeStmtContainsPrimCall op args) ||
+        body.any (nativeStmtContainsPrimCall op args)
+  | _ => false
+
 private partial def nativeStmtSwitchCaseStores
     (label slot value : Nat) : EvmYul.Yul.Ast.Stmt → Bool
   | .Switch _ cases defaultBody =>
@@ -288,6 +329,23 @@ private partial def nativeStmtSwitchCaseStores
   | .For _ post body =>
       post.any (nativeStmtSwitchCaseStores label slot value) ||
         body.any (nativeStmtSwitchCaseStores label slot value)
+  | _ => false
+
+private partial def nativeStmtSwitchCaseContainsPrimCall
+    (label : Nat) (op : EvmYul.Operation .Yul) (args : List Nat) :
+    EvmYul.Yul.Ast.Stmt → Bool
+  | .Switch _ cases defaultBody =>
+      cases.any (fun (gotLabel, body) =>
+        StateBridge.uint256ToNat gotLabel == label &&
+          body.any (nativeStmtContainsPrimCall op args)) ||
+        defaultBody.any (nativeStmtSwitchCaseContainsPrimCall label op args)
+  | .Block stmts =>
+      stmts.any (nativeStmtSwitchCaseContainsPrimCall label op args)
+  | .If _ body =>
+      body.any (nativeStmtSwitchCaseContainsPrimCall label op args)
+  | .For _ post body =>
+      post.any (nativeStmtSwitchCaseContainsPrimCall label op args) ||
+        body.any (nativeStmtSwitchCaseContainsPrimCall label op args)
   | _ => false
 
 private def emittedDispatchLowersToNativeSwitch : Bool :=
@@ -338,7 +396,16 @@ private def emittedDispatchNativeSelectorCaseBodies : Bool :=
   match lowerRuntimeContractNative (Compiler.emitYul dispatchSmokeContract).runtimeCode with
   | .ok contract =>
       nativeStmtSwitchCaseStores 0x11111111 11 101 contract.dispatcher &&
-        nativeStmtSwitchCaseStores 0x22222222 11 202 contract.dispatcher
+      nativeStmtSwitchCaseStores 0x22222222 11 202 contract.dispatcher
+  | .error _ => false
+
+private def emittedReturnDispatchLowersNativeMemoryReturn : Bool :=
+  match lowerRuntimeContractNative (Compiler.emitYul returnDispatchSmokeContract).runtimeCode with
+  | .ok contract =>
+      nativeStmtSwitchCaseContainsPrimCall 0x33333333 .MSTORE [0, 42]
+        contract.dispatcher &&
+      nativeStmtSwitchCaseContainsPrimCall 0x33333333 .RETURN [0, 32]
+        contract.dispatcher
   | .error _ => false
 
 private partial def nativeExprContainsUserCall (name : String) : EvmYul.Yul.Ast.Expr → Bool
@@ -631,6 +698,10 @@ example :
 
 example :
     emittedDispatchNativeSelectorCaseBodies = true := by
+  native_decide
+
+example :
+    emittedReturnDispatchLowersNativeMemoryReturn = true := by
   native_decide
 
 example :

@@ -119,7 +119,7 @@ scope so the native path does not look more complete than it is:
    partitioning that keeps helper definitions in the function map while
    dispatcher calls remain native user-function calls, fail-closed rejection
    of nested native function definitions in dispatcher/helper bodies,
-   selector cases with their lowered storage-write bodies,
+   selector cases with their lowered storage-write and memory-return bodies,
    selector/calldata byte layout, storage writes, `sload` through explicit
    observable pre-state slots, omitted-slot default reads, `tstore`/`tload`
    execution through copied observable storage, initial native state contract
