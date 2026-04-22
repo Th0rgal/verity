@@ -396,6 +396,40 @@ example :
   native_decide
 
 example :
+    (let finalStorage : Nat → Nat := fun slot => if slot = 7 then 99 else 0
+     let result :=
+      Native.projectResult sampleTx seededStorage [[1, 2, 3]]
+        (.ok
+          (stateWithStorageLogReturn finalStorage [7] [sampleLogEntry [5] 88] 0,
+            [EvmYul.UInt256.ofNat 44]))
+     result.finalMappings) =
+    (let finalStorage : Nat → Nat := fun slot => if slot = 7 then 99 else 0
+     let result :=
+      Native.projectResult sampleTx seededStorage [[1, 2, 3]]
+        (.ok
+          (stateWithStorageLogReturn finalStorage [7] [sampleLogEntry [5] 88] 0,
+            [EvmYul.UInt256.ofNat 44]))
+     Compiler.Proofs.storageAsMappings result.finalStorage) := by
+  rfl
+
+example :
+    (let finalStorage : Nat → Nat := fun slot => if slot = 7 then 99 else 0
+     let result :=
+      Native.projectResult sampleTx seededStorage [[1, 2, 3]]
+        (.error (.YulHalt
+          (stateWithStorageLogReturn finalStorage [7] [sampleLogEntry [5] 88] 44)
+          (EvmYul.UInt256.ofNat 1)))
+     result.finalMappings) =
+    (let finalStorage : Nat → Nat := fun slot => if slot = 7 then 99 else 0
+     let result :=
+      Native.projectResult sampleTx seededStorage [[1, 2, 3]]
+        (.error (.YulHalt
+          (stateWithStorageLogReturn finalStorage [7] [sampleLogEntry [5] 88] 44)
+          (EvmYul.UInt256.ofNat 1)))
+     Compiler.Proofs.storageAsMappings result.finalStorage) := by
+  rfl
+
+example :
     Native.byteArrayWord
       (ByteArray.ofFn fun i : Fin 32 =>
         if i.1 = 31 then UInt8.ofNat 210 else UInt8.ofNat 0)
@@ -551,5 +585,20 @@ example :
        result.finalStorage 7 == 5 &&
        result.events == [[1, 2, 3]]) = true := by
   native_decide
+
+example :
+    (let result :=
+      Native.projectResult sampleTx
+        (fun slot => if slot = 7 then 5 else 0)
+        [[1, 2, 3]]
+        (.error EvmYul.Yul.Exception.Revert)
+     result.finalMappings) =
+    (let result :=
+      Native.projectResult sampleTx
+        (fun slot => if slot = 7 then 5 else 0)
+        [[1, 2, 3]]
+        (.error EvmYul.Yul.Exception.Revert)
+     Compiler.Proofs.storageAsMappings result.finalStorage) := by
+  rfl
 
 end Compiler.Proofs.YulGeneration.Backends
