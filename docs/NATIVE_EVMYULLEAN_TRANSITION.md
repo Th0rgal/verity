@@ -246,16 +246,13 @@ scope so the native path does not look more complete than it is:
    `interpretRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative`
    lemmas for fail-closed lowering and the successful lower/build/call/project
    native execution pipeline, `interpretIRRuntimeNative`
-   forwarding/fail-closed lowering behavior, and named
+   forwarding/fail-closed lowering behavior, executable native-vs-reference
+   oracle coverage for actual `Compiler.emitYul` dispatcher selection,
+   observable storage reads, and 32-byte return halt projection, and named
    `interpretIRRuntimeNative_loweringError` and
    `interpretIRRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative`
    lemmas pinning the same fail-closed and exact native call-dispatcher
    pipeline at the IR entry point. Next coverage should include:
-   - executable dispatcher selector selection from emitted runtime code; the
-     lowered selector expression is already pinned, but build-time execution
-     through EVMYulLean `CALLDATALOAD` currently needs
-     `ffi.ByteArray.zeroes` native support before this can be promoted to a
-     Lean smoke proof,
    - memory-heavy `return` and `revert`,
    - returndata and external-call outcomes,
    - static-call permission behavior,

@@ -7949,7 +7949,7 @@ private theorem compileStmt_ok_any_scope_aux
           rcases hok with ⟨ir, hir⟩
           simp [CompilationModel.compileStmt, lookupAdtTypeDef, Except.bind, bind] at hir
       -- All remaining cases: inScopeNames is unused, so the result is identical
-      | letVar | assignVar | setStorage | setStorageAddr | storageArrayPush
+      | letVar | assignVar | setStorage | setStorageAddr | setStorageWord | storageArrayPush
       | storageArrayPop | setStorageArrayElement | setMapping | setMappingWord
       | setMappingPackedWord | setMapping2 | setMapping2Word | setMappingUint
       | setMappingChain | setStructMember | setStructMember2 | require
@@ -8066,7 +8066,7 @@ private theorem compileStmt_ok_any_scope_with_surface_aux
       | matchAdt adtName scrutinee branches =>
           rcases hok with ⟨ir, hir⟩
           simp [CompilationModel.compileStmt, lookupAdtTypeDef, Except.bind, bind] at hir
-      | letVar | assignVar | setStorage | setStorageAddr | storageArrayPush
+      | letVar | assignVar | setStorage | setStorageAddr | setStorageWord | storageArrayPush
       | storageArrayPop | setStorageArrayElement | setMapping | setMappingWord
       | setMappingPackedWord | setMapping2 | setMapping2Word | setMappingUint
       | setMappingChain | setStructMember | setStructMember2 | require

@@ -115,6 +115,7 @@ test-evmyullean-fork: ## Probe EVMYulLean fork conformance (audit + adapter repo
 	lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeTest
 	lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness
 	lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeSmokeTest
+	lake exe native-dispatch-oracle-test
 	@echo "Building public EVMYulLean EndToEnd target..."
 	lake build Compiler.Proofs.EndToEnd
 	@echo "EVMYulLean fork conformance probe passed."

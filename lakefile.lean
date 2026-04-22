@@ -70,3 +70,6 @@ lean_exe «macro-roundtrip-fuzz» where
 
 lean_exe «compiler-main-test» where
   root := `Compiler.MainTestRunner
+
+lean_exe «native-dispatch-oracle-test» where
+  root := `Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeDispatchOracleTest
