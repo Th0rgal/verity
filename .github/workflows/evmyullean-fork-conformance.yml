@@ -3,9 +3,9 @@ name: EVMYulLean fork conformance
 # Weekly probe that the pinned lfglabs-dev/EVMYulLean fork still
 # satisfies Verity's bridge assumptions: the fork audit and adapter
 # report artifacts are in sync, adapter correctness still builds,
-# all universal bridge lemmas still build, the public EndToEnd
-# EVMYulLean target still builds, and all 123 concrete `native_decide`
-# bridge-equivalence tests still pass.
+# all universal bridge lemmas still build, the native transition harness still
+# builds, the public EndToEnd EVMYulLean target still builds, and all 123
+# concrete `native_decide` bridge-equivalence tests still pass.
 #
 # Burn-in: the probe step is captured with `continue-on-error: true`
 # during the two-week window starting 2026-04-20 (see issue #1722 plan
@@ -36,6 +36,8 @@ on:
       - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean'
       - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean'
       - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean'
+      - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean'
+      - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeSmokeTest.lean'
       - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean'
       - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSignedArithSpec.lean'
       - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSourceExprClosure.lean'
@@ -58,6 +60,8 @@ on:
       - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean'
       - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean'
       - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean'
+      - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean'
+      - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeSmokeTest.lean'
       - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean'
       - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSignedArithSpec.lean'
       - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSourceExprClosure.lean'
@@ -160,7 +164,7 @@ jobs:
               "make test-evmyullean-fork",
               "```",
               "",
-              "This guard checks the pinned EVMYulLean fork audit, checks the adapter report, rebuilds adapter correctness and the public EndToEnd target, and runs the concrete bridge-equivalence tests."
+              "This guard checks the pinned EVMYulLean fork audit, checks the adapter report, rebuilds adapter correctness, the native transition harness, and the public EndToEnd target, and runs the concrete bridge-equivalence tests."
             ];
             const body = bodyLines.join("\n");
 
