@@ -85,6 +85,39 @@ private partial def nativeStmtSwitchCaseLabels : EvmYul.Yul.Ast.Stmt → List Na
         body.foldl (fun acc stmt => acc ++ nativeStmtSwitchCaseLabels stmt) []
   | _ => []
 
+private partial def nativeStmtContainsSstore (slot value : Nat) : EvmYul.Yul.Ast.Stmt → Bool
+  | .ExprStmtCall (.Call (.inl op) [.Lit gotSlot, .Lit gotValue]) =>
+      op == (EvmYul.Operation.SSTORE : EvmYul.Operation .Yul) &&
+        StateBridge.uint256ToNat gotSlot == slot &&
+        StateBridge.uint256ToNat gotValue == value
+  | .Block stmts =>
+      stmts.any (nativeStmtContainsSstore slot value)
+  | .If _ body =>
+      body.any (nativeStmtContainsSstore slot value)
+  | .Switch _ cases defaultBody =>
+      cases.any (fun (_, body) => body.any (nativeStmtContainsSstore slot value)) ||
+        defaultBody.any (nativeStmtContainsSstore slot value)
+  | .For _ post body =>
+      post.any (nativeStmtContainsSstore slot value) ||
+        body.any (nativeStmtContainsSstore slot value)
+  | _ => false
+
+private partial def nativeStmtSwitchCaseStores
+    (label slot value : Nat) : EvmYul.Yul.Ast.Stmt → Bool
+  | .Switch _ cases defaultBody =>
+      cases.any (fun (gotLabel, body) =>
+        StateBridge.uint256ToNat gotLabel == label &&
+          body.any (nativeStmtContainsSstore slot value)) ||
+        defaultBody.any (nativeStmtSwitchCaseStores label slot value)
+  | .Block stmts =>
+      stmts.any (nativeStmtSwitchCaseStores label slot value)
+  | .If _ body =>
+      body.any (nativeStmtSwitchCaseStores label slot value)
+  | .For _ post body =>
+      post.any (nativeStmtSwitchCaseStores label slot value) ||
+        body.any (nativeStmtSwitchCaseStores label slot value)
+  | _ => false
+
 private def emittedDispatchLowersToNativeSwitch : Bool :=
   match lowerRuntimeContractNative (Compiler.emitYul dispatchSmokeContract).runtimeCode with
   | .ok contract =>
@@ -106,6 +139,13 @@ private def emittedDispatchLowersNativeSelectorCases : Bool :=
   | .ok contract =>
       let labels := nativeStmtSwitchCaseLabels contract.dispatcher
       labels.contains 0x11111111 && labels.contains 0x22222222
+  | .error _ => false
+
+private def emittedDispatchNativeSelectorCaseBodies : Bool :=
+  match lowerRuntimeContractNative (Compiler.emitYul dispatchSmokeContract).runtimeCode with
+  | .ok contract =>
+      nativeStmtSwitchCaseStores 0x11111111 11 101 contract.dispatcher &&
+        nativeStmtSwitchCaseStores 0x22222222 11 202 contract.dispatcher
   | .error _ => false
 
 private def lowersAddAsPrim : Bool :=
@@ -231,6 +271,10 @@ example :
 
 example :
     emittedDispatchLowersNativeSelectorCases = true := by
+  native_decide
+
+example :
+    emittedDispatchNativeSelectorCaseBodies = true := by
   native_decide
 
 example :
