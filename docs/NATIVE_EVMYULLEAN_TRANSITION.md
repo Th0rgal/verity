@@ -127,9 +127,13 @@ scope so the native path does not look more complete than it is:
    `interpretIRRuntimeNative_eq_interpretRuntimeNative` lemma for that
    forwarding contract, `tstore`/`tload`
    execution through copied observable storage, initial native state contract
-   installation, observable storage seeding, omitted pre-state slot defaults,
-   and direct transaction-environment seeding for sender/source, value, current
-   address, calldata selector/argument bytes, timestamp, and block number, callvalue,
+   installation, the named `initialState_installsExecutionContract` lemma for
+   installed dispatcher code and mutable execution permission, observable
+   storage seeding, omitted pre-state slot defaults, and direct
+   transaction-environment seeding for sender/source, value, current address,
+   calldata selector/argument bytes, timestamp, and block number, the named
+   `initialState_transactionEnvironment` lemma for those initial environment
+   fields, callvalue,
    caller/address, calldatasize, timestamp/number, native
    `chainid`/`blobbasefee` default behavior, executable `stop` halt
    projection, successful native value result projection with committed

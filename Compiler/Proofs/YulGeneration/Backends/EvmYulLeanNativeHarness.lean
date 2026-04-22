@@ -55,6 +55,39 @@ def initialState
           perm := true } }
   .Ok shared' ∅
 
+@[simp] theorem initialState_installsExecutionContract
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    (initialState contract tx storage observableSlots).sharedState.executionEnv.code =
+      contract ∧
+    (initialState contract tx storage observableSlots).sharedState.executionEnv.perm =
+      true := by
+  simp [initialState, EvmYul.Yul.State.sharedState]
+
+@[simp] theorem initialState_transactionEnvironment
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    (initialState contract tx storage observableSlots).sharedState.executionEnv.source =
+      natToAddress tx.sender ∧
+    (initialState contract tx storage observableSlots).sharedState.executionEnv.sender =
+      natToAddress tx.sender ∧
+    (initialState contract tx storage observableSlots).sharedState.executionEnv.codeOwner =
+      natToAddress tx.thisAddress ∧
+    (initialState contract tx storage observableSlots).sharedState.executionEnv.weiValue =
+      natToUInt256 tx.msgValue ∧
+    (initialState contract tx storage observableSlots).sharedState.executionEnv.header.timestamp =
+      tx.blockTimestamp ∧
+    (initialState contract tx storage observableSlots).sharedState.executionEnv.header.number =
+      tx.blockNumber ∧
+    (initialState contract tx storage observableSlots).sharedState.executionEnv.calldata =
+      calldataToByteArray tx.functionSelector tx.args := by
+  simp [initialState, EvmYul.Yul.State.sharedState, YulState.initial, toSharedState,
+    mkBlockHeader]
+
 /-- Project the account storage for the current contract back to Verity's
     `Nat → Nat` storage view. -/
 def projectStorageFromState (tx : YulTransaction) (state : EvmYul.Yul.State) :
