@@ -35,12 +35,23 @@ private def sampleTx : Compiler.Proofs.YulGeneration.YulTransaction :=
 
 private def zeroStorage : Nat → Nat := fun _ => 0
 
+private def seededStorage : Nat → Nat := fun slot =>
+  if slot = 7 then 77 else 0
+
 private def nativeStoresBuiltin (builtin : String) (slot expected : Nat) : Bool :=
   match Native.interpretRuntimeNative 128 [
     .let_ "v" (.call builtin []),
     .expr (.call "sstore" [.lit slot, .ident "v"])
   ] sampleTx zeroStorage [slot] with
   | .ok result => result.success && result.finalStorage slot == expected
+  | .error _ => false
+
+private def nativeCopiesSloadToSlot
+    (observableSlots : List Nat) (expected : Nat) : Bool :=
+  match Native.interpretRuntimeNative 128 [
+    .expr (.call "sstore" [.lit 8, .call "sload" [.lit 7]])
+  ] sampleTx seededStorage observableSlots with
+  | .ok result => result.success && result.finalStorage 8 == expected
   | .error _ => false
 
 private def dispatchSmokeContract : Compiler.IRContract :=
@@ -232,6 +243,14 @@ example :
       sampleTx zeroStorage [7] with
     | .ok result => result.success && result.finalStorage 7 == 99
     | .error _ => false) = true := by
+  native_decide
+
+example :
+    nativeCopiesSloadToSlot [7, 8] 77 = true := by
+  native_decide
+
+example :
+    nativeCopiesSloadToSlot [8] 0 = true := by
   native_decide
 
 example :

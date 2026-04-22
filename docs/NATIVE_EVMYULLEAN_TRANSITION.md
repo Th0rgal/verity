@@ -116,8 +116,9 @@ scope so the native path does not look more complete than it is:
    Current smoke coverage exercises primop lowering, helper function maps,
    duplicate-helper failure, emitted dispatcher lowering shape and selector
    expression, selector cases with their lowered storage-write bodies,
-   selector/calldata byte layout, storage writes, callvalue, caller/address,
-   calldatasize, timestamp/number, native
+   selector/calldata byte layout, storage writes, `sload` through explicit
+   observable pre-state slots, omitted-slot default reads, callvalue,
+   caller/address, calldatasize, timestamp/number, native
    `chainid`/`blobbasefee` default behavior, return projection, and log
    projection, and conservative rollback projection for native errors. Next
    coverage should include:
