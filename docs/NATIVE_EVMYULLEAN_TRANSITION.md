@@ -27,7 +27,9 @@ Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
 Those entry points lower Verity runtime Yul into an EVMYulLean `YulContract`,
 construct an EVMYulLean `SharedState .Yul`, run
 `EvmYul.Yul.callDispatcher`, and project the observable result back to
-Verity's `YulResult` shape.
+Verity's `YulResult` shape. The native IR entry point requires callers to pass
+the observable storage slot set explicitly, because the state bridge only
+materializes pre-state storage for those slots.
 
 ## What This PR Establishes
 

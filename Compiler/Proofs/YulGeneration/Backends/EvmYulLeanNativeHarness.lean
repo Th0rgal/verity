@@ -132,7 +132,7 @@ def interpretRuntimeNative
     (runtimeCode : List YulStmt)
     (tx : YulTransaction)
     (storage : Nat → Nat)
-    (observableSlots : List Nat := [])
+    (observableSlots : List Nat)
     (events : List (List Nat) := []) :
     Except AdapterError YulResult := do
   let contract ← lowerRuntimeContractNative runtimeCode
@@ -146,13 +146,18 @@ This is the executable target that #1737 will promote into the public theorem
 path once the state/result bridge lemmas are proved. It intentionally returns
 `Except AdapterError YulResult` today because native lowering can still fail
 closed for duplicate helper definitions or unsupported runtime shapes.
+
+The observable slot set is explicit because the native state bridge only
+materializes pre-state storage for the listed slots. Passing `[]` is valid for
+storage-free smoke tests, but storage-reading callers must provide every slot
+they intend the native EVMYulLean state to observe.
 -/
 def interpretIRRuntimeNative
     (fuel : Nat)
     (contract : Compiler.IRContract)
     (tx : Compiler.Proofs.IRGeneration.IRTransaction)
     (state : Compiler.Proofs.IRGeneration.IRState)
-    (observableSlots : List Nat := []) :
+    (observableSlots : List Nat) :
     Except AdapterError YulResult :=
   interpretRuntimeNative fuel (Compiler.emitYul contract).runtimeCode
     (YulTransaction.ofIR tx) state.storage observableSlots state.events
