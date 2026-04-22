@@ -1,3 +1,4 @@
+import Compiler.CompilationModel
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget
 
@@ -17,9 +18,13 @@ private def mappingWriteSlot : Nat :=
 private def nestedMappingWriteSlot : Nat :=
   Compiler.Proofs.abstractMappingSlot (Compiler.Proofs.abstractMappingSlot 22 3) 4
 
+private def packedMappingSlot : Nat :=
+  Compiler.Proofs.abstractMappingSlot 23 6
+
 private def seededStorage : Nat -> Nat := fun slot =>
   if slot = 7 then 77 else
-  if slot = mappingReadSlot then 515 else 0
+  if slot = mappingReadSlot then 515 else
+  if slot = packedMappingSlot then 0x123456 else 0
 
 private def sampleIRTx (selector : Nat) (args : List Nat := []) : IRTransaction :=
   { sender := 0xCAFE
@@ -140,6 +145,43 @@ private def nestedMappingHelperDispatchSmokeContract : IRContract :=
     ]
     usesMapping := true }
 
+private def packedMember : Compiler.CompilationModel.StructMember :=
+  { name := "flags"
+    wordOffset := 0
+    packed := some { offset := 8, width := 8 } }
+
+private def packedMappingModel : Compiler.CompilationModel.CompilationModel :=
+  { name := "NativePackedMappingOracleSmoke"
+    fields := [
+      { name := "positions"
+        ty := .mappingStruct .uint256 [packedMember]
+        slot := some 23 },
+      { name := "scratch"
+        ty := .uint256
+        slot := some 16 }
+    ]
+    constructor := none
+    functions := [
+      { name := "readFlags"
+        params := [{ name := "key", ty := .uint256 }]
+        returnType := none
+        body := [
+          .setStorage "scratch" (.structMember "positions" (.param "key") "flags")
+        ] },
+      { name := "writeFlags"
+        params := [
+          { name := "key", ty := .uint256 },
+          { name := "value", ty := .uint256 }
+        ]
+        returnType := none
+        body := [
+          .setStructMember "positions" (.param "key") "flags" (.param "value")
+        ] }
+    ] }
+
+private def packedMappingDispatchSmokeContract : Except String IRContract :=
+  Compiler.CompilationModel.compile packedMappingModel [0xBBBBBBBB, 0xCCCCCCCC]
+
 private def calldataArgDispatchSmokeContract : IRContract :=
   { name := "NativeCalldataArgDispatchOracleSmoke"
     deploy := []
@@ -241,6 +283,15 @@ private def emittedDispatchMatchesReferenceWithExpected
       nativeResult.finalStorage slot == value &&
         reference.finalStorage slot == value))
 
+private def emittedCompiledDispatchMatchesReferenceWithExpected
+    (contract : Except String IRContract) (tx : IRTransaction)
+    (observableSlots compareSlots : List Nat)
+    (expectedSuccess : Bool) (expectedReturn : Option Nat)
+    (expectedSlots : List (Nat × Nat)) : Except String Bool := do
+  let irContract ← contract
+  emittedDispatchMatchesReferenceWithExpected irContract tx observableSlots compareSlots
+    expectedSuccess expectedReturn expectedSlots
+
 private def check (label : String) (actual : Except String Bool) : IO Unit := do
   match actual with
   | .ok true => IO.println s!"ok: {label}"
@@ -272,6 +323,14 @@ def main : IO Unit := do
     (emittedDispatchMatchesReferenceWithExpected nestedMappingHelperDispatchSmokeContract
       (sampleIRTx 0xAAAAAAAA [3, 4]) [nestedMappingWriteSlot] [nestedMappingWriteSlot]
       true none [(nestedMappingWriteSlot, 808)])
+  check "compiled dispatcher reads packed mapping struct members"
+    (emittedCompiledDispatchMatchesReferenceWithExpected packedMappingDispatchSmokeContract
+      (sampleIRTx 0xBBBBBBBB [6]) [packedMappingSlot, 16] [packedMappingSlot, 16]
+      true none [(packedMappingSlot, 0x123456), (16, 0x34)])
+  check "compiled dispatcher writes packed mapping struct members"
+    (emittedCompiledDispatchMatchesReferenceWithExpected packedMappingDispatchSmokeContract
+      (sampleIRTx 0xCCCCCCCC [6, 0xABCD]) [packedMappingSlot] [packedMappingSlot]
+      true none [(packedMappingSlot, 0x12CD56)])
   check "emitted dispatcher projects 32-byte return halts"
     (emittedDispatchMatchesReferenceWithExpected returnDispatchSmokeContract
       (sampleIRTx 0x33333333) [] [] true (some 42) [])

@@ -256,7 +256,8 @@ scope so the native path does not look more complete than it is:
    explicit expected success/return/storage outcomes,
    ABI argument-word decoding, observable storage reads, generated
    `mappingSlot` helper execution for singleton mapping writes, singleton
-   mapping reads, and nested mapping writes, 32-byte return halt projection,
+   mapping reads, nested mapping writes, and `CompilationModel`-compiled
+   packed mapping-struct member reads/writes, 32-byte return halt projection,
    multi-word memory-return fallback projection, and memory-backed revert rollback, and named
    `interpretIRRuntimeNative_loweringError` and
    `interpretIRRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative`
@@ -264,7 +265,7 @@ scope so the native path does not look more complete than it is:
    pipeline at the IR entry point. Next coverage should include:
    - returndata and external-call outcomes,
    - static-call permission behavior,
-   - packed and multi-word mapping member shapes beyond the singleton/nested
+   - multi-word mapping member shapes beyond the singleton/nested/packed
      helper-oracle cases.
 
 5. Introduce the public native preservation theorem.
