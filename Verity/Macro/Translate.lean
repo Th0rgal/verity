@@ -3215,9 +3215,7 @@ private partial def validateEffectStmtExprTypes
   | `(term| returnStorageWords $name:term) => do
       let ty ← requireDirectParamRef name "returnStorageWords" params
       requireSupportedReturnStorageWordsType name "returnStorageWords" ty
-  | `(term| internalCall $_fnName:term $args:term)
-    | `(term| internalCallAssign $_names:term $_fnName:term $args:term)
-    | `(term| externalCallBind $_names:term $_fnName:term $args:term)
+  | `(term| externalCallBind $_names:term $_fnName:term $args:term)
     | `(term| tryExternalCallBind $_successVar:term $_names:term $_fnName:term $args:term) =>
       match stripParens args with
       | `(term| [ $[$xs],* ]) =>
@@ -3675,19 +3673,6 @@ private def translateEffectStmt
           [ $[$topicExprs],* ]
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals dataOffset)
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals dataSize))
-  | `(term| internalCall $fnName:term $args:term) =>
-      let targetFn := ← expectStringOrIdent fnName
-      let argExprs ← expectExprList fields constDecls immutableDecls params locals args
-      `(Compiler.CompilationModel.Stmt.internalCall $(strTerm targetFn) [ $[$argExprs],* ])
-  | `(term| internalCallAssign $names:term $fnName:term $args:term) =>
-      let resultNames := ← expectStringList names
-      let resultNameTerms := resultNames.map strTerm
-      let targetFn := ← expectStringOrIdent fnName
-      let argExprs ← expectExprList fields constDecls immutableDecls params locals args
-      `(Compiler.CompilationModel.Stmt.internalCallAssign
-          [ $[$resultNameTerms],* ]
-          $(strTerm targetFn)
-          [ $[$argExprs],* ])
   | `(term| externalCallBind $names:term $fnName:term $args:term) =>
       let resultNames := ← expectStringList names
       let resultNameTerms := resultNames.map strTerm
