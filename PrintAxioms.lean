@@ -2757,6 +2757,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.selectorExprMatchesGeneratedDispatcher_selectorExpr
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.selectedSwitchBody_hit
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.selectedSwitchBody_miss
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeDispatchSelector_of_selector_lt
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable_global
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeBlobBaseFeeRepresentable_minimum
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_noChainId_noBlobBaseFee
@@ -3096,4 +3097,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2923 theorems/lemmas (2036 public, 887 private, 0 sorry'd)
+-- Total: 2924 theorems/lemmas (2037 public, 887 private, 0 sorry'd)

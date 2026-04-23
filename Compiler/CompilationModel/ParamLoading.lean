@@ -15,6 +15,12 @@ def isScalarParamType : ParamType → Bool
   | ParamType.uint256 | ParamType.int256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 => true
   | _ => false
 
+private def dynamicArrayElementStrideWords (elemTy : ParamType) : Nat :=
+  if isDynamicParamType elemTy then
+    1
+  else
+    max 1 (paramHeadSize elemTy / 32)
+
 private def genDynamicParamLoads
     (loadWord : YulExpr → YulExpr) (sizeExpr : YulExpr) (headSize : Nat)
     (baseOffset : Nat) (name : String) (ty : ParamType) (headOffset : Nat) :
@@ -57,8 +63,7 @@ private def genDynamicParamLoads
             YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
           ]]
     | ParamType.array elemTy =>
-        let elemWords :=
-          if isDynamicParamType elemTy then 1 else paramHeadSize elemTy / 32
+        let elemWords := dynamicArrayElementStrideWords elemTy
         [YulStmt.if_ (YulExpr.call "gt" [
             YulExpr.ident s!"{name}_length",
             YulExpr.call "div" [YulExpr.ident tailRemainingName, YulExpr.lit (32 * elemWords)]

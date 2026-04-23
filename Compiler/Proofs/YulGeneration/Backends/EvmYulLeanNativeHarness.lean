@@ -159,6 +159,15 @@ def selectedSwitchBody
   unfold selectedSwitchBody
   rw [hFind]
 
+def nativeDispatchSelector (tx : YulTransaction) : Nat :=
+  tx.functionSelector % Compiler.Constants.selectorModulus
+
+@[simp] theorem nativeDispatchSelector_of_selector_lt
+    (tx : YulTransaction)
+    (hSelector : tx.functionSelector < Compiler.Constants.selectorModulus) :
+    nativeDispatchSelector tx = tx.functionSelector := by
+  simp [nativeDispatchSelector, Nat.mod_eq_of_lt hSelector]
+
 partial def yulStmtsUseBuiltinWithCalledFunctions
     (fuel : Nat)
     (builtin : String)
@@ -224,7 +233,7 @@ def nativeRuntimePathUsesBuiltin
     (runtimeCode : List YulStmt)
     (tx : YulTransaction) :
     Bool :=
-  yulStmtsUseBuiltinOnNativeRuntimePath builtin tx.functionSelector
+  yulStmtsUseBuiltinOnNativeRuntimePath builtin (nativeDispatchSelector tx)
     (yulFunctionBodies runtimeCode) runtimeCode
 
 def nativeBlobBaseFeeRepresentable (fee : Nat) : Bool :=
