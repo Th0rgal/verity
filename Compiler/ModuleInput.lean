@@ -74,6 +74,15 @@ private unsafe def evalSpecConst
 
 private def splitPackageSearchRoots : List System.FilePath :=
   [ ".lake/build/lib/lean"
+  , ".lake/packages/LeanSearchClient/.lake/build/lib/lean"
+  , ".lake/packages/Qq/.lake/build/lib/lean"
+  , ".lake/packages/aesop/.lake/build/lib/lean"
+  , ".lake/packages/batteries/.lake/build/lib/lean"
+  , ".lake/packages/evmyul/.lake/build/lib/lean"
+  , ".lake/packages/importGraph/.lake/build/lib/lean"
+  , ".lake/packages/mathlib/.lake/build/lib/lean"
+  , ".lake/packages/plausible/.lake/build/lib/lean"
+  , ".lake/packages/proofwidgets/.lake/build/lib/lean"
   , "packages/verity-edsl/.lake/build/lib/lean"
   , "packages/verity-compiler/.lake/build/lib/lean"
   , "packages/verity-examples/.lake/build/lib/lean"
