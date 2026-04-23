@@ -45,6 +45,9 @@ private def pushLocal (v : TVar) : CompileM Unit :=
 private def emit (stmt : TStmt) : CompileM Unit :=
   modify fun st => { st with body := st.body.push stmt }
 
+private def storageWordSlot (slot wordOffset : Nat) : Nat :=
+  (slot + wordOffset) % Compiler.Constants.evmModulus
+
 private def paramTypeToTy : ParamType → Except String Ty
   | .uint256 => Except.ok Ty.uint256
   | .int256 => Except.ok Ty.uint256
@@ -353,7 +356,7 @@ private def compileStmt (fields : List Field) : Stmt → CompileM Unit
       let rhs ← liftExcept <| asUInt256 (← compileExpr fields value)
       match findFieldWithResolvedSlot fields fieldName with
       | some (_, slot) =>
-          emit (.setStorageWord (slot + wordOffset) rhs)
+          emit (.setStorageWord (storageWordSlot slot wordOffset) rhs)
       | none =>
           throw s!"Typed IR compile error: unknown storage field '{fieldName}' in setStorageWord"
   | .setMapping fieldName key value => do
@@ -726,14 +729,15 @@ theorem compileStmts_single_setStorage_literal_run
   rfl
 
 /-- `setStorageWord fieldName wordOffset (literal n)` lowers to a raw uint256
-write at the resolved root slot plus the requested ABI word offset. -/
+write at the resolved root slot plus the requested ABI word offset, wrapping
+the slot arithmetic at the EVM word modulus. -/
 theorem compileStmts_single_setStorageWord_literal_run
     (fields : List Field) (fieldName : String) (slot wordOffset : Nat)
     (n : Nat) (st : CompileState)
     (hfind : findFieldWithResolvedSlot fields fieldName =
       some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
     (compileStmts fields [Stmt.setStorageWord fieldName wordOffset (Expr.literal n)]).run st =
-      Except.ok ((), { st with body := st.body.push (TStmt.setStorageWord (slot + wordOffset) (TExpr.uintLit n)) }) := by
+      Except.ok ((), { st with body := st.body.push (TStmt.setStorageWord (storageWordSlot slot wordOffset) (TExpr.uintLit n)) }) := by
   simp only [compileStmts, compileStmt, hfind, emit]
   rfl
 
@@ -745,8 +749,20 @@ theorem compileStmts_single_setStorageWord_address_literal_run
     (hfind : findFieldWithResolvedSlot fields fieldName =
       some ({ name := fieldName, ty := FieldType.address }, slot)) :
     (compileStmts fields [Stmt.setStorageWord fieldName wordOffset (Expr.literal n)]).run st =
-      Except.ok ((), { st with body := st.body.push (TStmt.setStorageWord (slot + wordOffset) (TExpr.uintLit n)) }) := by
+      Except.ok ((), { st with body := st.body.push (TStmt.setStorageWord (storageWordSlot slot wordOffset) (TExpr.uintLit n)) }) := by
   simp only [compileStmts, compileStmt, hfind, emit]
+  rfl
+
+theorem compileStmts_single_setStorageWord_wraps_slot_run
+    (fields : List Field) (fieldName : String) (slot : Nat)
+    (n : Nat) (st : CompileState)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    (compileStmts fields
+      [Stmt.setStorageWord fieldName Compiler.Constants.evmModulus (Expr.literal n)]).run st =
+      Except.ok ((), { st with body := st.body.push (TStmt.setStorageWord (slot % Compiler.Constants.evmModulus) (TExpr.uintLit n)) }) := by
+  simp [compileStmts, compileStmt, hfind, asUInt256, liftExcept, emit,
+    storageWordSlot, Nat.add_mod_right]
   rfl
 
 /-- Two-statement compilation shape for a broader supported subset:

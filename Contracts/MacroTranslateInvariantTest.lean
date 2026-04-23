@@ -363,11 +363,6 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.FullComboSmoke.spec
   ]
 
-private def functionSignature (fn : FunctionSpec) : String :=
-  let params := fn.params.map (fun p => paramTypeToSolidityString p.ty)
-  let paramStr := String.intercalate "," params
-  s!"{fn.name}({paramStr})"
-
 private def expectedExternalSignatures : List (String × List String) :=
   [ ("SimpleStorage", ["store(uint256)", "retrieve()"])
   , ("LocalObligationMacroSmoke", ["unsafeEdge()", "dischargedEdge(uint256)"])
