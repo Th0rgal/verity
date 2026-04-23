@@ -617,6 +617,108 @@ theorem selectorBytesAsNat (selector : Nat) :
   simp [Compiler.Constants.selectorModulus]
   omega
 
+private theorem fromBytes'_append (xs ys : List UInt8) :
+    EvmYul.fromBytes' (xs ++ ys) =
+      EvmYul.fromBytes' xs + 2^(8 * xs.length) * EvmYul.fromBytes' ys := by
+  induction xs with
+  | nil =>
+      simp [EvmYul.fromBytes']
+  | cons x xs ih =>
+      simp only [List.cons_append, EvmYul.fromBytes']
+      rw [ih]
+      rw [show 8 * (x :: xs).length = 8 + 8 * xs.length by
+        simp [Nat.mul_add, Nat.add_comm]]
+      rw [Nat.pow_add]
+      ring
+
+private theorem fromBytes'_lt (xs : List UInt8) :
+    EvmYul.fromBytes' xs < 2^(8 * xs.length) := by
+  induction xs with
+  | nil =>
+      simp [EvmYul.fromBytes']
+  | cons x xs ih =>
+      unfold EvmYul.fromBytes'
+      have hx : x.toFin.val < 2^8 := by
+        have := x.toFin.isLt
+        norm_num at this ⊢
+        exact this
+      simp only [List.length_cons, Nat.mul_succ, Nat.add_comm, Nat.pow_add]
+      have _ :=
+        Nat.add_le_of_le_sub
+          (Nat.one_le_pow _ _ (by decide))
+          (Nat.le_sub_one_of_lt ih)
+      linarith
+
+private theorem fromBytes'_four
+    (b0 b1 b2 b3 : UInt8) :
+    EvmYul.fromBytes' [b3, b2, b1, b0] =
+      b3.toFin.val + 2^8 * b2.toFin.val +
+        2^16 * b1.toFin.val + 2^24 * b0.toFin.val := by
+  simp [EvmYul.fromBytes']
+  omega
+
+private theorem fromBytes'_tail4_shift
+    (b0 b1 b2 b3 : UInt8)
+    (tail : List UInt8)
+    (hlen : tail.length = 28) :
+    EvmYul.fromBytes' (tail.reverse ++ [b3, b2, b1, b0]) / 2^224 =
+      b0.toFin.val * 2^24 +
+        b1.toFin.val * 2^16 +
+        b2.toFin.val * 2^8 +
+        b3.toFin.val := by
+  rw [fromBytes'_append]
+  have htailLen : tail.reverse.length = 28 := by
+    simp [hlen]
+  have htailBound : EvmYul.fromBytes' tail.reverse < 2^224 := by
+    have h := fromBytes'_lt tail.reverse
+    simpa [htailLen] using h
+  rw [fromBytes'_four]
+  rw [htailLen]
+  norm_num
+  omega
+
+/-- Once the EVMYulLean calldata word has been reduced to a 32-byte big-endian
+    list whose first four bytes are the ABI selector, shifting the corresponding
+    `fromBytes'` value right by 224 yields the normalized dispatcher selector.
+    The remaining native selector proof only has to connect
+    `ByteArray.readBytes`/`State.calldataload` to this list shape. -/
+theorem fromBytes'_selectorPrefix_shift
+    (selector : Nat)
+    (tail : List UInt8)
+    (hlen : tail.length = 28) :
+    EvmYul.fromBytes'
+        (tail.reverse ++
+          [UInt8.ofNat (selector % 256),
+           UInt8.ofNat (selector / 2^8 % 256),
+           UInt8.ofNat (selector / 2^16 % 256),
+           UInt8.ofNat (selector / 2^24 % 256)]) / 2^224 =
+      selector % Compiler.Constants.selectorModulus := by
+  rw [fromBytes'_tail4_shift
+    (UInt8.ofNat (selector / 2^24 % 256))
+    (UInt8.ofNat (selector / 2^16 % 256))
+    (UInt8.ofNat (selector / 2^8 % 256))
+    (UInt8.ofNat (selector % 256))
+    tail hlen]
+  norm_num [UInt8.ofNat, UInt8.size]
+  have h0 : OfNat.ofNat (selector / 16777216 % 256) % 256 =
+      selector / 16777216 % 256 := by
+    change (selector / 16777216 % 256) % 256 = selector / 16777216 % 256
+    exact Nat.mod_eq_of_lt (Nat.mod_lt _ (by norm_num))
+  have h1 : OfNat.ofNat (selector / 65536 % 256) % 256 =
+      selector / 65536 % 256 := by
+    change (selector / 65536 % 256) % 256 = selector / 65536 % 256
+    exact Nat.mod_eq_of_lt (Nat.mod_lt _ (by norm_num))
+  have h2 : OfNat.ofNat (selector / 256 % 256) % 256 =
+      selector / 256 % 256 := by
+    change (selector / 256 % 256) % 256 = selector / 256 % 256
+    exact Nat.mod_eq_of_lt (Nat.mod_lt _ (by norm_num))
+  have h3 : OfNat.ofNat (selector % 256) % 256 =
+      selector % 256 := by
+    change (selector % 256) % 256 = selector % 256
+    exact Nat.mod_eq_of_lt (Nat.mod_lt _ (by norm_num))
+  rw [h0, h1, h2, h3]
+  simpa [Compiler.Constants.selectorModulus] using selectorBytesAsNat selector
+
 /-- The native lowerer maps the generated dispatcher selector expression to
     EVMYulLean's primitive `SHR(CALLDATALOAD(0), 224)` shape. -/
 theorem lowerExprNative_selectorExpr :

@@ -2804,6 +2804,11 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte2
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte3
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.selectorBytesAsNat
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_append  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_lt  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_four  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_tail4_shift  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_selectorPrefix_shift
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.lowerExprNative_selectorExpr
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_calldataload_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_shr_ok
@@ -3137,4 +3142,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2964 theorems/lemmas (2076 public, 888 private, 0 sorry'd)
+-- Total: 2969 theorems/lemmas (2077 public, 892 private, 0 sorry'd)

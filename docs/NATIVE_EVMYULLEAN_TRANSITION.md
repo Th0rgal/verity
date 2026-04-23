@@ -229,12 +229,12 @@ scope so the native path does not look more complete than it is:
    `initialState_calldataReadWord_selectorByte0` through
    `initialState_calldataReadWord_selectorByte3`, proving that the native
    word read sees the bridged selector bytes before any opaque zero-padding.
-   The arithmetic recomposition side is now named by `selectorBytesAsNat`,
-   proving that the four ABI selector bytes equal
-   `tx.functionSelector % selectorModulus`. The remaining native selector proof
-   is the EVMYulLean byte-array/list decoding lemma that connects
-   `State.calldataload`/`UInt256.shiftRight` over `ByteArray.readBytes` to those
-   four high bytes.
+   The arithmetic recomposition side is named by `selectorBytesAsNat`, and
+   `fromBytes'_selectorPrefix_shift` now proves the list-decoding side once the
+   32-byte big-endian read word has the four ABI selector bytes at the high
+   end. The remaining native selector proof is the EVMYulLean ByteArray/UInt256
+   bridge that connects `State.calldataload`/`UInt256.shiftRight` over
+   `ByteArray.readBytes` and `uInt256OfByteArray` to that 32-byte list shape.
 
 2. Prove native state bridge lemmas.
 
