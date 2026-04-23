@@ -521,6 +521,110 @@ theorem lowerSwitchCasesNativeWithSwitchIds_cons
             | (rest', nextSwitchId) => pure ((tag, block') :: rest', nextSwitchId)) :=
   lowerSwitchCasesNativeWithSwitchIds.eq_2 reservedNames nextSwitchId tag block rest
 
+/-- Lowering native switch cases preserves selector misses through the lowered
+case spine.
+
+The native dispatcher proof consumes this to move from source-level selector
+lookup to the generated guarded case list before considering an optional
+default branch. -/
+theorem lowerSwitchCasesNativeWithSwitchIds_find?_none
+    (reservedNames : List String) (nextSwitchId final selector : Nat)
+    (cases : List (Nat × List YulStmt))
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (hLower : lowerSwitchCasesNativeWithSwitchIds reservedNames nextSwitchId cases =
+      .ok (cases', final))
+    (hFind : cases.find? (fun entry => entry.1 == selector) = none) :
+    cases'.find? (fun entry => entry.1 == selector) = none := by
+  induction cases generalizing nextSwitchId cases' final with
+  | nil =>
+      simp at hLower
+      rcases hLower with ⟨rfl, rfl⟩
+      simp
+  | cons head rest ih =>
+      rcases head with ⟨tag, block⟩
+      cases hBlock : lowerStmtsNativeWithSwitchIds reservedNames nextSwitchId block with
+      | error err =>
+          simp [lowerSwitchCasesNativeWithSwitchIds.eq_2, hBlock] at hLower
+          cases hLower
+      | ok blockAndNext =>
+          rcases blockAndNext with ⟨block', nextSwitchId'⟩
+          rw [lowerSwitchCasesNativeWithSwitchIds.eq_2, hBlock] at hLower
+          change
+            ((fun a => ((tag, block') :: a.1, a.2)) <$>
+              lowerSwitchCasesNativeWithSwitchIds reservedNames nextSwitchId' rest) =
+                Except.ok (cases', final) at hLower
+          cases hRest :
+              lowerSwitchCasesNativeWithSwitchIds reservedNames nextSwitchId' rest with
+          | error err =>
+              rw [hRest] at hLower
+              simp at hLower
+          | ok restAndNext =>
+              rcases restAndNext with ⟨rest', final'⟩
+              rw [hRest] at hLower
+              simp at hLower
+              rcases hLower with ⟨rfl, rfl⟩
+              by_cases hTag : tag == selector
+              · simp [List.find?, hTag] at hFind
+              · have hRestFind :
+                    rest.find? (fun entry => entry.1 == selector) = none := by
+                    simpa [List.find?, hTag] using hFind
+                have hLowerRest :
+                    rest'.find? (fun entry => entry.1 == selector) = none :=
+                  ih nextSwitchId' final' rest' hRest hRestFind
+                simp [List.find?, hTag, hLowerRest]
+
+/-- Lowering native switch cases preserves selector hits through the lowered
+case spine, while exposing the switch-temp counter range used to lower the
+selected body. -/
+theorem lowerSwitchCasesNativeWithSwitchIds_find?_some
+    (reservedNames : List String) (nextSwitchId final selector tag : Nat)
+    (body : List YulStmt) (cases : List (Nat × List YulStmt))
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (hLower : lowerSwitchCasesNativeWithSwitchIds reservedNames nextSwitchId cases =
+      .ok (cases', final))
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body)) :
+    ∃ body' bodyStart bodyEnd,
+      cases'.find? (fun entry => entry.1 == selector) = some (tag, body') ∧
+      lowerStmtsNativeWithSwitchIds reservedNames bodyStart body =
+        .ok (body', bodyEnd) := by
+  induction cases generalizing nextSwitchId cases' final with
+  | nil =>
+      simp [List.find?] at hFind
+  | cons head rest ih =>
+      rcases head with ⟨headTag, headBody⟩
+      cases hBlock : lowerStmtsNativeWithSwitchIds reservedNames nextSwitchId headBody with
+      | error err =>
+          simp [lowerSwitchCasesNativeWithSwitchIds.eq_2, hBlock] at hLower
+          cases hLower
+      | ok blockAndNext =>
+          rcases blockAndNext with ⟨headBody', nextSwitchId'⟩
+          rw [lowerSwitchCasesNativeWithSwitchIds.eq_2, hBlock] at hLower
+          change ((fun a => ((headTag, headBody') :: a.1, a.2)) <$>
+            lowerSwitchCasesNativeWithSwitchIds reservedNames nextSwitchId' rest) =
+              Except.ok (cases', final) at hLower
+          cases hRest : lowerSwitchCasesNativeWithSwitchIds reservedNames nextSwitchId' rest with
+          | error err =>
+              rw [hRest] at hLower
+              simp at hLower
+          | ok restAndNext =>
+              rcases restAndNext with ⟨rest', final'⟩
+              rw [hRest] at hLower
+              simp at hLower
+              rcases hLower with ⟨rfl, rfl⟩
+              by_cases hTag : headTag == selector
+              · have hHead : (headTag, headBody) = (tag, body) := by
+                    simpa [List.find?, hTag] using hFind
+                cases hHead
+                exact ⟨headBody', nextSwitchId, nextSwitchId',
+                  by simp [List.find?, hTag], hBlock⟩
+              · have hRestFind : rest.find? (fun entry => entry.1 == selector) =
+                    some (tag, body) := by
+                    simpa [List.find?, hTag] using hFind
+                rcases ih nextSwitchId' final' rest' hRest hRestFind with
+                  ⟨body', bodyStart, bodyEnd, hLowerFind, hLowerBody⟩
+                exact ⟨body', bodyStart, bodyEnd,
+                  by simp [List.find?, hTag, hLowerFind], hLowerBody⟩
+
 @[simp] theorem lowerStmtGroupNativeWithSwitchIds_comment
     (reservedNames : List String)
     (nextSwitchId : Nat)

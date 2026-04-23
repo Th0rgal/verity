@@ -2221,6 +2221,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_cons
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_nil
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_cons
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_find?_none
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_find?_some
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_comment
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_let
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_letMany
@@ -2836,6 +2838,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_selectorExpr_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_selectorExpr_initialState_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_selectorExpr_initialState_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_selectorExpr_initialState_ok_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lit_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_cons_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_append_ok
@@ -3221,4 +3224,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3048 theorems/lemmas (2144 public, 904 private, 0 sorry'd)
+-- Total: 3051 theorems/lemmas (2147 public, 904 private, 0 sorry'd)

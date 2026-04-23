@@ -1161,6 +1161,41 @@ theorem exec_let_lowerExprNative_selectorExpr_initialState_ok
     Compiler.Constants.selectorShift]
   rw [hv224]
 
+theorem exec_let_lowerExprNative_selectorExpr_initialState_ok_fuel
+    (fuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (discrName : EvmYul.Identifier) :
+    EvmYul.Yul.exec (fuel + 11)
+        (.Let [discrName]
+          (some (Backends.lowerExprNative Compiler.Proofs.YulGeneration.selectorExpr)))
+        (some contract) (.Ok (initialState contract tx storage observableSlots).sharedState ∅) =
+      .ok ((.Ok (initialState contract tx storage observableSlots).sharedState ∅ :
+          EvmYul.Yul.State).insert discrName
+        (EvmYul.UInt256.ofNat
+          (tx.functionSelector % Compiler.Constants.selectorModulus))) := by
+  have hv :=
+    initialState_selectorExpr_native_uint256 contract tx storage observableSlots
+  have hv224 :
+      EvmYul.UInt256.shiftRight
+        (EvmYul.State.calldataload
+          (EvmYul.SharedState.toState
+            (initialState contract tx storage observableSlots).sharedState)
+          (EvmYul.UInt256.ofNat 0))
+        (EvmYul.UInt256.ofNat 224) =
+      EvmYul.UInt256.ofNat
+        (tx.functionSelector % Compiler.Constants.selectorModulus) := by
+    simpa [Compiler.Constants.selectorShift] using hv
+  rw [lowerExprNative_selectorExpr]
+  simp [EvmYul.Yul.exec, EvmYul.Yul.eval, EvmYul.Yul.evalArgs,
+    EvmYul.Yul.evalTail, EvmYul.Yul.evalPrimCall, EvmYul.Yul.execPrimCall,
+    EvmYul.Yul.reverse', EvmYul.Yul.cons', EvmYul.Yul.head',
+    EvmYul.Yul.multifill', EvmYul.Yul.State.multifill,
+    Compiler.Constants.selectorShift]
+  rw [hv224]
+
 @[simp] theorem exec_let_lit_ok
     (fuel' : Nat)
     (name : EvmYul.Identifier)

@@ -289,10 +289,15 @@ scope so the native path does not look more complete than it is:
   `exec_nativeSwitchCaseIfs_find_none_with_default_nonempty_fuel`, and
   `exec_nativeSwitchCaseIfs_find_none_without_default_fuel`, composing selector
   lookup with the optional default arm emitted by `lowerNativeSwitchBlock`. The
+  adapter now also exposes
+  `lowerSwitchCasesNativeWithSwitchIds_find?_some` and
+  `lowerSwitchCasesNativeWithSwitchIds_find?_none`, proving that native case
+  lowering preserves the source switch selector lookup result while exposing
+  the switch-temp counter interval for the selected lowered body. The
   remaining native dispatcher proof starts after that complete lazy-switch
   bridge, at proving `NativeBlockPreservesWord` for selected/default lowered
-  bodies and threading the initialized prefix state into the raw lowered switch
-  block. The adapter now names
+  bodies and threading the initialized prefix state plus the lowering lookup
+  facts into the raw lowered switch block. The adapter now names
    the needed freshness surface with `yulStmtWriteNames`,
    `yulStmtsWriteNames`,
    `nativeStmtWriteNames`, `nativeStmtsWriteNames`,
