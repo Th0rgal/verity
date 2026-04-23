@@ -316,10 +316,13 @@ def writeUintSlots (world : Verity.ContractState) (slots : List Nat) (value : Na
 def writeStorageWordSlot (world : Verity.ContractState) (slot wordOffset value : Nat) :
     Verity.ContractState :=
   let word : Verity.Core.Uint256 := value
+  let addr := Verity.wordToAddress word
   let target := wordNormalize (slot + wordOffset)
   { world with
     storage := fun current =>
-      if current = target then word else world.storage current }
+      if current = target then word else world.storage current,
+    storageAddr := fun current =>
+      if current = target then addr else world.storageAddr current }
 
 def writeAddressSlots (world : Verity.ContractState) (slots : List Nat) (value : Nat) :
     Verity.ContractState :=

@@ -95,6 +95,12 @@ private def resultStorageAt? (slot : Nat) : SourceSemantics.StmtResult → Optio
   | .return _ st => some (st.world.storage slot).val
   | .revert => none
 
+private def resultStorageAddrAt? (slot : Nat) : SourceSemantics.StmtResult → Option Verity.Address
+  | .continue st => some (st.world.storageAddr slot)
+  | .stop st => some (st.world.storageAddr slot)
+  | .return _ st => some (st.world.storageAddr slot)
+  | .revert => none
+
 example :
     (sourceContractSemantics simpleStorageSupportedSpecModel [0x2e64cec1]
       { sender := 7, functionSelector := 0x2e64cec1, args := [] }
@@ -203,6 +209,13 @@ example :
     resultStorageAt? 12
       (SourceSemantics.execStmt storageWordFields storageWordState
         (Stmt.setStorageWord "root" 2 (.literal 99))) = some 99 := by
+  native_decide
+
+example :
+    resultStorageAddrAt? 12
+      (SourceSemantics.execStmt storageWordFields storageWordState
+        (Stmt.setStorageWord "root" 2 (.literal 99))) =
+        some (Verity.wordToAddress (99 : Verity.Uint256)) := by
   native_decide
 
 example :

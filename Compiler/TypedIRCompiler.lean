@@ -353,7 +353,7 @@ private def compileStmt (fields : List Field) : Stmt → CompileM Unit
       let rhs ← liftExcept <| asUInt256 (← compileExpr fields value)
       match findFieldWithResolvedSlot fields fieldName with
       | some (_, slot) =>
-          emit (.setStorage (slot + wordOffset) rhs)
+          emit (.setStorageWord (slot + wordOffset) rhs)
       | none =>
           throw s!"Typed IR compile error: unknown storage field '{fieldName}' in setStorageWord"
   | .setMapping fieldName key value => do
@@ -733,7 +733,19 @@ theorem compileStmts_single_setStorageWord_literal_run
     (hfind : findFieldWithResolvedSlot fields fieldName =
       some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
     (compileStmts fields [Stmt.setStorageWord fieldName wordOffset (Expr.literal n)]).run st =
-      Except.ok ((), { st with body := st.body.push (TStmt.setStorage (slot + wordOffset) (TExpr.uintLit n)) }) := by
+      Except.ok ((), { st with body := st.body.push (TStmt.setStorageWord (slot + wordOffset) (TExpr.uintLit n)) }) := by
+  simp only [compileStmts, compileStmt, hfind, emit]
+  rfl
+
+/-- `setStorageWord` is raw word storage: address roots also lower to the
+projection-mirroring typed raw write rather than a uint-only `setStorage`. -/
+theorem compileStmts_single_setStorageWord_address_literal_run
+    (fields : List Field) (fieldName : String) (slot wordOffset : Nat)
+    (n : Nat) (st : CompileState)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.address }, slot)) :
+    (compileStmts fields [Stmt.setStorageWord fieldName wordOffset (Expr.literal n)]).run st =
+      Except.ok ((), { st with body := st.body.push (TStmt.setStorageWord (slot + wordOffset) (TExpr.uintLit n)) }) := by
   simp only [compileStmts, compileStmt, hfind, emit]
   rfl
 
