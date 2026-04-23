@@ -1092,7 +1092,23 @@ verity_contract ZeroAddressShadowSmoke where
 verity_contract ContextAccessorShadowSmoke where
   storage
 
+  constants
+    chainid : Uint256 := 31337
+
+  immutables
+    blockTimestamp : Uint256 := 12345
+    msgSender : Address := (wordToAddress 42)
+
   function echoSenderName (msgSender : Address) : Address := do
+    return msgSender
+
+  function constantNamedChainid () : Uint256 := do
+    return chainid
+
+  function immutableNamedBlockTimestamp () : Uint256 := do
+    return blockTimestamp
+
+  function immutableNamedMsgSender () : Address := do
     return msgSender
 
 verity_contract StructMappingSmoke where

@@ -26,4 +26,31 @@ contract PropertyContextAccessorShadowSmokeTest is YulTestBase {
         address actual = abi.decode(ret, (address));
         assertEq(actual, alice, "echoSenderName should preserve the expected value");
     }
+    // Property 2: constantNamedChainid returns the declared constant or immutable value
+    function testAuto_ConstantNamedChainid_ReturnsDeclaredBinding() public {
+        vm.prank(alice);
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("constantNamedChainid()"));
+        require(ok, "constantNamedChainid reverted unexpectedly");
+        assertEq(ret.length, 32, "constantNamedChainid ABI return length mismatch (expected 32 bytes)");
+        uint256 actual = abi.decode(ret, (uint256));
+        assertEq(actual, 31337, "constantNamedChainid should preserve the expected value");
+    }
+    // Property 3: immutableNamedBlockTimestamp returns the declared constant or immutable value
+    function testAuto_ImmutableNamedBlockTimestamp_ReturnsDeclaredBinding() public {
+        vm.prank(alice);
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("immutableNamedBlockTimestamp()"));
+        require(ok, "immutableNamedBlockTimestamp reverted unexpectedly");
+        assertEq(ret.length, 32, "immutableNamedBlockTimestamp ABI return length mismatch (expected 32 bytes)");
+        uint256 actual = abi.decode(ret, (uint256));
+        assertEq(actual, 12345, "immutableNamedBlockTimestamp should preserve the expected value");
+    }
+    // Property 4: immutableNamedMsgSender returns the declared constant or immutable value
+    function testAuto_ImmutableNamedMsgSender_ReturnsDeclaredBinding() public {
+        vm.prank(alice);
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("immutableNamedMsgSender()"));
+        require(ok, "immutableNamedMsgSender reverted unexpectedly");
+        assertEq(ret.length, 32, "immutableNamedMsgSender ABI return length mismatch (expected 32 bytes)");
+        address actual = abi.decode(ret, (address));
+        assertEq(actual, address(uint160(42)), "immutableNamedMsgSender should preserve the expected value");
+    }
 }

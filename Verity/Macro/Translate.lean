@@ -1225,6 +1225,9 @@ private def typedLocalNames (locals : Array TypedLocal) : Array String :=
 private def matchesBareName (actual bare : String) : Bool :=
   actual == bare || actual.endsWith s!".{bare}"
 
+private def declaredNameMatches (query declared : String) : Bool :=
+  matchesBareName query declared || matchesBareName declared query
+
 private def contextAccessorBareName? (name : String) : Option String :=
   if matchesBareName name "msgSender" then some "msgSender"
   else if matchesBareName name "msgValue" then some "msgValue"
@@ -1624,8 +1627,10 @@ private partial def inferPureExprType
       match params.findSome? (fun p => if p.name == name then some p.ty else none)
           <|> tupleParamElemType? params name
           <|> lookupTypedLocalType? locals name
-          <|> immutableDecls.findSome? (fun imm => if imm.name == name then some imm.ty else none)
-          <|> constDecls.findSome? (fun constant => if constant.name == name then some constant.ty else none) with
+          <|> immutableDecls.findSome? (fun imm =>
+                if declaredNameMatches name imm.name then some imm.ty else none)
+          <|> constDecls.findSome? (fun constant =>
+                if declaredNameMatches name constant.name then some constant.ty else none) with
       | some ty => pure ty
       | none =>
           if matchesBareName name "calldatasize" || matchesBareName name "returndataSize" then
@@ -2252,14 +2257,16 @@ partial def translatePureExprWithTypes
         `(Compiler.CompilationModel.Expr.returndataSize)
       else if matchesBareName name "zeroAddress" then
         `(Compiler.CompilationModel.Expr.literal 0)
-      else if let some accessor := contextAccessorBareName? name then
-        throwPureContextAccessorError stx accessor
-      else if let some imm := immutableDecls.find? (fun imm => imm.name == name) then
+      else if let some imm := immutableDecls.find? (fun imm => declaredNameMatches name imm.name) then
         match imm.ty with
         | .uint256 | .int256 | .uint8 | .bytes32 | .bool =>
             `(Compiler.CompilationModel.Expr.storage $(strTerm (immutableHiddenName imm)))
         | .address => `(Compiler.CompilationModel.Expr.storageAddr $(strTerm (immutableHiddenName imm)))
         | _ => throwErrorAt stx s!"immutable '{name}' uses unsupported type"
+      else if let some constant := constDecls.find? (fun constant => declaredNameMatches name constant.name) then
+        translateConstantExpr fields constDecls immutableDecls visitingConstants constant.name
+      else if let some accessor := contextAccessorBareName? name then
+        throwPureContextAccessorError stx accessor
       else
         translateConstantExpr fields constDecls immutableDecls visitingConstants name
   | `(term| calldatasize) => `(Compiler.CompilationModel.Expr.calldatasize)
