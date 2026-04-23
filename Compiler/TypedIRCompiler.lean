@@ -587,9 +587,11 @@ def compileFunctionToTBlock (spec : CompilationModel) (fn : FunctionSpec) : Exce
 /-- Compile a function by full ABI signature from a `CompilationModel` to typed IR. -/
 def compileFunctionWithSignature (spec : CompilationModel) (signature : String) :
     Except String TBlock := do
-  match spec.functions.find? (fun fn => functionSignature fn == signature) with
-  | some fn => compileFunctionToTBlock spec fn
-  | none => throw s!"Typed IR compile error: function signature '{signature}' not found in spec '{spec.name}'"
+  match spec.functions.filter (fun fn => functionSignature fn == signature) with
+  | [] => throw s!"Typed IR compile error: function signature '{signature}' not found in spec '{spec.name}'"
+  | [fn] => compileFunctionToTBlock spec fn
+  | _ =>
+      throw s!"Typed IR compile error: function signature '{signature}' is ambiguous in spec '{spec.name}'"
 
 /-- Compile a named function from a `CompilationModel` to typed IR.
 
@@ -660,6 +662,25 @@ private def typedIROverloadSmokeSpec : CompilationModel := {
   ]
 }
 
+private def typedIRAmbiguousSignatureSmokeSpec : CompilationModel := {
+  name := "TypedIRAmbiguousSignatureSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "echo"
+      params := [{ name := "amount", ty := ParamType.uint256 }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.param "amount")]
+    },
+    { name := "echo"
+      params := [{ name := "amount", ty := ParamType.uint256 }]
+      returnType := some FieldType.uint256
+      isInternal := true
+      body := [Stmt.return (Expr.literal 2)]
+    }
+  ]
+}
+
 private def stringContains (haystack needle : String) : Bool :=
   let h := haystack.toList
   let n := needle.toList
@@ -688,6 +709,12 @@ example :
     (match compileFunctionWithSignature typedIROverloadSmokeSpec "echo(address)" with
     | Except.ok block => decide (block.params.map TVar.ty = [Ty.address])
     | Except.error _ => false) = true := by
+  native_decide
+
+example :
+    (match compileFunctionWithSignature typedIRAmbiguousSignatureSmokeSpec "echo(uint256)" with
+    | Except.ok _ => false
+    | Except.error msg => stringContains msg "signature 'echo(uint256)' is ambiguous") = true := by
   native_decide
 
 example :
