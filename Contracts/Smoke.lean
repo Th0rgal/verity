@@ -964,6 +964,25 @@ def packedStorageExecutableWritesExplicitWordOffset : Bool :=
 
 example : packedStorageExecutableWritesExplicitWordOffset = true := by decide
 
+verity_contract PackedAddressStorageWriteSmoke where
+  storage
+    owner : Address := slot 0
+
+  function writeOwnerWord (word : Uint256) : Address := do
+    setPackedStorage owner 0 word
+    let current ← getStorageAddr owner
+    return current
+
+def packedStorageExecutableUpdatesAddressMirror : Bool :=
+  match PackedAddressStorageWriteSmoke.writeOwnerWord 0xA11CE Verity.defaultState with
+  | .success value state =>
+      value == Verity.wordToAddress 0xA11CE &&
+      state.storage 0 == 0xA11CE &&
+      state.storageAddr 0 == Verity.wordToAddress 0xA11CE
+  | _ => false
+
+example : packedStorageExecutableUpdatesAddressMirror = true := by decide
+
 verity_contract DirectHelperCallSmoke where
   storage
     total : Uint256 := slot 0

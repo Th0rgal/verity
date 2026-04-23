@@ -241,15 +241,13 @@ def nativeDispatcherExecAgreesWithInterpreter
     | 0 =>
         .error EvmYul.Yul.Exception.OutOfFuel
     | Nat.succ fuel' =>
-        let dispatcherDef :=
-          EvmYul.Yul.Ast.FunctionDefinition.Def [] [] [nativeContract.dispatcher]
         match
           Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
             fuel' nativeContract initial with
         | .error err => .error err
         | .ok finalState =>
             let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
-            .ok (restored, List.map finalState.lookup! dispatcherDef.rets)
+            .ok (restored, [])
   yulResultsAgreeOn observableSlots
     (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
       (YulTransaction.ofIR tx) state.storage state.events nativeResult)

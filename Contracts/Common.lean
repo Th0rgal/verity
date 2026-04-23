@@ -225,7 +225,9 @@ def setPackedStorage {α : Type} (rootSlot : StorageSlot α) (wordOffset : Nat)
     (word : Uint256) : Contract Unit := fun state =>
   let targetSlot := (rootSlot.slot + wordOffset) % Compiler.Constants.evmModulus
   ContractResult.success () { state with
-    «storage» := fun target => if target == targetSlot then word else state.storage target
+    «storage» := fun target => if target == targetSlot then word else state.storage target,
+    storageAddr := fun target =>
+      if target == targetSlot then wordToAddress word else state.storageAddr target
   }
 def rawLog (topics : List Uint256) (dataOffset dataSize : Uint256) : Contract Unit := fun state =>
   if topics.length > 4 then
