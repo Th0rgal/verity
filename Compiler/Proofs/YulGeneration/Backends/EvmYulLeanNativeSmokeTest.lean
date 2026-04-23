@@ -126,6 +126,20 @@ private def nativeAllowsUnselectedUnsupportedEnvironmentBuiltin : Bool :=
   | .ok () => true
   | .error _ => false
 
+private def runtimeWithUserFunctionNamedChainid : List YulStmt := [
+  .funcDef "chainid" [] ["ret"] [
+    .assign "ret" (.lit 7)
+  ],
+  .let_ "v" (.call "chainid" []),
+  .expr (.call "sstore" [.lit 15, .ident "v"])
+]
+
+private def nativeAllowsUserFunctionNamedChainid : Bool :=
+  match Native.validateNativeRuntimeEnvironment
+      runtimeWithUserFunctionNamedChainid sampleTx with
+  | .ok () => true
+  | .error _ => false
+
 private def referenceRuntimeWithFuel
     (fuel : Nat) (stmts : List YulStmt) (tx : Compiler.Proofs.YulGeneration.YulTransaction)
     (storage : Nat → Nat) (events : List (List Nat)) :
@@ -995,6 +1009,10 @@ example :
 
 example :
     nativeAllowsUnselectedUnsupportedEnvironmentBuiltin = true := by
+  native_decide
+
+example :
+    nativeAllowsUserFunctionNamedChainid = true := by
   native_decide
 
 example :

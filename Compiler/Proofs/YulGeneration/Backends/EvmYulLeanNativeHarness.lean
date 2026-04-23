@@ -57,8 +57,13 @@ def initialState
 
 /-! ## Native Environment Support Boundary -/
 
-partial def yulExprUsesBuiltin (builtin : String) : YulExpr → Bool
-  | .call func args => func == builtin || args.any (yulExprUsesBuiltin builtin)
+partial def yulExprUsesBuiltinExceptFunctions
+    (builtin : String)
+    (functionNames : List String) :
+    YulExpr → Bool
+  | .call func args =>
+      ((func == builtin) && !functionNames.contains func) ||
+        args.any (yulExprUsesBuiltinExceptFunctions builtin functionNames)
   | _ => false
 
 partial def yulExprCalledFunctions : YulExpr → List String
@@ -66,28 +71,38 @@ partial def yulExprCalledFunctions : YulExpr → List String
   | _ => []
 
 mutual
-  partial def yulStmtUsesBuiltin (builtin : String) : YulStmt → Bool
-    | .let_ _ value => yulExprUsesBuiltin builtin value
-    | .letMany _ value => yulExprUsesBuiltin builtin value
-    | .assign _ value => yulExprUsesBuiltin builtin value
-    | .expr e => yulExprUsesBuiltin builtin e
+  partial def yulStmtUsesBuiltinExceptFunctions
+      (builtin : String)
+      (functionNames : List String) :
+      YulStmt → Bool
+    | .let_ _ value => yulExprUsesBuiltinExceptFunctions builtin functionNames value
+    | .letMany _ value => yulExprUsesBuiltinExceptFunctions builtin functionNames value
+    | .assign _ value => yulExprUsesBuiltinExceptFunctions builtin functionNames value
+    | .expr e => yulExprUsesBuiltinExceptFunctions builtin functionNames e
     | .if_ cond body =>
-        yulExprUsesBuiltin builtin cond || yulStmtsUseBuiltin builtin body
+        yulExprUsesBuiltinExceptFunctions builtin functionNames cond ||
+          yulStmtsUseBuiltinExceptFunctions builtin functionNames body
     | .for_ init cond post body =>
-        yulStmtsUseBuiltin builtin init ||
-          yulExprUsesBuiltin builtin cond ||
-          yulStmtsUseBuiltin builtin post ||
-          yulStmtsUseBuiltin builtin body
+        yulStmtsUseBuiltinExceptFunctions builtin functionNames init ||
+          yulExprUsesBuiltinExceptFunctions builtin functionNames cond ||
+          yulStmtsUseBuiltinExceptFunctions builtin functionNames post ||
+          yulStmtsUseBuiltinExceptFunctions builtin functionNames body
     | .switch discr cases defaultBody =>
-        yulExprUsesBuiltin builtin discr ||
-          cases.any (fun (_, body) => yulStmtsUseBuiltin builtin body) ||
-          defaultBody.any (yulStmtsUseBuiltin builtin)
-    | .block stmts => yulStmtsUseBuiltin builtin stmts
-    | .funcDef _ _ _ body => yulStmtsUseBuiltin builtin body
+        yulExprUsesBuiltinExceptFunctions builtin functionNames discr ||
+          cases.any (fun (_, body) =>
+            yulStmtsUseBuiltinExceptFunctions builtin functionNames body) ||
+          defaultBody.any (yulStmtsUseBuiltinExceptFunctions builtin functionNames)
+    | .block stmts => yulStmtsUseBuiltinExceptFunctions builtin functionNames stmts
+    | .funcDef _ _ _ body =>
+        yulStmtsUseBuiltinExceptFunctions builtin functionNames body
     | .comment _ | .leave => false
 
-  partial def yulStmtsUseBuiltin (builtin : String) (stmts : List YulStmt) : Bool :=
-    stmts.any (yulStmtUsesBuiltin builtin)
+  partial def yulStmtsUseBuiltinExceptFunctions
+      (builtin : String)
+      (functionNames : List String)
+      (stmts : List YulStmt) :
+      Bool :=
+    stmts.any (yulStmtUsesBuiltinExceptFunctions builtin functionNames)
 end
 
 mutual
@@ -174,7 +189,7 @@ partial def yulStmtsUseBuiltinWithCalledFunctions
     (functionBodies : List (String × List YulStmt))
     (stmts : List YulStmt) :
     Bool :=
-  yulStmtsUseBuiltin builtin stmts ||
+  yulStmtsUseBuiltinExceptFunctions builtin (functionBodies.map Prod.fst) stmts ||
     match fuel with
     | 0 => false
     | fuel' + 1 =>
@@ -199,7 +214,7 @@ mutual
         ]
       ] =>
         if selectorExprMatchesGeneratedDispatcher discr then
-          yulExprUsesBuiltin builtin discr ||
+          yulExprUsesBuiltinExceptFunctions builtin (functionBodies.map Prod.fst) discr ||
             yulStmtsUseBuiltinWithCalledFunctions (functionBodies.length + 1)
               builtin functionBodies (selectedSwitchBody selector cases defaultBody)
         else
