@@ -53,14 +53,21 @@ materializes pre-state storage for those slots.
   public flip.
 - The same module also exposes
   `nativeCallDispatcherAgreesWithInterpreter`,
+  `nativeDispatcherBlockAgreesWithInterpreter`,
+  `nativeCallDispatcherAgreesWithInterpreter_of_dispatcherBlock_agree`,
   `nativeIRRuntimeAgreesWithInterpreter_of_lowered_callDispatcher_agree`,
   `layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bridge`,
   and
   `layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge`.
   These move the remaining proof obligation down to concrete native lowering,
-  selected-path environment validation, and projected
-  `EvmYul.Yul.callDispatcher` agreement with the fuel-aligned interpreter
-  oracle.
+  selected-path environment validation, and projected native dispatcher-block
+  execution agreement with the fuel-aligned interpreter oracle.
+- The native harness also names the dispatcher-block execution that
+  `EvmYul.Yul.callDispatcher` performs after fuel checking and empty call-frame
+  setup: `callDispatcherBlockResult`, with
+  `callDispatcher_succ_eq_callDispatcherBlockResult` proving the reduction.
+  The next proof no longer has to open the dispatcher wrapper before attacking
+  `EvmYul.Yul.exec` preservation for the lowered dispatcher body.
 - Native runtime top-level partitioning is now transparent enough for proofs:
   `lowerRuntimeContractNativeAux` is structurally recursive, and the named
   equations `lowerRuntimeContractNativeAux_funcDef_cons`,
@@ -166,13 +173,21 @@ scope so the native path does not look more complete than it is:
      `lowerExprNative_call_userFunction`,
    - duplicate helper definitions fail closed.
 
-   Progress: statement-level native lowering through
+   Progress: `EvmYul.Yul.callDispatcher` now unfolds through
+   `callDispatcher_succ_eq_callDispatcherBlockResult` to the named
+   `callDispatcherBlockResult`, and EndToEnd exposes
+   `nativeDispatcherBlockAgreesWithInterpreter` plus
+   `nativeCallDispatcherAgreesWithInterpreter_of_dispatcherBlock_agree`. The
+   remaining bridge is therefore direct native `EvmYul.Yul.exec` execution of
+   the installed dispatcher block against the interpreter oracle.
+
+   Statement-level native lowering through
    `lowerStmtsNativeWithSwitchIds`/`lowerStmtGroupNativeWithSwitchIds` is now
    structurally recursive, and named equations expose list cons, switch-case
    cons, straight-line statement forms, blocks, loops, and the lazy native
    switch block constructor `lowerNativeSwitchBlock`. The top-level partition
    equation and statement-level lowering equations are proved, but full
-   `callDispatcher` agreement still requires per-statement native execution
+   dispatcher-block agreement still requires per-statement native execution
    preservation lemmas against `execYulFuelWithBackend .evmYulLean`.
 
 2. Prove native state bridge lemmas.
@@ -353,15 +368,16 @@ scope so the native path does not look more complete than it is:
    `lowerRuntimeContractNative`, successful
    `validateNativeRuntimeEnvironment`, and
    `nativeCallDispatcherAgreesWithInterpreter` for the lowered native contract.
-   The unresolved proof is now specifically the projected
-   `EvmYul.Yul.callDispatcher` result agreement for the supported generated
-   fragment.
+   That obligation can now be discharged from
+   `nativeDispatcherBlockAgreesWithInterpreter`, which compares projected
+   `callDispatcherBlockResult` execution with the interpreter oracle.
 
    This makes the remaining proof obligation concrete: for the supported
    generated fragment, native `lowerRuntimeContractNative` plus
-   `EvmYul.Yul.callDispatcher` must produce the same projected `YulResult` as
-   the current `interpretYulRuntimeWithBackend .evmYulLean` interpreter oracle.
-   The successor theorem should discharge that bridge, or target a total native
+   `EvmYul.Yul.exec` of the installed dispatcher block must produce the same
+   projected `YulResult` as the current
+   `interpretYulRuntimeWithBackend .evmYulLean` interpreter oracle. The
+   successor theorem should discharge that bridge, or target a total native
    wrapper once the remaining closed-failure cases are ruled out by syntactic
    invariants.
 

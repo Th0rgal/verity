@@ -628,6 +628,55 @@ def projectHaltReturn (state : EvmYul.Yul.State) (haltValue : EvmYul.Yul.Ast.Lit
     projectHaltReturn state haltValue = some 0 := by
   simp [projectHaltReturn, hHalt, hSize]
 
+/-- The dispatcher-block execution that `EvmYul.Yul.callDispatcher` performs
+    after its initial fuel check and empty-argument call-frame setup.
+
+Keeping this expression named lets the native/interpreter bridge target
+statement execution of the lowered dispatcher body directly, instead of
+re-opening the full `callDispatcher` wrapper at each EndToEnd proof site. -/
+def callDispatcherBlockResult
+    (fuel' : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (initial : EvmYul.Yul.State) :
+    Except EvmYul.Yul.Exception
+      (EvmYul.Yul.State × List EvmYul.Yul.Ast.Literal) :=
+  let dispatcherDef :=
+    EvmYul.Yul.Ast.FunctionDefinition.Def [] []
+      [initial.executionEnv.code.dispatcher]
+  let callState := EvmYul.Yul.State.mkOk (initial.initcall dispatcherDef.params [])
+  match EvmYul.Yul.exec fuel' (.Block dispatcherDef.body) (some contract) callState with
+  | .error err => .error err
+  | .ok finalState =>
+      let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
+      .ok (restored, List.map finalState.lookup! dispatcherDef.rets)
+
+@[simp] theorem callDispatcher_zero
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (initial : EvmYul.Yul.State) :
+    EvmYul.Yul.callDispatcher 0 (some contract) initial =
+      .error EvmYul.Yul.Exception.OutOfFuel := by
+  simp [EvmYul.Yul.callDispatcher]
+
+/-- `callDispatcher` is exactly execution of the installed dispatcher block
+    once fuel and call-frame setup have been peeled away. -/
+theorem callDispatcher_succ_eq_callDispatcherBlockResult
+    (fuel' : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (initial : EvmYul.Yul.State) :
+    EvmYul.Yul.callDispatcher (Nat.succ fuel') (some contract) initial =
+      callDispatcherBlockResult fuel' contract initial := by
+  simp [EvmYul.Yul.callDispatcher, callDispatcherBlockResult]
+  cases
+    EvmYul.Yul.exec fuel'
+      (.Block
+        (EvmYul.Yul.Ast.FunctionDefinition.Def [] []
+          [initial.executionEnv.code.dispatcher]).body)
+      (some contract)
+      (EvmYul.Yul.State.mkOk
+        (initial.initcall
+          (EvmYul.Yul.Ast.FunctionDefinition.Def [] []
+            [initial.executionEnv.code.dispatcher]).params [])) <;> rfl
+
 /-- Convert a native `callDispatcher` result to the current Verity observable
     result shape. Reverts and hard native errors conservatively roll storage
     back to the supplied initial storage function. -/

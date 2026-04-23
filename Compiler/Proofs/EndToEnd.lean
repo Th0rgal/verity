@@ -186,6 +186,60 @@ def nativeCallDispatcherAgreesWithInterpreter
       .evmYulLean fuel (Compiler.emitYul contract).runtimeCode
       (YulTransaction.ofIR tx) state.storage state.events)
 
+/-- Lower-level native dispatcher agreement target.
+
+For positive fuel this compares the interpreter oracle with direct
+`EvmYul.Yul.exec` execution of the installed dispatcher block, after the same
+empty call-frame setup and result projection used by `callDispatcher`. This is
+the statement-execution preservation obligation needed next for the generated
+fragment. The zero-fuel case is kept explicit so the theorem below is total in
+`fuel`. -/
+def nativeDispatcherBlockAgreesWithInterpreter
+    (fuel : Nat)
+    (contract : IRContract)
+    (tx : IRTransaction)
+    (state : IRState)
+    (observableSlots : List Nat)
+    (nativeContract : EvmYul.Yul.Ast.YulContract) :
+    Prop :=
+  let initial :=
+    Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
+      (YulTransaction.ofIR tx) state.storage observableSlots
+  let nativeResult :=
+    match fuel with
+    | 0 =>
+        .error EvmYul.Yul.Exception.OutOfFuel
+    | Nat.succ fuel' =>
+        Compiler.Proofs.YulGeneration.Backends.Native.callDispatcherBlockResult
+          fuel' nativeContract initial
+  yulResultsAgreeOn observableSlots
+    (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+      (YulTransaction.ofIR tx) state.storage state.events nativeResult)
+    (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackendFuel
+      .evmYulLean fuel (Compiler.emitYul contract).runtimeCode
+      (YulTransaction.ofIR tx) state.storage state.events)
+
+/-- Lift dispatcher-block execution agreement to the existing
+`callDispatcher`-level bridge obligation. -/
+theorem nativeCallDispatcherAgreesWithInterpreter_of_dispatcherBlock_agree
+    {fuel : Nat} {contract : IRContract} {tx : IRTransaction}
+    {state : IRState} {observableSlots : List Nat}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    (hAgree :
+      nativeDispatcherBlockAgreesWithInterpreter fuel contract tx state
+        observableSlots nativeContract) :
+    nativeCallDispatcherAgreesWithInterpreter fuel contract tx state
+      observableSlots nativeContract := by
+  unfold nativeDispatcherBlockAgreesWithInterpreter at hAgree
+  unfold nativeCallDispatcherAgreesWithInterpreter
+  cases fuel with
+  | zero =>
+      simpa [Compiler.Proofs.YulGeneration.Backends.Native.callDispatcher_zero]
+        using hAgree
+  | succ fuel' =>
+      simpa [Compiler.Proofs.YulGeneration.Backends.Native.callDispatcher_succ_eq_callDispatcherBlockResult]
+        using hAgree
+
 /-- Discharge the public native/interpreter bridge from concrete native
 lowering, selected-path environment validation, and projected
 `callDispatcher` agreement.
