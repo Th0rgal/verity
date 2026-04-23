@@ -316,6 +316,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.Uint8Smoke.spec
   , Contracts.Smoke.AddressHelpersSmoke.spec
   , Contracts.Smoke.ZeroAddressShadowSmoke.spec
+  , Contracts.Smoke.ContextAccessorShadowSmoke.spec
   , Contracts.Smoke.FunctionOverloadSmoke.spec
   , Contracts.Smoke.HelperExternalArgumentSmoke.spec
   , Contracts.Smoke.BlockTimestampSmoke.spec
@@ -429,6 +430,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("AddressHelpersSmoke", ["setDelegate(address,address)", "getDelegate(address)", "clearDelegate(address)",
       "hasDelegate(address)", "isDelegateZero(address)", "setOwnerForId(uint256,address)", "getOwnerForId(uint256)"])
   , ("ZeroAddressShadowSmoke", ["shadowWrite(address)"])
+  , ("ContextAccessorShadowSmoke", ["echoSenderName(address)"])
   , ("FunctionOverloadSmoke", ["echo(uint256)", "echo(address)", "echo(uint256,uint256)"])
   , ("HelperExternalArgumentSmoke", ["idWord(uint256)", "pair(uint256)", "put(uint256)",
       "bindExternalArg(uint256)", "tupleExternalArg(uint256)", "statementExternalArg(uint256)"])
@@ -531,6 +533,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("AddressHelpersSmoke", ["0x5c873849", "0x544d8564", "0xcc21cc2a", "0x480005cd", "0x67129177",
       "0x0b0126c5", "0x85a9cdd0"])
   , ("ZeroAddressShadowSmoke", ["0xc0aab575"])
+  , ("ContextAccessorShadowSmoke", ["0x40d06f02"])
   , ("FunctionOverloadSmoke", ["0x6279e43c", "0x2ffdbf1a", "0x3bb2bcd0"])
   , ("HelperExternalArgumentSmoke", ["0x2d29ad72", "0x645751af", "0x3f81a2c0",
       "0xb503d0dd", "0xcdc18015", "0xe41657c6"])
