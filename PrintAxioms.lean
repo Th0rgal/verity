@@ -2844,6 +2844,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_append_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_nil_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_selector_initialState_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_selector_initialState_ok_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_eval_zero
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_eval_nonzero
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_ok
@@ -2873,6 +2874,9 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_unmatched_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_matched
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_matched_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_lookup_insert_of_ne
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_nil
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_cons
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchCaseIfs_nil
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchCaseIfs_cons
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.list_find?_eq_some_split_false  -- private
@@ -3224,4 +3228,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3051 theorems/lemmas (2147 public, 904 private, 0 sorry'd)
+-- Total: 3055 theorems/lemmas (2151 public, 904 private, 0 sorry'd)

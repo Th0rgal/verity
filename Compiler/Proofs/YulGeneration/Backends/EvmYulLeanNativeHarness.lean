@@ -1282,6 +1282,33 @@ theorem exec_block_nil_ok
       .ok state := by
   simp [EvmYul.Yul.exec]
 
+def nativeSwitchPrefixStmts
+    (discrName matchedName : EvmYul.Identifier) :
+    List EvmYul.Yul.Ast.Stmt :=
+  [.Let [discrName]
+    (some (Backends.lowerExprNative Compiler.Proofs.YulGeneration.selectorExpr)),
+   .Let [matchedName] (some (.Lit (EvmYul.UInt256.ofNat 0)))]
+
+def nativeSwitchInitialOkState
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    EvmYul.Yul.State :=
+  .Ok (initialState contract tx storage observableSlots).sharedState ∅
+
+def nativeSwitchPrefixFinalState
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (discrName matchedName : EvmYul.Identifier) :
+    EvmYul.Yul.State :=
+  ((nativeSwitchInitialOkState contract tx storage observableSlots).insert discrName
+    (EvmYul.UInt256.ofNat
+      (tx.functionSelector % Compiler.Constants.selectorModulus))).insert
+    matchedName (EvmYul.UInt256.ofNat 0)
+
 /-- The generated dispatcher switch prefix initializes the discriminator temp
     from native calldata selector evaluation, then clears the lazy matched flag.
 
@@ -1295,20 +1322,12 @@ theorem exec_nativeSwitchPrefix_selector_initialState_ok
     (observableSlots : List Nat)
     (discrName matchedName : EvmYul.Identifier) :
     EvmYul.Yul.exec 12
-      (.Block
-        [.Let [discrName]
-          (some (Backends.lowerExprNative Compiler.Proofs.YulGeneration.selectorExpr)),
-         .Let [matchedName]
-          (some (.Lit (EvmYul.UInt256.ofNat 0)))])
-      (some contract)
-      (.Ok (initialState contract tx storage observableSlots).sharedState ∅) =
-    .ok (((.Ok (initialState contract tx storage observableSlots).sharedState ∅ :
-        EvmYul.Yul.State).insert discrName
-      (EvmYul.UInt256.ofNat
-        (tx.functionSelector % Compiler.Constants.selectorModulus))).insert
-      matchedName (EvmYul.UInt256.ofNat 0)) := by
+      (.Block (nativeSwitchPrefixStmts discrName matchedName))
+      (some contract) (nativeSwitchInitialOkState contract tx storage observableSlots) =
+    .ok (nativeSwitchPrefixFinalState contract tx storage observableSlots
+      discrName matchedName) := by
   let initState : EvmYul.Yul.State :=
-    .Ok (initialState contract tx storage observableSlots).sharedState ∅
+    nativeSwitchInitialOkState contract tx storage observableSlots
   let discrState : EvmYul.Yul.State :=
     initState.insert discrName
       (EvmYul.UInt256.ofNat
@@ -1316,12 +1335,9 @@ theorem exec_nativeSwitchPrefix_selector_initialState_ok
   let matchedState : EvmYul.Yul.State :=
     discrState.insert matchedName (EvmYul.UInt256.ofNat 0)
   change EvmYul.Yul.exec 12
-      (.Block
-        [.Let [discrName]
-          (some (Backends.lowerExprNative Compiler.Proofs.YulGeneration.selectorExpr)),
-         .Let [matchedName]
-          (some (.Lit (EvmYul.UInt256.ofNat 0)))])
+      (.Block (nativeSwitchPrefixStmts discrName matchedName))
       (some contract) initState = .ok matchedState
+  rw [nativeSwitchPrefixStmts]
   apply exec_block_cons_ok 11
       (.Let [discrName]
         (some (Backends.lowerExprNative Compiler.Proofs.YulGeneration.selectorExpr)))
@@ -1334,6 +1350,44 @@ theorem exec_nativeSwitchPrefix_selector_initialState_ok
         [] (some contract) discrState matchedState matchedState
     · simp
       simp [matchedState]
+    · simp [EvmYul.Yul.exec]
+
+theorem exec_nativeSwitchPrefix_selector_initialState_ok_fuel
+    (fuel : Nat) (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : Nat → Nat) (observableSlots : List Nat)
+    (discrName matchedName : EvmYul.Identifier) :
+    EvmYul.Yul.exec (fuel + 12)
+      (.Block (nativeSwitchPrefixStmts discrName matchedName))
+      (some contract) (nativeSwitchInitialOkState contract tx storage observableSlots) =
+    .ok (nativeSwitchPrefixFinalState contract tx storage observableSlots
+      discrName matchedName) := by
+  let initState : EvmYul.Yul.State :=
+    nativeSwitchInitialOkState contract tx storage observableSlots
+  let discrState : EvmYul.Yul.State :=
+    initState.insert discrName
+      (EvmYul.UInt256.ofNat
+        (tx.functionSelector % Compiler.Constants.selectorModulus))
+  let matchedState : EvmYul.Yul.State :=
+    discrState.insert matchedName (EvmYul.UInt256.ofNat 0)
+  change EvmYul.Yul.exec (fuel + 12)
+      (.Block (nativeSwitchPrefixStmts discrName matchedName))
+      (some contract) initState = .ok matchedState
+  have hFuel : fuel + 12 = Nat.succ (fuel + 11) := by omega
+  rw [hFuel]
+  rw [nativeSwitchPrefixStmts]
+  apply exec_block_cons_ok (fuel + 11)
+      (.Let [discrName]
+        (some (Backends.lowerExprNative Compiler.Proofs.YulGeneration.selectorExpr)))
+      [.Let [matchedName] (some (.Lit (EvmYul.UInt256.ofNat 0)))]
+      (some contract) initState discrState matchedState
+  · exact exec_let_lowerExprNative_selectorExpr_initialState_ok_fuel
+      fuel contract tx storage observableSlots discrName
+  · have hFuelTail : fuel + 11 = Nat.succ (fuel + 10) := by omega
+    rw [hFuelTail]
+    apply exec_block_cons_ok (fuel + 10)
+        (.Let [matchedName] (some (.Lit (EvmYul.UInt256.ofNat 0))))
+        [] (some contract) discrState matchedState matchedState
+    · simp [matchedState]
     · simp [EvmYul.Yul.exec]
 
 /-- Native `if` reduction for a zero guard. -/
@@ -1968,6 +2022,62 @@ def NativeBlockPreservesWord
     state[name]! = value →
       EvmYul.Yul.exec fuel (.Block body) codeOverride state = .ok final →
         final[name]! = value
+
+theorem state_lookup_insert_of_ne
+    (state : EvmYul.Yul.State)
+    (name other : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (hne : name ≠ other) :
+    EvmYul.Yul.State.lookup! name (state.insert other value) =
+      EvmYul.Yul.State.lookup! name state := by
+  cases state with
+  | Ok shared store =>
+      simp [EvmYul.Yul.State.insert, EvmYul.Yul.State.lookup!]
+      rw [Finmap.lookup_insert_of_ne store hne]
+  | OutOfFuel => simp [EvmYul.Yul.State.insert]
+  | Checkpoint jump => simp [EvmYul.Yul.State.insert]
+
+theorem NativeBlockPreservesWord_nil
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    NativeBlockPreservesWord name value [] codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      simp [EvmYul.Yul.exec] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativeBlockPreservesWord_cons
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (stmt : EvmYul.Yul.Ast.Stmt)
+    (rest : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hHead :
+      ∀ fuel state next,
+        state[name]! = value →
+          EvmYul.Yul.exec fuel stmt codeOverride state = .ok next →
+            next[name]! = value)
+    (hRest : NativeBlockPreservesWord name value rest codeOverride) :
+    NativeBlockPreservesWord name value (stmt :: rest) codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      simp [EvmYul.Yul.exec] at hExec
+      cases hStmt : EvmYul.Yul.exec fuel' stmt codeOverride state with
+      | error err =>
+          simp [hStmt] at hExec
+      | ok next =>
+          simp [hStmt] at hExec
+          have hNext : next[name]! = value :=
+            hHead fuel' state next hLookup hStmt
+          exact hRest fuel' next final hNext hExec
 
 @[simp] theorem nativeSwitchCaseIfs_nil
     (discrName matchedName : EvmYul.Identifier) :
