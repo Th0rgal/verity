@@ -2685,7 +2685,7 @@ private def arrayElementTupleReturnStmts?
     (params : Array ParamDecl)
     (locals : Array TypedLocal)
     (mutableLocals : Array String)
-    (rhs : Term) : CommandElabM (Option (Array Term)) := do
+    (rhs : Term) : CommandElabM (Option (Array Term × TypedLocal)) := do
   match stripParens rhs with
   | `(term| arrayElement $name:term $index:term) =>
       let paramName := ← expectStringOrIdent name
@@ -2723,7 +2723,7 @@ private def arrayElementTupleReturnStmts?
             offset := offset + elemWords
           let returnStmt ←
             `(Compiler.CompilationModel.Stmt.returnValues [ $[$valueExprs],* ])
-          pure (some #[indexStmt, returnStmt])
+          pure (some (#[indexStmt, returnStmt], (indexName, .uint256)))
       | _ => pure none
   | _ => pure none
 
@@ -4164,8 +4164,8 @@ private partial def translateDoElem
               mutableLocals)
       | `(doElem| return $value:term) =>
           match (← arrayElementTupleReturnStmts? fields constDecls immutableDecls params locals mutableLocals value) with
-          | some stmts =>
-              pure (stmts, locals, mutableLocals)
+          | some (stmts, syntheticLocal) =>
+              pure (stmts, locals.push syntheticLocal, mutableLocals)
           | none =>
               match (← tupleReturnValueExprs? fields constDecls immutableDecls params locals value) with
               | some valueExprs =>
