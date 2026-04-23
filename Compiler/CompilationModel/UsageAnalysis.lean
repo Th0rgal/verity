@@ -287,8 +287,8 @@ attribute [simp] exprUsesArrayElementKind exprListUsesArrayElementKind
 
 mutual
 def exprUsesArrayElement : Expr → Bool
-  | Expr.arrayElement _ index | Expr.arrayElementWord _ index _ _ =>
-      true || exprUsesArrayElement index
+  | Expr.arrayElement _ _ | Expr.arrayElementWord _ _ _ _ =>
+      true
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _
   | Expr.mappingUint _ key | Expr.structMember _ key _ =>
       exprUsesArrayElement key
