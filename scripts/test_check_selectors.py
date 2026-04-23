@@ -14,6 +14,7 @@ from check_selectors import (
     CompileSelectors,
     SpecInfo,
     check_compile_lists,
+    check_unique_function_signatures,
     extract_compile_selectors,
     extract_specs,
     load_specs_text,
@@ -56,6 +57,29 @@ class CheckSelectorsExtractSpecsTests(unittest.TestCase):
         self.assertEqual(
             counter.signatures,
             ["increment()", "decrement()", "getCount()"],
+        )
+
+
+class CheckSelectorsDuplicateSignatureTests(unittest.TestCase):
+    def test_unique_signature_check_ignores_internal_external_pairs(self) -> None:
+        spec = SpecInfo(
+            "helperSpec",
+            "Helper",
+            signatures=["helper(uint256)"],
+            all_function_signatures=["helper(uint256)", "helper(uint256)"],
+        )
+        self.assertEqual(check_unique_function_signatures([spec]), [])
+
+    def test_unique_signature_check_rejects_duplicate_externals(self) -> None:
+        spec = SpecInfo(
+            "helperSpec",
+            "Helper",
+            signatures=["helper(uint256)", "helper(uint256)"],
+            all_function_signatures=["helper(uint256)", "helper(uint256)"],
+        )
+        self.assertEqual(
+            check_unique_function_signatures([spec]),
+            ["Helper: duplicate function signature 'helper(uint256)'"],
         )
 
 

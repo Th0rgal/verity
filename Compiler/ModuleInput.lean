@@ -72,28 +72,31 @@ private unsafe def evalSpecConst
   | .error _ =>
       throw s!"Unable to evaluate '{specName}' as Compiler.CompilationModel.CompilationModel"
 
-private def splitPackageSearchRoots : List System.FilePath :=
+private def workspaceSearchRoots : List System.FilePath :=
   [ ".lake/build/lib/lean"
-  , ".lake/packages/LeanSearchClient/.lake/build/lib/lean"
-  , ".lake/packages/Qq/.lake/build/lib/lean"
-  , ".lake/packages/aesop/.lake/build/lib/lean"
-  , ".lake/packages/batteries/.lake/build/lib/lean"
-  , ".lake/packages/evmyul/.lake/build/lib/lean"
-  , ".lake/packages/importGraph/.lake/build/lib/lean"
-  , ".lake/packages/mathlib/.lake/build/lib/lean"
-  , ".lake/packages/plausible/.lake/build/lib/lean"
-  , ".lake/packages/proofwidgets/.lake/build/lib/lean"
   , "packages/verity-edsl/.lake/build/lib/lean"
   , "packages/verity-compiler/.lake/build/lib/lean"
   , "packages/verity-examples/.lake/build/lib/lean"
   ]
 
+private def packageSearchRoots : IO SearchPath := do
+  let packagesRoot : System.FilePath := ".lake/packages"
+  if !(← packagesRoot.isDir) then
+    pure []
+  else
+    let mut roots : SearchPath := []
+    for entry in (← packagesRoot.readDir) do
+      let root := entry.path / ".lake" / "build" / "lib" / "lean"
+      if ← root.isDir then
+        roots := roots.concat root
+    pure roots
+
 private def existingSplitPackageSearchRoots : IO SearchPath := do
   let mut roots : SearchPath := []
-  for path in splitPackageSearchRoots do
+  for path in workspaceSearchRoots do
     if ← path.isDir then
       roots := roots.concat path
-  pure roots
+  pure (roots ++ (← packageSearchRoots))
 
 /-- Import modules and evaluate their canonical `<Module>.spec` constants. -/
 unsafe def loadSpecsFromModules (moduleNames : List Name) : IO (Except String (List CompilationModel)) := do

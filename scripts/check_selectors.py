@@ -463,15 +463,16 @@ def check_reserved_prefix_collisions(specs: List[SpecInfo]) -> List[str]:
 
 
 def check_unique_function_signatures(specs: List[SpecInfo]) -> List[str]:
-    """Check that no contract has duplicate function signatures.
+    """Check that no contract has duplicate external function signatures.
 
-    Mirrors the ``firstDuplicateName (spec.functions.map functionSignature)`` check in
-    ``CompilationModel.compile``.
+    Mirrors the non-internal ``functionSignature`` check in
+    ``CompilationModel.compile``. Internal functions are validated separately by
+    source name because they compile into the internal Yul-function namespace.
     """
     errors: List[str] = []
     for spec in specs:
         seen: set[str] = set()
-        for signature in spec.all_function_signatures:
+        for signature in spec.signatures:
             if signature in seen:
                 errors.append(
                     f"{spec.contract_name}: duplicate function signature '{signature}'"
