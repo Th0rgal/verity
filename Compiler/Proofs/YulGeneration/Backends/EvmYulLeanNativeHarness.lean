@@ -1270,6 +1270,52 @@ theorem exec_if_nativeSwitchGuardedMatch_hit
     (by decide)
     hBody
 
+@[simp] theorem exec_lowerAssignNative_lit_ok
+    (fuel' : Nat)
+    (name : EvmYul.Identifier)
+    (value : Nat)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.exec (Nat.succ fuel')
+      (Backends.lowerAssignNative name (.lit value)) codeOverride state =
+      .ok (state.insert name (EvmYul.UInt256.ofNat value)) := by
+  simp [Backends.lowerAssignNative, Backends.lowerExprNative, EvmYul.Yul.exec]
+
+/-- Native `if` execution for the selected lowered switch case, including the
+    leading matched-flag assignment inserted by `lowerNativeSwitchBlock`.
+
+This is the selected-case execution boundary the full lowered-switch proof can
+reuse: after the guard hits, the selected body runs in the same state except
+for `matchedName := 1`. -/
+theorem exec_if_nativeSwitchGuardedMatch_hit_marked
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state final : EvmYul.Yul.State)
+    (discrName matchedName : EvmYul.Identifier)
+    (tag : Nat)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hDiscr : state[discrName]! = EvmYul.UInt256.ofNat tag)
+    (hBody :
+      EvmYul.Yul.exec 7 (.Block body) codeOverride
+        (state.insert matchedName (EvmYul.UInt256.ofNat 1)) = .ok final) :
+    EvmYul.Yul.exec 9
+      (.If
+        (Backends.nativePrimCall (EvmYul.Operation.AND : EvmYul.Operation .Yul)
+          [Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+            [.Var matchedName],
+           Backends.nativePrimCall (EvmYul.Operation.EQ : EvmYul.Operation .Yul)
+            [.Var discrName, .Lit (EvmYul.UInt256.ofNat tag)]])
+        (Backends.lowerAssignNative matchedName (.lit 1) :: body))
+      codeOverride state = .ok final := by
+  apply exec_if_nativeSwitchGuardedMatch_hit
+      (body := Backends.lowerAssignNative matchedName (.lit 1) :: body)
+      (codeOverride := codeOverride) (state := state) (final := final)
+      (discrName := discrName) (matchedName := matchedName) (tag := tag)
+      hMatched hDiscr
+  exact exec_block_cons_ok 7 (Backends.lowerAssignNative matchedName (.lit 1))
+    body codeOverride state (state.insert matchedName (EvmYul.UInt256.ofNat 1))
+    final (by simp) hBody
+
 /-- Native `if` execution skips a later lowered switch case after an earlier case
     has set the matched flag. -/
 theorem exec_if_nativeSwitchGuardedMatch_matched
