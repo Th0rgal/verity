@@ -166,12 +166,14 @@ scope so the native path does not look more complete than it is:
      `lowerExprNative_call_userFunction`,
    - duplicate helper definitions fail closed.
 
-   Remaining blocker: statement-level native lowering through
-   `lowerStmtsNativeWithSwitchIds`/`lowerStmtGroupNativeWithSwitchIds` is still
-   executable-first and not yet accompanied by semantic preservation theorems
-   against `execYulFuelWithBackend .evmYulLean`. The top-level partition
-   equation is proved, but full `callDispatcher` agreement still requires
-   per-statement native-lowering execution lemmas.
+   Progress: statement-level native lowering through
+   `lowerStmtsNativeWithSwitchIds`/`lowerStmtGroupNativeWithSwitchIds` is now
+   structurally recursive, and named equations expose list cons, switch-case
+   cons, straight-line statement forms, blocks, loops, and the lazy native
+   switch block constructor `lowerNativeSwitchBlock`. The top-level partition
+   equation and statement-level lowering equations are proved, but full
+   `callDispatcher` agreement still requires per-statement native execution
+   preservation lemmas against `execYulFuelWithBackend .evmYulLean`.
 
 2. Prove native state bridge lemmas.
 

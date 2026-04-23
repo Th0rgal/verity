@@ -2211,6 +2211,21 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerExprNative_call_runtimePrimOp
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerExprNative_call_userFunction
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_nil
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_cons
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_nil
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_cons
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_comment
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_let
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_letMany
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_assign
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_expr
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_leave
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_if
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_for
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_switch
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_block
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_funcDef
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNativeAux_nil
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNativeAux_funcDef_cons
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNativeAux_stmt_cons
@@ -3097,4 +3112,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2924 theorems/lemmas (2037 public, 887 private, 0 sorry'd)
+-- Total: 2939 theorems/lemmas (2052 public, 887 private, 0 sorry'd)
