@@ -261,6 +261,9 @@ def check_unbridged_environment_boundary(native_harness_text: str, native_smoke_
         "selectedSwitchBody",
         "nativeChainIdRepresentable",
         "nativeBlobBaseFeeRepresentable",
+        "unsupportedNativeHeaderBuiltinNames",
+        "nativeRuntimePathUsesUnsupportedHeaderBuiltin",
+        "unsupportedNativeHeaderBuiltinError",
         "initialState_unbridgedEnvironmentDefaults",
         "EvmYul.State.chainId",
         "EvmYul.chainId",
@@ -279,6 +282,8 @@ def check_unbridged_environment_boundary(native_harness_text: str, native_smoke_
         'nativeStoresBuiltinWithTx "chainid" 15 EvmYul.chainId',
         'nativeRejectsUnsupportedBlobBaseFee = true',
         'nativeStoresBuiltinWithTx "blobbasefee" 16 EvmYul.MIN_BASE_FEE_PER_BLOB_GAS',
+        'nativeRejectsUnsupportedHeaderBuiltin "coinbase" = true',
+        'nativeRejectsUnsupportedHeaderBuiltin "gaslimit" = true',
         'nativeAllowsUnselectedUnsupportedEnvironmentBuiltin = true',
     ):
         if pinned_default not in normalized_native_smoke:

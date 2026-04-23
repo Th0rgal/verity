@@ -251,6 +251,22 @@ def nativeRuntimePathUsesBuiltin
   yulStmtsUseBuiltinOnNativeRuntimePath builtin (nativeDispatchSelector tx)
     (yulFunctionBodies runtimeCode) runtimeCode
 
+def unsupportedNativeHeaderBuiltinNames : List String :=
+  ["coinbase", "difficulty", "prevrandao", "gaslimit", "basefee", "gasprice"]
+
+def nativeRuntimePathUsesAnyBuiltin
+    (builtins : List String)
+    (runtimeCode : List YulStmt)
+    (tx : YulTransaction) :
+    Bool :=
+  builtins.any fun builtin => nativeRuntimePathUsesBuiltin builtin runtimeCode tx
+
+def nativeRuntimePathUsesUnsupportedHeaderBuiltin
+    (runtimeCode : List YulStmt)
+    (tx : YulTransaction) :
+    Bool :=
+  nativeRuntimePathUsesAnyBuiltin unsupportedNativeHeaderBuiltinNames runtimeCode tx
+
 def nativeBlobBaseFeeRepresentable (fee : Nat) : Bool :=
   fee == EvmYul.MIN_BASE_FEE_PER_BLOB_GAS
 
@@ -265,6 +281,10 @@ def unsupportedNativeChainIdError : AdapterError :=
   "native EVMYulLean chainid requires representable chainId; \
   current bridge supports only EVMYulLean global chain id"
 
+def unsupportedNativeHeaderBuiltinError : AdapterError :=
+  "native EVMYulLean selected runtime path uses a header builtin that is not \
+  represented in Verity's YulTransaction bridge"
+
 def validateNativeRuntimeEnvironment
     (runtimeCode : List YulStmt)
     (tx : YulTransaction) :
@@ -275,6 +295,8 @@ def validateNativeRuntimeEnvironment
   else if nativeRuntimePathUsesBuiltin "blobbasefee" runtimeCode tx &&
       !nativeBlobBaseFeeRepresentable tx.blobBaseFee then
     .error unsupportedNativeBlobBaseFeeError
+  else if nativeRuntimePathUsesUnsupportedHeaderBuiltin runtimeCode tx then
+    .error unsupportedNativeHeaderBuiltinError
   else
     .ok ()
 
@@ -290,27 +312,33 @@ def validateNativeRuntimeEnvironment
     (runtimeCode : List YulStmt)
     (tx : YulTransaction)
     (hNoChainId : nativeRuntimePathUsesBuiltin "chainid" runtimeCode tx = false)
-    (hNoBlobBaseFee : nativeRuntimePathUsesBuiltin "blobbasefee" runtimeCode tx = false) :
+    (hNoBlobBaseFee : nativeRuntimePathUsesBuiltin "blobbasefee" runtimeCode tx = false)
+    (hNoHeader :
+      nativeRuntimePathUsesUnsupportedHeaderBuiltin runtimeCode tx = false) :
     validateNativeRuntimeEnvironment runtimeCode tx = .ok () := by
-  simp [validateNativeRuntimeEnvironment, hNoChainId, hNoBlobBaseFee]
+  simp [validateNativeRuntimeEnvironment, hNoChainId, hNoBlobBaseFee, hNoHeader]
 
 @[simp] theorem validateNativeRuntimeEnvironment_representableBlobBaseFee
     (runtimeCode : List YulStmt)
     (tx : YulTransaction)
     (hNoChainId : nativeRuntimePathUsesBuiltin "chainid" runtimeCode tx = false)
     (hBlobBaseFee :
-      nativeBlobBaseFeeRepresentable tx.blobBaseFee = true) :
+      nativeBlobBaseFeeRepresentable tx.blobBaseFee = true)
+    (hNoHeader :
+      nativeRuntimePathUsesUnsupportedHeaderBuiltin runtimeCode tx = false) :
     validateNativeRuntimeEnvironment runtimeCode tx = .ok () := by
-  simp [validateNativeRuntimeEnvironment, hNoChainId, hBlobBaseFee]
+  simp [validateNativeRuntimeEnvironment, hNoChainId, hBlobBaseFee, hNoHeader]
 
 @[simp] theorem validateNativeRuntimeEnvironment_representableEnvironment
     (runtimeCode : List YulStmt)
     (tx : YulTransaction)
     (hChainId : nativeChainIdRepresentable tx.chainId = true)
     (hBlobBaseFee :
-      nativeBlobBaseFeeRepresentable tx.blobBaseFee = true) :
+      nativeBlobBaseFeeRepresentable tx.blobBaseFee = true)
+    (hNoHeader :
+      nativeRuntimePathUsesUnsupportedHeaderBuiltin runtimeCode tx = false) :
     validateNativeRuntimeEnvironment runtimeCode tx = .ok () := by
-  simp [validateNativeRuntimeEnvironment, hChainId, hBlobBaseFee]
+  simp [validateNativeRuntimeEnvironment, hChainId, hBlobBaseFee, hNoHeader]
 
 @[simp] theorem validateNativeRuntimeEnvironment_unsupportedChainId
     (runtimeCode : List YulStmt)
@@ -331,6 +359,17 @@ def validateNativeRuntimeEnvironment
     validateNativeRuntimeEnvironment runtimeCode tx =
       .error unsupportedNativeBlobBaseFeeError := by
   simp [validateNativeRuntimeEnvironment, hNoChainId, hUsesBlobBaseFee, hBlobBaseFee]
+
+@[simp] theorem validateNativeRuntimeEnvironment_unsupportedHeaderBuiltin
+    (runtimeCode : List YulStmt)
+    (tx : YulTransaction)
+    (hNoChainId : nativeRuntimePathUsesBuiltin "chainid" runtimeCode tx = false)
+    (hNoBlobBaseFee : nativeRuntimePathUsesBuiltin "blobbasefee" runtimeCode tx = false)
+    (hUsesHeader :
+      nativeRuntimePathUsesUnsupportedHeaderBuiltin runtimeCode tx = true) :
+    validateNativeRuntimeEnvironment runtimeCode tx =
+      .error unsupportedNativeHeaderBuiltinError := by
+  simp [validateNativeRuntimeEnvironment, hNoChainId, hNoBlobBaseFee, hUsesHeader]
 
 @[simp] theorem initialState_installsExecutionContract
     (contract : EvmYul.Yul.Ast.YulContract)
@@ -2047,6 +2086,16 @@ def NativeBlockPreservesWord
       EvmYul.Yul.exec fuel (.Block body) codeOverride state = .ok final →
         final[name]! = value
 
+def NativeStmtPreservesWord
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (stmt : EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) : Prop :=
+  ∀ fuel state final,
+    state[name]! = value →
+      EvmYul.Yul.exec fuel stmt codeOverride state = .ok final →
+        final[name]! = value
+
 theorem state_lookup_insert_of_ne
     (state : EvmYul.Yul.State)
     (name other : EvmYul.Identifier)
@@ -2183,6 +2232,17 @@ theorem NativeBlockPreservesWord_cons
           have hNext : next[name]! = value :=
             hHead fuel' state next hLookup hStmt
           exact hRest fuel' next final hNext hExec
+
+theorem NativeBlockPreservesWord_cons_stmt
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (stmt : EvmYul.Yul.Ast.Stmt)
+    (rest : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hHead : NativeStmtPreservesWord name value stmt codeOverride)
+    (hRest : NativeBlockPreservesWord name value rest codeOverride) :
+    NativeBlockPreservesWord name value (stmt :: rest) codeOverride :=
+  NativeBlockPreservesWord_cons name value stmt rest codeOverride hHead hRest
 
 theorem nativeSwitchTempsFreshForNativeBodies_case_matched_not_mem
     (switchId tag : Nat)

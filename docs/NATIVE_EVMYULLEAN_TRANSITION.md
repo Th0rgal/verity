@@ -115,8 +115,11 @@ scope so the native path does not look more complete than it is:
   EVMYulLean's current environment model. Today that means
   `YulTransaction.chainId` must match the EVMYulLean global `EvmYul.chainId`, and
   `YulTransaction.blobBaseFee` must match the minimum blob gas price
-  `EvmYul.MIN_BASE_FEE_PER_BLOB_GAS`. The native harness names the remaining
-  unbridged boundary with
+  `EvmYul.MIN_BASE_FEE_PER_BLOB_GAS`. Header-derived native builtins that do
+  not yet have Verity `YulTransaction` fields, such as `coinbase`, `difficulty`,
+  `prevrandao`, `gaslimit`, `basefee`, and `gasprice`, also fail closed on the
+  selected native runtime path instead of reading EVMYulLean's zeroed header
+  defaults. The native harness names the remaining unbridged boundary with
   `initialState_unbridgedEnvironmentDefaults`, pinning base-fee/blob fields and
   native `chainid` to their current EVMYulLean default/global behavior until
   the follow-up widens the state bridge. The

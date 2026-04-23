@@ -94,6 +94,14 @@ private def nativeRejectsUnsupportedChainId : Bool :=
   | .error _ => true
   | .ok _ => false
 
+private def nativeRejectsUnsupportedHeaderBuiltin (builtin : String) : Bool :=
+  match Native.interpretRuntimeNative 128 [
+    .let_ "v" (.call builtin []),
+    .expr (.call "sstore" [.lit 17, .ident "v"])
+  ] sampleTx zeroStorage [17] with
+  | .error _ => true
+  | .ok _ => false
+
 private def runtimeWithUnselectedUnsupportedEnvironmentBuiltin : List YulStmt :=
   let selectorExpr :=
     YulExpr.call "shr" [
@@ -1022,6 +1030,14 @@ example :
 
 example :
     nativeRejectsUnsupportedBlobBaseFee = true := by
+  native_decide
+
+example :
+    nativeRejectsUnsupportedHeaderBuiltin "coinbase" = true := by
+  native_decide
+
+example :
+    nativeRejectsUnsupportedHeaderBuiltin "gaslimit" = true := by
   native_decide
 
 example :
