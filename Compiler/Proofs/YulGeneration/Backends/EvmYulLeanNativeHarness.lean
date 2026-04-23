@@ -976,6 +976,27 @@ theorem lowerExprNative_selectorExpr :
       .ok (state, some (EvmYul.UInt256.shiftRight value shift)) := by
   rfl
 
+@[simp] theorem step_eq_ok
+    (state : EvmYul.Yul.State)
+    (left right : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.EQ none state [left, right] =
+      .ok (state, some (EvmYul.UInt256.eq left right)) := by
+  rfl
+
+@[simp] theorem step_iszero_ok
+    (state : EvmYul.Yul.State)
+    (value : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.ISZERO none state [value] =
+      .ok (state, some (EvmYul.UInt256.isZero value)) := by
+  rfl
+
+@[simp] theorem step_and_ok
+    (state : EvmYul.Yul.State)
+    (left right : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.AND none state [left, right] =
+      .ok (state, some (EvmYul.UInt256.land left right)) := by
+  rfl
+
 @[simp] theorem primCall_calldataload_ok
     (fuel : Nat)
     (shared : EvmYul.SharedState .Yul)
@@ -994,6 +1015,33 @@ theorem lowerExprNative_selectorExpr :
     EvmYul.Yul.primCall (fuel + 1) state
         EvmYul.Operation.SHR [shift, value] =
       .ok (state, [EvmYul.UInt256.shiftRight value shift]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_eq_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (left right : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.EQ [left, right] =
+      .ok (state, [EvmYul.UInt256.eq left right]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_iszero_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (value : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.ISZERO [value] =
+      .ok (state, [EvmYul.UInt256.isZero value]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_and_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (left right : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.AND [left, right] =
+      .ok (state, [EvmYul.UInt256.land left right]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
 /-- Native evaluation of the lowered generated selector expression peels to
@@ -1056,6 +1104,75 @@ theorem eval_lowerExprNative_selectorExpr_initialState_ok
       norm_num [Compiler.Constants.selectorModulus, EvmYul.UInt256.size]
     exact Nat.lt_trans hmod hsel
   rw [hv]
+
+/-- If the head statement of a native block finishes normally, execution
+    continues with the remaining block statements at the same decremented fuel. -/
+theorem exec_block_cons_ok
+    (fuel' : Nat)
+    (stmt : EvmYul.Yul.Ast.Stmt)
+    (stmts : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state next final : EvmYul.Yul.State)
+    (hHead : EvmYul.Yul.exec fuel' stmt codeOverride state = .ok next)
+    (hTail : EvmYul.Yul.exec fuel' (.Block stmts) codeOverride next = .ok final) :
+    EvmYul.Yul.exec (Nat.succ fuel') (.Block (stmt :: stmts)) codeOverride state =
+      .ok final := by
+  simp [EvmYul.Yul.exec, hHead, hTail]
+
+/-- Native `if` reduction for a zero guard. -/
+theorem exec_if_eval_zero
+    (fuel' : Nat)
+    (cond : EvmYul.Yul.Ast.Expr)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state next : EvmYul.Yul.State)
+    (hEval :
+      EvmYul.Yul.eval fuel' cond codeOverride state =
+        .ok (next, (⟨0⟩ : EvmYul.Literal))) :
+    EvmYul.Yul.exec (Nat.succ fuel') (.If cond body) codeOverride state =
+      .ok next := by
+  simp [EvmYul.Yul.exec, hEval]
+
+/-- Native `if` reduction for a nonzero guard. -/
+theorem exec_if_eval_nonzero
+    (fuel' : Nat)
+    (cond : EvmYul.Yul.Ast.Expr)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state next final : EvmYul.Yul.State)
+    (value : EvmYul.Literal)
+    (hEval : EvmYul.Yul.eval fuel' cond codeOverride state = .ok (next, value))
+    (hNe : value ≠ (⟨0⟩ : EvmYul.Literal))
+    (hBody : EvmYul.Yul.exec fuel' (.Block body) codeOverride next = .ok final) :
+    EvmYul.Yul.exec (Nat.succ fuel') (.If cond body) codeOverride state =
+      .ok final := by
+  simp [EvmYul.Yul.exec, hEval, hNe, hBody]
+
+/-- Native evaluation of the lazy lowered switch guard peels to the exact
+    EVMYulLean `AND(ISZERO(matched), EQ(discr, tag))` value.
+
+This is the next bridge after selector evaluation: selected-case execution can
+now reason from concrete discriminator and matched-temporary bindings instead
+of re-opening nested primitive-call evaluation. -/
+theorem eval_nativeSwitchGuardedMatch_ok
+    (state : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (discrName matchedName : EvmYul.Identifier)
+    (tag : Nat) :
+    EvmYul.Yul.eval 8
+      (Backends.nativePrimCall (EvmYul.Operation.AND : EvmYul.Operation .Yul)
+        [Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+          [.Var matchedName],
+         Backends.nativePrimCall (EvmYul.Operation.EQ : EvmYul.Operation .Yul)
+          [.Var discrName, .Lit (EvmYul.UInt256.ofNat tag)]])
+      codeOverride state =
+    .ok (state,
+      EvmYul.UInt256.land
+        (EvmYul.UInt256.isZero state[matchedName]!)
+        (EvmYul.UInt256.eq state[discrName]! (EvmYul.UInt256.ofNat tag))) := by
+  simp [Backends.nativePrimCall, EvmYul.Yul.eval, EvmYul.Yul.evalArgs,
+    EvmYul.Yul.evalTail, EvmYul.Yul.evalPrimCall, EvmYul.Yul.reverse',
+    EvmYul.Yul.cons', EvmYul.Yul.head']
 
 @[simp] theorem initialState_unbridgedEnvironmentDefaults
     (contract : EvmYul.Yul.Ast.YulContract)

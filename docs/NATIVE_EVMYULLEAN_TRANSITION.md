@@ -239,9 +239,17 @@ scope so the native path does not look more complete than it is:
    `initialState_selectorExpr_native_value` and
    `eval_lowerExprNative_selectorExpr_initialState_ok` theorems therefore prove
    that native evaluation of the lowered selector expression over the bridged
-   initial state returns `tx.functionSelector % selectorModulus`. The remaining
-   native dispatcher proof starts after selector evaluation, at guarded
-   switch-case execution and selected-body preservation.
+   initial state returns `tx.functionSelector % selectorModulus`. The named
+   `step_eq_ok`, `step_iszero_ok`, `step_and_ok`, `primCall_eq_ok`,
+   `primCall_iszero_ok`, `primCall_and_ok`, `exec_block_cons_ok`,
+   `exec_if_eval_zero`, `exec_if_eval_nonzero`, and
+   `eval_nativeSwitchGuardedMatch_ok` theorems expose the next native
+   guarded-switch reduction layer for the lazy switch block emitted by
+   `lowerNativeSwitchBlock`. The remaining native dispatcher proof starts at
+   whole guarded case-chain execution and selected-body preservation; the key
+   precondition to discharge is that fresh native switch temporaries are not
+   reassigned by lowered case/default bodies before the selected branch and
+   later branch skipping are proved.
 
 2. Prove native state bridge lemmas.
 
@@ -334,7 +342,9 @@ scope so the native path does not look more complete than it is:
    `uint256_shiftRight_224_ofNat_toNat`, `readBytes_zero_32_size`,
    `initialState_selectorExpr_native_value`, and
    `eval_lowerExprNative_selectorExpr_initialState_ok` lemmas proving native
-   selector-value agreement for the bridged initial state, plus the named
+   selector-value agreement for the bridged initial state, the named
+   `eval_nativeSwitchGuardedMatch_ok` and companion native `exec`/primitive
+   reduction lemmas for the lazy guarded switch case gate, plus the named
    `bridgedExpr_selectorExpr` and
    `evalYulExprWithBackend_evmYulLean_selectorExpr_semantics` lemmas for the
    generated dispatcher selector expression on the interpreter-oracle side, the named

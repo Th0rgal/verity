@@ -204,7 +204,11 @@ def lowerExprNative : YulExpr → EvmYul.Yul.Ast.Expr
 def lowerAssignNative (name : String) (value : YulExpr) : EvmYul.Yul.Ast.Stmt :=
   .Let [name] (some (lowerExprNative value))
 
-private def nativePrimCall
+/-- Build a native EVMYulLean primitive call expression.
+
+This is public because the native dispatcher proof reasons directly about the
+guard expressions introduced by `lowerNativeSwitchBlock`. -/
+def nativePrimCall
     (op : EvmYul.Operation .Yul) (args : List EvmYul.Yul.Ast.Expr) :
     EvmYul.Yul.Ast.Expr :=
   .Call (.inl op) args
