@@ -349,6 +349,13 @@ private def compileStmt (fields : List Field) : Stmt → CompileM Unit
               throw s!"Typed IR compile error: setStorageAddr requires an address-typed field '{fieldName}'"
           | expectedTy, ⟨actualTy, _⟩ =>
               throw s!"Typed IR compile error: setStorageAddr type mismatch for '{fieldName}' (expected {repr expectedTy}, got {repr actualTy})"
+  | .setStorageWord fieldName wordOffset value => do
+      let rhs ← liftExcept <| asUInt256 (← compileExpr fields value)
+      match findFieldWithResolvedSlot fields fieldName with
+      | some (_, slot) =>
+          emit (.setStorage (slot + wordOffset) rhs)
+      | none =>
+          throw s!"Typed IR compile error: unknown storage field '{fieldName}' in setStorageWord"
   | .setMapping fieldName key value => do
       let keyExpr ← liftExcept <| asAddress (← compileExpr fields key)
       let valueExpr ← liftExcept <| asUInt256 (← compileExpr fields value)
@@ -716,6 +723,18 @@ theorem compileStmts_single_setStorage_literal_run
     (compileStmts fields [Stmt.setStorage fieldName (Expr.literal n)]).run st =
       Except.ok ((), { st with body := st.body.push (TStmt.setStorage slot (TExpr.uintLit n)) }) := by
   simp only [compileStmts, compileStmt, fieldTypeToTy, hfind, emit]
+  rfl
+
+/-- `setStorageWord fieldName wordOffset (literal n)` lowers to a raw uint256
+write at the resolved root slot plus the requested ABI word offset. -/
+theorem compileStmts_single_setStorageWord_literal_run
+    (fields : List Field) (fieldName : String) (slot wordOffset : Nat)
+    (n : Nat) (st : CompileState)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    (compileStmts fields [Stmt.setStorageWord fieldName wordOffset (Expr.literal n)]).run st =
+      Except.ok ((), { st with body := st.body.push (TStmt.setStorage (slot + wordOffset) (TExpr.uintLit n)) }) := by
+  simp only [compileStmts, compileStmt, hfind, emit]
   rfl
 
 /-- Two-statement compilation shape for a broader supported subset:
