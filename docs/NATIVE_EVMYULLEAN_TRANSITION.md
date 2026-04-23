@@ -273,11 +273,16 @@ scope so the native path does not look more complete than it is:
    case-chain execution for default misses, suffix skips after a match, and the
    selected-case prefix-hit shape. `exec_nativeSwitchDefaultIf_unmatched_nonempty_fuel`
    and `exec_nativeSwitchDefaultIf_matched_fuel` then package the optional
-   default statement emitted by the lazy lowering. The remaining native
-   dispatcher proof starts after that switch prefix, at relating generated
-   selector lookup to the prefix/selected/suffix/default split and discharging
-   selected/default body preservation. The adapter now names the needed freshness
-   surface with `yulStmtWriteNames`, `yulStmtsWriteNames`,
+   default statement emitted by the lazy lowering. The selector lookup bridge
+   now exposes `nativeSwitch_find_hit_split`,
+   `nativeSwitch_find_none_all_miss`,
+   `exec_nativeSwitchCaseIfs_find_hit_fuel`, and
+   `exec_nativeSwitchCaseIfs_find_none_fuel`, so generated dispatcher proofs can
+   consume a concrete `find?` hit or miss instead of manually supplying the
+   prefix/selected/suffix split. The remaining native dispatcher proof starts
+   after that lookup bridge, at discharging selected/default body preservation.
+   The adapter now names the needed freshness surface with `yulStmtWriteNames`,
+   `yulStmtsWriteNames`,
    `nativeStmtWriteNames`, `nativeStmtsWriteNames`,
    `nativeSwitchTempsFreshForWrites`,
    `nativeSwitchTempsFreshForSourceBodies`, and
@@ -396,6 +401,10 @@ scope so the native path does not look more complete than it is:
    `exec_nativeSwitchCaseIfs_all_miss_fuel`,
    `exec_nativeSwitchCaseIfs_matched_fuel`, and
    `exec_nativeSwitchCaseIfs_prefix_hit_fuel` for whole generated case chains,
+   `nativeSwitch_find_hit_split`, `nativeSwitch_find_none_all_miss`,
+   `exec_nativeSwitchCaseIfs_find_hit_fuel`, and
+   `exec_nativeSwitchCaseIfs_find_none_fuel` for selector-lookup-driven case
+   chain execution,
    `exec_nativeSwitchDefaultIf_unmatched_nonempty_fuel` and
    `exec_nativeSwitchDefaultIf_matched_fuel` for optional generated defaults,
    and companion native `exec`/primitive reduction lemmas for the lazy guarded switch case/default gates,

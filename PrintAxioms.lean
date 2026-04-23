@@ -2870,11 +2870,19 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_matched_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchCaseIfs_nil
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchCaseIfs_cons
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.list_find?_eq_some_split_false  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.list_find?_eq_none_all_false  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.uint256_ofNat_ne_of_ne_of_lt  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_prefix_miss_of_selector_find  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_find_hit_split
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_find_none_all_miss
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_all_miss_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_matched_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_head_hit_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_cons_miss_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_prefix_hit_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_unmatched_nonempty_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_matched_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_unbridgedEnvironmentDefaults
@@ -3204,4 +3212,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3031 theorems/lemmas (2131 public, 900 private, 0 sorry'd)
+-- Total: 3039 theorems/lemmas (2135 public, 904 private, 0 sorry'd)

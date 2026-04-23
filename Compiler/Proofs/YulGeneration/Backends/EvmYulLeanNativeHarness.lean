@@ -1877,6 +1877,170 @@ def nativeSwitchDefaultIf
         nativeSwitchCaseIfs discrName matchedName rest := by
   rfl
 
+private theorem list_find?_eq_some_split_false
+    {α : Type}
+    (p : α → Bool) :
+    ∀ {xs : List α} {x : α},
+      xs.find? p = some x →
+        ∃ pre suffix,
+          xs = pre ++ x :: suffix ∧
+          ∀ y, y ∈ pre → p y = false
+  | [], _, hFind => by
+      simp [List.find?] at hFind
+  | y :: ys, x, hFind => by
+      by_cases hp : p y = true
+      · have hxy : x = y := by
+          simpa [List.find?, hp] using hFind.symm
+        subst x
+        exact ⟨[], ys, by simp, by simp⟩
+      · have hFalse : p y = false := Bool.eq_false_iff.2 hp
+        have hRest : ys.find? p = some x := by
+          simpa [List.find?, hFalse] using hFind
+        rcases list_find?_eq_some_split_false p hRest with
+          ⟨pre, suffix, hSplit, hPre⟩
+        refine ⟨y :: pre, suffix, ?_, ?_⟩
+        · simp [hSplit]
+        · intro z hz
+          have hz' : z = y ∨ z ∈ pre := by
+            simpa [List.mem_cons] using hz
+          rcases hz' with hzy | hzPre
+          · cases hzy
+            exact hFalse
+          · exact hPre z hzPre
+
+private theorem list_find?_eq_none_all_false
+    {α : Type}
+    (p : α → Bool) :
+    ∀ {xs : List α},
+      xs.find? p = none →
+        ∀ x, x ∈ xs → p x = false
+  | [], hFind, x, hx => by
+      simp at hx
+  | y :: ys, hFind, x, hx => by
+      by_cases hp : p y = true
+      · simp [List.find?, hp] at hFind
+      · have hFalse : p y = false := Bool.eq_false_iff.2 hp
+        have hRest : ys.find? p = none := by
+          simpa [List.find?, hFalse] using hFind
+        have hx' : x = y ∨ x ∈ ys := by
+          simpa [List.mem_cons] using hx
+        rcases hx' with hxy | hxTail
+        · cases hxy
+          exact hFalse
+        · exact list_find?_eq_none_all_false p hRest x hxTail
+
+private theorem uint256_ofNat_ne_of_ne_of_lt
+    {a b : Nat}
+    (ha : a < EvmYul.UInt256.size)
+    (hb : b < EvmYul.UInt256.size)
+    (hne : a ≠ b) :
+    EvmYul.UInt256.ofNat a ≠ EvmYul.UInt256.ofNat b := by
+  intro h
+  apply hne
+  have hToNat := congrArg EvmYul.UInt256.toNat h
+  rw [uint256_ofNat_toNat_of_lt a ha,
+    uint256_ofNat_toNat_of_lt b hb] at hToNat
+  exact hToNat
+
+private theorem nativeSwitch_prefix_miss_of_selector_find
+    (selector : Nat)
+    (cases pre suffix : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (tag : Nat)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (state : EvmYul.Yul.State)
+    (discrName : EvmYul.Identifier)
+    (hCases : cases = pre ++ (tag, body) :: suffix)
+    (hPrefix :
+      ∀ entry, entry ∈ pre → (fun entry : Nat × List EvmYul.Yul.Ast.Stmt =>
+        entry.1 == selector) entry = false)
+    (hDiscrSelector : state[discrName]! = EvmYul.UInt256.ofNat selector)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size) :
+    ∀ tag' body', (tag', body') ∈ pre →
+      state[discrName]! ≠ EvmYul.UInt256.ofNat tag' := by
+  intro tag' body' hmem hDiscrTag
+  have hPrefixFalse := hPrefix (tag', body') hmem
+  have hTagNe : tag' ≠ selector := by
+    intro hEq
+    have hTrue : (tag' == selector) = true := beq_iff_eq.mpr hEq
+    have hFalse : (tag' == selector) = false := by
+      simpa using hPrefixFalse
+    rw [hTrue] at hFalse
+    contradiction
+  have hCaseMem : (tag', body') ∈ cases := by
+    rw [hCases]
+    simp [hmem]
+  have hWordNe :
+      EvmYul.UInt256.ofNat selector ≠ EvmYul.UInt256.ofNat tag' :=
+    uint256_ofNat_ne_of_ne_of_lt hSelectorRange
+      (hTagsRange tag' body' hCaseMem) (Ne.symm hTagNe)
+  exact hWordNe (hDiscrSelector.symm.trans hDiscrTag)
+
+/-- A selector lookup hit exposes the generated case list as a miss prefix,
+    selected case, and suffix. This is the list-shape bridge consumed by the
+    native lazy-switch execution lemmas. -/
+theorem nativeSwitch_find_hit_split
+    (selector : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (tag : Nat)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (hFind :
+      cases.find? (fun entry => entry.1 == selector) = some (tag, body)) :
+    ∃ pre suffix,
+      cases = pre ++ (tag, body) :: suffix ∧
+      tag = selector ∧
+      ∀ entry, entry ∈ pre →
+        (fun entry : Nat × List EvmYul.Yul.Ast.Stmt =>
+          entry.1 == selector) entry = false := by
+  rcases list_find?_eq_some_split_false
+      (fun entry : Nat × List EvmYul.Yul.Ast.Stmt => entry.1 == selector)
+      hFind with
+    ⟨pre, suffix, hSplit, hPrefix⟩
+  have hSelected :
+      (fun entry : Nat × List EvmYul.Yul.Ast.Stmt =>
+        entry.1 == selector) (tag, body) = true :=
+    List.find?_some
+      (p := fun entry : Nat × List EvmYul.Yul.Ast.Stmt =>
+        entry.1 == selector) hFind
+  have hTag : tag = selector := by
+    exact beq_iff_eq.mp hSelected
+  exact ⟨pre, suffix, hSplit, hTag, hPrefix⟩
+
+/-- A selector lookup miss proves every generated case tag misses the native
+    dispatcher discriminator when the discriminator contains that selector and
+    all case tags are in the `UInt256` range. -/
+theorem nativeSwitch_find_none_all_miss
+    (selector : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (state : EvmYul.Yul.State)
+    (discrName : EvmYul.Identifier)
+    (hFind :
+      cases.find? (fun entry => entry.1 == selector) = none)
+    (hDiscrSelector : state[discrName]! = EvmYul.UInt256.ofNat selector)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases → tag < EvmYul.UInt256.size) :
+    ∀ tag body, (tag, body) ∈ cases →
+      state[discrName]! ≠ EvmYul.UInt256.ofNat tag := by
+  intro tag body hmem hDiscrTag
+  have hFalse :=
+    list_find?_eq_none_all_false
+      (fun entry : Nat × List EvmYul.Yul.Ast.Stmt => entry.1 == selector)
+      hFind (tag, body) hmem
+  have hTagNe : tag ≠ selector := by
+    intro hEq
+    have hTrue : (tag == selector) = true := beq_iff_eq.mpr hEq
+    have hFalse' : (tag == selector) = false := by
+      simpa using hFalse
+    rw [hTrue] at hFalse'
+    contradiction
+  have hWordNe :
+      EvmYul.UInt256.ofNat selector ≠ EvmYul.UInt256.ofNat tag :=
+    uint256_ofNat_ne_of_ne_of_lt hSelectorRange
+      (hTagsRange tag body hmem) (Ne.symm hTagNe)
+  exact hWordNe (hDiscrSelector.symm.trans hDiscrTag)
+
 /-- If no case tag matches and the matched flag is still clear, the generated
     native switch case chain skips every case body and leaves the state
     unchanged. -/
@@ -2045,22 +2209,19 @@ theorem exec_nativeSwitchCaseIfs_cons_miss_fuel
 theorem exec_nativeSwitchCaseIfs_prefix_hit_fuel
     (fuel : Nat)
     (pre suffix : List (Nat × List EvmYul.Yul.Ast.Stmt))
-    (tag : Nat)
-    (body : List EvmYul.Yul.Ast.Stmt)
+    (tag : Nat) (body : List EvmYul.Yul.Ast.Stmt)
     (codeOverride : Option EvmYul.Yul.Ast.YulContract)
     (state final : EvmYul.Yul.State)
     (discrName matchedName : EvmYul.Identifier)
     (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
-    (hMissPrefix :
-      ∀ tag' body', (tag', body') ∈ pre →
+    (hMissPrefix : ∀ tag' body', (tag', body') ∈ pre →
         state[discrName]! ≠ EvmYul.UInt256.ofNat tag')
     (hDiscr : state[discrName]! = EvmYul.UInt256.ofNat tag)
     (hBody :
       EvmYul.Yul.exec (fuel + suffix.length + 7) (.Block body) codeOverride
         (state.insert matchedName (EvmYul.UInt256.ofNat 1)) = .ok final)
     (hFinalMatched : final[matchedName]! = EvmYul.UInt256.ofNat 1) :
-    EvmYul.Yul.exec
-      (fuel + (pre ++ (tag, body) :: suffix).length + 9)
+    EvmYul.Yul.exec (fuel + (pre ++ (tag, body) :: suffix).length + 9)
       (.Block (nativeSwitchCaseIfs discrName matchedName
         (pre ++ (tag, body) :: suffix)))
       codeOverride state = .ok final := by
@@ -2082,15 +2243,89 @@ theorem exec_nativeSwitchCaseIfs_prefix_hit_fuel
       have hTail :
           EvmYul.Yul.exec
             (fuel + (rest ++ (tag, body) :: suffix).length + 9)
-            (.Block
-              (nativeSwitchCaseIfs discrName matchedName
-                (rest ++ (tag, body) :: suffix)))
+            (.Block (nativeSwitchCaseIfs discrName matchedName
+              (rest ++ (tag, body) :: suffix)))
             codeOverride state = .ok final :=
         ih fuel hRestMiss hBody
       simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
         (exec_nativeSwitchCaseIfs_cons_miss_fuel fuel
           (rest ++ (tag, body) :: suffix) missTag missBody codeOverride state
           final discrName matchedName hMatched hHeadMiss hTail)
+
+/-- Whole generated case-chain execution for a selector lookup hit. This wraps
+    `exec_nativeSwitchCaseIfs_prefix_hit_fuel` with the generated dispatcher
+    lookup split, so callers only need the `find?` result and the selected body
+    execution premise for the discovered suffix. -/
+theorem exec_nativeSwitchCaseIfs_find_hit_fuel
+    (fuel selector : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (tag : Nat)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state final : EvmYul.Yul.State)
+    (discrName matchedName : EvmYul.Identifier)
+    (hFind :
+      cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hDiscrSelector : state[discrName]! = EvmYul.UInt256.ofNat selector)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hBody :
+      ∀ pre suffix,
+        cases = pre ++ (tag, body) :: suffix →
+          EvmYul.Yul.exec (fuel + suffix.length + 7) (.Block body)
+            codeOverride (state.insert matchedName (EvmYul.UInt256.ofNat 1)) =
+            .ok final)
+    (hFinalMatched : final[matchedName]! = EvmYul.UInt256.ofNat 1) :
+    EvmYul.Yul.exec (fuel + cases.length + 9)
+      (.Block (nativeSwitchCaseIfs discrName matchedName cases))
+      codeOverride state = .ok final := by
+  rcases nativeSwitch_find_hit_split selector cases tag body hFind with
+    ⟨pre, suffix, hCases, hTag, hPrefix⟩
+  subst tag
+  have hMissPrefix :
+      ∀ tag' body', (tag', body') ∈ pre →
+        state[discrName]! ≠ EvmYul.UInt256.ofNat tag' :=
+    nativeSwitch_prefix_miss_of_selector_find selector cases pre suffix selector body
+      state discrName hCases hPrefix hDiscrSelector hSelectorRange hTagsRange
+  have hSelectedBody :
+      EvmYul.Yul.exec (fuel + suffix.length + 7) (.Block body)
+        codeOverride (state.insert matchedName (EvmYul.UInt256.ofNat 1)) =
+        .ok final :=
+    hBody pre suffix hCases
+  have hExec :=
+    exec_nativeSwitchCaseIfs_prefix_hit_fuel fuel pre suffix selector body
+      codeOverride state final discrName matchedName hMatched hMissPrefix
+      hDiscrSelector hSelectedBody hFinalMatched
+  simpa [hCases, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hExec
+
+/-- Whole generated case-chain skip for a selector lookup miss. This packages
+    the `find? = none` selector fact into the all-cases-miss premise expected by
+    the lazy native switch executor. -/
+theorem exec_nativeSwitchCaseIfs_find_none_fuel
+    (fuel selector : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State)
+    (discrName matchedName : EvmYul.Identifier)
+    (hFind :
+      cases.find? (fun entry => entry.1 == selector) = none)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hDiscrSelector : state[discrName]! = EvmYul.UInt256.ofNat selector)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases → tag < EvmYul.UInt256.size) :
+    EvmYul.Yul.exec (fuel + cases.length + 9)
+      (.Block (nativeSwitchCaseIfs discrName matchedName cases))
+      codeOverride state = .ok state := by
+  have hMiss :
+      ∀ tag body, (tag, body) ∈ cases →
+        state[discrName]! ≠ EvmYul.UInt256.ofNat tag :=
+    nativeSwitch_find_none_all_miss selector cases state discrName hFind
+      hDiscrSelector hSelectorRange hTagsRange
+  exact exec_nativeSwitchCaseIfs_all_miss_fuel fuel cases codeOverride state
+    discrName matchedName hMatched hMiss
 /-- Non-empty generated default block execution when no case matched. -/
 theorem exec_nativeSwitchDefaultIf_unmatched_nonempty_fuel
     (fuel : Nat)
