@@ -57,6 +57,12 @@ def checkedArrayElementMemoryHelper : YulStmt :=
   checkedArrayElementHelper checkedArrayElementMemoryHelperName "mload"
 
 private def checkedArrayElementWordHelper (helperName loadOp : String) : YulStmt :=
+  let elementWordIndex :=
+    YulExpr.call "add" [
+      YulExpr.call "mul" [YulExpr.ident "index", YulExpr.ident "element_words"],
+      YulExpr.ident "word_offset"
+    ]
+  let byteOffset := YulExpr.call "mul" [elementWordIndex, YulExpr.lit 32]
   YulStmt.funcDef helperName ["data_offset", "length", "index", "element_words", "word_offset"] ["word"] [
     YulStmt.if_ (YulExpr.call "iszero" [
       YulExpr.call "lt" [YulExpr.ident "index", YulExpr.ident "length"]
@@ -66,13 +72,7 @@ private def checkedArrayElementWordHelper (helperName loadOp : String) : YulStmt
     YulStmt.assign "word" (YulExpr.call loadOp [
       YulExpr.call "add" [
         YulExpr.ident "data_offset",
-        YulExpr.call "mul" [
-          YulExpr.call "add" [
-            YulExpr.call "mul" [YulExpr.ident "index", YulExpr.ident "element_words"],
-            YulExpr.ident "word_offset"
-          ],
-          YulExpr.lit 32
-        ]
+        byteOffset
       ]
     ])
   ]

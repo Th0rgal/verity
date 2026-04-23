@@ -3150,6 +3150,11 @@ set_option maxRecDepth 4096 in
   expectTrue "arrayElementWord-only specs emit the word-array helpers"
     ((contains tupleArrayElementWordOnlyYul checkedArrayElementWordCalldataHelperName) &&
       (contains tupleArrayElementWordOnlyYul checkedArrayElementWordMemoryHelperName))
+  expectTrue "arrayElementWord helper scales only element word offset"
+    (contains tupleArrayElementWordOnlyYul
+      "calldataload(add(data_offset, mul(add(mul(index, element_words), word_offset), 32)))" &&
+      !(contains tupleArrayElementWordOnlyYul
+        "calldataload(add(data_offset, mul(add(add(mul(index, element_words), word_offset), 32), 32)))"))
   expectTrue "arrayElementWord-only specs do not emit tuple-array helpers"
     (!(contains tupleArrayElementWordOnlyYul checkedArrayElementCalldataHelperName) &&
       !(contains tupleArrayElementWordOnlyYul checkedArrayElementMemoryHelperName))
