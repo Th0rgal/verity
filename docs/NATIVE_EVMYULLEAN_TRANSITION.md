@@ -297,8 +297,9 @@ scope so the native path does not look more complete than it is:
   remaining native dispatcher proof starts after that complete lazy-switch
   bridge, at proving `NativeBlockPreservesWord` for selected/default lowered
   bodies and threading the initialized prefix state plus the lowering lookup
-  facts into the raw lowered switch block. The harness now starts the body
-  preservation algebra with `state_lookup_insert_of_ne`,
+  facts into the raw lowered switch block. The harness now exposes that raw
+  switch shape as `lowerNativeSwitchBlock_selectorExpr_eq_nativeSwitchParts`
+  and starts the body preservation algebra with `state_lookup_insert_of_ne`,
   `NativeBlockPreservesWord_nil`, and `NativeBlockPreservesWord_cons`; the
   next proof step is the statement induction that derives those preservation
   obligations from `nativeStmtsWriteNames` freshness. The adapter now names

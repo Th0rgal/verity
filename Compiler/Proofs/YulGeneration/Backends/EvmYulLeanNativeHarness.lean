@@ -2013,6 +2013,23 @@ def nativeSwitchDefaultIf
   if defaultBody.isEmpty then []
   else [.If (nativeSwitchDefaultGuardExpr matchedName) defaultBody]
 
+theorem lowerNativeSwitchBlock_selectorExpr_eq_nativeSwitchParts
+    (switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt) :
+    Backends.lowerNativeSwitchBlock Compiler.Proofs.YulGeneration.selectorExpr
+      switchId cases defaultBody =
+    .Block
+      (nativeSwitchPrefixStmts (Backends.nativeSwitchDiscrTempName switchId)
+          (Backends.nativeSwitchMatchedTempName switchId) ++
+        nativeSwitchCaseIfs (Backends.nativeSwitchDiscrTempName switchId)
+          (Backends.nativeSwitchMatchedTempName switchId) cases ++
+        nativeSwitchDefaultIf (Backends.nativeSwitchMatchedTempName switchId)
+          defaultBody) := by
+  simp [Backends.lowerNativeSwitchBlock, nativeSwitchPrefixStmts,
+    nativeSwitchCaseIfs, nativeSwitchCaseIf, nativeSwitchGuardedMatchExpr,
+    nativeSwitchDefaultIf, nativeSwitchDefaultGuardExpr]
+
 def NativeBlockPreservesWord
     (name : EvmYul.Identifier)
     (value : EvmYul.Literal)
