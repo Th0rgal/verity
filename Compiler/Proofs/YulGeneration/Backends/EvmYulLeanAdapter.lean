@@ -365,7 +365,7 @@ private def insertNativeFunction
   else
     pure (functions.insert name definition)
 
-partial def lowerRuntimeContractNativeAux
+def lowerRuntimeContractNativeAux
     (reservedNames : List String)
     (stmts : List YulStmt)
     (dispatcherAcc : List EvmYul.Yul.Ast.Stmt)
@@ -384,6 +384,67 @@ partial def lowerRuntimeContractNativeAux
       lowerRuntimeContractNativeAux reservedNames rest (lowered.reverse ++ dispatcherAcc) functionsAcc
         nextSwitchId
 
+@[simp] theorem lowerRuntimeContractNativeAux_nil
+    (reservedNames : List String)
+    (dispatcherAcc : List EvmYul.Yul.Ast.Stmt)
+    (functionsAcc : NativeFunctionMap)
+    (nextSwitchId : Nat) :
+    lowerRuntimeContractNativeAux reservedNames [] dispatcherAcc functionsAcc nextSwitchId =
+      .ok (dispatcherAcc.reverse, functionsAcc, nextSwitchId) := by
+  rw [lowerRuntimeContractNativeAux.eq_1]
+  rfl
+
+/-- Top-level native runtime lowering partitions a `funcDef` into the native
+function map rather than appending it to dispatcher code.
+
+Keeping this equation named is important for the native migration proof: it is
+the first generated-fragment shape fact needed before proving that
+`callDispatcher` runs the same selected body as the interpreter oracle. -/
+theorem lowerRuntimeContractNativeAux_funcDef_cons
+    (reservedNames : List String)
+    (dispatcherAcc : List EvmYul.Yul.Ast.Stmt)
+    (functionsAcc : NativeFunctionMap)
+    (nextSwitchId : Nat)
+    (name : String)
+    (params rets : List String)
+    (body rest : List YulStmt) :
+    lowerRuntimeContractNativeAux reservedNames
+        (YulStmt.funcDef name params rets body :: rest)
+        dispatcherAcc functionsAcc nextSwitchId =
+      (do
+        let definition ← lowerFunctionDefinitionNativeWithReserved reservedNames params rets body
+        let functionsAcc ← insertNativeFunction functionsAcc name definition
+        lowerRuntimeContractNativeAux reservedNames rest dispatcherAcc functionsAcc nextSwitchId) := by
+  rw [lowerRuntimeContractNativeAux.eq_2]
+
+/-- Top-level native runtime lowering appends non-`funcDef` statements to the
+dispatcher accumulator after statement lowering.
+
+Together with `lowerRuntimeContractNativeAux_funcDef_cons`, this gives proofs a
+transparent partition boundary for generated runtime code: helper definitions
+flow to the function map, while the switch dispatcher remains dispatcher code. -/
+theorem lowerRuntimeContractNativeAux_stmt_cons
+    (reservedNames : List String)
+    (dispatcherAcc : List EvmYul.Yul.Ast.Stmt)
+    (functionsAcc : NativeFunctionMap)
+    (nextSwitchId : Nat)
+    (stmt : YulStmt)
+    (rest : List YulStmt)
+    (hNoFunc : ∀ name params rets body,
+      stmt ≠ YulStmt.funcDef name params rets body) :
+    lowerRuntimeContractNativeAux reservedNames (stmt :: rest)
+        dispatcherAcc functionsAcc nextSwitchId =
+      (do
+        let loweredAndNext ←
+          lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId stmt
+        match loweredAndNext with
+        | (lowered, nextSwitchId) =>
+            lowerRuntimeContractNativeAux reservedNames rest
+              (lowered.reverse ++ dispatcherAcc) functionsAcc nextSwitchId) := by
+  rw [lowerRuntimeContractNativeAux.eq_3]
+  intro name params rets body h
+  exact hNoFunc name params rets body h
+
 /-- Lower generated runtime Yul into an executable EVMYulLean contract shape. -/
 def lowerRuntimeContractNative (stmts : List YulStmt) :
     Except AdapterError EvmYul.Yul.Ast.YulContract := do
@@ -395,6 +456,12 @@ def lowerRuntimeContractNative (stmts : List YulStmt) :
     dispatcher := .Block dispatcher,
     functions := functions
   }
+
+@[simp] theorem lowerRuntimeContractNative_empty :
+    lowerRuntimeContractNative [] =
+      .ok { dispatcher := EvmYul.Yul.Ast.Stmt.Block []
+            functions := (∅ : NativeFunctionMap) } := by
+  simp [lowerRuntimeContractNative]
 
 /-- Map a Verity builtin name to the corresponding EVMYulLean PrimOp.
     Returns `none` for Verity-specific helpers (e.g. `mappingSlot`) that

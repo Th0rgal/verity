@@ -2211,6 +2211,10 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerExprNative_call_runtimePrimOp
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerExprNative_call_userFunction
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNativeAux_nil
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNativeAux_funcDef_cons
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNativeAux_stmt_cons
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative_empty
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapterCorrectness.lean
 #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let
@@ -2750,6 +2754,9 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.selectorExprMatchesGeneratedDispatcher_selectorExpr
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.selectedSwitchBody_hit
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.selectedSwitchBody_miss
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable_global
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeBlobBaseFeeRepresentable_minimum
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_noChainId_noBlobBaseFee
@@ -3089,4 +3096,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2916 theorems/lemmas (2029 public, 887 private, 0 sorry'd)
+-- Total: 2923 theorems/lemmas (2036 public, 887 private, 0 sorry'd)

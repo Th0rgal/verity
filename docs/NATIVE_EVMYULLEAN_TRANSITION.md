@@ -61,6 +61,15 @@ materializes pre-state storage for those slots.
   selected-path environment validation, and projected
   `EvmYul.Yul.callDispatcher` agreement with the fuel-aligned interpreter
   oracle.
+- Native runtime top-level partitioning is now transparent enough for proofs:
+  `lowerRuntimeContractNativeAux` is structurally recursive, and the named
+  equations `lowerRuntimeContractNativeAux_funcDef_cons`,
+  `lowerRuntimeContractNativeAux_stmt_cons`, and
+  `lowerRuntimeContractNative_empty` expose the helper-definition/function-map
+  split that future dispatcher-agreement proofs need.
+- The selected generated-dispatch path has small named hooks:
+  `selectorExprMatchesGeneratedDispatcher_selectorExpr`,
+  `selectedSwitchBody_hit`, and `selectedSwitchBody_miss`.
 - The native harness remains separate from the existing retargeting theorem, so
   the proof tree does not claim a theorem that is not yet proved.
 
@@ -148,13 +157,21 @@ scope so the native path does not look more complete than it is:
 1. Prove lowering invariants for the native contract shape.
 
    Required facts:
-   - top-level `funcDef` nodes are partitioned into `YulContract.functions`,
+   - top-level `funcDef` nodes are partitioned into `YulContract.functions`
+     (now exposed by `lowerRuntimeContractNativeAux_funcDef_cons`),
    - dispatcher code contains no function definitions,
    - known runtime builtins lower to native `.inl` primops, now named by
      `lowerExprNative_call_runtimePrimOp`,
    - user/helper calls remain `.inr` function calls, now named by
      `lowerExprNative_call_userFunction`,
    - duplicate helper definitions fail closed.
+
+   Remaining blocker: statement-level native lowering through
+   `lowerStmtsNativeWithSwitchIds`/`lowerStmtGroupNativeWithSwitchIds` is still
+   executable-first and not yet accompanied by semantic preservation theorems
+   against `execYulFuelWithBackend .evmYulLean`. The top-level partition
+   equation is proved, but full `callDispatcher` agreement still requires
+   per-statement native-lowering execution lemmas.
 
 2. Prove native state bridge lemmas.
 

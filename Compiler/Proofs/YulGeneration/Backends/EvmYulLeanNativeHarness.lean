@@ -124,6 +124,12 @@ def selectorExprMatchesGeneratedDispatcher : YulExpr → Bool
       shift == Compiler.Constants.selectorShift
   | _ => false
 
+@[simp] theorem selectorExprMatchesGeneratedDispatcher_selectorExpr :
+    selectorExprMatchesGeneratedDispatcher
+      Compiler.Proofs.YulGeneration.selectorExpr = true := by
+  simp [selectorExprMatchesGeneratedDispatcher,
+    Compiler.Proofs.YulGeneration.selectorExpr]
+
 def selectedSwitchBody
     (selector : Nat)
     (cases : List (Nat × List YulStmt))
@@ -132,6 +138,26 @@ def selectedSwitchBody
   match cases.find? (fun entry => entry.1 == selector) with
   | some (_, body) => body
   | none => defaultBody.getD []
+
+@[simp] theorem selectedSwitchBody_hit
+    (selector : Nat)
+    (cases : List (Nat × List YulStmt))
+    (defaultBody : Option (List YulStmt))
+    (body : List YulStmt)
+    (hFind : cases.find? (fun entry => entry.1 == selector) =
+      some (selector, body)) :
+    selectedSwitchBody selector cases defaultBody = body := by
+  unfold selectedSwitchBody
+  rw [hFind]
+
+@[simp] theorem selectedSwitchBody_miss
+    (selector : Nat)
+    (cases : List (Nat × List YulStmt))
+    (defaultBody : Option (List YulStmt))
+    (hFind : cases.find? (fun entry => entry.1 == selector) = none) :
+    selectedSwitchBody selector cases defaultBody = defaultBody.getD [] := by
+  unfold selectedSwitchBody
+  rw [hFind]
 
 partial def yulStmtsUseBuiltinWithCalledFunctions
     (fuel : Nat)
