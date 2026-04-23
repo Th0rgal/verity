@@ -51,6 +51,16 @@ materializes pre-state storage for those slots.
   remaining native-vs-interpreter equivalence theorem plus a named
   full-storage-projection and fuel-parametric-preservation gap, not a completed
   public flip.
+- The same module also exposes
+  `nativeCallDispatcherAgreesWithInterpreter`,
+  `nativeIRRuntimeAgreesWithInterpreter_of_lowered_callDispatcher_agree`,
+  `layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bridge`,
+  and
+  `layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge`.
+  These move the remaining proof obligation down to concrete native lowering,
+  selected-path environment validation, and projected
+  `EvmYul.Yul.callDispatcher` agreement with the fuel-aligned interpreter
+  oracle.
 - The native harness remains separate from the existing retargeting theorem, so
   the proof tree does not claim a theorem that is not yet proved.
 
@@ -313,6 +323,20 @@ scope so the native path does not look more complete than it is:
    nativeIRRuntimeAgreesWithInterpreter fuel irContract tx initialState
      observableSlots
    ```
+
+   The next theorem in that chain is:
+
+   ```lean
+   layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge
+   ```
+
+   It replaces the opaque bridge hypothesis with successful
+   `lowerRuntimeContractNative`, successful
+   `validateNativeRuntimeEnvironment`, and
+   `nativeCallDispatcherAgreesWithInterpreter` for the lowered native contract.
+   The unresolved proof is now specifically the projected
+   `EvmYul.Yul.callDispatcher` result agreement for the supported generated
+   fragment.
 
    This makes the remaining proof obligation concrete: for the supported
    generated fragment, native `lowerRuntimeContractNative` plus

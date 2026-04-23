@@ -60,6 +60,8 @@ REQUIRED_SNIPPETS = (
     "layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge",
     "nativeIRRuntimeAgreesWithInterpreter",
     "nativeResultsMatchOn",
+    "nativeCallDispatcherAgreesWithInterpreter",
+    "layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge",
     "explicitly observable final-storage slots",
     "full-storage-projection",
     "same explicit fuel",
@@ -149,10 +151,14 @@ def check_public_theorem_target(
         "def yulResultsAgreeOn",
         "def nativeResultsMatchOn",
         "def nativeIRRuntimeAgreesWithInterpreter",
+        "def nativeCallDispatcherAgreesWithInterpreter",
+        "theorem nativeIRRuntimeAgreesWithInterpreter_of_lowered_callDispatcher_agree",
         "interpretYulRuntimeWithBackendFuel .evmYulLean fuel",
         "hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1",
         "theorem layer3_contract_preserves_semantics_native_of_interpreter_bridge",
+        "theorem layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bridge",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge",
+        "theorem layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge",
     ):
         if required_native_seam not in normalized_end_to_end:
             errors.append(
@@ -172,13 +178,16 @@ def check_public_theorem_target(
                 f"interpreter oracle surface `{required_fuel_surface}` explicit"
             )
 
-    forbidden_native_in_end_to_end = ("interpretRuntimeNative", "EvmYul.Yul.callDispatcher")
+    forbidden_native_in_end_to_end = (
+        "theorem target: interpretRuntimeNative",
+        "theorem target: EvmYul.Yul.callDispatcher",
+    )
     for native_target in forbidden_native_in_end_to_end:
         if native_target in normalized_end_to_end:
             errors.append(
                 "Compiler/Proofs/EndToEnd.lean should target the native IR "
                 "runtime seam, not the lower-level harness implementation "
-                f"`{native_target}`"
+                f"`{native_target.removeprefix('theorem target: ')}`"
             )
 
     for required_native_entrypoint in (

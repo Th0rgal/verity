@@ -161,6 +161,59 @@ theorem nativeIRRuntimeAgreesWithInterpreter_of_ok_agree
   rw [hNative]
   exact hAgree
 
+/-- Concrete native execution agreement target after Verity runtime Yul has
+successfully lowered to an EVMYulLean contract.
+
+This is the next proof obligation under the opaque
+`nativeIRRuntimeAgreesWithInterpreter` seam: compare the projected native
+`callDispatcher` result with the fuel-aligned interpreter oracle on the same
+emitted runtime code and observable storage slots. -/
+def nativeCallDispatcherAgreesWithInterpreter
+    (fuel : Nat)
+    (contract : IRContract)
+    (tx : IRTransaction)
+    (state : IRState)
+    (observableSlots : List Nat)
+    (nativeContract : EvmYul.Yul.Ast.YulContract) :
+    Prop :=
+  yulResultsAgreeOn observableSlots
+    (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+      (YulTransaction.ofIR tx) state.storage state.events
+      (EvmYul.Yul.callDispatcher fuel (some nativeContract)
+        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+          nativeContract (YulTransaction.ofIR tx) state.storage observableSlots)))
+    (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackendFuel
+      .evmYulLean fuel (Compiler.emitYul contract).runtimeCode
+      (YulTransaction.ofIR tx) state.storage state.events)
+
+/-- Discharge the public native/interpreter bridge from concrete native
+lowering, selected-path environment validation, and projected
+`callDispatcher` agreement.
+
+After this theorem, generated-fragment work can focus on facts about
+`lowerRuntimeContractNative`, `validateNativeRuntimeEnvironment`, and
+`EvmYul.Yul.callDispatcher` rather than re-opening the public native harness
+wrapper. -/
+theorem nativeIRRuntimeAgreesWithInterpreter_of_lowered_callDispatcher_agree
+    {fuel : Nat} {contract : IRContract} {tx : IRTransaction}
+    {state : IRState} {observableSlots : List Nat}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    (hLower :
+      Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+        (Compiler.emitYul contract).runtimeCode = .ok nativeContract)
+    (hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+        (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hAgree :
+      nativeCallDispatcherAgreesWithInterpreter fuel contract tx state
+        observableSlots nativeContract) :
+    nativeIRRuntimeAgreesWithInterpreter fuel contract tx state observableSlots := by
+  apply nativeIRRuntimeAgreesWithInterpreter_of_ok_agree
+  · exact
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative
+        fuel contract tx state observableSlots nativeContract hLower hEnv)
+  · exact hAgree
+
 /-! ## Layer 3: IR → Yul (Generic) -/
 
 /-- Layer 3 function-level preservation: any IR function body produces equivalent
@@ -569,6 +622,56 @@ theorem layer3_contract_preserves_semantics_native_of_interpreter_bridge
       exact nativeResultsMatchOn_ok_of_resultsMatch_of_yulResultsAgreeOn hLayer
         hNativeBridge
 
+/-- Native Layer 3 bridge theorem with the remaining obligation stated at the
+concrete lowered EVMYulLean contract boundary.
+
+This variant removes the opaque `nativeIRRuntimeAgreesWithInterpreter`
+hypothesis from callers. They instead prove native lowering succeeds, the
+selected native runtime path has representable environment reads, and projected
+`callDispatcher` execution agrees with the interpreter oracle. -/
+theorem layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bridge
+    (fuel : Nat) (contract : IRContract) (tx : IRTransaction)
+    (initialState : IRState) (observableSlots : List Nat)
+    (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hvars : initialState.vars = []) (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0)
+    (hreturn : initialState.returnValue = none)
+    (hparamErase : ∀ fn, fn ∈ contract.functions →
+      paramLoadErasure fn tx (initialState.withTx tx))
+    (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions →
+      DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ contract.functions →
+      yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions →
+      HasSelectorDeadBridge fn.body)
+    (hLoopFree : ∀ fn, fn ∈ contract.functions → yulStmtsLoopFree fn.body = true)
+    (hWF : ContractWF contract) (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none)
+    (hFunctions : ∀ fn, fn ∈ contract.functions →
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body)
+    (hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1)
+    (hLower :
+      Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+        (Compiler.emitYul contract).runtimeCode = .ok nativeContract)
+    (hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+        (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hNativeCallDispatcher :
+      nativeCallDispatcherAgreesWithInterpreter fuel contract tx initialState
+        observableSlots nativeContract) :
+    nativeResultsMatchOn observableSlots (interpretIR contract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        fuel contract tx initialState observableSlots) :=
+  layer3_contract_preserves_semantics_native_of_interpreter_bridge
+    fuel contract tx initialState observableSlots
+    hselector hNoWrap hvars hmemory htransient hreturn hparamErase
+    hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
+    hNoReceive hFunctions hFuel
+    (nativeIRRuntimeAgreesWithInterpreter_of_lowered_callDispatcher_agree
+      hLower hEnv hNativeCallDispatcher)
+
 /-! ## Layers 2+3 Composition -/
 
 /-- Reference-oracle end-to-end wrapper: given a successfully compiled
@@ -752,6 +855,51 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge
       hStaticParams hSafeBodies)
     hFuel
     hNativeBridge
+
+/-- Supported compiler-produced native theorem seam with the remaining native
+obligation exposed at the concrete lowered `callDispatcher` boundary. -/
+theorem layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge
+    (fuel : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
+    (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
+    (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+        Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts spec.fields spec.errors .calldata [] false entry.1.body)
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hvars : initialState.vars = [])
+    (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0)
+    (hreturn : initialState.returnValue = none)
+    (hparamErase : ∀ fn, fn ∈ irContract.functions → paramLoadErasure fn tx (initialState.withTx tx))
+    (hdispatchGuardSafe : ∀ fn, fn ∈ irContract.functions → DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ irContract.functions → yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ irContract.functions → HasSelectorDeadBridge fn.body)
+    (hLoopFree : ∀ fn, fn ∈ irContract.functions → yulStmtsLoopFree fn.body = true)
+    (hWF : ContractWF irContract) (hNoFallback : irContract.fallbackEntrypoint = none)
+    (hNoReceive : irContract.receiveEntrypoint = none)
+    (hFuel : fuel = sizeOf (Compiler.emitYul irContract).runtimeCode + 1)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hNativeCallDispatcher : nativeCallDispatcherAgreesWithInterpreter fuel irContract tx initialState observableSlots nativeContract) :
+    nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        fuel irContract tx initialState observableSlots) :=
+  layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bridge
+    fuel irContract tx initialState observableSlots nativeContract
+    hselector hNoWrap hvars hmemory htransient hreturn hparamErase
+    hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
+    hNoReceive
+    (compiledExternalFunctions_bridged_of_safe_static
+      spec.fields spec.events spec.errors
+      (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_compiled_functions
+        spec selectors hSupported irContract hCompile)
+      hStaticParams hSafeBodies)
+    hFuel hLower hEnv hNativeCallDispatcher
 
 /-! ## Concrete Instantiation: SimpleStorage -/
 
