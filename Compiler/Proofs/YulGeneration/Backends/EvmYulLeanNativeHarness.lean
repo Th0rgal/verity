@@ -2110,6 +2110,25 @@ theorem state_lookup_insert_of_ne
   | OutOfFuel => simp [EvmYul.Yul.State.insert]
   | Checkpoint jump => simp [EvmYul.Yul.State.insert]
 
+theorem state_getElem_insert_of_ne
+    (state : EvmYul.Yul.State)
+    (name other : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (hne : name ≠ other) :
+    (state.insert other value)[name]! = state[name]! := by
+  cases state with
+  | Ok shared store =>
+      simp [EvmYul.Yul.State.insert, EvmYul.Yul.State.lookup!,
+        EvmYul.Yul.State.store, GetElem?.getElem!, decidableGetElem?,
+        GetElem.getElem]
+      by_cases hmem : name ∈ store
+      · simp [hmem, hne, Finmap.lookup_insert_of_ne store hne]
+      · simp [hmem, hne]
+  | OutOfFuel =>
+      simp [EvmYul.Yul.State.insert]
+  | Checkpoint jump =>
+      simp [EvmYul.Yul.State.insert]
+
 theorem nativeSwitchDiscrTempName_ne_matchedTempName
     (switchId : Nat) :
     Backends.nativeSwitchDiscrTempName switchId ≠
@@ -2243,6 +2262,25 @@ theorem NativeBlockPreservesWord_cons_stmt
     (hRest : NativeBlockPreservesWord name value rest codeOverride) :
     NativeBlockPreservesWord name value (stmt :: rest) codeOverride :=
   NativeBlockPreservesWord_cons name value stmt rest codeOverride hHead hRest
+
+theorem NativeStmtPreservesWord_lowerAssignNative_lit_of_ne
+    (name target : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (assigned : Nat)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hne : name ≠ target) :
+    NativeStmtPreservesWord name expected
+      (Backends.lowerAssignNative target (.lit assigned)) codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      simp [Backends.lowerAssignNative, Backends.lowerExprNative] at hExec
+      cases hExec
+      rw [state_getElem_insert_of_ne state name target
+        (EvmYul.UInt256.ofNat assigned) hne]
+      exact hLookup
 
 theorem nativeSwitchTempsFreshForNativeBodies_case_matched_not_mem
     (switchId tag : Nat)
