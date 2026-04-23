@@ -281,6 +281,39 @@ def lowerNativeSwitchBlock
           , .Let [matchedName] (some (.Lit (EvmYul.UInt256.ofNat 0))) ] ++
          caseIfs ++ defaultIf)
 
+/-- Native switch lowering expands to a lazy guarded block instead of using
+    EVMYulLean's eager `.Switch` form. The native/interpreter dispatcher proof
+    should consume this shape directly: the first statement evaluates the
+    discriminator once, each case is guarded by `iszero(matched) && discr == tag`,
+    and the optional default runs only if no case marked the switch matched. -/
+theorem lowerNativeSwitchBlock_eq
+    (expr : YulExpr)
+    (switchId : Nat)
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (default' : List EvmYul.Yul.Ast.Stmt) :
+    lowerNativeSwitchBlock expr switchId cases' default' =
+      (let discrName := nativeSwitchDiscrTempName switchId
+       let matchedName := nativeSwitchMatchedTempName switchId
+       let discr := EvmYul.Yul.Ast.Expr.Var discrName
+       let matched := EvmYul.Yul.Ast.Expr.Var matchedName
+       let matchExpr := fun tag =>
+         nativePrimCall (EvmYul.Operation.EQ : EvmYul.Operation .Yul)
+           [discr, .Lit (EvmYul.UInt256.ofNat tag)]
+       let unmatched :=
+         nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul) [matched]
+       let guardedMatch := fun tag =>
+         nativePrimCall (EvmYul.Operation.AND : EvmYul.Operation .Yul)
+           [unmatched, matchExpr tag]
+       let defaultGuard :=
+         nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul) [matched]
+       let markMatched := lowerAssignNative matchedName (.lit 1)
+       let caseIfs := cases'.map (fun (tag, body) => .If (guardedMatch tag) (markMatched :: body))
+       let defaultIf := if default'.isEmpty then [] else [.If defaultGuard default']
+       .Block ([ .Let [discrName] (some (lowerExprNative expr))
+               , .Let [matchedName] (some (.Lit (EvmYul.UInt256.ofNat 0))) ] ++
+              caseIfs ++ defaultIf)) := by
+  rfl
+
 mutual
 def lowerStmtsNativeWithSwitchIds
     (reservedNames : List String)

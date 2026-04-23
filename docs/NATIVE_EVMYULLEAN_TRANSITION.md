@@ -195,7 +195,11 @@ scope so the native path does not look more complete than it is:
    `lowerStmtsNativeWithSwitchIds`/`lowerStmtGroupNativeWithSwitchIds` is now
    structurally recursive, and named equations expose list cons, switch-case
    cons, straight-line statement forms, blocks, loops, and the lazy native
-   switch block constructor `lowerNativeSwitchBlock`. The top-level partition
+   switch block constructor `lowerNativeSwitchBlock`. The theorem
+   `lowerNativeSwitchBlock_eq` records the actual guarded-block shape that
+   native dispatcher proofs must consume: the discriminator is evaluated once,
+   each case is guarded by `iszero(matched) && discr == tag`, and the default
+   runs only when no case has marked the switch matched. The top-level partition
    equation and statement-level lowering equations are proved, but full
    dispatcher-block agreement still requires per-statement native execution
    preservation lemmas against `execYulFuelWithBackend .evmYulLean`.
@@ -225,9 +229,12 @@ scope so the native path does not look more complete than it is:
    `initialState_calldataReadWord_selectorByte0` through
    `initialState_calldataReadWord_selectorByte3`, proving that the native
    word read sees the bridged selector bytes before any opaque zero-padding.
-   The remaining native selector proof is now the UInt256 arithmetic lemma that
-   shifting that calldata word right by 224 yields
-   `tx.functionSelector % selectorModulus`.
+   The arithmetic recomposition side is now named by `selectorBytesAsNat`,
+   proving that the four ABI selector bytes equal
+   `tx.functionSelector % selectorModulus`. The remaining native selector proof
+   is the EVMYulLean byte-array/list decoding lemma that connects
+   `State.calldataload`/`UInt256.shiftRight` over `ByteArray.readBytes` to those
+   four high bytes.
 
 2. Prove native state bridge lemmas.
 

@@ -588,6 +588,35 @@ theorem readBytes_zero_get?_of_lt_source
     omega
   · norm_num
 
+/-- Recompose the four ABI selector bytes into the normalized 32-bit
+    dispatcher selector. This isolates the remaining native byte-decoding proof:
+    once `calldataload(0) >>> 224` is reduced to the four high calldata bytes,
+    this theorem closes the arithmetic side against the interpreter oracle. -/
+theorem selectorBytesAsNat (selector : Nat) :
+    (selector / 2^24 % 256) * 2^24 +
+      (selector / 2^16 % 256) * 2^16 +
+      (selector / 2^8 % 256) * 2^8 +
+      (selector % 256) =
+    selector % Compiler.Constants.selectorModulus := by
+  have hb0 : selector / 2^24 % 256 =
+      (selector % 2^32) / 2^24 := by
+    omega
+  have hb1 : selector / 2^16 % 256 =
+      ((selector % 2^32) % 2^24) / 2^16 := by
+    omega
+  have hb2 : selector / 2^8 % 256 =
+      (((selector % 2^32) % 2^24) % 2^16) / 2^8 := by
+    omega
+  have hb3 : selector % 256 =
+      ((((selector % 2^32) % 2^24) % 2^16) % 2^8) := by
+    omega
+  rw [hb0, hb1, hb2, hb3]
+  have h1 := Nat.div_add_mod (selector % 2^32) (2^24)
+  have h2 := Nat.div_add_mod ((selector % 2^32) % 2^24) (2^16)
+  have h3 := Nat.div_add_mod (((selector % 2^32) % 2^24) % 2^16) (2^8)
+  simp [Compiler.Constants.selectorModulus]
+  omega
+
 /-- The native lowerer maps the generated dispatcher selector expression to
     EVMYulLean's primitive `SHR(CALLDATALOAD(0), 224)` shape. -/
 theorem lowerExprNative_selectorExpr :

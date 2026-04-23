@@ -2216,6 +2216,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerExprNative_call_runtimePrimOp
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerExprNative_call_userFunction
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerNativeSwitchBlock_eq
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_nil
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_cons
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_nil
@@ -2802,6 +2803,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte1
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte2
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte3
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.selectorBytesAsNat
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.lowerExprNative_selectorExpr
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_calldataload_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_shr_ok
@@ -3135,4 +3137,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2962 theorems/lemmas (2074 public, 888 private, 0 sorry'd)
+-- Total: 2964 theorems/lemmas (2076 public, 888 private, 0 sorry'd)
