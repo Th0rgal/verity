@@ -442,6 +442,228 @@ def validateNativeRuntimeEnvironment
   simp [initialState, EvmYul.Yul.State.sharedState, YulState.initial, toSharedState,
     calldataToByteArray_size]
 
+private theorem byteArray_get?_append_left
+    {a b : ByteArray} {i : Nat} (h : i < a.size) :
+    (a ++ b).get? i = a.get? i := by
+  unfold ByteArray.get?
+  split
+  · apply congrArg some
+    have hEq : (a ++ b)[i] = a[i] := ByteArray.get_append_left h
+    convert hEq using 1
+  · exact False.elim (by
+      rename_i hAppend
+      exact hAppend (by
+        rw [ByteArray.size_append]
+        exact Nat.lt_of_lt_of_le h (Nat.le_add_right a.size b.size)))
+
+/-- Reading the first ABI word from offset zero preserves every source byte
+    already present in the first 32-byte window. This isolates the non-opaque
+    part of EVMYulLean's `ByteArray.readBytes`; padding may still come from
+    `ffi.ByteArray.zeroes`, but the dispatcher selector only depends on bytes
+    0 through 3. -/
+theorem readBytes_zero_get?_of_lt_source
+    (source : ByteArray)
+    (i : Nat)
+    (hi : i < source.size)
+    (hi32 : i < 32) :
+    (ByteArray.readBytes source 0 32).get? i = source.get? i := by
+  unfold ByteArray.readBytes
+  have hsmall : (decide (0 < 2 ^ 64) && decide (32 < 2 ^ 64)) = true := by
+    norm_num
+  simp only [hsmall, ↓reduceIte]
+  have hiData : i < source.data.size := by
+    simpa using hi
+  have hCopySize : i < (source.copySlice 0 ByteArray.empty 0 32).size := by
+    simp [ByteArray.size, ByteArray.data_copySlice]
+    exact ⟨hi32, hiData⟩
+  calc
+    (source.copySlice 0 ByteArray.empty 0 32 ++
+          ffi.ByteArray.zeroes
+            { toBitVec := ↑32 -
+              ↑(source.copySlice 0 ByteArray.empty 0 32).size }).get? i
+        = (source.copySlice 0 ByteArray.empty 0 32).get? i :=
+          byteArray_get?_append_left hCopySize
+    _ = source.get? i := by
+      unfold ByteArray.get?
+      split
+      · simp [ByteArray.get]
+      · contradiction
+
+@[simp] theorem initialState_calldataReadWord_selectorByte0
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    (ByteArray.readBytes
+        (initialState contract tx storage observableSlots).toState.executionEnv.calldata
+        0 32).get? 0 =
+      some (UInt8.ofNat (tx.functionSelector / 2^24 % 256)) := by
+  rw [readBytes_zero_get?_of_lt_source]
+  · rw [show
+        (initialState contract tx storage observableSlots).toState.executionEnv.calldata =
+          calldataToByteArray tx.functionSelector tx.args by
+          simp [initialState, EvmYul.Yul.State.toState, YulState.initial,
+            toSharedState, mkBlockHeader]]
+    simp
+  · rw [show
+        (initialState contract tx storage observableSlots).toState.executionEnv.calldata =
+          calldataToByteArray tx.functionSelector tx.args by
+          simp [initialState, EvmYul.Yul.State.toState, YulState.initial,
+            toSharedState, mkBlockHeader]]
+    simp [calldataToByteArray_size]
+  · norm_num
+
+@[simp] theorem initialState_calldataReadWord_selectorByte1
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    (ByteArray.readBytes
+        (initialState contract tx storage observableSlots).toState.executionEnv.calldata
+        0 32).get? 1 =
+      some (UInt8.ofNat (tx.functionSelector / 2^16 % 256)) := by
+  rw [readBytes_zero_get?_of_lt_source]
+  · rw [show
+        (initialState contract tx storage observableSlots).toState.executionEnv.calldata =
+          calldataToByteArray tx.functionSelector tx.args by
+          simp [initialState, EvmYul.Yul.State.toState, YulState.initial,
+            toSharedState, mkBlockHeader]]
+    simp
+  · rw [show
+        (initialState contract tx storage observableSlots).toState.executionEnv.calldata =
+          calldataToByteArray tx.functionSelector tx.args by
+          simp [initialState, EvmYul.Yul.State.toState, YulState.initial,
+            toSharedState, mkBlockHeader]]
+    simp [calldataToByteArray_size]
+    omega
+  · norm_num
+
+@[simp] theorem initialState_calldataReadWord_selectorByte2
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    (ByteArray.readBytes
+        (initialState contract tx storage observableSlots).toState.executionEnv.calldata
+        0 32).get? 2 =
+      some (UInt8.ofNat (tx.functionSelector / 2^8 % 256)) := by
+  rw [readBytes_zero_get?_of_lt_source]
+  · rw [show
+        (initialState contract tx storage observableSlots).toState.executionEnv.calldata =
+          calldataToByteArray tx.functionSelector tx.args by
+          simp [initialState, EvmYul.Yul.State.toState, YulState.initial,
+            toSharedState, mkBlockHeader]]
+    simp
+  · rw [show
+        (initialState contract tx storage observableSlots).toState.executionEnv.calldata =
+          calldataToByteArray tx.functionSelector tx.args by
+          simp [initialState, EvmYul.Yul.State.toState, YulState.initial,
+            toSharedState, mkBlockHeader]]
+    simp [calldataToByteArray_size]
+    omega
+  · norm_num
+
+@[simp] theorem initialState_calldataReadWord_selectorByte3
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    (ByteArray.readBytes
+        (initialState contract tx storage observableSlots).toState.executionEnv.calldata
+        0 32).get? 3 =
+      some (UInt8.ofNat (tx.functionSelector % 256)) := by
+  rw [readBytes_zero_get?_of_lt_source]
+  · rw [show
+        (initialState contract tx storage observableSlots).toState.executionEnv.calldata =
+          calldataToByteArray tx.functionSelector tx.args by
+          simp [initialState, EvmYul.Yul.State.toState, YulState.initial,
+            toSharedState, mkBlockHeader]]
+    simp
+  · rw [show
+        (initialState contract tx storage observableSlots).toState.executionEnv.calldata =
+          calldataToByteArray tx.functionSelector tx.args by
+          simp [initialState, EvmYul.Yul.State.toState, YulState.initial,
+            toSharedState, mkBlockHeader]]
+    simp [calldataToByteArray_size]
+    omega
+  · norm_num
+
+/-- The native lowerer maps the generated dispatcher selector expression to
+    EVMYulLean's primitive `SHR(CALLDATALOAD(0), 224)` shape. -/
+theorem lowerExprNative_selectorExpr :
+    Backends.lowerExprNative Compiler.Proofs.YulGeneration.selectorExpr =
+      .Call (.inl (EvmYul.Operation.SHR : EvmYul.Operation .Yul))
+        [.Lit (EvmYul.UInt256.ofNat Compiler.Constants.selectorShift),
+         .Call (.inl (EvmYul.Operation.CALLDATALOAD : EvmYul.Operation .Yul))
+          [.Lit (EvmYul.UInt256.ofNat 0)]] := by
+  rw [show Compiler.Proofs.YulGeneration.selectorExpr =
+      YulExpr.call "shr"
+        [YulExpr.lit Compiler.Constants.selectorShift,
+         YulExpr.call "calldataload" [YulExpr.lit 0]] by rfl]
+  rw [Backends.lowerExprNative_call_runtimePrimOp "shr" _
+    (EvmYul.Operation.SHR : EvmYul.Operation .Yul) (by rfl)]
+  change EvmYul.Yul.Ast.Expr.Call (Sum.inl EvmYul.Operation.SHR)
+      [Backends.lowerExprNative (YulExpr.lit Compiler.Constants.selectorShift),
+       Backends.lowerExprNative (YulExpr.call "calldataload" [YulExpr.lit 0])] = _
+  rw [Backends.lowerExprNative_call_runtimePrimOp "calldataload" _
+    (EvmYul.Operation.CALLDATALOAD : EvmYul.Operation .Yul) (by rfl)]
+  simp [Backends.lowerExprNative]
+
+@[simp] theorem step_calldataload_ok
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (offset : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.CALLDATALOAD none
+        (.Ok shared store) [offset] =
+      .ok (.Ok shared store,
+        some (EvmYul.State.calldataload shared.toState offset)) := by
+  rfl
+
+@[simp] theorem step_shr_ok
+    (state : EvmYul.Yul.State)
+    (shift value : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.SHR none state [shift, value] =
+      .ok (state, some (EvmYul.UInt256.shiftRight value shift)) := by
+  rfl
+
+@[simp] theorem primCall_calldataload_ok
+    (fuel : Nat)
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (offset : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) (.Ok shared store)
+        EvmYul.Operation.CALLDATALOAD [offset] =
+      .ok (.Ok shared store,
+        [EvmYul.State.calldataload shared.toState offset]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_shr_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (shift value : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.SHR [shift, value] =
+      .ok (state, [EvmYul.UInt256.shiftRight value shift]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+/-- Native evaluation of the lowered generated selector expression peels to
+    exactly EVMYulLean `calldataload(0)` followed by `shr(224, ...)`. -/
+theorem eval_lowerExprNative_selectorExpr_ok
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    EvmYul.Yul.eval 10
+        (Backends.lowerExprNative Compiler.Proofs.YulGeneration.selectorExpr)
+        codeOverride (.Ok shared store) =
+      .ok (.Ok shared store,
+        EvmYul.UInt256.shiftRight
+          (EvmYul.State.calldataload shared.toState (EvmYul.UInt256.ofNat 0))
+          (EvmYul.UInt256.ofNat Compiler.Constants.selectorShift)) := by
+  rw [lowerExprNative_selectorExpr]
+  simp [EvmYul.Yul.eval, EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail,
+    EvmYul.Yul.evalPrimCall, EvmYul.Yul.reverse', EvmYul.Yul.cons',
+    EvmYul.Yul.head', Compiler.Constants.selectorShift]
+
 @[simp] theorem initialState_unbridgedEnvironmentDefaults
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)

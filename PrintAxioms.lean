@@ -2796,6 +2796,18 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_blockNumber
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldata
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataSize
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.byteArray_get?_append_left  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.readBytes_zero_get?_of_lt_source
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte0
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte1
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte2
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte3
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.lowerExprNative_selectorExpr
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_calldataload_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_shr_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_shr_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_selectorExpr_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_unbridgedEnvironmentDefaults
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_accountStorageSlot
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_missingAccountStorageSlot
@@ -3123,4 +3135,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2950 theorems/lemmas (2063 public, 887 private, 0 sorry'd)
+-- Total: 2962 theorems/lemmas (2074 public, 888 private, 0 sorry'd)

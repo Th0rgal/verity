@@ -214,9 +214,20 @@ scope so the native path does not look more complete than it is:
    expression fragment, and
    `evalYulExprWithBackend_evmYulLean_selectorExpr_semantics` proves that it
    evaluates to `state.selector % selectorModulus`. This discharges the
-   interpreter-oracle side of the first selector branch condition; the remaining
-   native side still needs a native `calldataload`/`shr` state-evaluation lemma
-   over `initialState` calldata.
+   interpreter-oracle side of the first selector branch condition. The native
+   side now exposes `lowerExprNative_selectorExpr`,
+   `step_calldataload_ok`, `step_shr_ok`,
+   `primCall_calldataload_ok`, `primCall_shr_ok`, and
+   `eval_lowerExprNative_selectorExpr_ok`, so native evaluation of the lowered
+   selector expression reduces to EVMYulLean `calldataload(0)` followed by
+   `shr(224, ...)`. The byte bridge also names
+   `readBytes_zero_get?_of_lt_source` plus
+   `initialState_calldataReadWord_selectorByte0` through
+   `initialState_calldataReadWord_selectorByte3`, proving that the native
+   word read sees the bridged selector bytes before any opaque zero-padding.
+   The remaining native selector proof is now the UInt256 arithmetic lemma that
+   shifting that calldata word right by 224 yields
+   `tx.functionSelector % selectorModulus`.
 
 2. Prove native state bridge lemmas.
 
@@ -299,6 +310,12 @@ scope so the native path does not look more complete than it is:
    `calldataToByteArray_selectorByte2`, and
    `calldataToByteArray_selectorByte3` lemmas pinning the native calldata
    selector byte layout needed by dispatcher-selection proofs, the named
+   `readBytes_zero_get?_of_lt_source`,
+   `initialState_calldataReadWord_selectorByte0`,
+   `initialState_calldataReadWord_selectorByte1`,
+   `initialState_calldataReadWord_selectorByte2`, and
+   `initialState_calldataReadWord_selectorByte3` lemmas showing that native
+   `calldataload(0)` reads those selector bytes in its first ABI word, the named
    `bridgedExpr_selectorExpr` and
    `evalYulExprWithBackend_evmYulLean_selectorExpr_semantics` lemmas for the
    generated dispatcher selector expression on the interpreter-oracle side, the named
