@@ -247,11 +247,13 @@ scope so the native path does not look more complete than it is:
    guarded-switch reduction layer for the lazy switch block emitted by
    `lowerNativeSwitchBlock`; `eval_nativeSwitchGuardedMatch_hit_ok` and
    `exec_if_nativeSwitchGuardedMatch_hit` package the selected-case guard
-   hit and native `if` execution step. The remaining native dispatcher proof
-   starts at whole guarded case-chain execution and selected-body preservation;
-   the key precondition to discharge is that fresh native switch temporaries
-   are not reassigned by lowered case/default bodies before later branch
-   skipping is proved.
+   hit and native `if` execution step, while
+   `eval_nativeSwitchGuardedMatch_matched_ok` and
+   `exec_if_nativeSwitchGuardedMatch_matched` package the later-case skip
+   once the matched flag is set. The remaining native dispatcher proof starts
+   at whole guarded case-chain execution and selected-body preservation; the
+   key precondition to discharge is that fresh native switch temporaries are
+   not reassigned by lowered case/default bodies while the selected body runs.
 
 2. Prove native state bridge lemmas.
 
@@ -346,7 +348,9 @@ scope so the native path does not look more complete than it is:
    `eval_lowerExprNative_selectorExpr_initialState_ok` lemmas proving native
    selector-value agreement for the bridged initial state, the named
    `eval_nativeSwitchGuardedMatch_ok`, `eval_nativeSwitchGuardedMatch_hit_ok`,
-   `exec_if_nativeSwitchGuardedMatch_hit`, and companion native
+   `exec_if_nativeSwitchGuardedMatch_hit`,
+   `eval_nativeSwitchGuardedMatch_matched_ok`,
+   `exec_if_nativeSwitchGuardedMatch_matched`, and companion native
    `exec`/primitive reduction lemmas for the lazy guarded switch case gate,
    plus the named
    `bridgedExpr_selectorExpr` and
