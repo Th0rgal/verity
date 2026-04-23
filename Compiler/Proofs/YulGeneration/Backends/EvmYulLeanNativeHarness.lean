@@ -1174,6 +1174,55 @@ theorem eval_nativeSwitchGuardedMatch_ok
     EvmYul.Yul.evalTail, EvmYul.Yul.evalPrimCall, EvmYul.Yul.reverse',
     EvmYul.Yul.cons', EvmYul.Yul.head']
 
+/-- The selected lowered switch case has a nonzero guard while no previous case
+    has marked the switch matched and the discriminator equals the case tag. -/
+theorem eval_nativeSwitchGuardedMatch_hit_ok
+    (state : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (discrName matchedName : EvmYul.Identifier)
+    (tag : Nat)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hDiscr : state[discrName]! = EvmYul.UInt256.ofNat tag) :
+    EvmYul.Yul.eval 8
+      (Backends.nativePrimCall (EvmYul.Operation.AND : EvmYul.Operation .Yul)
+        [Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+          [.Var matchedName],
+         Backends.nativePrimCall (EvmYul.Operation.EQ : EvmYul.Operation .Yul)
+          [.Var discrName, .Lit (EvmYul.UInt256.ofNat tag)]])
+      codeOverride state =
+    .ok (state, EvmYul.UInt256.ofNat 1) := by
+  rw [eval_nativeSwitchGuardedMatch_ok, hMatched, hDiscr]
+  simp [EvmYul.UInt256.eq, EvmYul.UInt256.isZero]
+  decide
+
+/-- Native `if` execution for the selected lowered switch case.  This packages
+    guard evaluation with the existing nonzero-`if` reduction so the remaining
+    case-chain proof can focus on matching/freshness invariants. -/
+theorem exec_if_nativeSwitchGuardedMatch_hit
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state final : EvmYul.Yul.State)
+    (discrName matchedName : EvmYul.Identifier)
+    (tag : Nat)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hDiscr : state[discrName]! = EvmYul.UInt256.ofNat tag)
+    (hBody : EvmYul.Yul.exec 8 (.Block body) codeOverride state = .ok final) :
+    EvmYul.Yul.exec 9
+      (.If
+        (Backends.nativePrimCall (EvmYul.Operation.AND : EvmYul.Operation .Yul)
+          [Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+            [.Var matchedName],
+           Backends.nativePrimCall (EvmYul.Operation.EQ : EvmYul.Operation .Yul)
+            [.Var discrName, .Lit (EvmYul.UInt256.ofNat tag)]])
+        body)
+      codeOverride state = .ok final := by
+  exact exec_if_eval_nonzero 8 _ body codeOverride state state final
+    (EvmYul.UInt256.ofNat 1)
+    (eval_nativeSwitchGuardedMatch_hit_ok state codeOverride discrName matchedName tag
+      hMatched hDiscr)
+    (by decide)
+    hBody
+
 @[simp] theorem initialState_unbridgedEnvironmentDefaults
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)

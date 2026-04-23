@@ -245,11 +245,13 @@ scope so the native path does not look more complete than it is:
    `exec_if_eval_zero`, `exec_if_eval_nonzero`, and
    `eval_nativeSwitchGuardedMatch_ok` theorems expose the next native
    guarded-switch reduction layer for the lazy switch block emitted by
-   `lowerNativeSwitchBlock`. The remaining native dispatcher proof starts at
-   whole guarded case-chain execution and selected-body preservation; the key
-   precondition to discharge is that fresh native switch temporaries are not
-   reassigned by lowered case/default bodies before the selected branch and
-   later branch skipping are proved.
+   `lowerNativeSwitchBlock`; `eval_nativeSwitchGuardedMatch_hit_ok` and
+   `exec_if_nativeSwitchGuardedMatch_hit` package the selected-case guard
+   hit and native `if` execution step. The remaining native dispatcher proof
+   starts at whole guarded case-chain execution and selected-body preservation;
+   the key precondition to discharge is that fresh native switch temporaries
+   are not reassigned by lowered case/default bodies before later branch
+   skipping is proved.
 
 2. Prove native state bridge lemmas.
 
@@ -343,8 +345,10 @@ scope so the native path does not look more complete than it is:
    `initialState_selectorExpr_native_value`, and
    `eval_lowerExprNative_selectorExpr_initialState_ok` lemmas proving native
    selector-value agreement for the bridged initial state, the named
-   `eval_nativeSwitchGuardedMatch_ok` and companion native `exec`/primitive
-   reduction lemmas for the lazy guarded switch case gate, plus the named
+   `eval_nativeSwitchGuardedMatch_ok`, `eval_nativeSwitchGuardedMatch_hit_ok`,
+   `exec_if_nativeSwitchGuardedMatch_hit`, and companion native
+   `exec`/primitive reduction lemmas for the lazy guarded switch case gate,
+   plus the named
    `bridgedExpr_selectorExpr` and
    `evalYulExprWithBackend_evmYulLean_selectorExpr_semantics` lemmas for the
    generated dispatcher selector expression on the interpreter-oracle side, the named
