@@ -233,11 +233,15 @@ scope so the native path does not look more complete than it is:
    `initialState_calldataReadWord_selectorPrefix` exposes the corresponding
    little-endian `fromBytes'` prefix, `uint256_shiftRight_224_ofNat_toNat`
    exposes the native `UInt256.shiftRight` arithmetic at selector shift, and
-   `initialState_selectorExpr_native_value_of_readBytes_size` proves the native
-   selector value under the single remaining EVMYulLean precondition that
-   `ByteArray.readBytes source 0 32` has size 32. The remaining native selector
-   proof is therefore the EVMYulLean `readBytes` length lemma for 32-byte reads,
-   not the selector byte recomposition or `UInt256` shift arithmetic.
+   `readBytes_zero_32_size` proves the EVMYulLean `readBytes` length fact now
+   that `ffi.ByteArray.zeroes` has a kernel-visible Lean body in the pinned
+   EVMYulLean revision. The named
+   `initialState_selectorExpr_native_value` and
+   `eval_lowerExprNative_selectorExpr_initialState_ok` theorems therefore prove
+   that native evaluation of the lowered selector expression over the bridged
+   initial state returns `tx.functionSelector % selectorModulus`. The remaining
+   native dispatcher proof starts after selector evaluation, at guarded
+   switch-case execution and selected-body preservation.
 
 2. Prove native state bridge lemmas.
 
@@ -327,10 +331,10 @@ scope so the native path does not look more complete than it is:
    `initialState_calldataReadWord_selectorByte3` lemmas showing that native
    `calldataload(0)` reads those selector bytes in its first ABI word. It also
    includes the named `initialState_calldataReadWord_selectorPrefix`,
-   `uint256_shiftRight_224_ofNat_toNat`, and
-   `initialState_selectorExpr_native_value_of_readBytes_size` lemmas reducing
-   native selector-value agreement to the opaque EVMYulLean `readBytes` length
-   precondition, plus the named
+   `uint256_shiftRight_224_ofNat_toNat`, `readBytes_zero_32_size`,
+   `initialState_selectorExpr_native_value`, and
+   `eval_lowerExprNative_selectorExpr_initialState_ok` lemmas proving native
+   selector-value agreement for the bridged initial state, plus the named
    `bridgedExpr_selectorExpr` and
    `evalYulExprWithBackend_evmYulLean_selectorExpr_semantics` lemmas for the
    generated dispatcher selector expression on the interpreter-oracle side, the named

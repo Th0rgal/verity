@@ -2810,11 +2810,16 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_append  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_lt  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.uint256_ofNat_eq_mk  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.uint256_eq_of_toNat_eq  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.uint256_ofNat_toNat_of_lt  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.uint256_shiftRight_224_mk_toNat  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.uint256_shiftRight_224_ofNat_toNat
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_four  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_tail4_shift  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_selectorPrefix_shift
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.usize_sub_toNat_of_le_32  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.readBytes_zero_32_size
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_selectorExpr_native_value
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_selectorExpr_native_value_of_readBytes_size
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.lowerExprNative_selectorExpr
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_calldataload_ok
@@ -2822,6 +2827,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_shr_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_selectorExpr_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_selectorExpr_initialState_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_unbridgedEnvironmentDefaults
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_accountStorageSlot
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_missingAccountStorageSlot
@@ -3149,4 +3155,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2976 theorems/lemmas (2080 public, 896 private, 0 sorry'd)
+-- Total: 2982 theorems/lemmas (2083 public, 899 private, 0 sorry'd)

@@ -728,6 +728,26 @@ private theorem uint256_ofNat_eq_mk
   apply Fin.ext
   simp [Nat.mod_eq_of_lt hvalue]
 
+private theorem uint256_eq_of_toNat_eq
+    (a b : EvmYul.UInt256)
+    (h : a.toNat = b.toNat) :
+    a = b := by
+  cases a with
+  | mk av =>
+  cases b with
+  | mk bv =>
+  apply congrArg EvmYul.UInt256.mk
+  apply Fin.ext
+  simpa [EvmYul.UInt256.toNat] using h
+
+private theorem uint256_ofNat_toNat_of_lt
+    (value : Nat)
+    (hvalue : value < EvmYul.UInt256.size) :
+    (EvmYul.UInt256.ofNat value).toNat = value := by
+  change (Fin.ofNat EvmYul.UInt256.size value).val = value
+  simp [Fin.ofNat]
+  exact Nat.mod_eq_of_lt hvalue
+
 private theorem uint256_shiftRight_224_mk_toNat
     (value : Nat)
     (hvalue : value < EvmYul.UInt256.size) :
@@ -830,17 +850,44 @@ theorem fromBytes'_selectorPrefix_shift
   rw [h0, h1, h2, h3]
   simpa [Compiler.Constants.selectorModulus] using selectorBytesAsNat selector
 
-/-- Native selector decoding agrees with the interpreter selector once
-    EVMYulLean's opaque `ByteArray.readBytes` is known to return a 32-byte
-    word for a 32-byte read. This packages the non-opaque byte and UInt256
-    arithmetic parts of the remaining native selector theorem. -/
-theorem initialState_selectorExpr_native_value_of_readBytes_size
+private theorem usize_sub_toNat_of_le_32 (n : Nat) (hn : n ≤ 32) :
+    ((OfNat.ofNat 32 : USize) - (OfNat.ofNat n : USize)).toNat = 32 - n := by
+  rw [USize.toNat_sub]
+  rw [USize.toNat_ofNat, USize.toNat_ofNat]
+  rcases System.Platform.numBits_eq with hbits | hbits
+  · rw [hbits]
+    have hnMod : n % 4294967296 = n := by
+      apply Nat.mod_eq_of_lt
+      omega
+    rw [hnMod]
+    omega
+  · rw [hbits]
+    have hnMod : n % 18446744073709551616 = n := by
+      apply Nat.mod_eq_of_lt
+      omega
+    rw [hnMod]
+    omega
+
+theorem readBytes_zero_32_size (source : ByteArray) :
+    (ByteArray.readBytes source 0 32).size = 32 := by
+  unfold ByteArray.readBytes
+  have hsmall : (decide (0 < 2 ^ 64) && decide (32 < 2 ^ 64)) = true := by
+    norm_num
+  simp only [hsmall, ↓reduceIte]
+  rw [ByteArray.size_append]
+  simp [ffi.ByteArray.zeroes, ByteArray.size]
+  rw [usize_sub_toNat_of_le_32]
+  · omega
+  · omega
+
+/-- Native selector decoding agrees with the interpreter selector by reducing
+    EVMYulLean `calldataload(0) >>> 224` to the four ABI selector bytes in
+    the initial bridged calldata. -/
+theorem initialState_selectorExpr_native_value
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
     (storage : Nat → Nat)
-    (observableSlots : List Nat)
-    (hReadBytesSize :
-      ∀ source : ByteArray, (ByteArray.readBytes source 0 32).size = 32) :
+    (observableSlots : List Nat) :
     EvmYul.UInt256.toNat
       (EvmYul.UInt256.shiftRight
         (EvmYul.State.calldataload
@@ -853,7 +900,7 @@ theorem initialState_selectorExpr_native_value_of_readBytes_size
   have hprefix :=
     initialState_calldataReadWord_selectorPrefix contract tx storage observableSlots
   have hlen : bytes.data.toList.length = 32 := by
-    have hsize := hReadBytesSize
+    have hsize := readBytes_zero_32_size
       (initialState contract tx storage observableSlots).toState.executionEnv.calldata
     simpa [bytes, ByteArray.size] using hsize
   have htailLen : (bytes.data.toList.drop 4).length = 28 := by
@@ -874,6 +921,22 @@ theorem initialState_selectorExpr_native_value_of_readBytes_size
     have hrevLen : bytes.data.toList.reverse.length = 32 := by
       simp [hlen]
     simpa [hrevLen, EvmYul.UInt256.size] using hlt
+
+theorem initialState_selectorExpr_native_value_of_readBytes_size
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (_hReadBytesSize :
+      ∀ source : ByteArray, (ByteArray.readBytes source 0 32).size = 32) :
+    EvmYul.UInt256.toNat
+      (EvmYul.UInt256.shiftRight
+        (EvmYul.State.calldataload
+          (initialState contract tx storage observableSlots).toState
+          (EvmYul.UInt256.ofNat 0))
+        (EvmYul.UInt256.ofNat Compiler.Constants.selectorShift)) =
+      tx.functionSelector % Compiler.Constants.selectorModulus :=
+  initialState_selectorExpr_native_value contract tx storage observableSlots
 
 /-- The native lowerer maps the generated dispatcher selector expression to
     EVMYulLean's primitive `SHR(CALLDATALOAD(0), 224)` shape. -/
@@ -950,6 +1013,49 @@ theorem eval_lowerExprNative_selectorExpr_ok
   simp [EvmYul.Yul.eval, EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail,
     EvmYul.Yul.evalPrimCall, EvmYul.Yul.reverse', EvmYul.Yul.cons',
     EvmYul.Yul.head', Compiler.Constants.selectorShift]
+
+theorem eval_lowerExprNative_selectorExpr_initialState_ok
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    EvmYul.Yul.eval 10
+        (Backends.lowerExprNative Compiler.Proofs.YulGeneration.selectorExpr)
+        (some contract) (.Ok (initialState contract tx storage observableSlots).sharedState ∅) =
+      .ok (.Ok (initialState contract tx storage observableSlots).sharedState ∅,
+        EvmYul.UInt256.ofNat
+          (tx.functionSelector % Compiler.Constants.selectorModulus)) := by
+  rw [eval_lowerExprNative_selectorExpr_ok]
+  have hv :
+      EvmYul.UInt256.shiftRight
+        (EvmYul.State.calldataload
+          (EvmYul.SharedState.toState
+            (initialState contract tx storage observableSlots).sharedState)
+          (EvmYul.UInt256.ofNat 0))
+        (EvmYul.UInt256.ofNat Compiler.Constants.selectorShift) =
+      EvmYul.UInt256.ofNat
+        (tx.functionSelector % Compiler.Constants.selectorModulus) := by
+    apply uint256_eq_of_toNat_eq
+    rw [show EvmYul.UInt256.toNat
+        (EvmYul.UInt256.shiftRight
+          (EvmYul.State.calldataload
+            (EvmYul.SharedState.toState
+              (initialState contract tx storage observableSlots).sharedState)
+            (EvmYul.UInt256.ofNat 0))
+          (EvmYul.UInt256.ofNat Compiler.Constants.selectorShift)) =
+        tx.functionSelector % Compiler.Constants.selectorModulus by
+      simpa [EvmYul.Yul.State.toState] using
+        initialState_selectorExpr_native_value contract tx storage observableSlots]
+    rw [uint256_ofNat_toNat_of_lt]
+    have hmod :
+        tx.functionSelector % Compiler.Constants.selectorModulus <
+          Compiler.Constants.selectorModulus := by
+      exact Nat.mod_lt _ (by norm_num [Compiler.Constants.selectorModulus])
+    have hsel :
+        Compiler.Constants.selectorModulus < EvmYul.UInt256.size := by
+      norm_num [Compiler.Constants.selectorModulus, EvmYul.UInt256.size]
+    exact Nat.lt_trans hmod hsel
+  rw [hv]
 
 @[simp] theorem initialState_unbridgedEnvironmentDefaults
     (contract : EvmYul.Yul.Ast.YulContract)
