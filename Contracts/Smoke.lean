@@ -1089,6 +1089,12 @@ verity_contract ZeroAddressShadowSmoke where
   function shadowWrite (zeroAddress : Address) : Unit := do
     setMappingAddr delegates zeroAddress zeroAddress
 
+verity_contract ContextAccessorShadowSmoke where
+  storage
+
+  function echoSenderName (msgSender : Address) : Address := do
+    return msgSender
+
 verity_contract StructMappingSmoke where
   storage
     positions : MappingStruct(Address,[
@@ -1549,6 +1555,7 @@ end SpecGenSmoke
 #check_contract Uint8Smoke
 #check_contract AddressHelpersSmoke
 #check_contract ZeroAddressShadowSmoke
+#check_contract ContextAccessorShadowSmoke
 #check_contract FunctionOverloadSmoke
 #check_contract HelperExternalArgumentSmoke
 #check_contract BlockTimestampSmoke

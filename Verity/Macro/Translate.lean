@@ -1222,6 +1222,25 @@ private abbrev TypedLocal := String × ValueType
 private def typedLocalNames (locals : Array TypedLocal) : Array String :=
   locals.map Prod.fst
 
+private def matchesBareName (actual bare : String) : Bool :=
+  actual == bare || actual.endsWith s!".{bare}"
+
+private def contextAccessorBareName? (name : String) : Option String :=
+  if matchesBareName name "msgSender" then some "msgSender"
+  else if matchesBareName name "msgValue" then some "msgValue"
+  else if matchesBareName name "blockTimestamp" then some "blockTimestamp"
+  else if matchesBareName name "blockNumber" then some "blockNumber"
+  else if matchesBareName name "blobbasefee" then some "blobbasefee"
+  else if matchesBareName name "contractAddress" then some "contractAddress"
+  else if matchesBareName name "chainid" then some "chainid"
+  else none
+
+private def findContextAccessorShadowName?
+    (params : Array ParamDecl) (locals : Array String) (name : String) : Option String :=
+  match params.find? (fun p => matchesBareName p.name name) with
+  | some param => some param.name
+  | none => locals.find? (fun localName => matchesBareName localName name)
+
 private def isSignedWordValueType : ValueType → Bool
   | .int256 => true
   | .newtype _ baseType => isSignedWordValueType baseType
@@ -1573,29 +1592,55 @@ private partial def inferPureExprType
     (stx : Term)
     (visitingConstants : List String := []) : CommandElabM ValueType := do
   let stx := stripParens stx
+  let inferContextAccessorOrLocal (name : String) : CommandElabM ValueType := do
+    match locals.findSome? (fun localDecl =>
+        if matchesBareName localDecl.fst name then some localDecl.snd else none)
+        <|> params.findSome? (fun p =>
+          if matchesBareName p.name name then some p.ty else none) with
+    | some ty => pure ty
+    | none => throwPureContextAccessorError stx name
   match stx with
   | `(term| true) | `(term| false) => pure .bool
   | `(term| constructorArg $idx:num) =>
       match params[(← natFromSyntax idx)]? with
       | some param => pure param.ty
       | none => throwErrorAt stx s!"constructorArg index {idx.raw.reprint.getD ""} is out of bounds"
-  | `(term| msgValue) | `(term| Verity.msgValue) =>
+  | `(term| Verity.msgSender) =>
+      throwPureContextAccessorError stx "msgSender"
+  | `(term| Verity.msgValue) =>
       throwPureContextAccessorError stx "msgValue"
-  | `(term| blockTimestamp) | `(term| Verity.blockTimestamp) =>
+  | `(term| Verity.blockTimestamp) =>
       throwPureContextAccessorError stx "blockTimestamp"
-  | `(term| blockNumber) | `(term| Verity.blockNumber) =>
+  | `(term| Verity.blockNumber) =>
       throwPureContextAccessorError stx "blockNumber"
-  | `(term| blobbasefee) | `(term| Verity.blobbasefee) =>
+  | `(term| Verity.blobbasefee) =>
       throwPureContextAccessorError stx "blobbasefee"
-  | `(term| chainid) | `(term| Verity.chainid) =>
+  | `(term| Verity.chainid) =>
       throwPureContextAccessorError stx "chainid"
+  | `(term| Verity.contractAddress) =>
+      throwPureContextAccessorError stx "contractAddress"
+  | `(term| $id:ident) =>
+      let name := toString id.getId
+      match params.findSome? (fun p => if p.name == name then some p.ty else none)
+          <|> tupleParamElemType? params name
+          <|> lookupTypedLocalType? locals name
+          <|> immutableDecls.findSome? (fun imm => if imm.name == name then some imm.ty else none)
+          <|> constDecls.findSome? (fun constant => if constant.name == name then some constant.ty else none) with
+      | some ty => pure ty
+      | none =>
+          if matchesBareName name "calldatasize" || matchesBareName name "returndataSize" then
+            pure .uint256
+          else if matchesBareName name "zeroAddress" then
+            pure .address
+          else
+            match contextAccessorBareName? name with
+            | some accessor => inferContextAccessorOrLocal accessor
+            | none => throwErrorAt stx s!"unknown variable '{name}'"
   | `(term| calldatasize) | `(term| returndataSize) =>
       pure .uint256
-  | `(term| contractAddress) | `(term| Verity.contractAddress) =>
-      throwPureContextAccessorError stx "contractAddress"
   | `(term| zeroAddress) =>
       match lookupTypedLocalType? locals "zeroAddress" <|> params.findSome? (fun p =>
-          if p.name == "zeroAddress" then some p.ty else none) with
+        if p.name == "zeroAddress" then some p.ty else none) with
       | some ty => pure ty
       | none => pure .address
   | `(term| isZeroAddress $a:term) =>
@@ -1618,15 +1663,6 @@ private partial def inferPureExprType
   | `(term| boolToWord $a:term) =>
       requireBoolType a "boolToWord" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants)
       pure .uint256
-  | `(term| $id:ident) =>
-      let name := toString id.getId
-      match params.findSome? (fun p => if p.name == name then some p.ty else none)
-          <|> tupleParamElemType? params name
-          <|> lookupTypedLocalType? locals name
-          <|> immutableDecls.findSome? (fun imm => if imm.name == name then some imm.ty else none)
-          <|> constDecls.findSome? (fun constant => if constant.name == name then some constant.ty else none) with
-      | some ty => pure ty
-      | none => throwErrorAt stx s!"unknown variable '{name}'"
   | `(term| $n:num) =>
       pure .uint256
   | `(term| add $a $b) | `(term| sub $a $b) | `(term| mul $a $b) => do
@@ -2190,20 +2226,42 @@ partial def translatePureExprWithTypes
   | `(term| false) => `(Compiler.CompilationModel.Expr.literal 0)
   | `(term| constructorArg $idx:num) =>
       `(Compiler.CompilationModel.Expr.constructorArg $idx)
-  | `(term| msgSender) | `(term| Verity.msgSender) =>
+  | `(term| Verity.msgSender) =>
       throwPureContextAccessorError stx "msgSender"
-  | `(term| msgValue) | `(term| Verity.msgValue) =>
+  | `(term| Verity.msgValue) =>
       throwPureContextAccessorError stx "msgValue"
-  | `(term| blockTimestamp) | `(term| Verity.blockTimestamp) =>
+  | `(term| Verity.blockTimestamp) =>
       throwPureContextAccessorError stx "blockTimestamp"
-  | `(term| blockNumber) | `(term| Verity.blockNumber) =>
+  | `(term| Verity.blockNumber) =>
       throwPureContextAccessorError stx "blockNumber"
-  | `(term| blobbasefee) | `(term| Verity.blobbasefee) =>
+  | `(term| Verity.blobbasefee) =>
       throwPureContextAccessorError stx "blobbasefee"
-  | `(term| contractAddress) | `(term| Verity.contractAddress) =>
+  | `(term| Verity.contractAddress) =>
       throwPureContextAccessorError stx "contractAddress"
-  | `(term| chainid) | `(term| Verity.chainid) =>
+  | `(term| Verity.chainid) =>
       throwPureContextAccessorError stx "chainid"
+  | `(term| $id:ident) =>
+      let name := toString id.getId
+      if params.any (fun p => p.name == name) || isTupleComponentRef params name || localNames.contains name then
+        lookupVarExpr params localNames name
+      else if let some actualName := findContextAccessorShadowName? params localNames name then
+        lookupVarExpr params localNames actualName
+      else if matchesBareName name "calldatasize" then
+        `(Compiler.CompilationModel.Expr.calldatasize)
+      else if matchesBareName name "returndataSize" then
+        `(Compiler.CompilationModel.Expr.returndataSize)
+      else if matchesBareName name "zeroAddress" then
+        `(Compiler.CompilationModel.Expr.literal 0)
+      else if let some accessor := contextAccessorBareName? name then
+        throwPureContextAccessorError stx accessor
+      else if let some imm := immutableDecls.find? (fun imm => imm.name == name) then
+        match imm.ty with
+        | .uint256 | .int256 | .uint8 | .bytes32 | .bool =>
+            `(Compiler.CompilationModel.Expr.storage $(strTerm (immutableHiddenName imm)))
+        | .address => `(Compiler.CompilationModel.Expr.storageAddr $(strTerm (immutableHiddenName imm)))
+        | _ => throwErrorAt stx s!"immutable '{name}' uses unsupported type"
+      else
+        translateConstantExpr fields constDecls immutableDecls visitingConstants name
   | `(term| calldatasize) => `(Compiler.CompilationModel.Expr.calldatasize)
   | `(term| returndataSize) => `(Compiler.CompilationModel.Expr.returndataSize)
   | `(term| zeroAddress) =>
@@ -2224,18 +2282,6 @@ partial def translatePureExprWithTypes
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals a visitingConstants)
           (Compiler.CompilationModel.Expr.literal 1)
           (Compiler.CompilationModel.Expr.literal 0))
-  | `(term| $id:ident) =>
-      let name := toString id.getId
-      if params.any (fun p => p.name == name) || isTupleComponentRef params name || localNames.contains name then
-        lookupVarExpr params localNames name
-      else if let some imm := immutableDecls.find? (fun imm => imm.name == name) then
-        match imm.ty with
-        | .uint256 | .int256 | .uint8 | .bytes32 | .bool =>
-            `(Compiler.CompilationModel.Expr.storage $(strTerm (immutableHiddenName imm)))
-        | .address => `(Compiler.CompilationModel.Expr.storageAddr $(strTerm (immutableHiddenName imm)))
-        | _ => throwErrorAt stx s!"immutable '{name}' uses unsupported type"
-      else
-        translateConstantExpr fields constDecls immutableDecls visitingConstants name
   | `(term| $n:num) => `(Compiler.CompilationModel.Expr.literal $n)
   | `(term| add $a $b) => `(Compiler.CompilationModel.Expr.add $(← translatePureExprWithTypes fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| sub $a $b) => `(Compiler.CompilationModel.Expr.sub $(← translatePureExprWithTypes fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals b visitingConstants))
