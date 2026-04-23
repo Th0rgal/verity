@@ -69,8 +69,11 @@ materializes pre-state storage for those slots.
   It then rewrites initial-state execution to the lowered contract directly via
   `contractDispatcherBlockResult` and
   `callDispatcherBlockResult_initialState_eq_contractDispatcherBlockResult`.
-  The next proof no longer has to open the dispatcher wrapper before attacking
-  `EvmYul.Yul.exec` preservation for the lowered contract dispatcher body.
+  The wrapper is also peeled to raw native execution through
+  `contractDispatcherExecResult` and
+  `contractDispatcherBlockResult_eq_execResult`. The next proof no longer has
+  to open dispatcher or projection wrappers before attacking `EvmYul.Yul.exec`
+  preservation for the lowered contract dispatcher body.
 - Native runtime top-level partitioning is now transparent enough for proofs:
   `lowerRuntimeContractNativeAux` is structurally recursive, and the named
   equations `lowerRuntimeContractNativeAux_funcDef_cons`,
@@ -179,8 +182,11 @@ scope so the native path does not look more complete than it is:
    Progress: `EvmYul.Yul.callDispatcher` now unfolds through
    `callDispatcher_succ_eq_callDispatcherBlockResult` to the named
    `callDispatcherBlockResult`, then rewrites initial-state execution to
-   `contractDispatcherBlockResult`. EndToEnd exposes
+   `contractDispatcherBlockResult`, then peels the block wrapper to
+   `contractDispatcherExecResult`. EndToEnd exposes
    `nativeDispatcherBlockAgreesWithInterpreter` plus
+   `nativeDispatcherExecAgreesWithInterpreter`,
+   `nativeDispatcherBlockAgreesWithInterpreter_of_exec_agree`, and
    `nativeCallDispatcherAgreesWithInterpreter_of_dispatcherBlock_agree`. The
    remaining bridge is therefore direct native `EvmYul.Yul.exec` execution of
    the lowered contract dispatcher block against the interpreter oracle.
@@ -375,6 +381,9 @@ scope so the native path does not look more complete than it is:
    That obligation can now be discharged from
    `nativeDispatcherBlockAgreesWithInterpreter`, which compares projected
    `contractDispatcherBlockResult` execution with the interpreter oracle.
+   The block obligation can in turn be discharged from
+   `nativeDispatcherExecAgreesWithInterpreter`, which targets raw
+   `contractDispatcherExecResult`.
 
    This makes the remaining proof obligation concrete: for the supported
    generated fragment, native `lowerRuntimeContractNative` plus

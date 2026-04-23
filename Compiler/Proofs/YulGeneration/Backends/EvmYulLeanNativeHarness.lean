@@ -671,6 +671,35 @@ def contractDispatcherBlockResult
       let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
       .ok (restored, List.map finalState.lookup! dispatcherDef.rets)
 
+/-- Raw native execution of the lowered contract dispatcher block, before the
+    `callDispatcher`-style state restoration and return-list projection. -/
+def contractDispatcherExecResult
+    (fuel' : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (initial : EvmYul.Yul.State) :
+    Except EvmYul.Yul.Exception EvmYul.Yul.State :=
+  let dispatcherDef :=
+    EvmYul.Yul.Ast.FunctionDefinition.Def [] [] [contract.dispatcher]
+  let callState := EvmYul.Yul.State.mkOk (initial.initcall dispatcherDef.params [])
+  EvmYul.Yul.exec fuel' (.Block dispatcherDef.body) (some contract) callState
+
+/-- The projected dispatcher-block result is just raw lowered-dispatcher
+    execution followed by the same restoration/projection used by
+    `callDispatcher`. -/
+theorem contractDispatcherBlockResult_eq_execResult
+    (fuel' : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (initial : EvmYul.Yul.State) :
+    contractDispatcherBlockResult fuel' contract initial =
+      let dispatcherDef :=
+        EvmYul.Yul.Ast.FunctionDefinition.Def [] [] [contract.dispatcher]
+      match contractDispatcherExecResult fuel' contract initial with
+      | .error err => .error err
+      | .ok finalState =>
+          let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
+          .ok (restored, List.map finalState.lookup! dispatcherDef.rets) := by
+  simp [contractDispatcherBlockResult, contractDispatcherExecResult]
+
 /-- `initialState` installs the lowered contract as the execution contract, so
     the dispatcher-block target can be rewritten to the lowered contract's own
     dispatcher. -/

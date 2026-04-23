@@ -675,6 +675,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/EndToEnd.lean
 #print axioms Compiler.Proofs.EndToEnd.nativeResultsMatchOn_ok_of_resultsMatch_of_yulResultsAgreeOn
 #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeAgreesWithInterpreter_of_ok_agree
+#print axioms Compiler.Proofs.EndToEnd.nativeDispatcherBlockAgreesWithInterpreter_of_exec_agree
 #print axioms Compiler.Proofs.EndToEnd.nativeCallDispatcherAgreesWithInterpreter_of_dispatcherBlock_agree
 #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeAgreesWithInterpreter_of_lowered_callDispatcher_agree
 #print axioms Compiler.Proofs.EndToEnd.layer3_function_preserves_semantics
@@ -2803,6 +2804,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectHaltReturn_stop
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectHaltReturn_32ByteReturn
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectHaltReturn_non32ByteReturn
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherBlockResult_eq_execResult
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.callDispatcherBlockResult_initialState_eq_contractDispatcherBlockResult
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.callDispatcher_zero
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.callDispatcher_succ_eq_callDispatcherBlockResult
@@ -3116,4 +3118,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2943 theorems/lemmas (2056 public, 887 private, 0 sorry'd)
+-- Total: 2945 theorems/lemmas (2058 public, 887 private, 0 sorry'd)
