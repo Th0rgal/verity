@@ -1863,6 +1863,16 @@ def nativeSwitchDefaultIf
   if defaultBody.isEmpty then []
   else [.If (nativeSwitchDefaultGuardExpr matchedName) defaultBody]
 
+def NativeBlockPreservesWord
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) : Prop :=
+  ∀ fuel state final,
+    state[name]! = value →
+      EvmYul.Yul.exec fuel (.Block body) codeOverride state = .ok final →
+        final[name]! = value
+
 @[simp] theorem nativeSwitchCaseIfs_nil
     (discrName matchedName : EvmYul.Identifier) :
     nativeSwitchCaseIfs discrName matchedName [] = [] := by
@@ -2264,13 +2274,11 @@ theorem exec_nativeSwitchCaseIfs_find_hit_fuel
     (codeOverride : Option EvmYul.Yul.Ast.YulContract)
     (state final : EvmYul.Yul.State)
     (discrName matchedName : EvmYul.Identifier)
-    (hFind :
-      cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
     (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
     (hDiscrSelector : state[discrName]! = EvmYul.UInt256.ofNat selector)
     (hSelectorRange : selector < EvmYul.UInt256.size)
-    (hTagsRange :
-      ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hTagsRange : ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
     (hBody :
       ∀ pre suffix,
         cases = pre ++ (tag, body) :: suffix →
@@ -2299,6 +2307,56 @@ theorem exec_nativeSwitchCaseIfs_find_hit_fuel
       codeOverride state final discrName matchedName hMatched hMissPrefix
       hDiscrSelector hSelectedBody hFinalMatched
   simpa [hCases, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hExec
+
+/-- Selector-hit case-chain execution with the selected-body matched-flag
+    preservation obligation factored into a reusable predicate.
+
+This is the proof boundary needed by the full native dispatcher bridge: the
+lowered case body may update storage, memory, and user variables, but it must
+not clobber the generated lazy-switch matched flag after the lowering has set
+it to one. -/
+theorem exec_nativeSwitchCaseIfs_find_hit_preserved_fuel
+    (fuel selector : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (tag : Nat)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state final : EvmYul.Yul.State)
+    (discrName matchedName : EvmYul.Identifier)
+    (hFind :
+      cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hDiscrSelector : state[discrName]! = EvmYul.UInt256.ofNat selector)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hMarked :
+      (state.insert matchedName (EvmYul.UInt256.ofNat 1))[matchedName]! =
+        EvmYul.UInt256.ofNat 1)
+    (hBody :
+      ∀ pre suffix,
+        cases = pre ++ (tag, body) :: suffix →
+          EvmYul.Yul.exec (fuel + suffix.length + 7) (.Block body)
+            codeOverride (state.insert matchedName (EvmYul.UInt256.ofNat 1)) =
+            .ok final)
+    (hPreservesMatched :
+      ∀ pre suffix,
+        cases = pre ++ (tag, body) :: suffix →
+          NativeBlockPreservesWord matchedName (EvmYul.UInt256.ofNat 1)
+            body codeOverride) :
+    EvmYul.Yul.exec (fuel + cases.length + 9)
+      (.Block (nativeSwitchCaseIfs discrName matchedName cases))
+      codeOverride state = .ok final := by
+  apply exec_nativeSwitchCaseIfs_find_hit_fuel
+      (fuel := fuel) (selector := selector) (cases := cases) (tag := tag)
+      (body := body) (codeOverride := codeOverride) (state := state)
+      (final := final) (discrName := discrName) (matchedName := matchedName)
+      hFind hMatched hDiscrSelector hSelectorRange hTagsRange hBody
+  rcases nativeSwitch_find_hit_split selector cases tag body hFind with
+    ⟨pre, suffix, hCases, _hTag, _hPrefix⟩
+  exact hPreservesMatched pre suffix hCases (fuel + suffix.length + 7)
+    (state.insert matchedName (EvmYul.UInt256.ofNat 1)) final hMarked
+    (hBody pre suffix hCases)
 
 /-- Whole generated case-chain skip for a selector lookup miss. This packages
     the `find? = none` selector fact into the all-cases-miss premise expected by

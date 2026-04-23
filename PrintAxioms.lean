@@ -2882,6 +2882,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_cons_miss_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_prefix_hit_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_preserved_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_unmatched_nonempty_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_matched_fuel
@@ -3212,4 +3213,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3039 theorems/lemmas (2135 public, 904 private, 0 sorry'd)
+-- Total: 3040 theorems/lemmas (2136 public, 904 private, 0 sorry'd)

@@ -279,9 +279,14 @@ scope so the native path does not look more complete than it is:
    `exec_nativeSwitchCaseIfs_find_hit_fuel`, and
    `exec_nativeSwitchCaseIfs_find_none_fuel`, so generated dispatcher proofs can
    consume a concrete `find?` hit or miss instead of manually supplying the
-   prefix/selected/suffix split. The remaining native dispatcher proof starts
-   after that lookup bridge, at discharging selected/default body preservation.
-   The adapter now names the needed freshness surface with `yulStmtWriteNames`,
+   prefix/selected/suffix split. The hit side now has the preservation adapter
+   `NativeBlockPreservesWord` plus
+   `exec_nativeSwitchCaseIfs_find_hit_preserved_fuel`, which turns selected-body
+   preservation of the matched flag into the whole generated case-chain
+   postcondition. The remaining native dispatcher proof starts after that
+   lookup bridge, at proving `NativeBlockPreservesWord` for selected/default
+   lowered bodies and composing the optional default arm. The adapter now names
+   the needed freshness surface with `yulStmtWriteNames`,
    `yulStmtsWriteNames`,
    `nativeStmtWriteNames`, `nativeStmtsWriteNames`,
    `nativeSwitchTempsFreshForWrites`,

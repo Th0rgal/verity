@@ -441,7 +441,8 @@ def constructorUsesPlainArrayElement : Option ConstructorSpec → Bool
   | some ctor => ctor.body.any stmtUsesPlainArrayElement
 
 def contractUsesPlainArrayElement (spec : CompilationModel) : Bool :=
-  constructorUsesPlainArrayElement spec.constructor || spec.functions.any functionUsesPlainArrayElement
+  contractUsesArrayElement spec &&
+    (constructorUsesPlainArrayElement spec.constructor || spec.functions.any functionUsesPlainArrayElement)
 
 abbrev exprUsesArrayElementWord : Expr → Bool :=
   exprUsesArrayElementKind false true
@@ -466,7 +467,8 @@ def constructorUsesArrayElementWord : Option ConstructorSpec → Bool
   | some ctor => ctor.body.any stmtUsesArrayElementWord
 
 def contractUsesArrayElementWord (spec : CompilationModel) : Bool :=
-  constructorUsesArrayElementWord spec.constructor || spec.functions.any functionUsesArrayElementWord
+  contractUsesArrayElement spec &&
+    (constructorUsesArrayElementWord spec.constructor || spec.functions.any functionUsesArrayElementWord)
 
 private def nestedPlainWithWordIndex : Expr :=
   Expr.arrayElement "plain" (Expr.arrayElementWord "word" (Expr.literal 0) 1 0)
