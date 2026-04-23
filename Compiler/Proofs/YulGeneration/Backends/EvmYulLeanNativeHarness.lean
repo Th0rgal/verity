@@ -650,6 +650,46 @@ def callDispatcherBlockResult
       let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
       .ok (restored, List.map finalState.lookup! dispatcherDef.rets)
 
+/-- Dispatcher-block execution specialized to the lowered contract dispatcher
+    rather than the state-installed dispatcher lookup.
+
+For states built by `initialState`, this is definitionally the next proof
+target after `callDispatcherBlockResult`: native execution of the lowered
+contract's dispatcher statement. -/
+def contractDispatcherBlockResult
+    (fuel' : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (initial : EvmYul.Yul.State) :
+    Except EvmYul.Yul.Exception
+      (EvmYul.Yul.State × List EvmYul.Yul.Ast.Literal) :=
+  let dispatcherDef :=
+    EvmYul.Yul.Ast.FunctionDefinition.Def [] [] [contract.dispatcher]
+  let callState := EvmYul.Yul.State.mkOk (initial.initcall dispatcherDef.params [])
+  match EvmYul.Yul.exec fuel' (.Block dispatcherDef.body) (some contract) callState with
+  | .error err => .error err
+  | .ok finalState =>
+      let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
+      .ok (restored, List.map finalState.lookup! dispatcherDef.rets)
+
+/-- `initialState` installs the lowered contract as the execution contract, so
+    the dispatcher-block target can be rewritten to the lowered contract's own
+    dispatcher. -/
+theorem callDispatcherBlockResult_initialState_eq_contractDispatcherBlockResult
+    (fuel' : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    callDispatcherBlockResult fuel' contract
+        (initialState contract tx storage observableSlots) =
+      contractDispatcherBlockResult fuel' contract
+        (initialState contract tx storage observableSlots) := by
+  have hcode :
+      (initialState contract tx storage observableSlots).executionEnv.code =
+        contract := by
+    simp [initialState, EvmYul.Yul.State.executionEnv]
+  simp [callDispatcherBlockResult, contractDispatcherBlockResult, hcode]
+
 @[simp] theorem callDispatcher_zero
     (contract : EvmYul.Yul.Ast.YulContract)
     (initial : EvmYul.Yul.State) :

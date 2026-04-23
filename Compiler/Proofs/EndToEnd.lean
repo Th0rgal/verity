@@ -189,11 +189,11 @@ def nativeCallDispatcherAgreesWithInterpreter
 /-- Lower-level native dispatcher agreement target.
 
 For positive fuel this compares the interpreter oracle with direct
-`EvmYul.Yul.exec` execution of the installed dispatcher block, after the same
-empty call-frame setup and result projection used by `callDispatcher`. This is
-the statement-execution preservation obligation needed next for the generated
-fragment. The zero-fuel case is kept explicit so the theorem below is total in
-`fuel`. -/
+`EvmYul.Yul.exec` execution of the lowered contract's dispatcher block, after
+the same empty call-frame setup and result projection used by `callDispatcher`.
+This is the statement-execution preservation obligation needed next for the
+generated fragment. The zero-fuel case is kept explicit so the theorem below is
+total in `fuel`. -/
 def nativeDispatcherBlockAgreesWithInterpreter
     (fuel : Nat)
     (contract : IRContract)
@@ -210,7 +210,7 @@ def nativeDispatcherBlockAgreesWithInterpreter
     | 0 =>
         .error EvmYul.Yul.Exception.OutOfFuel
     | Nat.succ fuel' =>
-        Compiler.Proofs.YulGeneration.Backends.Native.callDispatcherBlockResult
+        Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherBlockResult
           fuel' nativeContract initial
   yulResultsAgreeOn observableSlots
     (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
@@ -237,8 +237,9 @@ theorem nativeCallDispatcherAgreesWithInterpreter_of_dispatcherBlock_agree
       simpa [Compiler.Proofs.YulGeneration.Backends.Native.callDispatcher_zero]
         using hAgree
   | succ fuel' =>
-      simpa [Compiler.Proofs.YulGeneration.Backends.Native.callDispatcher_succ_eq_callDispatcherBlockResult]
-        using hAgree
+      rw [Compiler.Proofs.YulGeneration.Backends.Native.callDispatcher_succ_eq_callDispatcherBlockResult]
+      rw [Compiler.Proofs.YulGeneration.Backends.Native.callDispatcherBlockResult_initialState_eq_contractDispatcherBlockResult]
+      simpa using hAgree
 
 /-- Discharge the public native/interpreter bridge from concrete native
 lowering, selected-path environment validation, and projected

@@ -66,8 +66,11 @@ materializes pre-state storage for those slots.
   `EvmYul.Yul.callDispatcher` performs after fuel checking and empty call-frame
   setup: `callDispatcherBlockResult`, with
   `callDispatcher_succ_eq_callDispatcherBlockResult` proving the reduction.
+  It then rewrites initial-state execution to the lowered contract directly via
+  `contractDispatcherBlockResult` and
+  `callDispatcherBlockResult_initialState_eq_contractDispatcherBlockResult`.
   The next proof no longer has to open the dispatcher wrapper before attacking
-  `EvmYul.Yul.exec` preservation for the lowered dispatcher body.
+  `EvmYul.Yul.exec` preservation for the lowered contract dispatcher body.
 - Native runtime top-level partitioning is now transparent enough for proofs:
   `lowerRuntimeContractNativeAux` is structurally recursive, and the named
   equations `lowerRuntimeContractNativeAux_funcDef_cons`,
@@ -175,11 +178,12 @@ scope so the native path does not look more complete than it is:
 
    Progress: `EvmYul.Yul.callDispatcher` now unfolds through
    `callDispatcher_succ_eq_callDispatcherBlockResult` to the named
-   `callDispatcherBlockResult`, and EndToEnd exposes
+   `callDispatcherBlockResult`, then rewrites initial-state execution to
+   `contractDispatcherBlockResult`. EndToEnd exposes
    `nativeDispatcherBlockAgreesWithInterpreter` plus
    `nativeCallDispatcherAgreesWithInterpreter_of_dispatcherBlock_agree`. The
    remaining bridge is therefore direct native `EvmYul.Yul.exec` execution of
-   the installed dispatcher block against the interpreter oracle.
+   the lowered contract dispatcher block against the interpreter oracle.
 
    Statement-level native lowering through
    `lowerStmtsNativeWithSwitchIds`/`lowerStmtGroupNativeWithSwitchIds` is now
@@ -370,12 +374,12 @@ scope so the native path does not look more complete than it is:
    `nativeCallDispatcherAgreesWithInterpreter` for the lowered native contract.
    That obligation can now be discharged from
    `nativeDispatcherBlockAgreesWithInterpreter`, which compares projected
-   `callDispatcherBlockResult` execution with the interpreter oracle.
+   `contractDispatcherBlockResult` execution with the interpreter oracle.
 
    This makes the remaining proof obligation concrete: for the supported
    generated fragment, native `lowerRuntimeContractNative` plus
-   `EvmYul.Yul.exec` of the installed dispatcher block must produce the same
-   projected `YulResult` as the current
+   `EvmYul.Yul.exec` of the lowered contract dispatcher block must produce the
+   same projected `YulResult` as the current
    `interpretYulRuntimeWithBackend .evmYulLean` interpreter oracle. The
    successor theorem should discharge that bridge, or target a total native
    wrapper once the remaining closed-failure cases are ruled out by syntactic
