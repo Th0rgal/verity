@@ -278,7 +278,7 @@ private def validateCompileInputsBeforeFieldWriteConflict
   for ext in spec.externals do
     let _ ← externalFunctionReturns ext
     validateInteropExternalSpec ext
-  match firstDuplicateName (spec.functions.map functionSignature) with
+  match firstDuplicateName ((spec.functions.filter (fun fn => !fn.isInternal)).map functionSignature) with
   | some dup =>
       throw s!"Compilation error: duplicate function signature '{dup}' in {spec.name}"
   | none =>

@@ -735,17 +735,36 @@ def check_free_memory_pointer_sync() -> List[str]:
 
 
 def check_compile_duplicate_name_guard() -> List[str]:
-    """Verify that validateCompileInputs checks duplicate names across all spec lists.
+    """Verify that validateCompileInputs checks duplicate names across spec lists.
 
-    Ensures the current dispatch validation calls ``firstDuplicateName`` on all five
-    spec collections: functions, errors, fields, events, and externals.
+    Function ABI signatures are only globally unique in the dispatch namespace, so
+    the guard must scan non-internal functions by ``functionSignature`` and scan
+    internal helpers separately by source name.  The remaining declaration lists
+    keep direct name uniqueness checks.
     """
     errors: List[str] = []
     if not DISPATCH_FILE.exists():
         errors.append(f"Missing {DISPATCH_FILE}")
         return errors
     text = DISPATCH_FILE.read_text(encoding="utf-8")
-    for collection in ("functions", "errors", "fields", "events", "externals"):
+    if not re.search(
+        r"firstDuplicateName\s*\(\(spec\.functions\.filter\s*"
+        r"\(fun\s+fn\s+=>\s*!fn\.isInternal\)\)\.map\s+functionSignature\)",
+        text,
+    ):
+        errors.append(
+            "Dispatch.validateCompileInputs: missing external duplicate function signature check "
+            "(expected firstDuplicateName ((spec.functions.filter (fun fn => !fn.isInternal)).map functionSignature))"
+        )
+    if not re.search(
+        r"firstDuplicateName\s*\(\(spec\.functions\.filter\s*\(·\.isInternal\)\)\.map\s*\(·\.name\)\)",
+        text,
+    ):
+        errors.append(
+            "Dispatch.validateCompileInputs: missing internal duplicate function name check "
+            "(expected firstDuplicateName ((spec.functions.filter (·.isInternal)).map (·.name)))"
+        )
+    for collection in ("errors", "fields", "events", "externals"):
         if not re.search(
             rf"firstDuplicateName\s*\(spec\.{collection}\.map", text
         ):

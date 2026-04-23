@@ -1754,7 +1754,7 @@ private def duplicateInternalNameSpec : CompilationModel := {
       isInternal := true
     },
     { name := "helper"
-      params := [{ name := "target", ty := ParamType.address }]
+      params := [{ name := "target", ty := ParamType.uint256 }]
       returnType := some FieldType.uint256
       body := [Stmt.return (Expr.literal 1)]
       isInternal := true
@@ -1773,7 +1773,7 @@ private def internalExternalNameCollisionSpec : CompilationModel := {
       body := [Stmt.return (Expr.param "amount")]
     },
     { name := "helper"
-      params := [{ name := "target", ty := ParamType.address }]
+      params := [{ name := "target", ty := ParamType.uint256 }]
       returnType := some FieldType.uint256
       body := [Stmt.return (Expr.literal 1)]
       isInternal := true
