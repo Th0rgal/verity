@@ -254,6 +254,9 @@ scope so the native path does not look more complete than it is:
    `exec_if_nativeSwitchGuardedMatch_hit`, `exec_lowerAssignNative_lit_ok`,
    and `exec_if_nativeSwitchGuardedMatch_hit_marked` package the selected-case
    guard hit, matched-flag assignment, and native `if` execution step, while
+   `eval_nativeSwitchGuardedMatch_miss_ok` and
+   `exec_if_nativeSwitchGuardedMatch_miss` package the non-selected-case skip
+   while no previous case has matched, and
    `eval_nativeSwitchGuardedMatch_matched_ok` and
    `exec_if_nativeSwitchGuardedMatch_matched` package the later-case skip
    once the matched flag is set. `eval_nativeSwitchDefaultGuard_ok`,
@@ -370,6 +373,8 @@ scope so the native path does not look more complete than it is:
    `eval_nativeSwitchGuardedMatch_ok`, `eval_nativeSwitchGuardedMatch_hit_ok`,
    `exec_if_nativeSwitchGuardedMatch_hit`, `exec_lowerAssignNative_lit_ok`,
    `exec_if_nativeSwitchGuardedMatch_hit_marked`,
+   `eval_nativeSwitchGuardedMatch_miss_ok`,
+   `exec_if_nativeSwitchGuardedMatch_miss`,
    `eval_nativeSwitchGuardedMatch_matched_ok`,
    `exec_if_nativeSwitchGuardedMatch_matched`,
    `eval_nativeSwitchDefaultGuard_ok`,
