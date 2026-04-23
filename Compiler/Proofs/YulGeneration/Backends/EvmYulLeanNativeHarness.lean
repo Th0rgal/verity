@@ -1414,6 +1414,27 @@ theorem eval_nativeSwitchGuardedMatch_matched_ok
       EvmYul.UInt256.ofNat 0 by decide]
   rw [uint256_land_zero_left]
 
+/-- Fuel-parametric form of `eval_nativeSwitchGuardedMatch_matched_ok`. -/
+theorem eval_nativeSwitchGuardedMatch_matched_ok_fuel
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (discrName matchedName : EvmYul.Identifier)
+    (tag : Nat)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 1) :
+    EvmYul.Yul.eval (fuel + 8)
+      (Backends.nativePrimCall (EvmYul.Operation.AND : EvmYul.Operation .Yul)
+        [Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+          [.Var matchedName],
+         Backends.nativePrimCall (EvmYul.Operation.EQ : EvmYul.Operation .Yul)
+          [.Var discrName, .Lit (EvmYul.UInt256.ofNat tag)]])
+      codeOverride state =
+    .ok (state, EvmYul.UInt256.ofNat 0) := by
+  rw [eval_nativeSwitchGuardedMatch_ok_fuel, hMatched]
+  rw [show EvmYul.UInt256.isZero (EvmYul.UInt256.ofNat 1) =
+      EvmYul.UInt256.ofNat 0 by decide]
+  rw [uint256_land_zero_left]
+
 /-- Native `if` execution for the selected lowered switch case.  This packages
     guard evaluation with the existing nonzero-`if` reduction so the remaining
     case-chain proof can focus on matching/freshness invariants. -/
@@ -1535,6 +1556,59 @@ theorem exec_if_nativeSwitchGuardedMatch_hit_marked
     body codeOverride state (state.insert matchedName (EvmYul.UInt256.ofNat 1))
     final (by simp) hBody
 
+/-- Fuel-parametric selected-case guard reduction. -/
+theorem eval_nativeSwitchGuardedMatch_hit_ok_fuel
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (discrName matchedName : EvmYul.Identifier)
+    (tag : Nat)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hDiscr : state[discrName]! = EvmYul.UInt256.ofNat tag) :
+    EvmYul.Yul.eval (fuel + 8)
+      (Backends.nativePrimCall (EvmYul.Operation.AND : EvmYul.Operation .Yul)
+        [Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+          [.Var matchedName],
+         Backends.nativePrimCall (EvmYul.Operation.EQ : EvmYul.Operation .Yul)
+          [.Var discrName, .Lit (EvmYul.UInt256.ofNat tag)]])
+      codeOverride state =
+    .ok (state, EvmYul.UInt256.ofNat 1) := by
+  rw [eval_nativeSwitchGuardedMatch_ok_fuel, hMatched, hDiscr]
+  simp [EvmYul.UInt256.eq, EvmYul.UInt256.isZero]
+  decide
+
+/-- Fuel-parametric selected-case execution, including the matched-flag
+    assignment inserted at the start of each lowered native switch case. -/
+theorem exec_if_nativeSwitchGuardedMatch_hit_marked_fuel
+    (fuel : Nat)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state final : EvmYul.Yul.State)
+    (discrName matchedName : EvmYul.Identifier)
+    (tag : Nat)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hDiscr : state[discrName]! = EvmYul.UInt256.ofNat tag)
+    (hBody :
+      EvmYul.Yul.exec (fuel + 7) (.Block body) codeOverride
+        (state.insert matchedName (EvmYul.UInt256.ofNat 1)) = .ok final) :
+    EvmYul.Yul.exec (fuel + 9)
+      (.If
+        (Backends.nativePrimCall (EvmYul.Operation.AND : EvmYul.Operation .Yul)
+          [Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+            [.Var matchedName],
+           Backends.nativePrimCall (EvmYul.Operation.EQ : EvmYul.Operation .Yul)
+            [.Var discrName, .Lit (EvmYul.UInt256.ofNat tag)]])
+        (Backends.lowerAssignNative matchedName (.lit 1) :: body))
+      codeOverride state = .ok final := by
+  apply exec_if_eval_nonzero (fuel + 8) _ _ codeOverride state state final
+      (EvmYul.UInt256.ofNat 1)
+  · exact eval_nativeSwitchGuardedMatch_hit_ok_fuel fuel state codeOverride discrName matchedName tag
+      hMatched hDiscr
+  · decide
+  · exact exec_block_cons_ok (fuel + 7) (Backends.lowerAssignNative matchedName (.lit 1))
+      body codeOverride state (state.insert matchedName (EvmYul.UInt256.ofNat 1))
+      final (by simp) hBody
+
 /-- Native `if` execution skips a later lowered switch case after an earlier case
     has set the matched flag. -/
 theorem exec_if_nativeSwitchGuardedMatch_matched
@@ -1556,6 +1630,30 @@ theorem exec_if_nativeSwitchGuardedMatch_matched
   exact exec_if_eval_zero 8 _ body codeOverride state state
     (eval_nativeSwitchGuardedMatch_matched_ok state codeOverride discrName matchedName tag
       hMatched)
+
+/-- Fuel-parametric native `if` skip for a later lowered switch case after an
+    earlier case has set the matched flag. -/
+theorem exec_if_nativeSwitchGuardedMatch_matched_fuel
+    (fuel : Nat)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State)
+    (discrName matchedName : EvmYul.Identifier)
+    (tag : Nat)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 1) :
+    EvmYul.Yul.exec (fuel + 9)
+      (.If
+        (Backends.nativePrimCall (EvmYul.Operation.AND : EvmYul.Operation .Yul)
+          [Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+            [.Var matchedName],
+           Backends.nativePrimCall (EvmYul.Operation.EQ : EvmYul.Operation .Yul)
+            [.Var discrName, .Lit (EvmYul.UInt256.ofNat tag)]])
+        body)
+      codeOverride state = .ok state := by
+  simpa using
+    (exec_if_eval_zero (fuel + 8) _ body codeOverride state state
+      (eval_nativeSwitchGuardedMatch_matched_ok_fuel fuel state codeOverride
+        discrName matchedName tag hMatched))
 
 /-- Native evaluation of the lazy lowered switch default guard peels to
     `ISZERO(matched)`. -/
@@ -1728,6 +1826,275 @@ theorem exec_if_nativeSwitchDefaultGuard_matched_fuel
     (exec_if_eval_zero (fuel + 6) _ body codeOverride state state
       (eval_nativeSwitchDefaultGuard_matched_ok_fuel fuel state codeOverride
         matchedName hMatched))
+
+def nativeSwitchGuardedMatchExpr
+    (discrName matchedName : EvmYul.Identifier)
+    (tag : Nat) :
+    EvmYul.Yul.Ast.Expr :=
+  Backends.nativePrimCall (EvmYul.Operation.AND : EvmYul.Operation .Yul)
+    [Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+      [.Var matchedName],
+     Backends.nativePrimCall (EvmYul.Operation.EQ : EvmYul.Operation .Yul)
+      [.Var discrName, .Lit (EvmYul.UInt256.ofNat tag)]]
+
+def nativeSwitchDefaultGuardExpr
+    (matchedName : EvmYul.Identifier) :
+    EvmYul.Yul.Ast.Expr :=
+  Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+    [.Var matchedName]
+
+def nativeSwitchCaseIf
+    (discrName matchedName : EvmYul.Identifier)
+    (entry : Nat × List EvmYul.Yul.Ast.Stmt) :
+    EvmYul.Yul.Ast.Stmt :=
+  .If (nativeSwitchGuardedMatchExpr discrName matchedName entry.1)
+    (Backends.lowerAssignNative matchedName (.lit 1) :: entry.2)
+
+def nativeSwitchCaseIfs
+    (discrName matchedName : EvmYul.Identifier)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt)) :
+    List EvmYul.Yul.Ast.Stmt :=
+  cases.map (nativeSwitchCaseIf discrName matchedName)
+
+def nativeSwitchDefaultIf
+    (matchedName : EvmYul.Identifier)
+    (defaultBody : List EvmYul.Yul.Ast.Stmt) :
+    List EvmYul.Yul.Ast.Stmt :=
+  if defaultBody.isEmpty then []
+  else [.If (nativeSwitchDefaultGuardExpr matchedName) defaultBody]
+
+@[simp] theorem nativeSwitchCaseIfs_nil
+    (discrName matchedName : EvmYul.Identifier) :
+    nativeSwitchCaseIfs discrName matchedName [] = [] := by
+  rfl
+
+@[simp] theorem nativeSwitchCaseIfs_cons
+    (discrName matchedName : EvmYul.Identifier)
+    (entry : Nat × List EvmYul.Yul.Ast.Stmt)
+    (rest : List (Nat × List EvmYul.Yul.Ast.Stmt)) :
+    nativeSwitchCaseIfs discrName matchedName (entry :: rest) =
+      nativeSwitchCaseIf discrName matchedName entry ::
+        nativeSwitchCaseIfs discrName matchedName rest := by
+  rfl
+
+/-- If no case tag matches and the matched flag is still clear, the generated
+    native switch case chain skips every case body and leaves the state
+    unchanged. -/
+theorem exec_nativeSwitchCaseIfs_all_miss_fuel
+    (fuel : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State)
+    (discrName matchedName : EvmYul.Identifier)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hMiss :
+      ∀ tag body, (tag, body) ∈ cases →
+        state[discrName]! ≠ EvmYul.UInt256.ofNat tag) :
+    EvmYul.Yul.exec (fuel + cases.length + 9)
+      (.Block (nativeSwitchCaseIfs discrName matchedName cases))
+      codeOverride state = .ok state := by
+  induction cases generalizing fuel codeOverride state discrName matchedName with
+  | nil =>
+      simp [nativeSwitchCaseIfs, EvmYul.Yul.exec]
+  | cons entry rest ih =>
+      rcases entry with ⟨tag, body⟩
+      have hHeadMiss : state[discrName]! ≠ EvmYul.UInt256.ofNat tag := by
+        exact hMiss tag body (by simp)
+      have hRestMiss :
+          ∀ tag' body', (tag', body') ∈ rest →
+            state[discrName]! ≠ EvmYul.UInt256.ofNat tag' := by
+        intro tag' body' hmem
+        exact hMiss tag' body' (by simp [hmem])
+      have hHead :
+          EvmYul.Yul.exec (fuel + rest.length + 9)
+            (nativeSwitchCaseIf discrName matchedName (tag, body))
+            codeOverride state = .ok state := by
+        simpa [nativeSwitchCaseIf, nativeSwitchGuardedMatchExpr] using
+          (exec_if_nativeSwitchGuardedMatch_miss_fuel
+            (fuel + rest.length) (Backends.lowerAssignNative matchedName (.lit 1) :: body)
+            codeOverride state discrName matchedName tag hMatched hHeadMiss)
+      have hTail :
+          EvmYul.Yul.exec (fuel + rest.length + 9)
+            (.Block (nativeSwitchCaseIfs discrName matchedName rest))
+            codeOverride state = .ok state :=
+        ih fuel codeOverride state discrName matchedName hMatched hRestMiss
+      have hBlock := exec_block_cons_ok (fuel + rest.length + 9)
+        (nativeSwitchCaseIf discrName matchedName (tag, body))
+        (nativeSwitchCaseIfs discrName matchedName rest)
+        codeOverride state state state hHead hTail
+      simpa [nativeSwitchCaseIfs, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+        using hBlock
+
+/-- Once a selected lowered switch body preserves the matched flag at one, every
+    later generated case guard skips. -/
+theorem exec_nativeSwitchCaseIfs_matched_fuel
+    (fuel : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State)
+    (discrName matchedName : EvmYul.Identifier)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 1) :
+    EvmYul.Yul.exec (fuel + cases.length + 9)
+      (.Block (nativeSwitchCaseIfs discrName matchedName cases))
+      codeOverride state = .ok state := by
+  induction cases generalizing fuel codeOverride state discrName matchedName with
+  | nil =>
+      simp [nativeSwitchCaseIfs, EvmYul.Yul.exec]
+  | cons entry rest ih =>
+      rcases entry with ⟨tag, body⟩
+      have hHead :
+          EvmYul.Yul.exec (fuel + rest.length + 9)
+            (nativeSwitchCaseIf discrName matchedName (tag, body))
+            codeOverride state = .ok state := by
+        simpa [nativeSwitchCaseIf, nativeSwitchGuardedMatchExpr] using
+          (exec_if_nativeSwitchGuardedMatch_matched_fuel
+            (fuel + rest.length) (Backends.lowerAssignNative matchedName (.lit 1) :: body)
+            codeOverride state discrName matchedName tag hMatched)
+      have hTail :
+          EvmYul.Yul.exec (fuel + rest.length + 9)
+            (.Block (nativeSwitchCaseIfs discrName matchedName rest))
+            codeOverride state = .ok state :=
+        ih fuel codeOverride state discrName matchedName hMatched
+      have hBlock := exec_block_cons_ok (fuel + rest.length + 9)
+        (nativeSwitchCaseIf discrName matchedName (tag, body))
+        (nativeSwitchCaseIfs discrName matchedName rest)
+        codeOverride state state state hHead hTail
+      simpa [nativeSwitchCaseIfs, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+        using hBlock
+
+/-- Whole generated case-chain execution when the first remaining case is the
+    selected case and suffix cases must skip after the selected body preserves
+    the matched flag. -/
+theorem exec_nativeSwitchCaseIfs_head_hit_fuel
+    (fuel : Nat)
+    (suffix : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (tag : Nat)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state final : EvmYul.Yul.State)
+    (discrName matchedName : EvmYul.Identifier)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hDiscr : state[discrName]! = EvmYul.UInt256.ofNat tag)
+    (hBody :
+      EvmYul.Yul.exec (fuel + suffix.length + 7) (.Block body) codeOverride
+        (state.insert matchedName (EvmYul.UInt256.ofNat 1)) = .ok final)
+    (hFinalMatched : final[matchedName]! = EvmYul.UInt256.ofNat 1) :
+    EvmYul.Yul.exec (fuel + suffix.length + 10)
+      (.Block
+        (nativeSwitchCaseIfs discrName matchedName ((tag, body) :: suffix)))
+      codeOverride state = .ok final := by
+  have hHead :
+      EvmYul.Yul.exec (fuel + suffix.length + 9)
+        (nativeSwitchCaseIf discrName matchedName (tag, body))
+        codeOverride state = .ok final := by
+    simpa [nativeSwitchCaseIf, nativeSwitchGuardedMatchExpr] using
+      (exec_if_nativeSwitchGuardedMatch_hit_marked_fuel
+        (fuel + suffix.length) body codeOverride state final discrName
+        matchedName tag hMatched hDiscr hBody)
+  have hTail :
+      EvmYul.Yul.exec (fuel + suffix.length + 9)
+        (.Block (nativeSwitchCaseIfs discrName matchedName suffix))
+        codeOverride final = .ok final :=
+    exec_nativeSwitchCaseIfs_matched_fuel fuel suffix codeOverride final
+      discrName matchedName hFinalMatched
+  have hBlock := exec_block_cons_ok (fuel + suffix.length + 9)
+    (nativeSwitchCaseIf discrName matchedName (tag, body))
+    (nativeSwitchCaseIfs discrName matchedName suffix)
+    codeOverride state final final hHead hTail
+  simpa [nativeSwitchCaseIfs, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+    using hBlock
+
+/-- Cons a non-selected generated switch case onto an already-proved generated
+    case-chain execution. -/
+theorem exec_nativeSwitchCaseIfs_cons_miss_fuel
+    (fuel : Nat)
+    (rest : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (missTag : Nat)
+    (missBody : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state final : EvmYul.Yul.State)
+    (discrName matchedName : EvmYul.Identifier)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hHeadMiss : state[discrName]! ≠ EvmYul.UInt256.ofNat missTag)
+    (hTail :
+      EvmYul.Yul.exec (fuel + rest.length + 9)
+        (.Block (nativeSwitchCaseIfs discrName matchedName rest))
+        codeOverride state = .ok final) :
+    EvmYul.Yul.exec (fuel + rest.length + 10)
+      (.Block
+        (nativeSwitchCaseIfs discrName matchedName
+          ((missTag, missBody) :: rest)))
+      codeOverride state = .ok final := by
+  have hHead :
+      EvmYul.Yul.exec (fuel + rest.length + 9)
+        (nativeSwitchCaseIf discrName matchedName (missTag, missBody))
+        codeOverride state = .ok state := by
+    simpa [nativeSwitchCaseIf, nativeSwitchGuardedMatchExpr] using
+      (exec_if_nativeSwitchGuardedMatch_miss_fuel
+        (fuel + rest.length)
+        (Backends.lowerAssignNative matchedName (.lit 1) :: missBody)
+        codeOverride state discrName matchedName missTag hMatched hHeadMiss)
+  have hBlock := exec_block_cons_ok (fuel + rest.length + 9)
+    (nativeSwitchCaseIf discrName matchedName (missTag, missBody))
+    (nativeSwitchCaseIfs discrName matchedName rest)
+    codeOverride state state final hHead hTail
+  simpa [nativeSwitchCaseIfs, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+    using hBlock
+
+/-- Whole generated case-chain execution when the selected case is represented
+    as a miss prefix, one matching case, and a suffix. This is the recursive
+    dispatcher theorem shape needed by the native/interpreter bridge: only the
+    first matching non-halting case executes, and suffix cases are skipped after
+    the matched flag is set. -/
+theorem exec_nativeSwitchCaseIfs_prefix_hit_fuel
+    (fuel : Nat)
+    (pre suffix : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (tag : Nat)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state final : EvmYul.Yul.State)
+    (discrName matchedName : EvmYul.Identifier)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hMissPrefix :
+      ∀ tag' body', (tag', body') ∈ pre →
+        state[discrName]! ≠ EvmYul.UInt256.ofNat tag')
+    (hDiscr : state[discrName]! = EvmYul.UInt256.ofNat tag)
+    (hBody :
+      EvmYul.Yul.exec (fuel + suffix.length + 7) (.Block body) codeOverride
+        (state.insert matchedName (EvmYul.UInt256.ofNat 1)) = .ok final)
+    (hFinalMatched : final[matchedName]! = EvmYul.UInt256.ofNat 1) :
+    EvmYul.Yul.exec
+      (fuel + (pre ++ (tag, body) :: suffix).length + 9)
+      (.Block (nativeSwitchCaseIfs discrName matchedName
+        (pre ++ (tag, body) :: suffix)))
+      codeOverride state = .ok final := by
+  induction pre generalizing fuel with
+  | nil =>
+      simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+        (exec_nativeSwitchCaseIfs_head_hit_fuel fuel suffix tag body codeOverride
+          state final discrName matchedName hMatched hDiscr hBody hFinalMatched)
+  | cons entry rest ih =>
+      rcases entry with ⟨missTag, missBody⟩
+      have hHeadMiss :
+          state[discrName]! ≠ EvmYul.UInt256.ofNat missTag := by
+        exact hMissPrefix missTag missBody (by simp)
+      have hRestMiss :
+          ∀ tag' body', (tag', body') ∈ rest →
+            state[discrName]! ≠ EvmYul.UInt256.ofNat tag' := by
+        intro tag' body' hmem
+        exact hMissPrefix tag' body' (by simp [hmem])
+      have hTail :
+          EvmYul.Yul.exec
+            (fuel + (rest ++ (tag, body) :: suffix).length + 9)
+            (.Block
+              (nativeSwitchCaseIfs discrName matchedName
+                (rest ++ (tag, body) :: suffix)))
+            codeOverride state = .ok final :=
+        ih fuel hRestMiss hBody
+      simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+        (exec_nativeSwitchCaseIfs_cons_miss_fuel fuel
+          (rest ++ (tag, body) :: suffix) missTag missBody codeOverride state
+          final discrName matchedName hMatched hHeadMiss hTail)
 
 @[simp] theorem initialState_unbridgedEnvironmentDefaults
     (contract : EvmYul.Yul.Ast.YulContract)
