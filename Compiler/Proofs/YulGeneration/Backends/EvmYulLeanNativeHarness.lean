@@ -2041,11 +2041,7 @@ theorem exec_nativeSwitchCaseIfs_cons_miss_fuel
   simpa [nativeSwitchCaseIfs, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
     using hBlock
 
-/-- Whole generated case-chain execution when the selected case is represented
-    as a miss prefix, one matching case, and a suffix. This is the recursive
-    dispatcher theorem shape needed by the native/interpreter bridge: only the
-    first matching non-halting case executes, and suffix cases are skipped after
-    the matched flag is set. -/
+/-- Whole generated case-chain execution for a miss prefix, selected case, and suffix. -/
 theorem exec_nativeSwitchCaseIfs_prefix_hit_fuel
     (fuel : Nat)
     (pre suffix : List (Nat × List EvmYul.Yul.Ast.Stmt))
@@ -2095,6 +2091,72 @@ theorem exec_nativeSwitchCaseIfs_prefix_hit_fuel
         (exec_nativeSwitchCaseIfs_cons_miss_fuel fuel
           (rest ++ (tag, body) :: suffix) missTag missBody codeOverride state
           final discrName matchedName hMatched hHeadMiss hTail)
+/-- Non-empty generated default block execution when no case matched. -/
+theorem exec_nativeSwitchDefaultIf_unmatched_nonempty_fuel
+    (fuel : Nat)
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state final : EvmYul.Yul.State)
+    (matchedName : EvmYul.Identifier)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hBody :
+      EvmYul.Yul.exec (fuel + 6) (.Block defaultBody) codeOverride state =
+        .ok final)
+    (hNonempty : defaultBody ≠ []) :
+    EvmYul.Yul.exec (fuel + 8)
+      (.Block (nativeSwitchDefaultIf matchedName defaultBody))
+      codeOverride state = .ok final := by
+  cases defaultBody with
+  | nil => contradiction
+  | cons stmt rest =>
+      have hHead :
+          EvmYul.Yul.exec (fuel + 7)
+            (.If (nativeSwitchDefaultGuardExpr matchedName) (stmt :: rest))
+            codeOverride state = .ok final := by
+        simpa [nativeSwitchDefaultGuardExpr] using
+          (exec_if_nativeSwitchDefaultGuard_unmatched_fuel fuel
+            (stmt :: rest) codeOverride state final matchedName hMatched hBody)
+      have hTail :
+          EvmYul.Yul.exec (fuel + 7) (.Block [])
+            codeOverride final = .ok final := by
+        simp [EvmYul.Yul.exec]
+      exact exec_block_cons_ok (fuel + 7)
+        (.If (nativeSwitchDefaultGuardExpr matchedName) (stmt :: rest))
+        [] codeOverride state final final hHead hTail
+
+/-- After a selected case preserves the matched flag at one, the optional
+    generated default block skips. Empty defaults also skip because no default
+    statement is emitted. -/
+theorem exec_nativeSwitchDefaultIf_matched_fuel
+    (fuel : Nat)
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State)
+    (matchedName : EvmYul.Identifier)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 1) :
+    EvmYul.Yul.exec
+      (fuel + (nativeSwitchDefaultIf matchedName defaultBody).length + 7)
+      (.Block (nativeSwitchDefaultIf matchedName defaultBody))
+      codeOverride state = .ok state := by
+  cases defaultBody with
+  | nil =>
+      simp [nativeSwitchDefaultIf, EvmYul.Yul.exec]
+  | cons stmt rest =>
+      have hHead :
+          EvmYul.Yul.exec (fuel + 7)
+            (.If (nativeSwitchDefaultGuardExpr matchedName) (stmt :: rest))
+            codeOverride state = .ok state := by
+        simpa [nativeSwitchDefaultGuardExpr] using
+          (exec_if_nativeSwitchDefaultGuard_matched_fuel fuel
+            (stmt :: rest) codeOverride state matchedName hMatched)
+      have hTail :
+          EvmYul.Yul.exec (fuel + 7) (.Block [])
+            codeOverride state = .ok state := by
+        simp [EvmYul.Yul.exec]
+      simpa [nativeSwitchDefaultIf] using
+        (exec_block_cons_ok (fuel + 7)
+          (.If (nativeSwitchDefaultGuardExpr matchedName) (stmt :: rest))
+          [] codeOverride state state state hHead hTail)
 
 @[simp] theorem initialState_unbridgedEnvironmentDefaults
     (contract : EvmYul.Yul.Ast.YulContract)

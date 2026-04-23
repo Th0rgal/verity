@@ -271,9 +271,12 @@ scope so the native path does not look more complete than it is:
    `exec_nativeSwitchCaseIfs_matched_fuel`, and
    `exec_nativeSwitchCaseIfs_prefix_hit_fuel`, packaging whole guarded
    case-chain execution for default misses, suffix skips after a match, and the
-   selected-case prefix-hit shape. The remaining native dispatcher proof starts
-   after that switch prefix, at relating generated selector lookup to the
-   prefix/selected/suffix split and discharging selected-body preservation. The adapter now names the needed freshness
+   selected-case prefix-hit shape. `exec_nativeSwitchDefaultIf_unmatched_nonempty_fuel`
+   and `exec_nativeSwitchDefaultIf_matched_fuel` then package the optional
+   default statement emitted by the lazy lowering. The remaining native
+   dispatcher proof starts after that switch prefix, at relating generated
+   selector lookup to the prefix/selected/suffix/default split and discharging
+   selected/default body preservation. The adapter now names the needed freshness
    surface with `yulStmtWriteNames`, `yulStmtsWriteNames`,
    `nativeStmtWriteNames`, `nativeStmtsWriteNames`,
    `nativeSwitchTempsFreshForWrites`,
@@ -393,6 +396,8 @@ scope so the native path does not look more complete than it is:
    `exec_nativeSwitchCaseIfs_all_miss_fuel`,
    `exec_nativeSwitchCaseIfs_matched_fuel`, and
    `exec_nativeSwitchCaseIfs_prefix_hit_fuel` for whole generated case chains,
+   `exec_nativeSwitchDefaultIf_unmatched_nonempty_fuel` and
+   `exec_nativeSwitchDefaultIf_matched_fuel` for optional generated defaults,
    and companion native `exec`/primitive reduction lemmas for the lazy guarded switch case/default gates,
    the native-switch write-target collectors and freshness predicates
    `yulStmtsWriteNames`, `nativeStmtsWriteNames`,
