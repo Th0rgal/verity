@@ -244,11 +244,73 @@ mutual
     stmts.foldl (fun acc stmt => acc ++ yulStmtIdentifierNames stmt) []
 end
 
+mutual
+  partial def yulStmtWriteNames : YulStmt → List String
+    | .comment _ | .expr _ | .leave => []
+    | .let_ name _ => [name]
+    | .letMany names _ => names
+    | .assign name _ => [name]
+    | .if_ _ body => yulStmtsWriteNames body
+    | .for_ init _ post body =>
+        yulStmtsWriteNames init ++
+          yulStmtsWriteNames post ++
+          yulStmtsWriteNames body
+    | .switch _ cases defaultBody =>
+        cases.foldl (fun acc (_, body) => acc ++ yulStmtsWriteNames body) [] ++
+          yulStmtsWriteNames (defaultBody.getD [])
+    | .block stmts => yulStmtsWriteNames stmts
+    | .funcDef _ params rets body => params ++ rets ++ yulStmtsWriteNames body
+
+  partial def yulStmtsWriteNames (stmts : List YulStmt) : List String :=
+    stmts.foldl (fun acc stmt => acc ++ yulStmtWriteNames stmt) []
+end
+
+mutual
+  partial def nativeStmtWriteNames : EvmYul.Yul.Ast.Stmt → List String
+    | .Block stmts => nativeStmtsWriteNames stmts
+    | .Let names _ => names
+    | .ExprStmtCall _ | .Continue | .Break | .Leave => []
+    | .Switch _ cases defaultBody =>
+        cases.foldl (fun acc (_, body) => acc ++ nativeStmtsWriteNames body) [] ++
+          nativeStmtsWriteNames defaultBody
+    | .For _ post body => nativeStmtsWriteNames post ++ nativeStmtsWriteNames body
+    | .If _ body => nativeStmtsWriteNames body
+
+  partial def nativeStmtsWriteNames (stmts : List EvmYul.Yul.Ast.Stmt) : List String :=
+    stmts.foldl (fun acc stmt => acc ++ nativeStmtWriteNames stmt) []
+end
+
 def nativeSwitchDiscrTempName (switchId : Nat) : String :=
   s!"__verity_native_switch_discr_{switchId}"
 
 def nativeSwitchMatchedTempName (switchId : Nat) : String :=
   s!"__verity_native_switch_matched_{switchId}"
+
+def nativeSwitchTempsFreshForWrites
+    (switchId : Nat)
+    (writeNames : List String) : Prop :=
+  nativeSwitchDiscrTempName switchId ∉ writeNames ∧
+    nativeSwitchMatchedTempName switchId ∉ writeNames
+
+def nativeSwitchTempsFreshForSourceBodies
+    (switchId : Nat)
+    (cases' : List (Nat × List YulStmt))
+    (defaultBody : Option (List YulStmt)) : Prop :=
+  (∀ tag body,
+      (tag, body) ∈ cases' →
+        nativeSwitchTempsFreshForWrites switchId (yulStmtsWriteNames body)) ∧
+    (∀ body,
+      defaultBody = some body →
+        nativeSwitchTempsFreshForWrites switchId (yulStmtsWriteNames body))
+
+def nativeSwitchTempsFreshForNativeBodies
+    (switchId : Nat)
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt) : Prop :=
+  (∀ tag body,
+      (tag, body) ∈ cases' →
+        nativeSwitchTempsFreshForWrites switchId (nativeStmtsWriteNames body)) ∧
+    nativeSwitchTempsFreshForWrites switchId (nativeStmtsWriteNames defaultBody)
 
 partial def freshNativeSwitchId (reservedNames : List String) (candidate : Nat) : Nat :=
   let discrName := nativeSwitchDiscrTempName candidate

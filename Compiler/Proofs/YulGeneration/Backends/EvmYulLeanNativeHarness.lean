@@ -953,6 +953,40 @@ theorem initialState_selectorExpr_native_value_of_readBytes_size
       tx.functionSelector % Compiler.Constants.selectorModulus :=
   initialState_selectorExpr_native_value contract tx storage observableSlots
 
+theorem initialState_selectorExpr_native_uint256
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    EvmYul.UInt256.shiftRight
+        (EvmYul.State.calldataload
+          (EvmYul.SharedState.toState
+            (initialState contract tx storage observableSlots).sharedState)
+          (EvmYul.UInt256.ofNat 0))
+        (EvmYul.UInt256.ofNat Compiler.Constants.selectorShift) =
+      EvmYul.UInt256.ofNat
+        (tx.functionSelector % Compiler.Constants.selectorModulus) := by
+  apply uint256_eq_of_toNat_eq
+  rw [show EvmYul.UInt256.toNat
+      (EvmYul.UInt256.shiftRight
+        (EvmYul.State.calldataload
+          (EvmYul.SharedState.toState
+            (initialState contract tx storage observableSlots).sharedState)
+          (EvmYul.UInt256.ofNat 0))
+        (EvmYul.UInt256.ofNat Compiler.Constants.selectorShift)) =
+      tx.functionSelector % Compiler.Constants.selectorModulus by
+    simpa [EvmYul.Yul.State.toState] using
+      initialState_selectorExpr_native_value contract tx storage observableSlots]
+  rw [uint256_ofNat_toNat_of_lt]
+  have hmod :
+      tx.functionSelector % Compiler.Constants.selectorModulus <
+        Compiler.Constants.selectorModulus := by
+    exact Nat.mod_lt _ (by norm_num [Compiler.Constants.selectorModulus])
+  have hsel :
+      Compiler.Constants.selectorModulus < EvmYul.UInt256.size := by
+    norm_num [Compiler.Constants.selectorModulus, EvmYul.UInt256.size]
+  exact Nat.lt_trans hmod hsel
+
 /-- The native lowerer maps the generated dispatcher selector expression to
     EVMYulLean's primitive `SHR(CALLDATALOAD(0), 224)` shape. -/
 theorem lowerExprNative_selectorExpr :
@@ -1089,35 +1123,8 @@ theorem eval_lowerExprNative_selectorExpr_initialState_ok
         EvmYul.UInt256.ofNat
           (tx.functionSelector % Compiler.Constants.selectorModulus)) := by
   rw [eval_lowerExprNative_selectorExpr_ok]
-  have hv :
-      EvmYul.UInt256.shiftRight
-        (EvmYul.State.calldataload
-          (EvmYul.SharedState.toState
-            (initialState contract tx storage observableSlots).sharedState)
-          (EvmYul.UInt256.ofNat 0))
-        (EvmYul.UInt256.ofNat Compiler.Constants.selectorShift) =
-      EvmYul.UInt256.ofNat
-        (tx.functionSelector % Compiler.Constants.selectorModulus) := by
-    apply uint256_eq_of_toNat_eq
-    rw [show EvmYul.UInt256.toNat
-        (EvmYul.UInt256.shiftRight
-          (EvmYul.State.calldataload
-            (EvmYul.SharedState.toState
-              (initialState contract tx storage observableSlots).sharedState)
-            (EvmYul.UInt256.ofNat 0))
-          (EvmYul.UInt256.ofNat Compiler.Constants.selectorShift)) =
-        tx.functionSelector % Compiler.Constants.selectorModulus by
-      simpa [EvmYul.Yul.State.toState] using
-        initialState_selectorExpr_native_value contract tx storage observableSlots]
-    rw [uint256_ofNat_toNat_of_lt]
-    have hmod :
-        tx.functionSelector % Compiler.Constants.selectorModulus <
-          Compiler.Constants.selectorModulus := by
-      exact Nat.mod_lt _ (by norm_num [Compiler.Constants.selectorModulus])
-    have hsel :
-        Compiler.Constants.selectorModulus < EvmYul.UInt256.size := by
-      norm_num [Compiler.Constants.selectorModulus, EvmYul.UInt256.size]
-    exact Nat.lt_trans hmod hsel
+  have hv :=
+    initialState_selectorExpr_native_uint256 contract tx storage observableSlots
   rw [hv]
 
 theorem exec_let_lowerExprNative_selectorExpr_initialState_ok
@@ -1134,35 +1141,8 @@ theorem exec_let_lowerExprNative_selectorExpr_initialState_ok
           EvmYul.Yul.State).insert discrName
         (EvmYul.UInt256.ofNat
           (tx.functionSelector % Compiler.Constants.selectorModulus))) := by
-  have hv :
-      EvmYul.UInt256.shiftRight
-        (EvmYul.State.calldataload
-          (EvmYul.SharedState.toState
-            (initialState contract tx storage observableSlots).sharedState)
-          (EvmYul.UInt256.ofNat 0))
-        (EvmYul.UInt256.ofNat Compiler.Constants.selectorShift) =
-      EvmYul.UInt256.ofNat
-        (tx.functionSelector % Compiler.Constants.selectorModulus) := by
-    apply uint256_eq_of_toNat_eq
-    rw [show EvmYul.UInt256.toNat
-        (EvmYul.UInt256.shiftRight
-          (EvmYul.State.calldataload
-            (EvmYul.SharedState.toState
-              (initialState contract tx storage observableSlots).sharedState)
-            (EvmYul.UInt256.ofNat 0))
-          (EvmYul.UInt256.ofNat Compiler.Constants.selectorShift)) =
-        tx.functionSelector % Compiler.Constants.selectorModulus by
-      simpa [EvmYul.Yul.State.toState] using
-        initialState_selectorExpr_native_value contract tx storage observableSlots]
-    rw [uint256_ofNat_toNat_of_lt]
-    have hmod :
-        tx.functionSelector % Compiler.Constants.selectorModulus <
-          Compiler.Constants.selectorModulus := by
-      exact Nat.mod_lt _ (by norm_num [Compiler.Constants.selectorModulus])
-    have hsel :
-        Compiler.Constants.selectorModulus < EvmYul.UInt256.size := by
-      norm_num [Compiler.Constants.selectorModulus, EvmYul.UInt256.size]
-    exact Nat.lt_trans hmod hsel
+  have hv :=
+    initialState_selectorExpr_native_uint256 contract tx storage observableSlots
   have hv224 :
       EvmYul.UInt256.shiftRight
         (EvmYul.State.calldataload

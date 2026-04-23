@@ -258,9 +258,14 @@ scope so the native path does not look more complete than it is:
    `exec_if_nativeSwitchGuardedMatch_matched` package the later-case skip
    once the matched flag is set. The remaining native dispatcher proof starts
    after that switch prefix, at whole guarded case-chain execution and
-   selected-body preservation; the key precondition to discharge is that fresh
-   native switch temporaries are not reassigned by lowered case/default bodies
-   while the selected body runs.
+   selected-body preservation. The adapter now names the needed freshness
+   surface with `yulStmtWriteNames`, `yulStmtsWriteNames`,
+   `nativeStmtWriteNames`, `nativeStmtsWriteNames`,
+   `nativeSwitchTempsFreshForWrites`,
+   `nativeSwitchTempsFreshForSourceBodies`, and
+   `nativeSwitchTempsFreshForNativeBodies`; the key precondition to discharge
+   is that fresh native switch temporaries are not reassigned by lowered
+   case/default bodies while the selected body runs.
 
 2. Prove native state bridge lemmas.
 
@@ -363,6 +368,10 @@ scope so the native path does not look more complete than it is:
    `eval_nativeSwitchGuardedMatch_matched_ok`,
    `exec_if_nativeSwitchGuardedMatch_matched`, and companion native
    `exec`/primitive reduction lemmas for the lazy guarded switch case gate,
+   the native-switch write-target collectors and freshness predicates
+   `yulStmtsWriteNames`, `nativeStmtsWriteNames`,
+   `nativeSwitchTempsFreshForSourceBodies`, and
+   `nativeSwitchTempsFreshForNativeBodies`,
    plus the named
    `bridgedExpr_selectorExpr` and
    `evalYulExprWithBackend_evmYulLean_selectorExpr_semantics` lemmas for the
