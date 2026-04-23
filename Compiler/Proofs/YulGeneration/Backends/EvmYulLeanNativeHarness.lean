@@ -3058,28 +3058,22 @@ theorem exec_nativeSwitchPrefix_then_tail_fuel
 
 theorem exec_nativeSwitchTail_find_hit_preserved_fuel
     (fuel selector switchId tag : Nat)
-    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
-    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
-    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
-    (storage : Nat → Nat) (observableSlots : List Nat)
-    (final : EvmYul.Yul.State)
-    (hSelector :
-      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt)) (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction) (storage : Nat → Nat)
+    (observableSlots : List Nat) (final : EvmYul.Yul.State)
+    (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
     (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
     (hSelectorRange : selector < EvmYul.UInt256.size)
-    (hTagsRange :
-      ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hTagsRange : ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
     (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
       EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body)
-        (some contract) (nativeSwitchMarkedPrefixStateForId contract tx storage
-          observableSlots switchId) = .ok final)
+        (some contract) (nativeSwitchMarkedPrefixStateForId contract tx storage observableSlots switchId) = .ok final)
     (hPreservesMatched : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
       NativeBlockPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
         (EvmYul.UInt256.ofNat 1) body (some contract)) :
     EvmYul.Yul.exec (fuel + cases.length + 10)
       (.Block (nativeSwitchTailStmts switchId cases defaultBody))
-      (some contract) (nativeSwitchPrefixStateForId contract tx storage
-        observableSlots switchId) =
+      (some contract) (nativeSwitchPrefixStateForId contract tx storage observableSlots switchId) =
     .ok final := by
   let discrName : EvmYul.Identifier := Backends.nativeSwitchDiscrTempName switchId
   let matchedName : EvmYul.Identifier := Backends.nativeSwitchMatchedTempName switchId

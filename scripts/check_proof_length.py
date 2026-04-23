@@ -282,12 +282,6 @@ ALLOWLIST: set[str] = {
     "sub_add_cancel_left",
     "safeDiv_result_le_numerator",
     # --- EVMYulLean bridge proofs (multi-layer UInt256→Fin→Nat reduction) ---
-    # Native lazy-switch tail bridges expose the public semantic premises
-    # needed by the raw `lowerNativeSwitchBlock` theorem. The bodies are thin
-    # applications of smaller prefix/case/default lemmas; further splitting
-    # would hide the review-critical dispatcher preconditions.
-    "exec_nativeSwitchTail_find_hit_preserved_fuel",
-    "exec_nativeSwitchTail_find_none_with_default_nonempty_fuel",
     "bridge_eval_byte_normalized",
     "sdiv_int256_eq_uint256Sdiv",
     "smod_int256_eq_uint256Smod",
