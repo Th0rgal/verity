@@ -279,13 +279,20 @@ scope so the native path does not look more complete than it is:
    `exec_nativeSwitchCaseIfs_find_hit_fuel`, and
    `exec_nativeSwitchCaseIfs_find_none_fuel`, so generated dispatcher proofs can
    consume a concrete `find?` hit or miss instead of manually supplying the
-   prefix/selected/suffix split. The hit side now has the preservation adapter
-   `NativeBlockPreservesWord` plus
-   `exec_nativeSwitchCaseIfs_find_hit_preserved_fuel`, which turns selected-body
-   preservation of the matched flag into the whole generated case-chain
-   postcondition. The remaining native dispatcher proof starts after that
-   lookup bridge, at proving `NativeBlockPreservesWord` for selected/default
-   lowered bodies and composing the optional default arm. The adapter now names
+  prefix/selected/suffix split. The hit side now has the preservation adapter
+  `NativeBlockPreservesWord` plus
+  `exec_nativeSwitchCaseIfs_find_hit_preserved_fuel`, which turns selected-body
+  preservation of the matched flag into the whole generated case-chain
+  postcondition. The native harness also exposes `exec_block_append_ok`,
+  `exec_nativeSwitchCaseIfs_with_default_matched_fuel`,
+  `exec_nativeSwitchCaseIfs_find_hit_with_default_preserved_fuel`,
+  `exec_nativeSwitchCaseIfs_find_none_with_default_nonempty_fuel`, and
+  `exec_nativeSwitchCaseIfs_find_none_without_default_fuel`, composing selector
+  lookup with the optional default arm emitted by `lowerNativeSwitchBlock`. The
+  remaining native dispatcher proof starts after that complete lazy-switch
+  bridge, at proving `NativeBlockPreservesWord` for selected/default lowered
+  bodies and threading the initialized prefix state into the raw lowered switch
+  block. The adapter now names
    the needed freshness surface with `yulStmtWriteNames`,
    `yulStmtsWriteNames`,
    `nativeStmtWriteNames`, `nativeStmtsWriteNames`,
@@ -412,6 +419,12 @@ scope so the native path does not look more complete than it is:
    chain execution,
    `exec_nativeSwitchDefaultIf_unmatched_nonempty_fuel` and
    `exec_nativeSwitchDefaultIf_matched_fuel` for optional generated defaults,
+   `exec_block_append_ok`,
+   `exec_nativeSwitchCaseIfs_with_default_matched_fuel`,
+   `exec_nativeSwitchCaseIfs_find_hit_with_default_preserved_fuel`,
+   `exec_nativeSwitchCaseIfs_find_none_with_default_nonempty_fuel`, and
+   `exec_nativeSwitchCaseIfs_find_none_without_default_fuel` for complete
+   generated case-chain plus optional-default execution,
    and companion native `exec`/primitive reduction lemmas for the lazy guarded switch case/default gates,
    the native-switch write-target collectors and freshness predicates
    `yulStmtsWriteNames`, `nativeStmtsWriteNames`,

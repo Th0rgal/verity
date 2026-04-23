@@ -1186,6 +1186,67 @@ theorem exec_block_cons_ok
       .ok final := by
   simp [EvmYul.Yul.exec, hHead, hTail]
 
+/-- Execute an appended native block when the left block consumes exactly its
+    statement-count fuel prefix and the right block runs at the remaining fuel.
+
+This matches EVMYulLean's block interpreter: every cons step decrements the fuel
+available to both the head statement and the tail block. -/
+theorem exec_block_append_ok
+    (fuel k : Nat) (left right : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) (state middle final : EvmYul.Yul.State)
+    (hLeft : EvmYul.Yul.exec (fuel + left.length + k) (.Block left) codeOverride state = .ok middle)
+    (hRight : EvmYul.Yul.exec (fuel + k) (.Block right) codeOverride middle = .ok final) :
+    EvmYul.Yul.exec (fuel + left.length + k) (.Block (left ++ right)) codeOverride state = .ok final := by
+  induction left generalizing fuel state with
+  | nil =>
+      generalize hFuel : fuel + k = remaining at hLeft hRight ⊢
+      cases remaining with
+      | zero =>
+          have hLeft0 : EvmYul.Yul.exec 0 (.Block []) codeOverride state = .ok middle := by
+            simpa [hFuel] using hLeft
+          simp [EvmYul.Yul.exec] at hLeft0
+      | succ remaining' =>
+          have hLeftS : EvmYul.Yul.exec (Nat.succ remaining') (.Block [])
+              codeOverride state = .ok middle := by
+            simpa [hFuel] using hLeft
+          simp [EvmYul.Yul.exec] at hLeftS
+          cases hLeftS
+          simpa [hFuel] using hRight
+  | cons stmt rest ih =>
+      have hFuel : fuel + (stmt :: rest).length + k =
+          fuel + rest.length + k + 1 := by
+        simp only [List.length_cons]; omega
+      have hLeft' : EvmYul.Yul.exec (Nat.succ (fuel + rest.length + k))
+          (.Block (stmt :: rest)) codeOverride state = .ok middle := by
+        simpa [hFuel, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hLeft
+      simp only [EvmYul.Yul.exec] at hLeft'
+      generalize hHead : EvmYul.Yul.exec (fuel + rest.length + k) stmt codeOverride state =
+        head at hLeft'
+      cases head with
+      | error err => simp at hLeft'
+      | ok next =>
+          simp at hLeft'
+          have hTail : EvmYul.Yul.exec (fuel + rest.length + k) (.Block rest)
+              codeOverride next = .ok middle := hLeft'
+          have hRest : EvmYul.Yul.exec (fuel + rest.length + k)
+              (.Block (rest ++ right)) codeOverride next = .ok final :=
+            ih fuel next hTail hRight
+          have hBlock := exec_block_cons_ok (fuel + rest.length + k)
+            stmt (rest ++ right) codeOverride state next final hHead hRest
+          have hGoalFuel : fuel + rest.length + k + 1 =
+              fuel + (stmt :: rest).length + k := by
+            simp only [List.length_cons]; omega
+          simpa [hGoalFuel, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+            using hBlock
+
+theorem exec_block_nil_ok
+    (fuel' : Nat)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.exec (Nat.succ fuel') (.Block []) codeOverride state =
+      .ok state := by
+  simp [EvmYul.Yul.exec]
+
 /-- The generated dispatcher switch prefix initializes the discriminator temp
     from native calldata selector evaluation, then clears the lazy matched flag.
 
@@ -2450,6 +2511,215 @@ theorem exec_nativeSwitchDefaultIf_matched_fuel
         (exec_block_cons_ok (fuel + 7)
           (.If (nativeSwitchDefaultGuardExpr matchedName) (stmt :: rest))
           [] codeOverride state state state hHead hTail)
+
+/-- Default-tail skip at the fuel level left after a generated case chain. -/
+theorem exec_nativeSwitchDefaultIf_matched_caseTail_fuel
+    (fuel : Nat)
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State)
+    (matchedName : EvmYul.Identifier)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 1) :
+    EvmYul.Yul.exec (fuel + 9)
+      (.Block (nativeSwitchDefaultIf matchedName defaultBody))
+      codeOverride state = .ok state := by
+  cases defaultBody with
+  | nil =>
+      simp [nativeSwitchDefaultIf, EvmYul.Yul.exec]
+  | cons stmt rest =>
+      simpa [nativeSwitchDefaultIf, Nat.add_assoc, Nat.add_comm,
+        Nat.add_left_comm] using
+        (exec_nativeSwitchDefaultIf_matched_fuel (fuel + 1)
+          (stmt :: rest) codeOverride state matchedName hMatched)
+
+/-- Non-empty default-tail execution at the fuel level left after all generated
+    cases miss. -/
+theorem exec_nativeSwitchDefaultIf_unmatched_caseTail_nonempty_fuel
+    (fuel : Nat)
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state final : EvmYul.Yul.State)
+    (matchedName : EvmYul.Identifier)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hBody :
+      EvmYul.Yul.exec (fuel + 7) (.Block defaultBody) codeOverride state =
+        .ok final)
+    (hNonempty : defaultBody ≠ []) :
+    EvmYul.Yul.exec (fuel + 9)
+      (.Block (nativeSwitchDefaultIf matchedName defaultBody))
+      codeOverride state = .ok final := by
+  simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+    (exec_nativeSwitchDefaultIf_unmatched_nonempty_fuel (fuel + 1)
+      defaultBody codeOverride state final matchedName hMatched hBody hNonempty)
+
+/-- Compose a generated case chain with its optional default when the case chain
+    has already set and preserved the matched flag. -/
+theorem exec_nativeSwitchCaseIfs_with_default_matched_fuel
+    (fuel : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state final : EvmYul.Yul.State)
+    (discrName matchedName : EvmYul.Identifier)
+    (hCases :
+      EvmYul.Yul.exec (fuel + cases.length + 9)
+        (.Block (nativeSwitchCaseIfs discrName matchedName cases))
+        codeOverride state = .ok final)
+    (hFinalMatched : final[matchedName]! = EvmYul.UInt256.ofNat 1) :
+    EvmYul.Yul.exec (fuel + cases.length + 9)
+      (.Block
+        (nativeSwitchCaseIfs discrName matchedName cases ++
+          nativeSwitchDefaultIf matchedName defaultBody))
+      codeOverride state = .ok final := by
+  have hDefault :
+      EvmYul.Yul.exec (fuel + 9)
+        (.Block (nativeSwitchDefaultIf matchedName defaultBody))
+        codeOverride final = .ok final :=
+    exec_nativeSwitchDefaultIf_matched_caseTail_fuel fuel defaultBody
+      codeOverride final matchedName hFinalMatched
+  simpa [nativeSwitchCaseIfs, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+    using exec_block_append_ok fuel 9
+      (nativeSwitchCaseIfs discrName matchedName cases)
+      (nativeSwitchDefaultIf matchedName defaultBody)
+      codeOverride state final final
+      (by simpa [nativeSwitchCaseIfs, Nat.add_assoc, Nat.add_comm,
+        Nat.add_left_comm] using hCases)
+      hDefault
+
+/-- Selector-hit execution for the generated case chain followed by the
+    generated optional default statement list. The selected body must preserve
+    the matched flag so the default guard and suffix cases skip. -/
+theorem exec_nativeSwitchCaseIfs_find_hit_with_default_preserved_fuel
+    (fuel selector : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt) (tag : Nat)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state final : EvmYul.Yul.State)
+    (discrName matchedName : EvmYul.Identifier)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hDiscrSelector : state[discrName]! = EvmYul.UInt256.ofNat selector)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange : ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hMarked : (state.insert matchedName (EvmYul.UInt256.ofNat 1))[matchedName]! =
+      EvmYul.UInt256.ofNat 1)
+    (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      EvmYul.Yul.exec (fuel + suffix.length + 7) (.Block body) codeOverride
+        (state.insert matchedName (EvmYul.UInt256.ofNat 1)) = .ok final)
+    (hPreservesMatched : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      NativeBlockPreservesWord matchedName (EvmYul.UInt256.ofNat 1) body codeOverride) :
+    EvmYul.Yul.exec (fuel + cases.length + 9) (.Block
+      (nativeSwitchCaseIfs discrName matchedName cases ++ nativeSwitchDefaultIf matchedName defaultBody))
+      codeOverride state = .ok final := by
+  have hCases :
+      EvmYul.Yul.exec (fuel + cases.length + 9)
+        (.Block (nativeSwitchCaseIfs discrName matchedName cases))
+        codeOverride state = .ok final :=
+    exec_nativeSwitchCaseIfs_find_hit_preserved_fuel fuel selector cases tag
+      body codeOverride state final discrName matchedName hFind hMatched
+      hDiscrSelector hSelectorRange hTagsRange hMarked hBody hPreservesMatched
+  have hFinalMatched : final[matchedName]! = EvmYul.UInt256.ofNat 1 := by
+    rcases nativeSwitch_find_hit_split selector cases tag body hFind with
+      ⟨pre, suffix, hCasesEq, _hTag, _hPrefix⟩
+    exact hPreservesMatched pre suffix hCasesEq
+      (fuel + suffix.length + 7)
+      (state.insert matchedName (EvmYul.UInt256.ofNat 1)) final hMarked
+      (hBody pre suffix hCasesEq)
+  exact exec_nativeSwitchCaseIfs_with_default_matched_fuel fuel cases
+    defaultBody codeOverride state final discrName matchedName hCases
+    hFinalMatched
+
+/-- Selector-miss execution for the generated case chain followed by a
+    non-empty generated default block. -/
+theorem exec_nativeSwitchCaseIfs_find_none_with_default_nonempty_fuel
+    (fuel selector : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state final : EvmYul.Yul.State)
+    (discrName matchedName : EvmYul.Identifier)
+    (hFind :
+      cases.find? (fun entry => entry.1 == selector) = none)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hDiscrSelector : state[discrName]! = EvmYul.UInt256.ofNat selector)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases → tag < EvmYul.UInt256.size)
+    (hDefaultBody :
+      EvmYul.Yul.exec (fuel + 7) (.Block defaultBody) codeOverride state =
+        .ok final)
+    (hNonempty : defaultBody ≠ []) :
+    EvmYul.Yul.exec (fuel + cases.length + 9)
+      (.Block
+        (nativeSwitchCaseIfs discrName matchedName cases ++
+          nativeSwitchDefaultIf matchedName defaultBody))
+      codeOverride state = .ok final := by
+  have hCases :
+      EvmYul.Yul.exec (fuel + cases.length + 9)
+        (.Block (nativeSwitchCaseIfs discrName matchedName cases))
+        codeOverride state = .ok state :=
+    exec_nativeSwitchCaseIfs_find_none_fuel fuel selector cases codeOverride
+      state discrName matchedName hFind hMatched hDiscrSelector hSelectorRange
+      hTagsRange
+  have hDefault :
+      EvmYul.Yul.exec (fuel + 9)
+        (.Block (nativeSwitchDefaultIf matchedName defaultBody))
+        codeOverride state = .ok final :=
+    exec_nativeSwitchDefaultIf_unmatched_caseTail_nonempty_fuel fuel
+      defaultBody codeOverride state final matchedName hMatched hDefaultBody
+      hNonempty
+  simpa [nativeSwitchCaseIfs, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+    using
+      (exec_block_append_ok fuel 9
+        (nativeSwitchCaseIfs discrName matchedName cases)
+        (nativeSwitchDefaultIf matchedName defaultBody)
+        codeOverride state state final
+        (by simpa [nativeSwitchCaseIfs, Nat.add_assoc, Nat.add_comm,
+          Nat.add_left_comm] using hCases)
+        hDefault)
+
+/-- Selector-miss execution for the generated case chain when no default is
+    emitted. -/
+theorem exec_nativeSwitchCaseIfs_find_none_without_default_fuel
+    (fuel selector : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State)
+    (discrName matchedName : EvmYul.Identifier)
+    (hFind :
+      cases.find? (fun entry => entry.1 == selector) = none)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hDiscrSelector : state[discrName]! = EvmYul.UInt256.ofNat selector)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases → tag < EvmYul.UInt256.size) :
+    EvmYul.Yul.exec (fuel + cases.length + 9)
+      (.Block
+        (nativeSwitchCaseIfs discrName matchedName cases ++
+          nativeSwitchDefaultIf matchedName []))
+      codeOverride state = .ok state := by
+  have hCases :
+      EvmYul.Yul.exec (fuel + cases.length + 9)
+        (.Block (nativeSwitchCaseIfs discrName matchedName cases))
+        codeOverride state = .ok state :=
+    exec_nativeSwitchCaseIfs_find_none_fuel fuel selector cases codeOverride
+      state discrName matchedName hFind hMatched hDiscrSelector hSelectorRange
+      hTagsRange
+  have hDefault :
+      EvmYul.Yul.exec (fuel + 9)
+        (.Block (nativeSwitchDefaultIf matchedName []))
+        codeOverride state = .ok state := by
+    simp [nativeSwitchDefaultIf, EvmYul.Yul.exec]
+  simpa [nativeSwitchCaseIfs, nativeSwitchDefaultIf, Nat.add_assoc,
+    Nat.add_comm, Nat.add_left_comm] using
+      (exec_block_append_ok fuel 9
+        (nativeSwitchCaseIfs discrName matchedName cases)
+        (nativeSwitchDefaultIf matchedName [])
+        codeOverride state state state
+        (by simpa [nativeSwitchCaseIfs, Nat.add_assoc, Nat.add_comm,
+          Nat.add_left_comm] using hCases)
+        hDefault)
 
 @[simp] theorem initialState_unbridgedEnvironmentDefaults
     (contract : EvmYul.Yul.Ast.YulContract)

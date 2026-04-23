@@ -2838,6 +2838,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_selectorExpr_initialState_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lit_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_cons_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_append_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_nil_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_selector_initialState_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_eval_zero
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_eval_nonzero
@@ -2886,6 +2888,12 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_unmatched_nonempty_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_matched_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_matched_caseTail_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_unmatched_caseTail_nonempty_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_with_default_matched_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_with_default_preserved_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_with_default_nonempty_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_without_default_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_unbridgedEnvironmentDefaults
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_accountStorageSlot
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_missingAccountStorageSlot
@@ -3213,4 +3221,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3040 theorems/lemmas (2136 public, 904 private, 0 sorry'd)
+-- Total: 3048 theorems/lemmas (2144 public, 904 private, 0 sorry'd)
