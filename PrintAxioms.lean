@@ -2849,6 +2849,11 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerAssignNative_lit_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_hit_marked
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_matched
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchDefaultGuard_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchDefaultGuard_unmatched_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchDefaultGuard_matched_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_unmatched
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_matched
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_unbridgedEnvironmentDefaults
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_accountStorageSlot
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_missingAccountStorageSlot
@@ -3176,4 +3181,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3003 theorems/lemmas (2103 public, 900 private, 0 sorry'd)
+-- Total: 3008 theorems/lemmas (2108 public, 900 private, 0 sorry'd)

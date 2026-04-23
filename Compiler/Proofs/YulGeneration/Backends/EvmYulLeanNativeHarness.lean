@@ -1444,6 +1444,87 @@ theorem exec_if_nativeSwitchGuardedMatch_matched
     (eval_nativeSwitchGuardedMatch_matched_ok state codeOverride discrName matchedName tag
       hMatched)
 
+/-- Native evaluation of the lazy lowered switch default guard peels to
+    `ISZERO(matched)`. -/
+theorem eval_nativeSwitchDefaultGuard_ok
+    (state : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (matchedName : EvmYul.Identifier) :
+    EvmYul.Yul.eval 6
+      (Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+        [.Var matchedName])
+      codeOverride state =
+    .ok (state, EvmYul.UInt256.isZero state[matchedName]!) := by
+  simp [Backends.nativePrimCall, EvmYul.Yul.eval, EvmYul.Yul.evalArgs,
+    EvmYul.Yul.evalTail, EvmYul.Yul.evalPrimCall, EvmYul.Yul.reverse',
+    EvmYul.Yul.cons', EvmYul.Yul.head']
+
+/-- If no lowered switch case has matched, the default guard is nonzero. -/
+theorem eval_nativeSwitchDefaultGuard_unmatched_ok
+    (state : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (matchedName : EvmYul.Identifier)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0) :
+    EvmYul.Yul.eval 6
+      (Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+        [.Var matchedName])
+      codeOverride state =
+    .ok (state, EvmYul.UInt256.ofNat 1) := by
+  rw [eval_nativeSwitchDefaultGuard_ok, hMatched]
+  simp [EvmYul.UInt256.isZero]
+  decide
+
+/-- If a lowered switch case has matched, the default guard is zero. -/
+theorem eval_nativeSwitchDefaultGuard_matched_ok
+    (state : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (matchedName : EvmYul.Identifier)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 1) :
+    EvmYul.Yul.eval 6
+      (Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+        [.Var matchedName])
+      codeOverride state =
+    .ok (state, EvmYul.UInt256.ofNat 0) := by
+  rw [eval_nativeSwitchDefaultGuard_ok, hMatched]
+  simp [EvmYul.UInt256.isZero]
+  decide
+
+/-- Native `if` execution for the lowered switch default when no case matched. -/
+theorem exec_if_nativeSwitchDefaultGuard_unmatched
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state final : EvmYul.Yul.State)
+    (matchedName : EvmYul.Identifier)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hBody : EvmYul.Yul.exec 6 (.Block body) codeOverride state = .ok final) :
+    EvmYul.Yul.exec 7
+      (.If
+        (Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+          [.Var matchedName])
+        body)
+      codeOverride state = .ok final := by
+  exact exec_if_eval_nonzero 6 _ body codeOverride state state final
+    (EvmYul.UInt256.ofNat 1)
+    (eval_nativeSwitchDefaultGuard_unmatched_ok state codeOverride matchedName hMatched)
+    (by decide)
+    hBody
+
+/-- Native `if` execution skips the lowered switch default after a case matched. -/
+theorem exec_if_nativeSwitchDefaultGuard_matched
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State)
+    (matchedName : EvmYul.Identifier)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 1) :
+    EvmYul.Yul.exec 7
+      (.If
+        (Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+          [.Var matchedName])
+        body)
+      codeOverride state = .ok state := by
+  exact exec_if_eval_zero 6 _ body codeOverride state state
+    (eval_nativeSwitchDefaultGuard_matched_ok state codeOverride matchedName hMatched)
+
 @[simp] theorem initialState_unbridgedEnvironmentDefaults
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)

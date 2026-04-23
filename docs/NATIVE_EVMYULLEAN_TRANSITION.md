@@ -256,9 +256,14 @@ scope so the native path does not look more complete than it is:
    guard hit, matched-flag assignment, and native `if` execution step, while
    `eval_nativeSwitchGuardedMatch_matched_ok` and
    `exec_if_nativeSwitchGuardedMatch_matched` package the later-case skip
-   once the matched flag is set. The remaining native dispatcher proof starts
-   after that switch prefix, at whole guarded case-chain execution and
-   selected-body preservation. The adapter now names the needed freshness
+   once the matched flag is set. `eval_nativeSwitchDefaultGuard_ok`,
+   `eval_nativeSwitchDefaultGuard_unmatched_ok`,
+   `eval_nativeSwitchDefaultGuard_matched_ok`,
+   `exec_if_nativeSwitchDefaultGuard_unmatched`, and
+   `exec_if_nativeSwitchDefaultGuard_matched` package the generated default
+   guard for both no-case-matched and case-already-matched paths. The remaining
+   native dispatcher proof starts after that switch prefix, at whole guarded
+   case-chain execution and selected-body preservation. The adapter now names the needed freshness
    surface with `yulStmtWriteNames`, `yulStmtsWriteNames`,
    `nativeStmtWriteNames`, `nativeStmtsWriteNames`,
    `nativeSwitchTempsFreshForWrites`,
@@ -366,8 +371,13 @@ scope so the native path does not look more complete than it is:
    `exec_if_nativeSwitchGuardedMatch_hit`, `exec_lowerAssignNative_lit_ok`,
    `exec_if_nativeSwitchGuardedMatch_hit_marked`,
    `eval_nativeSwitchGuardedMatch_matched_ok`,
-   `exec_if_nativeSwitchGuardedMatch_matched`, and companion native
-   `exec`/primitive reduction lemmas for the lazy guarded switch case gate,
+   `exec_if_nativeSwitchGuardedMatch_matched`,
+   `eval_nativeSwitchDefaultGuard_ok`,
+   `eval_nativeSwitchDefaultGuard_unmatched_ok`,
+   `eval_nativeSwitchDefaultGuard_matched_ok`,
+   `exec_if_nativeSwitchDefaultGuard_unmatched`,
+   `exec_if_nativeSwitchDefaultGuard_matched`, and companion native
+   `exec`/primitive reduction lemmas for the lazy guarded switch case/default gates,
    the native-switch write-target collectors and freshness predicates
    `yulStmtsWriteNames`, `nativeStmtsWriteNames`,
    `nativeSwitchTempsFreshForSourceBodies`, and
