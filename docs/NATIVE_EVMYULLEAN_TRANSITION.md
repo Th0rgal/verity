@@ -239,7 +239,12 @@ scope so the native path does not look more complete than it is:
    `initialState_selectorExpr_native_value` and
    `eval_lowerExprNative_selectorExpr_initialState_ok` theorems therefore prove
    that native evaluation of the lowered selector expression over the bridged
-   initial state returns `tx.functionSelector % selectorModulus`. The named
+   initial state returns `tx.functionSelector % selectorModulus`.
+   `exec_let_lowerExprNative_selectorExpr_initialState_ok`, `exec_let_lit_ok`,
+   and `exec_nativeSwitchPrefix_selector_initialState_ok` then package the
+   first two statements emitted by the generated native switch block:
+   discriminator-temp initialization from the normalized selector followed by
+   matched-flag initialization to zero. The named
    `step_eq_ok`, `step_iszero_ok`, `step_and_ok`, `primCall_eq_ok`,
    `primCall_iszero_ok`, `primCall_and_ok`, `exec_block_cons_ok`,
    `exec_if_eval_zero`, `exec_if_eval_nonzero`, and
@@ -252,9 +257,10 @@ scope so the native path does not look more complete than it is:
    `eval_nativeSwitchGuardedMatch_matched_ok` and
    `exec_if_nativeSwitchGuardedMatch_matched` package the later-case skip
    once the matched flag is set. The remaining native dispatcher proof starts
-   at whole guarded case-chain execution and selected-body preservation; the
-   key precondition to discharge is that fresh native switch temporaries are
-   not reassigned by lowered case/default bodies while the selected body runs.
+   after that switch prefix, at whole guarded case-chain execution and
+   selected-body preservation; the key precondition to discharge is that fresh
+   native switch temporaries are not reassigned by lowered case/default bodies
+   while the selected body runs.
 
 2. Prove native state bridge lemmas.
 
@@ -348,6 +354,9 @@ scope so the native path does not look more complete than it is:
    `initialState_selectorExpr_native_value`, and
    `eval_lowerExprNative_selectorExpr_initialState_ok` lemmas proving native
    selector-value agreement for the bridged initial state, the named
+   `exec_let_lowerExprNative_selectorExpr_initialState_ok`, `exec_let_lit_ok`,
+   and `exec_nativeSwitchPrefix_selector_initialState_ok` lemmas for the
+   generated native switch discriminator/matched-prefix initialization, the named
    `eval_nativeSwitchGuardedMatch_ok`, `eval_nativeSwitchGuardedMatch_hit_ok`,
    `exec_if_nativeSwitchGuardedMatch_hit`, `exec_lowerAssignNative_lit_ok`,
    `exec_if_nativeSwitchGuardedMatch_hit_marked`,

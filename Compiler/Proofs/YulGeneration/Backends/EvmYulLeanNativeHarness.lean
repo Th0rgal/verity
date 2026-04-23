@@ -1120,6 +1120,78 @@ theorem eval_lowerExprNative_selectorExpr_initialState_ok
     exact Nat.lt_trans hmod hsel
   rw [hv]
 
+theorem exec_let_lowerExprNative_selectorExpr_initialState_ok
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (discrName : EvmYul.Identifier) :
+    EvmYul.Yul.exec 11
+        (.Let [discrName]
+          (some (Backends.lowerExprNative Compiler.Proofs.YulGeneration.selectorExpr)))
+        (some contract) (.Ok (initialState contract tx storage observableSlots).sharedState ∅) =
+      .ok ((.Ok (initialState contract tx storage observableSlots).sharedState ∅ :
+          EvmYul.Yul.State).insert discrName
+        (EvmYul.UInt256.ofNat
+          (tx.functionSelector % Compiler.Constants.selectorModulus))) := by
+  have hv :
+      EvmYul.UInt256.shiftRight
+        (EvmYul.State.calldataload
+          (EvmYul.SharedState.toState
+            (initialState contract tx storage observableSlots).sharedState)
+          (EvmYul.UInt256.ofNat 0))
+        (EvmYul.UInt256.ofNat Compiler.Constants.selectorShift) =
+      EvmYul.UInt256.ofNat
+        (tx.functionSelector % Compiler.Constants.selectorModulus) := by
+    apply uint256_eq_of_toNat_eq
+    rw [show EvmYul.UInt256.toNat
+        (EvmYul.UInt256.shiftRight
+          (EvmYul.State.calldataload
+            (EvmYul.SharedState.toState
+              (initialState contract tx storage observableSlots).sharedState)
+            (EvmYul.UInt256.ofNat 0))
+          (EvmYul.UInt256.ofNat Compiler.Constants.selectorShift)) =
+        tx.functionSelector % Compiler.Constants.selectorModulus by
+      simpa [EvmYul.Yul.State.toState] using
+        initialState_selectorExpr_native_value contract tx storage observableSlots]
+    rw [uint256_ofNat_toNat_of_lt]
+    have hmod :
+        tx.functionSelector % Compiler.Constants.selectorModulus <
+          Compiler.Constants.selectorModulus := by
+      exact Nat.mod_lt _ (by norm_num [Compiler.Constants.selectorModulus])
+    have hsel :
+        Compiler.Constants.selectorModulus < EvmYul.UInt256.size := by
+      norm_num [Compiler.Constants.selectorModulus, EvmYul.UInt256.size]
+    exact Nat.lt_trans hmod hsel
+  have hv224 :
+      EvmYul.UInt256.shiftRight
+        (EvmYul.State.calldataload
+          (EvmYul.SharedState.toState
+            (initialState contract tx storage observableSlots).sharedState)
+          (EvmYul.UInt256.ofNat 0))
+        (EvmYul.UInt256.ofNat 224) =
+      EvmYul.UInt256.ofNat
+        (tx.functionSelector % Compiler.Constants.selectorModulus) := by
+    simpa [Compiler.Constants.selectorShift] using hv
+  rw [lowerExprNative_selectorExpr]
+  simp [EvmYul.Yul.exec, EvmYul.Yul.eval, EvmYul.Yul.evalArgs,
+    EvmYul.Yul.evalTail, EvmYul.Yul.evalPrimCall, EvmYul.Yul.execPrimCall,
+    EvmYul.Yul.reverse', EvmYul.Yul.cons', EvmYul.Yul.head',
+    EvmYul.Yul.multifill', EvmYul.Yul.State.multifill,
+    Compiler.Constants.selectorShift]
+  rw [hv224]
+
+@[simp] theorem exec_let_lit_ok
+    (fuel' : Nat)
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.exec (Nat.succ fuel')
+        (.Let [name] (some (.Lit value))) codeOverride state =
+      .ok (state.insert name value) := by
+  simp [EvmYul.Yul.exec]
+
 /-- If the head statement of a native block finishes normally, execution
     continues with the remaining block statements at the same decremented fuel. -/
 theorem exec_block_cons_ok
@@ -1130,9 +1202,63 @@ theorem exec_block_cons_ok
     (state next final : EvmYul.Yul.State)
     (hHead : EvmYul.Yul.exec fuel' stmt codeOverride state = .ok next)
     (hTail : EvmYul.Yul.exec fuel' (.Block stmts) codeOverride next = .ok final) :
-    EvmYul.Yul.exec (Nat.succ fuel') (.Block (stmt :: stmts)) codeOverride state =
+  EvmYul.Yul.exec (Nat.succ fuel') (.Block (stmt :: stmts)) codeOverride state =
       .ok final := by
   simp [EvmYul.Yul.exec, hHead, hTail]
+
+/-- The generated dispatcher switch prefix initializes the discriminator temp
+    from native calldata selector evaluation, then clears the lazy matched flag.
+
+This packages the first two statements emitted by `lowerNativeSwitchBlock` for
+the generated dispatcher case and leaves the remaining case-chain proof with a
+state whose native switch temporaries are aligned to the interpreter oracle. -/
+theorem exec_nativeSwitchPrefix_selector_initialState_ok
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (discrName matchedName : EvmYul.Identifier) :
+    EvmYul.Yul.exec 12
+      (.Block
+        [.Let [discrName]
+          (some (Backends.lowerExprNative Compiler.Proofs.YulGeneration.selectorExpr)),
+         .Let [matchedName]
+          (some (.Lit (EvmYul.UInt256.ofNat 0)))])
+      (some contract)
+      (.Ok (initialState contract tx storage observableSlots).sharedState ∅) =
+    .ok (((.Ok (initialState contract tx storage observableSlots).sharedState ∅ :
+        EvmYul.Yul.State).insert discrName
+      (EvmYul.UInt256.ofNat
+        (tx.functionSelector % Compiler.Constants.selectorModulus))).insert
+      matchedName (EvmYul.UInt256.ofNat 0)) := by
+  let initState : EvmYul.Yul.State :=
+    .Ok (initialState contract tx storage observableSlots).sharedState ∅
+  let discrState : EvmYul.Yul.State :=
+    initState.insert discrName
+      (EvmYul.UInt256.ofNat
+        (tx.functionSelector % Compiler.Constants.selectorModulus))
+  let matchedState : EvmYul.Yul.State :=
+    discrState.insert matchedName (EvmYul.UInt256.ofNat 0)
+  change EvmYul.Yul.exec 12
+      (.Block
+        [.Let [discrName]
+          (some (Backends.lowerExprNative Compiler.Proofs.YulGeneration.selectorExpr)),
+         .Let [matchedName]
+          (some (.Lit (EvmYul.UInt256.ofNat 0)))])
+      (some contract) initState = .ok matchedState
+  apply exec_block_cons_ok 11
+      (.Let [discrName]
+        (some (Backends.lowerExprNative Compiler.Proofs.YulGeneration.selectorExpr)))
+      [.Let [matchedName] (some (.Lit (EvmYul.UInt256.ofNat 0)))]
+      (some contract) initState discrState matchedState
+  · exact exec_let_lowerExprNative_selectorExpr_initialState_ok
+      contract tx storage observableSlots discrName
+  · apply exec_block_cons_ok 10
+        (.Let [matchedName] (some (.Lit (EvmYul.UInt256.ofNat 0))))
+        [] (some contract) discrState matchedState matchedState
+    · simp
+      simp [matchedState]
+    · simp [EvmYul.Yul.exec]
 
 /-- Native `if` reduction for a zero guard. -/
 theorem exec_if_eval_zero
@@ -1279,7 +1405,7 @@ theorem exec_if_nativeSwitchGuardedMatch_hit
     EvmYul.Yul.exec (Nat.succ fuel')
       (Backends.lowerAssignNative name (.lit value)) codeOverride state =
       .ok (state.insert name (EvmYul.UInt256.ofNat value)) := by
-  simp [Backends.lowerAssignNative, Backends.lowerExprNative, EvmYul.Yul.exec]
+  simp [Backends.lowerAssignNative, Backends.lowerExprNative]
 
 /-- Native `if` execution for the selected lowered switch case, including the
     leading matched-flag assignment inserted by `lowerNativeSwitchBlock`.
