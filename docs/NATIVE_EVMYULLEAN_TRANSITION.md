@@ -299,9 +299,18 @@ scope so the native path does not look more complete than it is:
   bodies and threading the initialized prefix state plus the lowering lookup
   facts into the raw lowered switch block. The harness now exposes that raw
   switch shape as `lowerNativeSwitchBlock_selectorExpr_eq_nativeSwitchParts`
-  and starts the body preservation algebra with `state_lookup_insert_of_ne`,
-  `NativeBlockPreservesWord_nil`, and `NativeBlockPreservesWord_cons`; the
-  next proof step is the statement induction that derives those preservation
+  and packages the raw block execution bridge with
+  `exec_lowerNativeSwitchBlock_selector_find_hit_preserved_fuel`,
+  `exec_lowerNativeSwitchBlock_selector_find_none_with_default_nonempty_fuel`,
+  and `exec_lowerNativeSwitchBlock_selector_find_none_without_default_fuel`.
+  The body preservation algebra now includes `state_lookup_insert_of_ne`,
+  `nativeSwitchPrefixFinalState_matched`,
+  `nativeSwitchPrefixFinalState_discr`,
+  `nativeSwitchPrefixFinalState_marked`, `NativeBlockPreservesWord_nil`,
+  `NativeBlockPreservesWord_cons`,
+  `nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem`, and
+  `nativeSwitchTempsFreshForNativeBodies_default_matched_not_mem`; the next
+  proof step is the statement induction that derives those preservation
   obligations from `nativeStmtsWriteNames` freshness. The adapter now names
    the needed freshness surface with `yulStmtWriteNames`,
    `yulStmtsWriteNames`,
@@ -435,11 +444,16 @@ scope so the native path does not look more complete than it is:
    `exec_nativeSwitchCaseIfs_find_none_with_default_nonempty_fuel`, and
    `exec_nativeSwitchCaseIfs_find_none_without_default_fuel` for complete
    generated case-chain plus optional-default execution,
+   `exec_lowerNativeSwitchBlock_selector_find_hit_preserved_fuel`,
+   `exec_lowerNativeSwitchBlock_selector_find_none_with_default_nonempty_fuel`,
+   and `exec_lowerNativeSwitchBlock_selector_find_none_without_default_fuel`
+   for raw lowered switch-block execution from the native initial state,
    and companion native `exec`/primitive reduction lemmas for the lazy guarded switch case/default gates,
    the native-switch write-target collectors and freshness predicates
    `yulStmtsWriteNames`, `nativeStmtsWriteNames`,
    `nativeSwitchTempsFreshForSourceBodies`, and
-   `nativeSwitchTempsFreshForNativeBodies`,
+   `nativeSwitchTempsFreshForNativeBodies`, plus freshness projection lemmas
+   for selected native bodies and optional defaults,
    plus the named
    `bridgedExpr_selectorExpr` and
    `evalYulExprWithBackend_evmYulLean_selectorExpr_semantics` lemmas for the

@@ -2013,6 +2013,16 @@ def nativeSwitchDefaultIf
   if defaultBody.isEmpty then []
   else [.If (nativeSwitchDefaultGuardExpr matchedName) defaultBody]
 
+def nativeSwitchTailStmts
+    (switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt) :
+    List EvmYul.Yul.Ast.Stmt :=
+  nativeSwitchCaseIfs (Backends.nativeSwitchDiscrTempName switchId)
+    (Backends.nativeSwitchMatchedTempName switchId) cases ++
+    nativeSwitchDefaultIf (Backends.nativeSwitchMatchedTempName switchId)
+      defaultBody
+
 theorem lowerNativeSwitchBlock_selectorExpr_eq_nativeSwitchParts
     (switchId : Nat)
     (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
@@ -2022,13 +2032,10 @@ theorem lowerNativeSwitchBlock_selectorExpr_eq_nativeSwitchParts
     .Block
       (nativeSwitchPrefixStmts (Backends.nativeSwitchDiscrTempName switchId)
           (Backends.nativeSwitchMatchedTempName switchId) ++
-        nativeSwitchCaseIfs (Backends.nativeSwitchDiscrTempName switchId)
-          (Backends.nativeSwitchMatchedTempName switchId) cases ++
-        nativeSwitchDefaultIf (Backends.nativeSwitchMatchedTempName switchId)
-          defaultBody) := by
+        nativeSwitchTailStmts switchId cases defaultBody) := by
   simp [Backends.lowerNativeSwitchBlock, nativeSwitchPrefixStmts,
     nativeSwitchCaseIfs, nativeSwitchCaseIf, nativeSwitchGuardedMatchExpr,
-    nativeSwitchDefaultIf, nativeSwitchDefaultGuardExpr]
+    nativeSwitchTailStmts, nativeSwitchDefaultIf, nativeSwitchDefaultGuardExpr]
 
 def NativeBlockPreservesWord
     (name : EvmYul.Identifier)
@@ -2053,6 +2060,87 @@ theorem state_lookup_insert_of_ne
       rw [Finmap.lookup_insert_of_ne store hne]
   | OutOfFuel => simp [EvmYul.Yul.State.insert]
   | Checkpoint jump => simp [EvmYul.Yul.State.insert]
+
+theorem nativeSwitchDiscrTempName_ne_matchedTempName
+    (switchId : Nat) :
+    Backends.nativeSwitchDiscrTempName switchId ≠
+      Backends.nativeSwitchMatchedTempName switchId := by
+  intro h
+  have hlen := congrArg String.length h
+  have hd :
+      (toString "__verity_native_switch_discr_").length = 29 := by
+    decide
+  have hm :
+      (toString "__verity_native_switch_matched_").length = 31 := by
+    decide
+  simp [Backends.nativeSwitchDiscrTempName,
+    Backends.nativeSwitchMatchedTempName, hd, hm] at hlen
+
+theorem nativeSwitchPrefixFinalState_matched
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (discrName matchedName : EvmYul.Identifier) :
+    (nativeSwitchPrefixFinalState contract tx storage observableSlots
+      discrName matchedName)[matchedName]! = EvmYul.UInt256.ofNat 0 := by
+  simp [nativeSwitchPrefixFinalState, nativeSwitchInitialOkState,
+    EvmYul.Yul.State.insert, GetElem?.getElem!, decidableGetElem?,
+    GetElem.getElem, EvmYul.Yul.State.store, EvmYul.Yul.State.lookup!]
+
+theorem nativeSwitchPrefixFinalState_discr
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (discrName matchedName : EvmYul.Identifier)
+    (selector : Nat)
+    (hne : discrName ≠ matchedName)
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus) :
+    (nativeSwitchPrefixFinalState contract tx storage observableSlots discrName matchedName)[discrName]! =
+      EvmYul.UInt256.ofNat selector := by
+  rw [hSelector]
+  simp [nativeSwitchPrefixFinalState, nativeSwitchInitialOkState,
+    EvmYul.Yul.State.insert, GetElem?.getElem!, decidableGetElem?,
+    GetElem.getElem, EvmYul.Yul.State.store, EvmYul.Yul.State.lookup!]
+  rw [Finmap.lookup_insert_of_ne]
+  · rw [Finmap.lookup_insert]
+    simp
+  · exact hne
+
+theorem nativeSwitchPrefixFinalState_marked
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (discrName matchedName : EvmYul.Identifier) :
+    ((nativeSwitchPrefixFinalState contract tx storage observableSlots discrName matchedName).insert matchedName (EvmYul.UInt256.ofNat 1))[matchedName]! =
+      EvmYul.UInt256.ofNat 1 := by
+  simp [nativeSwitchPrefixFinalState, nativeSwitchInitialOkState,
+    EvmYul.Yul.State.insert, GetElem?.getElem!, decidableGetElem?,
+    GetElem.getElem, EvmYul.Yul.State.store, EvmYul.Yul.State.lookup!]
+
+def nativeSwitchPrefixStateForId
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (switchId : Nat) :
+    EvmYul.Yul.State :=
+  nativeSwitchPrefixFinalState contract tx storage observableSlots
+    (Backends.nativeSwitchDiscrTempName switchId)
+    (Backends.nativeSwitchMatchedTempName switchId)
+
+def nativeSwitchMarkedPrefixStateForId
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (switchId : Nat) :
+    EvmYul.Yul.State :=
+  (nativeSwitchPrefixStateForId contract tx storage observableSlots switchId).insert
+    (Backends.nativeSwitchMatchedTempName switchId) (EvmYul.UInt256.ofNat 1)
 
 theorem NativeBlockPreservesWord_nil
     (name : EvmYul.Identifier)
@@ -2095,6 +2183,51 @@ theorem NativeBlockPreservesWord_cons
           have hNext : next[name]! = value :=
             hHead fuel' state next hLookup hStmt
           exact hRest fuel' next final hNext hExec
+
+theorem nativeSwitchTempsFreshForNativeBodies_case_matched_not_mem
+    (switchId tag : Nat)
+    (body defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (hFresh :
+      Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody)
+    (hMem : (tag, body) ∈ cases) :
+    Backends.nativeSwitchMatchedTempName switchId ∉
+      Backends.nativeStmtsWriteNames body :=
+  (hFresh.1 tag body hMem).2
+
+theorem nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem
+    (switchId selector tag : Nat)
+    (body defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (hFresh :
+      Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody)
+    (hFind : cases.find? (fun entry => entry.1 == selector) =
+      some (tag, body)) :
+    Backends.nativeSwitchMatchedTempName switchId ∉
+      Backends.nativeStmtsWriteNames body := by
+  have hMem : (tag, body) ∈ cases := by
+    clear hFresh
+    induction cases with
+    | nil =>
+        simp [List.find?] at hFind
+    | cons head rest ih =>
+        cases hHead : (head.1 == selector)
+        · simp [List.find?, hHead] at hFind
+          exact List.mem_cons_of_mem head (ih hFind)
+        · simp [List.find?, hHead] at hFind
+          simp [hFind]
+  exact nativeSwitchTempsFreshForNativeBodies_case_matched_not_mem
+    switchId tag body defaultBody cases hFresh hMem
+
+theorem nativeSwitchTempsFreshForNativeBodies_default_matched_not_mem
+    (switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (hFresh :
+      Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody) :
+    Backends.nativeSwitchMatchedTempName switchId ∉
+      Backends.nativeStmtsWriteNames defaultBody :=
+  hFresh.2.2
 
 @[simp] theorem nativeSwitchCaseIfs_nil
     (discrName matchedName : EvmYul.Identifier) :
@@ -2882,6 +3015,291 @@ theorem exec_nativeSwitchCaseIfs_find_none_without_default_fuel
         (by simpa [nativeSwitchCaseIfs, Nat.add_assoc, Nat.add_comm,
           Nat.add_left_comm] using hCases)
         hDefault)
+
+theorem exec_nativeSwitchPrefix_then_tail_fuel
+    (fuel : Nat)
+    (tail : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (discrName matchedName : EvmYul.Identifier)
+    (final : EvmYul.Yul.State)
+    (hTail :
+      EvmYul.Yul.exec (fuel + 10) (.Block tail) (some contract)
+        (nativeSwitchPrefixFinalState contract tx storage observableSlots
+          discrName matchedName) =
+        .ok final) :
+    EvmYul.Yul.exec (fuel + 12)
+      (.Block (nativeSwitchPrefixStmts discrName matchedName ++ tail))
+      (some contract)
+      (nativeSwitchInitialOkState contract tx storage observableSlots) =
+    .ok final := by
+  let prefixState :=
+    nativeSwitchPrefixFinalState contract tx storage observableSlots
+      discrName matchedName
+  have hPrefix :
+      EvmYul.Yul.exec (fuel + 12)
+        (.Block (nativeSwitchPrefixStmts discrName matchedName))
+        (some contract)
+        (nativeSwitchInitialOkState contract tx storage observableSlots) =
+      .ok prefixState := by
+    simpa [prefixState, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+      (exec_nativeSwitchPrefix_selector_initialState_ok_fuel fuel
+        contract tx storage observableSlots discrName matchedName)
+  exact exec_block_append_ok (fuel + 10) 0
+    (nativeSwitchPrefixStmts discrName matchedName) tail
+    (some contract)
+    (nativeSwitchInitialOkState contract tx storage observableSlots)
+    prefixState final
+    (by simpa [nativeSwitchPrefixStmts, Nat.add_assoc, Nat.add_comm,
+      Nat.add_left_comm] using hPrefix)
+    (by simpa [prefixState] using hTail)
+
+theorem exec_nativeSwitchTail_find_hit_preserved_fuel
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : Nat → Nat) (observableSlots : List Nat)
+    (final : EvmYul.Yul.State)
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body)
+        (some contract) (nativeSwitchMarkedPrefixStateForId contract tx storage
+          observableSlots switchId) = .ok final)
+    (hPreservesMatched : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      NativeBlockPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
+        (EvmYul.UInt256.ofNat 1) body (some contract)) :
+    EvmYul.Yul.exec (fuel + cases.length + 10)
+      (.Block (nativeSwitchTailStmts switchId cases defaultBody))
+      (some contract) (nativeSwitchPrefixStateForId contract tx storage
+        observableSlots switchId) =
+    .ok final := by
+  let discrName : EvmYul.Identifier := Backends.nativeSwitchDiscrTempName switchId
+  let matchedName : EvmYul.Identifier := Backends.nativeSwitchMatchedTempName switchId
+  let prefixState :=
+    nativeSwitchPrefixFinalState contract tx storage observableSlots
+      discrName matchedName
+  have hCasesDefault :=
+    exec_nativeSwitchCaseIfs_find_hit_with_default_preserved_fuel
+      (fuel + 1) selector cases defaultBody tag body (some contract)
+      prefixState final discrName matchedName hFind
+      (by simpa [prefixState, discrName, matchedName] using
+        (nativeSwitchPrefixFinalState_matched contract tx storage
+          observableSlots discrName matchedName))
+      (by simpa [prefixState, discrName, matchedName] using
+        (nativeSwitchPrefixFinalState_discr contract tx storage observableSlots
+          discrName matchedName selector
+          (nativeSwitchDiscrTempName_ne_matchedTempName switchId) hSelector))
+      hSelectorRange hTagsRange
+      (by simpa [prefixState, discrName, matchedName] using
+        (nativeSwitchPrefixFinalState_marked contract tx storage
+          observableSlots discrName matchedName))
+      (by intro pre suffix hCases; simpa [nativeSwitchMarkedPrefixStateForId,
+        nativeSwitchPrefixStateForId, prefixState, discrName, matchedName]
+        using hBody pre suffix hCases)
+      (by intro pre suffix hCases; simpa [matchedName] using
+        hPreservesMatched pre suffix hCases)
+  simpa [nativeSwitchTailStmts, nativeSwitchPrefixStateForId, prefixState,
+    discrName, matchedName, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+    using hCasesDefault
+
+theorem exec_nativeSwitchTail_find_none_with_default_nonempty_fuel
+    (fuel selector switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (final : EvmYul.Yul.State)
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = none)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases → tag < EvmYul.UInt256.size)
+    (hDefaultBody :
+      EvmYul.Yul.exec ((fuel + 1) + 7) (.Block defaultBody) (some contract)
+        (nativeSwitchPrefixStateForId contract tx storage observableSlots
+          switchId) = .ok final)
+    (hNonempty : defaultBody ≠ []) :
+    EvmYul.Yul.exec (fuel + cases.length + 10)
+      (.Block (nativeSwitchTailStmts switchId cases defaultBody))
+      (some contract) (nativeSwitchPrefixStateForId contract tx storage
+        observableSlots switchId) =
+    .ok final := by
+  let discrName : EvmYul.Identifier := Backends.nativeSwitchDiscrTempName switchId
+  let matchedName : EvmYul.Identifier := Backends.nativeSwitchMatchedTempName switchId
+  let prefixState :=
+    nativeSwitchPrefixFinalState contract tx storage observableSlots
+      discrName matchedName
+  have hCasesDefault :=
+    exec_nativeSwitchCaseIfs_find_none_with_default_nonempty_fuel
+      (fuel + 1) selector cases defaultBody (some contract)
+      prefixState final discrName matchedName hFind
+      (by simpa [prefixState, discrName, matchedName] using
+        (nativeSwitchPrefixFinalState_matched contract tx storage
+          observableSlots discrName matchedName))
+      (by simpa [prefixState, discrName, matchedName] using
+        (nativeSwitchPrefixFinalState_discr contract tx storage observableSlots
+          discrName matchedName selector
+          (nativeSwitchDiscrTempName_ne_matchedTempName switchId) hSelector))
+      hSelectorRange hTagsRange
+      (by simpa [nativeSwitchPrefixStateForId, prefixState, discrName,
+        matchedName] using hDefaultBody)
+      hNonempty
+  simpa [nativeSwitchTailStmts, nativeSwitchPrefixStateForId, prefixState,
+    discrName, matchedName, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+    using hCasesDefault
+
+theorem exec_nativeSwitchTail_find_none_without_default_fuel
+    (fuel selector switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = none)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases → tag < EvmYul.UInt256.size) :
+    EvmYul.Yul.exec (fuel + cases.length + 10)
+      (.Block (nativeSwitchTailStmts switchId cases []))
+      (some contract) (nativeSwitchPrefixStateForId contract tx storage
+        observableSlots switchId) =
+    .ok (nativeSwitchPrefixStateForId contract tx storage observableSlots
+      switchId) := by
+  let discrName : EvmYul.Identifier := Backends.nativeSwitchDiscrTempName switchId
+  let matchedName : EvmYul.Identifier := Backends.nativeSwitchMatchedTempName switchId
+  let prefixState :=
+    nativeSwitchPrefixFinalState contract tx storage observableSlots
+      discrName matchedName
+  have hCasesDefault :=
+    exec_nativeSwitchCaseIfs_find_none_without_default_fuel
+      (fuel + 1) selector cases (some contract)
+      prefixState discrName matchedName hFind
+      (by simpa [prefixState, discrName, matchedName] using
+        (nativeSwitchPrefixFinalState_matched contract tx storage
+          observableSlots discrName matchedName))
+      (by simpa [prefixState, discrName, matchedName] using
+        (nativeSwitchPrefixFinalState_discr contract tx storage observableSlots
+          discrName matchedName selector
+          (nativeSwitchDiscrTempName_ne_matchedTempName switchId) hSelector))
+      hSelectorRange hTagsRange
+  simpa [nativeSwitchTailStmts, nativeSwitchPrefixStateForId, prefixState,
+    discrName, matchedName, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+    using hCasesDefault
+
+theorem exec_lowerNativeSwitchBlock_selector_find_hit_preserved_fuel
+    (fuel selector switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (tag : Nat)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (final : EvmYul.Yul.State)
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body)
+        (some contract)
+        ((nativeSwitchPrefixFinalState contract tx storage observableSlots
+          (Backends.nativeSwitchDiscrTempName switchId)
+          (Backends.nativeSwitchMatchedTempName switchId)).insert
+            (Backends.nativeSwitchMatchedTempName switchId)
+            (EvmYul.UInt256.ofNat 1)) = .ok final)
+    (hPreservesMatched : ∀ pre suffix,
+      cases = pre ++ (tag, body) :: suffix →
+        NativeBlockPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
+          (EvmYul.UInt256.ofNat 1) body (some contract)) :
+    EvmYul.Yul.exec (fuel + cases.length + 12)
+      (Backends.lowerNativeSwitchBlock
+        Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody)
+      (some contract)
+      (nativeSwitchInitialOkState contract tx storage observableSlots) =
+    .ok final := by
+  rw [lowerNativeSwitchBlock_selectorExpr_eq_nativeSwitchParts]
+  apply exec_nativeSwitchPrefix_then_tail_fuel
+  exact exec_nativeSwitchTail_find_hit_preserved_fuel fuel selector switchId tag
+    cases defaultBody body contract tx storage observableSlots final
+    hSelector hFind hSelectorRange hTagsRange hBody hPreservesMatched
+
+theorem exec_lowerNativeSwitchBlock_selector_find_none_with_default_nonempty_fuel
+    (fuel selector switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (final : EvmYul.Yul.State)
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = none)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases → tag < EvmYul.UInt256.size)
+    (hDefaultBody :
+      EvmYul.Yul.exec ((fuel + 1) + 7) (.Block defaultBody) (some contract)
+        (nativeSwitchPrefixFinalState contract tx storage observableSlots
+          (Backends.nativeSwitchDiscrTempName switchId)
+          (Backends.nativeSwitchMatchedTempName switchId)) =
+        .ok final)
+    (hNonempty : defaultBody ≠ []) :
+    EvmYul.Yul.exec (fuel + cases.length + 12)
+      (Backends.lowerNativeSwitchBlock
+        Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody)
+      (some contract)
+      (nativeSwitchInitialOkState contract tx storage observableSlots) =
+    .ok final := by
+  rw [lowerNativeSwitchBlock_selectorExpr_eq_nativeSwitchParts]
+  apply exec_nativeSwitchPrefix_then_tail_fuel
+  exact exec_nativeSwitchTail_find_none_with_default_nonempty_fuel fuel
+    selector switchId cases defaultBody contract tx storage observableSlots
+    final hSelector hFind hSelectorRange hTagsRange hDefaultBody hNonempty
+
+theorem exec_lowerNativeSwitchBlock_selector_find_none_without_default_fuel
+    (fuel selector switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = none)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases → tag < EvmYul.UInt256.size) :
+    EvmYul.Yul.exec (fuel + cases.length + 12)
+      (Backends.lowerNativeSwitchBlock
+        Compiler.Proofs.YulGeneration.selectorExpr switchId cases [])
+      (some contract)
+      (nativeSwitchInitialOkState contract tx storage observableSlots) =
+    .ok (nativeSwitchPrefixFinalState contract tx storage observableSlots
+      (Backends.nativeSwitchDiscrTempName switchId)
+      (Backends.nativeSwitchMatchedTempName switchId)) := by
+  rw [lowerNativeSwitchBlock_selectorExpr_eq_nativeSwitchParts]
+  apply exec_nativeSwitchPrefix_then_tail_fuel
+  exact exec_nativeSwitchTail_find_none_without_default_fuel fuel selector
+    switchId cases contract tx storage observableSlots hSelector hFind
+    hSelectorRange hTagsRange
 
 @[simp] theorem initialState_unbridgedEnvironmentDefaults
     (contract : EvmYul.Yul.Ast.YulContract)
