@@ -199,6 +199,24 @@ scope so the native path does not look more complete than it is:
    equation and statement-level lowering equations are proved, but full
    dispatcher-block agreement still requires per-statement native execution
    preservation lemmas against `execYulFuelWithBackend .evmYulLean`.
+   EndToEnd now provides raw-exec intro forms for the three concrete native
+   outcomes:
+   `nativeDispatcherExecAgreesWithInterpreter_of_exec_ok_agree`,
+   `nativeDispatcherExecAgreesWithInterpreter_of_exec_yulHalt_agree`, and
+   `nativeDispatcherExecAgreesWithInterpreter_of_exec_error_agree`. These let
+   each generated-statement simulation case finish from a proved
+   `contractDispatcherExecResult` equation plus the corresponding observable
+   projection agreement.
+
+   The generated dispatcher selector expression is also pinned for the
+   EVMYulLean-backed interpreter oracle:
+   `bridgedExpr_selectorExpr` shows that `selectorExpr` is in the bridged
+   expression fragment, and
+   `evalYulExprWithBackend_evmYulLean_selectorExpr_semantics` proves that it
+   evaluates to `state.selector % selectorModulus`. This discharges the
+   interpreter-oracle side of the first selector branch condition; the remaining
+   native side still needs a native `calldataload`/`shr` state-evaluation lemma
+   over `initialState` calldata.
 
 2. Prove native state bridge lemmas.
 
@@ -281,6 +299,9 @@ scope so the native path does not look more complete than it is:
    `calldataToByteArray_selectorByte2`, and
    `calldataToByteArray_selectorByte3` lemmas pinning the native calldata
    selector byte layout needed by dispatcher-selection proofs, the named
+   `bridgedExpr_selectorExpr` and
+   `evalYulExprWithBackend_evmYulLean_selectorExpr_semantics` lemmas for the
+   generated dispatcher selector expression on the interpreter-oracle side, the named
    `initialState_unbridgedEnvironmentDefaults` lemma for
    base-fee/blob-field defaults and native-global `chainid` behavior, callvalue,
    caller/address, calldatasize, timestamp/number, a native-vs-reference-oracle

@@ -675,6 +675,9 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/EndToEnd.lean
 #print axioms Compiler.Proofs.EndToEnd.nativeResultsMatchOn_ok_of_resultsMatch_of_yulResultsAgreeOn
 #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeAgreesWithInterpreter_of_ok_agree
+#print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreter_of_exec_ok_agree
+#print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreter_of_exec_yulHalt_agree
+#print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreter_of_exec_error_agree
 #print axioms Compiler.Proofs.EndToEnd.nativeDispatcherBlockAgreesWithInterpreter_of_exec_agree
 #print axioms Compiler.Proofs.EndToEnd.nativeCallDispatcherAgreesWithInterpreter_of_dispatcherBlock_agree
 #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeAgreesWithInterpreter_of_lowered_callDispatcher_agree
@@ -2915,6 +2918,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_callvalue  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_calldatasize  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_selector  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_selectorExpr
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExprWithBackend_evmYulLean_selectorExpr_semantics
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_calldatasize_lt  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_has_selector  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_empty_calldata  -- private
@@ -3118,4 +3123,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2945 theorems/lemmas (2058 public, 887 private, 0 sorry'd)
+-- Total: 2950 theorems/lemmas (2063 public, 887 private, 0 sorry'd)
