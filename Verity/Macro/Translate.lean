@@ -184,6 +184,9 @@ private partial def valueTypeAbiSignatureComponent : ValueType → String
   | .newtype _ baseType => valueTypeAbiSignatureComponent baseType
   | .array ty => "array_" ++ valueTypeAbiSignatureComponent ty
   | .tuple tys => "tuple" ++ toString tys.length ++ "_" ++ String.intercalate "__" (tys.map valueTypeAbiSignatureComponent)
+  | .adt _ maxFields =>
+      "tuple" ++ toString (maxFields + 1) ++ "_" ++
+        String.intercalate "__" ("scalar_uint8" :: List.replicate maxFields "scalar_uint256")
   | ty => valueTypeSignatureComponent ty
 
 private def functionAbiSignatureKey (fn : FunctionDecl) : String :=
@@ -4961,7 +4964,7 @@ def validateGeneratedDefNamesPublic
         s!"duplicate function declaration '{signature}'"
     if functionAbiSignatures.contains abiSignature then
       throwErrorAt fn.ident
-        s!"duplicate function ABI signature '{abiSignature}' after newtype erasure"
+        s!"duplicate function ABI signature '{abiSignature}' after ABI erasure"
     if functionNames.contains generatedFnName then
       throwErrorAt fn.ident
         s!"function '{fn.name}' generates duplicate internal declaration '{generatedFnName}'"

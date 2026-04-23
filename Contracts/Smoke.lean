@@ -683,7 +683,7 @@ verity_contract FunctionOverloadSmoke where
     return (add a b)
 
 /--
-error: duplicate function ABI signature 'echo(scalar_uint256)' after newtype erasure
+error: duplicate function ABI signature 'echo(scalar_uint256)' after ABI erasure
 -/
 #guard_msgs in
 verity_contract NewtypeErasedOverloadRejected where
@@ -697,6 +697,22 @@ verity_contract NewtypeErasedOverloadRejected where
 
   function echo (a : Shares) : Uint256 := do
     return a
+
+/--
+error: duplicate function ABI signature 'echo(tuple2_scalar_uint8__scalar_uint256)' after ABI erasure
+-/
+#guard_msgs in
+verity_contract AdtErasedOverloadRejected where
+  inductive
+    LeftBox := | LeftValue(value : Uint256)
+    RightBox := | RightValue(value : Uint256)
+  storage
+
+  function echo (a : LeftBox) : Uint256 := do
+    return 0
+
+  function echo (a : RightBox) : Uint256 := do
+    return 0
 
 verity_contract HelperExternalArgumentSmoke where
   storage
