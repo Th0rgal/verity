@@ -2879,10 +2879,12 @@ set_option maxRecDepth 4096 in
     "same-name internal helpers are rejected before Yul lowering"
     duplicateInternalNameSpec
     "duplicate internal function name 'helper'"
-  expectCompileErrorContains
-    "internal helpers cannot collide with external dispatch names"
-    internalExternalNameCollisionSpec
-    "internal function name 'helper' collides with an external function name"
+  expectTrue
+    "internal helper source names may match external dispatch names"
+    (match Compiler.CompilationModel.compile internalExternalNameCollisionSpec
+        (selectorsFor internalExternalNameCollisionSpec) with
+     | .ok _ => true
+     | .error _ => false)
   let reservedFieldRejected :=
     match validateCompileInputs reservedFieldSpec (selectorsFor reservedFieldSpec) with
     | .ok _ => false

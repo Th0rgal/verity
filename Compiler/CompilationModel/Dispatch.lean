@@ -288,15 +288,6 @@ private def validateCompileInputsBeforeFieldWriteConflict
       throw s!"Compilation error: duplicate internal function name '{dup}' in {spec.name}; internal function Yul definitions are keyed by name"
   | none =>
       pure ()
-  let internalFunctionNames := (spec.functions.filter (·.isInternal)).map (·.name)
-  let externalFunctionNames := (spec.functions.filter (fun fn => !fn.isInternal)).map (·.name)
-  -- Same-name external overloads are valid here: runtime dispatch cases are
-  -- keyed by selector, while internal helpers become Yul function definitions.
-  match internalFunctionNames.find? (fun name => externalFunctionNames.contains name) with
-  | some dup =>
-      throw s!"Compilation error: internal function name '{dup}' collides with an external function name in {spec.name}; internal Yul definitions and external dispatch entries share the function namespace"
-  | none =>
-      pure ()
   match firstDuplicateName (spec.errors.map (·.name)) with
   | some dup =>
       throw s!"Compilation error: duplicate custom error declaration '{dup}'"
