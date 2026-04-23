@@ -313,6 +313,14 @@ def writeUintSlots (world : Verity.ContractState) (slots : List Nat) (value : Na
     storage := fun slot =>
       if slots.contains slot then word else world.storage slot }
 
+def writeStorageWordSlot (world : Verity.ContractState) (slot wordOffset value : Nat) :
+    Verity.ContractState :=
+  let word : Verity.Core.Uint256 := value
+  let target := wordNormalize (slot + wordOffset)
+  { world with
+    storage := fun current =>
+      if current = target then word else world.storage current }
+
 def writeAddressSlots (world : Verity.ContractState) (slots : List Nat) (value : Nat) :
     Verity.ContractState :=
   let addr := Verity.wordToAddress (value : Verity.Core.Uint256)
@@ -1475,6 +1483,13 @@ mutual
         | some slots, some resolved =>
             .continue { state with world := writeUintSlots state.world slots resolved }
         | _, _ => .revert
+    | state, .setStorageWord fieldName wordOffset value =>
+        match findFieldWithResolvedSlot fields fieldName, evalExpr fields state value with
+        | some (_, slot), some resolved =>
+            .continue
+              { state with
+                  world := writeStorageWordSlot state.world slot wordOffset resolved }
+        | _, _ => .revert
     | state, .setMapping fieldName key value =>
         match findFieldWriteSlots fields fieldName,
             evalExpr fields state key,
@@ -1702,6 +1717,13 @@ mutual
         match findFieldWriteSlots fields fieldName, evalExpr fields state value with
         | some slots, some resolved =>
             .continue { state with world := writeUintSlots state.world slots resolved }
+        | _, _ => .revert
+    | state, .setStorageWord fieldName wordOffset value =>
+        match findFieldWithResolvedSlot fields fieldName, evalExpr fields state value with
+        | some (_, slot), some resolved =>
+            .continue
+              { state with
+                  world := writeStorageWordSlot state.world slot wordOffset resolved }
         | _, _ => .revert
     | state, .setMapping fieldName key value =>
         match findFieldWriteSlots fields fieldName,
@@ -2633,6 +2655,14 @@ mutual
         match findFieldWriteSlots fields fieldName, evalExprWithHelpers spec fields fuel state value with
         | some slots, some resolved =>
             .continue { state with world := writeUintSlots state.world slots resolved }
+        | _, _ => .revert
+    | .setStorageWord fieldName wordOffset value =>
+        match findFieldWithResolvedSlot fields fieldName,
+            evalExprWithHelpers spec fields fuel state value with
+        | some (_, slot), some resolved =>
+            .continue
+              { state with
+                  world := writeStorageWordSlot state.world slot wordOffset resolved }
         | _, _ => .revert
     | .setMapping fieldName key value =>
         match findFieldWriteSlots fields fieldName,
@@ -3947,7 +3977,8 @@ private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux
         evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface]
   | .setStorageWord _ _ value =>
       simp only [stmtTouchesUnsupportedHelperSurface] at hsurface
-      simp [execStmtWithHelpers, execStmtWithEvents]
+      simp [execStmtWithHelpers, execStmtWithEvents,
+        evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface]
   | .setStorageAddr _ value =>
       simp only [stmtTouchesUnsupportedHelperSurface] at hsurface
       simp [execStmtWithHelpers, execStmtWithEvents,
