@@ -264,7 +264,9 @@ scope so the native path does not look more complete than it is:
    `eval_nativeSwitchDefaultGuard_matched_ok`,
    `exec_if_nativeSwitchDefaultGuard_unmatched`, and
    `exec_if_nativeSwitchDefaultGuard_matched` package the generated default
-   guard for both no-case-matched and case-already-matched paths. The remaining
+   guard for both no-case-matched and case-already-matched paths. The matching
+   `_fuel` variants remove the fixed-fuel limitation that blocked recursive
+   whole-case-chain execution over the generated block tail. The remaining
    native dispatcher proof starts after that switch prefix, at whole guarded
    case-chain execution and selected-body preservation. The adapter now names the needed freshness
    surface with `yulStmtWriteNames`, `yulStmtsWriteNames`,
@@ -381,7 +383,8 @@ scope so the native path does not look more complete than it is:
    `eval_nativeSwitchDefaultGuard_unmatched_ok`,
    `eval_nativeSwitchDefaultGuard_matched_ok`,
    `exec_if_nativeSwitchDefaultGuard_unmatched`,
-   `exec_if_nativeSwitchDefaultGuard_matched`, and companion native
+   `exec_if_nativeSwitchDefaultGuard_matched`, the fuel-parametric
+   `_fuel` variants for generated case/default guards, and companion native
    `exec`/primitive reduction lemmas for the lazy guarded switch case/default gates,
    the native-switch write-target collectors and freshness predicates
    `yulStmtsWriteNames`, `nativeStmtsWriteNames`,

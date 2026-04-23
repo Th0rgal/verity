@@ -1295,6 +1295,30 @@ theorem eval_nativeSwitchGuardedMatch_ok
     EvmYul.Yul.evalTail, EvmYul.Yul.evalPrimCall, EvmYul.Yul.reverse',
     EvmYul.Yul.cons', EvmYul.Yul.head']
 
+/-- Fuel-parametric form of `eval_nativeSwitchGuardedMatch_ok`, for use under
+    recursively executed generated switch blocks. -/
+theorem eval_nativeSwitchGuardedMatch_ok_fuel
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (discrName matchedName : EvmYul.Identifier)
+    (tag : Nat) :
+    EvmYul.Yul.eval (fuel + 8)
+      (Backends.nativePrimCall (EvmYul.Operation.AND : EvmYul.Operation .Yul)
+        [Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+          [.Var matchedName],
+         Backends.nativePrimCall (EvmYul.Operation.EQ : EvmYul.Operation .Yul)
+          [.Var discrName, .Lit (EvmYul.UInt256.ofNat tag)]])
+      codeOverride state =
+    .ok (state,
+      EvmYul.UInt256.land
+        (EvmYul.UInt256.isZero state[matchedName]!)
+        (EvmYul.UInt256.eq state[discrName]! (EvmYul.UInt256.ofNat tag))) := by
+  cases fuel <;>
+    simp [Backends.nativePrimCall, EvmYul.Yul.eval, EvmYul.Yul.evalArgs,
+      EvmYul.Yul.evalTail, EvmYul.Yul.evalPrimCall, EvmYul.Yul.reverse',
+      EvmYul.Yul.cons', EvmYul.Yul.head']
+
 /-- The selected lowered switch case has a nonzero guard while no previous case
     has marked the switch matched and the discriminator equals the case tag. -/
 theorem eval_nativeSwitchGuardedMatch_hit_ok
@@ -1334,6 +1358,27 @@ theorem eval_nativeSwitchGuardedMatch_miss_ok
       codeOverride state =
     .ok (state, EvmYul.UInt256.ofNat 0) := by
   rw [eval_nativeSwitchGuardedMatch_ok, hMatched]
+  simp [EvmYul.UInt256.eq, EvmYul.UInt256.isZero, hDiscr]
+  decide
+
+/-- Fuel-parametric non-selected lowered switch case guard reduction. -/
+theorem eval_nativeSwitchGuardedMatch_miss_ok_fuel
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (discrName matchedName : EvmYul.Identifier)
+    (tag : Nat)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hDiscr : state[discrName]! ≠ EvmYul.UInt256.ofNat tag) :
+    EvmYul.Yul.eval (fuel + 8)
+      (Backends.nativePrimCall (EvmYul.Operation.AND : EvmYul.Operation .Yul)
+        [Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+          [.Var matchedName],
+         Backends.nativePrimCall (EvmYul.Operation.EQ : EvmYul.Operation .Yul)
+          [.Var discrName, .Lit (EvmYul.UInt256.ofNat tag)]])
+      codeOverride state =
+    .ok (state, EvmYul.UInt256.ofNat 0) := by
+  rw [eval_nativeSwitchGuardedMatch_ok_fuel, hMatched]
   simp [EvmYul.UInt256.eq, EvmYul.UInt256.isZero, hDiscr]
   decide
 
@@ -1420,6 +1465,30 @@ theorem exec_if_nativeSwitchGuardedMatch_miss
     (eval_nativeSwitchGuardedMatch_miss_ok state codeOverride discrName matchedName tag
       hMatched hDiscr)
 
+/-- Fuel-parametric native `if` skip for a non-selected lowered switch case. -/
+theorem exec_if_nativeSwitchGuardedMatch_miss_fuel
+    (fuel : Nat)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State)
+    (discrName matchedName : EvmYul.Identifier)
+    (tag : Nat)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hDiscr : state[discrName]! ≠ EvmYul.UInt256.ofNat tag) :
+    EvmYul.Yul.exec (fuel + 9)
+      (.If
+        (Backends.nativePrimCall (EvmYul.Operation.AND : EvmYul.Operation .Yul)
+          [Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+            [.Var matchedName],
+           Backends.nativePrimCall (EvmYul.Operation.EQ : EvmYul.Operation .Yul)
+            [.Var discrName, .Lit (EvmYul.UInt256.ofNat tag)]])
+        body)
+      codeOverride state = .ok state := by
+  simpa using
+    (exec_if_eval_zero (fuel + 8) _ body codeOverride state state
+      (eval_nativeSwitchGuardedMatch_miss_ok_fuel fuel state codeOverride
+        discrName matchedName tag hMatched hDiscr))
+
 @[simp] theorem exec_lowerAssignNative_lit_ok
     (fuel' : Nat)
     (name : EvmYul.Identifier)
@@ -1503,6 +1572,23 @@ theorem eval_nativeSwitchDefaultGuard_ok
     EvmYul.Yul.evalTail, EvmYul.Yul.evalPrimCall, EvmYul.Yul.reverse',
     EvmYul.Yul.cons', EvmYul.Yul.head']
 
+/-- Fuel-parametric form of `eval_nativeSwitchDefaultGuard_ok`, for use under
+    recursively executed generated switch blocks. -/
+theorem eval_nativeSwitchDefaultGuard_ok_fuel
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (matchedName : EvmYul.Identifier) :
+    EvmYul.Yul.eval (fuel + 6)
+      (Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+        [.Var matchedName])
+      codeOverride state =
+    .ok (state, EvmYul.UInt256.isZero state[matchedName]!) := by
+  cases fuel <;>
+    simp [Backends.nativePrimCall, EvmYul.Yul.eval, EvmYul.Yul.evalArgs,
+      EvmYul.Yul.evalTail, EvmYul.Yul.evalPrimCall, EvmYul.Yul.reverse',
+      EvmYul.Yul.cons', EvmYul.Yul.head']
+
 /-- If no lowered switch case has matched, the default guard is nonzero. -/
 theorem eval_nativeSwitchDefaultGuard_unmatched_ok
     (state : EvmYul.Yul.State)
@@ -1518,6 +1604,22 @@ theorem eval_nativeSwitchDefaultGuard_unmatched_ok
   simp [EvmYul.UInt256.isZero]
   decide
 
+/-- Fuel-parametric default guard reduction when no case has matched. -/
+theorem eval_nativeSwitchDefaultGuard_unmatched_ok_fuel
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (matchedName : EvmYul.Identifier)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0) :
+    EvmYul.Yul.eval (fuel + 6)
+      (Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+        [.Var matchedName])
+      codeOverride state =
+    .ok (state, EvmYul.UInt256.ofNat 1) := by
+  rw [eval_nativeSwitchDefaultGuard_ok_fuel, hMatched]
+  simp [EvmYul.UInt256.isZero]
+  decide
+
 /-- If a lowered switch case has matched, the default guard is zero. -/
 theorem eval_nativeSwitchDefaultGuard_matched_ok
     (state : EvmYul.Yul.State)
@@ -1530,6 +1632,22 @@ theorem eval_nativeSwitchDefaultGuard_matched_ok
       codeOverride state =
     .ok (state, EvmYul.UInt256.ofNat 0) := by
   rw [eval_nativeSwitchDefaultGuard_ok, hMatched]
+  simp [EvmYul.UInt256.isZero]
+  decide
+
+/-- Fuel-parametric default guard reduction after a case has matched. -/
+theorem eval_nativeSwitchDefaultGuard_matched_ok_fuel
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (matchedName : EvmYul.Identifier)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 1) :
+    EvmYul.Yul.eval (fuel + 6)
+      (Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+        [.Var matchedName])
+      codeOverride state =
+    .ok (state, EvmYul.UInt256.ofNat 0) := by
+  rw [eval_nativeSwitchDefaultGuard_ok_fuel, hMatched]
   simp [EvmYul.UInt256.isZero]
   decide
 
@@ -1553,6 +1671,29 @@ theorem exec_if_nativeSwitchDefaultGuard_unmatched
     (by decide)
     hBody
 
+/-- Fuel-parametric default execution when no lowered switch case matched. -/
+theorem exec_if_nativeSwitchDefaultGuard_unmatched_fuel
+    (fuel : Nat)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state final : EvmYul.Yul.State)
+    (matchedName : EvmYul.Identifier)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hBody : EvmYul.Yul.exec (fuel + 6) (.Block body) codeOverride state = .ok final) :
+    EvmYul.Yul.exec (fuel + 7)
+      (.If
+        (Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+          [.Var matchedName])
+        body)
+      codeOverride state = .ok final := by
+  simpa using
+    (exec_if_eval_nonzero (fuel + 6) _ body codeOverride state state final
+      (EvmYul.UInt256.ofNat 1)
+      (eval_nativeSwitchDefaultGuard_unmatched_ok_fuel fuel state codeOverride
+        matchedName hMatched)
+      (by decide)
+      hBody)
+
 /-- Native `if` execution skips the lowered switch default after a case matched. -/
 theorem exec_if_nativeSwitchDefaultGuard_matched
     (body : List EvmYul.Yul.Ast.Stmt)
@@ -1568,6 +1709,25 @@ theorem exec_if_nativeSwitchDefaultGuard_matched
       codeOverride state = .ok state := by
   exact exec_if_eval_zero 6 _ body codeOverride state state
     (eval_nativeSwitchDefaultGuard_matched_ok state codeOverride matchedName hMatched)
+
+/-- Fuel-parametric default skip after a lowered switch case matched. -/
+theorem exec_if_nativeSwitchDefaultGuard_matched_fuel
+    (fuel : Nat)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State)
+    (matchedName : EvmYul.Identifier)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 1) :
+    EvmYul.Yul.exec (fuel + 7)
+      (.If
+        (Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+          [.Var matchedName])
+        body)
+      codeOverride state = .ok state := by
+  simpa using
+    (exec_if_eval_zero (fuel + 6) _ body codeOverride state state
+      (eval_nativeSwitchDefaultGuard_matched_ok_fuel fuel state codeOverride
+        matchedName hMatched))
 
 @[simp] theorem initialState_unbridgedEnvironmentDefaults
     (contract : EvmYul.Yul.Ast.YulContract)
