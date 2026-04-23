@@ -93,9 +93,11 @@ end
 mutual
 def exprUsesArrayElementKind (includePlain includeWord : Bool) : Expr → Bool
   | Expr.arrayElement _ index =>
-      includePlain || exprUsesArrayElementKind includePlain includeWord index
+      let nested := exprUsesArrayElementKind includePlain includeWord index
+      if nested then true else includePlain
   | Expr.arrayElementWord _ index _ _ =>
-      includeWord || exprUsesArrayElementKind includePlain includeWord index
+      let nested := exprUsesArrayElementKind includePlain includeWord index
+      if nested then true else includeWord
   | Expr.mapping _ key => exprUsesArrayElementKind includePlain includeWord key
   | Expr.mappingWord _ key _ => exprUsesArrayElementKind includePlain includeWord key
   | Expr.mappingPackedWord _ key _ _ => exprUsesArrayElementKind includePlain includeWord key
@@ -467,6 +469,24 @@ def constructorUsesArrayElementWord : Option ConstructorSpec → Bool
 def contractUsesArrayElementWord (spec : CompilationModel) : Bool :=
   contractUsesArrayElement spec &&
     (constructorUsesArrayElementWord spec.constructor || spec.functions.any functionUsesArrayElementWord)
+
+private def nestedPlainWithWordIndex : Expr :=
+  Expr.arrayElement "plain" (Expr.arrayElementWord "word" (Expr.literal 0) 1 0)
+
+private def nestedWordWithPlainIndex : Expr :=
+  Expr.arrayElementWord "word" (Expr.arrayElement "plain" (Expr.literal 0)) 1 0
+
+example : exprUsesPlainArrayElement nestedPlainWithWordIndex = true := by
+  native_decide
+
+example : exprUsesArrayElementWord nestedPlainWithWordIndex = true := by
+  native_decide
+
+example : exprUsesPlainArrayElement nestedWordWithPlainIndex = true := by
+  native_decide
+
+example : exprUsesArrayElementWord nestedWordWithPlainIndex = true := by
+  native_decide
 
 mutual
 def exprUsesStorageArrayElement : Expr → Bool
