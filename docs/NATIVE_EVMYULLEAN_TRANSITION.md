@@ -229,12 +229,15 @@ scope so the native path does not look more complete than it is:
    `initialState_calldataReadWord_selectorByte0` through
    `initialState_calldataReadWord_selectorByte3`, proving that the native
    word read sees the bridged selector bytes before any opaque zero-padding.
-   The arithmetic recomposition side is named by `selectorBytesAsNat`, and
-   `fromBytes'_selectorPrefix_shift` now proves the list-decoding side once the
-   32-byte big-endian read word has the four ABI selector bytes at the high
-   end. The remaining native selector proof is the EVMYulLean ByteArray/UInt256
-   bridge that connects `State.calldataload`/`UInt256.shiftRight` over
-   `ByteArray.readBytes` and `uInt256OfByteArray` to that 32-byte list shape.
+   The arithmetic recomposition side is named by `selectorBytesAsNat`,
+   `initialState_calldataReadWord_selectorPrefix` exposes the corresponding
+   little-endian `fromBytes'` prefix, `uint256_shiftRight_224_ofNat_toNat`
+   exposes the native `UInt256.shiftRight` arithmetic at selector shift, and
+   `initialState_selectorExpr_native_value_of_readBytes_size` proves the native
+   selector value under the single remaining EVMYulLean precondition that
+   `ByteArray.readBytes source 0 32` has size 32. The remaining native selector
+   proof is therefore the EVMYulLean `readBytes` length lemma for 32-byte reads,
+   not the selector byte recomposition or `UInt256` shift arithmetic.
 
 2. Prove native state bridge lemmas.
 
@@ -322,7 +325,12 @@ scope so the native path does not look more complete than it is:
    `initialState_calldataReadWord_selectorByte1`,
    `initialState_calldataReadWord_selectorByte2`, and
    `initialState_calldataReadWord_selectorByte3` lemmas showing that native
-   `calldataload(0)` reads those selector bytes in its first ABI word, the named
+   `calldataload(0)` reads those selector bytes in its first ABI word. It also
+   includes the named `initialState_calldataReadWord_selectorPrefix`,
+   `uint256_shiftRight_224_ofNat_toNat`, and
+   `initialState_selectorExpr_native_value_of_readBytes_size` lemmas reducing
+   native selector-value agreement to the opaque EVMYulLean `readBytes` length
+   precondition, plus the named
    `bridgedExpr_selectorExpr` and
    `evalYulExprWithBackend_evmYulLean_selectorExpr_semantics` lemmas for the
    generated dispatcher selector expression on the interpreter-oracle side, the named

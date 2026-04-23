@@ -588,6 +588,77 @@ theorem readBytes_zero_get?_of_lt_source
     omega
   · norm_num
 
+private theorem byteArray_data_toList_get?_of_get?
+    (ba : ByteArray)
+    (i : Nat)
+    (b : UInt8)
+    (h : ba.get? i = some b) :
+    ba.data.toList[i]? = some b := by
+  unfold ByteArray.get? at h
+  split at h
+  · cases h
+    rw [Array.getElem?_toList]
+    simp [ByteArray.get]
+  · contradiction
+
+private theorem list_reverse_eq_drop4_reverse_append_four
+    {α : Type}
+    (xs : List α)
+    (b0 b1 b2 b3 : α)
+    (h0 : xs[0]? = some b0)
+    (h1 : xs[1]? = some b1)
+    (h2 : xs[2]? = some b2)
+    (h3 : xs[3]? = some b3) :
+    xs.reverse = (xs.drop 4).reverse ++ [b3, b2, b1, b0] := by
+  cases xs with
+  | nil => simp at h0
+  | cons x0 xs =>
+      simp at h0
+      subst x0
+      cases xs with
+      | nil => simp at h1
+      | cons x1 xs =>
+          simp at h1
+          subst x1
+          cases xs with
+          | nil => simp at h2
+          | cons x2 xs =>
+              simp at h2
+              subst x2
+              cases xs with
+              | nil => simp at h3
+              | cons x3 xs =>
+                  simp at h3
+                  subst x3
+                  simp
+
+/-- The decoded native calldata word has the four ABI selector bytes at the
+    high end of EVMYulLean's little-endian `fromBytes'` input. Proving the
+    selector value itself still needs the opaque `readBytes` result length. -/
+theorem initialState_calldataReadWord_selectorPrefix
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    let bytes := ByteArray.readBytes
+      (initialState contract tx storage observableSlots).toState.executionEnv.calldata 0 32
+    bytes.data.toList.reverse =
+      (bytes.data.toList.drop 4).reverse ++
+        [UInt8.ofNat (tx.functionSelector % 256),
+         UInt8.ofNat (tx.functionSelector / 2^8 % 256),
+         UInt8.ofNat (tx.functionSelector / 2^16 % 256),
+         UInt8.ofNat (tx.functionSelector / 2^24 % 256)] := by
+  intro bytes
+  apply list_reverse_eq_drop4_reverse_append_four
+  · exact byteArray_data_toList_get?_of_get? bytes 0 _
+      (initialState_calldataReadWord_selectorByte0 contract tx storage observableSlots)
+  · exact byteArray_data_toList_get?_of_get? bytes 1 _
+      (initialState_calldataReadWord_selectorByte1 contract tx storage observableSlots)
+  · exact byteArray_data_toList_get?_of_get? bytes 2 _
+      (initialState_calldataReadWord_selectorByte2 contract tx storage observableSlots)
+  · exact byteArray_data_toList_get?_of_get? bytes 3 _
+      (initialState_calldataReadWord_selectorByte3 contract tx storage observableSlots)
+
 /-- Recompose the four ABI selector bytes into the normalized 32-bit
     dispatcher selector. This isolates the remaining native byte-decoding proof:
     once `calldataload(0) >>> 224` is reduced to the four high calldata bytes,
@@ -648,6 +719,46 @@ private theorem fromBytes'_lt (xs : List UInt8) :
           (Nat.one_le_pow _ _ (by decide))
           (Nat.le_sub_one_of_lt ih)
       linarith
+
+private theorem uint256_ofNat_eq_mk
+    (value : Nat)
+    (hvalue : value < EvmYul.UInt256.size) :
+    EvmYul.UInt256.ofNat value = ⟨⟨value, hvalue⟩⟩ := by
+  apply congrArg EvmYul.UInt256.mk
+  apply Fin.ext
+  simp [Nat.mod_eq_of_lt hvalue]
+
+private theorem uint256_shiftRight_224_mk_toNat
+    (value : Nat)
+    (hvalue : value < EvmYul.UInt256.size) :
+    EvmYul.UInt256.toNat
+      (EvmYul.UInt256.shiftRight ⟨⟨value, hvalue⟩⟩
+        ⟨⟨Compiler.Constants.selectorShift,
+          by norm_num [Compiler.Constants.selectorShift, EvmYul.UInt256.size]⟩⟩) =
+      value / 2^Compiler.Constants.selectorShift := by
+  have hshift : Compiler.Constants.selectorShift < 256 := by
+    norm_num [Compiler.Constants.selectorShift]
+  have hg : ¬ 256 ≤
+      (⟨⟨Compiler.Constants.selectorShift,
+        by norm_num [Compiler.Constants.selectorShift, EvmYul.UInt256.size]⟩⟩ :
+          EvmYul.UInt256).val := by
+    change ¬ 256 ≤ Compiler.Constants.selectorShift
+    exact Nat.not_le_of_lt hshift
+  simp [EvmYul.UInt256.shiftRight, EvmYul.UInt256.toNat, hg,
+    Nat.shiftRight_eq_div_pow]
+
+theorem uint256_shiftRight_224_ofNat_toNat
+    (value : Nat)
+    (hvalue : value < EvmYul.UInt256.size) :
+    EvmYul.UInt256.toNat
+      (EvmYul.UInt256.shiftRight
+        (EvmYul.UInt256.ofNat value)
+        (EvmYul.UInt256.ofNat Compiler.Constants.selectorShift)) =
+      value / 2^Compiler.Constants.selectorShift := by
+  rw [uint256_ofNat_eq_mk value hvalue]
+  rw [uint256_ofNat_eq_mk Compiler.Constants.selectorShift
+    (by norm_num [Compiler.Constants.selectorShift, EvmYul.UInt256.size])]
+  exact uint256_shiftRight_224_mk_toNat value hvalue
 
 private theorem fromBytes'_four
     (b0 b1 b2 b3 : UInt8) :
@@ -718,6 +829,51 @@ theorem fromBytes'_selectorPrefix_shift
     exact Nat.mod_eq_of_lt (Nat.mod_lt _ (by norm_num))
   rw [h0, h1, h2, h3]
   simpa [Compiler.Constants.selectorModulus] using selectorBytesAsNat selector
+
+/-- Native selector decoding agrees with the interpreter selector once
+    EVMYulLean's opaque `ByteArray.readBytes` is known to return a 32-byte
+    word for a 32-byte read. This packages the non-opaque byte and UInt256
+    arithmetic parts of the remaining native selector theorem. -/
+theorem initialState_selectorExpr_native_value_of_readBytes_size
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (hReadBytesSize :
+      ∀ source : ByteArray, (ByteArray.readBytes source 0 32).size = 32) :
+    EvmYul.UInt256.toNat
+      (EvmYul.UInt256.shiftRight
+        (EvmYul.State.calldataload
+          (initialState contract tx storage observableSlots).toState
+          (EvmYul.UInt256.ofNat 0))
+        (EvmYul.UInt256.ofNat Compiler.Constants.selectorShift)) =
+      tx.functionSelector % Compiler.Constants.selectorModulus := by
+  let bytes := ByteArray.readBytes
+    (initialState contract tx storage observableSlots).toState.executionEnv.calldata 0 32
+  have hprefix :=
+    initialState_calldataReadWord_selectorPrefix contract tx storage observableSlots
+  have hlen : bytes.data.toList.length = 32 := by
+    have hsize := hReadBytesSize
+      (initialState contract tx storage observableSlots).toState.executionEnv.calldata
+    simpa [bytes, ByteArray.size] using hsize
+  have htailLen : (bytes.data.toList.drop 4).length = 28 := by
+    simp [hlen]
+  unfold EvmYul.State.calldataload EvmYul.uInt256OfByteArray
+  rw [show (EvmYul.UInt256.ofNat 0).toNat = 0 by
+    change (Fin.ofNat EvmYul.UInt256.size 0).val = 0
+    simp]
+  rw [uint256_shiftRight_224_ofNat_toNat]
+  · rw [show (ByteArray.readBytes
+          (initialState contract tx storage observableSlots).toState.executionEnv.calldata
+          0 32).data.toList.reverse =
+        bytes.data.toList.reverse by rfl]
+    rw [hprefix]
+    exact fromBytes'_selectorPrefix_shift tx.functionSelector
+      (bytes.data.toList.drop 4) htailLen
+  · have hlt := fromBytes'_lt bytes.data.toList.reverse
+    have hrevLen : bytes.data.toList.reverse.length = 32 := by
+      simp [hlen]
+    simpa [hrevLen, EvmYul.UInt256.size] using hlt
 
 /-- The native lowerer maps the generated dispatcher selector expression to
     EVMYulLean's primitive `SHR(CALLDATALOAD(0), 224)` shape. -/
