@@ -1221,7 +1221,9 @@ The native harness materializes emitted literal `sload` slots in addition to
 `observableSlots`, so this theorem keeps `observableSlots` arbitrary instead of
 leaking SimpleStorage's implementation slot `0` into the public API. -/
 theorem simpleStorage_nativeCallDispatcherAgreesWithInterpreter
-    (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat) :
+    (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus) :
     nativeCallDispatcherAgreesWithInterpreter
       (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
       simpleStorageIRContract tx initialState observableSlots
@@ -1363,7 +1365,7 @@ theorem simpleStorage_endToEnd_native_evmYulLean
     tx initialState observableSlots hselector hNoWrap hvars hmemory htransient
     hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead hparamErase hEnv
     (simpleStorage_nativeCallDispatcherAgreesWithInterpreter
-      tx initialState observableSlots)
+      tx initialState observableSlots hselector hNoWrap)
 
 /-! ## Universal Pure Arithmetic Bridge
 
