@@ -128,12 +128,28 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
       compileSetStorage fields dynamicSource field value true
   | Stmt.setStorageWord field wordOffset value =>
       match findFieldWithResolvedSlot fields field with
-      | some (_f, slot) => do
+      | some (f, slot) => do
           let valueExpr ← compileExpr fields dynamicSource value
-          let slotExpr :=
-            if wordOffset == 0 then YulExpr.lit slot
-            else YulExpr.call "add" [YulExpr.lit slot, YulExpr.lit wordOffset]
-          pure [YulStmt.expr (YulExpr.call "sstore" [slotExpr, valueExpr])]
+          let slotExpr (baseSlot : Nat) :=
+            if wordOffset == 0 then YulExpr.lit baseSlot
+            else YulExpr.call "add" [YulExpr.lit baseSlot, YulExpr.lit wordOffset]
+          let slots := slot :: f.aliasSlots
+          match slots with
+          | [] =>
+              throw s!"Compilation error: internal invariant failure: no write slots for field '{field}' in setStorageWord"
+          | [singleSlot] =>
+              pure [YulStmt.expr (YulExpr.call "sstore" [slotExpr singleSlot, valueExpr])]
+          | _ =>
+              pure [
+                YulStmt.block (
+                  [YulStmt.let_ "__compat_value" valueExpr] ++
+                  slots.map (fun writeSlot =>
+                    YulStmt.expr (YulExpr.call "sstore" [
+                      slotExpr writeSlot,
+                      YulExpr.ident "__compat_value"
+                    ]))
+                )
+              ]
       | none =>
           throw s!"Compilation error: unknown storage field '{field}' in setStorageWord"
   | Stmt.storageArrayPush field value =>

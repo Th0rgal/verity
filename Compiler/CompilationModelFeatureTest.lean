@@ -1102,6 +1102,28 @@ def compileSetStorageAddrMasksAddressWrites : Bool :=
 
 example : compileSetStorageAddrMasksAddressWrites = true := by native_decide
 
+def compileSetStorageWordMirrorsAliasSlots : Bool :=
+  let fields : List Compiler.CompilationModel.Field :=
+    [{ name := "choice", ty := Compiler.CompilationModel.FieldType.adt "Choice" 2,
+       «slot» := some 10, aliasSlots := [100] }]
+  match Compiler.CompilationModel.compileStmt fields [] [] .calldata [] false [] []
+      (Compiler.CompilationModel.Stmt.setStorageWord "choice" 1 (Expr.literal 42)) with
+  | .ok [
+      Compiler.Yul.YulStmt.block [
+        Compiler.Yul.YulStmt.let_ "__compat_value" (Compiler.Yul.YulExpr.lit 42),
+        Compiler.Yul.YulStmt.expr
+          (Compiler.Yul.YulExpr.call "sstore"
+            [Compiler.Yul.YulExpr.call "add" [Compiler.Yul.YulExpr.lit 10, Compiler.Yul.YulExpr.lit 1],
+             Compiler.Yul.YulExpr.ident "__compat_value"]),
+        Compiler.Yul.YulStmt.expr
+          (Compiler.Yul.YulExpr.call "sstore"
+            [Compiler.Yul.YulExpr.call "add" [Compiler.Yul.YulExpr.lit 100, Compiler.Yul.YulExpr.lit 1],
+             Compiler.Yul.YulExpr.ident "__compat_value"])
+      ]] => true
+  | _ => false
+
+example : compileSetStorageWordMirrorsAliasSlots = true := by native_decide
+
 def initializeExecutableSecondCallReverts : Bool :=
   let seedOwner := wordToAddress 77
   match MacroInitializer.initOwner seedOwner Verity.defaultState with
@@ -3002,6 +3024,9 @@ set_option maxRecDepth 4096 in
   expectTrue
     "setStorageAddr compilation masks stored address words"
     MacroInitializerSmoke.compileSetStorageAddrMasksAddressWrites
+  expectTrue
+    "setStorageWord compilation mirrors alias slot writes"
+    MacroInitializerSmoke.compileSetStorageWordMirrorsAliasSlots
   expectTrue
     "macro initializer executable path rejects a second call"
     MacroInitializerSmoke.initializeExecutableSecondCallReverts

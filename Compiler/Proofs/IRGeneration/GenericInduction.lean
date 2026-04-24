@@ -839,18 +839,49 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_tstore
         []
         LegacyCompatibleExternalStmtList.nil
 
+private def setStorageWordAliasBody
+    (slot wordOffset : Nat)
+    (valueIR : YulExpr)
+    (aliases : List Nat) : List YulStmt :=
+  YulStmt.let_ "__compat_value" valueIR ::
+    YulStmt.expr
+      (YulExpr.call "sstore"
+        [if wordOffset = 0 then YulExpr.lit slot
+         else YulExpr.call "add" [YulExpr.lit slot, YulExpr.lit wordOffset],
+         YulExpr.ident "__compat_value"]) ::
+    aliases.map (fun writeSlot =>
+      YulStmt.expr
+        (YulExpr.call "sstore"
+          [if wordOffset = 0 then YulExpr.lit writeSlot
+           else YulExpr.call "add" [YulExpr.lit writeSlot, YulExpr.lit wordOffset],
+           YulExpr.ident "__compat_value"]))
+
+private theorem legacyCompatibleExternalStmtList_setStorageWord_aliasBlock
+    (slot wordOffset : Nat)
+    (valueIR : YulExpr)
+    (aliases : List Nat) :
+    LegacyCompatibleExternalStmtList
+      [YulStmt.block (setStorageWordAliasBody slot wordOffset valueIR aliases)] := by
+  unfold setStorageWordAliasBody
+  refine LegacyCompatibleExternalStmtList.block _ [] ?_ LegacyCompatibleExternalStmtList.nil
+  apply LegacyCompatibleExternalStmtList.let_
+  simpa using legacyCompatibleExternalStmtList_of_exprStmtExprs
+    (YulExpr.call "sstore"
+      [if wordOffset = 0 then YulExpr.lit slot
+       else YulExpr.call "add" [YulExpr.lit slot, YulExpr.lit wordOffset],
+       YulExpr.ident "__compat_value"] ::
+     aliases.map (fun writeSlot =>
+      YulExpr.call "sstore"
+        [if wordOffset = 0 then YulExpr.lit writeSlot
+         else YulExpr.call "add" [YulExpr.lit writeSlot, YulExpr.lit wordOffset],
+         YulExpr.ident "__compat_value"]))
+
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_setStorageWord
-    {fields : List Field}
-    {events : List EventDef}
-    {errors : List ErrorDef}
-    {inScopeNames : List String}
-    {field : String}
-    {wordOffset : Nat}
-    {value : Expr}
-    {bodyIR : List YulStmt}
-    (hcompile :
-      CompilationModel.compileStmt
-        fields events errors .calldata [] false inScopeNames [] (.setStorageWord field wordOffset value) =
+    {fields : List Field} {events : List EventDef} {errors : List ErrorDef}
+    {inScopeNames : List String} {field : String} {wordOffset : Nat}
+    {value : Expr} {bodyIR : List YulStmt}
+    (hcompile : CompilationModel.compileStmt fields events errors .calldata [] false
+        inScopeNames [] (.setStorageWord field wordOffset value) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
   unfold CompilationModel.compileStmt at hcompile
@@ -858,15 +889,37 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_setStorageWor
   · simp [hfind] at hcompile
   · rcases hvalue : CompilationModel.compileExpr fields .calldata value with _ | valueIR
     · simp [hfind, hvalue] at hcompile
-    · simp [hfind, hvalue] at hcompile
       cases hcompile
-      exact LegacyCompatibleExternalStmtList.expr
-        (YulExpr.call "sstore"
-          [if wordOffset = 0 then YulExpr.lit slot
-           else YulExpr.call "add" [YulExpr.lit slot, YulExpr.lit wordOffset],
-           valueIR])
-        []
-        LegacyCompatibleExternalStmtList.nil
+    · simp [hfind, hvalue] at hcompile
+      generalize halias : f.aliasSlots = aliases at hcompile ⊢
+      cases aliases
+      ·
+          have hbody :
+              bodyIR =
+                [YulStmt.expr
+                  (YulExpr.call "sstore"
+                    [if wordOffset = 0 then YulExpr.lit slot
+                     else YulExpr.call "add" [YulExpr.lit slot, YulExpr.lit wordOffset],
+                     valueIR])] := by
+            simpa using hcompile.symm
+          subst bodyIR
+          exact LegacyCompatibleExternalStmtList.expr
+            (YulExpr.call "sstore"
+              [if wordOffset = 0 then YulExpr.lit slot
+               else YulExpr.call "add" [YulExpr.lit slot, YulExpr.lit wordOffset],
+               valueIR])
+            []
+            LegacyCompatibleExternalStmtList.nil
+      ·
+        rename_i aliasSlot restAliases
+        have hbody : bodyIR =
+            [YulStmt.block
+              (setStorageWordAliasBody slot wordOffset valueIR
+                (aliasSlot :: restAliases))] := by
+          simpa [setStorageWordAliasBody] using hcompile.symm
+        subst bodyIR
+        exact legacyCompatibleExternalStmtList_setStorageWord_aliasBlock
+          slot wordOffset valueIR (aliasSlot :: restAliases)
 
 mutual
 /-- On the current supported contract surface, successful single-statement
