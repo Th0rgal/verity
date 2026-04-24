@@ -114,6 +114,22 @@ theorem nativeResultsMatchOn_ok_of_resultsMatch_of_yulResultsAgreeOn
     hevents.trans hnativeEvents.symm
   ⟩
 
+theorem yulResultsAgreeOn_of_resultsMatch_of_nativeResultsMatchOn
+    {observableSlots : List Nat} {ir : IRResult} {native oracle : YulResult}
+    (hOracle : Compiler.Proofs.YulGeneration.resultsMatch ir oracle)
+    (hNative : nativeResultsMatchOn observableSlots ir (.ok native)) :
+    yulResultsAgreeOn observableSlots native oracle := by
+  rcases hOracle with ⟨hsuccess, hreturnValue, hstorage, _hmappings, hevents⟩
+  rcases hNative with ⟨hnativeSuccess, hnativeReturnValue, hnativeStorage, hnativeEvents⟩
+  exact ⟨
+    hnativeSuccess.symm.trans hsuccess,
+    hnativeReturnValue.symm.trans hreturnValue,
+    (by
+      intro slot hslot
+      exact (hnativeStorage slot hslot).symm.trans (hstorage slot)),
+    hnativeEvents.symm.trans hevents
+  ⟩
+
 /-- The exact semantic bridge still needed before the public theorem can be
 retargeted unconditionally to native EVMYulLean.
 
@@ -1205,6 +1221,99 @@ theorem simpleStorage_endToEnd_evmYulLean
     (by intro fn hmem; simp [simpleStorageIRContract] at hmem ⊢; rcases hmem with rfl | rfl <;> rfl)
     (by intro s hs; simp [simpleStorageIRContract] at hs) rfl rfl
     simpleStorage_functions_bridged
+
+/-- Concrete native lowering for `simpleStorage` succeeds in the current tree.
+
+This packages the computed lowering witness so concrete native theorems do not
+need to re-open the adapter result shape inline. -/
+private theorem simpleStorage_lowerRuntimeContractNative_ok :
+    ∃ nativeContract,
+      Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+        (Compiler.emitYul simpleStorageIRContract).runtimeCode = .ok nativeContract := by
+  have hOk :
+      (match
+          Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+            (Compiler.emitYul simpleStorageIRContract).runtimeCode with
+        | .ok _ => true
+        | .error _ => false) = true := by
+    native_decide
+  cases hLower :
+      Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+        (Compiler.emitYul simpleStorageIRContract).runtimeCode with
+  | ok nativeContract =>
+      exact ⟨nativeContract, rfl⟩
+  | error err =>
+      have := hOk
+      rw [hLower] at this
+      cases this
+
+private noncomputable def simpleStorageNativeContract :
+    EvmYul.Yul.Ast.YulContract :=
+  Classical.choose simpleStorage_lowerRuntimeContractNative_ok
+
+private theorem simpleStorage_lowerRuntimeContractNative_eq :
+    Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul simpleStorageIRContract).runtimeCode =
+        .ok simpleStorageNativeContract :=
+  Classical.choose_spec simpleStorage_lowerRuntimeContractNative_ok
+
+/-- Concrete native SimpleStorage wrapper with the lowering seam discharged.
+
+This reduces the remaining concrete native proof work for `simpleStorage` to
+two facts:
+- the emitted runtime passes native environment validation for the current tx;
+- the lowered native `callDispatcher` agrees with the interpreter oracle.
+
+The lowering witness itself is packaged above so callers do not need to thread
+an existential native contract through the theorem surface. -/
+theorem simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge
+    (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hvars : initialState.vars = [])
+    (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0)
+    (hreturn : initialState.returnValue = none)
+    (hdispatchGuardSafe : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      HasSelectorDeadBridge fn.body)
+    (hparamErase : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      paramLoadErasure fn tx (initialState.withTx tx))
+    (hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+        (Compiler.emitYul simpleStorageIRContract).runtimeCode
+        (YulTransaction.ofIR tx) = .ok ())
+    (hNativeCallDispatcher :
+      nativeCallDispatcherAgreesWithInterpreter
+        (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
+        simpleStorageIRContract tx initialState observableSlots
+        simpleStorageNativeContract) :
+    nativeResultsMatchOn observableSlots
+      (interpretIR simpleStorageIRContract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
+        simpleStorageIRContract tx initialState observableSlots) :=
+  layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bridge
+    (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
+    simpleStorageIRContract tx initialState observableSlots
+    simpleStorageNativeContract
+    hselector hNoWrap hvars hmemory htransient hreturn hparamErase
+    hdispatchGuardSafe hNoHasSelector hHasSelectorDead
+    (by
+      intro fn hmem
+      simp [simpleStorageIRContract] at hmem ⊢
+      rcases hmem with rfl | rfl <;> rfl)
+    (by intro s hs; simp [simpleStorageIRContract] at hs)
+    rfl
+    rfl
+    simpleStorage_functions_bridged
+    rfl
+    simpleStorage_lowerRuntimeContractNative_eq
+    hEnv
+    hNativeCallDispatcher
 
 /-! ## Universal Pure Arithmetic Bridge
 
