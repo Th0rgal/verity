@@ -72,6 +72,7 @@ structure ContractState where
   memory : Nat → Uint256 := fun _ => 0     -- EVM memory (word-addressed, zero-initialized)
   knownAddresses : Nat → FiniteAddressSet  -- Tracked addresses per storage slot (for sum properties)
   events : List Event := []  -- Emitted events, append-only log (#153)
+  callOracle : String → List Uint256 → Uint256 := fun _ args => args.foldl (· + ·) 0
 
 -- Default zero state — all storage zero, empty addresses, no events.
 -- Use `{ defaultState with sender := "0xAlice" }` to customize individual fields.

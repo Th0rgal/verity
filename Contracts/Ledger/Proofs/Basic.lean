@@ -69,7 +69,8 @@ private theorem deposit_unfold (s : ContractState) (amount : Uint256) :
       knownAddresses := fun slotIdx =>
         if slotIdx == 0 then (s.knownAddresses slotIdx).insert s.sender
         else s.knownAddresses slotIdx,
-      events := s.events } := by
+      events := s.events,
+        callOracle := s.callOracle } := by
   verity_unfold deposit
   simp only [balances]
 
@@ -126,7 +127,8 @@ private theorem withdraw_unfold (s : ContractState) (amount : Uint256)
       knownAddresses := fun slotIdx =>
         if slotIdx == 0 then (s.knownAddresses slotIdx).insert s.sender
         else s.knownAddresses slotIdx,
-      events := s.events } := by
+      events := s.events,
+        callOracle := s.callOracle } := by
   verity_unfold withdraw
   simp [balances, h_balance]
 
@@ -197,7 +199,8 @@ private theorem transfer_unfold_other (s : ContractState) (toAddr : Address) (am
       knownAddresses := fun slotIdx =>
         if slotIdx == 0 then ((s.knownAddresses slotIdx).insert s.sender).insert toAddr
         else s.knownAddresses slotIdx,
-      events := s.events } := by
+      events := s.events,
+        callOracle := s.callOracle } := by
   simp only [transfer, Contracts.Ledger.balances,
     msgSender, getMapping, setMapping,
     Verity.require, Verity.bind, Bind.bind, Pure.pure,
@@ -299,7 +302,8 @@ theorem transfer_succeeds_recipient_overflow (s : ContractState) (toAddr : Addre
       knownAddresses := fun slotIdx =>
         if slotIdx == 0 then ((s.knownAddresses slotIdx).insert s.sender).insert toAddr
         else s.knownAddresses slotIdx,
-      events := s.events }
+      events := s.events,
+        callOracle := s.callOracle }
   refine ⟨s', ?_⟩
   simpa [s'] using transfer_unfold_other s toAddr amount h_balance h_ne
 

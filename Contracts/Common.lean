@@ -336,7 +336,7 @@ def safeApprove (_token _spender : Address) (_amount : Uint256) : Contract Unit 
 def balanceOf (token owner : Address) : Contract Uint256 := pure <| erc20ReadStubWord "balanceOf" [token.toNat, owner.toNat]
 def allowance (token owner spender : Address) : Contract Uint256 := pure <| erc20ReadStubWord "allowance" [token.toNat, owner.toNat, spender.toNat]
 def totalSupply (token : Address) : Contract Uint256 := pure <| erc20ReadStubWord "totalSupply" [token.toNat]
-private def forEach.loop (remaining index : Nat) (body : Uint256 → Contract Unit) : Contract Unit :=
+def forEach.loop (remaining index : Nat) (body : Uint256 → Contract Unit) : Contract Unit :=
   match remaining with
   | 0 => pure ()
   | Nat.succ remaining' => do

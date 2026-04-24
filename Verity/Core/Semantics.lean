@@ -28,6 +28,7 @@ def Env.ofWorld (w : World) : Env where
   blockTimestamp := w.blockTimestamp
   blockNumber := w.blockNumber
   chainId := w.chainId
+  callOracle := w.callOracle
 
 def World.withEnv (w : World) (env : Env) : World :=
   { w with
@@ -37,6 +38,7 @@ def World.withEnv (w : World) (env : Env) : World :=
     blockTimestamp := env.blockTimestamp
     blockNumber := env.blockNumber
     chainId := env.chainId
+    callOracle := env.callOracle
   }
 
 end Verity
