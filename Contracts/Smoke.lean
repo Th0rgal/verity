@@ -731,15 +731,18 @@ verity_contract HelperExternalArgumentSmoke where
     setStorage saved a
 
   function bindExternalArg (x : Uint256) : Uint256 := do
-    let y ← idWord (externalCall "echo" [x])
+    let echoed := externalCall "echo" [x]
+    let y ← idWord echoed
     return y
 
-  function tupleExternalArg (x : Uint256) : Uint256 := do
-    let (a, b) ← pair (externalCall "echo" [x])
+  function allow_post_interaction_writes tupleExternalArg (x : Uint256) : Uint256 := do
+    let echoed := externalCall "echo" [x]
+    let (a, b) ← pair echoed
     return (add a b)
 
-  function statementExternalArg (x : Uint256) : Unit := do
-    put (externalCall "echo" [x])
+  function allow_post_interaction_writes statementExternalArg (x : Uint256) : Unit := do
+    let echoed := externalCall "echo" [x]
+    put echoed
 
 verity_contract BlockTimestampSmoke where
   storage

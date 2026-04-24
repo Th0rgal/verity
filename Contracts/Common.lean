@@ -64,6 +64,15 @@ macro_rules
   | `(doElem| let $name:ident := tload $offset:term) => do
       let load := Lean.mkIdentFrom name `_root_.Contracts.tload
       `(doElem| let $name ← $load:ident $offset)
+  | `(doElem| let $name:ident := call $gas:term $target:term $value:term $inOffset:term $inSize:term $outOffset:term $outSize:term) => do
+      let callFn := Lean.mkIdentFrom name `_root_.Contracts.call
+      `(doElem| let $name ← $callFn:ident $gas $target $value $inOffset $inSize $outOffset $outSize)
+  | `(doElem| let $name:ident := staticcall $gas:term $target:term $inOffset:term $inSize:term $outOffset:term $outSize:term) => do
+      let staticcallFn := Lean.mkIdentFrom name `_root_.Contracts.staticcall
+      `(doElem| let $name ← $staticcallFn:ident $gas $target $inOffset $inSize $outOffset $outSize)
+  | `(doElem| let $name:ident := delegatecall $gas:term $target:term $inOffset:term $inSize:term $outOffset:term $outSize:term) => do
+      let delegatecallFn := Lean.mkIdentFrom name `_root_.Contracts.delegatecall
+      `(doElem| let $name ← $delegatecallFn:ident $gas $target $inOffset $inSize $outOffset $outSize)
   | `(doElem| let $pat:term := $rhs:term) => do
       if pat.raw.getKind != `Lean.Parser.Term.tuple then
         Lean.Macro.throwUnsupported
@@ -185,8 +194,15 @@ def ite (cond : Prop) [Decidable cond] (thenVal elseVal : Uint256) : Uint256 :=
 def logicalAnd (a b : Uint256) : Uint256 := if a != 0 && b != 0 then 1 else 0
 def logicalOr (a b : Uint256) : Uint256 := if a != 0 || b != 0 then 1 else 0
 def logicalNot (a : Uint256) : Uint256 := if a == 0 then 1 else 0
-def tryCatchWord (attempt : Uint256) (handler : String → Contract Unit) : Contract Unit :=
-  if attempt == 0 then handler "" else pure ()
+def tryCatchWord (attempt : Contract Uint256) (handler : String → Contract Unit) : Contract Unit :=
+  Contract.tryCatch
+    (do
+      let success ← attempt
+      if success == 0 then
+        require false ""
+      else
+        pure ())
+    handler
 def calldatasize : Uint256 := 0
 def returndataSize : Uint256 := 0
 def calldataload (offset : Uint256) : Uint256 := offset
@@ -195,12 +211,14 @@ def tload (offset : Uint256) : Contract Uint256 := fun state =>
   ContractResult.success (state.transientStorage (offset : Nat)) state
 def extcodesize (addr : Uint256) : Uint256 := addr
 def keccak256 (offset size : Uint256) : Uint256 := add offset size
-def call (gas target value inOffset inSize outOffset outSize : Uint256) : Uint256 :=
-  add gas (add target (add value (add inOffset (add inSize (add outOffset outSize)))))
-def staticcall (gas target inOffset inSize outOffset outSize : Uint256) : Uint256 :=
-  add gas (add target (add inOffset (add inSize (add outOffset outSize))))
-def delegatecall (gas target inOffset inSize outOffset outSize : Uint256) : Uint256 :=
-  add gas (add target (add inOffset (add inSize (add outOffset outSize))))
+def oracleWord (name : String) (args : List Uint256) : Contract Uint256 := fun state =>
+  ContractResult.success ((Verity.Env.ofWorld state).callOracle name args) state
+def call (gas target value inOffset inSize outOffset outSize : Uint256) : Contract Uint256 :=
+  oracleWord "call" [gas, target, value, inOffset, inSize, outOffset, outSize]
+def staticcall (gas target inOffset inSize outOffset outSize : Uint256) : Contract Uint256 :=
+  oracleWord "staticcall" [gas, target, inOffset, inSize, outOffset, outSize]
+def delegatecall (gas target inOffset inSize outOffset outSize : Uint256) : Contract Uint256 :=
+  oracleWord "delegatecall" [gas, target, inOffset, inSize, outOffset, outSize]
 def ecrecover (hash v r sigS : Uint256) : Contract Address := fun state =>
   ContractResult.success
     (wordToAddress ((Verity.Env.ofWorld state).callOracle "ecrecover" [hash, v, r, sigS]))
@@ -262,17 +280,25 @@ instance : ExternalResult Address where
   fromWord value := wordToAddress value
 instance : ExternalResult Bool where
   fromWord value := value != 0
-private def externalCallStubWord (name : String) (args : List Uint256) : Uint256 :=
-  match name, args with
-  | "echo", [value] => value
-  | _, _ => args.foldl add name.length
-def externalCallWords {α : Type} [ExternalResult α] (name : String) (args : List Uint256) : α :=
-  ExternalResult.fromWord (externalCallStubWord name args)
+def externalCallWords {α : Type} [ExternalResult α] (name : String) (args : List Uint256) : Contract α :=
+  fun state => ContractResult.success (ExternalResult.fromWord ((Verity.Env.ofWorld state).callOracle name args)) state
 def tryExternalCallWords {α : Type} [Inhabited α] (_name : String) (_args : List Uint256) : Contract (Bool × α) :=
   pure (false, (Inhabited.default : α))
 private def erc20ReadStubWord (name : String) (args : List Uint256) : Uint256 :=
-  externalCallStubWord name args
+  Verity.Env.defaultCallOracle name args
 macro_rules
+  | `(doElem| let $var:ident := externalCall $name:ident [ $[$args:term],* ]) =>
+      `(doElem| let $var ← externalCallWords $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ])
+  | `(doElem| let $var:ident := externalCall $name:str [ $[$args:term],* ]) =>
+      `(doElem| let $var ← externalCallWords $name [ $[ExternalArg.toWord $args],* ])
+  | `(doElem| $fn:ident (externalCall $name:ident [ $[$args:term],* ]) ) =>
+      `(doElem| do
+          let __verity_external_arg ← externalCallWords $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ]
+          $fn:ident __verity_external_arg)
+  | `(doElem| $fn:ident (externalCall $name:str [ $[$args:term],* ]) ) =>
+      `(doElem| do
+          let __verity_external_arg ← externalCallWords $name [ $[ExternalArg.toWord $args],* ]
+          $fn:ident __verity_external_arg)
   | `(term| externalCall $name:ident [ $[$args:term],* ]) =>
       `(externalCallWords $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ])
   | `(term| externalCall $name:str [ $[$args:term],* ]) =>
@@ -310,7 +336,22 @@ def safeApprove (_token _spender : Address) (_amount : Uint256) : Contract Unit 
 def balanceOf (token owner : Address) : Contract Uint256 := pure <| erc20ReadStubWord "balanceOf" [token.toNat, owner.toNat]
 def allowance (token owner spender : Address) : Contract Uint256 := pure <| erc20ReadStubWord "allowance" [token.toNat, owner.toNat, spender.toNat]
 def totalSupply (token : Address) : Contract Uint256 := pure <| erc20ReadStubWord "totalSupply" [token.toNat]
-def forEach (_name : String) (_count : Uint256) (body : Contract Unit) : Contract Unit := body
+private def forEach.loop (remaining index : Nat) (body : Uint256 → Contract Unit) : Contract Unit :=
+  match remaining with
+  | 0 => pure ()
+  | Nat.succ remaining' => do
+      body (index : Uint256)
+      forEach.loop remaining' (index + 1) body
+
+def forEach (_name : String) (count : Uint256) (body : Uint256 → Contract Unit) : Contract Unit :=
+  forEach.loop (count : Nat) 0 body
+
+macro_rules
+  | `(doElem| forEach $name:str $count:term (do $[$elems:doElem]*)) => do
+      let loopVar := Lean.mkIdent (Lean.Name.mkSimple name.getString)
+      `(doElem| forEach $name $count (fun $loopVar:ident => do $[$elems:doElem]*))
+  | `(doElem| forEach $name:ident $count:term (do $[$elems:doElem]*)) =>
+      `(doElem| forEach $(Lean.quote (toString name.getId)) $count (fun $name:ident => do $[$elems:doElem]*))
 def blockTimestamp : Contract Uint256 := Verity.blockTimestamp
 def blockNumber : Contract Uint256 := Verity.blockNumber
 def blobbasefee : Contract Uint256 := Verity.blobbasefee

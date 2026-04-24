@@ -24,6 +24,26 @@ namespace MacroLocalObligationSmoke
 
 open Contracts
 
+namespace ForEachSemanticSmoke
+
+def statuses : Verity.StorageSlot (Verity.Uint256 → Verity.Uint256) := ⟨42⟩
+
+def markStatuses (count : Verity.Uint256) : Verity.Contract Unit :=
+  Contracts.forEach "i" count (fun i => Verity.setMappingUint statuses i 1)
+
+def loopWritesEachIndex : Bool :=
+  match (markStatuses 3).run Verity.defaultState with
+  | .success _ state =>
+      state.storageMapUint statuses.slot 0 == 1 &&
+      state.storageMapUint statuses.slot 1 == 1 &&
+      state.storageMapUint statuses.slot 2 == 1 &&
+      state.storageMapUint statuses.slot 3 == 0
+  | .revert _ _ => false
+
+example : loopWritesEachIndex = true := by native_decide
+
+end ForEachSemanticSmoke
+
 def constructorCarriesUncheckedObligation : Bool :=
   match LocalObligationMacroSmoke.spec.constructor with
   | some { localObligations := [{ name := "constructor_storage_layout"
@@ -116,7 +136,7 @@ def forwardExecutableReadsImplementation : Bool :=
   | .success _ state =>
       match ProxyUpgradeabilityMacroSmoke.forward 100 0 32 64 32 state with
       | .success ok nextState =>
-          ok == delegatecall 100 19 0 32 64 32 &&
+          ok == Verity.Env.defaultCallOracle "delegatecall" [100, 19, 0, 32, 64, 32] &&
             nextState.storage ProxyUpgradeabilityMacroSmoke.initializedVersion.slot == 1 &&
             nextState.storageAddr ProxyUpgradeabilityMacroSmoke.admin.slot == Verity.wordToAddress 11 &&
             nextState.storageAddr ProxyUpgradeabilityMacroSmoke.implementation.slot == Verity.wordToAddress 19
