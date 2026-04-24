@@ -90,6 +90,11 @@ macro_rules
   | `(doElem| let mut $name:ident := delegatecall $gas:term $target:term $inOffset:term $inSize:term $outOffset:term $outSize:term) => do
       let delegatecallFn := Lean.mkIdentFrom name `_root_.Contracts.delegatecallM
       `(doElem| let mut $name ← $delegatecallFn:ident $gas $target $inOffset $inSize $outOffset $outSize)
+  | `(doElem| if call $gas:term $target:term $value:term $inOffset:term $inSize:term $outOffset:term $outSize:term == $rhs:term then $thenBranch:doSeq else $elseBranch:doSeq) => do
+      let callFn := Lean.mkIdentFrom target `_root_.Contracts.callM
+      `(doElem| do
+          let __verity_call_cond ← $callFn:ident $gas $target $value $inOffset $inSize $outOffset $outSize
+          if __verity_call_cond == $rhs then $thenBranch else $elseBranch)
   | `(doElem| let $pat:term := $rhs:term) => do
       if pat.raw.getKind != `Lean.Parser.Term.tuple then
         Lean.Macro.throwUnsupported
@@ -245,12 +250,9 @@ def staticcallM (gas target inOffset inSize outOffset outSize : Uint256) : Contr
   oracleWord "staticcall" [gas, target, inOffset, inSize, outOffset, outSize]
 def delegatecallM (gas target inOffset inSize outOffset outSize : Uint256) : Contract Uint256 :=
   oracleWord "delegatecall" [gas, target, inOffset, inSize, outOffset, outSize]
-def call (gas target value inOffset inSize outOffset outSize : Uint256) : Uint256 :=
-  Verity.Env.defaultCallOracle "call" [gas, target, value, inOffset, inSize, outOffset, outSize]
-def staticcall (gas target inOffset inSize outOffset outSize : Uint256) : Uint256 :=
-  Verity.Env.defaultCallOracle "staticcall" [gas, target, inOffset, inSize, outOffset, outSize]
-def delegatecall (gas target inOffset inSize outOffset outSize : Uint256) : Uint256 :=
-  Verity.Env.defaultCallOracle "delegatecall" [gas, target, inOffset, inSize, outOffset, outSize]
+abbrev call := callM
+abbrev staticcall := staticcallM
+abbrev delegatecall := delegatecallM
 def ecrecover (hash v r sigS : Uint256) : Contract Address := fun state =>
   ContractResult.success
     (wordToAddress ((Verity.Env.ofWorld state).callOracle "ecrecover" [hash, v, r, sigS]))
@@ -314,8 +316,6 @@ instance : ExternalResult Bool where
   fromWord value := value != 0
 def externalCallWords {α : Type} [ExternalResult α] (name : String) (args : List Uint256) : Contract α :=
   fun state => ContractResult.success (ExternalResult.fromWord ((Verity.Env.ofWorld state).callOracle name args)) state
-def externalCallWord {α : Type} [ExternalResult α] (name : String) (args : List Uint256) : α :=
-  ExternalResult.fromWord (Verity.Env.defaultCallOracle name args)
 def tryExternalCallWords {α : Type} [Inhabited α] (_name : String) (_args : List Uint256) : Contract (Bool × α) :=
   pure (false, (Inhabited.default : α))
 private def erc20ReadStubWord (name : String) (args : List Uint256) : Uint256 :=
@@ -329,6 +329,14 @@ macro_rules
       `(doElem| let mut $var ← externalCallWords $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ])
   | `(doElem| let mut $var:ident := externalCall $name:str [ $[$args:term],* ]) =>
       `(doElem| let mut $var ← externalCallWords $name [ $[ExternalArg.toWord $args],* ])
+  | `(doElem| let $var:ident ← $fn:ident (externalCall $name:ident [ $[$args:term],* ]) ) =>
+      `(doElem| do
+          let __verity_external_arg ← externalCallWords $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ]
+          let $var ← $fn:ident __verity_external_arg)
+  | `(doElem| let $var:ident ← $fn:ident (externalCall $name:str [ $[$args:term],* ]) ) =>
+      `(doElem| do
+          let __verity_external_arg ← externalCallWords $name [ $[ExternalArg.toWord $args],* ]
+          let $var ← $fn:ident __verity_external_arg)
   | `(doElem| $fn:ident (externalCall $name:ident [ $[$args:term],* ]) ) =>
       `(doElem| do
           let __verity_external_arg ← externalCallWords $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ]
@@ -338,9 +346,9 @@ macro_rules
           let __verity_external_arg ← externalCallWords $name [ $[ExternalArg.toWord $args],* ]
           $fn:ident __verity_external_arg)
   | `(term| externalCall $name:ident [ $[$args:term],* ]) =>
-      `(externalCallWord $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ])
+      `(externalCallWords $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ])
   | `(term| externalCall $name:str [ $[$args:term],* ]) =>
-      `(externalCallWord $name [ $[ExternalArg.toWord $args],* ])
+      `(externalCallWords $name [ $[ExternalArg.toWord $args],* ])
   | `(term| tryExternalCall $name:str [ $[$args:term],* ]) =>
       `(tryExternalCallWords $name [ $[ExternalArg.toWord $args],* ])
   | `(term| tryExternalCall $name:ident [ $[$args:term],* ]) =>
