@@ -922,6 +922,15 @@ ALLOWLIST: set[str] = {
     "compileStmtList_always_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
+    # --- Native EVM/Yul/Lean harness support boundary proofs ---
+    # Structural per-case dispatch over native block/switch semantics;
+    # splitting would duplicate identical plumbing across constructor arms.
+    "exec_block_append_error",
+    "exec_block_append_prefix_error",
+    "exec_nativeSwitchCaseIfs_prefix_hit_error_fuel",
+    # End-to-end native bridge proof; single structural composition that
+    # chains lowering, dispatch, and semantic agreement steps.
+    "simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge",
 }
 
 # Directories containing proof files to scan.
