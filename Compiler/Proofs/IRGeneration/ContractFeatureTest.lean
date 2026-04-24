@@ -81,21 +81,21 @@ private def literalMappingWrite_supported_function :
                   summaryOf := by
                     intro calleeName hmem
                     exfalso
-                    simpa [literalMappingWriteFunction, helperCallNames,
+                    simp [literalMappingWriteFunction, helperCallNames,
                       stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
-                      exprInternalHelperCallNames] using hmem
+                      exprInternalHelperCallNames] at hmem
                   calleeRanksDecrease := by
                     intro calleeName hmem
                     exfalso
-                    simpa [literalMappingWriteFunction, helperCallNames,
+                    simp [literalMappingWriteFunction, helperCallNames,
                       stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
-                      exprInternalHelperCallNames] using hmem
+                      exprInternalHelperCallNames] at hmem
                   exprCallsPreserveWorld := by
                     intro calleeName hmem
                     exfalso
-                    simpa [literalMappingWriteFunction, exprHelperCallNames,
+                    simp [literalMappingWriteFunction, exprHelperCallNames,
                       stmtListExprHelperCallNames, stmtExprHelperCallNames,
-                      exprInternalHelperCallNames] using hmem }
+                      exprInternalHelperCallNames] at hmem }
               foreign := by decide
               lowLevel := by decide }
           effects := { surfaceClosed := by decide }
@@ -184,21 +184,21 @@ private def constructorOnlySupported :
                 summaryOf := by
                   intro calleeName hmem
                   exfalso
-                  simpa [helperCallNames, constructorAsFunctionSpec, constructorOnlyCtor,
+                  simp [helperCallNames, constructorAsFunctionSpec, constructorOnlyCtor,
                     stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
-                    exprInternalHelperCallNames] using hmem
+                    exprInternalHelperCallNames] at hmem
                 calleeRanksDecrease := by
                   intro calleeName hmem
                   exfalso
-                  simpa [helperCallNames, constructorAsFunctionSpec, constructorOnlyCtor,
+                  simp [helperCallNames, constructorAsFunctionSpec, constructorOnlyCtor,
                     stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
-                    exprInternalHelperCallNames] using hmem
+                    exprInternalHelperCallNames] at hmem
                 exprCallsPreserveWorld := by
                   intro calleeName hmem
                   exfalso
-                  simpa [exprHelperCallNames, constructorAsFunctionSpec, constructorOnlyCtor,
+                  simp [exprHelperCallNames, constructorAsFunctionSpec, constructorOnlyCtor,
                     stmtListExprHelperCallNames, stmtExprHelperCallNames,
-                    exprInternalHelperCallNames] using hmem }
+                    exprInternalHelperCallNames] at hmem }
             foreign := by decide
             lowLevel := by decide }
         effects := { surfaceClosed := by decide }
@@ -882,7 +882,7 @@ example :
       (ctor := constructorOnlyCtor)
       (helperFuel := 0)
       (hnormalized := rfl)
-      (hfunctionNamesNodup := by decide)
+      (by decide)
       (hSupported := constructorOnlySupported)
       (hnoConflict := constructorOnly_noConflict)
       (hsafety := by
@@ -948,7 +948,7 @@ example :
         (ctor := constructorOnlyCtor)
         (helperFuel := 0)
         (hnormalized := rfl)
-        (hfunctionNamesNodup := by decide)
+        (by decide)
         (hSupported := constructorOnlySupported)
         (hnoConflict := constructorOnly_noConflict)
         (hsafety := by

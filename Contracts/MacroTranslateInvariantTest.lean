@@ -431,7 +431,8 @@ private def expectedExternalSignatures : List (String × List String) :=
       "immutableNamedBlockTimestamp()", "immutableNamedMsgSender()"])
   , ("FunctionOverloadSmoke", ["echo(uint256)", "echo(address)", "echo(uint256,uint256)"])
   , ("HelperExternalArgumentSmoke", ["idWord(uint256)", "pair(uint256)", "put(uint256)",
-      "bindExternalArg(uint256)", "tupleExternalArg(uint256)", "statementExternalArg(uint256)"])
+      "bindExternalArg(uint256)", "helperExternalArgRhs(uint256)", "mutableExternalArg(uint256)",
+      "tupleExternalArg(uint256)", "statementExternalArg(uint256)"])
   , ("BlockTimestampSmoke", ["nowish()", "timestampPlus(uint256)", "blobFeePlus(uint256)"])
   , ("StructMappingSmoke", ["setPosition(address,uint256,uint256,address)", "totalPositionShares(address)",
       "delegateOf(address)", "setApproval(address,address,uint256,uint256)", "approvalOf(address,address)",
@@ -444,7 +445,8 @@ private def expectedExternalSignatures : List (String × List String) :=
       "snapshotAllowance(address,address,address)", "snapshotSupply(address)"])
   , ("GenericECMReadSmoke", ["snapshotQuote(address,address)"])
   , ("GenericECMWriteSmoke", ["runEffect(uint256,uint256)"])
-  , ("LowLevelTryCatchSmoke", ["catchFailure()", "skipCatchOnSuccess()", "catchFailureWithShadowedParam(uint256)"])
+  , ("LowLevelTryCatchSmoke", ["catchFailure()", "skipCatchOnSuccess()", "catchFailureWithShadowedParam(uint256)",
+      "catchComputedWord(uint256)", "mutableCallBinding(uint256)", "callExpressionPosition(uint256)"])
   , ("LocalObligationRequiredForUnsafeFunctionBoundary", ["preview()"])
   , ("LocalObligationRequiredForUnsafeConstructorBoundary", ["noop()"])
   , ("ModifiesSmoke", ["increment()", "transferOwnership(address)", "deposit(uint256)", "getCounter()"])
@@ -535,7 +537,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("ContextAccessorShadowSmoke", ["0x40d06f02", "0xda15c6a0", "0x3f08a0dd", "0xe6d00bb0"])
   , ("FunctionOverloadSmoke", ["0x6279e43c", "0x2ffdbf1a", "0x3bb2bcd0"])
   , ("HelperExternalArgumentSmoke", ["0x2d29ad72", "0x645751af", "0x3f81a2c0",
-      "0xb503d0dd", "0xcdc18015", "0xe41657c6"])
+      "0xb503d0dd", "0xd26ac337", "0xc9e428e2", "0xcdc18015", "0xe41657c6"])
   , ("BlockTimestampSmoke", ["0xa676760e", "0x8c041599", "0x7150df5e"])
   , ("StructMappingSmoke", ["0x468c900e", "0xe7933b6a", "0x8d22ea2a", "0xf4536007", "0xcb01943e",
       "0x6c241120"])
@@ -546,7 +548,8 @@ private def expectedExternalSelectors : List (String × List String) :=
       "0x7247c4a5"])
   , ("GenericECMReadSmoke", ["0x78f2e50f"])
   , ("GenericECMWriteSmoke", ["0xc1192eb1"])
-  , ("LowLevelTryCatchSmoke", ["0x42d9c6d1", "0xdaf546c4", "0xa4660933"])
+  , ("LowLevelTryCatchSmoke", ["0x42d9c6d1", "0xdaf546c4", "0xa4660933", "0x9075cb80",
+      "0xdce24368", "0x2caf2ab9"])
   , ("LocalObligationRequiredForUnsafeFunctionBoundary", ["0xefae2305"])
   , ("LocalObligationRequiredForUnsafeConstructorBoundary", ["0x5dfc2e4a"])
   , ("ModifiesSmoke", ["0xd09de08a", "0xf2fde38b", "0xb6b55f25", "0x8ada066e"])

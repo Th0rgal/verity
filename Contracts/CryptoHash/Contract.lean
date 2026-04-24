@@ -65,12 +65,12 @@ def exampleUsage : Contract Uint256 := do
 
 example :
     (hashTwo 10 7).run defaultState = ContractResult.success (17 : Uint256) defaultState := by
-  simp [Contract.run, hashTwo, Verity.Env.ofWorld, Verity.Env.defaultCallOracle]
+  simp [Contract.run, hashTwo, Verity.Env.ofWorld]
   decide
 
 example :
     (hashThree 5 6 7).run defaultState = ContractResult.success (18 : Uint256) defaultState := by
-  simp [Contract.run, hashThree, Verity.Env.ofWorld, Verity.Env.defaultCallOracle]
+  simp [Contract.run, hashThree, Verity.Env.ofWorld]
   decide
 
 end Contracts.CryptoHash
