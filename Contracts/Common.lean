@@ -318,8 +318,8 @@ def externalCallWords {α : Type} [ExternalResult α] (name : String) (args : Li
   fun state => ContractResult.success (ExternalResult.fromWord ((Verity.Env.ofWorld state).callOracle name args)) state
 def tryExternalCallWords {α : Type} [Inhabited α] (_name : String) (_args : List Uint256) : Contract (Bool × α) :=
   pure (false, (Inhabited.default : α))
-private def erc20ReadStubWord (name : String) (args : List Uint256) : Uint256 :=
-  Verity.Env.defaultCallOracle name args
+private def erc20ReadStub (name : String) (args : List Uint256) : Contract Uint256 :=
+  externalCallWords name args
 macro_rules
   | `(doElem| let $var:ident := externalCall $name:ident [ $[$args:term],* ]) =>
       `(doElem| let $var ← externalCallWords $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ])
@@ -401,9 +401,9 @@ def setStructMember2 {κ₁ κ₂ α : Type}
 def safeTransfer (_token _to : Address) (_amount : Uint256) : Contract Unit := pure ()
 def safeTransferFrom (_token _fromAddr _to : Address) (_amount : Uint256) : Contract Unit := pure ()
 def safeApprove (_token _spender : Address) (_amount : Uint256) : Contract Unit := pure ()
-def balanceOf (token owner : Address) : Contract Uint256 := pure <| erc20ReadStubWord "balanceOf" [token.toNat, owner.toNat]
-def allowance (token owner spender : Address) : Contract Uint256 := pure <| erc20ReadStubWord "allowance" [token.toNat, owner.toNat, spender.toNat]
-def totalSupply (token : Address) : Contract Uint256 := pure <| erc20ReadStubWord "totalSupply" [token.toNat]
+def balanceOf (token owner : Address) : Contract Uint256 := erc20ReadStub "balanceOf" [token.toNat, owner.toNat]
+def allowance (token owner spender : Address) : Contract Uint256 := erc20ReadStub "allowance" [token.toNat, owner.toNat, spender.toNat]
+def totalSupply (token : Address) : Contract Uint256 := erc20ReadStub "totalSupply" [token.toNat]
 def forEach.loop (remaining index : Nat) (body : Uint256 → Contract Unit) : Contract Unit :=
   match remaining with
   | 0 => pure ()

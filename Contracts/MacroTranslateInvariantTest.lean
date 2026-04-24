@@ -910,6 +910,26 @@ private def checkCurveCutArraySmoke : IO Unit := do
   expectTrue "CurveCutArraySmoke: repeated tuple arrayElement destructures use fresh synthetic indexes"
     curveCutArrayRepeatedDestructuresUseFreshSyntheticIndexes
 
+private def checkERC20ReadHelpersUseRuntimeOracle : IO Unit := do
+  let state : Verity.ContractState :=
+    { Verity.defaultState with
+      callOracle := fun name args =>
+        match name, args with
+        | "balanceOf", [token, owner] => token + owner + 1000
+        | "allowance", [token, owner, spender] => token + owner + spender + 2000
+        | "totalSupply", [token] => token + 3000
+        | _, args => args.foldl (· + ·) 0 }
+  let checkRead (label : String) (expected : Verity.Uint256) (read : Verity.Contract Verity.Uint256) : IO Unit := do
+    match read state with
+    | Verity.ContractResult.success value _ => expectTrue label (value == expected)
+    | Verity.ContractResult.revert err _ => throw (IO.userError s!"✗ {label}: reverted: {err}")
+  checkRead "ERC20 helper balanceOf uses runtime call oracle" 1003
+    (Contracts.balanceOf (1 : Verity.Address) (2 : Verity.Address))
+  checkRead "ERC20 helper allowance uses runtime call oracle" 2006
+    (Contracts.allowance (1 : Verity.Address) (2 : Verity.Address) (3 : Verity.Address))
+  checkRead "ERC20 helper totalSupply uses runtime call oracle" 3001
+    (Contracts.totalSupply (1 : Verity.Address))
+
 private def checkSpec (spec : CompilationModel) : IO Unit := do
   let extFns := externalFunctions spec
   let fnNames := extFns.map (·.name)
@@ -1031,6 +1051,7 @@ private def checkSpec (spec : CompilationModel) : IO Unit := do
   checkSpecialEntrypointSmoke
   checkDirectHelperCallSmoke
   checkCurveCutArraySmoke
+  checkERC20ReadHelpersUseRuntimeOracle
   for spec in macroSpecs do
     checkSpec spec
 
