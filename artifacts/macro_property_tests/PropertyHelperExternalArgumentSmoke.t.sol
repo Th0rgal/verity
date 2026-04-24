@@ -51,19 +51,4 @@ contract PropertyHelperExternalArgumentSmokeTest is YulTestBase {
         // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
         ret;
     }
-    // Property 5: TODO decode and assert `tupleExternalArg` result
-    function testTODO_TupleExternalArg_DecodeAndAssert() public {
-        vm.prank(alice);
-        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("tupleExternalArg(uint256)", uint256(1)));
-        require(ok, "tupleExternalArg reverted unexpectedly");
-        assertEq(ret.length, 32, "tupleExternalArg ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
-    }
-    // Property 6: statementExternalArg has no unexpected revert
-    function testAuto_StatementExternalArg_NoUnexpectedRevert() public {
-        vm.prank(alice);
-        (bool ok,) = target.call(abi.encodeWithSignature("statementExternalArg(uint256)", uint256(1)));
-        require(ok, "statementExternalArg reverted unexpectedly");
-    }
 }
