@@ -850,7 +850,7 @@ example :
   native_decide
 
 example :
-    nativeCopiesSloadToSlot [8] 0 = true := by
+    nativeCopiesSloadToSlot [8] 77 = true := by
   native_decide
 
 example :

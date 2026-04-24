@@ -55,6 +55,44 @@ def initialState
           perm := true } }
   .Ok shared' ∅
 
+/-! ## Native Storage Materialization -/
+
+partial def yulExprLiteralStorageReadSlots : YulExpr → List Nat
+  | .call "sload" [.lit slot] => [slot]
+  | .call _ args => args.flatMap yulExprLiteralStorageReadSlots
+  | _ => []
+
+mutual
+  partial def yulStmtLiteralStorageReadSlots : YulStmt → List Nat
+    | .let_ _ value => yulExprLiteralStorageReadSlots value
+    | .letMany _ value => yulExprLiteralStorageReadSlots value
+    | .assign _ value => yulExprLiteralStorageReadSlots value
+    | .expr e => yulExprLiteralStorageReadSlots e
+    | .if_ cond body =>
+        yulExprLiteralStorageReadSlots cond ++ yulStmtsLiteralStorageReadSlots body
+    | .for_ init cond post body =>
+        yulStmtsLiteralStorageReadSlots init ++
+          yulExprLiteralStorageReadSlots cond ++
+          yulStmtsLiteralStorageReadSlots post ++
+          yulStmtsLiteralStorageReadSlots body
+    | .switch discr cases defaultBody =>
+        yulExprLiteralStorageReadSlots discr ++
+          cases.flatMap (fun entry => yulStmtsLiteralStorageReadSlots entry.2) ++
+          (defaultBody.map yulStmtsLiteralStorageReadSlots).getD []
+    | .block stmts => yulStmtsLiteralStorageReadSlots stmts
+    | .funcDef _ _ _ body => yulStmtsLiteralStorageReadSlots body
+    | .comment _ | .leave => []
+
+  partial def yulStmtsLiteralStorageReadSlots (stmts : List YulStmt) : List Nat :=
+    stmts.flatMap yulStmtLiteralStorageReadSlots
+end
+
+def materializedStorageSlots
+    (runtimeCode : List YulStmt)
+    (observableSlots : List Nat) :
+    List Nat :=
+  yulStmtsLiteralStorageReadSlots runtimeCode ++ observableSlots
+
 /-! ## Native Environment Support Boundary -/
 
 partial def yulExprUsesBuiltinExceptFunctions
@@ -4911,7 +4949,9 @@ def interpretRuntimeNative
     Except AdapterError YulResult := do
   let contract ← lowerRuntimeContractNative runtimeCode
   validateNativeRuntimeEnvironment runtimeCode tx
-  let initial := initialState contract tx storage observableSlots
+  let initial :=
+    initialState contract tx storage
+      (materializedStorageSlots runtimeCode observableSlots)
   let result := EvmYul.Yul.callDispatcher fuel (some contract) initial
   pure (projectResult tx storage events result)
 
@@ -4942,7 +4982,8 @@ def interpretRuntimeNative
     interpretRuntimeNative fuel runtimeCode tx storage observableSlots events =
       .ok (projectResult tx storage events
         (EvmYul.Yul.callDispatcher fuel (some contract)
-          (initialState contract tx storage observableSlots))) := by
+          (initialState contract tx storage
+            (materializedStorageSlots runtimeCode observableSlots)))) := by
   rw [interpretRuntimeNative, hLower, hEnv]
   rfl
 
@@ -4969,10 +5010,10 @@ path once the state/result bridge lemmas are proved. It intentionally returns
 `Except AdapterError YulResult` today because native lowering can still fail
 closed for duplicate helper definitions or unsupported runtime shapes.
 
-The observable slot set is explicit because the native state bridge only
-materializes pre-state storage for the listed slots. Passing `[]` is valid for
-storage-free smoke tests, but storage-reading callers must provide every slot
-they intend the native EVMYulLean state to observe.
+The observable slot set is explicit because the public theorem compares only
+those final storage slots. Native execution materializes those slots plus
+literal `sload` slots derived from the emitted runtime so storage reads remain
+faithful even when callers compare a smaller public projection.
 -/
 def interpretIRRuntimeNative
     (fuel : Nat)
@@ -5024,7 +5065,8 @@ def interpretIRRuntimeNative
       .ok (projectResult (YulTransaction.ofIR tx) state.storage state.events
         (EvmYul.Yul.callDispatcher fuel (some nativeContract)
           (initialState nativeContract (YulTransaction.ofIR tx) state.storage
-            observableSlots))) := by
+            (materializedStorageSlots (Compiler.emitYul irContract).runtimeCode
+              observableSlots)))) := by
   rw [interpretIRRuntimeNative, interpretRuntimeNative, hLower, hEnv]
   rfl
 

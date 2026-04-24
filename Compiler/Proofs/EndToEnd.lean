@@ -198,7 +198,9 @@ def nativeCallDispatcherAgreesWithInterpreter
       (YulTransaction.ofIR tx) state.storage state.events
       (EvmYul.Yul.callDispatcher fuel (some nativeContract)
         (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-          nativeContract (YulTransaction.ofIR tx) state.storage observableSlots)))
+          nativeContract (YulTransaction.ofIR tx) state.storage
+          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode contract) observableSlots))))
     (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackendFuel
       .evmYulLean fuel (Compiler.emitYul contract).runtimeCode
       (YulTransaction.ofIR tx) state.storage state.events)
@@ -221,7 +223,9 @@ def nativeDispatcherBlockAgreesWithInterpreter
     Prop :=
   let initial :=
     Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
-      (YulTransaction.ofIR tx) state.storage observableSlots
+      (YulTransaction.ofIR tx) state.storage
+      (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+        (Compiler.runtimeCode contract) observableSlots)
   let nativeResult :=
     match fuel with
     | 0 =>
@@ -252,7 +256,9 @@ def nativeDispatcherExecAgreesWithInterpreter
     Prop :=
   let initial :=
     Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
-      (YulTransaction.ofIR tx) state.storage observableSlots
+      (YulTransaction.ofIR tx) state.storage
+      (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+        (Compiler.runtimeCode contract) observableSlots)
   let nativeResult :=
     match fuel with
     | 0 =>
@@ -285,23 +291,26 @@ theorem nativeDispatcherExecAgreesWithInterpreter_of_exec_ok_agree
     {nativeContract : EvmYul.Yul.Ast.YulContract}
     {finalState : EvmYul.Yul.State}
     (hExec :
+      let initial :=
+        Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
+          (YulTransaction.ofIR tx) state.storage
+          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode contract) observableSlots)
       Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-        fuel' nativeContract
-        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-          nativeContract (YulTransaction.ofIR tx) state.storage observableSlots) =
+        fuel' nativeContract initial =
         .ok finalState)
     (hAgree :
       let initial :=
         Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
-          (YulTransaction.ofIR tx) state.storage observableSlots
-      let dispatcherDef :=
-        EvmYul.Yul.Ast.FunctionDefinition.Def [] [] [nativeContract.dispatcher]
+          (YulTransaction.ofIR tx) state.storage
+          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode contract) observableSlots)
       yulResultsAgreeOn observableSlots
         (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx) state.storage state.events
           (.ok
             (finalState.reviveJump.overwrite? initial |>.setStore initial,
-              List.map finalState.lookup! dispatcherDef.rets)))
+              [])))
         (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackendFuel
           .evmYulLean (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
           (YulTransaction.ofIR tx) state.storage state.events)) :
@@ -319,10 +328,13 @@ theorem nativeDispatcherExecAgreesWithInterpreter_of_exec_yulHalt_agree
     {nativeContract : EvmYul.Yul.Ast.YulContract}
     {haltState : EvmYul.Yul.State} {haltValue : EvmYul.Yul.Ast.Literal}
     (hExec :
+      let initial :=
+        Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
+          (YulTransaction.ofIR tx) state.storage
+          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode contract) observableSlots)
       Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-        fuel' nativeContract
-        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-          nativeContract (YulTransaction.ofIR tx) state.storage observableSlots) =
+        fuel' nativeContract initial =
         .error (.YulHalt haltState haltValue))
     (hAgree :
       yulResultsAgreeOn observableSlots
@@ -350,10 +362,13 @@ theorem nativeDispatcherExecAgreesWithInterpreter_of_exec_error_agree
     {nativeContract : EvmYul.Yul.Ast.YulContract}
     {err : EvmYul.Yul.Exception}
     (hExec :
+      let initial :=
+        Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
+          (YulTransaction.ofIR tx) state.storage
+          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode contract) observableSlots)
       Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-        fuel' nativeContract
-        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-          nativeContract (YulTransaction.ofIR tx) state.storage observableSlots) =
+        fuel' nativeContract initial =
         .error err)
     (hAgree :
       yulResultsAgreeOn observableSlots
