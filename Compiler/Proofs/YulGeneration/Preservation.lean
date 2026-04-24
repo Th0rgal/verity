@@ -3,6 +3,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 import Compiler.Proofs.YulGeneration.StatementEquivalence
 import Compiler.Proofs.IRGeneration.IRInterpreter
 
+set_option linter.unusedSimpArgs false
+
 namespace Compiler.Proofs.YulGeneration
 
 open Compiler

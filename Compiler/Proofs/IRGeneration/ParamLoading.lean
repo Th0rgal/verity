@@ -1,6 +1,9 @@
 import Compiler.CompilationModel.ParamLoading
 import Compiler.Proofs.IRGeneration.SourceSemantics
 
+set_option linter.unnecessarySimpa false
+set_option linter.unusedSimpArgs false
+
 namespace Compiler.Proofs.IRGeneration
 
 open Compiler

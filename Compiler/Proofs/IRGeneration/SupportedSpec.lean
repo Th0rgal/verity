@@ -5,6 +5,12 @@ import Compiler.CompilationModel.UsageAnalysis
 import Compiler.CompilationModel.SelectorInteropHelpers
 import Compiler.TypedIRCompilerCorrectness
 
+set_option linter.deprecated false
+set_option linter.unnecessarySimpa false
+set_option linter.unusedSimpArgs false
+set_option linter.unusedTactic false
+set_option linter.unusedVariables false
+
 namespace Compiler.Proofs.IRGeneration
 
 open Compiler
@@ -4328,7 +4334,9 @@ private theorem exprUsesStorageArrayElement_eq_false_of_coreClosed
         exprUsesStorageArrayElement_eq_false_of_coreClosed hcore.1.1,
         exprUsesStorageArrayElement_eq_false_of_coreClosed hcore.1.2,
         exprUsesStorageArrayElement_eq_false_of_coreClosed hcore.2]
-  | storage _ | storageAddr _ | arrayElement _ _ => simp [exprUsesStorageArrayElement]
+  | storage _ | storageAddr _ => simp [exprUsesStorageArrayElement]
+  | arrayElement _ _ =>
+      simp [exprTouchesUnsupportedCoreSurface] at hcore
   | _ => simp [exprTouchesUnsupportedCoreSurface] at hcore
 termination_by sizeOf expr
 decreasing_by all_goals (subst_vars; simp_wf; try omega)

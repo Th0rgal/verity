@@ -1,5 +1,7 @@
 import Compiler.Proofs.IRGeneration.Dispatch
 
+set_option linter.unnecessarySimpa false
+
 namespace Compiler.Proofs.IRGeneration
 
 open Compiler

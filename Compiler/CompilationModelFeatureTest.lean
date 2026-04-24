@@ -962,6 +962,32 @@ run_cmd do
 
 end MacroInt256LoweringSmoke
 
+namespace MacroNumericLiteralHelperSmoke
+
+open Verity hiding pure bind
+open Verity.EVM.Uint256
+
+verity_contract MacroNumericLiteralHelper where
+  storage
+
+  function choose (value : Int256) : Int256 := do
+    return value
+
+  function signedLiteral () : Int256 := do
+    let result ← choose 1
+    return result
+
+def signedLiteralUsesInt256Overload : Bool :=
+  match MacroNumericLiteralHelper.signedLiteral_modelBody with
+  | [Stmt.letVar "result" (Expr.internalCall helperName [Expr.literal 1]),
+      Stmt.return (Expr.localVar "result")] =>
+      helperName == "internal_choose"
+  | _ => false
+
+example : signedLiteralUsesInt256Overload = true := by native_decide
+
+end MacroNumericLiteralHelperSmoke
+
 namespace MacroPayableConstructorSmoke
 
 open Contracts
@@ -2389,6 +2415,23 @@ private def tupleArrayElementWordOnlySpec : CompilationModel := {
   ]
 }
 
+private def arrayElementWordStorageIndexSpec : CompilationModel := {
+  name := "ArrayElementWordStorageIndex"
+  fields := [{ name := "queue", ty := FieldType.dynamicArray .uint256, «slot» := some 7 }]
+  «constructor» := none
+  functions := [
+    { name := "selected"
+      params := [{ name := "values", ty := ParamType.array (ParamType.tuple [ParamType.uint256, ParamType.uint256]) }]
+      returnType := some FieldType.uint256
+      body := [
+        Stmt.return
+          (Expr.arrayElementWord "values"
+            (Expr.storageArrayElement "queue" (Expr.literal 0)) 2 1)
+      ]
+    }
+  ]
+}
+
 private def storageArrayUint256SmokeSpec : CompilationModel := {
   name := "StorageArrayUint256Smoke"
   fields := [{ name := "queue", ty := FieldType.dynamicArray .uint256, «slot» := some 7 }]
@@ -2879,12 +2922,10 @@ set_option maxRecDepth 4096 in
     "same-name internal helpers are rejected before Yul lowering"
     duplicateInternalNameSpec
     "duplicate internal function name 'helper'"
-  expectTrue
-    "internal helper source names may match external dispatch names"
-    (match Compiler.CompilationModel.compile internalExternalNameCollisionSpec
-        (selectorsFor internalExternalNameCollisionSpec) with
-     | .ok _ => true
-     | .error _ => false)
+  expectCompileErrorContains
+    "internal helper source names cannot collide with external dispatch names"
+    internalExternalNameCollisionSpec
+    "internal function name 'helper' collides with an external function name"
   let reservedFieldRejected :=
     match validateCompileInputs reservedFieldSpec (selectorsFor reservedFieldSpec) with
     | .ok _ => false
@@ -3158,6 +3199,10 @@ set_option maxRecDepth 4096 in
   expectTrue "arrayElementWord-only specs do not emit tuple-array helpers"
     (!(contains tupleArrayElementWordOnlyYul checkedArrayElementCalldataHelperName) &&
       !(contains tupleArrayElementWordOnlyYul checkedArrayElementMemoryHelperName))
+  let arrayElementWordStorageIndexYul ←
+    expectCompileToYul "arrayElementWord storage-index smoke spec" arrayElementWordStorageIndexSpec
+  expectTrue "arrayElementWord index analysis emits storage-array helper dependencies"
+    (contains arrayElementWordStorageIndexYul checkedStorageArrayElementHelperName)
   let storageArrayUint256Yul ←
     expectCompileToYul "storage uint256[] smoke spec" storageArrayUint256SmokeSpec
   expectTrue "storage uint256[] length lowers to sload(slot)"

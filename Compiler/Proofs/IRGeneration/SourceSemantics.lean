@@ -3,6 +3,11 @@ import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.MappingSlot
 import Compiler.CompilationModel.LayoutValidation
 
+set_option linter.unnecessarySimpa false
+set_option linter.unusedSimpArgs false
+set_option linter.unusedTactic false
+set_option linter.unusedVariables false
+
 namespace Compiler.Proofs.IRGeneration
 
 open Compiler

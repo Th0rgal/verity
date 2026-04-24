@@ -49,6 +49,7 @@ import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness
 import Compiler.Proofs.IRGeneration.Contract
 import Compiler.Proofs.IRGeneration.Function
 import Compiler.Proofs.IRGeneration.Expr
+import Compiler.SimpleStorageNativeWitness
 
 namespace Compiler.Proofs.EndToEnd
 
@@ -1222,50 +1223,14 @@ theorem simpleStorage_endToEnd_evmYulLean
     (by intro s hs; simp [simpleStorageIRContract] at hs) rfl rfl
     simpleStorage_functions_bridged
 
-/-- Concrete native lowering for `simpleStorage` succeeds in the current tree.
-
-This packages the computed lowering witness so concrete native theorems do not
-need to re-open the adapter result shape inline. -/
-private theorem simpleStorage_lowerRuntimeContractNative_ok :
-    ∃ nativeContract,
-      Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
-        (Compiler.emitYul simpleStorageIRContract).runtimeCode = .ok nativeContract := by
-  have hOk :
-      (match
-          Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
-            (Compiler.emitYul simpleStorageIRContract).runtimeCode with
-        | .ok _ => true
-        | .error _ => false) = true := by
-    native_decide
-  cases hLower :
-      Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
-        (Compiler.emitYul simpleStorageIRContract).runtimeCode with
-  | ok nativeContract =>
-      exact ⟨nativeContract, rfl⟩
-  | error err =>
-      have := hOk
-      rw [hLower] at this
-      cases this
-
-private noncomputable def simpleStorageNativeContract :
-    EvmYul.Yul.Ast.YulContract :=
-  Classical.choose simpleStorage_lowerRuntimeContractNative_ok
-
-private theorem simpleStorage_lowerRuntimeContractNative_eq :
-    Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
-      (Compiler.emitYul simpleStorageIRContract).runtimeCode =
-        .ok simpleStorageNativeContract :=
-  Classical.choose_spec simpleStorage_lowerRuntimeContractNative_ok
-
-/-- Concrete native SimpleStorage wrapper with the lowering seam discharged.
+/-- Native SimpleStorage wrapper with the lowering seam discharged.
 
 This reduces the remaining concrete native proof work for `simpleStorage` to
 two facts:
 - the emitted runtime passes native environment validation for the current tx;
 - the lowered native `callDispatcher` agrees with the interpreter oracle.
-
-The lowering witness itself is packaged above so callers do not need to thread
-an existential native contract through the theorem surface. -/
+The concrete lowering witness is computed outside `Compiler/Proofs` and consumed
+here only through its exported equality. -/
 theorem simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     (hselector : tx.functionSelector < selectorModulus)
@@ -1290,7 +1255,7 @@ theorem simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge
       nativeCallDispatcherAgreesWithInterpreter
         (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
         simpleStorageIRContract tx initialState observableSlots
-        simpleStorageNativeContract) :
+        Compiler.SimpleStorageNativeWitness.nativeContract) :
     nativeResultsMatchOn observableSlots
       (interpretIR simpleStorageIRContract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
@@ -1299,7 +1264,7 @@ theorem simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge
   layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bridge
     (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
     simpleStorageIRContract tx initialState observableSlots
-    simpleStorageNativeContract
+    Compiler.SimpleStorageNativeWitness.nativeContract
     hselector hNoWrap hvars hmemory htransient hreturn hparamErase
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead
     (by
@@ -1311,7 +1276,7 @@ theorem simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge
     rfl
     simpleStorage_functions_bridged
     rfl
-    simpleStorage_lowerRuntimeContractNative_eq
+    Compiler.SimpleStorageNativeWitness.lowerRuntimeContractNative_eq
     hEnv
     hNativeCallDispatcher
 

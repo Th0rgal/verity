@@ -125,9 +125,11 @@ def natToAddress (n : Nat) : AccountAddress :=
 
 /-- Create a minimal EVMYulLean BlockHeader from Verity's block fields.
     Fields not modeled by Verity (e.g. baseFeePerGas, gasLimit) are set to
-    default zero values. Note: Verity's `blobBaseFee` is the blob gas price,
-    which in EVMYulLean is derived from `excessBlobGas` via `getBlobGasprice`;
-    the reverse mapping is not straightforward, so it is left as 0 here. -/
+    default zero values. EVMYulLean derives `blobbasefee()` from
+    `excessBlobGas`, so this zero header represents only
+    `EvmYul.MIN_BASE_FEE_PER_BLOB_GAS`; the native harness fails closed when a
+    selected runtime path reads `blobbasefee()` with any other transaction
+    `blobBaseFee`. -/
 def mkBlockHeader (state : YulState) : BlockHeader :=
   { parentHash := ⟨0⟩
     ommersHash := ⟨0⟩

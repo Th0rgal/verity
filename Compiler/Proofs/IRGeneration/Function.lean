@@ -6,6 +6,11 @@ import Compiler.Proofs.IRGeneration.SourceSemantics
 import Compiler.Proofs.IRGeneration.SupportedSpec
 import Compiler.Proofs.YulGeneration.Equivalence
 
+set_option linter.unnecessarySeqFocus false
+set_option linter.unnecessarySimpa false
+set_option linter.unusedSimpArgs false
+set_option linter.unusedVariables false
+
 namespace Compiler.Proofs.IRGeneration
 
 open Compiler
