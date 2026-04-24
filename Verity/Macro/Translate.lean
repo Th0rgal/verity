@@ -1306,6 +1306,25 @@ private def isNatLiteralTerm (stx : Term) : Bool :=
   | `(term| $_n:num) => true
   | _ => false
 
+private def numericLiteralCompatibleValueType : ValueType → Bool
+  | .uint256 | .int256 | .uint8 => true
+  | .newtype _ baseType => numericLiteralCompatibleValueType baseType
+  | _ => false
+
+private def argumentTypeMatchesParam (arg : Term) (argTy paramTy : ValueType) : Bool :=
+  argTy == paramTy || (argTy == .uint256 && isNatLiteralTerm arg && numericLiteralCompatibleValueType paramTy)
+
+private def argumentTypesMatchParams (args : Array Term) (argTypes : Array ValueType)
+    (params : Array ParamDecl) : Bool :=
+  args.size == params.size && Id.run do
+    for idx in [:args.size] do
+      let some arg := args[idx]? | return false
+      let some argTy := argTypes[idx]? | return false
+      let some param := params[idx]? | return false
+      unless argumentTypeMatchesParam arg argTy param.ty do
+        return false
+    return true
+
 private def preferSignedNumericLiteralPeer
     (lhs rhs : Term)
     (lhsTy rhsTy : ValueType) : ValueType × ValueType :=
@@ -2099,9 +2118,14 @@ private partial def resolveLocalFunctionApp?
     pure none
   else
     let argTypes ← argTerms.mapM (inferPureExprType fields constDecls immutableDecls externalDecls params locals)
-    let matchedFns := candidates.filter (fun fn =>
+    let exactMatchedFns := candidates.filter (fun fn =>
       fn.params.map (fun param => param.ty) == argTypes)
-    match matchedFns.toList with
+    let literalCompatibleFns :=
+      if exactMatchedFns.isEmpty then
+        candidates.filter (fun fn => argumentTypesMatchParams argTerms argTypes fn.params)
+      else
+        exactMatchedFns
+    match literalCompatibleFns.toList with
     | [fn] => pure (some (fn, argTerms))
     | [] =>
         let expected :=

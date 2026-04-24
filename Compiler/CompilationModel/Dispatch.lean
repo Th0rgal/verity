@@ -288,6 +288,12 @@ private def validateCompileInputsBeforeFieldWriteConflict
       throw s!"Compilation error: duplicate internal function name '{dup}' in {spec.name}; internal function Yul definitions are keyed by name"
   | none =>
       pure ()
+  let externalFunctionNames := (spec.functions.filter (fun fn => !fn.isInternal)).map (·.name)
+  match (spec.functions.filter (·.isInternal)).find? (fun fn => externalFunctionNames.contains fn.name) with
+  | some fn =>
+      throw s!"Compilation error: internal function name '{fn.name}' collides with an external function name in {spec.name}; internal function Yul definitions are keyed by name"
+  | none =>
+      pure ()
   match firstDuplicateName (spec.errors.map (·.name)) with
   | some dup =>
       throw s!"Compilation error: duplicate custom error declaration '{dup}'"

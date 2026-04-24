@@ -434,11 +434,11 @@ abbrev matchBranchesUsePlainArrayElement : List (String × List String × List S
   matchBranchesUseArrayElementKind true false
 
 def functionUsesPlainArrayElement (fn : FunctionSpec) : Bool :=
-  fn.body.any stmtUsesPlainArrayElement
+  functionUsesArrayElement fn && fn.body.any stmtUsesPlainArrayElement
 
 def constructorUsesPlainArrayElement : Option ConstructorSpec → Bool
   | none => false
-  | some ctor => ctor.body.any stmtUsesPlainArrayElement
+  | some ctor => constructorUsesArrayElement (some ctor) && ctor.body.any stmtUsesPlainArrayElement
 
 def contractUsesPlainArrayElement (spec : CompilationModel) : Bool :=
   contractUsesArrayElement spec &&
@@ -460,11 +460,11 @@ abbrev matchBranchesUseArrayElementWord : List (String × List String × List St
   matchBranchesUseArrayElementKind false true
 
 def functionUsesArrayElementWord (fn : FunctionSpec) : Bool :=
-  fn.body.any stmtUsesArrayElementWord
+  functionUsesArrayElement fn && fn.body.any stmtUsesArrayElementWord
 
 def constructorUsesArrayElementWord : Option ConstructorSpec → Bool
   | none => false
-  | some ctor => ctor.body.any stmtUsesArrayElementWord
+  | some ctor => constructorUsesArrayElement (some ctor) && ctor.body.any stmtUsesArrayElementWord
 
 def contractUsesArrayElementWord (spec : CompilationModel) : Bool :=
   contractUsesArrayElement spec &&
@@ -542,8 +542,10 @@ def exprUsesStorageArrayElement : Expr → Bool
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
   | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _
-  | Expr.arrayElement _ _ | Expr.arrayElementWord _ _ _ _ | Expr.adtTag _ _ =>
+  | Expr.adtTag _ _ =>
       false
+  | Expr.arrayElement _ index | Expr.arrayElementWord _ index _ _ =>
+      exprUsesStorageArrayElement index
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega
 

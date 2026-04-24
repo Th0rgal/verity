@@ -5,6 +5,10 @@ import Compiler.Proofs.IRGeneration.FunctionBody
 import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.IRGeneration.SupportedSpec
 
+set_option linter.unnecessarySeqFocus false
+set_option linter.unnecessarySimpa false
+set_option linter.unusedSimpArgs false
+
 namespace Compiler.Proofs.IRGeneration
 
 open Compiler
@@ -5863,9 +5867,9 @@ private theorem encodeStorageAt_eq_storageAddr_of_resolvedSlot
     {f : Field}
     (hresolved : findResolvedFieldAtSlotCopy fields slot = some f)
     (haddr : SourceSemantics.fieldUsesAddressStorage f = true)
-    (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false) :
+    (_hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false) :
     SourceSemantics.encodeStorageAt fields world slot = (world.storageAddr slot).val := by
-  simpa [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, haddr, hnotDyn]
+  simpa [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, haddr]
 
 private theorem encodeStorageAt_writeUintKeyedMappingSlots_singleton_eq_written
     {fields : List Field}
@@ -6691,7 +6695,7 @@ private theorem execIRStmts_sstore_lit_ident_slots_continue
       have hfuel : rest.length + 1 + fuel = rest.length + fuel + 1 := by omega
       rw [hfuel, hstmt]
       simp only [abstractStoreStorageOrMappingMany]
-      convert htail using 2 <;> omega
+      convert htail using 2
 
 private theorem execIRStmts_let_then_sstore_lit_ident_slots_continue
     (fuel : Nat)
@@ -14943,8 +14947,8 @@ theorem exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel_step
     (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
     (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
     (hbounded : FunctionBody.bindingsBounded runtime.bindings)
-    (hnoEvents : spec.events = [])
-    (hnoErrors : spec.errors = [])
+    (_hnoEvents : spec.events = [])
+    (_hnoErrors : spec.errors = [])
     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
@@ -15110,8 +15114,8 @@ theorem exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel
     (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
     (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
     (hbounded : FunctionBody.bindingsBounded runtime.bindings)
-    (hnoEvents : spec.events = [])
-    (hnoErrors : spec.errors = [])
+    (_hnoEvents : spec.events = [])
+    (_hnoErrors : spec.errors = [])
     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
@@ -16637,7 +16641,7 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers_an
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
     (hnoAdtTypes : model.adtTypes = [])
-    (hnoPacked : ∀ field ∈ model.fields, field.packedBits = none)
+    (_hnoPacked : ∀ field ∈ model.fields, field.packedBits = none)
     (hcontractSurface : stmtListTouchesUnsupportedContractSurface fn.body = false)
     (hhelperFree :
       StmtListHelperFreeStepInterface
@@ -16807,8 +16811,8 @@ theorem
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
     (hnoAdtTypes : model.adtTypes = [])
-    (hnoPacked : ∀ field ∈ model.fields, field.packedBits = none)
-    (hcontractSurface :
+    (_hnoPacked : ∀ field ∈ model.fields, field.packedBits = none)
+    (_hcontractSurface :
       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites fn.body = false)
     (hhelperSurface :
       stmtListTouchesUnsupportedHelperSurface fn.body = false)

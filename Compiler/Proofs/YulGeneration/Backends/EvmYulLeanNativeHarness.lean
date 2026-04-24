@@ -55,6 +55,44 @@ def initialState
           perm := true } }
   .Ok shared' ∅
 
+/-! ## Native Storage Materialization -/
+
+partial def yulExprLiteralStorageReadSlots : YulExpr → List Nat
+  | .call "sload" [.lit slot] => [slot]
+  | .call _ args => args.flatMap yulExprLiteralStorageReadSlots
+  | _ => []
+
+mutual
+  partial def yulStmtLiteralStorageReadSlots : YulStmt → List Nat
+    | .let_ _ value => yulExprLiteralStorageReadSlots value
+    | .letMany _ value => yulExprLiteralStorageReadSlots value
+    | .assign _ value => yulExprLiteralStorageReadSlots value
+    | .expr e => yulExprLiteralStorageReadSlots e
+    | .if_ cond body =>
+        yulExprLiteralStorageReadSlots cond ++ yulStmtsLiteralStorageReadSlots body
+    | .for_ init cond post body =>
+        yulStmtsLiteralStorageReadSlots init ++
+          yulExprLiteralStorageReadSlots cond ++
+          yulStmtsLiteralStorageReadSlots post ++
+          yulStmtsLiteralStorageReadSlots body
+    | .switch discr cases defaultBody =>
+        yulExprLiteralStorageReadSlots discr ++
+          cases.flatMap (fun entry => yulStmtsLiteralStorageReadSlots entry.2) ++
+          (defaultBody.map yulStmtsLiteralStorageReadSlots).getD []
+    | .block stmts => yulStmtsLiteralStorageReadSlots stmts
+    | .funcDef _ _ _ body => yulStmtsLiteralStorageReadSlots body
+    | .comment _ | .leave => []
+
+  partial def yulStmtsLiteralStorageReadSlots (stmts : List YulStmt) : List Nat :=
+    stmts.flatMap yulStmtLiteralStorageReadSlots
+end
+
+def materializedStorageSlots
+    (runtimeCode : List YulStmt)
+    (observableSlots : List Nat) :
+    List Nat :=
+  yulStmtsLiteralStorageReadSlots runtimeCode ++ observableSlots
+
 /-! ## Native Environment Support Boundary -/
 
 partial def yulExprUsesBuiltinExceptFunctions
@@ -1085,6 +1123,57 @@ theorem lowerExprNative_selectorExpr :
       .ok (state, some (EvmYul.UInt256.land left right)) := by
   rfl
 
+@[simp] theorem step_mstore_ok
+    (state : EvmYul.Yul.State)
+    (offset value : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.MSTORE none state [offset, value] =
+      .ok (state.setMachineState (state.toMachineState.mstore offset value),
+        none) := by
+  rfl
+
+@[simp] theorem step_sload_ok
+    (state : EvmYul.Yul.State)
+    (slot : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.SLOAD none state [slot] =
+      let (state', value) := state.toState.sload slot
+      .ok (state.setSharedState { state.toSharedState with toState := state' },
+        some value) := by
+  rfl
+
+@[simp] theorem step_sstore_ok
+    (state : EvmYul.Yul.State)
+    (slot value : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.SSTORE none state [slot, value] =
+      .ok (state.setState (state.toState.sstore slot value), none) := by
+  rfl
+
+@[simp] theorem step_stop_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.STOP none state [] =
+      .error (EvmYul.Yul.Exception.YulHalt state ⟨0⟩) := by
+  rfl
+
+@[simp] theorem step_return_ok
+    (state : EvmYul.Yul.State)
+    (offset size : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.RETURN none state [offset, size] =
+      match EvmYul.Yul.binaryMachineStateOp EvmYul.MachineState.evmReturn
+          state [offset, size] with
+      | .error e => .error e
+      | .ok (s, value) =>
+          .error (EvmYul.Yul.Exception.YulHalt s (value.getD ⟨1⟩)) := by
+  rfl
+
+@[simp] theorem step_revert_ok
+    (state : EvmYul.Yul.State)
+    (offset size : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.REVERT none state [offset, size] =
+      match EvmYul.Yul.binaryMachineStateOp EvmYul.MachineState.evmRevert
+          state [offset, size] with
+      | .error e => .error e
+      | .ok (_, _) => .error EvmYul.Yul.Exception.Revert := by
+  rfl
+
 @[simp] theorem primCall_calldataload_ok
     (fuel : Nat)
     (shared : EvmYul.SharedState .Yul)
@@ -1131,6 +1220,117 @@ theorem lowerExprNative_selectorExpr :
         EvmYul.Operation.AND [left, right] =
       .ok (state, [EvmYul.UInt256.land left right]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_mstore_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (offset value : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.MSTORE [offset, value] =
+      .ok (state.setMachineState (state.toMachineState.mstore offset value),
+        []) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_sload_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (slot : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.SLOAD [slot] =
+      let (state', value) := state.toState.sload slot
+      .ok (state.setSharedState { state.toSharedState with toState := state' },
+        [value]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_sstore_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (slot value : EvmYul.UInt256)
+    (hPerm : state.executionEnv.perm = true) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.SSTORE [slot, value] =
+      .ok (state.setState (state.toState.sstore slot value), []) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, hPerm]
+
+@[simp] theorem primCall_stop_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.STOP [] =
+      .error (EvmYul.Yul.Exception.YulHalt state ⟨0⟩) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_return_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (offset size : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.RETURN [offset, size] =
+      match EvmYul.Yul.binaryMachineStateOp EvmYul.MachineState.evmReturn
+          state [offset, size] with
+      | .error e => .error e
+      | .ok (s, value) =>
+          .error (EvmYul.Yul.Exception.YulHalt s (value.getD ⟨1⟩)) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+  all_goals
+    cases EvmYul.Yul.binaryMachineStateOp EvmYul.MachineState.evmReturn
+      state [offset, size] <;> rfl
+
+@[simp] theorem primCall_revert_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (offset size : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.REVERT [offset, size] =
+      match EvmYul.Yul.binaryMachineStateOp EvmYul.MachineState.evmRevert
+          state [offset, size] with
+      | .error e => .error e
+      | .ok (_, _) => .error EvmYul.Yul.Exception.Revert := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+  all_goals
+    cases EvmYul.Yul.binaryMachineStateOp EvmYul.MachineState.evmRevert
+      state [offset, size] <;> rfl
+
+theorem exec_expr_prim_ok
+    (fuel : Nat)
+    (state next : EvmYul.Yul.State)
+    (op : EvmYul.Operation .Yul)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (values : List EvmYul.Yul.Ast.Literal)
+    (hEval :
+      EvmYul.Yul.evalArgs fuel args.reverse none state =
+        .ok (state, values.reverse))
+    (hPrim :
+      EvmYul.Yul.primCall fuel state op values = .ok (next, [])) :
+    EvmYul.Yul.exec (fuel + 1)
+        (.ExprStmtCall (.Call (Sum.inl op) args)) none state =
+      .ok next := by
+  simp [EvmYul.Yul.exec]
+  rw [hEval]
+  simp [EvmYul.Yul.reverse', EvmYul.Yul.execPrimCall, hPrim,
+    EvmYul.Yul.multifill']
+  cases next <;> rfl
+
+theorem exec_let_prim_one_ok
+    (fuel : Nat)
+    (state next : EvmYul.Yul.State)
+    (op : EvmYul.Operation .Yul)
+    (name : EvmYul.Identifier)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (values : List EvmYul.Yul.Ast.Literal)
+    (value : EvmYul.Yul.Ast.Literal)
+    (hEval :
+      EvmYul.Yul.evalArgs fuel args.reverse none state =
+        .ok (state, values.reverse))
+    (hPrim :
+      EvmYul.Yul.primCall fuel state op values = .ok (next, [value])) :
+    EvmYul.Yul.exec (fuel + 1)
+        (.Let [name] (some (.Call (Sum.inl op) args))) none state =
+      .ok (next.insert name value) := by
+  simp [EvmYul.Yul.exec]
+  rw [hEval]
+  simp [EvmYul.Yul.reverse', EvmYul.Yul.execPrimCall, hPrim,
+    EvmYul.Yul.multifill']
+  cases next <;> rfl
 
 /-- Native evaluation of the lowered generated selector expression peels to
     exactly EVMYulLean `calldataload(0)` followed by `shr(224, ...)`. -/
@@ -4911,7 +5111,9 @@ def interpretRuntimeNative
     Except AdapterError YulResult := do
   let contract ← lowerRuntimeContractNative runtimeCode
   validateNativeRuntimeEnvironment runtimeCode tx
-  let initial := initialState contract tx storage observableSlots
+  let initial :=
+    initialState contract tx storage
+      (materializedStorageSlots runtimeCode observableSlots)
   let result := EvmYul.Yul.callDispatcher fuel (some contract) initial
   pure (projectResult tx storage events result)
 
@@ -4942,7 +5144,8 @@ def interpretRuntimeNative
     interpretRuntimeNative fuel runtimeCode tx storage observableSlots events =
       .ok (projectResult tx storage events
         (EvmYul.Yul.callDispatcher fuel (some contract)
-          (initialState contract tx storage observableSlots))) := by
+          (initialState contract tx storage
+            (materializedStorageSlots runtimeCode observableSlots)))) := by
   rw [interpretRuntimeNative, hLower, hEnv]
   rfl
 
@@ -4969,10 +5172,10 @@ path once the state/result bridge lemmas are proved. It intentionally returns
 `Except AdapterError YulResult` today because native lowering can still fail
 closed for duplicate helper definitions or unsupported runtime shapes.
 
-The observable slot set is explicit because the native state bridge only
-materializes pre-state storage for the listed slots. Passing `[]` is valid for
-storage-free smoke tests, but storage-reading callers must provide every slot
-they intend the native EVMYulLean state to observe.
+The observable slot set is explicit because the public theorem compares only
+those final storage slots. Native execution materializes those slots plus
+literal `sload` slots derived from the emitted runtime so storage reads remain
+faithful even when callers compare a smaller public projection.
 -/
 def interpretIRRuntimeNative
     (fuel : Nat)
@@ -5024,7 +5227,8 @@ def interpretIRRuntimeNative
       .ok (projectResult (YulTransaction.ofIR tx) state.storage state.events
         (EvmYul.Yul.callDispatcher fuel (some nativeContract)
           (initialState nativeContract (YulTransaction.ofIR tx) state.storage
-            observableSlots))) := by
+            (materializedStorageSlots (Compiler.emitYul irContract).runtimeCode
+              observableSlots)))) := by
   rw [interpretIRRuntimeNative, interpretRuntimeNative, hLower, hEnv]
   rfl
 

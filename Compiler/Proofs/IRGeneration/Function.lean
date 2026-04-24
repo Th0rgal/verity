@@ -6,6 +6,10 @@ import Compiler.Proofs.IRGeneration.SourceSemantics
 import Compiler.Proofs.IRGeneration.SupportedSpec
 import Compiler.Proofs.YulGeneration.Equivalence
 
+set_option linter.unnecessarySeqFocus false
+set_option linter.unnecessarySimpa false
+set_option linter.unusedSimpArgs false
+
 namespace Compiler.Proofs.IRGeneration
 
 open Compiler
@@ -1738,7 +1742,7 @@ theorem supported_function_correct_with_helper_proofs_body_goal
     (selectors : List Nat)
     (hSupported : SupportedSpec model selectors)
     (_hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
-    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+    (_hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
     (fn : FunctionSpec)
     (selector : Nat)
     (returns : List ParamType)
@@ -1756,7 +1760,7 @@ theorem supported_function_correct_with_helper_proofs_body_goal
     (hcompile :
       compileFunctionSpec model.fields model.events model.errors [] selector fn = Except.ok irFn)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
-    (htxNormalized : TxContextNormalized tx)
+    (_htxNormalized : TxContextNormalized tx)
     (extraFuel : Nat)
     (hcompiledBodyFuel :
       (genParamLoads fn.params ++ bodyStmts).length + extraFuel =
@@ -2393,6 +2397,7 @@ theorem supported_constructor_body_correct_with_body_interface
               (FunctionBody.initialIRStateForTx model tx initialWorld)
               bindings)
             bodyStmts)) := by
+    let _ := hfunctionNamesNodup
     let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
     let ctorFn := constructorAsFunctionSpec ctor
     have hrawUnsupported :
