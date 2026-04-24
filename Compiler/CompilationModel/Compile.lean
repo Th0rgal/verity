@@ -133,17 +133,14 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
           let slotExpr (baseSlot : Nat) :=
             if wordOffset == 0 then YulExpr.lit baseSlot
             else YulExpr.call "add" [YulExpr.lit baseSlot, YulExpr.lit wordOffset]
-          let slots := slot :: f.aliasSlots
-          match slots with
+          match f.aliasSlots with
           | [] =>
-              throw s!"Compilation error: internal invariant failure: no write slots for field '{field}' in setStorageWord"
-          | [singleSlot] =>
-              pure [YulStmt.expr (YulExpr.call "sstore" [slotExpr singleSlot, valueExpr])]
+              pure [YulStmt.expr (YulExpr.call "sstore" [slotExpr slot, valueExpr])]
           | _ =>
               pure [
                 YulStmt.block (
                   [YulStmt.let_ "__compat_value" valueExpr] ++
-                  slots.map (fun writeSlot =>
+                  (slot :: f.aliasSlots).map (fun writeSlot =>
                     YulStmt.expr (YulExpr.call "sstore" [
                       slotExpr writeSlot,
                       YulExpr.ident "__compat_value"
