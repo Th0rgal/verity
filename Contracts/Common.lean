@@ -73,6 +73,15 @@ macro_rules
   | `(doElem| let $name:ident := delegatecall $gas:term $target:term $inOffset:term $inSize:term $outOffset:term $outSize:term) => do
       let delegatecallFn := Lean.mkIdentFrom name `_root_.Contracts.delegatecall
       `(doElem| let $name ← $delegatecallFn:ident $gas $target $inOffset $inSize $outOffset $outSize)
+  | `(doElem| let mut $name:ident := call $gas:term $target:term $value:term $inOffset:term $inSize:term $outOffset:term $outSize:term) => do
+      let callFn := Lean.mkIdentFrom name `_root_.Contracts.call
+      `(doElem| let mut $name ← $callFn:ident $gas $target $value $inOffset $inSize $outOffset $outSize)
+  | `(doElem| let mut $name:ident := staticcall $gas:term $target:term $inOffset:term $inSize:term $outOffset:term $outSize:term) => do
+      let staticcallFn := Lean.mkIdentFrom name `_root_.Contracts.staticcall
+      `(doElem| let mut $name ← $staticcallFn:ident $gas $target $inOffset $inSize $outOffset $outSize)
+  | `(doElem| let mut $name:ident := delegatecall $gas:term $target:term $inOffset:term $inSize:term $outOffset:term $outSize:term) => do
+      let delegatecallFn := Lean.mkIdentFrom name `_root_.Contracts.delegatecall
+      `(doElem| let mut $name ← $delegatecallFn:ident $gas $target $inOffset $inSize $outOffset $outSize)
   | `(doElem| let $pat:term := $rhs:term) => do
       if pat.raw.getKind != `Lean.Parser.Term.tuple then
         Lean.Macro.throwUnsupported
@@ -194,10 +203,19 @@ def ite (cond : Prop) [Decidable cond] (thenVal elseVal : Uint256) : Uint256 :=
 def logicalAnd (a b : Uint256) : Uint256 := if a != 0 && b != 0 then 1 else 0
 def logicalOr (a b : Uint256) : Uint256 := if a != 0 || b != 0 then 1 else 0
 def logicalNot (a : Uint256) : Uint256 := if a == 0 then 1 else 0
-def tryCatchWord (attempt : Contract Uint256) (handler : String → Contract Unit) : Contract Unit :=
+class TryCatchAttempt (α : Type) where
+  toContract : α → Contract Uint256
+
+instance : TryCatchAttempt (Contract Uint256) where
+  toContract := id
+
+instance : TryCatchAttempt Uint256 where
+  toContract := pure
+
+def tryCatchWord {α : Type} [TryCatchAttempt α] (attempt : α) (handler : String → Contract Unit) : Contract Unit :=
   Contract.tryCatch
     (do
-      let success ← attempt
+      let success ← TryCatchAttempt.toContract attempt
       if success == 0 then
         require false ""
       else
@@ -291,6 +309,10 @@ macro_rules
       `(doElem| let $var ← externalCallWords $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ])
   | `(doElem| let $var:ident := externalCall $name:str [ $[$args:term],* ]) =>
       `(doElem| let $var ← externalCallWords $name [ $[ExternalArg.toWord $args],* ])
+  | `(doElem| let mut $var:ident := externalCall $name:ident [ $[$args:term],* ]) =>
+      `(doElem| let mut $var ← externalCallWords $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ])
+  | `(doElem| let mut $var:ident := externalCall $name:str [ $[$args:term],* ]) =>
+      `(doElem| let mut $var ← externalCallWords $name [ $[ExternalArg.toWord $args],* ])
   | `(doElem| $fn:ident (externalCall $name:ident [ $[$args:term],* ]) ) =>
       `(doElem| do
           let __verity_external_arg ← externalCallWords $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ]
