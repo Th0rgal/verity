@@ -4,12 +4,8 @@ import Compiler.Proofs.IRGeneration.SourceSemantics
 import Compiler.Proofs.IRGeneration.SupportedSpec
 import Compiler.Proofs.IRGeneration.ExprCore
 
-set_option linter.deprecated false
 set_option linter.unnecessarySimpa false
-set_option linter.unreachableTactic false
 set_option linter.unusedSimpArgs false
-set_option linter.unusedTactic false
-set_option linter.unusedVariables false
 
 namespace Compiler.Proofs.IRGeneration
 
@@ -1332,8 +1328,7 @@ theorem eval_compileExpr_localVar_of_expr_bindings
     simp [SourceSemantics.boolWord]
 
 theorem boolWord_iszero_iszero
-    {v : Nat}
-    (hv : v < Compiler.Constants.evmModulus) :
+    {v : Nat} :
     SourceSemantics.boolWord (SourceSemantics.boolWord (v = 0) = 0) =
       SourceSemantics.boolWord (v ≠ 0) := by
   by_cases hzero : v = 0 <;> simp [hzero, SourceSemantics.boolWord]
@@ -1958,9 +1953,7 @@ private theorem eval_compileExpr_calldataload_of_compiled
     (hoffset : CompilationModel.compileExpr fields .calldata offset = Except.ok offsetIR)
     (hEvalOff : evalIRExpr state offsetIR =
         some (SourceSemantics.evalExpr fields runtime offset))
-    (hruntime : runtimeStateMatchesIR fields runtime state)
-    (hlt : SourceSemantics.evalExpr fields runtime offset <
-        Compiler.Constants.evmModulus) :
+    (hruntime : runtimeStateMatchesIR fields runtime state) :
     evalIRExpr state
       (CompilationModel.compileExpr fields .calldata (.calldataload offset)
         |>.toOption.getD (YulExpr.lit 0)) =
@@ -1974,7 +1967,6 @@ private theorem eval_compileExpr_calldataload_of_compiled
     simp only [Option.pure_def, Option.bind_eq_bind, Option.bind_some] at hEvalOff
     have hsrc : SourceSemantics.evalExpr fields runtime offset = some irVal := by
       simpa using hEvalOff.symm
-    rw [hsrc] at hlt; simp at hlt
     have hcl_unfold : SourceSemantics.evalExpr fields runtime (.calldataload offset) =
         (SourceSemantics.evalExpr fields runtime offset).bind
           (fun r => some (Compiler.Proofs.YulGeneration.calldataloadWord runtime.selector runtime.world.calldata r)) := rfl
@@ -1982,6 +1974,7 @@ private theorem eval_compileExpr_calldataload_of_compiled
     simp only [Option.bind_some]
     simp [evalIRExpr, hIR, hsel, hcd]
 
+set_option linter.unusedVariables false in
 private theorem eval_compileExpr_tload_of_compiled
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
@@ -3644,11 +3637,11 @@ private theorem evalExpr_ite_of_values
               if c != 0 then SourceSemantics.evalExpr fields runtime thenVal
               else SourceSemantics.evalExpr fields runtime elseVal) := by rfl
     _ = some (if condVal ≠ 0 then thenV else elseV) := by
-        simp only [hcond, Option.some_bind, bne_iff_ne]
+        simp only [hcond, Option.bind_some, bne_iff_ne]
         split <;> simp_all
 
 private theorem evm_ite_arith {c t e M : Nat} (hc : c < M) (ht : t < M) (he : e < M)
-    (hM : 0 < M) :
+    :
     (SourceSemantics.boolWord (c ≠ 0) * t % M +
       SourceSemantics.boolWord (c = 0) * e % M) % M =
       if c ≠ 0 then t else e := by
@@ -5653,7 +5646,6 @@ theorem eval_compileExpr_core_onExpr
         rw [hoffset] at htmp
         simpa using htmp
       exact eval_compileExpr_calldataload_of_compiled hoffset hEvalOff hruntime
-        (evalExpr_lt_evmModulus_core_onExpr hO hexact' hbounded hpresent' hruntime)
   | mload hO ihO =>
       rename_i offset
       rcases compileExpr_core_ok hO with ⟨offsetIR, hoffset⟩
@@ -6461,7 +6453,7 @@ theorem compileRequireFailCond_core_ok
         YulExpr.call "mul" [YulExpr.call "sub" [lhsIR, rhsIR],
           YulExpr.call "gt" [lhsIR, rhsIR]]]], by
         rw [CompilationModel.compileRequireFailCond, compileExpr_min_ok hlhs hrhs]
-        all_goals first | rfl | (intro a b; exact nofun) | (intro a b c; exact nofun)⟩
+        all_goals first | rfl | (intro a b; exact nofun)⟩
   | max hL hR =>
       rename_i lhs rhs
       rcases compileExpr_core_ok (fields := fields) hL with ⟨lhsIR, hlhs⟩
@@ -6470,7 +6462,7 @@ theorem compileRequireFailCond_core_ok
         YulExpr.call "mul" [YulExpr.call "sub" [rhsIR, lhsIR],
           YulExpr.call "gt" [rhsIR, lhsIR]]]], by
         rw [CompilationModel.compileRequireFailCond, compileExpr_max_ok hlhs hrhs]
-        all_goals first | rfl | (intro a b; exact nofun) | (intro a b c; exact nofun)⟩
+        all_goals first | rfl | (intro a b; exact nofun)⟩
   | ite hC hT hE =>
       rename_i cond thenVal elseVal
       rcases compileExpr_core_ok (fields := fields) hC with ⟨condIR, hcond⟩
@@ -6482,7 +6474,7 @@ theorem compileRequireFailCond_core_ok
         YulExpr.call "mul" [
           YulExpr.call "iszero" [condIR], elseIR]]], by
         rw [CompilationModel.compileRequireFailCond, compileExpr_ite_ok hcond hthen helse]
-        all_goals first | rfl | (intro a b; exact nofun) | (intro a b c; exact nofun)⟩
+        all_goals first | rfl | (intro a b; exact nofun)⟩
   | ceilDiv hL hR =>
       rename_i lhs rhs
       rcases compileExpr_core_ok (fields := fields) hL with ⟨lhsIR, hlhs⟩
@@ -6493,7 +6485,7 @@ theorem compileRequireFailCond_core_ok
           YulExpr.call "div" [YulExpr.call "sub" [lhsIR, YulExpr.lit 1], rhsIR],
           YulExpr.lit 1]]], by
         rw [CompilationModel.compileRequireFailCond, compileExpr_ceilDiv_ok hlhs hrhs]
-        all_goals first | rfl | (intro a b; exact nofun) | (intro a b c; exact nofun)⟩
+        all_goals first | rfl | (intro a b; exact nofun)⟩
   | wMulDown hL hR =>
       rename_i lhs rhs
       rcases compileExpr_core_ok (fields := fields) hL with ⟨lhsIR, hlhs⟩
@@ -6501,7 +6493,7 @@ theorem compileRequireFailCond_core_ok
       exact ⟨YulExpr.call "iszero" [YulExpr.call "div" [
         YulExpr.call "mul" [lhsIR, rhsIR], YulExpr.lit 1000000000000000000]], by
         rw [CompilationModel.compileRequireFailCond, compileExpr_wMulDown_ok hlhs hrhs]
-        all_goals first | rfl | (intro a b; exact nofun) | (intro a b c; exact nofun)⟩
+        all_goals first | rfl | (intro a b; exact nofun)⟩
   | wDivUp hL hR =>
       rename_i lhs rhs
       rcases compileExpr_core_ok (fields := fields) hL with ⟨lhsIR, hlhs⟩
@@ -6512,7 +6504,7 @@ theorem compileRequireFailCond_core_ok
           YulExpr.call "sub" [rhsIR, YulExpr.lit 1]],
         rhsIR]], by
         rw [CompilationModel.compileRequireFailCond, compileExpr_wDivUp_ok hlhs hrhs]
-        all_goals first | rfl | (intro a b; exact nofun) | (intro a b c; exact nofun)⟩
+        all_goals first | rfl | (intro a b; exact nofun)⟩
   | mulDivDown hA hB hC =>
       rename_i a b c
       rcases compileExpr_core_ok (fields := fields) hA with ⟨aIR, ha⟩
@@ -6521,7 +6513,7 @@ theorem compileRequireFailCond_core_ok
       exact ⟨YulExpr.call "iszero" [YulExpr.call "div" [
         YulExpr.call "mul" [aIR, bIR], cIR]], by
         rw [CompilationModel.compileRequireFailCond, compileExpr_mulDivDown_ok ha hb hc]
-        all_goals first | rfl | (intro a b; exact nofun) | (intro a b c; exact nofun)⟩
+        all_goals first | rfl | (intro a b; exact nofun)⟩
   | mulDivUp hA hB hC =>
       rename_i a b c
       rcases compileExpr_core_ok (fields := fields) hA with ⟨aIR, ha⟩
@@ -6532,7 +6524,7 @@ theorem compileRequireFailCond_core_ok
           YulExpr.call "sub" [cIR, YulExpr.lit 1]],
         cIR]], by
         rw [CompilationModel.compileRequireFailCond, compileExpr_mulDivUp_ok ha hb hc]
-        all_goals first | rfl | (intro a b; exact nofun) | (intro a b c; exact nofun)⟩
+        all_goals first | rfl | (intro a b; exact nofun)⟩
   | tload h =>
       rename_i expr
       rcases compileExpr_core_ok (fields := fields) h with ⟨exprIR, hexpr⟩
@@ -9146,7 +9138,7 @@ private theorem execIRStmts_cons_of_execIRStmt_return_anyFuel
       .return value next := by
   cases fuel with
   | zero =>
-      cases stmt <;> simp [execIRStmt, execIRStmts] at hstmt ⊢ <;> simpa using hstmt
+      cases stmt <;> simp [execIRStmt] at hstmt
   | succ fuel =>
       simp [execIRStmts, hstmt]
 
@@ -9221,7 +9213,7 @@ private theorem execIRStmts_cons_of_execIRStmt_stop_anyFuel
       .stop next := by
   cases fuel with
   | zero =>
-      cases stmt <;> simp [execIRStmt, execIRStmts] at hstmt ⊢ <;> simpa using hstmt
+      cases stmt <;> simp [execIRStmt] at hstmt
   | succ fuel =>
       simp [execIRStmts, hstmt]
 

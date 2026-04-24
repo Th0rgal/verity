@@ -274,6 +274,10 @@ ALLOWLIST: set[str] = {
     # modules do not rely on VM computation; the body delegates to the lowered
     # native Layer-3 theorem.
     "simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge",
+    # Native SimpleStorage wrapper keeps the dispatcher-agreement seam explicit
+    # while delegating to the lowered native theorem; the long span is the public
+    # hypothesis surface, not a large proof script.
+    "simpleStorage_endToEnd_native_evmYulLean",
     # Safe-body public EVMYulLean wrapper derives the raw BridgedStmts function
     # hypotheses from compile output, static parameter closure, and
     # BridgedSafeStmts witnesses before delegating to the function-bridge
