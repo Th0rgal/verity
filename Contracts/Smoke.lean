@@ -739,6 +739,12 @@ verity_contract HelperExternalArgumentSmoke where
     let y ← idWord (externalCall "echo" [x])
     return y
 
+  function returnExternalExpression (x : Uint256) : Uint256 := do
+    return (externalCall "echo" [x])
+
+  function allow_post_interaction_writes storeExternalExpression (x : Uint256) : Unit := do
+    setStorage saved (externalCall "echo" [x])
+
   function allow_post_interaction_writes mutableExternalArg (x : Uint256) : Uint256 := do
     let mut echoed := externalCall "echo" [x]
     echoed := add echoed 1

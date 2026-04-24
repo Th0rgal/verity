@@ -345,6 +345,28 @@ macro_rules
       `(doElem| do
           let __verity_external_arg ← externalCallWords $name [ $[ExternalArg.toWord $args],* ]
           $fn:ident __verity_external_arg)
+  | `(doElem| return (externalCall $name:ident [ $[$args:term],* ])) =>
+      `(doElem| do
+          let __verity_external_return ← externalCallWords $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ]
+          return __verity_external_return)
+  | `(doElem| return (externalCall $name:str [ $[$args:term],* ])) =>
+      `(doElem| do
+          let __verity_external_return ← externalCallWords $name [ $[ExternalArg.toWord $args],* ]
+          return __verity_external_return)
+  | `(doElem| $setFn:ident $slotTerm:term (externalCall $name:ident [ $[$args:term],* ])) => do
+      if setFn.getId.toString != "setStorage" then
+        Lean.Macro.throwUnsupported
+      else
+        `(doElem| do
+            let __verity_external_value ← externalCallWords $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ]
+            $setFn:ident $slotTerm __verity_external_value)
+  | `(doElem| $setFn:ident $slotTerm:term (externalCall $name:str [ $[$args:term],* ])) => do
+      if setFn.getId.toString != "setStorage" then
+        Lean.Macro.throwUnsupported
+      else
+        `(doElem| do
+            let __verity_external_value ← externalCallWords $name [ $[ExternalArg.toWord $args],* ]
+            $setFn:ident $slotTerm __verity_external_value)
   | `(term| externalCall $name:ident [ $[$args:term],* ]) =>
       `(externalCallWords $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ])
   | `(term| externalCall $name:str [ $[$args:term],* ]) =>

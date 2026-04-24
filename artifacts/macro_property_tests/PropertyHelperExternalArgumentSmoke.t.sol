@@ -60,4 +60,13 @@ contract PropertyHelperExternalArgumentSmokeTest is YulTestBase {
         // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
         ret;
     }
+    // Property 6: TODO decode and assert `returnExternalExpression` result
+    function testTODO_ReturnExternalExpression_DecodeAndAssert() public {
+        vm.prank(alice);
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("returnExternalExpression(uint256)", uint256(1)));
+        require(ok, "returnExternalExpression reverted unexpectedly");
+        assertEq(ret.length, 32, "returnExternalExpression ABI return length mismatch (expected 32 bytes)");
+        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
+        ret;
+    }
 }

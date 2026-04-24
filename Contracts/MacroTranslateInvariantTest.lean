@@ -431,8 +431,9 @@ private def expectedExternalSignatures : List (String × List String) :=
       "immutableNamedBlockTimestamp()", "immutableNamedMsgSender()"])
   , ("FunctionOverloadSmoke", ["echo(uint256)", "echo(address)", "echo(uint256,uint256)"])
   , ("HelperExternalArgumentSmoke", ["idWord(uint256)", "pair(uint256)", "put(uint256)",
-      "bindExternalArg(uint256)", "helperExternalArgRhs(uint256)", "mutableExternalArg(uint256)",
-      "tupleExternalArg(uint256)", "statementExternalArg(uint256)"])
+      "bindExternalArg(uint256)", "helperExternalArgRhs(uint256)", "returnExternalExpression(uint256)",
+      "storeExternalExpression(uint256)", "mutableExternalArg(uint256)", "tupleExternalArg(uint256)",
+      "statementExternalArg(uint256)"])
   , ("BlockTimestampSmoke", ["nowish()", "timestampPlus(uint256)", "blobFeePlus(uint256)"])
   , ("StructMappingSmoke", ["setPosition(address,uint256,uint256,address)", "totalPositionShares(address)",
       "delegateOf(address)", "setApproval(address,address,uint256,uint256)", "approvalOf(address,address)",
@@ -537,7 +538,8 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("ContextAccessorShadowSmoke", ["0x40d06f02", "0xda15c6a0", "0x3f08a0dd", "0xe6d00bb0"])
   , ("FunctionOverloadSmoke", ["0x6279e43c", "0x2ffdbf1a", "0x3bb2bcd0"])
   , ("HelperExternalArgumentSmoke", ["0x2d29ad72", "0x645751af", "0x3f81a2c0",
-      "0xb503d0dd", "0xd26ac337", "0xc9e428e2", "0xcdc18015", "0xe41657c6"])
+      "0xb503d0dd", "0xd26ac337", "0x73cacbb2", "0xfc8569f2", "0xc9e428e2",
+      "0xcdc18015", "0xe41657c6"])
   , ("BlockTimestampSmoke", ["0xa676760e", "0x8c041599", "0x7150df5e"])
   , ("StructMappingSmoke", ["0x468c900e", "0xe7933b6a", "0x8d22ea2a", "0xf4536007", "0xcb01943e",
       "0x6c241120"])
