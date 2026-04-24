@@ -1236,7 +1236,7 @@ private theorem simpleStorage_lowerRuntimeContractNative_ok :
             (Compiler.emitYul simpleStorageIRContract).runtimeCode with
         | .ok _ => true
         | .error _ => false) = true := by
-    decide
+    native_decide
   cases hLower :
       Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
         (Compiler.emitYul simpleStorageIRContract).runtimeCode with
