@@ -735,6 +735,16 @@ verity_contract HelperExternalArgumentSmoke where
     let y ← idWord echoed
     return y
 
+  function helperExternalArgRhs (x : Uint256) : Uint256 := do
+    let y ← idWord (externalCall "echo" [x])
+    return y
+
+  function allow_post_interaction_writes mutableExternalArg (x : Uint256) : Uint256 := do
+    let mut echoed := externalCall "echo" [x]
+    echoed := add echoed 1
+    setStorage saved echoed
+    return echoed
+
   function allow_post_interaction_writes tupleExternalArg (x : Uint256) : Uint256 := do
     let echoed := externalCall "echo" [x]
     let (a, b) ← pair echoed
@@ -1310,6 +1320,33 @@ verity_contract LowLevelTryCatchSmoke where
       setStorage lastOutcome 11)
     let current ← getStorage lastOutcome
     return current
+
+  function allow_post_interaction_writes catchComputedWord (ok : Uint256)
+    local_obligations [manual_low_level_refinement := assumed "Low-level call success/failure boundary still requires a manual refinement argument."]
+    : Uint256
+    := do
+    tryCatch ok (do
+      setStorage lastOutcome 13)
+    let current ← getStorage lastOutcome
+    return current
+
+  function allow_post_interaction_writes mutableCallBinding (target : Uint256)
+    local_obligations [manual_low_level_refinement := assumed "Low-level call success/failure boundary still requires a manual refinement argument."]
+    : Uint256
+    := do
+    let mut ok := call 50000 target 0 0 64 0 32
+    ok := add ok 1
+    setStorage lastOutcome ok
+    return ok
+
+  function callExpressionPosition (target : Uint256)
+    local_obligations [manual_low_level_refinement := assumed "Low-level call success/failure boundary still requires a manual refinement argument."]
+    : Uint256
+    := do
+    if call 50000 target 0 0 64 0 32 == 0 then
+      return 0
+    else
+      return 1
 
 /--
 error: tryCatch catch payload 'err' is not available on the compilation-model path yet; use `_`/ignore it and read returndata explicitly if needed

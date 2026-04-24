@@ -25,6 +25,14 @@ macro_rules
           pure ())
   | `(doElem| unsafe $_reason:str do $body:doSeq) =>
       `(doElem| do $body)
+  | `(doElem| tryCatch (call $gas:term $target:term $value:term $inOffset:term $inSize:term $outOffset:term $outSize:term) (fun $name:ident => do $[$elems:doElem]*)) => do
+      let tryCatchFn := Lean.mkIdentFrom target `_root_.Contracts.tryCatchWord
+      let callFn := Lean.mkIdentFrom target `_root_.Contracts.callM
+      `(doElem| $tryCatchFn:ident ($callFn:ident $gas $target $value $inOffset $inSize $outOffset $outSize) (fun $name => do $[$elems:doElem]*))
+  | `(doElem| tryCatch (call $gas:term $target:term $value:term $inOffset:term $inSize:term $outOffset:term $outSize:term) (do $[$elems:doElem]*)) => do
+      let tryCatchFn := Lean.mkIdentFrom target `_root_.Contracts.tryCatchWord
+      let callFn := Lean.mkIdentFrom target `_root_.Contracts.callM
+      `(doElem| $tryCatchFn:ident ($callFn:ident $gas $target $value $inOffset $inSize $outOffset $outSize) (fun _ => do $[$elems:doElem]*))
   | `(doElem| tryCatch $attempt:term (fun $name:ident => do $[$elems:doElem]*)) => do
       let tryCatchFn := Lean.mkIdentFrom attempt `_root_.Contracts.tryCatchWord
       `(doElem| $tryCatchFn:ident $attempt (fun $name => do $[$elems:doElem]*))
@@ -65,22 +73,22 @@ macro_rules
       let load := Lean.mkIdentFrom name `_root_.Contracts.tload
       `(doElem| let $name ← $load:ident $offset)
   | `(doElem| let $name:ident := call $gas:term $target:term $value:term $inOffset:term $inSize:term $outOffset:term $outSize:term) => do
-      let callFn := Lean.mkIdentFrom name `_root_.Contracts.call
+      let callFn := Lean.mkIdentFrom name `_root_.Contracts.callM
       `(doElem| let $name ← $callFn:ident $gas $target $value $inOffset $inSize $outOffset $outSize)
-  | `(doElem| let $name:ident := staticcall $gas:term $target:term $inOffset:term $inSize:term $outOffset:term $outSize:term) => do
-      let staticcallFn := Lean.mkIdentFrom name `_root_.Contracts.staticcall
-      `(doElem| let $name ← $staticcallFn:ident $gas $target $inOffset $inSize $outOffset $outSize)
-  | `(doElem| let $name:ident := delegatecall $gas:term $target:term $inOffset:term $inSize:term $outOffset:term $outSize:term) => do
-      let delegatecallFn := Lean.mkIdentFrom name `_root_.Contracts.delegatecall
-      `(doElem| let $name ← $delegatecallFn:ident $gas $target $inOffset $inSize $outOffset $outSize)
   | `(doElem| let mut $name:ident := call $gas:term $target:term $value:term $inOffset:term $inSize:term $outOffset:term $outSize:term) => do
-      let callFn := Lean.mkIdentFrom name `_root_.Contracts.call
+      let callFn := Lean.mkIdentFrom name `_root_.Contracts.callM
       `(doElem| let mut $name ← $callFn:ident $gas $target $value $inOffset $inSize $outOffset $outSize)
+  | `(doElem| let $name:ident := staticcall $gas:term $target:term $inOffset:term $inSize:term $outOffset:term $outSize:term) => do
+      let staticcallFn := Lean.mkIdentFrom name `_root_.Contracts.staticcallM
+      `(doElem| let $name ← $staticcallFn:ident $gas $target $inOffset $inSize $outOffset $outSize)
   | `(doElem| let mut $name:ident := staticcall $gas:term $target:term $inOffset:term $inSize:term $outOffset:term $outSize:term) => do
-      let staticcallFn := Lean.mkIdentFrom name `_root_.Contracts.staticcall
+      let staticcallFn := Lean.mkIdentFrom name `_root_.Contracts.staticcallM
       `(doElem| let mut $name ← $staticcallFn:ident $gas $target $inOffset $inSize $outOffset $outSize)
+  | `(doElem| let $name:ident := delegatecall $gas:term $target:term $inOffset:term $inSize:term $outOffset:term $outSize:term) => do
+      let delegatecallFn := Lean.mkIdentFrom name `_root_.Contracts.delegatecallM
+      `(doElem| let $name ← $delegatecallFn:ident $gas $target $inOffset $inSize $outOffset $outSize)
   | `(doElem| let mut $name:ident := delegatecall $gas:term $target:term $inOffset:term $inSize:term $outOffset:term $outSize:term) => do
-      let delegatecallFn := Lean.mkIdentFrom name `_root_.Contracts.delegatecall
+      let delegatecallFn := Lean.mkIdentFrom name `_root_.Contracts.delegatecallM
       `(doElem| let mut $name ← $delegatecallFn:ident $gas $target $inOffset $inSize $outOffset $outSize)
   | `(doElem| let $pat:term := $rhs:term) => do
       if pat.raw.getKind != `Lean.Parser.Term.tuple then
@@ -231,12 +239,18 @@ def extcodesize (addr : Uint256) : Uint256 := addr
 def keccak256 (offset size : Uint256) : Uint256 := add offset size
 def oracleWord (name : String) (args : List Uint256) : Contract Uint256 := fun state =>
   ContractResult.success ((Verity.Env.ofWorld state).callOracle name args) state
-def call (gas target value inOffset inSize outOffset outSize : Uint256) : Contract Uint256 :=
+def callM (gas target value inOffset inSize outOffset outSize : Uint256) : Contract Uint256 :=
   oracleWord "call" [gas, target, value, inOffset, inSize, outOffset, outSize]
-def staticcall (gas target inOffset inSize outOffset outSize : Uint256) : Contract Uint256 :=
+def staticcallM (gas target inOffset inSize outOffset outSize : Uint256) : Contract Uint256 :=
   oracleWord "staticcall" [gas, target, inOffset, inSize, outOffset, outSize]
-def delegatecall (gas target inOffset inSize outOffset outSize : Uint256) : Contract Uint256 :=
+def delegatecallM (gas target inOffset inSize outOffset outSize : Uint256) : Contract Uint256 :=
   oracleWord "delegatecall" [gas, target, inOffset, inSize, outOffset, outSize]
+def call (gas target value inOffset inSize outOffset outSize : Uint256) : Uint256 :=
+  Verity.Env.defaultCallOracle "call" [gas, target, value, inOffset, inSize, outOffset, outSize]
+def staticcall (gas target inOffset inSize outOffset outSize : Uint256) : Uint256 :=
+  Verity.Env.defaultCallOracle "staticcall" [gas, target, inOffset, inSize, outOffset, outSize]
+def delegatecall (gas target inOffset inSize outOffset outSize : Uint256) : Uint256 :=
+  Verity.Env.defaultCallOracle "delegatecall" [gas, target, inOffset, inSize, outOffset, outSize]
 def ecrecover (hash v r sigS : Uint256) : Contract Address := fun state =>
   ContractResult.success
     (wordToAddress ((Verity.Env.ofWorld state).callOracle "ecrecover" [hash, v, r, sigS]))
@@ -300,6 +314,8 @@ instance : ExternalResult Bool where
   fromWord value := value != 0
 def externalCallWords {α : Type} [ExternalResult α] (name : String) (args : List Uint256) : Contract α :=
   fun state => ContractResult.success (ExternalResult.fromWord ((Verity.Env.ofWorld state).callOracle name args)) state
+def externalCallWord {α : Type} [ExternalResult α] (name : String) (args : List Uint256) : α :=
+  ExternalResult.fromWord (Verity.Env.defaultCallOracle name args)
 def tryExternalCallWords {α : Type} [Inhabited α] (_name : String) (_args : List Uint256) : Contract (Bool × α) :=
   pure (false, (Inhabited.default : α))
 private def erc20ReadStubWord (name : String) (args : List Uint256) : Uint256 :=
@@ -322,9 +338,9 @@ macro_rules
           let __verity_external_arg ← externalCallWords $name [ $[ExternalArg.toWord $args],* ]
           $fn:ident __verity_external_arg)
   | `(term| externalCall $name:ident [ $[$args:term],* ]) =>
-      `(externalCallWords $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ])
+      `(externalCallWord $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ])
   | `(term| externalCall $name:str [ $[$args:term],* ]) =>
-      `(externalCallWords $name [ $[ExternalArg.toWord $args],* ])
+      `(externalCallWord $name [ $[ExternalArg.toWord $args],* ])
   | `(term| tryExternalCall $name:str [ $[$args:term],* ]) =>
       `(tryExternalCallWords $name [ $[ExternalArg.toWord $args],* ])
   | `(term| tryExternalCall $name:ident [ $[$args:term],* ]) =>
