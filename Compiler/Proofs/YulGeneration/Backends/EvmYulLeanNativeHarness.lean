@@ -4690,6 +4690,59 @@ theorem primCall_sstore_initialState_wordSlot_ok
   rw [primCall_sstore_ok]
   simp [initialState, EvmYul.Yul.State.executionEnv]
 
+/-- Native primitive execution of the `return(0, 32)` half of the generated
+    scalar-return sequence after `mstore(0, value)`. EVMYulLean models `RETURN`
+    as a Yul halt carrying the post-`evmReturn` state; the halt literal is the
+    default nonzero marker produced by `binaryMachineStateOp`, while the actual
+    returned bytes live in the state's `H_return` buffer. -/
+theorem primCall_return32_after_mstore0_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (value : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1)
+        (state.setMachineState
+          (state.toMachineState.mstore (EvmYul.UInt256.ofNat 0) value))
+        EvmYul.Operation.RETURN
+        [EvmYul.UInt256.ofNat 0, EvmYul.UInt256.ofNat 32] =
+      .error (EvmYul.Yul.Exception.YulHalt
+        ((state.setMachineState
+            (state.toMachineState.mstore (EvmYul.UInt256.ofNat 0) value)).setMachineState
+          ((state.setMachineState
+              (state.toMachineState.mstore (EvmYul.UInt256.ofNat 0) value)).toMachineState.evmReturn
+            (EvmYul.UInt256.ofNat 0) (EvmYul.UInt256.ofNat 32)))
+        ⟨1⟩) := by
+  rw [primCall_return_ok]
+  simp [EvmYul.Yul.binaryMachineStateOp]
+
+/-- Native primitive execution of the generated scalar-return instruction pair
+    through EVMYulLean's actual `MSTORE` and `RETURN` primitive relation. This
+    exposes the exact halt state that remains to be connected to Verity's
+    single-word `returnValue` projection. -/
+theorem primCall_mstore0_then_return32_ok
+    (mstoreFuel returnFuel : Nat)
+    (state : EvmYul.Yul.State)
+    (value : EvmYul.UInt256) :
+    (do
+      let (state', values) ←
+        EvmYul.Yul.primCall (mstoreFuel + 1) state
+          EvmYul.Operation.MSTORE
+          [EvmYul.UInt256.ofNat 0, value]
+      match values with
+      | [] =>
+          EvmYul.Yul.primCall (returnFuel + 1) state'
+            EvmYul.Operation.RETURN
+            [EvmYul.UInt256.ofNat 0, EvmYul.UInt256.ofNat 32]
+      | _ => .error EvmYul.Yul.Exception.InvalidArguments) =
+      .error (EvmYul.Yul.Exception.YulHalt
+        ((state.setMachineState
+            (state.toMachineState.mstore (EvmYul.UInt256.ofNat 0) value)).setMachineState
+          ((state.setMachineState
+              (state.toMachineState.mstore (EvmYul.UInt256.ofNat 0) value)).toMachineState.evmReturn
+            (EvmYul.UInt256.ofNat 0) (EvmYul.UInt256.ofNat 32)))
+        ⟨1⟩) := by
+  rw [primCall_mstore_ok]
+  exact primCall_return32_after_mstore0_ok returnFuel state value
+
 /-- Native initial-state storage materialization defaults omitted observable
     pre-state slots to zero. The in-range hypotheses rule out modular aliasing
     through the EVM word key used by the finite native storage map. -/
