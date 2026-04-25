@@ -1626,6 +1626,33 @@ theorem primCall_calldataload4_initialState_arg0_ok_withStore
   rw [primCall_calldataload_ok]
   simpa [EvmYul.Yul.State.toState] using hWord
 
+/-- Native primitive execution of `calldataload(4)` for an IR transaction
+    already converted to the native Yul transaction surface. This is the
+    dispatcher-selected setter shape: the lowered switch has installed local
+    temporaries, but calldata still decodes the first aligned ABI argument
+    exactly through EVMYulLean's `CALLDATALOAD` primitive. -/
+theorem primCall_calldataload4_initialState_ofIR_arg0_ok_withStore
+    (fuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : Compiler.Proofs.IRGeneration.IRTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (arg : Nat)
+    (rest : List Nat)
+    (hArgs : tx.args = arg :: rest) :
+    EvmYul.Yul.primCall (fuel + 1)
+        (.Ok (initialState contract (YulTransaction.ofIR tx) storage
+            observableSlots).sharedState store)
+        EvmYul.Operation.CALLDATALOAD [EvmYul.UInt256.ofNat 4] =
+      .ok (.Ok (initialState contract (YulTransaction.ofIR tx) storage
+            observableSlots).sharedState store,
+        [natToUInt256 arg]) := by
+  exact
+    primCall_calldataload4_initialState_arg0_ok_withStore
+      fuel contract (YulTransaction.ofIR tx) storage observableSlots store arg
+      rest (by simpa using hArgs)
+
 @[simp] theorem primCall_shr_ok
     (fuel : Nat)
     (state : EvmYul.Yul.State)
@@ -6695,6 +6722,40 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_pro
       loadFuel storeFuel stopFuel contract tx storage observableSlots store arg
       rest hArgs
   · simp [projectResult]
+
+/-- Exact projected result for the generated `store(uint256)` selected body at
+    the IR transaction boundary used by the end-to-end native theorem. This is
+    the `YulTransaction.ofIR` specialization of the dispatcher-local
+    `CALLDATALOAD; SSTORE; STOP` native primitive sequence. -/
+theorem primCall_calldataload4_then_sstore0_stop_initialState_ofIR_arg0_withStore_projectResult_eq
+    (loadFuel storeFuel stopFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : Compiler.Proofs.IRGeneration.IRTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (arg : Nat)
+    (rest : List Nat)
+    (hArgs : tx.args = arg :: rest) :
+    ∃ haltState haltValue,
+      primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore
+        loadFuel storeFuel stopFuel contract (YulTransaction.ofIR tx) storage
+        observableSlots store =
+        .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
+      projectResult (YulTransaction.ofIR tx) storage initialEvents
+          (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue)) =
+        { success := true
+          returnValue := none
+          finalStorage := projectStorageFromState (YulTransaction.ofIR tx) haltState
+          finalMappings :=
+            Compiler.Proofs.storageAsMappings
+              (projectStorageFromState (YulTransaction.ofIR tx) haltState)
+          events := initialEvents ++ projectLogsFromState haltState } := by
+  exact
+    primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_eq
+      loadFuel storeFuel stopFuel contract (YulTransaction.ofIR tx) storage
+      initialEvents observableSlots store arg rest (by simpa using hArgs)
 
 /-- Native primitive execution of the full generated `store(uint256)` selected
     body from an arbitrary local store, lifted through `STOP` and Verity's
