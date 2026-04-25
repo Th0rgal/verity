@@ -4601,6 +4601,74 @@ theorem initialState_observableStorageSlot
   cases found <;>
     simpa [uint256ToNat, EvmYul.UInt256.toNat] using h
 
+/-- Native `sload` from an initially materialized observable slot returns the
+    exact EVM word projected from Verity storage. The range hypothesis keeps
+    the slot key word-canonical, so the finite native storage map cannot alias
+    another observed slot. -/
+theorem initialState_sload_observableSlot_value
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (slot : Nat)
+    (hSlot : slot ∈ observableSlots)
+    (hRange : ∀ s ∈ observableSlots, s < EvmYul.UInt256.size) :
+    (EvmYul.State.sload
+      (initialState contract tx storage observableSlots).toState
+      (natToUInt256 slot)).2 =
+      natToUInt256 (storage slot) := by
+  have hFindStorage :
+      (projectStorage storage observableSlots).find? (natToUInt256 slot) =
+        some (natToUInt256 (storage slot)) := by
+    simpa [projectStorage] using
+      foldl_insert_find storage observableSlots slot hSlot hRange
+        (Batteries.RBMap.empty : EvmYul.Storage)
+  simp only [EvmYul.State.sload, EvmYul.State.lookupAccount,
+    EvmYul.Yul.State.toState, initialState, toSharedState, YulState.initial]
+  rw [Batteries.RBMap.find?_insert_of_eq _ Std.ReflCmp.compare_self]
+  rw [Batteries.RBMap.find?_insert_of_eq _ Std.ReflCmp.compare_self]
+  change (Batteries.RBMap.find? (projectStorage storage observableSlots)
+      (natToUInt256 slot)).getD ⟨0⟩ = natToUInt256 (storage slot)
+  rw [hFindStorage]
+  rfl
+
+/-- Native primitive execution of `sload(slot)` on an initially materialized,
+    word-canonical observable slot returns exactly the projected storage word. -/
+theorem primCall_sload_initialState_observableSlot_ok
+    (fuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (slot : Nat)
+    (hSlot : slot ∈ observableSlots)
+    (hRange : ∀ s ∈ observableSlots, s < EvmYul.UInt256.size) :
+    EvmYul.Yul.primCall (fuel + 1)
+        (initialState contract tx storage observableSlots)
+        EvmYul.Operation.SLOAD [natToUInt256 slot] =
+      match EvmYul.State.sload
+          (initialState contract tx storage observableSlots).toState
+          (natToUInt256 slot) with
+      | (state', _) =>
+          .ok ((initialState contract tx storage observableSlots).setSharedState
+              { (initialState contract tx storage observableSlots).toSharedState with
+                toState := state' },
+            [natToUInt256 (storage slot)]) := by
+  rw [primCall_sload_ok]
+  generalize hload :
+      EvmYul.State.sload
+        (initialState contract tx storage observableSlots).toState
+        (natToUInt256 slot) = loaded
+  cases loaded with
+  | mk state' value =>
+      have hvalue :=
+        initialState_sload_observableSlot_value contract tx storage
+          observableSlots slot hSlot hRange
+      rw [hload] at hvalue
+      simp only at hvalue
+      subst value
+      rfl
+
 /-- Native initial-state storage materialization defaults omitted observable
     pre-state slots to zero. The in-range hypotheses rule out modular aliasing
     through the EVM word key used by the finite native storage map. -/
