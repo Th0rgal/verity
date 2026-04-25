@@ -2924,6 +2924,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.uint256_lt_ofNat_4_eq_zero_of_ge  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.uint256_isZero_ofNat_zero  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_selectorExpr_initialState_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_selectorExpr_initialState_ok_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lit_ok
@@ -3439,4 +3441,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3266 theorems/lemmas (2337 public, 929 private, 0 sorry'd)
+-- Total: 3268 theorems/lemmas (2339 public, 929 private, 0 sorry'd)

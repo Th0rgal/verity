@@ -2033,6 +2033,68 @@ theorem eval_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok
       uint256_lt_ofNat_4_eq_zero_of_ge _ (by omega) hNoWrap,
       uint256_isZero_ofNat_zero]
 
+/-- State-generic native `exec` of the `let __has_selector := iszero(lt(
+    calldatasize(), 4))` statement that `buildSwitch` emits at the head of a
+    dispatcher inner-block: at any fuel `≥ 11`, the let assigns
+    `name ↦ isZero(lt(ofNat cd_size, 4))` to the variable store, where
+    `cd_size = shared.executionEnv.calldata.size`. The closed-form numeric
+    evaluation of `isZero(lt(_, _))` is then performed by the initial-state
+    specialization below. -/
+theorem exec_let_lowerExprNative_iszero_lt_calldatasize_4_ok
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (name : EvmYul.Identifier) :
+    EvmYul.Yul.exec 11
+        (.Let [name]
+          (some (Backends.lowerExprNative
+            (Yul.YulExpr.call "iszero"
+              [Yul.YulExpr.call "lt"
+                [Yul.YulExpr.call "calldatasize" [],
+                 Yul.YulExpr.lit 4]]))))
+        codeOverride (.Ok shared store) =
+      .ok ((.Ok shared store : EvmYul.Yul.State).insert name
+        (EvmYul.UInt256.isZero
+          (EvmYul.UInt256.lt
+            (EvmYul.UInt256.ofNat shared.executionEnv.calldata.size)
+            (EvmYul.UInt256.ofNat 4)))) := by
+  simp [Backends.lowerExprNative, Backends.lookupRuntimePrimOp,
+    EvmYul.Yul.exec, EvmYul.Yul.eval, EvmYul.Yul.evalArgs,
+    EvmYul.Yul.evalTail, EvmYul.Yul.evalPrimCall, EvmYul.Yul.execPrimCall,
+    EvmYul.Yul.reverse', EvmYul.Yul.cons', EvmYul.Yul.head',
+    EvmYul.Yul.multifill', EvmYul.Yul.State.multifill,
+    EvmYul.Yul.State.executionEnv]
+
+/-- Specialisation of `exec_let_lowerExprNative_iszero_lt_calldatasize_4_ok`
+    to the dispatcher's initial bridged state. With the no-wrap hypothesis on
+    `4 + tx.args.length * 32`, the `__has_selector` variable receives the
+    closed-form word `UInt256.ofNat 1`. This is the exec-side primitive the
+    dispatcher proof needs immediately after the dispatcher inner-block is
+    pinned to its `let / if / if` shape: it lets the selector-miss `If` guard
+    fail and the selector-hit `If` guard fire. -/
+theorem exec_let_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (name : EvmYul.Identifier)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
+    EvmYul.Yul.exec 11
+        (.Let [name]
+          (some (Backends.lowerExprNative
+            (Yul.YulExpr.call "iszero"
+              [Yul.YulExpr.call "lt"
+                [Yul.YulExpr.call "calldatasize" [],
+                 Yul.YulExpr.lit 4]]))))
+        (some contract)
+        (.Ok (initialState contract tx storage observableSlots).sharedState ∅) =
+      .ok ((.Ok (initialState contract tx storage observableSlots).sharedState ∅ :
+            EvmYul.Yul.State).insert name (EvmYul.UInt256.ofNat 1)) := by
+  rw [exec_let_lowerExprNative_iszero_lt_calldatasize_4_ok,
+      initialState_calldataSize,
+      uint256_lt_ofNat_4_eq_zero_of_ge _ (by omega) hNoWrap,
+      uint256_isZero_ofNat_zero]
+
 theorem exec_let_lowerExprNative_selectorExpr_initialState_ok
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
