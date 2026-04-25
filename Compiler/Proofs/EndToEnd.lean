@@ -1950,6 +1950,54 @@ theorem simpleStorageNativeContract_dispatcherExec_eq_named_let_if_if_block_exec
   rw [simpleStorageNativeContract_dispatcherExec_eq_innerBlock_exec,
       simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if]
 
+/-- Concrete head exposure of the SimpleStorage native dispatcher inner-block:
+its first statement is the lowered `let __has_selector := iszero(lt(calldatasize(), 4))`
+that `buildSwitch` emits, with the source-Yul RHS pinned explicitly. This is
+the same peel as `simpleStorageNativeDispatcherInnerStmts_head_let_exists` but
+exposes the *concrete* lowered RHS (not just an abstract Lean witness), so the
+`Classical.choose`-pinned `simpleStorageNativeDispatcher_letValue` can be
+equated to it via head injection. -/
+theorem simpleStorageNativeDispatcherInnerStmts_concrete_let_head :
+    ∃ rest : List EvmYul.Yul.Ast.Stmt,
+      simpleStorageNativeDispatcherInnerStmts =
+        EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+            (some
+              (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+                (Yul.YulExpr.call "iszero"
+                  [Yul.YulExpr.call "lt"
+                    [Yul.YulExpr.call "calldatasize" [],
+                     Yul.YulExpr.lit 4]]))) :: rest := by
+  have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
+  rw [simpleStorageNativeDispatcherStmts_eq_singleton_block] at hOk
+  obtain ⟨_, hInner⟩ := lowerStmtsNative_block_stmts_eq _ _ hOk
+  obtain ⟨rest', hSplit, _⟩ :=
+    lowerStmtsNativeWithSwitchIds_let_head_eq _ _ _ _ _ _ _ hInner
+  exact ⟨rest', hSplit⟩
+
+/-- The `Classical.choose`-pinned let RHS of the SimpleStorage native dispatcher
+equals the lowered `iszero(lt(calldatasize(), 4))` Yul expression that
+`buildSwitch` emits. Combining the named-form decomposition
+(`simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if`) with the
+concrete-head exposure
+(`simpleStorageNativeDispatcherInnerStmts_concrete_let_head`) and head
+injection eliminates the structural existential between the named witness and
+the concrete source expression, letting downstream proofs evaluate the let
+RHS directly via the existing harness lemmas. -/
+theorem simpleStorageNativeDispatcher_letValue_eq :
+    simpleStorageNativeDispatcher_letValue =
+      Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+        (Yul.YulExpr.call "iszero"
+          [Yul.YulExpr.call "lt"
+            [Yul.YulExpr.call "calldatasize" [],
+             Yul.YulExpr.lit 4]]) := by
+  obtain ⟨_, hConcrete⟩ :=
+    simpleStorageNativeDispatcherInnerStmts_concrete_let_head
+  have hCombo :=
+    simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if.symm.trans hConcrete
+  simp only [List.cons.injEq, EvmYul.Yul.Ast.Stmt.Let.injEq, Option.some.injEq,
+    true_and] at hCombo
+  exact hCombo.1
+
 noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch
     simpleStorageIRContract.functions none none]
