@@ -5076,6 +5076,44 @@ theorem primCall_sstore_initialState_wordSlot_ok
   rw [primCall_sstore_ok]
   simp [initialState, EvmYul.Yul.State.executionEnv]
 
+/-- Native primitive execution of the generated `store(uint256)` core:
+    `calldataload(4)` decodes the first ABI argument and the following
+    `sstore(0, value)` writes that word to slot zero. This is the real native
+    primitive sequence under the emitted SimpleStorage setter body, before the
+    terminating `stop`. -/
+theorem primCall_calldataload4_then_sstore0_initialState_arg0_ok
+    (loadFuel storeFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (arg : Nat)
+    (rest : List Nat)
+    (hArgs : tx.args = arg :: rest) :
+    (do
+      let (state', values) ←
+        EvmYul.Yul.primCall (loadFuel + 1)
+          (initialState contract tx storage observableSlots)
+          EvmYul.Operation.CALLDATALOAD [EvmYul.UInt256.ofNat 4]
+      match values with
+      | [value] =>
+          EvmYul.Yul.primCall (storeFuel + 1) state'
+            EvmYul.Operation.SSTORE [EvmYul.UInt256.ofNat 0, value]
+      | _ => .error EvmYul.Yul.Exception.InvalidArguments) =
+      .ok (((initialState contract tx storage observableSlots).setState
+        ((initialState contract tx storage observableSlots).toState.sstore
+          (EvmYul.UInt256.ofNat 0) (natToUInt256 arg))), []) := by
+  rw [primCall_calldataload4_initialState_arg0_ok loadFuel contract tx storage
+    observableSlots arg rest hArgs]
+  change EvmYul.Yul.primCall (storeFuel + 1)
+      (initialState contract tx storage observableSlots)
+      EvmYul.Operation.SSTORE [EvmYul.UInt256.ofNat 0, natToUInt256 arg] =
+    .ok (((initialState contract tx storage observableSlots).setState
+      ((initialState contract tx storage observableSlots).toState.sstore
+        (EvmYul.UInt256.ofNat 0) (natToUInt256 arg))), [])
+  exact primCall_sstore_initialState_wordSlot_ok storeFuel contract tx storage
+    observableSlots 0 arg (by norm_num [EvmYul.UInt256.size])
+
 /-- Native primitive execution of the `return(0, 32)` half of the generated
     scalar-return sequence after `mstore(0, value)`. EVMYulLean models `RETURN`
     as a Yul halt carrying the post-`evmReturn` state; the halt literal is the
