@@ -2926,6 +2926,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_iszero_ident_one_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_iszero_ident_one_ok_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_selectorExpr_initialState_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_selectorExpr_initialState_ok_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lit_ok
@@ -2941,6 +2943,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_eval_zero
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_eval_nonzero
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_eval_nonzero_error
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_lowerExprNative_iszero_ident_one_skip
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_lowerExprNative_iszero_ident_one_skip_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_ok_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_hit_ok
@@ -3441,4 +3445,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3268 theorems/lemmas (2339 public, 929 private, 0 sorry'd)
+-- Total: 3272 theorems/lemmas (2343 public, 929 private, 0 sorry'd)

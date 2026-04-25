@@ -2095,6 +2095,45 @@ theorem exec_let_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok
       uint256_lt_ofNat_4_eq_zero_of_ge _ (by omega) hNoWrap,
       uint256_isZero_ofNat_zero]
 
+/-- State-generic native `eval` of the lowered selector-miss guard
+    `iszero(__has_selector)`: when the named variable is bound to
+    `UInt256.ofNat 1` in the variable store, the guard evaluates to
+    the canonical zero `UInt256` literal. This is the eval primitive that
+    feeds `exec_if_eval_zero` to skip the selector-miss `revert(0,0)` body. -/
+theorem eval_lowerExprNative_iszero_ident_one_ok
+    (state : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (name : EvmYul.Identifier)
+    (hVal : state[name]! = EvmYul.UInt256.ofNat 1) :
+    EvmYul.Yul.eval 8
+        (Backends.lowerExprNative
+          (Yul.YulExpr.call "iszero" [Yul.YulExpr.ident name]))
+        codeOverride state =
+      .ok (state, EvmYul.UInt256.ofNat 0) := by
+  simp [Backends.lowerExprNative, Backends.lookupRuntimePrimOp,
+    EvmYul.Yul.eval, EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail,
+    EvmYul.Yul.evalPrimCall, EvmYul.Yul.reverse', EvmYul.Yul.cons',
+    EvmYul.Yul.head', hVal]
+  decide
+
+/-- Fuel-parametric form of `eval_lowerExprNative_iszero_ident_one_ok`. -/
+theorem eval_lowerExprNative_iszero_ident_one_ok_fuel
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (name : EvmYul.Identifier)
+    (hVal : state[name]! = EvmYul.UInt256.ofNat 1) :
+    EvmYul.Yul.eval (fuel + 8)
+        (Backends.lowerExprNative
+          (Yul.YulExpr.call "iszero" [Yul.YulExpr.ident name]))
+        codeOverride state =
+      .ok (state, EvmYul.UInt256.ofNat 0) := by
+  simp [Backends.lowerExprNative, Backends.lookupRuntimePrimOp,
+    EvmYul.Yul.eval, EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail,
+    EvmYul.Yul.evalPrimCall, EvmYul.Yul.reverse', EvmYul.Yul.cons',
+    EvmYul.Yul.head', hVal]
+  decide
+
 theorem exec_let_lowerExprNative_selectorExpr_initialState_ok
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
@@ -2559,6 +2598,49 @@ theorem exec_if_eval_nonzero_error
     EvmYul.Yul.exec (Nat.succ fuel') (.If cond body) codeOverride state =
       .error err := by
   simp [EvmYul.Yul.exec, hEval, hNe, hBody]
+
+/-- Native `if` execution skips the lowered selector-miss revert guard
+    `if iszero(<name>) { … }` whenever the named variable is bound to
+    `UInt256.ofNat 1` — i.e., when the dispatcher's `let __has_selector :=
+    iszero(lt(calldatasize(), 4))` step has bound the variable to one
+    (which `exec_let_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok`
+    establishes for any tx satisfying the calldata-size no-wrap bound).
+    This is the per-statement no-op for the dispatcher's `If1` step that
+    lets the selector-hit `If2` body fire on the same incoming state. -/
+theorem exec_if_lowerExprNative_iszero_ident_one_skip
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State)
+    (name : EvmYul.Identifier)
+    (hVal : state[name]! = EvmYul.UInt256.ofNat 1) :
+    EvmYul.Yul.exec 9
+        (.If
+          (Backends.lowerExprNative
+            (Yul.YulExpr.call "iszero" [Yul.YulExpr.ident name]))
+          body)
+        codeOverride state =
+      .ok state :=
+  exec_if_eval_zero 8 _ body codeOverride state state
+    (eval_lowerExprNative_iszero_ident_one_ok state codeOverride name hVal)
+
+/-- Fuel-parametric form of `exec_if_lowerExprNative_iszero_ident_one_skip`. -/
+theorem exec_if_lowerExprNative_iszero_ident_one_skip_fuel
+    (fuel : Nat)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State)
+    (name : EvmYul.Identifier)
+    (hVal : state[name]! = EvmYul.UInt256.ofNat 1) :
+    EvmYul.Yul.exec (fuel + 9)
+        (.If
+          (Backends.lowerExprNative
+            (Yul.YulExpr.call "iszero" [Yul.YulExpr.ident name]))
+          body)
+        codeOverride state =
+      .ok state := by
+  simpa using
+    (exec_if_eval_zero (fuel + 8) _ body codeOverride state state
+      (eval_lowerExprNative_iszero_ident_one_ok_fuel fuel state codeOverride name hVal))
 
 /-- Native evaluation of the lazy lowered switch guard peels to the exact
     EVMYulLean `AND(ISZERO(matched), EQ(discr, tag))` value.
