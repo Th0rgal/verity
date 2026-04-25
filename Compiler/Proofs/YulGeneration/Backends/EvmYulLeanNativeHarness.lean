@@ -4669,6 +4669,27 @@ theorem primCall_sload_initialState_observableSlot_ok
       subst value
       rfl
 
+/-- Native primitive execution of `sstore(slot, value)` on an initial runtime
+    state succeeds with the exact EVMYulLean `State.sstore` successor. The
+    range hypothesis records the word-canonical slot condition needed by the
+    dispatcher proof when this lemma is connected to projected storage. -/
+theorem primCall_sstore_initialState_wordSlot_ok
+    (fuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (slot value : Nat)
+    (_hSlotRange : slot < EvmYul.UInt256.size) :
+    EvmYul.Yul.primCall (fuel + 1)
+        (initialState contract tx storage observableSlots)
+        EvmYul.Operation.SSTORE [natToUInt256 slot, natToUInt256 value] =
+      .ok (((initialState contract tx storage observableSlots).setState
+          ((initialState contract tx storage observableSlots).toState.sstore
+            (natToUInt256 slot) (natToUInt256 value))), []) := by
+  rw [primCall_sstore_ok]
+  simp [initialState, EvmYul.Yul.State.executionEnv]
+
 /-- Native initial-state storage materialization defaults omitted observable
     pre-state slots to zero. The in-range hypotheses rule out modular aliasing
     through the EVM word key used by the finite native storage map. -/
