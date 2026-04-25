@@ -8177,6 +8177,29 @@ def simpleStorageRevertProjectedResult
     finalMappings := Compiler.Proofs.storageAsMappings storage
     events := initialEvents }
 
+/-- Concrete lowered native body for the generated SimpleStorage
+    `store(uint256)` selector arm. Naming this body lets later dispatcher
+    bridge lemmas specialize the selector-switch theorem without carrying
+    arbitrary body parameters. -/
+def simpleStorageNativeStoreBody : List EvmYul.Yul.Ast.Stmt :=
+  [ .If (lowerExprNative (.call "callvalue" [])) [nativeRevertZeroZeroStmt],
+    .If (lowerExprNative (.call "lt" [.call "calldatasize" [], .lit 36]))
+      [nativeRevertZeroZeroStmt],
+    .Let ["value"] (some (lowerExprNative (.call "calldataload" [.lit 4]))),
+    .ExprStmtCall (lowerExprNative (.call "sstore" [.lit 0, .ident "value"])),
+    .ExprStmtCall (lowerExprNative (.call "stop" [])) ]
+
+/-- Concrete lowered native body for the generated SimpleStorage `retrieve()`
+    selector arm. -/
+def simpleStorageNativeRetrieveBody : List EvmYul.Yul.Ast.Stmt :=
+  [ .If (lowerExprNative (.call "callvalue" [])) [nativeRevertZeroZeroStmt],
+    .If (lowerExprNative (.call "lt" [.call "calldatasize" [], .lit 4]))
+      [nativeRevertZeroZeroStmt],
+    .ExprStmtCall
+      (lowerExprNative
+        (.call "mstore" [.lit 0, .call "sload" [.lit 0]])),
+    .ExprStmtCall (lowerExprNative (.call "return" [.lit 0, .lit 32])) ]
+
 /-- Guarded selector-miss execution for the concrete SimpleStorage dispatcher,
     specialized to the selector carried by the transaction.
 
@@ -8270,6 +8293,41 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_miss_with_revert_d
     exact hNotStore h.symm
   · intro h
     exact hNotRetrieve h.symm
+
+/-- Guarded selector-miss execution for the concrete lowered SimpleStorage
+    selector switch, with both generated selector bodies fixed to their native
+    lowered shapes. This is the default branch theorem needed by the bridge
+    once the outer dispatcher has exposed the inner selector switch. -/
+theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_tx_miss_with_revert_default_projectResult_eq
+    (fuel switchId : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (hSelectorBound : tx.functionSelector < Compiler.Constants.selectorModulus)
+    (hNotStore : tx.functionSelector ≠ 0x6057361d)
+    (hNotRetrieve : tx.functionSelector ≠ 0x2e64cec1) :
+    EvmYul.Yul.exec
+        (fuel + [(0x6057361d, simpleStorageNativeStoreBody),
+          (0x2e64cec1, simpleStorageNativeRetrieveBody)].length + 12)
+        (Backends.lowerNativeSwitchBlock
+          Compiler.Proofs.YulGeneration.selectorExpr
+          switchId
+          [(0x6057361d, simpleStorageNativeStoreBody),
+            (0x2e64cec1, simpleStorageNativeRetrieveBody)]
+          [nativeRevertZeroZeroStmt])
+        (some contract)
+        (nativeSwitchInitialOkState contract tx storage observableSlots) =
+      .error EvmYul.Yul.Exception.Revert ∧
+    projectResult tx storage initialEvents
+        (.error EvmYul.Yul.Exception.Revert) =
+      simpleStorageRevertProjectedResult storage initialEvents := by
+  exact
+    exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_miss_with_revert_default_projectResult_eq
+      fuel switchId simpleStorageNativeStoreBody simpleStorageNativeRetrieveBody
+      contract tx storage initialEvents observableSlots hSelectorBound
+      hNotStore hNotRetrieve
 
 /-- Store-selector hit execution for the concrete SimpleStorage dispatcher
     selector set. This specializes the generic lowered-switch hit theorem to
