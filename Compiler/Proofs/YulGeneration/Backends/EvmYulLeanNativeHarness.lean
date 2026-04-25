@@ -1343,6 +1343,27 @@ theorem initialState_calldataload4_arg0_value
   exact uint256_ofNat_toNat_of_lt (arg % EvmYul.UInt256.size)
     (Nat.mod_lt _ (by norm_num [EvmYul.UInt256.size]))
 
+/-- Native `calldataload(4)` decodes the first aligned ABI argument as the
+    exact EVM word used by the state bridge. -/
+theorem initialState_calldataload4_arg0_word
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (arg : Nat)
+    (rest : List Nat)
+    (hArgs : tx.args = arg :: rest) :
+    EvmYul.State.calldataload
+        (initialState contract tx storage observableSlots).toState
+        (EvmYul.UInt256.ofNat 4) =
+      natToUInt256 arg := by
+  apply uint256_eq_of_toNat_eq
+  rw [initialState_calldataload4_arg0_value contract tx storage
+    observableSlots arg rest hArgs]
+  change arg % EvmYul.UInt256.size =
+    (Fin.ofNat EvmYul.UInt256.size arg).val
+  simp [Fin.ofNat]
+
 /-- Native selector decoding agrees with the interpreter selector by reducing
     EVMYulLean `calldataload(0) >>> 224` to the four ABI selector bytes in
     the initial bridged calldata. -/
@@ -1555,6 +1576,31 @@ theorem lowerExprNative_selectorExpr :
       .ok (.Ok shared store,
         [EvmYul.State.calldataload shared.toState offset]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
+
+/-- Native primitive execution of `calldataload(4)` on initial bridged calldata
+    returns the first aligned ABI argument word. This packages the byte-level
+    calldata decode through EVMYulLean's actual `CALLDATALOAD` primitive
+    relation, in the shape needed by the generated `store(uint256)` body. -/
+theorem primCall_calldataload4_initialState_arg0_ok
+    (fuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (arg : Nat)
+    (rest : List Nat)
+    (hArgs : tx.args = arg :: rest) :
+    EvmYul.Yul.primCall (fuel + 1)
+        (initialState contract tx storage observableSlots)
+        EvmYul.Operation.CALLDATALOAD [EvmYul.UInt256.ofNat 4] =
+      .ok (initialState contract tx storage observableSlots,
+        [natToUInt256 arg]) := by
+  have hWord :=
+    initialState_calldataload4_arg0_word contract tx storage
+      observableSlots arg rest hArgs
+  unfold initialState at hWord ⊢
+  rw [primCall_calldataload_ok]
+  simpa [hWord]
 
 @[simp] theorem primCall_shr_ok
     (fuel : Nat)
