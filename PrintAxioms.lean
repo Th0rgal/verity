@@ -3116,8 +3116,10 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageConcrete_tx_miss_with_revert_default_projectResult_eq
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_projectResult_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageConcrete_store_hit_projectResult_eq
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_error_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_projectResult_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageConcrete_retrieve_hit_projectResult_eq
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_finalMappings
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative_loweringError
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative
@@ -3401,4 +3403,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3228 theorems/lemmas (2301 public, 927 private, 0 sorry'd)
+-- Total: 3230 theorems/lemmas (2303 public, 927 private, 0 sorry'd)
