@@ -5964,6 +5964,47 @@ def primCall_calldataload4_then_sstore0_stop_initialState_arg0
         | _ => .error EvmYul.Yul.Exception.InvalidArguments)
   | _ => .error EvmYul.Yul.Exception.InvalidArguments
 
+/-- Exact native primitive execution shape for the generated SimpleStorage setter
+    body after dispatcher selection. -/
+theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_eq
+    (loadFuel storeFuel stopFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction) (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (arg : Nat)
+    (rest : List Nat)
+    (hArgs : tx.args = arg :: rest) :
+    let finalState :=
+      (initialState contract tx storage observableSlots).setState
+        ((initialState contract tx storage observableSlots).toState.sstore
+          (EvmYul.UInt256.ofNat 0) (natToUInt256 arg))
+    primCall_calldataload4_then_sstore0_stop_initialState_arg0
+      loadFuel storeFuel stopFuel contract tx storage observableSlots =
+      .error (EvmYul.Yul.Exception.YulHalt finalState ⟨0⟩) := by
+  dsimp
+  unfold primCall_calldataload4_then_sstore0_stop_initialState_arg0
+  rw [primCall_calldataload4_initialState_arg0_ok loadFuel contract tx
+    storage observableSlots arg rest hArgs]
+  change
+    (do
+      let (state'', values') ←
+        EvmYul.Yul.primCall (storeFuel + 1)
+          (initialState contract tx storage observableSlots)
+          EvmYul.Operation.SSTORE
+          [EvmYul.UInt256.ofNat 0, natToUInt256 arg]
+      match values' with
+      | [] =>
+          EvmYul.Yul.primCall (stopFuel + 1) state''
+            EvmYul.Operation.STOP []
+      | _ => .error EvmYul.Yul.Exception.InvalidArguments) =
+    .error (EvmYul.Yul.Exception.YulHalt
+      ((initialState contract tx storage observableSlots).setState
+        ((initialState contract tx storage observableSlots).toState.sstore
+          (EvmYul.UInt256.ofNat 0) (natToUInt256 arg))) ⟨0⟩)
+  rw [primCall_sstore_initialState_wordSlot_ok storeFuel contract tx storage
+    observableSlots 0 arg (by norm_num [EvmYul.UInt256.size])]
+  exact primCall_stop_ok stopFuel _
+
 /-- Native primitive execution of the full generated `store(uint256)` selected
     body tail: `calldataload(4); sstore(0, arg0); stop`. The terminating
     `STOP` travels through EVMYulLean's Yul-halt channel and projects as a
@@ -5992,27 +6033,129 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult
       ((initialState contract tx storage observableSlots).toState.sstore
         (EvmYul.UInt256.ofNat 0) (natToUInt256 arg))
   refine ⟨finalState, ⟨0⟩, ?_, ?_, ?_⟩
-  · unfold primCall_calldataload4_then_sstore0_stop_initialState_arg0
-    rw [primCall_calldataload4_initialState_arg0_ok loadFuel contract tx
-      storage observableSlots arg rest hArgs]
-    change
-      (do
-        let (state'', values') ←
-          EvmYul.Yul.primCall (storeFuel + 1)
-            (initialState contract tx storage observableSlots)
-            EvmYul.Operation.SSTORE
-            [EvmYul.UInt256.ofNat 0, natToUInt256 arg]
-        match values' with
-        | [] =>
-            EvmYul.Yul.primCall (stopFuel + 1) state''
-              EvmYul.Operation.STOP []
-        | _ => .error EvmYul.Yul.Exception.InvalidArguments) =
-        .error (EvmYul.Yul.Exception.YulHalt finalState ⟨0⟩)
-    rw [primCall_sstore_initialState_wordSlot_ok storeFuel contract tx storage
-      observableSlots 0 arg (by norm_num [EvmYul.UInt256.size])]
-    exact primCall_stop_ok stopFuel finalState
+  · exact primCall_calldataload4_then_sstore0_stop_initialState_arg0_eq
+      loadFuel storeFuel stopFuel contract tx storage observableSlots arg rest
+      hArgs
   · rfl
   · rfl
+
+/-- Native primitive execution of the full generated `store(uint256)` selected
+    body, lifted through the terminating `STOP` halt and Verity's projected
+    native result boundary for a nonzero slot-zero write. -/
+theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_slot0
+    (loadFuel storeFuel stopFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction) (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (arg : Nat)
+    (rest : List Nat)
+    (hArgs : tx.args = arg :: rest)
+    (hValueNonzero :
+      (natToUInt256 arg == (⟨0⟩ : EvmYul.UInt256)) = false) :
+    ∃ haltState haltValue,
+      primCall_calldataload4_then_sstore0_stop_initialState_arg0
+        loadFuel storeFuel stopFuel contract tx storage observableSlots =
+        .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
+      (projectResult tx storage initialEvents
+        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).finalStorage 0 =
+        arg % EvmYul.UInt256.size := by
+  let finalState :=
+    (initialState contract tx storage observableSlots).setState
+      ((initialState contract tx storage observableSlots).toState.sstore
+        (EvmYul.UInt256.ofNat 0) (natToUInt256 arg))
+  refine ⟨finalState, ⟨0⟩, ?_, ?_⟩
+  · exact primCall_calldataload4_then_sstore0_stop_initialState_arg0_eq
+      loadFuel storeFuel stopFuel contract tx storage observableSlots arg rest
+      hArgs
+  · dsimp [finalState]
+    simp only [projectResult, projectStorageFromState, extractStorage,
+      initialState, EvmYul.Yul.State.sharedState, EvmYul.Yul.State.setState,
+      EvmYul.Yul.State.toState, EvmYul.State.sstore, EvmYul.State.lookupAccount,
+      EvmYul.State.setAccount, EvmYul.State.addAccessedStorageKey,
+      EvmYul.Account.updateStorage, YulState.initial, toSharedState,
+      natToUInt256, uint256ToNat, EvmYul.UInt256.toNat]
+    have hBranch :
+        (EvmYul.UInt256.ofNat arg == (Inhabited.default : EvmYul.UInt256)) =
+          false := by
+      simpa [natToUInt256, EvmYul.UInt256.instInhabited] using hValueNonzero
+    rw [hBranch]
+    simp [Option.option, Batteries.RBMap.find?_insert_of_eq _
+      Std.ReflCmp.compare_self, EvmYul.UInt256.size]
+    rfl
+
+/-- Zero-write storage projection for the full generated `store(uint256)` selected
+    body through the terminating `STOP`, with the remaining RBMap erasure fact
+    isolated at the same boundary as the non-terminating setter-core lemma. -/
+theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_slot0_zero_of_erase
+    (loadFuel storeFuel stopFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (arg : Nat)
+    (rest : List Nat)
+    (hArgs : tx.args = arg :: rest)
+    (hValueZero :
+      (natToUInt256 arg == (⟨0⟩ : EvmYul.UInt256)) = true)
+    (hErase :
+      (Batteries.RBMap.erase (projectStorage storage observableSlots)
+        (EvmYul.UInt256.ofNat 0)).find? (EvmYul.UInt256.ofNat 0) = none) :
+    ∃ haltState haltValue,
+      primCall_calldataload4_then_sstore0_stop_initialState_arg0
+        loadFuel storeFuel stopFuel contract tx storage observableSlots =
+        .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
+      (projectResult tx storage initialEvents
+        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).finalStorage 0 =
+        0 := by
+  let finalState :=
+    (initialState contract tx storage observableSlots).setState
+      ((initialState contract tx storage observableSlots).toState.sstore
+        (EvmYul.UInt256.ofNat 0) (natToUInt256 arg))
+  refine ⟨finalState, ⟨0⟩, ?_, ?_⟩
+  · exact primCall_calldataload4_then_sstore0_stop_initialState_arg0_eq
+      loadFuel storeFuel stopFuel contract tx storage observableSlots arg rest
+      hArgs
+  · dsimp [finalState]
+    simp only [projectResult, projectStorageFromState, extractStorage,
+      initialState, EvmYul.Yul.State.sharedState, EvmYul.Yul.State.setState,
+      EvmYul.Yul.State.toState, EvmYul.State.sstore, EvmYul.State.lookupAccount,
+      EvmYul.State.setAccount, EvmYul.State.addAccessedStorageKey,
+      EvmYul.Account.updateStorage, YulState.initial, toSharedState,
+      natToUInt256]
+    have hBranch :
+        (EvmYul.UInt256.ofNat arg == (Inhabited.default : EvmYul.UInt256)) =
+          true := by
+      simpa [natToUInt256, EvmYul.UInt256.instInhabited] using hValueZero
+    rw [hBranch]
+    simp [Option.option, Batteries.RBMap.find?_insert_of_eq _
+      Std.ReflCmp.compare_self, hErase]
+
+/-- Zero-write storage projection for the full generated `store(uint256)` selected
+    body through `STOP` when no observable slots were materialized. -/
+theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_slot0_zero_emptyObservable
+    (loadFuel storeFuel stopFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (arg : Nat)
+    (rest : List Nat)
+    (hArgs : tx.args = arg :: rest)
+    (hValueZero :
+      (natToUInt256 arg == (⟨0⟩ : EvmYul.UInt256)) = true) :
+    ∃ haltState haltValue,
+      primCall_calldataload4_then_sstore0_stop_initialState_arg0
+        loadFuel storeFuel stopFuel contract tx storage [] =
+        .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
+      (projectResult tx storage initialEvents
+        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).finalStorage 0 =
+        0 := by
+  exact
+    primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_slot0_zero_of_erase
+      loadFuel storeFuel stopFuel contract tx storage initialEvents [] arg rest
+      hArgs hValueZero (by rfl)
 
 /-- Native primitive execution of the generated `store(uint256)` core, lifted
     through Verity's projected native result boundary for a nonzero slot-zero
