@@ -6036,6 +6036,37 @@ theorem primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot
     simp [Option.option, Batteries.RBMap.find?_insert_of_eq _
       Std.ReflCmp.compare_self, hErase]
 
+/-- Zero `sstore` projection with empty observable-slot materialization. -/
+theorem primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot0_zero_emptyObservable
+    (loadFuel storeFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (arg : Nat)
+    (rest : List Nat)
+    (hArgs : tx.args = arg :: rest)
+    (hValueZero :
+      (natToUInt256 arg == (⟨0⟩ : EvmYul.UInt256)) = true) :
+    ∃ finalState,
+      (do
+        let (state', values) ←
+          EvmYul.Yul.primCall (loadFuel + 1)
+            (initialState contract tx storage [])
+            EvmYul.Operation.CALLDATALOAD [EvmYul.UInt256.ofNat 4]
+        match values with
+        | [value] =>
+            EvmYul.Yul.primCall (storeFuel + 1) state'
+              EvmYul.Operation.SSTORE [EvmYul.UInt256.ofNat 0, value]
+        | _ => .error EvmYul.Yul.Exception.InvalidArguments) =
+        .ok (finalState, []) ∧
+      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage 0 =
+        0 := by
+  exact
+    primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot0_zero_of_erase
+      loadFuel storeFuel contract tx storage initialEvents [] arg rest hArgs
+      hValueZero (by rfl)
+
 @[simp] theorem projectResult_yulHalt_events
     (tx : YulTransaction)
     (initialStorage : Nat → Nat)
