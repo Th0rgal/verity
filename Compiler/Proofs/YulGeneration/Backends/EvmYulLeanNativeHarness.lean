@@ -6048,6 +6048,44 @@ def projectResult
       events := initialEvents ++ projectLogsFromState state } := by
   rfl
 
+/-- Exact projected result for native primitive execution of
+    `sstore(slot, value)` from an initial runtime shared state and arbitrary
+    dispatcher local-variable store.
+
+This is the generic word-canonical `SSTORE` primitive result shape needed by
+the dispatcher proof before the SimpleStorage setter composes it with
+`CALLDATALOAD` and `STOP`. -/
+theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_eq
+    (fuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (slot value : Nat)
+    (hSlotRange : slot < EvmYul.UInt256.size) :
+    ∃ finalState,
+      EvmYul.Yul.primCall (fuel + 1)
+          (.Ok (initialState contract tx storage observableSlots).sharedState store)
+          EvmYul.Operation.SSTORE [natToUInt256 slot, natToUInt256 value] =
+        .ok (finalState, []) ∧
+      projectResult tx storage initialEvents (.ok (finalState, [])) =
+        { success := true
+          returnValue := none
+          finalStorage := projectStorageFromState tx finalState
+          finalMappings :=
+            Compiler.Proofs.storageAsMappings (projectStorageFromState tx finalState)
+          events := initialEvents ++ projectLogsFromState finalState } := by
+  let initialWithStore : EvmYul.Yul.State :=
+    .Ok (initialState contract tx storage observableSlots).sharedState store
+  refine ⟨initialWithStore.setState
+    (initialWithStore.toState.sstore (natToUInt256 slot) (natToUInt256 value)),
+    ?_, ?_⟩
+  · exact primCall_sstore_initialState_wordSlot_ok_withStore fuel contract tx
+      storage observableSlots store slot value hSlotRange
+  · simp [projectResult]
+
 @[simp] theorem projectResult_yulHalt
     (tx : YulTransaction)
     (initialStorage : Nat → Nat)
