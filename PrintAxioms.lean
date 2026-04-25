@@ -2861,6 +2861,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_stop_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_return_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_revert_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNative_revert_zero_zero
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_revert_zero_zero_error
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_expr_prim_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_prim_one_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_selectorExpr_ok
@@ -2906,6 +2908,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchDefaultGuard_matched_ok_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_unmatched
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_unmatched_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_unmatched_error_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_matched
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_matched_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.lowerNativeSwitchBlock_selectorExpr_eq_nativeSwitchParts
@@ -2954,13 +2957,17 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_preserved_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_unmatched_nonempty_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_unmatched_nonempty_error_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_matched_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_matched_caseTail_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_unmatched_caseTail_nonempty_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_unmatched_caseTail_nonempty_error_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_with_default_matched_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_with_default_preserved_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_with_default_error_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_with_default_nonempty_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_with_default_nonempty_error_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_with_revert_default_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_without_default_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_then_tail_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_then_tail_error_fuel
@@ -3306,4 +3313,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3133 theorems/lemmas (2223 public, 910 private, 0 sorry'd)
+-- Total: 3140 theorems/lemmas (2230 public, 910 private, 0 sorry'd)

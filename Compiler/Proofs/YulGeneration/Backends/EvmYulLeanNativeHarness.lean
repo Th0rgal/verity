@@ -1512,6 +1512,37 @@ theorem lowerExprNative_selectorExpr :
     cases EvmYul.Yul.binaryMachineStateOp EvmYul.MachineState.evmRevert
       state [offset, size] <;> rfl
 
+def nativeRevertZeroZeroStmt : EvmYul.Yul.Ast.Stmt :=
+  .ExprStmtCall
+    (.Call (Sum.inl (EvmYul.Operation.REVERT : EvmYul.Operation .Yul))
+      [.Lit (EvmYul.UInt256.ofNat 0), .Lit (EvmYul.UInt256.ofNat 0)])
+
+/-- The compiler's proof-side `revert(0, 0)` default lowers to the concrete
+    native statement used by the selector-miss execution lemma. -/
+theorem lowerStmtsNative_revert_zero_zero :
+    Backends.lowerStmtsNative
+      [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])] =
+      .ok [nativeRevertZeroZeroStmt] := by
+  simp [Backends.lowerStmtsNative, Backends.lowerStmtsNativeWithSwitchIds,
+    nativeRevertZeroZeroStmt, Backends.lowerExprNative,
+    Backends.lookupRuntimePrimOp]
+  rfl
+
+/-- Native execution of the generated selector-miss body `revert(0, 0)`.
+    This is the concrete primitive halt used by the dispatcher default path. -/
+theorem exec_revert_zero_zero_error
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    EvmYul.Yul.exec (fuel + 6)
+      nativeRevertZeroZeroStmt codeOverride state =
+      .error EvmYul.Yul.Exception.Revert := by
+  cases fuel <;>
+    simp [nativeRevertZeroZeroStmt, EvmYul.Yul.exec, EvmYul.Yul.eval, EvmYul.Yul.evalArgs,
+      EvmYul.Yul.evalTail, EvmYul.Yul.execPrimCall, EvmYul.Yul.reverse',
+      EvmYul.Yul.cons', EvmYul.Yul.multifill',
+      EvmYul.Yul.binaryMachineStateOp]
+
 theorem exec_expr_prim_ok
     (fuel : Nat)
     (state next : EvmYul.Yul.State)
@@ -2606,6 +2637,32 @@ theorem exec_if_nativeSwitchDefaultGuard_unmatched_fuel
   simpa using
     (exec_if_eval_nonzero (fuel + 6) _ body codeOverride state state final
       (EvmYul.UInt256.ofNat 1)
+      (eval_nativeSwitchDefaultGuard_unmatched_ok_fuel fuel state codeOverride
+        matchedName hMatched)
+      (by decide)
+      hBody)
+
+/-- Fuel-parametric default execution when no lowered switch case matched and
+    the default body halts or errors. -/
+theorem exec_if_nativeSwitchDefaultGuard_unmatched_error_fuel
+    (fuel : Nat)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State)
+    (matchedName : EvmYul.Identifier)
+    (err : EvmYul.Yul.Exception)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hBody : EvmYul.Yul.exec (fuel + 6) (.Block body) codeOverride state =
+      .error err) :
+    EvmYul.Yul.exec (fuel + 7)
+      (.If
+        (Backends.nativePrimCall (EvmYul.Operation.ISZERO : EvmYul.Operation .Yul)
+          [.Var matchedName])
+        body)
+      codeOverride state = .error err := by
+  simpa using
+    (exec_if_eval_nonzero_error (fuel + 6) _ body codeOverride state state
+      (EvmYul.UInt256.ofNat 1) err
       (eval_nativeSwitchDefaultGuard_unmatched_ok_fuel fuel state codeOverride
         matchedName hMatched)
       (by decide)
@@ -3826,6 +3883,38 @@ theorem exec_nativeSwitchDefaultIf_unmatched_nonempty_fuel
         (.If (nativeSwitchDefaultGuardExpr matchedName) (stmt :: rest))
         [] codeOverride state final final hHead hTail
 
+/-- Non-empty generated default block execution when no case matched and the
+    default body halts or errors. This is the selector-miss path used by a
+    default `revert(0, 0)` body. -/
+theorem exec_nativeSwitchDefaultIf_unmatched_nonempty_error_fuel
+    (fuel : Nat)
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State)
+    (matchedName : EvmYul.Identifier)
+    (err : EvmYul.Yul.Exception)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hBody :
+      EvmYul.Yul.exec (fuel + 6) (.Block defaultBody) codeOverride state =
+        .error err)
+    (hNonempty : defaultBody ≠ []) :
+    EvmYul.Yul.exec (fuel + 8)
+      (.Block (nativeSwitchDefaultIf matchedName defaultBody))
+      codeOverride state = .error err := by
+  cases defaultBody with
+  | nil => contradiction
+  | cons stmt rest =>
+      have hHead :
+          EvmYul.Yul.exec (fuel + 7)
+            (.If (nativeSwitchDefaultGuardExpr matchedName) (stmt :: rest))
+            codeOverride state = .error err := by
+        simpa [nativeSwitchDefaultGuardExpr] using
+          (exec_if_nativeSwitchDefaultGuard_unmatched_error_fuel fuel
+            (stmt :: rest) codeOverride state matchedName err hMatched hBody)
+      exact exec_block_cons_error (fuel + 7)
+        (.If (nativeSwitchDefaultGuardExpr matchedName) (stmt :: rest))
+        [] codeOverride state err hHead
+
 /-- After a selected case preserves the matched flag at one, the optional
     generated default block skips. Empty defaults also skip because no default
     statement is emitted. -/
@@ -3899,6 +3988,27 @@ theorem exec_nativeSwitchDefaultIf_unmatched_caseTail_nonempty_fuel
   simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
     (exec_nativeSwitchDefaultIf_unmatched_nonempty_fuel (fuel + 1)
       defaultBody codeOverride state final matchedName hMatched hBody hNonempty)
+
+/-- Non-empty default-tail error execution at the fuel level left after all
+    generated cases miss. -/
+theorem exec_nativeSwitchDefaultIf_unmatched_caseTail_nonempty_error_fuel
+    (fuel : Nat)
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State)
+    (matchedName : EvmYul.Identifier)
+    (err : EvmYul.Yul.Exception)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hBody :
+      EvmYul.Yul.exec (fuel + 7) (.Block defaultBody) codeOverride state =
+        .error err)
+    (hNonempty : defaultBody ≠ []) :
+    EvmYul.Yul.exec (fuel + 9)
+      (.Block (nativeSwitchDefaultIf matchedName defaultBody))
+      codeOverride state = .error err := by
+  simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+    (exec_nativeSwitchDefaultIf_unmatched_nonempty_error_fuel (fuel + 1)
+      defaultBody codeOverride state matchedName err hMatched hBody hNonempty)
 
 /-- Compose a generated case chain with its optional default when the case chain
     has already set and preserved the matched flag. -/
@@ -4066,6 +4176,87 @@ theorem exec_nativeSwitchCaseIfs_find_none_with_default_nonempty_fuel
         (by simpa [nativeSwitchCaseIfs, Nat.add_assoc, Nat.add_comm,
           Nat.add_left_comm] using hCases)
         hDefault)
+
+/-- Selector-miss execution for the generated case chain followed by a
+    non-empty generated default block that halts or errors. -/
+theorem exec_nativeSwitchCaseIfs_find_none_with_default_nonempty_error_fuel
+    (fuel selector : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State)
+    (discrName matchedName : EvmYul.Identifier)
+    (err : EvmYul.Yul.Exception)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = none)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hDiscrSelector : state[discrName]! = EvmYul.UInt256.ofNat selector)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange : ∀ tag body, (tag, body) ∈ cases → tag < EvmYul.UInt256.size)
+    (hDefaultBody :
+      EvmYul.Yul.exec (fuel + 7) (.Block defaultBody) codeOverride state =
+        .error err)
+    (hNonempty : defaultBody ≠ []) :
+    EvmYul.Yul.exec (fuel + cases.length + 9)
+      (.Block
+        (nativeSwitchCaseIfs discrName matchedName cases ++
+          nativeSwitchDefaultIf matchedName defaultBody))
+      codeOverride state = .error err := by
+  have hCases :
+      EvmYul.Yul.exec (fuel + cases.length + 9) (.Block
+        (nativeSwitchCaseIfs discrName matchedName cases))
+        codeOverride state = .ok state :=
+    exec_nativeSwitchCaseIfs_find_none_fuel fuel selector cases codeOverride
+      state discrName matchedName hFind hMatched hDiscrSelector hSelectorRange
+      hTagsRange
+  have hDefault :
+      EvmYul.Yul.exec (fuel + 9) (.Block
+        (nativeSwitchDefaultIf matchedName defaultBody))
+        codeOverride state = .error err :=
+    exec_nativeSwitchDefaultIf_unmatched_caseTail_nonempty_error_fuel fuel
+      defaultBody codeOverride state matchedName err hMatched hDefaultBody
+      hNonempty
+  simpa [nativeSwitchCaseIfs, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+    using
+      (exec_block_append_error fuel 9
+        (nativeSwitchCaseIfs discrName matchedName cases)
+        (nativeSwitchDefaultIf matchedName defaultBody)
+        codeOverride state state err
+        (by simpa [nativeSwitchCaseIfs, Nat.add_assoc, Nat.add_comm,
+          Nat.add_left_comm] using hCases)
+        hDefault)
+
+/-- Guarded selector-miss execution for the generated lazy switch when the
+    default body is the compiler's `revert(0, 0)` statement. This discharges the
+    default-body premise in the generic selector-miss theorem with the actual
+    native `REVERT` primitive path. -/
+theorem exec_nativeSwitchCaseIfs_find_none_with_revert_default_fuel
+    (fuel selector : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State)
+    (discrName matchedName : EvmYul.Identifier)
+    (hFind :
+      cases.find? (fun entry => entry.1 == selector) = none)
+    (hMatched : state[matchedName]! = EvmYul.UInt256.ofNat 0)
+    (hDiscrSelector : state[discrName]! = EvmYul.UInt256.ofNat selector)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases → tag < EvmYul.UInt256.size) :
+    EvmYul.Yul.exec (fuel + cases.length + 9)
+      (.Block
+        (nativeSwitchCaseIfs discrName matchedName cases ++
+          nativeSwitchDefaultIf matchedName [nativeRevertZeroZeroStmt]))
+      codeOverride state = .error EvmYul.Yul.Exception.Revert := by
+  have hDefaultBody :
+      EvmYul.Yul.exec (fuel + 7) (.Block [nativeRevertZeroZeroStmt])
+        codeOverride state = .error EvmYul.Yul.Exception.Revert := by
+    exact exec_block_cons_error (fuel + 6) nativeRevertZeroZeroStmt []
+      codeOverride state EvmYul.Yul.Exception.Revert
+      (exec_revert_zero_zero_error fuel state codeOverride)
+  exact exec_nativeSwitchCaseIfs_find_none_with_default_nonempty_error_fuel
+    fuel selector cases [nativeRevertZeroZeroStmt] codeOverride state
+    discrName matchedName EvmYul.Yul.Exception.Revert hFind hMatched
+    hDiscrSelector hSelectorRange hTagsRange hDefaultBody (by simp)
 
 /-- Selector-miss execution for the generated case chain when no default is
     emitted. -/
