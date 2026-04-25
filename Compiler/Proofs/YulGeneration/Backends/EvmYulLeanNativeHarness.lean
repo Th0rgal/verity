@@ -5775,6 +5775,41 @@ def projectResult
       projectHaltReturn state value := by
   rfl
 
+/-- The exact native scalar-return primitive proof lifted through Verity's
+    projected native result boundary. This is the shape consumed by dispatcher
+    agreement: after native `mstore(0, value); return(0, 32)` halts, the
+    projected `YulResult.returnValue` is exactly the returned word. -/
+theorem primCall_mstore0_then_return32_emptyMemory_projectResult_returnValue
+    (mstoreFuel returnFuel : Nat)
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (sharedState : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (value : EvmYul.UInt256)
+    (hMemory : sharedState.memory = ByteArray.empty) :
+    ∃ haltState haltValue,
+      (do
+        let (state', values) ←
+          EvmYul.Yul.primCall (mstoreFuel + 1) (.Ok sharedState store)
+            EvmYul.Operation.MSTORE
+            [EvmYul.UInt256.ofNat 0, value]
+        match values with
+        | [] =>
+            EvmYul.Yul.primCall (returnFuel + 1) state'
+              EvmYul.Operation.RETURN
+              [EvmYul.UInt256.ofNat 0, EvmYul.UInt256.ofNat 32]
+        | _ => .error EvmYul.Yul.Exception.InvalidArguments) =
+        .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
+      (projectResult tx initialStorage initialEvents
+        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).returnValue =
+        some value.toNat := by
+  rcases primCall_mstore0_then_return32_emptyMemory_projectHaltReturn
+      mstoreFuel returnFuel sharedState store value hMemory with
+    ⟨haltState, haltValue, hExec, hReturn⟩
+  refine ⟨haltState, haltValue, hExec, ?_⟩
+  simpa using hReturn
+
 @[simp] theorem projectResult_yulHalt_finalMappings
     (tx : YulTransaction)
     (initialStorage : Nat → Nat)
