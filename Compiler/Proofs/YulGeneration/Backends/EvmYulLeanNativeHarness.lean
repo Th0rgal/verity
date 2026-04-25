@@ -5269,6 +5269,95 @@ theorem primCall_sload_initialState_omittedSlot_ok
       simp only at hvalue
       simp [hvalue]
 
+/-- Native primitive execution of `sload(slot)` is independent of the current
+    Yul local-variable store when reading an initially materialized,
+    word-canonical observable slot. This is the selected-body shape left after
+    the lowered dispatcher inserts switch temporaries. -/
+theorem primCall_sload_initialState_observableSlot_ok_withStore
+    (fuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (slot : Nat)
+    (hSlot : slot ∈ observableSlots)
+    (hRange : ∀ s ∈ observableSlots, s < EvmYul.UInt256.size) :
+    EvmYul.Yul.primCall (fuel + 1)
+        (.Ok (initialState contract tx storage observableSlots).sharedState store)
+        EvmYul.Operation.SLOAD [natToUInt256 slot] =
+      match EvmYul.State.sload
+          (initialState contract tx storage observableSlots).toState
+          (natToUInt256 slot) with
+      | (state', _) =>
+          .ok (((.Ok (initialState contract tx storage observableSlots).sharedState
+                store : EvmYul.Yul.State).setSharedState
+              { (.Ok (initialState contract tx storage observableSlots).sharedState
+                  store : EvmYul.Yul.State).toSharedState with
+                toState := state' }),
+            [natToUInt256 (storage slot)]) := by
+  rw [primCall_sload_ok]
+  generalize hload :
+      EvmYul.State.sload
+        (initialState contract tx storage observableSlots).toState
+        (natToUInt256 slot) = loaded
+  cases loaded with
+  | mk state' value =>
+      have hloadShared :
+          (initialState contract tx storage observableSlots).sharedState.sload
+              (natToUInt256 slot) = (state', value) := by
+        simpa [EvmYul.Yul.State.toState] using hload
+      have hvalue :=
+        initialState_sload_observableSlot_value contract tx storage
+          observableSlots slot hSlot hRange
+      rw [hload] at hvalue
+      simp only at hvalue
+      simp [hloadShared, hvalue, EvmYul.Yul.State.toState]
+
+/-- Native primitive execution of `sload(slot)` is independent of the current
+    Yul local-variable store when reading an omitted word-canonical slot. -/
+theorem primCall_sload_initialState_omittedSlot_ok_withStore
+    (fuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (slot : Nat)
+    (hNotSlot : slot ∉ observableSlots)
+    (hRange : ∀ s ∈ observableSlots, s < EvmYul.UInt256.size)
+    (hSlotRange : slot < EvmYul.UInt256.size) :
+    EvmYul.Yul.primCall (fuel + 1)
+        (.Ok (initialState contract tx storage observableSlots).sharedState store)
+        EvmYul.Operation.SLOAD [natToUInt256 slot] =
+      match EvmYul.State.sload
+          (initialState contract tx storage observableSlots).toState
+          (natToUInt256 slot) with
+      | (state', _) =>
+          .ok (((.Ok (initialState contract tx storage observableSlots).sharedState
+                store : EvmYul.Yul.State).setSharedState
+              { (.Ok (initialState contract tx storage observableSlots).sharedState
+                  store : EvmYul.Yul.State).toSharedState with
+                toState := state' }),
+            [natToUInt256 0]) := by
+  rw [primCall_sload_ok]
+  generalize hload :
+      EvmYul.State.sload
+        (initialState contract tx storage observableSlots).toState
+        (natToUInt256 slot) = loaded
+  cases loaded with
+  | mk state' value =>
+      have hloadShared :
+          (initialState contract tx storage observableSlots).sharedState.sload
+              (natToUInt256 slot) = (state', value) := by
+        simpa [EvmYul.Yul.State.toState] using hload
+      have hvalue :=
+        initialState_sload_omittedSlot_value contract tx storage
+          observableSlots slot hNotSlot hRange hSlotRange
+      rw [hload] at hvalue
+      simp only at hvalue
+      simp [hloadShared, hvalue, EvmYul.Yul.State.toState]
+
 /-- Native primitive execution of `sstore(slot, value)` on an initial runtime
     state succeeds with the exact EVMYulLean `State.sstore` successor. The
     range hypothesis records the word-canonical slot condition needed by the
@@ -6749,6 +6838,37 @@ def primCall_sload0_then_mstore0_return32_initialState
         | _ => .error EvmYul.Yul.Exception.InvalidArguments)
   | _ => .error EvmYul.Yul.Exception.InvalidArguments
 
+/-- Store-parametric form of the native primitive sequence used by the
+    generated SimpleStorage getter body. The lowered dispatcher executes the
+    selected body after adding switch temporaries to the Yul `VarStore`, while
+    storage and memory effects are carried by the shared state. -/
+def primCall_sload0_then_mstore0_return32_initialState_withStore
+    (sloadFuel mstoreFuel returnFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore) :
+    Except EvmYul.Yul.Exception
+      (EvmYul.Yul.State × List EvmYul.Yul.Ast.Literal) := do
+  let (state', values) ←
+    EvmYul.Yul.primCall (sloadFuel + 1)
+      (.Ok (initialState contract tx storage observableSlots).sharedState store)
+      EvmYul.Operation.SLOAD [EvmYul.UInt256.ofNat 0]
+  match values with
+  | [value] =>
+      (do
+        let (state'', values') ←
+          EvmYul.Yul.primCall (mstoreFuel + 1) state'
+            EvmYul.Operation.MSTORE [EvmYul.UInt256.ofNat 0, value]
+        match values' with
+        | [] =>
+            EvmYul.Yul.primCall (returnFuel + 1) state''
+              EvmYul.Operation.RETURN
+              [EvmYul.UInt256.ofNat 0, EvmYul.UInt256.ofNat 32]
+        | _ => .error EvmYul.Yul.Exception.InvalidArguments)
+  | _ => .error EvmYul.Yul.Exception.InvalidArguments
+
 /-- Native primitive execution of the generated `retrieve()` scalar-return core:
     `sload(0)` reads the materialized slot-zero word, then `mstore(0, value);
     return(0, 32)` returns that exact word through the projected native result.
@@ -6879,6 +6999,140 @@ theorem primCall_sload0_then_mstore0_return32_initialState_projectResult_returnV
       primCall_sload0_then_mstore0_return32_initialState_omittedSlot_projectResult_returnValue
         sloadFuel mstoreFuel returnFuel contract tx storage initialEvents
         observableSlots hSlot hRange with
+      ⟨haltState, haltValue, hExec, hReturn⟩
+    refine ⟨haltState, haltValue, hExec, ?_⟩
+    rw [if_neg hSlot]
+    simpa using hReturn
+
+/-- Native primitive execution of the generated `retrieve()` scalar-return core
+    from an arbitrary local store when slot zero is materialized. -/
+theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResult_returnValue
+    (sloadFuel mstoreFuel returnFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (hSlot : 0 ∈ observableSlots)
+    (hRange : ∀ s ∈ observableSlots, s < EvmYul.UInt256.size) :
+    ∃ haltState haltValue,
+      primCall_sload0_then_mstore0_return32_initialState_withStore
+        sloadFuel mstoreFuel returnFuel contract tx storage observableSlots
+        store =
+        .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
+      (projectResult tx storage initialEvents
+        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).returnValue =
+        some (storage 0 % EvmYul.UInt256.size) := by
+  unfold primCall_sload0_then_mstore0_return32_initialState_withStore
+  rw [primCall_sload_initialState_observableSlot_ok_withStore sloadFuel
+    contract tx storage observableSlots store 0 hSlot hRange]
+  generalize hload :
+      EvmYul.State.sload
+        (initialState contract tx storage observableSlots).toState
+        (natToUInt256 0) = loaded
+  cases loaded with
+  | mk stateAfterLoad _ =>
+      let initialWithStore : EvmYul.Yul.State :=
+        .Ok (initialState contract tx storage observableSlots).sharedState store
+      let sharedAfterLoad : EvmYul.SharedState .Yul :=
+        { initialWithStore.toSharedState with toState := stateAfterLoad }
+      have hMemory : sharedAfterLoad.memory = ByteArray.empty := by
+        change initialWithStore.toSharedState.memory = ByteArray.empty
+        simp [initialWithStore, initialState, EvmYul.Yul.State.toSharedState,
+          EvmYul.Yul.State.sharedState, YulState.initial, toSharedState]
+      rcases
+        primCall_mstore0_then_return32_emptyMemory_projectResult_returnValue
+          mstoreFuel returnFuel tx storage initialEvents sharedAfterLoad store
+          (natToUInt256 (storage 0)) hMemory with
+        ⟨haltState, haltValue, hExec, hReturn⟩
+      refine ⟨haltState, haltValue, ?_, ?_⟩
+      · simpa [sharedAfterLoad, initialWithStore] using hExec
+      · simpa [natToUInt256, EvmYul.UInt256.toNat, uint256ToNat] using hReturn
+
+/-- Native primitive execution of the generated `retrieve()` scalar-return core
+    from an arbitrary local store when slot zero is omitted. -/
+theorem primCall_sload0_then_mstore0_return32_initialState_withStore_omittedSlot_projectResult_returnValue
+    (sloadFuel mstoreFuel returnFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (hNotSlot : 0 ∉ observableSlots)
+    (hRange : ∀ s ∈ observableSlots, s < EvmYul.UInt256.size) :
+    ∃ haltState haltValue,
+      primCall_sload0_then_mstore0_return32_initialState_withStore
+        sloadFuel mstoreFuel returnFuel contract tx storage observableSlots
+        store =
+        .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
+      (projectResult tx storage initialEvents
+        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).returnValue =
+        some 0 := by
+  unfold primCall_sload0_then_mstore0_return32_initialState_withStore
+  rw [primCall_sload_initialState_omittedSlot_ok_withStore sloadFuel
+    contract tx storage observableSlots store 0 hNotSlot hRange
+    (by norm_num [EvmYul.UInt256.size])]
+  generalize hload :
+      EvmYul.State.sload
+        (initialState contract tx storage observableSlots).toState
+        (natToUInt256 0) = loaded
+  cases loaded with
+  | mk stateAfterLoad _ =>
+      let initialWithStore : EvmYul.Yul.State :=
+        .Ok (initialState contract tx storage observableSlots).sharedState store
+      let sharedAfterLoad : EvmYul.SharedState .Yul :=
+        { initialWithStore.toSharedState with toState := stateAfterLoad }
+      have hMemory : sharedAfterLoad.memory = ByteArray.empty := by
+        change initialWithStore.toSharedState.memory = ByteArray.empty
+        simp [initialWithStore, initialState, EvmYul.Yul.State.toSharedState,
+          EvmYul.Yul.State.sharedState, YulState.initial, toSharedState]
+      rcases
+        primCall_mstore0_then_return32_emptyMemory_projectResult_returnValue
+          mstoreFuel returnFuel tx storage initialEvents sharedAfterLoad store
+          (natToUInt256 0) hMemory with
+        ⟨haltState, haltValue, hExec, hReturn⟩
+      refine ⟨haltState, haltValue, ?_, ?_⟩
+      · simpa [sharedAfterLoad, initialWithStore] using hExec
+      · simpa [natToUInt256, EvmYul.UInt256.toNat, uint256ToNat] using hReturn
+
+/-- Native primitive execution of the generated `retrieve()` scalar-return core
+    from an arbitrary local store, with materialized/omitted slot zero handled
+    internally. -/
+theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResult_returnValue_materialized
+    (sloadFuel mstoreFuel returnFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (hRange : ∀ s ∈ observableSlots, s < EvmYul.UInt256.size) :
+    ∃ haltState haltValue,
+      primCall_sload0_then_mstore0_return32_initialState_withStore
+        sloadFuel mstoreFuel returnFuel contract tx storage observableSlots
+        store =
+        .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
+      (projectResult tx storage initialEvents
+        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).returnValue =
+        if 0 ∈ observableSlots then
+          some (storage 0 % EvmYul.UInt256.size)
+        else
+          some 0 := by
+  by_cases hSlot : 0 ∈ observableSlots
+  · rcases
+      primCall_sload0_then_mstore0_return32_initialState_withStore_projectResult_returnValue
+        sloadFuel mstoreFuel returnFuel contract tx storage initialEvents
+        observableSlots store hSlot hRange with
+      ⟨haltState, haltValue, hExec, hReturn⟩
+    refine ⟨haltState, haltValue, hExec, ?_⟩
+    rw [if_pos hSlot]
+    simpa using hReturn
+  · rcases
+      primCall_sload0_then_mstore0_return32_initialState_withStore_omittedSlot_projectResult_returnValue
+        sloadFuel mstoreFuel returnFuel contract tx storage initialEvents
+        observableSlots store hSlot hRange with
       ⟨haltState, haltValue, hExec, hReturn⟩
     refine ⟨haltState, haltValue, hExec, ?_⟩
     rw [if_neg hSlot]
