@@ -5827,6 +5827,44 @@ def projectResult
   simp [projectResult, projectStorageFromState_missingAccountStorageSlot,
     hAccount, hSlot]
 
+/-- Native primitive execution of the generated `store(uint256)` core, lifted
+    through Verity's projected native result boundary for call success and
+    absence of a return word. Storage-slot agreement remains the next setter
+    projection obligation, but callers no longer need to inspect the raw
+    `calldataload(4); sstore(0, arg0)` result shape for these fields. -/
+theorem primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_ok
+    (loadFuel storeFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (arg : Nat)
+    (rest : List Nat)
+    (hArgs : tx.args = arg :: rest) :
+    ∃ finalState,
+      (do
+        let (state', values) ←
+          EvmYul.Yul.primCall (loadFuel + 1)
+            (initialState contract tx storage observableSlots)
+            EvmYul.Operation.CALLDATALOAD [EvmYul.UInt256.ofNat 4]
+        match values with
+        | [value] =>
+            EvmYul.Yul.primCall (storeFuel + 1) state'
+              EvmYul.Operation.SSTORE [EvmYul.UInt256.ofNat 0, value]
+        | _ => .error EvmYul.Yul.Exception.InvalidArguments) =
+        .ok (finalState, []) ∧
+      (projectResult tx storage initialEvents (.ok (finalState, []))).success = true ∧
+      (projectResult tx storage initialEvents (.ok (finalState, []))).returnValue =
+        none := by
+  refine ⟨(initialState contract tx storage observableSlots).setState
+    ((initialState contract tx storage observableSlots).toState.sstore
+      (EvmYul.UInt256.ofNat 0) (natToUInt256 arg)), ?_, ?_, ?_⟩
+  · exact primCall_calldataload4_then_sstore0_initialState_arg0_ok
+      loadFuel storeFuel contract tx storage observableSlots arg rest hArgs
+  · rfl
+  · rfl
+
 @[simp] theorem projectResult_yulHalt_events
     (tx : YulTransaction)
     (initialStorage : Nat → Nat)
