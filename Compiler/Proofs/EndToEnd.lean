@@ -1211,14 +1211,16 @@ private theorem simpleStorage_functions_bridged :
 /-- Named SimpleStorage native dispatcher bridge obligation.
 
 This keeps the remaining native proof seam explicit and sorry-free. The missing
-work is to prove that the lowered native dispatcher selects and executes the
-three generated bodies (`store(uint256)`, `retrieve()`, and selector-miss
-`revert`) and that the projected native result agrees with the EVMYulLean-backed
-interpreter oracle on the caller's observable storage projection. -/
+work is to prove that the lowered native dispatcher block selects and executes
+the three generated bodies (`store(uint256)`, `retrieve()`, and selector-miss
+`revert`) and that the projected native result agrees with the
+EVMYulLean-backed interpreter oracle on the caller's observable storage
+projection. The generic `callDispatcher` wrapper has already been discharged by
+`nativeCallDispatcherAgreesWithInterpreter_of_dispatcherBlock_agree`. -/
 def simpleStorageNativeCallDispatcherBridge
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     : Prop :=
-  nativeCallDispatcherAgreesWithInterpreter
+  nativeDispatcherBlockAgreesWithInterpreter
     (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
     simpleStorageIRContract tx initialState observableSlots
     Compiler.SimpleStorageNativeWitness.nativeContract
@@ -1346,7 +1348,8 @@ theorem simpleStorage_endToEnd_native_evmYulLean
   simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge
     tx initialState observableSlots hselector hNoWrap hvars hmemory htransient
     hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead hparamErase hEnv
-    hNativeCallDispatcher
+    (nativeCallDispatcherAgreesWithInterpreter_of_dispatcherBlock_agree
+      hNativeCallDispatcher)
 
 /-! ## Universal Pure Arithmetic Bridge
 
