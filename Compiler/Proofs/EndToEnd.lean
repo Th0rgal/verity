@@ -1448,6 +1448,67 @@ theorem simpleStorage_runtimeCode_eq_single_dispatcher :
     Compiler.runtimeCode, Compiler.CodegenCommon.runtimeCode,
     simpleStorageIRContract]
 
+theorem lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative
+    (stmt : Yul.YulStmt)
+    (hNoFunc : ∀ name params rets body,
+      stmt ≠ Yul.YulStmt.funcDef name params rets body) :
+    Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative [stmt] =
+      match Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative [stmt] with
+      | .ok dispatcher =>
+          .ok { dispatcher := .Block dispatcher
+                functions :=
+                  (∅ :
+                    Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap) }
+      | .error err => .error err := by
+  unfold Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+  unfold Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
+  dsimp
+  rw [Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNativeAux_stmt_cons]
+  · rw [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_cons]
+    cases hLower :
+        Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds
+          (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames [stmt])
+          0 stmt with
+    | ok pair =>
+        cases pair with
+        | mk lowered next =>
+            simp [Bind.bind, Except.bind, Pure.pure, Except.pure,
+              Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNativeAux]
+    | error err =>
+        simp [Bind.bind, Except.bind]
+  · exact hNoFunc
+
+noncomputable def simpleStorageNativeDispatcherStmts :
+    List EvmYul.Yul.Ast.Stmt :=
+  match
+    Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
+      [Compiler.CodegenCommon.buildSwitch
+        simpleStorageIRContract.functions none none] with
+  | .ok stmts => stmts
+  | .error _ => []
+
+/-- The executable SimpleStorage native witness is exactly the statement
+lowering of the single emitted dispatcher shell.
+
+This exposes the concrete lowered dispatcher block without unfolding the
+computed native witness in later selector-case proofs. -/
+theorem simpleStorageNativeContract_dispatcher_eq_lowered_stmts :
+    Compiler.SimpleStorageNativeWitness.nativeContract.dispatcher =
+      .Block simpleStorageNativeDispatcherStmts := by
+  unfold Compiler.SimpleStorageNativeWitness.nativeContract
+  rw [simpleStorage_runtimeCode_eq_single_dispatcher]
+  rw [lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative]
+  · cases hLower :
+        Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch
+            simpleStorageIRContract.functions none none] with
+    | ok stmts =>
+        simp [simpleStorageNativeDispatcherStmts, hLower]
+    | error err =>
+        simp [simpleStorageNativeDispatcherStmts, hLower]
+  · intro name params rets body h
+    cases h
+
 noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch
     simpleStorageIRContract.functions none none]
