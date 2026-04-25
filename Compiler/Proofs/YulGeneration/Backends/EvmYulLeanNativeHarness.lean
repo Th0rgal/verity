@@ -1975,6 +1975,64 @@ theorem eval_lowerExprNative_iszero_lt_calldatasize_4_ok
     EvmYul.Yul.evalPrimCall, EvmYul.Yul.reverse', EvmYul.Yul.cons',
     EvmYul.Yul.head', EvmYul.Yul.State.executionEnv]
 
+/-- For any natural `n` representable as a `UInt256` and at least `4`, the
+    EVMYulLean primitive `LT(ofNat n, 4)` evaluates to the canonical zero word.
+    This is the closed-form predicate fact needed to specialise
+    `eval_lowerExprNative_iszero_lt_calldatasize_4_ok` to the dispatcher's
+    initial state, where calldata size is `4 + tx.args.length * 32`. -/
+private theorem uint256_lt_ofNat_4_eq_zero_of_ge
+    (n : Nat) (hLe : 4 ≤ n) (hSize : n < EvmYul.UInt256.size) :
+    EvmYul.UInt256.lt (EvmYul.UInt256.ofNat n) (EvmYul.UInt256.ofNat 4) =
+      EvmYul.UInt256.ofNat 0 := by
+  have hN : (EvmYul.UInt256.ofNat n).val.val = n := by
+    unfold EvmYul.UInt256.ofNat
+    simp [Id.run, Fin.ofNat, Nat.mod_eq_of_lt hSize]
+  have h4 : (EvmYul.UInt256.ofNat 4).val.val = 4 := by
+    unfold EvmYul.UInt256.ofNat
+    decide
+  have hNotLt : ¬ ((EvmYul.UInt256.ofNat n : EvmYul.UInt256) <
+      (EvmYul.UInt256.ofNat 4 : EvmYul.UInt256)) := by
+    intro hLt
+    have hh : (EvmYul.UInt256.ofNat n).val.val <
+        (EvmYul.UInt256.ofNat 4).val.val := hLt
+    rw [hN, h4] at hh
+    omega
+  simp [EvmYul.UInt256.lt, hNotLt]
+
+/-- The canonical zero `UInt256` is its own `isZero`-predecessor in the sense
+    that `ISZERO 0 = 1`. -/
+private theorem uint256_isZero_ofNat_zero :
+    EvmYul.UInt256.isZero (EvmYul.UInt256.ofNat 0) = EvmYul.UInt256.ofNat 1 := by
+  decide
+
+/-- Specialisation of
+    `eval_lowerExprNative_iszero_lt_calldatasize_4_ok` to the dispatcher's
+    initial bridged state. Because `calldata.size = 4 + tx.args.length * 32`
+    and the no-wrap hypothesis keeps that within the `UInt256` range, the
+    `__has_selector` initializer reduces to the concrete value `1`. This is
+    the eval-side primitive that lets the selector-hit path of the dispatcher
+    fire (and the selector-miss path is then ruled out by `iszero(1) = 0`). -/
+theorem eval_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
+    EvmYul.Yul.eval 10
+        (Backends.lowerExprNative
+          (Yul.YulExpr.call "iszero"
+            [Yul.YulExpr.call "lt"
+              [Yul.YulExpr.call "calldatasize" [],
+               Yul.YulExpr.lit 4]]))
+        (some contract)
+        (.Ok (initialState contract tx storage observableSlots).sharedState ∅) =
+      .ok (.Ok (initialState contract tx storage observableSlots).sharedState ∅,
+        EvmYul.UInt256.ofNat 1) := by
+  rw [eval_lowerExprNative_iszero_lt_calldatasize_4_ok,
+      initialState_calldataSize,
+      uint256_lt_ofNat_4_eq_zero_of_ge _ (by omega) hNoWrap,
+      uint256_isZero_ofNat_zero]
+
 theorem exec_let_lowerExprNative_selectorExpr_initialState_ok
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
