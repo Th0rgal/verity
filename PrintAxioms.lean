@@ -678,7 +678,9 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeAgreesWithInterpreter_of_ok_agree
 #print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_ok_agree
 #print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_yulHalt_agree
+#print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_yulHalt_project_eq_agree
 #print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_error_agree
+#print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_error_project_eq_agree
 #print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreter_of_positive
 #print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreter_of_exec_ok_agree
 #print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreter_of_exec_yulHalt_agree
@@ -3403,4 +3405,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3230 theorems/lemmas (2303 public, 927 private, 0 sorry'd)
+-- Total: 3232 theorems/lemmas (2305 public, 927 private, 0 sorry'd)

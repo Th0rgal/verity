@@ -385,6 +385,44 @@ theorem nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_yulHalt_agree
   simp [hExec]
   exact hAgree
 
+/-- Intro form for a positive-fuel raw dispatcher Yul halt when a concrete
+native execution lemma already packages the projected `YulResult`.
+
+The SimpleStorage store/retrieve selector-hit lemmas expose both the exact
+`YulHalt` and the exact native projection. This helper turns those facts plus
+agreement for the named projection into the raw dispatcher bridge obligation. -/
+theorem nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_yulHalt_project_eq_agree
+    {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
+    {state : IRState} {observableSlots : List Nat}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    {haltState : EvmYul.Yul.State} {haltValue : EvmYul.Yul.Ast.Literal}
+    {nativeYul : YulResult}
+    (hExec :
+      let initial :=
+        Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
+          (YulTransaction.ofIR tx) state.storage
+          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode contract) observableSlots)
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        fuel' nativeContract initial =
+        .error (.YulHalt haltState haltValue))
+    (hProject :
+      Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+        (YulTransaction.ofIR tx) state.storage state.events
+        (.error (.YulHalt haltState haltValue)) =
+        nativeYul)
+    (hAgree :
+      yulResultsAgreeOn observableSlots nativeYul
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackendFuel
+          .evmYulLean (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
+          (YulTransaction.ofIR tx) state.storage state.events)) :
+    nativeDispatcherExecAgreesWithInterpreterPositive fuel' contract tx state
+      observableSlots nativeContract := by
+  apply nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_yulHalt_agree
+  · exact hExec
+  · rw [hProject]
+    exact hAgree
+
 /-- Intro form for the positive-fuel raw dispatcher-exec bridge when native
 execution fails through a non-halt EVMYulLean exception. -/
 theorem nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_error_agree
@@ -413,6 +451,44 @@ theorem nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_error_agree
   unfold nativeDispatcherExecAgreesWithInterpreterPositive
   simp [hExec]
   exact hAgree
+
+/-- Intro form for a positive-fuel raw dispatcher error when a concrete native
+execution lemma already packages the projected `YulResult`.
+
+Generated dispatcher proofs such as SimpleStorage's default/revert branch prove
+two facts at the lowered-switch boundary: the raw EVMYulLean exception, and the
+exact `projectResult` value. This helper consumes that pair directly, so the
+remaining case proof only has to establish agreement for the named projected
+result. -/
+theorem nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_error_project_eq_agree
+    {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
+    {state : IRState} {observableSlots : List Nat}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    {err : EvmYul.Yul.Exception} {nativeYul : YulResult}
+    (hExec :
+      let initial :=
+        Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
+          (YulTransaction.ofIR tx) state.storage
+          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode contract) observableSlots)
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        fuel' nativeContract initial =
+        .error err)
+    (hProject :
+      Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+        (YulTransaction.ofIR tx) state.storage state.events (.error err) =
+        nativeYul)
+    (hAgree :
+      yulResultsAgreeOn observableSlots nativeYul
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackendFuel
+          .evmYulLean (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
+          (YulTransaction.ofIR tx) state.storage state.events)) :
+    nativeDispatcherExecAgreesWithInterpreterPositive fuel' contract tx state
+      observableSlots nativeContract := by
+  apply nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_error_agree
+  · exact hExec
+  · rw [hProject]
+    exact hAgree
 
 /-- Lift the positive-fuel dispatcher-exec obligation back to the generic raw
 dispatcher bridge shape consumed by the existing native theorem stack. -/
