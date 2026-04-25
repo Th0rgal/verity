@@ -1508,6 +1508,19 @@ theorem lowerExprNative_selectorExpr :
       .ok (state, some (EvmYul.UInt256.isZero value)) := by
   rfl
 
+@[simp] theorem step_lt_ok
+    (state : EvmYul.Yul.State)
+    (left right : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LT none state [left, right] =
+      .ok (state, some (EvmYul.UInt256.lt left right)) := by
+  rfl
+
+@[simp] theorem step_calldatasize_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.CALLDATASIZE none state [] =
+      .ok (state, some (EvmYul.UInt256.ofNat state.executionEnv.calldata.size)) := by
+  rfl
+
 @[simp] theorem step_and_ok
     (state : EvmYul.Yul.State)
     (left right : EvmYul.UInt256) :
@@ -1732,6 +1745,23 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
       .ok (state, [EvmYul.UInt256.isZero value]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
+@[simp] theorem primCall_lt_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (left right : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.LT [left, right] =
+      .ok (state, [EvmYul.UInt256.lt left right]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_calldatasize_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.CALLDATASIZE [] =
+      .ok (state, [EvmYul.UInt256.ofNat state.executionEnv.calldata.size]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
 @[simp] theorem primCall_and_ok
     (fuel : Nat)
     (state : EvmYul.Yul.State)
@@ -1916,6 +1946,34 @@ theorem eval_lowerExprNative_selectorExpr_initialState_ok
   have hv :=
     initialState_selectorExpr_native_uint256 contract tx storage observableSlots
   rw [hv]
+
+/-- Native evaluation of the lowered `iszero(lt(calldatasize(), 4))` Yul
+    expression — the `__has_selector` initializer that `buildSwitch` emits —
+    reduces to the concrete `UInt256` predicate `isZero(lt(ofNat cd_size, 4))`,
+    where `cd_size` is the calldata byte size in the current execution
+    environment. This is the eval-side primitive needed to chain
+    `let __has_selector := …` through `exec_let_prim_one_ok` in the
+    selector-miss/hit dispatcher proof. -/
+theorem eval_lowerExprNative_iszero_lt_calldatasize_4_ok
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    EvmYul.Yul.eval 10
+        (Backends.lowerExprNative
+          (Yul.YulExpr.call "iszero"
+            [Yul.YulExpr.call "lt"
+              [Yul.YulExpr.call "calldatasize" [],
+               Yul.YulExpr.lit 4]]))
+        codeOverride (.Ok shared store) =
+      .ok (.Ok shared store,
+        EvmYul.UInt256.isZero
+          (EvmYul.UInt256.lt
+            (EvmYul.UInt256.ofNat shared.executionEnv.calldata.size)
+            (EvmYul.UInt256.ofNat 4))) := by
+  simp [Backends.lowerExprNative, Backends.lookupRuntimePrimOp,
+    EvmYul.Yul.eval, EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail,
+    EvmYul.Yul.evalPrimCall, EvmYul.Yul.reverse', EvmYul.Yul.cons',
+    EvmYul.Yul.head', EvmYul.Yul.State.executionEnv]
 
 theorem exec_let_lowerExprNative_selectorExpr_initialState_ok
     (contract : EvmYul.Yul.Ast.YulContract)

@@ -2888,6 +2888,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_shr_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_eq_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_iszero_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_lt_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_calldatasize_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_and_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_mstore_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_sload_ok
@@ -2903,6 +2905,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload0_then_shr224_initialState_selector_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_eq_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_iszero_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_lt_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldatasize_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_and_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload_ok
@@ -2916,6 +2920,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_prim_one_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_selectorExpr_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_selectorExpr_initialState_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_iszero_lt_calldatasize_4_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_selectorExpr_initialState_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_selectorExpr_initialState_ok_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lit_ok
@@ -3431,4 +3436,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3258 theorems/lemmas (2331 public, 927 private, 0 sorry'd)
+-- Total: 3263 theorems/lemmas (2336 public, 927 private, 0 sorry'd)
