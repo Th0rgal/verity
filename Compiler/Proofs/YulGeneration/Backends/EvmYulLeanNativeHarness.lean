@@ -5964,6 +5964,74 @@ def contractDispatcherExecResult
   let callState := EvmYul.Yul.State.mkOk (initial.initcall dispatcherDef.params [])
   EvmYul.Yul.exec fuel' (.Block dispatcherDef.body) (some contract) callState
 
+/-- Executing a singleton block whose only statement is another block is the
+    same as executing the inner block, after the outer block consumes its fuel
+    step. This is the structural wrapper around lowered contract dispatchers:
+    `contractDispatcherExecResult` installs `[contract.dispatcher]` as the
+    function body, while generated dispatcher lemmas reason about the lowered
+    block itself. -/
+theorem exec_singleton_block_eq_exec_block
+    (fuel : Nat)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.exec (Nat.succ (Nat.succ fuel)) (.Block [.Block body])
+        codeOverride state =
+      EvmYul.Yul.exec (Nat.succ fuel) (.Block body) codeOverride state := by
+  simp [EvmYul.Yul.exec]
+  cases EvmYul.Yul.exec (Nat.succ fuel) (.Block body) codeOverride state <;>
+    simp
+
+/-- Raw dispatcher execution for a lowered contract whose dispatcher is already
+    a block reduces to direct execution of that block from the native initial
+    switch state. This removes the function-call-frame wrapper from later
+    SimpleStorage dispatcher case proofs. -/
+theorem contractDispatcherExecResult_block_dispatcher_eq_exec_block
+    (fuel : Nat)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (functions : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    contractDispatcherExecResult (Nat.succ (Nat.succ fuel))
+        { dispatcher := .Block body, functions := functions }
+        (initialState { dispatcher := .Block body, functions := functions } tx
+          storage observableSlots) =
+      EvmYul.Yul.exec (Nat.succ fuel) (.Block body)
+        (some { dispatcher := .Block body, functions := functions })
+        (nativeSwitchInitialOkState
+          { dispatcher := .Block body, functions := functions } tx storage
+          observableSlots) := by
+  have hCallState :
+      EvmYul.Yul.State.mkOk
+          ((initialState { dispatcher := .Block body, functions := functions } tx
+            storage observableSlots).initcall [] []) =
+        nativeSwitchInitialOkState
+          { dispatcher := .Block body, functions := functions } tx storage
+          observableSlots := by
+    simp [nativeSwitchInitialOkState, initialState, EvmYul.Yul.State.initcall,
+      EvmYul.Yul.State.setStore, EvmYul.Yul.State.multifill,
+      EvmYul.Yul.State.mkOk]
+    constructor <;> rfl
+  unfold contractDispatcherExecResult
+  change
+    EvmYul.Yul.exec (Nat.succ (Nat.succ fuel)) (.Block [.Block body])
+        (some { dispatcher := .Block body, functions := functions })
+        (EvmYul.Yul.State.mkOk
+          ((initialState { dispatcher := .Block body, functions := functions } tx
+            storage observableSlots).initcall [] [])) =
+      EvmYul.Yul.exec (Nat.succ fuel) (.Block body)
+        (some { dispatcher := .Block body, functions := functions })
+        (nativeSwitchInitialOkState
+          { dispatcher := .Block body, functions := functions } tx storage
+          observableSlots)
+  rw [hCallState]
+  exact exec_singleton_block_eq_exec_block fuel body
+    (some { dispatcher := .Block body, functions := functions })
+    (nativeSwitchInitialOkState
+      { dispatcher := .Block body, functions := functions } tx storage
+      observableSlots)
+
 /-- The projected dispatcher-block result is just raw lowered-dispatcher
     execution followed by the same restoration/projection used by
     `callDispatcher`. -/

@@ -3038,6 +3038,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectHaltReturn_32ByteReturn
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectHaltReturn_non32ByteReturn
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore0_then_return32_emptyMemory_projectHaltReturn
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_singleton_block_eq_exec_block
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_block_dispatcher_eq_exec_block
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherBlockResult_eq_execResult
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.callDispatcherBlockResult_initialState_eq_contractDispatcherBlockResult
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.callDispatcher_zero
@@ -3398,4 +3400,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3225 theorems/lemmas (2298 public, 927 private, 0 sorry'd)
+-- Total: 3227 theorems/lemmas (2300 public, 927 private, 0 sorry'd)
