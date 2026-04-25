@@ -2073,6 +2073,68 @@ theorem simpleStorageNativeDispatcher_if2Cond_eq :
   simp only [List.cons.injEq, EvmYul.Yul.Ast.Stmt.If.injEq] at hCombo
   exact hCombo.2.2.1.1
 
+/-- WithSwitchIds-form companion of `lowerStmtsNative_revert_zero_zero`: at any
+`reservedNames`/`nextSwitchId` pair, the singleton list `[expr (revert(0,0))]`
+emitted by `defaultDispatchCase none none` lowers to
+`[nativeRevertZeroZeroStmt]` while leaving the switch counter unchanged. The
+dispatcher peel uses `lowerStmtsNativeWithSwitchIds` directly (via
+`_block_stmts_eq` / `_let_head_eq` / `_if_head_eq`), so the wrapper-level
+`lowerStmtsNative_revert_zero_zero` lemma alone is insufficient when pinning
+the selector-miss `If` body. -/
+theorem lowerStmtsNativeWithSwitchIds_revert_zero_zero
+    (reservedNames : List String) (n : Nat) :
+    Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+        reservedNames n
+        [Yul.YulStmt.expr (Yul.YulExpr.call "revert"
+          [Yul.YulExpr.lit 0, Yul.YulExpr.lit 0])] =
+      .ok ([Backends.Native.nativeRevertZeroZeroStmt], n) := by
+  simp [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds,
+        Backends.Native.nativeRevertZeroZeroStmt,
+        Compiler.Proofs.YulGeneration.Backends.lowerExprNative,
+        Compiler.Proofs.YulGeneration.Backends.lookupRuntimePrimOp]
+  rfl
+
+/-- The `Classical.choose`-pinned selector-miss `If` body of the SimpleStorage
+native dispatcher equals the singleton list `[nativeRevertZeroZeroStmt]`.
+Combines `simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if` with a
+fully-pinned concrete-form decomposition of the inner block (where body1 is
+also pinned via the WithSwitchIds revert lowering equation), then uses head
+injection on the second `If` to extract the body equation. Lets downstream
+selector-miss exec proofs invoke `exec_revert_zero_zero_error` directly. -/
+theorem simpleStorageNativeDispatcher_if1Body_eq :
+    simpleStorageNativeDispatcher_if1Body =
+      [Backends.Native.nativeRevertZeroZeroStmt] := by
+  have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
+  rw [simpleStorageNativeDispatcherStmts_eq_singleton_block] at hOk
+  obtain ⟨_, hInner⟩ := lowerStmtsNative_block_stmts_eq _ _ hOk
+  obtain ⟨rest', hLet, hRestLowering⟩ :=
+    lowerStmtsNativeWithSwitchIds_let_head_eq _ _ _ _ _ _ _ hInner
+  obtain ⟨body1', _, rest'', hIf1, hBody1, hRest1⟩ :=
+    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRestLowering
+  obtain ⟨body2', _, rest''', hIf2, _, hRest2⟩ :=
+    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRest1
+  rw [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_nil,
+      Except.ok.injEq, Prod.mk.injEq] at hRest2
+  obtain ⟨hNil, _⟩ := hRest2
+  subst hNil
+  have hDef :
+      Compiler.CodegenCommon.defaultDispatchCase
+          (none : Option Compiler.IREntrypoint)
+          (none : Option Compiler.IREntrypoint) =
+        [Yul.YulStmt.expr
+          (Yul.YulExpr.call "revert" [Yul.YulExpr.lit 0, Yul.YulExpr.lit 0])] :=
+    rfl
+  rw [hDef, lowerStmtsNativeWithSwitchIds_revert_zero_zero,
+      Except.ok.injEq, Prod.mk.injEq] at hBody1
+  obtain ⟨hBody1Eq, _⟩ := hBody1
+  subst hBody1Eq
+  rw [hIf2] at hIf1
+  rw [hIf1] at hLet
+  have hCombo :=
+    simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if.symm.trans hLet
+  simp only [List.cons.injEq, EvmYul.Yul.Ast.Stmt.If.injEq] at hCombo
+  exact hCombo.2.1.2
+
 noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch
     simpleStorageIRContract.functions none none]
