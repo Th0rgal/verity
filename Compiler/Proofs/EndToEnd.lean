@@ -1216,11 +1216,13 @@ the three generated bodies (`store(uint256)`, `retrieve()`, and selector-miss
 `revert`) and that the projected native result agrees with the
 EVMYulLean-backed interpreter oracle on the caller's observable storage
 projection. The generic `callDispatcher` wrapper has already been discharged by
-`nativeCallDispatcherAgreesWithInterpreter_of_dispatcherBlock_agree`. -/
+`nativeCallDispatcherAgreesWithInterpreter_of_dispatcherBlock_agree`, and the
+dispatcher-block result wrapper has already been discharged by
+`nativeDispatcherBlockAgreesWithInterpreter_of_exec_agree`. -/
 def simpleStorageNativeCallDispatcherBridge
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     : Prop :=
-  nativeDispatcherBlockAgreesWithInterpreter
+  nativeDispatcherExecAgreesWithInterpreter
     (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
     simpleStorageIRContract tx initialState observableSlots
     Compiler.SimpleStorageNativeWitness.nativeContract
@@ -1349,7 +1351,8 @@ theorem simpleStorage_endToEnd_native_evmYulLean
     tx initialState observableSlots hselector hNoWrap hvars hmemory htransient
     hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead hparamErase hEnv
     (nativeCallDispatcherAgreesWithInterpreter_of_dispatcherBlock_agree
-      hNativeCallDispatcher)
+      (nativeDispatcherBlockAgreesWithInterpreter_of_exec_agree
+        hNativeCallDispatcher))
 
 /-! ## Universal Pure Arithmetic Bridge
 
