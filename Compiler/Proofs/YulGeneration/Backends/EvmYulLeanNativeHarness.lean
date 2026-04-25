@@ -1222,10 +1222,24 @@ private theorem list_toByteArray_loop_size (bytes : List UInt8) (acc : ByteArray
       simp [List.toByteArray.loop, ih, Nat.add_assoc]
       omega
 
+private theorem list_toByteArray_loop_data_toList (bytes : List UInt8) (acc : ByteArray) :
+    (List.toByteArray.loop bytes acc).data.toList = acc.data.toList ++ bytes := by
+  induction bytes generalizing acc with
+  | nil =>
+      simp [List.toByteArray.loop]
+  | cons _ bytes ih =>
+      simp [List.toByteArray.loop, ih, List.append_assoc]
+
 private theorem list_toByteArray_size (bytes : List UInt8) :
     bytes.toByteArray.size = bytes.length := by
   unfold List.toByteArray
   rw [list_toByteArray_loop_size]
+  simp
+
+private theorem list_toByteArray_data_toList (bytes : List UInt8) :
+    bytes.toByteArray.data.toList = bytes := by
+  unfold List.toByteArray
+  rw [list_toByteArray_loop_data_toList]
   simp
 
 theorem uint256_toByteArray_size (value : EvmYul.UInt256) :
@@ -5210,6 +5224,148 @@ def byteArrayWord (bytes : ByteArray) (offset : Nat) : Nat :=
       Compiler.Constants.evmModulus)
     0
 
+private def listByteArrayWordNoMod (bytes : List UInt8) (n : Nat) : Nat :=
+  (List.range n).foldl
+    (fun acc i => acc * 256 + ((bytes[i]?).getD 0).toNat) 0
+
+private def listByteArrayWordMod (bytes : List UInt8) (n : Nat) : Nat :=
+  (List.range n).foldl
+    (fun acc i => (acc * 256 + ((bytes[i]?).getD 0).toNat) %
+      Compiler.Constants.evmModulus) 0
+
+private theorem fromBytes'_reverse_append_single (xs : List UInt8) (b : UInt8) :
+    EvmYul.fromBytes' ((xs ++ [b]).reverse) =
+      EvmYul.fromBytes' xs.reverse * 256 + b.toNat := by
+  simp [EvmYul.fromBytes']
+  omega
+
+private theorem listByteArrayWordNoMod_eq_fromBytes'_take_reverse
+    (bytes : List UInt8) (n : Nat)
+    (hn : n ≤ bytes.length) :
+    listByteArrayWordNoMod bytes n =
+      EvmYul.fromBytes' (bytes.take n).reverse := by
+  induction n with
+  | zero =>
+      simp [listByteArrayWordNoMod, EvmYul.fromBytes']
+  | succ n ih =>
+      have hn' : n ≤ bytes.length := by omega
+      have hlt : n < bytes.length := by omega
+      unfold listByteArrayWordNoMod at ih ⊢
+      rw [List.range_succ, List.foldl_append]
+      simp only [List.foldl_cons, List.foldl_nil]
+      rw [ih hn']
+      rw [List.take_succ]
+      rw [List.getElem?_eq_getElem hlt]
+      simp only [Option.getD_some, Option.toList_some]
+      rw [fromBytes'_reverse_append_single]
+
+private theorem listByteArrayWordNoMod_lt
+    (bytes : List UInt8) (n : Nat)
+    (hn : n ≤ bytes.length) :
+    listByteArrayWordNoMod bytes n < 2 ^ (8 * n) := by
+  rw [listByteArrayWordNoMod_eq_fromBytes'_take_reverse bytes n hn]
+  have h := fromBytes'_lt (bytes.take n).reverse
+  have hlen : (bytes.take n).reverse.length = n := by
+    simp [List.length_take, hn]
+  simpa [hlen] using h
+
+private theorem listByteArrayWordMod_eq_noMod
+    (bytes : List UInt8) (n : Nat)
+    (hnLen : n ≤ bytes.length) (hnWord : n ≤ 32) :
+    listByteArrayWordMod bytes n = listByteArrayWordNoMod bytes n := by
+  induction n with
+  | zero =>
+      simp [listByteArrayWordMod, listByteArrayWordNoMod]
+  | succ n ih =>
+      have hnLen' : n ≤ bytes.length := by omega
+      have hnWord' : n ≤ 32 := by omega
+      unfold listByteArrayWordMod listByteArrayWordNoMod at ih ⊢
+      rw [List.range_succ, List.foldl_append, List.foldl_append]
+      simp only [List.foldl_cons, List.foldl_nil]
+      rw [ih hnLen' hnWord']
+      have hNoMod :
+          (List.foldl (fun acc i => acc * 256 + (bytes[i]?.getD 0).toNat) 0
+                (List.range n) *
+              256 +
+            (bytes[n]?.getD 0).toNat) < Compiler.Constants.evmModulus := by
+        rw [show
+            List.foldl (fun acc i => acc * 256 + (bytes[i]?.getD 0).toNat)
+                0 (List.range n) =
+              listByteArrayWordNoMod bytes n by rfl]
+        have hprev := listByteArrayWordNoMod_lt bytes n hnLen'
+        have hb : (bytes[n]?.getD 0).toNat < 256 := by
+          cases hopt : bytes[n]?
+          · simp
+          · simp
+            exact UInt8.toNat_lt _
+        have hpow : 2 ^ (8 * n) * 256 = 2 ^ (8 * (n + 1)) := by
+          rw [Nat.mul_add, Nat.pow_add]
+        have hle : 2 ^ (8 * (n + 1)) ≤ Compiler.Constants.evmModulus := by
+          have : 8 * (n + 1) ≤ 256 := by omega
+          unfold Compiler.Constants.evmModulus
+          exact Nat.pow_le_pow_right (by norm_num) this
+        nlinarith
+      rw [Nat.mod_eq_of_lt hNoMod]
+
+private theorem byteArray_get?_data_toList (bytes : ByteArray) (i : Nat) :
+    bytes.get? i = bytes.data.toList[i]? := by
+  unfold ByteArray.get?
+  split
+  · rw [Array.getElem?_toList]
+    simp [ByteArray.get]
+  · rename_i h
+    have hlen : bytes.data.toList.length ≤ i := by
+      simp [ByteArray.size] at h
+      simpa using h
+    have hnone : bytes.data.toList[i]? = none := List.getElem?_eq_none hlen
+    exact hnone.symm
+
+theorem byteArrayWord_eq_fromBytes'_reverse_of_size
+    (bytes : ByteArray)
+    (hSize : bytes.size = 32) :
+    byteArrayWord bytes 0 = EvmYul.fromBytes' bytes.data.toList.reverse := by
+  have hLen : bytes.data.toList.length = 32 := by
+    simpa [ByteArray.size] using hSize
+  unfold byteArrayWord
+  rw [show
+      List.foldl
+          (fun acc i => (acc * 256 + ((bytes.get? (0 + i)).getD 0).toNat) %
+            Compiler.Constants.evmModulus)
+          0 (List.range 32) =
+        listByteArrayWordMod bytes.data.toList 32 by
+      simp [listByteArrayWordMod, byteArray_get?_data_toList]]
+  rw [listByteArrayWordMod_eq_noMod bytes.data.toList 32 (by omega) (by omega)]
+  have hNoMod :=
+    listByteArrayWordNoMod_eq_fromBytes'_take_reverse bytes.data.toList 32
+      (by omega)
+  rw [hNoMod]
+  rw [show bytes.data.toList.take 32 = bytes.data.toList by
+    rw [← hLen, List.take_length]]
+
+private theorem fromBytes'_replicate_zero (n : Nat) :
+    EvmYul.fromBytes' (List.replicate n (0 : UInt8)) = 0 := by
+  induction n with
+  | zero =>
+      simp [EvmYul.fromBytes']
+  | succ n ih =>
+      simp [List.replicate, EvmYul.fromBytes', ih]
+
+private theorem fromBytes'_append_replicate_zero (xs : List UInt8) (n : Nat) :
+    EvmYul.fromBytes' (xs ++ List.replicate n (0 : UInt8)) =
+      EvmYul.fromBytes' xs := by
+  rw [fromBytes'_append]
+  simp [fromBytes'_replicate_zero]
+
+theorem byteArrayWord_uint256_toByteArray
+    (value : EvmYul.UInt256) :
+    byteArrayWord value.toByteArray 0 = value.toNat := by
+  rw [byteArrayWord_eq_fromBytes'_reverse_of_size
+    value.toByteArray (uint256_toByteArray_size value)]
+  unfold EvmYul.UInt256.toByteArray BE
+  simp [ByteArray.data_append, ffi.ByteArray.zeroes,
+    list_toByteArray_data_toList]
+  simp [EvmYul.toBytesBigEndian]
+
 /-- Decode the word-granular payload used by Verity's proof-side log model. -/
 def byteArrayLogWords (bytes : ByteArray) : List Nat :=
   (List.range (bytes.size / 32)).map (fun i => byteArrayWord bytes (i * 32))
@@ -5270,6 +5426,49 @@ def projectHaltReturn (state : EvmYul.Yul.State) (haltValue : EvmYul.Yul.Ast.Lit
     (hSize : state.sharedState.H_return.size ≠ 32) :
     projectHaltReturn state haltValue = some 0 := by
   simp [projectHaltReturn, hHalt, hSize]
+
+theorem primCall_mstore0_then_return32_emptyMemory_projectHaltReturn
+    (mstoreFuel returnFuel : Nat)
+    (sharedState : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (value : EvmYul.UInt256)
+    (hMemory : sharedState.memory = ByteArray.empty) :
+    ∃ haltState haltValue,
+      (do
+        let (state', values) ←
+          EvmYul.Yul.primCall (mstoreFuel + 1) (.Ok sharedState store)
+            EvmYul.Operation.MSTORE
+            [EvmYul.UInt256.ofNat 0, value]
+        match values with
+        | [] =>
+            EvmYul.Yul.primCall (returnFuel + 1) state'
+              EvmYul.Operation.RETURN
+              [EvmYul.UInt256.ofNat 0, EvmYul.UInt256.ofNat 32]
+        | _ => .error EvmYul.Yul.Exception.InvalidArguments) =
+        .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
+      projectHaltReturn haltState haltValue = some value.toNat := by
+  let state : EvmYul.Yul.State := .Ok sharedState store
+  let stored :=
+    state.setMachineState
+      (state.toMachineState.mstore (EvmYul.UInt256.ofNat 0) value)
+  let returned :=
+    stored.setMachineState
+      (stored.toMachineState.evmReturn
+        (EvmYul.UInt256.ofNat 0) (EvmYul.UInt256.ofNat 32))
+  refine ⟨returned, ⟨1⟩, ?_⟩
+  constructor
+  · exact primCall_mstore0_then_return32_ok mstoreFuel returnFuel
+      (.Ok sharedState store) value
+  · have hHalt : (⟨1⟩ : EvmYul.Yul.Ast.Literal) ≠ ⟨0⟩ := by
+      intro h
+      norm_num [EvmYul.UInt256.size] at h
+    have hSize : returned.sharedState.H_return.size = 32 := by
+      exact mstore0_then_return32_hReturn_size sharedState store value
+    have hReturn : returned.sharedState.H_return = value.toByteArray := by
+      exact mstore0_then_return32_emptyMemory_hReturn_eq_toByteArray
+        sharedState store value hMemory
+    rw [projectHaltReturn_32ByteReturn returned ⟨1⟩ hHalt hSize]
+    rw [hReturn, byteArrayWord_uint256_toByteArray]
 
 /-- The dispatcher-block execution that `EvmYul.Yul.callDispatcher` performs
     after its initial fuel check and empty-argument call-frame setup.

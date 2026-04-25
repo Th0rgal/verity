@@ -2841,7 +2841,9 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.byteArray_write_empty_zero_32_readWithPadding_eq_of_size
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.toBytesBigEndian_uint256_length_le  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_loop_size  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_loop_data_toList  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_size  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_data_toList  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.uint256_toByteArray_size
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_arg0Bytes
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataload4_arg0_value
@@ -3004,11 +3006,21 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.mstore0_then_return32_emptyMemory_hReturn_eq_toByteArray
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore0_then_return32_ok_hReturn_size
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_omittedStorageSlot
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_reverse_append_single  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.listByteArrayWordNoMod_eq_fromBytes'_take_reverse  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.listByteArrayWordNoMod_lt  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.listByteArrayWordMod_eq_noMod  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.byteArray_get?_data_toList  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.byteArrayWord_eq_fromBytes'_reverse_of_size
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_replicate_zero  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_append_replicate_zero  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.byteArrayWord_uint256_toByteArray
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectLogEntry_topicsAndWordData
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState_logSeries
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectHaltReturn_stop
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectHaltReturn_32ByteReturn
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectHaltReturn_non32ByteReturn
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore0_then_return32_emptyMemory_projectHaltReturn
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherBlockResult_eq_execResult
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.callDispatcherBlockResult_initialState_eq_contractDispatcherBlockResult
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.callDispatcher_zero
@@ -3327,4 +3339,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3154 theorems/lemmas (2237 public, 917 private, 0 sorry'd)
+-- Total: 3166 theorems/lemmas (2240 public, 926 private, 0 sorry'd)
