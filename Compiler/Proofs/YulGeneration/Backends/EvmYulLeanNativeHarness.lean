@@ -7826,6 +7826,51 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert
       hSelector hFind hSelectorRange
       (simpleStorageSelectors_tagsRange storeBody retrieveBody)
 
+/-- Guarded selector-miss execution for the concrete SimpleStorage dispatcher,
+    with the projected revert result exposed as one exact `YulResult`.
+
+This packages the `revert(0, 0)` default branch in the shape needed by the
+    dispatcher bridge: native execution reaches EVMYulLean's `Revert`
+    exception, and Verity's projection rolls the call back to failed success,
+    no return value, unchanged storage/mappings, and unchanged events. -/
+theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult_eq
+    (fuel selector switchId : Nat)
+    (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind :
+      [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)].find?
+          (fun entry => entry.1 == selector) = none)
+    (hSelectorRange : selector < EvmYul.UInt256.size) :
+    EvmYul.Yul.exec
+        (fuel + [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)].length + 12)
+        (Backends.lowerNativeSwitchBlock
+          Compiler.Proofs.YulGeneration.selectorExpr
+          switchId
+          [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)]
+          [nativeRevertZeroZeroStmt])
+        (some contract)
+        (nativeSwitchInitialOkState contract tx storage observableSlots) =
+      .error EvmYul.Yul.Exception.Revert ∧
+    projectResult tx storage initialEvents
+        (.error EvmYul.Yul.Exception.Revert) =
+      { success := false
+        returnValue := none
+        finalStorage := storage
+        finalMappings := Compiler.Proofs.storageAsMappings storage
+        events := initialEvents } := by
+  rcases
+    exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult
+      fuel selector switchId storeBody retrieveBody contract tx storage
+      initialEvents observableSlots hSelector hFind hSelectorRange with
+    ⟨hExec, _hSuccess, _hReturn, _hStorage⟩
+  exact ⟨hExec, by simp⟩
+
 /-- Store-selector hit execution for the concrete SimpleStorage dispatcher
     selector set. This specializes the generic lowered-switch hit theorem to
     `store(uint256)`, discharging the computed selector lookup and selector tag
