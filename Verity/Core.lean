@@ -51,6 +51,15 @@ structure Event where
   indexedArgs : List Uint256    -- Indexed topic arguments
   deriving Repr
 
+-- Default call oracle: zero-knowledge stand-in used by both the executable
+-- `Contract` semantics (via `ContractState.callOracle` below) and the pure
+-- `Env.defaultCallOracle` path in `Verity/Core/Semantics.lean`. Sharing one
+-- definition keeps the two positions observationally identical when no
+-- custom oracle is installed. See `TRUST_ASSUMPTIONS.md :: Executable
+-- Call-Oracle Dispatch`.
+def defaultCallOracle (_name : String) (args : List Uint256) : Uint256 :=
+  args.foldl (· + ·) 0
+
 -- State monad for contract execution
 structure ContractState where
   storage : Nat → Uint256                -- Uint256 storage mapping
@@ -72,7 +81,7 @@ structure ContractState where
   memory : Nat → Uint256 := fun _ => 0     -- EVM memory (word-addressed, zero-initialized)
   knownAddresses : Nat → FiniteAddressSet  -- Tracked addresses per storage slot (for sum properties)
   events : List Event := []  -- Emitted events, append-only log (#153)
-  callOracle : String → List Uint256 → Uint256 := fun _ args => args.foldl (· + ·) 0
+  callOracle : String → List Uint256 → Uint256 := defaultCallOracle
 
 -- Default zero state — all storage zero, empty addresses, no events.
 -- Use `{ defaultState with sender := "0xAlice" }` to customize individual fields.

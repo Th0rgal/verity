@@ -5,8 +5,11 @@ namespace Verity
 abbrev World := ContractState
 abbrev Exit (α : Type) := ContractResult α
 
-def Env.defaultCallOracle (_name : String) (args : List Uint256) : Uint256 :=
-  args.foldl (fun acc arg => acc + arg) 0
+/-- Pure expression-position default oracle. Delegates to
+`Verity.defaultCallOracle` so that `Env.defaultCallOracle` and the
+`ContractState.callOracle` field default share a single source of truth. -/
+def Env.defaultCallOracle (name : String) (args : List Uint256) : Uint256 :=
+  Verity.defaultCallOracle name args
 
 structure Env where
   sender : Address
