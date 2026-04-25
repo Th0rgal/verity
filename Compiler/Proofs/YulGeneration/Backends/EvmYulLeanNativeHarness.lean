@@ -5894,6 +5894,81 @@ theorem primCall_mstore0_then_return32_emptyMemory_projectResult_returnValue
   refine ⟨haltState, haltValue, hExec, ?_⟩
   simpa using hReturn
 
+/-- The native primitive sequence used by the generated SimpleStorage getter
+    body after dispatcher selection. -/
+def primCall_sload0_then_mstore0_return32_initialState
+    (sloadFuel mstoreFuel returnFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    Except EvmYul.Yul.Exception
+      (EvmYul.Yul.State × List EvmYul.Yul.Ast.Literal) := do
+  let (state', values) ←
+    EvmYul.Yul.primCall (sloadFuel + 1)
+      (initialState contract tx storage observableSlots)
+      EvmYul.Operation.SLOAD [EvmYul.UInt256.ofNat 0]
+  match values with
+  | [value] =>
+      (do
+        let (state'', values') ←
+          EvmYul.Yul.primCall (mstoreFuel + 1) state'
+            EvmYul.Operation.MSTORE [EvmYul.UInt256.ofNat 0, value]
+        match values' with
+        | [] =>
+            EvmYul.Yul.primCall (returnFuel + 1) state''
+              EvmYul.Operation.RETURN
+              [EvmYul.UInt256.ofNat 0, EvmYul.UInt256.ofNat 32]
+        | _ => .error EvmYul.Yul.Exception.InvalidArguments)
+  | _ => .error EvmYul.Yul.Exception.InvalidArguments
+
+/-- Native primitive execution of the generated `retrieve()` scalar-return core:
+    `sload(0)` reads the materialized slot-zero word, then `mstore(0, value);
+    return(0, 32)` returns that exact word through the projected native result.
+
+This composes the real EVMYulLean `SLOAD`, `MSTORE`, and `RETURN` primitive
+relations for the SimpleStorage getter body, leaving only dispatcher selection
+and oracle comparison around this selected-body path. -/
+theorem primCall_sload0_then_mstore0_return32_initialState_projectResult_returnValue
+    (sloadFuel mstoreFuel returnFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (hSlot : 0 ∈ observableSlots)
+    (hRange : ∀ s ∈ observableSlots, s < EvmYul.UInt256.size) :
+    ∃ haltState haltValue,
+      primCall_sload0_then_mstore0_return32_initialState
+        sloadFuel mstoreFuel returnFuel contract tx storage observableSlots =
+        .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
+      (projectResult tx storage initialEvents
+        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).returnValue =
+        some (storage 0 % EvmYul.UInt256.size) := by
+  unfold primCall_sload0_then_mstore0_return32_initialState
+  rw [primCall_sload_initialState_observableSlot_ok sloadFuel contract tx storage
+    observableSlots 0 hSlot hRange]
+  generalize hload :
+      EvmYul.State.sload
+        (initialState contract tx storage observableSlots).toState
+        (natToUInt256 0) = loaded
+  cases loaded with
+  | mk stateAfterLoad _ =>
+      let sharedAfterLoad : EvmYul.SharedState .Yul :=
+        { (initialState contract tx storage observableSlots).toSharedState with
+          toState := stateAfterLoad }
+      have hMemory : sharedAfterLoad.memory = ByteArray.empty := by
+        simp [sharedAfterLoad, initialState, EvmYul.Yul.State.toSharedState,
+          YulState.initial, toSharedState]
+      rcases
+        primCall_mstore0_then_return32_emptyMemory_projectResult_returnValue
+          mstoreFuel returnFuel tx storage initialEvents sharedAfterLoad ∅
+          (natToUInt256 (storage 0)) hMemory with
+        ⟨haltState, haltValue, hExec, hReturn⟩
+      refine ⟨haltState, haltValue, ?_, ?_⟩
+      · simpa [sharedAfterLoad] using hExec
+      · simpa [natToUInt256, EvmYul.UInt256.toNat, uint256ToNat] using hReturn
+
 @[simp] theorem projectResult_yulHalt_finalMappings
     (tx : YulTransaction)
     (initialStorage : Nat → Nat)
