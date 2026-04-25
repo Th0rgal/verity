@@ -1652,6 +1652,106 @@ theorem simpleStorageNativeContract_dispatcherExec_eq_innerBlock_exec
     tx storage observableSlots]
   rw [Compiler.Proofs.YulGeneration.Backends.Native.exec_singleton_block_eq_exec_block]
 
+/-- A successful lowering of a singleton `[.block stmts]` reveals exactly the
+inner statement-list lowering. This is the structural counterpart of
+`lowerStmtsNative_single_block_ok_singleton`: instead of merely existing, the
+`inner` argument is the *output* of the inner statement-list lowering. -/
+theorem lowerStmtsNative_block_stmts_eq
+    (stmts : List Yul.YulStmt)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (h : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
+            [Yul.YulStmt.block stmts] = .ok [.Block inner]) :
+    ∃ next : Nat,
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+        (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+          [Yul.YulStmt.block stmts])
+        0 stmts = .ok (inner, next) := by
+  unfold Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative at h
+  dsimp at h
+  rw [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_cons] at h
+  rw [Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_block] at h
+  cases hInner :
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+        (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+          [Yul.YulStmt.block stmts])
+        0 stmts with
+  | error err =>
+      rw [hInner] at h
+      simp only [Bind.bind, Except.bind, reduceCtorEq] at h
+  | ok pair =>
+      cases pair with
+      | mk inner' next =>
+          rw [hInner] at h
+          simp only [Bind.bind, Except.bind, Pure.pure, Except.pure,
+            Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_nil,
+            List.append_nil, Except.ok.injEq] at h
+          injection h with hStmt _
+          injection hStmt with hEq
+          subst hEq
+          exact ⟨next, rfl⟩
+
+/-- A `.let_`-headed statement-list lowering peels its head into a singleton
+`.Let` statement and threads the unchanged switch counter through the tail.
+This generic peel is the per-statement complement of
+`lowerStmtsNative_block_stmts_eq`: combined, they reduce a successful native
+lowering of a `.let_`-headed block to the lowering of its tail. -/
+theorem lowerStmtsNativeWithSwitchIds_let_head_eq
+    (reservedNames : List String) (n0 : Nat)
+    (name : String) (value : Yul.YulExpr)
+    (rest : List Yul.YulStmt)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (h : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+            reservedNames n0
+            (Yul.YulStmt.let_ name value :: rest) = .ok (inner, next)) :
+    ∃ rest' : List EvmYul.Yul.Ast.Stmt,
+      inner = EvmYul.Yul.Ast.Stmt.Let [name]
+                (some
+                  (Compiler.Proofs.YulGeneration.Backends.lowerExprNative value))
+                :: rest' ∧
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+        reservedNames n0 rest = .ok (rest', next) := by
+  rw [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_cons,
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_let]
+    at h
+  -- Reduce the outer `Except.ok ([letStmt], n0) >>= …` to expose the rest's
+  -- lowering call directly threaded with `n0`.
+  simp only [Bind.bind, Except.bind] at h
+  cases hRest :
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+        reservedNames n0 rest with
+  | error err =>
+      rw [hRest] at h
+      simp only [reduceCtorEq] at h
+  | ok pair =>
+      cases pair with
+      | mk rest' n =>
+          rw [hRest] at h
+          simp only [Pure.pure, Except.pure, List.singleton_append,
+            Except.ok.injEq, Prod.mk.injEq] at h
+          obtain ⟨hList, hNat⟩ := h
+          subst hNat
+          exact ⟨rest', hList.symm, rfl⟩
+
+/-- The head of the SimpleStorage native dispatcher inner-block is the lowered
+`let __has_selector := ...` statement. This peels one further layer beyond the
+singleton-block extraction (`simpleStorageNativeDispatcherStmts_eq_singleton_block`)
+by applying the cons/`_let` lowering equations to the head of `buildSwitch`'s
+3-statement block. The remaining tail is left abstract — downstream peels will
+expose the second and third statements. -/
+theorem simpleStorageNativeDispatcherInnerStmts_head_let_exists :
+    ∃ (e : EvmYul.Yul.Ast.Expr) (rest : List EvmYul.Yul.Ast.Stmt),
+      simpleStorageNativeDispatcherInnerStmts =
+        EvmYul.Yul.Ast.Stmt.Let ["__has_selector"] (some e) :: rest := by
+  have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
+  rw [simpleStorageNativeDispatcherStmts_eq_singleton_block] at hOk
+  obtain ⟨next, hInner⟩ := lowerStmtsNative_block_stmts_eq _ _ hOk
+  -- `buildSwitch ssIRC.functions none none` unfolds (definitionally) to a
+  -- 3-statement `YulStmt.block` whose head is `let __has_selector := …`, so
+  -- `hInner` is already a `let_`-headed lowering at the source spine.
+  obtain ⟨rest', hSplit, _⟩ :=
+    lowerStmtsNativeWithSwitchIds_let_head_eq _ _ _ _ _ _ _ hInner
+  exact ⟨_, rest', hSplit⟩
+
 noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch
     simpleStorageIRContract.functions none none]
