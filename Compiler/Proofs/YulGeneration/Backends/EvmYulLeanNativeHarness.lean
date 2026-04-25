@@ -7052,6 +7052,20 @@ theorem exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_proje
   · intro slot
     simp
 
+/-- The two generated SimpleStorage selector tags fit in one EVM word. -/
+private theorem simpleStorageSelectors_tagsRange
+    (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt) :
+    ∀ tag body,
+      (tag, body) ∈ [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)] →
+        tag < EvmYul.UInt256.size := by
+  intro tag body hmem
+  simp at hmem
+  rcases hmem with h | h
+  · rcases h with ⟨rfl, rfl⟩
+    norm_num [EvmYul.UInt256.size]
+  · rcases h with ⟨rfl, rfl⟩
+    norm_num [EvmYul.UInt256.size]
+
 /-- Guarded selector-miss execution for the concrete SimpleStorage dispatcher
     selector set. This specializes the generic lowered-switch miss theorem to
     the two generated SimpleStorage selectors, discharging the selector tag
@@ -7094,14 +7108,97 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert
       [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)]
       contract tx storage initialEvents observableSlots
       hSelector hFind hSelectorRange
-      (by
-        intro tag body hmem
-        simp at hmem
-        rcases hmem with h | h
-        · rcases h with ⟨rfl, rfl⟩
-          norm_num [EvmYul.UInt256.size]
-        · rcases h with ⟨rfl, rfl⟩
-          norm_num [EvmYul.UInt256.size])
+      (simpleStorageSelectors_tagsRange storeBody retrieveBody)
+
+/-- Store-selector hit execution for the concrete SimpleStorage dispatcher
+    selector set. This specializes the generic lowered-switch hit theorem to
+    `store(uint256)`, discharging the computed selector lookup and selector tag
+    word-range premises. -/
+theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_fuel
+    (fuel switchId : Nat)
+    (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (err : EvmYul.Yul.Exception)
+    (hSelector :
+      0x6057361d = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hBody : ∀ pre suffix,
+      [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)] =
+          pre ++ (0x6057361d, storeBody) :: suffix →
+        EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7)
+          (.Block storeBody) (some contract)
+          ((nativeSwitchPrefixFinalState contract tx storage observableSlots
+            (Backends.nativeSwitchDiscrTempName switchId)
+            (Backends.nativeSwitchMatchedTempName switchId)).insert
+              (Backends.nativeSwitchMatchedTempName switchId)
+              (EvmYul.UInt256.ofNat 1)) = .error err) :
+    EvmYul.Yul.exec
+        (fuel + [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)].length + 12)
+        (Backends.lowerNativeSwitchBlock
+          Compiler.Proofs.YulGeneration.selectorExpr
+          switchId
+          [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)]
+          [nativeRevertZeroZeroStmt])
+        (some contract)
+        (nativeSwitchInitialOkState contract tx storage observableSlots) =
+      .error err := by
+  exact
+    exec_lowerNativeSwitchBlock_selector_find_hit_error_fuel
+      fuel 0x6057361d switchId
+      [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)]
+      [nativeRevertZeroZeroStmt] 0x6057361d storeBody contract tx storage
+      observableSlots err hSelector
+      (by simp)
+      (by norm_num [EvmYul.UInt256.size])
+      (simpleStorageSelectors_tagsRange storeBody retrieveBody)
+      hBody
+
+/-- Retrieve-selector hit execution for the concrete SimpleStorage dispatcher
+    selector set. This specializes the generic lowered-switch hit theorem to
+    `retrieve()`, discharging the computed selector lookup and selector tag
+    word-range premises. -/
+theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_error_fuel
+    (fuel switchId : Nat)
+    (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (err : EvmYul.Yul.Exception)
+    (hSelector :
+      0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hBody : ∀ pre suffix,
+      [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)] =
+          pre ++ (0x2e64cec1, retrieveBody) :: suffix →
+        EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7)
+          (.Block retrieveBody) (some contract)
+          ((nativeSwitchPrefixFinalState contract tx storage observableSlots
+            (Backends.nativeSwitchDiscrTempName switchId)
+            (Backends.nativeSwitchMatchedTempName switchId)).insert
+              (Backends.nativeSwitchMatchedTempName switchId)
+              (EvmYul.UInt256.ofNat 1)) = .error err) :
+    EvmYul.Yul.exec
+        (fuel + [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)].length + 12)
+        (Backends.lowerNativeSwitchBlock
+          Compiler.Proofs.YulGeneration.selectorExpr
+          switchId
+          [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)]
+          [nativeRevertZeroZeroStmt])
+        (some contract)
+        (nativeSwitchInitialOkState contract tx storage observableSlots) =
+      .error err := by
+  exact
+    exec_lowerNativeSwitchBlock_selector_find_hit_error_fuel
+      fuel 0x2e64cec1 switchId
+      [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)]
+      [nativeRevertZeroZeroStmt] 0x2e64cec1 retrieveBody contract tx storage
+      observableSlots err hSelector
+      (by simp)
+      (by norm_num [EvmYul.UInt256.size])
+      (simpleStorageSelectors_tagsRange storeBody retrieveBody)
+      hBody
 
 @[simp] theorem projectResult_finalMappings
     (tx : YulTransaction)
