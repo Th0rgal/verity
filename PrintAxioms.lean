@@ -2806,10 +2806,12 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataSize
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.byteArray_get?_append_left  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.readBytes_zero_get?_of_lt_source
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.readBytes_offset4_get?_of_lt_source
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte0
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte1
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte2
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte3
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_arg0Byte
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.byteArray_data_toList_get?_of_get?  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.list_reverse_eq_drop4_reverse_append_four  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorPrefix
@@ -3230,12 +3232,14 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_wordBytes_size  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_fold_size  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.byteArray_get?_append_left  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.byteArray_get?_append_right  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_fold_get?_left  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_size
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorByte0
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorByte1
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorByte2
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorByte3
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_arg0Byte
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.callvalue_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.timestamp_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.number_bridge
@@ -3290,4 +3294,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3117 theorems/lemmas (2212 public, 905 private, 0 sorry'd)
+-- Total: 3121 theorems/lemmas (2215 public, 906 private, 0 sorry'd)

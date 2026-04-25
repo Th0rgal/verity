@@ -581,6 +581,38 @@ theorem readBytes_zero_get?_of_lt_source
       · simp [ByteArray.get]
       · contradiction
 
+/-- Reading the ABI word at calldata offset four preserves each source byte
+    already present in that 32-byte argument window. This is the native
+    `calldataload(4)` byte-level counterpart of
+    `readBytes_zero_get?_of_lt_source`. -/
+theorem readBytes_offset4_get?_of_lt_source
+    (source : ByteArray)
+    (i : Nat)
+    (hi : 4 + i < source.size)
+    (hi32 : i < 32) :
+    (ByteArray.readBytes source 4 32).get? i = source.get? (4 + i) := by
+  unfold ByteArray.readBytes
+  have hsmall : (decide (4 < 2 ^ 64) && decide (32 < 2 ^ 64)) = true := by
+    norm_num
+  simp only [hsmall, ↓reduceIte]
+  have hiData : 4 + i < source.data.size := by
+    simpa using hi
+  have hCopySize : i < (source.copySlice 4 ByteArray.empty 0 32).size := by
+    simp [ByteArray.size, ByteArray.data_copySlice]
+    omega
+  calc
+    (source.copySlice 4 ByteArray.empty 0 32 ++
+          ffi.ByteArray.zeroes
+            { toBitVec := ↑32 -
+              ↑(source.copySlice 4 ByteArray.empty 0 32).size }).get? i
+        = (source.copySlice 4 ByteArray.empty 0 32).get? i :=
+          byteArray_get?_append_left hCopySize
+    _ = source.get? (4 + i) := by
+      unfold ByteArray.get?
+      split
+      · simp [ByteArray.get]
+      · contradiction
+
 @[simp] theorem initialState_calldataReadWord_selectorByte0
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
@@ -679,6 +711,40 @@ theorem readBytes_zero_get?_of_lt_source
     simp [calldataToByteArray_size]
     omega
   · norm_num
+
+/-- Native initial calldata exposes the first ABI argument word at offset four,
+    byte-for-byte, before EVMYulLean recomposes it into a `UInt256`. -/
+theorem initialState_calldataReadWord_arg0Byte
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (arg : Nat)
+    (rest : List Nat)
+    (hArgs : tx.args = arg :: rest)
+    (i : Nat)
+    (hi : i < 32) :
+    (ByteArray.readBytes
+        (initialState contract tx storage observableSlots).toState.executionEnv.calldata
+        4 32).get? i =
+      some (UInt8.ofNat (arg / 2 ^ ((31 - i) * 8) % 256)) := by
+  rw [readBytes_offset4_get?_of_lt_source]
+  · rw [show
+        (initialState contract tx storage observableSlots).toState.executionEnv.calldata =
+          calldataToByteArray tx.functionSelector tx.args by
+          simp [initialState, EvmYul.Yul.State.toState, YulState.initial,
+            toSharedState, mkBlockHeader]]
+    rw [hArgs]
+    exact calldataToByteArray_arg0Byte tx.functionSelector arg rest i hi
+  · rw [show
+        (initialState contract tx storage observableSlots).toState.executionEnv.calldata =
+          calldataToByteArray tx.functionSelector tx.args by
+          simp [initialState, EvmYul.Yul.State.toState, YulState.initial,
+            toSharedState, mkBlockHeader]]
+    rw [hArgs]
+    simp [calldataToByteArray_size]
+    omega
+  · exact hi
 
 private theorem byteArray_data_toList_get?_of_get?
     (ba : ByteArray)
