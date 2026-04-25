@@ -1509,6 +1509,92 @@ theorem simpleStorageNativeContract_dispatcher_eq_lowered_stmts :
   · intro name params rets body h
     cases h
 
+/-- A `.block` head in the native lowering surfaces as a singleton `.Block`
+output when the lowering succeeds.
+
+This is the structural lemma that lets the SimpleStorage native dispatcher
+bridge be peeled past its outer block wrapper without unfolding `buildSwitch`.
+-/
+theorem lowerStmtsNative_single_block_ok_singleton
+    (stmts : List Yul.YulStmt)
+    (lowered : List EvmYul.Yul.Ast.Stmt)
+    (h : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
+            [Yul.YulStmt.block stmts] = .ok lowered) :
+    ∃ inner, lowered = [.Block inner] := by
+  unfold Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative at h
+  dsimp at h
+  rw [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_cons] at h
+  rw [Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_block] at h
+  cases hInner :
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+        (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+          [Yul.YulStmt.block stmts])
+        0 stmts with
+  | error err =>
+      rw [hInner] at h
+      simp only [Bind.bind, Except.bind, reduceCtorEq] at h
+  | ok pair =>
+      cases pair with
+      | mk inner next =>
+          rw [hInner] at h
+          simp only [Bind.bind, Except.bind, Pure.pure, Except.pure,
+            Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_nil,
+            List.append_nil, Except.ok.injEq] at h
+          exact ⟨inner, h.symm⟩
+
+/-- The `simpleStorageNativeDispatcherStmts` lowering succeeds and equals the
+SimpleStorage native witness dispatcher contents.
+
+The outer success is inherited from
+`Compiler.SimpleStorageNativeWitness.lowerRuntimeContractNative_eq` (which
+itself uses the existing `native_decide` trust chain on the runtime witness),
+combined with the structural single-statement equation. -/
+theorem simpleStorageNativeDispatcherStmts_lowering_ok :
+    Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
+        [Compiler.CodegenCommon.buildSwitch
+          simpleStorageIRContract.functions none none] =
+      .ok simpleStorageNativeDispatcherStmts := by
+  have hOuter := Compiler.SimpleStorageNativeWitness.lowerRuntimeContractNative_eq
+  rw [simpleStorage_runtimeCode_eq_single_dispatcher] at hOuter
+  rw [lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative] at hOuter
+  · cases hL : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
+        [Compiler.CodegenCommon.buildSwitch
+          simpleStorageIRContract.functions none none] with
+    | ok stmts =>
+        simp [simpleStorageNativeDispatcherStmts, hL]
+    | error err =>
+        rw [hL] at hOuter
+        simp at hOuter
+  · intro name params rets body h'
+    cases h'
+
+/-- The SimpleStorage native dispatcher statement list is a singleton `.Block`.
+
+Reason: `buildSwitch` produces a `Yul.YulStmt.block`, which the native lowering
+maps to `[.Block inner]` for the lowered inner statements. Combined with the
+fact that the lowering succeeds (above), this exposes the inner block shape
+without further computation. -/
+theorem simpleStorageNativeDispatcherStmts_exists_singleton_block :
+    ∃ inner : List EvmYul.Yul.Ast.Stmt,
+      simpleStorageNativeDispatcherStmts = [.Block inner] := by
+  have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
+  -- buildSwitch produces a YulStmt.block by definition.
+  have hBlock :
+      Compiler.CodegenCommon.buildSwitch
+          simpleStorageIRContract.functions none none =
+        Yul.YulStmt.block _ := rfl
+  rw [hBlock] at hOk
+  exact lowerStmtsNative_single_block_ok_singleton _ _ hOk
+
+noncomputable def simpleStorageNativeDispatcherInnerStmts :
+    List EvmYul.Yul.Ast.Stmt :=
+  Classical.choose simpleStorageNativeDispatcherStmts_exists_singleton_block
+
+theorem simpleStorageNativeDispatcherStmts_eq_singleton_block :
+    simpleStorageNativeDispatcherStmts =
+      [.Block simpleStorageNativeDispatcherInnerStmts] :=
+  Classical.choose_spec simpleStorageNativeDispatcherStmts_exists_singleton_block
+
 noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch
     simpleStorageIRContract.functions none none]
