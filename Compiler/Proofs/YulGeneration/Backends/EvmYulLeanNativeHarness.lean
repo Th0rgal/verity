@@ -966,6 +966,66 @@ private theorem fromBytes'_tail4_shift
   norm_num
   omega
 
+private theorem div_pow_succ_byte (arg i : Nat) :
+    arg / 2 ^ (8 * (i + 1)) = arg / 256 / 2 ^ (8 * i) := by
+  rw [Nat.mul_add, Nat.pow_add]
+  norm_num
+  rw [Nat.div_div_eq_div_mul]
+  ring_nf
+
+private theorem mod_byte_decomp (arg m : Nat) (hm : 0 < m) :
+    arg % (256 * m) = arg % 256 + 256 * ((arg / 256) % m) := by
+  have hdecomp : arg = 256 * (arg / 256) + arg % 256 := by
+    exact (Nat.div_add_mod arg 256).symm
+  have hr : arg % 256 < 256 := Nat.mod_lt arg (by norm_num)
+  have hsmall : arg % 256 < 256 * m := by nlinarith
+  have hqm : (arg / 256) % m < m := Nat.mod_lt _ hm
+  have hlt : 256 * ((arg / 256) % m) + arg % 256 < 256 * m := by nlinarith
+  conv_lhs => rw [hdecomp]
+  rw [Nat.add_mod]
+  rw [Nat.mul_mod_mul_left]
+  rw [Nat.mod_eq_of_lt hsmall]
+  rw [Nat.mod_eq_of_lt hlt]
+  ring
+
+private theorem fromBytes'_of_le_bytes (n arg : Nat) :
+    EvmYul.fromBytes'
+      (List.ofFn fun i : Fin n => UInt8.ofNat (arg / 2 ^ (8 * i.1) % 256)) =
+      arg % 2 ^ (8 * n) := by
+  induction n generalizing arg with
+  | zero =>
+      simp [EvmYul.fromBytes']
+      omega
+  | succ n ih =>
+      rw [List.ofFn_succ]
+      simp only [EvmYul.fromBytes']
+      have htail :
+          (List.ofFn fun i : Fin n =>
+              UInt8.ofNat (arg / 2 ^ (8 * (i.succ.1)) % 256)) =
+          (List.ofFn fun i : Fin n =>
+              UInt8.ofNat (arg / 256 / 2 ^ (8 * i.1) % 256)) := by
+        apply List.ext_getElem <;> simp [div_pow_succ_byte]
+      rw [htail]
+      rw [ih (arg / 256)]
+      simp [UInt8.ofNat, UInt8.size]
+      have hpow : 2 ^ (8 * (n + 1)) = 256 * 2 ^ (8 * n) := by
+        rw [Nat.mul_add, Nat.pow_add]
+        norm_num
+        ring
+      rw [hpow]
+      have hbyte : OfNat.ofNat (arg % 256) % 256 = arg % 256 := by
+        change (arg % 256) % 256 = arg % 256
+        exact Nat.mod_eq_of_lt (Nat.mod_lt _ (by norm_num))
+      rw [mod_byte_decomp arg (2 ^ (8 * n)) (by positivity)]
+      rw [hbyte]
+
+private theorem fromBytes'_argWordBytes (arg : Nat) :
+    EvmYul.fromBytes'
+      ((List.ofFn fun i : Fin 32 =>
+        UInt8.ofNat (arg / 2 ^ ((31 - i.1) * 8) % 256)).reverse) =
+      arg % EvmYul.UInt256.size := by
+  simpa [List.ofFn_succ, EvmYul.UInt256.size] using fromBytes'_of_le_bytes 32 arg
+
 /-- Once the EVMYulLean calldata word has been reduced to a 32-byte big-endian
     list whose first four bytes are the ABI selector, shifting the corresponding
     `fromBytes'` value right by 224 yields the normalized dispatcher selector.
@@ -1037,6 +1097,102 @@ theorem readBytes_zero_32_size (source : ByteArray) :
   rw [usize_sub_toNat_of_le_32]
   · omega
   · omega
+
+theorem readBytes_offset4_32_size (source : ByteArray) :
+    (ByteArray.readBytes source 4 32).size = 32 := by
+  unfold ByteArray.readBytes
+  have hsmall : (decide (4 < 2 ^ 64) && decide (32 < 2 ^ 64)) = true := by
+    norm_num
+  simp only [hsmall, ↓reduceIte]
+  rw [ByteArray.size_append]
+  simp [ffi.ByteArray.zeroes, ByteArray.size]
+  rw [usize_sub_toNat_of_le_32]
+  · omega
+  · omega
+
+theorem initialState_calldataReadWord_arg0Bytes
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (arg : Nat)
+    (rest : List Nat)
+    (hArgs : tx.args = arg :: rest) :
+    let bytes := ByteArray.readBytes
+      (initialState contract tx storage observableSlots).toState.executionEnv.calldata 4 32
+    bytes.data.toList =
+      List.ofFn (fun i : Fin 32 =>
+        UInt8.ofNat (arg / 2 ^ ((31 - i.1) * 8) % 256)) := by
+  intro bytes
+  apply List.ext_getElem?
+  intro i
+  by_cases hi : i < 32
+  · have hleft : bytes.data.toList[i]? =
+        some (UInt8.ofNat (arg / 2 ^ ((31 - i) * 8) % 256)) := by
+      exact byteArray_data_toList_get?_of_get? bytes i _
+        (by
+          dsimp [bytes]
+          exact initialState_calldataReadWord_arg0Byte contract tx storage
+            observableSlots arg rest hArgs i hi)
+    have hright :
+        (List.ofFn (fun i : Fin 32 =>
+          UInt8.ofNat (arg / 2 ^ ((31 - i.1) * 8) % 256)))[i]? =
+        some (UInt8.ofNat (arg / 2 ^ ((31 - i) * 8) % 256)) := by
+      rw [List.getElem?_ofFn]
+      simp only [hi, ↓reduceDIte]
+    rw [hleft, hright]
+  · have hleft : bytes.data.toList[i]? = none := by
+      have hlen : bytes.data.toList.length = 32 := by
+        have hsize := readBytes_offset4_32_size
+          (initialState contract tx storage observableSlots).toState.executionEnv.calldata
+        simpa [bytes, ByteArray.size] using hsize
+      exact List.getElem?_eq_none (by omega)
+    have hright :
+        (List.ofFn (fun i : Fin 32 =>
+          UInt8.ofNat (arg / 2 ^ ((31 - i.1) * 8) % 256)))[i]? = none := by
+      exact List.getElem?_eq_none (by simp; omega)
+    rw [hleft, hright]
+
+/-- Native `calldataload(4)` decodes the first aligned ABI argument word from
+    the bridged calldata exactly as a `UInt256`, i.e. modulo the EVM word size. -/
+theorem initialState_calldataload4_arg0_value
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (arg : Nat)
+    (rest : List Nat)
+    (hArgs : tx.args = arg :: rest) :
+    EvmYul.UInt256.toNat
+      (EvmYul.State.calldataload
+        (initialState contract tx storage observableSlots).toState
+        (EvmYul.UInt256.ofNat 4)) =
+      arg % EvmYul.UInt256.size := by
+  let bytes := ByteArray.readBytes
+    (initialState contract tx storage observableSlots).toState.executionEnv.calldata 4 32
+  have hbytes :=
+    initialState_calldataReadWord_arg0Bytes contract tx storage observableSlots
+      arg rest hArgs
+  unfold EvmYul.State.calldataload EvmYul.uInt256OfByteArray
+  rw [show (EvmYul.UInt256.ofNat 4).toNat = 4 by
+    change (Fin.ofNat EvmYul.UInt256.size 4).val = 4
+    simp [Fin.ofNat]
+    norm_num [EvmYul.UInt256.size]]
+  rw [show
+      (ByteArray.readBytes
+        (initialState contract tx storage observableSlots).toState.executionEnv.calldata
+        4 32).data.toList =
+        bytes.data.toList by rfl]
+  rw [hbytes]
+  change EvmYul.UInt256.toNat
+      (EvmYul.UInt256.ofNat
+        (EvmYul.fromBytes'
+          ((List.ofFn fun i : Fin 32 =>
+            UInt8.ofNat (arg / 2 ^ ((31 - i.1) * 8) % 256)).reverse))) =
+    arg % EvmYul.UInt256.size
+  rw [fromBytes'_argWordBytes arg]
+  exact uint256_ofNat_toNat_of_lt (arg % EvmYul.UInt256.size)
+    (Nat.mod_lt _ (by norm_num [EvmYul.UInt256.size]))
 
 /-- Native selector decoding agrees with the interpreter selector by reducing
     EVMYulLean `calldataload(0) >>> 224` to the four ABI selector bytes in

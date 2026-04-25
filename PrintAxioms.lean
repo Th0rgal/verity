@@ -2825,9 +2825,16 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.uint256_shiftRight_224_ofNat_toNat
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_four  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_tail4_shift  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.div_pow_succ_byte  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.mod_byte_decomp  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_of_le_bytes  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_argWordBytes  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_selectorPrefix_shift
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.usize_sub_toNat_of_le_32  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.readBytes_zero_32_size
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.readBytes_offset4_32_size
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_arg0Bytes
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataload4_arg0_value
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_selectorExpr_native_value
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_selectorExpr_native_value_of_readBytes_size
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_selectorExpr_native_uint256
@@ -3294,4 +3301,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3121 theorems/lemmas (2215 public, 906 private, 0 sorry'd)
+-- Total: 3128 theorems/lemmas (2218 public, 910 private, 0 sorry'd)
