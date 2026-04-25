@@ -2135,6 +2135,32 @@ theorem simpleStorageNativeDispatcher_if1Body_eq :
   simp only [List.cons.injEq, EvmYul.Yul.Ast.Stmt.If.injEq] at hCombo
   exact hCombo.2.1.2
 
+/-- Closed-form selector-miss revert exec for the SimpleStorage native
+dispatcher's first `If` body. The body is the singleton list
+`[nativeRevertZeroZeroStmt]` (by `simpleStorageNativeDispatcher_if1Body_eq`),
+so a `.Block` execution at any fuel `≥ 7` peels the head via
+`exec_block_cons_error` and reduces to `exec_revert_zero_zero_error`,
+producing EVMYulLean's `Revert` exception. Self-contained — no premise on
+state/eval is needed because the body has no side effects before the revert.
+
+This is the per-statement halt lemma the selector-miss dispatcher proof will
+chain after the `let __has_selector := …` and `if iszero(__has_selector)`
+peels: once `__has_selector = 0` is established, the if guard fires, and this
+lemma immediately closes the dispatcher result as `.error Revert`. -/
+theorem exec_block_simpleStorageNativeDispatcher_if1Body_revert
+    (fuel : Nat) (state : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    EvmYul.Yul.exec (fuel + 7) (.Block simpleStorageNativeDispatcher_if1Body)
+        codeOverride state =
+      .error EvmYul.Yul.Exception.Revert := by
+  rw [simpleStorageNativeDispatcher_if1Body_eq]
+  exact Compiler.Proofs.YulGeneration.Backends.Native.exec_block_cons_error
+    (fuel + 6)
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt
+    [] codeOverride state EvmYul.Yul.Exception.Revert
+    (Compiler.Proofs.YulGeneration.Backends.Native.exec_revert_zero_zero_error
+      fuel state codeOverride)
+
 noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch
     simpleStorageIRContract.functions none none]
