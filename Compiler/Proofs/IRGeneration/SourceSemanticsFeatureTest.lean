@@ -80,6 +80,9 @@ private def indexedEmitSourceSpec : CompilationModel :=
 private def storageWordFields : List Field :=
   [{ name := "root", ty := .uint256, «slot» := some 10 }]
 
+private def storageWordAliasFields : List Field :=
+  [{ name := "root", ty := .uint256, «slot» := some 10, aliasSlots := [20] }]
+
 private def storageWordSpec : CompilationModel :=
   { name := "StorageWordSource"
     fields := storageWordFields
@@ -228,6 +231,19 @@ example :
     resultStorageAt? 10
       (SourceSemantics.execStmt storageWordFields storageWordState
         (Stmt.setStorageWord "root" 2 (.literal 99))) = some 0 := by
+  native_decide
+
+example :
+    resultStorageAt? 22
+      (SourceSemantics.execStmt storageWordAliasFields storageWordState
+        (Stmt.setStorageWord "root" 2 (.literal 99))) = some 99 := by
+  native_decide
+
+example :
+    resultStorageAddrAt? 22
+      (SourceSemantics.execStmtWithEvents storageWordAliasFields [] storageWordState
+        (Stmt.setStorageWord "root" 2 (.literal 99))) =
+        some (Verity.wordToAddress (99 : Verity.Uint256)) := by
   native_decide
 
 end Compiler.Proofs.IRGeneration.SourceSemanticsFeatureTest
