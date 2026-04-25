@@ -6539,6 +6539,50 @@ theorem primCall_sload0_then_mstore0_return32_initialState_omittedSlot_projectRe
       · simpa [sharedAfterLoad] using hExec
       · simpa [natToUInt256, EvmYul.UInt256.toNat, uint256ToNat] using hReturn
 
+/-- Native primitive execution of the generated `retrieve()` scalar-return core,
+    with the slot-zero materialization split discharged internally.
+
+If slot zero was materialized as observable native storage, the getter returns
+    the projected Verity storage word. If it was omitted from materialization,
+    EVMYulLean's `SLOAD` default-zero behavior is exposed as return value zero.
+    This theorem removes the caller-side `0 ∈ observableSlots`/`0 ∉
+    observableSlots` premise split from the selected-body dispatcher proof. -/
+theorem primCall_sload0_then_mstore0_return32_initialState_projectResult_returnValue_materialized
+    (sloadFuel mstoreFuel returnFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (hRange : ∀ s ∈ observableSlots, s < EvmYul.UInt256.size) :
+    ∃ haltState haltValue,
+      primCall_sload0_then_mstore0_return32_initialState
+        sloadFuel mstoreFuel returnFuel contract tx storage observableSlots =
+        .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
+      (projectResult tx storage initialEvents
+        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).returnValue =
+        if 0 ∈ observableSlots then
+          some (storage 0 % EvmYul.UInt256.size)
+        else
+          some 0 := by
+  by_cases hSlot : 0 ∈ observableSlots
+  · rcases
+      primCall_sload0_then_mstore0_return32_initialState_projectResult_returnValue
+        sloadFuel mstoreFuel returnFuel contract tx storage initialEvents
+        observableSlots hSlot hRange with
+      ⟨haltState, haltValue, hExec, hReturn⟩
+    refine ⟨haltState, haltValue, hExec, ?_⟩
+    rw [if_pos hSlot]
+    simpa using hReturn
+  · rcases
+      primCall_sload0_then_mstore0_return32_initialState_omittedSlot_projectResult_returnValue
+        sloadFuel mstoreFuel returnFuel contract tx storage initialEvents
+        observableSlots hSlot hRange with
+      ⟨haltState, haltValue, hExec, hReturn⟩
+    refine ⟨haltState, haltValue, hExec, ?_⟩
+    rw [if_neg hSlot]
+    simpa using hReturn
+
 @[simp] theorem projectResult_yulHalt_finalMappings
     (tx : YulTransaction)
     (initialStorage : Nat → Nat)
