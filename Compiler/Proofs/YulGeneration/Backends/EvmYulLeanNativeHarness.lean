@@ -5090,6 +5090,36 @@ theorem initialState_sload_observableSlot_value
   rw [hFindStorage]
   rfl
 
+/-- Native `sload` from an initially omitted materialized slot returns the EVM
+    zero word. The range hypotheses rule out modular aliasing between the omitted
+    slot and any materialized storage key. -/
+theorem initialState_sload_omittedSlot_value
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (slot : Nat)
+    (hNotSlot : slot ∉ observableSlots)
+    (hRange : ∀ s ∈ observableSlots, s < EvmYul.UInt256.size)
+    (hSlotRange : slot < EvmYul.UInt256.size) :
+    (EvmYul.State.sload
+      (initialState contract tx storage observableSlots).toState
+      (natToUInt256 slot)).2 =
+      natToUInt256 0 := by
+  have hFindStorage :
+      (projectStorage storage observableSlots).find? (natToUInt256 slot) = none := by
+    simpa [projectStorage] using
+      foldl_insert_find_not_mem storage observableSlots slot hNotSlot hRange
+        hSlotRange (Batteries.RBMap.empty : EvmYul.Storage)
+  simp only [EvmYul.State.sload, EvmYul.State.lookupAccount,
+    EvmYul.Yul.State.toState, initialState, toSharedState, YulState.initial]
+  rw [Batteries.RBMap.find?_insert_of_eq _ Std.ReflCmp.compare_self]
+  rw [Batteries.RBMap.find?_insert_of_eq _ Std.ReflCmp.compare_self]
+  change (Batteries.RBMap.find? (projectStorage storage observableSlots)
+      (natToUInt256 slot)).getD ⟨0⟩ = natToUInt256 0
+  rw [hFindStorage]
+  rfl
+
 /-- Native primitive execution of `sload(slot)` on an initially materialized,
     word-canonical observable slot returns exactly the projected storage word. -/
 theorem primCall_sload_initialState_observableSlot_ok
@@ -5124,8 +5154,44 @@ theorem primCall_sload_initialState_observableSlot_ok
           observableSlots slot hSlot hRange
       rw [hload] at hvalue
       simp only at hvalue
-      subst value
-      rfl
+      simp [hvalue]
+
+/-- Native primitive execution of `sload(slot)` on an initially omitted,
+    word-canonical materialization slot returns the EVM zero word. -/
+theorem primCall_sload_initialState_omittedSlot_ok
+    (fuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (slot : Nat)
+    (hNotSlot : slot ∉ observableSlots)
+    (hRange : ∀ s ∈ observableSlots, s < EvmYul.UInt256.size)
+    (hSlotRange : slot < EvmYul.UInt256.size) :
+    EvmYul.Yul.primCall (fuel + 1)
+        (initialState contract tx storage observableSlots)
+        EvmYul.Operation.SLOAD [natToUInt256 slot] =
+      match EvmYul.State.sload
+          (initialState contract tx storage observableSlots).toState
+          (natToUInt256 slot) with
+      | (state', _) =>
+          .ok ((initialState contract tx storage observableSlots).setSharedState
+              { (initialState contract tx storage observableSlots).toSharedState with
+                toState := state' },
+            [natToUInt256 0]) := by
+  rw [primCall_sload_ok]
+  generalize hload :
+      EvmYul.State.sload
+        (initialState contract tx storage observableSlots).toState
+        (natToUInt256 slot) = loaded
+  cases loaded with
+  | mk state' value =>
+      have hvalue :=
+        initialState_sload_omittedSlot_value contract tx storage
+          observableSlots slot hNotSlot hRange hSlotRange
+      rw [hload] at hvalue
+      simp only at hvalue
+      simp [hvalue]
 
 /-- Native primitive execution of `sstore(slot, value)` on an initial runtime
     state succeeds with the exact EVMYulLean `State.sstore` successor. The
@@ -6424,6 +6490,50 @@ theorem primCall_sload0_then_mstore0_return32_initialState_projectResult_returnV
         primCall_mstore0_then_return32_emptyMemory_projectResult_returnValue
           mstoreFuel returnFuel tx storage initialEvents sharedAfterLoad ∅
           (natToUInt256 (storage 0)) hMemory with
+        ⟨haltState, haltValue, hExec, hReturn⟩
+      refine ⟨haltState, haltValue, ?_, ?_⟩
+      · simpa [sharedAfterLoad] using hExec
+      · simpa [natToUInt256, EvmYul.UInt256.toNat, uint256ToNat] using hReturn
+
+/-- Native primitive execution of the generated `retrieve()` scalar-return core
+    when slot zero was not materialized into the finite native storage map:
+    `sload(0)` returns the EVM zero word, and the following
+    `mstore(0, 0); return(0, 32)` projects as return value `0`. -/
+theorem primCall_sload0_then_mstore0_return32_initialState_omittedSlot_projectResult_returnValue
+    (sloadFuel mstoreFuel returnFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (hNotSlot : 0 ∉ observableSlots)
+    (hRange : ∀ s ∈ observableSlots, s < EvmYul.UInt256.size) :
+    ∃ haltState haltValue,
+      primCall_sload0_then_mstore0_return32_initialState
+        sloadFuel mstoreFuel returnFuel contract tx storage observableSlots =
+        .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
+      (projectResult tx storage initialEvents
+        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).returnValue =
+        some 0 := by
+  unfold primCall_sload0_then_mstore0_return32_initialState
+  rw [primCall_sload_initialState_omittedSlot_ok sloadFuel contract tx storage
+    observableSlots 0 hNotSlot hRange (by norm_num [EvmYul.UInt256.size])]
+  generalize hload :
+      EvmYul.State.sload
+        (initialState contract tx storage observableSlots).toState
+        (natToUInt256 0) = loaded
+  cases loaded with
+  | mk stateAfterLoad _ =>
+      let sharedAfterLoad : EvmYul.SharedState .Yul :=
+        { (initialState contract tx storage observableSlots).toSharedState with
+          toState := stateAfterLoad }
+      have hMemory : sharedAfterLoad.memory = ByteArray.empty := by
+        simp [sharedAfterLoad, initialState, EvmYul.Yul.State.toSharedState,
+          YulState.initial, toSharedState]
+      rcases
+        primCall_mstore0_then_return32_emptyMemory_projectResult_returnValue
+          mstoreFuel returnFuel tx storage initialEvents sharedAfterLoad ∅
+          (natToUInt256 0) hMemory with
         ⟨haltState, haltValue, hExec, hReturn⟩
       refine ⟨haltState, haltValue, ?_, ?_⟩
       · simpa [sharedAfterLoad] using hExec
