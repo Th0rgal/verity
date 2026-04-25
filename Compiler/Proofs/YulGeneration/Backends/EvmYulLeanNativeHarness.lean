@@ -6433,6 +6433,49 @@ theorem primCall_sload0_then_mstore0_return32_initialState_projectResult_returnV
   | YulEXTCODESIZENotImplemented => rfl
   | Revert => rfl
 
+/-- Guarded selector-miss execution for a fully lowered native switch block,
+    lifted through Verity's projected native result boundary. The generated
+    `revert(0, 0)` default both executes through the actual native step
+    relation and projects as a failed call with no return word and rolled-back
+    observable storage. -/
+theorem exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult
+    (fuel selector switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = none)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases → tag < EvmYul.UInt256.size) :
+    EvmYul.Yul.exec (fuel + cases.length + 12)
+        (Backends.lowerNativeSwitchBlock
+          Compiler.Proofs.YulGeneration.selectorExpr switchId cases
+            [nativeRevertZeroZeroStmt])
+        (some contract)
+        (nativeSwitchInitialOkState contract tx storage observableSlots) =
+      .error EvmYul.Yul.Exception.Revert ∧
+    (projectResult tx storage initialEvents
+        (.error EvmYul.Yul.Exception.Revert)).success = false ∧
+    (projectResult tx storage initialEvents
+        (.error EvmYul.Yul.Exception.Revert)).returnValue = none ∧
+    (∀ slot,
+      (projectResult tx storage initialEvents
+        (.error EvmYul.Yul.Exception.Revert)).finalStorage slot =
+          storage slot) := by
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · exact exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_fuel
+      fuel selector switchId cases contract tx storage observableSlots
+      hSelector hFind hSelectorRange hTagsRange
+  · simp
+  · simp
+  · intro slot
+    simp
+
 @[simp] theorem projectResult_finalMappings
     (tx : YulTransaction)
     (initialStorage : Nat → Nat)
