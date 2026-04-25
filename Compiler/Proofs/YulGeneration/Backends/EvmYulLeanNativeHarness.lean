@@ -7093,6 +7093,51 @@ theorem primCall_mstore0_then_return32_emptyMemory_projectResult_returnValue
   refine ⟨haltState, haltValue, hExec, ?_⟩
   simpa using hReturn
 
+/-- Exact projected result for the generated scalar-return primitive sequence.
+    Starting from empty native memory, `mstore(0, value); return(0, 32)` halts
+    through the actual EVMYulLean primitive relation and projects as a successful
+    one-word return containing exactly `value`. -/
+theorem primCall_mstore0_then_return32_emptyMemory_projectResult_eq
+    (mstoreFuel returnFuel : Nat)
+    (tx : YulTransaction)
+    (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (sharedState : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (value : EvmYul.UInt256)
+    (hMemory : sharedState.memory = ByteArray.empty) :
+    ∃ haltState haltValue,
+      (do
+        let (state', values) ←
+          EvmYul.Yul.primCall (mstoreFuel + 1) (.Ok sharedState store)
+            EvmYul.Operation.MSTORE
+            [EvmYul.UInt256.ofNat 0, value]
+        match values with
+        | [] =>
+            EvmYul.Yul.primCall (returnFuel + 1) state'
+              EvmYul.Operation.RETURN
+              [EvmYul.UInt256.ofNat 0, EvmYul.UInt256.ofNat 32]
+        | _ => .error EvmYul.Yul.Exception.InvalidArguments) =
+        .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
+      projectResult tx initialStorage initialEvents
+          (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue)) =
+        { success := true
+          returnValue := some value.toNat
+          finalStorage := projectStorageFromState tx haltState
+          finalMappings :=
+            Compiler.Proofs.storageAsMappings (projectStorageFromState tx haltState)
+          events := initialEvents ++ projectLogsFromState haltState } := by
+  rcases
+    primCall_mstore0_then_return32_emptyMemory_projectResult_returnValue
+      mstoreFuel returnFuel tx initialStorage initialEvents sharedState store value
+      hMemory with
+    ⟨haltState, haltValue, hExec, hReturn⟩
+  refine ⟨haltState, haltValue, hExec, ?_⟩
+  have hProjectReturn :
+      projectHaltReturn haltState haltValue = some value.toNat := by
+    simpa [projectResult] using hReturn
+  simp [projectResult, hProjectReturn]
+
 /-- The native primitive sequence used by the generated SimpleStorage getter
     body after dispatcher selection. -/
 def primCall_sload0_then_mstore0_return32_initialState
