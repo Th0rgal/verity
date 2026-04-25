@@ -3084,6 +3084,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_hardError_finalMappings
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_hardError_events
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_finalMappings
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative_loweringError
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative
@@ -3367,4 +3368,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3194 theorems/lemmas (2268 public, 926 private, 0 sorry'd)
+-- Total: 3195 theorems/lemmas (2269 public, 926 private, 0 sorry'd)

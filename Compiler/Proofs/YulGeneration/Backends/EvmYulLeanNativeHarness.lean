@@ -7052,6 +7052,57 @@ theorem exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_proje
   · intro slot
     simp
 
+/-- Guarded selector-miss execution for the concrete SimpleStorage dispatcher
+    selector set. This specializes the generic lowered-switch miss theorem to
+    the two generated SimpleStorage selectors, discharging the selector tag
+    word-range premise by computation. -/
+theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult
+    (fuel selector switchId : Nat)
+    (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind :
+      [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)].find?
+          (fun entry => entry.1 == selector) = none)
+    (hSelectorRange : selector < EvmYul.UInt256.size) :
+    EvmYul.Yul.exec
+        (fuel + [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)].length + 12)
+        (Backends.lowerNativeSwitchBlock
+          Compiler.Proofs.YulGeneration.selectorExpr
+          switchId
+          [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)]
+          [nativeRevertZeroZeroStmt])
+        (some contract)
+        (nativeSwitchInitialOkState contract tx storage observableSlots) =
+      .error EvmYul.Yul.Exception.Revert ∧
+    (projectResult tx storage initialEvents
+        (.error EvmYul.Yul.Exception.Revert)).success = false ∧
+    (projectResult tx storage initialEvents
+        (.error EvmYul.Yul.Exception.Revert)).returnValue = none ∧
+    (∀ slot,
+      (projectResult tx storage initialEvents
+        (.error EvmYul.Yul.Exception.Revert)).finalStorage slot =
+          storage slot) := by
+  exact
+    exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult
+      fuel selector switchId
+      [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)]
+      contract tx storage initialEvents observableSlots
+      hSelector hFind hSelectorRange
+      (by
+        intro tag body hmem
+        simp at hmem
+        rcases hmem with h | h
+        · rcases h with ⟨rfl, rfl⟩
+          norm_num [EvmYul.UInt256.size]
+        · rcases h with ⟨rfl, rfl⟩
+          norm_num [EvmYul.UInt256.size])
+
 @[simp] theorem projectResult_finalMappings
     (tx : YulTransaction)
     (initialStorage : Nat → Nat)
