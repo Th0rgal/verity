@@ -1732,6 +1732,53 @@ theorem lowerStmtsNativeWithSwitchIds_let_head_eq
           subst hNat
           exact ⟨rest', hList.symm, rfl⟩
 
+/-- An `.if_`-headed statement-list lowering peels its head into a singleton
+`.If` statement and threads the body's switch-counter advance through to the
+tail. This is the per-statement complement of
+`lowerStmtsNativeWithSwitchIds_let_head_eq` for the `if_` case: combined with
+`lowerStmtsNative_block_stmts_eq`, it lets a successful native lowering of a
+block be peeled past an `.if_`-headed source statement. -/
+theorem lowerStmtsNativeWithSwitchIds_if_head_eq
+    (reservedNames : List String) (n0 : Nat)
+    (cond : Yul.YulExpr) (body : List Yul.YulStmt)
+    (rest : List Yul.YulStmt)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (h : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+            reservedNames n0
+            (Yul.YulStmt.if_ cond body :: rest) = .ok (inner, next)) :
+    ∃ (body' : List EvmYul.Yul.Ast.Stmt) (midN : Nat)
+      (rest' : List EvmYul.Yul.Ast.Stmt),
+      inner = EvmYul.Yul.Ast.Stmt.If
+                (Compiler.Proofs.YulGeneration.Backends.lowerExprNative cond)
+                body' :: rest' ∧
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+        reservedNames n0 body = .ok (body', midN) ∧
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+        reservedNames midN rest = .ok (rest', next) := by
+  rw [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_cons,
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_if]
+    at h
+  cases hBody :
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+        reservedNames n0 body with
+  | error _ => rw [hBody] at h; simp only [Bind.bind, Except.bind, reduceCtorEq] at h
+  | ok bodyPair =>
+    obtain ⟨body', midN⟩ := bodyPair
+    rw [hBody] at h
+    simp only [Bind.bind, Except.bind, Pure.pure, Except.pure] at h
+    cases hRest :
+        Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+          reservedNames midN rest with
+    | error _ =>
+      rw [hRest] at h; simp only [reduceCtorEq] at h
+    | ok restPair =>
+      obtain ⟨rest', _⟩ := restPair
+      rw [hRest] at h
+      simp only [List.singleton_append, Except.ok.injEq, Prod.mk.injEq] at h
+      obtain ⟨hList, hNat⟩ := h
+      subst hNat
+      exact ⟨body', midN, rest', hList.symm, rfl, hRest⟩
+
 /-- The head of the SimpleStorage native dispatcher inner-block is the lowered
 `let __has_selector := ...` statement. This peels one further layer beyond the
 singleton-block extraction (`simpleStorageNativeDispatcherStmts_eq_singleton_block`)
@@ -1751,6 +1798,29 @@ theorem simpleStorageNativeDispatcherInnerStmts_head_let_exists :
   obtain ⟨rest', hSplit, _⟩ :=
     lowerStmtsNativeWithSwitchIds_let_head_eq _ _ _ _ _ _ _ hInner
   exact ⟨_, rest', hSplit⟩
+
+/-- The first two statements of the SimpleStorage native dispatcher inner-block
+are exactly the lowered `let __has_selector := ...` and the lowered selector-miss
+guard `if iszero(__has_selector) { revert(0,0) }`. This peels the second
+statement of `buildSwitch`'s 3-statement source block by chaining
+`lowerStmtsNative_block_stmts_eq`, `lowerStmtsNativeWithSwitchIds_let_head_eq`,
+and `lowerStmtsNativeWithSwitchIds_if_head_eq`. -/
+theorem simpleStorageNativeDispatcherInnerStmts_let_if_head_exists :
+    ∃ (e : EvmYul.Yul.Ast.Expr) (c : EvmYul.Yul.Ast.Expr)
+      (body : List EvmYul.Yul.Ast.Stmt) (rest : List EvmYul.Yul.Ast.Stmt),
+      simpleStorageNativeDispatcherInnerStmts =
+        EvmYul.Yul.Ast.Stmt.Let ["__has_selector"] (some e) ::
+          EvmYul.Yul.Ast.Stmt.If c body ::
+          rest := by
+  have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
+  rw [simpleStorageNativeDispatcherStmts_eq_singleton_block] at hOk
+  obtain ⟨next, hInner⟩ := lowerStmtsNative_block_stmts_eq _ _ hOk
+  obtain ⟨rest', hLet, hRestLowering⟩ :=
+    lowerStmtsNativeWithSwitchIds_let_head_eq _ _ _ _ _ _ _ hInner
+  obtain ⟨body', _midN, rest'', hIf, _, _⟩ :=
+    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRestLowering
+  rw [hIf] at hLet
+  exact ⟨_, _, body', rest'', hLet⟩
 
 noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch
