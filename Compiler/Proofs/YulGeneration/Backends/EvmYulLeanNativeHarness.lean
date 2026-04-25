@@ -1611,6 +1611,58 @@ theorem primCall_calldataload4_initialState_arg0_ok
       .ok (state, [EvmYul.UInt256.shiftRight value shift]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
+/-- Native primitive execution of the generated dispatcher selector core:
+    `calldataload(0)` reads the ABI selector word and `shr(224, ...)` decodes
+    the normalized 32-bit selector used by the lowered native switch. -/
+theorem primCall_calldataload0_then_shr224_initialState_selector_ok
+    (loadFuel shrFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat) :
+    (do
+      let (state', values) ←
+        EvmYul.Yul.primCall (loadFuel + 1)
+          (initialState contract tx storage observableSlots)
+          EvmYul.Operation.CALLDATALOAD [EvmYul.UInt256.ofNat 0]
+      match values with
+      | [selectorWord] =>
+          EvmYul.Yul.primCall (shrFuel + 1) state' EvmYul.Operation.SHR
+            [EvmYul.UInt256.ofNat Compiler.Constants.selectorShift,
+              selectorWord]
+      | _ => .error EvmYul.Yul.Exception.InvalidArguments) =
+      .ok (initialState contract tx storage observableSlots,
+        [EvmYul.UInt256.ofNat
+          (tx.functionSelector % Compiler.Constants.selectorModulus)]) := by
+  have hInit :
+      initialState contract tx storage observableSlots =
+        (.Ok (initialState contract tx storage observableSlots).sharedState ∅ :
+          EvmYul.Yul.State) := by
+    simp [initialState, EvmYul.Yul.State.sharedState]
+  rw [hInit]
+  rw [primCall_calldataload_ok]
+  change EvmYul.Yul.primCall (shrFuel + 1)
+      (.Ok (initialState contract tx storage observableSlots).sharedState ∅)
+      EvmYul.Operation.SHR
+        [EvmYul.UInt256.ofNat Compiler.Constants.selectorShift,
+        EvmYul.State.calldataload
+          (EvmYul.Yul.State.Ok
+            (initialState contract tx storage observableSlots).sharedState ∅).toState
+          (EvmYul.UInt256.ofNat 0)] =
+    .ok (.Ok (initialState contract tx storage observableSlots).sharedState ∅,
+      [EvmYul.UInt256.ofNat
+        (tx.functionSelector % Compiler.Constants.selectorModulus)])
+  rw [primCall_shr_ok]
+  rw [show
+      EvmYul.UInt256.shiftRight
+        (EvmYul.State.calldataload
+          (EvmYul.Yul.State.Ok
+            (initialState contract tx storage observableSlots).sharedState ∅).toState
+          (EvmYul.UInt256.ofNat 0))
+        (EvmYul.UInt256.ofNat Compiler.Constants.selectorShift) =
+      EvmYul.UInt256.ofNat
+        (tx.functionSelector % Compiler.Constants.selectorModulus) by
+    simpa [initialState, EvmYul.Yul.State.toState] using
+      initialState_selectorExpr_native_uint256 contract tx storage observableSlots]
+
 @[simp] theorem primCall_eq_ok
     (fuel : Nat)
     (state : EvmYul.Yul.State)
