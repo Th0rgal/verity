@@ -4756,6 +4756,48 @@ theorem exec_nativeSwitchTail_find_none_without_default_fuel
     discrName, matchedName, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
     using hCasesDefault
 
+/-- Selector-miss execution for a lowered switch tail with the compiler's
+    generated `revert(0, 0)` default. This carries the guarded miss proof from
+    the case-chain level to the switch-tail shape used by lowered dispatchers. -/
+theorem exec_nativeSwitchTail_find_none_with_revert_default_fuel
+    (fuel selector switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = none)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases → tag < EvmYul.UInt256.size) :
+    EvmYul.Yul.exec (fuel + cases.length + 10)
+      (.Block (nativeSwitchTailStmts switchId cases [nativeRevertZeroZeroStmt]))
+      (some contract) (nativeSwitchPrefixStateForId contract tx storage
+        observableSlots switchId) =
+    .error EvmYul.Yul.Exception.Revert := by
+  let discrName : EvmYul.Identifier := Backends.nativeSwitchDiscrTempName switchId
+  let matchedName : EvmYul.Identifier := Backends.nativeSwitchMatchedTempName switchId
+  let prefixState :=
+    nativeSwitchPrefixFinalState contract tx storage observableSlots
+      discrName matchedName
+  have hCasesDefault :=
+    exec_nativeSwitchCaseIfs_find_none_with_revert_default_fuel
+      (fuel + 1) selector cases (some contract)
+      prefixState discrName matchedName hFind
+      (by simpa [prefixState, discrName, matchedName] using
+        (nativeSwitchPrefixFinalState_matched contract tx storage
+          observableSlots discrName matchedName))
+      (by simpa [prefixState, discrName, matchedName] using
+        (nativeSwitchPrefixFinalState_discr contract tx storage observableSlots
+          discrName matchedName selector
+          (nativeSwitchDiscrTempName_ne_matchedTempName switchId) hSelector))
+      hSelectorRange hTagsRange
+  simpa [nativeSwitchTailStmts, nativeSwitchPrefixStateForId, prefixState,
+    discrName, matchedName, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+    using hCasesDefault
+
 theorem exec_lowerNativeSwitchBlock_selector_find_hit_preserved_fuel
     (fuel selector switchId : Nat)
     (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
@@ -4867,6 +4909,36 @@ theorem exec_lowerNativeSwitchBlock_selector_find_none_with_default_nonempty_fue
   exact exec_nativeSwitchTail_find_none_with_default_nonempty_fuel fuel
     selector switchId cases defaultBody contract tx storage observableSlots
     final hSelector hFind hSelectorRange hTagsRange hDefaultBody hNonempty
+
+/-- Guarded selector-miss execution for a fully lowered native switch block
+    whose generated default is `revert(0, 0)`. This discharges the generic
+    default-body premise with the actual native `REVERT` primitive path at the
+    same lowered-block boundary used by dispatcher proofs. -/
+theorem exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_fuel
+    (fuel selector switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = none)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases → tag < EvmYul.UInt256.size) :
+    EvmYul.Yul.exec (fuel + cases.length + 12)
+      (Backends.lowerNativeSwitchBlock
+        Compiler.Proofs.YulGeneration.selectorExpr switchId cases
+          [nativeRevertZeroZeroStmt])
+      (some contract)
+      (nativeSwitchInitialOkState contract tx storage observableSlots) =
+    .error EvmYul.Yul.Exception.Revert := by
+  rw [lowerNativeSwitchBlock_selectorExpr_eq_nativeSwitchParts]
+  apply exec_nativeSwitchPrefix_then_tail_error_fuel
+  exact exec_nativeSwitchTail_find_none_with_revert_default_fuel fuel selector
+    switchId cases contract tx storage observableSlots hSelector hFind
+    hSelectorRange hTagsRange
 
 theorem exec_lowerNativeSwitchBlock_selector_find_none_without_default_fuel
     (fuel selector switchId : Nat)
