@@ -1602,6 +1602,30 @@ theorem primCall_calldataload4_initialState_arg0_ok
   rw [primCall_calldataload_ok]
   simpa [hWord]
 
+/-- Native primitive execution of `calldataload(4)` is independent of the
+    current Yul local-variable store. This is the selected-body shape needed
+    after the lowered dispatcher has inserted its switch temporaries. -/
+theorem primCall_calldataload4_initialState_arg0_ok_withStore
+    (fuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (arg : Nat)
+    (rest : List Nat)
+    (hArgs : tx.args = arg :: rest) :
+    EvmYul.Yul.primCall (fuel + 1)
+        (.Ok (initialState contract tx storage observableSlots).sharedState store)
+        EvmYul.Operation.CALLDATALOAD [EvmYul.UInt256.ofNat 4] =
+      .ok (.Ok (initialState contract tx storage observableSlots).sharedState store,
+        [natToUInt256 arg]) := by
+  have hWord :=
+    initialState_calldataload4_arg0_word contract tx storage
+      observableSlots arg rest hArgs
+  rw [primCall_calldataload_ok]
+  simpa [EvmYul.Yul.State.toState] using hWord
+
 @[simp] theorem primCall_shr_ok
     (fuel : Nat)
     (state : EvmYul.Yul.State)
@@ -5266,6 +5290,31 @@ theorem primCall_sstore_initialState_wordSlot_ok
   rw [primCall_sstore_ok]
   simp [initialState, EvmYul.Yul.State.executionEnv]
 
+/-- Native primitive execution of `sstore(slot, value)` from an initial runtime
+    shared state is independent of the current Yul local-variable store. This
+    packages the word-slot storage write in the shape produced after dispatcher
+    switch temporaries have been inserted. -/
+theorem primCall_sstore_initialState_wordSlot_ok_withStore
+    (fuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (slot value : Nat)
+    (_hSlotRange : slot < EvmYul.UInt256.size) :
+    EvmYul.Yul.primCall (fuel + 1)
+        (.Ok (initialState contract tx storage observableSlots).sharedState store)
+        EvmYul.Operation.SSTORE [natToUInt256 slot, natToUInt256 value] =
+      .ok (((.Ok (initialState contract tx storage observableSlots).sharedState store :
+          EvmYul.Yul.State).setState
+          ((.Ok (initialState contract tx storage observableSlots).sharedState store :
+              EvmYul.Yul.State).toState.sstore
+            (natToUInt256 slot) (natToUInt256 value))), []) := by
+  rw [primCall_sstore_ok]
+  simp [initialState, EvmYul.Yul.State.sharedState,
+    EvmYul.Yul.State.executionEnv, YulState.initial, toSharedState]
+
 /-- Native primitive execution of the generated `store(uint256)` core:
     `calldataload(4)` decodes the first ABI argument and the following
     `sstore(0, value)` writes that word to slot zero. This is the real native
@@ -6204,6 +6253,36 @@ def primCall_calldataload4_then_sstore0_stop_initialState_arg0
         | _ => .error EvmYul.Yul.Exception.InvalidArguments)
   | _ => .error EvmYul.Yul.Exception.InvalidArguments
 
+/-- Store-parametric form of the native primitive sequence used by the
+    generated SimpleStorage setter body. The lowered dispatcher executes the
+    selected body after adding switch temporaries to the Yul `VarStore`, while
+    calldata and storage effects are carried entirely by the shared state. -/
+def primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore
+    (loadFuel storeFuel stopFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore) :
+    Except EvmYul.Yul.Exception
+      (EvmYul.Yul.State × List EvmYul.Yul.Ast.Literal) := do
+  let (state', values) ←
+    EvmYul.Yul.primCall (loadFuel + 1)
+      (.Ok (initialState contract tx storage observableSlots).sharedState store)
+      EvmYul.Operation.CALLDATALOAD [EvmYul.UInt256.ofNat 4]
+  match values with
+  | [value] =>
+      (do
+        let (state'', values') ←
+          EvmYul.Yul.primCall (storeFuel + 1) state'
+            EvmYul.Operation.SSTORE [EvmYul.UInt256.ofNat 0, value]
+        match values' with
+        | [] =>
+            EvmYul.Yul.primCall (stopFuel + 1) state''
+              EvmYul.Operation.STOP []
+        | _ => .error EvmYul.Yul.Exception.InvalidArguments)
+  | _ => .error EvmYul.Yul.Exception.InvalidArguments
+
 /-- Exact native primitive execution shape for the generated SimpleStorage setter
     body after dispatcher selection. -/
 theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_eq
@@ -6243,6 +6322,54 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_eq
           (EvmYul.UInt256.ofNat 0) (natToUInt256 arg))) ⟨0⟩)
   rw [primCall_sstore_initialState_wordSlot_ok storeFuel contract tx storage
     observableSlots 0 arg (by norm_num [EvmYul.UInt256.size])]
+  exact primCall_stop_ok stopFuel _
+
+/-- Exact native primitive execution shape for the generated SimpleStorage
+    setter body when the selected body starts with an arbitrary Yul
+    local-variable store. This removes the empty-store side condition left
+    around the dispatcher-selected setter path. -/
+theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_eq
+    (loadFuel storeFuel stopFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction) (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (arg : Nat)
+    (rest : List Nat)
+    (hArgs : tx.args = arg :: rest) :
+    let initialWithStore : EvmYul.Yul.State :=
+      .Ok (initialState contract tx storage observableSlots).sharedState store
+    let finalState :=
+      initialWithStore.setState
+        (initialWithStore.toState.sstore
+          (EvmYul.UInt256.ofNat 0) (natToUInt256 arg))
+    primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore
+      loadFuel storeFuel stopFuel contract tx storage observableSlots store =
+      .error (EvmYul.Yul.Exception.YulHalt finalState ⟨0⟩) := by
+  dsimp
+  unfold primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore
+  rw [primCall_calldataload4_initialState_arg0_ok_withStore loadFuel contract
+    tx storage observableSlots store arg rest hArgs]
+  change
+    (do
+      let (state'', values') ←
+        EvmYul.Yul.primCall (storeFuel + 1)
+          (.Ok (initialState contract tx storage observableSlots).sharedState store)
+          EvmYul.Operation.SSTORE
+          [EvmYul.UInt256.ofNat 0, natToUInt256 arg]
+      match values' with
+      | [] =>
+          EvmYul.Yul.primCall (stopFuel + 1) state''
+            EvmYul.Operation.STOP []
+      | _ => .error EvmYul.Yul.Exception.InvalidArguments) =
+    .error (EvmYul.Yul.Exception.YulHalt
+      ((.Ok (initialState contract tx storage observableSlots).sharedState store :
+          EvmYul.Yul.State).setState
+        ((.Ok (initialState contract tx storage observableSlots).sharedState store :
+            EvmYul.Yul.State).toState.sstore
+          (EvmYul.UInt256.ofNat 0) (natToUInt256 arg))) ⟨0⟩)
+  rw [primCall_sstore_initialState_wordSlot_ok_withStore storeFuel contract tx
+    storage observableSlots store 0 arg (by norm_num [EvmYul.UInt256.size])]
   exact primCall_stop_ok stopFuel _
 
 /-- Native primitive execution of the full generated `store(uint256)` selected
