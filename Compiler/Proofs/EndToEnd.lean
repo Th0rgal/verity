@@ -1974,6 +1974,50 @@ theorem simpleStorageNativeDispatcherInnerStmts_concrete_let_head :
     lowerStmtsNativeWithSwitchIds_let_head_eq _ _ _ _ _ _ _ hInner
   exact ⟨rest', hSplit⟩
 
+/-- Concrete-form equation for the SimpleStorage native dispatcher's full inner
+3-statement block, pinning *all three* source-Yul expressions (the let RHS, the
+selector-miss `iszero(__has_selector)` guard, and the selector-hit
+`__has_selector` guard) to the literal Yul expressions emitted by
+`buildSwitch`. Only the two `If` bodies remain existential, since they depend
+on the lowering of the inner switch over the generated cases. This is the
+companion of `simpleStorageNativeDispatcherInnerStmts_eq_let_if_if` with
+abstract Yul witnesses replaced by concrete syntax. -/
+theorem simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_if :
+    ∃ (body1 body2 : List EvmYul.Yul.Ast.Stmt),
+      simpleStorageNativeDispatcherInnerStmts =
+        [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+            (some
+              (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+                (Yul.YulExpr.call "iszero"
+                  [Yul.YulExpr.call "lt"
+                    [Yul.YulExpr.call "calldatasize" [],
+                     Yul.YulExpr.lit 4]]))),
+         EvmYul.Yul.Ast.Stmt.If
+            (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+              (Yul.YulExpr.call "iszero"
+                [Yul.YulExpr.ident "__has_selector"]))
+            body1,
+         EvmYul.Yul.Ast.Stmt.If
+            (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+              (Yul.YulExpr.ident "__has_selector"))
+            body2] := by
+  have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
+  rw [simpleStorageNativeDispatcherStmts_eq_singleton_block] at hOk
+  obtain ⟨_, hInner⟩ := lowerStmtsNative_block_stmts_eq _ _ hOk
+  obtain ⟨rest', hLet, hRestLowering⟩ :=
+    lowerStmtsNativeWithSwitchIds_let_head_eq _ _ _ _ _ _ _ hInner
+  obtain ⟨body1', _, rest'', hIf1, _, hRest1⟩ :=
+    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRestLowering
+  obtain ⟨body2', _, rest''', hIf2, _, hRest2⟩ :=
+    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRest1
+  rw [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_nil,
+      Except.ok.injEq, Prod.mk.injEq] at hRest2
+  obtain ⟨hNil, _⟩ := hRest2
+  subst hNil
+  rw [hIf2] at hIf1
+  rw [hIf1] at hLet
+  exact ⟨body1', body2', hLet⟩
+
 /-- The `Classical.choose`-pinned let RHS of the SimpleStorage native dispatcher
 equals the lowered `iszero(lt(calldatasize(), 4))` Yul expression that
 `buildSwitch` emits. Combining the named-form decomposition
@@ -1997,6 +2041,37 @@ theorem simpleStorageNativeDispatcher_letValue_eq :
   simp only [List.cons.injEq, EvmYul.Yul.Ast.Stmt.Let.injEq, Option.some.injEq,
     true_and] at hCombo
   exact hCombo.1
+
+/-- The `Classical.choose`-pinned selector-miss guard condition of the
+SimpleStorage native dispatcher equals the lowered `iszero(__has_selector)`
+Yul expression that `buildSwitch` emits. Derived by head injection from the
+concrete-form full equation and the named-form decomposition. -/
+theorem simpleStorageNativeDispatcher_if1Cond_eq :
+    simpleStorageNativeDispatcher_if1Cond =
+      Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+        (Yul.YulExpr.call "iszero"
+          [Yul.YulExpr.ident "__has_selector"]) := by
+  obtain ⟨_, _, hConcrete⟩ :=
+    simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_if
+  have hCombo :=
+    simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if.symm.trans hConcrete
+  simp only [List.cons.injEq, EvmYul.Yul.Ast.Stmt.If.injEq] at hCombo
+  exact hCombo.2.1.1
+
+/-- The `Classical.choose`-pinned selector-hit guard condition of the
+SimpleStorage native dispatcher equals the lowered `__has_selector` ident
+expression that `buildSwitch` emits. Derived by head injection from the
+concrete-form full equation and the named-form decomposition. -/
+theorem simpleStorageNativeDispatcher_if2Cond_eq :
+    simpleStorageNativeDispatcher_if2Cond =
+      Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+        (Yul.YulExpr.ident "__has_selector") := by
+  obtain ⟨_, _, hConcrete⟩ :=
+    simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_if
+  have hCombo :=
+    simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if.symm.trans hConcrete
+  simp only [List.cons.injEq, EvmYul.Yul.Ast.Stmt.If.injEq] at hCombo
+  exact hCombo.2.2.1.1
 
 noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch
