@@ -8125,11 +8125,8 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_find_none_with_rev
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (hSelectorBound : tx.functionSelector < Compiler.Constants.selectorModulus)
-    (hFind :
-      [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)].find?
-          (fun entry =>
-            entry.1 == tx.functionSelector % Compiler.Constants.selectorModulus) =
-        none) :
+    (hFind : [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)].find?
+        (fun entry => entry.1 == tx.functionSelector % Compiler.Constants.selectorModulus) = none) :
     EvmYul.Yul.exec
         (fuel + [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)].length + 12)
         (Backends.lowerNativeSwitchBlock
@@ -8158,6 +8155,53 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_find_none_with_rev
           norm_num [Compiler.Constants.selectorModulus, EvmYul.UInt256.size]
         rw [hmod]
         omega) |>.imp_right (by intro h; simp [simpleStorageRevertProjectedResult] at h ⊢)
+
+/-- Guarded selector-miss execution for the concrete SimpleStorage dispatcher,
+    using the semantic selector disequalities instead of the raw generated
+    selector-table lookup.
+
+This is the branch shape needed by the dispatcher bridge case split: once the
+transaction selector is known to be neither generated selector, the concrete
+`find? = none` premise is discharged internally before executing the actual
+native lowered switch relation. -/
+theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_miss_with_revert_default_projectResult_eq
+    (fuel switchId : Nat)
+    (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (hSelectorBound : tx.functionSelector < Compiler.Constants.selectorModulus)
+    (hNotStore : tx.functionSelector ≠ 0x6057361d)
+    (hNotRetrieve : tx.functionSelector ≠ 0x2e64cec1) :
+    EvmYul.Yul.exec
+        (fuel + [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)].length + 12)
+        (Backends.lowerNativeSwitchBlock
+          Compiler.Proofs.YulGeneration.selectorExpr
+          switchId
+          [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)]
+          [nativeRevertZeroZeroStmt])
+        (some contract)
+        (nativeSwitchInitialOkState contract tx storage observableSlots) =
+      .error EvmYul.Yul.Exception.Revert ∧
+    projectResult tx storage initialEvents
+        (.error EvmYul.Yul.Exception.Revert) =
+      simpleStorageRevertProjectedResult storage initialEvents := by
+  apply
+    exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_find_none_with_revert_default_projectResult_eq
+      fuel switchId storeBody retrieveBody contract tx storage initialEvents
+      observableSlots hSelectorBound
+  have hMod :
+      tx.functionSelector % Compiler.Constants.selectorModulus =
+        tx.functionSelector :=
+    Nat.mod_eq_of_lt hSelectorBound
+  simp [hMod]
+  constructor
+  · intro h
+    exact hNotStore h.symm
+  · intro h
+    exact hNotRetrieve h.symm
 
 /-- Store-selector hit execution for the concrete SimpleStorage dispatcher
     selector set. This specializes the generic lowered-switch hit theorem to
