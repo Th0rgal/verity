@@ -5937,6 +5937,83 @@ theorem primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_ok
   · rfl
   · rfl
 
+/-- The native primitive sequence used by the generated SimpleStorage setter
+    body after dispatcher selection. -/
+def primCall_calldataload4_then_sstore0_stop_initialState_arg0
+    (loadFuel storeFuel stopFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    Except EvmYul.Yul.Exception
+      (EvmYul.Yul.State × List EvmYul.Yul.Ast.Literal) := do
+  let (state', values) ←
+    EvmYul.Yul.primCall (loadFuel + 1)
+      (initialState contract tx storage observableSlots)
+      EvmYul.Operation.CALLDATALOAD [EvmYul.UInt256.ofNat 4]
+  match values with
+  | [value] =>
+      (do
+        let (state'', values') ←
+          EvmYul.Yul.primCall (storeFuel + 1) state'
+            EvmYul.Operation.SSTORE [EvmYul.UInt256.ofNat 0, value]
+        match values' with
+        | [] =>
+            EvmYul.Yul.primCall (stopFuel + 1) state''
+              EvmYul.Operation.STOP []
+        | _ => .error EvmYul.Yul.Exception.InvalidArguments)
+  | _ => .error EvmYul.Yul.Exception.InvalidArguments
+
+/-- Native primitive execution of the full generated `store(uint256)` selected
+    body tail: `calldataload(4); sstore(0, arg0); stop`. The terminating
+    `STOP` travels through EVMYulLean's Yul-halt channel and projects as a
+    successful call with no return word. -/
+theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_ok
+    (loadFuel storeFuel stopFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction) (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (arg : Nat)
+    (rest : List Nat)
+    (hArgs : tx.args = arg :: rest) :
+    ∃ haltState haltValue,
+      primCall_calldataload4_then_sstore0_stop_initialState_arg0
+        loadFuel storeFuel stopFuel contract tx storage observableSlots =
+        .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
+      (projectResult tx storage initialEvents
+        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).success =
+        true ∧
+      (projectResult tx storage initialEvents
+        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).returnValue =
+        none := by
+  let finalState :=
+    (initialState contract tx storage observableSlots).setState
+      ((initialState contract tx storage observableSlots).toState.sstore
+        (EvmYul.UInt256.ofNat 0) (natToUInt256 arg))
+  refine ⟨finalState, ⟨0⟩, ?_, ?_, ?_⟩
+  · unfold primCall_calldataload4_then_sstore0_stop_initialState_arg0
+    rw [primCall_calldataload4_initialState_arg0_ok loadFuel contract tx
+      storage observableSlots arg rest hArgs]
+    change
+      (do
+        let (state'', values') ←
+          EvmYul.Yul.primCall (storeFuel + 1)
+            (initialState contract tx storage observableSlots)
+            EvmYul.Operation.SSTORE
+            [EvmYul.UInt256.ofNat 0, natToUInt256 arg]
+        match values' with
+        | [] =>
+            EvmYul.Yul.primCall (stopFuel + 1) state''
+              EvmYul.Operation.STOP []
+        | _ => .error EvmYul.Yul.Exception.InvalidArguments) =
+        .error (EvmYul.Yul.Exception.YulHalt finalState ⟨0⟩)
+    rw [primCall_sstore_initialState_wordSlot_ok storeFuel contract tx storage
+      observableSlots 0 arg (by norm_num [EvmYul.UInt256.size])]
+    exact primCall_stop_ok stopFuel finalState
+  · rfl
+  · rfl
+
 /-- Native primitive execution of the generated `store(uint256)` core, lifted
     through Verity's projected native result boundary for a nonzero slot-zero
     write. The remaining zero-write case goes through `Account.updateStorage`'s
