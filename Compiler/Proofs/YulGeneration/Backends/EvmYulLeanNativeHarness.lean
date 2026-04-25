@@ -5865,6 +5865,56 @@ theorem primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_ok
   · rfl
   · rfl
 
+/-- Native primitive execution of the generated `store(uint256)` core, lifted
+    through Verity's projected native result boundary for a nonzero slot-zero
+    write. The remaining zero-write case goes through `Account.updateStorage`'s
+    key-erasure branch and needs the corresponding `RBMap.erase` lookup fact. -/
+theorem primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot0
+    (loadFuel storeFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (arg : Nat)
+    (rest : List Nat)
+    (hArgs : tx.args = arg :: rest)
+    (hValueNonzero :
+      (natToUInt256 arg == (⟨0⟩ : EvmYul.UInt256)) = false) :
+    ∃ finalState,
+      (do
+        let (state', values) ←
+          EvmYul.Yul.primCall (loadFuel + 1)
+            (initialState contract tx storage observableSlots)
+            EvmYul.Operation.CALLDATALOAD [EvmYul.UInt256.ofNat 4]
+        match values with
+        | [value] =>
+            EvmYul.Yul.primCall (storeFuel + 1) state'
+              EvmYul.Operation.SSTORE [EvmYul.UInt256.ofNat 0, value]
+        | _ => .error EvmYul.Yul.Exception.InvalidArguments) =
+        .ok (finalState, []) ∧
+      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage 0 =
+        arg % EvmYul.UInt256.size := by
+  refine ⟨(initialState contract tx storage observableSlots).setState
+    ((initialState contract tx storage observableSlots).toState.sstore
+      (EvmYul.UInt256.ofNat 0) (natToUInt256 arg)), ?_, ?_⟩
+  · exact primCall_calldataload4_then_sstore0_initialState_arg0_ok
+      loadFuel storeFuel contract tx storage observableSlots arg rest hArgs
+  · simp only [projectResult, projectStorageFromState, extractStorage,
+      initialState, EvmYul.Yul.State.sharedState, EvmYul.Yul.State.setState,
+      EvmYul.Yul.State.toState, EvmYul.State.sstore, EvmYul.State.lookupAccount,
+      EvmYul.State.setAccount, EvmYul.State.addAccessedStorageKey,
+      EvmYul.Account.updateStorage, YulState.initial, toSharedState,
+      natToUInt256, uint256ToNat, EvmYul.UInt256.toNat]
+    have hBranch :
+        (EvmYul.UInt256.ofNat arg == (Inhabited.default : EvmYul.UInt256)) =
+          false := by
+      simpa [natToUInt256, EvmYul.UInt256.instInhabited] using hValueNonzero
+    rw [hBranch]
+    simp [Option.option, Batteries.RBMap.find?_insert_of_eq _
+      Std.ReflCmp.compare_self, EvmYul.UInt256.size]
+    rfl
+
 @[simp] theorem projectResult_yulHalt_events
     (tx : YulTransaction)
     (initialStorage : Nat → Nat)
