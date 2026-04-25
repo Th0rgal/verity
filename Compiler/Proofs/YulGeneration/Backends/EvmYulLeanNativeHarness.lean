@@ -6619,6 +6619,45 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_pro
   · rfl
   · rfl
 
+/-- Exact projected result for the generated `store(uint256)` selected body
+    from an arbitrary dispatcher local store. This packages the
+    `CALLDATALOAD; SSTORE; STOP` native primitive sequence as one full
+    `YulResult` equality, rather than only exposing success and return-value
+    field facts. -/
+theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_eq
+    (loadFuel storeFuel stopFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction) (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (arg : Nat)
+    (rest : List Nat)
+    (hArgs : tx.args = arg :: rest) :
+    ∃ haltState haltValue,
+      primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore
+        loadFuel storeFuel stopFuel contract tx storage observableSlots store =
+        .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
+      projectResult tx storage initialEvents
+          (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue)) =
+        { success := true
+          returnValue := none
+          finalStorage := projectStorageFromState tx haltState
+          finalMappings :=
+            Compiler.Proofs.storageAsMappings (projectStorageFromState tx haltState)
+          events := initialEvents ++ projectLogsFromState haltState } := by
+  let initialWithStore : EvmYul.Yul.State :=
+    .Ok (initialState contract tx storage observableSlots).sharedState store
+  let finalState :=
+    initialWithStore.setState
+      (initialWithStore.toState.sstore
+        (EvmYul.UInt256.ofNat 0) (natToUInt256 arg))
+  refine ⟨finalState, ⟨0⟩, ?_, ?_⟩
+  · exact primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_eq
+      loadFuel storeFuel stopFuel contract tx storage observableSlots store arg
+      rest hArgs
+  · simp [projectResult]
+
 /-- Native primitive execution of the full generated `store(uint256)` selected
     body from an arbitrary local store, lifted through `STOP` and Verity's
     projected native result boundary for a nonzero slot-zero write. -/
