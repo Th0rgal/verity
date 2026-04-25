@@ -278,6 +278,56 @@ def nativeDispatcherExecAgreesWithInterpreter
       .evmYulLean fuel (Compiler.emitYul contract).runtimeCode
       (YulTransaction.ofIR tx) state.storage state.events)
 
+/-- Positive-fuel raw native dispatcher-exec agreement target.
+
+This is the same selected-dispatcher obligation as
+`nativeDispatcherExecAgreesWithInterpreter (Nat.succ fuel')`, but without the
+dead zero-fuel branch. Concrete generated dispatchers such as SimpleStorage use
+the compiler-emitted runtime size plus one as fuel, so their remaining seam can
+target this smaller positive-fuel shape directly. -/
+def nativeDispatcherExecAgreesWithInterpreterPositive
+    (fuel' : Nat)
+    (contract : IRContract)
+    (tx : IRTransaction)
+    (state : IRState)
+    (observableSlots : List Nat)
+    (nativeContract : EvmYul.Yul.Ast.YulContract) :
+    Prop :=
+  let initial :=
+    Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
+      (YulTransaction.ofIR tx) state.storage
+      (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+        (Compiler.runtimeCode contract) observableSlots)
+  let nativeResult :=
+    match
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        fuel' nativeContract initial with
+    | .error err => .error err
+    | .ok finalState =>
+        let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
+        .ok (restored, [])
+  yulResultsAgreeOn observableSlots
+    (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+      (YulTransaction.ofIR tx) state.storage state.events nativeResult)
+    (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackendFuel
+      .evmYulLean (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
+      (YulTransaction.ofIR tx) state.storage state.events)
+
+/-- Lift the positive-fuel dispatcher-exec obligation back to the generic raw
+dispatcher bridge shape consumed by the existing native theorem stack. -/
+theorem nativeDispatcherExecAgreesWithInterpreter_of_positive
+    {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
+    {state : IRState} {observableSlots : List Nat}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    (hAgree :
+      nativeDispatcherExecAgreesWithInterpreterPositive fuel' contract tx state
+        observableSlots nativeContract) :
+    nativeDispatcherExecAgreesWithInterpreter (Nat.succ fuel') contract tx state
+      observableSlots nativeContract := by
+  unfold nativeDispatcherExecAgreesWithInterpreterPositive at hAgree
+  unfold nativeDispatcherExecAgreesWithInterpreter
+  simpa using hAgree
+
 /-- Intro form for the positive-fuel raw dispatcher-exec bridge when native
 execution finishes normally.
 
@@ -1222,8 +1272,8 @@ dispatcher-block result wrapper has already been discharged by
 def simpleStorageNativeCallDispatcherBridge
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     : Prop :=
-  nativeDispatcherExecAgreesWithInterpreter
-    (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
+  nativeDispatcherExecAgreesWithInterpreterPositive
+    (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode)
     simpleStorageIRContract tx initialState observableSlots
     Compiler.SimpleStorageNativeWitness.nativeContract
 
@@ -1352,7 +1402,8 @@ theorem simpleStorage_endToEnd_native_evmYulLean
     hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead hparamErase hEnv
     (nativeCallDispatcherAgreesWithInterpreter_of_dispatcherBlock_agree
       (nativeDispatcherBlockAgreesWithInterpreter_of_exec_agree
-        hNativeCallDispatcher))
+        (nativeDispatcherExecAgreesWithInterpreter_of_positive
+          hNativeCallDispatcher)))
 
 /-! ## Universal Pure Arithmetic Bridge
 
