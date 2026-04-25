@@ -1852,36 +1852,103 @@ theorem simpleStorageNativeDispatcherInnerStmts_eq_let_if_if :
   rw [hIf1] at hLet
   exact ⟨_, _, body1', _, body2', hLet⟩
 
+/-- The lowered RHS expression of the SimpleStorage native dispatcher's
+`__has_selector` let. Pinned via `Classical.choose` from the let/if/if shape
+existential so it can be referenced by downstream proofs without re-`obtain`-ing
+the witness each time. -/
+noncomputable def simpleStorageNativeDispatcher_letValue :
+    EvmYul.Yul.Ast.Expr :=
+  Classical.choose simpleStorageNativeDispatcherInnerStmts_eq_let_if_if
+
+/-- The lowered condition of the SimpleStorage native dispatcher's
+selector-miss `if iszero(__has_selector) { … }` guard. -/
+noncomputable def simpleStorageNativeDispatcher_if1Cond :
+    EvmYul.Yul.Ast.Expr :=
+  Classical.choose
+    (Classical.choose_spec simpleStorageNativeDispatcherInnerStmts_eq_let_if_if)
+
+/-- The lowered body of the SimpleStorage native dispatcher's selector-miss
+guard (the `revert(0,0)` revert path). -/
+noncomputable def simpleStorageNativeDispatcher_if1Body :
+    List EvmYul.Yul.Ast.Stmt :=
+  Classical.choose
+    (Classical.choose_spec
+      (Classical.choose_spec simpleStorageNativeDispatcherInnerStmts_eq_let_if_if))
+
+/-- The lowered condition of the SimpleStorage native dispatcher's
+selector-hit `if __has_selector { switch … }` body. -/
+noncomputable def simpleStorageNativeDispatcher_if2Cond :
+    EvmYul.Yul.Ast.Expr :=
+  Classical.choose
+    (Classical.choose_spec
+      (Classical.choose_spec
+        (Classical.choose_spec
+          simpleStorageNativeDispatcherInnerStmts_eq_let_if_if)))
+
+/-- The lowered body of the SimpleStorage native dispatcher's selector-hit
+`if __has_selector { switch … }` body — i.e., the singleton list containing
+the lowered `switch` over the three generated cases. -/
+noncomputable def simpleStorageNativeDispatcher_if2Body :
+    List EvmYul.Yul.Ast.Stmt :=
+  Classical.choose
+    (Classical.choose_spec
+      (Classical.choose_spec
+        (Classical.choose_spec
+          (Classical.choose_spec
+            simpleStorageNativeDispatcherInnerStmts_eq_let_if_if))))
+
+/-- Closed-form decomposition of the SimpleStorage native dispatcher inner
+statement list using the named witness defs. Eliminates the existential
+boilerplate from the `_eq_let_if_if` lemma so future selector-case proofs can
+rewrite the dispatcher inner-stmts to a literal 3-element list. -/
+theorem simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if :
+    simpleStorageNativeDispatcherInnerStmts =
+      [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+          (some simpleStorageNativeDispatcher_letValue),
+       EvmYul.Yul.Ast.Stmt.If
+          simpleStorageNativeDispatcher_if1Cond
+          simpleStorageNativeDispatcher_if1Body,
+       EvmYul.Yul.Ast.Stmt.If
+          simpleStorageNativeDispatcher_if2Cond
+          simpleStorageNativeDispatcher_if2Body] :=
+  Classical.choose_spec
+    (Classical.choose_spec
+      (Classical.choose_spec
+        (Classical.choose_spec
+          (Classical.choose_spec
+            simpleStorageNativeDispatcherInnerStmts_eq_let_if_if))))
+
 /-- Composed structural form of the SimpleStorage native dispatcher exec:
 the doubly-blocked dispatcher is exposed at the concrete inner three-statement
-spine `[.Let __has_selector, .If c1 body1, .If c2 body2]`. This combines
-`simpleStorageNativeContract_dispatcherExec_eq_innerBlock_exec` with the
-inner-stmts shape lemma so downstream proofs only need to reason about the
-concrete 3-statement block, not the opaque `simpleStorageNativeDispatcherInnerStmts`
-witness. -/
-theorem simpleStorageNativeContract_dispatcherExec_eq_let_if_if_block_exec
+spine using the pinned named witnesses. This combines
+`simpleStorageNativeContract_dispatcherExec_eq_innerBlock_exec` with
+`simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if`, replacing the
+existential let/if/if shape with a concrete equation in named witnesses. -/
+theorem simpleStorageNativeContract_dispatcherExec_eq_named_let_if_if_block_exec
     (peeledFuel : Nat)
     (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat) :
-    ∃ (e c1 c2 : EvmYul.Yul.Ast.Expr)
-      (body1 body2 : List EvmYul.Yul.Ast.Stmt),
-      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-          (Nat.succ (Nat.succ (Nat.succ peeledFuel)))
+    Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        (Nat.succ (Nat.succ (Nat.succ peeledFuel)))
+        Compiler.SimpleStorageNativeWitness.nativeContract
+        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
           Compiler.SimpleStorageNativeWitness.nativeContract
-          (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-            Compiler.SimpleStorageNativeWitness.nativeContract
-            tx storage observableSlots) =
-        EvmYul.Yul.exec (Nat.succ peeledFuel)
-          (.Block [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"] (some e),
-                   EvmYul.Yul.Ast.Stmt.If c1 body1,
-                   EvmYul.Yul.Ast.Stmt.If c2 body2])
-          (some Compiler.SimpleStorageNativeWitness.nativeContract)
-          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
-            Compiler.SimpleStorageNativeWitness.nativeContract
-            tx storage observableSlots) := by
-  obtain ⟨e, c1, body1, c2, body2, hShape⟩ :=
-    simpleStorageNativeDispatcherInnerStmts_eq_let_if_if
-  refine ⟨e, c1, c2, body1, body2, ?_⟩
-  rw [simpleStorageNativeContract_dispatcherExec_eq_innerBlock_exec, hShape]
+          tx storage observableSlots) =
+      EvmYul.Yul.exec (Nat.succ peeledFuel)
+        (.Block
+          [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+              (some simpleStorageNativeDispatcher_letValue),
+           EvmYul.Yul.Ast.Stmt.If
+              simpleStorageNativeDispatcher_if1Cond
+              simpleStorageNativeDispatcher_if1Body,
+           EvmYul.Yul.Ast.Stmt.If
+              simpleStorageNativeDispatcher_if2Cond
+              simpleStorageNativeDispatcher_if2Body])
+        (some Compiler.SimpleStorageNativeWitness.nativeContract)
+        (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
+          Compiler.SimpleStorageNativeWitness.nativeContract
+          tx storage observableSlots) := by
+  rw [simpleStorageNativeContract_dispatcherExec_eq_innerBlock_exec,
+      simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if]
 
 noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch
