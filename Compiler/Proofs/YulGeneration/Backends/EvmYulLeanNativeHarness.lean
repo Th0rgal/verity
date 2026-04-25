@@ -5965,6 +5965,54 @@ def projectResult
   simp [projectResult, projectStorageFromState_missingAccountStorageSlot,
     hAccount, hSlot]
 
+/-- Native primitive execution of `sstore(slot, value)` on a word-canonical
+    initial runtime slot, lifted through Verity's projected native result
+    boundary for a nonzero write.
+
+This is the generic storage-projection form of the SimpleStorage slot-zero
+setter lemma: it proves that the actual EVMYulLean `SSTORE` primitive writes
+the projected final storage word for any canonical slot, as long as the EVM
+storage update takes the insertion branch rather than the zero-value erasure
+branch. -/
+theorem primCall_sstore_initialState_wordSlot_projectResult_slot
+    (fuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (slot value : Nat)
+    (hSlotRange : slot < EvmYul.UInt256.size)
+    (hValueNonzero :
+      (natToUInt256 value == (⟨0⟩ : EvmYul.UInt256)) = false) :
+    ∃ finalState,
+      EvmYul.Yul.primCall (fuel + 1)
+          (initialState contract tx storage observableSlots)
+          EvmYul.Operation.SSTORE [natToUInt256 slot, natToUInt256 value] =
+        .ok (finalState, []) ∧
+      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage slot =
+        value % EvmYul.UInt256.size := by
+  refine ⟨(initialState contract tx storage observableSlots).setState
+    ((initialState contract tx storage observableSlots).toState.sstore
+      (natToUInt256 slot) (natToUInt256 value)), ?_, ?_⟩
+  · exact primCall_sstore_initialState_wordSlot_ok fuel contract tx storage
+      observableSlots slot value hSlotRange
+  · simp only [projectResult, projectStorageFromState, extractStorage,
+      initialState, EvmYul.Yul.State.sharedState, EvmYul.Yul.State.setState,
+      EvmYul.Yul.State.toState, EvmYul.State.sstore, EvmYul.State.lookupAccount,
+      EvmYul.State.setAccount, EvmYul.State.addAccessedStorageKey,
+      EvmYul.Account.updateStorage, YulState.initial, toSharedState,
+      natToUInt256, uint256ToNat, EvmYul.UInt256.toNat]
+    have hBranch :
+        (EvmYul.UInt256.ofNat value == (Inhabited.default : EvmYul.UInt256)) =
+          false := by
+      simpa [natToUInt256, EvmYul.UInt256.instInhabited] using hValueNonzero
+    rw [hBranch]
+    have hSlotEq : EvmYul.UInt256.ofNat slot = natToUInt256 slot := rfl
+    simp [Option.option, hSlotEq, Batteries.RBMap.find?_insert_of_eq _
+      Std.ReflCmp.compare_self, EvmYul.UInt256.size]
+    rfl
+
 /-- Native primitive execution of the generated `store(uint256)` core, lifted
     through Verity's projected native result boundary for call success and
     absence of a return word. Storage-slot agreement remains the next setter
