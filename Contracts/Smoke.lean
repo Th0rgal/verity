@@ -751,6 +751,12 @@ verity_contract HelperExternalArgumentSmoke where
     setStorage saved echoed
     return echoed
 
+  function allow_post_interaction_writes mutableExternalArgReassign (x : Uint256) : Uint256 := do
+    let mut echoed := x
+    echoed := externalCall "echo" [x]
+    setStorage saved echoed
+    return echoed
+
   function allow_post_interaction_writes tupleExternalArg (x : Uint256) : Uint256 := do
     let echoed := externalCall "echo" [x]
     let (a, b) ← pair echoed

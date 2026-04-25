@@ -329,6 +329,14 @@ macro_rules
       `(doElem| let mut $var ← externalCallWords $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ])
   | `(doElem| let mut $var:ident := externalCall $name:str [ $[$args:term],* ]) =>
       `(doElem| let mut $var ← externalCallWords $name [ $[ExternalArg.toWord $args],* ])
+  | `(doElem| $var:ident := externalCall $name:ident [ $[$args:term],* ]) =>
+      `(doElem| do
+          let __verity_external_assign ← externalCallWords $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ]
+          $var:ident := __verity_external_assign)
+  | `(doElem| $var:ident := externalCall $name:str [ $[$args:term],* ]) =>
+      `(doElem| do
+          let __verity_external_assign ← externalCallWords $name [ $[ExternalArg.toWord $args],* ]
+          $var:ident := __verity_external_assign)
   | `(doElem| let $var:ident ← $fn:ident (externalCall $name:ident [ $[$args:term],* ]) ) =>
       `(doElem| do
           let __verity_external_arg ← externalCallWords $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ]
