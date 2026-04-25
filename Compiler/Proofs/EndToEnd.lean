@@ -1595,6 +1595,63 @@ theorem simpleStorageNativeDispatcherStmts_eq_singleton_block :
       [.Block simpleStorageNativeDispatcherInnerStmts] :=
   Classical.choose_spec simpleStorageNativeDispatcherStmts_exists_singleton_block
 
+/-- Transitive form of the SimpleStorage native dispatcher shape: combining
+the lowered-stmts and singleton-block equalities exposes the dispatcher value
+as `.Block [.Block <inner>]`, which is the exact shape consumed by the harness
+dispatcher-exec peel lemma. -/
+theorem simpleStorageNativeContract_dispatcher_eq_singleton_block_inner :
+    Compiler.SimpleStorageNativeWitness.nativeContract.dispatcher =
+      .Block [.Block simpleStorageNativeDispatcherInnerStmts] := by
+  rw [simpleStorageNativeContract_dispatcher_eq_lowered_stmts,
+    simpleStorageNativeDispatcherStmts_eq_singleton_block]
+
+/-- Reify the SimpleStorage native witness contract as a record whose
+dispatcher is the doubly-blocked inner statement list.
+
+This packages record-η with the lowered + singleton-block dispatcher
+equalities so that the harness peel lemmas (which expect a
+`{ dispatcher := .Block body, functions := … }` shape) apply in one rewrite. -/
+theorem simpleStorageNativeContract_eq_record_inner_block :
+    Compiler.SimpleStorageNativeWitness.nativeContract =
+      { dispatcher := .Block [.Block simpleStorageNativeDispatcherInnerStmts]
+        functions :=
+          Compiler.SimpleStorageNativeWitness.nativeContract.functions } := by
+  have hEta : Compiler.SimpleStorageNativeWitness.nativeContract =
+      (⟨Compiler.SimpleStorageNativeWitness.nativeContract.dispatcher,
+        Compiler.SimpleStorageNativeWitness.nativeContract.functions⟩ :
+          EvmYul.Yul.Ast.YulContract) := rfl
+  rw [hEta, simpleStorageNativeContract_dispatcher_eq_singleton_block_inner]
+
+/-- Dispatcher-exec for the SimpleStorage native witness peels TWO outer
+`.Block` wrappers (the function-body wrapper installed by the dispatcher exec
+plus the singleton-block emitted by `buildSwitch`'s native lowering) into a
+direct `EvmYul.Yul.exec` over the inner statement list.
+
+This collapses the bridge's dispatcher invocation into the same shape the
+harness's per-selector body lemmas already speak about, in preparation for
+discharging the bridge from those lemmas. -/
+theorem simpleStorageNativeContract_dispatcherExec_eq_innerBlock_exec
+    (peeledFuel : Nat)
+    (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat) :
+    Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        (Nat.succ (Nat.succ (Nat.succ peeledFuel)))
+        Compiler.SimpleStorageNativeWitness.nativeContract
+        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+          Compiler.SimpleStorageNativeWitness.nativeContract
+          tx storage observableSlots) =
+      EvmYul.Yul.exec (Nat.succ peeledFuel)
+        (.Block simpleStorageNativeDispatcherInnerStmts)
+        (some Compiler.SimpleStorageNativeWitness.nativeContract)
+        (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
+          Compiler.SimpleStorageNativeWitness.nativeContract
+          tx storage observableSlots) := by
+  rw [simpleStorageNativeContract_eq_record_inner_block]
+  rw [Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_block_dispatcher_eq_exec_block
+    (Nat.succ peeledFuel) [.Block simpleStorageNativeDispatcherInnerStmts]
+    Compiler.SimpleStorageNativeWitness.nativeContract.functions
+    tx storage observableSlots]
+  rw [Compiler.Proofs.YulGeneration.Backends.Native.exec_singleton_block_eq_exec_block]
+
 noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch
     simpleStorageIRContract.functions none none]
