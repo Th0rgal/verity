@@ -1822,6 +1822,36 @@ theorem simpleStorageNativeDispatcherInnerStmts_let_if_head_exists :
   rw [hIf] at hLet
   exact ⟨_, _, body', rest'', hLet⟩
 
+/-- The full inner-block of the SimpleStorage native dispatcher has exactly the
+expected three-statement shape: the lowered `let __has_selector := …`, the
+selector-miss `if iszero(__has_selector) { … }` guard, and the selector-hit
+`if __has_selector { switch … }` body. The trailing list is empty because
+`buildSwitch` produces a 3-statement source block. -/
+theorem simpleStorageNativeDispatcherInnerStmts_eq_let_if_if :
+    ∃ (e : EvmYul.Yul.Ast.Expr) (c1 : EvmYul.Yul.Ast.Expr)
+      (body1 : List EvmYul.Yul.Ast.Stmt)
+      (c2 : EvmYul.Yul.Ast.Expr) (body2 : List EvmYul.Yul.Ast.Stmt),
+      simpleStorageNativeDispatcherInnerStmts =
+        [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"] (some e),
+         EvmYul.Yul.Ast.Stmt.If c1 body1,
+         EvmYul.Yul.Ast.Stmt.If c2 body2] := by
+  have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
+  rw [simpleStorageNativeDispatcherStmts_eq_singleton_block] at hOk
+  obtain ⟨_, hInner⟩ := lowerStmtsNative_block_stmts_eq _ _ hOk
+  obtain ⟨rest', hLet, hRestLowering⟩ :=
+    lowerStmtsNativeWithSwitchIds_let_head_eq _ _ _ _ _ _ _ hInner
+  obtain ⟨body1', _, rest'', hIf1, _, hRest1⟩ :=
+    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRestLowering
+  obtain ⟨body2', _, rest''', hIf2, _, hRest2⟩ :=
+    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRest1
+  rw [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_nil,
+      Except.ok.injEq, Prod.mk.injEq] at hRest2
+  obtain ⟨hNil, _⟩ := hRest2
+  subst hNil
+  rw [hIf2] at hIf1
+  rw [hIf1] at hLet
+  exact ⟨_, _, body1', _, body2', hLet⟩
+
 noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch
     simpleStorageIRContract.functions none none]
