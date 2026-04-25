@@ -2839,6 +2839,10 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.byteArray_readWithPadding_zero_32_eq_of_size  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.byteArray_write_empty_zero_32_eq_of_size  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.byteArray_write_empty_zero_32_readWithPadding_eq_of_size
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.toBytesBigEndian_uint256_length_le  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_loop_size  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_size  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.uint256_toByteArray_size
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_arg0Bytes
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataload4_arg0_value
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_selectorExpr_native_value
@@ -2997,6 +3001,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore0_then_return32_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.mstore0_then_return32_hReturn_size
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.mstore0_then_return32_emptyMemory_hReturn_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.mstore0_then_return32_emptyMemory_hReturn_eq_toByteArray
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore0_then_return32_ok_hReturn_size
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_omittedStorageSlot
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectLogEntry_topicsAndWordData
@@ -3322,4 +3327,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3149 theorems/lemmas (2235 public, 914 private, 0 sorry'd)
+-- Total: 3154 theorems/lemmas (2237 public, 917 private, 0 sorry'd)

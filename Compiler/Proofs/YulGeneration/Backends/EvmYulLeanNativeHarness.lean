@@ -3,12 +3,14 @@ import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanStateBridge
 import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 import Compiler.Codegen
 import EvmYul.Yul.Interpreter
+import Lean
 
 namespace Compiler.Proofs.YulGeneration.Backends.Native
 
 open Compiler.Yul
 open Compiler.Proofs.YulGeneration
 open Compiler.Proofs.YulGeneration.Backends.StateBridge
+open Lean Elab Tactic Meta
 
 /-!
 Executable native EVMYulLean runtime harness for #1737.
@@ -1190,6 +1192,58 @@ theorem byteArray_write_empty_zero_32_readWithPadding_eq_of_size
     (source.write 0 ByteArray.empty 0 32).readWithPadding 0 32 = source := by
   rw [byteArray_write_empty_zero_32_eq_of_size source hSize]
   exact byteArray_readWithPadding_zero_32_eq_of_size source hSize
+
+elab "apply_evmyul_toBytes_uint256_length_le" : tactic => do
+  let theoremName :=
+    Name.str
+      (Name.str
+        (Name.num
+          (Name.str (Name.str (Name.str .anonymous "_private") "EvmYul") "UInt256")
+          0)
+        "EvmYul")
+      "toBytes'_UInt256_le"
+  let goals ← (← getMainGoal).apply (mkConst theoremName)
+  replaceMainGoal goals
+
+private theorem toBytesBigEndian_uint256_length_le
+    {n : Nat} (h : n < EvmYul.UInt256.size) :
+    (EvmYul.toBytesBigEndian n).length ≤ 32 := by
+  unfold EvmYul.toBytesBigEndian
+  simp
+  apply_evmyul_toBytes_uint256_length_le
+  exact h
+
+private theorem list_toByteArray_loop_size (bytes : List UInt8) (acc : ByteArray) :
+    (List.toByteArray.loop bytes acc).size = acc.size + bytes.length := by
+  induction bytes generalizing acc with
+  | nil =>
+      simp [List.toByteArray.loop]
+  | cons _ bytes ih =>
+      simp [List.toByteArray.loop, ih, Nat.add_assoc]
+      omega
+
+private theorem list_toByteArray_size (bytes : List UInt8) :
+    bytes.toByteArray.size = bytes.length := by
+  unfold List.toByteArray
+  rw [list_toByteArray_loop_size]
+  simp
+
+theorem uint256_toByteArray_size (value : EvmYul.UInt256) :
+    value.toByteArray.size = 32 := by
+  have hBytesSize :
+      (EvmYul.toBytesBigEndian value.toNat).toByteArray.data.size =
+        (EvmYul.toBytesBigEndian value.toNat).length := by
+    simpa [ByteArray.size] using
+      list_toByteArray_size (EvmYul.toBytesBigEndian value.toNat)
+  have hLen : (EvmYul.toBytesBigEndian value.toNat).length ≤ 32 :=
+    toBytesBigEndian_uint256_length_le (n := value.toNat) value.val.isLt
+  unfold EvmYul.UInt256.toByteArray BE
+  rw [ByteArray.size_append]
+  simp [ffi.ByteArray.zeroes, ByteArray.size]
+  rw [hBytesSize]
+  rw [usize_sub_toNat_of_le_32]
+  · omega
+  · exact hLen
 
 theorem initialState_calldataReadWord_arg0Bytes
     (contract : EvmYul.Yul.Ast.YulContract)
@@ -5043,10 +5097,7 @@ theorem mstore0_then_return32_hReturn_size
 
 /-- If the generated scalar-return sequence starts from empty memory and the
     value word is represented by exactly 32 bytes, then the native `RETURN`
-    halt buffer is byte-for-byte the word written by `MSTORE`. This is the
-    exact-byte refinement of `mstore0_then_return32_hReturn_size`; the remaining
-    arithmetic work is proving `UInt256.toByteArray.size = 32` and recomposing
-    those bytes with `byteArrayWord`. -/
+    halt buffer is byte-for-byte the word written by `MSTORE`. -/
 theorem mstore0_then_return32_emptyMemory_hReturn_eq
     (sharedState : EvmYul.SharedState .Yul)
     (store : EvmYul.Yul.VarStore)
@@ -5070,6 +5121,25 @@ theorem mstore0_then_return32_emptyMemory_hReturn_eq
   simp only [hMemory]
   exact byteArray_write_empty_zero_32_readWithPadding_eq_of_size
     value.toByteArray hValueSize
+
+/-- The generated scalar-return sequence started from empty memory returns
+    exactly the 32-byte representation of the word written at offset zero. -/
+theorem mstore0_then_return32_emptyMemory_hReturn_eq_toByteArray
+    (sharedState : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (value : EvmYul.UInt256)
+    (hMemory : sharedState.memory = ByteArray.empty) :
+    let state : EvmYul.Yul.State := .Ok sharedState store
+    let stored :=
+      state.setMachineState
+        (state.toMachineState.mstore (EvmYul.UInt256.ofNat 0) value)
+    let returned :=
+      stored.setMachineState
+        (stored.toMachineState.evmReturn
+          (EvmYul.UInt256.ofNat 0) (EvmYul.UInt256.ofNat 32))
+    returned.sharedState.H_return = value.toByteArray :=
+  mstore0_then_return32_emptyMemory_hReturn_eq sharedState store value hMemory
+    (uint256_toByteArray_size value)
 
 /-- The concrete native primitive execution theorem for the generated scalar
     return sequence carries a one-word return buffer when started from an
