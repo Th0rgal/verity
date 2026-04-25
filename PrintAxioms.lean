@@ -2833,6 +2833,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.usize_sub_toNat_of_le_32  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.readBytes_zero_32_size
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.readBytes_offset4_32_size
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.readWithPadding_32_size
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_arg0Bytes
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataload4_arg0_value
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_selectorExpr_native_value
@@ -2989,6 +2990,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_return32_after_mstore0_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore0_then_return32_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.mstore0_then_return32_hReturn_size
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore0_then_return32_ok_hReturn_size
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_omittedStorageSlot
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectLogEntry_topicsAndWordData
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState_logSeries
@@ -3313,4 +3316,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3140 theorems/lemmas (2230 public, 910 private, 0 sorry'd)
+-- Total: 3143 theorems/lemmas (2233 public, 910 private, 0 sorry'd)

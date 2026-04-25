@@ -1110,6 +1110,27 @@ theorem readBytes_offset4_32_size (source : ByteArray) :
   · omega
   · omega
 
+theorem readWithPadding_32_size (source : ByteArray) (addr : Nat) :
+    (source.readWithPadding addr 32).size = 32 := by
+  unfold ByteArray.readWithPadding
+  have hsmall : ¬ 32 ≥ 2 ^ 64 := by norm_num
+  simp only [hsmall, ↓reduceIte]
+  rw [ByteArray.size_append]
+  have hReadLe :
+      (source.readWithoutPadding addr 32).size ≤ 32 := by
+    unfold ByteArray.readWithoutPadding
+    split
+    · simp
+    · simp [ByteArray.size_extract]
+      omega
+  have hReadLeData :
+      (source.readWithoutPadding addr 32).data.size ≤ 32 := by
+    simpa [ByteArray.size] using hReadLe
+  simp [ffi.ByteArray.zeroes, ByteArray.size]
+  rw [usize_sub_toNat_of_le_32]
+  · omega
+  · exact hReadLeData
+
 theorem initialState_calldataReadWord_arg0Bytes
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
@@ -4933,6 +4954,68 @@ theorem primCall_mstore0_then_return32_ok
         ⟨1⟩) := by
   rw [primCall_mstore_ok]
   exact primCall_return32_after_mstore0_ok returnFuel state value
+
+/-- The native return buffer produced by `mstore(0, value); return(0, 32)` is
+    exactly one EVM word wide. -/
+theorem mstore0_then_return32_hReturn_size
+    (sharedState : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (value : EvmYul.UInt256) :
+    let state : EvmYul.Yul.State := .Ok sharedState store
+    let stored :=
+      state.setMachineState
+        (state.toMachineState.mstore (EvmYul.UInt256.ofNat 0) value)
+    let returned :=
+      stored.setMachineState
+        (stored.toMachineState.evmReturn
+          (EvmYul.UInt256.ofNat 0) (EvmYul.UInt256.ofNat 32))
+    returned.sharedState.H_return.size = 32 := by
+  dsimp
+  have hZero : (EvmYul.UInt256.ofNat 0).toNat = 0 := by
+    rfl
+  have hLen : (EvmYul.UInt256.ofNat 32).toNat = 32 := by
+    rfl
+  simp [EvmYul.MachineState.evmReturn, readWithPadding_32_size,
+    EvmYul.MachineState.mstore,
+    EvmYul.MachineState.writeWord, EvmYul.writeBytes,
+    EvmYul.UInt256.toByteArray, EvmYul.Yul.State.setMachineState,
+    EvmYul.Yul.State.sharedState, EvmYul.Yul.State.toMachineState, hZero, hLen]
+
+/-- The concrete native primitive execution theorem for the generated scalar
+    return sequence carries a one-word return buffer when started from an
+    executable `Ok` Yul state. -/
+theorem primCall_mstore0_then_return32_ok_hReturn_size
+    (mstoreFuel returnFuel : Nat)
+    (sharedState : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (value : EvmYul.UInt256) :
+    ∃ haltState haltValue,
+      (do
+        let (state', values) ←
+          EvmYul.Yul.primCall (mstoreFuel + 1) (.Ok sharedState store)
+            EvmYul.Operation.MSTORE
+            [EvmYul.UInt256.ofNat 0, value]
+        match values with
+        | [] =>
+            EvmYul.Yul.primCall (returnFuel + 1) state'
+              EvmYul.Operation.RETURN
+              [EvmYul.UInt256.ofNat 0, EvmYul.UInt256.ofNat 32]
+        | _ => .error EvmYul.Yul.Exception.InvalidArguments) =
+        .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
+      haltState.sharedState.H_return.size = 32 := by
+  refine ⟨
+    ((EvmYul.Yul.State.Ok sharedState store).setMachineState
+        ((EvmYul.Yul.State.Ok sharedState store).toMachineState.mstore
+          (EvmYul.UInt256.ofNat 0) value)).setMachineState
+      (((EvmYul.Yul.State.Ok sharedState store).setMachineState
+          ((EvmYul.Yul.State.Ok sharedState store).toMachineState.mstore
+            (EvmYul.UInt256.ofNat 0) value)).toMachineState.evmReturn
+        (EvmYul.UInt256.ofNat 0) (EvmYul.UInt256.ofNat 32)),
+    ⟨1⟩, ?_⟩
+  constructor
+  · exact primCall_mstore0_then_return32_ok mstoreFuel returnFuel
+      (.Ok sharedState store) value
+  · exact mstore0_then_return32_hReturn_size sharedState store value
 
 /-- Native initial-state storage materialization defaults omitted observable
     pre-state slots to zero. The in-range hypotheses rule out modular aliasing
