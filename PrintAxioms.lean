@@ -3056,6 +3056,10 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_eq
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_slot0
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_slot0_zero_of_erase
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_slot0_zero_emptyObservable
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_slot0
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_slot0_zero_of_erase
@@ -3380,4 +3384,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3207 theorems/lemmas (2280 public, 927 private, 0 sorry'd)
+-- Total: 3211 theorems/lemmas (2284 public, 927 private, 0 sorry'd)
