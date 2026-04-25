@@ -7466,6 +7466,52 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
     rw [if_neg hSlot]
     simpa using hReturn
 
+/-- Exact projected result for the generated `retrieve()` scalar-return core
+    from an arbitrary dispatcher local store. This strengthens
+    `primCall_sload0_then_mstore0_return32_initialState_withStore_projectResult_returnValue_materialized`
+    from a return-value field fact to the full `YulResult` shape produced by the
+    native `SLOAD; MSTORE; RETURN` halt. -/
+theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResult_eq_materialized
+    (sloadFuel mstoreFuel returnFuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (hRange : ∀ s ∈ observableSlots, s < EvmYul.UInt256.size) :
+    ∃ haltState haltValue,
+      primCall_sload0_then_mstore0_return32_initialState_withStore
+        sloadFuel mstoreFuel returnFuel contract tx storage observableSlots
+        store =
+        .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
+      projectResult tx storage initialEvents
+          (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue)) =
+        { success := true
+          returnValue :=
+            if 0 ∈ observableSlots then
+              some (storage 0 % EvmYul.UInt256.size)
+            else
+              some 0
+          finalStorage := projectStorageFromState tx haltState
+          finalMappings :=
+            Compiler.Proofs.storageAsMappings (projectStorageFromState tx haltState)
+          events := initialEvents ++ projectLogsFromState haltState } := by
+  rcases
+    primCall_sload0_then_mstore0_return32_initialState_withStore_projectResult_returnValue_materialized
+      sloadFuel mstoreFuel returnFuel contract tx storage initialEvents
+      observableSlots store hRange with
+    ⟨haltState, haltValue, hExec, hReturn⟩
+  refine ⟨haltState, haltValue, hExec, ?_⟩
+  have hProjectReturn :
+      projectHaltReturn haltState haltValue =
+        if 0 ∈ observableSlots then
+          some (storage 0 % EvmYul.UInt256.size)
+        else
+          some 0 := by
+    simpa [projectResult] using hReturn
+  simp [projectResult, hProjectReturn]
+
 @[simp] theorem projectResult_yulHalt_finalMappings
     (tx : YulTransaction)
     (initialStorage : Nat → Nat)

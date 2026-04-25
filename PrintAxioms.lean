@@ -3081,6 +3081,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_withStore_projectResult_returnValue
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_withStore_omittedSlot_projectResult_returnValue
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_withStore_projectResult_returnValue_materialized
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_withStore_projectResult_eq_materialized
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_finalMappings
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_finalStorageSlot
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_missingFinalStorageAccountSlot
@@ -3389,4 +3390,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3216 theorems/lemmas (2289 public, 927 private, 0 sorry'd)
+-- Total: 3217 theorems/lemmas (2290 public, 927 private, 0 sorry'd)
