@@ -6277,6 +6277,127 @@ theorem primCall_sstore_initialState_wordSlot_projectResult_slot_zero_emptyObser
       fuel contract tx storage initialEvents [] slot value hSlotRange hValueZero
       (by rfl)
 
+/-- Native primitive execution of `sstore(slot, value)` from an initial runtime
+    shared state and arbitrary local-variable store, lifted through Verity's
+    projected native result boundary for a nonzero word-canonical write. This is
+    the generic dispatcher-local-store companion to
+    `primCall_sstore_initialState_wordSlot_projectResult_slot`. -/
+theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_slot
+    (fuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (slot value : Nat)
+    (hSlotRange : slot < EvmYul.UInt256.size)
+    (hValueNonzero :
+      (natToUInt256 value == (⟨0⟩ : EvmYul.UInt256)) = false) :
+    ∃ finalState,
+      EvmYul.Yul.primCall (fuel + 1)
+          (.Ok (initialState contract tx storage observableSlots).sharedState store)
+          EvmYul.Operation.SSTORE [natToUInt256 slot, natToUInt256 value] =
+        .ok (finalState, []) ∧
+      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage slot =
+        value % EvmYul.UInt256.size := by
+  let initialWithStore : EvmYul.Yul.State :=
+    .Ok (initialState contract tx storage observableSlots).sharedState store
+  refine ⟨initialWithStore.setState
+    (initialWithStore.toState.sstore (natToUInt256 slot) (natToUInt256 value)),
+    ?_, ?_⟩
+  · exact primCall_sstore_initialState_wordSlot_ok_withStore fuel contract tx
+      storage observableSlots store slot value hSlotRange
+  · dsimp [initialWithStore]
+    simp only [projectResult, projectStorageFromState, extractStorage,
+      initialState, EvmYul.Yul.State.sharedState, EvmYul.Yul.State.setState,
+      EvmYul.Yul.State.toState, EvmYul.State.sstore, EvmYul.State.lookupAccount,
+      EvmYul.State.setAccount, EvmYul.State.addAccessedStorageKey,
+      EvmYul.Account.updateStorage, YulState.initial, toSharedState,
+      natToUInt256, uint256ToNat, EvmYul.UInt256.toNat]
+    have hBranch :
+        (EvmYul.UInt256.ofNat value == (Inhabited.default : EvmYul.UInt256)) =
+          false := by
+      simpa [natToUInt256, EvmYul.UInt256.instInhabited] using hValueNonzero
+    rw [hBranch]
+    have hSlotEq : EvmYul.UInt256.ofNat slot = natToUInt256 slot := rfl
+    simp [Option.option, hSlotEq, Batteries.RBMap.find?_insert_of_eq _
+      Std.ReflCmp.compare_self, EvmYul.UInt256.size]
+    rfl
+
+/-- Native primitive execution of `sstore(slot, 0)` from an initial runtime
+    shared state and arbitrary local-variable store, lifted through Verity's
+    projected native result boundary with the zero-write erasure lookup
+    isolated. -/
+theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_slot_zero_of_erase
+    (fuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (slot value : Nat)
+    (hSlotRange : slot < EvmYul.UInt256.size)
+    (hValueZero :
+      (natToUInt256 value == (⟨0⟩ : EvmYul.UInt256)) = true)
+    (hErase :
+      (Batteries.RBMap.erase (projectStorage storage observableSlots)
+        (natToUInt256 slot)).find? (natToUInt256 slot) = none) :
+    ∃ finalState,
+      EvmYul.Yul.primCall (fuel + 1)
+          (.Ok (initialState contract tx storage observableSlots).sharedState store)
+          EvmYul.Operation.SSTORE [natToUInt256 slot, natToUInt256 value] =
+        .ok (finalState, []) ∧
+      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage slot =
+        0 := by
+  let initialWithStore : EvmYul.Yul.State :=
+    .Ok (initialState contract tx storage observableSlots).sharedState store
+  refine ⟨initialWithStore.setState
+    (initialWithStore.toState.sstore (natToUInt256 slot) (natToUInt256 value)),
+    ?_, ?_⟩
+  · exact primCall_sstore_initialState_wordSlot_ok_withStore fuel contract tx
+      storage observableSlots store slot value hSlotRange
+  · dsimp [initialWithStore]
+    simp only [projectResult, projectStorageFromState, extractStorage,
+      initialState, EvmYul.Yul.State.sharedState, EvmYul.Yul.State.setState,
+      EvmYul.Yul.State.toState, EvmYul.State.sstore, EvmYul.State.lookupAccount,
+      EvmYul.State.setAccount, EvmYul.State.addAccessedStorageKey,
+      EvmYul.Account.updateStorage, YulState.initial, toSharedState,
+      natToUInt256]
+    have hBranch :
+        (EvmYul.UInt256.ofNat value == (Inhabited.default : EvmYul.UInt256)) =
+          true := by
+      simpa [natToUInt256, EvmYul.UInt256.instInhabited] using hValueZero
+    rw [hBranch]
+    simp [Option.option, Batteries.RBMap.find?_insert_of_eq _
+      Std.ReflCmp.compare_self, hErase]
+
+/-- Native primitive execution of `sstore(slot, 0)` from an arbitrary local
+    store when no observable storage slots were materialized. -/
+theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_slot_zero_emptyObservable
+    (fuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (store : EvmYul.Yul.VarStore)
+    (slot value : Nat)
+    (hSlotRange : slot < EvmYul.UInt256.size)
+    (hValueZero :
+      (natToUInt256 value == (⟨0⟩ : EvmYul.UInt256)) = true) :
+    ∃ finalState,
+      EvmYul.Yul.primCall (fuel + 1)
+          (.Ok (initialState contract tx storage []).sharedState store)
+          EvmYul.Operation.SSTORE [natToUInt256 slot, natToUInt256 value] =
+        .ok (finalState, []) ∧
+      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage slot =
+        0 := by
+  exact
+    primCall_sstore_initialState_wordSlot_withStore_projectResult_slot_zero_of_erase
+      fuel contract tx storage initialEvents [] store slot value hSlotRange
+      hValueZero (by rfl)
+
 /-- Native primitive execution of the generated `store(uint256)` core, lifted
     through Verity's projected native result boundary for call success and
     absence of a return word. Storage-slot agreement remains the next setter
