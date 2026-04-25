@@ -1131,6 +1131,66 @@ theorem readWithPadding_32_size (source : ByteArray) (addr : Nat) :
   · omega
   · exact hReadLeData
 
+private theorem byteArray_append_zeroes0 (source : ByteArray) :
+    source ++ ffi.ByteArray.zeroes (OfNat.ofNat 0) = source := by
+  apply ByteArray.ext
+  simp [ByteArray.data_append, ffi.ByteArray.zeroes]
+
+private theorem byteArray_extract_zero_32_eq_of_size
+    (source : ByteArray)
+    (hSize : source.size = 32) :
+    source.extract 0 32 = source := by
+  apply ByteArray.ext
+  simp [ByteArray.data_extract, ByteArray.size] at hSize ⊢
+  rw [hSize]
+  simp
+
+private theorem byteArray_readWithPadding_zero_32_eq_of_size
+    (source : ByteArray)
+    (hSize : source.size = 32) :
+    source.readWithPadding 0 32 = source := by
+  unfold ByteArray.readWithPadding ByteArray.readWithoutPadding
+  have hsmall : ¬ 32 ≥ 2 ^ 64 := by norm_num
+  simp only [hsmall, ↓reduceIte]
+  have haddr : ¬ 0 ≥ source.size := by omega
+  simp only [haddr, ↓reduceIte]
+  have hmin : min 32 source.size = 32 := by omega
+  simp only [hmin]
+  rw [byteArray_extract_zero_32_eq_of_size source hSize]
+  apply ByteArray.ext
+  have hDataSize : source.data.size = 32 := by
+    simpa [ByteArray.size] using hSize
+  simp [ByteArray.data_append, ByteArray.size, ffi.ByteArray.zeroes]
+  rw [usize_sub_toNat_of_le_32]
+  · omega
+  · omega
+
+private theorem byteArray_write_empty_zero_32_eq_of_size
+    (source : ByteArray)
+    (hSize : source.size = 32) :
+    source.write 0 ByteArray.empty 0 32 = source := by
+  unfold ByteArray.write
+  simp only [Nat.reduceEqDiff, ↓reduceIte]
+  have hSourceAddr : ¬ 0 ≥ source.size := by omega
+  simp only [hSourceAddr, ↓reduceIte]
+  have hPractical : min 32 (source.size - 0) = 32 := by omega
+  have hEnd : min ByteArray.empty.size (0 + 32) = 0 := by simp
+  have hDestPadding : 0 - ByteArray.empty.size = 0 := by simp
+  simp only [hPractical, hEnd, hDestPadding]
+  apply ByteArray.ext
+  simp [ByteArray.data_copySlice, ByteArray.size, ffi.ByteArray.zeroes] at hSize ⊢
+  exact Or.inr (by omega)
+
+/-- A full-word memory write to empty memory at offset zero is returned
+    byte-for-byte by `readWithPadding 0 32`. This is the byte-array core of the
+    native `mstore(0, x); return(0, 32)` exact-return proof. -/
+theorem byteArray_write_empty_zero_32_readWithPadding_eq_of_size
+    (source : ByteArray)
+    (hSize : source.size = 32) :
+    (source.write 0 ByteArray.empty 0 32).readWithPadding 0 32 = source := by
+  rw [byteArray_write_empty_zero_32_eq_of_size source hSize]
+  exact byteArray_readWithPadding_zero_32_eq_of_size source hSize
+
 theorem initialState_calldataReadWord_arg0Bytes
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
@@ -4980,6 +5040,36 @@ theorem mstore0_then_return32_hReturn_size
     EvmYul.MachineState.writeWord, EvmYul.writeBytes,
     EvmYul.UInt256.toByteArray, EvmYul.Yul.State.setMachineState,
     EvmYul.Yul.State.sharedState, EvmYul.Yul.State.toMachineState, hZero, hLen]
+
+/-- If the generated scalar-return sequence starts from empty memory and the
+    value word is represented by exactly 32 bytes, then the native `RETURN`
+    halt buffer is byte-for-byte the word written by `MSTORE`. This is the
+    exact-byte refinement of `mstore0_then_return32_hReturn_size`; the remaining
+    arithmetic work is proving `UInt256.toByteArray.size = 32` and recomposing
+    those bytes with `byteArrayWord`. -/
+theorem mstore0_then_return32_emptyMemory_hReturn_eq
+    (sharedState : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (value : EvmYul.UInt256)
+    (hMemory : sharedState.memory = ByteArray.empty)
+    (hValueSize : value.toByteArray.size = 32) :
+    let state : EvmYul.Yul.State := .Ok sharedState store
+    let stored :=
+      state.setMachineState
+        (state.toMachineState.mstore (EvmYul.UInt256.ofNat 0) value)
+    let returned :=
+      stored.setMachineState
+        (stored.toMachineState.evmReturn
+          (EvmYul.UInt256.ofNat 0) (EvmYul.UInt256.ofNat 32))
+    returned.sharedState.H_return = value.toByteArray := by
+  dsimp
+  simp only [EvmYul.Yul.State.toMachineState, EvmYul.Yul.State.setMachineState,
+    EvmYul.Yul.State.sharedState]
+  simp only [EvmYul.MachineState.mstore, EvmYul.MachineState.writeWord,
+    EvmYul.writeBytes, EvmYul.MachineState.evmReturn]
+  simp only [hMemory]
+  exact byteArray_write_empty_zero_32_readWithPadding_eq_of_size
+    value.toByteArray hValueSize
 
 /-- The concrete native primitive execution theorem for the generated scalar
     return sequence carries a one-word return buffer when started from an
