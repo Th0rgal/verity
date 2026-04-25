@@ -1435,6 +1435,23 @@ private theorem simpleStorage_functions_bridged :
         (Compiler.Proofs.YulGeneration.Backends.BridgedExpr.lit 0)
         (Compiler.Proofs.YulGeneration.Backends.BridgedExpr.lit 32)
 
+/-- The emitted SimpleStorage runtime consists of the single generated external
+dispatcher shell for the two concrete SimpleStorage functions.
+
+This pins down the outer runtime layer that the native dispatcher bridge must
+peel before applying the concrete lowered selector-switch lemmas. -/
+theorem simpleStorage_runtimeCode_eq_single_dispatcher :
+    (Compiler.emitYul simpleStorageIRContract).runtimeCode =
+      [Compiler.CodegenCommon.buildSwitch
+        simpleStorageIRContract.functions none none] := by
+  dsimp [Compiler.emitYul, Compiler.CodegenCommon.emitYul,
+    Compiler.runtimeCode, Compiler.CodegenCommon.runtimeCode,
+    simpleStorageIRContract]
+
+noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
+  sizeOf [Compiler.CodegenCommon.buildSwitch
+    simpleStorageIRContract.functions none none]
+
 /-- Named SimpleStorage native dispatcher bridge obligation.
 
 This keeps the remaining native proof seam explicit and sorry-free. The missing
@@ -1450,7 +1467,7 @@ def simpleStorageNativeCallDispatcherBridge
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     : Prop :=
   nativeDispatcherExecAgreesWithInterpreterPositive
-    (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode)
+    simpleStorageNativeDispatcherFuel
     simpleStorageIRContract tx initialState observableSlots
     Compiler.SimpleStorageNativeWitness.nativeContract
 
@@ -1580,7 +1597,9 @@ theorem simpleStorage_endToEnd_native_evmYulLean
     (nativeCallDispatcherAgreesWithInterpreter_of_dispatcherBlock_agree
       (nativeDispatcherBlockAgreesWithInterpreter_of_exec_agree
         (nativeDispatcherExecAgreesWithInterpreter_of_positive
-          hNativeCallDispatcher)))
+          (by
+            rw [simpleStorage_runtimeCode_eq_single_dispatcher]
+            exact hNativeCallDispatcher))))
 
 /-! ## Universal Pure Arithmetic Bridge
 
