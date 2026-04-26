@@ -722,6 +722,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.lowerStmtsNative_block_stmts_eq
 #print axioms Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_let_head_eq
 #print axioms Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_if_head_eq
+#print axioms Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_singleton_switch_eq
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_head_let_exists
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_let_if_head_exists
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_let_if_if
@@ -729,9 +730,11 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_eq_named_let_if_if_block_exec
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_concrete_let_head
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_if
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_letValue_eq
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if1Cond_eq
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if2Cond_eq
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_exists
 #print axioms Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_revert_zero_zero
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if1Body_eq
 #print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageNativeDispatcher_if1Body_revert
@@ -3453,4 +3456,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3280 theorems/lemmas (2350 public, 930 private, 0 sorry'd)
+-- Total: 3283 theorems/lemmas (2353 public, 930 private, 0 sorry'd)

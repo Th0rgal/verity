@@ -1779,6 +1779,56 @@ theorem lowerStmtsNativeWithSwitchIds_if_head_eq
       subst hNat
       exact ⟨body', midN, rest', hList.symm, rfl, hRest⟩
 
+set_option linter.unusedSimpArgs false in
+/-- A singleton `.switch`-headed statement-list lowering reduces to a singleton
+`.lowerNativeSwitchBlock` over the same source expression. This is the
+companion of `lowerStmtsNativeWithSwitchIds_let_head_eq` and `_if_head_eq`
+specialized to a single source-level `switch` statement (no tail), which is
+exactly the shape produced by the body of `buildSwitch`'s selector-hit `if`.
+The case-bodies and default-body lowerings remain abstract because their
+shape depends on the concrete contract `funcs` list. -/
+theorem lowerStmtsNativeWithSwitchIds_singleton_switch_eq
+    (reservedNames : List String) (n0 : Nat)
+    (expr : Yul.YulExpr) (cases : List (Nat × List Yul.YulStmt))
+    (defaultCase : Option (List Yul.YulStmt))
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (h : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+            [Yul.YulStmt.switch expr cases defaultCase] = .ok (inner, next)) :
+    ∃ (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+      (default' : List EvmYul.Yul.Ast.Stmt),
+      inner = [Backends.lowerNativeSwitchBlock expr
+        (Backends.freshNativeSwitchId reservedNames n0) cases' default'] := by
+  rw [Backends.lowerStmtsNativeWithSwitchIds_cons,
+      Backends.lowerStmtGroupNativeWithSwitchIds_switch] at h
+  dsimp only [] at h
+  cases hCases : Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+      (Backends.freshNativeSwitchId reservedNames n0 + 1) cases with
+  | error _ =>
+      rw [hCases] at h; simp only [Bind.bind, Except.bind, reduceCtorEq] at h
+  | ok casesPair =>
+      obtain ⟨cases', midN⟩ := casesPair
+      rw [hCases] at h
+      simp only [Bind.bind, Except.bind, Pure.pure, Except.pure] at h
+      cases defaultCase with
+      | none =>
+          simp only [Backends.lowerStmtsNativeWithSwitchIds_nil,
+            List.singleton_append, Except.ok.injEq, Prod.mk.injEq] at h
+          exact ⟨cases', [], h.1.symm⟩
+      | some defaultBody =>
+          dsimp only [] at h
+          cases hDef : Backends.lowerStmtsNativeWithSwitchIds
+              reservedNames midN defaultBody with
+          | error _ =>
+              rw [hDef] at h
+              simp only [Bind.bind, Except.bind, reduceCtorEq] at h
+          | ok defaultPair =>
+              obtain ⟨default', _⟩ := defaultPair
+              rw [hDef] at h
+              simp only [Bind.bind, Except.bind, Pure.pure, Except.pure,
+                Backends.lowerStmtsNativeWithSwitchIds_nil,
+                List.singleton_append, Except.ok.injEq, Prod.mk.injEq] at h
+              exact ⟨cases', default', h.1.symm⟩
+
 /-- The head of the SimpleStorage native dispatcher inner-block is the lowered
 `let __has_selector := ...` statement. This peels one further layer beyond the
 singleton-block extraction (`simpleStorageNativeDispatcherStmts_eq_singleton_block`)
@@ -2018,6 +2068,53 @@ theorem simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_if :
   rw [hIf1] at hLet
   exact ⟨body1', body2', hLet⟩
 
+/-- Strengthened concrete-form equation for the SimpleStorage native dispatcher
+inner-block: same as `simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_if`
+except the body of the second (selector-hit) `If` is pinned to a singleton
+`lowerNativeSwitchBlock` over the source-Yul `selectorExpr` scrutinee. The
+selector cases and default body remain existential because they depend on the
+contract's `functions` list. This is the next dispatcher peel beyond the
+let/if/if shape and is the foundation for replacing the Classical.choose-pinned
+`simpleStorageNativeDispatcher_if2Body` with a concrete switch block. -/
+theorem simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton :
+    ∃ (body1 : List EvmYul.Yul.Ast.Stmt) (switchId : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+      (default' : List EvmYul.Yul.Ast.Stmt),
+      simpleStorageNativeDispatcherInnerStmts =
+        [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+            (some (Backends.lowerExprNative
+              (Yul.YulExpr.call "iszero"
+                [Yul.YulExpr.call "lt"
+                  [Yul.YulExpr.call "calldatasize" [], Yul.YulExpr.lit 4]]))),
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative
+              (Yul.YulExpr.call "iszero" [Yul.YulExpr.ident "__has_selector"]))
+            body1,
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative (Yul.YulExpr.ident "__has_selector"))
+            [Backends.lowerNativeSwitchBlock
+              (Yul.YulExpr.call "shr"
+                [Yul.YulExpr.lit Compiler.Constants.selectorShift,
+                 Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 0]])
+              switchId cases' default']] := by
+  have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
+  rw [simpleStorageNativeDispatcherStmts_eq_singleton_block] at hOk
+  obtain ⟨_, hInner⟩ := lowerStmtsNative_block_stmts_eq _ _ hOk
+  obtain ⟨_, hLet, hRestLowering⟩ :=
+    lowerStmtsNativeWithSwitchIds_let_head_eq _ _ _ _ _ _ _ hInner
+  obtain ⟨body1', _, _, hIf1, _, hRest1⟩ :=
+    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRestLowering
+  obtain ⟨_, _, _, hIf2, hBody2, hRest2⟩ :=
+    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRest1
+  rw [Backends.lowerStmtsNativeWithSwitchIds_nil,
+      Except.ok.injEq, Prod.mk.injEq] at hRest2
+  obtain ⟨hNil, _⟩ := hRest2
+  subst hNil
+  obtain ⟨cases', default', hBody2Eq⟩ :=
+    lowerStmtsNativeWithSwitchIds_singleton_switch_eq _ _ _ _ _ _ _ hBody2
+  rw [hBody2Eq] at hIf2; rw [hIf2] at hIf1; rw [hIf1] at hLet
+  exact ⟨body1', _, cases', default', hLet⟩
+
 /-- The `Classical.choose`-pinned let RHS of the SimpleStorage native dispatcher
 equals the lowered `iszero(lt(calldatasize(), 4))` Yul expression that
 `buildSwitch` emits. Combining the named-form decomposition
@@ -2072,6 +2169,32 @@ theorem simpleStorageNativeDispatcher_if2Cond_eq :
     simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if.symm.trans hConcrete
   simp only [List.cons.injEq, EvmYul.Yul.Ast.Stmt.If.injEq] at hCombo
   exact hCombo.2.2.1.1
+
+/-- The `Classical.choose`-pinned selector-hit `If` body of the SimpleStorage
+native dispatcher equals a singleton `lowerNativeSwitchBlock` over the
+source-Yul `selectorExpr` (i.e., `shr(selectorShift, calldataload(0))`). The
+switch-id, lowered case bodies, and lowered default body remain existential
+because they depend on the concrete contract `functions` list — but their
+existence as a closed-form switch block is enough to drive the next dispatcher
+peel into selector-case dispatch. Derived by head injection from the
+strengthened concrete-form `_eq_concrete_let_if_switchSingleton` and the
+named-form decomposition. -/
+theorem simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_exists :
+    ∃ (switchId : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+      (default' : List EvmYul.Yul.Ast.Stmt),
+      simpleStorageNativeDispatcher_if2Body =
+        [Compiler.Proofs.YulGeneration.Backends.lowerNativeSwitchBlock
+          (Yul.YulExpr.call "shr"
+            [Yul.YulExpr.lit Compiler.Constants.selectorShift,
+             Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 0]])
+          switchId cases' default'] := by
+  obtain ⟨_, switchId, cases', default', hConcrete⟩ :=
+    simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton
+  have hCombo :=
+    simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if.symm.trans hConcrete
+  simp only [List.cons.injEq, EvmYul.Yul.Ast.Stmt.If.injEq] at hCombo
+  exact ⟨switchId, cases', default', hCombo.2.2.1.2⟩
 
 /-- WithSwitchIds-form companion of `lowerStmtsNative_revert_zero_zero`: at any
 `reservedNames`/`nextSwitchId` pair, the singleton list `[expr (revert(0,0))]`
