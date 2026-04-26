@@ -3983,6 +3983,171 @@ theorem simpleStorageNativeDispatcherFuel_ge_25 :
   unfold simpleStorageNativeDispatcherFuel
   decide
 
+/-- Native dispatcher exec at exactly `simpleStorageNativeDispatcherFuel`
+reduces to `.error (YulHalt (.Ok shared3 _) ⟨1⟩)` for the retrieve-hit class,
+where `shared3` is the closed-form shared state after the
+`mstore(0, sload(0))` and `return(0, 32)` updates. The Yul varStore inside
+the halt state depends on the fresh switch identifier (which the dispatcher
+chose internally), so it is left existentially quantified — `projectResult`
+on `.error (YulHalt _ _)` ignores the varStore, so this is sufficient for
+the bridge proof. Composes the body-level closed form
+`exec_block_simpleStorageLoweredRetrieveCaseBody_halt` with
+`_retrieveHit_error_via_reduction` after opening the `_sourceLowered`
+existential and pinning `cases'` via `_lowered_shape` and
+`_lowered_concrete`. The `_concrete_tail*` chain is bypassed because it
+universally quantifies over `(reservedNames, n0)` against a single fixed
+`err`, which is incompatible with the switchId-dependent varStore inside
+the halt-error term. -/
+theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_halt_atFuel
+    (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat)
+    (hSelector : 0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hMsgValue : tx.msgValue = 0) :
+    let shared := (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState
+    let p := shared.sload (EvmYul.UInt256.ofNat 0)
+    let shared1 : EvmYul.SharedState .Yul := { shared with toState := p.1 }
+    let shared2 : EvmYul.SharedState .Yul :=
+      { shared1 with
+        toMachineState :=
+          shared1.toMachineState.mstore (EvmYul.UInt256.ofNat 0) p.2 }
+    let shared3 : EvmYul.SharedState .Yul :=
+      { shared2 with
+        toMachineState :=
+          shared2.toMachineState.evmReturn
+            (EvmYul.UInt256.ofNat 0) (EvmYul.UInt256.ofNat 32) }
+    ∃ store : EvmYul.Yul.VarStore,
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+          simpleStorageNativeDispatcherFuel
+          Compiler.SimpleStorageNativeWitness.nativeContract
+          (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+            Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+            observableSlots) =
+        .error (EvmYul.Yul.Exception.YulHalt (.Ok shared3 store) ⟨1⟩) := by
+  -- Bring the let-bound names from the goal into the local context.
+  intro shared p shared1 shared2 shared3
+  -- Reshape dispatcher fuel to `g + 25` where `g := dispatcherFuel - 25`.
+  set g := simpleStorageNativeDispatcherFuel - 25 with hg_def
+  have hReshape : simpleStorageNativeDispatcherFuel = g + 25 :=
+    (Nat.sub_add_cancel simpleStorageNativeDispatcherFuel_ge_25).symm
+  rw [hReshape]
+  -- Open the `_sourceLowered` existential at `peeledFuel := g + 11`, so the
+  -- dispatcher LHS lands at `(g + 11) + 14 = g + 25`.
+  obtain ⟨reservedNames, n0, cases', midN, hExec, hLowerCases⟩ :=
+    simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec_sourceLowered
+      (g + 11) tx storage observableSlots hNoWrap
+  -- Pin `cases'` to the two-element shape.
+  obtain ⟨storeBody', retrieveBody', hCases⟩ :=
+    simpleStorageBuildSwitchSourceCases_lowered_shape reservedNames _ midN
+      cases' hLowerCases
+  subst hCases
+  -- Pin the lowered bodies to the concrete forms.
+  obtain ⟨hStoreBody, hRetrieveBody⟩ :=
+    simpleStorageLoweredHitCasesShape_concrete hLowerCases
+  subst hStoreBody
+  subst hRetrieveBody
+  -- The chained-insert varStore for the dispatcher hit-body input state.
+  set switchId := Backends.freshNativeSwitchId reservedNames n0 with hSw
+  let store_body : EvmYul.Yul.VarStore :=
+    ((((∅ : EvmYul.Yul.VarStore).insert "__has_selector"
+            (EvmYul.UInt256.ofNat 1)).insert
+          (Backends.nativeSwitchDiscrTempName switchId)
+          (EvmYul.UInt256.ofNat
+            (tx.functionSelector % Compiler.Constants.selectorModulus))).insert
+        (Backends.nativeSwitchMatchedTempName switchId)
+        (EvmYul.UInt256.ofNat 0)).insert
+      (Backends.nativeSwitchMatchedTempName switchId)
+      (EvmYul.UInt256.ofNat 1)
+  -- Provide `store := store_body` for the existential.
+  refine ⟨store_body, ?_⟩
+  -- Discharge the body-level closed form via `_RetrieveCaseBody_halt`.
+  have hWei :
+      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState.executionEnv.weiValue =
+      (⟨0⟩ : EvmYul.Literal) := by
+    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_weiValue,
+        hMsgValue]
+    rfl
+  have hSize :
+      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState.executionEnv.calldata.size <
+      EvmYul.UInt256.size := by
+    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataSize]
+    exact hNoWrap
+  have hGe :
+      4 ≤ (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState.executionEnv.calldata.size := by
+    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataSize]
+    exact Nat.le_add_right 4 _
+  have hBodyHalt :=
+    exec_block_simpleStorageLoweredRetrieveCaseBody_halt g
+      (some Compiler.SimpleStorageNativeWitness.nativeContract)
+      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState
+      store_body hWei hSize hGe
+  -- Reshape `hExec` into the form expected by `_via_reduction`'s
+  -- `hReduction` parameter, namely
+  -- `dispatcher (fuel + cases'.length + 19) = exec (fuel + cases'.length + 13) ...`
+  -- with `fuel := g + 4` and `cases'.length := 2`.
+  have hReduction := hExec
+  rw [show (g + 11 + 14 : Nat) = (g + 4) + 2 + 19 from by omega,
+      show (g + 11 + 8 : Nat) = (g + 4) + 2 + 13 from by omega,
+      show (2 : Nat) = ([(0x6057361d, simpleStorageLoweredStoreCaseBody),
+        (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)] :
+        List (Nat × List EvmYul.Yul.Ast.Stmt)).length from rfl] at hReduction
+  -- Body-execution premise of `_via_reduction`: only valid decomposition is
+  -- `pre = [(0x6057361d, store)]`, `suffix = []`. Body fuel is
+  -- `(g + 4 + 1) + 0 + 7 = g + 12`, matching `hBodyHalt`.
+  have hBodyExec : ∀ pre suffix,
+      ([(0x6057361d, simpleStorageLoweredStoreCaseBody),
+        (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)] :
+        List (Nat × List EvmYul.Yul.Ast.Stmt)) =
+        pre ++ (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody) :: suffix →
+      EvmYul.Yul.exec (((g + 4) + 1) + suffix.length + 7)
+        (.Block simpleStorageLoweredRetrieveCaseBody)
+        (some Compiler.SimpleStorageNativeWitness.nativeContract)
+        (simpleStorageDispatcherHitBodyInputState switchId tx storage
+          observableSlots) =
+        .error (EvmYul.Yul.Exception.YulHalt (.Ok shared3 store_body) ⟨1⟩) := by
+    rintro pre suffix hDecomp
+    cases pre with
+    | nil =>
+      simp only [List.nil_append, List.cons.injEq, Prod.mk.injEq] at hDecomp
+      exfalso
+      exact absurd hDecomp.1.1 (by decide)
+    | cons _ rest =>
+      simp only [List.cons_append, List.cons.injEq] at hDecomp
+      obtain ⟨_, hRest⟩ := hDecomp
+      cases rest with
+      | nil =>
+        simp only [List.nil_append, List.cons.injEq] at hRest
+        obtain ⟨_, hSuf⟩ := hRest
+        subst hSuf
+        simpa [simpleStorageDispatcherHitBodyInputState] using hBodyHalt
+      | cons _ _ => simp at hRest
+  -- Apply `_retrieveHit_error_via_reduction` at `fuel := g + 4` with
+  -- `err := YulHalt (.Ok shared3 store_body) ⟨1⟩`.
+  have h := simpleStorageNativeContract_dispatcherExec_retrieveHit_error_via_reduction
+    (g + 4) switchId
+    [(0x6057361d, simpleStorageLoweredStoreCaseBody),
+     (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)]
+    simpleStorageLoweredStoreCaseBody simpleStorageLoweredRetrieveCaseBody
+    tx storage observableSlots
+    (EvmYul.Yul.Exception.YulHalt (.Ok shared3 store_body) ⟨1⟩)
+    hSelector rfl hBodyExec hReduction
+  -- `h` has dispatcher fuel `(g + 4) + cases'.length + 19`. Reshape to `g + 25`.
+  have hLen :
+      ([(0x6057361d, simpleStorageLoweredStoreCaseBody),
+        (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)] :
+        List (Nat × List EvmYul.Yul.Ast.Stmt)).length = 2 := rfl
+  rw [hLen, show (g + 4) + 2 + 19 = g + 25 from by omega] at h
+  exact h
+
 /-- Closed-form `interpretIR` reduction for the SimpleStorage selector-miss
 class. Given the two raw selector mismatches (`≠ 0x6057361d` and
 `≠ 0x2e64cec1`), `interpretIR` falls into the `find?`-`none` branch and
