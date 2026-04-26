@@ -9145,6 +9145,55 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_fuel
       (simpleStorageSelectors_tagsRange storeBody retrieveBody)
       hBody
 
+/-- Store-prefix variant of `_simpleStorageSelectors_store_hit_error_fuel`,
+    lifting the SimpleStorage store-hit selector specialization to states
+    already carrying additional bindings (e.g. the dispatcher's
+    `__has_selector := 1`). -/
+theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_store_fuel
+    (fuel switchId : Nat)
+    (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (err : EvmYul.Yul.Exception)
+    (hSelector : 0x6057361d = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hBody : ∀ pre suffix,
+      [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)] =
+          pre ++ (0x6057361d, storeBody) :: suffix →
+        EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7)
+          (.Block storeBody) (some contract)
+          ((((.Ok (initialState contract tx storage observableSlots).sharedState
+                  store : EvmYul.Yul.State).insert
+                (Backends.nativeSwitchDiscrTempName switchId)
+                (EvmYul.UInt256.ofNat
+                  (tx.functionSelector % Compiler.Constants.selectorModulus))).insert
+              (Backends.nativeSwitchMatchedTempName switchId)
+              (EvmYul.UInt256.ofNat 0)).insert
+              (Backends.nativeSwitchMatchedTempName switchId)
+              (EvmYul.UInt256.ofNat 1)) = .error err) :
+    EvmYul.Yul.exec
+        (fuel + [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)].length + 12)
+        (Backends.lowerNativeSwitchBlock
+          Compiler.Proofs.YulGeneration.selectorExpr
+          switchId
+          [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)]
+          [nativeRevertZeroZeroStmt])
+        (some contract)
+        (.Ok (initialState contract tx storage observableSlots).sharedState store) =
+      .error err := by
+  exact
+    exec_lowerNativeSwitchBlock_selector_find_hit_error_store_fuel
+      fuel 0x6057361d switchId 0x6057361d
+      [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)]
+      [nativeRevertZeroZeroStmt] storeBody contract tx storage
+      observableSlots store err hSelector
+      (by simp)
+      (by norm_num [EvmYul.UInt256.size])
+      (simpleStorageSelectors_tagsRange storeBody retrieveBody)
+      hBody
+
 def simpleStorageStoreHaltProjectedResult
     (tx : YulTransaction)
     (initialEvents : List (List Nat))
