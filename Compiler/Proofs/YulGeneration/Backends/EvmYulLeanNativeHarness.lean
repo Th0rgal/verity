@@ -5644,6 +5644,83 @@ theorem exec_lowerNativeSwitchBlock_storePrefix_tail_error_fuel
         fuel contract tx storage observableSlots store discrName matchedName
   · simpa [prefixState, initState] using hTail
 
+/-- `matched := 0` lookup on the post-prefix state with arbitrary store. -/
+theorem nativeSwitchPrefixStoreState_matched_eq
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : Nat → Nat) (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (discrName matchedName : EvmYul.Identifier)
+    (discrValue : EvmYul.Literal) :
+    (((.Ok (initialState contract tx storage observableSlots).sharedState store
+              : EvmYul.Yul.State).insert discrName discrValue).insert
+        matchedName (EvmYul.UInt256.ofNat 0))[matchedName]! =
+      EvmYul.UInt256.ofNat 0 := by
+  simp [EvmYul.Yul.State.insert, GetElem?.getElem!, decidableGetElem?,
+    GetElem.getElem, EvmYul.Yul.State.store, EvmYul.Yul.State.lookup!]
+
+/-- `discr := selector` lookup on the post-prefix state with arbitrary store. -/
+theorem nativeSwitchPrefixStoreState_discr_eq
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : Nat → Nat) (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (discrName matchedName : EvmYul.Identifier)
+    (selector : Nat) (hne : discrName ≠ matchedName)
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus) :
+    (((.Ok (initialState contract tx storage observableSlots).sharedState store
+              : EvmYul.Yul.State).insert discrName
+          (EvmYul.UInt256.ofNat
+            (tx.functionSelector % Compiler.Constants.selectorModulus))).insert
+        matchedName (EvmYul.UInt256.ofNat 0))[discrName]! =
+      EvmYul.UInt256.ofNat selector := by
+  rw [hSelector]
+  simp [EvmYul.Yul.State.insert, GetElem?.getElem!, decidableGetElem?,
+    GetElem.getElem, EvmYul.Yul.State.store, EvmYul.Yul.State.lookup!]
+  rw [Finmap.lookup_insert_of_ne]
+  · rw [Finmap.lookup_insert]; simp
+  · exact hne
+
+/-- Store-parametric guarded selector-miss execution for the lowered switch
+    block whose default is `revert(0, 0)`. Lifts the empty-store version to
+    states already carrying additional bindings (e.g. `__has_selector := 1`). -/
+theorem exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_fuel
+    (fuel selector switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = none)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases → tag < EvmYul.UInt256.size) :
+    EvmYul.Yul.exec (fuel + cases.length + 12)
+      (Backends.lowerNativeSwitchBlock
+        Compiler.Proofs.YulGeneration.selectorExpr switchId cases
+          [nativeRevertZeroZeroStmt])
+      (some contract)
+      (.Ok (initialState contract tx storage observableSlots).sharedState store) =
+    .error EvmYul.Yul.Exception.Revert := by
+  let discrName := Backends.nativeSwitchDiscrTempName switchId
+  let matchedName := Backends.nativeSwitchMatchedTempName switchId
+  have hne := nativeSwitchDiscrTempName_ne_matchedTempName switchId
+  have hCases :=
+    exec_nativeSwitchCaseIfs_find_none_with_revert_default_fuel
+      (fuel + 1) selector cases (some contract) _ discrName matchedName hFind
+      (nativeSwitchPrefixStoreState_matched_eq contract tx storage observableSlots
+        store discrName matchedName _)
+      (nativeSwitchPrefixStoreState_discr_eq contract tx storage observableSlots
+        store discrName matchedName selector hne hSelector)
+      hSelectorRange hTagsRange
+  exact exec_lowerNativeSwitchBlock_storePrefix_tail_error_fuel
+    (fuel + cases.length) switchId cases [nativeRevertZeroZeroStmt]
+    contract tx storage observableSlots store EvmYul.Yul.Exception.Revert
+    (by simpa [nativeSwitchTailStmts, discrName, matchedName,
+        Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hCases)
+
 theorem exec_lowerNativeSwitchBlock_selector_find_none_without_default_fuel
     (fuel selector switchId : Nat)
     (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
