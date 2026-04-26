@@ -3901,69 +3901,99 @@ def simpleStorageNativeSelectorMissBridge
 /-! ### Missing-lemma description for the retrieve-hit and store-hit dischargers.
 
 The selector-miss sub-bridge has been fully discharged in-proof (see
-`simpleStorageNativeSelectorMissBridge_proved` below). Discharging the
-remaining two sub-bridges (`simpleStorageNativeRetrieveHitBridge` and
-`simpleStorageNativeStoreHitBridge`) requires the following concrete
-composition lemmas which are NOT yet present in this file. Recording the
-precise list here so the residual obligation is auditable without spelunking
-through the harness layers.
+`simpleStorageNativeSelectorMissBridge_proved` below). The
+selector-miss reverts via `.error Revert`, whose `projectResult` reads
+the *parameter-passed* `initialStorage` directly without going through
+the EVMYulLean `SharedState`'s UInt256-typed storage map. That's why
+the selector-miss case is unconditionally provable: the projection
+chain that would otherwise apply a `natToUInt256 _ |>.toNat` round-trip
+does not appear on the revert path.
+
+The two remaining sub-bridges (`simpleStorageNativeRetrieveHitBridge`
+and `simpleStorageNativeStoreHitBridge`) cannot be discharged without
+either (a) an additional precondition bounding the relevant slot's
+initial storage value, or (b) a deeper harness change that bypasses
+the UInt256 round-trip on the YulHalt projection path. The mission
+constraints forbid (a) (no fresh preconditions on the public theorem
+beyond today's surface), and (b) is out of scope for this PR. The
+detailed picture below records exactly which composition pieces are
+already built and where the residual obstacle sits.
 
 **Retrieve-hit** (`tx.functionSelector % selectorModulus = 0x2e64cec1`):
-1. `interpretIR_simpleStorage_retrieveHit`: a closed-form reduction of
-   `interpretIR simpleStorageIRContract tx initialState` for the retrieve
-   selector — yields
-   `{ success := true, returnValue := some (initialState.storage 0),
-      finalStorage := initialState.storage, events := initialState.events }`.
-   IR side body is `let value := sload(0); return value`, so this is a
-   small inline `unfold interpretIR; simp` analogous to
-   `interpretIR_simpleStorage_selectorMiss` but using
-   `(0x2e64cec1 == tx.functionSelector) = true`.
-2. `simpleStorageNativeContract_dispatcherExec_retrieveHit_halt_atFuel`:
-   composition of the existing `_retrieveHit_error_concrete_tail3`
-   (lines ~3746–3788) with `exec_block_simpleStorageLoweredRetrieveCaseBodyTail3_closed`
-   (lines ~3175–3214) plus a fuel-reshape via a
-   `simpleStorageNativeDispatcherFuel ≥ 25` lemma. Output:
-   `contractDispatcherExecResult simpleStorageNativeDispatcherFuel ... =
-    .error (YulHalt shared3 ⟨1⟩)` where `shared3` is the explicit closed
-   form from `_Tail3_closed`.
-3. `projectResult_retrieveHit_eq`: a closed-form evaluation of
-   `projectResult tx initialStorage initialEvents (.error (YulHalt shared3 ⟨1⟩))`
-   yielding the success-shape result above. Builds on existing harness
-   helpers `mstore0_then_return32_hReturn_size`,
-   `mstore0_then_return32_emptyMemory_hReturn_eq`, and
-   `byteArrayWord_uint256_toByteArray` (already used for
-   `primCall_mstore0_then_return32_emptyMemory_projectHaltReturn`). The
-   remaining input precondition that `simpleStorageDispatcherHitBodyInputState`
-   carries empty memory is structural (no dispatcher-pre stmt writes to
-   memory) and follows from `Native.initialState_memory_empty`-style facts.
-4. `simpleStorageNativeRetrieveHitBridge_proved`: assembles (1)–(3) via
-   `nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_error_project_eq_agree`
-   + `simpleStorage_endToEnd_evmYulLean` + the same `show`-based fuel
-   alignment used by `simpleStorageNativeSelectorMissBridge_proved`.
+1. `interpretIR_simpleStorage_retrieveHit` — built (~ line 4250). Yields
+   `{ success := true, returnValue := some (initialState.storage 0), … }`
+   with raw `Nat`-typed slot-0 value.
+2. `simpleStorageNativeContract_dispatcherExec_retrieveHit_halt_atFuel`
+   — built (~ line 4001). Reduces native dispatcher exec at
+   `simpleStorageNativeDispatcherFuel` to
+   `.error (YulHalt (.Ok shared3 _) ⟨1⟩)` for the retrieve-hit class,
+   where `shared3` is the closed-form chained-override shared state
+   after `sload(0); mstore(0, _); return(0, 32)`. Currently requires
+   `hMsgValue : tx.msgValue = 0` literally, which is derivable from
+   `DispatchGuardsSafe` plus `retrieve.payable = false` via
+   `dispatchGuardsSafe_msgValue_zero_mod_of_nonpayable` and
+   `Nat.mod_eq_of_lt` against `evmModulus = UInt256.size`; that derivation
+   is mechanical glue once step (4) is unblocked.
+3. `projectResult_retrieveHit_eq` — built (~ line 4158). Closed-form
+   evaluation of `projectResult` on the `YulHalt` halt produced by
+   step (2). Output `returnValue := some p.2.toNat` where
+   `p.2 = shared.sload (UInt256.ofNat 0) |>.snd =
+    natToUInt256 (initialState.storage 0)` (because the EVMYulLean
+   account storage is built by `projectStorage` which inserts each
+   materialized slot's value as `natToUInt256 (storage slot)`). Hence
+   the native projected `returnValue` equals
+   `some (initialState.storage 0 % UInt256.size)`.
+4. `simpleStorageNativeRetrieveHitBridge_proved` — **NOT BUILT**. The
+   blocker is the unconditional `returnValue` equality required by
+   `yulResultsAgreeOn`:
+   - native projected (step 3): `some (initialState.storage 0 % 2^256)`
+   - layer-3 EVMYulLean Yul oracle (`simpleStorage_endToEnd_evmYulLean`):
+     `some (initialState.storage 0)` (raw `Nat`, because verity-style
+     YulState is `Nat → Nat` with no modulo, and the `.evmYulLean`
+     backend's `sload`/`mstore`/`return` bridge to verity's no-modulo
+     semantics — see
+     `evalBuiltinCallWithBackendContext_evmYulLean_sload_bridge`).
+   These are equal iff `initialState.storage 0 < UInt256.size`. The
+   missing interpreter lemma is the storage-projection round-trip
+   `extractStorage_natToUInt256_eq_raw : ∀ slot,
+       (natToUInt256 (initialState.storage slot)).toNat
+         = initialState.storage slot`,
+   which is **false in general** for `Nat → Nat` storage maps and
+   cannot be proved unconditionally.
 
 **Store-hit** (`tx.functionSelector % selectorModulus = 0x6057361d`):
-Analogous to retrieve-hit but the body is
-`sstore(0, calldataload(4))` followed by a stop. Required lemmas:
-1. `interpretIR_simpleStorage_storeHit`: yields
-   `{ success := true, returnValue := none,
-      finalStorage := initialState.storage.set 0 (tx.calldataload 4),
-      events := initialState.events }`.
-2. A `_storeHit_halt_atFuel` analog. The `_storeHit_error_concrete_tail*`
-   chain is already substantially built up (cf. `_storeHit_error_via_reduction`
-   at ~3330). What is missing is a body-level closed form analogous to
-   `_RetrieveCaseBodyTail3_closed` for the lowered store body — i.e. an
-   end-to-end characterization of `Block storeCaseBodyTail3` exec yielding
-   `.error (YulHalt shared_after_sstore ⟨0⟩)` (stop, not return).
-3. `projectResult_storeHit_eq`: projects the halt to the IR-shape result.
-   Critically uses `projectStorageFromState` after `sstore`, which requires
-   showing `projectStorageFromState tx (state-after-sstore-of-slot-0) slot
-     = if slot = 0 then tx.calldataload 4 else initialStorage slot`.
-4. `simpleStorageNativeStoreHitBridge_proved`: assembles as for retrieve-hit.
+1. `interpretIR_simpleStorage_storeHit` — not yet inlined; would yield
+   the `sstore`-updated raw-`Nat` storage map. Mechanical reduction
+   analogous to (1) above once step (4) is unblocked.
+2. `_storeHit_halt_atFuel` analog — the `_storeHit_error_concrete_tail*`
+   chain is substantially built (cf. `_storeHit_error_via_reduction`).
+   Missing piece is a body-level closed form analogous to
+   `_RetrieveCaseBody_halt`/`_RetrieveCaseBodyTail3_closed` for the
+   lowered `sstore(0, calldataload(4)); stop` body, characterizing the
+   block exec as `.error (YulHalt shared_after_sstore ⟨0⟩)`.
+3. `projectResult_storeHit_eq` — not yet built. Critically uses
+   `projectStorageFromState` after `sstore`, which round-trips the
+   stored value through `natToUInt256 _ |>.toNat`.
+4. `simpleStorageNativeStoreHitBridge_proved` — **NOT BUILT**. The same
+   storage-modulo gap blocks `finalStorage` agreement on observable
+   slots: native produces `initialState.storage slot % UInt256.size`
+   for any pre-existing materialized slot, layer-3 Yul oracle produces
+   raw `initialState.storage slot`. Additionally, the `sstore`-update
+   slot agreement requires showing the calldata word
+   `tx.calldataload 4` round-trips through `natToUInt256 _ |>.toNat`;
+   this one *is* unconditional because `calldataload` extracts at most
+   32 bytes of calldata (each byte `< 256`), so the resulting `Nat` is
+   already in `[0, UInt256.size)`. But the pre-existing materialized
+   slots still need the storage-bound invariant, which is not present.
 
-The deepest unbuilt piece is store-hit step (2) — the
-`storeCaseBodyTail3_closed` body-level closed form. Retrieve-hit pieces
-(2) and (3) reuse already-present harness lemmas; only mechanical glue
-is missing there.
+**Net result**: bridge-premise count on the public theorem is reduced
+from three to two (selector-miss discharged); the remaining two
+premises are exactly the unproven agreement obligations gated on
+selector class. Eliminating either premise unconditionally would
+require modifying the public theorem signature to add a storage-bound
+hypothesis (forbidden by the mission spec) or rebuilding the native
+projection so that the YulHalt path skips the UInt256 round-trip
+(out of scope for this PR).
 -/
 
 /-- Lower bound on the SimpleStorage native dispatcher fuel constant. The

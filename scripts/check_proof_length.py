@@ -941,6 +941,19 @@ ALLOWLIST: set[str] = {
     "compileStmtList_always_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
+    # --- SimpleStorage native dispatcher per-case bridge proofs (PR #1743) ---
+    # Each of these is a closed-form composition that threads
+    # selector-class hypotheses through the lowered-runtime existential,
+    # the body-level halt characterization, and the project/yul fuel
+    # alignment. Splitting further would either duplicate the fuel
+    # algebra or fragment the existential-pattern-match into helpers
+    # whose statements depend on internal harness types that the public
+    # bridge does not otherwise expose. Length comes from doc-aligned
+    # case structure, not from logically independent steps.
+    "interpretIR_simpleStorage_retrieveHit",
+    "projectResult_retrieveHit_eq",
+    "simpleStorageNativeContract_dispatcherExec_retrieveHit_halt_atFuel",
+    "simpleStorageNativeSelectorMissBridge_proved",
 }
 
 # Directories containing proof files to scan.
