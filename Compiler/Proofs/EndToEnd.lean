@@ -3963,6 +3963,60 @@ theorem interpretIR_simpleStorage_selectorMiss
     simp [BEq.beq, hSelMissRetrieve.symm]
   simp [hstore, hretrieve]
 
+/-- Closed-form `interpretIR` reduction for the SimpleStorage retrieve-hit
+class. Given the raw selector match (`= 0x2e64cec1`), `interpretIR` enters the
+`retrieve` body which is read-only on storage: it loads slot 0 via `sload`,
+mirrors it into memory[0..32] via `mstore`, and returns those 32 bytes. The
+returned word equals `state.storage 0` (where `state` is `initialState.withTx tx`).
+Storage and events are unchanged. -/
+theorem interpretIR_simpleStorage_retrieveHit
+    (tx : IRTransaction) (initialState : IRState)
+    (hSel : tx.functionSelector = 0x2e64cec1) :
+    interpretIR simpleStorageIRContract tx initialState =
+      { success := true
+        returnValue := some (initialState.storage 0)
+        finalStorage := initialState.storage
+        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+        events := initialState.events } := by
+  have hstore : (0x6057361d == tx.functionSelector) = false := by
+    simp [BEq.beq, hSel]
+  have hretrieve : (0x2e64cec1 == tx.functionSelector) = true := by
+    simp [BEq.beq, hSel]
+  -- Closed-form evaluation of the retrieve body for any fuel ≥ 2.
+  have hbody : ∀ (n : Nat) (s : IRState), 2 ≤ n →
+      execIRStmts (n + 1) s
+        [Yul.YulStmt.expr (Yul.YulExpr.call "mstore"
+            [Yul.YulExpr.lit 0, Yul.YulExpr.call "sload" [Yul.YulExpr.lit 0]]),
+         Yul.YulStmt.expr (Yul.YulExpr.call "return"
+            [Yul.YulExpr.lit 0, Yul.YulExpr.lit 32])] =
+        .return (s.storage 0)
+          { s with memory := fun o => if o = 0 then s.storage 0 else s.memory o } := by
+    intro n s hn
+    obtain ⟨k, rfl⟩ : ∃ k, n = k + 2 := ⟨n - 2, by omega⟩
+    -- Fuel `k + 2 + 1 = k + 3` is `Nat.succ (Nat.succ (Nat.succ k))`, allowing
+    -- both the outer `execIRStmts` and the inner `execIRStmt` to step.
+    simp +decide only [execIRStmts, execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+      Compiler.Proofs.abstractLoadStorageOrMapping,
+      Option.bind_some, bind, pure, ↓reduceIte]
+  -- The retrieve body has at least 2 statements, so `sizeOf body ≥ 2` by
+  -- direct computation on the auto-derived size measure.
+  have hsize : 2 ≤ sizeOf
+      ([Yul.YulStmt.expr (Yul.YulExpr.call "mstore"
+            [Yul.YulExpr.lit 0, Yul.YulExpr.call "sload" [Yul.YulExpr.lit 0]]),
+        Yul.YulStmt.expr (Yul.YulExpr.call "return"
+            [Yul.YulExpr.lit 0, Yul.YulExpr.lit 32])] : List Yul.YulStmt) := by
+    decide
+  unfold interpretIR
+  simp only [simpleStorageIRContract, List.find?, hstore, hretrieve,
+    List.length_nil, Nat.zero_le, ↓reduceDIte]
+  -- Now goal involves `execIRFunction retrieveFn tx.args state'`.
+  unfold execIRFunction
+  simp only [List.zip_nil_left, List.foldl_nil]
+  -- Goal: `match execIRStmts (sizeOf body + 1) state' body with ... = ...`.
+  rw [hbody _ _ hsize]
+
 /-- Native dispatcher exec at exactly `simpleStorageNativeDispatcherFuel`
 reduces to `.error Revert` for the selector-miss class. Reshapes the dispatcher
 fuel into the `fuel + 21` form via `simpleStorageNativeDispatcherFuel_ge_21`
