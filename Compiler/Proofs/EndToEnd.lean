@@ -4148,6 +4148,77 @@ theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_halt_atFuel
   rw [hLen, show (g + 4) + 2 + 19 = g + 25 from by omega] at h
   exact h
 
+/-- Closed-form evaluation of `projectResult` on the retrieve-hit halt error
+produced by the lowered SimpleStorage retrieve body. The halt state is built
+by chaining `sload(0)` (toState override), `mstore(0, _)` (toMachineState
+override), and `evmReturn(0, 32)` (toMachineState override) starting from a
+shared state with empty memory. The native projected return value is the
+`Nat`-normalized form of the loaded slot-zero word; storage and logs are
+read off the halt's `sharedState` directly. -/
+theorem projectResult_retrieveHit_eq
+    (tx : YulTransaction) (initialStorage : Nat → Nat)
+    (initialEvents : List (List Nat))
+    (shared : EvmYul.SharedState .Yul) (store : EvmYul.Yul.VarStore)
+    (hMemory : shared.memory = ByteArray.empty) :
+    let p := shared.sload (EvmYul.UInt256.ofNat 0)
+    let shared1 : EvmYul.SharedState .Yul := { shared with toState := p.1 }
+    let shared2 : EvmYul.SharedState .Yul :=
+      { shared1 with
+        toMachineState :=
+          shared1.toMachineState.mstore (EvmYul.UInt256.ofNat 0) p.2 }
+    let shared3 : EvmYul.SharedState .Yul :=
+      { shared2 with
+        toMachineState :=
+          shared2.toMachineState.evmReturn
+            (EvmYul.UInt256.ofNat 0) (EvmYul.UInt256.ofNat 32) }
+    Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+        tx initialStorage initialEvents
+        (.error (EvmYul.Yul.Exception.YulHalt
+          (EvmYul.Yul.State.Ok shared3 store) ⟨1⟩)) =
+      { success := true,
+        returnValue := some p.2.toNat,
+        finalStorage :=
+          Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState
+            tx (EvmYul.Yul.State.Ok shared3 store),
+        finalMappings :=
+          Compiler.Proofs.storageAsMappings
+            (Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState
+              tx (EvmYul.Yul.State.Ok shared3 store)),
+        events :=
+          initialEvents ++
+            Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState
+              (EvmYul.Yul.State.Ok shared3 store) } := by
+  intro p shared1 shared2 shared3
+  -- shared1 inherits memory from shared because only `toState` was overridden.
+  have hMemory1 : shared1.memory = ByteArray.empty := hMemory
+  -- The harness helpers describe the result via `setMachineState` chains;
+  -- those equal the structural overrides used in `shared3`.
+  have hSize :
+      (EvmYul.Yul.State.Ok shared3 store).sharedState.H_return.size = 32 := by
+    have h := Compiler.Proofs.YulGeneration.Backends.Native.mstore0_then_return32_hReturn_size
+      shared1 store p.2
+    simpa [shared3, shared2, EvmYul.Yul.State.setMachineState,
+      EvmYul.Yul.State.toMachineState, EvmYul.Yul.State.sharedState] using h
+  have hH_return :
+      (EvmYul.Yul.State.Ok shared3 store).sharedState.H_return = p.2.toByteArray := by
+    have h :=
+      Compiler.Proofs.YulGeneration.Backends.Native.mstore0_then_return32_emptyMemory_hReturn_eq_toByteArray
+        shared1 store p.2 hMemory1
+    simpa [shared3, shared2, EvmYul.Yul.State.setMachineState,
+      EvmYul.Yul.State.toMachineState, EvmYul.Yul.State.sharedState] using h
+  have hHaltNotZero : (⟨1⟩ : EvmYul.Yul.Ast.Literal) ≠ ⟨0⟩ := by
+    intro h
+    norm_num [EvmYul.UInt256.size] at h
+  have hReturnValue :
+      Compiler.Proofs.YulGeneration.Backends.Native.projectHaltReturn
+          (EvmYul.Yul.State.Ok shared3 store) ⟨1⟩ = some p.2.toNat := by
+    rw [Compiler.Proofs.YulGeneration.Backends.Native.projectHaltReturn_32ByteReturn
+      (EvmYul.Yul.State.Ok shared3 store) ⟨1⟩ hHaltNotZero hSize]
+    rw [hH_return,
+      Compiler.Proofs.YulGeneration.Backends.Native.byteArrayWord_uint256_toByteArray]
+  simp only [Compiler.Proofs.YulGeneration.Backends.Native.projectResult,
+    hReturnValue]
+
 /-- Closed-form `interpretIR` reduction for the SimpleStorage selector-miss
 class. Given the two raw selector mismatches (`≠ 0x6057361d` and
 `≠ 0x2e64cec1`), `interpretIR` falls into the `find?`-`none` branch and
