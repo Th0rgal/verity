@@ -2182,6 +2182,69 @@ theorem exec_lowerExprNative_mstore_lit_sload_lit_ok_fuel
     EvmYul.Yul.State.toSharedState, EvmYul.Yul.State.setSharedState,
     EvmYul.Yul.State.setMachineState, EvmYul.Yul.State.toMachineState]
 
+/-- State-generic native `exec` of the `return(memOffset, memSize)` expression
+    statement that the generated `retrieve()` body uses to surface the
+    materialised slot-zero word as the call's return data. EVMYulLean models
+    `RETURN` as a Yul halt carrying the post-`evmReturn` machine state; the
+    halt literal is the canonical nonzero marker `⟨1⟩` produced by
+    `binaryMachineStateOp`, while the actual returned bytes live in the
+    state's `H_return` buffer. The Yul `VarStore` is unchanged. -/
+theorem exec_lowerExprNative_return_lit_lit_error_fuel
+    (fuel : Nat)
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (memOffset memSize : Nat) :
+    EvmYul.Yul.exec (fuel + 6)
+        (.ExprStmtCall (Backends.lowerExprNative
+          (Yul.YulExpr.call "return"
+            [Yul.YulExpr.lit memOffset, Yul.YulExpr.lit memSize])))
+        codeOverride (.Ok shared store) =
+      .error (EvmYul.Yul.Exception.YulHalt
+        (.Ok { shared with
+               toMachineState :=
+                 shared.toMachineState.evmReturn
+                   (EvmYul.UInt256.ofNat memOffset)
+                   (EvmYul.UInt256.ofNat memSize) }
+          store)
+        ⟨1⟩) := by
+  simp [Backends.lowerExprNative, Backends.lookupRuntimePrimOp,
+    EvmYul.Yul.exec, EvmYul.Yul.eval, EvmYul.Yul.evalArgs,
+    EvmYul.Yul.evalTail, EvmYul.Yul.execPrimCall,
+    EvmYul.Yul.reverse', EvmYul.Yul.cons',
+    EvmYul.Yul.binaryMachineStateOp, EvmYul.Yul.State.setMachineState,
+    EvmYul.Yul.State.toMachineState, EvmYul.Yul.multifill']
+
+/-- Singleton-block form of `exec_lowerExprNative_return_lit_lit_error_fuel`.
+    A block whose only statement is `return(memOffset, memSize)` exec-errors
+    with the same closed-form `YulHalt` as the bare statement, plus one
+    extra unit of fuel for the `Block` cons step. This lets compositional
+    proofs that need to peel an outer block via `exec_block_cons_tail_error`
+    discharge the singleton-tail obligation directly. -/
+theorem exec_block_singleton_lowerExprNative_return_lit_lit_error_fuel
+    (fuel : Nat)
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (memOffset memSize : Nat) :
+    EvmYul.Yul.exec (fuel + 7)
+        (.Block [.ExprStmtCall (Backends.lowerExprNative
+          (Yul.YulExpr.call "return"
+            [Yul.YulExpr.lit memOffset, Yul.YulExpr.lit memSize]))])
+        codeOverride (.Ok shared store) =
+      .error (EvmYul.Yul.Exception.YulHalt
+        (.Ok { shared with
+               toMachineState :=
+                 shared.toMachineState.evmReturn
+                   (EvmYul.UInt256.ofNat memOffset)
+                   (EvmYul.UInt256.ofNat memSize) }
+          store)
+        ⟨1⟩) := by
+  show EvmYul.Yul.exec (Nat.succ (fuel + 6)) _ codeOverride _ = _
+  have hHead := exec_lowerExprNative_return_lit_lit_error_fuel
+    fuel shared store codeOverride memOffset memSize
+  simp [EvmYul.Yul.exec, hHead]
+
 /-- State-generic native `exec` of the `let __has_selector := iszero(lt(
     calldatasize(), 4))` statement that `buildSwitch` emits at the head of a
     dispatcher inner-block: at any fuel `≥ 11`, the let assigns

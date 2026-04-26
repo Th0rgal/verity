@@ -3160,6 +3160,59 @@ theorem exec_block_simpleStorageLoweredRetrieveCaseBodyTail2_lt_strip_error
   exact Backends.Native.exec_if_lowerExprNative_lt_calldatasize_skip_ge_fuel
     fuel _ codeOverride shared store 4 hSize (by decide) hGe
 
+/-- Closed-form native exec of the retrieve hit-case 2-statement payload
+    `mstore(0, sload(0)) ; return(0, 32)`. EVMYulLean models `RETURN` as a
+    halt error; the exec composes the harness's exec-side
+    `mstore(lit, sload(lit))` seam with the exec-side `return(lit, lit)`
+    halt seam through `exec_block_cons_tail_error`. The resulting halt state
+    threads (i) storage-access tracking from the SLOAD on slot zero,
+    (ii) the memory write of the loaded word at offset zero, and
+    (iii) the post-`evmReturn` machine state holding the 32-byte return
+    buffer. Discharges the `hTail3` premise of
+    `exec_block_simpleStorageLoweredRetrieveCaseBodyTail2_lt_strip_error`
+    unconditionally — no extra calldata/wei hypotheses needed because the
+    payload reads only from storage and writes only to memory. -/
+theorem exec_block_simpleStorageLoweredRetrieveCaseBodyTail3_closed
+    (fuel : Nat) (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (shared : EvmYul.SharedState .Yul) (store : EvmYul.Yul.VarStore) :
+    EvmYul.Yul.exec (fuel + 9)
+        (.Block simpleStorageLoweredRetrieveCaseBodyTail3)
+        codeOverride (.Ok shared store) =
+      let (state', value) := shared.sload (EvmYul.UInt256.ofNat 0)
+      let shared1 : EvmYul.SharedState .Yul := { shared with toState := state' }
+      let shared2 : EvmYul.SharedState .Yul :=
+        { shared1 with
+          toMachineState :=
+            shared1.toMachineState.mstore (EvmYul.UInt256.ofNat 0) value }
+      let shared3 : EvmYul.SharedState .Yul :=
+        { shared2 with
+          toMachineState :=
+            shared2.toMachineState.evmReturn
+              (EvmYul.UInt256.ofNat 0) (EvmYul.UInt256.ofNat 32) }
+      .error (EvmYul.Yul.Exception.YulHalt (.Ok shared3 store) ⟨1⟩) := by
+  show EvmYul.Yul.exec (Nat.succ (fuel + 8))
+    (.Block ((simpleStorageLoweredRetrieveCaseBodyTail3).head! ::
+      [(simpleStorageLoweredRetrieveCaseBodyTail3).getLast!]))
+    codeOverride (.Ok shared store) = _
+  refine Backends.Native.exec_block_cons_tail_error (fuel + 8) _ _ codeOverride
+    (.Ok shared store) _ _
+    (Backends.Native.exec_lowerExprNative_mstore_lit_sload_lit_ok_fuel
+      fuel shared store codeOverride 0 0) ?_
+  -- Tail [return(0, 32)] errors via the singleton-return harness lemma.
+  have hSeam :=
+    Backends.Native.exec_block_singleton_lowerExprNative_return_lit_lit_error_fuel
+      (fuel + 1)
+      ({ ({ shared with toState := (shared.sload (EvmYul.UInt256.ofNat 0)).1 }
+            : EvmYul.SharedState .Yul) with
+          toMachineState :=
+            ({ shared with toState := (shared.sload (EvmYul.UInt256.ofNat 0)).1 }
+              : EvmYul.SharedState .Yul).toMachineState.mstore
+              (EvmYul.UInt256.ofNat 0) (shared.sload (EvmYul.UInt256.ofNat 0)).2 })
+      store codeOverride 0 32
+  have hF : (fuel + 1) + 7 = fuel + 8 := by omega
+  rw [hF] at hSeam
+  simpa [simpleStorageLoweredRetrieveCaseBodyTail3] using hSeam
+
 /-- Concrete characterization of the lowered SimpleStorage source switch
 cases. Both bodies are straight-line, so the lowering is deterministic and
 the threaded `nextSwitchId` returns unchanged. Strengthens `_lowered_shape`
