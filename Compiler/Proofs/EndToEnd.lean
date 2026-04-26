@@ -3977,6 +3977,108 @@ theorem simpleStorage_endToEnd_evmYulLean
     (by intro s hs; simp [simpleStorageIRContract] at hs) rfl rfl
     simpleStorage_functions_bridged
 
+/-- Discharge the SimpleStorage selector-miss native dispatcher sub-bridge.
+
+Combines the closed-form native reduction
+`simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_atFuel`
+(native side reduces to `.error Revert`) with the layer-3 oracle
+`simpleStorage_endToEnd_evmYulLean` (`resultsMatch ir yul`) and the
+selector-miss `interpretIR` reduction `interpretIR_simpleStorage_selectorMiss`
+(IR side has trivial reverted shape). The native projection of `.error Revert`
+matches the IR reduction shape, and the layer-3 `resultsMatch` lifts that
+shape to the EVMYulLean Yul oracle. The fuel align follows from
+`simpleStorage_runtimeCode_eq_single_dispatcher` and the definitional unfold
+of `simpleStorageNativeDispatcherFuel`. -/
+theorem simpleStorageNativeSelectorMissBridge_proved
+    (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hvars : initialState.vars = [])
+    (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0)
+    (hreturn : initialState.returnValue = none)
+    (hdispatchGuardSafe : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      HasSelectorDeadBridge fn.body)
+    (hparamErase : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      paramLoadErasure fn tx (initialState.withTx tx)) :
+    simpleStorageNativeSelectorMissBridge tx initialState observableSlots := by
+  intro hSelMissRetrieve hSelMissStore
+  -- Translate selector-miss hypotheses to raw form (modulus is identity here).
+  have hSelEq : tx.functionSelector % selectorModulus = tx.functionSelector :=
+    Nat.mod_eq_of_lt hselector
+  have hSelMissTxStore : tx.functionSelector ≠ 0x6057361d := by
+    rw [← hSelEq]; exact hSelMissStore
+  have hSelMissTxRetrieve : tx.functionSelector ≠ 0x2e64cec1 := by
+    rw [← hSelEq]; exact hSelMissRetrieve
+  -- Layer-3 oracle agreement.
+  have hLayer3 := simpleStorage_endToEnd_evmYulLean tx initialState
+    hselector hNoWrap hvars hmemory htransient hreturn
+    hdispatchGuardSafe hNoHasSelector hHasSelectorDead hparamErase
+  have hIR := interpretIR_simpleStorage_selectorMiss tx initialState
+    hSelMissTxStore hSelMissTxRetrieve
+  rw [hIR] at hLayer3
+  -- Align fuel: simpleStorageNativeDispatcherFuel.succ = sizeOf (emitYul ...).runtimeCode + 1.
+  have hSizeEq :
+      sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode =
+        simpleStorageNativeDispatcherFuel := by
+    rw [simpleStorage_runtimeCode_eq_single_dispatcher]; rfl
+  rcases hLayer3 with ⟨hsuccess, hreturnValue, hstorage, _hmappings, hevents⟩
+  -- Apply the error-projection intro form.
+  refine nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_error_project_eq_agree
+    (err := EvmYul.Yul.Exception.Revert)
+    (nativeYul :=
+      { success := false
+        returnValue := none
+        finalStorage := initialState.storage
+        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+        events := initialState.events })
+    ?_ ?_ ?_
+  · -- Native exec → .error Revert
+    apply simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_atFuel
+    · -- selector < UInt256.size: selector < selectorModulus < UInt256.size
+      have hMod :
+          (YulTransaction.ofIR tx).functionSelector
+            % Compiler.Constants.selectorModulus
+            < Compiler.Constants.selectorModulus :=
+        Nat.mod_lt _ (by decide)
+      exact Nat.lt_trans hMod (by decide)
+    · change (YulTransaction.ofIR tx).functionSelector % selectorModulus ≠ _
+      change tx.functionSelector % selectorModulus ≠ _
+      exact hSelMissStore
+    · change (YulTransaction.ofIR tx).functionSelector % selectorModulus ≠ _
+      change tx.functionSelector % selectorModulus ≠ _
+      exact hSelMissRetrieve
+    · change 4 + (YulTransaction.ofIR tx).args.length * 32 < EvmYul.UInt256.size
+      change 4 + tx.args.length * 32 < EvmYul.UInt256.size
+      exact hNoWrap
+  · -- projectResult on .error Revert evaluates definitionally.
+    rfl
+  · -- Agreement via layer-3 oracle. Reshape the goal's fuel to match layer-3.
+    show yulResultsAgreeOn observableSlots _
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackendFuel
+        .evmYulLean simpleStorageNativeDispatcherFuel.succ
+        (Compiler.emitYul simpleStorageIRContract).runtimeCode
+        (YulTransaction.ofIR tx) initialState.storage initialState.events)
+    have hFuelGoal :
+        (simpleStorageNativeDispatcherFuel.succ : Nat) =
+          sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1 := by
+      rw [hSizeEq]
+    rw [hFuelGoal]
+    show yulResultsAgreeOn observableSlots _
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
+        .evmYulLean (Compiler.emitYul simpleStorageIRContract).runtimeCode
+        (YulTransaction.ofIR tx) initialState.storage initialState.events)
+    refine ⟨?_, ?_, ?_, ?_⟩
+    · exact hsuccess
+    · exact hreturnValue
+    · intro slot _
+      exact hstorage slot
+    · exact hevents
+
 /-- Native SimpleStorage wrapper with the lowering seam discharged.
 
 This reduces the remaining concrete native proof work for `simpleStorage` to
