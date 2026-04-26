@@ -5721,13 +5721,58 @@ theorem exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store
     (by simpa [nativeSwitchTailStmts, discrName, matchedName,
         Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hCases)
 
-/-- Bridge-shape variant of the Run 25 selector-miss endpoint: wraps the
-    lowered switch block in a singleton `.Block`, evaluates on the
-    post-`__has_selector := 1` state shape produced by the dispatcher reduction,
-    and yields `.error Revert`. The state input matches exactly the RHS of
-    `simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec`,
-    so this lemma is the direct compositional bridge from the dispatcher
-    reduction to the selector-miss `.error Revert` outcome. -/
+/-- Store-parametric guarded selector-hit execution for the lowered switch
+    block. Hit-case dual of `_find_none_with_revert_default_store_fuel`. -/
+theorem exec_lowerNativeSwitchBlock_selector_find_hit_error_store_fuel
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : Nat → Nat) (observableSlots : List Nat) (store : EvmYul.Yul.VarStore)
+    (err : EvmYul.Yul.Exception)
+    (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body)
+        (some contract)
+        ((((.Ok (initialState contract tx storage observableSlots).sharedState
+                store : EvmYul.Yul.State).insert
+              (Backends.nativeSwitchDiscrTempName switchId)
+              (EvmYul.UInt256.ofNat
+                (tx.functionSelector % Compiler.Constants.selectorModulus))).insert
+            (Backends.nativeSwitchMatchedTempName switchId)
+            (EvmYul.UInt256.ofNat 0)).insert
+            (Backends.nativeSwitchMatchedTempName switchId)
+            (EvmYul.UInt256.ofNat 1)) = .error err) :
+    EvmYul.Yul.exec (fuel + cases.length + 12)
+      (Backends.lowerNativeSwitchBlock
+        Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody)
+      (some contract)
+      (.Ok (initialState contract tx storage observableSlots).sharedState store) =
+    .error err := by
+  let discrName := Backends.nativeSwitchDiscrTempName switchId
+  let matchedName := Backends.nativeSwitchMatchedTempName switchId
+  have hne := nativeSwitchDiscrTempName_ne_matchedTempName switchId
+  have hCases :=
+    exec_nativeSwitchCaseIfs_find_hit_with_default_error_fuel
+      (fuel + 1) selector cases defaultBody tag body (some contract) _
+      discrName matchedName err hFind
+      (nativeSwitchPrefixStoreState_matched_eq contract tx storage
+        observableSlots store discrName matchedName _)
+      (nativeSwitchPrefixStoreState_discr_eq contract tx storage
+        observableSlots store discrName matchedName selector hne hSelector)
+      hSelectorRange hTagsRange hBody
+  exact exec_lowerNativeSwitchBlock_storePrefix_tail_error_fuel
+    (fuel + cases.length) switchId cases defaultBody contract tx storage
+    observableSlots store err
+    (by simpa [nativeSwitchTailStmts, discrName, matchedName,
+        Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hCases)
+
+/-- Bridge-shape selector-miss endpoint on the post-`__has_selector := 1`
+    state, yielding `.error Revert`. -/
 theorem exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_error
     (fuel selector switchId : Nat)
     (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
