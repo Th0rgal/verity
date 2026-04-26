@@ -2424,6 +2424,33 @@ theorem simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_revert_default
   simp only [List.cons.injEq, EvmYul.Yul.Ast.Stmt.If.injEq] at hCombo
   exact ⟨switchId, cases', hCombo.2.2.1.2⟩
 
+/-- Source-lowered companion of `_if2Body_eq_lowerSwitchBlock_revert_default_exists`:
+the `if2Body` equality additionally exposes `switchId =
+freshNativeSwitchId reservedNames n0` and the source-cases lowering equation
+linking `simpleStorageBuildSwitchSourceCases` to the lowered `cases'`. This is
+the form the dispatcher selector-miss closed-form consumes — chaining it with
+`lowerSwitchCasesNativeWithSwitchIds_tags_eq` lifts source-level selector
+facts through the lowering. -/
+theorem simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_revert_default_sourceLowered :
+    ∃ (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
+      simpleStorageNativeDispatcher_if2Body =
+        [Compiler.Proofs.YulGeneration.Backends.lowerNativeSwitchBlock
+          (Yul.YulExpr.call "shr"
+            [Yul.YulExpr.lit Compiler.Constants.selectorShift,
+             Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 0]])
+          (Backends.freshNativeSwitchId reservedNames n0) cases'
+          [Backends.Native.nativeRevertZeroZeroStmt]] ∧
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1)
+        simpleStorageBuildSwitchSourceCases = .ok (cases', midN) := by
+  obtain ⟨_, reservedNames, n0, cases', midN, hConcrete, hLowerCases⟩ :=
+    simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton_revert_default_sourceLowered
+  have hCombo :=
+    simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if.symm.trans hConcrete
+  simp only [List.cons.injEq, EvmYul.Yul.Ast.Stmt.If.injEq] at hCombo
+  exact ⟨reservedNames, n0, cases', midN, hCombo.2.2.1.2, hLowerCases⟩
+
 /-- The `Classical.choose`-pinned selector-miss `If` body of the SimpleStorage
 native dispatcher equals the singleton list `[nativeRevertZeroZeroStmt]`.
 Combines `simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if` with a
