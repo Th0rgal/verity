@@ -2338,6 +2338,48 @@ theorem exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchB
       switchId cases' default']
     hNoWrap
 
+/-- Bridge-level lift of the inner-block-to-lowerNativeSwitchBlock combinator:
+chains `simpleStorageNativeContract_dispatcherExec_eq_innerBlock_exec` with the
+just-landed `_innerStmts_eq_lowerNativeSwitchBlock_exec`, so the bridge's
+`contractDispatcherExecResult` at fuel `peeledFuel + 14` reduces to an exec of
+a singleton lowered-switch block at fuel `peeledFuel + 8` on
+`(initialOk).insert "__has_selector" 1`. -/
+theorem simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_exec
+    (peeledFuel : Nat)
+    (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
+    ∃ (switchId : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+      (default' : List EvmYul.Yul.Ast.Stmt),
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+          (peeledFuel + 14)
+          Compiler.SimpleStorageNativeWitness.nativeContract
+          (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+            Compiler.SimpleStorageNativeWitness.nativeContract
+            tx storage observableSlots) =
+        EvmYul.Yul.exec (peeledFuel + 8)
+          (.Block
+            [Backends.lowerNativeSwitchBlock
+              (Yul.YulExpr.call "shr"
+                [Yul.YulExpr.lit Compiler.Constants.selectorShift,
+                 Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 0]])
+              switchId cases' default'])
+          (some Compiler.SimpleStorageNativeWitness.nativeContract)
+          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
+            Compiler.SimpleStorageNativeWitness.nativeContract
+            tx storage observableSlots).insert "__has_selector"
+            (EvmYul.UInt256.ofNat 1)) := by
+  obtain ⟨switchId, cases', default', hExec⟩ :=
+    exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchBlock_exec
+      peeledFuel Compiler.SimpleStorageNativeWitness.nativeContract
+      tx storage observableSlots hNoWrap
+  refine ⟨switchId, cases', default', ?_⟩
+  have hShape : peeledFuel + 14 =
+      Nat.succ (Nat.succ (Nat.succ (peeledFuel + 11))) := by omega
+  rw [hShape, simpleStorageNativeContract_dispatcherExec_eq_innerBlock_exec
+        (peeledFuel + 11) tx storage observableSlots]
+  exact hExec
+
 noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch
     simpleStorageIRContract.functions none none]
