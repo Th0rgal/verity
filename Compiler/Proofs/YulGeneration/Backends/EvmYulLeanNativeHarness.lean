@@ -2147,6 +2147,40 @@ theorem eval_lowerExprNative_sload_ok_fuel
     EvmYul.Yul.head', EvmYul.Yul.State.toState,
     EvmYul.Yul.State.toSharedState, EvmYul.Yul.State.setSharedState]
 
+/-- State-generic native `exec` of the `mstore(memOffset, sload(slot))`
+    expression statement that the generated `retrieve()` body uses to
+    materialise the slot-zero word into memory before `return(0,32)`.
+    The exec threads the closed-form sload→mstore state effect: storage
+    is read with access-tracking via `SharedState.sload`, and memory is
+    updated with `MachineState.mstore` of the resulting value at the
+    given offset. The Yul `VarStore` is unchanged. -/
+theorem exec_lowerExprNative_mstore_lit_sload_lit_ok_fuel
+    (fuel : Nat)
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (memOffset slot : Nat) :
+    EvmYul.Yul.exec (fuel + 8)
+        (.ExprStmtCall (Backends.lowerExprNative
+          (Yul.YulExpr.call "mstore"
+            [Yul.YulExpr.lit memOffset,
+             Yul.YulExpr.call "sload" [Yul.YulExpr.lit slot]])))
+        codeOverride (.Ok shared store) =
+      let (state', value) := shared.sload (EvmYul.UInt256.ofNat slot)
+      let shared' : EvmYul.SharedState .Yul := { shared with toState := state' }
+      .ok (.Ok { shared' with
+                 toMachineState :=
+                   shared'.toMachineState.mstore
+                     (EvmYul.UInt256.ofNat memOffset) value }
+            store) := by
+  simp [Backends.lowerExprNative, Backends.lookupRuntimePrimOp,
+    EvmYul.Yul.exec, EvmYul.Yul.eval, EvmYul.Yul.evalArgs,
+    EvmYul.Yul.evalTail, EvmYul.Yul.evalPrimCall, EvmYul.Yul.execPrimCall,
+    EvmYul.Yul.reverse', EvmYul.Yul.cons', EvmYul.Yul.head',
+    EvmYul.Yul.multifill', EvmYul.Yul.State.multifill,
+    EvmYul.Yul.State.toState,
+    EvmYul.Yul.State.toSharedState, EvmYul.Yul.State.setSharedState,
+    EvmYul.Yul.State.setMachineState, EvmYul.Yul.State.toMachineState]
 
 /-- State-generic native `exec` of the `let __has_selector := iszero(lt(
     calldatasize(), 4))` statement that `buildSwitch` emits at the head of a
