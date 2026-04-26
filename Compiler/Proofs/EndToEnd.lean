@@ -2920,6 +2920,72 @@ theorem simpleStorageBuildSwitchSourceCases_lowered_shape
     obtain ⟨ht1, ht2⟩ := hTags
     exact ⟨b1, b2, by rw [ht1, ht2]⟩
 
+/-- Lowered native body shape of the `store(uint256)` selector arm of the
+SimpleStorage source switch cases (leading `.Block []` from the `dispatchBody`
+comment, followed by callvalue/calldatasize guards and the calldataload/
+sstore/stop primitive sequence). Pinning this lets downstream hit-case proofs
+specialize to a fixed concrete body instead of carrying a parametric
+`storeBody'`. -/
+def simpleStorageLoweredStoreCaseBody : List EvmYul.Yul.Ast.Stmt :=
+  [EvmYul.Yul.Ast.Stmt.Block [],
+   .If (Backends.lowerExprNative (.call "callvalue" []))
+     [.ExprStmtCall (Backends.lowerExprNative (.call "revert" [.lit 0, .lit 0]))],
+   .If (Backends.lowerExprNative
+          (.call "lt" [.call "calldatasize" [], .lit 36]))
+     [.ExprStmtCall (Backends.lowerExprNative (.call "revert" [.lit 0, .lit 0]))],
+   .Let ["value"] (some (Backends.lowerExprNative
+     (.call "calldataload" [.lit 4]))),
+   .ExprStmtCall (Backends.lowerExprNative
+     (.call "sstore" [.lit 0, .ident "value"])),
+   .ExprStmtCall (Backends.lowerExprNative (.call "stop" []))]
+
+/-- Lowered native body shape of the `retrieve()` selector arm of the
+SimpleStorage source switch cases. Mirrors `simpleStorageLoweredStoreCaseBody`
+for the source `mstore(0, sload(0)); return(0, 32)` body. -/
+def simpleStorageLoweredRetrieveCaseBody : List EvmYul.Yul.Ast.Stmt :=
+  [EvmYul.Yul.Ast.Stmt.Block [],
+   .If (Backends.lowerExprNative (.call "callvalue" []))
+     [.ExprStmtCall (Backends.lowerExprNative (.call "revert" [.lit 0, .lit 0]))],
+   .If (Backends.lowerExprNative
+          (.call "lt" [.call "calldatasize" [], .lit 4]))
+     [.ExprStmtCall (Backends.lowerExprNative (.call "revert" [.lit 0, .lit 0]))],
+   .ExprStmtCall (Backends.lowerExprNative
+     (.call "mstore" [.lit 0, .call "sload" [.lit 0]])),
+   .ExprStmtCall (Backends.lowerExprNative
+     (.call "return" [.lit 0, .lit 32]))]
+
+/-- Concrete characterization of the lowered SimpleStorage source switch
+cases. Both bodies are straight-line, so the lowering is deterministic and
+the threaded `nextSwitchId` returns unchanged. Strengthens `_lowered_shape`
+from a two-element shape with unspecified bodies to a fixed shape with
+explicit lowered bodies, anchoring downstream hit-case proofs against the
+harness primitive-call lemmas. -/
+theorem simpleStorageBuildSwitchSourceCases_lowered_concrete
+    (reservedNames : List String) (nextSwitchId : Nat) :
+    Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames nextSwitchId
+        simpleStorageBuildSwitchSourceCases =
+      .ok ([(0x6057361d, simpleStorageLoweredStoreCaseBody),
+            (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)],
+        nextSwitchId) := by
+  simp only [simpleStorageLoweredStoreCaseBody,
+    simpleStorageLoweredRetrieveCaseBody,
+    simpleStorageBuildSwitchSourceCases, simpleStorageIRContract,
+    Compiler.CodegenCommon.dispatchBody,
+    Compiler.CodegenCommon.callvalueGuard,
+    Compiler.CodegenCommon.calldatasizeGuard,
+    List.map_cons, List.map_nil, List.append_nil,
+    List.cons_append, List.nil_append, List.length_cons, List.length_nil,
+    if_false, Bool.false_eq_true,
+    Backends.lowerSwitchCasesNativeWithSwitchIds_cons,
+    Backends.lowerSwitchCasesNativeWithSwitchIds_nil,
+    Backends.lowerStmtsNativeWithSwitchIds_cons,
+    Backends.lowerStmtsNativeWithSwitchIds_nil,
+    Backends.lowerStmtGroupNativeWithSwitchIds_comment,
+    Backends.lowerStmtGroupNativeWithSwitchIds_let,
+    Backends.lowerStmtGroupNativeWithSwitchIds_expr,
+    Backends.lowerStmtGroupNativeWithSwitchIds_if,
+    Bind.bind, Except.bind, pure, Except.pure]
+
 /-- Closed-form selector-miss bridge endpoint for SimpleStorage native
 dispatcher. Takes only source-level selector facts (`selector ≠ 0x6057361d`
 and `selector ≠ 0x2e64cec1`, the two SimpleStorage IR selectors) and
