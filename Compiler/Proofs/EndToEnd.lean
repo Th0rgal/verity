@@ -3941,6 +3941,14 @@ theorem simpleStorageNativeDispatcherFuel_ge_21 :
   unfold simpleStorageNativeDispatcherFuel
   decide
 
+/-- Lower bound on the SimpleStorage native dispatcher fuel constant for
+the retrieve-hit and store-hit bridges, which use the `_concrete_tail3`
+chain that produces dispatcher exec at `fuel + 25`. -/
+theorem simpleStorageNativeDispatcherFuel_ge_25 :
+    simpleStorageNativeDispatcherFuel ≥ 25 := by
+  unfold simpleStorageNativeDispatcherFuel
+  decide
+
 /-- Closed-form `interpretIR` reduction for the SimpleStorage selector-miss
 class. Given the two raw selector mismatches (`≠ 0x6057361d` and
 `≠ 0x2e64cec1`), `interpretIR` falls into the `find?`-`none` branch and
