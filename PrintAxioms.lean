@@ -2971,6 +2971,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_callvalue_initialState_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_callvalue_ok_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_lt_calldatasize_ok_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_sload_ok_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_ok_fuel
@@ -3513,4 +3514,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3340 theorems/lemmas (2409 public, 931 private, 0 sorry'd)
+-- Total: 3341 theorems/lemmas (2410 public, 931 private, 0 sorry'd)

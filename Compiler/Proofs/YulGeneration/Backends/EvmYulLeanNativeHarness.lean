@@ -2121,6 +2121,32 @@ theorem eval_lowerExprNative_lt_calldatasize_ok_fuel
     EvmYul.Yul.evalPrimCall, EvmYul.Yul.reverse', EvmYul.Yul.cons',
     EvmYul.Yul.head', EvmYul.Yul.State.executionEnv]
 
+/-- Native evaluation of the lowered `sload(lit slot)` Yul expression. At any
+    fuel `≥ fuel + 6`, the eval reduces to the closed-form pair returned by
+    EVMYulLean's `SLOAD` primitive: the new `SharedState` carries the
+    storage-access-tracked `toState`, and the value is the raw
+    `State.sload` result word. Closes the eval-side seam for sload reasoning
+    on dispatcher hit-case body inner blocks (specifically the
+    `mstore(0, sload(0))` outer expression in the `retrieve()` getter
+    body). -/
+theorem eval_lowerExprNative_sload_ok_fuel
+    (fuel : Nat)
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (slot : Nat) :
+    EvmYul.Yul.eval (fuel + 6)
+        (Backends.lowerExprNative
+          (Yul.YulExpr.call "sload" [Yul.YulExpr.lit slot]))
+        codeOverride (.Ok shared store) =
+      let (state', value) := shared.sload (EvmYul.UInt256.ofNat slot)
+      .ok (.Ok { shared with toState := state' } store, value) := by
+  simp [Backends.lowerExprNative, Backends.lookupRuntimePrimOp,
+    EvmYul.Yul.eval, EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail,
+    EvmYul.Yul.evalPrimCall, EvmYul.Yul.reverse', EvmYul.Yul.cons',
+    EvmYul.Yul.head', EvmYul.Yul.State.toState,
+    EvmYul.Yul.State.toSharedState, EvmYul.Yul.State.setSharedState]
+
 
 /-- State-generic native `exec` of the `let __has_selector := iszero(lt(
     calldatasize(), 4))` statement that `buildSwitch` emits at the head of a
