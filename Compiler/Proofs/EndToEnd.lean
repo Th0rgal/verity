@@ -2978,6 +2978,80 @@ theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert
   rw [show fuel + cases'.length + 19 = fuel + 21 by rw [hLen]] at h
   exact h
 
+/-- Post-`__has_selector := 1` switch-prefix state at a hit, with the matched
+flag set: the input state shape consumed by the selected body inside the
+lowered native switch's hit branch. -/
+def simpleStorageDispatcherHitBodyInputState
+    (switchId : Nat) (tx : YulTransaction) (storage : Nat → Nat)
+    (observableSlots : List Nat) : EvmYul.Yul.State :=
+  ((((.Ok (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+            Compiler.SimpleStorageNativeWitness.nativeContract
+            tx storage observableSlots).sharedState
+            ((∅ : EvmYul.Yul.VarStore).insert "__has_selector"
+              (EvmYul.UInt256.ofNat 1)) : EvmYul.Yul.State).insert
+          (Backends.nativeSwitchDiscrTempName switchId)
+          (EvmYul.UInt256.ofNat
+            (tx.functionSelector % Compiler.Constants.selectorModulus))).insert
+        (Backends.nativeSwitchMatchedTempName switchId)
+        (EvmYul.UInt256.ofNat 0)).insert
+      (Backends.nativeSwitchMatchedTempName switchId)
+      (EvmYul.UInt256.ofNat 1))
+
+/-- Hit-case dual of `_selectorMiss_revert_via_reduction` for the
+SimpleStorage `store(uint256)` selector: composes the harness-level
+`exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error`
+with the strengthened-reduction equation, parametric in `cases'`, the lowered
+bodies, and the body-execution `err`. -/
+theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_via_reduction
+    (fuel switchId : Nat)
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (storeBody' retrieveBody' : List EvmYul.Yul.Ast.Stmt)
+    (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat)
+    (err : EvmYul.Yul.Exception)
+    (hSelector :
+      0x6057361d = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hCases : cases' = [(0x6057361d, storeBody'), (0x2e64cec1, retrieveBody')])
+    (hBody : ∀ pre suffix, cases' = pre ++ (0x6057361d, storeBody') :: suffix →
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block storeBody')
+        (some Compiler.SimpleStorageNativeWitness.nativeContract)
+        (simpleStorageDispatcherHitBodyInputState switchId tx storage
+          observableSlots) = .error err)
+    (hReduction :
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+          (fuel + cases'.length + 19)
+          Compiler.SimpleStorageNativeWitness.nativeContract
+          (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+            Compiler.SimpleStorageNativeWitness.nativeContract
+            tx storage observableSlots) =
+        EvmYul.Yul.exec (fuel + cases'.length + 13)
+          (.Block [Backends.lowerNativeSwitchBlock
+            (Yul.YulExpr.call "shr" [Yul.YulExpr.lit Compiler.Constants.selectorShift,
+              Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 0]])
+            switchId cases' [Backends.Native.nativeRevertZeroZeroStmt]])
+          (some Compiler.SimpleStorageNativeWitness.nativeContract)
+          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
+            Compiler.SimpleStorageNativeWitness.nativeContract
+            tx storage observableSlots).insert "__has_selector"
+              (EvmYul.UInt256.ofNat 1))) :
+    Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        (fuel + cases'.length + 19)
+        Compiler.SimpleStorageNativeWitness.nativeContract
+        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+          Compiler.SimpleStorageNativeWitness.nativeContract
+          tx storage observableSlots) = .error err := by
+  rw [hReduction]
+  refine Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error
+    fuel 0x6057361d switchId 0x6057361d cases'
+    [Backends.Native.nativeRevertZeroZeroStmt] storeBody'
+    Compiler.SimpleStorageNativeWitness.nativeContract
+    tx storage observableSlots err hSelector ?_ ?_ ?_ ?_
+  · rw [hCases]; rfl
+  · norm_num [EvmYul.UInt256.size]
+  · intro tag body hMem; rw [hCases] at hMem
+    simp only [List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false] at hMem
+    rcases hMem with ⟨rfl, _⟩ | ⟨rfl, _⟩ <;> decide
+  · simpa [simpleStorageDispatcherHitBodyInputState] using hBody
+
 noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch
     simpleStorageIRContract.functions none none]
