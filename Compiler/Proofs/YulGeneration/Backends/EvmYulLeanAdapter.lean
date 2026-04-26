@@ -625,6 +625,60 @@ theorem lowerSwitchCasesNativeWithSwitchIds_find?_some
                 exact ⟨body', bodyStart, bodyEnd,
                   by simp [List.find?, hTag, hLowerFind], hLowerBody⟩
 
+/-- Native switch case lowering preserves the tag spine of the source cases. -/
+theorem lowerSwitchCasesNativeWithSwitchIds_tags_eq
+    (reservedNames : List String) (nextSwitchId final : Nat)
+    (cases : List (Nat × List YulStmt))
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (hLower : lowerSwitchCasesNativeWithSwitchIds reservedNames nextSwitchId cases =
+      .ok (cases', final)) :
+    cases'.map (·.1) = cases.map (·.1) := by
+  induction cases generalizing nextSwitchId cases' final with
+  | nil =>
+      simp at hLower
+      rcases hLower with ⟨rfl, _⟩
+      rfl
+  | cons head rest ih =>
+      rcases head with ⟨tag, block⟩
+      cases hBlock : lowerStmtsNativeWithSwitchIds reservedNames nextSwitchId block with
+      | error err =>
+          simp [lowerSwitchCasesNativeWithSwitchIds.eq_2, hBlock] at hLower
+          cases hLower
+      | ok blockAndNext =>
+          rcases blockAndNext with ⟨block', nextSwitchId'⟩
+          rw [lowerSwitchCasesNativeWithSwitchIds.eq_2, hBlock] at hLower
+          change ((fun a => ((tag, block') :: a.1, a.2)) <$>
+            lowerSwitchCasesNativeWithSwitchIds reservedNames nextSwitchId' rest) =
+              Except.ok (cases', final) at hLower
+          cases hRest :
+              lowerSwitchCasesNativeWithSwitchIds reservedNames nextSwitchId' rest with
+          | error err =>
+              rw [hRest] at hLower
+              simp at hLower
+          | ok restAndNext =>
+              rcases restAndNext with ⟨rest', final'⟩
+              rw [hRest] at hLower
+              simp at hLower
+              rcases hLower with ⟨rfl, rfl⟩
+              have hRestTags := ih nextSwitchId' final' rest' hRest
+              simp [List.map, hRestTags]
+
+/-- Length companion of `lowerSwitchCasesNativeWithSwitchIds_tags_eq`: the
+lowered case list has the same length as the source case list. Useful when
+fuel parameters or other arithmetic in downstream proofs depend on
+`cases'.length`. -/
+theorem lowerSwitchCasesNativeWithSwitchIds_length_eq
+    (reservedNames : List String) (nextSwitchId final : Nat)
+    (cases : List (Nat × List YulStmt))
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (hLower : lowerSwitchCasesNativeWithSwitchIds reservedNames nextSwitchId cases =
+      .ok (cases', final)) :
+    cases'.length = cases.length := by
+  have h := lowerSwitchCasesNativeWithSwitchIds_tags_eq
+    reservedNames nextSwitchId final cases cases' hLower
+  have hLen := congrArg List.length h
+  simpa using hLen
+
 @[simp] theorem lowerStmtGroupNativeWithSwitchIds_comment
     (reservedNames : List String)
     (nextSwitchId : Nat)

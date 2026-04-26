@@ -2175,6 +2175,45 @@ theorem lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq
         List.singleton_append, Except.ok.injEq, Prod.mk.injEq] at h
       exact ⟨cases', h.1.symm⟩
 
+set_option linter.unusedSimpArgs false in
+/-- Source-lowered companion of `_singleton_switch_revert_default_eq`: also
+exposes the `lowerSwitchCasesNativeWithSwitchIds` equation linking the source
+case list to the lowered `cases'`. Downstream selector-miss reductions chain
+this with `lowerSwitchCasesNativeWithSwitchIds_tags_eq` /
+`lowerSwitchCasesNativeWithSwitchIds_find?_none` to lift source-level selector
+facts through the lowering. -/
+theorem lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered
+    (reservedNames : List String) (n0 : Nat)
+    (expr : Yul.YulExpr) (cases : List (Nat × List Yul.YulStmt))
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (h : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+            [Yul.YulStmt.switch expr cases
+              (some [Yul.YulStmt.expr (Yul.YulExpr.call "revert"
+                [Yul.YulExpr.lit 0, Yul.YulExpr.lit 0])])] = .ok (inner, next)) :
+    ∃ (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
+      inner = [Backends.lowerNativeSwitchBlock expr
+        (Backends.freshNativeSwitchId reservedNames n0) cases'
+        [Backends.Native.nativeRevertZeroZeroStmt]] ∧
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1) cases =
+          .ok (cases', midN) := by
+  rw [Backends.lowerStmtsNativeWithSwitchIds_cons,
+      Backends.lowerStmtGroupNativeWithSwitchIds_switch] at h
+  dsimp only [] at h
+  cases hCases : Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+      (Backends.freshNativeSwitchId reservedNames n0 + 1) cases with
+  | error _ =>
+      rw [hCases] at h; simp only [Bind.bind, Except.bind, reduceCtorEq] at h
+  | ok casesPair =>
+      obtain ⟨cases', midN⟩ := casesPair
+      rw [hCases] at h
+      simp only [Bind.bind, Except.bind, Pure.pure, Except.pure] at h
+      rw [lowerStmtsNativeWithSwitchIds_revert_zero_zero] at h
+      simp only [Bind.bind, Except.bind, Pure.pure, Except.pure,
+        Backends.lowerStmtsNativeWithSwitchIds_nil,
+        List.singleton_append, Except.ok.injEq, Prod.mk.injEq] at h
+      exact ⟨cases', midN, h.1.symm, rfl⟩
+
 /-- Strengthened companion of `simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton`:
 the lowered default body of the inner switch is pinned to the concrete
 `[nativeRevertZeroZeroStmt]` singleton. The lowered case bodies (and the

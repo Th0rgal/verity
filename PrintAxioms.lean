@@ -733,6 +733,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton
 #print axioms Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_revert_zero_zero
 #print axioms Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq
+#print axioms Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton_revert_default
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_letValue_eq
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if1Cond_eq
@@ -2270,6 +2271,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_cons
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_find?_none
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_find?_some
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_length_eq
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_comment
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_let
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_letMany
@@ -3471,4 +3474,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3298 theorems/lemmas (2368 public, 930 private, 0 sorry'd)
+-- Total: 3301 theorems/lemmas (2371 public, 930 private, 0 sorry'd)
