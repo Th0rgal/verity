@@ -3109,6 +3109,105 @@ theorem simpleStorageNativeContract_dispatcherExec_storeHit_error
                exact absurd hRest.1.1 (by decide)
       | cons _ _ => simp at hRest
 
+theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_via_reduction
+    (fuel switchId : Nat)
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (storeBody' retrieveBody' : List EvmYul.Yul.Ast.Stmt)
+    (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat)
+    (err : EvmYul.Yul.Exception)
+    (hSelector :
+      0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hCases : cases' = [(0x6057361d, storeBody'), (0x2e64cec1, retrieveBody')])
+    (hBody : ∀ pre suffix, cases' = pre ++ (0x2e64cec1, retrieveBody') :: suffix →
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block retrieveBody')
+        (some Compiler.SimpleStorageNativeWitness.nativeContract)
+        (simpleStorageDispatcherHitBodyInputState switchId tx storage
+          observableSlots) = .error err)
+    (hReduction :
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+          (fuel + cases'.length + 19)
+          Compiler.SimpleStorageNativeWitness.nativeContract
+          (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+            Compiler.SimpleStorageNativeWitness.nativeContract
+            tx storage observableSlots) =
+        EvmYul.Yul.exec (fuel + cases'.length + 13)
+          (.Block [Backends.lowerNativeSwitchBlock
+            (Yul.YulExpr.call "shr" [Yul.YulExpr.lit Compiler.Constants.selectorShift,
+              Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 0]])
+            switchId cases' [Backends.Native.nativeRevertZeroZeroStmt]])
+          (some Compiler.SimpleStorageNativeWitness.nativeContract)
+          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
+            Compiler.SimpleStorageNativeWitness.nativeContract
+            tx storage observableSlots).insert "__has_selector"
+              (EvmYul.UInt256.ofNat 1))) :
+    Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        (fuel + cases'.length + 19)
+        Compiler.SimpleStorageNativeWitness.nativeContract
+        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+          Compiler.SimpleStorageNativeWitness.nativeContract
+          tx storage observableSlots) = .error err := by
+  rw [hReduction]
+  refine Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error
+    fuel 0x2e64cec1 switchId 0x2e64cec1 cases'
+    [Backends.Native.nativeRevertZeroZeroStmt] retrieveBody'
+    Compiler.SimpleStorageNativeWitness.nativeContract
+    tx storage observableSlots err hSelector ?_ ?_ ?_ ?_
+  · rw [hCases]; rfl
+  · norm_num [EvmYul.UInt256.size]
+  · intro tag body hMem; rw [hCases] at hMem
+    simp only [List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false] at hMem
+    rcases hMem with ⟨rfl, _⟩ | ⟨rfl, _⟩ <;> decide
+  · simpa [simpleStorageDispatcherHitBodyInputState] using hBody
+
+theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error
+    (fuel : Nat) (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat)
+    (err : EvmYul.Yul.Exception)
+    (hSelector : 0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hBody : ∀ (reservedNames : List String) (n0 midN : Nat)
+              (storeBody' retrieveBody' : List EvmYul.Yul.Ast.Stmt),
+        simpleStorageLoweredHitCasesShape reservedNames n0 midN storeBody' retrieveBody' →
+        EvmYul.Yul.exec (fuel + 8) (.Block retrieveBody')
+          (some Compiler.SimpleStorageNativeWitness.nativeContract)
+          (simpleStorageDispatcherHitBodyInputState
+            (Backends.freshNativeSwitchId reservedNames n0) tx storage observableSlots) =
+          .error err) :
+    Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        (fuel + 21) Compiler.SimpleStorageNativeWitness.nativeContract
+        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+          Compiler.SimpleStorageNativeWitness.nativeContract tx storage observableSlots) =
+      .error err := by
+  obtain ⟨reservedNames, n0, cases', midN, hExec, hLowerCases⟩ :=
+    simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec_sourceLowered
+      (fuel + 7) tx storage observableSlots hNoWrap
+  obtain ⟨storeBody', retrieveBody', hCases⟩ :=
+    simpleStorageBuildSwitchSourceCases_lowered_shape reservedNames _ midN cases' hLowerCases
+  subst hCases
+  have hBody' := hBody reservedNames n0 midN storeBody' retrieveBody' hLowerCases
+  have hReduction := hExec
+  rw [show (fuel + 7 + 14 : Nat) = fuel + 2 + 19 from by omega,
+      show (fuel + 7 + 8 : Nat) = fuel + 2 + 13 from by omega,
+      show (2 : Nat) = ([(0x6057361d, storeBody'), (0x2e64cec1, retrieveBody')] :
+        List (Nat × List EvmYul.Yul.Ast.Stmt)).length from rfl] at hReduction
+  have h := simpleStorageNativeContract_dispatcherExec_retrieveHit_error_via_reduction
+    fuel (Backends.freshNativeSwitchId reservedNames n0)
+    [(0x6057361d, storeBody'), (0x2e64cec1, retrieveBody')]
+    storeBody' retrieveBody' tx storage observableSlots err
+    hSelector rfl ?_ hReduction
+  · rw [show fuel + ([(0x6057361d, storeBody'), (0x2e64cec1, retrieveBody')] :
+        List (Nat × List EvmYul.Yul.Ast.Stmt)).length + 19 = fuel + 21 from rfl] at h
+    exact h
+  · rintro (_ | ⟨⟨_, _⟩, rest⟩) suffix hDecomp
+    · exfalso
+      simp only [List.nil_append, List.cons.injEq, Prod.mk.injEq] at hDecomp
+      exact absurd hDecomp.1.1 (by decide)
+    · simp only [List.cons_append, List.cons.injEq] at hDecomp
+      obtain ⟨_, hRest⟩ := hDecomp
+      cases rest with
+      | nil => simp only [List.nil_append, List.cons.injEq] at hRest
+               obtain ⟨_, hSuf⟩ := hRest; subst hSuf; simpa using hBody'
+      | cons _ _ => simp at hRest
+
 noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch
     simpleStorageIRContract.functions none none]
