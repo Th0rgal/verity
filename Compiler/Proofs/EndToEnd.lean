@@ -3175,6 +3175,52 @@ theorem simpleStorageNativeContract_dispatcherExec_storeHit_error
                exact absurd hRest.1.1 (by decide)
       | cons _ _ => simp at hRest
 
+theorem simpleStorageLoweredHitCasesShape_concrete
+    {reservedNames : List String} {n0 midN : Nat}
+    {storeBody' retrieveBody' : List EvmYul.Yul.Ast.Stmt}
+    (hShape : simpleStorageLoweredHitCasesShape reservedNames n0 midN
+      storeBody' retrieveBody') :
+    storeBody' = simpleStorageLoweredStoreCaseBody ∧
+      retrieveBody' = simpleStorageLoweredRetrieveCaseBody := by
+  have hC := simpleStorageBuildSwitchSourceCases_lowered_concrete
+    reservedNames (Backends.freshNativeSwitchId reservedNames n0 + 1)
+  unfold simpleStorageLoweredHitCasesShape at hShape
+  rw [hC] at hShape
+  simp only [Except.ok.injEq, Prod.mk.injEq, List.cons.injEq] at hShape
+  exact ⟨hShape.1.1.2.symm, hShape.1.2.1.2.symm⟩
+
+/-- Concrete-body variant of `_dispatcherExec_storeHit_error`. The caller now
+only has to discharge the body-exec obligation on the *fixed* lowered body
+`simpleStorageLoweredStoreCaseBody`, instead of universally over any
+`storeBody'` that might come out of the lowering. Uses
+`simpleStorageLoweredHitCasesShape_concrete` to specialize the underlying
+parametric premise. This strictly weakens the hit-case obligation that the
+dispatcher bridge proof has to supply. -/
+theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete
+    (fuel : Nat) (tx : YulTransaction) (storage : Nat → Nat)
+    (observableSlots : List Nat) (err : EvmYul.Yul.Exception)
+    (hSelector : 0x6057361d = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hBody : ∀ (reservedNames : List String) (n0 : Nat),
+        EvmYul.Yul.exec (fuel + 9) (.Block simpleStorageLoweredStoreCaseBody)
+          (some Compiler.SimpleStorageNativeWitness.nativeContract)
+          (simpleStorageDispatcherHitBodyInputState
+            (Backends.freshNativeSwitchId reservedNames n0)
+            tx storage observableSlots) =
+          .error err) :
+    Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        (fuel + 21) Compiler.SimpleStorageNativeWitness.nativeContract
+        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+          Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+          observableSlots) =
+      .error err := by
+  refine simpleStorageNativeContract_dispatcherExec_storeHit_error
+    fuel tx storage observableSlots err hSelector hNoWrap ?_
+  intro reservedNames n0 _ storeBody' _ hShape
+  obtain ⟨hStore, _⟩ := simpleStorageLoweredHitCasesShape_concrete hShape
+  rw [hStore]
+  exact hBody reservedNames n0
+
 theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_via_reduction
     (fuel switchId : Nat)
     (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
@@ -3273,6 +3319,31 @@ theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error
       | nil => simp only [List.nil_append, List.cons.injEq] at hRest
                obtain ⟨_, hSuf⟩ := hRest; subst hSuf; simpa using hBody'
       | cons _ _ => simp at hRest
+
+theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete
+    (fuel : Nat) (tx : YulTransaction) (storage : Nat → Nat)
+    (observableSlots : List Nat) (err : EvmYul.Yul.Exception)
+    (hSelector : 0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hBody : ∀ (reservedNames : List String) (n0 : Nat),
+        EvmYul.Yul.exec (fuel + 8) (.Block simpleStorageLoweredRetrieveCaseBody)
+          (some Compiler.SimpleStorageNativeWitness.nativeContract)
+          (simpleStorageDispatcherHitBodyInputState
+            (Backends.freshNativeSwitchId reservedNames n0)
+            tx storage observableSlots) =
+          .error err) :
+    Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        (fuel + 21) Compiler.SimpleStorageNativeWitness.nativeContract
+        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+          Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+          observableSlots) =
+      .error err := by
+  refine simpleStorageNativeContract_dispatcherExec_retrieveHit_error
+    fuel tx storage observableSlots err hSelector hNoWrap ?_
+  intro reservedNames n0 _ _ retrieveBody' hShape
+  obtain ⟨_, hRetrieve⟩ := simpleStorageLoweredHitCasesShape_concrete hShape
+  rw [hRetrieve]
+  exact hBody reservedNames n0
 
 noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch
