@@ -4141,12 +4141,15 @@ witness supplied per-selector-case.
 
 This theorem targets native EVMYulLean execution, but it does not pretend the
 remaining selected-body native dispatcher proof is complete. Callers must
-supply three per-case sub-bridges (retrieve hit, store hit, selector miss)
-covering the three selector classes the lowered switch branches on. The
-sub-bridges are recombined into the monolithic
-`simpleStorageNativeCallDispatcherBridge` via
-`simpleStorageNativeCallDispatcherBridge_of_per_case` before delegating to the
-underlying `_of_callDispatcher_bridge` wrapper.
+supply two per-case sub-bridges (retrieve hit, store hit) for the two
+hit-selector classes the lowered switch branches on. The selector-miss case
+is fully discharged inside this proof via
+`simpleStorageNativeSelectorMissBridge_proved` (closed-form `.error Revert`
+on the native side combined with the layer-3 EVMYulLean oracle). The two
+caller-supplied sub-bridges plus the proved selector-miss sub-bridge are
+recombined into the monolithic `simpleStorageNativeCallDispatcherBridge` via
+`simpleStorageNativeCallDispatcherBridge_of_per_case` before delegating to
+the underlying `_of_callDispatcher_bridge` wrapper.
 
 Each sub-bridge is strictly weaker than the monolithic bridge: it gets to
 assume the selector class as a precondition, so its discharger does not need
@@ -4176,8 +4179,6 @@ theorem simpleStorage_endToEnd_native_evmYulLean
       simpleStorageNativeRetrieveHitBridge tx initialState observableSlots)
     (hStoreHit :
       simpleStorageNativeStoreHitBridge tx initialState observableSlots)
-    (hSelectorMiss :
-      simpleStorageNativeSelectorMissBridge tx initialState observableSlots)
     (hEnv :
       Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
         (Compiler.emitYul simpleStorageIRContract).runtimeCode
@@ -4187,6 +4188,13 @@ theorem simpleStorage_endToEnd_native_evmYulLean
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
         simpleStorageIRContract tx initialState observableSlots) :=
+  -- The selector-miss sub-bridge is fully discharged via
+  -- `simpleStorageNativeSelectorMissBridge_proved`; no caller premise needed.
+  let hSelectorMiss :
+      simpleStorageNativeSelectorMissBridge tx initialState observableSlots :=
+    simpleStorageNativeSelectorMissBridge_proved tx initialState observableSlots
+      hselector hNoWrap hvars hmemory htransient hreturn
+      hdispatchGuardSafe hNoHasSelector hHasSelectorDead hparamErase
   simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge
     tx initialState observableSlots hselector hNoWrap hvars hmemory htransient
     hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead hparamErase hEnv
