@@ -2727,6 +2727,38 @@ private theorem nativeSwitchInitialOkState_insert_lookup_self
     GetElem?.getElem!, decidableGetElem?, GetElem.getElem,
     EvmYul.Yul.State.store, EvmYul.Yul.State.lookup!]
 
+/-- Fuel-parametric native `If` reduction for the lowered selector-hit guard
+    `if __has_selector { … }`: when the named variable is bound to
+    `UInt256.ofNat 1`, the lowered `Var name` condition evaluates non-zero so
+    the if-statement reduces to executing its body block at strictly smaller
+    fuel on the same incoming state. This is the dispatcher's `If2`-take
+    counterpart of the `If1`-skip lemma. -/
+theorem exec_if_lowerExprNative_ident_one_take_fuel
+    (fuel : Nat) (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State) (name : EvmYul.Identifier)
+    (hVal : state[name]! = EvmYul.UInt256.ofNat 1) :
+    EvmYul.Yul.exec (fuel + 2)
+        (.If (Backends.lowerExprNative (Yul.YulExpr.ident name)) body)
+        codeOverride state =
+      EvmYul.Yul.exec (fuel + 1) (.Block body) codeOverride state := by
+  have hNe : (EvmYul.UInt256.ofNat 1 : EvmYul.UInt256) ≠ ⟨0⟩ := by decide
+  simp [EvmYul.Yul.exec, Backends.lowerExprNative, EvmYul.Yul.eval, hVal, hNe]
+
+/-- Native singleton-block exec equals the inner statement exec at decremented
+    fuel: the trailing `Block []` peel always succeeds at positive fuel and
+    returns the head-statement result unchanged, so for any positive outer
+    fuel the singleton-block is the inner statement. -/
+theorem exec_block_singleton_eq
+    (fuel : Nat) (stmt : EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.exec (fuel + 2) (.Block [stmt]) codeOverride state =
+      EvmYul.Yul.exec (fuel + 1) stmt codeOverride state := by
+  cases h : EvmYul.Yul.exec (fuel + 1) stmt codeOverride state with
+  | error e => simp [EvmYul.Yul.exec, h]
+  | ok s' => simp [EvmYul.Yul.exec, h]
+
 /-- Native dispatcher inner-block chain peel of `Let` + `If1`-skip on
     `nativeSwitchInitialOkState`: under the calldata no-wrap bound, the
     selector-binding `Let` runs to `__has_selector ↦ 1` and the selector-miss
@@ -2766,6 +2798,47 @@ theorem exec_block_letSelector_if1Skip_initialState_fuel
       exec_block_cons_ok_eq _ _ _ _ _ _ hLet,
       show fuel + 11 = (fuel + 10).succ from rfl,
       exec_block_cons_ok_eq _ _ _ _ _ _ hIfRaw]
+
+/-- Native dispatcher full inner-block 3-statement peel on
+    `nativeSwitchInitialOkState`: under the calldata no-wrap bound, the
+    selector-binding `Let` runs, the selector-miss `If1` is statically
+    skipped, and the selector-hit `If2` is taken, leaving the residual
+    `Block if2Body` exec at strictly smaller fuel on the post-`Let` state.
+    Composes `exec_block_letSelector_if1Skip_initialState_fuel` with the
+    `exec_block_singleton_eq` and `exec_if_lowerExprNative_ident_one_take_fuel`
+    lemmas through `nativeSwitchInitialOkState_insert_lookup_self`. -/
+theorem exec_block_letSelector_if1Skip_if2Take_initialState_fuel
+    (fuel : Nat) (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : Nat → Nat) (observableSlots : List Nat)
+    (selectorName : EvmYul.Identifier)
+    (if1Body if2Body : List EvmYul.Yul.Ast.Stmt)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
+    EvmYul.Yul.exec (fuel + 12)
+        (.Block (.Let [selectorName] (some (Backends.lowerExprNative
+            (Yul.YulExpr.call "iszero" [Yul.YulExpr.call "lt"
+              [Yul.YulExpr.call "calldatasize" [], Yul.YulExpr.lit 4]]))) ::
+          .If (Backends.lowerExprNative
+              (Yul.YulExpr.call "iszero" [Yul.YulExpr.ident selectorName]))
+            if1Body ::
+          [.If (Backends.lowerExprNative
+              (Yul.YulExpr.ident selectorName)) if2Body]))
+        (some contract)
+        (nativeSwitchInitialOkState contract tx storage observableSlots) =
+      EvmYul.Yul.exec (fuel + 8) (.Block if2Body) (some contract)
+        ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+          selectorName (EvmYul.UInt256.ofNat 1)) := by
+  rw [exec_block_letSelector_if1Skip_initialState_fuel fuel contract tx storage
+        observableSlots selectorName if1Body
+        [.If (Backends.lowerExprNative (Yul.YulExpr.ident selectorName)) if2Body]
+        hNoWrap]
+  have hLookup := nativeSwitchInitialOkState_insert_lookup_self
+    contract tx storage observableSlots selectorName (EvmYul.UInt256.ofNat 1)
+  rw [show fuel + 10 = (fuel + 8) + 2 from rfl,
+      exec_block_singleton_eq (fuel + 8) _ (some contract) _,
+      show fuel + 8 + 1 = (fuel + 7) + 2 from rfl,
+      exec_if_lowerExprNative_ident_one_take_fuel (fuel + 7) if2Body
+        (some contract) _ selectorName hLookup,
+      show fuel + 7 + 1 = fuel + 8 from rfl]
 
 /-- Native evaluation of the lazy lowered switch guard peels to the exact
     EVMYulLean `AND(ISZERO(matched), EQ(discr, tag))` value.
