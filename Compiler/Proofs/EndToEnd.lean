@@ -3864,6 +3864,68 @@ def simpleStorageNativeSelectorMissBridge
     simpleStorageIRContract tx initialState observableSlots
     Compiler.SimpleStorageNativeWitness.nativeContract
 
+/-- Lower bound on the SimpleStorage native dispatcher fuel constant. The
+`+ 21` slack matches the closed-form selector-miss reduction, allowing
+the per-case sub-bridge proofs to reshape the dispatcher fuel into the
+`fuel + 21` form expected by `_selectorMiss_revert`. -/
+theorem simpleStorageNativeDispatcherFuel_ge_21 :
+    simpleStorageNativeDispatcherFuel ≥ 21 := by
+  unfold simpleStorageNativeDispatcherFuel
+  decide
+
+/-- Closed-form `interpretIR` reduction for the SimpleStorage selector-miss
+class. Given the two raw selector mismatches (`≠ 0x6057361d` and
+`≠ 0x2e64cec1`), `interpretIR` falls into the `find?`-`none` branch and
+returns the trivial reverted shape with storage and events untouched. -/
+theorem interpretIR_simpleStorage_selectorMiss
+    (tx : IRTransaction) (initialState : IRState)
+    (hSelMissStore : tx.functionSelector ≠ 0x6057361d)
+    (hSelMissRetrieve : tx.functionSelector ≠ 0x2e64cec1) :
+    interpretIR simpleStorageIRContract tx initialState =
+      { success := false
+        returnValue := none
+        finalStorage := initialState.storage
+        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+        events := initialState.events } := by
+  unfold interpretIR
+  simp only [simpleStorageIRContract, List.find?]
+  have hstore : (0x6057361d == tx.functionSelector) = false := by
+    simp [BEq.beq, hSelMissStore.symm]
+  have hretrieve : (0x2e64cec1 == tx.functionSelector) = false := by
+    simp [BEq.beq, hSelMissRetrieve.symm]
+  simp [hstore, hretrieve]
+
+/-- Native dispatcher exec at exactly `simpleStorageNativeDispatcherFuel`
+reduces to `.error Revert` for the selector-miss class. Reshapes the dispatcher
+fuel into the `fuel + 21` form via `simpleStorageNativeDispatcherFuel_ge_21`
+and applies the closed-form
+`simpleStorageNativeContract_dispatcherExec_selectorMiss_revert`. -/
+theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_atFuel
+    (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat)
+    (hSelectorRange : tx.functionSelector % Compiler.Constants.selectorModulus
+        < EvmYul.UInt256.size)
+    (hSelMissStore : tx.functionSelector % Compiler.Constants.selectorModulus
+        ≠ 0x6057361d)
+    (hSelMissRetrieve : tx.functionSelector % Compiler.Constants.selectorModulus
+        ≠ 0x2e64cec1)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
+    Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        simpleStorageNativeDispatcherFuel
+        Compiler.SimpleStorageNativeWitness.nativeContract
+        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+          Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+          observableSlots) =
+      .error EvmYul.Yul.Exception.Revert := by
+  have hReshape : simpleStorageNativeDispatcherFuel =
+      (simpleStorageNativeDispatcherFuel - 21) + 21 :=
+    (Nat.sub_add_cancel simpleStorageNativeDispatcherFuel_ge_21).symm
+  rw [hReshape]
+  exact simpleStorageNativeContract_dispatcherExec_selectorMiss_revert
+    (simpleStorageNativeDispatcherFuel - 21)
+    (tx.functionSelector % Compiler.Constants.selectorModulus)
+    tx storage observableSlots
+    rfl hSelectorRange hSelMissStore hSelMissRetrieve hNoWrap
+
 /-- Recover the monolithic `simpleStorageNativeCallDispatcherBridge` from the
 three per-case sub-bridges by case analysis on
 `tx.functionSelector % selectorModulus`. -/
