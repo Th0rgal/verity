@@ -2079,6 +2079,21 @@ theorem eval_lowerExprNative_callvalue_initialState_ok
         natToUInt256 tx.msgValue) := by
   rw [eval_lowerExprNative_callvalue_ok, initialState_weiValue]
 
+/-- Fuel-parametric form of `eval_lowerExprNative_callvalue_ok`. -/
+theorem eval_lowerExprNative_callvalue_ok_fuel
+    (fuel : Nat)
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    EvmYul.Yul.eval (fuel + 5)
+        (Backends.lowerExprNative (Yul.YulExpr.call "callvalue" []))
+        codeOverride (.Ok shared store) =
+      .ok (.Ok shared store, shared.executionEnv.weiValue) := by
+  simp [Backends.lookupRuntimePrimOp,
+    EvmYul.Yul.eval, EvmYul.Yul.evalArgs, EvmYul.Yul.evalPrimCall,
+    EvmYul.Yul.reverse', EvmYul.Yul.head', EvmYul.Yul.State.executionEnv]
+
+
 /-- State-generic native `exec` of the `let __has_selector := iszero(lt(
     calldatasize(), 4))` statement that `buildSwitch` emits at the head of a
     dispatcher inner-block: at any fuel `≥ 11`, the let assigns
@@ -2829,6 +2844,27 @@ theorem exec_if_lowerExprNative_iszero_ident_one_skip
       .ok state :=
   exec_if_eval_zero 8 _ body codeOverride state state
     (eval_lowerExprNative_iszero_ident_one_ok state codeOverride name hVal)
+
+/-- Native `if` execution skips the lowered `callvalue()` revert guard
+    `if callvalue() { … }` whenever the current `executionEnv.weiValue` is
+    the canonical zero literal — i.e., when the transaction's `msgValue` is
+    `0`. This is the per-statement no-op for the dispatcher's hit-case
+    body callvalue guard, mirroring `exec_if_lowerExprNative_iszero_ident_one_skip`
+    for the selector-miss case. -/
+theorem exec_if_lowerExprNative_callvalue_skip_zero_fuel
+    (fuel : Nat)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (hWei : shared.executionEnv.weiValue = (⟨0⟩ : EvmYul.Literal)) :
+    EvmYul.Yul.exec (fuel + 6)
+        (.If (Backends.lowerExprNative (Yul.YulExpr.call "callvalue" [])) body)
+        codeOverride (.Ok shared store) =
+      .ok (.Ok shared store) := by
+  refine exec_if_eval_zero (fuel + 5) _ body codeOverride
+    (.Ok shared store) (.Ok shared store) ?_
+  rw [eval_lowerExprNative_callvalue_ok_fuel, hWei]
 
 /-- Fuel-parametric form of `exec_if_lowerExprNative_iszero_ident_one_skip`. -/
 theorem exec_if_lowerExprNative_iszero_ident_one_skip_fuel

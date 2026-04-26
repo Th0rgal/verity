@@ -3024,6 +3024,92 @@ theorem exec_block_simpleStorageLoweredRetrieveCaseBody_head_strip_error
     simpleStorageLoweredRetrieveCaseBodyTail codeOverride state state err ?_ hTail
   exact Backends.Native.exec_block_nil_ok fuel' codeOverride state
 
+/-- 4-statement callvalue-stripped tail of `simpleStorageLoweredStoreCaseBody`,
+with both the leading no-op `.Block []` and the leading `if callvalue() {…}`
+revert guard removed. Used to further shrink the dispatcher hit-case body-exec
+obligation when the transaction has zero `msgValue`. -/
+def simpleStorageLoweredStoreCaseBodyTail2 : List EvmYul.Yul.Ast.Stmt :=
+  [.If (Backends.lowerExprNative
+          (.call "lt" [.call "calldatasize" [], .lit 36]))
+     [.ExprStmtCall (Backends.lowerExprNative (.call "revert" [.lit 0, .lit 0]))],
+   .Let ["value"] (some (Backends.lowerExprNative
+     (.call "calldataload" [.lit 4]))),
+   .ExprStmtCall (Backends.lowerExprNative
+     (.call "sstore" [.lit 0, .ident "value"])),
+   .ExprStmtCall (Backends.lowerExprNative (.call "stop" []))]
+
+/-- 3-statement callvalue-stripped tail of `simpleStorageLoweredRetrieveCaseBody`. -/
+def simpleStorageLoweredRetrieveCaseBodyTail2 : List EvmYul.Yul.Ast.Stmt :=
+  [.If (Backends.lowerExprNative
+          (.call "lt" [.call "calldatasize" [], .lit 4]))
+     [.ExprStmtCall (Backends.lowerExprNative (.call "revert" [.lit 0, .lit 0]))],
+   .ExprStmtCall (Backends.lowerExprNative
+     (.call "mstore" [.lit 0, .call "sload" [.lit 0]])),
+   .ExprStmtCall (Backends.lowerExprNative
+     (.call "return" [.lit 0, .lit 32]))]
+
+/-- Strip the leading `if callvalue() { revert(0,0) }` guard from
+`simpleStorageLoweredStoreCaseBodyTail` when proving a `.error err`
+obligation, given that the current `executionEnv.weiValue` is zero (the
+canonical zero literal). Combines the harness skip lemma
+`exec_if_lowerExprNative_callvalue_skip_zero_fuel` (the callvalue guard
+is a no-op at zero `weiValue`) with `exec_block_cons_tail_error` (a
+successful head followed by an erroring tail makes the whole block
+error). Reduces a 5-statement tail obligation to a 4-statement
+callvalue-stripped tail2 obligation. -/
+theorem exec_block_simpleStorageLoweredStoreCaseBodyTail_callvalue_strip_error
+    (fuel : Nat) (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (shared : EvmYul.SharedState .Yul) (store : EvmYul.Yul.VarStore)
+    (err : EvmYul.Yul.Exception)
+    (hWei : shared.executionEnv.weiValue = (⟨0⟩ : EvmYul.Literal))
+    (hTail2 :
+      EvmYul.Yul.exec (fuel + 7) (.Block simpleStorageLoweredStoreCaseBodyTail2)
+        codeOverride (.Ok shared store) = .error err) :
+    EvmYul.Yul.exec (fuel + 8) (.Block simpleStorageLoweredStoreCaseBodyTail)
+      codeOverride (.Ok shared store) = .error err := by
+  show EvmYul.Yul.exec (Nat.succ (fuel + 7))
+    (.Block ((simpleStorageLoweredStoreCaseBodyTail).head! ::
+      simpleStorageLoweredStoreCaseBodyTail2))
+    codeOverride (.Ok shared store) = .error err
+  refine Backends.Native.exec_block_cons_tail_error (fuel + 7) _
+    simpleStorageLoweredStoreCaseBodyTail2 codeOverride
+    (.Ok shared store) (.Ok shared store) err ?_ hTail2
+  show EvmYul.Yul.exec ((fuel + 1) + 6)
+    (.If (Backends.lowerExprNative (Yul.YulExpr.call "callvalue" []))
+      [.ExprStmtCall (Backends.lowerExprNative
+        (.call "revert" [.lit 0, .lit 0]))])
+    codeOverride (.Ok shared store) = .ok (.Ok shared store)
+  exact Backends.Native.exec_if_lowerExprNative_callvalue_skip_zero_fuel
+    (fuel + 1) _ codeOverride shared store hWei
+
+/-- Retrieve-case dual of
+`exec_block_simpleStorageLoweredStoreCaseBodyTail_callvalue_strip_error`. -/
+theorem exec_block_simpleStorageLoweredRetrieveCaseBodyTail_callvalue_strip_error
+    (fuel : Nat) (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (shared : EvmYul.SharedState .Yul) (store : EvmYul.Yul.VarStore)
+    (err : EvmYul.Yul.Exception)
+    (hWei : shared.executionEnv.weiValue = (⟨0⟩ : EvmYul.Literal))
+    (hTail2 :
+      EvmYul.Yul.exec (fuel + 6)
+        (.Block simpleStorageLoweredRetrieveCaseBodyTail2)
+        codeOverride (.Ok shared store) = .error err) :
+    EvmYul.Yul.exec (fuel + 7) (.Block simpleStorageLoweredRetrieveCaseBodyTail)
+      codeOverride (.Ok shared store) = .error err := by
+  show EvmYul.Yul.exec (Nat.succ (fuel + 6))
+    (.Block ((simpleStorageLoweredRetrieveCaseBodyTail).head! ::
+      simpleStorageLoweredRetrieveCaseBodyTail2))
+    codeOverride (.Ok shared store) = .error err
+  refine Backends.Native.exec_block_cons_tail_error (fuel + 6) _
+    simpleStorageLoweredRetrieveCaseBodyTail2 codeOverride
+    (.Ok shared store) (.Ok shared store) err ?_ hTail2
+  show EvmYul.Yul.exec ((fuel) + 6)
+    (.If (Backends.lowerExprNative (Yul.YulExpr.call "callvalue" []))
+      [.ExprStmtCall (Backends.lowerExprNative
+        (.call "revert" [.lit 0, .lit 0]))])
+    codeOverride (.Ok shared store) = .ok (.Ok shared store)
+  exact Backends.Native.exec_if_lowerExprNative_callvalue_skip_zero_fuel
+    fuel _ codeOverride shared store hWei
+
 /-- Concrete characterization of the lowered SimpleStorage source switch
 cases. Both bodies are straight-line, so the lowering is deterministic and
 the threaded `nextSwitchId` returns unchanged. Strengthens `_lowered_shape`
@@ -3315,6 +3401,51 @@ theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete_tail
   exact exec_block_simpleStorageLoweredStoreCaseBody_head_strip_error
     (fuel + 7) _ _ err (hTail reservedNames n0)
 
+/-- Callvalue-stripped version of `_storeHit_error_concrete_tail`: when the
+transaction has zero `msgValue`, the leading `if callvalue() { revert }` guard
+is a no-op, so the body-execution premise can be expressed against the
+4-statement `simpleStorageLoweredStoreCaseBodyTail2` at fuel `+7` instead of
+the 5-statement `simpleStorageLoweredStoreCaseBodyTail` at fuel `+8`. Strictly
+shrinks the dispatcher hit-case body-exec obligation under the natural Solidity
+assumption that non-payable functions are called with `msg.value = 0`. -/
+theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete_tail2
+    (fuel : Nat) (tx : YulTransaction) (storage : Nat → Nat)
+    (observableSlots : List Nat) (err : EvmYul.Yul.Exception)
+    (hSelector : 0x6057361d = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hMsgValue : tx.msgValue = 0)
+    (hTail2 : ∀ (reservedNames : List String) (n0 : Nat),
+        EvmYul.Yul.exec (fuel + 7)
+          (.Block simpleStorageLoweredStoreCaseBodyTail2)
+          (some Compiler.SimpleStorageNativeWitness.nativeContract)
+          (simpleStorageDispatcherHitBodyInputState
+            (Backends.freshNativeSwitchId reservedNames n0)
+            tx storage observableSlots) =
+          .error err) :
+    Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        (fuel + 21) Compiler.SimpleStorageNativeWitness.nativeContract
+        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+          Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+          observableSlots) =
+      .error err := by
+  refine simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete_tail
+    fuel tx storage observableSlots err hSelector hNoWrap ?_
+  intro reservedNames n0
+  have hWei :
+      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState.executionEnv.weiValue =
+      (⟨0⟩ : EvmYul.Literal) := by
+    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_weiValue,
+        hMsgValue]
+    rfl
+  have hT2 := hTail2 reservedNames n0
+  show EvmYul.Yul.exec (fuel + 8) (.Block simpleStorageLoweredStoreCaseBodyTail)
+    (some Compiler.SimpleStorageNativeWitness.nativeContract)
+    (.Ok _ _) = .error err
+  exact exec_block_simpleStorageLoweredStoreCaseBodyTail_callvalue_strip_error
+    fuel _ _ _ err hWei hT2
+
 theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_via_reduction
     (fuel switchId : Nat)
     (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
@@ -3462,6 +3593,45 @@ theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_ta
   intro reservedNames n0
   exact exec_block_simpleStorageLoweredRetrieveCaseBody_head_strip_error
     (fuel + 6) _ _ err (hTail reservedNames n0)
+
+/-- Retrieve-case dual of `_storeHit_error_concrete_tail2`. -/
+theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail2
+    (fuel : Nat) (tx : YulTransaction) (storage : Nat → Nat)
+    (observableSlots : List Nat) (err : EvmYul.Yul.Exception)
+    (hSelector : 0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hMsgValue : tx.msgValue = 0)
+    (hTail2 : ∀ (reservedNames : List String) (n0 : Nat),
+        EvmYul.Yul.exec (fuel + 6)
+          (.Block simpleStorageLoweredRetrieveCaseBodyTail2)
+          (some Compiler.SimpleStorageNativeWitness.nativeContract)
+          (simpleStorageDispatcherHitBodyInputState
+            (Backends.freshNativeSwitchId reservedNames n0)
+            tx storage observableSlots) =
+          .error err) :
+    Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        (fuel + 21) Compiler.SimpleStorageNativeWitness.nativeContract
+        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+          Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+          observableSlots) =
+      .error err := by
+  refine simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail
+    fuel tx storage observableSlots err hSelector hNoWrap ?_
+  intro reservedNames n0
+  have hWei :
+      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState.executionEnv.weiValue =
+      (⟨0⟩ : EvmYul.Literal) := by
+    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_weiValue,
+        hMsgValue]
+    rfl
+  have hT2 := hTail2 reservedNames n0
+  show EvmYul.Yul.exec (fuel + 7) (.Block simpleStorageLoweredRetrieveCaseBodyTail)
+    (some Compiler.SimpleStorageNativeWitness.nativeContract)
+    (.Ok _ _) = .error err
+  exact exec_block_simpleStorageLoweredRetrieveCaseBodyTail_callvalue_strip_error
+    fuel _ _ _ err hWei hT2
 
 noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch
