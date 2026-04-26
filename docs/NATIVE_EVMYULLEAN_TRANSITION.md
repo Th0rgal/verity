@@ -602,3 +602,46 @@ scope so the native path does not look more complete than it is:
   release cycle.
 - Upstream any EVMYulLean fork changes needed for memory, returndata, logs, or
   external-call semantics.
+
+## SimpleStorage Per-Case Native Bridge Status
+
+The first executable instantiation of the native dispatcher bridge,
+`simpleStorageNativeCallDispatcherBridge`, is split into three per-case
+sub-bridges and composed through
+`simpleStorageNativeCallDispatcherBridge_of_per_case`:
+
+- `simpleStorageNativeSelectorMissBridge` — **discharged**. The corresponding
+  hypothesis has been dropped from the public theorem
+  `simpleStorage_endToEnd_native_evmYulLean`.
+- `simpleStorageNativeRetrieveHitBridge` — **parked**.
+- `simpleStorageNativeStoreHitBridge` — **parked**.
+
+The two parked sub-bridges remain as explicit hypotheses
+(`hRetrieveHit`, `hStoreHit`) on
+`simpleStorage_endToEnd_native_evmYulLean`. They cannot be discharged inside
+the current public theorem signature for a structural reason that is not
+fixable within the existing IR storage type:
+
+- `interpretYulRuntimeWithBackend .evmYulLean` evaluates against
+  `IRState.storage : Nat → Nat`, which is unbounded.
+- The native path executes against EVMYulLean's `SharedState`, whose storage
+  is `UInt256`-typed. Projection back through `extractStorage` /
+  `projectStorageFromState` therefore truncates by `% UInt256.size`.
+- For any observable slot whose pre-state value is `≥ 2^256`, the two paths
+  observe different values. Worse, the retrieve-hit return value is built by
+  `mstore` of a `UInt256`, so the raw unbounded value has been destroyed at
+  the `mstore` step and cannot be recovered from the returned byte buffer.
+
+Closing the gap by adding a pre-state slot-bound hypothesis to the public
+theorem is rejected by the transition design: the public theorem's
+hypothesis surface is fixed and intentionally does not constrain
+`IRState.storage` values. Closing it through an out-of-band "expected return"
+extractor on `projectResult` would make the bridge tautological. The clean
+long-term resolution is a project-level type refactor that bounds the IR
+storage representation by construction; that follow-up work is described in
+[`IR_STORAGE_UINT256_REFACTOR.md`](IR_STORAGE_UINT256_REFACTOR.md).
+
+Until that refactor lands, the two `Bridge` premises remain admissible
+hypotheses in `simpleStorage_endToEnd_native_evmYulLean`. They are
+witness-shaped, opaque to downstream callers, and listed by `PrintAxioms` so
+the trust surface stays explicit.
