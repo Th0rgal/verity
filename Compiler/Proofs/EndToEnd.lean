@@ -2115,6 +2115,66 @@ theorem simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSinglet
   rw [hBody2Eq] at hIf2; rw [hIf2] at hIf1; rw [hIf1] at hLet
   exact ⟨body1', _, cases', default', hLet⟩
 
+/-- WithSwitchIds-form companion of `lowerStmtsNative_revert_zero_zero`: at any
+`reservedNames`/`nextSwitchId` pair, the singleton list `[expr (revert(0,0))]`
+emitted by `defaultDispatchCase none none` lowers to
+`[nativeRevertZeroZeroStmt]` while leaving the switch counter unchanged. The
+dispatcher peel uses `lowerStmtsNativeWithSwitchIds` directly (via
+`_block_stmts_eq` / `_let_head_eq` / `_if_head_eq`), so the wrapper-level
+`lowerStmtsNative_revert_zero_zero` lemma alone is insufficient when pinning
+the selector-miss `If` body. -/
+theorem lowerStmtsNativeWithSwitchIds_revert_zero_zero
+    (reservedNames : List String) (n : Nat) :
+    Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+        reservedNames n
+        [Yul.YulStmt.expr (Yul.YulExpr.call "revert"
+          [Yul.YulExpr.lit 0, Yul.YulExpr.lit 0])] =
+      .ok ([Backends.Native.nativeRevertZeroZeroStmt], n) := by
+  simp [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds,
+        Backends.Native.nativeRevertZeroZeroStmt,
+        Compiler.Proofs.YulGeneration.Backends.lowerExprNative,
+        Compiler.Proofs.YulGeneration.Backends.lookupRuntimePrimOp]
+  rfl
+
+set_option linter.unusedSimpArgs false in
+/-- Strengthened companion of `lowerStmtsNativeWithSwitchIds_singleton_switch_eq`:
+when the source-level switch's `defaultCase` is fixed to the
+`defaultDispatchCase none none` body — namely the singleton list
+`[expr (revert(0,0))]` — the lowered default body is concretely
+`[nativeRevertZeroZeroStmt]`. The lowered case bodies remain existential
+(they depend on the contract `funcs` list). This pins the previously-existential
+`default'` produced by `_singleton_switch_eq`, unblocking downstream proofs
+that need to plug the lowered-switch exec into a concrete default-revert
+endpoint. -/
+theorem lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq
+    (reservedNames : List String) (n0 : Nat)
+    (expr : Yul.YulExpr) (cases : List (Nat × List Yul.YulStmt))
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (h : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+            [Yul.YulStmt.switch expr cases
+              (some [Yul.YulStmt.expr (Yul.YulExpr.call "revert"
+                [Yul.YulExpr.lit 0, Yul.YulExpr.lit 0])])] = .ok (inner, next)) :
+    ∃ (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)),
+      inner = [Backends.lowerNativeSwitchBlock expr
+        (Backends.freshNativeSwitchId reservedNames n0) cases'
+        [Backends.Native.nativeRevertZeroZeroStmt]] := by
+  rw [Backends.lowerStmtsNativeWithSwitchIds_cons,
+      Backends.lowerStmtGroupNativeWithSwitchIds_switch] at h
+  dsimp only [] at h
+  cases hCases : Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+      (Backends.freshNativeSwitchId reservedNames n0 + 1) cases with
+  | error _ =>
+      rw [hCases] at h; simp only [Bind.bind, Except.bind, reduceCtorEq] at h
+  | ok casesPair =>
+      obtain ⟨cases', midN⟩ := casesPair
+      rw [hCases] at h
+      simp only [Bind.bind, Except.bind, Pure.pure, Except.pure] at h
+      rw [lowerStmtsNativeWithSwitchIds_revert_zero_zero] at h
+      simp only [Bind.bind, Except.bind, Pure.pure, Except.pure,
+        Backends.lowerStmtsNativeWithSwitchIds_nil,
+        List.singleton_append, Except.ok.injEq, Prod.mk.injEq] at h
+      exact ⟨cases', h.1.symm⟩
+
 /-- Strengthened companion of `simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton`:
 the lowered default body of the inner switch is pinned to the concrete
 `[nativeRevertZeroZeroStmt]` singleton. The lowered case bodies (and the
@@ -2266,67 +2326,6 @@ theorem simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_revert_default
     simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if.symm.trans hConcrete
   simp only [List.cons.injEq, EvmYul.Yul.Ast.Stmt.If.injEq] at hCombo
   exact ⟨switchId, cases', hCombo.2.2.1.2⟩
-
-/-- WithSwitchIds-form companion of `lowerStmtsNative_revert_zero_zero`: at any
-`reservedNames`/`nextSwitchId` pair, the singleton list `[expr (revert(0,0))]`
-emitted by `defaultDispatchCase none none` lowers to
-`[nativeRevertZeroZeroStmt]` while leaving the switch counter unchanged. The
-dispatcher peel uses `lowerStmtsNativeWithSwitchIds` directly (via
-`_block_stmts_eq` / `_let_head_eq` / `_if_head_eq`), so the wrapper-level
-`lowerStmtsNative_revert_zero_zero` lemma alone is insufficient when pinning
-the selector-miss `If` body. -/
-theorem lowerStmtsNativeWithSwitchIds_revert_zero_zero
-    (reservedNames : List String) (n : Nat) :
-    Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
-        reservedNames n
-        [Yul.YulStmt.expr (Yul.YulExpr.call "revert"
-          [Yul.YulExpr.lit 0, Yul.YulExpr.lit 0])] =
-      .ok ([Backends.Native.nativeRevertZeroZeroStmt], n) := by
-  simp [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds,
-        Backends.Native.nativeRevertZeroZeroStmt,
-        Compiler.Proofs.YulGeneration.Backends.lowerExprNative,
-        Compiler.Proofs.YulGeneration.Backends.lookupRuntimePrimOp]
-  rfl
-
-set_option linter.unusedSimpArgs false in
-/-- Strengthened companion of `lowerStmtsNativeWithSwitchIds_singleton_switch_eq`:
-when the source-level switch's `defaultCase` is fixed to the
-`defaultDispatchCase none none` body — namely the singleton list
-`[expr (revert(0,0))]` — the lowered default body is concretely
-`[nativeRevertZeroZeroStmt]`. The lowered case bodies remain existential
-(they depend on the contract `funcs` list). This pins the previously-existential
-`default'` produced by `_singleton_switch_eq`, unblocking downstream proofs
-that need to plug the lowered-switch exec into a concrete default-revert
-endpoint. -/
-theorem lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq
-    (reservedNames : List String) (n0 : Nat)
-    (expr : Yul.YulExpr) (cases : List (Nat × List Yul.YulStmt))
-    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
-    (h : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
-            [Yul.YulStmt.switch expr cases
-              (some [Yul.YulStmt.expr (Yul.YulExpr.call "revert"
-                [Yul.YulExpr.lit 0, Yul.YulExpr.lit 0])])] = .ok (inner, next)) :
-    ∃ (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)),
-      inner = [Backends.lowerNativeSwitchBlock expr
-        (Backends.freshNativeSwitchId reservedNames n0) cases'
-        [Backends.Native.nativeRevertZeroZeroStmt]] := by
-  rw [Backends.lowerStmtsNativeWithSwitchIds_cons,
-      Backends.lowerStmtGroupNativeWithSwitchIds_switch] at h
-  dsimp only [] at h
-  cases hCases : Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
-      (Backends.freshNativeSwitchId reservedNames n0 + 1) cases with
-  | error _ =>
-      rw [hCases] at h; simp only [Bind.bind, Except.bind, reduceCtorEq] at h
-  | ok casesPair =>
-      obtain ⟨cases', midN⟩ := casesPair
-      rw [hCases] at h
-      simp only [Bind.bind, Except.bind, Pure.pure, Except.pure] at h
-      dsimp only [] at h
-      rw [lowerStmtsNativeWithSwitchIds_revert_zero_zero] at h
-      simp only [Bind.bind, Except.bind, Pure.pure, Except.pure,
-        Backends.lowerStmtsNativeWithSwitchIds_nil,
-        List.singleton_append, Except.ok.injEq, Prod.mk.injEq] at h
-      exact ⟨cases', h.1.symm⟩
 
 /-- The `Classical.choose`-pinned selector-miss `If` body of the SimpleStorage
 native dispatcher equals the singleton list `[nativeRevertZeroZeroStmt]`.
@@ -2579,6 +2578,59 @@ theorem simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_rev
   rw [hShape, simpleStorageNativeContract_dispatcherExec_eq_innerBlock_exec
         (peeledFuel + 11) tx storage observableSlots]
   exact hExec
+
+/-- Bridge-level selector-miss endpoint, parametric in `cases'` and `switchId`:
+composes the harness-level
+`exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_error` with
+the strengthened-reduction equation at the matching fuel
+`peeledFuel = fuel + cases'.length + 5`. The reduction equation is taken as a
+hypothesis so the caller can pin a specific `cases'` (e.g. by opening the
+existential of `_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec`)
+without forcing the fuel parameter to depend on a not-yet-bound term. This is
+the direct selector-miss discharge composing into
+`contractDispatcherExecResult = .error Revert`. -/
+theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_via_reduction
+    (fuel selector switchId : Nat)
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat)
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFind : cases'.find? (fun entry => entry.1 == selector) = none)
+    (hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size)
+    (hReduction :
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+          (fuel + cases'.length + 19)
+          Compiler.SimpleStorageNativeWitness.nativeContract
+          (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+            Compiler.SimpleStorageNativeWitness.nativeContract
+            tx storage observableSlots) =
+        EvmYul.Yul.exec (fuel + cases'.length + 13)
+          (.Block
+            [Backends.lowerNativeSwitchBlock
+              (Yul.YulExpr.call "shr"
+                [Yul.YulExpr.lit Compiler.Constants.selectorShift,
+                 Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 0]])
+              switchId cases'
+              [Backends.Native.nativeRevertZeroZeroStmt]])
+          (some Compiler.SimpleStorageNativeWitness.nativeContract)
+          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
+            Compiler.SimpleStorageNativeWitness.nativeContract
+            tx storage observableSlots).insert "__has_selector"
+              (EvmYul.UInt256.ofNat 1))) :
+    Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        (fuel + cases'.length + 19)
+        Compiler.SimpleStorageNativeWitness.nativeContract
+        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+          Compiler.SimpleStorageNativeWitness.nativeContract
+          tx storage observableSlots) =
+      .error EvmYul.Yul.Exception.Revert := by
+  rw [hReduction]
+  exact Backends.Native.exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_error
+    fuel selector switchId cases'
+    Compiler.SimpleStorageNativeWitness.nativeContract
+    tx storage observableSlots hSelector hFind hSelectorRange hTagsRange
 
 noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch
