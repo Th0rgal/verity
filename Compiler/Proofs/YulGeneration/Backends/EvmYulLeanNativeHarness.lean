@@ -2668,6 +2668,53 @@ theorem exec_nativeSwitchPrefix_selector_initialState_ok_fuel
     · simp [matchedState]
     · simp [EvmYul.Yul.exec]
 
+/-- Store-parametric form of `exec_nativeSwitchPrefix_selector_initialState_ok_fuel`.
+    The two prefix Lets only depend on calldata (read-only via the shared
+    state), so they are invariant under any preceding native varstore. Lifts
+    the dispatcher prefix execution to a state already carrying additional
+    bindings (e.g. the buildSwitch wrapper's `__has_selector := 1`). -/
+theorem exec_nativeSwitchPrefix_selector_initialState_store_ok_fuel
+    (fuel : Nat) (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : Nat → Nat) (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (discrName matchedName : EvmYul.Identifier) :
+    EvmYul.Yul.exec (fuel + 12)
+      (.Block (nativeSwitchPrefixStmts discrName matchedName))
+      (some contract)
+      (.Ok (initialState contract tx storage observableSlots).sharedState store) =
+    .ok (((.Ok (initialState contract tx storage observableSlots).sharedState store
+            : EvmYul.Yul.State).insert discrName
+            (EvmYul.UInt256.ofNat
+              (tx.functionSelector % Compiler.Constants.selectorModulus))).insert
+          matchedName (EvmYul.UInt256.ofNat 0)) := by
+  let initState : EvmYul.Yul.State :=
+    .Ok (initialState contract tx storage observableSlots).sharedState store
+  let discrState : EvmYul.Yul.State :=
+    initState.insert discrName
+      (EvmYul.UInt256.ofNat
+        (tx.functionSelector % Compiler.Constants.selectorModulus))
+  let matchedState : EvmYul.Yul.State :=
+    discrState.insert matchedName (EvmYul.UInt256.ofNat 0)
+  change EvmYul.Yul.exec (fuel + 12)
+      (.Block (nativeSwitchPrefixStmts discrName matchedName))
+      (some contract) initState = .ok matchedState
+  have hFuel : fuel + 12 = Nat.succ (fuel + 11) := by omega
+  rw [hFuel, nativeSwitchPrefixStmts]
+  apply exec_block_cons_ok (fuel + 11)
+      (.Let [discrName]
+        (some (Backends.lowerExprNative Compiler.Proofs.YulGeneration.selectorExpr)))
+      [.Let [matchedName] (some (.Lit (EvmYul.UInt256.ofNat 0)))]
+      (some contract) initState discrState matchedState
+  · exact exec_let_lowerExprNative_selectorExpr_initialState_store_ok_fuel
+      fuel contract tx storage observableSlots store discrName
+  · have hFuelTail : fuel + 11 = Nat.succ (fuel + 10) := by omega
+    rw [hFuelTail]
+    apply exec_block_cons_ok (fuel + 10)
+        (.Let [matchedName] (some (.Lit (EvmYul.UInt256.ofNat 0))))
+        [] (some contract) discrState matchedState matchedState
+    · simp [matchedState]
+    · simp [EvmYul.Yul.exec]
+
 /-- Native `if` reduction for a zero guard. -/
 theorem exec_if_eval_zero
     (fuel' : Nat)
