@@ -2095,6 +2095,60 @@ theorem exec_let_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok
       uint256_lt_ofNat_4_eq_zero_of_ge _ (by omega) hNoWrap,
       uint256_isZero_ofNat_zero]
 
+/-- Fuel-parametric form of
+    `exec_let_lowerExprNative_iszero_lt_calldatasize_4_ok`. -/
+theorem exec_let_lowerExprNative_iszero_lt_calldatasize_4_ok_fuel
+    (fuel : Nat)
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (name : EvmYul.Identifier) :
+    EvmYul.Yul.exec (fuel + 11)
+        (.Let [name]
+          (some (Backends.lowerExprNative
+            (Yul.YulExpr.call "iszero"
+              [Yul.YulExpr.call "lt"
+                [Yul.YulExpr.call "calldatasize" [],
+                 Yul.YulExpr.lit 4]]))))
+        codeOverride (.Ok shared store) =
+      .ok ((.Ok shared store : EvmYul.Yul.State).insert name
+        (EvmYul.UInt256.isZero
+          (EvmYul.UInt256.lt
+            (EvmYul.UInt256.ofNat shared.executionEnv.calldata.size)
+            (EvmYul.UInt256.ofNat 4)))) := by
+  simp [Backends.lowerExprNative, Backends.lookupRuntimePrimOp,
+    EvmYul.Yul.exec, EvmYul.Yul.eval, EvmYul.Yul.evalArgs,
+    EvmYul.Yul.evalTail, EvmYul.Yul.evalPrimCall, EvmYul.Yul.execPrimCall,
+    EvmYul.Yul.reverse', EvmYul.Yul.cons', EvmYul.Yul.head',
+    EvmYul.Yul.multifill', EvmYul.Yul.State.multifill,
+    EvmYul.Yul.State.executionEnv]
+
+/-- Fuel-parametric form of
+    `exec_let_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok`. -/
+theorem exec_let_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok_fuel
+    (fuel : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat)
+    (name : EvmYul.Identifier)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
+    EvmYul.Yul.exec (fuel + 11)
+        (.Let [name]
+          (some (Backends.lowerExprNative
+            (Yul.YulExpr.call "iszero"
+              [Yul.YulExpr.call "lt"
+                [Yul.YulExpr.call "calldatasize" [],
+                 Yul.YulExpr.lit 4]]))))
+        (some contract)
+        (.Ok (initialState contract tx storage observableSlots).sharedState ∅) =
+      .ok ((.Ok (initialState contract tx storage observableSlots).sharedState ∅ :
+            EvmYul.Yul.State).insert name (EvmYul.UInt256.ofNat 1)) := by
+  rw [exec_let_lowerExprNative_iszero_lt_calldatasize_4_ok_fuel,
+      initialState_calldataSize,
+      uint256_lt_ofNat_4_eq_zero_of_ge _ (by omega) hNoWrap,
+      uint256_isZero_ofNat_zero]
+
 /-- State-generic native `eval` of the lowered selector-miss guard
     `iszero(__has_selector)`: when the named variable is bound to
     `UInt256.ofNat 1` in the variable store, the guard evaluates to
@@ -2227,6 +2281,23 @@ theorem exec_block_cons_ok
   EvmYul.Yul.exec (Nat.succ fuel') (.Block (stmt :: stmts)) codeOverride state =
       .ok final := by
   simp [EvmYul.Yul.exec, hHead, hTail]
+
+/-- Tail-generic peel of a native block whose head statement finishes
+    normally: the whole block exec at `succ fuel'` equals the residual block
+    exec on the post-head state at the same fuel `fuel'`, regardless of how
+    that residual exec finally evaluates. Useful when the rest of the proof
+    stays open (e.g. when the next peel is a chained equation rather than a
+    closed `.ok final`). -/
+theorem exec_block_cons_ok_eq
+    (fuel' : Nat)
+    (stmt : EvmYul.Yul.Ast.Stmt)
+    (stmts : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state next : EvmYul.Yul.State)
+    (hHead : EvmYul.Yul.exec fuel' stmt codeOverride state = .ok next) :
+    EvmYul.Yul.exec (Nat.succ fuel') (.Block (stmt :: stmts)) codeOverride state =
+      EvmYul.Yul.exec fuel' (.Block stmts) codeOverride next := by
+  simp [EvmYul.Yul.exec, hHead]
 
 /-- If the head statement of a native block halts or errors, the whole block
     halts or errors immediately. -/
@@ -2641,6 +2712,60 @@ theorem exec_if_lowerExprNative_iszero_ident_one_skip_fuel
   simpa using
     (exec_if_eval_zero (fuel + 8) _ body codeOverride state state
       (eval_lowerExprNative_iszero_ident_one_ok_fuel fuel state codeOverride name hVal))
+
+/-- Lookup of a freshly inserted name in the empty-store `nativeSwitchInitialOkState`
+    is the inserted value; mediates between the post-`Let` post state produced
+    by the selector-binding lemma and the `hVal` premise consumed by the
+    `If1`-skip lemma. -/
+private theorem nativeSwitchInitialOkState_insert_lookup_self
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : Nat → Nat) (observableSlots : List Nat)
+    (name : EvmYul.Identifier) (value : EvmYul.UInt256) :
+    ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+        name value)[name]! = value := by
+  simp [nativeSwitchInitialOkState, EvmYul.Yul.State.insert,
+    GetElem?.getElem!, decidableGetElem?, GetElem.getElem,
+    EvmYul.Yul.State.store, EvmYul.Yul.State.lookup!]
+
+/-- Native dispatcher inner-block chain peel of `Let` + `If1`-skip on
+    `nativeSwitchInitialOkState`: under the calldata no-wrap bound, the
+    selector-binding `Let` runs to `__has_selector ↦ 1` and the selector-miss
+    `If1` body is statically skipped, so the outer block exec equals the
+    residual `Block tail` exec at strictly smaller fuel on the post-`Let`
+    state. Composes the existing `Let` and `If1`-skip fuel lemmas through
+    `nativeSwitchInitialOkState_insert_lookup_self`. -/
+theorem exec_block_letSelector_if1Skip_initialState_fuel
+    (fuel : Nat) (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : Nat → Nat) (observableSlots : List Nat)
+    (selectorName : EvmYul.Identifier) (if1Body tail : List EvmYul.Yul.Ast.Stmt)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
+    EvmYul.Yul.exec (fuel + 12)
+        (.Block (.Let [selectorName] (some (Backends.lowerExprNative
+            (Yul.YulExpr.call "iszero" [Yul.YulExpr.call "lt"
+              [Yul.YulExpr.call "calldatasize" [], Yul.YulExpr.lit 4]]))) ::
+          .If (Backends.lowerExprNative
+              (Yul.YulExpr.call "iszero" [Yul.YulExpr.ident selectorName]))
+            if1Body ::
+          tail))
+        (some contract)
+        (nativeSwitchInitialOkState contract tx storage observableSlots) =
+      EvmYul.Yul.exec (fuel + 10) (.Block tail) (some contract)
+        ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+          selectorName (EvmYul.UInt256.ofNat 1)) := by
+  simp only [nativeSwitchInitialOkState]
+  have hLet := exec_let_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok_fuel
+    fuel contract tx storage observableSlots selectorName hNoWrap
+  have hLookup := nativeSwitchInitialOkState_insert_lookup_self
+    contract tx storage observableSlots selectorName (EvmYul.UInt256.ofNat 1)
+  simp only [nativeSwitchInitialOkState] at hLookup
+  have hIfRaw := exec_if_lowerExprNative_iszero_ident_one_skip_fuel
+    (fuel + 1) if1Body (some contract) _ selectorName hLookup
+  have hFuelEq : (fuel + 1) + 9 = fuel + 10 := by omega
+  rw [hFuelEq] at hIfRaw
+  rw [show fuel + 12 = (fuel + 11).succ from rfl,
+      exec_block_cons_ok_eq _ _ _ _ _ _ hLet,
+      show fuel + 11 = (fuel + 10).succ from rfl,
+      exec_block_cons_ok_eq _ _ _ _ _ _ hIfRaw]
 
 /-- Native evaluation of the lazy lowered switch guard peels to the exact
     EVMYulLean `AND(ISZERO(matched), EQ(discr, tag))` value.

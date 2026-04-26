@@ -2926,12 +2926,15 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_ok_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_iszero_ident_one_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_iszero_ident_one_ok_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_selectorExpr_initialState_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_selectorExpr_initialState_ok_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lit_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_cons_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_cons_ok_eq
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_cons_error
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_cons_tail_error
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_append_ok
@@ -2945,6 +2948,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_eval_nonzero_error
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_lowerExprNative_iszero_ident_one_skip
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_lowerExprNative_iszero_ident_one_skip_fuel
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState_insert_lookup_self  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_letSelector_if1Skip_initialState_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_ok_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_hit_ok
@@ -3445,4 +3450,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3272 theorems/lemmas (2343 public, 929 private, 0 sorry'd)
+-- Total: 3277 theorems/lemmas (2347 public, 930 private, 0 sorry'd)
