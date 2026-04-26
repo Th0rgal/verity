@@ -193,10 +193,14 @@ private def functionAbiSignatureKey (fn : FunctionDecl) : String :=
   fn.name ++ "(" ++ String.intercalate "," (fn.params.toList.map (fun p => valueTypeAbiSignatureComponent p.ty)) ++ ")"
 
 private def overloadedFunctionIdentName (fn : FunctionDecl) : String :=
+  -- Length-prefix each component so the suffix encoding is injective.
+  -- Component strings can contain `_` (e.g. `newtype_Foo_scalar_uint256`,
+  -- `tuple2_scalar_uint256__scalar_bool`), so a plain `_` join is ambiguous
+  -- and distinct overloads can collapse to the same identifier.
   let suffix :=
     match fn.params.toList.map (fun p => valueTypeSignatureComponent p.ty) with
     | [] => "0"
-    | parts => String.intercalate "_" parts
+    | parts => String.join (parts.map fun p => toString p.length ++ "x" ++ p)
   fn.name ++ "__" ++ suffix
 
 private def assignOverloadInternalIdents (functions : Array FunctionDecl) :
