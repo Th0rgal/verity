@@ -2263,6 +2263,64 @@ theorem simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSinglet
   rw [hBody2Eq] at hIf2; rw [hIf2] at hIf1; rw [hIf1] at hLet
   exact ⟨body1', _, cases', hLet⟩
 
+/-- The source-level switch cases that `buildSwitch` emits for SimpleStorage
+(one entry per source IR function, keyed by selector). Used by the
+`_sourceLowered` companion below as the explicit input to
+`lowerSwitchCasesNativeWithSwitchIds`, anchoring the switch lowering to the
+concrete source-level selector list. -/
+abbrev simpleStorageBuildSwitchSourceCases : List (Nat × List Yul.YulStmt) :=
+  simpleStorageIRContract.functions.map (fun fn =>
+    (fn.selector,
+      Compiler.CodegenCommon.dispatchBody fn.payable s!"{fn.name}()"
+        ([Compiler.CodegenCommon.calldatasizeGuard fn.params.length] ++ fn.body)))
+
+/-- Source-lowered companion of `_eq_concrete_let_if_switchSingleton_revert_default`:
+additionally exposes the lowering equation for the buildSwitch-emitted source
+case list `simpleStorageBuildSwitchSourceCases` into the lowered `cases'`.
+Bridge lemma for the selector-miss closed-form: chained with
+`lowerSwitchCasesNativeWithSwitchIds_tags_eq` it converts source-level
+selector facts into lowered-level `find?` results. -/
+theorem simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton_revert_default_sourceLowered :
+    ∃ (body1 : List EvmYul.Yul.Ast.Stmt) (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
+      simpleStorageNativeDispatcherInnerStmts =
+        [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+            (some (Backends.lowerExprNative (Yul.YulExpr.call "iszero"
+              [Yul.YulExpr.call "lt"
+                [Yul.YulExpr.call "calldatasize" [], Yul.YulExpr.lit 4]]))),
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative
+              (Yul.YulExpr.call "iszero" [Yul.YulExpr.ident "__has_selector"])) body1,
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative (Yul.YulExpr.ident "__has_selector"))
+            [Backends.lowerNativeSwitchBlock
+              (Yul.YulExpr.call "shr"
+                [Yul.YulExpr.lit Compiler.Constants.selectorShift,
+                 Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 0]])
+              (Backends.freshNativeSwitchId reservedNames n0) cases'
+              [Backends.Native.nativeRevertZeroZeroStmt]]] ∧
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1)
+        simpleStorageBuildSwitchSourceCases = .ok (cases', midN) := by
+  have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
+  rw [simpleStorageNativeDispatcherStmts_eq_singleton_block] at hOk
+  obtain ⟨_, hInner⟩ := lowerStmtsNative_block_stmts_eq _ _ hOk
+  obtain ⟨_, hLet, hRestLowering⟩ :=
+    lowerStmtsNativeWithSwitchIds_let_head_eq _ _ _ _ _ _ _ hInner
+  obtain ⟨body1', _, _, hIf1, _, hRest1⟩ :=
+    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRestLowering
+  obtain ⟨_, _, _, hIf2, hBody2, hRest2⟩ :=
+    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRest1
+  rw [Backends.lowerStmtsNativeWithSwitchIds_nil,
+      Except.ok.injEq, Prod.mk.injEq] at hRest2
+  obtain ⟨hNil, _⟩ := hRest2
+  subst hNil
+  obtain ⟨cases', midN, hBody2Eq, hLowerCases⟩ :=
+    lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered
+      _ _ _ _ _ _ hBody2
+  rw [hBody2Eq] at hIf2; rw [hIf2] at hIf1; rw [hIf1] at hLet
+  exact ⟨body1', _, _, cases', midN, hLet, hLowerCases⟩
+
 /-- The `Classical.choose`-pinned let RHS of the SimpleStorage native dispatcher
 equals the lowered `iszero(lt(calldatasize(), 4))` Yul expression that
 `buildSwitch` emits. Combining the named-form decomposition
