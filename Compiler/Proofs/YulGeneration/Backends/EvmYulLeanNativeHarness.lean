@@ -1521,6 +1521,12 @@ theorem lowerExprNative_selectorExpr :
       .ok (state, some (EvmYul.UInt256.ofNat state.executionEnv.calldata.size)) := by
   rfl
 
+@[simp] theorem step_callvalue_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.CALLVALUE none state [] =
+      .ok (state, some state.executionEnv.weiValue) := by
+  rfl
+
 @[simp] theorem step_and_ok
     (state : EvmYul.Yul.State)
     (left right : EvmYul.UInt256) :
@@ -1760,6 +1766,14 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
     EvmYul.Yul.primCall (fuel + 1) state
         EvmYul.Operation.CALLDATASIZE [] =
       .ok (state, [EvmYul.UInt256.ofNat state.executionEnv.calldata.size]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_callvalue_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.CALLVALUE [] =
+      .ok (state, [state.executionEnv.weiValue]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
 @[simp] theorem primCall_and_ok
@@ -2032,6 +2046,38 @@ theorem eval_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok
       initialState_calldataSize,
       uint256_lt_ofNat_4_eq_zero_of_ge _ (by omega) hNoWrap,
       uint256_isZero_ofNat_zero]
+
+/-- Native evaluation of the lowered `callvalue()` Yul expression.
+    The EVMYulLean primitive `CALLVALUE` is a zero-argument execution-env op
+    that returns the current execution environment's `weiValue`. Closes the
+    eval-side seam for callvalue-guard reasoning on dispatcher inner blocks. -/
+theorem eval_lowerExprNative_callvalue_ok
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    EvmYul.Yul.eval 5
+        (Backends.lowerExprNative (Yul.YulExpr.call "callvalue" []))
+        codeOverride (.Ok shared store) =
+      .ok (.Ok shared store, shared.executionEnv.weiValue) := by
+  simp [Backends.lookupRuntimePrimOp,
+    EvmYul.Yul.eval, EvmYul.Yul.evalArgs, EvmYul.Yul.evalPrimCall,
+    EvmYul.Yul.reverse', EvmYul.Yul.head', EvmYul.Yul.State.executionEnv]
+
+/-- Specialisation of `eval_lowerExprNative_callvalue_ok` to the dispatcher's
+    initial bridged state: the result is the literal `natToUInt256 tx.msgValue`
+    via `initialState_weiValue`. -/
+theorem eval_lowerExprNative_callvalue_initialState_ok
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : Nat → Nat)
+    (observableSlots : List Nat) :
+    EvmYul.Yul.eval 5
+        (Backends.lowerExprNative (Yul.YulExpr.call "callvalue" []))
+        (some contract)
+        (.Ok (initialState contract tx storage observableSlots).sharedState ∅) =
+      .ok (.Ok (initialState contract tx storage observableSlots).sharedState ∅,
+        natToUInt256 tx.msgValue) := by
+  rw [eval_lowerExprNative_callvalue_ok, initialState_weiValue]
 
 /-- State-generic native `exec` of the `let __has_selector := iszero(lt(
     calldatasize(), 4))` statement that `buildSwitch` emits at the head of a
