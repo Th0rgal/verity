@@ -3810,6 +3810,81 @@ def simpleStorageNativeCallDispatcherBridge
     simpleStorageIRContract tx initialState observableSlots
     Compiler.SimpleStorageNativeWitness.nativeContract
 
+/-! ### Per-case sub-bridges for the SimpleStorage native dispatcher.
+
+The monolithic `simpleStorageNativeCallDispatcherBridge` bundles three
+selector-class obligations: the `retrieve()` hit case, the `store(uint256)`
+hit case, and the selector-miss revert case. Splitting it into three
+per-case sub-bridges, each gated on the relevant selector hypothesis,
+exposes the case structure at the public-theorem boundary so each case
+can be discharged independently as the harness lemmas mature.
+
+Each per-case sub-bridge is *strictly weaker* than the monolithic bridge
+because it adds a precondition fixing the selector class, so a proof of
+the sub-bridge does not need to do the case analysis on the selector that
+a proof of the monolithic bridge would need to do. The combined bridge
+is recovered from the three sub-bridges by the
+`simpleStorageNativeCallDispatcherBridge_of_per_case` discharger below. -/
+
+/-- Per-case sub-bridge: the dispatcher-exec agreement obligation when the
+caller-supplied transaction selector matches `retrieve()` (selector
+`0x2e64cec1`). -/
+def simpleStorageNativeRetrieveHitBridge
+    (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
+    : Prop :=
+  tx.functionSelector % Compiler.Constants.selectorModulus = 0x2e64cec1 →
+  nativeDispatcherExecAgreesWithInterpreterPositive
+    simpleStorageNativeDispatcherFuel
+    simpleStorageIRContract tx initialState observableSlots
+    Compiler.SimpleStorageNativeWitness.nativeContract
+
+/-- Per-case sub-bridge: the dispatcher-exec agreement obligation when the
+caller-supplied transaction selector matches `store(uint256)` (selector
+`0x6057361d`). -/
+def simpleStorageNativeStoreHitBridge
+    (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
+    : Prop :=
+  tx.functionSelector % Compiler.Constants.selectorModulus = 0x6057361d →
+  nativeDispatcherExecAgreesWithInterpreterPositive
+    simpleStorageNativeDispatcherFuel
+    simpleStorageIRContract tx initialState observableSlots
+    Compiler.SimpleStorageNativeWitness.nativeContract
+
+/-- Per-case sub-bridge: the dispatcher-exec agreement obligation when the
+caller-supplied transaction selector matches neither `store(uint256)` nor
+`retrieve()` and the lowered switch falls through to the default
+`revert(0, 0)` arm. -/
+def simpleStorageNativeSelectorMissBridge
+    (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
+    : Prop :=
+  tx.functionSelector % Compiler.Constants.selectorModulus ≠ 0x2e64cec1 →
+  tx.functionSelector % Compiler.Constants.selectorModulus ≠ 0x6057361d →
+  nativeDispatcherExecAgreesWithInterpreterPositive
+    simpleStorageNativeDispatcherFuel
+    simpleStorageIRContract tx initialState observableSlots
+    Compiler.SimpleStorageNativeWitness.nativeContract
+
+/-- Recover the monolithic `simpleStorageNativeCallDispatcherBridge` from the
+three per-case sub-bridges by case analysis on
+`tx.functionSelector % selectorModulus`. -/
+theorem simpleStorageNativeCallDispatcherBridge_of_per_case
+    (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
+    (hRetrieveHit :
+      simpleStorageNativeRetrieveHitBridge tx initialState observableSlots)
+    (hStoreHit :
+      simpleStorageNativeStoreHitBridge tx initialState observableSlots)
+    (hSelectorMiss :
+      simpleStorageNativeSelectorMissBridge tx initialState observableSlots) :
+    simpleStorageNativeCallDispatcherBridge tx initialState observableSlots := by
+  unfold simpleStorageNativeCallDispatcherBridge
+  by_cases hR :
+      tx.functionSelector % Compiler.Constants.selectorModulus = 0x2e64cec1
+  · exact hRetrieveHit hR
+  · by_cases hS :
+        tx.functionSelector % Compiler.Constants.selectorModulus = 0x6057361d
+    · exact hStoreHit hS
+    · exact hSelectorMiss hR hS
+
 /-- SimpleStorage end-to-end: compile → IR → EVMYulLean-backed Yul preserves
 semantics. The concrete function-body bridge witnesses are discharged above. -/
 theorem simpleStorage_endToEnd_evmYulLean
@@ -3898,11 +3973,25 @@ theorem simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge
     hNativeCallDispatcher
 
 /-- Native SimpleStorage end-to-end theorem with the concrete native dispatcher
-witness supplied explicitly.
+witness supplied per-selector-case.
 
 This theorem targets native EVMYulLean execution, but it does not pretend the
-remaining selected-body native dispatcher proof is complete. Callers must supply
-`simpleStorageNativeCallDispatcherBridge` until that proof is discharged. -/
+remaining selected-body native dispatcher proof is complete. Callers must
+supply three per-case sub-bridges (retrieve hit, store hit, selector miss)
+covering the three selector classes the lowered switch branches on. The
+sub-bridges are recombined into the monolithic
+`simpleStorageNativeCallDispatcherBridge` via
+`simpleStorageNativeCallDispatcherBridge_of_per_case` before delegating to the
+underlying `_of_callDispatcher_bridge` wrapper.
+
+Each sub-bridge is strictly weaker than the monolithic bridge: it gets to
+assume the selector class as a precondition, so its discharger does not need
+to do the case analysis on `tx.functionSelector % selectorModulus`. The
+retrieve-hit case is the closest to unconditional discharge — its lowered
+2-statement body `mstore(0, sload(0)); return(0, 32)` already reduces to a
+closed-form `YulHalt` state via `exec_block_simpleStorageLoweredRetrieveCase
+BodyTail3_closed`, leaving only the observable-storage agreement step
+between the projected halt and the EVMYulLean interpreter result. -/
 theorem simpleStorage_endToEnd_native_evmYulLean
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     (hselector : tx.functionSelector < selectorModulus)
@@ -3919,8 +4008,12 @@ theorem simpleStorage_endToEnd_native_evmYulLean
       HasSelectorDeadBridge fn.body)
     (hparamErase : ∀ fn, fn ∈ simpleStorageIRContract.functions →
       paramLoadErasure fn tx (initialState.withTx tx))
-    (hNativeCallDispatcher :
-      simpleStorageNativeCallDispatcherBridge tx initialState observableSlots)
+    (hRetrieveHit :
+      simpleStorageNativeRetrieveHitBridge tx initialState observableSlots)
+    (hStoreHit :
+      simpleStorageNativeStoreHitBridge tx initialState observableSlots)
+    (hSelectorMiss :
+      simpleStorageNativeSelectorMissBridge tx initialState observableSlots)
     (hEnv :
       Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
         (Compiler.emitYul simpleStorageIRContract).runtimeCode
@@ -3938,7 +4031,9 @@ theorem simpleStorage_endToEnd_native_evmYulLean
         (nativeDispatcherExecAgreesWithInterpreter_of_positive
           (by
             rw [simpleStorage_runtimeCode_eq_single_dispatcher]
-            exact hNativeCallDispatcher))))
+            exact simpleStorageNativeCallDispatcherBridge_of_per_case
+              tx initialState observableSlots
+              hRetrieveHit hStoreHit hSelectorMiss))))
 
 /-! ## Universal Pure Arithmetic Bridge
 
