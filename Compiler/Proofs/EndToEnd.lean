@@ -3048,6 +3048,18 @@ def simpleStorageLoweredRetrieveCaseBodyTail2 : List EvmYul.Yul.Ast.Stmt :=
    .ExprStmtCall (Backends.lowerExprNative
      (.call "return" [.lit 0, .lit 32]))]
 
+/-- 2-statement lt-calldatasize-stripped tail of
+`simpleStorageLoweredRetrieveCaseBodyTail2`, with both the callvalue revert
+guard and the inner `if lt(calldatasize, 4) {…}` argument-length revert
+guard removed. Used to further shrink the dispatcher hit-case body-exec
+obligation when the calldata is at least 4 bytes (which is automatic for any
+ABI-conforming call since the selector itself is 4 bytes). -/
+def simpleStorageLoweredRetrieveCaseBodyTail3 : List EvmYul.Yul.Ast.Stmt :=
+  [.ExprStmtCall (Backends.lowerExprNative
+     (.call "mstore" [.lit 0, .call "sload" [.lit 0]])),
+   .ExprStmtCall (Backends.lowerExprNative
+     (.call "return" [.lit 0, .lit 32]))]
+
 /-- Strip the leading `if callvalue() { revert(0,0) }` guard from
 `simpleStorageLoweredStoreCaseBodyTail` when proving a `.error err`
 obligation, given that the current `executionEnv.weiValue` is zero (the
@@ -3109,6 +3121,44 @@ theorem exec_block_simpleStorageLoweredRetrieveCaseBodyTail_callvalue_strip_erro
     codeOverride (.Ok shared store) = .ok (.Ok shared store)
   exact Backends.Native.exec_if_lowerExprNative_callvalue_skip_zero_fuel
     fuel _ codeOverride shared store hWei
+
+/-- Strip the leading `if lt(calldatasize(), 4) { revert(0,0) }` argument-length
+guard from `simpleStorageLoweredRetrieveCaseBodyTail2` when proving a
+`.error err` obligation, given that the current calldata has at least 4
+bytes (the selector). Combines the harness skip lemma
+`exec_if_lowerExprNative_lt_calldatasize_skip_ge_fuel` with
+`exec_block_cons_tail_error`. Reduces a 3-statement tail2 obligation to a
+2-statement lt-stripped tail3 obligation. -/
+theorem exec_block_simpleStorageLoweredRetrieveCaseBodyTail2_lt_strip_error
+    (fuel : Nat) (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (shared : EvmYul.SharedState .Yul) (store : EvmYul.Yul.VarStore)
+    (err : EvmYul.Yul.Exception)
+    (hSize : shared.executionEnv.calldata.size < EvmYul.UInt256.size)
+    (hGe : 4 ≤ shared.executionEnv.calldata.size)
+    (hTail3 :
+      EvmYul.Yul.exec (fuel + 9)
+        (.Block simpleStorageLoweredRetrieveCaseBodyTail3)
+        codeOverride (.Ok shared store) = .error err) :
+    EvmYul.Yul.exec (fuel + 10)
+      (.Block simpleStorageLoweredRetrieveCaseBodyTail2)
+      codeOverride (.Ok shared store) = .error err := by
+  show EvmYul.Yul.exec (Nat.succ (fuel + 9))
+    (.Block ((simpleStorageLoweredRetrieveCaseBodyTail2).head! ::
+      simpleStorageLoweredRetrieveCaseBodyTail3))
+    codeOverride (.Ok shared store) = .error err
+  refine Backends.Native.exec_block_cons_tail_error (fuel + 9) _
+    simpleStorageLoweredRetrieveCaseBodyTail3 codeOverride
+    (.Ok shared store) (.Ok shared store) err ?_ hTail3
+  show EvmYul.Yul.exec (fuel + 9)
+    (.If (Backends.lowerExprNative
+            (Yul.YulExpr.call "lt"
+              [Yul.YulExpr.call "calldatasize" [],
+               Yul.YulExpr.lit 4]))
+      [.ExprStmtCall (Backends.lowerExprNative
+        (.call "revert" [.lit 0, .lit 0]))])
+    codeOverride (.Ok shared store) = .ok (.Ok shared store)
+  exact Backends.Native.exec_if_lowerExprNative_lt_calldatasize_skip_ge_fuel
+    fuel _ codeOverride shared store 4 hSize (by decide) hGe
 
 /-- Concrete characterization of the lowered SimpleStorage source switch
 cases. Both bodies are straight-line, so the lowering is deterministic and
@@ -3632,6 +3682,57 @@ theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_ta
     (.Ok _ _) = .error err
   exact exec_block_simpleStorageLoweredRetrieveCaseBodyTail_callvalue_strip_error
     fuel _ _ _ err hWei hT2
+
+/-- Retrieve-case wrapper that further shrinks the body-exec obligation by
+also stripping the inner `if lt(calldatasize(), 4) {…}` argument-length revert
+guard. The user supplies the tail3 obligation (the 2-statement
+`mstore(0, sload(0)); return(0, 32)` core) and the wrapper discharges both
+the callvalue and lt-calldatasize guards via the strip lemmas. The
+calldata-size assumptions are derived automatically from `hNoWrap` and
+`initialState_calldataSize`. -/
+theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail3
+    (fuel : Nat) (tx : YulTransaction) (storage : Nat → Nat)
+    (observableSlots : List Nat) (err : EvmYul.Yul.Exception)
+    (hSelector : 0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hMsgValue : tx.msgValue = 0)
+    (hTail3 : ∀ (reservedNames : List String) (n0 : Nat),
+        EvmYul.Yul.exec (fuel + 9)
+          (.Block simpleStorageLoweredRetrieveCaseBodyTail3)
+          (some Compiler.SimpleStorageNativeWitness.nativeContract)
+          (simpleStorageDispatcherHitBodyInputState
+            (Backends.freshNativeSwitchId reservedNames n0)
+            tx storage observableSlots) =
+          .error err) :
+    Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        (fuel + 25) Compiler.SimpleStorageNativeWitness.nativeContract
+        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+          Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+          observableSlots) =
+      .error err := by
+  refine simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail2
+    (fuel + 4) tx storage observableSlots err hSelector hNoWrap hMsgValue ?_
+  intro reservedNames n0
+  have hT3 := hTail3 reservedNames n0
+  have hSize :
+      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState.executionEnv.calldata.size <
+      EvmYul.UInt256.size := by
+    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataSize]
+    exact hNoWrap
+  have hGe :
+      4 ≤ (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState.executionEnv.calldata.size := by
+    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataSize]
+    exact Nat.le_add_right 4 _
+  show EvmYul.Yul.exec ((fuel + 4) + 6)
+    (.Block simpleStorageLoweredRetrieveCaseBodyTail2)
+    (some Compiler.SimpleStorageNativeWitness.nativeContract)
+    (.Ok _ _) = .error err
+  exact exec_block_simpleStorageLoweredRetrieveCaseBodyTail2_lt_strip_error
+    fuel _ _ _ err hSize hGe hT3
 
 noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch

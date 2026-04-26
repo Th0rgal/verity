@@ -2093,6 +2093,34 @@ theorem eval_lowerExprNative_callvalue_ok_fuel
     EvmYul.Yul.eval, EvmYul.Yul.evalArgs, EvmYul.Yul.evalPrimCall,
     EvmYul.Yul.reverse', EvmYul.Yul.head', EvmYul.Yul.State.executionEnv]
 
+/-- Native evaluation of the lowered `lt(calldatasize(), k)` Yul expression
+    (the inner argument-length revert guard `if lt(calldatasize(), K) {…}` that
+    `dispatchBody` emits before each function-arg-length-checked body). At any
+    fuel `≥ fuel + 7`, the eval reduces to the concrete `UInt256` predicate
+    `LT(ofNat cd_size, ofNat k)`, where `cd_size` is the calldata byte size in
+    the current execution environment. Closes the eval-side seam for
+    lt-calldatasize-guard reasoning on dispatcher hit-case body inner blocks. -/
+theorem eval_lowerExprNative_lt_calldatasize_ok_fuel
+    (fuel : Nat)
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (k : Nat) :
+    EvmYul.Yul.eval (fuel + 8)
+        (Backends.lowerExprNative
+          (Yul.YulExpr.call "lt"
+            [Yul.YulExpr.call "calldatasize" [],
+             Yul.YulExpr.lit k]))
+        codeOverride (.Ok shared store) =
+      .ok (.Ok shared store,
+        EvmYul.UInt256.lt
+          (EvmYul.UInt256.ofNat shared.executionEnv.calldata.size)
+          (EvmYul.UInt256.ofNat k)) := by
+  simp [Backends.lowerExprNative, Backends.lookupRuntimePrimOp,
+    EvmYul.Yul.eval, EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail,
+    EvmYul.Yul.evalPrimCall, EvmYul.Yul.reverse', EvmYul.Yul.cons',
+    EvmYul.Yul.head', EvmYul.Yul.State.executionEnv]
+
 
 /-- State-generic native `exec` of the `let __has_selector := iszero(lt(
     calldatasize(), 4))` statement that `buildSwitch` emits at the head of a
@@ -2865,6 +2893,62 @@ theorem exec_if_lowerExprNative_callvalue_skip_zero_fuel
   refine exec_if_eval_zero (fuel + 5) _ body codeOverride
     (.Ok shared store) (.Ok shared store) ?_
   rw [eval_lowerExprNative_callvalue_ok_fuel, hWei]
+
+/-- General-`k` form of `uint256_lt_ofNat_4_eq_zero_of_ge`: when `k ≤ n` and
+    both fit in `UInt256`, the EVMYulLean primitive `LT(ofNat n, ofNat k)`
+    evaluates to the canonical zero word. Used to discharge the
+    lt-calldatasize-guard on the body's inner argument-length revert. -/
+private theorem uint256_lt_ofNat_eq_zero_of_ge
+    (n k : Nat) (hLe : k ≤ n)
+    (hSize : n < EvmYul.UInt256.size)
+    (hKSize : k < EvmYul.UInt256.size) :
+    EvmYul.UInt256.lt (EvmYul.UInt256.ofNat n) (EvmYul.UInt256.ofNat k) =
+      EvmYul.UInt256.ofNat 0 := by
+  have hN : (EvmYul.UInt256.ofNat n).val.val = n := by
+    unfold EvmYul.UInt256.ofNat
+    simp [Id.run, Fin.ofNat, Nat.mod_eq_of_lt hSize]
+  have hK : (EvmYul.UInt256.ofNat k).val.val = k := by
+    unfold EvmYul.UInt256.ofNat
+    simp [Id.run, Fin.ofNat, Nat.mod_eq_of_lt hKSize]
+  have hNotLt : ¬ ((EvmYul.UInt256.ofNat n : EvmYul.UInt256) <
+      (EvmYul.UInt256.ofNat k : EvmYul.UInt256)) := by
+    intro hLt
+    have hh : (EvmYul.UInt256.ofNat n).val.val <
+        (EvmYul.UInt256.ofNat k).val.val := hLt
+    rw [hN, hK] at hh
+    omega
+  simp [EvmYul.UInt256.lt, hNotLt]
+
+/-- Native `if` execution skips the lowered `if lt(calldatasize(), k) { … }`
+    revert guard whenever the current calldata is at least `k` bytes — i.e.,
+    when the caller has supplied enough calldata for the function's selector
+    plus its declared arguments. This is the per-statement no-op for the
+    dispatcher's hit-case body inner argument-length guard, mirroring
+    `exec_if_lowerExprNative_callvalue_skip_zero_fuel` for the callvalue
+    guard. -/
+theorem exec_if_lowerExprNative_lt_calldatasize_skip_ge_fuel
+    (fuel : Nat)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (k : Nat)
+    (hSize : shared.executionEnv.calldata.size < EvmYul.UInt256.size)
+    (hKSize : k < EvmYul.UInt256.size)
+    (hGe : k ≤ shared.executionEnv.calldata.size) :
+    EvmYul.Yul.exec (fuel + 9)
+        (.If (Backends.lowerExprNative
+                (Yul.YulExpr.call "lt"
+                  [Yul.YulExpr.call "calldatasize" [],
+                   Yul.YulExpr.lit k]))
+          body)
+        codeOverride (.Ok shared store) =
+      .ok (.Ok shared store) := by
+  refine exec_if_eval_zero (fuel + 8) _ body codeOverride
+    (.Ok shared store) (.Ok shared store) ?_
+  rw [eval_lowerExprNative_lt_calldatasize_ok_fuel,
+      uint256_lt_ofNat_eq_zero_of_ge _ _ hGe hSize hKSize]
+  rfl
 
 /-- Fuel-parametric form of `exec_if_lowerExprNative_iszero_ident_one_skip`. -/
 theorem exec_if_lowerExprNative_iszero_ident_one_skip_fuel
