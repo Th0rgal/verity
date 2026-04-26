@@ -3213,6 +3213,40 @@ theorem exec_block_simpleStorageLoweredRetrieveCaseBodyTail3_closed
   rw [hF] at hSeam
   simpa [simpleStorageLoweredRetrieveCaseBodyTail3] using hSeam
 
+/-- Composed body-level closed form for the SimpleStorage retrieve hit-case.
+Stacks the three guard-strip lemmas (head no-op, callvalue, lt-calldatasize)
+on top of `_Tail3_closed` to characterize the full lowered retrieve body's
+exec output as the closed-form halt error produced by
+`mstore(0, sload(0)); return(0, 32)`. The `shared3` form mirrors `_Tail3_closed`. -/
+theorem exec_block_simpleStorageLoweredRetrieveCaseBody_halt
+    (fuel : Nat) (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (shared : EvmYul.SharedState .Yul) (store : EvmYul.Yul.VarStore)
+    (hWei : shared.executionEnv.weiValue = (⟨0⟩ : EvmYul.Literal))
+    (hSize : shared.executionEnv.calldata.size < EvmYul.UInt256.size)
+    (hGe : 4 ≤ shared.executionEnv.calldata.size) :
+    EvmYul.Yul.exec (fuel + 12) (.Block simpleStorageLoweredRetrieveCaseBody)
+        codeOverride (.Ok shared store) =
+      let (state', value) := shared.sload (EvmYul.UInt256.ofNat 0)
+      let shared1 : EvmYul.SharedState .Yul := { shared with toState := state' }
+      let shared2 : EvmYul.SharedState .Yul :=
+        { shared1 with
+          toMachineState :=
+            shared1.toMachineState.mstore (EvmYul.UInt256.ofNat 0) value }
+      let shared3 : EvmYul.SharedState .Yul :=
+        { shared2 with
+          toMachineState :=
+            shared2.toMachineState.evmReturn
+              (EvmYul.UInt256.ofNat 0) (EvmYul.UInt256.ofNat 32) }
+      .error (EvmYul.Yul.Exception.YulHalt (.Ok shared3 store) ⟨1⟩) := by
+  have hTail3 := exec_block_simpleStorageLoweredRetrieveCaseBodyTail3_closed
+    fuel codeOverride shared store
+  have hTail2 := exec_block_simpleStorageLoweredRetrieveCaseBodyTail2_lt_strip_error
+    fuel codeOverride shared store _ hSize hGe hTail3
+  have hTail := exec_block_simpleStorageLoweredRetrieveCaseBodyTail_callvalue_strip_error
+    (fuel + 4) codeOverride shared store _ hWei hTail2
+  exact exec_block_simpleStorageLoweredRetrieveCaseBody_head_strip_error
+    (fuel + 10) codeOverride (.Ok shared store) _ hTail
+
 /-- Concrete characterization of the lowered SimpleStorage source switch
 cases. Both bodies are straight-line, so the lowering is deterministic and
 the threaded `nextSwitchId` returns unchanged. Strengthens `_lowered_shape`
