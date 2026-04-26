@@ -3864,6 +3864,74 @@ def simpleStorageNativeSelectorMissBridge
     simpleStorageIRContract tx initialState observableSlots
     Compiler.SimpleStorageNativeWitness.nativeContract
 
+/-! ### Missing-lemma description for the retrieve-hit and store-hit dischargers.
+
+The selector-miss sub-bridge has been fully discharged in-proof (see
+`simpleStorageNativeSelectorMissBridge_proved` below). Discharging the
+remaining two sub-bridges (`simpleStorageNativeRetrieveHitBridge` and
+`simpleStorageNativeStoreHitBridge`) requires the following concrete
+composition lemmas which are NOT yet present in this file. Recording the
+precise list here so the residual obligation is auditable without spelunking
+through the harness layers.
+
+**Retrieve-hit** (`tx.functionSelector % selectorModulus = 0x2e64cec1`):
+1. `interpretIR_simpleStorage_retrieveHit`: a closed-form reduction of
+   `interpretIR simpleStorageIRContract tx initialState` for the retrieve
+   selector — yields
+   `{ success := true, returnValue := some (initialState.storage 0),
+      finalStorage := initialState.storage, events := initialState.events }`.
+   IR side body is `let value := sload(0); return value`, so this is a
+   small inline `unfold interpretIR; simp` analogous to
+   `interpretIR_simpleStorage_selectorMiss` but using
+   `(0x2e64cec1 == tx.functionSelector) = true`.
+2. `simpleStorageNativeContract_dispatcherExec_retrieveHit_halt_atFuel`:
+   composition of the existing `_retrieveHit_error_concrete_tail3`
+   (lines ~3746–3788) with `exec_block_simpleStorageLoweredRetrieveCaseBodyTail3_closed`
+   (lines ~3175–3214) plus a fuel-reshape via a
+   `simpleStorageNativeDispatcherFuel ≥ 25` lemma. Output:
+   `contractDispatcherExecResult simpleStorageNativeDispatcherFuel ... =
+    .error (YulHalt shared3 ⟨1⟩)` where `shared3` is the explicit closed
+   form from `_Tail3_closed`.
+3. `projectResult_retrieveHit_eq`: a closed-form evaluation of
+   `projectResult tx initialStorage initialEvents (.error (YulHalt shared3 ⟨1⟩))`
+   yielding the success-shape result above. Builds on existing harness
+   helpers `mstore0_then_return32_hReturn_size`,
+   `mstore0_then_return32_emptyMemory_hReturn_eq`, and
+   `byteArrayWord_uint256_toByteArray` (already used for
+   `primCall_mstore0_then_return32_emptyMemory_projectHaltReturn`). The
+   remaining input precondition that `simpleStorageDispatcherHitBodyInputState`
+   carries empty memory is structural (no dispatcher-pre stmt writes to
+   memory) and follows from `Native.initialState_memory_empty`-style facts.
+4. `simpleStorageNativeRetrieveHitBridge_proved`: assembles (1)–(3) via
+   `nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_error_project_eq_agree`
+   + `simpleStorage_endToEnd_evmYulLean` + the same `show`-based fuel
+   alignment used by `simpleStorageNativeSelectorMissBridge_proved`.
+
+**Store-hit** (`tx.functionSelector % selectorModulus = 0x6057361d`):
+Analogous to retrieve-hit but the body is
+`sstore(0, calldataload(4))` followed by a stop. Required lemmas:
+1. `interpretIR_simpleStorage_storeHit`: yields
+   `{ success := true, returnValue := none,
+      finalStorage := initialState.storage.set 0 (tx.calldataload 4),
+      events := initialState.events }`.
+2. A `_storeHit_halt_atFuel` analog. The `_storeHit_error_concrete_tail*`
+   chain is already substantially built up (cf. `_storeHit_error_via_reduction`
+   at ~3330). What is missing is a body-level closed form analogous to
+   `_RetrieveCaseBodyTail3_closed` for the lowered store body — i.e. an
+   end-to-end characterization of `Block storeCaseBodyTail3` exec yielding
+   `.error (YulHalt shared_after_sstore ⟨0⟩)` (stop, not return).
+3. `projectResult_storeHit_eq`: projects the halt to the IR-shape result.
+   Critically uses `projectStorageFromState` after `sstore`, which requires
+   showing `projectStorageFromState tx (state-after-sstore-of-slot-0) slot
+     = if slot = 0 then tx.calldataload 4 else initialStorage slot`.
+4. `simpleStorageNativeStoreHitBridge_proved`: assembles as for retrieve-hit.
+
+The deepest unbuilt piece is store-hit step (2) — the
+`storeCaseBodyTail3_closed` body-level closed form. Retrieve-hit pieces
+(2) and (3) reuse already-present harness lemmas; only mechanical glue
+is missing there.
+-/
+
 /-- Lower bound on the SimpleStorage native dispatcher fuel constant. The
 `+ 21` slack matches the closed-form selector-miss reduction, allowing
 the per-case sub-bridge proofs to reshape the dispatcher fuel into the
