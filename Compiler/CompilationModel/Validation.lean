@@ -524,9 +524,14 @@ def stmtHasUntrackableWrites : Stmt → Bool
   | Stmt.internalCall _ _ | Stmt.internalCallAssign _ _ _ => true
   | Stmt.letVar _ value | Stmt.assignVar _ value =>
       exprHasUntrackableWrites value
-  | Stmt.setStorage _ value | Stmt.setStorageAddr _ value | Stmt.setStorageWord _ _ value
+  | Stmt.setStorage _ value | Stmt.setStorageAddr _ value
   | Stmt.require value _ =>
       exprHasUntrackableWrites value
+  | Stmt.setStorageWord _ wordOffset value =>
+      -- Nonzero wordOffset writes to a sibling field that `stmtWrittenFields`
+      -- cannot track (it returns only the base field), so flag as untrackable
+      -- to keep `modifies(...)` validation sound.
+      wordOffset != 0 || exprHasUntrackableWrites value
   | Stmt.requireError cond _ args =>
       exprHasUntrackableWrites cond || args.any exprHasUntrackableWrites
   | Stmt.revertError _ args | Stmt.returnValues args | Stmt.emit _ args =>
