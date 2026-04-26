@@ -3052,6 +3052,63 @@ theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_via_reduction
     rcases hMem with ⟨rfl, _⟩ | ⟨rfl, _⟩ <;> decide
   · simpa [simpleStorageDispatcherHitBodyInputState] using hBody
 
+def simpleStorageLoweredHitCasesShape
+    (reservedNames : List String) (n0 midN : Nat)
+    (storeBody' retrieveBody' : List EvmYul.Yul.Ast.Stmt) : Prop :=
+  Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+      (Backends.freshNativeSwitchId reservedNames n0 + 1)
+      simpleStorageBuildSwitchSourceCases =
+    .ok ([(0x6057361d, storeBody'), (0x2e64cec1, retrieveBody')], midN)
+
+theorem simpleStorageNativeContract_dispatcherExec_storeHit_error
+    (fuel : Nat) (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat)
+    (err : EvmYul.Yul.Exception)
+    (hSelector : 0x6057361d = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hBody : ∀ (reservedNames : List String) (n0 midN : Nat)
+              (storeBody' retrieveBody' : List EvmYul.Yul.Ast.Stmt),
+        simpleStorageLoweredHitCasesShape reservedNames n0 midN storeBody' retrieveBody' →
+        EvmYul.Yul.exec (fuel + 9) (.Block storeBody')
+          (some Compiler.SimpleStorageNativeWitness.nativeContract)
+          (simpleStorageDispatcherHitBodyInputState
+            (Backends.freshNativeSwitchId reservedNames n0) tx storage observableSlots) =
+          .error err) :
+    Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        (fuel + 21) Compiler.SimpleStorageNativeWitness.nativeContract
+        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+          Compiler.SimpleStorageNativeWitness.nativeContract tx storage observableSlots) =
+      .error err := by
+  obtain ⟨reservedNames, n0, cases', midN, hExec, hLowerCases⟩ :=
+    simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec_sourceLowered
+      (fuel + 7) tx storage observableSlots hNoWrap
+  obtain ⟨storeBody', retrieveBody', hCases⟩ :=
+    simpleStorageBuildSwitchSourceCases_lowered_shape reservedNames _ midN cases' hLowerCases
+  subst hCases
+  have hBody' := hBody reservedNames n0 midN storeBody' retrieveBody' hLowerCases
+  have hReduction := hExec
+  rw [show (fuel + 7 + 14 : Nat) = fuel + 2 + 19 from by omega,
+      show (fuel + 7 + 8 : Nat) = fuel + 2 + 13 from by omega,
+      show (2 : Nat) = ([(0x6057361d, storeBody'), (0x2e64cec1, retrieveBody')] :
+        List (Nat × List EvmYul.Yul.Ast.Stmt)).length from rfl] at hReduction
+  have h := simpleStorageNativeContract_dispatcherExec_storeHit_error_via_reduction
+    fuel (Backends.freshNativeSwitchId reservedNames n0)
+    [(0x6057361d, storeBody'), (0x2e64cec1, retrieveBody')]
+    storeBody' retrieveBody' tx storage observableSlots err
+    hSelector rfl ?_ hReduction
+  · rw [show fuel + ([(0x6057361d, storeBody'), (0x2e64cec1, retrieveBody')] :
+        List (Nat × List EvmYul.Yul.Ast.Stmt)).length + 19 = fuel + 21 from rfl] at h
+    exact h
+  · rintro (_ | ⟨⟨_, _⟩, rest⟩) suffix hDecomp
+    · simp only [List.nil_append, List.cons.injEq] at hDecomp
+      obtain ⟨_, hSuf⟩ := hDecomp; subst hSuf; simpa using hBody'
+    · exfalso
+      simp only [List.cons_append, List.cons.injEq] at hDecomp
+      obtain ⟨_, hRest⟩ := hDecomp
+      cases rest with
+      | nil => simp only [List.nil_append, List.cons.injEq, Prod.mk.injEq] at hRest
+               exact absurd hRest.1.1 (by decide)
+      | cons _ _ => simp at hRest
+
 noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch
     simpleStorageIRContract.functions none none]
