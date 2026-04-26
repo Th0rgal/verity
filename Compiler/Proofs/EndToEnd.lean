@@ -2853,6 +2853,101 @@ theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_via_reduc
     Compiler.SimpleStorageNativeWitness.nativeContract
     tx storage observableSlots hSelector hFind hSelectorRange hTagsRange
 
+/-- The source-level switch cases emitted by `buildSwitch` for SimpleStorage
+project to the concrete two-element selector list `[0x6057361d, 0x2e64cec1]`.
+This anchors source-level selector-miss reasoning at the IR layer so the rest
+of the dispatcher proof can stay parametric in `cases'`. -/
+theorem simpleStorageBuildSwitchSourceCases_map_fst :
+    simpleStorageBuildSwitchSourceCases.map (·.1) =
+      [(0x6057361d : Nat), (0x2e64cec1 : Nat)] := rfl
+
+/-- Source-cases find?-none for SimpleStorage: the selector-miss assumption
+`sel ≠ 0x6057361d ∧ sel ≠ 0x2e64cec1` (the two SimpleStorage IR selectors)
+suffices to discharge `find?` on the buildSwitch-emitted source case list.
+This is the source-level half of the selector-miss closed form. -/
+theorem simpleStorageBuildSwitchSourceCases_find?_none {sel : Nat}
+    (h1 : sel ≠ 0x6057361d) (h2 : sel ≠ 0x2e64cec1) :
+    simpleStorageBuildSwitchSourceCases.find? (fun entry => entry.1 == sel) =
+      none := by
+  show ([_, _] : List _).find? _ = none
+  simp only [List.find?_cons, List.find?_nil]
+  have hb1 : ((0x6057361d : Nat) == sel) = false :=
+    beq_eq_false_iff_ne.mpr (Ne.symm h1)
+  have hb2 : ((0x2e64cec1 : Nat) == sel) = false :=
+    beq_eq_false_iff_ne.mpr (Ne.symm h2)
+  rw [hb1, hb2]
+
+/-- All tags in the buildSwitch-emitted source cases for SimpleStorage are
+strictly less than `EvmYul.UInt256.size = 2^256`. The two source selectors
+(`0x6057361d`, `0x2e64cec1`) both fit in 32 bits, far below the EVM word
+modulus. -/
+theorem simpleStorageBuildSwitchSourceCases_tags_lt_uint256_size :
+    ∀ tag body, (tag, body) ∈ simpleStorageBuildSwitchSourceCases →
+      tag < EvmYul.UInt256.size := by
+  intro tag body h
+  simp only [simpleStorageBuildSwitchSourceCases, simpleStorageIRContract,
+    List.map_cons, List.map_nil, List.mem_cons, Prod.mk.injEq,
+    List.not_mem_nil, or_false] at h
+  rcases h with ⟨rfl, _⟩ | ⟨rfl, _⟩ <;> decide
+
+/-- Closed-form selector-miss bridge endpoint for SimpleStorage native
+dispatcher. Takes only source-level selector facts (`selector ≠ 0x6057361d`
+and `selector ≠ 0x2e64cec1`, the two SimpleStorage IR selectors) and
+produces the dispatcher exec result `.error Revert` at fuel `fuel + 21`
+(`= fuel + cases'.length + 19` with `cases'.length = 2`). The proof opens the
+`_sourceLowered` existential, derives `cases'.find? = none` and `tags-range`
+from the source-cases facts via `_find?_none` / `_tags_eq` chained with
+`simpleStorageBuildSwitchSourceCases_find?_none` and `_tags_lt_uint256_size`,
+then composes through `_selectorMiss_revert_via_reduction`. This lifts the
+remaining selector-miss obligation in the SimpleStorage native dispatcher
+bridge to a purely source-level statement. -/
+theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert
+    (fuel selector : Nat)
+    (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat)
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hSelMissStore : selector ≠ 0x6057361d)
+    (hSelMissRetrieve : selector ≠ 0x2e64cec1)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
+    Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        (fuel + 21)
+        Compiler.SimpleStorageNativeWitness.nativeContract
+        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+          Compiler.SimpleStorageNativeWitness.nativeContract
+          tx storage observableSlots) =
+      .error EvmYul.Yul.Exception.Revert := by
+  obtain ⟨reservedNames, n0, cases', midN, hExec, hLowerCases⟩ :=
+    simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec_sourceLowered
+      (fuel + 7) tx storage observableSlots hNoWrap
+  have hLen : cases'.length = 2 := by
+    have h := Backends.lowerSwitchCasesNativeWithSwitchIds_length_eq
+      _ _ _ _ _ hLowerCases
+    rw [h]; rfl
+  have hFind : cases'.find? (fun entry => entry.1 == selector) = none :=
+    Backends.lowerSwitchCasesNativeWithSwitchIds_find?_none
+      _ _ _ _ _ _ hLowerCases
+      (simpleStorageBuildSwitchSourceCases_find?_none hSelMissStore hSelMissRetrieve)
+  have hTags := Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq
+    _ _ _ _ _ hLowerCases
+  have hTagsRange : ∀ tag body, (tag, body) ∈ cases' →
+      tag < EvmYul.UInt256.size := by
+    intro tag body hMem
+    have hMemTag : tag ∈ cases'.map (·.1) := List.mem_map_of_mem hMem
+    rw [hTags, simpleStorageBuildSwitchSourceCases_map_fst] at hMemTag
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hMemTag
+    rcases hMemTag with rfl | rfl <;> decide
+  have hReduction := hExec
+  rw [show (fuel + 7 + 14 : Nat) = fuel + cases'.length + 19 by rw [hLen],
+      show (fuel + 7 + 8 : Nat) = fuel + cases'.length + 13 by rw [hLen]]
+    at hReduction
+  have h := simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_via_reduction
+    fuel selector (Backends.freshNativeSwitchId reservedNames n0) cases'
+    tx storage observableSlots hSelector hSelectorRange hFind hTagsRange
+    hReduction
+  rw [show fuel + cases'.length + 19 = fuel + 21 by rw [hLen]] at h
+  exact h
+
 noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch
     simpleStorageIRContract.functions none none]
