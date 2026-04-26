@@ -2284,6 +2284,60 @@ theorem exec_block_simpleStorageNativeDispatcher_if1Body_revert
     (Compiler.Proofs.YulGeneration.Backends.Native.exec_revert_zero_zero_error
       fuel state codeOverride)
 
+/-- Composed dispatcher peel exposing the SimpleStorage native dispatcher's
+inner three-statement block exec as a singleton `lowerNativeSwitchBlock` exec
+on the post-Let state. Chains the named let/if/if normalization with the
+let-selector / if1-skip / if2-take peel
+(`exec_block_letSelector_if1Skip_if2Take_initialState_fuel`, which discharges
+calldatasize ≥ 4 via `hNoWrap` so the let binds `__has_selector` to 1) and the
+just-landed `simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_exists`
+characterization, leaving the dispatcher inner-block exec equal to a single
+lowered switch-block exec on
+`(nativeSwitchInitialOkState).insert "__has_selector" 1`. The switch-id,
+lowered case bodies, and lowered default body remain existential — they are
+fixed by the concrete `simpleStorageIRContract.functions` list and threaded
+through later case-dispatch peels using
+`exec_lowerNativeSwitchBlock_simpleStorageConcrete_*` lemmas. -/
+theorem exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchBlock_exec
+    (fuel : Nat) (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : Nat → Nat) (observableSlots : List Nat)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
+    ∃ (switchId : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+      (default' : List EvmYul.Yul.Ast.Stmt),
+      EvmYul.Yul.exec (fuel + 12)
+          (.Block simpleStorageNativeDispatcherInnerStmts)
+          (some contract)
+          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
+            contract tx storage observableSlots) =
+        EvmYul.Yul.exec (fuel + 8)
+          (.Block
+            [Backends.lowerNativeSwitchBlock
+              (Yul.YulExpr.call "shr"
+                [Yul.YulExpr.lit Compiler.Constants.selectorShift,
+                 Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 0]])
+              switchId cases' default'])
+          (some contract)
+          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
+            contract tx storage observableSlots).insert "__has_selector"
+            (EvmYul.UInt256.ofNat 1)) := by
+  obtain ⟨switchId, cases', default', hIf2Body⟩ :=
+    simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_exists
+  refine ⟨switchId, cases', default', ?_⟩
+  rw [simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if,
+      simpleStorageNativeDispatcher_letValue_eq,
+      simpleStorageNativeDispatcher_if1Cond_eq,
+      simpleStorageNativeDispatcher_if2Cond_eq, hIf2Body]
+  exact Backends.Native.exec_block_letSelector_if1Skip_if2Take_initialState_fuel
+    fuel contract tx storage observableSlots "__has_selector"
+    simpleStorageNativeDispatcher_if1Body
+    [Backends.lowerNativeSwitchBlock
+      (Yul.YulExpr.call "shr"
+        [Yul.YulExpr.lit Compiler.Constants.selectorShift,
+         Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 0]])
+      switchId cases' default']
+    hNoWrap
+
 noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch
     simpleStorageIRContract.functions none none]
