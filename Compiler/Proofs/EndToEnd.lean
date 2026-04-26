@@ -2890,6 +2890,36 @@ theorem simpleStorageBuildSwitchSourceCases_tags_lt_uint256_size :
     List.not_mem_nil, or_false] at h
   rcases h with ⟨rfl, _⟩ | ⟨rfl, _⟩ <;> decide
 
+/-- Shape characterization for the lowered SimpleStorage source switch cases.
+
+Exactly two entries — the SimpleStorage IR selectors `0x6057361d` and
+`0x2e64cec1` — flow through `lowerSwitchCasesNativeWithSwitchIds`, so the
+output `cases'` is forced to a two-element shape with lowered bodies. Each
+selector tag is preserved unchanged by the lowering; only the case bodies
+are recursively lowered. Hit-case proofs consume this shape to convert the
+parametric `cases'` (opened from the `_sourceLowered` existential) into the
+concrete `[(0x6057361d, _), (0x2e64cec1, _)]` form that matches the
+generic harness lemmas like
+`exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_fuel`. -/
+theorem simpleStorageBuildSwitchSourceCases_lowered_shape
+    (reservedNames : List String) (nextSwitchId final : Nat)
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (hLower :
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames nextSwitchId
+        simpleStorageBuildSwitchSourceCases = .ok (cases', final)) :
+    ∃ storeBody' retrieveBody',
+      cases' = [(0x6057361d, storeBody'), (0x2e64cec1, retrieveBody')] := by
+  have hTags := Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq
+    _ _ _ _ _ hLower
+  have hLen := Backends.lowerSwitchCasesNativeWithSwitchIds_length_eq
+    _ _ _ _ _ hLower
+  rw [simpleStorageBuildSwitchSourceCases_map_fst] at hTags
+  match cases', hLen, hTags with
+  | [(t1, b1), (t2, b2)], _, hTags =>
+    simp only [List.map_cons, List.map_nil, List.cons.injEq, and_true] at hTags
+    obtain ⟨ht1, ht2⟩ := hTags
+    exact ⟨b1, b2, by rw [ht1, ht2]⟩
+
 /-- Closed-form selector-miss bridge endpoint for SimpleStorage native
 dispatcher. Takes only source-level selector facts (`selector ≠ 0x6057361d`
 and `selector ≠ 0x2e64cec1`, the two SimpleStorage IR selectors) and
