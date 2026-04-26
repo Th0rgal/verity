@@ -5591,6 +5591,59 @@ theorem exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_fuel
     switchId cases contract tx storage observableSlots hSelector hFind
     hSelectorRange hTagsRange
 
+/-- Store-parametric prefix-then-tail-error glue for `lowerNativeSwitchBlock`.
+    Given the tail body errors on the post-prefix state extended over an
+    arbitrary preceding native varstore, the full lowered switch block errors
+    on the matching state with that store. Together with the store-parametric
+    prefix lemma `exec_nativeSwitchPrefix_selector_initialState_store_ok_fuel`,
+    this lifts switch-block error proofs to states already carrying additional
+    bindings (e.g. the buildSwitch wrapper's `__has_selector := 1`). -/
+theorem exec_lowerNativeSwitchBlock_storePrefix_tail_error_fuel
+    (fuel switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : Nat → Nat) (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (err : EvmYul.Yul.Exception)
+    (hTail :
+      EvmYul.Yul.exec (fuel + 10)
+        (.Block (nativeSwitchTailStmts switchId cases defaultBody))
+        (some contract)
+        (((.Ok (initialState contract tx storage observableSlots).sharedState store
+                : EvmYul.Yul.State).insert
+              (Backends.nativeSwitchDiscrTempName switchId)
+              (EvmYul.UInt256.ofNat
+                (tx.functionSelector % Compiler.Constants.selectorModulus))).insert
+            (Backends.nativeSwitchMatchedTempName switchId)
+            (EvmYul.UInt256.ofNat 0)) =
+        .error err) :
+    EvmYul.Yul.exec (fuel + 12)
+      (Backends.lowerNativeSwitchBlock
+        Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody)
+      (some contract)
+      (.Ok (initialState contract tx storage observableSlots).sharedState store) =
+    .error err := by
+  let discrName := Backends.nativeSwitchDiscrTempName switchId
+  let matchedName := Backends.nativeSwitchMatchedTempName switchId
+  let initState : EvmYul.Yul.State :=
+    .Ok (initialState contract tx storage observableSlots).sharedState store
+  let prefixState : EvmYul.Yul.State :=
+    (initState.insert discrName
+      (EvmYul.UInt256.ofNat
+        (tx.functionSelector % Compiler.Constants.selectorModulus))).insert
+      matchedName (EvmYul.UInt256.ofNat 0)
+  rw [lowerNativeSwitchBlock_selectorExpr_eq_nativeSwitchParts]
+  apply exec_block_append_error (fuel + 10) 0
+    (nativeSwitchPrefixStmts discrName matchedName)
+    (nativeSwitchTailStmts switchId cases defaultBody)
+    (some contract) initState prefixState err
+  · simpa [nativeSwitchPrefixStmts, prefixState, initState, Nat.add_assoc,
+      Nat.add_comm, Nat.add_left_comm] using
+      exec_nativeSwitchPrefix_selector_initialState_store_ok_fuel
+        fuel contract tx storage observableSlots store discrName matchedName
+  · simpa [prefixState, initState] using hTail
+
 theorem exec_lowerNativeSwitchBlock_selector_find_none_without_default_fuel
     (fuel selector switchId : Nat)
     (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
