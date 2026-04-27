@@ -33,14 +33,14 @@ private def nestedMultiWordMappingBaseSlot : Nat :=
 private def nestedMultiWordMappingMemberSlot : Nat :=
   nestedMultiWordMappingBaseSlot + 1
 
-private def seededStorage : Nat -> Nat := fun slot =>
-  if slot = 7 then 77 else
-  if slot = mappingReadSlot then 515 else
-  if slot = packedMappingSlot then 0x123456 else
-  if slot = multiWordMappingBaseSlot then 0xAAAA else
-  if slot = multiWordMappingMemberSlot then 0xBBBB else
-  if slot = nestedMultiWordMappingBaseSlot then 0xCCCC else
-  if slot = nestedMultiWordMappingMemberSlot then 0xDDDD else 0
+private def seededStorage : Nat -> IRStorageWord := fun slot =>
+  if slot = 7 then IRStorageWord.ofNat 77 else
+  if slot = mappingReadSlot then IRStorageWord.ofNat 515 else
+  if slot = packedMappingSlot then IRStorageWord.ofNat 0x123456 else
+  if slot = multiWordMappingBaseSlot then IRStorageWord.ofNat 0xAAAA else
+  if slot = multiWordMappingMemberSlot then IRStorageWord.ofNat 0xBBBB else
+  if slot = nestedMultiWordMappingBaseSlot then IRStorageWord.ofNat 0xCCCC else
+  if slot = nestedMultiWordMappingMemberSlot then IRStorageWord.ofNat 0xDDDD else IRStorageWord.ofNat 0
 
 private def sampleIRTx (selector : Nat) (args : List Nat := []) : IRTransaction :=
   { sender := 0xCAFE
@@ -324,7 +324,7 @@ private def memoryRevertDispatchSmokeContract : IRContract :=
 
 private def referenceRuntimeWithBackendFuel
     (fuel : Nat) (runtimeCode : List Compiler.Yul.YulStmt)
-    (tx : YulTransaction) (storage : Nat -> Nat) (events : List (List Nat)) :
+    (tx : YulTransaction) (storage : Nat -> IRStorageWord) (events : List (List Nat)) :
     YulResult :=
   let initialState := YulState.initial tx storage events
   yulResultOfExecWithRollback initialState
@@ -358,8 +358,8 @@ private def emittedDispatchMatchesReferenceWithExpected
     nativeResult.returnValue == expectedReturn &&
     reference.returnValue == expectedReturn &&
     expectedSlots.all (fun (slot, value) =>
-      nativeResult.finalStorage slot == value &&
-        reference.finalStorage slot == value))
+      nativeResult.finalStorage slot == IRStorageWord.ofNat value &&
+        reference.finalStorage slot == IRStorageWord.ofNat value))
 
 private def emittedCompiledDispatchMatchesReferenceWithExpected
     (contract : Except String IRContract) (tx : IRTransaction)

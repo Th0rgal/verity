@@ -15,6 +15,7 @@
 -/
 
 import Compiler.Constants
+import Compiler.Proofs.IRGeneration.IRStorageWord
 import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
@@ -24,6 +25,7 @@ import EvmYul.UInt256
 namespace Compiler.Proofs.ArithmeticProfile
 
 open Compiler.Constants (evmModulus)
+open Compiler.Proofs.IRGeneration (IRStorageWord)
 open Compiler.Proofs.YulGeneration (evalBuiltinCall)
 open Compiler.Proofs.YulGeneration.Backends (evalPureBuiltinViaEvmYulLean)
 
@@ -43,7 +45,7 @@ theorem evmyullean_size_eq_verity_modulus :
 -- ============================================================================
 
 -- Dummy state parameters (arithmetic builtins are state-independent).
-private def s : Nat → Nat := fun _ => 0
+private def s : Nat → IRStorageWord := fun _ => 0
 private def sender : Nat := 0
 private def sel : Nat := 0
 private def cd : List Nat := []

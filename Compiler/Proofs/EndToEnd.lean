@@ -705,7 +705,7 @@ private def paramLoadErasure (fn : IRFunction) (tx : IRTransaction) (state : IRS
 /-- Result wrapping equivalence: `interpretYulRuntime` produces the same `YulResult`
 as `yulResultOfExecWithRollback` when the rollback storage matches. -/
 theorem interpretYulRuntime_eq_yulResultOfExec
-    (stmts : List Yul.YulStmt) (tx : YulTransaction) (stor : Nat → Nat)
+    (stmts : List Yul.YulStmt) (tx : YulTransaction) (stor : Nat → IRStorageWord)
     (events : List (List Nat)) :
     interpretYulRuntime stmts tx stor events =
       yulResultOfExecWithRollback (YulState.initial tx stor events)
@@ -1632,7 +1632,7 @@ harness's per-selector body lemmas already speak about, in preparation for
 discharging the bridge from those lemmas. -/
 theorem simpleStorageNativeContract_dispatcherExec_eq_innerBlock_exec
     (peeledFuel : Nat)
-    (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat) :
+    (tx : YulTransaction) (storage : Nat → IRStorageWord) (observableSlots : List Nat) :
     Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
         (Nat.succ (Nat.succ (Nat.succ peeledFuel)))
         Compiler.SimpleStorageNativeWitness.nativeContract
@@ -1976,7 +1976,7 @@ spine using the pinned named witnesses. This combines
 existential let/if/if shape with a concrete equation in named witnesses. -/
 theorem simpleStorageNativeContract_dispatcherExec_eq_named_let_if_if_block_exec
     (peeledFuel : Nat)
-    (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat) :
+    (tx : YulTransaction) (storage : Nat → IRStorageWord) (observableSlots : List Nat) :
     Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
         (Nat.succ (Nat.succ (Nat.succ peeledFuel)))
         Compiler.SimpleStorageNativeWitness.nativeContract
@@ -2534,7 +2534,7 @@ through later case-dispatch peels using
 `exec_lowerNativeSwitchBlock_simpleStorageConcrete_*` lemmas. -/
 theorem exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchBlock_exec
     (fuel : Nat) (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
-    (storage : Nat → Nat) (observableSlots : List Nat)
+    (storage : Nat → IRStorageWord) (observableSlots : List Nat)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
     ∃ (switchId : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
@@ -2579,7 +2579,7 @@ where the lowered default body of the inner switch is pinned to
 in place of the unpinned existential variant. -/
 theorem exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchBlock_revert_default_exec
     (fuel : Nat) (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
-    (storage : Nat → Nat) (observableSlots : List Nat)
+    (storage : Nat → IRStorageWord) (observableSlots : List Nat)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
     ∃ (switchId : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)),
@@ -2626,7 +2626,7 @@ Built by switching the underlying `if2Body` decomposition to its sourceLowered
 companion. -/
 theorem exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchBlock_revert_default_exec_sourceLowered
     (fuel : Nat) (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
-    (storage : Nat → Nat) (observableSlots : List Nat)
+    (storage : Nat → IRStorageWord) (observableSlots : List Nat)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
     ∃ (reservedNames : List String) (n0 : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
@@ -2676,7 +2676,7 @@ a singleton lowered-switch block at fuel `peeledFuel + 8` on
 `(initialOk).insert "__has_selector" 1`. -/
 theorem simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_exec
     (peeledFuel : Nat)
-    (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat)
+    (tx : YulTransaction) (storage : Nat → IRStorageWord) (observableSlots : List Nat)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
     ∃ (switchId : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
@@ -2719,7 +2719,7 @@ store-parametric `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_def
 endpoint. -/
 theorem simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec
     (peeledFuel : Nat)
-    (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat)
+    (tx : YulTransaction) (storage : Nat → IRStorageWord) (observableSlots : List Nat)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
     ∃ (switchId : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)),
@@ -2763,7 +2763,7 @@ into the lowered `cases'.find?` results required by the `_via_reduction`
 endpoint. -/
 theorem simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec_sourceLowered
     (peeledFuel : Nat)
-    (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat)
+    (tx : YulTransaction) (storage : Nat → IRStorageWord) (observableSlots : List Nat)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
     ∃ (reservedNames : List String) (n0 : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
@@ -2813,7 +2813,7 @@ the direct selector-miss discharge composing into
 theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_via_reduction
     (fuel selector switchId : Nat)
     (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
-    (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat)
+    (tx : YulTransaction) (storage : Nat → IRStorageWord) (observableSlots : List Nat)
     (hSelector :
       selector = tx.functionSelector % Compiler.Constants.selectorModulus)
     (hSelectorRange : selector < EvmYul.UInt256.size)
@@ -3258,7 +3258,7 @@ remaining selector-miss obligation in the SimpleStorage native dispatcher
 bridge to a purely source-level statement. -/
 theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert
     (fuel selector : Nat)
-    (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat)
+    (tx : YulTransaction) (storage : Nat → IRStorageWord) (observableSlots : List Nat)
     (hSelector :
       selector = tx.functionSelector % Compiler.Constants.selectorModulus)
     (hSelectorRange : selector < EvmYul.UInt256.size)
@@ -3307,7 +3307,7 @@ theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert
 flag set: the input state shape consumed by the selected body inside the
 lowered native switch's hit branch. -/
 def simpleStorageDispatcherHitBodyInputState
-    (switchId : Nat) (tx : YulTransaction) (storage : Nat → Nat)
+    (switchId : Nat) (tx : YulTransaction) (storage : Nat → IRStorageWord)
     (observableSlots : List Nat) : EvmYul.Yul.State :=
   ((((.Ok (Compiler.Proofs.YulGeneration.Backends.Native.initialState
             Compiler.SimpleStorageNativeWitness.nativeContract
@@ -3331,7 +3331,7 @@ theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_via_reduction
     (fuel switchId : Nat)
     (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
     (storeBody' retrieveBody' : List EvmYul.Yul.Ast.Stmt)
-    (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat)
+    (tx : YulTransaction) (storage : Nat → IRStorageWord) (observableSlots : List Nat)
     (err : EvmYul.Yul.Exception)
     (hSelector :
       0x6057361d = tx.functionSelector % Compiler.Constants.selectorModulus)
@@ -3386,7 +3386,7 @@ def simpleStorageLoweredHitCasesShape
     .ok ([(0x6057361d, storeBody'), (0x2e64cec1, retrieveBody')], midN)
 
 theorem simpleStorageNativeContract_dispatcherExec_storeHit_error
-    (fuel : Nat) (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat)
+    (fuel : Nat) (tx : YulTransaction) (storage : Nat → IRStorageWord) (observableSlots : List Nat)
     (err : EvmYul.Yul.Exception)
     (hSelector : 0x6057361d = tx.functionSelector % Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
@@ -3456,7 +3456,7 @@ only has to discharge the body-exec obligation on the *fixed* lowered body
 parametric premise. This strictly weakens the hit-case obligation that the
 dispatcher bridge proof has to supply. -/
 theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete
-    (fuel : Nat) (tx : YulTransaction) (storage : Nat → Nat)
+    (fuel : Nat) (tx : YulTransaction) (storage : Nat → IRStorageWord)
     (observableSlots : List Nat) (err : EvmYul.Yul.Exception)
     (hSelector : 0x6057361d = tx.functionSelector % Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
@@ -3481,7 +3481,7 @@ theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete
   exact hBody reservedNames n0
 
 theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete_tail
-    (fuel : Nat) (tx : YulTransaction) (storage : Nat → Nat)
+    (fuel : Nat) (tx : YulTransaction) (storage : Nat → IRStorageWord)
     (observableSlots : List Nat) (err : EvmYul.Yul.Exception)
     (hSelector : 0x6057361d = tx.functionSelector % Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
@@ -3512,7 +3512,7 @@ the 5-statement `simpleStorageLoweredStoreCaseBodyTail` at fuel `+8`. Strictly
 shrinks the dispatcher hit-case body-exec obligation under the natural Solidity
 assumption that non-payable functions are called with `msg.value = 0`. -/
 theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete_tail2
-    (fuel : Nat) (tx : YulTransaction) (storage : Nat → Nat)
+    (fuel : Nat) (tx : YulTransaction) (storage : Nat → IRStorageWord)
     (observableSlots : List Nat) (err : EvmYul.Yul.Exception)
     (hSelector : 0x6057361d = tx.functionSelector % Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
@@ -3553,7 +3553,7 @@ theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_via_reducti
     (fuel switchId : Nat)
     (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
     (storeBody' retrieveBody' : List EvmYul.Yul.Ast.Stmt)
-    (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat)
+    (tx : YulTransaction) (storage : Nat → IRStorageWord) (observableSlots : List Nat)
     (err : EvmYul.Yul.Exception)
     (hSelector :
       0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
@@ -3600,7 +3600,7 @@ theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_via_reducti
   · simpa [simpleStorageDispatcherHitBodyInputState] using hBody
 
 theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error
-    (fuel : Nat) (tx : YulTransaction) (storage : Nat → Nat) (observableSlots : List Nat)
+    (fuel : Nat) (tx : YulTransaction) (storage : Nat → IRStorageWord) (observableSlots : List Nat)
     (err : EvmYul.Yul.Exception)
     (hSelector : 0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
@@ -3649,7 +3649,7 @@ theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error
       | cons _ _ => simp at hRest
 
 theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete
-    (fuel : Nat) (tx : YulTransaction) (storage : Nat → Nat)
+    (fuel : Nat) (tx : YulTransaction) (storage : Nat → IRStorageWord)
     (observableSlots : List Nat) (err : EvmYul.Yul.Exception)
     (hSelector : 0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
@@ -3674,7 +3674,7 @@ theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete
   exact hBody reservedNames n0
 
 theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail
-    (fuel : Nat) (tx : YulTransaction) (storage : Nat → Nat)
+    (fuel : Nat) (tx : YulTransaction) (storage : Nat → IRStorageWord)
     (observableSlots : List Nat) (err : EvmYul.Yul.Exception)
     (hSelector : 0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
@@ -3699,7 +3699,7 @@ theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_ta
 
 /-- Retrieve-case dual of `_storeHit_error_concrete_tail2`. -/
 theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail2
-    (fuel : Nat) (tx : YulTransaction) (storage : Nat → Nat)
+    (fuel : Nat) (tx : YulTransaction) (storage : Nat → IRStorageWord)
     (observableSlots : List Nat) (err : EvmYul.Yul.Exception)
     (hSelector : 0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
@@ -3744,7 +3744,7 @@ the callvalue and lt-calldatasize guards via the strip lemmas. The
 calldata-size assumptions are derived automatically from `hNoWrap` and
 `initialState_calldataSize`. -/
 theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail3
-    (fuel : Nat) (tx : YulTransaction) (storage : Nat → Nat)
+    (fuel : Nat) (tx : YulTransaction) (storage : Nat → IRStorageWord)
     (observableSlots : List Nat) (err : EvmYul.Yul.Exception)
     (hSelector : 0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)

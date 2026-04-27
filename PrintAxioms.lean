@@ -1886,6 +1886,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/IRGeneration/IRStorageWord.lean
 #print axioms Compiler.Proofs.IRGeneration.IRStorageWord.toNat_ofNat
 #print axioms Compiler.Proofs.IRGeneration.IRStorageWord.ofNat_toNat
+#print axioms Compiler.Proofs.IRGeneration.IRStorageWord.toNat_lt_size
 
 -- Compiler/Proofs/IRGeneration/ParamLoading.lean
 #print axioms Compiler.Proofs.IRGeneration.ParamLoading.uint256_modulus_eq_evm
@@ -1920,6 +1921,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.exists_writeUnindexedEventScratch_of_length
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.exists_writeUnindexedEventScratch_of_length_zero
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.exists_eventScratchMemoryAfterEmit?_of_supported_length
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.UInt256_size_eq_UINT256_MODULUS
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_literal  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_param  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_localVar  -- private
@@ -3524,4 +3526,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3348 theorems/lemmas (2417 public, 931 private, 0 sorry'd)
+-- Total: 3350 theorems/lemmas (2419 public, 931 private, 0 sorry'd)

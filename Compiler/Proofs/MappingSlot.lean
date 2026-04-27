@@ -83,7 +83,7 @@ def abstractLoadMappingEntry
 def abstractStoreMappingEntry
     (storage : Nat → IRStorageWord)
     (baseSlot key value : Nat) : Nat → IRStorageWord :=
-  fun s => if s = solidityMappingSlot baseSlot key then value else storage s
+  fun s => if s = solidityMappingSlot baseSlot key then IRStorageWord.ofNat value else storage s
 
 /-- Read through the active mapping-slot backend from flat storage. -/
 def abstractLoadStorageOrMapping
@@ -95,7 +95,7 @@ def abstractLoadStorageOrMapping
 def abstractStoreStorageOrMapping
     (storage : Nat → IRStorageWord)
     (slot value : Nat) : Nat → IRStorageWord :=
-  fun s => if s = slot then value else storage s
+  fun s => if s = slot then IRStorageWord.ofNat value else storage s
 
 @[simp] theorem abstractMappingSlot_eq_solidity (baseSlot key : Nat) :
     abstractMappingSlot baseSlot key = solidityMappingSlot baseSlot key := rfl
@@ -126,7 +126,7 @@ def abstractStoreStorageOrMapping
     (storage : Nat → IRStorageWord)
     (baseSlot key value : Nat) :
     abstractStoreMappingEntry storage baseSlot key value =
-      (fun s => if s = solidityMappingSlot baseSlot key then value else storage s) := rfl
+      (fun s => if s = solidityMappingSlot baseSlot key then IRStorageWord.ofNat value else storage s) := rfl
 
 @[simp] theorem abstractLoadStorageOrMapping_eq
     (storage : Nat → IRStorageWord)
@@ -137,7 +137,7 @@ def abstractStoreStorageOrMapping
     (storage : Nat → IRStorageWord)
     (slot value : Nat) :
     abstractStoreStorageOrMapping storage slot value =
-      (fun s => if s = slot then value else storage s) := rfl
+      (fun s => if s = slot then IRStorageWord.ofNat value else storage s) := rfl
 
 /-- Keccak256 output interpreted as a big-endian 256-bit natural is less than 2^256.
     This is mathematically true because keccak produces exactly 32 bytes, so
