@@ -15,6 +15,7 @@
 
 import Compiler.IR
 import Compiler.CompilationModel
+import Compiler.Proofs.IRGeneration.IRStorageWord
 import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
 import Verity.Core
@@ -84,8 +85,14 @@ private theorem internal_call_measure_decreases (fuel measure : Nat) :
 structure IRState where
   /-- Variable bindings (name → value) -/
   vars : List (String × Nat)
-  /-- Storage slots (slot → value) -/
-  storage : Nat → Nat
+  /-- Storage slots (slot → value).
+
+      Typed via `IRStorageWord` so Phase 1 of the IR storage refactor can
+      flip the carrier to a `UInt256`-bounded representation without
+      touching this signature. Currently `IRStorageWord` is an `abbrev`
+      for `Nat`, so this is definitionally `Nat → Nat` and existing
+      callsites continue to typecheck. -/
+  storage : Nat → IRStorageWord
   /-- Transient storage slots (slot → value). -/
   transientStorage : Nat → Nat := fun _ => 0
   /-- Memory words (offset → value) -/

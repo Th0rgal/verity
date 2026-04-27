@@ -86,6 +86,17 @@ Deliverables:
 Exit criteria: `lake build` clean; `simpleStorage_endToEnd_native_evmYulLean`
 still has both `hRetrieveHit` and `hStoreHit` premises.
 
+Status:
+- Helper module `IRStorageWord.lean` landed (commit `5de766e2`).
+- `IRState.storage` field retyped to `Nat → IRStorageWord` so the
+  signature is already in the Phase-1-ready shape; with the current
+  `abbrev IRStorageWord := Nat` this is rfl-identical to `Nat → Nat`,
+  so no callsite needed updating.
+- The "route every read/write through `IRStorageWord.ofNat` /
+  `IRStorageWord.toNat`" deliverable is intentionally folded into
+  Phase 1: under `abbrev` the routing is a no-op rename, and routing
+  only becomes semantically meaningful once the abbrev is removed.
+
 ### Phase 1 — flip the carrier to `UInt256`
 
 Change `IRStorageWord` from `Nat` to `UInt256` (or a structurally
