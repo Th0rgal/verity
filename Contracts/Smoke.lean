@@ -849,14 +849,14 @@ verity_contract StructMappingGeneratedWriteHelperImmutableCollisionRejected wher
     return amount
 
 /--
-error: function 'quote' generates internal declaration 'quote__scalar_uint256' that conflicts with a contract constant of the same name
+error: function 'quote' generates internal declaration 'quote__14xscalar_uint256' that conflicts with a contract constant of the same name
 -/
 #guard_msgs in
 verity_contract ConstantOverloadGeneratedNameCollisionRejected where
   storage
 
   constants
-    quote__scalar_uint256 : Uint256 := 7
+    quote__14xscalar_uint256 : Uint256 := 7
 
   function quote (amount : Uint256) : Uint256 := do
     return amount
@@ -865,14 +865,14 @@ verity_contract ConstantOverloadGeneratedNameCollisionRejected where
     return (addressToWord recipient)
 
 /--
-error: function 'quote' generates internal declaration 'quote__scalar_uint256' that conflicts with an immutable of the same name
+error: function 'quote' generates internal declaration 'quote__14xscalar_uint256' that conflicts with an immutable of the same name
 -/
 #guard_msgs in
 verity_contract ImmutableOverloadGeneratedNameCollisionRejected where
   storage
 
   immutables
-    quote__scalar_uint256 : Uint256 := 7
+    quote__14xscalar_uint256 : Uint256 := 7
 
   function quote (amount : Uint256) : Uint256 := do
     return amount
