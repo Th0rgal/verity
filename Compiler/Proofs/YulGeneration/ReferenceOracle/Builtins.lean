@@ -416,7 +416,7 @@ def evalBuiltinCall
 @[simp] theorem evalBuiltinCall_sload_single
     (storage : Nat → IRStorageWord) (sender selector : Nat) (slot : Nat) :
     evalBuiltinCall storage sender selector [] "sload" [slot] =
-      some (Compiler.Proofs.abstractLoadStorageOrMapping storage slot) := by
+      some (Compiler.Proofs.abstractLoadStorageOrMapping storage slot).toNat := by
   simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackend_sload_single
@@ -429,7 +429,7 @@ def evalBuiltinCall
         []
         "sload"
         [slot] =
-      some (Compiler.Proofs.abstractLoadStorageOrMapping storage slot) := by
+      some (Compiler.Proofs.abstractLoadStorageOrMapping storage slot).toNat := by
   simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithContext]
 
 end Compiler.Proofs.YulGeneration
