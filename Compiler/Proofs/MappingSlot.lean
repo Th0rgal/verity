@@ -1,8 +1,11 @@
 import EvmYul
 import Compiler.Constants
 import Compiler.Proofs.KeccakBound
+import Compiler.Proofs.IRGeneration.IRStorageWord
 
 namespace Compiler.Proofs
+
+open Compiler.Proofs.IRGeneration (IRStorageWord)
 
 /-!
 Mapping slot abstraction used by proof interpreters.
@@ -67,31 +70,31 @@ def abstractNestedMappingSlot (baseSlot key1 key2 : Nat) : Nat :=
   abstractMappingSlot (abstractMappingSlot baseSlot key1) key2
 
 /-- Derived mapping-table view from flat storage. -/
-def storageAsMappings (storage : Nat → Nat) : Nat → Nat → Nat :=
+def storageAsMappings (storage : Nat → IRStorageWord) : Nat → Nat → IRStorageWord :=
   fun baseSlot key => storage (solidityMappingSlot baseSlot key)
 
 /-- Read a mapping entry directly from base slot and key. -/
 def abstractLoadMappingEntry
-    (storage : Nat → Nat)
-    (baseSlot key : Nat) : Nat :=
+    (storage : Nat → IRStorageWord)
+    (baseSlot key : Nat) : IRStorageWord :=
   storage (solidityMappingSlot baseSlot key)
 
 /-- Write a mapping entry directly from base slot and key. -/
 def abstractStoreMappingEntry
-    (storage : Nat → Nat)
-    (baseSlot key value : Nat) : Nat → Nat :=
+    (storage : Nat → IRStorageWord)
+    (baseSlot key value : Nat) : Nat → IRStorageWord :=
   fun s => if s = solidityMappingSlot baseSlot key then value else storage s
 
 /-- Read through the active mapping-slot backend from flat storage. -/
 def abstractLoadStorageOrMapping
-    (storage : Nat → Nat)
-    (slot : Nat) : Nat :=
+    (storage : Nat → IRStorageWord)
+    (slot : Nat) : IRStorageWord :=
   storage slot
 
 /-- Write through the active mapping-slot backend to flat storage. -/
 def abstractStoreStorageOrMapping
-    (storage : Nat → Nat)
-    (slot value : Nat) : Nat → Nat :=
+    (storage : Nat → IRStorageWord)
+    (slot value : Nat) : Nat → IRStorageWord :=
   fun s => if s = slot then value else storage s
 
 @[simp] theorem abstractMappingSlot_eq_solidity (baseSlot key : Nat) :
@@ -115,23 +118,23 @@ def abstractStoreStorageOrMapping
   simp [abstractNestedMappingSlot]
 
 @[simp] theorem abstractLoadMappingEntry_eq
-    (storage : Nat → Nat)
+    (storage : Nat → IRStorageWord)
     (baseSlot key : Nat) :
     abstractLoadMappingEntry storage baseSlot key = storage (solidityMappingSlot baseSlot key) := rfl
 
 @[simp] theorem abstractStoreMappingEntry_eq
-    (storage : Nat → Nat)
+    (storage : Nat → IRStorageWord)
     (baseSlot key value : Nat) :
     abstractStoreMappingEntry storage baseSlot key value =
       (fun s => if s = solidityMappingSlot baseSlot key then value else storage s) := rfl
 
 @[simp] theorem abstractLoadStorageOrMapping_eq
-    (storage : Nat → Nat)
+    (storage : Nat → IRStorageWord)
     (slot : Nat) :
     abstractLoadStorageOrMapping storage slot = storage slot := rfl
 
 @[simp] theorem abstractStoreStorageOrMapping_eq
-    (storage : Nat → Nat)
+    (storage : Nat → IRStorageWord)
     (slot value : Nat) :
     abstractStoreStorageOrMapping storage slot value =
       (fun s => if s = slot then value else storage s) := rfl

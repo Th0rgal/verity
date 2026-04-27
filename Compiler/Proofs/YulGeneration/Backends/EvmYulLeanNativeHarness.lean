@@ -11,6 +11,7 @@ open Compiler.Yul
 open Compiler.Proofs.YulGeneration
 open Compiler.Proofs.YulGeneration.Backends.StateBridge
 open Lean Elab Tactic Meta
+open Compiler.Proofs.IRGeneration (IRStorageWord)
 
 /-!
 Executable native EVMYulLean runtime harness for #1737.
@@ -33,7 +34,7 @@ external-call semantics.
 def initialState
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → Nat)
+    (storage : Nat → IRStorageWord)
     (observableSlots : List Nat) :
     EvmYul.Yul.State :=
   let verityState := YulState.initial tx storage
@@ -6199,9 +6200,9 @@ theorem exec_lowerNativeSwitchBlock_selector_find_none_without_default_fuel
     mkBlockHeader, EvmYul.State.chainId]
 
 /-- Project the account storage for the current contract back to Verity's
-    `Nat → Nat` storage view. -/
+    `Nat → IRStorageWord` storage view. -/
 def projectStorageFromState (tx : YulTransaction) (state : EvmYul.Yul.State) :
-    Nat → Nat :=
+    Nat → IRStorageWord :=
   extractStorage state.sharedState (natToAddress tx.thisAddress)
 
 /-- Projecting final native storage reads the current contract account storage
@@ -7209,7 +7210,7 @@ theorem callDispatcher_succ_eq_callDispatcherBlockResult
     back to the supplied initial storage function. -/
 def projectResult
     (tx : YulTransaction)
-    (initialStorage : Nat → Nat)
+    (initialStorage : Nat → IRStorageWord)
     (initialEvents : List (List Nat))
     (result :
       Except EvmYul.Yul.Exception
@@ -9826,7 +9827,7 @@ def interpretRuntimeNative
     (fuel : Nat)
     (runtimeCode : List YulStmt)
     (tx : YulTransaction)
-    (storage : Nat → Nat)
+    (storage : Nat → IRStorageWord)
     (observableSlots : List Nat)
     (events : List (List Nat) := []) :
     Except AdapterError YulResult := do

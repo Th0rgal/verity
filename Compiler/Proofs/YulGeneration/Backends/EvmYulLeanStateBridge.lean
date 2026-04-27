@@ -39,6 +39,7 @@ import Batteries.Data.RBMap.Lemmas
 namespace Compiler.Proofs.YulGeneration.Backends.StateBridge
 
 open Compiler.Proofs.YulGeneration
+open Compiler.Proofs.IRGeneration (IRStorageWord)
 open EvmYul
 
 /-! ## Nat ↔ UInt256 Conversions -/
@@ -108,7 +109,7 @@ def storageWrite (s : EvmYul.Storage) (slot val : UInt256) : EvmYul.Storage :=
 (equivalently `slot < 2^256`). Without this, distinct `Nat` slots differing by
 multiples of `2^256` alias to the same RBMap key via `natToUInt256`. The
 `storageLookup_projectStorage` theorem enforces this via its `hRange` hypothesis. -/
-def projectStorage (storage : Nat → Nat) (slots : List Nat) : EvmYul.Storage :=
+def projectStorage (storage : Nat → IRStorageWord) (slots : List Nat) : EvmYul.Storage :=
   slots.foldl (init := Batteries.RBMap.empty) fun acc slot =>
     let key := natToUInt256 slot
     let val := natToUInt256 (storage slot)
@@ -461,7 +462,7 @@ def toSharedState (state : YulState) (observableSlots : List Nat) :
 at `slot >= 2^256` alias onto low-bit keys. Bridge equivalence proofs
 should carry an in-range hypothesis (`slot < UInt256.size`). -/
 def extractStorage (sharedState : SharedState .Yul) (addr : AccountAddress) :
-    Nat → Nat :=
+    Nat → IRStorageWord :=
   fun slot =>
     match sharedState.accountMap.find? addr with
     | some account =>
@@ -639,7 +640,7 @@ theorem compare_natToUInt256_ne {a b : Nat}
 
 /-- Helper: folding inserts over a list of slots that does NOT contain `slot`
     preserves whatever `find?` value the accumulator had for `natToUInt256 slot`. -/
-theorem foldl_insert_find_not_mem (storage : Nat → Nat)
+theorem foldl_insert_find_not_mem (storage : Nat → IRStorageWord)
     (slots : List Nat) (slot : Nat) (hNotMem : slot ∉ slots)
     (hRange : ∀ s ∈ slots, s < UInt256.size)
     (hSlotRange : slot < UInt256.size)
@@ -662,7 +663,7 @@ theorem foldl_insert_find_not_mem (storage : Nat → Nat)
 
     This generalizes `storageLookup_projectStorage` to work with any
     accumulator (not just `empty`), which is needed for the induction. -/
-theorem foldl_insert_find (storage : Nat → Nat)
+theorem foldl_insert_find (storage : Nat → IRStorageWord)
     (slots : List Nat) (slot : Nat) (hSlot : slot ∈ slots)
     (hRange : ∀ s ∈ slots, s < UInt256.size)
     (acc : EvmYul.Storage) :
@@ -693,7 +694,7 @@ theorem foldl_insert_find (storage : Nat → Nat)
     slot list (EVM storage slots are always < 2^256). Without it, two
     distinct Nat slots could collide under modular reduction and the
     last-write-wins semantics of `foldl` would make the theorem false. -/
-theorem storageLookup_projectStorage (storage : Nat → Nat)
+theorem storageLookup_projectStorage (storage : Nat → IRStorageWord)
     (slots : List Nat) (slot : Nat) (hSlot : slot ∈ slots)
     (hRange : ∀ s ∈ slots, s < UInt256.size) :
     uint256ToNat (storageLookup (projectStorage storage slots) (natToUInt256 slot)) =

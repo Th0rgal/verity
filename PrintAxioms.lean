@@ -41,6 +41,7 @@ import Compiler.Proofs.IRGeneration.Function
 import Compiler.Proofs.IRGeneration.FunctionBody
 import Compiler.Proofs.IRGeneration.GenericInduction
 import Compiler.Proofs.IRGeneration.IRInterpreter
+import Compiler.Proofs.IRGeneration.IRStorageWord
 import Compiler.Proofs.IRGeneration.ParamLoading
 import Compiler.Proofs.IRGeneration.SourceSemantics
 import Compiler.Proofs.IRGeneration.SupportedSpec
@@ -1882,6 +1883,10 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.IRGeneration.applyIRTransactionContext_sender
 #print axioms Compiler.Proofs.IRGeneration.applyIRTransactionContext_calldata
 
+-- Compiler/Proofs/IRGeneration/IRStorageWord.lean
+#print axioms Compiler.Proofs.IRGeneration.IRStorageWord.toNat_ofNat
+#print axioms Compiler.Proofs.IRGeneration.IRStorageWord.ofNat_toNat
+
 -- Compiler/Proofs/IRGeneration/ParamLoading.lean
 #print axioms Compiler.Proofs.IRGeneration.ParamLoading.uint256_modulus_eq_evm
 #print axioms Compiler.Proofs.IRGeneration.ParamLoading.wordNormalize_eq_mod
@@ -3519,4 +3524,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3346 theorems/lemmas (2415 public, 931 private, 0 sorry'd)
+-- Total: 3348 theorems/lemmas (2417 public, 931 private, 0 sorry'd)

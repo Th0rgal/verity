@@ -328,7 +328,7 @@ private theorem backends_agree_calldatasize s se mv ta bt bn ci bb sl cd av :
   | _ :: _ => rfl
 
 -- Unary builtin: sload (state-dependent, routed through the same
--- `storage : Nat → Nat` lookup used by Verity's `evalBuiltinCallWithContext`)
+-- `storage : Nat → IRStorageWord` lookup used by Verity's `evalBuiltinCallWithContext`)
 private theorem backends_agree_sload s se mv ta bt bn ci bb sl cd av :
     evalBuiltinCallWithBackendContext .verity s se mv ta bt bn ci bb sl cd "sload" av =
     evalBuiltinCallWithBackendContext .evmYulLean s se mv ta bt bn ci bb sl cd "sload" av := by
@@ -368,7 +368,7 @@ All bridged builtin dependencies are fully proven in `EvmYulLeanBridgeLemmas.lea
     This theorem is sorry-free, composing the fully proven per-builtin bridge
     lemmas in `EvmYulLeanBridgeLemmas.lean`. -/
 theorem backends_agree_on_bridged_builtins
-    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
+    (storage : Nat → IRStorageWord) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
     (calldata : List Nat)
     (func : String) (argVals : List Nat)
     (hBridged : func ∈ bridgedBuiltins) :
@@ -440,7 +440,7 @@ set_option maxHeartbeats 1000000 in
     program that evaluates `keccak256(...)` through this interpreter halts
     identically on both sides.  -/
 private theorem backends_agree_on_keccak256
-    (storage : Nat → Nat)
+    (storage : Nat → IRStorageWord)
     (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
     (calldata : List Nat) (argVals : List Nat) :
     evalBuiltinCallWithBackendContext .verity storage sender msgValue thisAddress
@@ -2655,7 +2655,8 @@ noncomputable def execYulStmtsWithBackend
 noncomputable def interpretYulRuntimeWithBackendFuel
     (backend : BuiltinBackend) (fuel : Nat)
     (runtimeCode : List Compiler.Yul.YulStmt)
-    (tx : YulTransaction) (storage : Nat → Nat) (events : List (List Nat) := []) :
+    (tx : YulTransaction) (storage : Nat → IRStorageWord)
+    (events : List (List Nat) := []) :
     YulResult :=
   let initialState := YulState.initial tx storage events
   yulResultOfExecWithRollback initialState
@@ -2663,14 +2664,16 @@ noncomputable def interpretYulRuntimeWithBackendFuel
 
 noncomputable def interpretYulRuntimeWithBackend
     (backend : BuiltinBackend) (runtimeCode : List Compiler.Yul.YulStmt)
-    (tx : YulTransaction) (storage : Nat → Nat) (events : List (List Nat) := []) :
+    (tx : YulTransaction) (storage : Nat → IRStorageWord)
+    (events : List (List Nat) := []) :
     YulResult :=
   interpretYulRuntimeWithBackendFuel backend (sizeOf runtimeCode + 1)
     runtimeCode tx storage events
 
 @[simp] theorem interpretYulRuntimeWithBackend_eq_fuel
     (backend : BuiltinBackend) (runtimeCode : List Compiler.Yul.YulStmt)
-    (tx : YulTransaction) (storage : Nat → Nat) (events : List (List Nat) := []) :
+    (tx : YulTransaction) (storage : Nat → IRStorageWord)
+    (events : List (List Nat) := []) :
     interpretYulRuntimeWithBackend backend runtimeCode tx storage events =
       interpretYulRuntimeWithBackendFuel backend (sizeOf runtimeCode + 1)
         runtimeCode tx storage events := by
@@ -2678,7 +2681,7 @@ noncomputable def interpretYulRuntimeWithBackend
 
 theorem interpretYulRuntimeWithBackend_verity_eq
     (runtimeCode : List Compiler.Yul.YulStmt) (tx : YulTransaction)
-    (storage : Nat → Nat) (events : List (List Nat) := []) :
+    (storage : Nat → IRStorageWord) (events : List (List Nat) := []) :
     interpretYulRuntimeWithBackend .verity runtimeCode tx storage events =
     interpretYulRuntime runtimeCode tx storage events := by
   unfold interpretYulRuntimeWithBackend interpretYulRuntimeWithBackendFuel

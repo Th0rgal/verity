@@ -1,5 +1,6 @@
 import Compiler.Yul.Ast
 import Compiler.Constants
+import Compiler.Proofs.IRGeneration.IRStorageWord
 import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.YulGeneration.Calldata
 import EvmYul.Yul.Ast
@@ -9,6 +10,7 @@ import Mathlib.Data.Finmap
 namespace Compiler.Proofs.YulGeneration.Backends
 
 open Compiler.Yul
+open Compiler.Proofs.IRGeneration (IRStorageWord)
 
 abbrev AdapterError := String
 
@@ -1043,7 +1045,7 @@ def evalPureBuiltinViaEvmYulLean
     `abstractLoadStorageOrMapping`, the shared Verity/Phase-2 storage-read
     helper whose EVMYulLean-state correspondence is witnessed by
     `storageLookup_projectStorage` in `EvmYulLeanStateBridge.lean` (projecting
-    the abstract `storage : Nat → Nat` into EVMYulLean's `Storage` recovers the
+    the abstract `storage : Nat → IRStorageWord` into EVMYulLean's `Storage` recovers the
     same value). `mappingSlot` is bridged by routing through
     `abstractMappingSlot` — the same keccak-faithful Solidity mapping-slot
     derivation used by Verity's `evalBuiltinCallWithContext`; both backends
@@ -1051,7 +1053,7 @@ def evalPureBuiltinViaEvmYulLean
     context-dependent builtins (`caller`, `address`, `timestamp`, ...) are
     routed at the `evalBuiltinCallWithBackendContext` level. -/
 def evalBuiltinCallViaEvmYulLean
-    (storage : Nat → Nat)
+    (storage : Nat → IRStorageWord)
     (_sender : Nat)
     (selector : Nat)
     (calldata : List Nat)
