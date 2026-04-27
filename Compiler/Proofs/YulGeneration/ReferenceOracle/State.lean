@@ -1,10 +1,14 @@
+import Compiler.Proofs.IRGeneration.IRStorageWord
+
 namespace Compiler.Proofs.YulGeneration
+
+open Compiler.Proofs.IRGeneration (IRStorageWord)
 
 /-! Shared state structures for the reference-oracle Yul runtime. -/
 
 structure YulState where
   vars : List (String × Nat)
-  storage : Nat → Nat
+  storage : Nat → IRStorageWord
   transientStorage : Nat → Nat := fun _ => 0
   memory : Nat → Nat
   calldata : List Nat
