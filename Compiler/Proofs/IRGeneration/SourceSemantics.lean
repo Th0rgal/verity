@@ -294,6 +294,15 @@ def findDynamicArrayElementAtSlot
         | _ => go rest (idx + 1)
   go fields 0
 
+/-- Bridge lemma: the EvmYulLean `UInt256.size` and the verity-core
+`UINT256_MODULUS` literal are the same `Nat` (`2^256`). Used to discharge
+`% UInt256.size` modulo wraps that arise from `IRStorageWord.toNat`
+projection of values originally bounded by `Verity.Core.Uint256.isLt`. -/
+@[simp] theorem UInt256_size_eq_UINT256_MODULUS :
+    EvmYul.UInt256.size = Verity.Core.UINT256_MODULUS := by
+  unfold EvmYul.UInt256.size Verity.Core.UINT256_MODULUS
+  rfl
+
 def encodeStorageAt (fields : List Field) (world : Verity.ContractState) (slot : Nat) : Nat :=
   match findResolvedFieldAtSlot fields slot with
   | some field =>
@@ -308,7 +317,8 @@ def encodeStorageAt (fields : List Field) (world : Verity.ContractState) (slot :
       | some value => value
       | none => (world.storage slot).val
 
-def encodeStorage (spec : CompilationModel) (world : Verity.ContractState) : Nat → Nat :=
+def encodeStorage (spec : CompilationModel) (world : Verity.ContractState) :
+    Nat → Nat :=
   encodeStorageAt (effectiveFields spec) world
 
 def writeUintSlots (world : Verity.ContractState) (slots : List Nat) (value : Nat) :
@@ -355,14 +365,16 @@ def writeAddressKeyedMappingSlots
   | slot :: _ =>
       let keyAddr := Verity.wordToAddress (key : Verity.Core.Uint256)
       let word : Verity.Core.Uint256 := value
-      let storageNat : Nat → Nat := fun s => (world.storage s).val
+      let storageNat : Nat → Compiler.Proofs.IRGeneration.IRStorageWord :=
+        fun s => Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (world.storage s).val
       let storage :=
         slots.foldl
           (fun current slot =>
             Compiler.Proofs.abstractStoreMappingEntry current slot key value)
           storageNat
       { world with
-        storage := fun s => (storage s : Verity.Core.Uint256)
+        storage := fun s =>
+          (Compiler.Proofs.IRGeneration.IRStorageWord.toNat (storage s) : Verity.Core.Uint256)
         storageMap := fun baseSlot addr =>
           if baseSlot == slot && addr == keyAddr then
             word
@@ -421,14 +433,16 @@ def writeUintKeyedMappingSlots
   | slot :: _ =>
       let keyWord : Verity.Core.Uint256 := key
       let word : Verity.Core.Uint256 := value
-      let storageNat : Nat → Nat := fun s => (world.storage s).val
+      let storageNat : Nat → Compiler.Proofs.IRGeneration.IRStorageWord :=
+        fun s => Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (world.storage s).val
       let storage :=
         slots.foldl
           (fun current slot =>
             Compiler.Proofs.abstractStoreMappingEntry current slot key value)
           storageNat
       { world with
-        storage := fun s => (storage s : Verity.Core.Uint256)
+        storage := fun s =>
+          (Compiler.Proofs.IRGeneration.IRStorageWord.toNat (storage s) : Verity.Core.Uint256)
         storageMapUint := fun baseSlot key' =>
           if baseSlot == slot && key' == keyWord then
             word
@@ -444,7 +458,8 @@ def writeAddressKeyedMapping2Slots
       let key1Addr := Verity.wordToAddress (key1 : Verity.Core.Uint256)
       let key2Addr := Verity.wordToAddress (key2 : Verity.Core.Uint256)
       let word : Verity.Core.Uint256 := value
-      let storageNat : Nat → Nat := fun s => (world.storage s).val
+      let storageNat : Nat → Compiler.Proofs.IRGeneration.IRStorageWord :=
+        fun s => Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (world.storage s).val
       let storage :=
         slots.foldl
           (fun current slot =>
@@ -455,7 +470,8 @@ def writeAddressKeyedMapping2Slots
               value)
           storageNat
       { world with
-        storage := fun s => (storage s : Verity.Core.Uint256)
+        storage := fun s =>
+          (Compiler.Proofs.IRGeneration.IRStorageWord.toNat (storage s) : Verity.Core.Uint256)
         storageMap2 := fun baseSlot addr1 addr2 =>
           if baseSlot == slot && addr1 == key1Addr && addr2 == key2Addr then
             word

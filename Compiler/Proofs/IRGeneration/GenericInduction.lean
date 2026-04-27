@@ -5277,7 +5277,8 @@ private theorem encodeStorageAt_writeUintKeyedMappingSlots_singleton_other
   · simp only [SourceSemantics.writeUintKeyedMappingSlots, List.foldl_cons, List.foldl_nil]
     simp [Compiler.Proofs.abstractStoreMappingEntry, Compiler.Proofs.abstractMappingSlot] at hneq ⊢
     simp [hneq]
-    exact Verity.Core.Uint256.ext (Nat.mod_eq_of_lt (world.storage query).isLt)
+    apply Verity.Core.Uint256.ext
+    simp [Verity.Core.Uint256.modulus, Nat.mod_eq_of_lt (world.storage query).isLt]
   · simp [SourceSemantics.writeUintKeyedMappingSlots]
   · simp [SourceSemantics.writeUintKeyedMappingSlots]
 
@@ -5956,8 +5957,12 @@ private theorem encodeStorageAt_writeUintKeyedMappingSlots_singleton_eq_written
   simp only [hdyn']
   simp only [SourceSemantics.writeUintKeyedMappingSlots, List.foldl_cons, List.foldl_nil]
   simp only [Compiler.Proofs.abstractStoreMappingEntry, Compiler.Proofs.abstractMappingSlot]
-  simp only [ite_true, Verity.Core.Uint256.val_ofNat]
-  exact Nat.mod_eq_of_lt hvalue
+  simp only [ite_true, Verity.Core.Uint256.val_ofNat,
+    Compiler.Proofs.IRGeneration.IRStorageWord.toNat_ofNat,
+    SourceSemantics.UInt256_size_eq_UINT256_MODULUS]
+  have hvalue' : value < Verity.Core.UINT256_MODULUS := hvalue
+  show value % Verity.Core.UINT256_MODULUS % Verity.Core.UINT256_MODULUS = value
+  rw [Nat.mod_eq_of_lt hvalue', Nat.mod_eq_of_lt hvalue']
 
 private theorem encodeStorageAt_writeAddressKeyedMappingChainSlots_singleton_eq_written
     {fields : List Field}
@@ -6100,7 +6105,8 @@ private theorem encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_other
   · simp only [SourceSemantics.writeAddressKeyedMapping2Slots, List.foldl_cons, List.foldl_nil]
     simp [Compiler.Proofs.abstractStoreMappingEntry, Compiler.Proofs.abstractMappingSlot] at hneq ⊢
     simp [hneq]
-    exact Verity.Core.Uint256.ext (Nat.mod_eq_of_lt (world.storage query).isLt)
+    apply Verity.Core.Uint256.ext
+    simp [Verity.Core.Uint256.modulus, Nat.mod_eq_of_lt (world.storage query).isLt]
   · simp [SourceSemantics.writeAddressKeyedMapping2Slots]
   · simp [SourceSemantics.writeAddressKeyedMapping2Slots]
 
@@ -6145,8 +6151,12 @@ private theorem encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_eq_writ
   simp only [hdyn']
   simp only [SourceSemantics.writeAddressKeyedMapping2Slots, List.foldl_cons, List.foldl_nil]
   simp only [Compiler.Proofs.abstractStoreMappingEntry, Compiler.Proofs.abstractMappingSlot]
-  simp only [ite_true, Verity.Core.Uint256.val_ofNat]
-  exact Nat.mod_eq_of_lt hvalue
+  simp only [ite_true, Verity.Core.Uint256.val_ofNat,
+    Compiler.Proofs.IRGeneration.IRStorageWord.toNat_ofNat,
+    SourceSemantics.UInt256_size_eq_UINT256_MODULUS]
+  have hvalue' : value < Verity.Core.UINT256_MODULUS := hvalue
+  show value % Verity.Core.UINT256_MODULUS % Verity.Core.UINT256_MODULUS = value
+  rw [Nat.mod_eq_of_lt hvalue', Nat.mod_eq_of_lt hvalue']
 
 private theorem encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_other
     {fields : List Field}
@@ -6232,7 +6242,9 @@ private theorem encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_eq_
   exact hvalue
 
 private def abstractStoreStorageOrMappingMany
-    (storage : Nat → Nat) (slots : List Nat) (value : Nat) : Nat → Nat :=
+    (storage : Nat → Compiler.Proofs.IRGeneration.IRStorageWord)
+    (slots : List Nat) (value : Nat) :
+    Nat → Compiler.Proofs.IRGeneration.IRStorageWord :=
   match slots with
   | [] => storage
   | slot :: rest =>
@@ -6242,11 +6254,13 @@ private def abstractStoreStorageOrMappingMany
         value
 
 private theorem abstractStoreStorageOrMappingMany_eq
-    {storage : Nat → Nat}
+    {storage : Nat → Compiler.Proofs.IRGeneration.IRStorageWord}
     {slots : List Nat}
     {value query : Nat} :
     abstractStoreStorageOrMappingMany storage slots value query =
-      if slots.contains query then value else storage query := by
+      if slots.contains query then
+        Compiler.Proofs.IRGeneration.IRStorageWord.ofNat value
+      else storage query := by
   induction slots generalizing storage with
   | nil =>
       simp [abstractStoreStorageOrMappingMany]
@@ -6254,7 +6268,8 @@ private theorem abstractStoreStorageOrMappingMany_eq
       by_cases hEq : query = slot
       · subst hEq
         simpa [abstractStoreStorageOrMappingMany, Compiler.Proofs.abstractStoreStorageOrMapping_eq] using
-          (ih (storage := fun s => if s = query then value else storage s))
+          (ih (storage := fun s => if s = query then
+            Compiler.Proofs.IRGeneration.IRStorageWord.ofNat value else storage s))
       · simp [abstractStoreStorageOrMappingMany, ih,
           Compiler.Proofs.abstractStoreStorageOrMapping_eq, hEq]
 
@@ -6282,11 +6297,13 @@ private theorem runtimeStateMatchesIR_writeUintSlot
     rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
     rw [encodeStorageAt_eq_storage_of_resolvedSlot hresolved hnotAddr hnotDyn]
     simp [SourceSemantics.writeUintSlots, Verity.Core.Uint256.val_ofNat]
-    exact (Nat.mod_eq_of_lt hvalue).symm
+    exact congrArg Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
+      (Nat.mod_eq_of_lt hvalue).symm
   · rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
     simp only [hEq, ↓reduceIte]
     rw [hstorage]
-    exact (encodeStorageAt_writeUintSlots_singleton_other hEq).symm
+    exact congrArg Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
+      (encodeStorageAt_writeUintSlots_singleton_other hEq).symm
 
 private theorem runtimeStateMatchesIR_writeAddressSlot
     {fields : List Field}
@@ -6315,12 +6332,14 @@ private theorem runtimeStateMatchesIR_writeAddressSlot
     simp [SourceSemantics.writeAddressSlots, Verity.wordToAddress, Verity.Core.Address.ofNat,
           Verity.Core.Uint256.val_ofNat, Verity.Core.Address.modulus, Compiler.Constants.addressMask]
     rw [Nat.mod_eq_of_lt hvalue]
+    refine congrArg Compiler.Proofs.IRGeneration.IRStorageWord.ofNat ?_
     simpa [Compiler.Constants.addressMask, Verity.Core.Address.modulus] using
       (Nat.and_two_pow_sub_one_eq_mod (n := 160) value)
   · rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
     simp only [hEq, ↓reduceIte]
     rw [hstorage]
     symm
+    refine congrArg Compiler.Proofs.IRGeneration.IRStorageWord.ofNat ?_
     apply SourceSemantics.encodeStorageAt_congr
     · simp [SourceSemantics.writeAddressSlots]
     · simp [SourceSemantics.writeAddressSlots, hEq]
@@ -6352,11 +6371,11 @@ private theorem runtimeStateMatchesIR_writeUintSlots
     have hq : query ∈ slots := by simpa using hmem
     rw [encodeStorageAt_eq_storage_of_resolvedSlot (hresolved query hq) hnotAddr hnotDyn]
     simp only [SourceSemantics.writeUintSlots, hmem, ↓reduceIte, Verity.Core.Uint256.val_ofNat]
-    exact (Nat.mod_eq_of_lt hvalue).symm
+    exact congrArg Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (Nat.mod_eq_of_lt hvalue).symm
   · simp only [hmem, ↓reduceIte]
     rw [hstorage]
     have hnotMem : query ∉ slots := by simpa using hmem
-    exact (encodeStorageAt_writeUintSlots_other hnotMem).symm
+    exact congrArg Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (encodeStorageAt_writeUintSlots_other hnotMem).symm
 
 private theorem runtimeStateMatchesIR_writeUintKeyedMappingSlot
     {fields : List Field}
@@ -6383,12 +6402,12 @@ private theorem runtimeStateMatchesIR_writeUintKeyedMappingSlot
   by_cases hEq : query = Compiler.Proofs.solidityMappingSlot slot key
   · subst hEq
     simp only [↓reduceIte]
-    exact (encodeStorageAt_writeUintKeyedMappingSlots_singleton_eq_written
+    exact congrArg Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (encodeStorageAt_writeUintKeyedMappingSlots_singleton_eq_written
       (fields := fields) (world := runtime.world) (slot := slot) (key := key) (value := value)
       hresolved hdyn hvalue).symm
   · simp only [hEq, ↓reduceIte]
     rw [hstorage]
-    exact (encodeStorageAt_writeUintKeyedMappingSlots_singleton_other (fields := fields)
+    exact congrArg Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (encodeStorageAt_writeUintKeyedMappingSlots_singleton_other (fields := fields)
       (world := runtime.world) (slot := slot) (key := key) (query := query) (value := value) hEq).symm
 
 private theorem runtimeStateMatchesIR_writeAddressKeyedMappingChainSlot
@@ -6428,13 +6447,13 @@ private theorem runtimeStateMatchesIR_writeAddressKeyedMappingChainSlot
       rw [encodeStorageAt_eq_copy]
       simp only [encodeStorageAtCopy, hresolved, hdyn]
     simp only [hstorage, henc]
-    exact (encodeStorageAt_writeAddressKeyedMappingChainSlots_singleton_eq_written
+    exact congrArg Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (encodeStorageAt_writeAddressKeyedMappingChainSlots_singleton_eq_written
       (fields := fields) (world := runtime.world) (slot := slot) (keys := keys) (value := value)
       hresolved hdyn hvalue).symm
   · rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
     simp only [hEq, ↓reduceIte]
     rw [hstorage]
-    exact (encodeStorageAt_writeAddressKeyedMappingChainSlots_singleton_other
+    exact congrArg Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (encodeStorageAt_writeAddressKeyedMappingChainSlots_singleton_other
       (fields := fields) (world := runtime.world) (slot := slot) (keys := keys)
       (query := query) (value := value) hEq).symm
 
@@ -6475,12 +6494,12 @@ private theorem runtimeStateMatchesIR_writeAddressKeyedMappingSlot
   by_cases hEq : query = Compiler.Proofs.solidityMappingSlot slot key
   · subst hEq
     simp only [↓reduceIte]
-    exact (encodeStorageAt_writeUintKeyedMappingSlots_singleton_eq_written
+    exact congrArg Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (encodeStorageAt_writeUintKeyedMappingSlots_singleton_eq_written
       (fields := fields) (world := runtime.world) (slot := slot) (key := key) (value := value)
       hresolved hdyn hvalue).symm
   · simp only [hEq, ↓reduceIte]
     rw [hstorage]
-    exact (encodeStorageAt_writeUintKeyedMappingSlots_singleton_other (fields := fields)
+    exact congrArg Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (encodeStorageAt_writeUintKeyedMappingSlots_singleton_other (fields := fields)
       (world := runtime.world) (slot := slot) (key := key) (query := query) (value := value) hEq).symm
 
 private theorem runtimeStateMatchesIR_writeAddressKeyedMappingWordSlot
@@ -6518,22 +6537,19 @@ private theorem runtimeStateMatchesIR_writeAddressKeyedMappingWordSlot
       rw [encodeStorageAt_eq_copy]
       simp only [encodeStorageAtCopy, hresolved, hdyn]
     simp only [hstorage, henc]
-    exact (encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_eq_written
+    exact congrArg Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_eq_written
       (fields := fields) (world := runtime.world) (slot := slot) (key := key)
       (wordOffset := wordOffset) (value := value) hresolved hdyn hvalue).symm
   · rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
     simp only [hEq, ↓reduceIte]
     rw [hstorage]
-    exact (encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_other
+    exact congrArg Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_other
       (fields := fields) (world := runtime.world) (slot := slot) (key := key)
       (wordOffset := wordOffset) (query := query) (value := value) hEq).symm
 
 private theorem runtimeStateMatchesIR_writeAddressKeyedMappingPackedWordSlot
-    {fields : List Field}
-    {runtime : SourceSemantics.RuntimeState}
-    {state : IRState}
-    {slot key wordOffset value : Nat}
-    {packed : PackedBits}
+    {fields : List Field} {runtime : SourceSemantics.RuntimeState} {state : IRState}
+    {slot key wordOffset value : Nat} {packed : PackedBits}
     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state)
     (hresolved :
       findResolvedFieldAtSlotCopy fields
@@ -6550,33 +6566,35 @@ private theorem runtimeStateMatchesIR_writeAddressKeyedMappingPackedWordSlot
             state.storage
             (mappingWordTargetSlot slot key wordOffset)
             (SourceSemantics.packedWordWrite
-              (state.storage (mappingWordTargetSlot slot key wordOffset))
+              (Compiler.Proofs.IRGeneration.IRStorageWord.toNat
+                (state.storage (mappingWordTargetSlot slot key wordOffset)))
               value
               packed) } := by
   rcases hruntime with
     ⟨hstorage, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
   refine ⟨?_, htransient, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
   funext query
-  by_cases hEq : query = mappingWordTargetSlot slot key wordOffset
+  set tgt := mappingWordTargetSlot slot key wordOffset with htgt
+  by_cases hEq : query = tgt
   · subst hEq
     rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
-    -- After simp [hstorage], the packedWordWrite arg becomes encodeStorageAt fields runtime.world slot
-    -- but _eq_written expects (runtime.world.storage slot).val. Show they're equal.
-    have henc : SourceSemantics.encodeStorageAt fields runtime.world
-        (mappingWordTargetSlot slot key wordOffset) =
-        (runtime.world.storage (mappingWordTargetSlot slot key wordOffset)).val := by
-      rw [encodeStorageAt_eq_copy]
-      simp only [encodeStorageAtCopy, hresolved, hdyn]
+    have henc : SourceSemantics.encodeStorageAt fields runtime.world tgt =
+        (runtime.world.storage tgt).val := by
+      rw [encodeStorageAt_eq_copy]; simp only [encodeStorageAtCopy, hresolved, hdyn]
     simp only [hstorage, henc]
-    exact (encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleton_eq_written
-      (fields := fields) (world := runtime.world) (slot := slot) (key := key)
-      (wordOffset := wordOffset) (packed := packed) (value := value) hresolved hdyn).symm
+    rw [show (Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
+        (runtime.world.storage tgt).val).toNat = (runtime.world.storage tgt).val from
+      Nat.mod_eq_of_lt (runtime.world.storage tgt).isLt]
+    exact congrArg Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
+      (encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleton_eq_written
+        (fields := fields) (world := runtime.world) (slot := slot) (key := key)
+        (wordOffset := wordOffset) (packed := packed) (value := value) hresolved hdyn).symm
   · rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
-    simp only [hEq, ↓reduceIte]
-    rw [hstorage]
-    exact (encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleton_other
-      (fields := fields) (world := runtime.world) (slot := slot) (key := key)
-      (wordOffset := wordOffset) (packed := packed) (query := query) (value := value) hEq).symm
+    simp only [hEq, ↓reduceIte]; rw [hstorage]
+    exact congrArg Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
+      (encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleton_other
+        (fields := fields) (world := runtime.world) (slot := slot) (key := key)
+        (wordOffset := wordOffset) (packed := packed) (query := query) (value := value) hEq).symm
 
 private theorem runtimeStateMatchesIR_writeAddressKeyedMapping2Slot
     {fields : List Field}
@@ -6617,14 +6635,14 @@ private theorem runtimeStateMatchesIR_writeAddressKeyedMapping2Slot
   · subst hEq
     simp only [↓reduceIte]
     rw [Compiler.Proofs.abstractMappingSlot_eq_solidity] at hresolved hdyn
-    exact (encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_eq_written
+    exact congrArg Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_eq_written
       (fields := fields) (world := runtime.world)
       (slot := slot) (key1 := key1) (key2 := key2) (value := value)
       hresolved hdyn hvalue).symm
   · simp only [hEq, ↓reduceIte]
     rw [hstorage]
     rw [Compiler.Proofs.abstractMappingSlot_eq_solidity] at hEq
-    exact (encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_other (fields := fields)
+    exact congrArg Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_other (fields := fields)
       (world := runtime.world) (slot := slot) (key1 := key1) (key2 := key2)
       (query := query) (value := value) hEq).symm
 
@@ -6663,14 +6681,14 @@ private theorem runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot
       rw [encodeStorageAt_eq_copy]
       simp only [encodeStorageAtCopy, hresolved, hdyn]
     simp only [hstorage, henc]
-    exact (encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_eq_written
+    exact congrArg Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_eq_written
       (fields := fields) (world := runtime.world)
       (slot := slot) (key1 := key1) (key2 := key2) (wordOffset := wordOffset)
       (value := value) hresolved hdyn hvalue).symm
   · rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq]
     simp only [hEq, ↓reduceIte]
     rw [hstorage]
-    exact (encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_other
+    exact congrArg Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_other
       (fields := fields) (world := runtime.world) (slot := slot) (key1 := key1)
       (key2 := key2) (wordOffset := wordOffset) (query := query) (value := value) hEq).symm
 
@@ -8750,7 +8768,7 @@ private theorem compiledStmtStep_setMappingWord_singleSlot_of_slotSafety_preserv
                 if s =
                     (Compiler.Proofs.solidityMappingSlot slot keyNat + wordOffset) %
                       Compiler.Constants.evmModulus then
-                  valueNat
+                  Compiler.Proofs.IRGeneration.IRStorageWord.ofNat valueNat
                 else
                   state.storage s := by
           funext s
@@ -9079,7 +9097,7 @@ private theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_p
         hvalueSourceEval.symm
       rcases hslotSafety runtime keyNat hKeySrc with ⟨hresolvedNone, hdynNone⟩
       set targetSlot := mappingWordTargetSlot slot keyNat wordOffset
-      set oldWordNat := state.storage targetSlot
+      set oldWordNat := Compiler.Proofs.IRGeneration.IRStorageWord.toNat (state.storage targetSlot)
       set storedWordNat := SourceSemantics.packedWordWrite oldWordNat valueNat packed
       have hMappingBaseEval :
           evalIRExpr state (YulExpr.call "mappingSlot" [YulExpr.lit slot, keyIR]) =
@@ -9845,7 +9863,7 @@ private theorem compiledStmtStep_setStructMember_singleSlot_of_slotSafety_preser
                 if s =
                     (Compiler.Proofs.solidityMappingSlot slot keyNat + wordOffset) %
                       Compiler.Constants.evmModulus then
-                  valueNat
+                  Compiler.Proofs.IRGeneration.IRStorageWord.ofNat valueNat
                 else
                   state.storage s := by
           funext s
@@ -10387,7 +10405,7 @@ private theorem compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety_preser
                         Verity.Core.Uint256.ofNat
                           (Compiler.Proofs.solidityMappingSlot
                             (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat)).val then
-                    valueNat
+                    Compiler.Proofs.IRGeneration.IRStorageWord.ofNat valueNat
                   else
                     state.storage s := by
             funext s
@@ -10717,7 +10735,7 @@ private theorem compiledStmtStep_setStructMember2_singleSlot_of_slotSafety_prese
                         Verity.Core.Uint256.ofNat
                           (Compiler.Proofs.solidityMappingSlot
                             (Compiler.Proofs.solidityMappingSlot slot key1Nat) key2Nat)).val then
-                    valueNat
+                    Compiler.Proofs.IRGeneration.IRStorageWord.ofNat valueNat
                   else
                     state.storage s := by
             funext s
@@ -11597,8 +11615,7 @@ private theorem compiledStmtStep_letStorageField
     have hIR := FunctionBody.evalIRExpr_sload_of_runtimeStateMatchesIR hruntime slot
     rw [encodeStorageAt_eq_storage_of_resolvedSlot hresolved (by rfl) (by rfl)] at hIR
     set v := (runtime.world.storage slot).val; set state' := state.setVar tmp v
-    set runtime' := { runtime with
-      bindings := SourceSemantics.bindValue runtime.bindings tmp v }
+    set runtime' := { runtime with bindings := SourceSemantics.bindValue runtime.bindings tmp v }
     have hNextScopeIncl : FunctionBody.scopeNamesIncluded
         (stmtNextScope scope (.letVar tmp (Expr.storage fieldName))) (tmp :: scope) := by
       intro n hn; simp [stmtNextScope, collectStmtNames, collectExprNames] at hn
@@ -11612,6 +11629,7 @@ private theorem compiledStmtStep_letStorageField
     · have : [YulStmt.let_ tmp (YulExpr.call "sload" [YulExpr.lit slot])].length +
           extraFuel + 1 = Nat.succ (Nat.succ extraFuel) := by simp [List.length]; omega
       rw [this]; simp [execIRStmts, execIRStmt, hIR, state']
+      rw [Nat.mod_eq_of_lt (runtime.world.storage slot).isLt]
     · simp only [stmtStepMatchesIRExec]
       exact ⟨FunctionBody.runtimeStateMatchesIR_setVar_bindValue hruntime tmp v,
         FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
@@ -11636,10 +11654,7 @@ private theorem stmtListGenericCore_singleton_letStorageField
 
 set_option maxHeartbeats 800000 in
 private theorem compiledStmtStep_letStorageAddrField
-    {fields : List Field}
-    {scope : List String}
-    {tmp fieldName : String}
-    {slot : Nat}
+    {fields : List Field} {scope : List String} {tmp fieldName : String} {slot : Nat}
     (hnoConflict : firstFieldWriteSlotConflict fields = none)
     (hfind : findFieldWithResolvedSlot fields fieldName =
       some ({ name := fieldName, ty := FieldType.address }, slot))
@@ -11663,6 +11678,7 @@ private theorem compiledStmtStep_letStorageAddrField
     rw [encodeStorageAt_eq_storageAddr_of_resolvedSlot hresolved (by rfl) (by rfl)] at hIR
     set v := (runtime.world.storageAddr slot).val; set state' := state.setVar tmp v
     set runtime' := { runtime with bindings := SourceSemantics.bindValue runtime.bindings tmp v }
+    have hAddrLt : v < Verity.Core.UINT256_MODULUS := Nat.lt_trans (runtime.world.storageAddr slot).isLt (by decide)
     have hNextScopeIncl : FunctionBody.scopeNamesIncluded
         (stmtNextScope scope (.letVar tmp (Expr.storageAddr fieldName))) (tmp :: scope) := by
       intro n hn; simp [stmtNextScope, collectStmtNames, collectExprNames] at hn
@@ -11676,12 +11692,12 @@ private theorem compiledStmtStep_letStorageAddrField
     · have : [YulStmt.let_ tmp (YulExpr.call "sload" [YulExpr.lit slot])].length +
           extraFuel + 1 = Nat.succ (Nat.succ extraFuel) := by simp [List.length]; omega
       rw [this]; simp [execIRStmts, execIRStmt, hIR, state']
+      rw [Nat.mod_eq_of_lt hAddrLt]
     · simp only [stmtStepMatchesIRExec]
       exact ⟨FunctionBody.runtimeStateMatchesIR_setVar_bindValue hruntime tmp v,
         FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
           (FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_bindValue hexact) hNextScopeIncl,
-        FunctionBody.bindingsBounded_bindValue hbounded tmp v
-          (Nat.lt_trans (runtime.world.storageAddr slot).isLt (by decide)),
+        FunctionBody.bindingsBounded_bindValue hbounded tmp v hAddrLt,
         FunctionBody.scopeNamesPresent_of_included
           (FunctionBody.scopeNamesPresent_cons_bindValue hscope) hNextScopeIncl⟩
 
@@ -11726,8 +11742,7 @@ private theorem compiledStmtStep_assignStorageField
     have hIR := FunctionBody.evalIRExpr_sload_of_runtimeStateMatchesIR hruntime slot
     rw [encodeStorageAt_eq_storage_of_resolvedSlot hresolved (by rfl) (by rfl)] at hIR
     set v := (runtime.world.storage slot).val; set state' := state.setVar name v
-    set runtime' := { runtime with
-      bindings := SourceSemantics.bindValue runtime.bindings name v }
+    set runtime' := { runtime with bindings := SourceSemantics.bindValue runtime.bindings name v }
     have hNextScopeIncl : FunctionBody.scopeNamesIncluded
         (stmtNextScope scope (.assignVar name (Expr.storage fieldName))) (name :: scope) := by
       intro n hn; simp [stmtNextScope, collectStmtNames, collectExprNames] at hn
@@ -11741,6 +11756,7 @@ private theorem compiledStmtStep_assignStorageField
     · have : [YulStmt.assign name (YulExpr.call "sload" [YulExpr.lit slot])].length +
           extraFuel + 1 = Nat.succ (Nat.succ extraFuel) := by simp [List.length]; omega
       rw [this]; simp [execIRStmts, execIRStmt, hIR, state']
+      rw [Nat.mod_eq_of_lt (runtime.world.storage slot).isLt]
     · simp only [stmtStepMatchesIRExec]
       exact ⟨FunctionBody.runtimeStateMatchesIR_setVar_bindValue hruntime name v,
         FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
@@ -11765,10 +11781,7 @@ private theorem stmtListGenericCore_singleton_assignStorageField
 
 set_option maxHeartbeats 800000 in
 private theorem compiledStmtStep_assignStorageAddrField
-    {fields : List Field}
-    {scope : List String}
-    {name fieldName : String}
-    {slot : Nat}
+    {fields : List Field} {scope : List String} {name fieldName : String} {slot : Nat}
     (hnoConflict : firstFieldWriteSlotConflict fields = none)
     (hfind : findFieldWithResolvedSlot fields fieldName =
       some ({ name := fieldName, ty := FieldType.address }, slot))
@@ -11792,6 +11805,7 @@ private theorem compiledStmtStep_assignStorageAddrField
     rw [encodeStorageAt_eq_storageAddr_of_resolvedSlot hresolved (by rfl) (by rfl)] at hIR
     set v := (runtime.world.storageAddr slot).val; set state' := state.setVar name v
     set runtime' := { runtime with bindings := SourceSemantics.bindValue runtime.bindings name v }
+    have hAddrLt : v < Verity.Core.UINT256_MODULUS := Nat.lt_trans (runtime.world.storageAddr slot).isLt (by decide)
     have hNextScopeIncl : FunctionBody.scopeNamesIncluded
         (stmtNextScope scope (.assignVar name (Expr.storageAddr fieldName))) (name :: scope) := by
       intro n hn; simp [stmtNextScope, collectStmtNames, collectExprNames] at hn
@@ -11805,12 +11819,12 @@ private theorem compiledStmtStep_assignStorageAddrField
     · have : [YulStmt.assign name (YulExpr.call "sload" [YulExpr.lit slot])].length +
           extraFuel + 1 = Nat.succ (Nat.succ extraFuel) := by simp [List.length]; omega
       rw [this]; simp [execIRStmts, execIRStmt, hIR, state']
+      rw [Nat.mod_eq_of_lt hAddrLt]
     · simp only [stmtStepMatchesIRExec]
       exact ⟨FunctionBody.runtimeStateMatchesIR_setVar_bindValue hruntime name v,
         FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
           (FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_bindValue hexact) hNextScopeIncl,
-        FunctionBody.bindingsBounded_bindValue hbounded name v
-          (Nat.lt_trans (runtime.world.storageAddr slot).isLt (by decide)),
+        FunctionBody.bindingsBounded_bindValue hbounded name v hAddrLt,
         FunctionBody.scopeNamesPresent_of_included
           (FunctionBody.scopeNamesPresent_cons_bindValue hscope) hNextScopeIncl⟩
 

@@ -112,7 +112,7 @@ multiples of `2^256` alias to the same RBMap key via `natToUInt256`. The
 def projectStorage (storage : Nat → IRStorageWord) (slots : List Nat) : EvmYul.Storage :=
   slots.foldl (init := Batteries.RBMap.empty) fun acc slot =>
     let key := natToUInt256 slot
-    let val := natToUInt256 (storage slot)
+    let val := IRStorageWord.toUInt256 (storage slot)
     acc.insert key val
 
 /-! ## Execution Environment Bridge
@@ -467,7 +467,7 @@ def extractStorage (sharedState : SharedState .Yul) (addr : AccountAddress) :
     match sharedState.accountMap.find? addr with
     | some account =>
       match account.storage.find? (natToUInt256 slot) with
-      | some val => uint256ToNat val
+      | some val => val
       | none => 0
     | none => 0
 
@@ -645,7 +645,7 @@ theorem foldl_insert_find_not_mem (storage : Nat → IRStorageWord)
     (hRange : ∀ s ∈ slots, s < UInt256.size)
     (hSlotRange : slot < UInt256.size)
     (acc : EvmYul.Storage) :
-    (slots.foldl (fun m s => m.insert (natToUInt256 s) (natToUInt256 (storage s))) acc).find?
+    (slots.foldl (fun m s => m.insert (natToUInt256 s) (IRStorageWord.toUInt256 (storage s))) acc).find?
       (natToUInt256 slot) = acc.find? (natToUInt256 slot) := by
   induction slots generalizing acc with
   | nil => rfl
@@ -667,8 +667,8 @@ theorem foldl_insert_find (storage : Nat → IRStorageWord)
     (slots : List Nat) (slot : Nat) (hSlot : slot ∈ slots)
     (hRange : ∀ s ∈ slots, s < UInt256.size)
     (acc : EvmYul.Storage) :
-    (slots.foldl (fun m s => m.insert (natToUInt256 s) (natToUInt256 (storage s))) acc).find?
-      (natToUInt256 slot) = some (natToUInt256 (storage slot)) := by
+    (slots.foldl (fun m s => m.insert (natToUInt256 s) (IRStorageWord.toUInt256 (storage s))) acc).find?
+      (natToUInt256 slot) = some (IRStorageWord.toUInt256 (storage slot)) := by
   induction slots generalizing acc with
   | nil => exact absurd hSlot List.not_mem_nil
   | cons hd tl ih =>
@@ -697,11 +697,11 @@ theorem foldl_insert_find (storage : Nat → IRStorageWord)
 theorem storageLookup_projectStorage (storage : Nat → IRStorageWord)
     (slots : List Nat) (slot : Nat) (hSlot : slot ∈ slots)
     (hRange : ∀ s ∈ slots, s < UInt256.size) :
-    uint256ToNat (storageLookup (projectStorage storage slots) (natToUInt256 slot)) =
-      storage slot % UInt256.size := by
+    storageLookup (projectStorage storage slots) (natToUInt256 slot) =
+      storage slot := by
   simp only [storageLookup, projectStorage]
   rw [foldl_insert_find storage slots slot hSlot hRange]
-  simp only [uint256ToNat, natToUInt256, UInt256.toNat, UInt256.ofNat, Id.run, Fin.val_ofNat]
+  rfl
 
 /-- Nat→UInt256→Nat round-trip for values in range.
     Proof: `ofNat n = ⟨Fin.ofNat _ n⟩ = ⟨⟨n % size, _⟩⟩`, and

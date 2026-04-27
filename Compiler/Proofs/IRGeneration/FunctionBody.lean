@@ -100,7 +100,8 @@ def runtimeStateMatchesIR
     (fields : List Field)
     (runtime : SourceSemantics.RuntimeState)
     (state : IRState) : Prop :=
-  state.storage = SourceSemantics.encodeStorageAt fields runtime.world ∧
+  state.storage = (fun s => Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
+    (SourceSemantics.encodeStorageAt fields runtime.world s)) ∧
   state.transientStorage = (fun slot => (runtime.world.transientStorage slot).val) ∧
   state.sender = runtime.world.sender.val ∧
   state.msgValue = runtime.world.msgValue.val ∧
@@ -124,7 +125,8 @@ def constructorRuntimeStateMatchesIR
     (fields : List Field)
     (runtime : SourceSemantics.RuntimeState)
     (state : IRState) : Prop :=
-  state.storage = SourceSemantics.encodeStorageAt fields runtime.world ∧
+  state.storage = (fun s => Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
+    (SourceSemantics.encodeStorageAt fields runtime.world s)) ∧
   state.transientStorage = (fun slot => (runtime.world.transientStorage slot).val) ∧
   state.sender = runtime.world.sender.val ∧
   state.msgValue = runtime.world.msgValue.val ∧
@@ -145,7 +147,8 @@ def initialIRStateForTx
     (tx : IRTransaction)
     (initialWorld : Verity.ContractState) : IRState :=
   { vars := []
-    storage := SourceSemantics.encodeStorage spec initialWorld
+    storage := fun s => Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
+      (SourceSemantics.encodeStorage spec initialWorld s)
     transientStorage := fun slot => (initialWorld.transientStorage slot).val
     memory := fun o => (initialWorld.memory o).val
     calldata := tx.args
@@ -1227,7 +1230,8 @@ theorem evalIRExpr_sload_of_runtimeStateMatchesIR
     (hmatch : runtimeStateMatchesIR fields runtime state)
     (slot : Nat) :
     evalIRExpr state (YulExpr.call "sload" [YulExpr.lit slot]) =
-      some (SourceSemantics.encodeStorageAt fields runtime.world slot) := by
+      some (SourceSemantics.encodeStorageAt fields runtime.world slot
+        % EvmYul.UInt256.size) := by
   rcases hmatch with ⟨hstorage, _, _, _, _, _, _, _, _, _, _⟩
   simp [evalIRExpr, evalIRCall, evalIRExprs,
     Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
@@ -7213,7 +7217,7 @@ theorem runtimeStateMatchesIR_setBothMemory
   refine ⟨?_, htrans, hsender, hmsgVal, hthis, hts, hbn, hcid, hblob, hsel, hcd, hcds, ?_, hret, hevt⟩
   · rw [hstor]
     funext slot
-    exact SourceSemantics.encodeStorageAt_congr rfl rfl rfl
+    exact congrArg _ (SourceSemantics.encodeStorageAt_congr rfl rfl rfl)
   · -- memory
     funext o
     by_cases ho : o = offset
@@ -7255,7 +7259,7 @@ theorem runtimeStateMatchesIR_updateMemoryEvents
     hcd, hcds, hmemory, hret, hevents⟩
   rw [hstor]
   funext slot
-  exact SourceSemantics.encodeStorageAt_congr rfl rfl rfl
+  exact congrArg _ (SourceSemantics.encodeStorageAt_congr rfl rfl rfl)
 
 theorem runtimeStateMatchesIR_setTransientStorage
     {fields : List Field}
@@ -7280,7 +7284,7 @@ theorem runtimeStateMatchesIR_setTransientStorage
   · -- storage: encodeStorageAt doesn't depend on transientStorage
     rw [hstor]
     funext slot
-    exact SourceSemantics.encodeStorageAt_congr rfl rfl rfl
+    exact congrArg _ (SourceSemantics.encodeStorageAt_congr rfl rfl rfl)
   · -- transientStorage
     funext o
     by_cases ho : o = offset
@@ -7385,7 +7389,8 @@ def sourceResultMatchesIRResult
     (ir : IRResult) : Prop :=
   source.success = ir.success ∧
   source.returnValue = ir.returnValue ∧
-  source.finalStorage = ir.finalStorage ∧
+  (fun s => Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (source.finalStorage s)) =
+    ir.finalStorage ∧
   source.events = ir.events
 
 /-- Helper: `eval_compileExpr_core` implies both `evalIRExpr` and source `evalExpr`
@@ -14761,7 +14766,8 @@ theorem stmtResultToSourceResult_matches_irExecResult
     (sourceResult : SourceSemantics.StmtResult)
     (irResult : IRExecResult)
     (hrollbackStorage :
-      rollback.storage = SourceSemantics.encodeStorage spec initialWorld)
+      rollback.storage = fun s => Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
+        (SourceSemantics.encodeStorage spec initialWorld s))
     (hrollbackEvents :
       rollback.events = SourceSemantics.encodeEvents initialWorld.events)
     (hfields : fields = SourceSemantics.effectiveFields spec)

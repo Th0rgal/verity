@@ -1132,8 +1132,8 @@ other non-transaction fields unchanged. -/
 structure IRResult where
   success : Bool
   returnValue : Option Nat
-  finalStorage : Nat → Nat
-  finalMappings : Nat → Nat → Nat
+  finalStorage : Nat → IRStorageWord
+  finalMappings : Nat → Nat → IRStorageWord
   events : List (List Nat)
 
 /-- Execute an IR function with given arguments.
@@ -4441,5 +4441,6 @@ example :
     result.success = true ∧ result.finalStorage 0 = 99 := by
   simp [interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr,
     shortCalldataRegressionContract, IRState.initial, IRState.setVar, IRState.getVar]
+  rfl
 
 end Compiler.Proofs.IRGeneration
