@@ -278,6 +278,26 @@ ALLOWLIST: set[str] = {
     # while delegating to the lowered native theorem; the long span is the public
     # hypothesis surface, not a large proof script.
     "simpleStorage_endToEnd_native_evmYulLean",
+    # Phase 2 retrieve-hit prerequisites: closed-form interpretIR reduction
+    # over the retrieve body's two-statement form (`mstore(0, sload(0));
+    # return(0, 32)`); the proof must walk the EDSL execIRStmts/execIRStmt
+    # state machine through the call/expr/builtin layers and discharge a
+    # fuel-bound side condition. Cannot be split without exposing internal
+    # IR-evaluation helpers.
+    "interpretIR_simpleStorage_retrieveHit",
+    # Phase 2 retrieve-hit prerequisites: dispatcher-exec halt-form chain.
+    # Composes the body-level closed form with the existing tail3 reduction
+    # endpoint after opening the source-lowered existential and pinning the
+    # switch case shape. The 155-line span is the union of fuel-reshape,
+    # existential-opening, body-state plumbing, and `_via_reduction`'s
+    # decomposition obligation; each piece is mechanical but inseparable.
+    "simpleStorageNativeContract_dispatcherExec_retrieveHit_halt_atFuel",
+    # Phase 2 retrieve-hit prerequisites: closed-form `projectResult`
+    # evaluation on the YulHalt halt produced by the lowered retrieve body.
+    # The proof must thread `mstore0_then_return32_*` harness lemmas across
+    # the chained `setMachineState` overrides to extract the 32-byte
+    # `H_return` window before computing `projectHaltReturn`.
+    "projectResult_retrieveHit_eq",
     # Safe-body public EVMYulLean wrapper derives the raw BridgedStmts function
     # hypotheses from compile output, static parameter closure, and
     # BridgedSafeStmts witnesses before delegating to the function-bridge

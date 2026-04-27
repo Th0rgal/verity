@@ -3213,6 +3213,40 @@ theorem exec_block_simpleStorageLoweredRetrieveCaseBodyTail3_closed
   rw [hF] at hSeam
   simpa [simpleStorageLoweredRetrieveCaseBodyTail3] using hSeam
 
+/-- Composed body-level closed form for the SimpleStorage retrieve hit-case.
+Stacks the three guard-strip lemmas (head no-op, callvalue, lt-calldatasize)
+on top of `_Tail3_closed` to characterize the full lowered retrieve body's
+exec output as the closed-form halt error produced by
+`mstore(0, sload(0)); return(0, 32)`. The `shared3` form mirrors `_Tail3_closed`. -/
+theorem exec_block_simpleStorageLoweredRetrieveCaseBody_halt
+    (fuel : Nat) (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (shared : EvmYul.SharedState .Yul) (store : EvmYul.Yul.VarStore)
+    (hWei : shared.executionEnv.weiValue = (⟨0⟩ : EvmYul.Literal))
+    (hSize : shared.executionEnv.calldata.size < EvmYul.UInt256.size)
+    (hGe : 4 ≤ shared.executionEnv.calldata.size) :
+    EvmYul.Yul.exec (fuel + 12) (.Block simpleStorageLoweredRetrieveCaseBody)
+        codeOverride (.Ok shared store) =
+      let (state', value) := shared.sload (EvmYul.UInt256.ofNat 0)
+      let shared1 : EvmYul.SharedState .Yul := { shared with toState := state' }
+      let shared2 : EvmYul.SharedState .Yul :=
+        { shared1 with
+          toMachineState :=
+            shared1.toMachineState.mstore (EvmYul.UInt256.ofNat 0) value }
+      let shared3 : EvmYul.SharedState .Yul :=
+        { shared2 with
+          toMachineState :=
+            shared2.toMachineState.evmReturn
+              (EvmYul.UInt256.ofNat 0) (EvmYul.UInt256.ofNat 32) }
+      .error (EvmYul.Yul.Exception.YulHalt (.Ok shared3 store) ⟨1⟩) := by
+  have hTail3 := exec_block_simpleStorageLoweredRetrieveCaseBodyTail3_closed
+    fuel codeOverride shared store
+  have hTail2 := exec_block_simpleStorageLoweredRetrieveCaseBodyTail2_lt_strip_error
+    fuel codeOverride shared store _ hSize hGe hTail3
+  have hTail := exec_block_simpleStorageLoweredRetrieveCaseBodyTail_callvalue_strip_error
+    (fuel + 4) codeOverride shared store _ hWei hTail2
+  exact exec_block_simpleStorageLoweredRetrieveCaseBody_head_strip_error
+    (fuel + 10) codeOverride (.Ok shared store) _ hTail
+
 /-- Concrete characterization of the lowered SimpleStorage source switch
 cases. Both bodies are straight-line, so the lowering is deterministic and
 the threaded `nextSwitchId` returns unchanged. Strengthens `_lowered_shape`
@@ -3790,6 +3824,306 @@ theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_ta
 noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch
     simpleStorageIRContract.functions none none]
+
+/-- Lower bound on the SimpleStorage native dispatcher fuel constant for
+the retrieve-hit and store-hit bridges, which use the `_concrete_tail3`
+chain that produces dispatcher exec at `fuel + 25`. -/
+theorem simpleStorageNativeDispatcherFuel_ge_25 :
+    simpleStorageNativeDispatcherFuel ≥ 25 := by
+  unfold simpleStorageNativeDispatcherFuel
+  decide
+
+/-- Closed-form `interpretIR` reduction for the SimpleStorage retrieve-hit
+class. Given the raw selector match (`= 0x2e64cec1`), `interpretIR` enters the
+`retrieve` body which is read-only on storage: it loads slot 0 via `sload`,
+mirrors it into memory[0..32] via `mstore`, and returns those 32 bytes. The
+returned word equals `(state.storage 0).toNat` (where `state` is
+`initialState.withTx tx`). Storage and events are unchanged.
+
+After Phase 1 of the IR storage refactor, `state.storage 0 : IRStorageWord`
+is `UInt256`-bounded, so `(state.storage 0).toNat < 2^256`. This is the
+IR-side input to `simpleStorageNativeRetrieveHitBridge` Step A. -/
+theorem interpretIR_simpleStorage_retrieveHit
+    (tx : IRTransaction) (initialState : IRState)
+    (hSel : tx.functionSelector = 0x2e64cec1) :
+    interpretIR simpleStorageIRContract tx initialState =
+      { success := true
+        returnValue := some (initialState.storage 0).toNat
+        finalStorage := initialState.storage
+        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+        events := initialState.events } := by
+  have hstore : (0x6057361d == tx.functionSelector) = false := by
+    simp [BEq.beq, hSel]
+  have hretrieve : (0x2e64cec1 == tx.functionSelector) = true := by
+    simp [BEq.beq, hSel]
+  -- Closed-form evaluation of the retrieve body for any fuel ≥ 2.
+  have hbody : ∀ (n : Nat) (s : IRState), 2 ≤ n →
+      execIRStmts (n + 1) s
+        [Yul.YulStmt.expr (Yul.YulExpr.call "mstore"
+            [Yul.YulExpr.lit 0, Yul.YulExpr.call "sload" [Yul.YulExpr.lit 0]]),
+         Yul.YulStmt.expr (Yul.YulExpr.call "return"
+            [Yul.YulExpr.lit 0, Yul.YulExpr.lit 32])] =
+        .return (s.storage 0).toNat
+          { s with memory := fun o => if o = 0 then (s.storage 0).toNat else s.memory o } := by
+    intro n s hn
+    obtain ⟨k, rfl⟩ : ∃ k, n = k + 2 := ⟨n - 2, by omega⟩
+    -- Fuel `k + 2 + 1 = k + 3` is `Nat.succ (Nat.succ (Nat.succ k))`, allowing
+    -- both the outer `execIRStmts` and the inner `execIRStmt` to step.
+    simp +decide only [execIRStmts, execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+      Compiler.Proofs.abstractLoadStorageOrMapping,
+      Option.bind_some, bind, pure, ↓reduceIte]
+  -- The retrieve body has at least 2 statements, so `sizeOf body ≥ 2` by
+  -- direct computation on the auto-derived size measure.
+  have hsize : 2 ≤ sizeOf
+      ([Yul.YulStmt.expr (Yul.YulExpr.call "mstore"
+            [Yul.YulExpr.lit 0, Yul.YulExpr.call "sload" [Yul.YulExpr.lit 0]]),
+        Yul.YulStmt.expr (Yul.YulExpr.call "return"
+            [Yul.YulExpr.lit 0, Yul.YulExpr.lit 32])] : List Yul.YulStmt) := by
+    decide
+  unfold interpretIR
+  simp only [simpleStorageIRContract, List.find?, hstore, hretrieve,
+    List.length_nil, Nat.zero_le, ↓reduceDIte]
+  -- Now goal involves `execIRFunction retrieveFn tx.args state'`.
+  unfold execIRFunction
+  simp only [List.zip_nil_left, List.foldl_nil]
+  -- Goal: `match execIRStmts (sizeOf body + 1) state' body with ... = ...`.
+  rw [hbody _ _ hsize]
+
+/-- Native dispatcher exec at exactly `simpleStorageNativeDispatcherFuel`
+reduces to `.error (YulHalt (.Ok shared3 _) ⟨1⟩)` for the retrieve-hit class,
+where `shared3` is the closed-form shared state after the
+`mstore(0, sload(0))` and `return(0, 32)` updates. The Yul varStore inside
+the halt state depends on the fresh switch identifier (which the dispatcher
+chose internally), so it is left existentially quantified — `projectResult`
+on `.error (YulHalt _ _)` ignores the varStore, so this is sufficient for
+the bridge proof. Composes the body-level closed form
+`exec_block_simpleStorageLoweredRetrieveCaseBody_halt` with
+`_retrieveHit_error_via_reduction` after opening the `_sourceLowered`
+existential and pinning `cases'` via `_lowered_shape` and
+`_lowered_concrete`. The `_concrete_tail*` chain is bypassed because it
+universally quantifies over `(reservedNames, n0)` against a single fixed
+`err`, which is incompatible with the switchId-dependent varStore inside
+the halt-error term. -/
+theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_halt_atFuel
+    (tx : YulTransaction) (storage : Nat → IRStorageWord) (observableSlots : List Nat)
+    (hSelector : 0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hMsgValue : tx.msgValue = 0) :
+    let shared := (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState
+    let p := shared.sload (EvmYul.UInt256.ofNat 0)
+    let shared1 : EvmYul.SharedState .Yul := { shared with toState := p.1 }
+    let shared2 : EvmYul.SharedState .Yul :=
+      { shared1 with
+        toMachineState :=
+          shared1.toMachineState.mstore (EvmYul.UInt256.ofNat 0) p.2 }
+    let shared3 : EvmYul.SharedState .Yul :=
+      { shared2 with
+        toMachineState :=
+          shared2.toMachineState.evmReturn
+            (EvmYul.UInt256.ofNat 0) (EvmYul.UInt256.ofNat 32) }
+    ∃ store : EvmYul.Yul.VarStore,
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+          simpleStorageNativeDispatcherFuel
+          Compiler.SimpleStorageNativeWitness.nativeContract
+          (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+            Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+            observableSlots) =
+        .error (EvmYul.Yul.Exception.YulHalt (.Ok shared3 store) ⟨1⟩) := by
+  -- Bring the let-bound names from the goal into the local context.
+  intro shared p shared1 shared2 shared3
+  -- Reshape dispatcher fuel to `g + 25` where `g := dispatcherFuel - 25`.
+  set g := simpleStorageNativeDispatcherFuel - 25 with hg_def
+  have hReshape : simpleStorageNativeDispatcherFuel = g + 25 :=
+    (Nat.sub_add_cancel simpleStorageNativeDispatcherFuel_ge_25).symm
+  rw [hReshape]
+  -- Open the `_sourceLowered` existential at `peeledFuel := g + 11`, so the
+  -- dispatcher LHS lands at `(g + 11) + 14 = g + 25`.
+  obtain ⟨reservedNames, n0, cases', midN, hExec, hLowerCases⟩ :=
+    simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec_sourceLowered
+      (g + 11) tx storage observableSlots hNoWrap
+  -- Pin `cases'` to the two-element shape.
+  obtain ⟨storeBody', retrieveBody', hCases⟩ :=
+    simpleStorageBuildSwitchSourceCases_lowered_shape reservedNames _ midN
+      cases' hLowerCases
+  subst hCases
+  -- Pin the lowered bodies to the concrete forms.
+  obtain ⟨hStoreBody, hRetrieveBody⟩ :=
+    simpleStorageLoweredHitCasesShape_concrete hLowerCases
+  subst hStoreBody
+  subst hRetrieveBody
+  -- The chained-insert varStore for the dispatcher hit-body input state.
+  set switchId := Backends.freshNativeSwitchId reservedNames n0 with hSw
+  let store_body : EvmYul.Yul.VarStore :=
+    ((((∅ : EvmYul.Yul.VarStore).insert "__has_selector"
+            (EvmYul.UInt256.ofNat 1)).insert
+          (Backends.nativeSwitchDiscrTempName switchId)
+          (EvmYul.UInt256.ofNat
+            (tx.functionSelector % Compiler.Constants.selectorModulus))).insert
+        (Backends.nativeSwitchMatchedTempName switchId)
+        (EvmYul.UInt256.ofNat 0)).insert
+      (Backends.nativeSwitchMatchedTempName switchId)
+      (EvmYul.UInt256.ofNat 1)
+  -- Provide `store := store_body` for the existential.
+  refine ⟨store_body, ?_⟩
+  -- Discharge the body-level closed form via `_RetrieveCaseBody_halt`.
+  have hWei :
+      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState.executionEnv.weiValue =
+      (⟨0⟩ : EvmYul.Literal) := by
+    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_weiValue,
+        hMsgValue]
+    rfl
+  have hSize :
+      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState.executionEnv.calldata.size <
+      EvmYul.UInt256.size := by
+    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataSize]
+    exact hNoWrap
+  have hGe :
+      4 ≤ (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState.executionEnv.calldata.size := by
+    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataSize]
+    exact Nat.le_add_right 4 _
+  have hBodyHalt :=
+    exec_block_simpleStorageLoweredRetrieveCaseBody_halt g
+      (some Compiler.SimpleStorageNativeWitness.nativeContract)
+      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState
+      store_body hWei hSize hGe
+  -- Reshape `hExec` into the form expected by `_via_reduction`'s
+  -- `hReduction` parameter.
+  have hReduction := hExec
+  rw [show (g + 11 + 14 : Nat) = (g + 4) + 2 + 19 from by omega,
+      show (g + 11 + 8 : Nat) = (g + 4) + 2 + 13 from by omega,
+      show (2 : Nat) = ([(0x6057361d, simpleStorageLoweredStoreCaseBody),
+        (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)] :
+        List (Nat × List EvmYul.Yul.Ast.Stmt)).length from rfl] at hReduction
+  -- Body-execution premise of `_via_reduction`: only valid decomposition is
+  -- `pre = [(0x6057361d, store)]`, `suffix = []`. Body fuel is
+  -- `(g + 4 + 1) + 0 + 7 = g + 12`, matching `hBodyHalt`.
+  have hBodyExec : ∀ pre suffix,
+      ([(0x6057361d, simpleStorageLoweredStoreCaseBody),
+        (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)] :
+        List (Nat × List EvmYul.Yul.Ast.Stmt)) =
+        pre ++ (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody) :: suffix →
+      EvmYul.Yul.exec (((g + 4) + 1) + suffix.length + 7)
+        (.Block simpleStorageLoweredRetrieveCaseBody)
+        (some Compiler.SimpleStorageNativeWitness.nativeContract)
+        (simpleStorageDispatcherHitBodyInputState switchId tx storage
+          observableSlots) =
+        .error (EvmYul.Yul.Exception.YulHalt (.Ok shared3 store_body) ⟨1⟩) := by
+    rintro pre suffix hDecomp
+    cases pre with
+    | nil =>
+      simp only [List.nil_append, List.cons.injEq, Prod.mk.injEq] at hDecomp
+      exfalso
+      exact absurd hDecomp.1.1 (by decide)
+    | cons _ rest =>
+      simp only [List.cons_append, List.cons.injEq] at hDecomp
+      obtain ⟨_, hRest⟩ := hDecomp
+      cases rest with
+      | nil =>
+        simp only [List.nil_append, List.cons.injEq] at hRest
+        obtain ⟨_, hSuf⟩ := hRest
+        subst hSuf
+        simpa [simpleStorageDispatcherHitBodyInputState] using hBodyHalt
+      | cons _ _ => simp at hRest
+  -- Apply `_retrieveHit_error_via_reduction` at `fuel := g + 4` with
+  -- `err := YulHalt (.Ok shared3 store_body) ⟨1⟩`.
+  have h := simpleStorageNativeContract_dispatcherExec_retrieveHit_error_via_reduction
+    (g + 4) switchId
+    [(0x6057361d, simpleStorageLoweredStoreCaseBody),
+     (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)]
+    simpleStorageLoweredStoreCaseBody simpleStorageLoweredRetrieveCaseBody
+    tx storage observableSlots
+    (EvmYul.Yul.Exception.YulHalt (.Ok shared3 store_body) ⟨1⟩)
+    hSelector rfl hBodyExec hReduction
+  -- `h` has dispatcher fuel `(g + 4) + cases'.length + 19`. Reshape to `g + 25`.
+  have hLen :
+      ([(0x6057361d, simpleStorageLoweredStoreCaseBody),
+        (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)] :
+        List (Nat × List EvmYul.Yul.Ast.Stmt)).length = 2 := rfl
+  rw [hLen, show (g + 4) + 2 + 19 = g + 25 from by omega] at h
+  exact h
+
+/-- Closed-form evaluation of `projectResult` on the retrieve-hit halt error
+produced by the lowered SimpleStorage retrieve body. The halt state is built
+by chaining `sload(0)` (toState override), `mstore(0, _)` (toMachineState
+override), and `evmReturn(0, 32)` (toMachineState override) starting from a
+shared state with empty memory. The native projected return value is the
+`Nat`-normalized form of the loaded slot-zero word; storage and logs are
+read off the halt's `sharedState` directly. -/
+theorem projectResult_retrieveHit_eq
+    (tx : YulTransaction) (initialStorage : Nat → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (shared : EvmYul.SharedState .Yul) (store : EvmYul.Yul.VarStore)
+    (hMemory : shared.memory = ByteArray.empty) :
+    let p := shared.sload (EvmYul.UInt256.ofNat 0)
+    let shared1 : EvmYul.SharedState .Yul := { shared with toState := p.1 }
+    let shared2 : EvmYul.SharedState .Yul :=
+      { shared1 with
+        toMachineState :=
+          shared1.toMachineState.mstore (EvmYul.UInt256.ofNat 0) p.2 }
+    let shared3 : EvmYul.SharedState .Yul :=
+      { shared2 with
+        toMachineState :=
+          shared2.toMachineState.evmReturn
+            (EvmYul.UInt256.ofNat 0) (EvmYul.UInt256.ofNat 32) }
+    Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+        tx initialStorage initialEvents
+        (.error (EvmYul.Yul.Exception.YulHalt
+          (EvmYul.Yul.State.Ok shared3 store) ⟨1⟩)) =
+      { success := true,
+        returnValue := some p.2.toNat,
+        finalStorage :=
+          Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState
+            tx (EvmYul.Yul.State.Ok shared3 store),
+        finalMappings :=
+          Compiler.Proofs.storageAsMappings
+            (Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState
+              tx (EvmYul.Yul.State.Ok shared3 store)),
+        events :=
+          initialEvents ++
+            Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState
+              (EvmYul.Yul.State.Ok shared3 store) } := by
+  intro p shared1 shared2 shared3
+  -- shared1 inherits memory from shared because only `toState` was overridden.
+  have hMemory1 : shared1.memory = ByteArray.empty := hMemory
+  -- The harness helpers describe the result via `setMachineState` chains;
+  -- those equal the structural overrides used in `shared3`.
+  have hSize :
+      (EvmYul.Yul.State.Ok shared3 store).sharedState.H_return.size = 32 := by
+    have h := Compiler.Proofs.YulGeneration.Backends.Native.mstore0_then_return32_hReturn_size
+      shared1 store p.2
+    simpa [shared3, shared2, EvmYul.Yul.State.setMachineState,
+      EvmYul.Yul.State.toMachineState, EvmYul.Yul.State.sharedState] using h
+  have hH_return :
+      (EvmYul.Yul.State.Ok shared3 store).sharedState.H_return = p.2.toByteArray := by
+    have h :=
+      Compiler.Proofs.YulGeneration.Backends.Native.mstore0_then_return32_emptyMemory_hReturn_eq_toByteArray
+        shared1 store p.2 hMemory1
+    simpa [shared3, shared2, EvmYul.Yul.State.setMachineState,
+      EvmYul.Yul.State.toMachineState, EvmYul.Yul.State.sharedState] using h
+  have hHaltNotZero : (⟨1⟩ : EvmYul.Yul.Ast.Literal) ≠ ⟨0⟩ := by
+    intro h
+    norm_num [EvmYul.UInt256.size] at h
+  have hReturnValue :
+      Compiler.Proofs.YulGeneration.Backends.Native.projectHaltReturn
+          (EvmYul.Yul.State.Ok shared3 store) ⟨1⟩ = some p.2.toNat := by
+    rw [Compiler.Proofs.YulGeneration.Backends.Native.projectHaltReturn_32ByteReturn
+      (EvmYul.Yul.State.Ok shared3 store) ⟨1⟩ hHaltNotZero hSize]
+    rw [hH_return,
+      Compiler.Proofs.YulGeneration.Backends.Native.byteArrayWord_uint256_toByteArray]
+  simp only [Compiler.Proofs.YulGeneration.Backends.Native.projectResult,
+    hReturnValue]
 
 /-- Named SimpleStorage native dispatcher bridge obligation.
 
