@@ -1061,7 +1061,7 @@ def evalBuiltinCallViaEvmYulLean
     (argVals : List Nat) : Option Nat :=
   match func, argVals with
   | "calldataload", [offset] => some (Compiler.Proofs.YulGeneration.calldataloadWord selector calldata offset)
-  | "sload", [slot] => some (storage slot)
+  | "sload", [slot] => some (storage slot).toNat
   | "mappingSlot", [base, key] => some (Compiler.Proofs.abstractMappingSlot base key)
   | _, _ => evalPureBuiltinViaEvmYulLean func argVals
 

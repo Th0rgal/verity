@@ -42,7 +42,14 @@ flip lands in subsequent commits on this branch.
 
 | Callsite | File:Line | Treatment | Notes |
 |----------|-----------|-----------|-------|
-| _to be filled in during Phase 1 implementation_ |  |  |  |
+| `IRStorageWord` carrier | `Compiler/Proofs/IRGeneration/IRStorageWord.lean` | migrate | Flipped from `abbrev := Nat` to `@[reducible] def := UInt256`. Added `OfNat`, `Inhabited` instances and reproved round-trip lemmas (`toNat_ofNat = n % UInt256.size`, `ofNat_toNat = w`, `toNat_lt_size`). |
+| `abstractStoreMappingEntry` | `Compiler/Proofs/MappingSlot.lean:83` | migrate | Wraps `value : Nat` via `IRStorageWord.ofNat` inside the helper; simp lemma `abstractStoreMappingEntry_eq` updated to match. |
+| `abstractStoreStorageOrMapping` | `Compiler/Proofs/MappingSlot.lean:95` | migrate | Wraps `value : Nat` via `IRStorageWord.ofNat`; simp lemma `abstractStoreStorageOrMapping_eq` updated. |
+| `evalBuiltinCallWithContext` (sload) | `Compiler/Proofs/YulGeneration/ReferenceOracle/Builtins.lean:58` | migrate | Projects `abstractLoadStorageOrMapping storage slot : IRStorageWord` back to `Nat` via `.toNat` for the `Option Nat` return. |
+| `evalBuiltinCallViaEvmYulLean` (sload) | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean:1064` | migrate | Same `.toNat` projection on the EVMYulLean adapter sload branch. |
+| `IRInterpreter.evalIRStatementWithBackend` | `Compiler/Proofs/IRGeneration/IRInterpreter.lean` | safe | All `state.storage` reads go through `abstractLoadStorageOrMapping`, all writes go through `abstractStoreStorageOrMapping` / `abstractStoreMappingEntry`, so the helper-internal wrapping covers every callsite without changes here. Initial-state literal `fun _ => 0` continues to elaborate via the `OfNat IRStorageWord 0` instance. |
+| `EvmYulLeanBridgeLemmas` | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` | safe | Builtin-equivalence lemmas thread `storage : Nat → IRStorageWord` as a parameter but never inspect the value; survive carrier flip without edits. |
+| Per-contract specs `Contracts/*/Proofs/` | (across the tree) | safe | Spec-side proofs reason over `IRState`/`abstractLoad…` API surface; no callsite touches the raw carrier. `lake build` + `make check` (600 tests) clean post-flip. |
 
 ## Risks tracked from the parent doc
 
@@ -65,6 +72,9 @@ flip lands in subsequent commits on this branch.
 
 ## Status
 
-Plan-only. Carrier flip not yet implemented. PR is intentionally opened as a
-draft so reviewers can land the audit table incrementally as callsites are
-inspected.
+Carrier flip implemented. `IRStorageWord` is now `@[reducible] def := UInt256`
+with `OfNat` / `Inhabited` instances and the round-trip lemmas restated for the
+new carrier. Downstream callsites have been migrated (helpers wrap `Nat → IRStorageWord`
+internally; sload sites project via `.toNat`). `lake build` clean, `make check`
+green (600 tests). `hRetrieveHit` / `hStoreHit` remain on
+`simpleStorage_endToEnd_native_evmYulLean`; their discharge is Phase 2 / Phase 3.

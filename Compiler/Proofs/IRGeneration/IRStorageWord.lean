@@ -35,44 +35,56 @@ open EvmYul
 
 /-- The carrier of a single IR storage slot value.
 
-    Phase 0: `IRStorageWord := Nat`. This is the current behavior of
-    `IRState.storage`, exposed through a typed alias so Phase 1 can swap
-    the representation without touching callsites.
-
-    Phase 1 will redefine this as a `UInt256`-backed bounded type.
+    Phase 1: `IRStorageWord := UInt256`. The carrier is a `UInt256`
+    bounded by `UInt256.size = 2^256` by construction, exposed through
+    a `@[reducible] def` so existing callsites that referred to
+    `IRStorageWord` as a function codomain continue to elaborate.
 
     Treat this as opaque from callers: always go through `ofNat` /
-    `toNat` / `toUInt256` rather than relying on the alias being `Nat`. -/
-abbrev IRStorageWord : Type := Nat
+    `toNat` / `toUInt256` rather than relying on the carrier being any
+    particular numeric type. -/
+@[reducible] def IRStorageWord : Type := UInt256
 
 namespace IRStorageWord
 
-/-- Inject a `Nat` value into `IRStorageWord`.
+/-- Inject a `Nat` value into `IRStorageWord` by reducing modulo
+    `UInt256.size`. -/
+@[inline] def ofNat (n : Nat) : IRStorageWord := UInt256.ofNat n
 
-    Phase 0: identity. Phase 1: `% UInt256.size`. -/
-@[inline] def ofNat (n : Nat) : IRStorageWord := n
-
-/-- Project an `IRStorageWord` back to `Nat`.
-
-    Phase 0: identity. Phase 1: `UInt256.toNat`. -/
-@[inline] def toNat (w : IRStorageWord) : Nat := w
+/-- Project an `IRStorageWord` back to `Nat`. The result is bounded by
+    `UInt256.size` (see `toNat_lt_size`). -/
+@[inline] def toNat (w : IRStorageWord) : Nat := UInt256.toNat w
 
 /-- Project an `IRStorageWord` to the EVMYulLean `UInt256` representation.
 
-    This is the projection used by the native state bridge. Phase 0
-    truncates the underlying `Nat` by `% UInt256.size` exactly as
-    `UInt256.ofNat` does today; Phase 1 will make this projection lossless
-    by construction. -/
-@[inline] def toUInt256 (w : IRStorageWord) : UInt256 := UInt256.ofNat w
+    Lossless: with the Phase 1 carrier this is the identity. -/
+@[inline] def toUInt256 (w : IRStorageWord) : UInt256 := w
 
-/-! ## Round-trip lemmas
+/-- `OfNat` instance so storage initial values like `fun _ => 0`
+    elaborate as `IRStorageWord`. -/
+instance instOfNat (n : Nat) : OfNat IRStorageWord n := ⟨ofNat n⟩
 
-    These hold in Phase 0 by definitional equality and are stated up
-    front so Phase 1's flip can preserve them as the migration contract. -/
+instance : Inhabited IRStorageWord := ⟨ofNat 0⟩
 
-@[simp] theorem toNat_ofNat (n : Nat) : (ofNat n).toNat = n := rfl
+/-! ## Round-trip lemmas -/
 
-@[simp] theorem ofNat_toNat (w : IRStorageWord) : ofNat w.toNat = w := rfl
+@[simp] theorem toNat_ofNat (n : Nat) : (ofNat n).toNat = n % UInt256.size := rfl
+
+@[simp] theorem ofNat_toNat (w : IRStorageWord) : ofNat w.toNat = w := by
+  cases w with
+  | mk v =>
+    cases v with
+    | mk val isLt =>
+      show UInt256.ofNat val = ⟨⟨val, isLt⟩⟩
+      apply congrArg UInt256.mk
+      apply Fin.ext
+      show val % UInt256.size = val
+      exact Nat.mod_eq_of_lt isLt
+
+/-- Every `IRStorageWord` value is bounded by `UInt256.size`. -/
+theorem toNat_lt_size (w : IRStorageWord) : w.toNat < UInt256.size := by
+  cases w with
+  | mk v => exact v.isLt
 
 end IRStorageWord
 

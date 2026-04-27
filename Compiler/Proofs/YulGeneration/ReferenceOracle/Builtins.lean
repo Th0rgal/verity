@@ -55,7 +55,7 @@ def evalBuiltinCallWithContext
     | _ => none
   else if func = "sload" then
     match argVals with
-    | [slot] => some (Compiler.Proofs.abstractLoadStorageOrMapping storage slot)
+    | [slot] => some (Compiler.Proofs.abstractLoadStorageOrMapping storage slot).toNat
     | _ => none
   else if func = "add" then
     match argVals with
