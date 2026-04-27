@@ -342,8 +342,8 @@ noncomputable def execYulStmts (state : YulState) (stmts : List YulStmt) : YulEx
 structure YulResult where
   success : Bool
   returnValue : Option Nat
-  finalStorage : Nat → Nat
-  finalMappings : Nat → Nat → Nat
+  finalStorage : Nat → IRStorageWord
+  finalMappings : Nat → Nat → IRStorageWord
   events : List (List Nat)
 
 /-- Execute a Yul runtime program with selector-aware calldata -/
