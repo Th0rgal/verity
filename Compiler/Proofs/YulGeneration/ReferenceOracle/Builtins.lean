@@ -16,6 +16,7 @@ current retargeting path; this file is not part of that trust boundary.
 -/
 
 open Compiler.Proofs
+open Compiler.Proofs.IRGeneration (IRStorageWord)
 export Compiler.Constants (evmModulus selectorModulus selectorShift)
 
 /-- Auxiliary loop for modular exponentiation via repeated squaring.
@@ -35,7 +36,7 @@ def natModPow (base exp modulus : Nat) : Nat :=
   else modPowAux modulus (base % modulus) exp 1
 
 def evalBuiltinCallWithContext
-    (storage : Nat → Nat)
+    (storage : Nat → IRStorageWord)
     (sender : Nat)
     (msgValue : Nat)
     (thisAddress : Nat)
@@ -256,7 +257,7 @@ abbrev defaultBuiltinBackend : BuiltinBackend := .verity
 
 def evalBuiltinCallWithBackendContext
     (backend : BuiltinBackend)
-    (storage : Nat → Nat)
+    (storage : Nat → IRStorageWord)
     (sender : Nat)
     (msgValue : Nat)
     (thisAddress : Nat)
@@ -311,7 +312,7 @@ def evalBuiltinCallWithBackendContext
 
 def evalBuiltinCallWithBackend
     (backend : BuiltinBackend)
-    (storage : Nat → Nat)
+    (storage : Nat → IRStorageWord)
     (sender : Nat)
     (selector : Nat)
     (calldata : List Nat)
@@ -320,7 +321,7 @@ def evalBuiltinCallWithBackend
   evalBuiltinCallWithBackendContext backend storage sender 0 0 0 0 0 0 selector calldata func argVals
 
 def evalBuiltinCall
-    (storage : Nat → Nat)
+    (storage : Nat → IRStorageWord)
     (sender : Nat)
     (selector : Nat)
     (calldata : List Nat)
@@ -329,60 +330,60 @@ def evalBuiltinCall
   evalBuiltinCallWithContext storage sender 0 0 0 0 0 0 selector calldata func argVals
 
 @[simp] theorem evalBuiltinCall_callvalue_nil
-    (storage : Nat → Nat) (sender thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
+    (storage : Nat → IRStorageWord) (sender thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
     (calldata : List Nat) :
     evalBuiltinCallWithContext storage sender 0 thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata "callvalue" [] =
       some 0 := by
   simp [evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCall_callvalue_context
-    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
+    (storage : Nat → IRStorageWord) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
     (calldata : List Nat) :
     evalBuiltinCallWithContext storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata "callvalue" [] =
       some (msgValue % evmModulus) := by
   simp [evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCall_calldatasize_nil
-    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) :
+    (storage : Nat → IRStorageWord) (sender selector : Nat) (calldata : List Nat) :
     evalBuiltinCall storage sender selector calldata "calldatasize" [] =
       some ((4 + calldata.length * 32) % evmModulus) := by
   simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCall_caller_nil
-    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) :
+    (storage : Nat → IRStorageWord) (sender selector : Nat) (calldata : List Nat) :
     evalBuiltinCall storage sender selector calldata "caller" [] = some sender := by
   simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCall_address_nil
-    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
+    (storage : Nat → IRStorageWord) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
     (calldata : List Nat) :
     evalBuiltinCallWithContext storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata "address" [] =
       some (thisAddress % evmModulus) := by
   simp [evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCall_timestamp_nil
-    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
+    (storage : Nat → IRStorageWord) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
     (calldata : List Nat) :
     evalBuiltinCallWithContext storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata "timestamp" [] =
       some (blockTimestamp % evmModulus) := by
   simp [evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCall_number_nil
-    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
+    (storage : Nat → IRStorageWord) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
     (calldata : List Nat) :
     evalBuiltinCallWithContext storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata "number" [] =
       some (blockNumber % evmModulus) := by
   simp [evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCall_chainid_nil
-    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
+    (storage : Nat → IRStorageWord) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
     (calldata : List Nat) :
     evalBuiltinCallWithContext storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata "chainid" [] =
       some (chainId % evmModulus) := by
   simp [evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCall_blobbasefee_nil
-    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
+    (storage : Nat → IRStorageWord) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
     (calldata : List Nat) :
     evalBuiltinCallWithContext storage sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector calldata "blobbasefee" [] =
       some (blobBaseFee % evmModulus) := by
@@ -394,12 +395,12 @@ def evalBuiltinCall
   simp [calldataloadWord]
 
 @[simp] theorem evalBuiltinCall_calldataload_offset4_single
-    (storage : Nat → Nat) (sender selector value : Nat) :
+    (storage : Nat → IRStorageWord) (sender selector value : Nat) :
     evalBuiltinCall storage sender selector [value] "calldataload" [4] = some (value % evmModulus) := by
   simp [evalBuiltinCall, evalBuiltinCallWithContext, calldataloadWord]
 
 @[simp] theorem evalBuiltinCallWithBackend_calldataload_offset4_single
-    (storage : Nat → Nat) (sender selector value : Nat) :
+    (storage : Nat → IRStorageWord) (sender selector value : Nat) :
     evalBuiltinCallWithBackend
         defaultBuiltinBackend
         storage
@@ -413,13 +414,13 @@ def evalBuiltinCall
     calldataloadWord]
 
 @[simp] theorem evalBuiltinCall_sload_single
-    (storage : Nat → Nat) (sender selector : Nat) (slot : Nat) :
+    (storage : Nat → IRStorageWord) (sender selector : Nat) (slot : Nat) :
     evalBuiltinCall storage sender selector [] "sload" [slot] =
       some (Compiler.Proofs.abstractLoadStorageOrMapping storage slot) := by
   simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackend_sload_single
-    (storage : Nat → Nat) (sender selector : Nat) (slot : Nat) :
+    (storage : Nat → IRStorageWord) (sender selector : Nat) (slot : Nat) :
     evalBuiltinCallWithBackend
         defaultBuiltinBackend
         storage
