@@ -289,11 +289,11 @@ verity_contract MacroERC20 where
     lastAllowance : Uint256 := slot 1
     lastSupply : Uint256 := slot 2
 
-  function pushTokens (token : Address, to : Address, amount : Uint256) : Unit := do
-    safeTransfer token to amount
+  function pushTokens (token : Address, toAddr : Address, amount : Uint256) : Unit := do
+    safeTransfer token toAddr amount
 
-  function pullTokens (token : Address, fromAddr : Address, to : Address, amount : Uint256) : Unit := do
-    safeTransferFrom token fromAddr to amount
+  function pullTokens (token : Address, fromAddr : Address, toAddr : Address, amount : Uint256) : Unit := do
+    safeTransferFrom token fromAddr toAddr amount
 
   function approveTokens (token : Address, spender : Address, amount : Uint256) : Unit := do
     safeApprove token spender amount
@@ -315,7 +315,7 @@ verity_contract MacroERC20 where
 
 def pushTokensModelUsesSafeTransfer : Bool :=
   match MacroERC20.pushTokens_modelBody with
-  | [Stmt.ecm mod [Expr.param "token", Expr.param "to", Expr.param "amount"], Stmt.stop] =>
+  | [Stmt.ecm mod [Expr.param "token", Expr.param "toAddr", Expr.param "amount"], Stmt.stop] =>
       mod.name == "safeTransfer" &&
       mod.resultVars.isEmpty &&
       mod.axioms == ["erc20_transfer_interface"]
@@ -325,7 +325,7 @@ example : pushTokensModelUsesSafeTransfer = true := by native_decide
 
 def pullTokensModelUsesSafeTransferFrom : Bool :=
   match MacroERC20.pullTokens_modelBody with
-  | [Stmt.ecm mod [Expr.param "token", Expr.param "fromAddr", Expr.param "to", Expr.param "amount"], Stmt.stop] =>
+  | [Stmt.ecm mod [Expr.param "token", Expr.param "fromAddr", Expr.param "toAddr", Expr.param "amount"], Stmt.stop] =>
       mod.name == "safeTransferFrom" &&
       mod.resultVars.isEmpty &&
       mod.axioms == ["erc20_transferFrom_interface"]
@@ -517,22 +517,34 @@ verity_contract MacroBlobbasefee where
   storage
 
   function currentBlobBaseFee () : Uint256 := do
-    return blobbasefee
+    let fee ← blobbasefee
+    return fee
+
+  function qualifiedCurrentBlobBaseFee () : Uint256 := do
+    let fee ← Verity.blobbasefee
+    return fee
 
 def modelReturnsBlobbasefeeBuiltin : Bool :=
   match MacroBlobbasefee.currentBlobBaseFee_modelBody with
-  | [Stmt.return Expr.blobbasefee] => true
+  | [Stmt.letVar "fee" Expr.blobbasefee, Stmt.return (Expr.localVar "fee")] => true
   | _ => false
 
 example : modelReturnsBlobbasefeeBuiltin = true := by native_decide
 
-def executableUsesRuntimeStub : Bool :=
-  match MacroBlobbasefee.currentBlobBaseFee Verity.defaultState with
+def qualifiedModelReturnsBlobbasefeeBuiltin : Bool :=
+  match MacroBlobbasefee.qualifiedCurrentBlobBaseFee_modelBody with
+  | [Stmt.letVar "fee" Expr.blobbasefee, Stmt.return (Expr.localVar "fee")] => true
+  | _ => false
+
+example : qualifiedModelReturnsBlobbasefeeBuiltin = true := by native_decide
+
+def executableUsesContractState : Bool :=
+  match MacroBlobbasefee.currentBlobBaseFee { Verity.defaultState with blobBaseFee := 19 } with
   | .success fee state =>
-      fee == 0 && state.sender == Verity.defaultState.sender
+      fee == 19 && state.sender == Verity.defaultState.sender
   | .revert _ _ => false
 
-example : executableUsesRuntimeStub = true := by native_decide
+example : executableUsesContractState = true := by native_decide
 
 end MacroBlobbasefeeSmoke
 
@@ -950,6 +962,32 @@ run_cmd do
 
 end MacroInt256LoweringSmoke
 
+namespace MacroNumericLiteralHelperSmoke
+
+open Verity hiding pure bind
+open Verity.EVM.Uint256
+
+verity_contract MacroNumericLiteralHelper where
+  storage
+
+  function choose (value : Int256) : Int256 := do
+    return value
+
+  function signedLiteral () : Int256 := do
+    let result ← choose 1
+    return result
+
+def signedLiteralUsesInt256Overload : Bool :=
+  match MacroNumericLiteralHelper.signedLiteral_modelBody with
+  | [Stmt.letVar "result" (Expr.internalCall helperName [Expr.literal 1]),
+      Stmt.return (Expr.localVar "result")] =>
+      helperName == "internal_choose"
+  | _ => false
+
+example : signedLiteralUsesInt256Overload = true := by native_decide
+
+end MacroNumericLiteralHelperSmoke
+
 namespace MacroPayableConstructorSmoke
 
 open Contracts
@@ -1063,6 +1101,28 @@ def compileSetStorageAddrMasksAddressWrites : Bool :=
   | _ => false
 
 example : compileSetStorageAddrMasksAddressWrites = true := by native_decide
+
+def compileSetStorageWordMirrorsAliasSlots : Bool :=
+  let fields : List Compiler.CompilationModel.Field :=
+    [{ name := "choice", ty := Compiler.CompilationModel.FieldType.adt "Choice" 2,
+       «slot» := some 10, aliasSlots := [100] }]
+  match Compiler.CompilationModel.compileStmt fields [] [] .calldata [] false [] []
+      (Compiler.CompilationModel.Stmt.setStorageWord "choice" 1 (Expr.literal 42)) with
+  | .ok [
+      Compiler.Yul.YulStmt.block [
+        Compiler.Yul.YulStmt.let_ "__compat_value" (Compiler.Yul.YulExpr.lit 42),
+        Compiler.Yul.YulStmt.expr
+          (Compiler.Yul.YulExpr.call "sstore"
+            [Compiler.Yul.YulExpr.call "add" [Compiler.Yul.YulExpr.lit 10, Compiler.Yul.YulExpr.lit 1],
+             Compiler.Yul.YulExpr.ident "__compat_value"]),
+        Compiler.Yul.YulStmt.expr
+          (Compiler.Yul.YulExpr.call "sstore"
+            [Compiler.Yul.YulExpr.call "add" [Compiler.Yul.YulExpr.lit 100, Compiler.Yul.YulExpr.lit 1],
+             Compiler.Yul.YulExpr.ident "__compat_value"])
+      ]] => true
+  | _ => false
+
+example : compileSetStorageWordMirrorsAliasSlots = true := by native_decide
 
 def initializeExecutableSecondCallReverts : Bool :=
   let seedOwner := wordToAddress 77
@@ -1730,6 +1790,45 @@ private def reservedParamSpec : CompilationModel := {
   ]
 }
 
+private def duplicateInternalNameSpec : CompilationModel := {
+  name := "DuplicateInternalName"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "helper"
+      params := [{ name := "amount", ty := ParamType.uint256 }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.param "amount")]
+      isInternal := true
+    },
+    { name := "helper"
+      params := [{ name := "target", ty := ParamType.uint256 }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.literal 1)]
+      isInternal := true
+    }
+  ]
+}
+
+private def internalExternalNameCollisionSpec : CompilationModel := {
+  name := "InternalExternalNameCollision"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "helper"
+      params := [{ name := "amount", ty := ParamType.uint256 }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.param "amount")]
+    },
+    { name := "helper"
+      params := [{ name := "target", ty := ParamType.uint256 }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.literal 1)]
+      isInternal := true
+    }
+  ]
+}
+
 private def reservedFieldSpec : CompilationModel := {
   name := "ReservedField"
   fields := [{ name := "__compat_value", ty := FieldType.uint256 }]
@@ -2299,6 +2398,62 @@ private def bytesArrayElementSpec : CompilationModel := {
   ]
 }
 
+private def bytesArrayElementWordSpec : CompilationModel := {
+  name := "BytesArrayElementWord"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "headWord"
+      params := [{ name := "calls", ty := ParamType.array ParamType.bytes }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.arrayElementWord "calls" (Expr.literal 0) 1 0)]
+    }
+  ]
+}
+
+private def uintArrayElementOnlySpec : CompilationModel := {
+  name := "UintArrayElementOnly"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "head"
+      params := [{ name := "values", ty := ParamType.array ParamType.uint256 }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.arrayElement "values" (Expr.literal 0))]
+    }
+  ]
+}
+
+private def tupleArrayElementWordOnlySpec : CompilationModel := {
+  name := "TupleArrayElementWordOnly"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "second"
+      params := [{ name := "values", ty := ParamType.array (ParamType.tuple [ParamType.uint256, ParamType.uint256]) }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.arrayElementWord "values" (Expr.literal 0) 2 1)]
+    }
+  ]
+}
+
+private def arrayElementWordStorageIndexSpec : CompilationModel := {
+  name := "ArrayElementWordStorageIndex"
+  fields := [{ name := "queue", ty := FieldType.dynamicArray .uint256, «slot» := some 7 }]
+  «constructor» := none
+  functions := [
+    { name := "selected"
+      params := [{ name := "values", ty := ParamType.array (ParamType.tuple [ParamType.uint256, ParamType.uint256]) }]
+      returnType := some FieldType.uint256
+      body := [
+        Stmt.return
+          (Expr.arrayElementWord "values"
+            (Expr.storageArrayElement "queue" (Expr.literal 0)) 2 1)
+      ]
+    }
+  ]
+}
+
 private def storageArrayUint256SmokeSpec : CompilationModel := {
   name := "StorageArrayUint256Smoke"
   fields := [{ name := "queue", ty := FieldType.dynamicArray .uint256, «slot» := some 7 }]
@@ -2785,6 +2940,14 @@ set_option maxRecDepth 4096 in
     "reserved compiler prefix is rejected in function parameters"
     reservedParamSpec
     "function parameter '__has_selector' uses reserved compiler prefix '__'"
+  expectCompileErrorContains
+    "same-name internal helpers are rejected before Yul lowering"
+    duplicateInternalNameSpec
+    "duplicate internal function name 'helper'"
+  expectCompileErrorContains
+    "internal helper source names cannot collide with external dispatch names"
+    internalExternalNameCollisionSpec
+    "internal function name 'helper' collides with an external function name"
   let reservedFieldRejected :=
     match validateCompileInputs reservedFieldSpec (selectorsFor reservedFieldSpec) with
     | .ok _ => false
@@ -2861,6 +3024,9 @@ set_option maxRecDepth 4096 in
   expectTrue
     "setStorageAddr compilation masks stored address words"
     MacroInitializerSmoke.compileSetStorageAddrMasksAddressWrites
+  expectTrue
+    "setStorageWord compilation mirrors alias slot writes"
+    MacroInitializerSmoke.compileSetStorageWordMirrorsAliasSlots
   expectTrue
     "macro initializer executable path rejects a second call"
     MacroInitializerSmoke.initializeExecutableSecondCallReverts
@@ -3033,6 +3199,35 @@ set_option maxRecDepth 4096 in
     "arrayElement rejects bytes[] params until dynamic-element indexing lands"
     bytesArrayElementSpec
     "Expr.arrayElement 'calls' requires an array with single-word static elements"
+  expectCompileErrorContains
+    "arrayElementWord rejects bytes[] params until dynamic-element word indexing lands"
+    bytesArrayElementWordSpec
+    "Expr.arrayElementWord 'calls' requires an array parameter with static ABI-word elements"
+  let uintArrayElementOnlyYul ←
+    expectCompileToYul "uint256[] arrayElement-only smoke spec" uintArrayElementOnlySpec
+  expectTrue "arrayElement-only specs emit the tuple-array helpers"
+    ((contains uintArrayElementOnlyYul checkedArrayElementCalldataHelperName) &&
+      (contains uintArrayElementOnlyYul checkedArrayElementMemoryHelperName))
+  expectTrue "arrayElement-only specs do not emit word-array helpers"
+    (!(contains uintArrayElementOnlyYul checkedArrayElementWordCalldataHelperName) &&
+      !(contains uintArrayElementOnlyYul checkedArrayElementWordMemoryHelperName))
+  let tupleArrayElementWordOnlyYul ←
+    expectCompileToYul "tuple[] arrayElementWord-only smoke spec" tupleArrayElementWordOnlySpec
+  expectTrue "arrayElementWord-only specs emit the word-array helpers"
+    ((contains tupleArrayElementWordOnlyYul checkedArrayElementWordCalldataHelperName) &&
+      (contains tupleArrayElementWordOnlyYul checkedArrayElementWordMemoryHelperName))
+  expectTrue "arrayElementWord helper scales only element word offset"
+    (contains tupleArrayElementWordOnlyYul
+      "calldataload(add(data_offset, mul(add(mul(index, element_words), word_offset), 32)))" &&
+      !(contains tupleArrayElementWordOnlyYul
+        "calldataload(add(data_offset, mul(add(add(mul(index, element_words), word_offset), 32), 32)))"))
+  expectTrue "arrayElementWord-only specs do not emit tuple-array helpers"
+    (!(contains tupleArrayElementWordOnlyYul checkedArrayElementCalldataHelperName) &&
+      !(contains tupleArrayElementWordOnlyYul checkedArrayElementMemoryHelperName))
+  let arrayElementWordStorageIndexYul ←
+    expectCompileToYul "arrayElementWord storage-index smoke spec" arrayElementWordStorageIndexSpec
+  expectTrue "arrayElementWord index analysis emits storage-array helper dependencies"
+    (contains arrayElementWordStorageIndexYul checkedStorageArrayElementHelperName)
   let storageArrayUint256Yul ←
     expectCompileToYul "storage uint256[] smoke spec" storageArrayUint256SmokeSpec
   expectTrue "storage uint256[] length lowers to sload(slot)"
@@ -3289,8 +3484,8 @@ set_option maxRecDepth 4096 in
     expectCompileToYul "macro blobbasefee smoke spec" MacroBlobbasefeeSmoke.MacroBlobbasefee.spec
   expectTrue "macro blobbasefee lowers to the Yul blobbasefee builtin"
     (contains macroBlobbasefeeYul "blobbasefee()")
-  expectTrue "macro blobbasefee executable path uses the runtime stub"
-    MacroBlobbasefeeSmoke.executableUsesRuntimeStub
+  expectTrue "macro blobbasefee executable path uses ContractState"
+    MacroBlobbasefeeSmoke.executableUsesContractState
   let macroBlobbasefeeTrustReport := emitTrustReportJson [MacroBlobbasefeeSmoke.MacroBlobbasefee.spec]
   expectTrue "macro blobbasefee trust report surfaces the post-core builtin"
     (contains macroBlobbasefeeTrustReport "\"modeledLowLevelMechanics\"" &&

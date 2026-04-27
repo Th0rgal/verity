@@ -5,6 +5,10 @@ import Compiler.Proofs.IRGeneration.FunctionBody
 import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.IRGeneration.SupportedSpec
 
+set_option linter.unnecessarySeqFocus false
+set_option linter.unnecessarySimpa false
+set_option linter.unusedSimpArgs false
+
 namespace Compiler.Proofs.IRGeneration
 
 open Compiler
@@ -835,6 +839,88 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_tstore
         []
         LegacyCompatibleExternalStmtList.nil
 
+private def setStorageWordAliasBody
+    (slot wordOffset : Nat)
+    (valueIR : YulExpr)
+    (aliases : List Nat) : List YulStmt :=
+  YulStmt.let_ "__compat_value" valueIR ::
+    YulStmt.expr
+      (YulExpr.call "sstore"
+        [if wordOffset = 0 then YulExpr.lit slot
+         else YulExpr.call "add" [YulExpr.lit slot, YulExpr.lit wordOffset],
+         YulExpr.ident "__compat_value"]) ::
+    aliases.map (fun writeSlot =>
+      YulStmt.expr
+        (YulExpr.call "sstore"
+          [if wordOffset = 0 then YulExpr.lit writeSlot
+           else YulExpr.call "add" [YulExpr.lit writeSlot, YulExpr.lit wordOffset],
+           YulExpr.ident "__compat_value"]))
+
+private theorem legacyCompatibleExternalStmtList_setStorageWord_aliasBlock
+    (slot wordOffset : Nat)
+    (valueIR : YulExpr)
+    (aliases : List Nat) :
+    LegacyCompatibleExternalStmtList
+      [YulStmt.block (setStorageWordAliasBody slot wordOffset valueIR aliases)] := by
+  unfold setStorageWordAliasBody
+  refine LegacyCompatibleExternalStmtList.block _ [] ?_ LegacyCompatibleExternalStmtList.nil
+  apply LegacyCompatibleExternalStmtList.let_
+  simpa using legacyCompatibleExternalStmtList_of_exprStmtExprs
+    (YulExpr.call "sstore"
+      [if wordOffset = 0 then YulExpr.lit slot
+       else YulExpr.call "add" [YulExpr.lit slot, YulExpr.lit wordOffset],
+       YulExpr.ident "__compat_value"] ::
+     aliases.map (fun writeSlot =>
+      YulExpr.call "sstore"
+        [if wordOffset = 0 then YulExpr.lit writeSlot
+         else YulExpr.call "add" [YulExpr.lit writeSlot, YulExpr.lit wordOffset],
+         YulExpr.ident "__compat_value"]))
+
+private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_setStorageWord
+    {fields : List Field} {events : List EventDef} {errors : List ErrorDef}
+    {inScopeNames : List String} {field : String} {wordOffset : Nat}
+    {value : Expr} {bodyIR : List YulStmt}
+    (hcompile : CompilationModel.compileStmt fields events errors .calldata [] false
+        inScopeNames [] (.setStorageWord field wordOffset value) =
+          Except.ok bodyIR) :
+    LegacyCompatibleExternalStmtList bodyIR := by
+  unfold CompilationModel.compileStmt at hcompile
+  rcases hfind : findFieldWithResolvedSlot fields field with _ | ⟨f, slot⟩
+  · simp [hfind] at hcompile
+  · rcases hvalue : CompilationModel.compileExpr fields .calldata value with _ | valueIR
+    · simp [hfind, hvalue] at hcompile
+      cases hcompile
+    · simp [hfind, hvalue] at hcompile
+      generalize halias : f.aliasSlots = aliases at hcompile ⊢
+      cases aliases
+      ·
+          have hbody :
+              bodyIR =
+                [YulStmt.expr
+                  (YulExpr.call "sstore"
+                    [if wordOffset = 0 then YulExpr.lit slot
+                     else YulExpr.call "add" [YulExpr.lit slot, YulExpr.lit wordOffset],
+                     valueIR])] := by
+            simpa using hcompile.symm
+          subst bodyIR
+          exact LegacyCompatibleExternalStmtList.expr
+            (YulExpr.call "sstore"
+              [if wordOffset = 0 then YulExpr.lit slot
+               else YulExpr.call "add" [YulExpr.lit slot, YulExpr.lit wordOffset],
+               valueIR])
+            []
+            LegacyCompatibleExternalStmtList.nil
+      ·
+        rename_i aliasSlot restAliases
+        have hbody : bodyIR =
+            [YulStmt.block
+              (setStorageWordAliasBody slot wordOffset valueIR
+                (aliasSlot :: restAliases))] := by
+          simpa [setStorageWordAliasBody] using hcompile.symm
+        subst bodyIR
+        exact legacyCompatibleExternalStmtList_setStorageWord_aliasBlock
+          slot wordOffset valueIR (aliasSlot :: restAliases)
+
 mutual
 /-- On the current supported contract surface, successful single-statement
 compilation stays inside the legacy helper-free external Yul subset. This is
@@ -871,6 +957,9 @@ theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractS
         (requireAddressField := true)
         hnoPacked
         hcompile
+  | setStorageWord field wordOffset value =>
+      simp [stmtTouchesUnsupportedContractSurface] at hsurface
+      exact legacyCompatibleExternalStmtList_of_compileStmt_ok_setStorageWord hcompile
   | require cond message =>
       simp [stmtTouchesUnsupportedContractSurface] at hsurface
       exact legacyCompatibleExternalStmtList_of_compileStmt_ok_require hcompile
@@ -1618,7 +1707,7 @@ theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractS
   | setStructMember2 field key1 key2 memberName value =>
       unfold CompilationModel.compileStmt at hcompile
       exact legacyCompatibleExternalStmtList_of_compileSetStructMember2_ok hcompile
-  | letVar _ _ | assignVar _ _ | setStorage _ _ | setStorageAddr _ _
+  | letVar _ _ | assignVar _ _ | setStorage _ _ | setStorageAddr _ _ | setStorageWord _ _ _
   | storageArrayPush _ _ | storageArrayPop _ | setStorageArrayElement _ _ _
   | require _ | requireError _ _ | revertError _ _
   | «return» _ | returnValues _ | returnArray _ | returnBytes _
@@ -3005,6 +3094,14 @@ inductive StmtListScopeDiscipline (fieldNames : List String) : List String → L
       FunctionBody.exprBoundNamesInScope value scope →
       StmtListScopeDiscipline fieldNames (stmtNextScope scope (.setStorageAddr fieldName value)) rest →
       StmtListScopeDiscipline fieldNames scope (.setStorageAddr fieldName value :: rest)
+  | setStorageWord {scope : List String} {fieldName : String} {wordOffset : Nat} {value : Expr}
+      {rest : List Stmt} :
+      fieldName ∈ fieldNames →
+      FunctionBody.ExprCompileCore value →
+      FunctionBody.exprBoundNamesInScope value scope →
+      StmtListScopeDiscipline fieldNames
+        (stmtNextScope scope (.setStorageWord fieldName wordOffset value)) rest →
+      StmtListScopeDiscipline fieldNames scope (.setStorageWord fieldName wordOffset value :: rest)
   | mstore {scope : List String} {offset value : Expr} {rest : List Stmt} :
       FunctionBody.ExprCompileCore offset →
       FunctionBody.exprBoundNamesInScope offset scope →
@@ -3061,6 +3158,11 @@ inductive StmtListScopeCore (fieldNames : List String) : List Stmt → Prop wher
       FunctionBody.ExprCompileCore value →
       StmtListScopeCore fieldNames rest →
       StmtListScopeCore fieldNames (.setStorageAddr fieldName value :: rest)
+  | setStorageWord {fieldName : String} {wordOffset : Nat} {value : Expr} {rest : List Stmt} :
+      fieldName ∈ fieldNames →
+      FunctionBody.ExprCompileCore value →
+      StmtListScopeCore fieldNames rest →
+      StmtListScopeCore fieldNames (.setStorageWord fieldName wordOffset value :: rest)
   | mstore {offset value : Expr} {rest : List Stmt} :
       FunctionBody.ExprCompileCore offset →
       FunctionBody.ExprCompileCore value →
@@ -3315,6 +3417,15 @@ private theorem stmtListScopeCore_of_unsupportedContractSurface_eq_false
                 exact fieldName_mem_fields_of_compileSetStorage_ok hhead)
             (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
               (by simpa [stmtTouchesUnsupportedContractSurface] using hstmtSurface)) ihRest
+      | setStorageWord fieldName wordOffset value =>
+          exact .setStorageWord
+            (by
+              simp only [CompilationModel.compileStmt, bind, Except.bind] at hhead
+              rcases hfind : findFieldWithResolvedSlot fields fieldName with _ | ⟨f, slot⟩
+              · simp [hfind] at hhead
+              · exact fieldName_mem_fields_of_findFieldWithResolvedSlot_some hfind)
+            (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+              (by simpa [stmtTouchesUnsupportedContractSurface] using hstmtSurface)) ihRest
       | require cond message =>
           exact .require (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
             (by simpa [stmtTouchesUnsupportedContractSurface] using hstmtSurface)) ihRest
@@ -3395,6 +3506,16 @@ theorem stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsuppo
           exact StmtListScopeCore.setStorageAddr
             (by simp [CompilationModel.compileStmt] at hhead
                 exact fieldName_mem_fields_of_compileSetStorage_ok hhead)
+            (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+              (by simpa [stmtTouchesUnsupportedContractSurface] using hstmtSurface))
+            (ih hrestSurface htail)
+      | setStorageWord fieldName wordOffset value =>
+          exact StmtListScopeCore.setStorageWord
+            (by
+              simp only [CompilationModel.compileStmt, bind, Except.bind] at hhead
+              rcases hfind : findFieldWithResolvedSlot fields fieldName with _ | ⟨f, slot⟩
+              · simp [hfind] at hhead
+              · exact fieldName_mem_fields_of_findFieldWithResolvedSlot_some hfind)
             (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
               (by simpa [stmtTouchesUnsupportedContractSurface] using hstmtSurface))
             (ih hrestSurface htail)
@@ -4073,6 +4194,28 @@ private theorem stmtListScopeDiscipline_of_validateScopedStmtListIdentifiers
             (by
               intro other hmem
               exact mem_stmtNextScope_of_mem_scope (hlocalsInScope other hmem)))
+  | setStorageWord hfield hvalueCore hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      have hstmt' := hstmt
+      unfold validateScopedStmtIdentifiers at hstmt'
+      revert hstmt'
+      rcases hExprVal : validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount _ with _ | _
+      · intro h; simp [bind, Except.bind] at h
+      · simp only [bind, Except.bind, pure, Except.pure]
+        intro h; cases h
+        exact StmtListScopeDiscipline.setStorageWord
+          hfield
+          hvalueCore
+          (exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
+            hvalueCore hExprVal hparamsInScope hlocalsInScope)
+          (ih hrestValidate
+            (by
+              intro other hmem
+              exact mem_stmtNextScope_of_mem_scope (hparamsInScope other hmem))
+            (by
+              intro other hmem
+              exact mem_stmtNextScope_of_mem_scope (hlocalsInScope other hmem)))
   | mstore hcoreOffset hcoreValue hrest ih =>
       rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
         ⟨nextLocalScope, hstmt, hrestValidate⟩
@@ -4318,6 +4461,25 @@ private theorem scopeNamesPresent_foldl_stmtNextScope_of_validateScopedStmtListI
             exact mem_stmtNextScope_of_mem_scope (hlocalsInScope name hname))
           other hmem
   | setStorageAddr hfield hvalueCore hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      have hstmt' := hstmt
+      unfold validateScopedStmtIdentifiers at hstmt'
+      revert hstmt'
+      rcases hExprVal : validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount _ with _ | _
+      · intro h; simp [bind, Except.bind] at h
+      · simp only [bind, Except.bind, pure, Except.pure]
+        intro h; cases h
+        intro other hmem
+        exact ih hrestValidate
+          (by
+            intro name hname
+            exact mem_stmtNextScope_of_mem_scope (hparamsInScope name hname))
+          (by
+            intro name hname
+            exact mem_stmtNextScope_of_mem_scope (hlocalsInScope name hname))
+          other hmem
+  | setStorageWord hfield hvalueCore hrest ih =>
       rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
         ⟨nextLocalScope, hstmt, hrestValidate⟩
       have hstmt' := hstmt
@@ -4600,6 +4762,18 @@ private theorem stmtListScopeDiscipline_scope_names
       · right; right; left; exact hassign
       · right; right; right; exact hfld
   | setStorageAddr _hfield hcore hinScope _ ih =>
+      intro other hmem
+      simp only [List.foldl] at hmem
+      have htail := ih other hmem
+      simp [stmtNextScope, collectStmtNames, collectStmtListBindNames, collectStmtBindNames,
+        collectStmtListAssignedNames, collectStmtAssignedNames] at htail ⊢
+      rcases htail with hvalue | hscope | hbind | hassign | hfld
+      · left; exact hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hvalue)
+      · left; exact hscope
+      · right; left; exact hbind
+      · right; right; left; exact hassign
+      · right; right; right; exact hfld
+  | setStorageWord _hfield hcore hinScope _ ih =>
       intro other hmem
       simp only [List.foldl] at hmem
       have htail := ih other hmem
@@ -5746,9 +5920,9 @@ private theorem encodeStorageAt_eq_storageAddr_of_resolvedSlot
     {f : Field}
     (hresolved : findResolvedFieldAtSlotCopy fields slot = some f)
     (haddr : SourceSemantics.fieldUsesAddressStorage f = true)
-    (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false) :
+    (_hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false) :
     SourceSemantics.encodeStorageAt fields world slot = (world.storageAddr slot).val := by
-  simpa [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, haddr, hnotDyn]
+  simpa [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, haddr]
 
 private theorem encodeStorageAt_writeUintKeyedMappingSlots_singleton_eq_written
     {fields : List Field}
@@ -6574,7 +6748,7 @@ private theorem execIRStmts_sstore_lit_ident_slots_continue
       have hfuel : rest.length + 1 + fuel = rest.length + fuel + 1 := by omega
       rw [hfuel, hstmt]
       simp only [abstractStoreStorageOrMappingMany]
-      convert htail using 2 <;> omega
+      convert htail using 2
 
 private theorem execIRStmts_let_then_sstore_lit_ident_slots_continue
     (fuel : Nat)
@@ -14826,8 +15000,8 @@ theorem exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel_step
     (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
     (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
     (hbounded : FunctionBody.bindingsBounded runtime.bindings)
-    (hnoEvents : spec.events = [])
-    (hnoErrors : spec.errors = [])
+    (_hnoEvents : spec.events = [])
+    (_hnoErrors : spec.errors = [])
     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
@@ -14993,8 +15167,8 @@ theorem exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel
     (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
     (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
     (hbounded : FunctionBody.bindingsBounded runtime.bindings)
-    (hnoEvents : spec.events = [])
-    (hnoErrors : spec.errors = [])
+    (_hnoEvents : spec.events = [])
+    (_hnoErrors : spec.errors = [])
     (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
     ∃ bodyIR,
       CompilationModel.compileStmtList
@@ -16520,7 +16694,7 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers_an
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
     (hnoAdtTypes : model.adtTypes = [])
-    (hnoPacked : ∀ field ∈ model.fields, field.packedBits = none)
+    (_hnoPacked : ∀ field ∈ model.fields, field.packedBits = none)
     (hcontractSurface : stmtListTouchesUnsupportedContractSurface fn.body = false)
     (hhelperFree :
       StmtListHelperFreeStepInterface
@@ -16690,8 +16864,8 @@ theorem
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
     (hnoAdtTypes : model.adtTypes = [])
-    (hnoPacked : ∀ field ∈ model.fields, field.packedBits = none)
-    (hcontractSurface :
+    (_hnoPacked : ∀ field ∈ model.fields, field.packedBits = none)
+    (_hcontractSurface :
       stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites fn.body = false)
     (hhelperSurface :
       stmtListTouchesUnsupportedHelperSurface fn.body = false)

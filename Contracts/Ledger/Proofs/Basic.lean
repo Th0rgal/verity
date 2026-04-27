@@ -4,7 +4,7 @@
   Proves mapping-based balance operations:
   - deposit increases sender balance
   - withdraw decreases sender balance (guarded)
-  - transfer moves between accounts (guarded, sender ≠ to, no overflow)
+  - transfer moves between accounts (guarded, sender ≠ toAddr, no overflow)
   - getBalance returns correct value
   - All operations preserve non-mapping storage
 -/
@@ -161,24 +161,24 @@ theorem withdraw_reverts_insufficient (s : ContractState) (amount : Uint256)
 
 /-! ## Transfer Correctness -/
 
-/-- Helper: unfold transfer when balance sufficient and sender == to (no-op). -/
-private theorem transfer_unfold_self (s : ContractState) (to : Address) (amount : Uint256)
+/-- Helper: unfold transfer when balance sufficient and sender == toAddr (no-op). -/
+private theorem transfer_unfold_self (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount)
-  (h_eq : s.sender = to) :
-  (transfer to amount).run s = ContractResult.success () s := by
+  (h_eq : s.sender = toAddr) :
+  (transfer toAddr amount).run s = ContractResult.success () s := by
   verity_unfold transfer
   simp [balances, Verity.pure, uint256_ge_val_le (h_eq ▸ h_balance), h_eq]
 
-/-- Helper: unfold transfer when balance sufficient and sender ≠ to. -/
-private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount : Uint256)
+/-- Helper: unfold transfer when balance sufficient and sender ≠ toAddr. -/
+private theorem transfer_unfold_other (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount)
-  (h_ne : s.sender ≠ to) :
-  (transfer to amount).run s = ContractResult.success ()
+  (h_ne : s.sender ≠ toAddr) :
+  (transfer toAddr amount).run s = ContractResult.success ()
     { «storage» := s.storage,
       transientStorage := s.transientStorage,
       storageAddr := s.storageAddr,
       storageMap := fun slotIdx addr =>
-        if (slotIdx == 0 && addr == to) = true then EVM.Uint256.add (s.storageMap 0 to) amount
+        if (slotIdx == 0 && addr == toAddr) = true then EVM.Uint256.add (s.storageMap 0 toAddr) amount
         else if (slotIdx == 0 && addr == s.sender) = true then EVM.Uint256.sub (s.storageMap 0 s.sender) amount
         else s.storageMap slotIdx addr,
       storageMapUint := s.storageMapUint,
@@ -195,7 +195,7 @@ private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount
       calldata := s.calldata,
       memory := s.memory,
       knownAddresses := fun slotIdx =>
-        if slotIdx == 0 then ((s.knownAddresses slotIdx).insert s.sender).insert to
+        if slotIdx == 0 then ((s.knownAddresses slotIdx).insert s.sender).insert toAddr
         else s.knownAddresses slotIdx,
       events := s.events } := by
   simp only [transfer, Contracts.Ledger.balances,
@@ -208,12 +208,12 @@ private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount
   funext slotIdx
   split <;> simp [*]
 
-theorem transfer_meets_spec (s : ContractState) (to : Address) (amount : Uint256)
+theorem transfer_meets_spec (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount) :
-  let s' := ((transfer to amount).run s).snd
-  transfer_spec to amount s s' := by
-  by_cases h_eq : s.sender = to
-  · rw [transfer_unfold_self s to amount h_balance h_eq]
+  let s' := ((transfer toAddr amount).run s).snd
+  transfer_spec toAddr amount s s' := by
+  by_cases h_eq : s.sender = toAddr
+  · rw [transfer_unfold_self s toAddr amount h_balance h_eq]
     simp only [ContractResult.snd, transfer_spec]
     refine ⟨?_, ?_, ?_, ?_⟩
     · simp [h_eq]
@@ -221,9 +221,9 @@ theorem transfer_meets_spec (s : ContractState) (to : Address) (amount : Uint256
     · simp [h_eq, Specs.storageMapUnchangedExceptKeyAtSlot,
         Specs.storageMapUnchangedExceptKey, Specs.storageMapUnchangedExceptSlot]
     · simp [Specs.sameStorageAddrContext, Specs.sameStorage, Specs.sameStorageAddr, Specs.sameStorageArray, Specs.sameContext]
-  · rw [transfer_unfold_other s to amount h_balance h_eq]
+  · rw [transfer_unfold_other s toAddr amount h_balance h_eq]
     simp only [ContractResult.snd, transfer_spec]
-    have h_ne' := address_beq_false_of_ne s.sender to h_eq
+    have h_ne' := address_beq_false_of_ne s.sender toAddr h_eq
     refine ⟨?_, ?_, ?_, ?_⟩
     · simp [h_ne']
     · simp [h_ne']
@@ -243,44 +243,44 @@ theorem transfer_self_preserves_balance (s : ContractState) (amount : Uint256)
   simp [transfer_spec] at h
   exact h.1
 
-theorem transfer_decreases_sender (s : ContractState) (to : Address) (amount : Uint256)
+theorem transfer_decreases_sender (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount)
-  (h_ne : s.sender ≠ to) :
-  let s' := ((transfer to amount).run s).snd
+  (h_ne : s.sender ≠ toAddr) :
+  let s' := ((transfer toAddr amount).run s).snd
   s'.storageMap 0 s.sender = EVM.Uint256.sub (s.storageMap 0 s.sender) amount := by
-  have h := transfer_meets_spec s to amount h_balance
+  have h := transfer_meets_spec s toAddr amount h_balance
   simp [transfer_spec, h_ne, beq_iff_eq] at h
   exact h.1
 
-theorem transfer_increases_recipient (s : ContractState) (to : Address) (amount : Uint256)
+theorem transfer_increases_recipient (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount)
-  (h_ne : s.sender ≠ to) :
-  let s' := ((transfer to amount).run s).snd
-  s'.storageMap 0 to = EVM.Uint256.add (s.storageMap 0 to) amount := by
-  have h := transfer_meets_spec s to amount h_balance
+  (h_ne : s.sender ≠ toAddr) :
+  let s' := ((transfer toAddr amount).run s).snd
+  s'.storageMap 0 toAddr = EVM.Uint256.add (s.storageMap 0 toAddr) amount := by
+  have h := transfer_meets_spec s toAddr amount h_balance
   simp [transfer_spec, h_ne, beq_iff_eq] at h
   exact h.2.1
 
-theorem transfer_reverts_insufficient (s : ContractState) (to : Address) (amount : Uint256)
+theorem transfer_reverts_insufficient (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_insufficient : ¬(s.storageMap 0 s.sender >= amount)) :
-  ∃ msg, (transfer to amount).run s = ContractResult.revert msg s := by
+  ∃ msg, (transfer toAddr amount).run s = ContractResult.revert msg s := by
   simp [transfer, msgSender, getMapping, balances,
     Verity.require, Verity.bind, Bind.bind, Contract.run,
     show (s.storageMap 0 s.sender >= amount) = false from by
       simp [ge_iff_le] at h_insufficient ⊢; omega]
 
 -- Transfer does not revert on recipient overflow; Uint256 addition wraps.
-theorem transfer_succeeds_recipient_overflow (s : ContractState) (to : Address) (amount : Uint256)
+theorem transfer_succeeds_recipient_overflow (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount)
-  (h_ne : s.sender ≠ to)
-  (_h_overflow : (s.storageMap 0 to : Nat) + (amount : Nat) > MAX_UINT256) :
-  ∃ s', (transfer to amount).run s = ContractResult.success () s' := by
+  (h_ne : s.sender ≠ toAddr)
+  (_h_overflow : (s.storageMap 0 toAddr : Nat) + (amount : Nat) > MAX_UINT256) :
+  ∃ s', (transfer toAddr amount).run s = ContractResult.success () s' := by
   let s' : ContractState :=
     { «storage» := s.storage,
       transientStorage := s.transientStorage,
       storageAddr := s.storageAddr,
       storageMap := fun slotIdx addr =>
-        if (slotIdx == 0 && addr == to) = true then EVM.Uint256.add (s.storageMap 0 to) amount
+        if (slotIdx == 0 && addr == toAddr) = true then EVM.Uint256.add (s.storageMap 0 toAddr) amount
         else if (slotIdx == 0 && addr == s.sender) = true then EVM.Uint256.sub (s.storageMap 0 s.sender) amount
         else s.storageMap slotIdx addr,
       storageMapUint := s.storageMapUint,
@@ -297,11 +297,11 @@ theorem transfer_succeeds_recipient_overflow (s : ContractState) (to : Address) 
       calldata := s.calldata,
       memory := s.memory,
       knownAddresses := fun slotIdx =>
-        if slotIdx == 0 then ((s.knownAddresses slotIdx).insert s.sender).insert to
+        if slotIdx == 0 then ((s.knownAddresses slotIdx).insert s.sender).insert toAddr
         else s.knownAddresses slotIdx,
       events := s.events }
   refine ⟨s', ?_⟩
-  simpa [s'] using transfer_unfold_other s to amount h_balance h_ne
+  simpa [s'] using transfer_unfold_other s toAddr amount h_balance h_ne
 
 /-! ## State Preservation -/
 
@@ -363,7 +363,7 @@ Withdraw (guarded):
 8. withdraw_decreases_balance
 9. withdraw_reverts_insufficient
 
-Transfer (guarded, sender ≠ to):
+Transfer (guarded, sender ≠ toAddr):
 10. transfer_meets_spec
 11. transfer_decreases_sender
 12. transfer_increases_recipient

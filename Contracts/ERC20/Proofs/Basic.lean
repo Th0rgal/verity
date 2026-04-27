@@ -87,17 +87,17 @@ theorem getOwner_meets_spec (s : ContractState) :
     Verity.pure, Pure.pure, ownerSlot]
 
 /-- Helper: unfold `mint` on the successful owner/non-overflow path. -/
-private theorem mint_unfold (s : ContractState) (to : Address) (amount : Uint256)
+private theorem mint_unfold (s : ContractState) (toAddr : Address) (amount : Uint256)
     (h_owner : s.sender = s.storageAddr 0)
-    (h_no_bal_overflow : (s.storageMap 2 to : Nat) + (amount : Nat) ≤ MAX_UINT256)
+    (h_no_bal_overflow : (s.storageMap 2 toAddr : Nat) + (amount : Nat) ≤ MAX_UINT256)
     (h_no_sup_overflow : (s.storage 1 : Nat) + (amount : Nat) ≤ MAX_UINT256) :
-    (mint to amount).run s = ContractResult.success ()
+    (mint toAddr amount).run s = ContractResult.success ()
       { «storage» := fun slotIdx =>
           if slotIdx == 1 then EVM.Uint256.add (s.storage 1) amount else s.storage slotIdx,
         transientStorage := s.transientStorage,
         storageAddr := s.storageAddr,
         storageMap := fun slotIdx addr =>
-          if (slotIdx == 2 && addr == to) = true then EVM.Uint256.add (s.storageMap 2 to) amount
+          if (slotIdx == 2 && addr == toAddr) = true then EVM.Uint256.add (s.storageMap 2 toAddr) amount
         else s.storageMap slotIdx addr,
         storageMapUint := s.storageMapUint,
         storageMap2 := s.storageMap2,
@@ -113,9 +113,9 @@ private theorem mint_unfold (s : ContractState) (to : Address) (amount : Uint256
         calldata := s.calldata,
         memory := s.memory,
         knownAddresses := fun slotIdx =>
-          if slotIdx == 2 then (s.knownAddresses slotIdx).insert to else s.knownAddresses slotIdx,
+          if slotIdx == 2 then (s.knownAddresses slotIdx).insert toAddr else s.knownAddresses slotIdx,
         events := s.events } := by
-  have h_safe_bal := safeAdd_some (s.storageMap 2 to) amount h_no_bal_overflow
+  have h_safe_bal := safeAdd_some (s.storageMap 2 toAddr) amount h_no_bal_overflow
   have h_safe_sup := safeAdd_some (s.storage 1) amount h_no_sup_overflow
   verity_unfold mint
   simp only [ownerSlot, balancesSlot, totalSupplySlot,
@@ -128,12 +128,12 @@ private theorem mint_unfold (s : ContractState) (to : Address) (amount : Uint256
   simp only [HAdd.hAdd, h_owner]
 
 /-- `mint` satisfies `mint_spec` under owner and no-overflow preconditions. -/
-theorem mint_meets_spec_when_owner (s : ContractState) (to : Address) (amount : Uint256)
+theorem mint_meets_spec_when_owner (s : ContractState) (toAddr : Address) (amount : Uint256)
     (h_owner : s.sender = s.storageAddr 0)
-    (h_no_bal_overflow : (s.storageMap 2 to : Nat) + (amount : Nat) ≤ MAX_UINT256)
+    (h_no_bal_overflow : (s.storageMap 2 toAddr : Nat) + (amount : Nat) ≤ MAX_UINT256)
     (h_no_sup_overflow : (s.storage 1 : Nat) + (amount : Nat) ≤ MAX_UINT256) :
-    mint_spec to amount s ((mint to amount).runState s) := by
-  have h_unfold := mint_unfold s to amount h_owner h_no_bal_overflow h_no_sup_overflow
+    mint_spec toAddr amount s ((mint toAddr amount).runState s) := by
+  have h_unfold := mint_unfold s toAddr amount h_owner h_no_bal_overflow h_no_sup_overflow
   have h_unfold_apply := Contract.eq_of_run_success h_unfold
   simp only [Contract.runState, mint_spec]
   rw [h_unfold_apply]
@@ -153,43 +153,43 @@ theorem mint_meets_spec_when_owner (s : ContractState) (to : Address) (amount : 
   · exact Specs.sameContext_rfl _
 
 /-- Under successful-owner assumptions, `mint` increases recipient balance by `amount`. -/
-theorem mint_increases_balance_when_owner (s : ContractState) (to : Address) (amount : Uint256)
+theorem mint_increases_balance_when_owner (s : ContractState) (toAddr : Address) (amount : Uint256)
     (h_owner : s.sender = s.storageAddr 0)
-    (h_no_bal_overflow : (s.storageMap 2 to : Nat) + (amount : Nat) ≤ MAX_UINT256)
+    (h_no_bal_overflow : (s.storageMap 2 toAddr : Nat) + (amount : Nat) ≤ MAX_UINT256)
     (h_no_sup_overflow : (s.storage 1 : Nat) + (amount : Nat) ≤ MAX_UINT256) :
-    ((mint to amount).runState s).storageMap 2 to = EVM.Uint256.add (s.storageMap 2 to) amount := by
-  have h := mint_meets_spec_when_owner s to amount h_owner h_no_bal_overflow h_no_sup_overflow
+    ((mint toAddr amount).runState s).storageMap 2 toAddr = EVM.Uint256.add (s.storageMap 2 toAddr) amount := by
+  have h := mint_meets_spec_when_owner s toAddr amount h_owner h_no_bal_overflow h_no_sup_overflow
   exact h.1
 
 /-- Under successful-owner assumptions, `mint` increases total supply by `amount`. -/
-theorem mint_increases_supply_when_owner (s : ContractState) (to : Address) (amount : Uint256)
+theorem mint_increases_supply_when_owner (s : ContractState) (toAddr : Address) (amount : Uint256)
     (h_owner : s.sender = s.storageAddr 0)
-    (h_no_bal_overflow : (s.storageMap 2 to : Nat) + (amount : Nat) ≤ MAX_UINT256)
+    (h_no_bal_overflow : (s.storageMap 2 toAddr : Nat) + (amount : Nat) ≤ MAX_UINT256)
     (h_no_sup_overflow : (s.storage 1 : Nat) + (amount : Nat) ≤ MAX_UINT256) :
-    ((mint to amount).runState s).storage 1 = EVM.Uint256.add (s.storage 1) amount := by
-  have h := mint_meets_spec_when_owner s to amount h_owner h_no_bal_overflow h_no_sup_overflow
+    ((mint toAddr amount).runState s).storage 1 = EVM.Uint256.add (s.storage 1) amount := by
+  have h := mint_meets_spec_when_owner s toAddr amount h_owner h_no_bal_overflow h_no_sup_overflow
   exact h.2.1
 
 /-- Helper: unfold `transfer` on the successful self-transfer path. -/
-private theorem transfer_unfold_self (s : ContractState) (to : Address) (amount : Uint256)
+private theorem transfer_unfold_self (s : ContractState) (toAddr : Address) (amount : Uint256)
     (h_balance : s.storageMap 2 s.sender ≥ amount)
-    (h_eq : s.sender = to) :
-    (transfer to amount).run s = ContractResult.success () s := by
+    (h_eq : s.sender = toAddr) :
+    (transfer toAddr amount).run s = ContractResult.success () s := by
   have h_balance' := uint256_ge_val_le (h_eq ▸ h_balance)
   verity_unfold transfer
   simp [balancesSlot, Verity.pure, h_balance', h_eq]
 
 /-- Helper: unfold `transfer` on the successful non-self path with no overflow. -/
-private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount : Uint256)
+private theorem transfer_unfold_other (s : ContractState) (toAddr : Address) (amount : Uint256)
     (h_balance : s.storageMap 2 s.sender ≥ amount)
-    (h_ne : s.sender ≠ to)
-    (h_no_overflow : (s.storageMap 2 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
-    (transfer to amount).run s = ContractResult.success ()
+    (h_ne : s.sender ≠ toAddr)
+    (h_no_overflow : (s.storageMap 2 toAddr : Nat) + (amount : Nat) ≤ MAX_UINT256) :
+    (transfer toAddr amount).run s = ContractResult.success ()
       { «storage» := s.storage,
         transientStorage := s.transientStorage,
         storageAddr := s.storageAddr,
         storageMap := fun slotIdx addr =>
-          if (slotIdx == 2 && addr == to) = true then EVM.Uint256.add (s.storageMap 2 to) amount
+          if (slotIdx == 2 && addr == toAddr) = true then EVM.Uint256.add (s.storageMap 2 toAddr) amount
           else if (slotIdx == 2 && addr == s.sender) = true then EVM.Uint256.sub (s.storageMap 2 s.sender) amount
         else s.storageMap slotIdx addr,
         storageMapUint := s.storageMapUint,
@@ -206,11 +206,11 @@ private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount
         memory := s.memory,
         calldata := s.calldata,
         knownAddresses := fun slotIdx =>
-          if slotIdx == 2 then ((s.knownAddresses slotIdx).insert s.sender).insert to
+          if slotIdx == 2 then ((s.knownAddresses slotIdx).insert s.sender).insert toAddr
           else s.knownAddresses slotIdx,
         events := s.events } := by
   have h_balance' := uint256_ge_val_le h_balance
-  have h_safe := safeAdd_some (s.storageMap 2 to) amount h_no_overflow
+  have h_safe := safeAdd_some (s.storageMap 2 toAddr) amount h_no_overflow
   simp only [transfer, balancesSlot, msgSender, getMapping, setMapping, requireSomeUint,
     Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
     Contract.run, h_balance, h_ne, beq_iff_eq, h_safe, decide_eq_true_eq,
@@ -221,12 +221,12 @@ private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount
   split <;> simp [*]
 
 /-- `transfer` satisfies `transfer_spec` under balance/overflow preconditions. -/
-theorem transfer_meets_spec_when_sufficient (s : ContractState) (to : Address) (amount : Uint256)
+theorem transfer_meets_spec_when_sufficient (s : ContractState) (toAddr : Address) (amount : Uint256)
     (h_balance : s.storageMap 2 s.sender ≥ amount)
-    (h_no_overflow : s.sender ≠ to → (s.storageMap 2 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
-    transfer_spec s.sender to amount s ((transfer to amount).runState s) := by
-  by_cases h_eq : s.sender = to
-  · have h_unfold := transfer_unfold_self s to amount h_balance h_eq
+    (h_no_overflow : s.sender ≠ toAddr → (s.storageMap 2 toAddr : Nat) + (amount : Nat) ≤ MAX_UINT256) :
+    transfer_spec s.sender toAddr amount s ((transfer toAddr amount).runState s) := by
+  by_cases h_eq : s.sender = toAddr
+  · have h_unfold := transfer_unfold_self s toAddr amount h_balance h_eq
     have h_unfold_apply := Contract.eq_of_run_success h_unfold
     simp only [Contract.runState, transfer_spec]
     rw [h_unfold_apply]
@@ -240,11 +240,11 @@ theorem transfer_meets_spec_when_sufficient (s : ContractState) (to : Address) (
     · rfl
     · rfl
     · exact Specs.sameContext_rfl _
-  · have h_unfold := transfer_unfold_other s to amount h_balance h_eq (h_no_overflow h_eq)
+  · have h_unfold := transfer_unfold_other s toAddr amount h_balance h_eq (h_no_overflow h_eq)
     have h_unfold_apply := Contract.eq_of_run_success h_unfold
     simp only [Contract.runState, transfer_spec]
     rw [h_unfold_apply]
-    have h_ne' := address_beq_false_of_ne s.sender to h_eq
+    have h_ne' := address_beq_false_of_ne s.sender toAddr h_eq
     refine ⟨h_balance, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
     · simp [h_ne']
     · simp [h_ne']
@@ -262,25 +262,25 @@ theorem transfer_meets_spec_when_sufficient (s : ContractState) (to : Address) (
 
 /-- On successful non-self transfer, sender balance decreases by `amount`. -/
 theorem transfer_decreases_sender_balance_when_sufficient
-    (s : ContractState) (to : Address) (amount : Uint256)
+    (s : ContractState) (toAddr : Address) (amount : Uint256)
     (h_balance : s.storageMap 2 s.sender ≥ amount)
-    (h_ne : s.sender ≠ to)
-    (h_no_overflow : (s.storageMap 2 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
-    ((transfer to amount).runState s).storageMap 2 s.sender =
+    (h_ne : s.sender ≠ toAddr)
+    (h_no_overflow : (s.storageMap 2 toAddr : Nat) + (amount : Nat) ≤ MAX_UINT256) :
+    ((transfer toAddr amount).runState s).storageMap 2 s.sender =
       EVM.Uint256.sub (s.storageMap 2 s.sender) amount := by
-  have h := transfer_meets_spec_when_sufficient s to amount h_balance (fun _ => h_no_overflow)
+  have h := transfer_meets_spec_when_sufficient s toAddr amount h_balance (fun _ => h_no_overflow)
   simp [transfer_spec, h_ne, beq_iff_eq] at h
   simpa [Contract.runState_eq_snd_run] using h.2.1
 
 /-- On successful non-self transfer, recipient balance increases by `amount`. -/
 theorem transfer_increases_recipient_balance_when_sufficient
-    (s : ContractState) (to : Address) (amount : Uint256)
+    (s : ContractState) (toAddr : Address) (amount : Uint256)
     (h_balance : s.storageMap 2 s.sender ≥ amount)
-    (h_ne : s.sender ≠ to)
-    (h_no_overflow : (s.storageMap 2 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
-    ((transfer to amount).runState s).storageMap 2 to =
-      EVM.Uint256.add (s.storageMap 2 to) amount := by
-  have h := transfer_meets_spec_when_sufficient s to amount h_balance (fun _ => h_no_overflow)
+    (h_ne : s.sender ≠ toAddr)
+    (h_no_overflow : (s.storageMap 2 toAddr : Nat) + (amount : Nat) ≤ MAX_UINT256) :
+    ((transfer toAddr amount).runState s).storageMap 2 toAddr =
+      EVM.Uint256.add (s.storageMap 2 toAddr) amount := by
+  have h := transfer_meets_spec_when_sufficient s toAddr amount h_balance (fun _ => h_no_overflow)
   simp [transfer_spec, h_ne, beq_iff_eq] at h
   simpa [Contract.runState_eq_snd_run] using h.2.2.1
 

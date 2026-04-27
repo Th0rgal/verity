@@ -23,6 +23,7 @@ from property_utils import ROOT, THEOREM_RE, strip_lean_comments
 # Any new declaration keyword that ends the current proof span.
 _DECL_RE = re.compile(
     r"^\s*(?:@\[[^\]]*\]\s*)*(?:(?:private|protected|noncomputable|unsafe)\s+)*"
+    r"(?:(?:partial)\s+)?"
     r"(?:theorem|lemma|def|example|instance|inductive|structure|class|abbrev|opaque)\s+"
 )
 _END_RE = re.compile(r"^\s*end\b")
@@ -268,6 +269,15 @@ ALLOWLIST: set[str] = {
     # Thin public wrapper; the scanner counts the trailing Phase 4 summary
     # comment in its theorem span.
     "simpleStorage_endToEnd_evmYulLean",
+    # Native public wrapper keeps the lowering equality, native environment
+    # validation, and callDispatcher bridge as explicit hypotheses so proof
+    # modules do not rely on VM computation; the body delegates to the lowered
+    # native Layer-3 theorem.
+    "simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge",
+    # Native SimpleStorage wrapper keeps the dispatcher-agreement seam explicit
+    # while delegating to the lowered native theorem; the long span is the public
+    # hypothesis surface, not a large proof script.
+    "simpleStorage_endToEnd_native_evmYulLean",
     # Safe-body public EVMYulLean wrapper derives the raw BridgedStmts function
     # hypotheses from compile output, static parameter closure, and
     # BridgedSafeStmts witnesses before delegating to the function-bridge
@@ -312,6 +322,16 @@ ALLOWLIST: set[str] = {
     # Recovery proof mirrors the executor's statement case split; each branch is
     # direct simplification back to execYulFuel.
     "execYulFuelWithBackend_verity_eq",
+    # Native harness block-append lemmas are structural inductions over a Yul
+    # block prefix with fuel normalization at each cons. The success, suffix
+    # error, and prefix-error variants are intentionally parallel because they
+    # encode distinct executor outcomes used by the native lowering harness.
+    "exec_block_append_error",
+    "exec_block_append_prefix_error",
+    # Native switch-case prefix-hit error mirrors the successful prefix-hit
+    # proof but threads an error result from the selected body through the
+    # generated case-chain fuel accounting.
+    "exec_nativeSwitchCaseIfs_prefix_hit_error_fuel",
     # Per-constructor straight-line statement backend equivalence: one short
     # case per `BridgedStraightStmt` constructor; the breadth of shapes
     # (comment/let/letMany/assign/leave/sstore_mapping/sstore_lit/

@@ -7,8 +7,8 @@
   3. Transfer has an exact sum conservation equation (accounting for occurrences)
 
   Key insight: supply_bounds_balances (∀ lists, sum ≤ supply) quantifies over ALL
-  lists including duplicates. For a list containing address `to` twice, minting
-  `amount` to `to` increases the sum by 2*amount but supply by only amount.
+  lists including duplicates. For a list containing address `toAddr` twice, minting
+  `amount` toAddr `toAddr` increases the sum by 2*amount but supply by only amount.
   This means the invariant cannot be preserved by mint/transfer in general.
   We prove the exact conservation equation instead, which is the strongest
   provable statement about how sums change under state-modifying operations.
@@ -31,7 +31,7 @@ open Contracts.SimpleToken.Invariants
 
 /-! ## Helper: All-Zero List Sum -/
 
-/-- If every element maps to 0, the list sum is 0. -/
+/-- If every element maps toAddr 0, the list sum is 0. -/
 private theorem map_sum_zero_of_all_zero
   (f : Address → Uint256) (h_zero : ∀ addr, f addr = 0) :
   ∀ addrs : List Address, (addrs.map f).sum = 0 := by
@@ -68,79 +68,79 @@ theorem constructor_establishes_supply_bounds (s : ContractState) (initialOwner 
 /-! ## Mint: Exact Sum Equation -/
 
 /-- Exact sum relationship after mint: the new sum equals the old sum plus
-    count(to, addrs) * amount. This captures that each occurrence of `to` in
-    the list contributes an additional `amount` to the sum. -/
-theorem mint_sum_equation (s : ContractState) (to : Address) (amount : Uint256)
+    count(toAddr, addrs) * amount. This captures that each occurrence of `toAddr` in
+    the list contributes an additional `amount` toAddr the sum. -/
+theorem mint_sum_equation (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_owner : s.sender = s.storageAddr 0)
-  (h_no_bal_overflow : (s.storageMap 1 to : Nat) + (amount : Nat) ≤ MAX_UINT256)
+  (h_no_bal_overflow : (s.storageMap 1 toAddr : Nat) + (amount : Nat) ≤ MAX_UINT256)
   (h_no_sup_overflow : (s.storage 2 : Nat) + (amount : Nat) ≤ MAX_UINT256) :
   ∀ addrs : List Address,
-    (addrs.map (fun addr => ((mint to amount).run s).snd.storageMap 1 addr)).sum
-    = (addrs.map (fun addr => s.storageMap 1 addr)).sum + countOccU to addrs * amount := by
-  have h_spec := mint_meets_spec_when_owner s to amount h_owner h_no_bal_overflow h_no_sup_overflow
+    (addrs.map (fun addr => ((mint toAddr amount).run s).snd.storageMap 1 addr)).sum
+    = (addrs.map (fun addr => s.storageMap 1 addr)).sum + countOccU toAddr addrs * amount := by
+  have h_spec := mint_meets_spec_when_owner s toAddr amount h_owner h_no_bal_overflow h_no_sup_overflow
   simp [mint_spec] at h_spec
   obtain ⟨h_bal_raw, _, h_other, _, _, _⟩ := h_spec
   have h_bal :
-      ((mint to amount).run s).snd.storageMap 1 to = s.storageMap 1 to + amount := by
+      ((mint toAddr amount).run s).snd.storageMap 1 toAddr = s.storageMap 1 toAddr + amount := by
     simpa [evm_add_eq_hadd] using h_bal_raw
   exact map_sum_point_update
     (fun addr => s.storageMap 1 addr)
-    (fun addr => ((mint to amount).run s).snd.storageMap 1 addr)
-    to amount h_bal h_other.1
+    (fun addr => ((mint toAddr amount).run s).snd.storageMap 1 addr)
+    toAddr amount h_bal h_other.1
 
-/-- Corollary: for a list where `to` appears exactly once, mint adds exactly `amount`. -/
-theorem mint_sum_singleton_to (s : ContractState) (to : Address) (amount : Uint256)
+/-- Corollary: for a list where `toAddr` appears exactly once, mint adds exactly `amount`. -/
+theorem mint_sum_singleton_to (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_owner : s.sender = s.storageAddr 0)
-  (h_no_bal_overflow : (s.storageMap 1 to : Nat) + (amount : Nat) ≤ MAX_UINT256)
+  (h_no_bal_overflow : (s.storageMap 1 toAddr : Nat) + (amount : Nat) ≤ MAX_UINT256)
   (h_no_sup_overflow : (s.storage 2 : Nat) + (amount : Nat) ≤ MAX_UINT256)
-  (addrs : List Address) (h_once : countOcc to addrs = 1) :
-  (addrs.map (fun addr => ((mint to amount).run s).snd.storageMap 1 addr)).sum
+  (addrs : List Address) (h_once : countOcc toAddr addrs = 1) :
+  (addrs.map (fun addr => ((mint toAddr amount).run s).snd.storageMap 1 addr)).sum
   = (addrs.map (fun addr => s.storageMap 1 addr)).sum + amount := by
-  have h := mint_sum_equation s to amount h_owner h_no_bal_overflow h_no_sup_overflow addrs
+  have h := mint_sum_equation s toAddr amount h_owner h_no_bal_overflow h_no_sup_overflow addrs
   simp [countOccU, h_once] at h
   simpa [Verity.Core.Uint256.add_comm] using h
 
 /-- Exact sum conservation equation for transfer:
-    new_sum + count(sender, addrs) * amount = old_sum + count(to, addrs) * amount.
+    new_sum + count(sender, addrs) * amount = old_sum + count(toAddr, addrs) * amount.
 
     This is the fundamental conservation law for transfer: each occurrence of the
     sender in the list loses `amount`, and each occurrence of the recipient gains
     `amount`. The equation holds exactly (not just as an inequality). -/
-theorem transfer_sum_equation (s : ContractState) (to : Address) (amount : Uint256)
+theorem transfer_sum_equation (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_balance : s.storageMap 1 s.sender ≥ amount)
-  (h_ne : s.sender ≠ to)
-  (h_no_overflow : (s.storageMap 1 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
+  (h_ne : s.sender ≠ toAddr)
+  (h_no_overflow : (s.storageMap 1 toAddr : Nat) + (amount : Nat) ≤ MAX_UINT256) :
   ∀ addrs : List Address,
-    (addrs.map (fun addr => ((transfer to amount).run s).snd.storageMap 1 addr)).sum
+    (addrs.map (fun addr => ((transfer toAddr amount).run s).snd.storageMap 1 addr)).sum
       + countOccU s.sender addrs * amount
     = (addrs.map (fun addr => s.storageMap 1 addr)).sum
-      + countOccU to addrs * amount := by
-  have h_spec := transfer_meets_spec_when_sufficient s to amount h_balance (fun _ => h_no_overflow)
+      + countOccU toAddr addrs * amount := by
+  have h_spec := transfer_meets_spec_when_sufficient s toAddr amount h_balance (fun _ => h_no_overflow)
   simp [transfer_spec, h_ne, beq_iff_eq] at h_spec
   obtain ⟨_, h_sender_bal, h_recip_bal, h_other_bal, _, _, _, _⟩ := h_spec
   have h_recip_bal' :
-      ((transfer to amount).run s).snd.storageMap 1 to = s.storageMap 1 to + amount := by
+      ((transfer toAddr amount).run s).snd.storageMap 1 toAddr = s.storageMap 1 toAddr + amount := by
     simpa [evm_add_eq_hadd] using h_recip_bal
   exact map_sum_transfer_eq
     (fun addr => s.storageMap 1 addr)
-    (fun addr => ((transfer to amount).run s).snd.storageMap 1 addr)
-    s.sender to amount h_ne h_sender_bal h_recip_bal'
+    (fun addr => ((transfer toAddr amount).run s).snd.storageMap 1 addr)
+    s.sender toAddr amount h_ne h_sender_bal h_recip_bal'
     h_other_bal.1
 
-/-- Corollary: for NoDup lists where sender and to each appear once,
+/-- Corollary: for NoDup lists where sender and toAddr each appear once,
     the total balance sum is exactly preserved by transfer. -/
-theorem transfer_sum_preserved_unique (s : ContractState) (to : Address) (amount : Uint256)
+theorem transfer_sum_preserved_unique (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_balance : s.storageMap 1 s.sender ≥ amount)
-  (h_ne : s.sender ≠ to)
-  (h_no_overflow : (s.storageMap 1 to : Nat) + (amount : Nat) ≤ MAX_UINT256)
+  (h_ne : s.sender ≠ toAddr)
+  (h_no_overflow : (s.storageMap 1 toAddr : Nat) + (amount : Nat) ≤ MAX_UINT256)
   (addrs : List Address)
   (h_sender_once : countOcc s.sender addrs = 1)
-  (h_to_once : countOcc to addrs = 1) :
-  (addrs.map (fun addr => ((transfer to amount).run s).snd.storageMap 1 addr)).sum
+  (h_to_once : countOcc toAddr addrs = 1) :
+  (addrs.map (fun addr => ((transfer toAddr amount).run s).snd.storageMap 1 addr)).sum
   = (addrs.map (fun addr => s.storageMap 1 addr)).sum := by
-  have h := transfer_sum_equation s to amount h_balance h_ne h_no_overflow addrs
+  have h := transfer_sum_equation s toAddr amount h_balance h_ne h_no_overflow addrs
   simp [countOccU, h_sender_once, h_to_once] at h
-  have h' : (addrs.map (fun addr => ((transfer to amount).run s).snd.storageMap 1 addr)).sum + amount =
+  have h' : (addrs.map (fun addr => ((transfer toAddr amount).run s).snd.storageMap 1 addr)).sum + amount =
       (addrs.map (fun addr => s.storageMap 1 addr)).sum + amount := by
     simpa [Verity.Core.Uint256.add_comm] using h
   exact Verity.Core.Uint256.add_right_cancel h'
@@ -156,13 +156,13 @@ Helper lemma:
 
 Supply conservation:
 2. constructor_establishes_supply_bounds — simpleTokenConstructor establishes invariant (all lists)
-3. mint_sum_equation — exact sum change: new = old + count(to) * amount
-4. mint_sum_singleton_to — for unique to: new_sum = old_sum + amount
-5. transfer_sum_equation — exact conservation: new + count(sender)*amt = old + count(to)*amt
-6. transfer_sum_preserved_unique — for unique sender & to: new_sum = old_sum
+3. mint_sum_equation — exact sum change: new = old + count(toAddr) * amount
+4. mint_sum_singleton_to — for unique toAddr: new_sum = old_sum + amount
+5. transfer_sum_equation — exact conservation: new + count(sender)*amt = old + count(toAddr)*amt
+6. transfer_sum_preserved_unique — for unique sender & toAddr: new_sum = old_sum
 
 NoDup corollaries (4 and 6) give the strongest practical conservation statements:
-when each address appears at most once in the list, mint adds exactly `amount` to
+when each address appears at most once in the list, mint adds exactly `amount` toAddr
 the balance sum, and transfer preserves it exactly.
 -/
 

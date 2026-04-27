@@ -67,10 +67,17 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.ImmutableSmoke.spec
   , Contracts.Smoke.TypedImmutableSmoke.spec
   , Contracts.Smoke.TupleSmoke.spec
+  , Contracts.Smoke.CurveCutArraySmoke.spec
+  , Contracts.Smoke.PackedStorageWriteSmoke.spec
+  , Contracts.Smoke.PackedAddressStorageWriteSmoke.spec
   , Contracts.Smoke.Uint8Smoke.spec
   , Contracts.BytesEqSmoke.spec
   , Contracts.Smoke.AddressHelpersSmoke.spec
   , Contracts.Smoke.ZeroAddressShadowSmoke.spec
+  , Contracts.Smoke.ContextAccessorShadowSmoke.spec
+  , Contracts.Smoke.FunctionOverloadSmoke.spec
+  , Contracts.Smoke.HelperExternalArgumentSmoke.spec
+  , Contracts.Smoke.BlockTimestampSmoke.spec
   , Contracts.Smoke.StructMappingSmoke.spec
   , Contracts.Smoke.ExternalCallSmoke.spec
   , Contracts.Smoke.TryExternalCallSmoke.spec

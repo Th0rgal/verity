@@ -311,9 +311,16 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.StringEqSmoke.spec
   , Contracts.BytesEqSmoke.spec
   , Contracts.Smoke.TupleSmoke.spec
+  , Contracts.Smoke.CurveCutArraySmoke.spec
+  , Contracts.Smoke.PackedStorageWriteSmoke.spec
+  , Contracts.Smoke.PackedAddressStorageWriteSmoke.spec
   , Contracts.Smoke.Uint8Smoke.spec
   , Contracts.Smoke.AddressHelpersSmoke.spec
   , Contracts.Smoke.ZeroAddressShadowSmoke.spec
+  , Contracts.Smoke.ContextAccessorShadowSmoke.spec
+  , Contracts.Smoke.FunctionOverloadSmoke.spec
+  , Contracts.Smoke.HelperExternalArgumentSmoke.spec
+  , Contracts.Smoke.BlockTimestampSmoke.spec
   , Contracts.Smoke.StructMappingSmoke.spec
   , Contracts.Smoke.ExternalCallSmoke.spec
   , Contracts.Smoke.TryExternalCallSmoke.spec
@@ -355,11 +362,6 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.AdtNewtypeCombo.spec
   , Contracts.Smoke.FullComboSmoke.spec
   ]
-
-private def functionSignature (fn : FunctionSpec) : String :=
-  let params := fn.params.map (fun p => paramTypeToSolidityString p.ty)
-  let paramStr := String.intercalate "," params
-  s!"{fn.name}({paramStr})"
 
 private def expectedExternalSignatures : List (String × List String) :=
   [ ("SimpleStorage", ["store(uint256)", "retrieve()"])
@@ -417,10 +419,20 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("StringEqSmoke", ["same(string,string)", "different(string,string)", "choose(string,string)"])
   , ("BytesEqSmoke", ["same(bytes,bytes)", "different(bytes,bytes)", "choose(bytes,bytes)"])
   , ("TupleSmoke", ["setFromPair((uint256,uint256))", "getPair(uint256)", "processConfig((address,address,uint256))"])
+  , ("CurveCutArraySmoke", ["firstCutXt((uint256,uint256,int256)[])", "returnCut((uint256,uint256,int256)[],uint256)",
+      "storeCut((uint256,uint256,int256)[],uint256)", "storeTwoCuts((uint256,uint256,int256)[],uint256,uint256)"])
+  , ("PackedStorageWriteSmoke", ["writeSlot0(bool,uint256)", "writeSlot1(uint256,uint256)"])
+  , ("PackedAddressStorageWriteSmoke", ["writeOwnerWord(uint256)"])
   , ("Uint8Smoke", ["acceptSig((uint8,bytes32,bytes32))", "sigV()"])
   , ("AddressHelpersSmoke", ["setDelegate(address,address)", "getDelegate(address)", "clearDelegate(address)",
       "hasDelegate(address)", "isDelegateZero(address)", "setOwnerForId(uint256,address)", "getOwnerForId(uint256)"])
   , ("ZeroAddressShadowSmoke", ["shadowWrite(address)"])
+  , ("ContextAccessorShadowSmoke", ["echoSenderName(address)", "constantNamedChainid()",
+      "immutableNamedBlockTimestamp()", "immutableNamedMsgSender()"])
+  , ("FunctionOverloadSmoke", ["echo(uint256)", "echo(address)", "echo(uint256,uint256)"])
+  , ("HelperExternalArgumentSmoke", ["idWord(uint256)", "pair(uint256)", "put(uint256)",
+      "bindExternalArg(uint256)", "tupleExternalArg(uint256)", "statementExternalArg(uint256)"])
+  , ("BlockTimestampSmoke", ["nowish()", "timestampPlus(uint256)", "blobFeePlus(uint256)"])
   , ("StructMappingSmoke", ["setPosition(address,uint256,uint256,address)", "totalPositionShares(address)",
       "delegateOf(address)", "setApproval(address,address,uint256,uint256)", "approvalOf(address,address)",
       "approvalNonce(address,address)"])
@@ -513,10 +525,18 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("StringEqSmoke", ["0x6df1667c", "0x1ce8f655", "0xc9e9b0e3"])
   , ("BytesEqSmoke", ["0xfc39552e", "0x2c16057d", "0x3eb6f0de"])
   , ("TupleSmoke", ["0x712ea680", "0xbdf391cc", "0x01b427d2"])
+  , ("CurveCutArraySmoke", ["0xefca8f0f", "0x6f413e6b", "0x0d7610a3", "0xbea7dfd2"])
+  , ("PackedStorageWriteSmoke", ["0xa0522387", "0x233ab149"])
+  , ("PackedAddressStorageWriteSmoke", ["0xd59c874d"])
   , ("Uint8Smoke", ["0xc233eaa7", "0x62fc458b"])
   , ("AddressHelpersSmoke", ["0x5c873849", "0x544d8564", "0xcc21cc2a", "0x480005cd", "0x67129177",
       "0x0b0126c5", "0x85a9cdd0"])
   , ("ZeroAddressShadowSmoke", ["0xc0aab575"])
+  , ("ContextAccessorShadowSmoke", ["0x40d06f02", "0xda15c6a0", "0x3f08a0dd", "0xe6d00bb0"])
+  , ("FunctionOverloadSmoke", ["0x6279e43c", "0x2ffdbf1a", "0x3bb2bcd0"])
+  , ("HelperExternalArgumentSmoke", ["0x2d29ad72", "0x645751af", "0x3f81a2c0",
+      "0xb503d0dd", "0xcdc18015", "0xe41657c6"])
+  , ("BlockTimestampSmoke", ["0xa676760e", "0x8c041599", "0x7150df5e"])
   , ("StructMappingSmoke", ["0x468c900e", "0xe7933b6a", "0x8d22ea2a", "0xf4536007", "0xcb01943e",
       "0x6c241120"])
   , ("ExternalCallSmoke", ["0x32fdff86", "0x21209dbd"])
@@ -593,7 +613,7 @@ private def _findIdxFieldRegression4 := Contracts.SimpleToken.findIdx_balancesSl
 -- Regression: `verity_contract` elaboration emits parameter-level findIdx simp lemmas.
 private def _findIdxParamRegression1 := Contracts.OwnedCounter.findIdx_param_initialOwner_constructor_OwnedCounter
 private def _findIdxParamRegression2 := Contracts.OwnedCounter.findIdx_param_newOwner_transferOwnership_OwnedCounter
-private def _findIdxParamRegression3 := Contracts.Ledger.findIdx_param_to_transfer_Ledger
+private def _findIdxParamRegression3 := Contracts.Ledger.findIdx_param_toAddr_transfer_Ledger
 private def _findIdxParamRegression4 := Contracts.Ledger.findIdx_param_amount_transfer_Ledger_decide
 
 private def checkMutabilitySmoke : IO Unit := do
@@ -844,10 +864,52 @@ private def checkDirectHelperCallSmoke : IO Unit := do
     (contains (reprStr runHelpers.body) "Stmt.internalCallAssign" &&
       contains (reprStr runHelpers.body) "\"internal_pairWithTotal\"")
 
+private def curveCutArrayStoreMemoizesIndex : Bool :=
+  match Contracts.Smoke.CurveCutArraySmoke.storeCut_modelBody with
+  | Stmt.letVar "arrayElement_index" (Expr.param "idx") ::
+    Stmt.letVar "xtReserve" (Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index") 3 0) ::
+    Stmt.letVar "liqSquare" (Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index") 3 1) ::
+    Stmt.letVar "offset" (Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index") 3 2) ::
+    _ => true
+  | _ => false
+
+private def curveCutArrayReturnMemoizesIndex : Bool :=
+  match Contracts.Smoke.CurveCutArraySmoke.returnCut_modelBody with
+  | Stmt.letVar "arrayElement_index" (Expr.param "idx") ::
+    Stmt.returnValues [
+      Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index") 3 0,
+      Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index") 3 1,
+      Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index") 3 2
+    ] ::
+    _ => true
+  | _ => false
+
+private def curveCutArrayRepeatedDestructuresUseFreshSyntheticIndexes : Bool :=
+  match Contracts.Smoke.CurveCutArraySmoke.storeTwoCuts_modelBody with
+  | Stmt.letVar "arrayElement_index" (Expr.param "firstIdx") ::
+    Stmt.letVar "firstXt" (Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index") 3 0) ::
+    Stmt.letVar "_firstLiq" (Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index") 3 1) ::
+    Stmt.letVar "_firstOffset" (Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index") 3 2) ::
+    Stmt.letVar "arrayElement_index_1" (Expr.param "secondIdx") ::
+    Stmt.letVar "secondXt" (Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index_1") 3 0) ::
+    Stmt.letVar "_secondLiq" (Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index_1") 3 1) ::
+    Stmt.letVar "_secondOffset" (Expr.arrayElementWord "cuts" (Expr.localVar "arrayElement_index_1") 3 2) ::
+    _ => true
+  | _ => false
+
+private def checkCurveCutArraySmoke : IO Unit := do
+  expectTrue "CurveCutArraySmoke: tuple arrayElement destructuring memoizes the index once"
+    curveCutArrayStoreMemoizesIndex
+  expectTrue "CurveCutArraySmoke: tuple arrayElement return memoizes the index once"
+    curveCutArrayReturnMemoizesIndex
+  expectTrue "CurveCutArraySmoke: repeated tuple arrayElement destructures use fresh synthetic indexes"
+    curveCutArrayRepeatedDestructuresUseFreshSyntheticIndexes
+
 private def checkSpec (spec : CompilationModel) : IO Unit := do
   let extFns := externalFunctions spec
   let fnNames := extFns.map (·.name)
-  expectTrue s!"{spec.name}: external function names are unique" (allDistinct fnNames)
+  let fnSignatures := extFns.map functionSignature
+  expectTrue s!"{spec.name}: external function signatures are unique" (allDistinct fnSignatures)
 
   let fieldNames := spec.fields.map (·.name)
   expectTrue s!"{spec.name}: field names are unique" (allDistinct fieldNames)
@@ -963,6 +1025,7 @@ private def checkSpec (spec : CompilationModel) : IO Unit := do
   checkLowLevelTryCatchSmoke
   checkSpecialEntrypointSmoke
   checkDirectHelperCallSmoke
+  checkCurveCutArraySmoke
   for spec in macroSpecs do
     checkSpec spec
 

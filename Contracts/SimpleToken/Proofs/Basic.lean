@@ -143,17 +143,17 @@ theorem isOwner_true_when_owner (s : ContractState) (h : s.sender = s.storageAdd
   simp [Contracts.SimpleToken.ownerSlot, h]
 
 -- Helper: unfold mint when owner guard passes and no overflow
-private theorem mint_unfold (s : ContractState) (to : Address) (amount : Uint256)
+private theorem mint_unfold (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_owner : s.sender = s.storageAddr 0)
-  (h_no_bal_overflow : (s.storageMap 1 to : Nat) + (amount : Nat) ≤ MAX_UINT256)
+  (h_no_bal_overflow : (s.storageMap 1 toAddr : Nat) + (amount : Nat) ≤ MAX_UINT256)
   (h_no_sup_overflow : (s.storage 2 : Nat) + (amount : Nat) ≤ MAX_UINT256) :
-  (mint to amount).run s = ContractResult.success ()
+  (mint toAddr amount).run s = ContractResult.success ()
     { «storage» := fun slotIdx =>
         if (slotIdx == 2) = true then EVM.Uint256.add (s.storage 2) amount else s.storage slotIdx,
       transientStorage := s.transientStorage,
       storageAddr := s.storageAddr,
       storageMap := fun slotIdx addr =>
-        if (slotIdx == 1 && addr == to) = true then EVM.Uint256.add (s.storageMap 1 to) amount
+        if (slotIdx == 1 && addr == toAddr) = true then EVM.Uint256.add (s.storageMap 1 toAddr) amount
         else s.storageMap slotIdx addr,
       storageMapUint := s.storageMapUint,
       storageMap2 := s.storageMap2,
@@ -169,10 +169,10 @@ private theorem mint_unfold (s : ContractState) (to : Address) (amount : Uint256
       calldata := s.calldata,
       memory := s.memory,
       knownAddresses := fun slotIdx =>
-        if slotIdx == 1 then (s.knownAddresses slotIdx).insert to
+        if slotIdx == 1 then (s.knownAddresses slotIdx).insert toAddr
         else s.knownAddresses slotIdx,
       events := s.events } := by
-  have h_safe_bal := safeAdd_some (s.storageMap 1 to) amount h_no_bal_overflow
+  have h_safe_bal := safeAdd_some (s.storageMap 1 toAddr) amount h_no_bal_overflow
   have h_safe_sup := safeAdd_some (s.storage 2) amount h_no_sup_overflow
   -- Unfold mint (checks-before-effects ordering: both requireSomeUint before mutations)
   verity_unfold mint
@@ -191,19 +191,19 @@ private theorem mint_unfold (s : ContractState) (to : Address) (amount : Uint256
   simp only [HAdd.hAdd, Add.add, h_owner]
 
 -- Mint correctness when caller is owner and no overflow
-theorem mint_meets_spec_when_owner (s : ContractState) (to : Address) (amount : Uint256)
+theorem mint_meets_spec_when_owner (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_owner : s.sender = s.storageAddr 0)
-  (h_no_bal_overflow : (s.storageMap 1 to : Nat) + (amount : Nat) ≤ MAX_UINT256)
+  (h_no_bal_overflow : (s.storageMap 1 toAddr : Nat) + (amount : Nat) ≤ MAX_UINT256)
   (h_no_sup_overflow : (s.storage 2 : Nat) + (amount : Nat) ≤ MAX_UINT256) :
-  let s' := ((mint to amount).run s).snd
-  mint_spec to amount s s' := by
-  have h_unfold := mint_unfold s to amount h_owner h_no_bal_overflow h_no_sup_overflow
+  let s' := ((mint toAddr amount).run s).snd
+  mint_spec toAddr amount s s' := by
+  have h_unfold := mint_unfold s toAddr amount h_owner h_no_bal_overflow h_no_sup_overflow
   have h_unfold_apply := Contract.eq_of_run_success h_unfold
   simp only [Contract.run, ContractResult.snd, mint_spec]
   rw [h_unfold_apply]
   simp only [ContractResult.snd]
   refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩
-  · simp -- balance of 'to' updated
+  · simp -- balance of 'toAddr' updated
   · simp -- supply updated
   · refine ⟨?_, ?_⟩
     · intro addr h_neq; simp [h_neq] -- other balances preserved
@@ -212,30 +212,30 @@ theorem mint_meets_spec_when_owner (s : ContractState) (to : Address) (amount : 
   · trivial -- owner preserved
   · exact Specs.sameContext_rfl _
 
-theorem mint_increases_balance (s : ContractState) (to : Address) (amount : Uint256)
+theorem mint_increases_balance (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_owner : s.sender = s.storageAddr 0)
-  (h_no_bal_overflow : (s.storageMap 1 to : Nat) + (amount : Nat) ≤ MAX_UINT256)
+  (h_no_bal_overflow : (s.storageMap 1 toAddr : Nat) + (amount : Nat) ≤ MAX_UINT256)
   (h_no_sup_overflow : (s.storage 2 : Nat) + (amount : Nat) ≤ MAX_UINT256) :
-  let s' := ((mint to amount).run s).snd
-  s'.storageMap 1 to = EVM.Uint256.add (s.storageMap 1 to) amount := by
-  have h := mint_meets_spec_when_owner s to amount h_owner h_no_bal_overflow h_no_sup_overflow
+  let s' := ((mint toAddr amount).run s).snd
+  s'.storageMap 1 toAddr = EVM.Uint256.add (s.storageMap 1 toAddr) amount := by
+  have h := mint_meets_spec_when_owner s toAddr amount h_owner h_no_bal_overflow h_no_sup_overflow
   simp [mint_spec] at h; exact h.1
 
-theorem mint_increases_supply (s : ContractState) (to : Address) (amount : Uint256)
+theorem mint_increases_supply (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_owner : s.sender = s.storageAddr 0)
-  (h_no_bal_overflow : (s.storageMap 1 to : Nat) + (amount : Nat) ≤ MAX_UINT256)
+  (h_no_bal_overflow : (s.storageMap 1 toAddr : Nat) + (amount : Nat) ≤ MAX_UINT256)
   (h_no_sup_overflow : (s.storage 2 : Nat) + (amount : Nat) ≤ MAX_UINT256) :
-  let s' := ((mint to amount).run s).snd
+  let s' := ((mint toAddr amount).run s).snd
   s'.storage 2 = EVM.Uint256.add (s.storage 2) amount := by
-  have h := mint_meets_spec_when_owner s to amount h_owner h_no_bal_overflow h_no_sup_overflow
+  have h := mint_meets_spec_when_owner s toAddr amount h_owner h_no_bal_overflow h_no_sup_overflow
   simp [mint_spec] at h; exact h.2.1
 
 -- Mint reverts on balance overflow
-theorem mint_reverts_balance_overflow (s : ContractState) (to : Address) (amount : Uint256)
+theorem mint_reverts_balance_overflow (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_owner : s.sender = s.storageAddr 0)
-  (h_overflow : (s.storageMap 1 to : Nat) + (amount : Nat) > MAX_UINT256) :
-  ∃ msg, (mint to amount).run s = ContractResult.revert msg s := by
-  have h_none := safeAdd_none (s.storageMap 1 to) amount h_overflow
+  (h_overflow : (s.storageMap 1 toAddr : Nat) + (amount : Nat) > MAX_UINT256) :
+  ∃ msg, (mint toAddr amount).run s = ContractResult.revert msg s := by
+  have h_none := safeAdd_none (s.storageMap 1 toAddr) amount h_overflow
   simp [mint, Contracts.SimpleToken.onlyOwner, isOwner, requireSomeUint,
     Contracts.SimpleToken.ownerSlot, Contracts.SimpleToken.balancesSlot, Contracts.SimpleToken.totalSupplySlot,
     msgSender, getStorageAddr, setStorageAddr, getStorage, setStorage, getMapping, setMapping,
@@ -246,12 +246,12 @@ theorem mint_reverts_balance_overflow (s : ContractState) (to : Address) (amount
 -- Mint reverts on supply overflow (even if balance doesn't overflow).
 -- With checks-before-effects ordering, the revert happens before any state
 -- mutations, so the revert state equals the original state `s`.
-theorem mint_reverts_supply_overflow (s : ContractState) (to : Address) (amount : Uint256)
+theorem mint_reverts_supply_overflow (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_owner : s.sender = s.storageAddr 0)
-  (h_no_bal_overflow : (s.storageMap 1 to : Nat) + (amount : Nat) ≤ MAX_UINT256)
+  (h_no_bal_overflow : (s.storageMap 1 toAddr : Nat) + (amount : Nat) ≤ MAX_UINT256)
   (h_overflow : (s.storage 2 : Nat) + (amount : Nat) > MAX_UINT256) :
-  ∃ msg, (mint to amount).run s = ContractResult.revert msg s := by
-  have h_safe_bal := safeAdd_some (s.storageMap 1 to) amount h_no_bal_overflow
+  ∃ msg, (mint toAddr amount).run s = ContractResult.revert msg s := by
+  have h_safe_bal := safeAdd_some (s.storageMap 1 toAddr) amount h_no_bal_overflow
   have h_none := safeAdd_none (s.storage 2) amount h_overflow
   simp only [mint, Contracts.SimpleToken.onlyOwner, isOwner, requireSomeUint,
     Contracts.SimpleToken.ownerSlot, Contracts.SimpleToken.balancesSlot, Contracts.SimpleToken.totalSupplySlot,
@@ -271,10 +271,10 @@ fully modeled, matching Solidity ^0.8 checked arithmetic semantics.
 -/
 
 -- Helper lemma: after unfolding transfer with sufficient balance and self-transfer, state is unchanged
-private theorem transfer_unfold_self (s : ContractState) (to : Address) (amount : Uint256)
+private theorem transfer_unfold_self (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_balance : s.storageMap 1 s.sender ≥ amount)
-  (h_eq : s.sender = to) :
-  (transfer to amount).run s = ContractResult.success () s := by
+  (h_eq : s.sender = toAddr) :
+  (transfer toAddr amount).run s = ContractResult.success () s := by
   have h_balance' := uint256_ge_val_le (h_eq ▸ h_balance)
   verity_unfold transfer
   simp [Contracts.SimpleToken.balancesSlot,
@@ -282,16 +282,16 @@ private theorem transfer_unfold_self (s : ContractState) (to : Address) (amount 
     h_balance', h_eq, beq_iff_eq]
 
 -- Helper lemma: after unfolding transfer with sufficient balance, distinct recipient, and no overflow
-private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount : Uint256)
+private theorem transfer_unfold_other (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_balance : s.storageMap 1 s.sender ≥ amount)
-  (h_ne : s.sender ≠ to)
-  (h_no_overflow : (s.storageMap 1 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
-  (transfer to amount).run s = ContractResult.success ()
+  (h_ne : s.sender ≠ toAddr)
+  (h_no_overflow : (s.storageMap 1 toAddr : Nat) + (amount : Nat) ≤ MAX_UINT256) :
+  (transfer toAddr amount).run s = ContractResult.success ()
     { «storage» := s.storage,
       transientStorage := s.transientStorage,
       storageAddr := s.storageAddr,
       storageMap := fun slotIdx addr =>
-        if (slotIdx == 1 && addr == to) = true then EVM.Uint256.add (s.storageMap 1 to) amount
+        if (slotIdx == 1 && addr == toAddr) = true then EVM.Uint256.add (s.storageMap 1 toAddr) amount
         else if (slotIdx == 1 && addr == s.sender) = true then EVM.Uint256.sub (s.storageMap 1 s.sender) amount
         else s.storageMap slotIdx addr,
       storageMapUint := s.storageMapUint,
@@ -308,11 +308,11 @@ private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount
       calldata := s.calldata,
       memory := s.memory,
       knownAddresses := fun slotIdx =>
-        if slotIdx == 1 then ((s.knownAddresses slotIdx).insert s.sender).insert to
+        if slotIdx == 1 then ((s.knownAddresses slotIdx).insert s.sender).insert toAddr
         else s.knownAddresses slotIdx,
       events := s.events } := by
   have h_balance' := uint256_ge_val_le h_balance
-  have h_safe := safeAdd_some (s.storageMap 1 to) amount h_no_overflow
+  have h_safe := safeAdd_some (s.storageMap 1 toAddr) amount h_no_overflow
   simp only [transfer, Contracts.SimpleToken.balancesSlot,
     msgSender, getMapping, setMapping,
     requireSomeUint,
@@ -327,13 +327,13 @@ private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount
   funext slotIdx
   split <;> simp [*]
 
-theorem transfer_meets_spec_when_sufficient (s : ContractState) (to : Address) (amount : Uint256)
+theorem transfer_meets_spec_when_sufficient (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_balance : s.storageMap 1 s.sender ≥ amount)
-  (h_no_overflow : s.sender ≠ to → (s.storageMap 1 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
-  let s' := ((transfer to amount).run s).snd
-  transfer_spec s.sender to amount s s' := by
-  by_cases h_eq : s.sender = to
-  · have h_unfold := transfer_unfold_self s to amount h_balance h_eq
+  (h_no_overflow : s.sender ≠ toAddr → (s.storageMap 1 toAddr : Nat) + (amount : Nat) ≤ MAX_UINT256) :
+  let s' := ((transfer toAddr amount).run s).snd
+  transfer_spec s.sender toAddr amount s s' := by
+  by_cases h_eq : s.sender = toAddr
+  · have h_unfold := transfer_unfold_self s toAddr amount h_balance h_eq
     have h_unfold_apply := Contract.eq_of_run_success h_unfold
     simp only [Contract.run, ContractResult.snd, transfer_spec]
     rw [h_unfold_apply]
@@ -344,12 +344,12 @@ theorem transfer_meets_spec_when_sufficient (s : ContractState) (to : Address) (
         Specs.storageMapUnchangedExceptKey, Specs.storageMapUnchangedExceptSlot]
     · rfl
     · simp [Specs.sameStorageAddrContext, Specs.sameStorage, Specs.sameStorageAddr, Specs.sameStorageArray, Specs.sameContext]
-  · have h_unfold := transfer_unfold_other s to amount h_balance h_eq (h_no_overflow h_eq)
+  · have h_unfold := transfer_unfold_other s toAddr amount h_balance h_eq (h_no_overflow h_eq)
     have h_unfold_apply := Contract.eq_of_run_success h_unfold
     simp only [Contract.run, ContractResult.snd, transfer_spec]
     rw [h_unfold_apply]
     simp only [ContractResult.snd]
-    have h_ne' := address_beq_false_of_ne s.sender to h_eq
+    have h_ne' := address_beq_false_of_ne s.sender toAddr h_eq
     refine ⟨h_balance, ?_, ?_, ?_, ?_, ?_⟩
     · simp [h_ne'] -- sender balance decreased
     · simp [h_ne'] -- recipient balance increased
@@ -361,31 +361,31 @@ theorem transfer_meets_spec_when_sufficient (s : ContractState) (to : Address) (
       trivial
     · simp [Specs.sameStorageAddrContext, Specs.sameStorage, Specs.sameStorageAddr, Specs.sameStorageArray, Specs.sameContext]
 
-theorem transfer_preserves_supply_when_sufficient (s : ContractState) (to : Address) (amount : Uint256)
+theorem transfer_preserves_supply_when_sufficient (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_balance : s.storageMap 1 s.sender ≥ amount)
-  (h_no_overflow : s.sender ≠ to → (s.storageMap 1 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
-  let s' := ((transfer to amount).run s).snd
+  (h_no_overflow : s.sender ≠ toAddr → (s.storageMap 1 toAddr : Nat) + (amount : Nat) ≤ MAX_UINT256) :
+  let s' := ((transfer toAddr amount).run s).snd
   s'.storage 2 = s.storage 2 := by
-  have h := transfer_meets_spec_when_sufficient s to amount h_balance h_no_overflow
+  have h := transfer_meets_spec_when_sufficient s toAddr amount h_balance h_no_overflow
   simp [transfer_spec, Specs.sameStorage] at h
   simpa using congrArg (fun f => f 2) h.2.2.2.2.2.1
 
-theorem transfer_decreases_sender_balance (s : ContractState) (to : Address) (amount : Uint256)
+theorem transfer_decreases_sender_balance (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_balance : s.storageMap 1 s.sender ≥ amount)
-  (h_ne : s.sender ≠ to)
-  (h_no_overflow : (s.storageMap 1 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
-  let s' := ((transfer to amount).run s).snd
+  (h_ne : s.sender ≠ toAddr)
+  (h_no_overflow : (s.storageMap 1 toAddr : Nat) + (amount : Nat) ≤ MAX_UINT256) :
+  let s' := ((transfer toAddr amount).run s).snd
   s'.storageMap 1 s.sender = EVM.Uint256.sub (s.storageMap 1 s.sender) amount := by
-  have h := transfer_meets_spec_when_sufficient s to amount h_balance (fun _ => h_no_overflow)
+  have h := transfer_meets_spec_when_sufficient s toAddr amount h_balance (fun _ => h_no_overflow)
   simp [transfer_spec, h_ne, beq_iff_eq] at h; exact h.2.1
 
-theorem transfer_increases_recipient_balance (s : ContractState) (to : Address) (amount : Uint256)
+theorem transfer_increases_recipient_balance (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_balance : s.storageMap 1 s.sender ≥ amount)
-  (h_ne : s.sender ≠ to)
-  (h_no_overflow : (s.storageMap 1 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
-  let s' := ((transfer to amount).run s).snd
-  s'.storageMap 1 to = EVM.Uint256.add (s.storageMap 1 to) amount := by
-  have h := transfer_meets_spec_when_sufficient s to amount h_balance (fun _ => h_no_overflow)
+  (h_ne : s.sender ≠ toAddr)
+  (h_no_overflow : (s.storageMap 1 toAddr : Nat) + (amount : Nat) ≤ MAX_UINT256) :
+  let s' := ((transfer toAddr amount).run s).snd
+  s'.storageMap 1 toAddr = EVM.Uint256.add (s.storageMap 1 toAddr) amount := by
+  have h := transfer_meets_spec_when_sufficient s toAddr amount h_balance (fun _ => h_no_overflow)
   simp [transfer_spec, h_ne, beq_iff_eq] at h; exact h.2.2.1
 
 theorem transfer_self_preserves_balance (s : ContractState) (amount : Uint256)
@@ -396,13 +396,13 @@ theorem transfer_self_preserves_balance (s : ContractState) (amount : Uint256)
   simp [transfer_spec, beq_iff_eq] at h; exact h.2.1
 
 -- Transfer reverts on recipient balance overflow
-theorem transfer_reverts_recipient_overflow (s : ContractState) (to : Address) (amount : Uint256)
+theorem transfer_reverts_recipient_overflow (s : ContractState) (toAddr : Address) (amount : Uint256)
   (h_balance : s.storageMap 1 s.sender ≥ amount)
-  (h_ne : s.sender ≠ to)
-  (h_overflow : (s.storageMap 1 to : Nat) + (amount : Nat) > MAX_UINT256) :
-  ∃ msg, (transfer to amount).run s = ContractResult.revert msg s := by
+  (h_ne : s.sender ≠ toAddr)
+  (h_overflow : (s.storageMap 1 toAddr : Nat) + (amount : Nat) > MAX_UINT256) :
+  ∃ msg, (transfer toAddr amount).run s = ContractResult.revert msg s := by
   have h_balance' := uint256_ge_val_le h_balance
-  have h_none := safeAdd_none (s.storageMap 1 to) amount h_overflow
+  have h_none := safeAdd_none (s.storageMap 1 toAddr) amount h_overflow
   simp [transfer, requireSomeUint, Contracts.SimpleToken.balancesSlot,
     msgSender, getMapping, setMapping,
     Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
@@ -534,9 +534,9 @@ Guard-dependent proofs (now complete):
 
 Proof technique: Full unfolding of do-notation chains through
 bind/pure/Contract.run/ContractResult.snd, with simp [h_owner] or
-simp [h_balance] to resolve the guard condition, then refine for
+simp [h_balance] toAddr resolve the guard condition, then refine for
 each conjunct of the spec. Overflow checks use safeAdd/requireSomeUint
-with safeAdd_some/safeAdd_none helpers to resolve the Option matching.
+with safeAdd_some/safeAdd_none helpers toAddr resolve the Option matching.
 -/
 
 end Contracts.SimpleToken.Proofs

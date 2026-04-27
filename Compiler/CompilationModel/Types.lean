@@ -338,6 +338,10 @@ inductive Expr
   | internalCall (functionName : String) (args : List Expr)  -- Internal function call (#181)
   | arrayLength (name : String)  -- Length of a dynamic array parameter (#180)
   | arrayElement (name : String) (index : Expr)  -- Checked element access of a dynamic array parameter (revert on out-of-range) (#180)
+  /-- Checked word access inside a dynamic array element.  `elementWords` is the
+      static ABI word width of one element and `wordOffset` is the word inside
+      that element.  This supports arrays of static tuple/struct-like values. -/
+  | arrayElementWord (name : String) (index : Expr) (elementWords wordOffset : Nat)
   | storageArrayLength (field : String)  -- Read the length word of a storage dynamic array (#1571)
   | storageArrayElement (field : String) (index : Expr)  -- Checked element access of a storage dynamic array (#1571)
   /-- Equality on direct `bytes` / `string` parameters loaded from calldata or memory.
@@ -413,6 +417,10 @@ inductive Stmt
   | assignVar (name : String) (value : Expr)  -- Reassign existing variable
   | setStorage (field : String) (value : Expr)
   | setStorageAddr (field : String) (value : Expr)
+  /-- Write a full storage word at `field.slot + wordOffset`.  Intended for
+      migration-faithful manual packed-word writes where the source constructs
+      the packed word explicitly. -/
+  | setStorageWord (field : String) (wordOffset : Nat) (value : Expr)
   | storageArrayPush (field : String) (value : Expr)  -- Append to a storage dynamic array (#1571)
   | storageArrayPop (field : String)  -- Pop from a storage dynamic array (#1571)
   | setStorageArrayElement (field : String) (index : Expr) (value : Expr)  -- Indexed write (#1571)

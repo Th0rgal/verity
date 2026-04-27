@@ -14,7 +14,7 @@ open Verity.Specs
 def boolToWord (b : Bool) : Uint256 :=
   if b then 1 else 0
 
-/-- constructor: sets owner and initializes counters to zero -/
+/-- constructor: sets owner and initializes counters toAddr zero -/
 def constructor_spec (initialOwner : Address) (s s' : ContractState) : Prop :=
   storageAddrStorage2UpdateSpec
     0 1 2

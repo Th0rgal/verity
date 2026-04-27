@@ -14,16 +14,16 @@ open Verity.Specs
 
 /-! ## Operation Specifications -/
 
--- constructor: sets owner and initializes total supply to zero
+-- constructor: sets owner and initializes total supply toAddr zero
 #gen_spec_addr_storage constructor_spec for (initialOwner : Address)
   (0, 1, (fun _ => initialOwner), (fun _ => 0), sameStorageMap2Context)
 
 -- mint: increases recipient balance and total supply by amount
-#gen_spec_map_storage mint_spec for (to : Address) (amount : Uint256)
-  (2, to, (fun st => add (st.storageMap 2 to) amount), 1, (fun st => add (st.storage 1) amount), sameStorageAddrSlotMap2Context 0)
+#gen_spec_map_storage mint_spec for (toAddr : Address) (amount : Uint256)
+  (2, toAddr, (fun st => add (st.storageMap 2 toAddr) amount), 1, (fun st => add (st.storage 1) amount), sameStorageAddrSlotMap2Context 0)
 
 #gen_spec_transfer transfer_spec for3
-  (sender : Address) (to : Address) (amount : Uint256)
+  (sender : Address) (toAddr : Address) (amount : Uint256)
   (2, sameStorageSlotAddrSlotMap2Context 1 0)
 
 -- approve: updates the owner-spender allowance mapping entry
@@ -31,7 +31,7 @@ open Verity.Specs
   (3, ownerAddr, spender, (fun _ => amount), sameStorageAddrMapContext)
 
 #gen_spec_transfer_from transferFrom_spec for4
-  (spender : Address) (fromAddr : Address) (to : Address) (amount : Uint256)
+  (spender : Address) (fromAddr : Address) (toAddr : Address) (amount : Uint256)
   (2, 3, sameStorageAddrContext)
 
 /-- balanceOf: returns current balance of `addr` -/

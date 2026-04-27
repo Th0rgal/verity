@@ -48,10 +48,10 @@ verity_contract Counter where
   function previewEnvOps (x : Uint256, y : Uint256)
     local_obligations [env_memory_refinement := assumed "Caller must separately prove the direct mload-based environment digest path respects the intended memory/refinement boundary."]
     : Uint256 := do
-    let ts := blockTimestamp
-    let bn := blockNumber
-    let self := contractAddress
-    let cid := chainid
+    let ts ← blockTimestamp
+    let bn ← blockNumber
+    let self ← contractAddress
+    let cid ← chainid
     let flagAnd := logicalAnd x y
     let flagOr := logicalOr x y
     let flagNot := logicalNot x

@@ -14,16 +14,16 @@ open Verity.Specs
 
 /-! ## Operation Specifications -/
 
--- Constructor: sets owner and initializes total supply to 0
+-- Constructor: sets owner and initializes total supply toAddr 0
 #gen_spec_addr_storage constructor_spec for (initialOwner : Address)
   (0, 2, (fun _ => initialOwner), (fun _ => 0), sameMapContext)
 
 -- Mint: increases balance and total supply by amount (owner only)
-#gen_spec_map_storage mint_spec for (to : Address) (amount : Uint256)
-  (1, to, (fun st => add (st.storageMap 1 to) amount), 2, (fun st => add (st.storage 2) amount), sameStorageAddrSlotContext 0)
+#gen_spec_map_storage mint_spec for (toAddr : Address) (amount : Uint256)
+  (1, toAddr, (fun st => add (st.storageMap 1 toAddr) amount), 2, (fun st => add (st.storage 2) amount), sameStorageAddrSlotContext 0)
 
 #gen_spec_transfer transfer_spec for3
-  (sender : Address) (to : Address) (amount : Uint256)
+  (sender : Address) (toAddr : Address) (amount : Uint256)
   (1, (fun st st' =>
     sameStorageAddrSlot 0 st st' ∧
     sameStorageAddrContext st st'))

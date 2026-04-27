@@ -490,6 +490,16 @@ for { let i := 0 } lt(i, recipients_length) { i := add(i, 1) } {
 
 Define reusable logic shared across multiple external functions. Internal functions compile to Yul `function` definitions and are **not** exposed via selector dispatch:
 
+The examples in this section use the lower-level `CompilationModel` API directly. In `verity_contract` source, call same-contract helpers with ordinary function-call syntax instead:
+
+```lean
+helper arg
+let result ← helper arg
+let (lhs, rhs) ← helperPair arg
+```
+
+Those source forms lower to `Stmt.internalCall`, `Stmt.internalCallAssign`, or `Expr.internalCall` in the compilation model.
+
 ```lean
 def mySpec : CompilationModel := {
   name := "MyContract"

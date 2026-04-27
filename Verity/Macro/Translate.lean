@@ -162,6 +162,55 @@ structure FunctionDecl where
   localObligations : Array LocalObligationDecl := #[]
   body : Term
 
+private partial def valueTypeSignatureComponent : ValueType → String
+  | .uint256 => "scalar_uint256"
+  | .int256 => "scalar_int256"
+  | .uint8 => "scalar_uint8"
+  | .address => "scalar_address"
+  | .bool => "scalar_bool"
+  | .bytes32 => "scalar_bytes32"
+  | .string => "scalar_string"
+  | .bytes => "scalar_bytes"
+  | .unit => "scalar_unit"
+  | .array ty => "array_" ++ valueTypeSignatureComponent ty
+  | .tuple tys => "tuple" ++ toString tys.length ++ "_" ++ String.intercalate "__" (tys.map valueTypeSignatureComponent)
+  | .newtype name baseType => "newtype_" ++ name ++ "_" ++ valueTypeSignatureComponent baseType
+  | .adt name _ => "adt_" ++ name
+
+private def functionSignatureKey (fn : FunctionDecl) : String :=
+  fn.name ++ "(" ++ String.intercalate "," (fn.params.toList.map (fun p => valueTypeSignatureComponent p.ty)) ++ ")"
+
+private partial def valueTypeAbiSignatureComponent : ValueType → String
+  | .newtype _ baseType => valueTypeAbiSignatureComponent baseType
+  | .array ty => "array_" ++ valueTypeAbiSignatureComponent ty
+  | .tuple tys => "tuple" ++ toString tys.length ++ "_" ++ String.intercalate "__" (tys.map valueTypeAbiSignatureComponent)
+  | .adt _ maxFields =>
+      "tuple" ++ toString (maxFields + 1) ++ "_" ++
+        String.intercalate "__" ("scalar_uint8" :: List.replicate maxFields "scalar_uint256")
+  | ty => valueTypeSignatureComponent ty
+
+private def functionAbiSignatureKey (fn : FunctionDecl) : String :=
+  fn.name ++ "(" ++ String.intercalate "," (fn.params.toList.map (fun p => valueTypeAbiSignatureComponent p.ty)) ++ ")"
+
+private def overloadedFunctionIdentName (fn : FunctionDecl) : String :=
+  -- Length-prefix each component so the suffix encoding is injective.
+  -- Component strings can contain `_` (e.g. `newtype_Foo_scalar_uint256`,
+  -- `tuple2_scalar_uint256__scalar_bool`), so a plain `_` join is ambiguous
+  -- and distinct overloads can collapse to the same identifier.
+  let suffix :=
+    match fn.params.toList.map (fun p => valueTypeSignatureComponent p.ty) with
+    | [] => "0"
+    | parts => String.join (parts.map fun p => toString p.length ++ "x" ++ p)
+  fn.name ++ "__" ++ suffix
+
+private def assignOverloadInternalIdents (functions : Array FunctionDecl) :
+    Array FunctionDecl :=
+  functions.map fun fn =>
+    if functions.any (fun other => other.name == fn.name && functionSignatureKey other != functionSignatureKey fn) then
+      { fn with ident := mkIdentFrom fn.ident (Name.mkSimple (overloadedFunctionIdentName fn)) }
+    else
+      fn
+
 structure ConstructorDecl where
   params : Array ParamDecl
   isPayable : Bool := false
@@ -206,7 +255,13 @@ private def natFromSyntax (stx : Syntax) : CommandElabM Nat :=
   | some n => pure n
   | none => throwErrorAt stx "expected natural literal"
 
+private partial def stripParens (stx : Term) : Term :=
+  match stx with
+  | `(term| ($inner)) => stripParens inner
+  | _ => stx
+
 private partial def valueTypeFromSyntax (newtypes : Array NewtypeDecl) (adtDecls : Array AdtDecl) (ty : Term) : CommandElabM ValueType := do
+  let ty := stripParens ty
   match ty with
   | `(term| Uint256) => pure .uint256
   | `(term| Int256) => pure .int256
@@ -871,11 +926,6 @@ private def validateExternalExecutableType
     throwErrorAt extIdent
       s!"linked external '{extName}' uses unsupported {role} type; executable externalCall currently supports only Uint256, Int256, Uint8, Address, Bytes32, and Bool"
 
-private partial def stripParens (stx : Term) : Term :=
-  match stx with
-  | `(term| ($inner)) => stripParens inner
-  | _ => stx
-
 private def tupleElemsFromTerm? (stx : Term) : Option (Array Term) :=
   tupleElemsFromSyntax? (stripParens stx).raw |>.map (·.map (fun syn => ⟨syn⟩))
 
@@ -1179,6 +1229,28 @@ private abbrev TypedLocal := String × ValueType
 private def typedLocalNames (locals : Array TypedLocal) : Array String :=
   locals.map Prod.fst
 
+private def matchesBareName (actual bare : String) : Bool :=
+  actual == bare || actual.endsWith s!".{bare}"
+
+private def declaredNameMatches (query declared : String) : Bool :=
+  matchesBareName query declared || matchesBareName declared query
+
+private def contextAccessorBareName? (name : String) : Option String :=
+  if matchesBareName name "msgSender" then some "msgSender"
+  else if matchesBareName name "msgValue" then some "msgValue"
+  else if matchesBareName name "blockTimestamp" then some "blockTimestamp"
+  else if matchesBareName name "blockNumber" then some "blockNumber"
+  else if matchesBareName name "blobbasefee" then some "blobbasefee"
+  else if matchesBareName name "contractAddress" then some "contractAddress"
+  else if matchesBareName name "chainid" then some "chainid"
+  else none
+
+private def findContextAccessorShadowName?
+    (params : Array ParamDecl) (locals : Array String) (name : String) : Option String :=
+  match params.find? (fun p => matchesBareName p.name name) with
+  | some param => some param.name
+  | none => locals.find? (fun localName => matchesBareName localName name)
+
 private def isSignedWordValueType : ValueType → Bool
   | .int256 => true
   | .newtype _ baseType => isSignedWordValueType baseType
@@ -1193,6 +1265,18 @@ private def isSingleWordStaticValueType : ValueType → Bool
   | .bool => true
   | .newtype _ baseType => isSingleWordStaticValueType baseType
   | ty => isWordLikeValueType ty
+
+private partial def staticAbiWordCount? : ValueType → Option Nat
+  | .uint256 | .int256 | .uint8 | .address | .bytes32 | .bool => some 1
+  | .tuple elemTys =>
+      elemTys.foldl
+        (fun acc ty =>
+          match acc, staticAbiWordCount? ty with
+          | some n, some m => some (n + m)
+          | _, _ => none)
+        (some 0)
+  | .newtype _ baseType => staticAbiWordCount? baseType
+  | _ => none
 
 private def classifyWordArithmeticResultType
     (stx : Syntax)
@@ -1225,6 +1309,25 @@ private def isNatLiteralTerm (stx : Term) : Bool :=
   match stripParens stx with
   | `(term| $_n:num) => true
   | _ => false
+
+private def numericLiteralCompatibleValueType : ValueType → Bool
+  | .uint256 | .int256 | .uint8 => true
+  | .newtype _ baseType => numericLiteralCompatibleValueType baseType
+  | _ => false
+
+private def argumentTypeMatchesParam (arg : Term) (argTy paramTy : ValueType) : Bool :=
+  argTy == paramTy || (argTy == .uint256 && isNatLiteralTerm arg && numericLiteralCompatibleValueType paramTy)
+
+private def argumentTypesMatchParams (args : Array Term) (argTypes : Array ValueType)
+    (params : Array ParamDecl) : Bool :=
+  args.size == params.size && Id.run do
+    for idx in [:args.size] do
+      let some arg := args[idx]? | return false
+      let some argTy := argTypes[idx]? | return false
+      let some param := params[idx]? | return false
+      unless argumentTypeMatchesParam arg argTy param.ty do
+        return false
+    return true
 
 private def preferSignedNumericLiteralPeer
     (lhs rhs : Term)
@@ -1283,11 +1386,24 @@ private def requireSupportedArrayElementSourceType
     (ty : ValueType) : CommandElabM ValueType := do
   match ty with
   | .array elemTy =>
-      if isSingleWordStaticValueType elemTy then
-        pure elemTy
-      else
+      unless isSingleWordStaticValueType elemTy do
         throwErrorAt stx
           s!"{context} currently supports only arrays with single-word static elements on the compilation-model path, got {renderValueType ty}"
+      pure elemTy
+  | _ =>
+      throwErrorAt stx s!"{context} requires an Array parameter, got {renderValueType ty}"
+
+private def requireSupportedArrayElementTupleSourceType
+    (stx : Syntax)
+    (context : String)
+    (ty : ValueType) : CommandElabM ValueType := do
+  match ty with
+  | .array elemTy =>
+      match staticAbiWordCount? elemTy with
+      | some _ => pure elemTy
+      | none =>
+          throwErrorAt stx
+            s!"{context} currently supports only arrays with static ABI-word elements on the tuple arrayElement path, got {renderValueType ty}"
   | _ =>
       throwErrorAt stx s!"{context} requires an Array parameter, got {renderValueType ty}"
 
@@ -1447,25 +1563,18 @@ private def validateCustomErrorCall
     if customErrorRequiresDirectParamRef expectedTy then
       validateDirectParamCustomErrorArg arg fnName errorName params expectedTy argIdx
 
-private def matchLocalFunctionApp?
-    (functions : Array FunctionDecl)
-    (stx : Term) : Option (FunctionDecl × Array Term) :=
+private def localFunctionAppSyntax?
+    (stx : Term) : Option (String × Array Term) :=
   let stx := stripParens stx
-  let findFn := fun (fnName : String) (arity : Nat) =>
-    functions.find? fun fn => fn.name == fnName && fn.params.size == arity
   match stx.raw with
   | .node _ `Lean.Parser.Term.app args =>
       match args.getD 0 Syntax.missing with
       | .ident _ raw _ _ =>
           let argTerms := (args.getD 1 Syntax.missing).getArgs.map (fun syn => ⟨syn⟩)
-          match findFn raw.toString argTerms.size with
-          | some fn => some (fn, argTerms)
-          | none => none
+          some (raw.toString, argTerms)
       | _ => none
   | .ident _ raw _ _ =>
-      match findFn raw.toString 0 with
-      | some fn => some (fn, #[])
-      | none => none
+      some (raw.toString, #[])
   | _ => none
 
 private def internalHelperSpecName
@@ -1474,6 +1583,9 @@ private def internalHelperSpecName
   Compiler.CompilationModel.pickFreshName
     (Compiler.CompilationModel.internalFunctionPrefix ++ fnName)
     (functions.map (·.name)).toList
+
+private def internalHelperSpecNameFor (fn : FunctionDecl) : String :=
+  Compiler.CompilationModel.internalFunctionPrefix ++ toString fn.ident.getId
 
 private partial def hasDynamicInternalHelperType (ty : ValueType) : Bool :=
   match ty with
@@ -1494,6 +1606,10 @@ private def ensureSupportsInternalHelperSpec
     throwErrorAt stx
       s!"helper call '{fn.name}' uses a parameter or return type that direct macro helper lowering does not support yet; only static non-fallback/non-receive helpers can be lowered to internal specs"
 
+private def throwPureContextAccessorError (stx : Syntax) (name : String) : CommandElabM α :=
+  throwErrorAt stx
+    s!"context accessor '{name}' is monadic; use `let x ← {name}` before using it in a pure expression"
+
 mutual
 private partial def inferPureExprType
     (fields : Array StorageFieldDecl)
@@ -1505,20 +1621,57 @@ private partial def inferPureExprType
     (stx : Term)
     (visitingConstants : List String := []) : CommandElabM ValueType := do
   let stx := stripParens stx
+  let inferContextAccessorOrLocal (name : String) : CommandElabM ValueType := do
+    match locals.findSome? (fun localDecl =>
+        if matchesBareName localDecl.fst name then some localDecl.snd else none)
+        <|> params.findSome? (fun p =>
+          if matchesBareName p.name name then some p.ty else none) with
+    | some ty => pure ty
+    | none => throwPureContextAccessorError stx name
   match stx with
   | `(term| true) | `(term| false) => pure .bool
   | `(term| constructorArg $idx:num) =>
       match params[(← natFromSyntax idx)]? with
       | some param => pure param.ty
       | none => throwErrorAt stx s!"constructorArg index {idx.raw.reprint.getD ""} is out of bounds"
-  | `(term| msgValue) | `(term| blockTimestamp) | `(term| blockNumber) | `(term| blobbasefee)
-    | `(term| chainid) | `(term| calldatasize) | `(term| returndataSize) =>
+  | `(term| Verity.msgSender) =>
+      throwPureContextAccessorError stx "msgSender"
+  | `(term| Verity.msgValue) =>
+      throwPureContextAccessorError stx "msgValue"
+  | `(term| Verity.blockTimestamp) =>
+      throwPureContextAccessorError stx "blockTimestamp"
+  | `(term| Verity.blockNumber) =>
+      throwPureContextAccessorError stx "blockNumber"
+  | `(term| Verity.blobbasefee) =>
+      throwPureContextAccessorError stx "blobbasefee"
+  | `(term| Verity.chainid) =>
+      throwPureContextAccessorError stx "chainid"
+  | `(term| Verity.contractAddress) =>
+      throwPureContextAccessorError stx "contractAddress"
+  | `(term| $id:ident) =>
+      let name := toString id.getId
+      match params.findSome? (fun p => if p.name == name then some p.ty else none)
+          <|> tupleParamElemType? params name
+          <|> lookupTypedLocalType? locals name
+          <|> immutableDecls.findSome? (fun imm =>
+                if declaredNameMatches name imm.name then some imm.ty else none)
+          <|> constDecls.findSome? (fun constant =>
+                if declaredNameMatches name constant.name then some constant.ty else none) with
+      | some ty => pure ty
+      | none =>
+          if matchesBareName name "calldatasize" || matchesBareName name "returndataSize" then
+            pure .uint256
+          else if matchesBareName name "zeroAddress" then
+            pure .address
+          else
+            match contextAccessorBareName? name with
+            | some accessor => inferContextAccessorOrLocal accessor
+            | none => throwErrorAt stx s!"unknown variable '{name}'"
+  | `(term| calldatasize) | `(term| returndataSize) =>
       pure .uint256
-  | `(term| contractAddress) =>
-      pure .address
   | `(term| zeroAddress) =>
       match lookupTypedLocalType? locals "zeroAddress" <|> params.findSome? (fun p =>
-          if p.name == "zeroAddress" then some p.ty else none) with
+        if p.name == "zeroAddress" then some p.ty else none) with
       | some ty => pure ty
       | none => pure .address
   | `(term| isZeroAddress $a:term) =>
@@ -1541,15 +1694,6 @@ private partial def inferPureExprType
   | `(term| boolToWord $a:term) =>
       requireBoolType a "boolToWord" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants)
       pure .uint256
-  | `(term| $id:ident) =>
-      let name := toString id.getId
-      match params.findSome? (fun p => if p.name == name then some p.ty else none)
-          <|> tupleParamElemType? params name
-          <|> lookupTypedLocalType? locals name
-          <|> immutableDecls.findSome? (fun imm => if imm.name == name then some imm.ty else none)
-          <|> constDecls.findSome? (fun constant => if constant.name == name then some constant.ty else none) with
-      | some ty => pure ty
-      | none => throwErrorAt stx s!"unknown variable '{name}'"
   | `(term| $n:num) =>
       pure .uint256
   | `(term| add $a $b) | `(term| sub $a $b) | `(term| mul $a $b) => do
@@ -1816,10 +1960,15 @@ private partial def inferBindSourceType
       requireWordLikeType key1 "structMember2 key" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals key1)
       requireWordLikeType key2 "structMember2 key" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals key2)
       pure .uint256
-  | `(term| msgSender) =>
+  | `(term| msgSender) | `(term| Verity.msgSender) =>
       pure .address
-  | `(term| msgValue) =>
+  | `(term| msgValue) | `(term| Verity.msgValue) | `(term| blockTimestamp)
+    | `(term| Verity.blockTimestamp) | `(term| blockNumber) | `(term| Verity.blockNumber)
+    | `(term| blobbasefee) | `(term| Verity.blobbasefee) | `(term| chainid)
+    | `(term| Verity.chainid) =>
       pure .uint256
+  | `(term| contractAddress) | `(term| Verity.contractAddress) =>
+      pure .address
   | `(term| tload $offset:term) => do
       requireWordLikeType offset "tload offset" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals offset)
       pure .uint256
@@ -1870,11 +2019,9 @@ private partial def inferBindSourceType
           pure .uint256
       | _ => throwErrorAt rhs "unsupported requireSomeUint source; expected safeAdd or safeSub"
   | _ =>
-      match matchLocalFunctionApp? functions rhs with
-      | some (fn, argTerms) =>
+      match ← resolveLocalFunctionApp? fields constDecls immutableDecls externalDecls functions params locals rhs with
+      | some (fn, _argTerms) =>
           ensureSupportsInternalHelperSpec rhs fn
-          for arg in argTerms do
-            let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals arg
           match fn.returnTy with
           | .tuple _ =>
               throwErrorAt rhs
@@ -1924,6 +2071,15 @@ private partial def inferTupleSourceTypes?
           requireWordLikeType key1 "structMembers2 key" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals key1)
           requireWordLikeType key2 "structMembers2 key" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals key2)
           pure (some (Array.replicate memberNames.size .uint256))
+      | `(term| arrayElement $name:term $index:term) => do
+          requireWordLikeType index "arrayElement index"
+            (← inferPureExprType fields constDecls immutableDecls externalDecls params locals index)
+          let sourceTy ← requireDirectParamRef name "arrayElement" params
+          match sourceTy with
+          | .array (.tuple elemTys) =>
+              let _ ← requireSupportedArrayElementTupleSourceType name "arrayElement tuple destructuring" sourceTy
+              pure (some elemTys.toArray)
+          | _ => pure none
       | `(term| tryExternalCall $name:term $args:term) =>
           let extName := ← expectStringOrIdent name
           match stripParens args with
@@ -1942,15 +2098,50 @@ private partial def inferTupleSourceTypes?
               -- The validation path (with real externalDecls) catches actual errors.
               pure none
       | other =>
-          match matchLocalFunctionApp? functions other with
-          | some (fn, argTerms) =>
+          match ← resolveLocalFunctionApp? fields constDecls immutableDecls externalDecls functions params locals other with
+          | some (fn, _argTerms) =>
               ensureSupportsInternalHelperSpec rhs fn
-              for arg in argTerms do
-                let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals arg
               match fn.returnTy with
               | .tuple elemTys => pure (some elemTys.toArray)
               | _ => pure none
           | none => pure none
+
+private partial def resolveLocalFunctionApp?
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
+    (functions : Array FunctionDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (stx : Term) : CommandElabM (Option (FunctionDecl × Array Term)) := do
+  let some (fnName, argTerms) := localFunctionAppSyntax? stx
+    | pure none
+  let candidates := functions.filter (fun fn => fn.name == fnName && fn.params.size == argTerms.size)
+  if candidates.isEmpty then
+    pure none
+  else
+    let argTypes ← argTerms.mapM (inferPureExprType fields constDecls immutableDecls externalDecls params locals)
+    let exactMatchedFns := candidates.filter (fun fn =>
+      fn.params.map (fun param => param.ty) == argTypes)
+    let literalCompatibleFns :=
+      if exactMatchedFns.isEmpty then
+        candidates.filter (fun fn => argumentTypesMatchParams argTerms argTypes fn.params)
+      else
+        exactMatchedFns
+    match literalCompatibleFns.toList with
+    | [fn] => pure (some (fn, argTerms))
+    | [] =>
+        let expected :=
+          String.intercalate ", "
+            (candidates.toList.map functionSignatureKey)
+        let actual :=
+          fnName ++ "(" ++ String.intercalate "," (argTypes.toList.map renderValueType) ++ ")"
+        throwErrorAt stx
+          s!"no overload of '{fnName}' matches argument types {actual}; candidates: {expected}"
+    | _ =>
+        throwErrorAt stx
+          s!"ambiguous overload resolution for '{fnName}'"
 end
 
 mutual
@@ -1966,7 +2157,8 @@ private partial def validateConstantBody
   | `(term| msgValue) => throwNonCompileTimeConstantError stx "msgValue"
   | `(term| blockTimestamp) => throwNonCompileTimeConstantError stx "blockTimestamp"
   | `(term| blockNumber) => throwNonCompileTimeConstantError stx "blockNumber"
-  | `(term| blobbasefee) => throwNonCompileTimeConstantError stx "blobbasefee"
+  | `(term| blobbasefee) | `(term| Verity.blobbasefee) =>
+      throwNonCompileTimeConstantError stx "blobbasefee"
   | `(term| contractAddress) => throwNonCompileTimeConstantError stx "contractAddress"
   | `(term| chainid) => throwNonCompileTimeConstantError stx "chainid"
   | `(term| calldatasize) => throwNonCompileTimeConstantError stx "calldatasize"
@@ -2070,12 +2262,44 @@ partial def translatePureExprWithTypes
   | `(term| false) => `(Compiler.CompilationModel.Expr.literal 0)
   | `(term| constructorArg $idx:num) =>
       `(Compiler.CompilationModel.Expr.constructorArg $idx)
-  | `(term| msgValue) => `(Compiler.CompilationModel.Expr.msgValue)
-  | `(term| blockTimestamp) => `(Compiler.CompilationModel.Expr.blockTimestamp)
-  | `(term| blockNumber) => `(Compiler.CompilationModel.Expr.blockNumber)
-  | `(term| blobbasefee) => `(Compiler.CompilationModel.Expr.blobbasefee)
-  | `(term| contractAddress) => `(Compiler.CompilationModel.Expr.contractAddress)
-  | `(term| chainid) => `(Compiler.CompilationModel.Expr.chainid)
+  | `(term| Verity.msgSender) =>
+      throwPureContextAccessorError stx "msgSender"
+  | `(term| Verity.msgValue) =>
+      throwPureContextAccessorError stx "msgValue"
+  | `(term| Verity.blockTimestamp) =>
+      throwPureContextAccessorError stx "blockTimestamp"
+  | `(term| Verity.blockNumber) =>
+      throwPureContextAccessorError stx "blockNumber"
+  | `(term| Verity.blobbasefee) =>
+      throwPureContextAccessorError stx "blobbasefee"
+  | `(term| Verity.contractAddress) =>
+      throwPureContextAccessorError stx "contractAddress"
+  | `(term| Verity.chainid) =>
+      throwPureContextAccessorError stx "chainid"
+  | `(term| $id:ident) =>
+      let name := toString id.getId
+      if params.any (fun p => p.name == name) || isTupleComponentRef params name || localNames.contains name then
+        lookupVarExpr params localNames name
+      else if let some actualName := findContextAccessorShadowName? params localNames name then
+        lookupVarExpr params localNames actualName
+      else if matchesBareName name "calldatasize" then
+        `(Compiler.CompilationModel.Expr.calldatasize)
+      else if matchesBareName name "returndataSize" then
+        `(Compiler.CompilationModel.Expr.returndataSize)
+      else if matchesBareName name "zeroAddress" then
+        `(Compiler.CompilationModel.Expr.literal 0)
+      else if let some imm := immutableDecls.find? (fun imm => declaredNameMatches name imm.name) then
+        match imm.ty with
+        | .uint256 | .int256 | .uint8 | .bytes32 | .bool =>
+            `(Compiler.CompilationModel.Expr.storage $(strTerm (immutableHiddenName imm)))
+        | .address => `(Compiler.CompilationModel.Expr.storageAddr $(strTerm (immutableHiddenName imm)))
+        | _ => throwErrorAt stx s!"immutable '{name}' uses unsupported type"
+      else if let some constant := constDecls.find? (fun constant => declaredNameMatches name constant.name) then
+        translateConstantExpr fields constDecls immutableDecls visitingConstants constant.name
+      else if let some accessor := contextAccessorBareName? name then
+        throwPureContextAccessorError stx accessor
+      else
+        translateConstantExpr fields constDecls immutableDecls visitingConstants name
   | `(term| calldatasize) => `(Compiler.CompilationModel.Expr.calldatasize)
   | `(term| returndataSize) => `(Compiler.CompilationModel.Expr.returndataSize)
   | `(term| zeroAddress) =>
@@ -2096,18 +2320,6 @@ partial def translatePureExprWithTypes
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals a visitingConstants)
           (Compiler.CompilationModel.Expr.literal 1)
           (Compiler.CompilationModel.Expr.literal 0))
-  | `(term| $id:ident) =>
-      let name := toString id.getId
-      if params.any (fun p => p.name == name) || isTupleComponentRef params name || localNames.contains name then
-        lookupVarExpr params localNames name
-      else if let some imm := immutableDecls.find? (fun imm => imm.name == name) then
-        match imm.ty with
-        | .uint256 | .int256 | .uint8 | .bytes32 | .bool =>
-            `(Compiler.CompilationModel.Expr.storage $(strTerm (immutableHiddenName imm)))
-        | .address => `(Compiler.CompilationModel.Expr.storageAddr $(strTerm (immutableHiddenName imm)))
-        | _ => throwErrorAt stx s!"immutable '{name}' uses unsupported type"
-      else
-        translateConstantExpr fields constDecls immutableDecls visitingConstants name
   | `(term| $n:num) => `(Compiler.CompilationModel.Expr.literal $n)
   | `(term| add $a $b) => `(Compiler.CompilationModel.Expr.add $(← translatePureExprWithTypes fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| sub $a $b) => `(Compiler.CompilationModel.Expr.sub $(← translatePureExprWithTypes fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals b visitingConstants))
@@ -2407,6 +2619,152 @@ private def validateSingleResultEcmModuleTerm
     throwErrorAt moduleTerm
       s!"ecmCall must elaborate to an ECM module binding exactly ['{boundVarName}'], but '{mod.name}' binds {repr mod.resultVars}"
 
+private def arrayElementTupleElemExprs?
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (rhs : Term) : CommandElabM (Option (Array Term)) := do
+  match stripParens rhs with
+  | `(term| arrayElement $name:term $index:term) =>
+      let paramName := ← expectStringOrIdent name
+      match params.find? (fun p => p.name == paramName) with
+      | some { ty := .array (.tuple elemTys), .. } =>
+          let elementWords ←
+            match staticAbiWordCount? (.tuple elemTys) with
+            | some n => pure n
+            | none =>
+                throwErrorAt rhs
+                  "arrayElement tuple destructuring requires a static ABI-word tuple element type"
+          let indexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index
+          let mut offset := 0
+          let mut exprs : Array Term := #[]
+          for elemTy in elemTys do
+            let elemWords ←
+              match staticAbiWordCount? elemTy with
+              | some n => pure n
+              | none =>
+                  throwErrorAt rhs
+                    "arrayElement tuple destructuring requires static ABI-word tuple members"
+            if elemWords != 1 then
+              throwErrorAt rhs
+                "arrayElement tuple destructuring currently supports top-level single-word tuple members"
+            exprs := exprs.push (← `(Compiler.CompilationModel.Expr.arrayElementWord
+              $(strTerm paramName)
+              $indexExpr
+              $(natTerm elementWords)
+              $(natTerm offset)))
+            offset := offset + elemWords
+          pure (some exprs)
+      | _ => pure none
+  | _ => pure none
+
+private def arrayElementTupleDestructureStmts?
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (mutableLocals : Array String)
+    (rhs : Term)
+    (names : Array (Option String)) : CommandElabM (Option (Array Term × TypedLocal)) := do
+  match stripParens rhs with
+  | `(term| arrayElement $name:term $index:term) =>
+      let paramName := ← expectStringOrIdent name
+      match params.find? (fun p => p.name == paramName) with
+      | some { ty := .array (.tuple elemTys), .. } =>
+          let elementWords ←
+            match staticAbiWordCount? (.tuple elemTys) with
+            | some n => pure n
+            | none =>
+                throwErrorAt rhs
+                  "arrayElement tuple destructuring requires a static ABI-word tuple element type"
+          if names.size != elemTys.length then
+            throwErrorAt rhs
+              s!"tuple destructuring binds {names.size} names, but the source provides {elemTys.length} values"
+          let syntheticUsed := mutableLocals ++ names.filterMap id
+          let indexName := freshSyntheticLocalName "arrayElement_index" params locals syntheticUsed
+          let indexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index
+          let indexStmt ←
+            `(Compiler.CompilationModel.Stmt.letVar $(strTerm indexName) $indexExpr)
+          let indexLocal ←
+            `(Compiler.CompilationModel.Expr.localVar $(strTerm indexName))
+          let mut offset := 0
+          let mut valueExprs : Array Term := #[]
+          for elemTy in elemTys do
+            let elemWords ←
+              match staticAbiWordCount? elemTy with
+              | some n => pure n
+              | none =>
+                  throwErrorAt rhs
+                    "arrayElement tuple destructuring requires static ABI-word tuple members"
+            if elemWords != 1 then
+              throwErrorAt rhs
+                "arrayElement tuple destructuring currently supports top-level single-word tuple members"
+            valueExprs := valueExprs.push (← `(Compiler.CompilationModel.Expr.arrayElementWord
+              $(strTerm paramName)
+              $indexLocal
+              $(natTerm elementWords)
+              $(natTerm offset)))
+            offset := offset + elemWords
+          let boundPairs := (names.zip valueExprs).filterMap fun (name?, valueExpr) =>
+            name?.map (fun name => (name, valueExpr))
+          let boundStmts ← boundPairs.mapM fun (name, valueExpr) =>
+            `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
+          pure (some (#[indexStmt] ++ boundStmts, (indexName, .uint256)))
+      | _ => pure none
+  | _ => pure none
+
+private def arrayElementTupleReturnStmts?
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (mutableLocals : Array String)
+    (rhs : Term) : CommandElabM (Option (Array Term × TypedLocal)) := do
+  match stripParens rhs with
+  | `(term| arrayElement $name:term $index:term) =>
+      let paramName := ← expectStringOrIdent name
+      match params.find? (fun p => p.name == paramName) with
+      | some { ty := .array (.tuple elemTys), .. } =>
+          let elementWords ←
+            match staticAbiWordCount? (.tuple elemTys) with
+            | some n => pure n
+            | none =>
+                throwErrorAt rhs
+                  "arrayElement tuple return requires a static ABI-word tuple element type"
+          let indexName := freshSyntheticLocalName "arrayElement_index" params locals mutableLocals
+          let indexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index
+          let indexStmt ←
+            `(Compiler.CompilationModel.Stmt.letVar $(strTerm indexName) $indexExpr)
+          let indexLocal ←
+            `(Compiler.CompilationModel.Expr.localVar $(strTerm indexName))
+          let mut offset := 0
+          let mut valueExprs : Array Term := #[]
+          for elemTy in elemTys do
+            let elemWords ←
+              match staticAbiWordCount? elemTy with
+              | some n => pure n
+              | none =>
+                  throwErrorAt rhs
+                    "arrayElement tuple return requires static ABI-word tuple members"
+            if elemWords != 1 then
+              throwErrorAt rhs
+                "arrayElement tuple return currently supports top-level single-word tuple members"
+            valueExprs := valueExprs.push (← `(Compiler.CompilationModel.Expr.arrayElementWord
+              $(strTerm paramName)
+              $indexLocal
+              $(natTerm elementWords)
+              $(natTerm offset)))
+            offset := offset + elemWords
+          let returnStmt ←
+            `(Compiler.CompilationModel.Stmt.returnValues [ $[$valueExprs],* ])
+          pure (some (#[indexStmt, returnStmt], (indexName, .uint256)))
+      | _ => pure none
+  | _ => pure none
+
 private def tupleLiteralOrStructValueExprs?
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
@@ -2442,7 +2800,9 @@ private def tupleLiteralOrStructValueExprs?
   | some elems =>
       pure (some (← elems.mapM (translatePureExprWithTypes fields constDecls immutableDecls params locals)))
   | none =>
-      structValueExprs?
+      match ← arrayElementTupleElemExprs? fields constDecls immutableDecls params locals rhs with
+      | some exprs => pure (some exprs)
+      | none => structValueExprs?
 
 private def tupleValueExprs
     (fields : Array StorageFieldDecl)
@@ -2482,6 +2842,7 @@ private def tupleInternalCallAssignStmt?
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
     (functions : Array FunctionDecl)
     (params : Array ParamDecl)
     (locals : Array TypedLocal)
@@ -2499,14 +2860,14 @@ private def tupleInternalCallAssignStmt?
     (initialUsedNames, [])
   let targetNames := targetNamesRev.reverse
   let resultNameTerms := targetNames.toArray.map strTerm
-  match matchLocalFunctionApp? functions rhs with
+  match ← resolveLocalFunctionApp? fields constDecls immutableDecls externalDecls functions params locals rhs with
   | some (fn, argTerms) =>
       ensureSupportsInternalHelperSpec rhs fn
       let argExprs ← argTerms.mapM
         (translatePureExprWithTypes fields constDecls immutableDecls params locals)
       pure (some (← `(Compiler.CompilationModel.Stmt.internalCallAssign
         [ $[$resultNameTerms],* ]
-        $(strTerm (internalHelperSpecName functions fn.name))
+        $(strTerm (internalHelperSpecNameFor fn))
         [ $[$argExprs],* ])))
   | none =>
       pure none
@@ -2586,6 +2947,7 @@ private def translateBindSource
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
     (functions : Array FunctionDecl)
     (params : Array ParamDecl)
     (locals : Array TypedLocal)
@@ -2761,19 +3123,29 @@ private def translateBindSource
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals key1)
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals key2)
           $(strTerm memberName))
-  | `(term| msgSender) => `(Compiler.CompilationModel.Expr.caller)
-  | `(term| msgValue) => `(Compiler.CompilationModel.Expr.msgValue)
+  | `(term| msgSender) | `(term| Verity.msgSender) => `(Compiler.CompilationModel.Expr.caller)
+  | `(term| msgValue) | `(term| Verity.msgValue) => `(Compiler.CompilationModel.Expr.msgValue)
+  | `(term| blockTimestamp) | `(term| Verity.blockTimestamp) =>
+      `(Compiler.CompilationModel.Expr.blockTimestamp)
+  | `(term| blockNumber) | `(term| Verity.blockNumber) =>
+      `(Compiler.CompilationModel.Expr.blockNumber)
+  | `(term| blobbasefee) | `(term| Verity.blobbasefee) =>
+      `(Compiler.CompilationModel.Expr.blobbasefee)
+  | `(term| contractAddress) | `(term| Verity.contractAddress) =>
+      `(Compiler.CompilationModel.Expr.contractAddress)
+  | `(term| chainid) | `(term| Verity.chainid) =>
+      `(Compiler.CompilationModel.Expr.chainid)
   | `(term| tload $offset:term) =>
       `(Compiler.CompilationModel.Expr.tload
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals offset))
   | _ =>
-      match matchLocalFunctionApp? functions rhs with
+      match ← resolveLocalFunctionApp? fields constDecls immutableDecls externalDecls functions params locals rhs with
       | some (fn, argTerms) =>
           ensureSupportsInternalHelperSpec rhs fn
           let argExprs ← argTerms.mapM
             (translatePureExprWithTypes fields constDecls immutableDecls params locals)
           `(Compiler.CompilationModel.Expr.internalCall
-              $(strTerm (internalHelperSpecName functions fn.name))
+              $(strTerm (internalHelperSpecNameFor fn))
               [ $[$argExprs],* ])
       | none =>
           throwErrorAt rhs
@@ -3010,6 +3382,9 @@ private partial def validateEffectStmtExprTypes
     | `(term| require $value:term $_msg) =>
       let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals value
       pure ()
+  | `(term| setPackedStorage $_field:ident $_wordOffset:num $value:term) =>
+      let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals value
+      pure ()
   | `(term| pushStorageArray $_field:ident $value:term) => do
       let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals value
       pure ()
@@ -3070,9 +3445,7 @@ private partial def validateEffectStmtExprTypes
   | `(term| returnStorageWords $name:term) => do
       let ty ← requireDirectParamRef name "returnStorageWords" params
       requireSupportedReturnStorageWordsType name "returnStorageWords" ty
-  | `(term| internalCall $_fnName:term $args:term)
-    | `(term| internalCallAssign $_names:term $_fnName:term $args:term)
-    | `(term| externalCallBind $_names:term $_fnName:term $args:term)
+  | `(term| externalCallBind $_names:term $_fnName:term $args:term)
     | `(term| tryExternalCallBind $_successVar:term $_names:term $_fnName:term $args:term) =>
       match stripParens args with
       | `(term| [ $[$xs],* ]) =>
@@ -3082,7 +3455,7 @@ private partial def validateEffectStmtExprTypes
   | `(term| revertReturndata) =>
       pure ()
   | _ =>
-      match matchLocalFunctionApp? functions stx with
+      match ← resolveLocalFunctionApp? fields constDecls immutableDecls externalDecls functions params locals stx with
       | some (fn, argTerms) =>
           ensureSupportsInternalHelperSpec stx fn
           if fn.returnTy != .unit then
@@ -3240,6 +3613,7 @@ private def translateEffectStmt
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
     (functions : Array FunctionDecl)
     (params : Array ParamDecl)
     (locals : Array TypedLocal)
@@ -3321,6 +3695,19 @@ private def translateEffectStmt
           throwErrorAt stx s!"field '{f.name}' is a storage dynamic array; use pushStorageArray/popStorageArray/setStorageArrayElement"
       | _ =>
           throwErrorAt stx s!"field '{f.name}' is not Address; use setStorage"
+  | `(term| setPackedStorage $field:ident $wordOffset:num $value:term) =>
+      let f ← lookupStorageField fields (toString field.getId)
+      match f.ty with
+      | .scalar _ =>
+          `(Compiler.CompilationModel.Stmt.setStorageWord
+              $(strTerm f.name)
+              $(natTerm (← natFromSyntax wordOffset))
+              $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value))
+      | .dynamicArray _ =>
+          throwErrorAt stx s!"field '{f.name}' is a storage dynamic array; setPackedStorage requires a scalar root slot"
+      | .mappingAddressToUint256 | .mappingUintToUint256 | .mapping2AddressToAddressToUint256
+      | .mappingChain _ | .mappingStruct _ _ | .mappingStruct2 _ _ _ =>
+          throwErrorAt stx s!"field '{f.name}' is a mapping; setPackedStorage requires a scalar root slot"
   | `(term| setMapping $field:ident $key:term $value:term) =>
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
@@ -3517,19 +3904,6 @@ private def translateEffectStmt
           [ $[$topicExprs],* ]
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals dataOffset)
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals dataSize))
-  | `(term| internalCall $fnName:term $args:term) =>
-      let targetFn := ← expectStringOrIdent fnName
-      let argExprs ← expectExprList fields constDecls immutableDecls params locals args
-      `(Compiler.CompilationModel.Stmt.internalCall $(strTerm targetFn) [ $[$argExprs],* ])
-  | `(term| internalCallAssign $names:term $fnName:term $args:term) =>
-      let resultNames := ← expectStringList names
-      let resultNameTerms := resultNames.map strTerm
-      let targetFn := ← expectStringOrIdent fnName
-      let argExprs ← expectExprList fields constDecls immutableDecls params locals args
-      `(Compiler.CompilationModel.Stmt.internalCallAssign
-          [ $[$resultNameTerms],* ]
-          $(strTerm targetFn)
-          [ $[$argExprs],* ])
   | `(term| externalCallBind $names:term $fnName:term $args:term) =>
       let resultNames := ← expectStringList names
       let resultNameTerms := resultNames.map strTerm
@@ -3559,7 +3933,7 @@ private def translateEffectStmt
           $(strTerm memberName)
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value))
   | _ =>
-      match matchLocalFunctionApp? functions stx with
+      match ← resolveLocalFunctionApp? fields constDecls immutableDecls externalDecls functions params locals stx with
       | some (fn, argTerms) =>
           ensureSupportsInternalHelperSpec stx fn
           if fn.returnTy != .unit then
@@ -3568,7 +3942,7 @@ private def translateEffectStmt
           let argExprs ← argTerms.mapM
             (translatePureExprWithTypes fields constDecls immutableDecls params locals)
           `(Compiler.CompilationModel.Stmt.internalCall
-              $(strTerm (internalHelperSpecName functions fn.name))
+              $(strTerm (internalHelperSpecNameFor fn))
               [ $[$argExprs],* ])
       | none =>
           throwErrorAt stx "unsupported statement in do block"
@@ -3648,7 +4022,7 @@ private partial def translateDoElem
                       pure (some (stmts, locals ++ typedPairs, mutableLocals))
                   | none => throwErrorAt rhs "unable to infer tuple local types"
               | none =>
-                      match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls functions params locals rhs names) with
+                  match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls externalDecls functions params locals rhs names) with
                   | some stmt =>
                       let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                       match valueTys with
@@ -3663,48 +4037,57 @@ private partial def translateDoElem
                           pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
                       | none => throwErrorAt rhs "tuple destructuring currently requires a tuple literal, tuple-typed parameter, structMembers/structMembers2 source, internal helper call, or tryExternalCall"
           | _ =>
-              match (← tupleLiteralOrStructValueExprs? fields constDecls immutableDecls params locals rhs) with
-              | some valueExprs =>
-                  if names.size != valueExprs.size then
-                    throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueExprs.size} values"
-                  let boundPairs := (names.zip valueExprs).filterMap fun (name?, valueExpr) =>
-                    name?.map (fun name => (name, valueExpr))
-                  let stmts ← boundPairs.mapM fun (name, valueExpr) =>
-                    `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
+              match (← arrayElementTupleDestructureStmts? fields constDecls immutableDecls params locals mutableLocals rhs names) with
+              | some (stmts, syntheticLocal) =>
                   let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                   match valueTys with
                   | some tys =>
                       let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
-                      pure (some (stmts, locals ++ typedPairs, mutableLocals))
+                      pure (some (stmts, locals.push syntheticLocal ++ typedPairs, mutableLocals))
                   | none => throwErrorAt rhs "unable to infer tuple local types"
               | none =>
-                match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls functions params locals rhs names) with
-                | some stmt =>
-                    let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
-                    match valueTys with
-                    | some tys =>
-                        let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
-                        pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
-                    | none => throwErrorAt rhs "unable to infer tuple local types"
-                | none =>
-                  match (← tryExternalCallBindStmt? fields constDecls immutableDecls externalDecls params locals rhs names) with
-                  | some (stmt, tys) =>
-                      let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
-                      pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
+                  match (← tupleLiteralOrStructValueExprs? fields constDecls immutableDecls params locals rhs) with
+                  | some valueExprs =>
+                      if names.size != valueExprs.size then
+                        throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueExprs.size} values"
+                      let boundPairs := (names.zip valueExprs).filterMap fun (name?, valueExpr) =>
+                        name?.map (fun name => (name, valueExpr))
+                      let stmts ← boundPairs.mapM fun (name, valueExpr) =>
+                        `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
+                      let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
+                      match valueTys with
+                      | some tys =>
+                          let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                          pure (some (stmts, locals ++ typedPairs, mutableLocals))
+                      | none => throwErrorAt rhs "unable to infer tuple local types"
                   | none =>
-                  let valueExprs ← tupleValueExprs fields constDecls immutableDecls params locals rhs
-                  if names.size != valueExprs.size then
-                    throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueExprs.size} values"
-                  let boundPairs := (names.zip valueExprs).filterMap fun (name?, valueExpr) =>
-                    name?.map (fun name => (name, valueExpr))
-                  let stmts ← boundPairs.mapM fun (name, valueExpr) =>
-                    `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
-                  let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
-                  match valueTys with
-                  | some tys =>
-                      let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
-                      pure (some (stmts, locals ++ typedPairs, mutableLocals))
-                  | none => throwErrorAt rhs "unable to infer tuple local types"
+                      match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls externalDecls functions params locals rhs names) with
+                      | some stmt =>
+                          let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
+                          match valueTys with
+                          | some tys =>
+                              let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                              pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
+                          | none => throwErrorAt rhs "unable to infer tuple local types"
+                      | none =>
+                          match (← tryExternalCallBindStmt? fields constDecls immutableDecls externalDecls params locals rhs names) with
+                          | some (stmt, tys) =>
+                              let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                              pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
+                          | none =>
+                              let valueExprs ← tupleValueExprs fields constDecls immutableDecls params locals rhs
+                              if names.size != valueExprs.size then
+                                throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueExprs.size} values"
+                              let boundPairs := (names.zip valueExprs).filterMap fun (name?, valueExpr) =>
+                                name?.map (fun name => (name, valueExpr))
+                              let stmts ← boundPairs.mapM fun (name, valueExpr) =>
+                                `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
+                              let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
+                              match valueTys with
+                              | some tys =>
+                                  let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                                  pure (some (stmts, locals ++ typedPairs, mutableLocals))
+                              | none => throwErrorAt rhs "unable to infer tuple local types"
       | none => pure none
     else if stx.getKind == `Lean.Parser.Term.doLetArrow then
       let patDecl := stx[2]
@@ -3712,7 +4095,7 @@ private partial def translateDoElem
       | some names =>
           ensureFreshLocalNames localNames names stx
           let rhs : Term := ⟨patDecl[2][0]⟩
-          match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls functions params locals rhs names) with
+          match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls externalDecls functions params locals rhs names) with
           | some stmt =>
               let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
               match valueTys with
@@ -3800,7 +4183,7 @@ private partial def translateDoElem
               | some stmt =>
                   pure (#[(stmt)], locals.push (varName, .uint256), mutableLocals)
               | none =>
-                      let rhsExpr ← translateBindSource fields constDecls immutableDecls functions params locals rhs
+                      let rhsExpr ← translateBindSource fields constDecls immutableDecls externalDecls functions params locals rhs
                       let ty ← inferBindSourceType fields constDecls immutableDecls externalDecls functions params locals rhs
                       pure
                         (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
@@ -3818,11 +4201,15 @@ private partial def translateDoElem
               locals,
               mutableLocals)
       | `(doElem| return $value:term) =>
-          match (← tupleReturnValueExprs? fields constDecls immutableDecls params locals value) with
-          | some valueExprs =>
-              pure (#[(← `(Compiler.CompilationModel.Stmt.returnValues [ $[$valueExprs],* ]))], locals, mutableLocals)
+          match (← arrayElementTupleReturnStmts? fields constDecls immutableDecls params locals mutableLocals value) with
+          | some (stmts, syntheticLocal) =>
+              pure (stmts, locals.push syntheticLocal, mutableLocals)
           | none =>
-              pure (#[(← `(Compiler.CompilationModel.Stmt.return $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value)))], locals, mutableLocals)
+              match (← tupleReturnValueExprs? fields constDecls immutableDecls params locals value) with
+              | some valueExprs =>
+                  pure (#[(← `(Compiler.CompilationModel.Stmt.returnValues [ $[$valueExprs],* ]))], locals, mutableLocals)
+              | none =>
+                  pure (#[(← `(Compiler.CompilationModel.Stmt.return $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value)))], locals, mutableLocals)
       | `(doElem| pure ()) =>
           pure (#[], locals, mutableLocals)
       | `(doElem| if $cond:term then $thenBranch:doSeq else $elseBranch:doSeq) =>
@@ -3907,7 +4294,7 @@ private partial def translateDoElem
               locals,
               mutableLocals)
       | `(doElem| $stmt:term) =>
-          pure (#[(← translateEffectStmt fields constDecls immutableDecls functions params locals stmt)], locals, mutableLocals)
+          pure (#[(← translateEffectStmt fields constDecls immutableDecls externalDecls functions params locals stmt)], locals, mutableLocals)
       | _ => throwErrorAt elem "unsupported do element"
 end
 
@@ -4055,6 +4442,110 @@ private def mkStorageDefCommand (field : StorageFieldDecl) : CommandElabM Cmd :=
   let fid := field.ident
   `(command| def $fid : Verity.StorageSlot $storageTy := ⟨$(natTerm field.slotNum)⟩)
 
+private def packedOptionTerm (packed : Option (Nat × Nat)) : CommandElabM Term := do
+  match packed with
+  | none => `(none)
+  | some (offset, width) => `(some ($(natTerm offset), $(natTerm width)))
+
+private def mkStructMemberReadBranches
+    (fields : Array StorageFieldDecl)
+    (nested : Bool)
+    (fallbackTerm : Term) : CommandElabM Term := do
+  let mut acc := fallbackTerm
+  for field in fields.reverse do
+    match nested, field.ty with
+    | false, .mappingStruct _ members =>
+        for member in members.reverse do
+          let packedTerm ← packedOptionTerm member.packed
+          acc ← `(if field == $(strTerm field.name) && member == $(strTerm member.name) then
+              _root_.Contracts.structMemberAt $(natTerm field.slotNum) $(natTerm member.wordOffset)
+                $packedTerm key
+            else
+              $acc)
+    | true, .mappingStruct2 _ _ members =>
+        for member in members.reverse do
+          let packedTerm ← packedOptionTerm member.packed
+          acc ← `(if field == $(strTerm field.name) && member == $(strTerm member.name) then
+              _root_.Contracts.structMember2At $(natTerm field.slotNum) $(natTerm member.wordOffset)
+                $packedTerm key1 key2
+            else
+              $acc)
+    | _, _ => pure ()
+  pure acc
+
+private def mkStructMemberWriteBranches
+    (fields : Array StorageFieldDecl)
+    (nested : Bool)
+    (fallbackTerm : Term) : CommandElabM Term := do
+  let mut acc := fallbackTerm
+  for field in fields.reverse do
+    match nested, field.ty with
+    | false, .mappingStruct _ members =>
+        for member in members.reverse do
+          let packedTerm ← packedOptionTerm member.packed
+          acc ← `(if field == $(strTerm field.name) && member == $(strTerm member.name) then
+              _root_.Contracts.setStructMemberAt $(natTerm field.slotNum) $(natTerm member.wordOffset)
+                $packedTerm key value
+            else
+              $acc)
+    | true, .mappingStruct2 _ _ members =>
+        for member in members.reverse do
+          let packedTerm ← packedOptionTerm member.packed
+          acc ← `(if field == $(strTerm field.name) && member == $(strTerm member.name) then
+              _root_.Contracts.setStructMember2At $(natTerm field.slotNum) $(natTerm member.wordOffset)
+                $packedTerm key1 key2 value
+            else
+              $acc)
+    | _, _ => pure ()
+  pure acc
+
+private def hasStructMapping (fields : Array StorageFieldDecl) : Bool :=
+  fields.any fun field =>
+    match field.ty with
+    | .mappingStruct _ _ => true
+    | _ => false
+
+private def hasStructMapping2 (fields : Array StorageFieldDecl) : Bool :=
+  fields.any fun field =>
+    match field.ty with
+    | .mappingStruct2 _ _ _ => true
+    | _ => false
+
+def mkExecutableStructMappingCommandsPublic (fields : Array StorageFieldDecl) :
+    CommandElabM (Array Cmd) := do
+  let mut cmds : Array Cmd := #[]
+  if hasStructMapping fields then
+    let readFallback : Term ← `(pure default)
+    let writeFallback : Term ← `(pure ())
+    let readBranches ← mkStructMemberReadBranches fields false readFallback
+    let writeBranches ← mkStructMemberWriteBranches fields false writeFallback
+    cmds := cmds.push (← `(command|
+      def structMember {κ α : Type} [Inhabited α] [_root_.Contracts.StorageKey κ]
+          [_root_.Contracts.StorageWord α] (field : String) (key : κ) (member : String) :
+          Verity.Contract α :=
+        $readBranches))
+    cmds := cmds.push (← `(command|
+      def setStructMember {κ α : Type} [_root_.Contracts.StorageKey κ]
+          [_root_.Contracts.StorageWord α] (field : String) (key : κ) (member : String)
+          (value : α) : Verity.Contract Unit :=
+        $writeBranches))
+  if hasStructMapping2 fields then
+    let readFallback : Term ← `(pure default)
+    let writeFallback : Term ← `(pure ())
+    let readBranches ← mkStructMemberReadBranches fields true readFallback
+    let writeBranches ← mkStructMemberWriteBranches fields true writeFallback
+    cmds := cmds.push (← `(command|
+      def structMember2 {κ₁ κ₂ α : Type} [Inhabited α] [_root_.Contracts.StorageKey κ₁]
+          [_root_.Contracts.StorageKey κ₂] [_root_.Contracts.StorageWord α] (field : String)
+          (key1 : κ₁) (key2 : κ₂) (member : String) : Verity.Contract α :=
+        $readBranches))
+    cmds := cmds.push (← `(command|
+      def setStructMember2 {κ₁ κ₂ α : Type} [_root_.Contracts.StorageKey κ₁]
+          [_root_.Contracts.StorageKey κ₂] [_root_.Contracts.StorageWord α] (field : String)
+          (key1 : κ₁) (key2 : κ₂) (member : String) (value : α) : Verity.Contract Unit :=
+        $writeBranches))
+  pure cmds
+
 private def mkModelFieldTerm (field : StorageFieldDecl) : CommandElabM Term := do
   `(Compiler.CompilationModel.Field.mk
       $(strTerm field.name)
@@ -4174,7 +4665,7 @@ private def mkSpecCommand
       let returnTypeTerm ← modelReturnTypeTerm fn.returnTy
       let returnsTerm ← modelReturnsTerm fn.returnTy
       pure <| some (← `( ({
-        name := $(strTerm (internalHelperSpecName functions fn.name))
+        name := $(strTerm (internalHelperSpecNameFor fn))
         params := $modelParams
         returnType := $returnTypeTerm
         «returns» := $returnsTerm
@@ -4281,7 +4772,7 @@ private def mkFindIdxParamSimpCommands
       cmds := cmds ++ ctorCmds
   | none => pure ()
   for fn in functions do
-    let fnCmds ← mkFindIdxParamSimpCommandsForScope contractName fn.name fn.params
+    let fnCmds ← mkFindIdxParamSimpCommandsForScope contractName (toString fn.ident.getId) fn.params
     cmds := cmds ++ fnCmds
   pure cmds
 
@@ -4391,9 +4882,11 @@ def parseContractSyntax
         , parsedImmutables
         , parsedExternals
         , (← ctor.mapM (parseConstructor parsedNewtypes parsedAdts))
-        , (← entrypoints.mapM parseSpecialEntrypoint) ++ (← functions.mapM (parseFunction parsedNewtypes parsedAdts))
-        , namespaceOpt
-        )
+          , assignOverloadInternalIdents
+              ((← entrypoints.mapM parseSpecialEntrypoint) ++
+                (← functions.mapM (parseFunction parsedNewtypes parsedAdts)))
+          , namespaceOpt
+          )
   | _ => throwErrorAt stx "invalid verity_contract declaration"
 
 private def mkConstantDefCommand (constant : ConstantDecl) : CommandElabM Cmd := do
@@ -4423,13 +4916,20 @@ def validateConstantDeclsPublic (constDecls : Array ConstantDecl) : CommandElabM
 def validateGeneratedDefNamesPublic
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
     (functions : Array FunctionDecl) : CommandElabM Unit := do
   let reservedGeneratedNames : Array String := #["spec", "storageNamespace"]
   let mut generatedHelperNames : Array String := reservedGeneratedNames
+  if hasStructMapping fields then
+    generatedHelperNames := generatedHelperNames.push "structMember"
+    generatedHelperNames := generatedHelperNames.push "setStructMember"
+  if hasStructMapping2 fields then
+    generatedHelperNames := generatedHelperNames.push "structMember2"
+    generatedHelperNames := generatedHelperNames.push "setStructMember2"
 
   let mut storageNames : Array String := #[]
   for field in fields do
-    if reservedGeneratedNames.contains field.name then
+    if generatedHelperNames.contains field.name then
       throwErrorAt field.ident
         s!"storage field '{field.name}' conflicts with reserved generated declaration '{field.name}'"
     if storageNames.contains field.name then
@@ -4438,7 +4938,7 @@ def validateGeneratedDefNamesPublic
 
   let mut constantNames : Array String := #[]
   for constant in constDecls do
-    if reservedGeneratedNames.contains constant.name then
+    if generatedHelperNames.contains constant.name then
       throwErrorAt constant.ident
         s!"constant '{constant.name}' conflicts with reserved generated declaration '{constant.name}'"
     if storageNames.contains constant.name then
@@ -4449,8 +4949,20 @@ def validateGeneratedDefNamesPublic
         s!"duplicate constant declaration '{constant.name}'"
     constantNames := constantNames.push constant.name
 
+  let mut immutableNames : Array String := #[]
+  for imm in immutableDecls do
+    if generatedHelperNames.contains imm.name then
+      throwErrorAt imm.ident
+        s!"immutable '{imm.name}' conflicts with reserved generated declaration '{imm.name}'"
+    immutableNames := immutableNames.push imm.name
+
   let mut functionNames : Array String := #[]
+  let mut functionSignatures : Array String := #[]
+  let mut functionAbiSignatures : Array String := #[]
   for fn in functions do
+    let generatedFnName := toString fn.ident.getId
+    let signature := functionSignatureKey fn
+    let abiSignature := functionAbiSignatureKey fn
     if generatedHelperNames.contains fn.name then
       throwErrorAt fn.ident
         s!"function '{fn.name}' conflicts with reserved generated declaration '{fn.name}'"
@@ -4460,26 +4972,49 @@ def validateGeneratedDefNamesPublic
     if constantNames.contains fn.name then
       throwErrorAt fn.ident
         s!"function '{fn.name}' conflicts with a contract constant of the same name"
-    if functionNames.contains fn.name then
+    if immutableNames.contains fn.name then
       throwErrorAt fn.ident
-        s!"duplicate function declaration '{fn.name}'"
-    functionNames := functionNames.push fn.name
+        s!"function '{fn.name}' conflicts with an immutable of the same name"
+    if storageNames.contains generatedFnName then
+      throwErrorAt fn.ident
+        s!"function '{fn.name}' generates internal declaration '{generatedFnName}' that conflicts with a storage field of the same name"
+    if constantNames.contains generatedFnName then
+      throwErrorAt fn.ident
+        s!"function '{fn.name}' generates internal declaration '{generatedFnName}' that conflicts with a contract constant of the same name"
+    if immutableNames.contains generatedFnName then
+      throwErrorAt fn.ident
+        s!"function '{fn.name}' generates internal declaration '{generatedFnName}' that conflicts with an immutable of the same name"
+    if generatedHelperNames.contains generatedFnName then
+      throwErrorAt fn.ident
+        s!"function '{fn.name}' generates internal declaration '{generatedFnName}' that conflicts with reserved generated declaration '{generatedFnName}'"
+    if functionSignatures.contains signature then
+      throwErrorAt fn.ident
+        s!"duplicate function declaration '{signature}'"
+    if functionAbiSignatures.contains abiSignature then
+      throwErrorAt fn.ident
+        s!"duplicate function ABI signature '{abiSignature}' after ABI erasure"
+    if functionNames.contains generatedFnName then
+      throwErrorAt fn.ident
+        s!"function '{fn.name}' generates duplicate internal declaration '{generatedFnName}'"
+    functionNames := functionNames.push generatedFnName
+    functionSignatures := functionSignatures.push signature
+    functionAbiSignatures := functionAbiSignatures.push abiSignature
 
     let helperNames :=
-      #[ s!"{fn.name}_modelBody"
-       , s!"{fn.name}_model"
-       , s!"{fn.name}_bridge"
-       , s!"{fn.name}_semantic_preservation"
-       , s!"{fn.name}_is_view"
-       , s!"{fn.name}_no_calls"
-       , s!"{fn.name}_modifies"
-       , s!"{fn.name}_frame"
-       , s!"{fn.name}_frame_rfl"
-       , s!"{fn.name}_effects"
-       , s!"{fn.name}_cei_compliant"
-       , s!"{fn.name}_nonreentrant"
-       , s!"{fn.name}_cei_safe"
-       , s!"{fn.name}_requires_role"
+      #[ s!"{generatedFnName}_modelBody"
+       , s!"{generatedFnName}_model"
+       , s!"{generatedFnName}_bridge"
+       , s!"{generatedFnName}_semantic_preservation"
+       , s!"{generatedFnName}_is_view"
+       , s!"{generatedFnName}_no_calls"
+       , s!"{generatedFnName}_modifies"
+       , s!"{generatedFnName}_frame"
+       , s!"{generatedFnName}_frame_rfl"
+       , s!"{generatedFnName}_effects"
+       , s!"{generatedFnName}_cei_compliant"
+       , s!"{generatedFnName}_nonreentrant"
+       , s!"{generatedFnName}_cei_safe"
+       , s!"{generatedFnName}_requires_role"
        ]
     for helperName in helperNames do
       if storageNames.contains helperName then
@@ -4488,6 +5023,9 @@ def validateGeneratedDefNamesPublic
       if constantNames.contains helperName then
         throwErrorAt fn.ident
           s!"function '{fn.name}' generates helper '{helperName}' that conflicts with a contract constant of the same name"
+      if immutableNames.contains helperName then
+        throwErrorAt fn.ident
+          s!"function '{fn.name}' generates helper '{helperName}' that conflicts with an immutable of the same name"
       if functionNames.contains helperName then
         throwErrorAt fn.ident
           s!"function '{fn.name}' generates helper '{helperName}' that conflicts with a function of the same name"

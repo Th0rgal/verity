@@ -126,6 +126,29 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
               compileSetStorage fields dynamicSource field value
   | Stmt.setStorageAddr field value =>
       compileSetStorage fields dynamicSource field value true
+  | Stmt.setStorageWord field wordOffset value =>
+      match findFieldWithResolvedSlot fields field with
+      | some (f, slot) => do
+          let valueExpr ← compileExpr fields dynamicSource value
+          let slotExpr (baseSlot : Nat) :=
+            if wordOffset == 0 then YulExpr.lit baseSlot
+            else YulExpr.call "add" [YulExpr.lit baseSlot, YulExpr.lit wordOffset]
+          match f.aliasSlots with
+          | [] =>
+              pure [YulStmt.expr (YulExpr.call "sstore" [slotExpr slot, valueExpr])]
+          | _ =>
+              pure [
+                YulStmt.block (
+                  [YulStmt.let_ "__compat_value" valueExpr] ++
+                  (slot :: f.aliasSlots).map (fun writeSlot =>
+                    YulStmt.expr (YulExpr.call "sstore" [
+                      slotExpr writeSlot,
+                      YulExpr.ident "__compat_value"
+                    ]))
+                )
+              ]
+      | none =>
+          throw s!"Compilation error: unknown storage field '{field}' in setStorageWord"
   | Stmt.storageArrayPush field value =>
       compileStorageArrayPush fields dynamicSource field value
   | Stmt.storageArrayPop field =>

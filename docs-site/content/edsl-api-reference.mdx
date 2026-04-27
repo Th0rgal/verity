@@ -326,6 +326,38 @@ def wDivUp (a b : Uint256) : Uint256
 - Exact cancellation and wad identity lemmas: `mulDivDown_cancel_right/left`, `mulDivUp_cancel_right/left`, `wMulDown_one_left/right`, `wDivUp_by_wad` (`Verity/Proofs/Stdlib/Math.lean`)
 - Wad-specialized helper lemmas: `wMulDown_nat_eq`, `wDivUp_nat_eq`, `wDivUp_antitone_right` (`Verity/Proofs/Stdlib/Math.lean`)
 
+## Same-Contract Helper Calls
+
+Inside `verity_contract`, call reusable same-contract helpers with ordinary function-call syntax. Do not write `internalCall` or `internalCallAssign` in source contracts; those names are compilation-model IR constructors used after macro lowering.
+
+```lean
+verity_contract HelperExample where
+  storage
+    total : Uint256 := slot 0
+
+  function bump (x : Uint256) : Uint256 := do
+    return add x 1
+
+  function storeBump (x : Uint256) : Unit := do
+    let y ← bump x
+    setStorage total y
+
+  function applyBump (x : Uint256) : Unit := do
+    storeBump x
+```
+
+Use the same direct-call form for helpers that return no value, one value, or a static tuple:
+
+```lean
+storeBump x
+let y ← bump x
+let (assets, shares) ← preview seed
+```
+
+The macro lowers effect-only helper calls such as `storeBump x` to `Stmt.internalCall`, helper result bindings such as `let y ← bump x` to `Stmt.internalCallAssign`, and expression-position helper calls to `Expr.internalCall`. Those IR nodes are useful when writing `CompilationModel` values by hand, but direct helper-call syntax is the supported `verity_contract` authoring surface.
+
+Direct helper lowering currently supports static non-dynamic parameter and return types. Helpers whose parameters or return values contain dynamic data such as `String`, `Bytes`, or arrays are still outside this direct internal-helper path.
+
 ## Tuple Surface
 
 `verity_contract` now accepts tuple-shaped local sugar for the static tuple cases already supported by the compilation model:

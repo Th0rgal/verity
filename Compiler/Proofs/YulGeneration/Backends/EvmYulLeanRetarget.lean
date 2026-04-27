@@ -1353,6 +1353,28 @@ private theorem bridgedExpr_selector :
     subst hNested
     exact BridgedExpr.lit 0
 
+/-- The generated dispatcher selector expression is in the bridged expression
+fragment, so the EVMYulLean-backed interpreter oracle evaluates it exactly like
+the historical Verity interpreter. -/
+theorem bridgedExpr_selectorExpr :
+    BridgedExpr Compiler.Proofs.YulGeneration.selectorExpr := by
+  simpa [Compiler.Proofs.YulGeneration.selectorExpr] using bridgedExpr_selector
+
+/-- The EVMYulLean-backed interpreter oracle selects the same 4-byte dispatcher
+selector as the generated Verity selector expression.
+
+This is the first generated-dispatcher semantic slice needed by the native
+migration: every native/interpreter dispatcher simulation branches on this
+expression before it reaches storage, memory, or halt behavior. -/
+@[simp] theorem evalYulExprWithBackend_evmYulLean_selectorExpr_semantics
+    (state : YulState) :
+    evalYulExprWithBackend .evmYulLean state
+        Compiler.Proofs.YulGeneration.selectorExpr =
+      some (state.selector % selectorModulus) := by
+  rw [← evalYulExpr_evmYulLean_eq_on_bridged state
+    Compiler.Proofs.YulGeneration.selectorExpr bridgedExpr_selectorExpr]
+  exact evalYulExpr_selectorExpr_semantics state
+
 private theorem bridgedExpr_calldatasize_lt (n : Nat) :
     BridgedExpr
       (Compiler.Yul.YulExpr.call "lt"
@@ -2630,20 +2652,37 @@ noncomputable def execYulStmtsWithBackend
     YulExecResult :=
   execYulFuelWithBackend backend (sizeOf stmts + 1) state (.stmts stmts)
 
-noncomputable def interpretYulRuntimeWithBackend
-    (backend : BuiltinBackend) (runtimeCode : List Compiler.Yul.YulStmt)
+noncomputable def interpretYulRuntimeWithBackendFuel
+    (backend : BuiltinBackend) (fuel : Nat)
+    (runtimeCode : List Compiler.Yul.YulStmt)
     (tx : YulTransaction) (storage : Nat → Nat) (events : List (List Nat) := []) :
     YulResult :=
   let initialState := YulState.initial tx storage events
   yulResultOfExecWithRollback initialState
-    (execYulStmtsWithBackend backend initialState runtimeCode)
+    (execYulFuelWithBackend backend fuel initialState (.stmts runtimeCode))
+
+noncomputable def interpretYulRuntimeWithBackend
+    (backend : BuiltinBackend) (runtimeCode : List Compiler.Yul.YulStmt)
+    (tx : YulTransaction) (storage : Nat → Nat) (events : List (List Nat) := []) :
+    YulResult :=
+  interpretYulRuntimeWithBackendFuel backend (sizeOf runtimeCode + 1)
+    runtimeCode tx storage events
+
+@[simp] theorem interpretYulRuntimeWithBackend_eq_fuel
+    (backend : BuiltinBackend) (runtimeCode : List Compiler.Yul.YulStmt)
+    (tx : YulTransaction) (storage : Nat → Nat) (events : List (List Nat) := []) :
+    interpretYulRuntimeWithBackend backend runtimeCode tx storage events =
+      interpretYulRuntimeWithBackendFuel backend (sizeOf runtimeCode + 1)
+        runtimeCode tx storage events := by
+  rfl
 
 theorem interpretYulRuntimeWithBackend_verity_eq
     (runtimeCode : List Compiler.Yul.YulStmt) (tx : YulTransaction)
     (storage : Nat → Nat) (events : List (List Nat) := []) :
     interpretYulRuntimeWithBackend .verity runtimeCode tx storage events =
     interpretYulRuntime runtimeCode tx storage events := by
-  unfold interpretYulRuntimeWithBackend execYulStmtsWithBackend interpretYulRuntime
+  unfold interpretYulRuntimeWithBackend interpretYulRuntimeWithBackendFuel
+    interpretYulRuntime
   unfold execYulStmts execYulStmtsFuel
   change
     yulResultOfExecWithRollback (YulState.initial tx storage events)
@@ -2691,7 +2730,7 @@ theorem interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
     _ = interpretYulRuntimeWithBackend .evmYulLean
         (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
         state.storage state.events := by
-          unfold interpretYulRuntimeWithBackend execYulStmtsWithBackend
+          unfold interpretYulRuntimeWithBackend interpretYulRuntimeWithBackendFuel
           change
             yulResultOfExecWithRollback
               (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)

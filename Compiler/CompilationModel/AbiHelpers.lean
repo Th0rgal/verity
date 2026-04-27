@@ -73,6 +73,10 @@ def eventSignature (eventDef : EventDef) : String :=
 def errorSignature (errorDef : ErrorDef) : String :=
   s!"{errorDef.name}(" ++ String.intercalate "," (errorDef.params.map paramTypeToSolidityString) ++ ")"
 
+def functionSignature (fn : FunctionSpec) : String :=
+  let params := fn.params.map (fun p => paramTypeToSolidityString p.ty)
+  s!"{fn.name}(" ++ String.intercalate "," params ++ ")"
+
 def storageArrayElemTypeToParamType : StorageArrayElemType → ParamType
   | .uint256 => .uint256
   | .address => .address

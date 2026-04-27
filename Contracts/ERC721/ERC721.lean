@@ -55,31 +55,31 @@ verity_contract ERC721 where
     let sender ← msgSender
     setMapping2 operatorApprovals sender operator (boolToWord approved)
 
-  function mint (to : Address) : Uint256 := do
+  function mint (toAddr : Address) : Uint256 := do
     let sender ← msgSender
     let currentOwner ← getStorageAddr owner
     require (sender == currentOwner) "Caller is not the owner"
-    require (to != zeroAddress) "Invalid recipient"
+    require (toAddr != zeroAddress) "Invalid recipient"
 
     let tokenId ← getStorage nextTokenId
     let currentOwnerWord ← getMappingUint owners tokenId
     require (currentOwnerWord == 0) "Token already minted"
 
-    let recipientBalance ← getMapping balances to
+    let recipientBalance ← getMapping balances toAddr
     let newRecipientBalance ← requireSomeUint (safeAdd recipientBalance 1) "Balance overflow"
 
     let currentSupply ← getStorage totalSupply
     let newSupply ← requireSomeUint (safeAdd currentSupply 1) "Supply overflow"
 
-    setMappingUintAddr owners tokenId to
-    setMapping balances to newRecipientBalance
+    setMappingUintAddr owners tokenId toAddr
+    setMapping balances toAddr newRecipientBalance
     setStorage totalSupply newSupply
     setStorage nextTokenId (add tokenId 1)
     return tokenId
 
-  function transferFrom (fromAddr : Address, to : Address, tokenId : Uint256) : Unit := do
+  function transferFrom (fromAddr : Address, toAddr : Address, tokenId : Uint256) : Unit := do
     let sender ← msgSender
-    require (to != zeroAddress) "Invalid recipient"
+    require (toAddr != zeroAddress) "Invalid recipient"
 
     let ownerWord ← getMappingUint owners tokenId
     require (ownerWord != 0) "Token does not exist"
@@ -93,17 +93,17 @@ verity_contract ERC721 where
     let authorized := (sender == fromAddr) || (approvedWord == senderWord) || (operatorWord != 0)
     require authorized "Not authorized"
 
-    if fromAddr == to then
+    if fromAddr == toAddr then
       pure ()
     else
       let fromBalance ← getMapping balances fromAddr
       require (fromBalance >= 1) "Insufficient balance"
-      let toBalance ← getMapping balances to
+      let toBalance ← getMapping balances toAddr
       let newToBalance ← requireSomeUint (safeAdd toBalance 1) "Balance overflow"
       setMapping balances fromAddr (sub fromBalance 1)
-      setMapping balances to newToBalance
+      setMapping balances toAddr newToBalance
 
-    setMappingUintAddr owners tokenId to
+    setMappingUintAddr owners tokenId toAddr
     setMappingUintAddr tokenApprovals tokenId zeroAddress
 
 namespace ERC721

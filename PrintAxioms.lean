@@ -47,9 +47,11 @@ import Compiler.Proofs.IRGeneration.SupportedSpec
 import Compiler.Proofs.KeccakBound
 import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.StorageBounds
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapterCorrectness
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBodyClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSignedArithSpec
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSourceExprClosure
@@ -671,6 +673,21 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.ArithmeticProfile.shr_bridge
 
 -- Compiler/Proofs/EndToEnd.lean
+#print axioms Compiler.Proofs.EndToEnd.nativeResultsMatchOn_ok_of_resultsMatch_of_yulResultsAgreeOn
+#print axioms Compiler.Proofs.EndToEnd.yulResultsAgreeOn_of_resultsMatch_of_nativeResultsMatchOn
+#print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeAgreesWithInterpreter_of_ok_agree
+#print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_ok_agree
+#print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_yulHalt_agree
+#print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_yulHalt_project_eq_agree
+#print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_error_agree
+#print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_error_project_eq_agree
+#print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreter_of_positive
+#print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreter_of_exec_ok_agree
+#print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreter_of_exec_yulHalt_agree
+#print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreter_of_exec_error_agree
+#print axioms Compiler.Proofs.EndToEnd.nativeDispatcherBlockAgreesWithInterpreter_of_exec_agree
+#print axioms Compiler.Proofs.EndToEnd.nativeCallDispatcherAgreesWithInterpreter_of_dispatcherBlock_agree
+#print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeAgreesWithInterpreter_of_lowered_callDispatcher_agree
 #print axioms Compiler.Proofs.EndToEnd.layer3_function_preserves_semantics
 #print axioms Compiler.Proofs.EndToEnd.interpretYulRuntime_eq_yulResultOfExec
 #print axioms Compiler.Proofs.EndToEnd.yulStateOfIR_eq_initial
@@ -683,12 +700,85 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_via_reference_oracle
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_evmYulLean_with_function_bridge
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_evmYulLean
+#print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_interpreter_bridge
+#print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bridge
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_via_reference_oracle
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_evmYulLean_with_function_bridge
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_evmYulLean
+#print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge
+#print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd
 -- #print axioms Compiler.Proofs.EndToEnd.simpleStorage_functions_bridged  -- private
+#print axioms Compiler.Proofs.EndToEnd.simpleStorage_runtimeCode_eq_single_dispatcher
+#print axioms Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcher_eq_lowered_stmts
+#print axioms Compiler.Proofs.EndToEnd.lowerStmtsNative_single_block_ok_singleton
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherStmts_lowering_ok
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherStmts_exists_singleton_block
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherStmts_eq_singleton_block
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcher_eq_singleton_block_inner
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_eq_record_inner_block
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_eq_innerBlock_exec
+#print axioms Compiler.Proofs.EndToEnd.lowerStmtsNative_block_stmts_eq
+#print axioms Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_let_head_eq
+#print axioms Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_if_head_eq
+#print axioms Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_singleton_switch_eq
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_head_let_exists
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_let_if_head_exists
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_let_if_if
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_eq_named_let_if_if_block_exec
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_concrete_let_head
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_if
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton
+#print axioms Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_revert_zero_zero
+#print axioms Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq
+#print axioms Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton_revert_default
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton_revert_default_sourceLowered
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_letValue_eq
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if1Cond_eq
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if2Cond_eq
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_exists
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_revert_default_exists
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_revert_default_sourceLowered
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if1Body_eq
+#print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageNativeDispatcher_if1Body_revert
+#print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchBlock_exec
+#print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchBlock_revert_default_exec
+#print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchBlock_revert_default_exec_sourceLowered
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_exec
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec_sourceLowered
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_via_reduction
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageBuildSwitchSourceCases_map_fst
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageBuildSwitchSourceCases_find?_none
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageBuildSwitchSourceCases_tags_lt_uint256_size
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageBuildSwitchSourceCases_lowered_shape
+#print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBody_head_strip_error
+#print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBody_head_strip_error
+#print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBodyTail_callvalue_strip_error
+#print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBodyTail_callvalue_strip_error
+#print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBodyTail2_lt_strip_error
+#print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBodyTail3_closed
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageBuildSwitchSourceCases_lowered_concrete
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_selectorMiss_revert
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_error_via_reduction
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_error
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageLoweredHitCasesShape_concrete
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete_tail
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete_tail2
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error_via_reduction
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail2
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail3
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeCallDispatcherBridge_of_per_case
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_evmYulLean
+#print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge
+#print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean
 
 -- Compiler/Proofs/EventSemantics.lean
 #print axioms Compiler.Proofs.EventSemantics.encodeEvents_append
@@ -1269,6 +1359,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_stop  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_mstore  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_tstore  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_setStorageWord_aliasBlock  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_setStorageWord  -- private
 #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface
 #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface
 #print axioms Compiler.Proofs.IRGeneration.stmtListCompiledLegacyCompatible_of_supportedContractSurface
@@ -1883,6 +1975,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mapping  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mappingUint  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElement  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElementWord  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mappingWord  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mappingPackedWord  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_structMember  -- private
@@ -2196,6 +2289,34 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.StorageBounds.writeStorageArray_other_slot
 #print axioms Compiler.Proofs.StorageBounds.writeStorageArray_storage_unchanged
 #print axioms Compiler.Proofs.StorageBounds.writeStorageArray_events_unchanged
+
+-- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerExprNative_call_runtimePrimOp
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerExprNative_call_userFunction
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerNativeSwitchBlock_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_nil
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_cons
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_nil
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_cons
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_find?_none
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_find?_some
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_length_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_comment
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_let
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_letMany
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_assign
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_expr
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_leave
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_if
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_for
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_switch
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_block
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_funcDef
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNativeAux_nil
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNativeAux_funcDef_cons
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNativeAux_stmt_cons
+#print axioms Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative_empty
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapterCorrectness.lean
 #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let
@@ -2734,6 +2855,395 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_mappingSlot_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
 
+-- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.selectorExprMatchesGeneratedDispatcher_selectorExpr
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.selectedSwitchBody_hit
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.selectedSwitchBody_miss
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeDispatchSelector_of_selector_lt
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable_global
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeBlobBaseFeeRepresentable_minimum
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_noChainId_noBlobBaseFee
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_representableBlobBaseFee
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_representableEnvironment
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_unsupportedChainId
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_unsupportedBlobBaseFee
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_unsupportedHeaderBuiltin
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_installsExecutionContract
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_installsCurrentAccountContract
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_transactionEnvironment
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_source
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_sender
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_codeOwner
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_weiValue
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_blockTimestamp
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_blockNumber
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldata
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataSize
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.byteArray_get?_append_left  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.readBytes_zero_get?_of_lt_source
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.readBytes_offset4_get?_of_lt_source
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte0
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte1
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte2
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte3
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_arg0Byte
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.byteArray_data_toList_get?_of_get?  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.list_reverse_eq_drop4_reverse_append_four  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorPrefix
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.selectorBytesAsNat
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_append  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_lt  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.uint256_ofNat_eq_mk  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.uint256_eq_of_toNat_eq  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.uint256_ofNat_toNat_of_lt  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.uint256_shiftRight_224_mk_toNat  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.uint256_shiftRight_224_ofNat_toNat
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_four  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_tail4_shift  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.div_pow_succ_byte  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.mod_byte_decomp  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_of_le_bytes  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_argWordBytes  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_selectorPrefix_shift
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.usize_sub_toNat_of_le_32  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.readBytes_zero_32_size
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.readBytes_offset4_32_size
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.readWithPadding_32_size
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.byteArray_append_zeroes0  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.byteArray_extract_zero_32_eq_of_size  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.byteArray_readWithPadding_zero_32_eq_of_size  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.byteArray_write_empty_zero_32_eq_of_size  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.byteArray_write_empty_zero_32_readWithPadding_eq_of_size
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.toBytesBigEndian_uint256_length_le  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_loop_size  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_loop_data_toList  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_size  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_data_toList  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.uint256_toByteArray_size
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_arg0Bytes
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataload4_arg0_value
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataload4_arg0_word
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_selectorExpr_native_value
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_selectorExpr_native_value_of_readBytes_size
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_selectorExpr_native_uint256
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.lowerExprNative_selectorExpr
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_calldataload_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_shr_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_eq_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_iszero_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_lt_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_calldatasize_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_callvalue_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_and_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_mstore_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_sload_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_sstore_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_stop_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_return_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_revert_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_initialState_arg0_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_initialState_arg0_ok_withStore
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_initialState_ofIR_arg0_ok_withStore
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_shr_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload0_then_shr224_initialState_selector_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_eq_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_iszero_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_lt_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldatasize_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_callvalue_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_and_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_stop_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_return_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_revert_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNative_revert_zero_zero
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_revert_zero_zero_error
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_expr_prim_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_prim_one_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_selectorExpr_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_selectorExpr_initialState_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_iszero_lt_calldatasize_4_ok
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.uint256_lt_ofNat_4_eq_zero_of_ge  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.uint256_isZero_ofNat_zero  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_callvalue_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_callvalue_initialState_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_callvalue_ok_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_lt_calldatasize_ok_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_sload_ok_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerExprNative_mstore_lit_sload_lit_ok_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerExprNative_return_lit_lit_error_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_singleton_lowerExprNative_return_lit_lit_error_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_ok_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_iszero_ident_one_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_iszero_ident_one_ok_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_selectorExpr_initialState_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_selectorExpr_initialState_ok_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_selectorExpr_initialState_store_ok_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lit_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_cons_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_cons_ok_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_cons_error
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_cons_tail_error
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_append_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_append_error
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_append_prefix_error
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_nil_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_selector_initialState_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_selector_initialState_ok_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_selector_initialState_store_ok_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_eval_zero
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_eval_nonzero
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_eval_nonzero_error
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_lowerExprNative_iszero_ident_one_skip
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_lowerExprNative_callvalue_skip_zero_fuel
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.uint256_lt_ofNat_eq_zero_of_ge  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_lowerExprNative_lt_calldatasize_skip_ge_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_lowerExprNative_iszero_ident_one_skip_fuel
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState_insert_lookup_self  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_lowerExprNative_ident_one_take_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_singleton_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_letSelector_if1Skip_initialState_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_letSelector_if1Skip_if2Take_initialState_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_ok_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_hit_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_miss_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_miss_ok_fuel
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.uint256_land_zero_left  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_matched_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_matched_ok_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_hit
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_miss
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_miss_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerAssignNative_lit_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_hit_marked
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_hit_ok_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_hit_marked_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_hit_marked_error_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_matched
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_matched_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchDefaultGuard_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchDefaultGuard_ok_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchDefaultGuard_unmatched_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchDefaultGuard_unmatched_ok_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchDefaultGuard_matched_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchDefaultGuard_matched_ok_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_unmatched
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_unmatched_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_unmatched_error_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_matched
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_matched_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.lowerNativeSwitchBlock_selectorExpr_eq_nativeSwitchParts
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_lookup_insert_of_ne
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_insert_of_ne
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_multifill_of_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_foldr_insert_zero_of_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_setSharedState
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_setMachineState
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_setState
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_setStore_ok_left
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_setStore_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_overwrite?_left
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_restoreCallFrame_of_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchDiscrTempName_ne_matchedTempName
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPrefixFinalState_matched
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPrefixFinalState_discr
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPrefixFinalState_marked
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_nil
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_cons
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_cons_stmt
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_lit_of_ne
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_none_of_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_var_of_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_lit_of_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_case_matched_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_default_matched_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchCaseIfs_nil
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchCaseIfs_cons
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.list_find?_eq_some_split_false  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.list_find?_eq_none_all_false  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.uint256_ofNat_ne_of_ne_of_lt  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_prefix_miss_of_selector_find  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_find_hit_split
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_find_none_all_miss
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_all_miss_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_matched_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_head_hit_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_head_hit_error_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_cons_miss_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_prefix_hit_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_prefix_hit_error_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_error_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_preserved_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_unmatched_nonempty_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_unmatched_nonempty_error_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_matched_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_matched_caseTail_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_unmatched_caseTail_nonempty_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_unmatched_caseTail_nonempty_error_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_with_default_matched_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_with_default_preserved_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_with_default_error_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_with_default_nonempty_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_with_default_nonempty_error_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_with_revert_default_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_without_default_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_then_tail_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_then_tail_error_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_hit_preserved_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_hit_error_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_none_with_default_nonempty_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_none_without_default_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_none_with_revert_default_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_preserved_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_error_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_with_default_nonempty_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_storePrefix_tail_error_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPrefixStoreState_matched_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPrefixStoreState_discr_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_error_store_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_error
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_without_default_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_unbridgedEnvironmentDefaults
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_accountStorageSlot
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_missingAccountStorageSlot
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_missingAccount
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_observableStorageSlot
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_sload_observableSlot_value
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_sload_omittedSlot_value
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload_initialState_observableSlot_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload_initialState_omittedSlot_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload_initialState_observableSlot_ok_withStore
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload_initialState_omittedSlot_ok_withStore
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_ok_withStore
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_initialState_arg0_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_return32_after_mstore0_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore0_then_return32_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.mstore0_then_return32_hReturn_size
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.mstore0_then_return32_emptyMemory_hReturn_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.mstore0_then_return32_emptyMemory_hReturn_eq_toByteArray
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore0_then_return32_ok_hReturn_size
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_omittedStorageSlot
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_reverse_append_single  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.listByteArrayWordNoMod_eq_fromBytes'_take_reverse  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.listByteArrayWordNoMod_lt  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.listByteArrayWordMod_eq_noMod  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.byteArray_get?_data_toList  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.byteArrayWord_eq_fromBytes'_reverse_of_size
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_replicate_zero  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_append_replicate_zero  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.byteArrayWord_uint256_toByteArray
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectLogEntry_topicsAndWordData
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState_logSeries
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectHaltReturn_stop
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectHaltReturn_32ByteReturn
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectHaltReturn_non32ByteReturn
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore0_then_return32_emptyMemory_projectHaltReturn
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_singleton_block_eq_exec_block
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_block_dispatcher_eq_exec_block
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherBlockResult_eq_execResult
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.callDispatcherBlockResult_initialState_eq_contractDispatcherBlockResult
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.callDispatcher_zero
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.callDispatcher_succ_eq_callDispatcherBlockResult
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_withStore_projectResult_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_events
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_success
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_returnValue
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_finalMappings
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_finalStorageSlot
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_missingFinalStorageAccountSlot
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_missingFinalStorageSlot
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_projectResult_slot
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_projectResult_slot_zero_of_erase
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_projectResult_slot_zero_emptyObservable
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_withStore_projectResult_slot
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_withStore_projectResult_slot_zero_of_erase
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_withStore_projectResult_slot_zero_emptyObservable
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_ofIR_arg0_withStore_projectResult_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_slot0
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_slot0_zero_of_erase
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_slot0_zero_emptyObservable
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_slot0
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_slot0_zero_of_erase
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_slot0_zero_emptyObservable
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot0
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot0_zero_of_erase
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot0_zero_emptyObservable
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_events
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_success
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_returnValue
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore0_then_return32_emptyMemory_projectResult_returnValue
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore0_then_return32_emptyMemory_projectResult_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_projectResult_returnValue
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_omittedSlot_projectResult_returnValue
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_projectResult_returnValue_materialized
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_withStore_projectResult_returnValue
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_withStore_omittedSlot_projectResult_returnValue
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_withStore_projectResult_returnValue_materialized
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_withStore_projectResult_eq_materialized
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_finalMappings
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_finalStorageSlot
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_missingFinalStorageAccountSlot
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_missingFinalStorageSlot
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_stop
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_32ByteReturn
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_non32ByteReturn
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_revert
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_revert_events
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_revert_success
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_revert_returnValue
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_revert_finalMappings
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_revert_finalStorageSlot
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_hardError
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_hardError_success
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_hardError_returnValue
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_hardError_finalStorageSlot
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_hardError_finalMappings
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_hardError_events
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.simpleStorageSelectors_tagsRange  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_find_none_with_revert_default_projectResult_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_miss_with_revert_default_projectResult_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageConcrete_tx_miss_with_revert_default_projectResult_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_store_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_projectResult_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageConcrete_store_hit_projectResult_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_error_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_projectResult_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageConcrete_retrieve_hit_projectResult_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_finalMappings
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative_loweringError
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative_environmentError
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_eq_interpretRuntimeNative
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_loweringError
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative
+
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_add  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_sub  -- private
@@ -2802,6 +3312,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_callvalue  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_calldatasize  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_selector  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_selectorExpr
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExprWithBackend_evmYulLean_selectorExpr_semantics
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_calldatasize_lt  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_has_selector  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_empty_calldata  -- private
@@ -2905,6 +3417,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_stmt
 #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_stmts
 #print axioms Compiler.Proofs.YulGeneration.Backends.emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies
+#print axioms Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend_eq_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend_verity_eq
 #print axioms Compiler.Proofs.YulGeneration.Backends.interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
 #print axioms Compiler.Proofs.YulGeneration.Backends.yulCodegen_preserves_semantics_evmYulLean
@@ -2943,7 +3456,15 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorBytes_size  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_wordBytes_size  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_fold_size  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.byteArray_get?_append_left  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.byteArray_get?_append_right  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_fold_get?_left  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_size
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorByte0
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorByte1
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorByte2
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorByte3
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_arg0Byte
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.callvalue_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.timestamp_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.number_bridge
@@ -2998,4 +3519,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 2831 theorems/lemmas (1948 public, 883 private, 0 sorry'd)
+-- Total: 3346 theorems/lemmas (2415 public, 931 private, 0 sorry'd)

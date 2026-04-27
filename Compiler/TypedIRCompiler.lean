@@ -45,6 +45,9 @@ private def pushLocal (v : TVar) : CompileM Unit :=
 private def emit (stmt : TStmt) : CompileM Unit :=
   modify fun st => { st with body := st.body.push stmt }
 
+private def storageWordSlot (slot wordOffset : Nat) : Nat :=
+  (slot + wordOffset) % Compiler.Constants.evmModulus
+
 private def paramTypeToTy : ParamType → Except String Ty
   | .uint256 => Except.ok Ty.uint256
   | .int256 => Except.ok Ty.uint256
@@ -349,6 +352,13 @@ private def compileStmt (fields : List Field) : Stmt → CompileM Unit
               throw s!"Typed IR compile error: setStorageAddr requires an address-typed field '{fieldName}'"
           | expectedTy, ⟨actualTy, _⟩ =>
               throw s!"Typed IR compile error: setStorageAddr type mismatch for '{fieldName}' (expected {repr expectedTy}, got {repr actualTy})"
+  | .setStorageWord fieldName wordOffset value => do
+      let rhs ← liftExcept <| asUInt256 (← compileExpr fields value)
+      match findFieldWithResolvedSlot fields fieldName with
+      | some (_, slot) =>
+          emit (.setStorageWord (storageWordSlot slot wordOffset) rhs)
+      | none =>
+          throw s!"Typed IR compile error: unknown storage field '{fieldName}' in setStorageWord"
   | .setMapping fieldName key value => do
       let keyExpr ← liftExcept <| asAddress (← compileExpr fields key)
       let valueExpr ← liftExcept <| asUInt256 (← compileExpr fields value)
@@ -574,11 +584,27 @@ def compileFunctionToTBlock (spec : CompilationModel) (fn : FunctionSpec) : Exce
            locals := st.locals.toList
            body := st.body.toList }
 
-/-- Compile a named function from a `CompilationModel` to typed IR. -/
+/-- Compile a function by full ABI signature from a `CompilationModel` to typed IR. -/
+def compileFunctionWithSignature (spec : CompilationModel) (signature : String) :
+    Except String TBlock := do
+  match spec.functions.filter (fun fn => functionSignature fn == signature) with
+  | [] => throw s!"Typed IR compile error: function signature '{signature}' not found in spec '{spec.name}'"
+  | [fn] => compileFunctionToTBlock spec fn
+  | _ =>
+      throw s!"Typed IR compile error: function signature '{signature}' is ambiguous in spec '{spec.name}'"
+
+/-- Compile a named function from a `CompilationModel` to typed IR.
+
+Name-only lookup is accepted only when the source name is unambiguous. Specs with
+overloads must use `compileFunctionWithSignature` so typed-IR callers cannot
+silently select the first same-name declaration.
+-/
 def compileFunctionNamed (spec : CompilationModel) (functionName : String) : Except String TBlock := do
-  match spec.functions.find? (fun fn => fn.name == functionName) with
-  | some fn => compileFunctionToTBlock spec fn
-  | none => throw s!"Typed IR compile error: function '{functionName}' not found in spec '{spec.name}'"
+  match spec.functions.filter (fun fn => fn.name == functionName) with
+  | [] => throw s!"Typed IR compile error: function '{functionName}' not found in spec '{spec.name}'"
+  | [fn] => compileFunctionToTBlock spec fn
+  | _ =>
+      throw s!"Typed IR compile error: function '{functionName}' is overloaded in spec '{spec.name}'; use compileFunctionWithSignature"
 
 private def abiHeadParamSmokeFn : FunctionSpec := {
   name := "acceptHeads"
@@ -618,6 +644,79 @@ private def abiHeadExpectedParamTys : List Ty := [
   Ty.uint256
 ]
 
+private def typedIROverloadSmokeSpec : CompilationModel := {
+  name := "TypedIROverloadSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "echo"
+      params := [{ name := "amount", ty := ParamType.uint256 }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.param "amount")]
+    },
+    { name := "echo"
+      params := [{ name := "recipient", ty := ParamType.address }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.literal 2)]
+    }
+  ]
+}
+
+private def typedIRAmbiguousSignatureSmokeSpec : CompilationModel := {
+  name := "TypedIRAmbiguousSignatureSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "echo"
+      params := [{ name := "amount", ty := ParamType.uint256 }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.param "amount")]
+    },
+    { name := "echo"
+      params := [{ name := "amount", ty := ParamType.uint256 }]
+      returnType := some FieldType.uint256
+      isInternal := true
+      body := [Stmt.return (Expr.literal 2)]
+    }
+  ]
+}
+
+private def stringContains (haystack needle : String) : Bool :=
+  let h := haystack.toList
+  let n := needle.toList
+  if n.isEmpty then true
+  else
+    let rec go : List Char → Bool
+      | [] => false
+      | c :: cs =>
+        if (c :: cs).take n.length == n then true
+        else go cs
+    go h
+
+example :
+    (match compileFunctionNamed typedIROverloadSmokeSpec "echo" with
+    | Except.ok _ => false
+    | Except.error msg => stringContains msg "function 'echo' is overloaded") = true := by
+  native_decide
+
+example :
+    (match compileFunctionWithSignature typedIROverloadSmokeSpec "echo(uint256)" with
+    | Except.ok block => decide (block.params.map TVar.ty = [Ty.uint256])
+    | Except.error _ => false) = true := by
+  native_decide
+
+example :
+    (match compileFunctionWithSignature typedIROverloadSmokeSpec "echo(address)" with
+    | Except.ok block => decide (block.params.map TVar.ty = [Ty.address])
+    | Except.error _ => false) = true := by
+  native_decide
+
+example :
+    (match compileFunctionWithSignature typedIRAmbiguousSignatureSmokeSpec "echo(uint256)" with
+    | Except.ok _ => false
+    | Except.error msg => stringContains msg "signature 'echo(uint256)' is ambiguous") = true := by
+  native_decide
+
 example :
     (match compileFunctionNamed abiHeadParamSmokeSpec "acceptHeads" with
     | Except.ok block => decide (block.params.map TVar.ty = abiHeadExpectedParamTys)
@@ -654,6 +753,43 @@ theorem compileStmts_single_setStorage_literal_run
     (compileStmts fields [Stmt.setStorage fieldName (Expr.literal n)]).run st =
       Except.ok ((), { st with body := st.body.push (TStmt.setStorage slot (TExpr.uintLit n)) }) := by
   simp only [compileStmts, compileStmt, fieldTypeToTy, hfind, emit]
+  rfl
+
+/-- `setStorageWord fieldName wordOffset (literal n)` lowers to a raw uint256
+write at the resolved root slot plus the requested ABI word offset, wrapping
+the slot arithmetic at the EVM word modulus. -/
+theorem compileStmts_single_setStorageWord_literal_run
+    (fields : List Field) (fieldName : String) (slot wordOffset : Nat)
+    (n : Nat) (st : CompileState)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    (compileStmts fields [Stmt.setStorageWord fieldName wordOffset (Expr.literal n)]).run st =
+      Except.ok ((), { st with body := st.body.push (TStmt.setStorageWord (storageWordSlot slot wordOffset) (TExpr.uintLit n)) }) := by
+  simp only [compileStmts, compileStmt, hfind, emit]
+  rfl
+
+/-- `setStorageWord` is raw word storage: address roots also lower to the
+projection-mirroring typed raw write rather than a uint-only `setStorage`. -/
+theorem compileStmts_single_setStorageWord_address_literal_run
+    (fields : List Field) (fieldName : String) (slot wordOffset : Nat)
+    (n : Nat) (st : CompileState)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.address }, slot)) :
+    (compileStmts fields [Stmt.setStorageWord fieldName wordOffset (Expr.literal n)]).run st =
+      Except.ok ((), { st with body := st.body.push (TStmt.setStorageWord (storageWordSlot slot wordOffset) (TExpr.uintLit n)) }) := by
+  simp only [compileStmts, compileStmt, hfind, emit]
+  rfl
+
+theorem compileStmts_single_setStorageWord_wraps_slot_run
+    (fields : List Field) (fieldName : String) (slot : Nat)
+    (n : Nat) (st : CompileState)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    (compileStmts fields
+      [Stmt.setStorageWord fieldName Compiler.Constants.evmModulus (Expr.literal n)]).run st =
+      Except.ok ((), { st with body := st.body.push (TStmt.setStorageWord (slot % Compiler.Constants.evmModulus) (TExpr.uintLit n)) }) := by
+  simp [compileStmts, compileStmt, hfind, asUInt256, liftExcept, emit,
+    storageWordSlot, Nat.add_mod_right]
   rfl
 
 /-- Two-statement compilation shape for a broader supported subset:

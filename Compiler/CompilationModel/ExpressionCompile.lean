@@ -257,6 +257,23 @@ def compileExpr (fields : List Field)
         YulExpr.ident s!"{name}_length",
         indexExpr
       ])
+  | Expr.arrayElementWord name index elementWords wordOffset => do
+      if elementWords == 0 then
+        throw s!"Compilation error: Expr.arrayElementWord '{name}' requires elementWords > 0"
+      else if wordOffset >= elementWords then
+        throw s!"Compilation error: Expr.arrayElementWord '{name}' wordOffset {wordOffset} is outside element width {elementWords}"
+      else
+        let indexExpr ← compileExpr fields dynamicSource index
+        let helperName := match dynamicSource with
+          | .calldata => checkedArrayElementWordCalldataHelperName
+          | .memory => checkedArrayElementWordMemoryHelperName
+        pure (YulExpr.call helperName [
+          YulExpr.ident s!"{name}_data_offset",
+          YulExpr.ident s!"{name}_length",
+          indexExpr,
+          YulExpr.lit elementWords,
+          YulExpr.lit wordOffset
+        ])
   | Expr.storageArrayLength field =>
       match findFieldWithResolvedSlot fields field with
       | some (f, slot) =>

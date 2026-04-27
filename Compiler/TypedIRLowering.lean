@@ -61,6 +61,7 @@ where
     | .assign dst rhs => [.assign (tVarName dst) (lowerTExpr rhs)]
     | .setStorage slot value => [.expr (.call "sstore" [.lit slot, lowerTExpr value])]
     | .setStorageAddr slot value => [.expr (.call "sstore" [.lit slot, lowerTExpr value])]
+    | .setStorageWord slot value => [.expr (.call "sstore" [.lit slot, lowerTExpr value])]
     | .setMapping slot key value =>
         [ .expr (.call "sstore"
             [.call "mappingSlot" [.lit slot, lowerTExpr key], lowerTExpr value])

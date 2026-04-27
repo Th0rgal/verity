@@ -15,7 +15,7 @@ set_option hygiene false
 def elabVerityContract : CommandElab := fun stx => do
   let (contractName, _newtypeDecls, adtDecls, fields, errorDecls, constDecls, immutableDecls, externalDecls, ctor, functions, storageNamespace) ← parseContractSyntax stx
 
-  validateGeneratedDefNamesPublic fields constDecls functions
+  validateGeneratedDefNamesPublic fields constDecls immutableDecls functions
   validateConstantDeclsPublic constDecls
   validateImmutableDeclsPublic fields constDecls immutableDecls ctor
   validateExternalDeclsPublic externalDecls
@@ -31,6 +31,9 @@ def elabVerityContract : CommandElab := fun stx => do
 
     for imm in immutableDecls.zipIdx do
       elabCommand (← mkStorageDefCommandPublic (immutableStorageFieldDecl fields imm.1 imm.2))
+
+    for cmd in (← mkExecutableStructMappingCommandsPublic fields) do
+      elabCommand cmd
 
     -- Emit storageNamespace : Nat for the contract (#1730, Axis 4 Step 4a).
     -- Use the resolved namespace from parseContractSyntax to respect custom keys.

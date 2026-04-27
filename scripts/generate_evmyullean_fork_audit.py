@@ -49,17 +49,19 @@ FORK_AUDIT = {
     "schema_version": 1,
     "fork_url": "https://github.com/lfglabs-dev/EVMYulLean",
     "upstream_url": "https://github.com/NethermindEth/EVMYulLean",
-    "pinned_commit": "7b54b8f38bb68ee930d00d39c1b11dd60fb123c8",
+    "pinned_commit": "b353c7583ea36e49dbbffd57f5b25f4d01226e15",
     "upstream_base": "047f63070309f436b66c61e276ab3b6d1169265a",
-    "fork_ahead_by": 2,
+    "fork_ahead_by": 3,
     "fork_behind_by": 0,
     "divergence_summary": (
-        "Fork is exactly 2 commits ahead of upstream/main. Both commits are "
+        "Fork is exactly 3 commits ahead of upstream/main. All commits are "
         "non-semantic: one visibility change (private -> default) on an "
-        "internal exponentiation accumulator, and one Lean 4.22.0 "
-        "deprecation fix (nativeLibDir -> staticLibDir) in the lakefile. "
-        "Neither commit changes EVM/Yul execution semantics, so upstream "
-        "Ethereum conformance test coverage continues to apply transitively."
+        "internal exponentiation accumulator, one Lean 4.22.0 deprecation "
+        "fix (nativeLibDir -> staticLibDir) in the lakefile, and one FFI "
+        "body exposure for ByteArray.zeroes that matches the extern zero-fill "
+        "behavior. None of these commits changes EVM/Yul execution semantics, "
+        "so upstream Ethereum conformance test coverage continues to apply "
+        "transitively."
     ),
     "commits": [
         {
@@ -110,6 +112,30 @@ FORK_AUDIT = {
             "trust_impact": (
                 "Zero. Lake build metadata only; compiled output is "
                 "byte-identical up to path naming."
+            ),
+        },
+        {
+            "sha": "b353c7583ea36e49dbbffd57f5b25f4d01226e15",
+            "title": "ffi: expose zero byte array body",
+            "file": "EvmYul/FFI/ffi.lean",
+            "category": "visibility",
+            "semantic_change": False,
+            "rationale": (
+                "Replace the opaque `ByteArray.zeroes` extern declaration "
+                "with a kernel-visible Lean body using `Array.replicate`. "
+                "The attached extern name remains the same, preserving the "
+                "runtime FFI target while allowing downstream proofs to unfold "
+                "the size and byte contents of zero-filled padding."
+            ),
+            "diff_summary": (
+                "1 file changed, 1 insertion(+), 1 deletion(-): replace one "
+                "opaque declaration with an equivalent Lean definition. No "
+                "behavior change."
+            ),
+            "trust_impact": (
+                "Low. This makes the existing zero-fill behavior visible to "
+                "Lean's kernel for proofs; it does not alter Yul/EVM execution "
+                "semantics or the extern symbol used by compiled code."
             ),
         },
     ],

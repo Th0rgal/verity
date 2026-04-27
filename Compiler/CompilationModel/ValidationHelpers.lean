@@ -77,7 +77,8 @@ def collectExprNames : Expr → List String
   | Expr.externalCall name args => name :: collectExprListNames args
   | Expr.internalCall name args => name :: collectExprListNames args
   | Expr.arrayLength name => [name]
-  | Expr.arrayElement name index => name :: collectExprNames index
+  | Expr.arrayElement name index | Expr.arrayElementWord name index _ _ =>
+      name :: collectExprNames index
   | Expr.storageArrayLength field => [field]
   | Expr.storageArrayElement field index => field :: collectExprNames index
   | Expr.dynamicBytesEq lhsName rhsName => [lhsName, rhsName]
@@ -135,7 +136,8 @@ mutual
 def collectStmtNames : Stmt → List String
   | Stmt.letVar name value => name :: collectExprNames value
   | Stmt.assignVar name value => name :: collectExprNames value
-  | Stmt.setStorage _ value | Stmt.setStorageAddr _ value => collectExprNames value
+  | Stmt.setStorage _ value | Stmt.setStorageAddr _ value | Stmt.setStorageWord _ _ value =>
+      collectExprNames value
   | Stmt.storageArrayPush _ value => collectExprNames value
   | Stmt.storageArrayPop _ => []
   | Stmt.setStorageArrayElement _ index value =>

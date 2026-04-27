@@ -77,6 +77,33 @@ private def indexedEmitSourceSpec : CompilationModel :=
           returnType := none
           body := [Stmt.emit "Ping" [Expr.param "topic", Expr.param "value"], .stop] } ] }
 
+private def storageWordFields : List Field :=
+  [{ name := "root", ty := .uint256, «slot» := some 10 }]
+
+private def storageWordAliasFields : List Field :=
+  [{ name := "root", ty := .uint256, «slot» := some 10, aliasSlots := [20] }]
+
+private def storageWordSpec : CompilationModel :=
+  { name := "StorageWordSource"
+    fields := storageWordFields
+    constructor := none
+    functions := [] }
+
+private def storageWordState : SourceSemantics.RuntimeState :=
+  { world := Verity.defaultState, bindings := [] }
+
+private def resultStorageAt? (slot : Nat) : SourceSemantics.StmtResult → Option Nat
+  | .continue st => some (st.world.storage slot).val
+  | .stop st => some (st.world.storage slot).val
+  | .return _ st => some (st.world.storage slot).val
+  | .revert => none
+
+private def resultStorageAddrAt? (slot : Nat) : SourceSemantics.StmtResult → Option Verity.Address
+  | .continue st => some (st.world.storageAddr slot)
+  | .stop st => some (st.world.storageAddr slot)
+  | .return _ st => some (st.world.storageAddr slot)
+  | .revert => none
+
 example :
     (sourceContractSemantics simpleStorageSupportedSpecModel [0x2e64cec1]
       { sender := 7, functionSelector := 0x2e64cec1, args := [] }
@@ -165,7 +192,58 @@ example :
         SourceSemantics.encodeEvents
           [{ name := "Ping"
              args := [Verity.Core.Uint256.ofNat (22 % Compiler.Constants.evmModulus)]
-             indexedArgs := [Verity.Core.Uint256.ofNat (11 % Compiler.Constants.evmModulus)] }] := by
+             indexedArgs := [
+               SourceSemantics.eventSignatureTopic
+                 { name := "Ping"
+                   params := [
+                     { name := "topic", ty := .uint256, kind := .indexed },
+                     { name := "value", ty := .uint256, kind := .unindexed }
+                   ] },
+               Verity.Core.Uint256.ofNat (11 % Compiler.Constants.evmModulus)] }] := by
+  native_decide
+
+example :
+    resultStorageAt? 12
+      (SourceSemantics.execStmtWithEvents storageWordFields [] storageWordState
+        (Stmt.setStorageWord "root" 2 (.literal 99))) = some 99 := by
+  native_decide
+
+example :
+    resultStorageAt? 12
+      (SourceSemantics.execStmt storageWordFields storageWordState
+        (Stmt.setStorageWord "root" 2 (.literal 99))) = some 99 := by
+  native_decide
+
+example :
+    resultStorageAddrAt? 12
+      (SourceSemantics.execStmt storageWordFields storageWordState
+        (Stmt.setStorageWord "root" 2 (.literal 99))) =
+        some (Verity.wordToAddress (99 : Verity.Uint256)) := by
+  native_decide
+
+example :
+    resultStorageAt? 12
+      (SourceSemantics.execStmtWithHelpers storageWordSpec storageWordFields 1 storageWordState
+        (Stmt.setStorageWord "root" 2 (.literal 99))) = some 99 := by
+  native_decide
+
+example :
+    resultStorageAt? 10
+      (SourceSemantics.execStmt storageWordFields storageWordState
+        (Stmt.setStorageWord "root" 2 (.literal 99))) = some 0 := by
+  native_decide
+
+example :
+    resultStorageAt? 22
+      (SourceSemantics.execStmt storageWordAliasFields storageWordState
+        (Stmt.setStorageWord "root" 2 (.literal 99))) = some 99 := by
+  native_decide
+
+example :
+    resultStorageAddrAt? 22
+      (SourceSemantics.execStmtWithEvents storageWordAliasFields [] storageWordState
+        (Stmt.setStorageWord "root" 2 (.literal 99))) =
+        some (Verity.wordToAddress (99 : Verity.Uint256)) := by
   native_decide
 
 end Compiler.Proofs.IRGeneration.SourceSemanticsFeatureTest

@@ -278,9 +278,20 @@ private def validateCompileInputsBeforeFieldWriteConflict
   for ext in spec.externals do
     let _ ← externalFunctionReturns ext
     validateInteropExternalSpec ext
-  match firstDuplicateName (spec.functions.map (·.name)) with
+  match firstDuplicateName ((spec.functions.filter (fun fn => !fn.isInternal)).map functionSignature) with
   | some dup =>
-      throw s!"Compilation error: duplicate function name '{dup}' in {spec.name}"
+      throw s!"Compilation error: duplicate function signature '{dup}' in {spec.name}"
+  | none =>
+      pure ()
+  match firstDuplicateName ((spec.functions.filter (·.isInternal)).map (·.name)) with
+  | some dup =>
+      throw s!"Compilation error: duplicate internal function name '{dup}' in {spec.name}; internal function Yul definitions are keyed by name"
+  | none =>
+      pure ()
+  let externalFunctionNames := (spec.functions.filter (fun fn => !fn.isInternal)).map (·.name)
+  match (spec.functions.filter (·.isInternal)).find? (fun fn => externalFunctionNames.contains fn.name) with
+  | some fn =>
+      throw s!"Compilation error: internal function name '{fn.name}' collides with an external function name in {spec.name}; internal function Yul definitions are keyed by name"
   | none =>
       pure ()
   match firstDuplicateName (spec.errors.map (·.name)) with
@@ -352,11 +363,13 @@ def validateCompileInputs (spec : CompilationModel) (selectors : List Nat) : Exc
   | none =>
       pure ()
   let mappingHelpersRequired := usesMapping fields
-  let arrayHelpersRequired := contractUsesArrayElement spec
+  let arrayHelpersRequired := contractUsesPlainArrayElement spec
+  let arrayElementWordHelpersRequired := contractUsesArrayElementWord spec
   let storageArrayHelpersRequired := contractUsesStorageArrayElement spec
   let dynamicBytesEqHelpersRequired := contractUsesDynamicBytesEq spec
   match firstReservedExternalCollision
-      spec mappingHelpersRequired arrayHelpersRequired storageArrayHelpersRequired dynamicBytesEqHelpersRequired with
+      spec mappingHelpersRequired arrayHelpersRequired arrayElementWordHelpersRequired
+        storageArrayHelpersRequired dynamicBytesEqHelpersRequired with
   | some name =>
       if name.startsWith internalFunctionPrefix then
         throw s!"Compilation error: external declaration '{name}' uses reserved prefix '{internalFunctionPrefix}' ({issue756Ref})."
@@ -380,7 +393,8 @@ def compileValidatedCore (spec : CompilationModel) (selectors : List Nat) : Exce
   let externalFns := spec.functions.filter (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)
   let internalFns := spec.functions.filter (·.isInternal)
   let mappingHelpersRequired := usesMapping fields
-  let arrayHelpersRequired := contractUsesArrayElement spec
+  let arrayHelpersRequired := contractUsesPlainArrayElement spec
+  let arrayElementWordHelpersRequired := contractUsesArrayElementWord spec
   let storageArrayHelpersRequired := contractUsesStorageArrayElement spec
   let dynamicBytesEqHelpersRequired := contractUsesDynamicBytesEq spec
   let fallbackSpec ← pickUniqueFunctionByName "fallback" spec.functions
@@ -389,10 +403,18 @@ def compileValidatedCore (spec : CompilationModel) (selectors : List Nat) : Exce
     compileFunctionSpec fields spec.events spec.errors spec.adtTypes sel fnSpec
   let internalFuncDefs ← internalFns.mapM (compileInternalFunction fields spec.events spec.errors spec.adtTypes)
   let arrayElementHelpers :=
-    if arrayHelpersRequired then
-      [checkedArrayElementCalldataHelper, checkedArrayElementMemoryHelper]
+    (if arrayHelpersRequired then
+      [ checkedArrayElementCalldataHelper
+      , checkedArrayElementMemoryHelper
+      ]
     else
-      []
+      []) ++
+    (if arrayElementWordHelpersRequired then
+      [ checkedArrayElementWordCalldataHelper
+      , checkedArrayElementWordMemoryHelper
+      ]
+    else
+      [])
   let storageArrayElementHelpers :=
     if storageArrayHelpersRequired then
       [checkedStorageArrayElementHelper]

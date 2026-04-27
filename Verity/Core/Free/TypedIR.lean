@@ -57,6 +57,7 @@ inductive TStmt where
   | assign (dst : TVar) (rhs : TExpr dst.ty)
   | setStorage (slot : Nat) (value : TExpr .uint256)
   | setStorageAddr (slot : Nat) (value : TExpr .address)
+  | setStorageWord (slot : Nat) (value : TExpr .uint256)
   | setMapping (slot : Nat) (key : TExpr .address) (value : TExpr .uint256)
   | setMapping2 (slot : Nat) (key1 key2 : TExpr .address) (value : TExpr .uint256)
   | setMappingUint (slot : Nat) (key : TExpr .uint256) (value : TExpr .uint256)
@@ -218,6 +219,11 @@ def evalTStmtFuel : Nat → TExecState → TStmt → TExecResult
       let v := evalTExpr s value
       .ok { s with world := { s.world with
         storageAddr := fun i => if i == slot then v else s.world.storageAddr i } }
+  | Nat.succ _, s, .setStorageWord slot value =>
+      let v := evalTExpr s value
+      .ok { s with world := { s.world with
+        storage := fun i => if i == slot then v else s.world.storage i,
+        storageAddr := fun i => if i == slot then Verity.wordToAddress v else s.world.storageAddr i } }
   | Nat.succ _, s, .setMapping slot key value =>
       let k := evalTExpr s key
       let v := evalTExpr s value

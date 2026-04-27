@@ -1,5 +1,7 @@
 import Compiler.Proofs.IRGeneration.Dispatch
 
+set_option linter.unnecessarySimpa false
+
 namespace Compiler.Proofs.IRGeneration
 
 open Compiler
@@ -538,8 +540,9 @@ private theorem compileValidatedCore_ok_yields_internalFunctions_nil
   have hdynamicBytesEq : contractUsesDynamicBytesEq model = false :=
     hSupported.contractUsesDynamicBytesEq_eq_false
   unfold compileValidatedCore at hcore
-  rw [hSupported.normalizedFields, hfallback, hreceive, harray, hstorageArray,
-    hdynamicBytesEq, hnoInternalFns, hSupported.noAdtTypes] at hcore
+  rw [hSupported.normalizedFields, hfallback, hreceive,
+    contractUsesPlainArrayElement, contractUsesArrayElementWord, harray,
+    hstorageArray, hdynamicBytesEq, hnoInternalFns, hSupported.noAdtTypes] at hcore
   simp only [bind, Except.bind, pure, Except.pure, List.mapM_nil] at hcore
   rcases hmap :
       ((model.functions.filter
@@ -766,8 +769,9 @@ theorem compile_ok_yields_internalFunctions_nil_except_mapping_writes
   · simp [hvalidate] at hcompile
   · simp [hvalidate] at hcompile
     unfold compileValidatedCore at hcompile
-    rw [hSupported.normalizedFields, hfallback, hreceive, harray, hstorageArray,
-      hdynamicBytesEq, hnoInternalFns, hSupported.noAdtTypes] at hcompile
+    rw [hSupported.normalizedFields, hfallback, hreceive,
+      contractUsesPlainArrayElement, contractUsesArrayElementWord, harray,
+      hstorageArray, hdynamicBytesEq, hnoInternalFns, hSupported.noAdtTypes] at hcompile
     simp only [bind, Except.bind, pure, Except.pure, List.mapM_nil] at hcompile
     rcases hmap :
         ((model.functions.filter

@@ -26,6 +26,8 @@ import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSourceExprClosure
 import Compiler.CompilationModel.Compile
 import Compiler.CompilationModel.ParamLoading
 
+set_option linter.unusedSimpArgs false
+
 namespace Compiler.Proofs.YulGeneration.Backends
 
 open Compiler

@@ -3,6 +3,11 @@ import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.MappingSlot
 import Compiler.CompilationModel.LayoutValidation
 
+set_option linter.unnecessarySimpa false
+set_option linter.unusedSimpArgs false
+set_option linter.unusedTactic false
+set_option linter.unusedVariables false
+
 namespace Compiler.Proofs.IRGeneration
 
 open Compiler
@@ -312,6 +317,28 @@ def writeUintSlots (world : Verity.ContractState) (slots : List Nat) (value : Na
   { world with
     storage := fun slot =>
       if slots.contains slot then word else world.storage slot }
+
+def writeStorageWordSlot (world : Verity.ContractState) (slot wordOffset value : Nat) :
+    Verity.ContractState :=
+  let word : Verity.Core.Uint256 := value
+  let addr := Verity.wordToAddress word
+  let target := wordNormalize (slot + wordOffset)
+  { world with
+    storage := fun current =>
+      if current = target then word else world.storage current,
+    storageAddr := fun current =>
+      if current = target then addr else world.storageAddr current }
+
+def writeStorageWordSlots (world : Verity.ContractState) (slots : List Nat) (wordOffset value : Nat) :
+    Verity.ContractState :=
+  let word : Verity.Core.Uint256 := value
+  let addr := Verity.wordToAddress word
+  let targets := slots.map (fun slot => wordNormalize (slot + wordOffset))
+  { world with
+    storage := fun current =>
+      if targets.contains current then word else world.storage current,
+    storageAddr := fun current =>
+      if targets.contains current then addr else world.storageAddr current }
 
 def writeAddressSlots (world : Verity.ContractState) (slots : List Nat) (value : Nat) :
     Verity.ContractState :=
@@ -1282,6 +1309,14 @@ private theorem evalExpr_arrayElement
     (index : Expr) :
     evalExpr fields state (.arrayElement name index) = none := rfl
 
+private theorem evalExpr_arrayElementWord
+    (fields : List Field)
+    (state : RuntimeState)
+    (name : String)
+    (index : Expr)
+    (elementWords wordOffset : Nat) :
+    evalExpr fields state (.arrayElementWord name index elementWords wordOffset) = none := rfl
+
 private theorem evalExpr_mappingWord
     (fields : List Field)
     (state : RuntimeState)
@@ -1466,6 +1501,13 @@ mutual
         match findFieldWriteSlots fields fieldName, evalExpr fields state value with
         | some slots, some resolved =>
             .continue { state with world := writeUintSlots state.world slots resolved }
+        | _, _ => .revert
+    | state, .setStorageWord fieldName wordOffset value =>
+        match findFieldWriteSlots fields fieldName, evalExpr fields state value with
+        | some slots, some resolved =>
+            .continue
+              { state with
+                  world := writeStorageWordSlots state.world slots wordOffset resolved }
         | _, _ => .revert
     | state, .setMapping fieldName key value =>
         match findFieldWriteSlots fields fieldName,
@@ -1694,6 +1736,13 @@ mutual
         match findFieldWriteSlots fields fieldName, evalExpr fields state value with
         | some slots, some resolved =>
             .continue { state with world := writeUintSlots state.world slots resolved }
+        | _, _ => .revert
+    | state, .setStorageWord fieldName wordOffset value =>
+        match findFieldWriteSlots fields fieldName, evalExpr fields state value with
+        | some slots, some resolved =>
+            .continue
+              { state with
+                  world := writeStorageWordSlots state.world slots wordOffset resolved }
         | _, _ => .revert
     | state, .setMapping fieldName key value =>
         match findFieldWriteSlots fields fieldName,
@@ -2625,6 +2674,14 @@ mutual
         match findFieldWriteSlots fields fieldName, evalExprWithHelpers spec fields fuel state value with
         | some slots, some resolved =>
             .continue { state with world := writeUintSlots state.world slots resolved }
+        | _, _ => .revert
+    | .setStorageWord fieldName wordOffset value =>
+        match findFieldWriteSlots fields fieldName,
+            evalExprWithHelpers spec fields fuel state value with
+        | some slots, some resolved =>
+            .continue
+              { state with
+                  world := writeStorageWordSlots state.world slots wordOffset resolved }
         | _, _ => .revert
     | .setMapping fieldName key value =>
         match findFieldWriteSlots fields fieldName,
@@ -3583,6 +3640,8 @@ mutual
         simpa [evalExprWithHelpers, evalExpr_mapping, evalExpr_mappingUint, hb]
     | arrayElement _ b =>
         simp [evalExprWithHelpers, evalExpr_arrayElement]
+    | arrayElementWord _ b _ _ =>
+        simp [evalExprWithHelpers, evalExpr_arrayElementWord]
     | mappingWord _ b _ | mappingPackedWord _ b _ _ | structMember _ b _ =>
         simp only [exprTouchesUnsupportedHelperSurface] at hsurface
         have hb :=
@@ -3932,6 +3991,10 @@ private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux
       simp [execStmtWithHelpers, execStmtWithEvents,
         evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface]
   | .setStorage _ value =>
+      simp only [stmtTouchesUnsupportedHelperSurface] at hsurface
+      simp [execStmtWithHelpers, execStmtWithEvents,
+        evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface]
+  | .setStorageWord _ _ value =>
       simp only [stmtTouchesUnsupportedHelperSurface] at hsurface
       simp [execStmtWithHelpers, execStmtWithEvents,
         evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface]

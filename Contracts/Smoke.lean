@@ -658,7 +658,7 @@ verity_contract FunctionConstantNameConflictRejected where
     return 0
 
 /--
-error: duplicate function declaration 'echo'
+error: duplicate function declaration 'echo()'
 -/
 #guard_msgs in
 verity_contract DuplicateFunctionRejected where
@@ -669,6 +669,118 @@ verity_contract DuplicateFunctionRejected where
 
   function echo () : Uint256 := do
     return 2
+
+verity_contract FunctionOverloadSmoke where
+  storage
+
+  function echo (a : Uint256) : Uint256 := do
+    return a
+
+  function echo (a : Address) : Uint256 := do
+    return (addressToWord a)
+
+  function echo (a : Uint256, b : Uint256) : Uint256 := do
+    return (add a b)
+
+/--
+error: duplicate function ABI signature 'echo(scalar_uint256)' after ABI erasure
+-/
+#guard_msgs in
+verity_contract NewtypeErasedOverloadRejected where
+  types
+    Amount : Uint256
+    Shares : Uint256
+  storage
+
+  function echo (a : Amount) : Uint256 := do
+    return a
+
+  function echo (a : Shares) : Uint256 := do
+    return a
+
+/--
+error: duplicate function ABI signature 'echo(tuple2_scalar_uint8__scalar_uint256)' after ABI erasure
+-/
+#guard_msgs in
+verity_contract AdtErasedOverloadRejected where
+  inductive
+    LeftBox := | LeftValue(value : Uint256)
+    RightBox := | RightValue(value : Uint256)
+  storage
+
+  function echo (a : LeftBox) : Uint256 := do
+    return 0
+
+  function echo (a : RightBox) : Uint256 := do
+    return 0
+
+verity_contract HelperExternalArgumentSmoke where
+  storage
+    saved : Uint256 := slot 0
+
+  linked_externals
+    external echo(Uint256) -> (Uint256)
+
+  function idWord (a : Uint256) : Uint256 := do
+    return a
+
+  function pair (a : Uint256) : Tuple [Uint256, Uint256] := do
+    return (a, add a 1)
+
+  function put (a : Uint256) : Unit := do
+    setStorage saved a
+
+  function bindExternalArg (x : Uint256) : Uint256 := do
+    let y ← idWord (externalCall "echo" [x])
+    return y
+
+  function tupleExternalArg (x : Uint256) : Uint256 := do
+    let (a, b) ← pair (externalCall "echo" [x])
+    return (add a b)
+
+  function statementExternalArg (x : Uint256) : Unit := do
+    put (externalCall "echo" [x])
+
+verity_contract BlockTimestampSmoke where
+  storage
+
+  function nowish () : Uint256 := do
+    let t ← Verity.blockTimestamp
+    return t
+
+  function timestampPlus (delta : Uint256) : Uint256 := do
+    let t ← blockTimestamp
+    return (add t delta)
+
+  function blobFeePlus (delta : Uint256) : Uint256 := do
+    let fee ← blobbasefee
+    return (add fee delta)
+
+example :
+    (BlockTimestampSmoke.nowish.run { Verity.defaultState with blockTimestamp := 123 }).getValue? =
+      some 123 := by
+  decide
+
+example :
+    (BlockTimestampSmoke.timestampPlus 7 |>.run { Verity.defaultState with blockTimestamp := 123 }).getValue? =
+      some 130 := by
+  decide
+
+example :
+    (BlockTimestampSmoke.blobFeePlus 7 |>.run { Verity.defaultState with blobBaseFee := 123 }).getValue? =
+      some 130 := by
+  decide
+
+/--
+error: context accessor 'blockTimestamp' is monadic; use `let x ← blockTimestamp` before using it in a pure expression
+-/
+#guard_msgs in
+verity_contract PureBlockTimestampAccessorRejected where
+  storage
+
+  function nowish () : Uint256 := do
+    let t := blockTimestamp
+    return t
 
 /--
 error: storage field 'spec' conflicts with reserved generated declaration 'spec'
@@ -707,6 +819,80 @@ verity_contract ConstantFunctionHelperCollisionRejected where
   function price () : Uint256 := do
     return 3
 
+/--
+error: function 'structMember' conflicts with reserved generated declaration 'structMember'
+-/
+#guard_msgs in
+verity_contract StructMappingGeneratedReadHelperCollisionRejected where
+  storage
+    positions : MappingStruct(Address,[delegate @word 0]) := slot 0
+
+  function structMember () : Uint256 := do
+    return 1
+
+/--
+error: immutable 'setStructMember2' conflicts with reserved generated declaration 'setStructMember2'
+-/
+#guard_msgs in
+verity_contract StructMappingGeneratedWriteHelperImmutableCollisionRejected where
+  storage
+    approvals : MappingStruct2(Address,Address,[allowance @word 0]) := slot 0
+
+  immutables
+    setStructMember2 : Uint256 := 1
+
+  constructor () := do
+    pure ()
+
+  function allowanceOf (owner : Address, spender : Address) : Uint256 := do
+    let amount ← structMember2 "approvals" owner spender "allowance"
+    return amount
+
+/--
+error: function 'quote' generates internal declaration 'quote__14xscalar_uint256' that conflicts with a contract constant of the same name
+-/
+#guard_msgs in
+verity_contract ConstantOverloadGeneratedNameCollisionRejected where
+  storage
+
+  constants
+    quote__14xscalar_uint256 : Uint256 := 7
+
+  function quote (amount : Uint256) : Uint256 := do
+    return amount
+
+  function quote (recipient : Address) : Uint256 := do
+    return (addressToWord recipient)
+
+/--
+error: function 'quote' generates internal declaration 'quote__14xscalar_uint256' that conflicts with an immutable of the same name
+-/
+#guard_msgs in
+verity_contract ImmutableOverloadGeneratedNameCollisionRejected where
+  storage
+
+  immutables
+    quote__14xscalar_uint256 : Uint256 := 7
+
+  function quote (amount : Uint256) : Uint256 := do
+    return amount
+
+  function quote (recipient : Address) : Uint256 := do
+    return (addressToWord recipient)
+
+#guard_msgs in
+verity_contract OverloadSignatureEncodingSmoke where
+  types
+    tuple_uint256 : Uint256
+  storage
+
+  function quote (amount : tuple_uint256) : Uint256 := do
+    return amount
+
+  function quote (pair : Tuple [Uint256, Uint256]) : Uint256 := do
+    let _pairValue := pair
+    return pair_0
+
 verity_contract TupleSmoke where
   storage
     values : Uint256 → Uint256 := slot 0
@@ -727,6 +913,91 @@ verity_contract TupleSmoke where
     let _delegate := cfg_1
     let flag := cfg_2
     setMapping authorized owner flag
+
+verity_contract CurveCutArraySmoke where
+  storage
+    lastXt : Uint256 := slot 0
+    lastLiq : Uint256 := slot 1
+    lastOffset : Uint256 := slot 2
+
+  function firstCutXt (cuts : Array (Tuple [Uint256, Uint256, Int256])) : Uint256 := do
+    let (xtReserve, _liqSquare, _offset) := arrayElement cuts 0
+    return xtReserve
+
+  function returnCut (cuts : Array (Tuple [Uint256, Uint256, Int256]), idx : Uint256) : Tuple [Uint256, Uint256, Int256] := do
+    return arrayElement cuts idx
+
+  function storeCut (cuts : Array (Tuple [Uint256, Uint256, Int256]), idx : Uint256) : Unit := do
+    let (xtReserve, liqSquare, offset) := arrayElement cuts idx
+    setStorage lastXt xtReserve
+    setStorage lastLiq liqSquare
+    setStorage lastOffset (toUint256 offset)
+
+  function storeTwoCuts (cuts : Array (Tuple [Uint256, Uint256, Int256]), firstIdx : Uint256, secondIdx : Uint256) : Unit := do
+    let (firstXt, _firstLiq, _firstOffset) := arrayElement cuts firstIdx
+    let (secondXt, _secondLiq, _secondOffset) := arrayElement cuts secondIdx
+    setStorage lastXt firstXt
+    setStorage lastLiq secondXt
+
+/--
+error: arrayElement currently supports only arrays with single-word static elements on the compilation-model path, got Verity.Macro.ValueType.array
+  (Verity.Macro.ValueType.tuple [Verity.Macro.ValueType.uint256, Verity.Macro.ValueType.uint256])
+-/
+#guard_msgs in
+verity_contract CurveCutPlainTupleArrayElementRejected where
+  storage
+
+  function badPlainRead (cuts : Array (Tuple [Uint256, Uint256])) : Uint256 := do
+    let cut := arrayElement cuts 0
+    return 0
+
+def curveCutArrayExecutableReadsTupleElement : Bool :=
+  match CurveCutArraySmoke.firstCutXt #[(11, 13, toInt256 17)] Verity.defaultState with
+  | .success value _ => value == 11
+  | _ => false
+
+example : curveCutArrayExecutableReadsTupleElement = true := by decide
+
+verity_contract PackedStorageWriteSmoke where
+  storage
+    stateRoot : Uint256 := slot 0
+
+  function writeSlot0 (isClosed : Bool, maxTotalSupply : Uint256) : Unit := do
+    let closedWord := boolToWord isClosed
+    let slot0 := bitOr closedWord (shl 8 maxTotalSupply)
+    setPackedStorage stateRoot 0 slot0
+
+  function writeSlot1 (accruedProtocolFees : Uint256, normalizedUnclaimedWithdrawals : Uint256) : Unit := do
+    let slot1 := bitOr accruedProtocolFees (shl 128 normalizedUnclaimedWithdrawals)
+    setPackedStorage stateRoot 1 slot1
+
+def packedStorageExecutableWritesExplicitWordOffset : Bool :=
+  match PackedStorageWriteSmoke.writeSlot1 7 9 Verity.defaultState with
+  | .success _ state =>
+      state.storage 0 == 0 &&
+      state.storage 1 == bitOr 7 (shl 128 9)
+  | _ => false
+
+example : packedStorageExecutableWritesExplicitWordOffset = true := by decide
+
+verity_contract PackedAddressStorageWriteSmoke where
+  storage
+    owner : Address := slot 0
+
+  function writeOwnerWord (word : Uint256) : Address := do
+    setPackedStorage owner 0 word
+    let current ← getStorageAddr owner
+    return current
+
+def packedStorageExecutableUpdatesAddressMirror : Bool :=
+  match PackedAddressStorageWriteSmoke.writeOwnerWord 0xA11CE Verity.defaultState with
+  | .success value state =>
+      value == Verity.wordToAddress 0xA11CE &&
+      state.storage 0 == 0xA11CE &&
+      state.storageAddr 0 == Verity.wordToAddress 0xA11CE
+  | _ => false
+
+example : packedStorageExecutableUpdatesAddressMirror = true := by decide
 
 verity_contract DirectHelperCallSmoke where
   storage
@@ -853,6 +1124,28 @@ verity_contract ZeroAddressShadowSmoke where
   function shadowWrite (zeroAddress : Address) : Unit := do
     setMappingAddr delegates zeroAddress zeroAddress
 
+verity_contract ContextAccessorShadowSmoke where
+  storage
+
+  constants
+    chainid : Uint256 := 31337
+
+  immutables
+    blockTimestamp : Uint256 := 12345
+    msgSender : Address := (wordToAddress 42)
+
+  function echoSenderName (msgSender : Address) : Address := do
+    return msgSender
+
+  function constantNamedChainid () : Uint256 := do
+    return chainid
+
+  function immutableNamedBlockTimestamp () : Uint256 := do
+    return blockTimestamp
+
+  function immutableNamedMsgSender () : Address := do
+    return msgSender
+
 verity_contract StructMappingSmoke where
   storage
     positions : MappingStruct(Address,[
@@ -890,6 +1183,19 @@ verity_contract StructMappingSmoke where
   function approvalNonce (owner : Address, spender : Address) : Uint256 := do
     let nextNonce ← structMember2 "approvals" owner spender "nonce"
     return nextNonce
+
+private def _structMemberExecutableHelper :
+    String → Address → String → Contract Uint256 :=
+  StructMappingSmoke.structMember
+private def _setStructMemberExecutableHelper :
+    String → Address → String → Uint256 → Contract Unit :=
+  StructMappingSmoke.setStructMember
+private def _structMember2ExecutableHelper :
+    String → Address → Address → String → Contract Uint256 :=
+  StructMappingSmoke.structMember2
+private def _setStructMember2ExecutableHelper :
+    String → Address → Address → String → Uint256 → Contract Unit :=
+  StructMappingSmoke.setStructMember2
 
 verity_contract ExternalCallSmoke where
   storage
@@ -929,11 +1235,11 @@ verity_contract ERC20HelperSmoke where
     lastAllowance : Uint256 := slot 1
     lastSupply : Uint256 := slot 2
 
-  function pushTokens (token : Address, to : Address, amount : Uint256) : Unit := do
-    safeTransfer token to amount
+  function pushTokens (token : Address, toAddr : Address, amount : Uint256) : Unit := do
+    safeTransfer token toAddr amount
 
-  function pullTokens (token : Address, fromAddr : Address, to : Address, amount : Uint256) : Unit := do
-    safeTransferFrom token fromAddr to amount
+  function pullTokens (token : Address, fromAddr : Address, toAddr : Address, amount : Uint256) : Unit := do
+    safeTransferFrom token fromAddr toAddr amount
 
   function approveTokens (token : Address, spender : Address, amount : Uint256) : Unit := do
     safeApprove token spender amount
@@ -1041,8 +1347,8 @@ verity_contract ERC20HelperShadowWriteRejected where
   function safeTransfer (_token : Address, _to : Address, amount : Uint256) : Unit := do
     setStorage lastTransfer amount
 
-  function writeShadowedTransfer (token : Address, to : Address, amount : Uint256) : Unit := do
-    safeTransfer token to amount
+  function writeShadowedTransfer (token : Address, toAddr : Address, amount : Uint256) : Unit := do
+    safeTransfer token toAddr amount
 
 /--
  error: linked external 'describe' uses unsupported parameter type; executable externalCall currently supports only Uint256, Int256, Uint8, Address, Bytes32, and Bool
@@ -1294,10 +1600,16 @@ end SpecGenSmoke
 #check_contract StatelessSmoke
 #check_contract SpecialEntrypointSmoke
 #check_contract TupleSmoke
+#check_contract CurveCutArraySmoke
+#check_contract PackedStorageWriteSmoke
 #check_contract DirectHelperCallSmoke
 #check_contract Uint8Smoke
 #check_contract AddressHelpersSmoke
 #check_contract ZeroAddressShadowSmoke
+#check_contract ContextAccessorShadowSmoke
+#check_contract FunctionOverloadSmoke
+#check_contract HelperExternalArgumentSmoke
+#check_contract BlockTimestampSmoke
 #check_contract StructMappingSmoke
 #check_contract ExternalCallSmoke
 #check_contract TryExternalCallSmoke

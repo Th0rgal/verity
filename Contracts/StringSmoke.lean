@@ -169,7 +169,7 @@ verity_contract StringLogicalUnsupported where
       return 0
 
 /--
-error: local binding 'alias' currently cannot bind dynamic values (Verity.Macro.ValueType.string) to local variables on the compilation-model path; use the parameter directly
+error: local binding 'localAlias' currently cannot bind dynamic values (Verity.Macro.ValueType.string) to local variables on the compilation-model path; use the parameter directly
 -/
 #guard_msgs in
 verity_contract StringLocalAliasUnsupported where
@@ -177,11 +177,11 @@ verity_contract StringLocalAliasUnsupported where
     sentinel : Uint256 := slot 0
 
   function same (lhs : String, rhs : String) : Bool := do
-    let alias := lhs
-    return (alias == rhs)
+    let localAlias := lhs
+    return (localAlias == rhs)
 
 /--
-error: local binding 'alias' currently cannot bind dynamic values (Verity.Macro.ValueType.bytes) to local variables on the compilation-model path; use the parameter directly
+error: local binding 'localAlias' currently cannot bind dynamic values (Verity.Macro.ValueType.bytes) to local variables on the compilation-model path; use the parameter directly
 -/
 #guard_msgs in
 verity_contract BytesLocalAliasUnsupported where
@@ -189,8 +189,8 @@ verity_contract BytesLocalAliasUnsupported where
     sentinel : Uint256 := slot 0
 
   function same (lhs : Bytes, rhs : Bytes) : Bool := do
-    let alias := lhs
-    return (alias == rhs)
+    let localAlias := lhs
+    return (localAlias == rhs)
 
 /--
 error: returnArray currently supports only arrays with single-word static elements on the compilation-model path, got Verity.Macro.ValueType.array (Verity.Macro.ValueType.string)
