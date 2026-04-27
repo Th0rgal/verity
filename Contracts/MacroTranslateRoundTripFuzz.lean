@@ -161,11 +161,11 @@ private def fuzzStorageEntries : List Nat → FuzzRng → FuzzRng × List (Nat �
       let (rng, tail) := fuzzStorageEntries rest rng
       (rng, (slotIdx, value) :: tail)
 
-private def storageOfEntries (entries : List (Nat × Nat)) : Nat → Nat :=
+private def storageOfEntries (entries : List (Nat × Nat)) : Nat → IRStorageWord :=
   fun slotIdx =>
     match entries.find? (fun entry => entry.1 == slotIdx) with
-    | some (_, value) => value
-    | none => 0
+    | some (_, value) => IRStorageWord.ofNat value
+    | none => IRStorageWord.ofNat 0
 
 private def mappingKeySamples (sender : Nat) (args : List Nat) : List Nat :=
   (args ++ [0, 1, sender, 2^160 - 1, 2^256 - 1]).eraseDups
