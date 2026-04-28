@@ -178,6 +178,61 @@ def yulFunctionBodies (runtimeCode : List YulStmt) : List (String × List YulStm
     | .funcDef name _ _ body => some (name, body)
     | _ => none
 
+/-! ## Generated Native Runtime Fragment -/
+
+mutual
+  partial def yulStmtContainsFuncDef : YulStmt → Bool
+    | .funcDef _ _ _ _ => true
+    | .if_ _ body => yulStmtsContainFuncDef body
+    | .for_ init _ post body =>
+        yulStmtsContainFuncDef init ||
+          yulStmtsContainFuncDef post ||
+          yulStmtsContainFuncDef body
+    | .switch _ cases defaultBody =>
+        cases.any (fun entry => yulStmtsContainFuncDef entry.2) ||
+          defaultBody.any yulStmtsContainFuncDef
+    | .block stmts => yulStmtsContainFuncDef stmts
+    | .comment _ | .let_ _ _ | .letMany _ _ | .assign _ _ | .expr _ | .leave => false
+
+  partial def yulStmtsContainFuncDef (stmts : List YulStmt) : Bool :=
+    stmts.any yulStmtContainsFuncDef
+end
+
+def yulRuntimeTopLevelFunctionNames (runtimeCode : List YulStmt) : List String :=
+  runtimeCode.filterMap fun
+    | .funcDef name _ _ _ => some name
+    | _ => none
+
+def yulRuntimeDispatcherStmts (runtimeCode : List YulStmt) : List YulStmt :=
+  runtimeCode.filter fun
+    | .funcDef _ _ _ _ => false
+    | _ => true
+
+def stringListHasDuplicate : List String → Bool
+  | [] => false
+  | name :: rest => rest.contains name || stringListHasDuplicate rest
+
+def generatedRuntimeFunctionNamesUnique (runtimeCode : List YulStmt) : Bool :=
+  !stringListHasDuplicate (yulRuntimeTopLevelFunctionNames runtimeCode)
+
+def generatedRuntimeDispatcherHasNoFuncDefs (runtimeCode : List YulStmt) : Bool :=
+  !yulStmtsContainFuncDef (yulRuntimeDispatcherStmts runtimeCode)
+
+def generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
+    (runtimeCode : List YulStmt) :
+    Bool :=
+  (yulFunctionBodies runtimeCode).all fun entry => !yulStmtsContainFuncDef entry.2
+
+/-- Executable characterization for the generated runtime shape that the
+    native EVMYulLean lowering path currently accepts: top-level `funcDef`
+    statements are helpers, dispatcher statements contain no nested function
+    definitions, helper names are unique, and helper bodies themselves contain
+    no nested function definitions. -/
+def generatedRuntimeNativeFragment (runtimeCode : List YulStmt) : Bool :=
+  generatedRuntimeFunctionNamesUnique runtimeCode &&
+    generatedRuntimeDispatcherHasNoFuncDefs runtimeCode &&
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs runtimeCode
+
 def selectorExprMatchesGeneratedDispatcher : YulExpr → Bool
   | .call "shr" [.lit shift, .call "calldataload" [.lit 0]] =>
       shift == Compiler.Constants.selectorShift
