@@ -147,7 +147,29 @@ ALLOWLIST: set[str] = {
     # --- Mapping slot and field resolution proofs ---
     "findResolvedFieldAtSlotCopyFrom_of_member",
     "firstFieldWriteSlotConflictCopyFrom_some_of_seen_slot_member",
+    # IRStorageSlot migration: these storage write/state-match proofs grew
+    # because each case now carries both the old source Nat slot reasoning and
+    # the bounded IRStorageSlot normalization bridge. Splitting them further
+    # would duplicate the same `wordNormalize`/`IRStorageSlot.ofNat` plumbing
+    # across one-off local helpers.
+    "runtimeStateMatchesIR_writeUintSlots",
+    "runtimeStateMatchesIR_writeAddressSlot",
+    "runtimeStateMatchesIR_writeAddressKeyedMappingChainSlot",
+    "runtimeStateMatchesIR_writeAddressKeyedMappingSlot",
+    "runtimeStateMatchesIR_writeAddressKeyedMappingWordSlot",
+    "runtimeStateMatchesIR_writeAddressKeyedMappingPackedWordSlot",
+    "runtimeStateMatchesIR_writeAddressKeyedMapping2Slot",
+    "runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot",
     "encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleton_eq_written",
+    "encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_eq_written",
+    "encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_eq_written",
+    # Source storage-read steps need to bridge `sload(lit slot)` through
+    # `wordNormalize slot` and then repackage the updated binding/state
+    # invariants. These are four parallel cases for uint/address let/assign.
+    "compiledStmtStep_letStorageField",
+    "compiledStmtStep_letStorageAddrField",
+    "compiledStmtStep_assignStorageField",
+    "compiledStmtStep_assignStorageAddrField",
     # --- Compat scratch lemmas ---
     "compatScratch_not_internalImmutable",
     "compatScratch_startsWith_reserved",
@@ -278,6 +300,32 @@ ALLOWLIST: set[str] = {
     # while delegating to the lowered native theorem; the long span is the public
     # hypothesis surface, not a large proof script.
     "simpleStorage_endToEnd_native_evmYulLean",
+    # Phase 2 retrieve-hit prerequisites: closed-form interpretIR reduction
+    # over the retrieve body's two-statement form (`mstore(0, sload(0));
+    # return(0, 32)`); the proof must walk the EDSL execIRStmts/execIRStmt
+    # state machine through the call/expr/builtin layers and discharge a
+    # fuel-bound side condition. Cannot be split without exposing internal
+    # IR-evaluation helpers.
+    "interpretIR_simpleStorage_retrieveHit",
+    # Phase 2 retrieve-hit prerequisites: dispatcher-exec halt-form chain.
+    # Composes the body-level closed form with the existing tail3 reduction
+    # endpoint after opening the source-lowered existential and pinning the
+    # switch case shape. The 155-line span is the union of fuel-reshape,
+    # existential-opening, body-state plumbing, and `_via_reduction`'s
+    # decomposition obligation; each piece is mechanical but inseparable.
+    "simpleStorageNativeContract_dispatcherExec_retrieveHit_halt_atFuel",
+    # Phase 2 retrieve-hit prerequisites: closed-form `projectResult`
+    # evaluation on the YulHalt halt produced by the lowered retrieve body.
+    # The proof must thread `mstore0_then_return32_*` harness lemmas across
+    # the chained `setMachineState` overrides to extract the 32-byte
+    # `H_return` window before computing `projectHaltReturn`.
+    "projectResult_retrieveHit_eq",
+    # Phase 2 retrieve-hit bridge closure: composes the closed-form IR result,
+    # native dispatcher halt endpoint, projected-storage preservation, and
+    # EVMYulLean Layer-3 result agreement under the public theorem hypotheses.
+    # Splitting would create several single-use helpers whose proofs are mostly
+    # repeated hypothesis plumbing around the same concrete retrieve path.
+    "simpleStorageNativeRetrieveHitBridge_proved",
     # Safe-body public EVMYulLean wrapper derives the raw BridgedStmts function
     # hypotheses from compile output, static parameter closure, and
     # BridgedSafeStmts witnesses before delegating to the function-bridge

@@ -124,9 +124,9 @@ private def mkRandomTx (extFns : List FunctionSpec) (selectors : List Nat)
     let (args, seed3) := genArgs fn.params.length seed2
     ({ sender := sender, functionSelector := selector, args := args }, seed3)
 
-private def seededStorage (seed : Nat) (slotIdx : Nat) : Nat :=
-  let mix := seed + slotIdx * 0x9e3779b97f4a7c15 + 0xbf58476d1ce4e5b9
-  mix % (2 ^ 256)
+private def seededStorage (seed : Nat) (slotIdx : IRStorageSlot) : IRStorageWord :=
+  let mix := seed + slotIdx.toNat * 0x9e3779b97f4a7c15 + 0xbf58476d1ce4e5b9
+  IRStorageWord.ofNat mix
 
 private def observedSlotsForTx (spec : CompilationModel) (_tx : IRTransaction) : List Nat :=
   (canonicalFieldSlots spec ++ writeSlots spec).eraseDups

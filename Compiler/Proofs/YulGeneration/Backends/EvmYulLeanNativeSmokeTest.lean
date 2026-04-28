@@ -4,7 +4,7 @@ import EvmYul.Yul.Interpreter
 namespace Compiler.Proofs.YulGeneration.Backends
 
 open Compiler.Yul
-open Compiler.Proofs.IRGeneration (IRStorageWord)
+open Compiler.Proofs.IRGeneration (IRStorageWord IRStorageSlot)
 
 private def runNativeProgram (stmts : List YulStmt) : Option EvmYul.Yul.State :=
   match lowerStmtsNative stmts with
@@ -34,9 +34,9 @@ private def sampleTx : Compiler.Proofs.YulGeneration.YulTransaction :=
     functionSelector := 0x01020304
     args := [41] }
 
-private def zeroStorage : Nat → IRStorageWord := fun _ => IRStorageWord.ofNat 0
+private def zeroStorage : IRStorageSlot → IRStorageWord := fun _ => IRStorageWord.ofNat 0
 
-private def seededStorage : Nat → IRStorageWord := fun slot =>
+private def seededStorage : IRStorageSlot → IRStorageWord := fun slot =>
   if slot = 7 then IRStorageWord.ofNat 77 else IRStorageWord.ofNat 0
 
 private def wordByteArray (value : Nat) : ByteArray :=
@@ -54,7 +54,7 @@ private def stateWithLogEntries (entries : List EvmYul.LogEntry) : EvmYul.Yul.St
   .Ok { shared with substate := { shared.substate with logSeries := entries.toArray } } ∅
 
 private def stateWithStorageLogReturn
-    (storage : Nat → IRStorageWord) (observableSlots : List Nat)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
     (entries : List EvmYul.LogEntry) (returnWord : Nat) : EvmYul.Yul.State :=
   let shared := StateBridge.toSharedState
     (Compiler.Proofs.YulGeneration.YulState.initial sampleTx storage) observableSlots
@@ -73,7 +73,8 @@ private def nativeStoresBuiltinWithTx
     .let_ "v" (.call builtin []),
     .expr (.call "sstore" [.lit slot, .ident "v"])
   ] tx zeroStorage [slot] with
-  | .ok result => result.success && result.finalStorage slot == IRStorageWord.ofNat expected
+  | .ok result =>
+      result.success && result.finalStorage (IRStorageSlot.ofNat slot) == IRStorageWord.ofNat expected
   | .error _ => false
 
 private def nativeStoresBuiltin (builtin : String) (slot expected : Nat) : Bool :=
@@ -151,7 +152,7 @@ private def nativeAllowsUserFunctionNamedChainid : Bool :=
 
 private def referenceRuntimeWithFuel
     (fuel : Nat) (stmts : List YulStmt) (tx : Compiler.Proofs.YulGeneration.YulTransaction)
-    (storage : Nat → IRStorageWord) (events : List (List Nat)) :
+    (storage : IRStorageSlot → IRStorageWord) (events : List (List Nat)) :
     Compiler.Proofs.YulGeneration.YulResult :=
   let initialState := Compiler.Proofs.YulGeneration.YulState.initial tx storage events
   match Compiler.Proofs.YulGeneration.execYulFuel fuel initialState (.stmts stmts) with
@@ -186,7 +187,9 @@ private def resultsMatchOnSlots
   nativeResult.success == referenceResult.success &&
     nativeResult.returnValue == referenceResult.returnValue &&
     nativeResult.events == referenceResult.events &&
-    slots.all (fun slot => nativeResult.finalStorage slot == referenceResult.finalStorage slot)
+    slots.all (fun slot =>
+      nativeResult.finalStorage (IRStorageSlot.ofNat slot) ==
+        referenceResult.finalStorage (IRStorageSlot.ofNat slot))
 
 private def nativeMatchesReferenceRuntime
     (stmts : List YulStmt) (observableSlots compareSlots : List Nat) : Bool :=
@@ -211,7 +214,7 @@ private def nativeCopiesSloadToSlot
   match Native.interpretRuntimeNative 128 [
     .expr (.call "sstore" [.lit 8, .call "sload" [.lit 7]])
   ] sampleTx seededStorage observableSlots with
-  | .ok result => result.success && result.finalStorage 8 == IRStorageWord.ofNat expected
+  | .ok result => result.success && result.finalStorage (IRStorageSlot.ofNat 8) == IRStorageWord.ofNat expected
   | .error _ => false
 
 private def nativeCopiesTransientLoadToStorage : Bool :=
@@ -219,7 +222,7 @@ private def nativeCopiesTransientLoadToStorage : Bool :=
     .expr (.call "tstore" [.lit 3, .lit 88]),
     .expr (.call "sstore" [.lit 9, .call "tload" [.lit 3]])
   ] sampleTx zeroStorage [9] with
-  | .ok result => result.success && result.finalStorage 9 == IRStorageWord.ofNat 88
+  | .ok result => result.success && result.finalStorage (IRStorageSlot.ofNat 9) == IRStorageWord.ofNat 88
   | .error _ => false
 
 private def nativeInitialStateInstallsContractAndStorage : Bool :=
@@ -282,12 +285,12 @@ private def nativeStopCommitsStorageAndPreservesEvents : Bool :=
   | .ok result =>
       result.success &&
         result.returnValue.isNone &&
-        result.finalStorage 7 == IRStorageWord.ofNat 99 &&
+        result.finalStorage (IRStorageSlot.ofNat 7) == IRStorageWord.ofNat 99 &&
         result.events == [[1, 2, 3]]
   | .error _ => false
 
 private def nativeReturnHaltProjectsStorageReturnAndEvents : Bool :=
-  let finalStorage : Nat → IRStorageWord := fun slot => if slot = 7 then IRStorageWord.ofNat 99 else IRStorageWord.ofNat 0
+  let finalStorage : IRStorageSlot → IRStorageWord := fun slot => if slot = 7 then IRStorageWord.ofNat 99 else IRStorageWord.ofNat 0
   let result :=
     Native.projectResult sampleTx seededStorage [[1, 2, 3]]
       (.error (.YulHalt
@@ -295,11 +298,11 @@ private def nativeReturnHaltProjectsStorageReturnAndEvents : Bool :=
         (EvmYul.UInt256.ofNat 1)))
   result.success &&
     result.returnValue == some 44 &&
-    result.finalStorage 7 == IRStorageWord.ofNat 99 &&
+    result.finalStorage (IRStorageSlot.ofNat 7) == IRStorageWord.ofNat 99 &&
     result.events == [[1, 2, 3], [5, 88]]
 
 private def nativeValueResultProjectsStorageReturnAndEvents : Bool :=
-  let finalStorage : Nat → IRStorageWord := fun slot => if slot = 7 then IRStorageWord.ofNat 99 else IRStorageWord.ofNat 0
+  let finalStorage : IRStorageSlot → IRStorageWord := fun slot => if slot = 7 then IRStorageWord.ofNat 99 else IRStorageWord.ofNat 0
   let result :=
     Native.projectResult sampleTx seededStorage [[1, 2, 3]]
       (.ok
@@ -307,7 +310,7 @@ private def nativeValueResultProjectsStorageReturnAndEvents : Bool :=
           [EvmYul.UInt256.ofNat 44]))
   result.success &&
     result.returnValue == some 44 &&
-    result.finalStorage 7 == IRStorageWord.ofNat 99 &&
+    result.finalStorage (IRStorageSlot.ofNat 7) == IRStorageWord.ofNat 99 &&
     result.events == [[1, 2, 3], [5, 88]]
 
 private def nativeHardErrorRollsBackStorageAndEvents : Bool :=
@@ -318,7 +321,7 @@ private def nativeHardErrorRollsBackStorageAndEvents : Bool :=
       (.error EvmYul.Yul.Exception.OutOfFuel)
   !result.success &&
     result.returnValue.isNone &&
-    result.finalStorage 7 == IRStorageWord.ofNat 5 &&
+    result.finalStorage (IRStorageSlot.ofNat 7) == IRStorageWord.ofNat 5 &&
     result.events == [[1, 2, 3]]
 
 private def nativeRevertErrorRollsBackStorageAndEvents : Bool :=
@@ -329,7 +332,7 @@ private def nativeRevertErrorRollsBackStorageAndEvents : Bool :=
       (.error EvmYul.Yul.Exception.Revert)
   !result.success &&
     result.returnValue.isNone &&
-    result.finalStorage 7 == IRStorageWord.ofNat 5 &&
+    result.finalStorage (IRStorageSlot.ofNat 7) == IRStorageWord.ofNat 5 &&
     result.events == [[1, 2, 3]]
 
 private def dispatchSmokeContract : Compiler.IRContract :=
@@ -834,7 +837,7 @@ example :
       ],
       .expr (.call "sstore" [.lit 7, .call "inc" [.lit 41]])
     ] sampleTx zeroStorage [7] with
-    | .ok result => result.success && result.finalStorage 7 == IRStorageWord.ofNat 42
+    | .ok result => result.success && result.finalStorage (IRStorageSlot.ofNat 7) == IRStorageWord.ofNat 42
     | .error _ => false) = true := by
   native_decide
 
@@ -842,7 +845,7 @@ example :
     (match Native.interpretRuntimeNative 128
       [.expr (.call "sstore" [.lit 7, .lit 99])]
       sampleTx zeroStorage [7] with
-    | .ok result => result.success && result.finalStorage 7 == IRStorageWord.ofNat 99
+    | .ok result => result.success && result.finalStorage (IRStorageSlot.ofNat 7) == IRStorageWord.ofNat 99
     | .error _ => false) = true := by
   native_decide
 
@@ -895,14 +898,14 @@ example :
   native_decide
 
 example :
-    (let finalStorage : Nat → IRStorageWord := fun slot => if slot = 7 then IRStorageWord.ofNat 99 else IRStorageWord.ofNat 0
+    (let finalStorage : IRStorageSlot → IRStorageWord := fun slot => if slot = 7 then IRStorageWord.ofNat 99 else IRStorageWord.ofNat 0
      let result :=
       Native.projectResult sampleTx seededStorage [[1, 2, 3]]
         (.ok
           (stateWithStorageLogReturn finalStorage [7] [sampleLogEntry [5] 88] 0,
             [EvmYul.UInt256.ofNat 44]))
      result.finalMappings) =
-    (let finalStorage : Nat → IRStorageWord := fun slot => if slot = 7 then IRStorageWord.ofNat 99 else IRStorageWord.ofNat 0
+    (let finalStorage : IRStorageSlot → IRStorageWord := fun slot => if slot = 7 then IRStorageWord.ofNat 99 else IRStorageWord.ofNat 0
      let result :=
       Native.projectResult sampleTx seededStorage [[1, 2, 3]]
         (.ok
@@ -912,14 +915,14 @@ example :
   rfl
 
 example :
-    (let finalStorage : Nat → IRStorageWord := fun slot => if slot = 7 then IRStorageWord.ofNat 99 else IRStorageWord.ofNat 0
+    (let finalStorage : IRStorageSlot → IRStorageWord := fun slot => if slot = 7 then IRStorageWord.ofNat 99 else IRStorageWord.ofNat 0
      let result :=
       Native.projectResult sampleTx seededStorage [[1, 2, 3]]
         (.error (.YulHalt
           (stateWithStorageLogReturn finalStorage [7] [sampleLogEntry [5] 88] 44)
           (EvmYul.UInt256.ofNat 1)))
      result.finalMappings) =
-    (let finalStorage : Nat → IRStorageWord := fun slot => if slot = 7 then IRStorageWord.ofNat 99 else IRStorageWord.ofNat 0
+    (let finalStorage : IRStorageSlot → IRStorageWord := fun slot => if slot = 7 then IRStorageWord.ofNat 99 else IRStorageWord.ofNat 0
      let result :=
       Native.projectResult sampleTx seededStorage [[1, 2, 3]]
         (.error (.YulHalt
@@ -1165,7 +1168,7 @@ example :
         [[1, 2, 3]]
         (.error EvmYul.Yul.Exception.Revert)
      !result.success &&
-       result.finalStorage 7 == IRStorageWord.ofNat 5 &&
+       result.finalStorage (IRStorageSlot.ofNat 7) == IRStorageWord.ofNat 5 &&
        result.events == [[1, 2, 3]]) = true := by
   native_decide
 

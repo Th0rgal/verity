@@ -48,7 +48,8 @@ def resultsMatchOn (slots : List Nat) (mappingKeys : List (Nat × Nat))
     (ir : IRResult) (yul : YulResult) : Bool :=
   ir.success == yul.success &&
   ir.returnValue == yul.returnValue &&
-  slots.all (fun slot => ir.finalStorage slot == yul.finalStorage slot) &&
+  slots.all (fun slot =>
+    ir.finalStorage (IRStorageSlot.ofNat slot) == yul.finalStorage (IRStorageSlot.ofNat slot)) &&
   mappingKeys.all (fun (base, key) => ir.finalMappings base key == yul.finalMappings base key) &&
   ir.events == yul.events
 

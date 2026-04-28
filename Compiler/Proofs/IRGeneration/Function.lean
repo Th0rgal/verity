@@ -425,10 +425,10 @@ theorem interpretFunction_eq_execResultToIRResult_of_body
           selector := tx.functionSelector }
         fn.body = sourceResult)
     (hrollbackStorage :
-      rollback.storage = fun s =>
-        Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
-          (SourceSemantics.encodeStorage model
-            (SourceSemantics.withTransactionContext initialWorld tx) s))
+        rollback.storage = fun s =>
+          Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
+            (SourceSemantics.encodeStorage model
+              (SourceSemantics.withTransactionContext initialWorld tx) s.toNat))
     (hrollbackEvents :
       rollback.events =
         SourceSemantics.encodeEvents
@@ -476,10 +476,10 @@ theorem interpretFunctionWithHelpers_eq_execResultToIRResultWithInternals_of_bod
           selector := tx.functionSelector }
         fn.body = sourceResult)
     (hrollbackStorage :
-      rollback.storage = fun s =>
-        Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
-          (SourceSemantics.encodeStorage model
-            (SourceSemantics.withTransactionContext initialWorld tx) s))
+        rollback.storage = fun s =>
+          Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
+            (SourceSemantics.encodeStorage model
+              (SourceSemantics.withTransactionContext initialWorld tx) s.toNat))
     (hrollbackEvents :
       rollback.events =
         SourceSemantics.encodeEvents
@@ -1217,10 +1217,10 @@ theorem compileFunctionSpec_correct_of_body
     rw [hcompile] at hcompiled
     injection hcompiled with hirFn
   have hrollbackStorage :
-      initialState.storage = fun s =>
-        Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
-          (SourceSemantics.encodeStorage model
-            (SourceSemantics.withTransactionContext initialWorld tx) s) := by
+        initialState.storage = fun s =>
+          Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
+            (SourceSemantics.encodeStorage model
+              (SourceSemantics.withTransactionContext initialWorld tx) s.toNat) := by
     funext s
     simp [initialState, FunctionBody.initialIRStateForTx,
       FunctionBody.encodeStorage_withTransactionContext]
@@ -1306,10 +1306,10 @@ theorem compileFunctionSpec_correct_of_body_normalized_extraFuel
     rw [hcompile'] at hcompiled
     injection hcompiled with hirFn
   have hrollbackStorage :
-      initialState.storage = fun s =>
-        Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
-          (SourceSemantics.encodeStorage model
-            (SourceSemantics.withTransactionContext initialWorld tx) s) := by
+        initialState.storage = fun s =>
+          Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
+            (SourceSemantics.encodeStorage model
+              (SourceSemantics.withTransactionContext initialWorld tx) s.toNat) := by
     funext s
     simp [initialState, FunctionBody.initialIRStateForTx,
       FunctionBody.encodeStorage_withTransactionContext]
@@ -1791,10 +1791,10 @@ theorem supported_function_correct_with_helper_proofs_body_goal
     rw [hcompile] at hcompiled
     injection hcompiled
   have hrollbackStorage :
-      initialState.storage = fun s =>
-        Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
-          (SourceSemantics.encodeStorage model
-            (SourceSemantics.withTransactionContext initialWorld tx) s) := by
+        initialState.storage = fun s =>
+          Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
+            (SourceSemantics.encodeStorage model
+              (SourceSemantics.withTransactionContext initialWorld tx) s.toNat) := by
     funext s
     simp [initialState, FunctionBody.initialIRStateForTx,
       FunctionBody.encodeStorage_withTransactionContext]
@@ -2519,10 +2519,10 @@ theorem supported_constructor_body_correct_with_body_interface
       exact hEq.symm
     subst bodyIR
     have hrollbackStorage :
-        initialState.storage = fun s =>
-          Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
-            (SourceSemantics.encodeStorage model
-              (SourceSemantics.withTransactionContext initialWorld tx) s) := by
+          initialState.storage = fun s =>
+            Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
+              (SourceSemantics.encodeStorage model
+                (SourceSemantics.withTransactionContext initialWorld tx) s.toNat) := by
       funext s
       simp [initialState, FunctionBody.initialIRStateForTx,
         FunctionBody.encodeStorage_withTransactionContext]

@@ -88,4 +88,56 @@ theorem toNat_lt_size (w : IRStorageWord) : w.toNat < UInt256.size := by
 
 end IRStorageWord
 
+/-- The carrier of an IR storage slot key.
+
+    EVM storage is keyed by 256-bit words. Keeping IR storage keyed by raw
+    `Nat` lets distinct IR slots alias when projected through EVMYulLean's
+    `UInt256` storage map. `IRStorageSlot` makes that modulo behavior part of
+    the IR model instead of a theorem-level precondition. -/
+@[reducible] def IRStorageSlot : Type := UInt256
+
+namespace IRStorageSlot
+
+/-- Inject a `Nat` slot into the bounded storage-key carrier by reducing modulo
+    `UInt256.size`. -/
+@[inline] def ofNat (n : Nat) : IRStorageSlot := UInt256.ofNat n
+
+/-- Project an `IRStorageSlot` back to `Nat`. -/
+@[inline] def toNat (slot : IRStorageSlot) : Nat := UInt256.toNat slot
+
+/-- Project an `IRStorageSlot` to the EVMYulLean `UInt256` representation. -/
+@[inline] def toUInt256 (slot : IRStorageSlot) : UInt256 := slot
+
+instance instOfNat (n : Nat) : OfNat IRStorageSlot n := ⟨ofNat n⟩
+
+instance : Inhabited IRStorageSlot := ⟨ofNat 0⟩
+
+@[simp] theorem toNat_ofNat (n : Nat) : (ofNat n).toNat = n % UInt256.size := rfl
+
+@[simp] theorem toUInt256_ofNat (n : Nat) : (ofNat n).toUInt256 = UInt256.ofNat n := rfl
+
+@[simp] theorem ofNat_toNat (slot : IRStorageSlot) : ofNat slot.toNat = slot := by
+  cases slot with
+  | mk v =>
+    cases v with
+    | mk val isLt =>
+      show UInt256.ofNat val = ⟨⟨val, isLt⟩⟩
+      apply congrArg UInt256.mk
+      apply Fin.ext
+      show val % UInt256.size = val
+      exact Nat.mod_eq_of_lt isLt
+
+theorem toNat_lt_size (slot : IRStorageSlot) : slot.toNat < UInt256.size := by
+  cases slot with
+  | mk v => exact v.isLt
+
+theorem eq_of_toNat_eq {a b : IRStorageSlot} (h : a.toNat = b.toNat) : a = b := by
+  rw [← ofNat_toNat a, ← ofNat_toNat b, h]
+
+theorem toNat_ne_of_ne {a b : IRStorageSlot} (h : a ≠ b) : a.toNat ≠ b.toNat := by
+  intro hnat
+  exact h (eq_of_toNat_eq hnat)
+
+end IRStorageSlot
+
 end Compiler.Proofs.IRGeneration

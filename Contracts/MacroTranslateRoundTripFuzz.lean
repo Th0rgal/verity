@@ -161,9 +161,9 @@ private def fuzzStorageEntries : List Nat → FuzzRng → FuzzRng × List (Nat �
       let (rng, tail) := fuzzStorageEntries rest rng
       (rng, (slotIdx, value) :: tail)
 
-private def storageOfEntries (entries : List (Nat × Nat)) : Nat → IRStorageWord :=
+private def storageOfEntries (entries : List (Nat × Nat)) : IRStorageSlot → IRStorageWord :=
   fun slotIdx =>
-    match entries.find? (fun entry => entry.1 == slotIdx) with
+    match entries.find? (fun entry => IRStorageSlot.ofNat entry.1 == slotIdx) with
     | some (_, value) => IRStorageWord.ofNat value
     | none => IRStorageWord.ofNat 0
 
@@ -185,7 +185,8 @@ private def sampledResultsMatch
   ir.success == yul.success &&
   ir.returnValue == yul.returnValue &&
   ir.events == yul.events &&
-  slots.all (fun slotIdx => ir.finalStorage slotIdx == yul.finalStorage slotIdx) &&
+  slots.all (fun slotIdx =>
+    ir.finalStorage (IRStorageSlot.ofNat slotIdx) == yul.finalStorage (IRStorageSlot.ofNat slotIdx)) &&
   bases.all (fun base => keys.all (fun key => ir.finalMappings base key == yul.finalMappings base key))
 
 private def roundTripTrialsPerFunction : Nat := 1

@@ -762,6 +762,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBodyTail_callvalue_strip_error
 #print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBodyTail2_lt_strip_error
 #print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBodyTail3_closed
+#print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBody_halt
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageBuildSwitchSourceCases_lowered_concrete
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_selectorMiss_revert
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_error_via_reduction
@@ -776,6 +777,11 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail2
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail3
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherFuel_ge_25
+#print axioms Compiler.Proofs.EndToEnd.interpretIR_simpleStorage_retrieveHit
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_halt_atFuel
+#print axioms Compiler.Proofs.EndToEnd.projectResult_retrieveHit_eq
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeRetrieveHitBridge_proved
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeCallDispatcherBridge_of_per_case
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_evmYulLean
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge
@@ -1455,16 +1461,29 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_writeUintSlots_other  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_writeUintKeyedMappingSlots_singleton_other  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_writeAddressKeyedMappingChainSlots_singleton_other  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.IRStorageSlot.toNat_ofNat_wordNormalize  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.IRStorageSlot.toNat_ofNat_wordNormalize_arg  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.IRStorageSlot.ofNat_wordNormalize  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.wordNormalize_lt_evmModulus  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.IRStorageSlot.toNat_ofNat_of_lt  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.IRStorageSlot.ne_toNat_wordNormalize_of_ne_ofNat  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.IRStorageSlot.ne_toNat_of_ne_ofNat_of_lt  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.uint256_add_val_eq_mod  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.mappingWordTargetSlot_eq_uint256_add  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.mapping2WordTargetSlot_eq_uint256_add  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_other  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleton_other  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.wordNormalize_idem  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.findResolvedFieldAtSlotCopyFrom_wordNormalize  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.findResolvedFieldAtSlotCopy_wordNormalize  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.findResolvedFieldAtSlot_go_eq_copy  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.findResolvedFieldAtSlotCopy_eq  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.findDynamicArrayElementAtSlot_scanElements_eq_copy  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.findDynamicArrayElementAtSlot_go_eq_copy  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.findDynamicArrayElementAtSlotCopy_eq  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.findDynamicArrayElementAtSlotCopy_scanElements_wordNormalize  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.findDynamicArrayElementAtSlotCopy_go_wordNormalize  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.findDynamicArrayElementAtSlotCopy_wordNormalize  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_eq_copy  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.fieldWriteEntriesAt_base_mem  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.exists_mem_zipIdx_of_mem  -- private
@@ -1887,6 +1906,12 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.IRGeneration.IRStorageWord.toNat_ofNat
 #print axioms Compiler.Proofs.IRGeneration.IRStorageWord.ofNat_toNat
 #print axioms Compiler.Proofs.IRGeneration.IRStorageWord.toNat_lt_size
+#print axioms Compiler.Proofs.IRGeneration.IRStorageSlot.toNat_ofNat
+#print axioms Compiler.Proofs.IRGeneration.IRStorageSlot.toUInt256_ofNat
+#print axioms Compiler.Proofs.IRGeneration.IRStorageSlot.ofNat_toNat
+#print axioms Compiler.Proofs.IRGeneration.IRStorageSlot.toNat_lt_size
+#print axioms Compiler.Proofs.IRGeneration.IRStorageSlot.eq_of_toNat_eq
+#print axioms Compiler.Proofs.IRGeneration.IRStorageSlot.toNat_ne_of_ne
 
 -- Compiler/Proofs/IRGeneration/ParamLoading.lean
 #print axioms Compiler.Proofs.IRGeneration.ParamLoading.uint256_modulus_eq_evm
@@ -1916,6 +1941,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genParamLoads_supported_then
 
 -- Compiler/Proofs/IRGeneration/SourceSemantics.lean
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.wordNormalize_eq_mod
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.exists_splitEventArgsByParams_of_length
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.exists_eventFromResolvedArgs?_of_supported_length
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.exists_writeUnindexedEventScratch_of_length
@@ -3130,6 +3156,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_missingAccount
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_observableStorageSlot
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_sload_observableSlot_value
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_sload_materializedSlot_value
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_retrieveHit_initialState_materialized
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_sload_omittedSlot_value
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload_initialState_observableSlot_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload_initialState_omittedSlot_ok
@@ -3485,7 +3513,11 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.compare_natToUInt256_ne
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.foldl_insert_find_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.foldl_insert_find
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.IRStorageSlot_ofNat_eq_of_natToUInt256_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.foldl_insert_preserves_find_projected_value
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.foldl_insert_find_projected
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.storageLookup_projectStorage
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.storageLookup_projectStorage_projected
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.uint256_roundtrip
 
 -- Compiler/Proofs/YulGeneration/Equivalence.lean
@@ -3526,4 +3558,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3350 theorems/lemmas (2419 public, 931 private, 0 sorry'd)
+-- Total: 3382 theorems/lemmas (2438 public, 944 private, 0 sorry'd)

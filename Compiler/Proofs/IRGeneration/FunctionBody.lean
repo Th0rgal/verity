@@ -101,7 +101,7 @@ def runtimeStateMatchesIR
     (runtime : SourceSemantics.RuntimeState)
     (state : IRState) : Prop :=
   state.storage = (fun s => Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
-    (SourceSemantics.encodeStorageAt fields runtime.world s)) ∧
+    (SourceSemantics.encodeStorageAt fields runtime.world s.toNat)) ∧
   state.transientStorage = (fun slot => (runtime.world.transientStorage slot).val) ∧
   state.sender = runtime.world.sender.val ∧
   state.msgValue = runtime.world.msgValue.val ∧
@@ -126,7 +126,7 @@ def constructorRuntimeStateMatchesIR
     (runtime : SourceSemantics.RuntimeState)
     (state : IRState) : Prop :=
   state.storage = (fun s => Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
-    (SourceSemantics.encodeStorageAt fields runtime.world s)) ∧
+    (SourceSemantics.encodeStorageAt fields runtime.world s.toNat)) ∧
   state.transientStorage = (fun slot => (runtime.world.transientStorage slot).val) ∧
   state.sender = runtime.world.sender.val ∧
   state.msgValue = runtime.world.msgValue.val ∧
@@ -148,7 +148,7 @@ def initialIRStateForTx
     (initialWorld : Verity.ContractState) : IRState :=
   { vars := []
     storage := fun s => Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
-      (SourceSemantics.encodeStorage spec initialWorld s)
+      (SourceSemantics.encodeStorage spec initialWorld s.toNat)
     transientStorage := fun slot => (initialWorld.transientStorage slot).val
     memory := fun o => (initialWorld.memory o).val
     calldata := tx.args
@@ -1230,7 +1230,7 @@ theorem evalIRExpr_sload_of_runtimeStateMatchesIR
     (hmatch : runtimeStateMatchesIR fields runtime state)
     (slot : Nat) :
     evalIRExpr state (YulExpr.call "sload" [YulExpr.lit slot]) =
-      some (SourceSemantics.encodeStorageAt fields runtime.world slot
+      some (SourceSemantics.encodeStorageAt fields runtime.world (IRStorageSlot.ofNat slot).toNat
         % EvmYul.UInt256.size) := by
   rcases hmatch with ⟨hstorage, _, _, _, _, _, _, _, _, _, _⟩
   simp [evalIRExpr, evalIRCall, evalIRExprs,
@@ -7389,7 +7389,7 @@ def sourceResultMatchesIRResult
     (ir : IRResult) : Prop :=
   source.success = ir.success ∧
   source.returnValue = ir.returnValue ∧
-  (fun s => Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (source.finalStorage s)) =
+  (fun s => Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (source.finalStorage s.toNat)) =
     ir.finalStorage ∧
   source.events = ir.events
 
@@ -14767,7 +14767,7 @@ theorem stmtResultToSourceResult_matches_irExecResult
     (irResult : IRExecResult)
     (hrollbackStorage :
       rollback.storage = fun s => Compiler.Proofs.IRGeneration.IRStorageWord.ofNat
-        (SourceSemantics.encodeStorage spec initialWorld s))
+        (SourceSemantics.encodeStorage spec initialWorld s.toNat))
     (hrollbackEvents :
       rollback.events = SourceSemantics.encodeEvents initialWorld.events)
     (hfields : fields = SourceSemantics.effectiveFields spec)
