@@ -3498,6 +3498,13 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileExprList_bridgedSource
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean
+#print axioms Batteries.RBNode.All.setBlack'
+#print axioms Batteries.RBNode.find?_eq_none_of_all_ne
+#print axioms Batteries.RBNode.del_all_cut_ne
+#print axioms Batteries.RBNode.erase_all_cut_ne
+#print axioms Batteries.RBNode.findP?_erase_none
+#print axioms Batteries.RBNode.find?_erase_self
+#print axioms Batteries.RBMap.find?_erase_self
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorBytes_size  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_wordBytes_size  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_fold_size  -- private
@@ -3568,4 +3575,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3392 theorems/lemmas (2448 public, 944 private, 0 sorry'd)
+-- Total: 3399 theorems/lemmas (2455 public, 944 private, 0 sorry'd)

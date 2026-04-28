@@ -36,6 +36,116 @@ import EvmYul.Maps.StorageMap
 import Batteries.Data.ByteArray
 import Batteries.Data.RBMap.Lemmas
 
+namespace Batteries
+namespace RBNode
+
+open RBColor
+
+theorem All.setBlack' {p : α → Prop} {t : RBNode α}
+    (h : t.All p) : t.setBlack.All p := by
+  cases t <;> simp [setBlack]
+  exact h
+
+theorem find?_eq_none_of_all_ne {cut : α → Ordering} {t : RBNode α}
+    (h : t.All (fun x => cut x ≠ Ordering.eq)) :
+    t.find? cut = none := by
+  induction t with
+  | nil => rfl
+  | node _ l x r ihl ihr =>
+      rw [find?]
+      split <;> rename_i hc
+      · exact ihl h.2.1
+      · exact ihr h.2.2
+      · exact False.elim (h.1 hc)
+
+theorem del_all_cut_ne {cmp : α → α → Ordering} {cut : α → Ordering}
+    [Std.TransCmp cmp] [IsStrictCut cmp cut] :
+    ∀ {t : RBNode α}, t.Ordered cmp →
+      (t.del cut).All (fun x => cut x ≠ Ordering.eq)
+  | nil, _ => by simp [del]
+  | node _ a y b, ht => by
+      rcases ht with ⟨hay, hyb, ha, hb⟩
+      rw [del]
+      split <;> rename_i hcut
+      · have haAll := del_all_cut_ne (cmp := cmp) (cut := cut) ha
+        have hy : cut y ≠ Ordering.eq := by simp [hcut]
+        have hbAll : b.All (fun x => cut x ≠ Ordering.eq) := by
+          apply hyb.imp
+          intro x hyx hxeq
+          have hlt : cut x = Ordering.lt := IsCut.lt_trans hyx.1 hcut
+          cases hlt.symm.trans hxeq
+        cases a with
+        | nil =>
+            simp [isBlack]
+            exact ⟨hy, haAll, hbAll⟩
+        | node c _ _ _ =>
+            cases c <;> simp [isBlack]
+            · exact ⟨hy, haAll, hbAll⟩
+            · exact All.balLeft haAll hy hbAll
+      · have hbAll := del_all_cut_ne (cmp := cmp) (cut := cut) hb
+        have hy : cut y ≠ Ordering.eq := by simp [hcut]
+        have haAll : a.All (fun x => cut x ≠ Ordering.eq) := by
+          apply hay.imp
+          intro x hxy hxeq
+          have hgt : cut x = Ordering.gt := IsCut.gt_trans hxy.1 hcut
+          cases hgt.symm.trans hxeq
+        cases b with
+        | nil =>
+            simp [isBlack]
+            exact ⟨hy, haAll, hbAll⟩
+        | node c _ _ _ =>
+            cases c <;> simp [isBlack]
+            · exact ⟨hy, haAll, hbAll⟩
+            · exact All.balRight haAll hy hbAll
+      · have haAll : a.All (fun x => cut x ≠ Ordering.eq) := by
+          apply hay.imp
+          intro x hxy hxeq
+          have hx : cmp x y = cut y := IsStrictCut.exact hxeq
+          rw [hcut] at hx
+          cases hxy.1.symm.trans hx
+        have hbAll : b.All (fun x => cut x ≠ Ordering.eq) := by
+          apply hyb.imp
+          intro x hyx hxeq
+          have hx : cmp x y = cut y := IsStrictCut.exact hxeq
+          rw [hcut] at hx
+          have hxygt : cmp x y = Ordering.gt :=
+            Std.OrientedCmp.gt_iff_lt.2 hyx.1
+          cases hxygt.symm.trans hx
+        exact All.append haAll hbAll
+
+theorem erase_all_cut_ne {cmp : α → α → Ordering} {cut : α → Ordering}
+    [Std.TransCmp cmp] [IsStrictCut cmp cut] {t : RBNode α}
+    (ht : t.Ordered cmp) :
+    (t.erase cut).All (fun x => cut x ≠ Ordering.eq) := by
+  unfold erase
+  exact All.setBlack' (del_all_cut_ne (cmp := cmp) (cut := cut) ht)
+
+theorem findP?_erase_none {cmp : α → α → Ordering} {cut : α → Ordering}
+    [Std.TransCmp cmp] [IsStrictCut cmp cut] (s : RBSet α cmp) :
+    (s.erase cut).findP? cut = none := by
+  unfold RBSet.erase RBSet.findP?
+  rw [find?_eq_none_of_all_ne]
+  exact erase_all_cut_ne (cmp := cmp) (cut := cut) s.2.out.1
+
+theorem find?_erase_self {cmp : α → α → Ordering} [Std.TransCmp cmp]
+    (m : RBMap α β cmp) (k : α) :
+    (m.erase k).find? k = none := by
+  unfold RBMap.find? RBMap.findEntry? RBMap.erase
+  rw [findP?_erase_none]
+  rfl
+
+end RBNode
+
+namespace RBMap
+
+theorem find?_erase_self {cmp : α → α → Ordering} [Std.TransCmp cmp]
+    (m : RBMap α β cmp) (k : α) :
+    (m.erase k).find? k = none :=
+  RBNode.find?_erase_self m k
+
+end RBMap
+end Batteries
+
 namespace Compiler.Proofs.YulGeneration.Backends.StateBridge
 
 open Compiler.Proofs.YulGeneration

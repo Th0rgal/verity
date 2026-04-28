@@ -218,6 +218,13 @@ ALLOWLIST: set[str] = {
     "exec_block_simpleStorageLoweredStoreCaseBody_halt",
     "interpretIR_simpleStorage_storeHit_arg",
     "simpleStorageNativeContract_dispatcherExec_storeHit_halt_atFuel",
+    # RBMap erase-self deletion follows the Batteries red-black tree delete
+    # algorithm through the three ordered-tree branches. The cases are
+    # mechanical and shared by the native zero-sstore projection helpers.
+    "del_all_cut_ne",
+    # Native zero-sstore projection composes calldata, sstore, stop, and the
+    # RBMap erase-self lookup fact in one generated store-body endpoint.
+    "primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_slot0_zero_of_erase",
     # --- Helper-aware theorem stack (Issue #1630 / PR #1633 / PR #1639) ---
     "supported_function_body_correct_from_exact_state_generic_with_helpers",
     "supported_function_body_correct_from_exact_state_generic_with_helpers_goal",

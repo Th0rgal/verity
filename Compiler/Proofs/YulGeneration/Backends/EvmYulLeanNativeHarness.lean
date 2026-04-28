@@ -7532,10 +7532,7 @@ theorem primCall_sstore_initialState_wordSlot_projectResult_slot_zero_of_erase
     (slot value : Nat)
     (hSlotRange : slot < EvmYul.UInt256.size)
     (hValueZero :
-      (natToUInt256 value == (⟨0⟩ : EvmYul.UInt256)) = true)
-    (hErase :
-      (Batteries.RBMap.erase (projectStorage storage observableSlots)
-        (natToUInt256 slot)).find? (natToUInt256 slot) = none) :
+      (natToUInt256 value == (⟨0⟩ : EvmYul.UInt256)) = true) :
     ∃ finalState,
       EvmYul.Yul.primCall (fuel + 1)
           (initialState contract tx storage observableSlots)
@@ -7559,6 +7556,10 @@ theorem primCall_sstore_initialState_wordSlot_projectResult_slot_zero_of_erase
           true := by
       simpa [natToUInt256, EvmYul.UInt256.instInhabited] using hValueZero
     rw [hBranch]
+    have hErase :
+        (Batteries.RBMap.erase (projectStorage storage observableSlots)
+          (natToUInt256 slot)).find? (natToUInt256 slot) = none :=
+      Batteries.RBMap.find?_erase_self _ _
     simp [Option.option, Batteries.RBMap.find?_insert_of_eq _
       Std.ReflCmp.compare_self, IRStorageSlot.toUInt256, IRStorageSlot.ofNat, hErase]
 
@@ -7586,7 +7587,6 @@ theorem primCall_sstore_initialState_wordSlot_projectResult_slot_zero_emptyObser
   exact
     primCall_sstore_initialState_wordSlot_projectResult_slot_zero_of_erase
       fuel contract tx storage initialEvents [] slot value hSlotRange hValueZero
-      (by rfl)
 
 /-- Native primitive execution of `sstore(slot, value)` from an initial runtime
     shared state and arbitrary local-variable store, lifted through Verity's
@@ -7648,10 +7648,7 @@ theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_slot_zero_
     (slot value : Nat)
     (hSlotRange : slot < EvmYul.UInt256.size)
     (hValueZero :
-      (natToUInt256 value == (⟨0⟩ : EvmYul.UInt256)) = true)
-    (hErase :
-      (Batteries.RBMap.erase (projectStorage storage observableSlots)
-        (natToUInt256 slot)).find? (natToUInt256 slot) = none) :
+      (natToUInt256 value == (⟨0⟩ : EvmYul.UInt256)) = true) :
     ∃ finalState,
       EvmYul.Yul.primCall (fuel + 1)
           (.Ok (initialState contract tx storage observableSlots).sharedState store)
@@ -7678,6 +7675,10 @@ theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_slot_zero_
           true := by
       simpa [natToUInt256, EvmYul.UInt256.instInhabited] using hValueZero
     rw [hBranch]
+    have hErase :
+        (Batteries.RBMap.erase (projectStorage storage observableSlots)
+          (natToUInt256 slot)).find? (natToUInt256 slot) = none :=
+      Batteries.RBMap.find?_erase_self _ _
     simp [Option.option, Batteries.RBMap.find?_insert_of_eq _
       Std.ReflCmp.compare_self, IRStorageSlot.toUInt256, IRStorageSlot.ofNat, hErase]
 
@@ -7704,7 +7705,7 @@ theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_slot_zero_
   exact
     primCall_sstore_initialState_wordSlot_withStore_projectResult_slot_zero_of_erase
       fuel contract tx storage initialEvents [] store slot value hSlotRange
-      hValueZero (by rfl)
+      hValueZero
 
 /-- Native primitive execution of the generated `store(uint256)` core, lifted
     through Verity's projected native result boundary for call success and
@@ -8061,9 +8062,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_pro
     (rest : List Nat)
     (hArgs : tx.args = arg :: rest)
     (hValueZero :
-      (natToUInt256 arg == (⟨0⟩ : EvmYul.UInt256)) = true)
-    (hErase :
-      (Batteries.RBMap.erase (projectStorage storage observableSlots) (EvmYul.UInt256.ofNat 0)).find? (EvmYul.UInt256.ofNat 0) = none) :
+      (natToUInt256 arg == (⟨0⟩ : EvmYul.UInt256)) = true) :
     ∃ haltState haltValue,
       primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore
         loadFuel storeFuel stopFuel contract tx storage observableSlots store =
@@ -8093,6 +8092,10 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_pro
           true := by
       simpa [natToUInt256, EvmYul.UInt256.instInhabited] using hValueZero
     rw [hBranch]
+    have hErase :
+        (Batteries.RBMap.erase (projectStorage storage observableSlots)
+          (EvmYul.UInt256.ofNat 0)).find? (EvmYul.UInt256.ofNat 0) = none :=
+      Batteries.RBMap.find?_erase_self _ _
     simp [Option.option, Batteries.RBMap.find?_insert_of_eq _
       Std.ReflCmp.compare_self, IRStorageSlot.toUInt256, IRStorageSlot.ofNat, hErase]
 
@@ -8121,7 +8124,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_pro
   exact
     primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_slot0_zero_of_erase
       loadFuel storeFuel stopFuel contract tx storage initialEvents [] store arg
-      rest hArgs hValueZero (by rfl)
+      rest hArgs hValueZero
 
 /-- Native primitive execution of the full generated `store(uint256)` selected
     body tail: `calldataload(4); sstore(0, arg0); stop`. The terminating
@@ -8214,10 +8217,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult
     (rest : List Nat)
     (hArgs : tx.args = arg :: rest)
     (hValueZero :
-      (natToUInt256 arg == (⟨0⟩ : EvmYul.UInt256)) = true)
-    (hErase :
-      (Batteries.RBMap.erase (projectStorage storage observableSlots)
-        (EvmYul.UInt256.ofNat 0)).find? (EvmYul.UInt256.ofNat 0) = none) :
+      (natToUInt256 arg == (⟨0⟩ : EvmYul.UInt256)) = true) :
     ∃ haltState haltValue,
       primCall_calldataload4_then_sstore0_stop_initialState_arg0
         loadFuel storeFuel stopFuel contract tx storage observableSlots =
@@ -8245,6 +8245,10 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult
           true := by
       simpa [natToUInt256, EvmYul.UInt256.instInhabited] using hValueZero
     rw [hBranch]
+    have hErase :
+        (Batteries.RBMap.erase (projectStorage storage observableSlots)
+          (EvmYul.UInt256.ofNat 0)).find? (EvmYul.UInt256.ofNat 0) = none :=
+      Batteries.RBMap.find?_erase_self _ _
     simp [Option.option, Batteries.RBMap.find?_insert_of_eq _
       Std.ReflCmp.compare_self, IRStorageSlot.toUInt256, IRStorageSlot.ofNat, hErase]
 
@@ -8271,7 +8275,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult
   exact
     primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_slot0_zero_of_erase
       loadFuel storeFuel stopFuel contract tx storage initialEvents [] arg rest
-      hArgs hValueZero (by rfl)
+      hArgs hValueZero
 
 /-- Native primitive execution of the generated `store(uint256)` core, lifted
     through Verity's projected native result boundary for a nonzero slot-zero
@@ -8333,10 +8337,7 @@ theorem primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot
     (rest : List Nat)
     (hArgs : tx.args = arg :: rest)
     (hValueZero :
-      (natToUInt256 arg == (⟨0⟩ : EvmYul.UInt256)) = true)
-    (hErase :
-      (Batteries.RBMap.erase (projectStorage storage observableSlots)
-        (EvmYul.UInt256.ofNat 0)).find? (EvmYul.UInt256.ofNat 0) = none) :
+      (natToUInt256 arg == (⟨0⟩ : EvmYul.UInt256)) = true) :
     ∃ finalState,
       (do
         let (state', values) ←
@@ -8367,6 +8368,10 @@ theorem primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot
           true := by
       simpa [natToUInt256, EvmYul.UInt256.instInhabited] using hValueZero
     rw [hBranch]
+    have hErase :
+        (Batteries.RBMap.erase (projectStorage storage observableSlots)
+          (EvmYul.UInt256.ofNat 0)).find? (EvmYul.UInt256.ofNat 0) = none :=
+      Batteries.RBMap.find?_erase_self _ _
     simp [Option.option, Batteries.RBMap.find?_insert_of_eq _
       Std.ReflCmp.compare_self, IRStorageSlot.toUInt256, IRStorageSlot.ofNat, hErase]
 
@@ -8399,7 +8404,7 @@ theorem primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot
   exact
     primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot0_zero_of_erase
       loadFuel storeFuel contract tx storage initialEvents [] arg rest hArgs
-      hValueZero (by rfl)
+      hValueZero
 
 @[simp] theorem projectResult_yulHalt_events
     (tx : YulTransaction)
