@@ -6299,6 +6299,78 @@ theorem initialState_sload_observableSlot_value
   rw [hFindStorage]
   rfl
 
+/-- Native `sload` from an initially materialized slot returns the exact bounded
+    IR storage word. This is the range-free version used after IR storage keys
+    moved to `IRStorageSlot`: Nat aliases modulo 2^256 carry the same bounded
+    key and therefore the same projected value. -/
+theorem initialState_sload_materializedSlot_value
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (slots : List Nat)
+    (slot : Nat)
+    (hSlot : slot ∈ slots) :
+    (EvmYul.State.sload
+      (initialState contract tx storage slots).toState
+      (natToUInt256 slot)).2 =
+      storage (IRStorageSlot.ofNat slot) := by
+  have hFindStorage :
+      (projectStorage storage slots).find? (natToUInt256 slot) =
+        some (storage (IRStorageSlot.ofNat slot)) := by
+    simpa [projectStorage, IRStorageWord.toUInt256] using
+      foldl_insert_find_projected storage slots slot hSlot
+        (Batteries.RBMap.empty : EvmYul.Storage)
+  simp only [EvmYul.State.sload, EvmYul.State.lookupAccount,
+    EvmYul.Yul.State.toState, initialState, toSharedState, YulState.initial]
+  rw [Batteries.RBMap.find?_insert_of_eq _ Std.ReflCmp.compare_self]
+  rw [Batteries.RBMap.find?_insert_of_eq _ Std.ReflCmp.compare_self]
+  change (Batteries.RBMap.find? (projectStorage storage slots)
+      (natToUInt256 slot)).getD ⟨0⟩ = storage (IRStorageSlot.ofNat slot)
+  rw [hFindStorage]
+  rfl
+
+/-- Projected storage is unchanged by the generated retrieve core
+    `sload(0); mstore(0, _); return(0, 32)`. The only `sload` state effect is
+    recording an accessed storage key, and `mstore`/`return` update only the
+    machine-state fields used for returndata. -/
+theorem projectStorageFromState_retrieveHit_initialState_materialized
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (slots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (slot : Nat)
+    (hSlot : slot ∈ slots) :
+    let shared := (initialState contract tx storage slots).sharedState
+    let p := shared.sload (EvmYul.UInt256.ofNat 0)
+    let shared1 : EvmYul.SharedState .Yul := { shared with toState := p.1 }
+    let shared2 : EvmYul.SharedState .Yul :=
+      { shared1 with
+        toMachineState :=
+          shared1.toMachineState.mstore (EvmYul.UInt256.ofNat 0) p.2 }
+    let shared3 : EvmYul.SharedState .Yul :=
+      { shared2 with
+        toMachineState :=
+          shared2.toMachineState.evmReturn
+            (EvmYul.UInt256.ofNat 0) (EvmYul.UInt256.ofNat 32) }
+    projectStorageFromState tx (EvmYul.Yul.State.Ok shared3 store)
+        (IRStorageSlot.ofNat slot) =
+      storage (IRStorageSlot.ofNat slot) := by
+  intro shared p shared1 shared2 shared3
+  have hAccountMap :
+      shared3.accountMap =
+        (initialState contract tx storage slots).sharedState.accountMap := by
+    simp [shared3, shared2, shared1, p, shared, EvmYul.State.sload,
+      EvmYul.State.addAccessedStorageKey, EvmYul.Substate.addAccessedStorageKey]
+  simp only [projectStorageFromState, extractStorage,
+    EvmYul.Yul.State.sharedState, hAccountMap, initialState, YulState.initial,
+    toSharedState]
+  rw [Batteries.RBMap.find?_insert_of_eq _ Std.ReflCmp.compare_self]
+  rw [Batteries.RBMap.find?_insert_of_eq _ Std.ReflCmp.compare_self]
+  have h := storageLookup_projectStorage_projected storage slots slot hSlot
+  unfold storageLookup at h
+  exact h
+
 /-- Native `sload` from an initially omitted materialized slot returns the EVM
     zero word. The range hypotheses rule out modular aliasing between the omitted
     slot and any materialized storage key. -/

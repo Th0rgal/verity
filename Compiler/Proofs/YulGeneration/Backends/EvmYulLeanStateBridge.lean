@@ -684,6 +684,69 @@ theorem foldl_insert_find (storage : IRStorageSlot → IRStorageWord)
     | inr hmem =>
       exact ih hmem (fun s hs => hRange s (List.mem_cons_of_mem _ hs)) _
 
+/-- Equal projected EVM storage keys denote equal bounded IR storage slots. -/
+theorem IRStorageSlot_ofNat_eq_of_natToUInt256_eq {a b : Nat}
+    (h : natToUInt256 a = natToUInt256 b) :
+    IRStorageSlot.ofNat a = IRStorageSlot.ofNat b := by
+  simpa [natToUInt256, IRStorageSlot.ofNat] using h
+
+/-- Folding projected storage slots preserves an already-correct lookup for a
+    bounded target key. Any later Nat alias for the same EVM key writes the same
+    bounded IR slot value, so no Nat range/injectivity hypothesis is needed. -/
+theorem foldl_insert_preserves_find_projected_value
+    (storage : IRStorageSlot → IRStorageWord)
+    (slots : List Nat) (slot : Nat) (acc : EvmYul.Storage)
+    (hAcc :
+      acc.find? (natToUInt256 slot) =
+        some (IRStorageWord.toUInt256 (storage (IRStorageSlot.ofNat slot)))) :
+    (slots.foldl (fun m s =>
+        m.insert (natToUInt256 s)
+          (IRStorageWord.toUInt256 (storage (IRStorageSlot.ofNat s)))) acc).find?
+      (natToUInt256 slot) =
+        some (IRStorageWord.toUInt256 (storage (IRStorageSlot.ofNat slot))) := by
+  induction slots generalizing acc with
+  | nil => exact hAcc
+  | cons hd tl ih =>
+      simp only [List.foldl_cons]
+      by_cases hcmp : compare (natToUInt256 slot) (natToUInt256 hd) = Ordering.eq
+      · have hkey : natToUInt256 slot = natToUInt256 hd :=
+          UInt256_eq_of_compare_eq hcmp
+        have hslot : IRStorageSlot.ofNat hd = IRStorageSlot.ofNat slot :=
+          (IRStorageSlot_ofNat_eq_of_natToUInt256_eq hkey.symm)
+        apply ih
+        rw [Batteries.RBMap.find?_insert_of_eq _ hcmp]
+        simp [hslot]
+      · apply ih
+        rw [Batteries.RBMap.find?_insert_of_ne _ hcmp]
+        exact hAcc
+
+/-- Helper: after folding a suffix of Nat slots into an accumulator, if `slot`
+    appears in that suffix, then the accumulated projected map contains the
+    bounded value for `slot`.
+
+    Unlike `foldl_insert_find`, this form intentionally has no Nat range
+    hypothesis. Distinct Nat slots that alias modulo 2^256 map to the same
+    `IRStorageSlot`, so a later aliased insert writes the same value. -/
+theorem foldl_insert_find_projected (storage : IRStorageSlot → IRStorageWord)
+    (slots : List Nat) (slot : Nat) (hSlot : slot ∈ slots)
+    (acc : EvmYul.Storage) :
+    (slots.foldl (fun m s =>
+        m.insert (natToUInt256 s)
+          (IRStorageWord.toUInt256 (storage (IRStorageSlot.ofNat s)))) acc).find?
+      (natToUInt256 slot) =
+        some (IRStorageWord.toUInt256 (storage (IRStorageSlot.ofNat slot))) := by
+  induction slots generalizing acc with
+  | nil => exact absurd hSlot List.not_mem_nil
+  | cons hd tl ih =>
+      simp only [List.foldl_cons]
+      cases List.mem_cons.mp hSlot with
+      | inl heq =>
+          subst heq
+          apply foldl_insert_preserves_find_projected_value
+          rw [Batteries.RBMap.find?_insert_of_eq _ Std.ReflCmp.compare_self]
+      | inr hmem =>
+          exact ih hmem _
+
 /-- Storage lookup commutes: reading a slot from the projected storage
     yields the same value as reading it from Verity's storage function.
 
@@ -693,11 +756,21 @@ theorem foldl_insert_find (storage : IRStorageSlot → IRStorageWord)
     last-write-wins semantics of `foldl` would make the theorem false. -/
 theorem storageLookup_projectStorage (storage : IRStorageSlot → IRStorageWord)
     (slots : List Nat) (slot : Nat) (hSlot : slot ∈ slots)
-    (hRange : ∀ s ∈ slots, s < UInt256.size) :
+    (_hRange : ∀ s ∈ slots, s < UInt256.size) :
     storageLookup (projectStorage storage slots) (natToUInt256 slot) =
       storage (IRStorageSlot.ofNat slot) := by
   simp only [storageLookup, projectStorage]
-  rw [foldl_insert_find storage slots slot hSlot hRange]
+  rw [foldl_insert_find_projected storage slots slot hSlot]
+  rfl
+
+/-- Range-free storage lookup for projected bounded IR storage. -/
+theorem storageLookup_projectStorage_projected
+    (storage : IRStorageSlot → IRStorageWord)
+    (slots : List Nat) (slot : Nat) (hSlot : slot ∈ slots) :
+    storageLookup (projectStorage storage slots) (natToUInt256 slot) =
+      storage (IRStorageSlot.ofNat slot) := by
+  simp only [storageLookup, projectStorage]
+  rw [foldl_insert_find_projected storage slots slot hSlot]
   rfl
 
 /-- Nat→UInt256→Nat round-trip for values in range.

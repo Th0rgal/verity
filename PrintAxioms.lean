@@ -3155,6 +3155,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_missingAccount
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_observableStorageSlot
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_sload_observableSlot_value
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_sload_materializedSlot_value
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_retrieveHit_initialState_materialized
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.initialState_sload_omittedSlot_value
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload_initialState_observableSlot_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload_initialState_omittedSlot_ok
@@ -3510,7 +3512,11 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.compare_natToUInt256_ne
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.foldl_insert_find_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.foldl_insert_find
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.IRStorageSlot_ofNat_eq_of_natToUInt256_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.foldl_insert_preserves_find_projected_value
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.foldl_insert_find_projected
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.storageLookup_projectStorage
+#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.storageLookup_projectStorage_projected
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.uint256_roundtrip
 
 -- Compiler/Proofs/YulGeneration/Equivalence.lean
@@ -3551,4 +3557,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3375 theorems/lemmas (2431 public, 944 private, 0 sorry'd)
+-- Total: 3381 theorems/lemmas (2437 public, 944 private, 0 sorry'd)

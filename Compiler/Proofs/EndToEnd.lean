@@ -3739,7 +3739,7 @@ theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_ta
     (observableSlots : List Nat) (err : EvmYul.Yul.Exception)
     (hSelector : 0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
-    (hMsgValue : tx.msgValue = 0)
+    (hMsgValue : tx.msgValue % EvmYul.UInt256.size = 0)
     (hTail2 : ∀ (reservedNames : List String) (n0 : Nat),
         EvmYul.Yul.exec (fuel + 6)
           (.Block simpleStorageLoweredRetrieveCaseBodyTail2)
@@ -3762,9 +3762,11 @@ theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_ta
         Compiler.SimpleStorageNativeWitness.nativeContract tx storage
         observableSlots).sharedState.executionEnv.weiValue =
       (⟨0⟩ : EvmYul.Literal) := by
-    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_weiValue,
-        hMsgValue]
-    rfl
+    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_weiValue]
+    apply congrArg EvmYul.UInt256.mk
+    apply Fin.ext
+    simpa [Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256,
+      EvmYul.UInt256.ofNat, Fin.ofNat] using hMsgValue
   have hT2 := hTail2 reservedNames n0
   show EvmYul.Yul.exec (fuel + 7) (.Block simpleStorageLoweredRetrieveCaseBodyTail)
     (some Compiler.SimpleStorageNativeWitness.nativeContract)
@@ -3784,7 +3786,7 @@ theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_ta
     (observableSlots : List Nat) (err : EvmYul.Yul.Exception)
     (hSelector : 0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
-    (hMsgValue : tx.msgValue = 0)
+    (hMsgValue : tx.msgValue % EvmYul.UInt256.size = 0)
     (hTail3 : ∀ (reservedNames : List String) (n0 : Nat),
         EvmYul.Yul.exec (fuel + 9)
           (.Block simpleStorageLoweredRetrieveCaseBodyTail3)
@@ -3914,7 +3916,7 @@ theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_halt_atFuel
     (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
     (hSelector : 0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
-    (hMsgValue : tx.msgValue = 0) :
+    (hMsgValue : tx.msgValue % EvmYul.UInt256.size = 0) :
     let shared := (Compiler.Proofs.YulGeneration.Backends.Native.initialState
         Compiler.SimpleStorageNativeWitness.nativeContract tx storage
         observableSlots).sharedState
@@ -3979,9 +3981,11 @@ theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_halt_atFuel
         Compiler.SimpleStorageNativeWitness.nativeContract tx storage
         observableSlots).sharedState.executionEnv.weiValue =
       (⟨0⟩ : EvmYul.Literal) := by
-    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_weiValue,
-        hMsgValue]
-    rfl
+    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_weiValue]
+    apply congrArg EvmYul.UInt256.mk
+    apply Fin.ext
+    simpa [Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256,
+      EvmYul.UInt256.ofNat, Fin.ofNat] using hMsgValue
   have hSize :
       (Compiler.Proofs.YulGeneration.Backends.Native.initialState
         Compiler.SimpleStorageNativeWitness.nativeContract tx storage
