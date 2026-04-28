@@ -94,7 +94,10 @@ def materializedStorageSlots
     (runtimeCode : List YulStmt)
     (observableSlots : List Nat) :
     List Nat :=
-  yulStmtsLiteralStorageReadSlots runtimeCode ++ observableSlots
+  -- Slot zero is the common simple-storage getter slot and is harmless to
+  -- materialize twice; keeping it explicit avoids depending on the opaque
+  -- partial literal-read collector for baseline storage projection facts.
+  0 :: yulStmtsLiteralStorageReadSlots runtimeCode ++ observableSlots
 
 /-! ## Native Environment Support Boundary -/
 

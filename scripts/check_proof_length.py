@@ -320,6 +320,12 @@ ALLOWLIST: set[str] = {
     # the chained `setMachineState` overrides to extract the 32-byte
     # `H_return` window before computing `projectHaltReturn`.
     "projectResult_retrieveHit_eq",
+    # Phase 2 retrieve-hit bridge closure: composes the closed-form IR result,
+    # native dispatcher halt endpoint, projected-storage preservation, and
+    # EVMYulLean Layer-3 result agreement under the public theorem hypotheses.
+    # Splitting would create several single-use helpers whose proofs are mostly
+    # repeated hypothesis plumbing around the same concrete retrieve path.
+    "simpleStorageNativeRetrieveHitBridge_proved",
     # Safe-body public EVMYulLean wrapper derives the raw BridgedStmts function
     # hypotheses from compile output, static parameter closure, and
     # BridgedSafeStmts witnesses before delegating to the function-bridge
