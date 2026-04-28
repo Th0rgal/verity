@@ -11,7 +11,7 @@ open Compiler.Yul
 open Compiler.Proofs.YulGeneration
 open Compiler.Proofs.YulGeneration.Backends.StateBridge
 open Lean Elab Tactic Meta
-open Compiler.Proofs.IRGeneration (IRStorageWord)
+open Compiler.Proofs.IRGeneration (IRStorageWord IRStorageSlot)
 
 /-!
 Executable native EVMYulLean runtime harness for #1737.
@@ -34,7 +34,7 @@ external-call semantics.
 def initialState
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     EvmYul.Yul.State :=
   let verityState := YulState.initial tx storage
@@ -415,7 +415,7 @@ def validateNativeRuntimeEnvironment
 @[simp] theorem initialState_installsExecutionContract
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     (initialState contract tx storage observableSlots).sharedState.executionEnv.code =
       contract ∧
@@ -426,7 +426,7 @@ def validateNativeRuntimeEnvironment
 @[simp] theorem initialState_installsCurrentAccountContract
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     ((initialState contract tx storage observableSlots).sharedState.accountMap.find?
         (natToAddress tx.thisAddress)).map (fun account => account.code) =
@@ -438,7 +438,7 @@ def validateNativeRuntimeEnvironment
 @[simp] theorem initialState_transactionEnvironment
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     (initialState contract tx storage observableSlots).sharedState.executionEnv.source =
       natToAddress tx.sender ∧
@@ -460,7 +460,7 @@ def validateNativeRuntimeEnvironment
 @[simp] theorem initialState_source
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     (initialState contract tx storage observableSlots).sharedState.executionEnv.source =
       natToAddress tx.sender := by
@@ -470,7 +470,7 @@ def validateNativeRuntimeEnvironment
 @[simp] theorem initialState_sender
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     (initialState contract tx storage observableSlots).sharedState.executionEnv.sender =
       natToAddress tx.sender := by
@@ -480,7 +480,7 @@ def validateNativeRuntimeEnvironment
 @[simp] theorem initialState_codeOwner
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     (initialState contract tx storage observableSlots).sharedState.executionEnv.codeOwner =
       natToAddress tx.thisAddress := by
@@ -490,7 +490,7 @@ def validateNativeRuntimeEnvironment
 @[simp] theorem initialState_weiValue
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     (initialState contract tx storage observableSlots).sharedState.executionEnv.weiValue =
       natToUInt256 tx.msgValue := by
@@ -500,7 +500,7 @@ def validateNativeRuntimeEnvironment
 @[simp] theorem initialState_blockTimestamp
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     (initialState contract tx storage observableSlots).sharedState.executionEnv.header.timestamp =
       tx.blockTimestamp := by
@@ -510,7 +510,7 @@ def validateNativeRuntimeEnvironment
 @[simp] theorem initialState_blockNumber
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     (initialState contract tx storage observableSlots).sharedState.executionEnv.header.number =
       tx.blockNumber := by
@@ -520,7 +520,7 @@ def validateNativeRuntimeEnvironment
 @[simp] theorem initialState_calldata
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     (initialState contract tx storage observableSlots).sharedState.executionEnv.calldata =
       calldataToByteArray tx.functionSelector tx.args := by
@@ -530,7 +530,7 @@ def validateNativeRuntimeEnvironment
 @[simp] theorem initialState_calldataSize
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     (initialState contract tx storage observableSlots).sharedState.executionEnv.calldata.size =
       4 + tx.args.length * 32 := by
@@ -619,7 +619,7 @@ theorem readBytes_offset4_get?_of_lt_source
 @[simp] theorem initialState_calldataReadWord_selectorByte0
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     (ByteArray.readBytes
         (initialState contract tx storage observableSlots).toState.executionEnv.calldata
@@ -643,7 +643,7 @@ theorem readBytes_offset4_get?_of_lt_source
 @[simp] theorem initialState_calldataReadWord_selectorByte1
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     (ByteArray.readBytes
         (initialState contract tx storage observableSlots).toState.executionEnv.calldata
@@ -668,7 +668,7 @@ theorem readBytes_offset4_get?_of_lt_source
 @[simp] theorem initialState_calldataReadWord_selectorByte2
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     (ByteArray.readBytes
         (initialState contract tx storage observableSlots).toState.executionEnv.calldata
@@ -693,7 +693,7 @@ theorem readBytes_offset4_get?_of_lt_source
 @[simp] theorem initialState_calldataReadWord_selectorByte3
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     (ByteArray.readBytes
         (initialState contract tx storage observableSlots).toState.executionEnv.calldata
@@ -720,7 +720,7 @@ theorem readBytes_offset4_get?_of_lt_source
 theorem initialState_calldataReadWord_arg0Byte
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (arg : Nat)
     (rest : List Nat)
@@ -799,7 +799,7 @@ private theorem list_reverse_eq_drop4_reverse_append_four
 theorem initialState_calldataReadWord_selectorPrefix
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     let bytes := ByteArray.readBytes
       (initialState contract tx storage observableSlots).toState.executionEnv.calldata 0 32
@@ -1263,7 +1263,7 @@ theorem uint256_toByteArray_size (value : EvmYul.UInt256) :
 theorem initialState_calldataReadWord_arg0Bytes
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (arg : Nat)
     (rest : List Nat)
@@ -1308,7 +1308,7 @@ theorem initialState_calldataReadWord_arg0Bytes
 theorem initialState_calldataload4_arg0_value
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (arg : Nat)
     (rest : List Nat)
@@ -1349,7 +1349,7 @@ theorem initialState_calldataload4_arg0_value
 theorem initialState_calldataload4_arg0_word
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (arg : Nat)
     (rest : List Nat)
@@ -1371,7 +1371,7 @@ theorem initialState_calldataload4_arg0_word
 theorem initialState_selectorExpr_native_value
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     EvmYul.UInt256.toNat
       (EvmYul.UInt256.shiftRight
@@ -1410,7 +1410,7 @@ theorem initialState_selectorExpr_native_value
 theorem initialState_selectorExpr_native_value_of_readBytes_size
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (_hReadBytesSize :
       ∀ source : ByteArray, (ByteArray.readBytes source 0 32).size = 32) :
@@ -1426,7 +1426,7 @@ theorem initialState_selectorExpr_native_value_of_readBytes_size
 theorem initialState_selectorExpr_native_uint256
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     EvmYul.UInt256.shiftRight
         (EvmYul.State.calldataload
@@ -1605,7 +1605,7 @@ theorem primCall_calldataload4_initialState_arg0_ok
     (fuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (arg : Nat)
     (rest : List Nat)
@@ -1629,7 +1629,7 @@ theorem primCall_calldataload4_initialState_arg0_ok_withStore
     (fuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
     (arg : Nat)
@@ -1655,7 +1655,7 @@ theorem primCall_calldataload4_initialState_ofIR_arg0_ok_withStore
     (fuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : Compiler.Proofs.IRGeneration.IRTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
     (arg : Nat)
@@ -1688,7 +1688,7 @@ theorem primCall_calldataload4_initialState_ofIR_arg0_ok_withStore
 theorem primCall_calldataload0_then_shr224_initialState_selector_ok
     (loadFuel shrFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
-    (tx : YulTransaction) (storage : Nat → IRStorageWord) (observableSlots : List Nat) :
+    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat) :
     (do
       let (state', values) ←
         EvmYul.Yul.primCall (loadFuel + 1)
@@ -1949,7 +1949,7 @@ theorem eval_lowerExprNative_selectorExpr_ok
 theorem eval_lowerExprNative_selectorExpr_initialState_ok
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     EvmYul.Yul.eval 10
         (Backends.lowerExprNative Compiler.Proofs.YulGeneration.selectorExpr)
@@ -2030,7 +2030,7 @@ private theorem uint256_isZero_ofNat_zero :
 theorem eval_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
     EvmYul.Yul.eval 10
@@ -2070,7 +2070,7 @@ theorem eval_lowerExprNative_callvalue_ok
 theorem eval_lowerExprNative_callvalue_initialState_ok
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     EvmYul.Yul.eval 5
         (Backends.lowerExprNative (Yul.YulExpr.call "callvalue" []))
@@ -2288,7 +2288,7 @@ theorem exec_let_lowerExprNative_iszero_lt_calldatasize_4_ok
 theorem exec_let_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (name : EvmYul.Identifier)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
@@ -2342,7 +2342,7 @@ theorem exec_let_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok_fuel
     (fuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (name : EvmYul.Identifier)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
@@ -2404,7 +2404,7 @@ theorem eval_lowerExprNative_iszero_ident_one_ok_fuel
 theorem exec_let_lowerExprNative_selectorExpr_initialState_ok
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (discrName : EvmYul.Identifier) :
     EvmYul.Yul.exec 11
@@ -2439,7 +2439,7 @@ theorem exec_let_lowerExprNative_selectorExpr_initialState_ok_fuel
     (fuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (discrName : EvmYul.Identifier) :
     EvmYul.Yul.exec (fuel + 11)
@@ -2480,7 +2480,7 @@ theorem exec_let_lowerExprNative_selectorExpr_initialState_store_ok_fuel
     (fuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
     (discrName : EvmYul.Identifier) :
@@ -2783,7 +2783,7 @@ def nativeSwitchPrefixStmts
 def nativeSwitchInitialOkState
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     EvmYul.Yul.State :=
   .Ok (initialState contract tx storage observableSlots).sharedState ∅
@@ -2791,7 +2791,7 @@ def nativeSwitchInitialOkState
 def nativeSwitchPrefixFinalState
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (discrName matchedName : EvmYul.Identifier) :
     EvmYul.Yul.State :=
@@ -2809,7 +2809,7 @@ state whose native switch temporaries are aligned to the interpreter oracle. -/
 theorem exec_nativeSwitchPrefix_selector_initialState_ok
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (discrName matchedName : EvmYul.Identifier) :
     EvmYul.Yul.exec 12
@@ -2845,7 +2845,7 @@ theorem exec_nativeSwitchPrefix_selector_initialState_ok
 
 theorem exec_nativeSwitchPrefix_selector_initialState_ok_fuel
     (fuel : Nat) (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
-    (storage : Nat → IRStorageWord) (observableSlots : List Nat)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
     (discrName matchedName : EvmYul.Identifier) :
     EvmYul.Yul.exec (fuel + 12)
       (.Block (nativeSwitchPrefixStmts discrName matchedName))
@@ -2888,7 +2888,7 @@ theorem exec_nativeSwitchPrefix_selector_initialState_ok_fuel
     bindings (e.g. the buildSwitch wrapper's `__has_selector := 1`). -/
 theorem exec_nativeSwitchPrefix_selector_initialState_store_ok_fuel
     (fuel : Nat) (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
-    (storage : Nat → IRStorageWord) (observableSlots : List Nat)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
     (discrName matchedName : EvmYul.Identifier) :
     EvmYul.Yul.exec (fuel + 12)
@@ -3099,7 +3099,7 @@ theorem exec_if_lowerExprNative_iszero_ident_one_skip_fuel
     `If1`-skip lemma. -/
 private theorem nativeSwitchInitialOkState_insert_lookup_self
     (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
-    (storage : Nat → IRStorageWord) (observableSlots : List Nat)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
     (name : EvmYul.Identifier) (value : EvmYul.UInt256) :
     ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
         name value)[name]! = value := by
@@ -3148,7 +3148,7 @@ theorem exec_block_singleton_eq
     `nativeSwitchInitialOkState_insert_lookup_self`. -/
 theorem exec_block_letSelector_if1Skip_initialState_fuel
     (fuel : Nat) (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
-    (storage : Nat → IRStorageWord) (observableSlots : List Nat)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
     (selectorName : EvmYul.Identifier) (if1Body tail : List EvmYul.Yul.Ast.Stmt)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
     EvmYul.Yul.exec (fuel + 12)
@@ -3189,7 +3189,7 @@ theorem exec_block_letSelector_if1Skip_initialState_fuel
     lemmas through `nativeSwitchInitialOkState_insert_lookup_self`. -/
 theorem exec_block_letSelector_if1Skip_if2Take_initialState_fuel
     (fuel : Nat) (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
-    (storage : Nat → IRStorageWord) (observableSlots : List Nat)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
     (selectorName : EvmYul.Identifier)
     (if1Body if2Body : List EvmYul.Yul.Ast.Stmt)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
@@ -4090,7 +4090,7 @@ theorem nativeSwitchDiscrTempName_ne_matchedTempName
 theorem nativeSwitchPrefixFinalState_matched
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (discrName matchedName : EvmYul.Identifier) :
     (nativeSwitchPrefixFinalState contract tx storage observableSlots
@@ -4102,7 +4102,7 @@ theorem nativeSwitchPrefixFinalState_matched
 theorem nativeSwitchPrefixFinalState_discr
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (discrName matchedName : EvmYul.Identifier)
     (selector : Nat)
@@ -4123,7 +4123,7 @@ theorem nativeSwitchPrefixFinalState_discr
 theorem nativeSwitchPrefixFinalState_marked
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (discrName matchedName : EvmYul.Identifier) :
     ((nativeSwitchPrefixFinalState contract tx storage observableSlots discrName matchedName).insert matchedName (EvmYul.UInt256.ofNat 1))[matchedName]! =
@@ -4135,7 +4135,7 @@ theorem nativeSwitchPrefixFinalState_marked
 def nativeSwitchPrefixStateForId
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (switchId : Nat) :
     EvmYul.Yul.State :=
@@ -4146,7 +4146,7 @@ def nativeSwitchPrefixStateForId
 def nativeSwitchMarkedPrefixStateForId
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (switchId : Nat) :
     EvmYul.Yul.State :=
@@ -5441,7 +5441,7 @@ theorem exec_nativeSwitchPrefix_then_tail_fuel
     (tail : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (discrName matchedName : EvmYul.Identifier)
     (final : EvmYul.Yul.State)
@@ -5481,7 +5481,7 @@ theorem exec_nativeSwitchPrefix_then_tail_error_fuel
     (tail : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (discrName matchedName : EvmYul.Identifier)
     (err : EvmYul.Yul.Exception)
@@ -5519,7 +5519,7 @@ theorem exec_nativeSwitchPrefix_then_tail_error_fuel
 theorem exec_nativeSwitchTail_find_hit_preserved_fuel
     (fuel selector switchId tag : Nat)
     (cases : List (Nat × List EvmYul.Yul.Ast.Stmt)) (defaultBody body : List EvmYul.Yul.Ast.Stmt)
-    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction) (storage : Nat → IRStorageWord)
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) (final : EvmYul.Yul.State)
     (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
     (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
@@ -5570,7 +5570,7 @@ theorem exec_nativeSwitchTail_find_hit_error_fuel
     (defaultBody body : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (err : EvmYul.Yul.Exception)
     (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
@@ -5614,7 +5614,7 @@ theorem exec_nativeSwitchTail_find_none_with_default_nonempty_fuel
     (defaultBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (final : EvmYul.Yul.State)
     (hSelector :
@@ -5662,7 +5662,7 @@ theorem exec_nativeSwitchTail_find_none_without_default_fuel
     (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (hSelector :
       selector = tx.functionSelector % Compiler.Constants.selectorModulus)
@@ -5705,7 +5705,7 @@ theorem exec_nativeSwitchTail_find_none_with_revert_default_fuel
     (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (hSelector :
       selector = tx.functionSelector % Compiler.Constants.selectorModulus)
@@ -5747,7 +5747,7 @@ theorem exec_lowerNativeSwitchBlock_selector_find_hit_preserved_fuel
     (body : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (final : EvmYul.Yul.State)
     (hSelector :
@@ -5788,7 +5788,7 @@ theorem exec_lowerNativeSwitchBlock_selector_find_hit_error_fuel
     (body : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (err : EvmYul.Yul.Exception)
     (hSelector :
@@ -5823,7 +5823,7 @@ theorem exec_lowerNativeSwitchBlock_selector_find_none_with_default_nonempty_fue
     (defaultBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (final : EvmYul.Yul.State)
     (hSelector :
@@ -5860,7 +5860,7 @@ theorem exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_fuel
     (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (hSelector :
       selector = tx.functionSelector % Compiler.Constants.selectorModulus)
@@ -5893,7 +5893,7 @@ theorem exec_lowerNativeSwitchBlock_storePrefix_tail_error_fuel
     (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
     (defaultBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
-    (storage : Nat → IRStorageWord) (observableSlots : List Nat)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
     (err : EvmYul.Yul.Exception)
     (hTail :
@@ -5937,7 +5937,7 @@ theorem exec_lowerNativeSwitchBlock_storePrefix_tail_error_fuel
 /-- `matched := 0` lookup on the post-prefix state with arbitrary store. -/
 theorem nativeSwitchPrefixStoreState_matched_eq
     (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
-    (storage : Nat → IRStorageWord) (observableSlots : List Nat)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
     (discrName matchedName : EvmYul.Identifier)
     (discrValue : EvmYul.Literal) :
@@ -5951,7 +5951,7 @@ theorem nativeSwitchPrefixStoreState_matched_eq
 /-- `discr := selector` lookup on the post-prefix state with arbitrary store. -/
 theorem nativeSwitchPrefixStoreState_discr_eq
     (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
-    (storage : Nat → IRStorageWord) (observableSlots : List Nat)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
     (discrName matchedName : EvmYul.Identifier)
     (selector : Nat) (hne : discrName ≠ matchedName)
@@ -5978,7 +5978,7 @@ theorem exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store
     (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
     (hSelector :
@@ -6018,7 +6018,7 @@ theorem exec_lowerNativeSwitchBlock_selector_find_hit_error_store_fuel
     (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
     (defaultBody body : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
-    (storage : Nat → IRStorageWord) (observableSlots : List Nat) (store : EvmYul.Yul.VarStore)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat) (store : EvmYul.Yul.VarStore)
     (err : EvmYul.Yul.Exception)
     (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
     (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
@@ -6068,7 +6068,7 @@ theorem exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_error
     (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (hSelector :
       selector = tx.functionSelector % Compiler.Constants.selectorModulus)
@@ -6111,7 +6111,7 @@ theorem exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_err
     (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
     (defaultBody body : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
-    (storage : Nat → IRStorageWord) (observableSlots : List Nat)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
     (err : EvmYul.Yul.Exception)
     (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
     (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
@@ -6158,7 +6158,7 @@ theorem exec_lowerNativeSwitchBlock_selector_find_none_without_default_fuel
     (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (hSelector :
       selector = tx.functionSelector % Compiler.Constants.selectorModulus)
@@ -6183,7 +6183,7 @@ theorem exec_lowerNativeSwitchBlock_selector_find_none_without_default_fuel
 @[simp] theorem initialState_unbridgedEnvironmentDefaults
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     (initialState contract tx storage observableSlots).sharedState.executionEnv.header.baseFeePerGas =
       0 ∧
@@ -6200,9 +6200,9 @@ theorem exec_lowerNativeSwitchBlock_selector_find_none_without_default_fuel
     mkBlockHeader, EvmYul.State.chainId]
 
 /-- Project the account storage for the current contract back to Verity's
-    `Nat → IRStorageWord` storage view. -/
+    `IRStorageSlot → IRStorageWord` storage view. -/
 def projectStorageFromState (tx : YulTransaction) (state : EvmYul.Yul.State) :
-    Nat → IRStorageWord :=
+    IRStorageSlot → IRStorageWord :=
   extractStorage state.sharedState (natToAddress tx.thisAddress)
 
 /-- Projecting final native storage reads the current contract account storage
@@ -6217,7 +6217,7 @@ def projectStorageFromState (tx : YulTransaction) (state : EvmYul.Yul.State) :
       state.sharedState.accountMap.find? (natToAddress tx.thisAddress) =
         some account)
     (hSlot : account.storage.find? (natToUInt256 slot) = some value) :
-    projectStorageFromState tx state slot = value := by
+    projectStorageFromState tx state (IRStorageSlot.ofNat slot) = value := by
   simp [projectStorageFromState, extractStorage, hAccount, hSlot]
 
 /-- Projecting final native storage defaults to zero when the current contract
@@ -6231,7 +6231,7 @@ def projectStorageFromState (tx : YulTransaction) (state : EvmYul.Yul.State) :
       state.sharedState.accountMap.find? (natToAddress tx.thisAddress) =
         some account)
     (hSlot : account.storage.find? (natToUInt256 slot) = none) :
-    projectStorageFromState tx state slot = 0 := by
+    projectStorageFromState tx state (IRStorageSlot.ofNat slot) = 0 := by
   simp [projectStorageFromState, extractStorage, hAccount, hSlot]
 
 /-- Projecting final native storage defaults to zero when the current contract
@@ -6243,7 +6243,7 @@ def projectStorageFromState (tx : YulTransaction) (state : EvmYul.Yul.State) :
     (hAccount :
       state.sharedState.accountMap.find? (natToAddress tx.thisAddress) =
         none) :
-    projectStorageFromState tx state slot = 0 := by
+    projectStorageFromState tx state (IRStorageSlot.ofNat slot) = 0 := by
   simp [projectStorageFromState, extractStorage, hAccount]
 
 /-- Native initial-state storage materialization agrees with Verity storage on
@@ -6252,14 +6252,14 @@ def projectStorageFromState (tx : YulTransaction) (state : EvmYul.Yul.State) :
 theorem initialState_observableStorageSlot
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (slot : Nat)
     (hSlot : slot ∈ observableSlots)
     (hRange : ∀ s ∈ observableSlots, s < EvmYul.UInt256.size) :
     projectStorageFromState tx
-      (initialState contract tx storage observableSlots) slot =
-      storage slot := by
+      (initialState contract tx storage observableSlots) (IRStorageSlot.ofNat slot) =
+      storage (IRStorageSlot.ofNat slot) := by
   simp only [projectStorageFromState, extractStorage, initialState,
     EvmYul.Yul.State.sharedState, YulState.initial, toSharedState]
   rw [Batteries.RBMap.find?_insert_of_eq _ Std.ReflCmp.compare_self]
@@ -6275,7 +6275,7 @@ theorem initialState_observableStorageSlot
 theorem initialState_sload_observableSlot_value
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (slot : Nat)
     (hSlot : slot ∈ observableSlots)
@@ -6283,10 +6283,10 @@ theorem initialState_sload_observableSlot_value
     (EvmYul.State.sload
       (initialState contract tx storage observableSlots).toState
       (natToUInt256 slot)).2 =
-      storage slot := by
+      storage (IRStorageSlot.ofNat slot) := by
   have hFindStorage :
       (projectStorage storage observableSlots).find? (natToUInt256 slot) =
-        some (storage slot) := by
+        some (storage (IRStorageSlot.ofNat slot)) := by
     simpa [projectStorage, IRStorageWord.toUInt256] using
       foldl_insert_find storage observableSlots slot hSlot hRange
         (Batteries.RBMap.empty : EvmYul.Storage)
@@ -6295,7 +6295,7 @@ theorem initialState_sload_observableSlot_value
   rw [Batteries.RBMap.find?_insert_of_eq _ Std.ReflCmp.compare_self]
   rw [Batteries.RBMap.find?_insert_of_eq _ Std.ReflCmp.compare_self]
   change (Batteries.RBMap.find? (projectStorage storage observableSlots)
-      (natToUInt256 slot)).getD ⟨0⟩ = storage slot
+      (natToUInt256 slot)).getD ⟨0⟩ = storage (IRStorageSlot.ofNat slot)
   rw [hFindStorage]
   rfl
 
@@ -6305,7 +6305,7 @@ theorem initialState_sload_observableSlot_value
 theorem initialState_sload_omittedSlot_value
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (slot : Nat)
     (hNotSlot : slot ∉ observableSlots)
@@ -6335,7 +6335,7 @@ theorem primCall_sload_initialState_observableSlot_ok
     (fuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (slot : Nat)
     (hSlot : slot ∈ observableSlots)
@@ -6350,7 +6350,7 @@ theorem primCall_sload_initialState_observableSlot_ok
           .ok ((initialState contract tx storage observableSlots).setSharedState
               { (initialState contract tx storage observableSlots).toSharedState with
                 toState := state' },
-            [storage slot]) := by
+            [storage (IRStorageSlot.ofNat slot)]) := by
   rw [primCall_sload_ok]
   generalize hload :
       EvmYul.State.sload
@@ -6371,7 +6371,7 @@ theorem primCall_sload_initialState_omittedSlot_ok
     (fuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (slot : Nat)
     (hNotSlot : slot ∉ observableSlots)
@@ -6410,7 +6410,7 @@ theorem primCall_sload_initialState_observableSlot_ok_withStore
     (fuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
     (slot : Nat)
@@ -6428,7 +6428,7 @@ theorem primCall_sload_initialState_observableSlot_ok_withStore
               { (.Ok (initialState contract tx storage observableSlots).sharedState
                   store : EvmYul.Yul.State).toSharedState with
                 toState := state' }),
-            [storage slot]) := by
+            [storage (IRStorageSlot.ofNat slot)]) := by
   rw [primCall_sload_ok]
   generalize hload :
       EvmYul.State.sload
@@ -6453,7 +6453,7 @@ theorem primCall_sload_initialState_omittedSlot_ok_withStore
     (fuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
     (slot : Nat)
@@ -6499,7 +6499,7 @@ theorem primCall_sstore_initialState_wordSlot_ok
     (fuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (slot value : Nat)
     (_hSlotRange : slot < EvmYul.UInt256.size) :
@@ -6520,7 +6520,7 @@ theorem primCall_sstore_initialState_wordSlot_ok_withStore
     (fuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
     (slot value : Nat)
@@ -6546,7 +6546,7 @@ theorem primCall_calldataload4_then_sstore0_initialState_arg0_ok
     (loadFuel storeFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (arg : Nat)
     (rest : List Nat)
@@ -6742,14 +6742,14 @@ theorem primCall_mstore0_then_return32_ok_hReturn_size
 theorem initialState_omittedStorageSlot
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (slot : Nat)
     (hNotSlot : slot ∉ observableSlots)
     (hRange : ∀ s ∈ observableSlots, s < EvmYul.UInt256.size)
     (hSlotRange : slot < EvmYul.UInt256.size) :
     projectStorageFromState tx
-      (initialState contract tx storage observableSlots) slot = 0 := by
+      (initialState contract tx storage observableSlots) (IRStorageSlot.ofNat slot) = 0 := by
   simp only [projectStorageFromState, extractStorage, initialState,
     EvmYul.Yul.State.sharedState, YulState.initial, toSharedState]
   rw [Batteries.RBMap.find?_insert_of_eq _ Std.ReflCmp.compare_self]
@@ -6760,7 +6760,7 @@ theorem initialState_omittedStorageSlot
   have hNone :
       (projectStorage storage observableSlots).find? (natToUInt256 slot) = none := by
     simpa [projectStorage] using h
-  rw [hNone]
+  simp [IRStorageSlot.toUInt256, IRStorageSlot.ofNat, hNone]
 
 /-- Decode one 32-byte big-endian word from an EVMYulLean byte array. -/
 def byteArrayWord (bytes : ByteArray) (offset : Nat) : Nat :=
@@ -7097,7 +7097,7 @@ theorem contractDispatcherExecResult_block_dispatcher_eq_exec_block
     (body : List EvmYul.Yul.Ast.Stmt)
     (functions : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     contractDispatcherExecResult (Nat.succ (Nat.succ fuel))
         { dispatcher := .Block body, functions := functions }
@@ -7162,7 +7162,7 @@ theorem callDispatcherBlockResult_initialState_eq_contractDispatcherBlockResult
     (fuel' : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     callDispatcherBlockResult fuel' contract
         (initialState contract tx storage observableSlots) =
@@ -7206,7 +7206,7 @@ theorem callDispatcher_succ_eq_callDispatcherBlockResult
     back to the supplied initial storage function. -/
 def projectResult
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (result :
       Except EvmYul.Yul.Exception
@@ -7236,7 +7236,7 @@ def projectResult
 
 @[simp] theorem projectResult_ok
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (state : EvmYul.Yul.State)
     (values : List EvmYul.Yul.Ast.Literal) :
@@ -7260,7 +7260,7 @@ theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_eq
     (fuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
@@ -7289,7 +7289,7 @@ theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_eq
 
 @[simp] theorem projectResult_yulHalt
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (state : EvmYul.Yul.State)
     (value : EvmYul.Yul.Ast.Literal) :
@@ -7305,7 +7305,7 @@ theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_eq
 
 @[simp] theorem projectResult_ok_events
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (state : EvmYul.Yul.State)
     (values : List EvmYul.Yul.Ast.Literal) :
@@ -7315,7 +7315,7 @@ theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_eq
 
 @[simp] theorem projectResult_ok_success
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (state : EvmYul.Yul.State)
     (values : List EvmYul.Yul.Ast.Literal) :
@@ -7325,7 +7325,7 @@ theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_eq
 
 @[simp] theorem projectResult_ok_returnValue
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (state : EvmYul.Yul.State)
     (values : List EvmYul.Yul.Ast.Literal) :
@@ -7336,7 +7336,7 @@ theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_eq
 
 @[simp] theorem projectResult_ok_finalMappings
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (state : EvmYul.Yul.State)
     (values : List EvmYul.Yul.Ast.Literal) :
@@ -7347,7 +7347,7 @@ theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_eq
 
 @[simp] theorem projectResult_ok_finalStorageSlot
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (state : EvmYul.Yul.State)
     (values : List EvmYul.Yul.Ast.Literal)
@@ -7359,13 +7359,13 @@ theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_eq
         some account)
     (hSlot : account.storage.find? (natToUInt256 slot) = some value) :
     (projectResult tx initialStorage initialEvents
-      (.ok (state, values))).finalStorage slot = value := by
+      (.ok (state, values))).finalStorage (IRStorageSlot.ofNat slot) = value := by
   simp [projectResult, projectStorageFromState_accountStorageSlot,
     hAccount, hSlot]
 
 @[simp] theorem projectResult_ok_missingFinalStorageAccountSlot
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (state : EvmYul.Yul.State)
     (values : List EvmYul.Yul.Ast.Literal)
@@ -7374,12 +7374,12 @@ theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_eq
       state.sharedState.accountMap.find? (natToAddress tx.thisAddress) =
         none) :
     (projectResult tx initialStorage initialEvents
-      (.ok (state, values))).finalStorage slot = 0 := by
+      (.ok (state, values))).finalStorage (IRStorageSlot.ofNat slot) = 0 := by
   simp [projectResult, projectStorageFromState_missingAccount, hAccount]
 
 @[simp] theorem projectResult_ok_missingFinalStorageSlot
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (state : EvmYul.Yul.State)
     (values : List EvmYul.Yul.Ast.Literal)
@@ -7390,7 +7390,7 @@ theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_eq
         some account)
     (hSlot : account.storage.find? (natToUInt256 slot) = none) :
     (projectResult tx initialStorage initialEvents
-      (.ok (state, values))).finalStorage slot = 0 := by
+      (.ok (state, values))).finalStorage (IRStorageSlot.ofNat slot) = 0 := by
   simp [projectResult, projectStorageFromState_missingAccountStorageSlot,
     hAccount, hSlot]
 
@@ -7407,7 +7407,7 @@ theorem primCall_sstore_initialState_wordSlot_projectResult_slot
     (fuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (slot value : Nat)
@@ -7419,7 +7419,7 @@ theorem primCall_sstore_initialState_wordSlot_projectResult_slot
           (initialState contract tx storage observableSlots)
           EvmYul.Operation.SSTORE [natToUInt256 slot, natToUInt256 value] =
         .ok (finalState, []) ∧
-      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage slot =
+      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage (IRStorageSlot.ofNat slot) =
         natToUInt256 value := by
   refine ⟨(initialState contract tx storage observableSlots).setState
     ((initialState contract tx storage observableSlots).toState.sstore
@@ -7451,7 +7451,7 @@ theorem primCall_sstore_initialState_wordSlot_projectResult_slot_zero_of_erase
     (fuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (slot value : Nat)
@@ -7466,7 +7466,7 @@ theorem primCall_sstore_initialState_wordSlot_projectResult_slot_zero_of_erase
           (initialState contract tx storage observableSlots)
           EvmYul.Operation.SSTORE [natToUInt256 slot, natToUInt256 value] =
         .ok (finalState, []) ∧
-      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage slot =
+      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage (IRStorageSlot.ofNat slot) =
         0 := by
   refine ⟨(initialState contract tx storage observableSlots).setState
     ((initialState contract tx storage observableSlots).toState.sstore
@@ -7485,7 +7485,7 @@ theorem primCall_sstore_initialState_wordSlot_projectResult_slot_zero_of_erase
       simpa [natToUInt256, EvmYul.UInt256.instInhabited] using hValueZero
     rw [hBranch]
     simp [Option.option, Batteries.RBMap.find?_insert_of_eq _
-      Std.ReflCmp.compare_self, hErase]
+      Std.ReflCmp.compare_self, IRStorageSlot.toUInt256, IRStorageSlot.ofNat, hErase]
 
 /-- Native primitive execution of `sstore(slot, 0)` on a word-canonical
     initial runtime slot with no observable slots materialized. The zero-write
@@ -7495,7 +7495,7 @@ theorem primCall_sstore_initialState_wordSlot_projectResult_slot_zero_emptyObser
     (fuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (slot value : Nat)
     (hSlotRange : slot < EvmYul.UInt256.size)
@@ -7506,7 +7506,7 @@ theorem primCall_sstore_initialState_wordSlot_projectResult_slot_zero_emptyObser
           (initialState contract tx storage [])
           EvmYul.Operation.SSTORE [natToUInt256 slot, natToUInt256 value] =
         .ok (finalState, []) ∧
-      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage slot =
+      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage (IRStorageSlot.ofNat slot) =
         0 := by
   exact
     primCall_sstore_initialState_wordSlot_projectResult_slot_zero_of_erase
@@ -7522,7 +7522,7 @@ theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_slot
     (fuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
@@ -7535,7 +7535,7 @@ theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_slot
           (.Ok (initialState contract tx storage observableSlots).sharedState store)
           EvmYul.Operation.SSTORE [natToUInt256 slot, natToUInt256 value] =
         .ok (finalState, []) ∧
-      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage slot =
+      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage (IRStorageSlot.ofNat slot) =
         natToUInt256 value := by
   let initialWithStore : EvmYul.Yul.State :=
     .Ok (initialState contract tx storage observableSlots).sharedState store
@@ -7566,7 +7566,7 @@ theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_slot_zero_
     (fuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
@@ -7582,7 +7582,7 @@ theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_slot_zero_
           (.Ok (initialState contract tx storage observableSlots).sharedState store)
           EvmYul.Operation.SSTORE [natToUInt256 slot, natToUInt256 value] =
         .ok (finalState, []) ∧
-      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage slot =
+      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage (IRStorageSlot.ofNat slot) =
         0 := by
   let initialWithStore : EvmYul.Yul.State :=
     .Ok (initialState contract tx storage observableSlots).sharedState store
@@ -7604,15 +7604,15 @@ theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_slot_zero_
       simpa [natToUInt256, EvmYul.UInt256.instInhabited] using hValueZero
     rw [hBranch]
     simp [Option.option, Batteries.RBMap.find?_insert_of_eq _
-      Std.ReflCmp.compare_self, hErase]
+      Std.ReflCmp.compare_self, IRStorageSlot.toUInt256, IRStorageSlot.ofNat, hErase]
 
 /-- Native primitive execution of `sstore(slot, 0)` from an arbitrary local
-    store when no observable storage slots were materialized. -/
+    store when no observable storage (IRStorageSlot.ofNat slot)s were materialized. -/
 theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_slot_zero_emptyObservable
     (fuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (store : EvmYul.Yul.VarStore)
     (slot value : Nat)
@@ -7624,7 +7624,7 @@ theorem primCall_sstore_initialState_wordSlot_withStore_projectResult_slot_zero_
           (.Ok (initialState contract tx storage []).sharedState store)
           EvmYul.Operation.SSTORE [natToUInt256 slot, natToUInt256 value] =
         .ok (finalState, []) ∧
-      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage slot =
+      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage (IRStorageSlot.ofNat slot) =
         0 := by
   exact
     primCall_sstore_initialState_wordSlot_withStore_projectResult_slot_zero_of_erase
@@ -7640,7 +7640,7 @@ theorem primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_ok
     (loadFuel storeFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (arg : Nat)
@@ -7675,7 +7675,7 @@ def primCall_calldataload4_then_sstore0_stop_initialState_arg0
     (loadFuel storeFuel stopFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     Except EvmYul.Yul.Exception
       (EvmYul.Yul.State × List EvmYul.Yul.Ast.Literal) := do
@@ -7704,7 +7704,7 @@ def primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore
     (loadFuel storeFuel stopFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore) :
     Except EvmYul.Yul.Exception
@@ -7731,7 +7731,7 @@ def primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore
 theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_eq
     (loadFuel storeFuel stopFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
-    (tx : YulTransaction) (storage : Nat → IRStorageWord)
+    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (arg : Nat)
     (rest : List Nat)
@@ -7774,7 +7774,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_eq
 theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_eq
     (loadFuel storeFuel stopFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
-    (tx : YulTransaction) (storage : Nat → IRStorageWord)
+    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
     (arg : Nat)
@@ -7822,7 +7822,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_eq
 theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_ok
     (loadFuel storeFuel stopFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
-    (tx : YulTransaction) (storage : Nat → IRStorageWord)
+    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
@@ -7860,7 +7860,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_pro
 theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_eq
     (loadFuel storeFuel stopFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
-    (tx : YulTransaction) (storage : Nat → IRStorageWord)
+    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
@@ -7899,7 +7899,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_ofIR_arg0_withStor
     (loadFuel storeFuel stopFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : Compiler.Proofs.IRGeneration.IRTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
@@ -7931,7 +7931,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_ofIR_arg0_withStor
 theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_slot0
     (loadFuel storeFuel stopFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
-    (tx : YulTransaction) (storage : Nat → IRStorageWord)
+    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
@@ -7945,7 +7945,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_pro
         loadFuel storeFuel stopFuel contract tx storage observableSlots store =
         .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
       (projectResult tx storage initialEvents
-        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).finalStorage 0 =
+        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).finalStorage (IRStorageSlot.ofNat 0) =
         natToUInt256 arg := by
   let initialWithStore : EvmYul.Yul.State :=
     .Ok (initialState contract tx storage observableSlots).sharedState store
@@ -7978,7 +7978,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_pro
     (loadFuel storeFuel stopFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
@@ -7994,7 +7994,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_pro
         loadFuel storeFuel stopFuel contract tx storage observableSlots store =
         .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
       (projectResult tx storage initialEvents
-        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).finalStorage 0 =
+        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).finalStorage (IRStorageSlot.ofNat 0) =
         0 := by
   let initialWithStore : EvmYul.Yul.State :=
     .Ok (initialState contract tx storage observableSlots).sharedState store
@@ -8019,7 +8019,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_pro
       simpa [natToUInt256, EvmYul.UInt256.instInhabited] using hValueZero
     rw [hBranch]
     simp [Option.option, Batteries.RBMap.find?_insert_of_eq _
-      Std.ReflCmp.compare_self, hErase]
+      Std.ReflCmp.compare_self, IRStorageSlot.toUInt256, IRStorageSlot.ofNat, hErase]
 
 /-- Zero-write storage projection for the full generated `store(uint256)`
     selected body from an arbitrary local store when no observable slots were
@@ -8028,7 +8028,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_pro
     (loadFuel storeFuel stopFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (store : EvmYul.Yul.VarStore)
     (arg : Nat)
@@ -8041,7 +8041,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_pro
         loadFuel storeFuel stopFuel contract tx storage [] store =
         .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
       (projectResult tx storage initialEvents
-        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).finalStorage 0 =
+        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).finalStorage (IRStorageSlot.ofNat 0) =
         0 := by
   exact
     primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_slot0_zero_of_erase
@@ -8055,7 +8055,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_pro
 theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_ok
     (loadFuel storeFuel stopFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
-    (tx : YulTransaction) (storage : Nat → IRStorageWord)
+    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (arg : Nat)
@@ -8088,7 +8088,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult
 theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_slot0
     (loadFuel storeFuel stopFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
-    (tx : YulTransaction) (storage : Nat → IRStorageWord)
+    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (arg : Nat)
@@ -8101,7 +8101,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult
         loadFuel storeFuel stopFuel contract tx storage observableSlots =
         .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
       (projectResult tx storage initialEvents
-        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).finalStorage 0 =
+        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).finalStorage (IRStorageSlot.ofNat 0) =
         natToUInt256 arg := by
   let finalState :=
     (initialState contract tx storage observableSlots).setState
@@ -8132,7 +8132,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult
     (loadFuel storeFuel stopFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (arg : Nat)
@@ -8148,7 +8148,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult
         loadFuel storeFuel stopFuel contract tx storage observableSlots =
         .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
       (projectResult tx storage initialEvents
-        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).finalStorage 0 =
+        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).finalStorage (IRStorageSlot.ofNat 0) =
         0 := by
   let finalState :=
     (initialState contract tx storage observableSlots).setState
@@ -8171,7 +8171,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult
       simpa [natToUInt256, EvmYul.UInt256.instInhabited] using hValueZero
     rw [hBranch]
     simp [Option.option, Batteries.RBMap.find?_insert_of_eq _
-      Std.ReflCmp.compare_self, hErase]
+      Std.ReflCmp.compare_self, IRStorageSlot.toUInt256, IRStorageSlot.ofNat, hErase]
 
 /-- Zero-write storage projection for the full generated `store(uint256)` selected
     body through `STOP` when no observable slots were materialized. -/
@@ -8179,7 +8179,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult
     (loadFuel storeFuel stopFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (arg : Nat)
     (rest : List Nat)
@@ -8191,7 +8191,7 @@ theorem primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult
         loadFuel storeFuel stopFuel contract tx storage [] =
         .error (EvmYul.Yul.Exception.YulHalt haltState haltValue) ∧
       (projectResult tx storage initialEvents
-        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).finalStorage 0 =
+        (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue))).finalStorage (IRStorageSlot.ofNat 0) =
         0 := by
   exact
     primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_slot0_zero_of_erase
@@ -8206,7 +8206,7 @@ theorem primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot
     (loadFuel storeFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (arg : Nat)
@@ -8226,7 +8226,7 @@ theorem primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot
               EvmYul.Operation.SSTORE [EvmYul.UInt256.ofNat 0, value]
         | _ => .error EvmYul.Yul.Exception.InvalidArguments) =
         .ok (finalState, []) ∧
-      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage 0 =
+      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage (IRStorageSlot.ofNat 0) =
         natToUInt256 arg := by
   refine ⟨(initialState contract tx storage observableSlots).setState
     ((initialState contract tx storage observableSlots).toState.sstore
@@ -8251,7 +8251,7 @@ theorem primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot
     (loadFuel storeFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (arg : Nat)
@@ -8274,7 +8274,7 @@ theorem primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot
               EvmYul.Operation.SSTORE [EvmYul.UInt256.ofNat 0, value]
         | _ => .error EvmYul.Yul.Exception.InvalidArguments) =
         .ok (finalState, []) ∧
-      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage 0 =
+      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage (IRStorageSlot.ofNat 0) =
         0 := by
   refine ⟨(initialState contract tx storage observableSlots).setState
     ((initialState contract tx storage observableSlots).toState.sstore
@@ -8293,14 +8293,14 @@ theorem primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot
       simpa [natToUInt256, EvmYul.UInt256.instInhabited] using hValueZero
     rw [hBranch]
     simp [Option.option, Batteries.RBMap.find?_insert_of_eq _
-      Std.ReflCmp.compare_self, hErase]
+      Std.ReflCmp.compare_self, IRStorageSlot.toUInt256, IRStorageSlot.ofNat, hErase]
 
 /-- Zero `sstore` projection with empty observable-slot materialization. -/
 theorem primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot0_zero_emptyObservable
     (loadFuel storeFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (arg : Nat)
     (rest : List Nat)
@@ -8319,7 +8319,7 @@ theorem primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot
               EvmYul.Operation.SSTORE [EvmYul.UInt256.ofNat 0, value]
         | _ => .error EvmYul.Yul.Exception.InvalidArguments) =
         .ok (finalState, []) ∧
-      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage 0 =
+      (projectResult tx storage initialEvents (.ok (finalState, []))).finalStorage (IRStorageSlot.ofNat 0) =
         0 := by
   exact
     primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot0_zero_of_erase
@@ -8328,7 +8328,7 @@ theorem primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot
 
 @[simp] theorem projectResult_yulHalt_events
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (state : EvmYul.Yul.State)
     (value : EvmYul.Yul.Ast.Literal) :
@@ -8339,7 +8339,7 @@ theorem primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot
 
 @[simp] theorem projectResult_yulHalt_success
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (state : EvmYul.Yul.State)
     (value : EvmYul.Yul.Ast.Literal) :
@@ -8349,7 +8349,7 @@ theorem primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot
 
 @[simp] theorem projectResult_yulHalt_returnValue
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (state : EvmYul.Yul.State)
     (value : EvmYul.Yul.Ast.Literal) :
@@ -8365,7 +8365,7 @@ theorem primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot
 theorem primCall_mstore0_then_return32_emptyMemory_projectResult_returnValue
     (mstoreFuel returnFuel : Nat)
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (sharedState : EvmYul.SharedState .Yul)
     (store : EvmYul.Yul.VarStore)
@@ -8400,7 +8400,7 @@ theorem primCall_mstore0_then_return32_emptyMemory_projectResult_returnValue
 theorem primCall_mstore0_then_return32_emptyMemory_projectResult_eq
     (mstoreFuel returnFuel : Nat)
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (sharedState : EvmYul.SharedState .Yul)
     (store : EvmYul.Yul.VarStore)
@@ -8444,7 +8444,7 @@ def primCall_sload0_then_mstore0_return32_initialState
     (sloadFuel mstoreFuel returnFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) :
     Except EvmYul.Yul.Exception
       (EvmYul.Yul.State × List EvmYul.Yul.Ast.Literal) := do
@@ -8474,7 +8474,7 @@ def primCall_sload0_then_mstore0_return32_initialState_withStore
     (sloadFuel mstoreFuel returnFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore) :
     Except EvmYul.Yul.Exception
@@ -8508,7 +8508,7 @@ theorem primCall_sload0_then_mstore0_return32_initialState_projectResult_returnV
     (sloadFuel mstoreFuel returnFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (hSlot : 0 ∈ observableSlots)
@@ -8552,7 +8552,7 @@ theorem primCall_sload0_then_mstore0_return32_initialState_omittedSlot_projectRe
     (sloadFuel mstoreFuel returnFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (hNotSlot : 0 ∉ observableSlots)
@@ -8600,7 +8600,7 @@ theorem primCall_sload0_then_mstore0_return32_initialState_projectResult_returnV
     (sloadFuel mstoreFuel returnFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (hRange : ∀ s ∈ observableSlots, s < EvmYul.UInt256.size) :
@@ -8638,7 +8638,7 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
     (sloadFuel mstoreFuel returnFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
@@ -8684,7 +8684,7 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_omittedSlot
     (sloadFuel mstoreFuel returnFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
@@ -8732,7 +8732,7 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
     (sloadFuel mstoreFuel returnFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
@@ -8775,7 +8775,7 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
     (sloadFuel mstoreFuel returnFuel : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
@@ -8814,7 +8814,7 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
 
 @[simp] theorem projectResult_yulHalt_finalMappings
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (state : EvmYul.Yul.State)
     (value : EvmYul.Yul.Ast.Literal) :
@@ -8825,7 +8825,7 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
 
 @[simp] theorem projectResult_yulHalt_finalStorageSlot
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (state : EvmYul.Yul.State)
     (value : EvmYul.Yul.Ast.Literal)
@@ -8837,14 +8837,14 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
         some account)
     (hSlot : account.storage.find? (natToUInt256 slot) = some slotValue) :
     (projectResult tx initialStorage initialEvents
-      (.error (.YulHalt state value))).finalStorage slot =
+      (.error (.YulHalt state value))).finalStorage (IRStorageSlot.ofNat slot) =
         slotValue := by
   simp [projectResult, projectStorageFromState_accountStorageSlot,
     hAccount, hSlot]
 
 @[simp] theorem projectResult_yulHalt_missingFinalStorageAccountSlot
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (state : EvmYul.Yul.State)
     (value : EvmYul.Yul.Ast.Literal)
@@ -8853,12 +8853,12 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
       state.sharedState.accountMap.find? (natToAddress tx.thisAddress) =
         none) :
     (projectResult tx initialStorage initialEvents
-      (.error (.YulHalt state value))).finalStorage slot = 0 := by
+      (.error (.YulHalt state value))).finalStorage (IRStorageSlot.ofNat slot) = 0 := by
   simp [projectResult, projectStorageFromState_missingAccount, hAccount]
 
 @[simp] theorem projectResult_yulHalt_missingFinalStorageSlot
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (state : EvmYul.Yul.State)
     (value : EvmYul.Yul.Ast.Literal)
@@ -8869,13 +8869,13 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
         some account)
     (hSlot : account.storage.find? (natToUInt256 slot) = none) :
     (projectResult tx initialStorage initialEvents
-      (.error (.YulHalt state value))).finalStorage slot = 0 := by
+      (.error (.YulHalt state value))).finalStorage (IRStorageSlot.ofNat slot) = 0 := by
   simp [projectResult, projectStorageFromState_missingAccountStorageSlot,
     hAccount, hSlot]
 
 @[simp] theorem projectResult_stop
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (state : EvmYul.Yul.State) :
     projectResult tx initialStorage initialEvents
@@ -8890,7 +8890,7 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
 
 @[simp] theorem projectResult_32ByteReturn
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (state : EvmYul.Yul.State)
     (value : EvmYul.Yul.Ast.Literal)
@@ -8908,7 +8908,7 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
 
 @[simp] theorem projectResult_non32ByteReturn
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (state : EvmYul.Yul.State)
     (value : EvmYul.Yul.Ast.Literal)
@@ -8926,7 +8926,7 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
 
 @[simp] theorem projectResult_revert
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat)) :
     projectResult tx initialStorage initialEvents
       (.error EvmYul.Yul.Exception.Revert) =
@@ -8939,7 +8939,7 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
 
 @[simp] theorem projectResult_revert_events
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat)) :
     (projectResult tx initialStorage initialEvents
       (.error EvmYul.Yul.Exception.Revert)).events =
@@ -8948,7 +8948,7 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
 
 @[simp] theorem projectResult_revert_success
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat)) :
     (projectResult tx initialStorage initialEvents
       (.error EvmYul.Yul.Exception.Revert)).success = false := by
@@ -8956,7 +8956,7 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
 
 @[simp] theorem projectResult_revert_returnValue
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat)) :
     (projectResult tx initialStorage initialEvents
       (.error EvmYul.Yul.Exception.Revert)).returnValue = none := by
@@ -8964,7 +8964,7 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
 
 @[simp] theorem projectResult_revert_finalMappings
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat)) :
     (projectResult tx initialStorage initialEvents
       (.error EvmYul.Yul.Exception.Revert)).finalMappings =
@@ -8973,17 +8973,17 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
 
 @[simp] theorem projectResult_revert_finalStorageSlot
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (slot : Nat) :
     (projectResult tx initialStorage initialEvents
-      (.error EvmYul.Yul.Exception.Revert)).finalStorage slot =
-      initialStorage slot := by
+      (.error EvmYul.Yul.Exception.Revert)).finalStorage (IRStorageSlot.ofNat slot) =
+      initialStorage (IRStorageSlot.ofNat slot) := by
   rfl
 
 @[simp] theorem projectResult_hardError
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (err : EvmYul.Yul.Exception)
     (hNotHalt : ∀ state value, err ≠ EvmYul.Yul.Exception.YulHalt state value) :
@@ -9009,7 +9009,7 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
 
 @[simp] theorem projectResult_hardError_success
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (err : EvmYul.Yul.Exception)
     (hNotHalt : ∀ state value, err ≠ EvmYul.Yul.Exception.YulHalt state value) :
@@ -9030,7 +9030,7 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
 
 @[simp] theorem projectResult_hardError_returnValue
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (err : EvmYul.Yul.Exception)
     (hNotHalt : ∀ state value, err ≠ EvmYul.Yul.Exception.YulHalt state value) :
@@ -9051,13 +9051,13 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
 
 @[simp] theorem projectResult_hardError_finalStorageSlot
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (err : EvmYul.Yul.Exception)
     (slot : Nat)
     (hNotHalt : ∀ state value, err ≠ EvmYul.Yul.Exception.YulHalt state value) :
-    (projectResult tx initialStorage initialEvents (.error err)).finalStorage slot =
-      initialStorage slot := by
+    (projectResult tx initialStorage initialEvents (.error err)).finalStorage (IRStorageSlot.ofNat slot) =
+      initialStorage (IRStorageSlot.ofNat slot) := by
   cases err with
   | YulHalt state value =>
       exact False.elim (hNotHalt state value rfl)
@@ -9074,7 +9074,7 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
 
 @[simp] theorem projectResult_hardError_finalMappings
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (err : EvmYul.Yul.Exception)
     (hNotHalt : ∀ state value, err ≠ EvmYul.Yul.Exception.YulHalt state value) :
@@ -9096,7 +9096,7 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
 
 @[simp] theorem projectResult_hardError_events
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (err : EvmYul.Yul.Exception)
     (hNotHalt : ∀ state value, err ≠ EvmYul.Yul.Exception.YulHalt state value) :
@@ -9126,7 +9126,7 @@ theorem exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_proje
     (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (hSelector :
@@ -9148,8 +9148,8 @@ theorem exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_proje
         (.error EvmYul.Yul.Exception.Revert)).returnValue = none ∧
     (∀ slot,
       (projectResult tx storage initialEvents
-        (.error EvmYul.Yul.Exception.Revert)).finalStorage slot =
-          storage slot) := by
+        (.error EvmYul.Yul.Exception.Revert)).finalStorage (IRStorageSlot.ofNat slot) =
+          storage (IRStorageSlot.ofNat slot)) := by
   refine ⟨?_, ?_, ?_, ?_⟩
   · exact exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_fuel
       fuel selector switchId cases contract tx storage observableSlots
@@ -9182,7 +9182,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (hSelector :
@@ -9207,8 +9207,8 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert
         (.error EvmYul.Yul.Exception.Revert)).returnValue = none ∧
     (∀ slot,
       (projectResult tx storage initialEvents
-        (.error EvmYul.Yul.Exception.Revert)).finalStorage slot =
-          storage slot) := by
+        (.error EvmYul.Yul.Exception.Revert)).finalStorage (IRStorageSlot.ofNat slot) =
+          storage (IRStorageSlot.ofNat slot)) := by
   exact
     exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult
       fuel selector switchId
@@ -9229,7 +9229,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (hSelector :
@@ -9263,7 +9263,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert
   exact ⟨hExec, by simp⟩
 
 def simpleStorageRevertProjectedResult
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat)) : YulResult :=
   { success := false
     returnValue := none
@@ -9311,7 +9311,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_find_none_with_rev
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (hSelectorBound : tx.functionSelector < Compiler.Constants.selectorModulus)
@@ -9359,7 +9359,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_miss_with_revert_d
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (hSelectorBound : tx.functionSelector < Compiler.Constants.selectorModulus)
@@ -9398,7 +9398,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_tx_miss_with_revert_de
     (fuel switchId : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (hSelectorBound : tx.functionSelector < Compiler.Constants.selectorModulus)
@@ -9434,7 +9434,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_fuel
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (err : EvmYul.Yul.Exception)
     (hSelector : 0x6057361d = tx.functionSelector % Compiler.Constants.selectorModulus)
@@ -9478,7 +9478,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_store
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (store : EvmYul.Yul.VarStore)
     (err : EvmYul.Yul.Exception)
@@ -9540,7 +9540,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_projectResu
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (haltState : EvmYul.Yul.State)
@@ -9586,7 +9586,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_store_hit_projectResul
     (fuel switchId : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (haltState : EvmYul.Yul.State)
@@ -9636,7 +9636,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_error_fu
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (err : EvmYul.Yul.Exception)
     (hSelector :
@@ -9674,7 +9674,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_error_fu
 
 def simpleStorageRetrieveHaltProjectedResult
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (haltState : EvmYul.Yul.State) : YulResult :=
@@ -9696,7 +9696,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_projectR
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (haltState : EvmYul.Yul.State)
@@ -9745,7 +9745,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_retrieve_hit_projectRe
     (fuel switchId : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (observableSlots : List Nat)
     (haltState : EvmYul.Yul.State)
@@ -9790,7 +9790,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_retrieve_hit_projectRe
 
 @[simp] theorem projectResult_finalMappings
     (tx : YulTransaction)
-    (initialStorage : Nat → IRStorageWord)
+    (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (result :
       Except EvmYul.Yul.Exception
@@ -9811,7 +9811,7 @@ def interpretRuntimeNative
     (fuel : Nat)
     (runtimeCode : List YulStmt)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (events : List (List Nat) := []) :
     Except AdapterError YulResult := do
@@ -9827,7 +9827,7 @@ def interpretRuntimeNative
     (fuel : Nat)
     (runtimeCode : List YulStmt)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (events : List (List Nat))
     (err : AdapterError)
@@ -9841,7 +9841,7 @@ def interpretRuntimeNative
     (fuel : Nat)
     (runtimeCode : List YulStmt)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (events : List (List Nat))
     (contract : EvmYul.Yul.Ast.YulContract)
@@ -9859,7 +9859,7 @@ def interpretRuntimeNative
     (fuel : Nat)
     (runtimeCode : List YulStmt)
     (tx : YulTransaction)
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (events : List (List Nat))
     (contract : EvmYul.Yul.Ast.YulContract)
@@ -9879,7 +9879,7 @@ path once the state/result bridge lemmas are proved. It intentionally returns
 closed for duplicate helper definitions or unsupported runtime shapes.
 
 The observable slot set is explicit because the public theorem compares only
-those final storage slots. Native execution materializes those slots plus
+those final storage (IRStorageSlot.ofNat slot)s. Native execution materializes those slots plus
 literal `sload` slots derived from the emitted runtime so storage reads remain
 faithful even when callers compare a smaller public projection.
 -/

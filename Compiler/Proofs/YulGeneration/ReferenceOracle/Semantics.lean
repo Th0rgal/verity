@@ -73,7 +73,7 @@ structure YulTransaction where
     (YulTransaction.ofIR tx).args = tx.args := rfl
 
 /-- Initial state for Yul execution. -/
-def YulState.initial (tx : YulTransaction) (storage : Nat → IRStorageWord)
+def YulState.initial (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (events : List (List Nat) := []) : YulState :=
   { vars := []
     storage := storage
@@ -342,13 +342,13 @@ noncomputable def execYulStmts (state : YulState) (stmts : List YulStmt) : YulEx
 structure YulResult where
   success : Bool
   returnValue : Option Nat
-  finalStorage : Nat → IRStorageWord
+  finalStorage : IRStorageSlot → IRStorageWord
   finalMappings : Nat → Nat → IRStorageWord
   events : List (List Nat)
 
 /-- Execute a Yul runtime program with selector-aware calldata -/
 noncomputable def interpretYulRuntime (runtimeCode : List YulStmt) (tx : YulTransaction)
-    (storage : Nat → IRStorageWord) (events : List (List Nat) := []) : YulResult :=
+    (storage : IRStorageSlot → IRStorageWord) (events : List (List Nat) := []) : YulResult :=
   let initialState := YulState.initial tx storage events
   match execYulStmts initialState runtimeCode with
   | .continue s =>
@@ -378,7 +378,7 @@ noncomputable def interpretYulRuntime (runtimeCode : List YulStmt) (tx : YulTran
 
 /-- Interpret a Yul object by executing its runtime code. -/
 noncomputable def interpretYulObject (obj : YulObject) (tx : YulTransaction)
-    (storage : Nat → IRStorageWord) (events : List (List Nat) := []) : YulResult :=
+    (storage : IRStorageSlot → IRStorageWord) (events : List (List Nat) := []) : YulResult :=
   interpretYulRuntime obj.runtimeCode tx storage events
 
 end Compiler.Proofs.YulGeneration

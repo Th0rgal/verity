@@ -5,7 +5,7 @@ import Compiler.Proofs.IRGeneration.IRStorageWord
 
 namespace Compiler.Proofs
 
-open Compiler.Proofs.IRGeneration (IRStorageWord)
+open Compiler.Proofs.IRGeneration (IRStorageWord IRStorageSlot)
 
 /-!
 Mapping slot abstraction used by proof interpreters.
@@ -70,32 +70,35 @@ def abstractNestedMappingSlot (baseSlot key1 key2 : Nat) : Nat :=
   abstractMappingSlot (abstractMappingSlot baseSlot key1) key2
 
 /-- Derived mapping-table view from flat storage. -/
-def storageAsMappings (storage : Nat → IRStorageWord) : Nat → Nat → IRStorageWord :=
-  fun baseSlot key => storage (solidityMappingSlot baseSlot key)
+def storageAsMappings (storage : IRStorageSlot → IRStorageWord) : Nat → Nat → IRStorageWord :=
+  fun baseSlot key => storage (IRStorageSlot.ofNat (solidityMappingSlot baseSlot key))
 
 /-- Read a mapping entry directly from base slot and key. -/
 def abstractLoadMappingEntry
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (baseSlot key : Nat) : IRStorageWord :=
-  storage (solidityMappingSlot baseSlot key)
+  storage (IRStorageSlot.ofNat (solidityMappingSlot baseSlot key))
 
 /-- Write a mapping entry directly from base slot and key. -/
 def abstractStoreMappingEntry
-    (storage : Nat → IRStorageWord)
-    (baseSlot key value : Nat) : Nat → IRStorageWord :=
-  fun s => if s = solidityMappingSlot baseSlot key then IRStorageWord.ofNat value else storage s
+    (storage : IRStorageSlot → IRStorageWord)
+    (baseSlot key value : Nat) : IRStorageSlot → IRStorageWord :=
+  fun s => if s = IRStorageSlot.ofNat (solidityMappingSlot baseSlot key) then
+    IRStorageWord.ofNat value
+  else
+    storage s
 
 /-- Read through the active mapping-slot backend from flat storage. -/
 def abstractLoadStorageOrMapping
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (slot : Nat) : IRStorageWord :=
-  storage slot
+  storage (IRStorageSlot.ofNat slot)
 
 /-- Write through the active mapping-slot backend to flat storage. -/
 def abstractStoreStorageOrMapping
-    (storage : Nat → IRStorageWord)
-    (slot value : Nat) : Nat → IRStorageWord :=
-  fun s => if s = slot then IRStorageWord.ofNat value else storage s
+    (storage : IRStorageSlot → IRStorageWord)
+    (slot value : Nat) : IRStorageSlot → IRStorageWord :=
+  fun s => if s = IRStorageSlot.ofNat slot then IRStorageWord.ofNat value else storage s
 
 @[simp] theorem abstractMappingSlot_eq_solidity (baseSlot key : Nat) :
     abstractMappingSlot baseSlot key = solidityMappingSlot baseSlot key := rfl
@@ -118,26 +121,30 @@ def abstractStoreStorageOrMapping
   simp [abstractNestedMappingSlot]
 
 @[simp] theorem abstractLoadMappingEntry_eq
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (baseSlot key : Nat) :
-    abstractLoadMappingEntry storage baseSlot key = storage (solidityMappingSlot baseSlot key) := rfl
+    abstractLoadMappingEntry storage baseSlot key =
+      storage (IRStorageSlot.ofNat (solidityMappingSlot baseSlot key)) := rfl
 
 @[simp] theorem abstractStoreMappingEntry_eq
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (baseSlot key value : Nat) :
     abstractStoreMappingEntry storage baseSlot key value =
-      (fun s => if s = solidityMappingSlot baseSlot key then IRStorageWord.ofNat value else storage s) := rfl
+      (fun s => if s = IRStorageSlot.ofNat (solidityMappingSlot baseSlot key) then
+        IRStorageWord.ofNat value
+      else
+        storage s) := rfl
 
 @[simp] theorem abstractLoadStorageOrMapping_eq
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (slot : Nat) :
-    abstractLoadStorageOrMapping storage slot = storage slot := rfl
+    abstractLoadStorageOrMapping storage slot = storage (IRStorageSlot.ofNat slot) := rfl
 
 @[simp] theorem abstractStoreStorageOrMapping_eq
-    (storage : Nat → IRStorageWord)
+    (storage : IRStorageSlot → IRStorageWord)
     (slot value : Nat) :
     abstractStoreStorageOrMapping storage slot value =
-      (fun s => if s = slot then IRStorageWord.ofNat value else storage s) := rfl
+      (fun s => if s = IRStorageSlot.ofNat slot then IRStorageWord.ofNat value else storage s) := rfl
 
 /-- Keccak256 output interpreted as a big-endian 256-bit natural is less than 2^256.
     This is mathematically true because keccak produces exactly 32 bytes, so

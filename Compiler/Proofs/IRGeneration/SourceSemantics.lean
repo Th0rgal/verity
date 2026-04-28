@@ -18,6 +18,10 @@ namespace SourceSemantics
 def wordNormalize (n : Nat) : Nat :=
   ((n : Verity.Core.Uint256) : Nat)
 
+@[simp] theorem wordNormalize_eq_mod (n : Nat) :
+    wordNormalize n = n % Compiler.Constants.evmModulus := by
+  rfl
+
 def uint8Modulus : Nat := 2 ^ 8
 
 def addressModulus : Nat := 2 ^ 160
@@ -266,7 +270,8 @@ def findResolvedFieldAtSlot (fields : List Field) (slot : Nat) : Option Field :=
     | [] => none
     | field :: rest =>
         let resolvedSlot := field.slot.getD idx
-        if resolvedSlot = slot || field.aliasSlots.contains slot then
+        if wordNormalize resolvedSlot = wordNormalize slot ||
+            (field.aliasSlots.map wordNormalize).contains (wordNormalize slot) then
           some field
         else
           go rest (idx + 1)
@@ -277,7 +282,7 @@ def findDynamicArrayElementAtSlot
   let rec scanElements (baseSlot : Nat) : List Verity.Core.Uint256 → Nat → Option Nat
     | [], _ => none
     | value :: rest, idx =>
-        if Compiler.Proofs.solidityMappingSlot baseSlot idx = targetSlot then
+        if Compiler.Proofs.solidityMappingSlot baseSlot idx = wordNormalize targetSlot then
           some value.val
         else
           scanElements baseSlot rest (idx + 1)
@@ -324,9 +329,10 @@ def encodeStorage (spec : CompilationModel) (world : Verity.ContractState) :
 def writeUintSlots (world : Verity.ContractState) (slots : List Nat) (value : Nat) :
     Verity.ContractState :=
   let word : Verity.Core.Uint256 := value
+  let targets := slots.map wordNormalize
   { world with
     storage := fun slot =>
-      if slots.contains slot then word else world.storage slot }
+      if targets.contains slot then word else world.storage slot }
 
 def writeStorageWordSlot (world : Verity.ContractState) (slot wordOffset value : Nat) :
     Verity.ContractState :=
@@ -353,9 +359,10 @@ def writeStorageWordSlots (world : Verity.ContractState) (slots : List Nat) (wor
 def writeAddressSlots (world : Verity.ContractState) (slots : List Nat) (value : Nat) :
     Verity.ContractState :=
   let addr := Verity.wordToAddress (value : Verity.Core.Uint256)
+  let targets := slots.map wordNormalize
   { world with
     storageAddr := fun slot =>
-      if slots.contains slot then addr else world.storageAddr slot }
+      if targets.contains slot then addr else world.storageAddr slot }
 
 def writeAddressKeyedMappingSlots
     (world : Verity.ContractState) (slots : List Nat) (key value : Nat) :
@@ -365,16 +372,18 @@ def writeAddressKeyedMappingSlots
   | slot :: _ =>
       let keyAddr := Verity.wordToAddress (key : Verity.Core.Uint256)
       let word : Verity.Core.Uint256 := value
-      let storageNat : Nat → Compiler.Proofs.IRGeneration.IRStorageWord :=
-        fun s => Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (world.storage s).val
+      let storageNat : Compiler.Proofs.IRGeneration.IRStorageSlot →
+          Compiler.Proofs.IRGeneration.IRStorageWord :=
+        fun s => Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (world.storage s.toNat).val
       let storage :=
         slots.foldl
           (fun current slot =>
             Compiler.Proofs.abstractStoreMappingEntry current slot key value)
-          storageNat
+        storageNat
       { world with
         storage := fun s =>
-          (Compiler.Proofs.IRGeneration.IRStorageWord.toNat (storage s) : Verity.Core.Uint256)
+          (Compiler.Proofs.IRGeneration.IRStorageWord.toNat
+            (storage (Compiler.Proofs.IRGeneration.IRStorageSlot.ofNat s)) : Verity.Core.Uint256)
         storageMap := fun baseSlot addr =>
           if baseSlot == slot && addr == keyAddr then
             word
@@ -388,7 +397,7 @@ def writeAddressKeyedMappingChainSlots
     (world : Verity.ContractState) (slots keys : List Nat) (value : Nat) :
     Verity.ContractState :=
   let word : Verity.Core.Uint256 := value
-  let targets := slots.map (fun slot => mappingSlotChain slot keys)
+  let targets := slots.map (fun slot => wordNormalize (mappingSlotChain slot keys))
   { world with
     storage := fun slot =>
       if targets.contains slot then word else world.storage slot }
@@ -433,16 +442,18 @@ def writeUintKeyedMappingSlots
   | slot :: _ =>
       let keyWord : Verity.Core.Uint256 := key
       let word : Verity.Core.Uint256 := value
-      let storageNat : Nat → Compiler.Proofs.IRGeneration.IRStorageWord :=
-        fun s => Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (world.storage s).val
+      let storageNat : Compiler.Proofs.IRGeneration.IRStorageSlot →
+          Compiler.Proofs.IRGeneration.IRStorageWord :=
+        fun s => Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (world.storage s.toNat).val
       let storage :=
         slots.foldl
           (fun current slot =>
             Compiler.Proofs.abstractStoreMappingEntry current slot key value)
-          storageNat
+        storageNat
       { world with
         storage := fun s =>
-          (Compiler.Proofs.IRGeneration.IRStorageWord.toNat (storage s) : Verity.Core.Uint256)
+          (Compiler.Proofs.IRGeneration.IRStorageWord.toNat
+            (storage (Compiler.Proofs.IRGeneration.IRStorageSlot.ofNat s)) : Verity.Core.Uint256)
         storageMapUint := fun baseSlot key' =>
           if baseSlot == slot && key' == keyWord then
             word
@@ -458,8 +469,9 @@ def writeAddressKeyedMapping2Slots
       let key1Addr := Verity.wordToAddress (key1 : Verity.Core.Uint256)
       let key2Addr := Verity.wordToAddress (key2 : Verity.Core.Uint256)
       let word : Verity.Core.Uint256 := value
-      let storageNat : Nat → Compiler.Proofs.IRGeneration.IRStorageWord :=
-        fun s => Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (world.storage s).val
+      let storageNat : Compiler.Proofs.IRGeneration.IRStorageSlot →
+          Compiler.Proofs.IRGeneration.IRStorageWord :=
+        fun s => Compiler.Proofs.IRGeneration.IRStorageWord.ofNat (world.storage s.toNat).val
       let storage :=
         slots.foldl
           (fun current slot =>
@@ -468,10 +480,11 @@ def writeAddressKeyedMapping2Slots
               (Compiler.Proofs.abstractMappingSlot slot key1)
               key2
               value)
-          storageNat
+        storageNat
       { world with
         storage := fun s =>
-          (Compiler.Proofs.IRGeneration.IRStorageWord.toNat (storage s) : Verity.Core.Uint256)
+          (Compiler.Proofs.IRGeneration.IRStorageWord.toNat
+            (storage (Compiler.Proofs.IRGeneration.IRStorageSlot.ofNat s)) : Verity.Core.Uint256)
         storageMap2 := fun baseSlot addr1 addr2 =>
           if baseSlot == slot && addr1 == key1Addr && addr2 == key2Addr then
             word
@@ -563,14 +576,14 @@ private def ceilDivVal (lhs rhs : Verity.Core.Uint256) : Nat :=
 def evalExpr (fields : List Field) (state : RuntimeState) : Expr → Option Nat
   | .literal n => some (wordNormalize n)
   | .param name => some (lookupValue state.bindings name)
-  | .storage fieldName =>
-      match findFieldWithResolvedSlot fields fieldName with
-      | some (_, slot) => some (state.world.storage slot).val
-      | none => none
-  | .storageAddr fieldName =>
-      match findFieldWithResolvedSlot fields fieldName with
-      | some (_, slot) => some (state.world.storageAddr slot).val
-      | none => none
+    | .storage fieldName =>
+        match findFieldWithResolvedSlot fields fieldName with
+        | some (_, slot) => some (state.world.storage (wordNormalize slot)).val
+        | none => none
+    | .storageAddr fieldName =>
+        match findFieldWithResolvedSlot fields fieldName with
+        | some (_, slot) => some (state.world.storageAddr (wordNormalize slot)).val
+        | none => none
   | .storageArrayLength fieldName =>
       match findFieldWithResolvedSlot fields fieldName with
       | some ({ ty := .dynamicArray _, .. }, slot) => some (state.world.storageArray slot).length
@@ -897,19 +910,19 @@ private theorem evalExpr_storage
     (fields : List Field)
     (state : RuntimeState)
     (fieldName : String) :
-    evalExpr fields state (.storage fieldName) =
-      match findFieldWithResolvedSlot fields fieldName with
-      | some (_, slot) => some (state.world.storage slot).val
-      | none => none := rfl
+      evalExpr fields state (.storage fieldName) =
+        match findFieldWithResolvedSlot fields fieldName with
+        | some (_, slot) => some (state.world.storage (wordNormalize slot)).val
+        | none => none := rfl
 
 private theorem evalExpr_storageAddr
     (fields : List Field)
     (state : RuntimeState)
     (fieldName : String) :
-    evalExpr fields state (.storageAddr fieldName) =
-      match findFieldWithResolvedSlot fields fieldName with
-      | some (_, slot) => some (state.world.storageAddr slot).val
-      | none => none := rfl
+      evalExpr fields state (.storageAddr fieldName) =
+        match findFieldWithResolvedSlot fields fieldName with
+        | some (_, slot) => some (state.world.storageAddr (wordNormalize slot)).val
+        | none => none := rfl
 
 private theorem evalExpr_storageArrayLength
     (fields : List Field)
@@ -2377,14 +2390,14 @@ mutual
       (state : RuntimeState) : Expr → Option Nat
     | .literal n => some (wordNormalize n)
     | .param name => some (lookupValue state.bindings name)
-    | .storage fieldName =>
-        match findFieldWithResolvedSlot fields fieldName with
-        | some (_, slot) => some (state.world.storage slot).val
-        | none => none
-    | .storageAddr fieldName =>
-        match findFieldWithResolvedSlot fields fieldName with
-        | some (_, slot) => some (state.world.storageAddr slot).val
-        | none => none
+      | .storage fieldName =>
+          match findFieldWithResolvedSlot fields fieldName with
+          | some (_, slot) => some (state.world.storage (wordNormalize slot)).val
+          | none => none
+      | .storageAddr fieldName =>
+          match findFieldWithResolvedSlot fields fieldName with
+          | some (_, slot) => some (state.world.storageAddr (wordNormalize slot)).val
+          | none => none
     | .storageArrayLength fieldName =>
         match findFieldWithResolvedSlot fields fieldName with
         | some ({ ty := .dynamicArray _, .. }, slot) => some (state.world.storageArray slot).length

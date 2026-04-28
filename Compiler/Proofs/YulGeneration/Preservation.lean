@@ -27,7 +27,7 @@ See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
   rfl
 
 @[simp] private theorem interpretYulRuntime_eq_yulResultOfExecWithRollback_initial
-    (runtimeCode : List YulStmt) (tx : YulTransaction) (storage : Nat → IRStorageWord)
+    (runtimeCode : List YulStmt) (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (events : List (List Nat)) :
     interpretYulRuntime runtimeCode tx storage events =
       yulResultOfExecWithRollback (YulState.initial tx storage events)

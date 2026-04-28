@@ -92,7 +92,7 @@ structure IRState where
       touching this signature. Currently `IRStorageWord` is an `abbrev`
       for `Nat`, so this is definitionally `Nat → Nat` and existing
       callsites continue to typecheck. -/
-  storage : Nat → IRStorageWord
+  storage : IRStorageSlot → IRStorageWord
   /-- Transient storage slots (slot → value). -/
   transientStorage : Nat → Nat := fun _ => 0
   /-- Memory words (offset → value) -/
@@ -1132,7 +1132,7 @@ other non-transaction fields unchanged. -/
 structure IRResult where
   success : Bool
   returnValue : Option Nat
-  finalStorage : Nat → IRStorageWord
+  finalStorage : IRStorageSlot → IRStorageWord
   finalMappings : Nat → Nat → IRStorageWord
   events : List (List Nat)
 

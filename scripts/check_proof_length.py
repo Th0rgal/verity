@@ -147,7 +147,29 @@ ALLOWLIST: set[str] = {
     # --- Mapping slot and field resolution proofs ---
     "findResolvedFieldAtSlotCopyFrom_of_member",
     "firstFieldWriteSlotConflictCopyFrom_some_of_seen_slot_member",
+    # IRStorageSlot migration: these storage write/state-match proofs grew
+    # because each case now carries both the old source Nat slot reasoning and
+    # the bounded IRStorageSlot normalization bridge. Splitting them further
+    # would duplicate the same `wordNormalize`/`IRStorageSlot.ofNat` plumbing
+    # across one-off local helpers.
+    "runtimeStateMatchesIR_writeUintSlots",
+    "runtimeStateMatchesIR_writeAddressSlot",
+    "runtimeStateMatchesIR_writeAddressKeyedMappingChainSlot",
+    "runtimeStateMatchesIR_writeAddressKeyedMappingSlot",
+    "runtimeStateMatchesIR_writeAddressKeyedMappingWordSlot",
+    "runtimeStateMatchesIR_writeAddressKeyedMappingPackedWordSlot",
+    "runtimeStateMatchesIR_writeAddressKeyedMapping2Slot",
+    "runtimeStateMatchesIR_writeAddressKeyedMapping2WordSlot",
     "encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleton_eq_written",
+    "encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_eq_written",
+    "encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_eq_written",
+    # Source storage-read steps need to bridge `sload(lit slot)` through
+    # `wordNormalize slot` and then repackage the updated binding/state
+    # invariants. These are four parallel cases for uint/address let/assign.
+    "compiledStmtStep_letStorageField",
+    "compiledStmtStep_letStorageAddrField",
+    "compiledStmtStep_assignStorageField",
+    "compiledStmtStep_assignStorageAddrField",
     # --- Compat scratch lemmas ---
     "compatScratch_not_internalImmutable",
     "compatScratch_startsWith_reserved",

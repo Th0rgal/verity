@@ -39,7 +39,7 @@ import Batteries.Data.RBMap.Lemmas
 namespace Compiler.Proofs.YulGeneration.Backends.StateBridge
 
 open Compiler.Proofs.YulGeneration
-open Compiler.Proofs.IRGeneration (IRStorageWord)
+open Compiler.Proofs.IRGeneration (IRStorageWord IRStorageSlot)
 open EvmYul
 
 /-! ## Nat ↔ UInt256 Conversions -/
@@ -105,14 +105,12 @@ def storageWrite (s : EvmYul.Storage) (slot val : UInt256) : EvmYul.Storage :=
 
 /-- Project a finite set of Verity storage slots into an EVMYulLean Storage map.
 
-**Range precondition**: Callers must ensure all slots satisfy `slot < UInt256.size`
-(equivalently `slot < 2^256`). Without this, distinct `Nat` slots differing by
-multiples of `2^256` alias to the same RBMap key via `natToUInt256`. The
-`storageLookup_projectStorage` theorem enforces this via its `hRange` hypothesis. -/
-def projectStorage (storage : Nat → IRStorageWord) (slots : List Nat) : EvmYul.Storage :=
+Nat slot inputs are normalized through `IRStorageSlot.ofNat`, matching the
+EVMYulLean `UInt256` key used in the projected map. -/
+def projectStorage (storage : IRStorageSlot → IRStorageWord) (slots : List Nat) : EvmYul.Storage :=
   slots.foldl (init := Batteries.RBMap.empty) fun acc slot =>
     let key := natToUInt256 slot
-    let val := IRStorageWord.toUInt256 (storage slot)
+    let val := IRStorageWord.toUInt256 (storage (IRStorageSlot.ofNat slot))
     acc.insert key val
 
 /-! ## Execution Environment Bridge
@@ -458,15 +456,14 @@ def toSharedState (state : YulState) (observableSlots : List Nat) :
 /-- Extract observable storage from an EVMYulLean state for the contract
     at the given address. Returns the Verity-style storage function.
 
-**Range note**: `natToUInt256` reduces `slot` modulo `2^256`, so queries
-at `slot >= 2^256` alias onto low-bit keys. Bridge equivalence proofs
-should carry an in-range hypothesis (`slot < UInt256.size`). -/
+The bounded IR slot is already the EVM storage key, so extraction is lossless
+with respect to the IR storage domain. -/
 def extractStorage (sharedState : SharedState .Yul) (addr : AccountAddress) :
-    Nat → IRStorageWord :=
+    IRStorageSlot → IRStorageWord :=
   fun slot =>
     match sharedState.accountMap.find? addr with
     | some account =>
-      match account.storage.find? (natToUInt256 slot) with
+      match account.storage.find? (IRStorageSlot.toUInt256 slot) with
       | some val => val
       | none => 0
     | none => 0
@@ -640,12 +637,12 @@ theorem compare_natToUInt256_ne {a b : Nat}
 
 /-- Helper: folding inserts over a list of slots that does NOT contain `slot`
     preserves whatever `find?` value the accumulator had for `natToUInt256 slot`. -/
-theorem foldl_insert_find_not_mem (storage : Nat → IRStorageWord)
+theorem foldl_insert_find_not_mem (storage : IRStorageSlot → IRStorageWord)
     (slots : List Nat) (slot : Nat) (hNotMem : slot ∉ slots)
     (hRange : ∀ s ∈ slots, s < UInt256.size)
     (hSlotRange : slot < UInt256.size)
     (acc : EvmYul.Storage) :
-    (slots.foldl (fun m s => m.insert (natToUInt256 s) (IRStorageWord.toUInt256 (storage s))) acc).find?
+    (slots.foldl (fun m s => m.insert (natToUInt256 s) (IRStorageWord.toUInt256 (storage (IRStorageSlot.ofNat s)))) acc).find?
       (natToUInt256 slot) = acc.find? (natToUInt256 slot) := by
   induction slots generalizing acc with
   | nil => rfl
@@ -663,12 +660,12 @@ theorem foldl_insert_find_not_mem (storage : Nat → IRStorageWord)
 
     This generalizes `storageLookup_projectStorage` to work with any
     accumulator (not just `empty`), which is needed for the induction. -/
-theorem foldl_insert_find (storage : Nat → IRStorageWord)
+theorem foldl_insert_find (storage : IRStorageSlot → IRStorageWord)
     (slots : List Nat) (slot : Nat) (hSlot : slot ∈ slots)
     (hRange : ∀ s ∈ slots, s < UInt256.size)
     (acc : EvmYul.Storage) :
-    (slots.foldl (fun m s => m.insert (natToUInt256 s) (IRStorageWord.toUInt256 (storage s))) acc).find?
-      (natToUInt256 slot) = some (IRStorageWord.toUInt256 (storage slot)) := by
+    (slots.foldl (fun m s => m.insert (natToUInt256 s) (IRStorageWord.toUInt256 (storage (IRStorageSlot.ofNat s)))) acc).find?
+      (natToUInt256 slot) = some (IRStorageWord.toUInt256 (storage (IRStorageSlot.ofNat slot))) := by
   induction slots generalizing acc with
   | nil => exact absurd hSlot List.not_mem_nil
   | cons hd tl ih =>
@@ -694,11 +691,11 @@ theorem foldl_insert_find (storage : Nat → IRStorageWord)
     slot list (EVM storage slots are always < 2^256). Without it, two
     distinct Nat slots could collide under modular reduction and the
     last-write-wins semantics of `foldl` would make the theorem false. -/
-theorem storageLookup_projectStorage (storage : Nat → IRStorageWord)
+theorem storageLookup_projectStorage (storage : IRStorageSlot → IRStorageWord)
     (slots : List Nat) (slot : Nat) (hSlot : slot ∈ slots)
     (hRange : ∀ s ∈ slots, s < UInt256.size) :
     storageLookup (projectStorage storage slots) (natToUInt256 slot) =
-      storage slot := by
+      storage (IRStorageSlot.ofNat slot) := by
   simp only [storageLookup, projectStorage]
   rw [foldl_insert_find storage slots slot hSlot hRange]
   rfl

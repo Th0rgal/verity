@@ -59,10 +59,12 @@ KECCAK_ROUTING_RE = re.compile(
 )
 KECCAK_LOAD_ENTRY_ROUTING_RE = re.compile(
     r"(?:def\s+abstractLoadMappingEntry[\s\S]*?:=\s*(?:let\s+_.*?\n\s*)?storage\s+\(solidityMappingSlot\s+baseSlot\s+key\))"
+    r"|(?:def\s+abstractLoadMappingEntry[\s\S]*?:=\s*(?:let\s+_.*?\n\s*)?storage\s+\(IRStorageSlot\.ofNat\s+\(solidityMappingSlot\s+baseSlot\s+key\)\))"
     r"|(?:def\s+abstractLoadMappingEntry[\s\S]*?\|\s*\.keccak\s*=>\s*storage\s+\(solidityMappingSlot\s+baseSlot\s+key\))"
 )
 KECCAK_STORE_ENTRY_ROUTING_RE = re.compile(
     r"(?:def\s+abstractStoreMappingEntry[\s\S]*?:=\s*fun\s+s\s*=>\s*if\s+s\s*=\s*solidityMappingSlot\s+baseSlot\s+key)"
+    r"|(?:def\s+abstractStoreMappingEntry[\s\S]*?:=\s*fun\s+s\s*=>\s*if\s+s\s*=\s*IRStorageSlot\.ofNat\s+\(solidityMappingSlot\s+baseSlot\s+key\))"
     r"|(?:def\s+abstractStoreMappingEntry[\s\S]*?\|\s*\.keccak\s*=>[\s\S]*?s\s*=\s*solidityMappingSlot\s+baseSlot\s+key)"
 )
 
