@@ -218,6 +218,14 @@ ALLOWLIST: set[str] = {
     "exec_block_simpleStorageLoweredStoreCaseBody_halt",
     "interpretIR_simpleStorage_storeHit_arg",
     "simpleStorageNativeContract_dispatcherExec_storeHit_halt_atFuel",
+    # Phase 3 short-calldata store-hit endpoint: same generated dispatcher
+    # plumbing as the halt endpoint, but the selected body takes the ABI
+    # argument-length revert branch before reaching the store payload.
+    "simpleStorageNativeContract_dispatcherExec_storeHit_short_revert_atFuel",
+    # Phase 3 store-hit storage projection: zero sstore erases the EVM RBMap
+    # key, while the IR stores a bounded zero word. The proof must split zero
+    # and nonzero writes plus same-key/other-key projected lookups.
+    "projectStorageFromState_storeHit_initialState_materialized",
     # RBMap erase-self deletion follows the Batteries red-black tree delete
     # algorithm through the three ordered-tree branches. The cases are
     # mechanical and shared by the native zero-sstore projection helpers.
@@ -346,6 +354,10 @@ ALLOWLIST: set[str] = {
     # under the public theorem hypotheses. Splitting would create single-use
     # helpers that only forward the same selector-miss facts and fuel reshape.
     "simpleStorageNativeSelectorMissBridge_proved",
+    # Phase 3 store-hit bridge closure: composes short-calldata revert and
+    # successful sstore/stop paths against Layer-3 EVMYulLean agreement, using
+    # the bounded-slot storage projection helper above.
+    "simpleStorageNativeStoreHitBridge_proved",
     # Safe-body public EVMYulLean wrapper derives the raw BridgedStmts function
     # hypotheses from compile output, static parameter closure, and
     # BridgedSafeStmts witnesses before delegating to the function-bridge

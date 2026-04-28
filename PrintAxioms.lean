@@ -762,6 +762,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBodyTail_callvalue_strip_error
 #print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBodyTail2_lt_strip_error
 #print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBodyTail2_lt_strip_error
+#print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBodyTail2_short_revert
 #print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBodyTail3_halt
 #print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBody_halt
 #print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBodyTail3_closed
@@ -789,8 +790,11 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.interpretIR_simpleStorage_storeHit_short
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_halt_atFuel
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_halt_atFuel
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_short_revert_atFuel
+#print axioms Compiler.Proofs.EndToEnd.projectStorageFromState_storeHit_initialState_materialized
 #print axioms Compiler.Proofs.EndToEnd.projectResult_retrieveHit_eq
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeRetrieveHitBridge_proved
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeStoreHitBridge_proved
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeSelectorMissBridge_proved
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeCallDispatcherBridge_of_per_case
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_evmYulLean
@@ -3582,4 +3586,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3406 theorems/lemmas (2462 public, 944 private, 0 sorry'd)
+-- Total: 3410 theorems/lemmas (2466 public, 944 private, 0 sorry'd)
