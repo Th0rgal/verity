@@ -3040,6 +3040,16 @@ def simpleStorageLoweredStoreCaseBodyTail2 : List EvmYul.Yul.Ast.Stmt :=
      (.call "sstore" [.lit 0, .ident "value"])),
    .ExprStmtCall (Backends.lowerExprNative (.call "stop" []))]
 
+/-- 3-statement calldatasize-stripped tail of
+`simpleStorageLoweredStoreCaseBodyTail2`, with the argument-length revert guard
+removed after proving the transaction supplies the setter argument. -/
+def simpleStorageLoweredStoreCaseBodyTail3 : List EvmYul.Yul.Ast.Stmt :=
+  [.Let ["value"] (some (Backends.lowerExprNative
+     (.call "calldataload" [.lit 4]))),
+   .ExprStmtCall (Backends.lowerExprNative
+     (.call "sstore" [.lit 0, .ident "value"])),
+   .ExprStmtCall (Backends.lowerExprNative (.call "stop" []))]
+
 /-- 3-statement callvalue-stripped tail of `simpleStorageLoweredRetrieveCaseBody`. -/
 def simpleStorageLoweredRetrieveCaseBodyTail2 : List EvmYul.Yul.Ast.Stmt :=
   [.If (Backends.lowerExprNative
@@ -3161,6 +3171,178 @@ theorem exec_block_simpleStorageLoweredRetrieveCaseBodyTail2_lt_strip_error
     codeOverride (.Ok shared store) = .ok (.Ok shared store)
   exact Backends.Native.exec_if_lowerExprNative_lt_calldatasize_skip_ge_fuel
     fuel _ codeOverride shared store 4 hSize (by decide) hGe
+
+/-- Store-case dual of
+`exec_block_simpleStorageLoweredRetrieveCaseBodyTail2_lt_strip_error`, with
+the ABI argument guard threshold `36 = 4 + 32`. -/
+theorem exec_block_simpleStorageLoweredStoreCaseBodyTail2_lt_strip_error
+    (fuel : Nat) (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (shared : EvmYul.SharedState .Yul) (store : EvmYul.Yul.VarStore)
+    (err : EvmYul.Yul.Exception)
+    (hSize : shared.executionEnv.calldata.size < EvmYul.UInt256.size)
+    (hGe : 36 ≤ shared.executionEnv.calldata.size)
+    (hTail3 :
+      EvmYul.Yul.exec (fuel + 10)
+        (.Block simpleStorageLoweredStoreCaseBodyTail3)
+        codeOverride (.Ok shared store) = .error err) :
+    EvmYul.Yul.exec (fuel + 11)
+      (.Block simpleStorageLoweredStoreCaseBodyTail2)
+      codeOverride (.Ok shared store) = .error err := by
+  show EvmYul.Yul.exec (Nat.succ (fuel + 10))
+    (.Block ((simpleStorageLoweredStoreCaseBodyTail2).head! ::
+      simpleStorageLoweredStoreCaseBodyTail3))
+    codeOverride (.Ok shared store) = .error err
+  refine Backends.Native.exec_block_cons_tail_error (fuel + 10) _
+    simpleStorageLoweredStoreCaseBodyTail3 codeOverride
+    (.Ok shared store) (.Ok shared store) err ?_ hTail3
+  show EvmYul.Yul.exec (fuel + 10)
+    (.If (Backends.lowerExprNative
+            (Yul.YulExpr.call "lt"
+              [Yul.YulExpr.call "calldatasize" [],
+               Yul.YulExpr.lit 36]))
+      [.ExprStmtCall (Backends.lowerExprNative
+        (.call "revert" [.lit 0, .lit 0]))])
+    codeOverride (.Ok shared store) = .ok (.Ok shared store)
+  exact Backends.Native.exec_if_lowerExprNative_lt_calldatasize_skip_ge_fuel
+    (fuel + 1) _ codeOverride shared store 36 hSize (by decide) hGe
+
+/-- Store-case argument-length guard fires when calldata contains only the
+selector. This is the short-calldata counterpart to
+`exec_block_simpleStorageLoweredStoreCaseBodyTail2_lt_strip_error`. -/
+theorem exec_block_simpleStorageLoweredStoreCaseBodyTail2_short_revert
+    (fuel : Nat) (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (shared : EvmYul.SharedState .Yul) (store : EvmYul.Yul.VarStore)
+    (hSizeEq : shared.executionEnv.calldata.size = 4) :
+    EvmYul.Yul.exec (fuel + 11)
+      (.Block simpleStorageLoweredStoreCaseBodyTail2)
+      codeOverride (.Ok shared store) =
+      .error EvmYul.Yul.Exception.Revert := by
+  show EvmYul.Yul.exec (Nat.succ (fuel + 10))
+    (.Block ((simpleStorageLoweredStoreCaseBodyTail2).head! ::
+      simpleStorageLoweredStoreCaseBodyTail3))
+    codeOverride (.Ok shared store) = .error EvmYul.Yul.Exception.Revert
+  refine Backends.Native.exec_block_cons_error (fuel + 10) _
+    simpleStorageLoweredStoreCaseBodyTail3 codeOverride
+    (.Ok shared store) EvmYul.Yul.Exception.Revert ?_
+  refine Backends.Native.exec_if_eval_nonzero_error (fuel + 9) _ _
+    codeOverride (.Ok shared store) (.Ok shared store)
+    (EvmYul.UInt256.ofNat 1) EvmYul.Yul.Exception.Revert ?_ ?_ ?_
+  · rw [Backends.Native.eval_lowerExprNative_lt_calldatasize_ok_fuel]
+    simp [hSizeEq, EvmYul.UInt256.lt, EvmYul.UInt256.ofNat, Fin.ofNat,
+      EvmYul.UInt256.size]
+    decide
+  · change (EvmYul.UInt256.ofNat 1 : EvmYul.UInt256) ≠ ⟨0⟩
+    decide
+  · simpa [Backends.Native.nativeRevertZeroZeroStmt, Backends.lowerExprNative,
+      Backends.lookupRuntimePrimOp] using
+      (Backends.Native.exec_block_cons_error (fuel + 8)
+      Backends.Native.nativeRevertZeroZeroStmt [] codeOverride
+      (.Ok shared store) EvmYul.Yul.Exception.Revert
+      (Backends.Native.exec_revert_zero_zero_error (fuel + 2)
+        (.Ok shared store) codeOverride))
+
+/-- Closed-form native exec of the store hit-case 3-statement payload
+    `let value := calldataload(4); sstore(0, value); stop` after the
+    callvalue and argument-length guards have been stripped. -/
+theorem exec_block_simpleStorageLoweredStoreCaseBodyTail3_halt
+    (fuel : Nat) (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
+    (observableSlots : List Nat) (store : EvmYul.Yul.VarStore)
+    (arg : Nat) (rest : List Nat) (hArgs : tx.args = arg :: rest) :
+    let initialWithStore : EvmYul.Yul.State :=
+      .Ok (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState store
+    let withValue := initialWithStore.insert "value"
+      (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg)
+    let finalState := withValue.setState
+      (withValue.toState.sstore (EvmYul.UInt256.ofNat 0)
+        (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg))
+    EvmYul.Yul.exec (fuel + 10)
+        (.Block simpleStorageLoweredStoreCaseBodyTail3)
+        codeOverride initialWithStore =
+      .error (EvmYul.Yul.Exception.YulHalt finalState ⟨0⟩) := by
+  intro initialWithStore withValue finalState
+  have hWord :
+      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState.calldataload (EvmYul.UInt256.ofNat 4) =
+        Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg := by
+    simpa [EvmYul.Yul.State.toState] using
+      Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataload4_arg0_word
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage observableSlots
+        arg rest hArgs
+  simp [simpleStorageLoweredStoreCaseBodyTail3, Backends.lowerExprNative,
+    Backends.lookupRuntimePrimOp, EvmYul.Yul.exec, EvmYul.Yul.eval,
+    EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail, EvmYul.Yul.execPrimCall,
+    EvmYul.Yul.reverse', EvmYul.Yul.cons', EvmYul.Yul.multifill',
+    EvmYul.Yul.State.multifill, initialWithStore, withValue, finalState,
+    hWord, EvmYul.Yul.State.insert, GetElem?.getElem!, decidableGetElem?,
+    GetElem.getElem, EvmYul.Yul.State.store, EvmYul.Yul.State.lookup!]
+  have hPerm :
+      (EvmYul.Yul.State.Ok
+        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+          Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+          observableSlots).sharedState
+        (Finmap.insert "value"
+          (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg)
+          store)).executionEnv.perm = true := by
+    rfl
+  rw [show fuel + 7 = (fuel + 6) + 1 by omega]
+  rw [Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_ok
+    (fuel + 6) _ _ _ hPerm]
+  rfl
+
+/-- Composed body-level closed form for the SimpleStorage store hit-case when
+the calldata contains the setter argument. -/
+theorem exec_block_simpleStorageLoweredStoreCaseBody_halt
+    (fuel : Nat) (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
+    (observableSlots : List Nat) (store : EvmYul.Yul.VarStore)
+    (arg : Nat) (rest : List Nat) (hArgs : tx.args = arg :: rest)
+    (hWei :
+      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState.executionEnv.weiValue =
+      (⟨0⟩ : EvmYul.Literal))
+    (hSize :
+      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState.executionEnv.calldata.size <
+      EvmYul.UInt256.size)
+    (hGe :
+      36 ≤ (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState.executionEnv.calldata.size) :
+    let initialWithStore : EvmYul.Yul.State :=
+      .Ok (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState store
+    let withValue := initialWithStore.insert "value"
+      (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg)
+    let finalState := withValue.setState
+      (withValue.toState.sstore (EvmYul.UInt256.ofNat 0)
+        (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg))
+    EvmYul.Yul.exec (fuel + 13) (.Block simpleStorageLoweredStoreCaseBody)
+        codeOverride initialWithStore =
+      .error (EvmYul.Yul.Exception.YulHalt finalState ⟨0⟩) := by
+  intro initialWithStore withValue finalState
+  have hTail3 := exec_block_simpleStorageLoweredStoreCaseBodyTail3_halt
+    fuel codeOverride tx storage observableSlots store arg rest hArgs
+  have hTail2 := exec_block_simpleStorageLoweredStoreCaseBodyTail2_lt_strip_error
+    fuel codeOverride
+      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState
+      store _ hSize hGe hTail3
+  have hTail := exec_block_simpleStorageLoweredStoreCaseBodyTail_callvalue_strip_error
+    (fuel + 4) codeOverride
+      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState
+      store _ hWei hTail2
+  exact exec_block_simpleStorageLoweredStoreCaseBody_head_strip_error
+    (fuel + 11) codeOverride initialWithStore _ hTail
 
 /-- Closed-form native exec of the retrieve hit-case 2-statement payload
     `mstore(0, sload(0)) ; return(0, 32)`. EVMYulLean models `RETURN` as a
@@ -3837,6 +4019,61 @@ theorem simpleStorageNativeDispatcherFuel_ge_25 :
   unfold simpleStorageNativeDispatcherFuel
   decide
 
+theorem simpleStorageNativeDispatcherFuel_ge_21 :
+    simpleStorageNativeDispatcherFuel ≥ 21 := by
+  exact Nat.le_trans (by decide) simpleStorageNativeDispatcherFuel_ge_25
+
+/-- Native dispatcher exec at exactly `simpleStorageNativeDispatcherFuel`
+reduces to `.error Revert` for the selector-miss class. -/
+theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_atFuel
+    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
+    (observableSlots : List Nat)
+    (hSelectorRange : tx.functionSelector % Compiler.Constants.selectorModulus
+        < EvmYul.UInt256.size)
+    (hSelMissStore : tx.functionSelector % Compiler.Constants.selectorModulus
+        ≠ 0x6057361d)
+    (hSelMissRetrieve : tx.functionSelector % Compiler.Constants.selectorModulus
+        ≠ 0x2e64cec1)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
+    Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        simpleStorageNativeDispatcherFuel
+        Compiler.SimpleStorageNativeWitness.nativeContract
+        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+          Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+          observableSlots) =
+      .error EvmYul.Yul.Exception.Revert := by
+  have hReshape : simpleStorageNativeDispatcherFuel =
+      (simpleStorageNativeDispatcherFuel - 21) + 21 :=
+    (Nat.sub_add_cancel simpleStorageNativeDispatcherFuel_ge_21).symm
+  rw [hReshape]
+  exact simpleStorageNativeContract_dispatcherExec_selectorMiss_revert
+    (simpleStorageNativeDispatcherFuel - 21)
+    (tx.functionSelector % Compiler.Constants.selectorModulus)
+    tx storage observableSlots
+    rfl hSelectorRange hSelMissStore hSelMissRetrieve hNoWrap
+
+/-- Closed-form `interpretIR` reduction for the SimpleStorage selector-miss
+class. Given the two raw selector mismatches (`≠ 0x6057361d` and
+`≠ 0x2e64cec1`), `interpretIR` falls into the `find?`-`none` branch and returns
+the trivial reverted shape with storage and events untouched. -/
+theorem interpretIR_simpleStorage_selectorMiss
+    (tx : IRTransaction) (initialState : IRState)
+    (hSelMissStore : tx.functionSelector ≠ 0x6057361d)
+    (hSelMissRetrieve : tx.functionSelector ≠ 0x2e64cec1) :
+    interpretIR simpleStorageIRContract tx initialState =
+      { success := false
+        returnValue := none
+        finalStorage := initialState.storage
+        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+        events := initialState.events } := by
+  unfold interpretIR
+  simp only [simpleStorageIRContract, List.find?]
+  have hstore : (0x6057361d == tx.functionSelector) = false := by
+    simp [BEq.beq, hSelMissStore.symm]
+  have hretrieve : (0x2e64cec1 == tx.functionSelector) = false := by
+    simp [BEq.beq, hSelMissRetrieve.symm]
+  simp [hstore, hretrieve]
+
 /-- Closed-form `interpretIR` reduction for the SimpleStorage retrieve-hit
 class. Given the raw selector match (`= 0x2e64cec1`), `interpretIR` enters the
 `retrieve` body which is read-only on storage: it loads slot 0 via `sload`,
@@ -3896,6 +4133,77 @@ theorem interpretIR_simpleStorage_retrieveHit
   simp only [List.zip_nil_left, List.foldl_nil]
   -- Goal: `match execIRStmts (sizeOf body + 1) state' body with ... = ...`.
   rw [hbody _ _ hsize]
+
+/-- Closed-form `interpretIR` reduction for the SimpleStorage store-hit class
+when the ABI argument is present. The IR setter writes the first calldata word
+to bounded storage slot zero and stops successfully. -/
+theorem interpretIR_simpleStorage_storeHit_arg
+    (tx : IRTransaction) (initialState : IRState)
+    (arg : Nat) (rest : List Nat)
+    (hSel : tx.functionSelector = 0x6057361d)
+    (hArgs : tx.args = arg :: rest) :
+      interpretIR simpleStorageIRContract tx initialState =
+        { success := true
+          returnValue := none
+          finalStorage :=
+            Compiler.Proofs.abstractStoreStorageOrMapping initialState.storage 0
+              (arg % evmModulus)
+          finalMappings :=
+            Compiler.Proofs.storageAsMappings
+              (Compiler.Proofs.abstractStoreStorageOrMapping initialState.storage 0
+                (arg % evmModulus))
+          events := initialState.events } := by
+  have hstore : (0x6057361d == tx.functionSelector) = true := by
+    simp [BEq.beq, hSel]
+  have hbody : ∀ (n : Nat) (s : IRState), 3 ≤ n →
+      execIRStmts (n + 1) s
+        [Yul.YulStmt.let_ "value" (Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 4]),
+         Yul.YulStmt.expr (Yul.YulExpr.call "sstore"
+            [Yul.YulExpr.lit 0, Yul.YulExpr.ident "value"]),
+         Yul.YulStmt.expr (Yul.YulExpr.call "stop" [])] =
+          .stop
+            { s.setVar "value" (Compiler.Proofs.YulGeneration.calldataloadWord
+                s.selector s.calldata 4) with
+              storage := Compiler.Proofs.abstractStoreStorageOrMapping
+                s.storage 0 (Compiler.Proofs.YulGeneration.calldataloadWord
+                  s.selector s.calldata 4) } := by
+    intro n s hn
+    obtain ⟨k, rfl⟩ : ∃ k, n = k + 3 := ⟨n - 3, by omega⟩
+    simp +decide [execIRStmts, execIRStmt, evalIRExpr, IRState.getVar,
+      IRState.setVar]
+  have hsize : 3 ≤ sizeOf
+      ([Yul.YulStmt.let_ "value" (Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 4]),
+        Yul.YulStmt.expr (Yul.YulExpr.call "sstore"
+          [Yul.YulExpr.lit 0, Yul.YulExpr.ident "value"]),
+        Yul.YulStmt.expr (Yul.YulExpr.call "stop" [])] : List Yul.YulStmt) := by
+    decide
+  unfold interpretIR
+  simp only [simpleStorageIRContract, List.find?, hstore, List.length_cons,
+    List.length_nil, Nat.reduceAdd]
+  unfold execIRFunction
+  simp only [hArgs, List.zip_cons_cons, List.zip_nil_left, List.foldl_cons,
+    List.foldl_nil]
+  rw [hbody _ _ hsize]
+  simp [IRState.setVar, Compiler.Proofs.abstractStoreStorageOrMapping_eq,
+    Compiler.Proofs.YulGeneration.calldataloadWord, evmModulus]
+
+/-- Closed-form `interpretIR` reduction for the SimpleStorage store-hit class
+when calldata is too short for the single setter argument. The dispatcher
+selects the function, but the IR arity guard fails before executing the body. -/
+theorem interpretIR_simpleStorage_storeHit_short
+    (tx : IRTransaction) (initialState : IRState)
+    (hSel : tx.functionSelector = 0x6057361d)
+    (hShort : tx.args = []) :
+      interpretIR simpleStorageIRContract tx initialState =
+        { success := false
+          returnValue := none
+          finalStorage := initialState.storage
+          finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+          events := initialState.events } := by
+  have hstore : (0x6057361d == tx.functionSelector) = true := by
+    simp [BEq.beq, hSel]
+  unfold interpretIR
+  simp [simpleStorageIRContract, hstore, hShort]
 
 /-- Native dispatcher exec at exactly `simpleStorageNativeDispatcherFuel`
 reduces to `.error (YulHalt (.Ok shared3 _) ⟨1⟩)` for the retrieve-hit class,
@@ -4061,6 +4369,456 @@ theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_halt_atFuel
         List (Nat × List EvmYul.Yul.Ast.Stmt)).length = 2 := rfl
   rw [hLen, show (g + 4) + 2 + 19 = g + 25 from by omega] at h
   exact h
+
+/-- Native dispatcher exec at exactly `simpleStorageNativeDispatcherFuel`
+reduces to the `STOP` halt for the store-hit class when calldata supplies the
+setter argument. -/
+theorem simpleStorageNativeContract_dispatcherExec_storeHit_halt_atFuel
+    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
+    (arg : Nat) (rest : List Nat) (hArgs : tx.args = arg :: rest)
+    (hSelector : 0x6057361d = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hMsgValue : tx.msgValue % EvmYul.UInt256.size = 0) :
+    ∃ store_body haltState,
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+          simpleStorageNativeDispatcherFuel
+          Compiler.SimpleStorageNativeWitness.nativeContract
+          (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+            Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+            observableSlots) =
+        .error (EvmYul.Yul.Exception.YulHalt haltState ⟨0⟩) ∧
+      haltState =
+        let initialWithStore : EvmYul.Yul.State :=
+          .Ok (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+            Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+            observableSlots).sharedState store_body
+        let withValue := initialWithStore.insert "value"
+          (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg)
+        withValue.setState
+          (withValue.toState.sstore (EvmYul.UInt256.ofNat 0)
+            (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg)) := by
+  set g := simpleStorageNativeDispatcherFuel - 25 with hg_def
+  have hReshape : simpleStorageNativeDispatcherFuel = g + 25 :=
+    (Nat.sub_add_cancel simpleStorageNativeDispatcherFuel_ge_25).symm
+  rw [hReshape]
+  obtain ⟨reservedNames, n0, cases', midN, hExec, hLowerCases⟩ :=
+    simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec_sourceLowered
+      (g + 11) tx storage observableSlots hNoWrap
+  obtain ⟨storeBody', retrieveBody', hCases⟩ :=
+    simpleStorageBuildSwitchSourceCases_lowered_shape reservedNames _ midN
+      cases' hLowerCases
+  subst hCases
+  obtain ⟨hStoreBody, hRetrieveBody⟩ :=
+    simpleStorageLoweredHitCasesShape_concrete hLowerCases
+  subst hStoreBody
+  subst hRetrieveBody
+  set switchId := Backends.freshNativeSwitchId reservedNames n0 with hSw
+  let store_body : EvmYul.Yul.VarStore :=
+    ((((∅ : EvmYul.Yul.VarStore).insert "__has_selector"
+            (EvmYul.UInt256.ofNat 1)).insert
+          (Backends.nativeSwitchDiscrTempName switchId)
+          (EvmYul.UInt256.ofNat
+            (tx.functionSelector % Compiler.Constants.selectorModulus))).insert
+        (Backends.nativeSwitchMatchedTempName switchId)
+        (EvmYul.UInt256.ofNat 0)).insert
+      (Backends.nativeSwitchMatchedTempName switchId)
+      (EvmYul.UInt256.ofNat 1)
+  let initialWithStore : EvmYul.Yul.State :=
+    .Ok (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+      Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+      observableSlots).sharedState store_body
+  let withValue := initialWithStore.insert "value"
+    (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg)
+  let finalState := withValue.setState
+    (withValue.toState.sstore (EvmYul.UInt256.ofNat 0)
+      (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg))
+  refine ⟨store_body, finalState, ?_, ?_⟩
+  · have hWei :
+        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+          Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+          observableSlots).sharedState.executionEnv.weiValue =
+        (⟨0⟩ : EvmYul.Literal) := by
+      rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_weiValue]
+      apply congrArg EvmYul.UInt256.mk
+      apply Fin.ext
+      simpa [Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256,
+        EvmYul.UInt256.ofNat, Fin.ofNat] using hMsgValue
+    have hSize :
+        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+          Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+          observableSlots).sharedState.executionEnv.calldata.size <
+        EvmYul.UInt256.size := by
+      rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataSize]
+      exact hNoWrap
+    have hGe :
+        36 ≤ (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+          Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+          observableSlots).sharedState.executionEnv.calldata.size := by
+      rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataSize]
+      rw [hArgs]
+      simp
+      omega
+    have hBodyHalt :=
+      exec_block_simpleStorageLoweredStoreCaseBody_halt g
+        (some Compiler.SimpleStorageNativeWitness.nativeContract)
+        tx storage observableSlots store_body arg rest hArgs hWei hSize hGe
+    have hReduction := hExec
+    rw [show (g + 11 + 14 : Nat) = (g + 4) + 2 + 19 from by omega,
+        show (g + 11 + 8 : Nat) = (g + 4) + 2 + 13 from by omega,
+        show (2 : Nat) = ([(0x6057361d, simpleStorageLoweredStoreCaseBody),
+          (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)] :
+          List (Nat × List EvmYul.Yul.Ast.Stmt)).length from rfl] at hReduction
+    have hBodyExec : ∀ pre suffix,
+        ([(0x6057361d, simpleStorageLoweredStoreCaseBody),
+          (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)] :
+          List (Nat × List EvmYul.Yul.Ast.Stmt)) =
+          pre ++ (0x6057361d, simpleStorageLoweredStoreCaseBody) :: suffix →
+        EvmYul.Yul.exec (((g + 4) + 1) + suffix.length + 7)
+          (.Block simpleStorageLoweredStoreCaseBody)
+          (some Compiler.SimpleStorageNativeWitness.nativeContract)
+          (simpleStorageDispatcherHitBodyInputState switchId tx storage
+            observableSlots) =
+          .error (EvmYul.Yul.Exception.YulHalt finalState ⟨0⟩) := by
+      rintro pre suffix hDecomp
+      cases pre with
+      | nil =>
+        simp only [List.nil_append, List.cons.injEq] at hDecomp
+        obtain ⟨_, hSuf⟩ := hDecomp
+        subst hSuf
+        simpa [simpleStorageDispatcherHitBodyInputState, initialWithStore,
+          withValue, finalState] using hBodyHalt
+      | cons _ restPre =>
+        exfalso
+        simp only [List.cons_append, List.cons.injEq] at hDecomp
+        obtain ⟨_, hRest⟩ := hDecomp
+        cases restPre with
+        | nil =>
+          simp only [List.nil_append, List.cons.injEq, Prod.mk.injEq] at hRest
+          exact absurd hRest.1.1 (by decide)
+        | cons _ _ => simp at hRest
+    have h := simpleStorageNativeContract_dispatcherExec_storeHit_error_via_reduction
+      (g + 4) switchId
+      [(0x6057361d, simpleStorageLoweredStoreCaseBody),
+       (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)]
+      simpleStorageLoweredStoreCaseBody simpleStorageLoweredRetrieveCaseBody
+      tx storage observableSlots
+      (EvmYul.Yul.Exception.YulHalt finalState ⟨0⟩)
+      hSelector rfl hBodyExec hReduction
+    have hLen :
+        ([(0x6057361d, simpleStorageLoweredStoreCaseBody),
+          (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)] :
+          List (Nat × List EvmYul.Yul.Ast.Stmt)).length = 2 := rfl
+    rw [hLen, show (g + 4) + 2 + 19 = g + 25 from by omega] at h
+    exact h
+  · rfl
+
+/-- Native dispatcher exec at exactly `simpleStorageNativeDispatcherFuel`
+reverts for the store-hit class when calldata contains no setter argument. -/
+theorem simpleStorageNativeContract_dispatcherExec_storeHit_short_revert_atFuel
+    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
+    (hArgs : tx.args = [])
+    (hSelector : 0x6057361d = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hMsgValue : tx.msgValue % EvmYul.UInt256.size = 0) :
+    Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        simpleStorageNativeDispatcherFuel
+        Compiler.SimpleStorageNativeWitness.nativeContract
+        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+          Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+          observableSlots) =
+      .error EvmYul.Yul.Exception.Revert := by
+  set g := simpleStorageNativeDispatcherFuel - 25 with hg_def
+  have hReshape : simpleStorageNativeDispatcherFuel = g + 25 :=
+    (Nat.sub_add_cancel simpleStorageNativeDispatcherFuel_ge_25).symm
+  rw [hReshape]
+  obtain ⟨reservedNames, n0, cases', midN, hExec, hLowerCases⟩ :=
+    simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec_sourceLowered
+      (g + 11) tx storage observableSlots hNoWrap
+  obtain ⟨storeBody', retrieveBody', hCases⟩ :=
+    simpleStorageBuildSwitchSourceCases_lowered_shape reservedNames _ midN
+      cases' hLowerCases
+  subst hCases
+  obtain ⟨hStoreBody, hRetrieveBody⟩ :=
+    simpleStorageLoweredHitCasesShape_concrete hLowerCases
+  subst hStoreBody
+  subst hRetrieveBody
+  set switchId := Backends.freshNativeSwitchId reservedNames n0 with hSw
+  let store_body : EvmYul.Yul.VarStore :=
+    ((((∅ : EvmYul.Yul.VarStore).insert "__has_selector"
+            (EvmYul.UInt256.ofNat 1)).insert
+          (Backends.nativeSwitchDiscrTempName switchId)
+          (EvmYul.UInt256.ofNat
+            (tx.functionSelector % Compiler.Constants.selectorModulus))).insert
+        (Backends.nativeSwitchMatchedTempName switchId)
+        (EvmYul.UInt256.ofNat 0)).insert
+      (Backends.nativeSwitchMatchedTempName switchId)
+      (EvmYul.UInt256.ofNat 1)
+  have hWei :
+      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState.executionEnv.weiValue =
+      (⟨0⟩ : EvmYul.Literal) := by
+    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_weiValue]
+    apply congrArg EvmYul.UInt256.mk
+    apply Fin.ext
+    simpa [Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256,
+      EvmYul.UInt256.ofNat, Fin.ofNat] using hMsgValue
+  have hSizeEq :
+      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState.executionEnv.calldata.size = 4 := by
+    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataSize]
+    simp [hArgs]
+  have hTail2 :=
+    exec_block_simpleStorageLoweredStoreCaseBodyTail2_short_revert
+      g (some Compiler.SimpleStorageNativeWitness.nativeContract)
+      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState
+      store_body hSizeEq
+  have hTail :=
+    exec_block_simpleStorageLoweredStoreCaseBodyTail_callvalue_strip_error
+      (g + 4) (some Compiler.SimpleStorageNativeWitness.nativeContract)
+      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        observableSlots).sharedState
+      store_body _ hWei hTail2
+  have hBodyRevert :
+      EvmYul.Yul.exec (g + 13) (.Block simpleStorageLoweredStoreCaseBody)
+        (some Compiler.SimpleStorageNativeWitness.nativeContract)
+        (simpleStorageDispatcherHitBodyInputState switchId tx storage
+          observableSlots) =
+        .error EvmYul.Yul.Exception.Revert := by
+    exact exec_block_simpleStorageLoweredStoreCaseBody_head_strip_error
+      (g + 11) _ _ _ hTail
+  have hReduction := hExec
+  rw [show (g + 11 + 14 : Nat) = (g + 4) + 2 + 19 from by omega,
+      show (g + 11 + 8 : Nat) = (g + 4) + 2 + 13 from by omega,
+      show (2 : Nat) = ([(0x6057361d, simpleStorageLoweredStoreCaseBody),
+        (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)] :
+        List (Nat × List EvmYul.Yul.Ast.Stmt)).length from rfl] at hReduction
+  have hBodyExec : ∀ pre suffix,
+      ([(0x6057361d, simpleStorageLoweredStoreCaseBody),
+        (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)] :
+        List (Nat × List EvmYul.Yul.Ast.Stmt)) =
+        pre ++ (0x6057361d, simpleStorageLoweredStoreCaseBody) :: suffix →
+      EvmYul.Yul.exec (((g + 4) + 1) + suffix.length + 7)
+        (.Block simpleStorageLoweredStoreCaseBody)
+        (some Compiler.SimpleStorageNativeWitness.nativeContract)
+        (simpleStorageDispatcherHitBodyInputState switchId tx storage
+          observableSlots) =
+        .error EvmYul.Yul.Exception.Revert := by
+    rintro pre suffix hDecomp
+    cases pre with
+    | nil =>
+      simp only [List.nil_append, List.cons.injEq] at hDecomp
+      obtain ⟨_, hSuf⟩ := hDecomp
+      subst hSuf
+      simpa [simpleStorageDispatcherHitBodyInputState, store_body] using hBodyRevert
+    | cons _ restPre =>
+      exfalso
+      simp only [List.cons_append, List.cons.injEq] at hDecomp
+      obtain ⟨_, hRest⟩ := hDecomp
+      cases restPre with
+      | nil =>
+        simp only [List.nil_append, List.cons.injEq, Prod.mk.injEq] at hRest
+        exact absurd hRest.1.1 (by decide)
+      | cons _ _ => simp at hRest
+  have h := simpleStorageNativeContract_dispatcherExec_storeHit_error_via_reduction
+    (g + 4) switchId
+    [(0x6057361d, simpleStorageLoweredStoreCaseBody),
+     (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)]
+    simpleStorageLoweredStoreCaseBody simpleStorageLoweredRetrieveCaseBody
+    tx storage observableSlots EvmYul.Yul.Exception.Revert
+    hSelector rfl hBodyExec hReduction
+  have hLen :
+      ([(0x6057361d, simpleStorageLoweredStoreCaseBody),
+        (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)] :
+        List (Nat × List EvmYul.Yul.Ast.Stmt)).length = 2 := rfl
+  rw [hLen, show (g + 4) + 2 + 19 = g + 25 from by omega] at h
+  exact h
+
+/-- Projected native storage after the generated `store(uint256)` body agrees
+with the IR setter update on every materialized slot. The native zero-write
+case erases slot zero from the finite EVM map; projected lookup still agrees
+with IR storage because missing native storage reads as the zero word. -/
+theorem projectStorageFromState_storeHit_initialState_materialized
+    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
+    (slots : List Nat) (store : EvmYul.Yul.VarStore)
+    (arg slot : Nat)
+    (hSlot : slot ∈ slots) :
+    let initialWithStore : EvmYul.Yul.State :=
+      .Ok (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+        slots).sharedState store
+    let withValue := initialWithStore.insert "value"
+      (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg)
+    let finalState := withValue.setState
+      (withValue.toState.sstore (EvmYul.UInt256.ofNat 0)
+        (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg))
+    Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState tx
+        finalState (IRStorageSlot.ofNat slot) =
+      (Compiler.Proofs.abstractStoreStorageOrMapping storage 0 arg)
+        (IRStorageSlot.ofNat slot) := by
+  intro initialWithStore withValue finalState
+  simp only [Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState,
+    Compiler.Proofs.YulGeneration.Backends.StateBridge.extractStorage,
+    finalState, withValue, initialWithStore,
+    EvmYul.Yul.State.sharedState, EvmYul.Yul.State.setState,
+    EvmYul.Yul.State.toState, EvmYul.Yul.State.insert,
+    EvmYul.State.sstore, EvmYul.State.lookupAccount,
+    EvmYul.State.setAccount, EvmYul.State.addAccessedStorageKey,
+    EvmYul.Account.updateStorage,
+    Compiler.Proofs.YulGeneration.Backends.Native.initialState,
+    Compiler.Proofs.YulGeneration.Backends.StateBridge.toSharedState,
+    YulState.initial,
+    Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256]
+  simp only [Option.option,
+    Batteries.RBMap.find?_insert_of_eq _ Std.ReflCmp.compare_self]
+  by_cases hValueZero :
+      (EvmYul.UInt256.ofNat arg == (Inhabited.default : EvmYul.UInt256)) = true
+  · rw [hValueZero]
+    simp only [ite_true, IRStorageSlot.toUInt256, IRStorageSlot.ofNat]
+    have hArgZeroUInt :
+        EvmYul.UInt256.ofNat arg = (⟨0⟩ : EvmYul.UInt256) := by
+      cases hArg : EvmYul.UInt256.ofNat arg with
+      | mk v =>
+          rw [hArg] at hValueZero
+          change (v == (0 : Fin EvmYul.UInt256.size)) = true at hValueZero
+          have hv : v = (0 : Fin EvmYul.UInt256.size) :=
+            of_decide_eq_true hValueZero
+          subst hv
+          rfl
+    have hArgZero : IRStorageWord.ofNat arg = (0 : IRStorageWord) := by
+      simpa [Compiler.Proofs.IRGeneration.IRStorageWord.ofNat] using hArgZeroUInt
+    by_cases hKey :
+        compare (EvmYul.UInt256.ofNat slot) (EvmYul.UInt256.ofNat 0) =
+          Ordering.eq
+    · have hSlotEq :
+          IRStorageSlot.ofNat slot = IRStorageSlot.ofNat 0 := by
+        have hUInt :
+            EvmYul.UInt256.ofNat slot = EvmYul.UInt256.ofNat 0 :=
+          Compiler.Proofs.YulGeneration.Backends.StateBridge.UInt256_eq_of_compare_eq
+            hKey
+        simpa [IRStorageSlot.ofNat] using hUInt
+      have hUInt :
+          EvmYul.UInt256.ofNat slot = EvmYul.UInt256.ofNat 0 := by
+        simpa [IRStorageSlot.ofNat] using hSlotEq
+      have hErase :
+          (Batteries.RBMap.erase
+            (Compiler.Proofs.YulGeneration.Backends.StateBridge.projectStorage
+              storage slots)
+            (EvmYul.UInt256.ofNat 0)).find? (EvmYul.UInt256.ofNat slot) =
+            none := by
+        simpa [hUInt] using
+          (Batteries.RBMap.find?_erase_self
+            (Compiler.Proofs.YulGeneration.Backends.StateBridge.projectStorage
+              storage slots)
+            (EvmYul.UInt256.ofNat 0))
+      rw [hErase, hUInt]
+      simp only [Compiler.Proofs.abstractStoreStorageOrMapping,
+        Compiler.Proofs.IRGeneration.IRStorageWord.ofNat, IRStorageSlot.ofNat]
+      simp only [if_true]
+      rw [hArgZeroUInt]
+      rfl
+    · have hErase :
+          (Batteries.RBMap.erase
+            (Compiler.Proofs.YulGeneration.Backends.StateBridge.projectStorage
+              storage slots)
+            (EvmYul.UInt256.ofNat 0)).find? (EvmYul.UInt256.ofNat slot) =
+          (Compiler.Proofs.YulGeneration.Backends.StateBridge.projectStorage
+              storage slots).find? (EvmYul.UInt256.ofNat slot) := by
+        exact Batteries.RBMap.find?_erase_of_ne _ hKey
+      have hLookup :=
+        Compiler.Proofs.YulGeneration.Backends.StateBridge.storageLookup_projectStorage_projected
+          storage slots slot hSlot
+      have hLookup' :
+          (match
+            (Compiler.Proofs.YulGeneration.Backends.StateBridge.projectStorage
+              storage slots).find? (EvmYul.UInt256.ofNat slot) with
+          | some val => val
+          | none => (⟨0⟩ : EvmYul.UInt256)) =
+            storage (IRStorageSlot.ofNat slot) := by
+        simpa [Compiler.Proofs.YulGeneration.Backends.StateBridge.storageLookup,
+          Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256]
+          using hLookup
+      rw [hErase]
+      have hSlotNe :
+          IRStorageSlot.ofNat slot ≠ IRStorageSlot.ofNat 0 := by
+        intro hEq
+        apply hKey
+        have hUIntEq :
+            EvmYul.UInt256.ofNat slot = EvmYul.UInt256.ofNat 0 := by
+          simpa [IRStorageSlot.ofNat] using hEq
+        rw [hUIntEq]
+        exact Std.ReflCmp.compare_self
+      have hSlotNe' :
+          EvmYul.UInt256.ofNat slot ≠ IRStorageSlot.ofNat 0 := by
+        simpa [IRStorageSlot.ofNat] using hSlotNe
+      have hSlotNeUInt :
+          EvmYul.UInt256.ofNat slot ≠ EvmYul.UInt256.ofNat 0 := by
+        intro hEq
+        exact hSlotNe' (by simpa [IRStorageSlot.ofNat] using hEq)
+      simpa [Compiler.Proofs.abstractStoreStorageOrMapping, IRStorageSlot.ofNat,
+        hSlotNeUInt] using hLookup'
+  · have hValueNonzero :
+        (EvmYul.UInt256.ofNat arg == (Inhabited.default : EvmYul.UInt256)) =
+          false := by
+      cases h :
+          (EvmYul.UInt256.ofNat arg == (Inhabited.default : EvmYul.UInt256)) <;>
+        simp [h] at hValueZero ⊢
+    rw [hValueNonzero]
+    simp only [Bool.false_eq_true, ite_false, IRStorageSlot.toUInt256,
+      IRStorageSlot.ofNat]
+    by_cases hKey :
+        compare (EvmYul.UInt256.ofNat slot) (EvmYul.UInt256.ofNat 0) =
+          Ordering.eq
+    · have hSlotEq :
+          IRStorageSlot.ofNat slot = IRStorageSlot.ofNat 0 := by
+        have hUInt :
+            EvmYul.UInt256.ofNat slot = EvmYul.UInt256.ofNat 0 :=
+          Compiler.Proofs.YulGeneration.Backends.StateBridge.UInt256_eq_of_compare_eq
+            hKey
+        simpa [IRStorageSlot.ofNat] using hUInt
+      have hUInt :
+          EvmYul.UInt256.ofNat slot = EvmYul.UInt256.ofNat 0 := by
+        simpa [IRStorageSlot.ofNat] using hSlotEq
+      rw [Batteries.RBMap.find?_insert_of_eq _ hKey]
+      rw [hUInt]
+      simp [Compiler.Proofs.abstractStoreStorageOrMapping,
+        Compiler.Proofs.IRGeneration.IRStorageWord.ofNat, IRStorageSlot.ofNat]
+    · rw [Batteries.RBMap.find?_insert_of_ne _ hKey]
+      have hLookup :=
+        Compiler.Proofs.YulGeneration.Backends.StateBridge.storageLookup_projectStorage_projected
+          storage slots slot hSlot
+      have hLookup' :
+          (match
+            (Compiler.Proofs.YulGeneration.Backends.StateBridge.projectStorage
+              storage slots).find? (EvmYul.UInt256.ofNat slot) with
+          | some val => val
+          | none => (⟨0⟩ : EvmYul.UInt256)) =
+            storage (IRStorageSlot.ofNat slot) := by
+        simpa [Compiler.Proofs.YulGeneration.Backends.StateBridge.storageLookup,
+          Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256]
+          using hLookup
+      have hSlotNe :
+          IRStorageSlot.ofNat slot ≠ IRStorageSlot.ofNat 0 := by
+        intro hEq
+        apply hKey
+        have hUIntEq :
+            EvmYul.UInt256.ofNat slot = EvmYul.UInt256.ofNat 0 := by
+          simpa [IRStorageSlot.ofNat] using hEq
+        rw [hUIntEq]
+        exact Std.ReflCmp.compare_self
+      have hSlotNe' :
+          EvmYul.UInt256.ofNat slot ≠ IRStorageSlot.ofNat 0 := by
+        simpa [IRStorageSlot.ofNat] using hSlotNe
+      have hSlotNeUInt :
+          EvmYul.UInt256.ofNat slot ≠ EvmYul.UInt256.ofNat 0 := by
+        intro hEq
+        exact hSlotNe' (by simpa [IRStorageSlot.ofNat] using hEq)
+      simpa [Compiler.Proofs.abstractStoreStorageOrMapping, IRStorageSlot.ofNat,
+        hSlotNeUInt] using hLookup'
 
 /-- Closed-form evaluation of `projectResult` on the retrieve-hit halt error
 produced by the lowered SimpleStorage retrieve body. The halt state is built
@@ -4391,6 +5149,327 @@ theorem simpleStorageNativeRetrieveHitBridge_proved
   · exact hProject
   · exact hAgree
 
+/-- Store-hit native dispatcher bridge discharged against the existing public
+entry preconditions. The proof splits on whether the setter calldata argument
+is present: short calldata follows the native `revert(0,0)` argument guard,
+while present calldata executes the generated `sstore(0, calldataload(4));
+stop` body and compares projected storage on materialized observable slots. -/
+theorem simpleStorageNativeStoreHitBridge_proved
+    (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hvars : initialState.vars = [])
+    (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0)
+    (hreturn : initialState.returnValue = none)
+    (hdispatchGuardSafe : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      HasSelectorDeadBridge fn.body)
+    (hparamErase : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      paramLoadErasure fn tx (initialState.withTx tx)) :
+    simpleStorageNativeStoreHitBridge tx initialState observableSlots := by
+  intro hStore
+  have hSelectorEq : tx.functionSelector = 0x6057361d := by
+    have hmod := Nat.mod_eq_of_lt hselector
+    rw [hmod] at hStore
+    exact hStore
+  have hMsgValue : tx.msgValue % EvmYul.UInt256.size = 0 := by
+    let storeFn : IRFunction :=
+      { name := "store"
+        selector := 0x6057361d
+        params := [{ name := "value", ty := IRType.uint256 }]
+        ret := IRType.unit
+        body := [
+          Yul.YulStmt.let_ "value" (Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 4]),
+          Yul.YulStmt.expr (Yul.YulExpr.call "sstore" [Yul.YulExpr.lit 0, Yul.YulExpr.ident "value"]),
+          Yul.YulStmt.expr (Yul.YulExpr.call "stop" [])
+        ] }
+    have hmem : storeFn ∈ simpleStorageIRContract.functions := by
+      simp [storeFn, simpleStorageIRContract]
+    have hguards := hdispatchGuardSafe storeFn hmem
+    have hzero : tx.msgValue % evmModulus = 0 := by
+      rcases hguards with ⟨hValue, _⟩
+      rcases hValue with hPayable | hZero
+      · simp [storeFn] at hPayable
+      · exact hZero
+    simpa [evmModulus, EvmYul.UInt256.size] using hzero
+  have hLayer :
+      Compiler.Proofs.YulGeneration.resultsMatch
+        (interpretIR simpleStorageIRContract tx initialState)
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
+          .evmYulLean (Compiler.emitYul simpleStorageIRContract).runtimeCode
+          (YulTransaction.ofIR tx) initialState.storage initialState.events) :=
+    layer3_contract_preserves_semantics_evmYulLean simpleStorageIRContract tx initialState
+      hselector hNoWrap hvars hmemory htransient hreturn hparamErase
+      hdispatchGuardSafe hNoHasSelector hHasSelectorDead
+      (by intro fn hmem; simp [simpleStorageIRContract] at hmem ⊢; rcases hmem with rfl | rfl <;> rfl)
+      (by intro s hs; simp [simpleStorageIRContract] at hs) rfl rfl
+      simpleStorage_functions_bridged
+  let yulTx := YulTransaction.ofIR tx
+  let slots :=
+    Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+      (Compiler.runtimeCode simpleStorageIRContract) observableSlots
+  cases hArgs : tx.args with
+  | nil =>
+      have hIR := interpretIR_simpleStorage_storeHit_short tx initialState
+        hSelectorEq hArgs
+      have hLayerFuel :
+          Compiler.Proofs.YulGeneration.resultsMatch
+            { success := false
+              returnValue := none
+              finalStorage := initialState.storage
+              finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+              events := initialState.events }
+            (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackendFuel
+              .evmYulLean (Nat.succ simpleStorageNativeDispatcherFuel)
+              (Compiler.emitYul simpleStorageIRContract).runtimeCode
+              (YulTransaction.ofIR tx) initialState.storage initialState.events) := by
+        simpa [hIR, Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend,
+          simpleStorageNativeDispatcherFuel, simpleStorage_runtimeCode_eq_single_dispatcher]
+          using hLayer
+      rcases hLayerFuel with ⟨hsuccess, hreturnValue, hstorage, _hmappings, hevents⟩
+      refine nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_error_project_eq_agree
+        (err := EvmYul.Yul.Exception.Revert)
+        (nativeYul :=
+          { success := false
+            returnValue := none
+            finalStorage := initialState.storage
+            finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+            events := initialState.events })
+        ?_ ?_ ?_
+      · simpa [simpleStorage_runtimeCode_eq_single_dispatcher, yulTx, slots] using
+          (simpleStorageNativeContract_dispatcherExec_storeHit_short_revert_atFuel
+            yulTx initialState.storage slots
+            (by simpa [yulTx, YulTransaction.ofIR] using hArgs)
+            (by
+              simp [yulTx]
+              exact hStore.symm)
+            (by simpa [yulTx, YulTransaction.ofIR, evmModulus] using hNoWrap)
+            (by simpa [yulTx, YulTransaction.ofIR] using hMsgValue))
+      · rfl
+      · refine ⟨?_, ?_, ?_, ?_⟩
+        · exact hsuccess
+        · exact hreturnValue
+        · intro slot _
+          exact hstorage (IRStorageSlot.ofNat slot)
+        · exact hevents
+  | cons arg rest =>
+      have hIR := interpretIR_simpleStorage_storeHit_arg tx initialState arg rest
+        hSelectorEq hArgs
+      have hLayerFuel :
+          Compiler.Proofs.YulGeneration.resultsMatch
+            { success := true
+              returnValue := none
+              finalStorage :=
+                Compiler.Proofs.abstractStoreStorageOrMapping initialState.storage 0
+                  (arg % evmModulus)
+              finalMappings :=
+                Compiler.Proofs.storageAsMappings
+                  (Compiler.Proofs.abstractStoreStorageOrMapping initialState.storage 0
+                    (arg % evmModulus))
+              events := initialState.events }
+            (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackendFuel
+              .evmYulLean (Nat.succ simpleStorageNativeDispatcherFuel)
+              (Compiler.emitYul simpleStorageIRContract).runtimeCode
+              (YulTransaction.ofIR tx) initialState.storage initialState.events) := by
+        simpa [hIR, Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend,
+          simpleStorageNativeDispatcherFuel, simpleStorage_runtimeCode_eq_single_dispatcher]
+          using hLayer
+      obtain ⟨store, haltState, hExec, hHaltState⟩ :=
+        simpleStorageNativeContract_dispatcherExec_storeHit_halt_atFuel
+          yulTx initialState.storage slots arg rest
+          (by simpa [yulTx, YulTransaction.ofIR] using hArgs)
+          (by
+            simp [yulTx]
+            exact hStore.symm)
+          (by simpa [yulTx, YulTransaction.ofIR, evmModulus] using hNoWrap)
+          (by simpa [yulTx, YulTransaction.ofIR] using hMsgValue)
+      have hProject :
+          Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+            (YulTransaction.ofIR tx) initialState.storage initialState.events
+            (.error (EvmYul.Yul.Exception.YulHalt haltState ⟨0⟩)) =
+          { success := true,
+            returnValue := none,
+            finalStorage :=
+              Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState
+                (YulTransaction.ofIR tx) haltState,
+            finalMappings :=
+              Compiler.Proofs.storageAsMappings
+                (Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState
+                  (YulTransaction.ofIR tx) haltState),
+            events :=
+              initialState.events ++
+                Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState
+                  haltState } := by
+        simp
+      have hLogs :
+          Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState
+            haltState = [] := by
+        subst hHaltState
+        simp only [Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState,
+          Compiler.Proofs.YulGeneration.Backends.Native.initialState,
+          Compiler.Proofs.YulGeneration.Backends.StateBridge.toSharedState,
+          YulState.initial, EvmYul.Yul.State.sharedState,
+          EvmYul.Yul.State.setState, EvmYul.Yul.State.toState,
+          EvmYul.Yul.State.insert, EvmYul.State.sstore,
+          EvmYul.State.setAccount, EvmYul.State.lookupAccount,
+          EvmYul.State.addAccessedStorageKey,
+          EvmYul.Account.updateStorage,
+          EvmYul.Substate.addAccessedStorageKey, Option.option]
+        split <;> rfl
+      have hAgree :
+          yulResultsAgreeOn observableSlots
+            { success := true,
+              returnValue := none,
+              finalStorage :=
+                Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState
+                  (YulTransaction.ofIR tx) haltState,
+              finalMappings :=
+                Compiler.Proofs.storageAsMappings
+                  (Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState
+                    (YulTransaction.ofIR tx) haltState),
+              events :=
+                initialState.events ++
+                  Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState
+                    haltState }
+            (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackendFuel
+              .evmYulLean (Nat.succ simpleStorageNativeDispatcherFuel)
+              (Compiler.emitYul simpleStorageIRContract).runtimeCode
+              (YulTransaction.ofIR tx) initialState.storage initialState.events) := by
+        rcases hLayerFuel with ⟨hsuccess, hreturnValue, hstorage, _hmappings, hevents⟩
+        refine ⟨?_, ?_, ?_, ?_⟩
+        · exact hsuccess
+        · exact hreturnValue
+        · intro slot hslot
+          have hslot' : slot ∈ slots := by
+            simp [slots, Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots,
+              hslot]
+          have hNative :=
+            projectStorageFromState_storeHit_initialState_materialized
+              yulTx initialState.storage slots store arg slot hslot'
+          have hNative' :
+              Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState
+                  (YulTransaction.ofIR tx) haltState (IRStorageSlot.ofNat slot) =
+                (Compiler.Proofs.abstractStoreStorageOrMapping initialState.storage 0
+                  (arg % evmModulus)) (IRStorageSlot.ofNat slot) := by
+            subst hHaltState
+            rw [hNative]
+            have hArgMod :
+                EvmYul.UInt256.ofNat arg =
+                  EvmYul.UInt256.ofNat (arg % evmModulus) := by
+              unfold EvmYul.UInt256.ofNat
+              simp [Id.run, Fin.ofNat, evmModulus, EvmYul.UInt256.size]
+            simp [Compiler.Proofs.abstractStoreStorageOrMapping,
+              Compiler.Proofs.IRGeneration.IRStorageWord.ofNat, hArgMod]
+          exact hNative'.trans (hstorage (IRStorageSlot.ofNat slot))
+        · rw [hLogs, List.append_nil]
+          exact hevents
+      apply nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_yulHalt_project_eq_agree
+        (haltState := haltState) (haltValue := ⟨0⟩)
+      · simpa [simpleStorage_runtimeCode_eq_single_dispatcher, yulTx, slots] using hExec
+      · exact hProject
+      · exact hAgree
+
+/-- Selector-miss native dispatcher bridge discharged against the existing
+public entry preconditions. The native selector-miss path reverts, so
+`projectResult` preserves the parameter-passed initial storage directly. -/
+theorem simpleStorageNativeSelectorMissBridge_proved
+    (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hvars : initialState.vars = [])
+    (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0)
+    (hreturn : initialState.returnValue = none)
+    (hdispatchGuardSafe : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      HasSelectorDeadBridge fn.body)
+    (hparamErase : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      paramLoadErasure fn tx (initialState.withTx tx)) :
+    simpleStorageNativeSelectorMissBridge tx initialState observableSlots := by
+  intro hSelMissRetrieve hSelMissStore
+  have hSelEq : tx.functionSelector % selectorModulus = tx.functionSelector :=
+    Nat.mod_eq_of_lt hselector
+  have hSelMissTxStore : tx.functionSelector ≠ 0x6057361d := by
+    rw [← hSelEq]
+    exact hSelMissStore
+  have hSelMissTxRetrieve : tx.functionSelector ≠ 0x2e64cec1 := by
+    rw [← hSelEq]
+    exact hSelMissRetrieve
+  have hLayer3 :
+      Compiler.Proofs.YulGeneration.resultsMatch
+        (interpretIR simpleStorageIRContract tx initialState)
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
+          .evmYulLean (Compiler.emitYul simpleStorageIRContract).runtimeCode
+          (YulTransaction.ofIR tx) initialState.storage initialState.events) :=
+    layer3_contract_preserves_semantics_evmYulLean simpleStorageIRContract tx initialState
+      hselector hNoWrap hvars hmemory htransient hreturn hparamErase
+      hdispatchGuardSafe hNoHasSelector hHasSelectorDead
+      (by intro fn hmem; simp [simpleStorageIRContract] at hmem ⊢; rcases hmem with rfl | rfl <;> rfl)
+      (by intro s hs; simp [simpleStorageIRContract] at hs) rfl rfl
+      simpleStorage_functions_bridged
+  have hIR := interpretIR_simpleStorage_selectorMiss tx initialState
+    hSelMissTxStore hSelMissTxRetrieve
+  rw [hIR] at hLayer3
+  have hSizeEq :
+      sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode =
+        simpleStorageNativeDispatcherFuel := by
+    rw [simpleStorage_runtimeCode_eq_single_dispatcher]
+    rfl
+  rcases hLayer3 with ⟨hsuccess, hreturnValue, hstorage, _hmappings, hevents⟩
+  refine nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_error_project_eq_agree
+    (err := EvmYul.Yul.Exception.Revert)
+    (nativeYul :=
+      { success := false
+        returnValue := none
+        finalStorage := initialState.storage
+        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+        events := initialState.events })
+    ?_ ?_ ?_
+  · apply simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_atFuel
+    · have hMod :
+          (YulTransaction.ofIR tx).functionSelector
+            % Compiler.Constants.selectorModulus
+            < Compiler.Constants.selectorModulus :=
+        Nat.mod_lt _ (by decide)
+      exact Nat.lt_trans hMod (by decide)
+    · change (YulTransaction.ofIR tx).functionSelector % selectorModulus ≠ _
+      change tx.functionSelector % selectorModulus ≠ _
+      exact hSelMissStore
+    · change (YulTransaction.ofIR tx).functionSelector % selectorModulus ≠ _
+      change tx.functionSelector % selectorModulus ≠ _
+      exact hSelMissRetrieve
+    · change 4 + (YulTransaction.ofIR tx).args.length * 32 < EvmYul.UInt256.size
+      change 4 + tx.args.length * 32 < EvmYul.UInt256.size
+      simpa [evmModulus, EvmYul.UInt256.size] using hNoWrap
+  · rfl
+  · show yulResultsAgreeOn observableSlots _
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackendFuel
+        .evmYulLean simpleStorageNativeDispatcherFuel.succ
+        (Compiler.emitYul simpleStorageIRContract).runtimeCode
+        (YulTransaction.ofIR tx) initialState.storage initialState.events)
+    have hFuelGoal :
+        (simpleStorageNativeDispatcherFuel.succ : Nat) =
+          sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1 := by
+      rw [hSizeEq]
+    rw [hFuelGoal]
+    show yulResultsAgreeOn observableSlots _
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
+        .evmYulLean (Compiler.emitYul simpleStorageIRContract).runtimeCode
+        (YulTransaction.ofIR tx) initialState.storage initialState.events)
+    refine ⟨?_, ?_, ?_, ?_⟩
+    · exact hsuccess
+    · exact hreturnValue
+    · intro slot _
+      exact hstorage (IRStorageSlot.ofNat slot)
+    · exact hevents
+
 /-- Recover the monolithic `simpleStorageNativeCallDispatcherBridge` from the
 three per-case sub-bridges by case analysis on
 `tx.functionSelector % selectorModulus`. -/
@@ -4500,25 +5579,7 @@ theorem simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge
     hNativeCallDispatcher
 
 /-- Native SimpleStorage end-to-end theorem with the concrete native dispatcher
-witness supplied per-selector-case.
-
-This theorem targets native EVMYulLean execution, but it does not pretend the
-remaining selected-body native dispatcher proof is complete. Callers must
-supply three per-case sub-bridges (retrieve hit, store hit, selector miss)
-covering the three selector classes the lowered switch branches on. The
-sub-bridges are recombined into the monolithic
-`simpleStorageNativeCallDispatcherBridge` via
-`simpleStorageNativeCallDispatcherBridge_of_per_case` before delegating to the
-underlying `_of_callDispatcher_bridge` wrapper.
-
-Each sub-bridge is strictly weaker than the monolithic bridge: it gets to
-assume the selector class as a precondition, so its discharger does not need
-to do the case analysis on `tx.functionSelector % selectorModulus`. The
-retrieve-hit case is the closest to unconditional discharge — its lowered
-2-statement body `mstore(0, sload(0)); return(0, 32)` already reduces to a
-closed-form `YulHalt` state via `exec_block_simpleStorageLoweredRetrieveCase
-BodyTail3_closed`, leaving only the observable-storage agreement step
-between the projected halt and the EVMYulLean interpreter result. -/
+bridge fully discharged for retrieve hit, store hit, and selector miss. -/
 theorem simpleStorage_endToEnd_native_evmYulLean
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     (hselector : tx.functionSelector < selectorModulus)
@@ -4535,13 +5596,9 @@ theorem simpleStorage_endToEnd_native_evmYulLean
       HasSelectorDeadBridge fn.body)
     (hparamErase : ∀ fn, fn ∈ simpleStorageIRContract.functions →
       paramLoadErasure fn tx (initialState.withTx tx))
-    (hStoreHit :
-      simpleStorageNativeStoreHitBridge tx initialState observableSlots)
-    (hSelectorMiss :
-      simpleStorageNativeSelectorMissBridge tx initialState observableSlots)
     (hEnv :
-      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
-        (Compiler.emitYul simpleStorageIRContract).runtimeCode
+        Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+          (Compiler.emitYul simpleStorageIRContract).runtimeCode
         (YulTransaction.ofIR tx) = .ok ()) :
     nativeResultsMatchOn observableSlots
       (interpretIR simpleStorageIRContract tx initialState)
@@ -4560,9 +5617,16 @@ theorem simpleStorage_endToEnd_native_evmYulLean
               tx initialState observableSlots
               (simpleStorageNativeRetrieveHitBridge_proved tx initialState
                 observableSlots hselector hNoWrap hvars hmemory htransient
-                hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead
-                hparamErase)
-              hStoreHit hSelectorMiss))))
+                  hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead
+                  hparamErase)
+                (simpleStorageNativeStoreHitBridge_proved tx initialState
+                  observableSlots hselector hNoWrap hvars hmemory htransient
+                  hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead
+                  hparamErase)
+                (simpleStorageNativeSelectorMissBridge_proved tx initialState
+                  observableSlots hselector hNoWrap hvars hmemory htransient
+                  hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead
+                  hparamErase)))))
 
 /-! ## Universal Pure Arithmetic Bridge
 

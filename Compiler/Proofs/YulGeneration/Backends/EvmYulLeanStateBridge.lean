@@ -36,6 +36,291 @@ import EvmYul.Maps.StorageMap
 import Batteries.Data.ByteArray
 import Batteries.Data.RBMap.Lemmas
 
+namespace Batteries
+namespace RBNode
+
+open RBColor
+
+theorem All.setBlack' {p : α → Prop} {t : RBNode α}
+    (h : t.All p) : t.setBlack.All p := by
+  cases t <;> simp [setBlack]
+  exact h
+
+theorem find?_eq_none_of_all_ne {cut : α → Ordering} {t : RBNode α}
+    (h : t.All (fun x => cut x ≠ Ordering.eq)) :
+    t.find? cut = none := by
+  induction t with
+  | nil => rfl
+  | node _ l x r ihl ihr =>
+      rw [find?]
+      split <;> rename_i hc
+      · exact ihl h.2.1
+      · exact ihr h.2.2
+      · exact False.elim (h.1 hc)
+
+theorem del_all_cut_ne {cmp : α → α → Ordering} {cut : α → Ordering}
+    [Std.TransCmp cmp] [IsStrictCut cmp cut] :
+    ∀ {t : RBNode α}, t.Ordered cmp →
+      (t.del cut).All (fun x => cut x ≠ Ordering.eq)
+  | nil, _ => by simp [del]
+  | node _ a y b, ht => by
+      rcases ht with ⟨hay, hyb, ha, hb⟩
+      rw [del]
+      split <;> rename_i hcut
+      · have haAll := del_all_cut_ne (cmp := cmp) (cut := cut) ha
+        have hy : cut y ≠ Ordering.eq := by simp [hcut]
+        have hbAll : b.All (fun x => cut x ≠ Ordering.eq) := by
+          apply hyb.imp
+          intro x hyx hxeq
+          have hlt : cut x = Ordering.lt := IsCut.lt_trans hyx.1 hcut
+          cases hlt.symm.trans hxeq
+        cases a with
+        | nil =>
+            simp [isBlack]
+            exact ⟨hy, haAll, hbAll⟩
+        | node c _ _ _ =>
+            cases c <;> simp [isBlack]
+            · exact ⟨hy, haAll, hbAll⟩
+            · exact All.balLeft haAll hy hbAll
+      · have hbAll := del_all_cut_ne (cmp := cmp) (cut := cut) hb
+        have hy : cut y ≠ Ordering.eq := by simp [hcut]
+        have haAll : a.All (fun x => cut x ≠ Ordering.eq) := by
+          apply hay.imp
+          intro x hxy hxeq
+          have hgt : cut x = Ordering.gt := IsCut.gt_trans hxy.1 hcut
+          cases hgt.symm.trans hxeq
+        cases b with
+        | nil =>
+            simp [isBlack]
+            exact ⟨hy, haAll, hbAll⟩
+        | node c _ _ _ =>
+            cases c <;> simp [isBlack]
+            · exact ⟨hy, haAll, hbAll⟩
+            · exact All.balRight haAll hy hbAll
+      · have haAll : a.All (fun x => cut x ≠ Ordering.eq) := by
+          apply hay.imp
+          intro x hxy hxeq
+          have hx : cmp x y = cut y := IsStrictCut.exact hxeq
+          rw [hcut] at hx
+          cases hxy.1.symm.trans hx
+        have hbAll : b.All (fun x => cut x ≠ Ordering.eq) := by
+          apply hyb.imp
+          intro x hyx hxeq
+          have hx : cmp x y = cut y := IsStrictCut.exact hxeq
+          rw [hcut] at hx
+          have hxygt : cmp x y = Ordering.gt :=
+            Std.OrientedCmp.gt_iff_lt.2 hyx.1
+          cases hxygt.symm.trans hx
+        exact All.append haAll hbAll
+
+theorem erase_all_cut_ne {cmp : α → α → Ordering} {cut : α → Ordering}
+    [Std.TransCmp cmp] [IsStrictCut cmp cut] {t : RBNode α}
+    (ht : t.Ordered cmp) :
+    (t.erase cut).All (fun x => cut x ≠ Ordering.eq) := by
+  unfold erase
+  exact All.setBlack' (del_all_cut_ne (cmp := cmp) (cut := cut) ht)
+
+theorem findP?_erase_none {cmp : α → α → Ordering} {cut : α → Ordering}
+    [Std.TransCmp cmp] [IsStrictCut cmp cut] (s : RBSet α cmp) :
+    (s.erase cut).findP? cut = none := by
+  unfold RBSet.erase RBSet.findP?
+  rw [find?_eq_none_of_all_ne]
+  exact erase_all_cut_ne (cmp := cmp) (cut := cut) s.2.out.1
+
+theorem append_toList (l r : RBNode α) :
+    (l.append r).toList = l.toList ++ r.toList := by
+  induction l, r using RBNode.append.induct <;>
+    simp [RBNode.append, *]
+  · rename_i la lx lb rc ry rd ra rx rb h ih
+    have ih' := ih
+    rw [h] at ih'
+    simp at ih'
+    calc
+      ra.toList ++ rx :: (rb.toList ++ ry :: rd.toList)
+          = (ra.toList ++ rx :: rb.toList) ++ ry :: rd.toList := by
+              simp [List.append_assoc]
+      _ = (lb.toList ++ rc.toList) ++ ry :: rd.toList := by
+              rw [ih']
+      _ = lb.toList ++ (rc.toList ++ ry :: rd.toList) := by
+              simp [List.append_assoc]
+  · rename_i la lx lb rc ry rd ra rx rb h ih
+    have ih' := ih
+    rw [h] at ih'
+    simp at ih'
+    calc
+      ra.toList ++ rx :: (rb.toList ++ ry :: rd.toList)
+          = (ra.toList ++ rx :: rb.toList) ++ ry :: rd.toList := by
+              simp [List.append_assoc]
+      _ = (lb.toList ++ rc.toList) ++ ry :: rd.toList := by
+              rw [ih']
+      _ = lb.toList ++ (rc.toList ++ ry :: rd.toList) := by
+              simp [List.append_assoc]
+
+theorem mem_del_of_mem_ne {cut : α → Ordering}
+    {t : RBNode α} {x : α} (hx : x ∈ t) (hcut : cut x ≠ Ordering.eq) :
+    x ∈ t.del cut := by
+  induction t with
+  | nil => cases hx
+  | node c a y b iha ihb =>
+      simp only [RBNode.del]
+      split
+      · rename_i hy
+        rcases hx with rfl | hx | hx
+        · cases hblack : a.isBlack <;>
+            rw [← mem_toList] <;>
+            simp
+        · cases hblack : a.isBlack <;>
+            rw [← mem_toList] <;>
+            simp [iha hx]
+        · cases hblack : a.isBlack <;>
+            rw [← mem_toList] <;>
+            simp
+          · exact Or.inr (Or.inr hx)
+          · exact Or.inr (Or.inr hx)
+      · rename_i hy
+        rcases hx with rfl | hx | hx
+        · cases hblack : b.isBlack <;>
+            rw [← mem_toList] <;>
+            simp
+        · cases hblack : b.isBlack <;>
+            rw [← mem_toList] <;>
+            simp
+          · exact Or.inl hx
+          · exact Or.inl hx
+        · cases hblack : b.isBlack <;>
+            rw [← mem_toList] <;>
+            simp [ihb hx]
+      · rename_i hy
+        rcases hx with rfl | hx | hx
+        · exact absurd hy hcut
+        · rw [← mem_toList]
+          simp [append_toList]
+          exact Or.inl hx
+        · rw [← mem_toList]
+          simp [append_toList]
+          exact Or.inr hx
+
+theorem mem_of_mem_del {cut : α → Ordering}
+    {t : RBNode α} {x : α} (hx : x ∈ t.del cut) :
+    x ∈ t := by
+  induction t with
+  | nil => cases hx
+  | node c a y b iha ihb =>
+      simp only [RBNode.del] at hx
+      split at hx
+      · rename_i hy
+        cases hblack : a.isBlack
+        · rw [← mem_toList] at hx
+          simp only [hblack] at hx
+          simp at hx
+          rcases hx with hx | rfl | hx
+          · exact Or.inr (Or.inl (iha hx))
+          · exact Or.inl rfl
+          · exact Or.inr (Or.inr hx)
+        · rw [← mem_toList] at hx
+          simp only [hblack] at hx
+          simp at hx
+          rcases hx with hx | rfl | hx
+          · exact Or.inr (Or.inl (iha hx))
+          · exact Or.inl rfl
+          · exact Or.inr (Or.inr hx)
+      · rename_i hy
+        cases hblack : b.isBlack
+        · rw [← mem_toList] at hx
+          simp only [hblack] at hx
+          simp at hx
+          rcases hx with hx | rfl | hx
+          · exact Or.inr (Or.inl hx)
+          · exact Or.inl rfl
+          · exact Or.inr (Or.inr (ihb hx))
+        · rw [← mem_toList] at hx
+          simp only [hblack] at hx
+          simp at hx
+          rcases hx with hx | rfl | hx
+          · exact Or.inr (Or.inl hx)
+          · exact Or.inl rfl
+          · exact Or.inr (Or.inr (ihb hx))
+      · rw [← mem_toList] at hx
+        simp [append_toList] at hx ⊢
+        rcases hx with hx | hx
+        · exact Or.inr (Or.inl hx)
+        · exact Or.inr (Or.inr hx)
+
+theorem mem_erase_of_mem_ne {cut : α → Ordering}
+    {t : RBNode α} {x : α} (hx : x ∈ t) (hcut : cut x ≠ Ordering.eq) :
+    x ∈ t.erase cut := by
+  unfold erase
+  rw [← mem_toList]
+  simpa using mem_del_of_mem_ne (cut := cut) hx hcut
+
+theorem mem_of_mem_erase {cut : α → Ordering}
+    {t : RBNode α} {x : α} (hx : x ∈ t.erase cut) :
+    x ∈ t := by
+  unfold erase at hx
+  rw [← mem_toList] at hx
+  exact mem_of_mem_del (cut := cut) (by simpa using hx)
+
+theorem find?_erase_of_ne {cmp : α → α → Ordering}
+    {cut eraseCut : α → Ordering} [Std.TransCmp cmp] [IsStrictCut cmp cut]
+    (t : RBNode α) (ht : t.Ordered cmp)
+    (hNe : ∀ x, cut x = Ordering.eq → eraseCut x ≠ Ordering.eq) :
+    (t.erase eraseCut).find? cut = t.find? cut := by
+  have htErase : (t.erase eraseCut).Ordered cmp :=
+    Ordered.erase (cut := eraseCut) ht
+  cases hFind : t.find? cut with
+  | none =>
+      by_contra hneq
+      have hsome : ∃ x, (t.erase eraseCut).find? cut = some x := by
+        cases h : (t.erase eraseCut).find? cut with
+        | none =>
+            exfalso
+            exact hneq h
+        | some x => exact ⟨x, rfl⟩
+      rcases hsome with ⟨x, hx⟩
+      have hxMem : x ∈ t :=
+        mem_of_mem_erase (cut := eraseCut)
+          (find?_some_mem hx)
+      have hxEq : cut x = Ordering.eq := find?_some_eq_eq hx
+      have hxOld : t.find? cut = some x :=
+        (Ordered.find?_some ht).2 ⟨hxMem, hxEq⟩
+      rw [hFind] at hxOld
+      cases hxOld
+  | some x =>
+      have hxMem : x ∈ t := find?_some_mem hFind
+      have hxEq : cut x = Ordering.eq := find?_some_eq_eq hFind
+      exact (Ordered.find?_some htErase).2
+        ⟨mem_erase_of_mem_ne (cut := eraseCut) hxMem
+          (hNe x hxEq), hxEq⟩
+
+end RBNode
+
+namespace RBMap
+
+theorem find?_erase_self {cmp : α → α → Ordering} [Std.TransCmp cmp]
+    (m : RBMap α β cmp) (k : α) :
+    (m.erase k).find? k = none := by
+  unfold RBMap.find? RBMap.findEntry? RBMap.erase
+  rw [RBNode.findP?_erase_none]
+  rfl
+
+theorem find?_erase_of_ne {cmp : α → α → Ordering} [Std.TransCmp cmp]
+    (m : RBMap α β cmp) {k k' : α} (hNe : cmp k' k ≠ Ordering.eq) :
+    (m.erase k).find? k' = m.find? k' := by
+  unfold RBMap.find? RBMap.findEntry? RBMap.erase RBSet.erase RBSet.findP?
+  rw [RBNode.find?_erase_of_ne (cmp := Ordering.byKey Prod.fst cmp)
+    (cut := fun y : α × β => cmp k' y.1)
+    (eraseCut := fun y : α × β => cmp k y.1) m.1 m.2.out.1]
+  intro y hy
+  intro hErase
+  have hKey : cmp k' k = Ordering.eq := by
+    have h1 : cmp k' y.1 = Ordering.eq := hy
+    have h2 : cmp k y.1 = Ordering.eq := hErase
+    exact Std.TransCmp.eq_trans h1 (Std.OrientedCmp.eq_comm.1 h2)
+  exact hNe hKey
+
+end RBMap
+end Batteries
+
 namespace Compiler.Proofs.YulGeneration.Backends.StateBridge
 
 open Compiler.Proofs.YulGeneration

@@ -761,6 +761,10 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBodyTail_callvalue_strip_error
 #print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBodyTail_callvalue_strip_error
 #print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBodyTail2_lt_strip_error
+#print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBodyTail2_lt_strip_error
+#print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBodyTail2_short_revert
+#print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBodyTail3_halt
+#print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBody_halt
 #print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBodyTail3_closed
 #print axioms Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBody_halt
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageBuildSwitchSourceCases_lowered_concrete
@@ -778,10 +782,20 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail2
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail3
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherFuel_ge_25
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherFuel_ge_21
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_atFuel
+#print axioms Compiler.Proofs.EndToEnd.interpretIR_simpleStorage_selectorMiss
 #print axioms Compiler.Proofs.EndToEnd.interpretIR_simpleStorage_retrieveHit
+#print axioms Compiler.Proofs.EndToEnd.interpretIR_simpleStorage_storeHit_arg
+#print axioms Compiler.Proofs.EndToEnd.interpretIR_simpleStorage_storeHit_short
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_halt_atFuel
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_halt_atFuel
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_short_revert_atFuel
+#print axioms Compiler.Proofs.EndToEnd.projectStorageFromState_storeHit_initialState_materialized
 #print axioms Compiler.Proofs.EndToEnd.projectResult_retrieveHit_eq
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeRetrieveHitBridge_proved
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeStoreHitBridge_proved
+#print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeSelectorMissBridge_proved
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeCallDispatcherBridge_of_per_case
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_evmYulLean
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge
@@ -3488,6 +3502,19 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileExprList_bridgedSource
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean
+#print axioms Batteries.RBNode.All.setBlack'
+#print axioms Batteries.RBNode.find?_eq_none_of_all_ne
+#print axioms Batteries.RBNode.del_all_cut_ne
+#print axioms Batteries.RBNode.erase_all_cut_ne
+#print axioms Batteries.RBNode.findP?_erase_none
+#print axioms Batteries.RBNode.append_toList
+#print axioms Batteries.RBNode.mem_del_of_mem_ne
+#print axioms Batteries.RBNode.mem_of_mem_del
+#print axioms Batteries.RBNode.mem_erase_of_mem_ne
+#print axioms Batteries.RBNode.mem_of_mem_erase
+#print axioms Batteries.RBNode.find?_erase_of_ne
+#print axioms Batteries.RBMap.find?_erase_self
+#print axioms Batteries.RBMap.find?_erase_of_ne
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorBytes_size  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_wordBytes_size  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_fold_size  -- private
@@ -3558,4 +3585,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3382 theorems/lemmas (2438 public, 944 private, 0 sorry'd)
+-- Total: 3409 theorems/lemmas (2465 public, 944 private, 0 sorry'd)
