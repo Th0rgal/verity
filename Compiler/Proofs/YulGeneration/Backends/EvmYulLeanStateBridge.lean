@@ -127,13 +127,6 @@ theorem findP?_erase_none {cmp : α → α → Ordering} {cut : α → Ordering}
   rw [find?_eq_none_of_all_ne]
   exact erase_all_cut_ne (cmp := cmp) (cut := cut) s.2.out.1
 
-theorem find?_erase_self {cmp : α → α → Ordering} [Std.TransCmp cmp]
-    (m : RBMap α β cmp) (k : α) :
-    (m.erase k).find? k = none := by
-  unfold RBMap.find? RBMap.findEntry? RBMap.erase
-  rw [findP?_erase_none]
-  rfl
-
 theorem append_toList (l r : RBNode α) :
     (l.append r).toList = l.toList ++ r.toList := by
   induction l, r using RBNode.append.induct <;>
@@ -305,8 +298,10 @@ namespace RBMap
 
 theorem find?_erase_self {cmp : α → α → Ordering} [Std.TransCmp cmp]
     (m : RBMap α β cmp) (k : α) :
-    (m.erase k).find? k = none :=
-  RBNode.find?_erase_self m k
+    (m.erase k).find? k = none := by
+  unfold RBMap.find? RBMap.findEntry? RBMap.erase
+  rw [RBNode.findP?_erase_none]
+  rfl
 
 theorem find?_erase_of_ne {cmp : α → α → Ordering} [Std.TransCmp cmp]
     (m : RBMap α β cmp) {k k' : α} (hNe : cmp k' k ≠ Ordering.eq) :
