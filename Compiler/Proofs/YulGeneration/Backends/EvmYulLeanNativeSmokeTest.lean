@@ -703,6 +703,30 @@ private def nestedNativeFunctionDefinitionsFailClosed : Bool :=
   | .ok _ => false
   | .error _ => true)
 
+private def emittedRuntimeSatisfiesGeneratedNativeFragment : Bool :=
+  Native.generatedRuntimeNativeFragment
+    (Compiler.emitYul dispatchSmokeContract).runtimeCode
+
+private def duplicateHelpersRejectedByGeneratedNativeFragment : Bool :=
+  !Native.generatedRuntimeNativeFragment [
+    .funcDef "dup" [] [] [],
+    .funcDef "dup" [] [] []
+  ]
+
+private def nestedDispatcherFuncDefRejectedByGeneratedNativeFragment : Bool :=
+  !Native.generatedRuntimeNativeFragment [
+    .block [
+      .funcDef "nested_dispatcher" [] [] []
+    ]
+  ]
+
+private def nestedHelperFuncDefRejectedByGeneratedNativeFragment : Bool :=
+  !Native.generatedRuntimeNativeFragment [
+    .funcDef "outer" [] [] [
+      .funcDef "nested_helper" [] [] []
+    ]
+  ]
+
 private def emittedDispatchLowersNativeSelectorCases : Bool :=
   match lowerRuntimeContractNative (Compiler.emitYul dispatchSmokeContract).runtimeCode with
   | .ok contract =>
@@ -1114,6 +1138,22 @@ example :
 
 example :
     nestedNativeFunctionDefinitionsFailClosed = true := by
+  native_decide
+
+example :
+    emittedRuntimeSatisfiesGeneratedNativeFragment = true := by
+  native_decide
+
+example :
+    duplicateHelpersRejectedByGeneratedNativeFragment = true := by
+  native_decide
+
+example :
+    nestedDispatcherFuncDefRejectedByGeneratedNativeFragment = true := by
+  native_decide
+
+example :
+    nestedHelperFuncDefRejectedByGeneratedNativeFragment = true := by
   native_decide
 
 example :

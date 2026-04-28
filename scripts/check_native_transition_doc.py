@@ -194,6 +194,10 @@ def check_public_theorem_target(
         "def interpretRuntimeNative",
         "def interpretIRRuntimeNative",
         "EvmYul.Yul.callDispatcher",
+        "def generatedRuntimeNativeFragment",
+        "def generatedRuntimeFunctionNamesUnique",
+        "def generatedRuntimeDispatcherHasNoFuncDefs",
+        "def generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs",
     ):
         if required_native_entrypoint not in normalized_native_harness:
             errors.append(
@@ -229,6 +233,10 @@ def check_native_switch_lowering_boundary(native_adapter_text: str, native_smoke
         "nativeSwitchTempNamesAvoidUserNames = true",
         "nativeFunctionSwitchTempNamesAvoidLocalUserNames = true",
         "nativeSwitchExecutesOnlyFirstMatchingNonHaltingCase = true",
+        "emittedRuntimeSatisfiesGeneratedNativeFragment = true",
+        "duplicateHelpersRejectedByGeneratedNativeFragment = true",
+        "nestedDispatcherFuncDefRejectedByGeneratedNativeFragment = true",
+        "nestedHelperFuncDefRejectedByGeneratedNativeFragment = true",
     ):
         if required_smoke not in normalized_smoke:
             errors.append(
