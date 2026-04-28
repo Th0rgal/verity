@@ -195,6 +195,8 @@ def check_public_theorem_target(
         "def interpretIRRuntimeNative",
         "EvmYul.Yul.callDispatcher",
         "def generatedRuntimeNativeFragment",
+        "def validateGeneratedRuntimeNativeFragment",
+        "unsupportedGeneratedRuntimeNativeFragmentError",
         "def generatedRuntimeFunctionNamesUnique",
         "def generatedRuntimeDispatcherHasNoFuncDefs",
         "def generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs",
@@ -237,6 +239,8 @@ def check_native_switch_lowering_boundary(native_adapter_text: str, native_smoke
         "duplicateHelpersRejectedByGeneratedNativeFragment = true",
         "nestedDispatcherFuncDefRejectedByGeneratedNativeFragment = true",
         "nestedHelperFuncDefRejectedByGeneratedNativeFragment = true",
+        "nativeRuntimeFragmentGateRejectsDuplicateHelper = true",
+        "nativeIRRuntimeFragmentGateRejectsDuplicateHelper = true",
     ):
         if required_smoke not in normalized_smoke:
             errors.append(

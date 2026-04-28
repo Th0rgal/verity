@@ -233,6 +233,30 @@ def generatedRuntimeNativeFragment (runtimeCode : List YulStmt) : Bool :=
     generatedRuntimeDispatcherHasNoFuncDefs runtimeCode &&
     generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs runtimeCode
 
+def unsupportedGeneratedRuntimeNativeFragmentError : AdapterError :=
+  "native EVMYulLean generated runtime fragment check failed"
+
+def validateGeneratedRuntimeNativeFragment
+    (runtimeCode : List YulStmt) :
+    Except AdapterError Unit :=
+  if generatedRuntimeNativeFragment runtimeCode then
+    .ok ()
+  else
+    .error unsupportedGeneratedRuntimeNativeFragmentError
+
+@[simp] theorem validateGeneratedRuntimeNativeFragment_ok
+    (runtimeCode : List YulStmt)
+    (hFragment : generatedRuntimeNativeFragment runtimeCode = true) :
+    validateGeneratedRuntimeNativeFragment runtimeCode = .ok () := by
+  simp [validateGeneratedRuntimeNativeFragment, hFragment]
+
+@[simp] theorem validateGeneratedRuntimeNativeFragment_error
+    (runtimeCode : List YulStmt)
+    (hFragment : generatedRuntimeNativeFragment runtimeCode = false) :
+    validateGeneratedRuntimeNativeFragment runtimeCode =
+      .error unsupportedGeneratedRuntimeNativeFragmentError := by
+  simp [validateGeneratedRuntimeNativeFragment, hFragment]
+
 def selectorExprMatchesGeneratedDispatcher : YulExpr → Bool
   | .call "shr" [.lit shift, .call "calldataload" [.lit 0]] =>
       shift == Compiler.Constants.selectorShift
@@ -9950,6 +9974,7 @@ def interpretRuntimeNative
     (observableSlots : List Nat)
     (events : List (List Nat) := []) :
     Except AdapterError YulResult := do
+  validateGeneratedRuntimeNativeFragment runtimeCode
   let contract ← lowerRuntimeContractNative runtimeCode
   validateNativeRuntimeEnvironment runtimeCode tx
   let initial :=
@@ -9966,10 +9991,24 @@ def interpretRuntimeNative
     (observableSlots : List Nat)
     (events : List (List Nat))
     (err : AdapterError)
+    (hFragment : generatedRuntimeNativeFragment runtimeCode = true)
     (hLower : lowerRuntimeContractNative runtimeCode = .error err) :
     interpretRuntimeNative fuel runtimeCode tx storage observableSlots events =
       .error err := by
-  rw [interpretRuntimeNative, hLower]
+  rw [interpretRuntimeNative, validateGeneratedRuntimeNativeFragment_ok runtimeCode hFragment, hLower]
+  rfl
+
+@[simp] theorem interpretRuntimeNative_generatedFragmentError
+    (fuel : Nat)
+    (runtimeCode : List YulStmt)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (observableSlots : List Nat)
+    (events : List (List Nat))
+    (hFragment : generatedRuntimeNativeFragment runtimeCode = false) :
+    interpretRuntimeNative fuel runtimeCode tx storage observableSlots events =
+      .error unsupportedGeneratedRuntimeNativeFragmentError := by
+  rw [interpretRuntimeNative, validateGeneratedRuntimeNativeFragment_error runtimeCode hFragment]
   rfl
 
 @[simp] theorem interpretRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative
@@ -9980,6 +10019,7 @@ def interpretRuntimeNative
     (observableSlots : List Nat)
     (events : List (List Nat))
     (contract : EvmYul.Yul.Ast.YulContract)
+    (hFragment : generatedRuntimeNativeFragment runtimeCode = true)
     (hLower : lowerRuntimeContractNative runtimeCode = .ok contract)
     (hEnv : validateNativeRuntimeEnvironment runtimeCode tx = .ok ()) :
     interpretRuntimeNative fuel runtimeCode tx storage observableSlots events =
@@ -9987,7 +10027,8 @@ def interpretRuntimeNative
         (EvmYul.Yul.callDispatcher fuel (some contract)
           (initialState contract tx storage
             (materializedStorageSlots runtimeCode observableSlots)))) := by
-  rw [interpretRuntimeNative, hLower, hEnv]
+  rw [interpretRuntimeNative, validateGeneratedRuntimeNativeFragment_ok runtimeCode hFragment,
+    hLower, hEnv]
   rfl
 
 @[simp] theorem interpretRuntimeNative_environmentError
@@ -9999,11 +10040,13 @@ def interpretRuntimeNative
     (events : List (List Nat))
     (contract : EvmYul.Yul.Ast.YulContract)
     (err : AdapterError)
+    (hFragment : generatedRuntimeNativeFragment runtimeCode = true)
     (hLower : lowerRuntimeContractNative runtimeCode = .ok contract)
     (hEnv : validateNativeRuntimeEnvironment runtimeCode tx = .error err) :
     interpretRuntimeNative fuel runtimeCode tx storage observableSlots events =
       .error err := by
-  rw [interpretRuntimeNative, hLower, hEnv]
+  rw [interpretRuntimeNative, validateGeneratedRuntimeNativeFragment_ok runtimeCode hFragment,
+    hLower, hEnv]
   rfl
 
 /-- Native EVMYulLean execution target for emitted IR-contract runtime Yul.
@@ -10046,10 +10089,29 @@ def interpretIRRuntimeNative
     (state : Compiler.Proofs.IRGeneration.IRState)
     (observableSlots : List Nat)
     (err : AdapterError)
+    (hFragment :
+      generatedRuntimeNativeFragment (Compiler.emitYul contract).runtimeCode = true)
     (hLower : lowerRuntimeContractNative (Compiler.emitYul contract).runtimeCode =
       .error err) :
     interpretIRRuntimeNative fuel contract tx state observableSlots = .error err := by
-  rw [interpretIRRuntimeNative, interpretRuntimeNative, hLower]
+  rw [interpretIRRuntimeNative, interpretRuntimeNative,
+    validateGeneratedRuntimeNativeFragment_ok (Compiler.emitYul contract).runtimeCode
+      hFragment, hLower]
+  rfl
+
+@[simp] theorem interpretIRRuntimeNative_generatedFragmentError
+    (fuel : Nat)
+    (contract : Compiler.IRContract)
+    (tx : Compiler.Proofs.IRGeneration.IRTransaction)
+    (state : Compiler.Proofs.IRGeneration.IRState)
+    (observableSlots : List Nat)
+    (hFragment :
+      generatedRuntimeNativeFragment (Compiler.emitYul contract).runtimeCode = false) :
+    interpretIRRuntimeNative fuel contract tx state observableSlots =
+      .error unsupportedGeneratedRuntimeNativeFragmentError := by
+  rw [interpretIRRuntimeNative, interpretRuntimeNative,
+    validateGeneratedRuntimeNativeFragment_error (Compiler.emitYul contract).runtimeCode
+      hFragment]
   rfl
 
 @[simp] theorem interpretIRRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative
@@ -10059,6 +10121,8 @@ def interpretIRRuntimeNative
     (state : Compiler.Proofs.IRGeneration.IRState)
     (observableSlots : List Nat)
     (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (hFragment :
+      generatedRuntimeNativeFragment (Compiler.emitYul irContract).runtimeCode = true)
     (hLower : lowerRuntimeContractNative (Compiler.emitYul irContract).runtimeCode =
       .ok nativeContract)
     (hEnv :
@@ -10070,7 +10134,9 @@ def interpretIRRuntimeNative
           (initialState nativeContract (YulTransaction.ofIR tx) state.storage
             (materializedStorageSlots (Compiler.emitYul irContract).runtimeCode
               observableSlots)))) := by
-  rw [interpretIRRuntimeNative, interpretRuntimeNative, hLower, hEnv]
+  rw [interpretIRRuntimeNative, interpretRuntimeNative,
+    validateGeneratedRuntimeNativeFragment_ok (Compiler.emitYul irContract).runtimeCode
+      hFragment, hLower, hEnv]
   rfl
 
 end Compiler.Proofs.YulGeneration.Backends.Native

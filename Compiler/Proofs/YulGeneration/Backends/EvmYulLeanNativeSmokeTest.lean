@@ -727,6 +727,20 @@ private def nestedHelperFuncDefRejectedByGeneratedNativeFragment : Bool :=
     ]
   ]
 
+private def nativeRuntimeFragmentGateRejectsDuplicateHelper : Bool :=
+  match Native.interpretRuntimeNative 128 [
+    .funcDef "dup" [] [] [],
+    .funcDef "dup" [] [] []
+  ] sampleTx zeroStorage [] with
+  | .error err => err == Native.unsupportedGeneratedRuntimeNativeFragmentError
+  | .ok _ => false
+
+private def nativeIRRuntimeFragmentGateRejectsDuplicateHelper : Bool :=
+  match Native.interpretIRRuntimeNative 128 duplicateHelperIRContract sampleIRTx
+    sampleIRState [] with
+  | .error err => err == Native.unsupportedGeneratedRuntimeNativeFragmentError
+  | .ok _ => false
+
 private def emittedDispatchLowersNativeSelectorCases : Bool :=
   match lowerRuntimeContractNative (Compiler.emitYul dispatchSmokeContract).runtimeCode with
   | .ok contract =>
@@ -1154,6 +1168,14 @@ example :
 
 example :
     nestedHelperFuncDefRejectedByGeneratedNativeFragment = true := by
+  native_decide
+
+example :
+    nativeRuntimeFragmentGateRejectsDuplicateHelper = true := by
+  native_decide
+
+example :
+    nativeIRRuntimeFragmentGateRejectsDuplicateHelper = true := by
   native_decide
 
 example :

@@ -185,7 +185,13 @@ scope so the native path does not look more complete than it is:
      `lowerExprNative_call_userFunction`,
    - duplicate helper definitions fail closed.
 
-   Progress: `EvmYul.Yul.callDispatcher` now unfolds through
+   Progress: `generatedRuntimeNativeFragment` is the executable native runtime
+   shape boundary, and `interpretRuntimeNative`/`interpretIRRuntimeNative` now
+   fail closed before lowering when emitted runtime code violates that boundary.
+   It currently pins unique top-level helper names, no nested dispatcher
+   `funcDef`s, and no nested helper-body `funcDef`s.
+
+   `EvmYul.Yul.callDispatcher` now unfolds through
    `callDispatcher_succ_eq_callDispatcherBlockResult` to the named
    `callDispatcherBlockResult`, then rewrites initial-state execution to
    `contractDispatcherBlockResult`, then peels the block wrapper to
@@ -370,7 +376,9 @@ scope so the native path does not look more complete than it is:
    dispatcher/helper
    partitioning that keeps helper definitions in the function map while
    dispatcher calls remain native user-function calls, fail-closed rejection
-   of nested native function definitions in dispatcher/helper bodies, the named
+   of nested native function definitions in dispatcher/helper bodies, exact
+   generated-fragment gate failures at the native runtime and IR-runtime
+   entrypoints, the named
    `lowerExprNative_call_runtimePrimOp` and
    `lowerExprNative_call_userFunction` lemmas for native expression-call
    lowering,
