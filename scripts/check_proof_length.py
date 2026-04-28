@@ -210,6 +210,14 @@ ALLOWLIST: set[str] = {
     "compile_preserves_semantics_except_mapping_writes_stmtSafety",
     "initialIRStateForTx_matches_runtime",
     "resultsMatch_of_execResultsAligned",
+    # --- SimpleStorage native EVMYulLean dispatcher closed forms ---
+    # These are concrete generated-code reductions for the store(uint256)
+    # selected path. The long proofs are linear fuel/body-shape plumbing over
+    # generated Yul and are kept local to the Phase 3 bridge discharge.
+    "exec_block_simpleStorageLoweredStoreCaseBodyTail3_halt",
+    "exec_block_simpleStorageLoweredStoreCaseBody_halt",
+    "interpretIR_simpleStorage_storeHit_arg",
+    "simpleStorageNativeContract_dispatcherExec_storeHit_halt_atFuel",
     # --- Helper-aware theorem stack (Issue #1630 / PR #1633 / PR #1639) ---
     "supported_function_body_correct_from_exact_state_generic_with_helpers",
     "supported_function_body_correct_from_exact_state_generic_with_helpers_goal",
