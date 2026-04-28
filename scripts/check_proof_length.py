@@ -326,6 +326,11 @@ ALLOWLIST: set[str] = {
     # Splitting would create several single-use helpers whose proofs are mostly
     # repeated hypothesis plumbing around the same concrete retrieve path.
     "simpleStorageNativeRetrieveHitBridge_proved",
+    # Phase 3 selector-miss bridge closure: composes the closed-form
+    # selector-miss IR result, native revert endpoint, and Layer-3 agreement
+    # under the public theorem hypotheses. Splitting would create single-use
+    # helpers that only forward the same selector-miss facts and fuel reshape.
+    "simpleStorageNativeSelectorMissBridge_proved",
     # Safe-body public EVMYulLean wrapper derives the raw BridgedStmts function
     # hypotheses from compile output, static parameter closure, and
     # BridgedSafeStmts witnesses before delegating to the function-bridge

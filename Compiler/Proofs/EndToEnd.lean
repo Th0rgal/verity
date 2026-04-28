@@ -3837,6 +3837,61 @@ theorem simpleStorageNativeDispatcherFuel_ge_25 :
   unfold simpleStorageNativeDispatcherFuel
   decide
 
+theorem simpleStorageNativeDispatcherFuel_ge_21 :
+    simpleStorageNativeDispatcherFuel ≥ 21 := by
+  exact Nat.le_trans (by decide) simpleStorageNativeDispatcherFuel_ge_25
+
+/-- Native dispatcher exec at exactly `simpleStorageNativeDispatcherFuel`
+reduces to `.error Revert` for the selector-miss class. -/
+theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_atFuel
+    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
+    (observableSlots : List Nat)
+    (hSelectorRange : tx.functionSelector % Compiler.Constants.selectorModulus
+        < EvmYul.UInt256.size)
+    (hSelMissStore : tx.functionSelector % Compiler.Constants.selectorModulus
+        ≠ 0x6057361d)
+    (hSelMissRetrieve : tx.functionSelector % Compiler.Constants.selectorModulus
+        ≠ 0x2e64cec1)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
+    Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        simpleStorageNativeDispatcherFuel
+        Compiler.SimpleStorageNativeWitness.nativeContract
+        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+          Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+          observableSlots) =
+      .error EvmYul.Yul.Exception.Revert := by
+  have hReshape : simpleStorageNativeDispatcherFuel =
+      (simpleStorageNativeDispatcherFuel - 21) + 21 :=
+    (Nat.sub_add_cancel simpleStorageNativeDispatcherFuel_ge_21).symm
+  rw [hReshape]
+  exact simpleStorageNativeContract_dispatcherExec_selectorMiss_revert
+    (simpleStorageNativeDispatcherFuel - 21)
+    (tx.functionSelector % Compiler.Constants.selectorModulus)
+    tx storage observableSlots
+    rfl hSelectorRange hSelMissStore hSelMissRetrieve hNoWrap
+
+/-- Closed-form `interpretIR` reduction for the SimpleStorage selector-miss
+class. Given the two raw selector mismatches (`≠ 0x6057361d` and
+`≠ 0x2e64cec1`), `interpretIR` falls into the `find?`-`none` branch and returns
+the trivial reverted shape with storage and events untouched. -/
+theorem interpretIR_simpleStorage_selectorMiss
+    (tx : IRTransaction) (initialState : IRState)
+    (hSelMissStore : tx.functionSelector ≠ 0x6057361d)
+    (hSelMissRetrieve : tx.functionSelector ≠ 0x2e64cec1) :
+    interpretIR simpleStorageIRContract tx initialState =
+      { success := false
+        returnValue := none
+        finalStorage := initialState.storage
+        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+        events := initialState.events } := by
+  unfold interpretIR
+  simp only [simpleStorageIRContract, List.find?]
+  have hstore : (0x6057361d == tx.functionSelector) = false := by
+    simp [BEq.beq, hSelMissStore.symm]
+  have hretrieve : (0x2e64cec1 == tx.functionSelector) = false := by
+    simp [BEq.beq, hSelMissRetrieve.symm]
+  simp [hstore, hretrieve]
+
 /-- Closed-form `interpretIR` reduction for the SimpleStorage retrieve-hit
 class. Given the raw selector match (`= 0x2e64cec1`), `interpretIR` enters the
 `retrieve` body which is read-only on storage: it loads slot 0 via `sload`,
@@ -4391,6 +4446,103 @@ theorem simpleStorageNativeRetrieveHitBridge_proved
   · exact hProject
   · exact hAgree
 
+/-- Selector-miss native dispatcher bridge discharged against the existing
+public entry preconditions. The native selector-miss path reverts, so
+`projectResult` preserves the parameter-passed initial storage directly. -/
+theorem simpleStorageNativeSelectorMissBridge_proved
+    (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hvars : initialState.vars = [])
+    (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0)
+    (hreturn : initialState.returnValue = none)
+    (hdispatchGuardSafe : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      HasSelectorDeadBridge fn.body)
+    (hparamErase : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      paramLoadErasure fn tx (initialState.withTx tx)) :
+    simpleStorageNativeSelectorMissBridge tx initialState observableSlots := by
+  intro hSelMissRetrieve hSelMissStore
+  have hSelEq : tx.functionSelector % selectorModulus = tx.functionSelector :=
+    Nat.mod_eq_of_lt hselector
+  have hSelMissTxStore : tx.functionSelector ≠ 0x6057361d := by
+    rw [← hSelEq]
+    exact hSelMissStore
+  have hSelMissTxRetrieve : tx.functionSelector ≠ 0x2e64cec1 := by
+    rw [← hSelEq]
+    exact hSelMissRetrieve
+  have hLayer3 :
+      Compiler.Proofs.YulGeneration.resultsMatch
+        (interpretIR simpleStorageIRContract tx initialState)
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
+          .evmYulLean (Compiler.emitYul simpleStorageIRContract).runtimeCode
+          (YulTransaction.ofIR tx) initialState.storage initialState.events) :=
+    layer3_contract_preserves_semantics_evmYulLean simpleStorageIRContract tx initialState
+      hselector hNoWrap hvars hmemory htransient hreturn hparamErase
+      hdispatchGuardSafe hNoHasSelector hHasSelectorDead
+      (by intro fn hmem; simp [simpleStorageIRContract] at hmem ⊢; rcases hmem with rfl | rfl <;> rfl)
+      (by intro s hs; simp [simpleStorageIRContract] at hs) rfl rfl
+      simpleStorage_functions_bridged
+  have hIR := interpretIR_simpleStorage_selectorMiss tx initialState
+    hSelMissTxStore hSelMissTxRetrieve
+  rw [hIR] at hLayer3
+  have hSizeEq :
+      sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode =
+        simpleStorageNativeDispatcherFuel := by
+    rw [simpleStorage_runtimeCode_eq_single_dispatcher]
+    rfl
+  rcases hLayer3 with ⟨hsuccess, hreturnValue, hstorage, _hmappings, hevents⟩
+  refine nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_error_project_eq_agree
+    (err := EvmYul.Yul.Exception.Revert)
+    (nativeYul :=
+      { success := false
+        returnValue := none
+        finalStorage := initialState.storage
+        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+        events := initialState.events })
+    ?_ ?_ ?_
+  · apply simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_atFuel
+    · have hMod :
+          (YulTransaction.ofIR tx).functionSelector
+            % Compiler.Constants.selectorModulus
+            < Compiler.Constants.selectorModulus :=
+        Nat.mod_lt _ (by decide)
+      exact Nat.lt_trans hMod (by decide)
+    · change (YulTransaction.ofIR tx).functionSelector % selectorModulus ≠ _
+      change tx.functionSelector % selectorModulus ≠ _
+      exact hSelMissStore
+    · change (YulTransaction.ofIR tx).functionSelector % selectorModulus ≠ _
+      change tx.functionSelector % selectorModulus ≠ _
+      exact hSelMissRetrieve
+    · change 4 + (YulTransaction.ofIR tx).args.length * 32 < EvmYul.UInt256.size
+      change 4 + tx.args.length * 32 < EvmYul.UInt256.size
+      simpa [evmModulus, EvmYul.UInt256.size] using hNoWrap
+  · rfl
+  · show yulResultsAgreeOn observableSlots _
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackendFuel
+        .evmYulLean simpleStorageNativeDispatcherFuel.succ
+        (Compiler.emitYul simpleStorageIRContract).runtimeCode
+        (YulTransaction.ofIR tx) initialState.storage initialState.events)
+    have hFuelGoal :
+        (simpleStorageNativeDispatcherFuel.succ : Nat) =
+          sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1 := by
+      rw [hSizeEq]
+    rw [hFuelGoal]
+    show yulResultsAgreeOn observableSlots _
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
+        .evmYulLean (Compiler.emitYul simpleStorageIRContract).runtimeCode
+        (YulTransaction.ofIR tx) initialState.storage initialState.events)
+    refine ⟨?_, ?_, ?_, ?_⟩
+    · exact hsuccess
+    · exact hreturnValue
+    · intro slot _
+      exact hstorage (IRStorageSlot.ofNat slot)
+    · exact hevents
+
 /-- Recover the monolithic `simpleStorageNativeCallDispatcherBridge` from the
 three per-case sub-bridges by case analysis on
 `tx.functionSelector % selectorModulus`. -/
@@ -4503,13 +4655,12 @@ theorem simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge
 witness supplied per-selector-case.
 
 This theorem targets native EVMYulLean execution, but it does not pretend the
-remaining selected-body native dispatcher proof is complete. Callers must
-supply three per-case sub-bridges (retrieve hit, store hit, selector miss)
-covering the three selector classes the lowered switch branches on. The
-sub-bridges are recombined into the monolithic
-`simpleStorageNativeCallDispatcherBridge` via
-`simpleStorageNativeCallDispatcherBridge_of_per_case` before delegating to the
-underlying `_of_callDispatcher_bridge` wrapper.
+  remaining selected-body native dispatcher proof is complete. Callers must
+  supply the remaining store-hit sub-bridge; retrieve hit and selector miss
+  are discharged below. The per-case bridges are recombined into the monolithic
+  `simpleStorageNativeCallDispatcherBridge` via
+  `simpleStorageNativeCallDispatcherBridge_of_per_case` before delegating to the
+  underlying `_of_callDispatcher_bridge` wrapper.
 
 Each sub-bridge is strictly weaker than the monolithic bridge: it gets to
 assume the selector class as a precondition, so its discharger does not need
@@ -4533,15 +4684,13 @@ theorem simpleStorage_endToEnd_native_evmYulLean
       yulStmtsNoRef "__has_selector" fn.body)
     (hHasSelectorDead : ∀ fn, fn ∈ simpleStorageIRContract.functions →
       HasSelectorDeadBridge fn.body)
-    (hparamErase : ∀ fn, fn ∈ simpleStorageIRContract.functions →
-      paramLoadErasure fn tx (initialState.withTx tx))
-    (hStoreHit :
-      simpleStorageNativeStoreHitBridge tx initialState observableSlots)
-    (hSelectorMiss :
-      simpleStorageNativeSelectorMissBridge tx initialState observableSlots)
-    (hEnv :
-      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
-        (Compiler.emitYul simpleStorageIRContract).runtimeCode
+      (hparamErase : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+        paramLoadErasure fn tx (initialState.withTx tx))
+      (hStoreHit :
+        simpleStorageNativeStoreHitBridge tx initialState observableSlots)
+      (hEnv :
+        Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+          (Compiler.emitYul simpleStorageIRContract).runtimeCode
         (YulTransaction.ofIR tx) = .ok ()) :
     nativeResultsMatchOn observableSlots
       (interpretIR simpleStorageIRContract tx initialState)
@@ -4560,9 +4709,13 @@ theorem simpleStorage_endToEnd_native_evmYulLean
               tx initialState observableSlots
               (simpleStorageNativeRetrieveHitBridge_proved tx initialState
                 observableSlots hselector hNoWrap hvars hmemory htransient
-                hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead
-                hparamErase)
-              hStoreHit hSelectorMiss))))
+                  hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead
+                  hparamErase)
+                hStoreHit
+                (simpleStorageNativeSelectorMissBridge_proved tx initialState
+                  observableSlots hselector hNoWrap hvars hmemory htransient
+                  hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead
+                  hparamErase)))))
 
 /-! ## Universal Pure Arithmetic Bridge
 
