@@ -4,6 +4,9 @@ This document tracks the remaining work for issue #1737: make native
 EVMYulLean execution the public Layer 3 semantic target for Verity-generated
 runtime Yul.
 
+The detailed completion contract and reusable agent prompt live in
+[`NATIVE_EVMYULLEAN_FULL_TRANSITION_DONE.md`](NATIVE_EVMYULLEAN_FULL_TRANSITION_DONE.md).
+
 ## Current State
 
 The current public proof path still targets:
