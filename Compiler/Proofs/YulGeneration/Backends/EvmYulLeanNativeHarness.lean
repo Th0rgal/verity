@@ -4327,6 +4327,36 @@ theorem NativeStmtPreservesWord_block
     NativeStmtPreservesWord name value (.Block body) codeOverride :=
   hBody
 
+theorem NativeStmtPreservesWord_if_of_eval_self
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (cond : EvmYul.Yul.Ast.Expr)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hCond :
+      ∀ fuel state,
+        state[name]! = value →
+          ∃ condValue,
+            EvmYul.Yul.eval fuel cond codeOverride state =
+              .ok (state, condValue))
+    (hBody : NativeBlockPreservesWord name value body codeOverride) :
+    NativeStmtPreservesWord name value (.If cond body) codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hCond fuel' state hLookup with ⟨condValue, hEval⟩
+      simp [EvmYul.Yul.exec, hEval] at hExec
+      by_cases hCondNonzero : condValue ≠ ⟨0⟩
+      · simp [hCondNonzero] at hExec
+        exact hBody fuel' state final hLookup hExec
+      · have hCondZero : condValue = ⟨0⟩ := by
+          exact Decidable.not_not.mp hCondNonzero
+        simp [hCondZero] at hExec
+        cases hExec
+        exact hLookup
+
 theorem NativeStmtPreservesWord_lowerAssignNative_lit_of_ne
     (name target : EvmYul.Identifier)
     (expected : EvmYul.Literal)
