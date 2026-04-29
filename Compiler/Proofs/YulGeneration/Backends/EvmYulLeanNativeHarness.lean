@@ -4376,6 +4376,63 @@ theorem NativeStmtPreservesWord_lowerAssignNative_lit_of_ne
         (EvmYul.UInt256.ofNat assigned) hne]
       exact hLookup
 
+theorem NativeStmtPreservesWord_lowerAssignNative_hex_of_ne
+    (name target : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (assigned : Nat)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hne : name ≠ target) :
+    NativeStmtPreservesWord name expected
+      (Backends.lowerAssignNative target (.hex assigned)) codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      simp [Backends.lowerAssignNative, Backends.lowerExprNative] at hExec
+      cases hExec
+      rw [state_getElem_insert_of_ne state name target
+        (EvmYul.UInt256.ofNat assigned) hne]
+      exact hLookup
+
+theorem NativeStmtPreservesWord_lowerAssignNative_ident_of_ne
+    (name target source : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hne : name ≠ target) :
+    NativeStmtPreservesWord name expected
+      (Backends.lowerAssignNative target (.ident source)) codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      have hFinal : state.insert target state[source]! = final := by
+        simpa [Backends.lowerAssignNative, Backends.lowerExprNative,
+          EvmYul.Yul.exec] using hExec
+      subst final
+      rw [state_getElem_insert_of_ne state name target state[source]! hne]
+      exact hLookup
+
+theorem NativeStmtPreservesWord_lowerAssignNative_str_of_ne
+    (name target source : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hne : name ≠ target) :
+    NativeStmtPreservesWord name expected
+      (Backends.lowerAssignNative target (.str source)) codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      have hFinal : state.insert target state[source]! = final := by
+        simpa [Backends.lowerAssignNative, Backends.lowerExprNative,
+          EvmYul.Yul.exec] using hExec
+      subst final
+      rw [state_getElem_insert_of_ne state name target state[source]! hne]
+      exact hLookup
+
 theorem NativeStmtPreservesWord_let_none_of_not_mem
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)

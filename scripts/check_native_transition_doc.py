@@ -204,6 +204,9 @@ def check_public_theorem_target(
         "theorem NativeBlockPreservesWord_of_forall_stmt",
         "theorem NativeStmtPreservesWord_block",
         "theorem NativeStmtPreservesWord_if_of_eval_self",
+        "theorem NativeStmtPreservesWord_lowerAssignNative_hex_of_ne",
+        "theorem NativeStmtPreservesWord_lowerAssignNative_ident_of_ne",
+        "theorem NativeStmtPreservesWord_lowerAssignNative_str_of_ne",
     ):
         if required_native_entrypoint not in normalized_native_harness:
             errors.append(

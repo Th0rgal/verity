@@ -132,9 +132,10 @@ N8 public Layer 3 theorem flip
 - **Depends on**: N0, N3
 - **Blocks**: N5, N6
 - **Status**: `NativeBlockPreservesWord`, singleton/block-lift/if composition,
-  list-level composition from per-statement preservation, and selected
-  freshness projection lemmas exist; general preservation from
-  `nativeStmtsWriteNames` freshness is not complete.
+  list-level composition from per-statement preservation, selected freshness
+  projection lemmas, and assignment constructors for literal/hex/identifier
+  RHS forms exist; general preservation from `nativeStmtsWriteNames`
+  freshness is not complete.
 - **Definition of done**:
   - If a generated native body does not write a dispatcher temp, native
     execution preserves that temp.
