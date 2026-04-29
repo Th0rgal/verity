@@ -200,6 +200,7 @@ def check_public_theorem_target(
         "def generatedRuntimeFunctionNamesUnique",
         "def generatedRuntimeDispatcherHasNoFuncDefs",
         "def generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs",
+        "theorem NativeBlockPreservesWord_of_forall_stmt",
     ):
         if required_native_entrypoint not in normalized_native_harness:
             errors.append(
