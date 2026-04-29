@@ -914,6 +914,90 @@ verity_contract TupleSmoke where
     let flag := cfg_2
     setMapping authorized owner flag
 
+verity_contract NamedStructParamSmoke where
+  storage
+    values : Uint256 → Uint256 := slot 0
+
+  struct FeeConfig where
+    borrowTakerFeeRatio : Uint256,
+    lendMakerFeeRatio : Uint256
+
+  struct OrderConfig where
+    feeConfig : FeeConfig,
+    maker : Address
+
+  function readBorrowFee (feeConfig : FeeConfig) : Uint256 := do
+    return feeConfig.borrowTakerFeeRatio
+
+  function storeNestedFee (config : OrderConfig, key : Uint256) : Unit := do
+    setMappingUint values key config.feeConfig.borrowTakerFeeRatio
+
+  function readNestedMaker (config : OrderConfig) : Address := do
+    return config.maker
+
+/--
+error: non-leaf struct parameter projection is not supported; project a scalar or static single-word leaf field instead
+-/
+#guard_msgs in
+verity_contract NamedStructNonLeafProjectionRejected where
+  storage
+
+  struct FeeConfig where
+    borrowTakerFeeRatio : Uint256,
+    lendMakerFeeRatio : Uint256
+
+  struct OrderConfig where
+    feeConfig : FeeConfig,
+    maker : Address
+
+  function bad (config : OrderConfig) : Uint256 := do
+    let feeConfig := config.feeConfig
+    return feeConfig.borrowTakerFeeRatio
+
+/--
+error: non-leaf struct parameter projection is not supported; project a scalar or static single-word leaf field instead
+-/
+#guard_msgs in
+verity_contract NamedStructTupleProjectionRejected where
+  storage
+
+  struct TupleConfig where
+    pair : Tuple [Uint256, Uint256],
+    maker : Address
+
+  function badTuple (config : TupleConfig) : Uint256 := do
+    let pair := config.pair
+    return pair_0
+
+/--
+error: non-leaf struct parameter projection is not supported; project a scalar or static single-word leaf field instead
+-/
+#guard_msgs in
+verity_contract NamedStructDynamicProjectionRejected where
+  storage
+
+  struct DynamicConfig where
+    notes : Array Uint256,
+    maker : Address
+
+  function badDynamic (config : DynamicConfig) : Uint256 := do
+    let notes := config.notes
+    return 0
+
+/--
+error: function return types cannot be named structs; return an explicit Tuple [...] instead
+-/
+#guard_msgs in
+verity_contract NamedStructReturnRejected where
+  storage
+
+  struct FeeConfig where
+    borrowTakerFeeRatio : Uint256,
+    lendMakerFeeRatio : Uint256
+
+  function badReturn (feeConfig : FeeConfig) : FeeConfig := do
+    return feeConfig
+
 verity_contract CurveCutArraySmoke where
   storage
     lastXt : Uint256 := slot 0
@@ -1600,6 +1684,7 @@ end SpecGenSmoke
 #check_contract StatelessSmoke
 #check_contract SpecialEntrypointSmoke
 #check_contract TupleSmoke
+#check_contract NamedStructParamSmoke
 #check_contract CurveCutArraySmoke
 #check_contract PackedStorageWriteSmoke
 #check_contract DirectHelperCallSmoke
@@ -1621,6 +1706,22 @@ example : TupleSmoke.getPair = (TupleSmoke.getPair : Uint256 → Verity.Contract
 example :
     TupleSmoke.processConfig =
       (TupleSmoke.processConfig : (Address × Address × Uint256) → Verity.Contract Unit) := rfl
+
+example :
+    NamedStructParamSmoke.readBorrowFee =
+      (NamedStructParamSmoke.readBorrowFee :
+        NamedStructParamSmoke.FeeConfig → Verity.Contract Uint256) := rfl
+
+def namedStructExecutableReadsField : Bool :=
+  let feeConfig : NamedStructParamSmoke.FeeConfig := {
+    borrowTakerFeeRatio := 11
+    lendMakerFeeRatio := 13
+  }
+  match NamedStructParamSmoke.readBorrowFee feeConfig Verity.defaultState with
+  | .success value _ => value == 11
+  | _ => false
+
+example : namedStructExecutableReadsField = true := by decide
 example : Uint8Smoke.acceptSig = (Uint8Smoke.acceptSig : (Uint256 × Uint256 × Uint256) → Verity.Contract Unit) := rfl
 example : ExternalCallSmoke.storeEcho = (ExternalCallSmoke.storeEcho : Uint256 → Verity.Contract Unit) := rfl
 

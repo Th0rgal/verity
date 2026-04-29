@@ -47,6 +47,62 @@ class ParseContractsTests(unittest.TestCase):
         out = gen._split_params("to : Address, amount : Uint256")
         self.assertEqual([(p.name, p.lean_type) for p in out], [("to", "Address"), ("amount", "Uint256")])
 
+    def test_parse_inline_struct_param_as_tuple(self) -> None:
+        src = textwrap.dedent(
+            """
+            verity_contract StructConsumer where
+              storage
+
+              struct feeConfig where borrowTakerFeeRatio : Uint256, /- inline block comment -/ lendMakerFeeRatio : Uint256 -- inline comment
+
+              function readBorrowFee (feeConfig : feeConfig) : Uint256 := do
+                return feeConfig.borrowTakerFeeRatio
+            """
+        )
+        parsed = gen.parse_contracts(src, Path("dummy.lean"))
+        fn = parsed["StructConsumer"].functions[0]
+        self.assertEqual(
+            [(p.name, p.lean_type) for p in fn.params],
+            [("feeConfig", "Tuple [Uint256, Uint256]")],
+        )
+
+    def test_parse_nested_multiline_struct_param_as_tuple(self) -> None:
+        src = textwrap.dedent(
+            """
+            verity_contract StructConsumer where
+              storage
+
+              struct FeeConfig where
+                borrowTakerFeeRatio : Uint256, rebateRatio : Uint256, -- inline comment
+                -- comments inside struct declarations should not end the struct
+                /-- block comments inside struct declarations should not end the struct -/
+                /-
+                multiline block comments should be skipped as well
+                -/ makerFeeRatio : Uint256,
+                /- inline block comment -/ lenderRebateRatio : Uint256, /- between fields -/ borrowerRebateRatio : Uint256,
+                lendMakerFeeRatio : Uint256
+
+              struct OrderConfig where
+                feeConfig : FeeConfig,
+                maker : Address
+
+              function storeNestedFee (config : OrderConfig, key : Uint256) : Unit := do
+                pure ()
+            """
+        )
+        parsed = gen.parse_contracts(src, Path("dummy.lean"))
+        fn = parsed["StructConsumer"].functions[0]
+        self.assertEqual(
+            [(p.name, p.lean_type) for p in fn.params],
+            [
+                (
+                    "config",
+                    "Tuple [Tuple [Uint256, Uint256, Uint256, Uint256, Uint256, Uint256], Address]",
+                ),
+                ("key", "Uint256"),
+            ],
+        )
+
     def test_parse_constructor(self) -> None:
         src = textwrap.dedent(
             """

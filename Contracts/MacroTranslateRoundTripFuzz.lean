@@ -67,6 +67,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.ImmutableSmoke.spec
   , Contracts.Smoke.TypedImmutableSmoke.spec
   , Contracts.Smoke.TupleSmoke.spec
+  , Contracts.Smoke.NamedStructParamSmoke.spec
   , Contracts.Smoke.CurveCutArraySmoke.spec
   , Contracts.Smoke.PackedStorageWriteSmoke.spec
   , Contracts.Smoke.PackedAddressStorageWriteSmoke.spec
@@ -209,7 +210,7 @@ private def shardSpecs (specs : List CompilationModel) (shardIndex shardCount : 
     throw <| IO.userError
       s!"MACRO_FUZZ_SHARD_INDEX must be less than MACRO_FUZZ_SHARD_COUNT ({shardIndex} >= {shardCount})"
   let sharded :=
-    specs.enum.filterMap fun (idx, spec) =>
+    specs.zipIdx.filterMap fun (spec, idx) =>
       if idx % shardCount == shardIndex then some spec else none
   if sharded.isEmpty then
     throw <| IO.userError

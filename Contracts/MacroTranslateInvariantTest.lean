@@ -311,6 +311,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.StringEqSmoke.spec
   , Contracts.BytesEqSmoke.spec
   , Contracts.Smoke.TupleSmoke.spec
+  , Contracts.Smoke.NamedStructParamSmoke.spec
   , Contracts.Smoke.CurveCutArraySmoke.spec
   , Contracts.Smoke.PackedStorageWriteSmoke.spec
   , Contracts.Smoke.PackedAddressStorageWriteSmoke.spec
@@ -419,6 +420,8 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("StringEqSmoke", ["same(string,string)", "different(string,string)", "choose(string,string)"])
   , ("BytesEqSmoke", ["same(bytes,bytes)", "different(bytes,bytes)", "choose(bytes,bytes)"])
   , ("TupleSmoke", ["setFromPair((uint256,uint256))", "getPair(uint256)", "processConfig((address,address,uint256))"])
+  , ("NamedStructParamSmoke", ["readBorrowFee((uint256,uint256))", "storeNestedFee(((uint256,uint256),address),uint256)",
+      "readNestedMaker(((uint256,uint256),address))"])
   , ("CurveCutArraySmoke", ["firstCutXt((uint256,uint256,int256)[])", "returnCut((uint256,uint256,int256)[],uint256)",
       "storeCut((uint256,uint256,int256)[],uint256)", "storeTwoCuts((uint256,uint256,int256)[],uint256,uint256)"])
   , ("PackedStorageWriteSmoke", ["writeSlot0(bool,uint256)", "writeSlot1(uint256,uint256)"])
@@ -525,6 +528,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("StringEqSmoke", ["0x6df1667c", "0x1ce8f655", "0xc9e9b0e3"])
   , ("BytesEqSmoke", ["0xfc39552e", "0x2c16057d", "0x3eb6f0de"])
   , ("TupleSmoke", ["0x712ea680", "0xbdf391cc", "0x01b427d2"])
+  , ("NamedStructParamSmoke", ["0xa01f780b", "0x38946c6d", "0x596635bb"])
   , ("CurveCutArraySmoke", ["0xefca8f0f", "0x6f413e6b", "0x0d7610a3", "0xbea7dfd2"])
   , ("PackedStorageWriteSmoke", ["0xa0522387", "0x233ab149"])
   , ("PackedAddressStorageWriteSmoke", ["0xd59c874d"])
@@ -864,6 +868,20 @@ private def checkDirectHelperCallSmoke : IO Unit := do
     (contains (reprStr runHelpers.body) "Stmt.internalCallAssign" &&
       contains (reprStr runHelpers.body) "\"internal_pairWithTotal\"")
 
+private def checkNamedStructParamSmoke : IO Unit := do
+  expectTrue
+    "NamedStructParamSmoke: nested struct leaf projection uses recursive tuple binding"
+    (match Contracts.Smoke.NamedStructParamSmoke.storeNestedFee_modelBody with
+    | [ Stmt.setMappingUint "values" (Expr.param "key") (Expr.param "config_0_0")
+      , Stmt.stop
+      ] => true
+    | _ => false)
+  expectTrue
+    "NamedStructParamSmoke: sibling field after nested struct uses top-level tuple binding"
+    (match Contracts.Smoke.NamedStructParamSmoke.readNestedMaker_modelBody with
+    | [Stmt.return (Expr.param "config_1")] => true
+    | _ => false)
+
 private def curveCutArrayStoreMemoizesIndex : Bool :=
   match Contracts.Smoke.CurveCutArraySmoke.storeCut_modelBody with
   | Stmt.letVar "arrayElement_index" (Expr.param "idx") ::
@@ -1025,6 +1043,7 @@ private def checkSpec (spec : CompilationModel) : IO Unit := do
   checkLowLevelTryCatchSmoke
   checkSpecialEntrypointSmoke
   checkDirectHelperCallSmoke
+  checkNamedStructParamSmoke
   checkCurveCutArraySmoke
   for spec in macroSpecs do
     checkSpec spec

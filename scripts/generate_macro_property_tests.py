@@ -29,6 +29,7 @@ PARAM_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+?)\s*$")
 NEWTYPE_RE = re.compile(
     r"^\s*([A-Z][A-Za-z0-9_]*)\s*:\s*([A-Za-z0-9_]+)\s*$",
 )
+STRUCT_RE = re.compile(r"^\s*struct\s+([A-Za-z_][A-Za-z0-9_]*)\s+where\s*(.*?)\s*$")
 STORAGE_RE = re.compile(
     r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+?)\s*:=\s*slot\s+([0-9]+)\s*$",
 )
@@ -158,6 +159,29 @@ def _normalize_type(type_src: str) -> str:
     return " ".join(type_src.strip().split())
 
 
+def _strip_lean_comments(src: str, in_block_comment: bool = False) -> tuple[str, bool]:
+    """Strip Lean line and block comments from a struct field list fragment."""
+    out: list[str] = []
+    i = 0
+    while i < len(src):
+        if in_block_comment:
+            end = src.find("-/", i)
+            if end == -1:
+                return "".join(out).rstrip(), True
+            i = end + 2
+            in_block_comment = False
+            continue
+        if src.startswith("--", i):
+            break
+        if src.startswith("/-", i):
+            in_block_comment = True
+            i += 2
+            continue
+        out.append(src[i])
+        i += 1
+    return "".join(out).rstrip(), in_block_comment
+
+
 def _split_params(params_src: str) -> tuple[ParamDecl, ...]:
     if not params_src.strip():
         return ()
@@ -191,21 +215,36 @@ def _split_params(params_src: str) -> tuple[ParamDecl, ...]:
     return tuple(out)
 
 
-def _resolve_newtypes_in_params(
-    params: tuple[ParamDecl, ...], newtypes: dict[str, str]
-) -> tuple[ParamDecl, ...]:
-    """Replace newtype names with their base types in param declarations."""
-    if not newtypes:
-        return params
-    return tuple(
-        ParamDecl(name=p.name, lean_type=newtypes.get(p.lean_type, p.lean_type))
-        for p in params
-    )
-
-
 def _resolve_newtype(ty: str, newtypes: dict[str, str]) -> str:
     """Replace a newtype name with its base type if found."""
     return newtypes.get(ty, ty)
+
+
+def _resolve_decl_type(ty: str, newtypes: dict[str, str], structs: dict[str, tuple[ParamDecl, ...]]) -> str:
+    """Resolve macro-local aliases into the tuple-shaped type syntax used by this generator."""
+    normalized = _resolve_newtype(_normalize_type(ty), newtypes)
+    if normalized in structs:
+        elems = [_resolve_decl_type(field.lean_type, newtypes, structs) for field in structs[normalized]]
+        return f"Tuple [{', '.join(elems)}]"
+    if normalized.startswith("Array "):
+        elem = normalized[len("Array ") :].strip()
+        return f"Array {_resolve_decl_type(elem, newtypes, structs)}"
+    if normalized.startswith("Tuple [") and normalized.endswith("]"):
+        inner = normalized[len("Tuple [") : -1]
+        elems = [_resolve_decl_type(elem, newtypes, structs) for elem in _parse_tuple_elements(inner)]
+        return f"Tuple [{', '.join(elems)}]"
+    return normalized
+
+
+def _resolve_decl_types_in_params(
+    params: tuple[ParamDecl, ...],
+    newtypes: dict[str, str],
+    structs: dict[str, tuple[ParamDecl, ...]],
+) -> tuple[ParamDecl, ...]:
+    return tuple(
+        ParamDecl(name=p.name, lean_type=_resolve_decl_type(p.lean_type, newtypes, structs))
+        for p in params
+    )
 
 
 def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
@@ -215,6 +254,10 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
     current_storage_slots: dict[str, int] = {}
     current_storage_types: dict[str, str] = {}
     current_newtypes: dict[str, str] = {}
+    current_structs: dict[str, tuple[ParamDecl, ...]] = {}
+    current_struct_name: str | None = None
+    current_struct_fields: list[ParamDecl] = []
+    current_struct_block_comment = False
     current_constants: dict[str, ValueDecl] = {}
     current_immutables: dict[str, ValueDecl] = {}
     current_functions: list[FunctionDecl] = []
@@ -226,6 +269,15 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
     in_constants_block = False
     in_immutables_block = False
     pending_storage_lines: list[str] = []
+
+    def flush_struct() -> None:
+        nonlocal current_struct_name, current_struct_fields, current_struct_block_comment
+        if current_struct_name is None:
+            return
+        current_structs[current_struct_name] = tuple(current_struct_fields)
+        current_struct_name = None
+        current_struct_fields = []
+        current_struct_block_comment = False
 
     def flush_function() -> None:
         nonlocal current_function, current_body
@@ -243,9 +295,10 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
         current_body = []
 
     def flush_current() -> None:
-        nonlocal current_name, current_constructor, current_storage_slots, current_storage_types, current_newtypes, current_constants, current_immutables, current_functions, in_types_block, in_storage_block, in_constants_block, in_immutables_block, pending_storage_lines
+        nonlocal current_name, current_constructor, current_storage_slots, current_storage_types, current_newtypes, current_structs, current_constants, current_immutables, current_functions, in_types_block, in_storage_block, in_constants_block, in_immutables_block, pending_storage_lines, current_struct_block_comment
         if current_name is None:
             return
+        flush_struct()
         flush_function()
         contracts[current_name] = ContractDecl(
             name=current_name,
@@ -263,9 +316,11 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
         current_storage_slots = {}
         current_storage_types = {}
         current_newtypes = {}
+        current_structs = {}
         current_constants = {}
         current_immutables = {}
         current_functions = []
+        current_struct_block_comment = False
         in_types_block = False
         in_storage_block = False
         in_constants_block = False
@@ -294,6 +349,21 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
         if current_name is None:
             continue
 
+        if current_struct_name is not None:
+            field_src, current_struct_block_comment = _strip_lean_comments(
+                line.strip(), current_struct_block_comment
+            )
+            if not field_src.strip():
+                continue
+            try:
+                fields = _split_params(field_src)
+            except ValueError:
+                fields = ()
+            if fields:
+                current_struct_fields.extend(fields)
+                continue
+            flush_struct()
+
         if current_function is not None and line.strip() and not line.startswith("    "):
             flush_function()
 
@@ -316,6 +386,7 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
                 # fall through to check other sections
 
         if line.strip() == "storage":
+            flush_struct()
             in_types_block = False
             in_storage_block = True
             in_constants_block = False
@@ -324,6 +395,7 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
             continue
 
         if line.strip() == "constants":
+            flush_struct()
             in_storage_block = False
             in_constants_block = True
             in_immutables_block = False
@@ -331,18 +403,46 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
             continue
 
         if line.strip() == "immutables":
+            flush_struct()
             in_storage_block = False
             in_constants_block = False
             in_immutables_block = True
             pending_storage_lines = []
             continue
 
+        sm = STRUCT_RE.match(line)
+        if sm:
+            flush_function()
+            flush_struct()
+            inline_fields, current_struct_block_comment = _strip_lean_comments(sm.group(2).strip())
+            if inline_fields:
+                current_struct_fields = list(_split_params(inline_fields))
+                if current_struct_block_comment:
+                    current_struct_name = sm.group(1)
+                else:
+                    current_structs[sm.group(1)] = tuple(current_struct_fields)
+                    current_struct_fields = []
+            else:
+                current_struct_name = sm.group(1)
+                current_struct_fields = []
+            in_types_block = False
+            in_storage_block = False
+            in_constants_block = False
+            in_immutables_block = False
+            pending_storage_lines = []
+            continue
+
         ctor = CONSTRUCTOR_RE.match(line)
         if ctor:
             flush_function()
+            flush_struct()
             if current_constructor is not None:
                 raise ValueError(f"duplicate constructor in contract '{current_name}'")
-            current_constructor = ConstructorDecl(params=_resolve_newtypes_in_params(_split_params(ctor.group(1)), current_newtypes))
+            current_constructor = ConstructorDecl(
+                params=_resolve_decl_types_in_params(
+                    _split_params(ctor.group(1)), current_newtypes, current_structs
+                )
+            )
             in_types_block = False
             in_storage_block = False
             in_constants_block = False
@@ -352,12 +452,15 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
         fm = FUNCTION_RE.match(line)
         if fm:
             flush_function()
+            flush_struct()
             fn_name = fm.group(1)
             params_src = fm.group(2)
-            ret_ty = _resolve_newtype(_normalize_type(fm.group(3)), current_newtypes)
+            ret_ty = _resolve_decl_type(fm.group(3), current_newtypes, current_structs)
             current_function = FunctionDecl(
                 name=fn_name,
-                params=_resolve_newtypes_in_params(_split_params(params_src), current_newtypes),
+                params=_resolve_decl_types_in_params(
+                    _split_params(params_src), current_newtypes, current_structs
+                ),
                 return_type=ret_ty,
             )
             in_storage_block = False
