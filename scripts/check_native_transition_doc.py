@@ -202,6 +202,7 @@ def check_public_theorem_target(
         "def generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs",
         "theorem NativeBlockPreservesWord_singleton",
         "theorem NativeBlockPreservesWord_of_forall_stmt",
+        "theorem NativeBlockPreservesWord_of_forall_stmt_write_not_mem",
         "theorem NativeStmtPreservesWord_block",
         "theorem NativeStmtPreservesWord_if_of_eval_self",
         "theorem NativeStmtPreservesWord_lowerAssignNative_lit_of_ne",
