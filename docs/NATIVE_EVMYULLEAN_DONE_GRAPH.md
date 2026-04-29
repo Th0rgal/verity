@@ -131,9 +131,9 @@ N8 public Layer 3 theorem flip
 - **Urgency**: P0, highest current bottleneck
 - **Depends on**: N0, N3
 - **Blocks**: N5, N6
-- **Status**: `NativeBlockPreservesWord` and selected freshness projection
-  lemmas exist; general preservation from `nativeStmtsWriteNames` freshness is
-  not complete.
+- **Status**: `NativeBlockPreservesWord`, list-level composition from
+  per-statement preservation, and selected freshness projection lemmas exist;
+  general preservation from `nativeStmtsWriteNames` freshness is not complete.
 - **Definition of done**:
   - If a generated native body does not write a dispatcher temp, native
     execution preserves that temp.
@@ -258,4 +258,3 @@ N8 public Layer 3 theorem flip
   - Removal or shrinkage is deferred until native coverage is mature.
 - **Verification**:
   - Documentation and CI checks name the native path as authoritative.
-
