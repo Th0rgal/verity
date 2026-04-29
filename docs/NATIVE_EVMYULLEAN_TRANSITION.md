@@ -324,6 +324,9 @@ scope so the native path does not look more complete than it is:
   `NativeBlockPreservesWord_of_forall_stmt`,
   `NativeStmtPreservesWord_block`,
   `NativeStmtPreservesWord_if_of_eval_self`,
+  `NativeStmtPreservesWord_lowerAssignNative_hex_of_ne`,
+  `NativeStmtPreservesWord_lowerAssignNative_ident_of_ne`,
+  `NativeStmtPreservesWord_lowerAssignNative_str_of_ne`,
   `nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem`, and
   `nativeSwitchTempsFreshForNativeBodies_default_matched_not_mem`; the next
   proof step is the statement induction that derives those preservation
