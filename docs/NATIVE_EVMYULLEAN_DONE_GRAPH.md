@@ -131,7 +131,7 @@ N8 public Layer 3 theorem flip
 - **Urgency**: P0, highest current bottleneck
 - **Depends on**: N0, N3
 - **Blocks**: N5, N6
-- **Status**: `NativeBlockPreservesWord`, singleton/block-lift composition,
+- **Status**: `NativeBlockPreservesWord`, singleton/block-lift/if composition,
   list-level composition from per-statement preservation, and selected
   freshness projection lemmas exist; general preservation from
   `nativeStmtsWriteNames` freshness is not complete.

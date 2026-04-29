@@ -203,6 +203,7 @@ def check_public_theorem_target(
         "theorem NativeBlockPreservesWord_singleton",
         "theorem NativeBlockPreservesWord_of_forall_stmt",
         "theorem NativeStmtPreservesWord_block",
+        "theorem NativeStmtPreservesWord_if_of_eval_self",
     ):
         if required_native_entrypoint not in normalized_native_harness:
             errors.append(
