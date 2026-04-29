@@ -666,9 +666,10 @@ theorem nativeIRRuntimeAgreesWithInterpreter_of_lowered_callDispatcher_agree
     {fuel : Nat} {contract : IRContract} {tx : IRTransaction}
     {state : IRState} {observableSlots : List Nat}
     {nativeContract : EvmYul.Yul.Ast.YulContract}
-    (hLower :
-      Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
-        (Compiler.emitYul contract).runtimeCode = .ok nativeContract)
+    (hFragment : Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeNativeFragment
+      (Compiler.emitYul contract).runtimeCode = true)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul contract).runtimeCode = .ok nativeContract)
     (hEnv :
       Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
         (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
@@ -679,7 +680,7 @@ theorem nativeIRRuntimeAgreesWithInterpreter_of_lowered_callDispatcher_agree
   apply nativeIRRuntimeAgreesWithInterpreter_of_ok_agree
   · exact
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative
-        fuel contract tx state observableSlots nativeContract hLower hEnv)
+        fuel contract tx state observableSlots nativeContract hFragment hLower hEnv)
   · exact hAgree
 
 /-! ## Layer 3: IR → Yul (Generic) -/
@@ -908,14 +909,10 @@ theorem layer3_contract_preserves_semantics
     (hmemory : initialState.memory = fun _ => 0)
     (htransient : initialState.transientStorage = fun _ => 0)
     (hreturn : initialState.returnValue = none)
-    (hparamErase : ∀ fn, fn ∈ contract.functions →
-      paramLoadErasure fn tx (initialState.withTx tx))
-    (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions →
-      DispatchGuardsSafe fn tx)
-    (hNoHasSelector : ∀ fn, fn ∈ contract.functions →
-      yulStmtsNoRef "__has_selector" fn.body)
-    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions →
-      HasSelectorDeadBridge fn.body)
+    (hparamErase : ∀ fn, fn ∈ contract.functions → paramLoadErasure fn tx (initialState.withTx tx))
+    (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions → DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ contract.functions → yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions → HasSelectorDeadBridge fn.body)
     (hLoopFree : ∀ fn, fn ∈ contract.functions →
       yulStmtsLoopFree fn.body = true)
     (hWF : ContractWF contract)
@@ -1018,14 +1015,10 @@ theorem layer3_contract_preserves_semantics_evmYulLean
     (hmemory : initialState.memory = fun _ => 0)
     (htransient : initialState.transientStorage = fun _ => 0)
     (hreturn : initialState.returnValue = none)
-    (hparamErase : ∀ fn, fn ∈ contract.functions →
-      paramLoadErasure fn tx (initialState.withTx tx))
-    (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions →
-      DispatchGuardsSafe fn tx)
-    (hNoHasSelector : ∀ fn, fn ∈ contract.functions →
-      yulStmtsNoRef "__has_selector" fn.body)
-    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions →
-      HasSelectorDeadBridge fn.body)
+    (hparamErase : ∀ fn, fn ∈ contract.functions → paramLoadErasure fn tx (initialState.withTx tx))
+    (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions → DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ contract.functions → yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions → HasSelectorDeadBridge fn.body)
     (hLoopFree : ∀ fn, fn ∈ contract.functions →
       yulStmtsLoopFree fn.body = true)
     (hWF : ContractWF contract)
@@ -1106,20 +1099,19 @@ theorem layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bri
     (hvars : initialState.vars = []) (hmemory : initialState.memory = fun _ => 0)
     (htransient : initialState.transientStorage = fun _ => 0)
     (hreturn : initialState.returnValue = none)
-    (hparamErase : ∀ fn, fn ∈ contract.functions →
-      paramLoadErasure fn tx (initialState.withTx tx))
-    (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions →
-      DispatchGuardsSafe fn tx)
-    (hNoHasSelector : ∀ fn, fn ∈ contract.functions →
-      yulStmtsNoRef "__has_selector" fn.body)
-    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions →
-      HasSelectorDeadBridge fn.body)
+    (hparamErase : ∀ fn, fn ∈ contract.functions → paramLoadErasure fn tx (initialState.withTx tx))
+    (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions → DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ contract.functions → yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions → HasSelectorDeadBridge fn.body)
     (hLoopFree : ∀ fn, fn ∈ contract.functions → yulStmtsLoopFree fn.body = true)
     (hWF : ContractWF contract) (hNoFallback : contract.fallbackEntrypoint = none)
     (hNoReceive : contract.receiveEntrypoint = none)
     (hFunctions : ∀ fn, fn ∈ contract.functions →
       Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body)
     (hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1)
+    (hFragment :
+      Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeNativeFragment
+        (Compiler.emitYul contract).runtimeCode = true)
     (hLower :
       Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
         (Compiler.emitYul contract).runtimeCode = .ok nativeContract)
@@ -1138,7 +1130,7 @@ theorem layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bri
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
     hNoReceive hFunctions hFuel
     (nativeIRRuntimeAgreesWithInterpreter_of_lowered_callDispatcher_agree
-      hLower hEnv hNativeCallDispatcher)
+      hFragment hLower hEnv hNativeCallDispatcher)
 
 /-! ## Layers 2+3 Composition -/
 
@@ -1349,6 +1341,9 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge
     (hWF : ContractWF irContract) (hNoFallback : irContract.fallbackEntrypoint = none)
     (hNoReceive : irContract.receiveEntrypoint = none)
     (hFuel : fuel = sizeOf (Compiler.emitYul irContract).runtimeCode + 1)
+    (hFragment :
+      Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeNativeFragment
+        (Compiler.emitYul irContract).runtimeCode = true)
     (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
       (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
@@ -1367,7 +1362,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge
       (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_compiled_functions
         spec selectors hSupported irContract hCompile)
       hStaticParams hSafeBodies)
-    hFuel hLower hEnv hNativeCallDispatcher
+    hFuel hFragment hLower hEnv hNativeCallDispatcher
 
 /-! ## Concrete Instantiation: SimpleStorage -/
 
@@ -5574,6 +5569,7 @@ theorem simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge
     rfl
     simpleStorage_functions_bridged
     rfl
+    Compiler.SimpleStorageNativeWitness.generatedRuntimeNativeFragment_eq
     Compiler.SimpleStorageNativeWitness.lowerRuntimeContractNative_eq
     hEnv
     hNativeCallDispatcher
