@@ -131,8 +131,9 @@ N8 public Layer 3 theorem flip
 - **Urgency**: P0, highest current bottleneck
 - **Depends on**: N0, N3
 - **Blocks**: N5, N6
-- **Status**: `NativeBlockPreservesWord`, singleton/block-lift/if composition,
-  list-level composition from per-statement preservation, selected freshness
+- **Status**: `NativeBlockPreservesWord`, singleton/block-lift/if composition
+  including condition evaluations that preserve the tracked word, list-level
+  composition from per-statement preservation, selected freshness
   projection lemmas, assignment constructors for literal/hex/identifier/string
   RHS forms, and generated `let` constructors for omitted, variable, and literal
   initializers exist; general preservation from `nativeStmtsWriteNames`
