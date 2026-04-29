@@ -4288,6 +4288,16 @@ theorem NativeBlockPreservesWord_cons_stmt
     NativeBlockPreservesWord name value (stmt :: rest) codeOverride :=
   NativeBlockPreservesWord_cons name value stmt rest codeOverride hHead hRest
 
+theorem NativeBlockPreservesWord_singleton
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (stmt : EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hStmt : NativeStmtPreservesWord name value stmt codeOverride) :
+    NativeBlockPreservesWord name value [stmt] codeOverride := by
+  exact NativeBlockPreservesWord_cons_stmt name value stmt [] codeOverride
+    hStmt (NativeBlockPreservesWord_nil name value codeOverride)
+
 theorem NativeBlockPreservesWord_of_forall_stmt
     (name : EvmYul.Identifier)
     (value : EvmYul.Literal)
@@ -4307,6 +4317,15 @@ theorem NativeBlockPreservesWord_of_forall_stmt
       · exact ih (by
           intro stmt' hmem
           exact hPreserves stmt' (by simp [hmem]))
+
+theorem NativeStmtPreservesWord_block
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hBody : NativeBlockPreservesWord name value body codeOverride) :
+    NativeStmtPreservesWord name value (.Block body) codeOverride :=
+  hBody
 
 theorem NativeStmtPreservesWord_lowerAssignNative_lit_of_ne
     (name target : EvmYul.Identifier)

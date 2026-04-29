@@ -320,7 +320,9 @@ scope so the native path does not look more complete than it is:
   `nativeSwitchPrefixFinalState_discr`,
   `nativeSwitchPrefixFinalState_marked`, `NativeBlockPreservesWord_nil`,
   `NativeBlockPreservesWord_cons`,
+  `NativeBlockPreservesWord_singleton`,
   `NativeBlockPreservesWord_of_forall_stmt`,
+  `NativeStmtPreservesWord_block`,
   `nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem`, and
   `nativeSwitchTempsFreshForNativeBodies_default_matched_not_mem`; the next
   proof step is the statement induction that derives those preservation
