@@ -985,6 +985,20 @@ verity_contract NamedStructDynamicProjectionRejected where
     return 0
 
 /--
+error: struct parameter projection from an ABI-dynamic root is not supported; use a static struct parameter or wait for nested-dynamic ABI decoding
+-/
+#guard_msgs in
+verity_contract NamedStructDynamicRootLeafProjectionRejected where
+  storage
+
+  struct DynamicConfig where
+    notes : Array Uint256,
+    maker : Address
+
+  function badDynamicLeaf (config : DynamicConfig) : Address := do
+    return config.maker
+
+/--
 error: function return types cannot be named structs; return an explicit Tuple [...] instead
 -/
 #guard_msgs in

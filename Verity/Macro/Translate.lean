@@ -1338,6 +1338,14 @@ private partial def staticAbiWordCount? : ValueType → Option Nat
   | .newtype _ baseType => staticAbiWordCount? baseType
   | _ => none
 
+private partial def valueTypeUsesDynamicData : ValueType → Bool
+  | .string | .bytes | .array _ => true
+  | .tuple elemTys => elemTys.any valueTypeUsesDynamicData
+  | .struct _ fields => fields.any (fun field => valueTypeUsesDynamicData field.snd)
+  | .newtype _ baseType => valueTypeUsesDynamicData baseType
+  | .adt _ _ => false  -- ADTs are stored as tag + fixed-width slots, not dynamic
+  | .uint256 | .int256 | .uint8 | .address | .bytes32 | .bool | .unit => false
+
 private def classifyWordArithmeticResultType
     (stx : Syntax)
     (context : String)
@@ -1451,14 +1459,14 @@ private partial def structFieldPath?
 
 private def paramStructProjectionResolved?
     (params : Array ParamDecl)
-    (stx : Term) : Option (String × ValueType) := do
+    (stx : Term) : Option (String × ValueType × ValueType) := do
   let resolve (rootName : String) (path : List String) := do
     let param ← params.find? (fun p => p.name == rootName)
     let (fieldTy, indices) ← structFieldPath? param.ty path
     if indices.isEmpty then
       none
     else
-      some (String.intercalate "_" (rootName :: indices.map toString), fieldTy)
+      some (String.intercalate "_" (rootName :: indices.map toString), fieldTy, param.ty)
   match (stripParens stx).raw with
   | .ident _ raw _ _ =>
       let parts := raw.toString.splitOn "."
@@ -1481,20 +1489,29 @@ private def paramStructProjectionResolved?
 private def paramStructProjection?
     (params : Array ParamDecl)
     (stx : Term) : Option (String × ValueType) := do
-  let (paramName, fieldTy) ← paramStructProjectionResolved? params stx
-  if isSingleWordStaticValueType fieldTy then
+  let (paramName, fieldTy, rootTy) ← paramStructProjectionResolved? params stx
+  if isSingleWordStaticValueType fieldTy && !valueTypeUsesDynamicData rootTy then
     some (paramName, fieldTy)
   else
     none
 
 private def isParamStructNonLeafProjection (params : Array ParamDecl) (stx : Term) : Bool :=
   match paramStructProjectionResolved? params stx with
-  | some (_, fieldTy) => !isSingleWordStaticValueType fieldTy
+  | some (_, fieldTy, _) => !isSingleWordStaticValueType fieldTy
+  | none => false
+
+private def isParamStructDynamicRootProjection (params : Array ParamDecl) (stx : Term) : Bool :=
+  match paramStructProjectionResolved? params stx with
+  | some (_, fieldTy, rootTy) => isSingleWordStaticValueType fieldTy && valueTypeUsesDynamicData rootTy
   | none => false
 
 private def throwStructNonLeafProjectionError (stx : Term) : CommandElabM α :=
   throwErrorAt stx
     "non-leaf struct parameter projection is not supported; project a scalar or static single-word leaf field instead"
+
+private def throwStructDynamicRootProjectionError (stx : Term) : CommandElabM α :=
+  throwErrorAt stx
+    "struct parameter projection from an ABI-dynamic root is not supported; use a static struct parameter or wait for nested-dynamic ABI decoding"
 
 private def renderValueType (ty : ValueType) : String :=
   reprStr ty
@@ -1642,13 +1659,8 @@ private def requireDeclaredValueType
     throwErrorAt stx
       s!"{context} expects {renderValueType expectedTy}, got {renderValueType actualTy}"
 
-private partial def localBindingUsesDynamicData : ValueType → Bool
-  | .string | .bytes | .array _ => true
-  | .tuple elemTys => elemTys.any localBindingUsesDynamicData
-  | .struct _ fields => fields.any (fun field => localBindingUsesDynamicData field.snd)
-  | .newtype _ baseType => localBindingUsesDynamicData baseType
-  | .adt _ _ => false  -- ADTs are stored as tag + fixed-width slots, not dynamic
-  | .uint256 | .int256 | .uint8 | .address | .bytes32 | .bool | .unit => false
+private def localBindingUsesDynamicData : ValueType → Bool :=
+  valueTypeUsesDynamicData
 
 private def requireSupportedLocalBindingType
     (stx : Syntax)
@@ -1769,6 +1781,9 @@ private partial def inferPureExprType
           if matchesBareName p.name name then some p.ty else none) with
     | some ty => pure ty
     | none => throwPureContextAccessorError stx name
+  if isParamStructDynamicRootProjection params stx then
+    throwStructDynamicRootProjectionError stx
+  else
   if isParamStructNonLeafProjection params stx then
     throwStructNonLeafProjectionError stx
   else
@@ -2404,6 +2419,9 @@ partial def translatePureExprWithTypes
     (visitingConstants : List String := []) : CommandElabM Term := do
   let stx := stripParens stx
   let localNames := typedLocalNames locals
+  if isParamStructDynamicRootProjection params stx then
+    throwStructDynamicRootProjectionError stx
+  else
   if isParamStructNonLeafProjection params stx then
     throwStructNonLeafProjectionError stx
   else
