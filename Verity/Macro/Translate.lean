@@ -2317,10 +2317,7 @@ private partial def inferTupleSourceTypes?
               match fn.returnTy with
               | .tuple elemTys => pure (some elemTys.toArray)
               | _ => pure none
-          | none =>
-              match ← resolveQualifiedFunctionApp? fields constDecls immutableDecls externalDecls params locals other with
-              | some _ => pure none
-              | none => pure none
+          | none => pure none
 
 private partial def resolveLocalFunctionApp?
     (fields : Array StorageFieldDecl)
