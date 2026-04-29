@@ -824,6 +824,60 @@ example : storeHelperPairTailNameCollisionExecutablePreservesParam = true := by 
 
 end MacroTupleDestructuringSmoke
 
+namespace MacroQualifiedLibraryCallSmoke
+
+open Contracts
+open Verity hiding pure bind
+open Verity.EVM.Uint256
+
+verity_contract TermMaxCurve where
+  storage
+
+  function buyXt (nif : Uint256, daysToMaturity : Uint256,
+      oriXtReserve : Uint256, debtTokenAmtIn : Uint256) :
+      Tuple [Uint256, Uint256] := do
+    return (add nif daysToMaturity, add oriXtReserve debtTokenAmtIn)
+
+verity_contract TermMaxOrderV2 where
+  storage
+    sentinel : Uint256 := slot 0
+
+  function buyXtStep (nif : Uint256, daysToMaturity : Uint256,
+      oriXtReserve : Uint256, debtTokenAmtIn : Uint256) :
+      Tuple [Uint256, Uint256] := do
+    let (tokenAmtOut, deltaFt) ←
+      TermMaxCurve.buyXt nif daysToMaturity oriXtReserve debtTokenAmtIn
+    return (tokenAmtOut, deltaFt)
+
+private def qualifiedBuyXtInternalName : String := "internal_TermMaxCurve_buyXt"
+
+def buyXtStepModelUsesQualifiedInternalCall : Bool :=
+  match TermMaxOrderV2.buyXtStep_modelBody with
+  | [Stmt.internalCallAssign ["tokenAmtOut", "deltaFt"] helperName
+        [Expr.param "nif", Expr.param "daysToMaturity",
+         Expr.param "oriXtReserve", Expr.param "debtTokenAmtIn"],
+      Stmt.returnValues [Expr.localVar "tokenAmtOut", Expr.localVar "deltaFt"]] =>
+      helperName == qualifiedBuyXtInternalName
+  | _ => false
+
+example : buyXtStepModelUsesQualifiedInternalCall = true := by native_decide
+
+def callerSpecIncludesQualifiedLibraryModel : Bool :=
+  TermMaxOrderV2.spec.functions.any fun fn =>
+    fn.name == qualifiedBuyXtInternalName && fn.isInternal
+
+example : callerSpecIncludesQualifiedLibraryModel = true := by native_decide
+
+def qualifiedLibraryExecutableCallRuns : Bool :=
+  match TermMaxOrderV2.buyXtStep 10 3 20 7 Verity.defaultState with
+  | .success (tokenAmtOut, deltaFt) state =>
+      tokenAmtOut == 13 && deltaFt == 27 && state.sender == Verity.defaultState.sender
+  | .revert _ _ => false
+
+example : qualifiedLibraryExecutableCallRuns = true := by native_decide
+
+end MacroQualifiedLibraryCallSmoke
+
 namespace MacroStatelessSmoke
 
 open Contracts
