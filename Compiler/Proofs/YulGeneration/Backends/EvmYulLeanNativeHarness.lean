@@ -4318,6 +4318,23 @@ theorem NativeBlockPreservesWord_of_forall_stmt
           intro stmt' hmem
           exact hPreserves stmt' (by simp [hmem]))
 
+theorem NativeBlockPreservesWord_of_forall_stmt_write_not_mem
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hFresh :
+      ∀ stmt, stmt ∈ body → name ∉ Backends.nativeStmtWriteNames stmt)
+    (hPreserves :
+      ∀ stmt, stmt ∈ body →
+        name ∉ Backends.nativeStmtWriteNames stmt →
+          NativeStmtPreservesWord name value stmt codeOverride) :
+    NativeBlockPreservesWord name value body codeOverride :=
+  NativeBlockPreservesWord_of_forall_stmt name value body codeOverride
+    (by
+      intro stmt hmem
+      exact hPreserves stmt hmem (hFresh stmt hmem))
+
 theorem NativeStmtPreservesWord_block
     (name : EvmYul.Identifier)
     (value : EvmYul.Literal)
