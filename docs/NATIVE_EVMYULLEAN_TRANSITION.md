@@ -424,10 +424,13 @@ scope so the native path does not look more complete than it is:
   `NativeStmtPreservesWord_exprStmtCall_stop`,
   `nativeStmtWriteNames_not_mem_of_nativeStmtsWriteNames_not_mem`,
   `NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem`,
+  `NativeStmtPreservesWord_block_of_nativeStmtsWriteNames_not_mem`,
+  `NativeStmtPreservesWord_if_of_eval_preserves_and_nativeStmtsWriteNames_not_mem`,
   `nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem`, and
   `nativeSwitchTempsFreshForNativeBodies_default_matched_not_mem`; the next
   proof step is the statement induction that derives the per-statement
-  preservation obligations from `nativeStmtWriteNames` freshness. The selected
+  preservation obligations from `nativeStmtWriteNames` freshness and the
+  existing condition-evaluation success premises. The selected
   switch-tail and lowered-switch hit paths can now consume generated
   `nativeSwitchTempsFreshForNativeBodies` freshness directly through
   `exec_nativeSwitchTail_find_hit_fresh_fuel` and

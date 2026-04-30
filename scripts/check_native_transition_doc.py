@@ -299,6 +299,8 @@ def check_public_theorem_target(
         "theorem NativeStmtPreservesWord_exprStmtCall_stop",
         "theorem nativeStmtWriteNames_not_mem_of_nativeStmtsWriteNames_not_mem",
         "theorem NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem",
+        "theorem NativeStmtPreservesWord_block_of_nativeStmtsWriteNames_not_mem",
+        "theorem NativeStmtPreservesWord_if_of_eval_preserves_and_nativeStmtsWriteNames_not_mem",
         "theorem exec_nativeSwitchTail_find_hit_fresh_fuel",
         "theorem exec_lowerNativeSwitchBlock_selector_find_hit_fresh_fuel",
         "theorem exec_lowerNativeSwitchBlock_storePrefix_tail_ok_fuel",
