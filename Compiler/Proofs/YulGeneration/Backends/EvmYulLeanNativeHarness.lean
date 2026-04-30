@@ -1687,6 +1687,14 @@ theorem lowerExprNative_selectorExpr :
       .ok (state.setMachineState machineState', some value) := by
   rfl
 
+@[simp] theorem step_keccak256_ok
+    (state : EvmYul.Yul.State)
+    (offset size : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.KECCAK256 none state [offset, size] =
+      let (value, machineState') := state.toMachineState.keccak256 offset size
+      .ok (state.setMachineState machineState', some value) := by
+  rfl
+
 @[simp] theorem step_sstore_ok
     (state : EvmYul.Yul.State)
     (slot value : EvmYul.UInt256) :
@@ -2161,6 +2169,16 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
     EvmYul.Yul.primCall (fuel + 1) state
         EvmYul.Operation.MLOAD [offset] =
       let (value, machineState') := state.toSharedState.toMachineState.mload offset
+      .ok (state.setMachineState machineState', [value]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_keccak256_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (offset size : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.KECCAK256 [offset, size] =
+      let (value, machineState') := state.toMachineState.keccak256 offset size
       .ok (state.setMachineState machineState', [value]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
@@ -4963,6 +4981,28 @@ theorem NativePrimCallPreservesWord_mload
       cases hMload : state.toSharedState.toMachineState.mload offset with
       | mk value machineState' =>
           simp [hMload] at hExec
+          cases hExec
+          subst final
+          rw [state_getElem_setMachineState]
+          exact hLookup
+
+theorem NativePrimCallPreservesWord_keccak256
+    (name : EvmYul.Identifier)
+    (expected offset size : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.KECCAK256
+          [offset, size] = .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_keccak256_ok] at hExec
+      cases hKeccak : state.toMachineState.keccak256 offset size with
+      | mk value machineState' =>
+          simp [hKeccak] at hExec
           cases hExec
           subst final
           rw [state_getElem_setMachineState]

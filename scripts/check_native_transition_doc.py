@@ -252,6 +252,7 @@ def check_public_theorem_target(
         "theorem NativePrimCallPreservesWord_sload",
         "theorem NativePrimCallPreservesWord_calldataload",
         "theorem NativePrimCallPreservesWord_mload",
+        "theorem NativePrimCallPreservesWord_keccak256",
         "def NativeExprPreservesWord",
         "def NativeEvalArgsPreservesWord",
         "theorem NativeExprPreservesWord_var",

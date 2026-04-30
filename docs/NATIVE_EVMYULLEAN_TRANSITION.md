@@ -377,6 +377,7 @@ scope so the native path does not look more complete than it is:
   `NativePrimCallPreservesWord_sload`,
   `NativePrimCallPreservesWord_calldataload`,
   `NativePrimCallPreservesWord_mload`,
+  `NativePrimCallPreservesWord_keccak256`,
   `NativeExprPreservesWord`,
   `NativeEvalArgsPreservesWord`,
   `NativeExprPreservesWord_var`,
