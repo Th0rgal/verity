@@ -7066,6 +7066,27 @@ theorem NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves
               cases jump <;>
                 simpa [EvmYul.Yul.State.setMachineState] using hArgLookup
 
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset value,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [value, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "mstore" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "mstore" args
+    EvmYul.Operation.MSTORE (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
 theorem NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -7110,6 +7131,27 @@ theorem NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves
                 cases jump <;>
                   simpa [EvmYul.Yul.State.setState] using hArgLookup
 
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_sstore_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState slot value,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [value, slot]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "sstore" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "sstore" args
+    EvmYul.Operation.SSTORE (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
 theorem NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -7147,6 +7189,27 @@ theorem NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves
           | ok ret =>
               rcases ret with ⟨returnState, value⟩
               simp [hReturn] at hExec
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_return_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "return" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "return" args
+    EvmYul.Operation.RETURN (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
 
 theorem NativeStmtPreservesWord_exprStmtCall_revert_of_evalArgs_preserves
     (name : EvmYul.Identifier)
@@ -7186,6 +7249,27 @@ theorem NativeStmtPreservesWord_exprStmtCall_revert_of_evalArgs_preserves
               rcases ret with ⟨revertState, value⟩
               simp [hRevert] at hExec
 
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_revert_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "revert" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "revert" args
+    EvmYul.Operation.REVERT (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_revert_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
 theorem NativeStmtPreservesWord_exprStmtCall_stop
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -7206,6 +7290,17 @@ theorem NativeStmtPreservesWord_exprStmtCall_stop
           simp [EvmYul.Yul.exec, EvmYul.Yul.execPrimCall,
             EvmYul.Yul.evalArgs, EvmYul.Yul.reverse'] at hExec
           simp [EvmYul.Yul.multifill'] at hExec
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_stop
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "stop" [])))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "stop" []
+    EvmYul.Operation.STOP (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_stop name expected codeOverride
 
 theorem nativeSwitchTempsFreshForNativeBodies_case_matched_not_mem
     (switchId tag : Nat)
