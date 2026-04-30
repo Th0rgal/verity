@@ -219,6 +219,8 @@ def check_public_theorem_target(
         "theorem NativeStmtPreservesWord_let_lowerExprNative_ident_of_not_mem",
         "theorem NativeStmtPreservesWord_let_prim_of_evalArgs_primCall_preserves",
         "theorem NativeStmtPreservesWord_let_user_of_evalArgs_call_preserves",
+        "theorem NativeStmtPreservesWord_let_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves",
+        "theorem NativeStmtPreservesWord_let_lowerExprNative_call_userFunction_of_evalArgs_call_preserves",
         "theorem NativeStmtPreservesWord_lowerAssignNative_call_runtimePrimOp_of_evalArgs_primCall_preserves",
         "theorem NativeStmtPreservesWord_lowerAssignNative_call_userFunction_of_evalArgs_call_preserves",
         "theorem NativePrimCallPreservesWord_calldatasize",
