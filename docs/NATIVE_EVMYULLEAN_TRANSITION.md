@@ -313,6 +313,8 @@ scope so the native path does not look more complete than it is:
   switch shape as `lowerNativeSwitchBlock_selectorExpr_eq_nativeSwitchParts`
   and packages the raw block execution bridge with
   `exec_lowerNativeSwitchBlock_selector_find_hit_preserved_fuel`,
+  `exec_nativeSwitchTail_find_hit_fresh_fuel`,
+  `exec_lowerNativeSwitchBlock_selector_find_hit_fresh_fuel`,
   `exec_lowerNativeSwitchBlock_selector_find_none_with_default_nonempty_fuel`,
   and `exec_lowerNativeSwitchBlock_selector_find_none_without_default_fuel`.
   The body preservation algebra now includes `state_lookup_insert_of_ne`,
@@ -337,8 +339,12 @@ scope so the native path does not look more complete than it is:
   `NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem`,
   `nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem`, and
   `nativeSwitchTempsFreshForNativeBodies_default_matched_not_mem`; the next
-  proof step is the statement induction that derives those preservation
-  obligations from `nativeStmtsWriteNames` freshness. The adapter now names
+  proof step is the statement induction that derives the per-statement
+  preservation obligations from `nativeStmtWriteNames` freshness. The selected
+  switch-tail and lowered-switch hit paths can now consume generated
+  `nativeSwitchTempsFreshForNativeBodies` freshness directly through
+  `exec_nativeSwitchTail_find_hit_fresh_fuel` and
+  `exec_lowerNativeSwitchBlock_selector_find_hit_fresh_fuel`. The adapter now names
    the needed freshness surface with `yulStmtWriteNames`,
    `yulStmtsWriteNames`,
    `nativeStmtWriteNames`, `nativeStmtsWriteNames`,
@@ -474,6 +480,8 @@ scope so the native path does not look more complete than it is:
    `exec_nativeSwitchCaseIfs_find_none_without_default_fuel` for complete
    generated case-chain plus optional-default execution,
    `exec_lowerNativeSwitchBlock_selector_find_hit_preserved_fuel`,
+   `exec_nativeSwitchTail_find_hit_fresh_fuel`,
+   `exec_lowerNativeSwitchBlock_selector_find_hit_fresh_fuel`,
    `exec_lowerNativeSwitchBlock_selector_find_none_with_default_nonempty_fuel`,
    and `exec_lowerNativeSwitchBlock_selector_find_none_without_default_fuel`
    for raw lowered switch-block execution from the native initial state,
