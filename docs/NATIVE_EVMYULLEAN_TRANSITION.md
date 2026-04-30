@@ -313,6 +313,11 @@ scope so the native path does not look more complete than it is:
   switch shape as `lowerNativeSwitchBlock_selectorExpr_eq_nativeSwitchParts`
   and packages the raw block execution bridge with
   `exec_lowerNativeSwitchBlock_selector_find_hit_preserved_fuel`,
+  `exec_nativeSwitchTail_find_hit_fresh_fuel`,
+  `exec_lowerNativeSwitchBlock_selector_find_hit_fresh_fuel`,
+  `exec_lowerNativeSwitchBlock_storePrefix_tail_ok_fuel`,
+  `exec_lowerNativeSwitchBlock_selector_find_hit_preserved_store_fuel`,
+  `exec_lowerNativeSwitchBlock_selector_find_hit_fresh_store_fuel`,
   `exec_lowerNativeSwitchBlock_selector_find_none_with_default_nonempty_fuel`,
   and `exec_lowerNativeSwitchBlock_selector_find_none_without_default_fuel`.
   The body preservation algebra now includes `state_lookup_insert_of_ne`,
@@ -333,12 +338,71 @@ scope so the native path does not look more complete than it is:
   `NativeStmtPreservesWord_let_none_of_not_mem`,
   `NativeStmtPreservesWord_let_var_of_not_mem`,
   `NativeStmtPreservesWord_let_lit_of_not_mem`,
+  `NativeStmtPreservesWord_let_prim_of_evalArgs_primCall_preserves`,
+  `NativeStmtPreservesWord_let_user_of_evalArgs_call_preserves`,
+  `NativePrimCallPreservesWord_calldatasize`,
+  `NativePrimCallPreservesWord_callvalue`,
+  `NativePrimCallPreservesWord_address`,
+  `NativePrimCallPreservesWord_caller`,
+  `NativePrimCallPreservesWord_timestamp`,
+  `NativePrimCallPreservesWord_number`,
+  `NativePrimCallPreservesWord_unary_same_state`,
+  `NativePrimCallPreservesWord_binary_same_state`,
+  `NativePrimCallPreservesWord_ternary_same_state`,
+  `NativePrimCallPreservesWord_iszero`,
+  `NativePrimCallPreservesWord_shr`,
+  `NativePrimCallPreservesWord_add`,
+  `NativePrimCallPreservesWord_sub`,
+  `NativePrimCallPreservesWord_mul`,
+  `NativePrimCallPreservesWord_div`,
+  `NativePrimCallPreservesWord_mod`,
+  `NativePrimCallPreservesWord_sdiv`,
+  `NativePrimCallPreservesWord_smod`,
+  `NativePrimCallPreservesWord_addmod`,
+  `NativePrimCallPreservesWord_mulmod`,
+  `NativePrimCallPreservesWord_exp`,
+  `NativePrimCallPreservesWord_signextend`,
+  `NativePrimCallPreservesWord_eq`,
+  `NativePrimCallPreservesWord_lt`,
+  `NativePrimCallPreservesWord_gt`,
+  `NativePrimCallPreservesWord_slt`,
+  `NativePrimCallPreservesWord_sgt`,
+  `NativePrimCallPreservesWord_and`,
+  `NativePrimCallPreservesWord_or`,
+  `NativePrimCallPreservesWord_xor`,
+  `NativePrimCallPreservesWord_not`,
+  `NativePrimCallPreservesWord_shl`,
+  `NativePrimCallPreservesWord_byte`,
+  `NativePrimCallPreservesWord_sar`,
+  `NativePrimCallPreservesWord_sload`,
+  `NativePrimCallPreservesWord_calldataload`,
+  `NativePrimCallPreservesWord_mload`,
+  `NativeExprPreservesWord`,
+  `NativeEvalArgsPreservesWord`,
+  `NativeExprPreservesWord_var`,
+  `NativeExprPreservesWord_lit`,
+  `NativeEvalArgsPreservesWord_nil`,
+  `NativeEvalArgsPreservesWord_cons`,
+  `NativeExprPreservesWord_call_prim_of_evalArgs_primCall_preserves`,
+  `NativeExprPreservesWord_call_user_of_evalArgs_call_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_prim_of_evalArgs_primCall_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_user_of_evalArgs_call_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves`,
   `nativeStmtWriteNames_not_mem_of_nativeStmtsWriteNames_not_mem`,
   `NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem`,
   `nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem`, and
   `nativeSwitchTempsFreshForNativeBodies_default_matched_not_mem`; the next
-  proof step is the statement induction that derives those preservation
-  obligations from `nativeStmtsWriteNames` freshness. The adapter now names
+  proof step is the statement induction that derives the per-statement
+  preservation obligations from `nativeStmtWriteNames` freshness. The selected
+  switch-tail and lowered-switch hit paths can now consume generated
+  `nativeSwitchTempsFreshForNativeBodies` freshness directly through
+  `exec_nativeSwitchTail_find_hit_fresh_fuel` and
+  `exec_lowerNativeSwitchBlock_selector_find_hit_fresh_fuel`; the
+  store-parametric lowered-switch success path uses
+  `exec_lowerNativeSwitchBlock_selector_find_hit_fresh_store_fuel` to carry the
+  same freshness reasoning through states that already contain generated
+  dispatcher bindings such as `__has_selector`. The adapter now names
    the needed freshness surface with `yulStmtWriteNames`,
    `yulStmtsWriteNames`,
    `nativeStmtWriteNames`, `nativeStmtsWriteNames`,
@@ -474,6 +538,10 @@ scope so the native path does not look more complete than it is:
    `exec_nativeSwitchCaseIfs_find_none_without_default_fuel` for complete
    generated case-chain plus optional-default execution,
    `exec_lowerNativeSwitchBlock_selector_find_hit_preserved_fuel`,
+   `exec_nativeSwitchTail_find_hit_fresh_fuel`,
+   `exec_lowerNativeSwitchBlock_selector_find_hit_fresh_fuel`,
+   `exec_lowerNativeSwitchBlock_selector_find_hit_fresh_store_fuel`,
+   `exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_fresh`,
    `exec_lowerNativeSwitchBlock_selector_find_none_with_default_nonempty_fuel`,
    and `exec_lowerNativeSwitchBlock_selector_find_none_without_default_fuel`
    for raw lowered switch-block execution from the native initial state,

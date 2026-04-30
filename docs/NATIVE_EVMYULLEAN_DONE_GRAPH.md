@@ -135,9 +135,21 @@ N8 public Layer 3 theorem flip
   including condition evaluations that preserve the tracked word, list-level
   composition from per-statement preservation, selected freshness
   projection lemmas, assignment constructors for literal/hex/identifier/string
-  RHS forms, and generated `let` constructors for omitted, variable, and literal
-  initializers exist; general preservation from `nativeStmtsWriteNames`
-  freshness is not complete.
+  RHS forms, generated `let` constructors for omitted, variable, and literal
+  initializers, generated `let` primitive-call constructors when argument
+  evaluation and the primitive preserve the tracked word, generated `let` and
+  expression-statement user-call wrappers when argument evaluation and the call
+  preserve the tracked word, read-only primitive preservation wrappers for
+  generated comparison, arithmetic, signed arithmetic, bitwise, shift,
+  switch-guard, calldata-size,
+  calldata/memory reads, callvalue, address/caller, timestamp/number, and
+  `sload` RHS forms, expression/argument-list preservation constructors for variables,
+  literals, primitive and user calls, and argument-list cons/nil composition, concrete
+  generated expression-statement constructors for `mstore` and `sstore` when
+  argument evaluation preserves the tracked word, and empty-store plus store-parametric
+  selector-hit freshness switch execution exist; general preservation from
+  `nativeStmtsWriteNames` freshness is not complete for all generated statement
+  families.
 - **Definition of done**:
   - If a generated native body does not write a dispatcher temp, native
     execution preserves that temp.
