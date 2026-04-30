@@ -4964,6 +4964,53 @@ theorem NativeStmtPreservesWord_let_prim_of_evalArgs_primCall_preserves
                 hnot]
               exact hPrimLookup
 
+theorem NativeStmtPreservesWord_let_user_of_evalArgs_call_preserves
+    (name : EvmYul.Identifier) (expected : EvmYul.Literal) (vars : List EvmYul.Identifier)
+    (functionName : EvmYul.Yul.Ast.YulFunctionName) (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hnot : name ∉ vars)
+    (hArgs :
+      ∀ fuel state argState values, state[name]! = expected → EvmYul.Yul.evalArgs fuel args.reverse codeOverride state = .ok (argState, values) → argState[name]! = expected)
+    (hCall :
+      ∀ fuel state values callState rets, state[name]! = expected → EvmYul.Yul.call fuel values (some functionName) codeOverride state = .ok (callState, rets) → callState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.Let vars (some (.Call (Sum.inr functionName) args))) codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      simp [EvmYul.Yul.exec] at hExec
+      cases hEvalArgs :
+          EvmYul.Yul.evalArgs fuel' args.reverse codeOverride state with
+      | error err =>
+          simp [hEvalArgs, EvmYul.Yul.reverse', EvmYul.Yul.execCall] at hExec
+      | ok argResult =>
+          rcases argResult with ⟨argState, values⟩
+          have hArgLookup : argState[name]! = expected :=
+            hArgs fuel' state argState values hLookup hEvalArgs
+          cases fuel' with
+          | zero =>
+              simp [hEvalArgs, EvmYul.Yul.reverse', EvmYul.Yul.execCall]
+                at hExec
+          | succ callFuel =>
+              cases hUserCall :
+                  EvmYul.Yul.call callFuel values.reverse (some functionName)
+                    codeOverride argState with
+              | error err =>
+                  simp [hEvalArgs, EvmYul.Yul.reverse', EvmYul.Yul.execCall, hUserCall,
+                    EvmYul.Yul.multifill'] at hExec
+              | ok callResult =>
+                  rcases callResult with ⟨callState, rets⟩
+                  simp [hEvalArgs, EvmYul.Yul.reverse', EvmYul.Yul.execCall, hUserCall,
+                    EvmYul.Yul.multifill'] at hExec
+                  cases hExec
+                  have hCallLookup : callState[name]! = expected :=
+                    hCall callFuel argState values.reverse callState rets
+                      hArgLookup hUserCall
+                  rw [state_getElem_multifill_of_not_mem callState name vars rets hnot]
+                  exact hCallLookup
+
 theorem NativeStmtPreservesWord_exprStmtCall_prim_of_evalArgs_primCall_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -5011,6 +5058,51 @@ theorem NativeStmtPreservesWord_exprStmtCall_prim_of_evalArgs_primCall_preserves
                 hPrim fuel' argState values.reverse primState rets hArgLookup
                   hPrimCall
               cases primState <;> simpa using hPrimLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_user_of_evalArgs_call_preserves
+    (name : EvmYul.Identifier) (expected : EvmYul.Literal)
+    (functionName : EvmYul.Yul.Ast.YulFunctionName) (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state argState values, state[name]! = expected → EvmYul.Yul.evalArgs fuel args.reverse codeOverride state = .ok (argState, values) → argState[name]! = expected)
+    (hCall :
+      ∀ fuel state values final rets, state[name]! = expected → EvmYul.Yul.call fuel values (some functionName) codeOverride state = .ok (final, rets) → final[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inr functionName) args)) codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      simp [EvmYul.Yul.exec] at hExec
+      cases hEvalArgs :
+          EvmYul.Yul.evalArgs fuel' args.reverse codeOverride state with
+      | error err =>
+          simp [hEvalArgs, EvmYul.Yul.reverse', EvmYul.Yul.execCall] at hExec
+      | ok argResult =>
+          rcases argResult with ⟨argState, values⟩
+          have hArgLookup : argState[name]! = expected :=
+            hArgs fuel' state argState values hLookup hEvalArgs
+          cases fuel' with
+          | zero =>
+              simp [hEvalArgs, EvmYul.Yul.reverse', EvmYul.Yul.execCall]
+                at hExec
+          | succ callFuel =>
+              cases hUserCall :
+                  EvmYul.Yul.call callFuel values.reverse (some functionName)
+                    codeOverride argState with
+              | error err =>
+                  simp [hEvalArgs, EvmYul.Yul.reverse', EvmYul.Yul.execCall, hUserCall,
+                    EvmYul.Yul.multifill'] at hExec
+              | ok callResult =>
+                  rcases callResult with ⟨callState, rets⟩
+                  simp [hEvalArgs, EvmYul.Yul.reverse', EvmYul.Yul.execCall, hUserCall,
+                    EvmYul.Yul.multifill', EvmYul.Yul.State.multifill] at hExec
+                  cases hExec
+                  have hCallLookup : callState[name]! = expected :=
+                    hCall callFuel argState values.reverse callState rets
+                      hArgLookup hUserCall
+                  cases callState <;> simpa using hCallLookup
 
 theorem NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves
     (name : EvmYul.Identifier)
