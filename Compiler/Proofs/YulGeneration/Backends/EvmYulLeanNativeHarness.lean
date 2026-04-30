@@ -1695,6 +1695,53 @@ theorem lowerExprNative_selectorExpr :
       .ok (state.setMachineState machineState', some value) := by
   rfl
 
+@[simp] theorem step_log0_ok
+    (state : EvmYul.Yul.State)
+    (offset size : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG0 none state [offset, size] =
+      .ok (state.setSharedState
+        (EvmYul.SharedState.logOp offset size #[] state.toSharedState), none) := by
+  rfl
+
+@[simp] theorem step_log1_ok
+    (state : EvmYul.Yul.State)
+    (offset size topic0 : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG1 none state
+        [offset, size, topic0] =
+      .ok (state.setSharedState
+        (EvmYul.SharedState.logOp offset size #[topic0] state.toSharedState), none) := by
+  rfl
+
+@[simp] theorem step_log2_ok
+    (state : EvmYul.Yul.State)
+    (offset size topic0 topic1 : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG2 none state
+        [offset, size, topic0, topic1] =
+      .ok (state.setSharedState
+        (EvmYul.SharedState.logOp offset size #[topic0, topic1]
+          state.toSharedState), none) := by
+  rfl
+
+@[simp] theorem step_log3_ok
+    (state : EvmYul.Yul.State)
+    (offset size topic0 topic1 topic2 : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG3 none state
+        [offset, size, topic0, topic1, topic2] =
+      .ok (state.setSharedState
+        (EvmYul.SharedState.logOp offset size #[topic0, topic1, topic2]
+          state.toSharedState), none) := by
+  rfl
+
+@[simp] theorem step_log4_ok
+    (state : EvmYul.Yul.State)
+    (offset size topic0 topic1 topic2 topic3 : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG4 none state
+        [offset, size, topic0, topic1, topic2, topic3] =
+      .ok (state.setSharedState
+        (EvmYul.SharedState.logOp offset size #[topic0, topic1, topic2, topic3]
+          state.toSharedState), none) := by
+  rfl
+
 @[simp] theorem step_sstore_ok
     (state : EvmYul.Yul.State)
     (slot value : EvmYul.UInt256) :
@@ -2181,6 +2228,64 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
       let (value, machineState') := state.toMachineState.keccak256 offset size
       .ok (state.setMachineState machineState', [value]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_log0_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (offset size : EvmYul.UInt256)
+    (hPerm : state.executionEnv.perm = true) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.LOG0 [offset, size] =
+      .ok (state.setSharedState
+        (EvmYul.SharedState.logOp offset size #[] state.toSharedState), []) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, hPerm]
+
+@[simp] theorem primCall_log1_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (offset size topic0 : EvmYul.UInt256)
+    (hPerm : state.executionEnv.perm = true) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.LOG1 [offset, size, topic0] =
+      .ok (state.setSharedState
+        (EvmYul.SharedState.logOp offset size #[topic0] state.toSharedState), []) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, hPerm]
+
+@[simp] theorem primCall_log2_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (offset size topic0 topic1 : EvmYul.UInt256)
+    (hPerm : state.executionEnv.perm = true) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.LOG2 [offset, size, topic0, topic1] =
+      .ok (state.setSharedState
+        (EvmYul.SharedState.logOp offset size #[topic0, topic1]
+          state.toSharedState), []) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, hPerm]
+
+@[simp] theorem primCall_log3_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (offset size topic0 topic1 topic2 : EvmYul.UInt256)
+    (hPerm : state.executionEnv.perm = true) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.LOG3 [offset, size, topic0, topic1, topic2] =
+      .ok (state.setSharedState
+        (EvmYul.SharedState.logOp offset size #[topic0, topic1, topic2]
+          state.toSharedState), []) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, hPerm]
+
+@[simp] theorem primCall_log4_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (offset size topic0 topic1 topic2 topic3 : EvmYul.UInt256)
+    (hPerm : state.executionEnv.perm = true) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.LOG4 [offset, size, topic0, topic1, topic2, topic3] =
+      .ok (state.setSharedState
+        (EvmYul.SharedState.logOp offset size #[topic0, topic1, topic2, topic3]
+          state.toSharedState), []) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, hPerm]
 
 @[simp] theorem primCall_sstore_ok
     (fuel : Nat)
@@ -5007,6 +5112,131 @@ theorem NativePrimCallPreservesWord_keccak256
           subst final
           rw [state_getElem_setMachineState]
           exact hLookup
+
+theorem NativePrimCallPreservesWord_log0
+    (name : EvmYul.Identifier)
+    (expected offset size : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.LOG0 [offset, size] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      by_cases hPerm : state.executionEnv.perm = true
+      · rw [primCall_log0_ok fuel' state offset size hPerm] at hExec
+        cases hExec
+        rw [state_getElem_setSharedState]
+        exact hLookup
+      · have hPermFalse : state.executionEnv.perm = false := by
+          cases hp : state.executionEnv.perm
+          · rfl
+          · exact False.elim (hPerm hp)
+        simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+        cases hExec
+
+theorem NativePrimCallPreservesWord_log1
+    (name : EvmYul.Identifier)
+    (expected offset size topic0 : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.LOG1
+          [offset, size, topic0] = .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      by_cases hPerm : state.executionEnv.perm = true
+      · rw [primCall_log1_ok fuel' state offset size topic0 hPerm] at hExec
+        cases hExec
+        rw [state_getElem_setSharedState]
+        exact hLookup
+      · have hPermFalse : state.executionEnv.perm = false := by
+          cases hp : state.executionEnv.perm
+          · rfl
+          · exact False.elim (hPerm hp)
+        simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+        cases hExec
+
+theorem NativePrimCallPreservesWord_log2
+    (name : EvmYul.Identifier)
+    (expected offset size topic0 topic1 : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.LOG2
+          [offset, size, topic0, topic1] = .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      by_cases hPerm : state.executionEnv.perm = true
+      · rw [primCall_log2_ok fuel' state offset size topic0 topic1 hPerm] at hExec
+        cases hExec
+        rw [state_getElem_setSharedState]
+        exact hLookup
+      · have hPermFalse : state.executionEnv.perm = false := by
+          cases hp : state.executionEnv.perm
+          · rfl
+          · exact False.elim (hPerm hp)
+        simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+        cases hExec
+
+theorem NativePrimCallPreservesWord_log3
+    (name : EvmYul.Identifier)
+    (expected offset size topic0 topic1 topic2 : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.LOG3
+          [offset, size, topic0, topic1, topic2] = .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      by_cases hPerm : state.executionEnv.perm = true
+      · rw [primCall_log3_ok fuel' state offset size topic0 topic1 topic2 hPerm] at hExec
+        cases hExec
+        rw [state_getElem_setSharedState]
+        exact hLookup
+      · have hPermFalse : state.executionEnv.perm = false := by
+          cases hp : state.executionEnv.perm
+          · rfl
+          · exact False.elim (hPerm hp)
+        simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+        cases hExec
+
+theorem NativePrimCallPreservesWord_log4
+    (name : EvmYul.Identifier)
+    (expected offset size topic0 topic1 topic2 topic3 : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.LOG4
+          [offset, size, topic0, topic1, topic2, topic3] = .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      by_cases hPerm : state.executionEnv.perm = true
+      · rw [primCall_log4_ok fuel' state offset size topic0 topic1 topic2 topic3 hPerm] at hExec
+        cases hExec
+        rw [state_getElem_setSharedState]
+        exact hLookup
+      · have hPermFalse : state.executionEnv.perm = false := by
+          cases hp : state.executionEnv.perm
+          · rfl
+          · exact False.elim (hPerm hp)
+        simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+        cases hExec
 
 theorem NativeExprPreservesWord_var
     (name : EvmYul.Identifier)
