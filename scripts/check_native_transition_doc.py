@@ -289,6 +289,7 @@ def check_public_theorem_target(
         "theorem NativeEvalArgsPreservesWord_nil",
         "theorem NativeEvalArgsPreservesWord_cons",
         "theorem NativeEvalArgsPreservesWord_map_lowerExprNative",
+        "theorem NativeEvalArgsPreservesWord_map_lowerExprNative_reverse",
         "theorem NativeExprPreservesWord_lowerExprNative_lit",
         "theorem NativeExprPreservesWord_lowerExprNative_hex",
         "theorem NativeExprPreservesWord_lowerExprNative_str",

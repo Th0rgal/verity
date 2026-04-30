@@ -414,6 +414,7 @@ scope so the native path does not look more complete than it is:
   `NativeEvalArgsPreservesWord_nil`,
   `NativeEvalArgsPreservesWord_cons`,
   `NativeEvalArgsPreservesWord_map_lowerExprNative`,
+  `NativeEvalArgsPreservesWord_map_lowerExprNative_reverse`,
   `NativeExprPreservesWord_lowerExprNative_lit`,
   `NativeExprPreservesWord_lowerExprNative_hex`,
   `NativeExprPreservesWord_lowerExprNative_str`,
