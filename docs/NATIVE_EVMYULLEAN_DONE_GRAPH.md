@@ -139,7 +139,9 @@ N8 public Layer 3 theorem flip
   initializers, generated `let` primitive-call constructors when argument
   evaluation and the primitive preserve the tracked word, read-only primitive
   preservation wrappers for generated comparison, switch-guard, calldata-size,
-  callvalue, and `sload` RHS forms, concrete generated
+  callvalue, and `sload` RHS forms, expression/argument-list preservation
+  constructors for variables, literals, primitive calls, and argument-list
+  cons/nil composition, concrete generated
   expression-statement constructors for `mstore` and `sstore` when argument
   evaluation preserves the tracked word, and empty-store plus store-parametric
   selector-hit freshness switch execution exist; general preservation from

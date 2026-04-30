@@ -4001,6 +4001,26 @@ def NativeStmtPreservesWord
       EvmYul.Yul.exec fuel stmt codeOverride state = .ok final →
         final[name]! = value
 
+def NativeExprPreservesWord
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (expr : EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) : Prop :=
+  ∀ fuel state final result,
+    state[name]! = value →
+      EvmYul.Yul.eval fuel expr codeOverride state = .ok (final, result) →
+        final[name]! = value
+
+def NativeEvalArgsPreservesWord
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) : Prop :=
+  ∀ fuel state final results,
+    state[name]! = value →
+      EvmYul.Yul.evalArgs fuel args codeOverride state = .ok (final, results) →
+        final[name]! = value
+
 theorem state_lookup_insert_of_ne
     (state : EvmYul.Yul.State)
     (name other : EvmYul.Identifier)
@@ -4306,6 +4326,149 @@ theorem NativePrimCallPreservesWord_sload
           subst final
           rw [state_getElem_setSharedState]
           exact hLookup
+
+theorem NativeExprPreservesWord_var
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (identifier : EvmYul.Identifier)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    NativeExprPreservesWord name expected (.Var identifier) codeOverride := by
+  intro fuel state final result hLookup hEval
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.eval] at hEval
+  | succ fuel' =>
+      simp [EvmYul.Yul.eval] at hEval
+      rcases hEval with ⟨hFinal, _⟩
+      subst final
+      exact hLookup
+
+theorem NativeExprPreservesWord_lit
+    (name : EvmYul.Identifier)
+    (expected value : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    NativeExprPreservesWord name expected (.Lit value) codeOverride := by
+  intro fuel state final result hLookup hEval
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.eval] at hEval
+  | succ fuel' =>
+      simp [EvmYul.Yul.eval] at hEval
+      rcases hEval with ⟨hFinal, _⟩
+      subst final
+      exact hLookup
+
+theorem NativeEvalArgsPreservesWord_nil
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    NativeEvalArgsPreservesWord name expected [] codeOverride := by
+  intro fuel state final results hLookup hEval
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.evalArgs] at hEval
+  | succ fuel' =>
+      simp [EvmYul.Yul.evalArgs] at hEval
+      rcases hEval with ⟨hFinal, _⟩
+      subst final
+      exact hLookup
+
+theorem NativeEvalArgsPreservesWord_cons
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (arg : EvmYul.Yul.Ast.Expr)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArg : NativeExprPreservesWord name expected arg codeOverride)
+    (hArgs : NativeEvalArgsPreservesWord name expected args codeOverride) :
+    NativeEvalArgsPreservesWord name expected (arg :: args) codeOverride := by
+  intro fuel state final results hLookup hEval
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.evalArgs] at hEval
+  | succ fuel' =>
+      simp [EvmYul.Yul.evalArgs] at hEval
+      cases hEvalArg : EvmYul.Yul.eval fuel' arg codeOverride state with
+      | error err =>
+          rw [hEvalArg] at hEval
+          cases fuel' <;> simp [EvmYul.Yul.evalTail] at hEval
+      | ok argResult =>
+          rcases argResult with ⟨argState, argValue⟩
+          have hArgLookup : argState[name]! = expected :=
+            hArg fuel' state argState argValue hLookup hEvalArg
+          simp [hEvalArg] at hEval
+          cases fuel' with
+          | zero =>
+              change
+                EvmYul.Yul.evalTail 0 args codeOverride
+                  (.ok (argState, argValue)) = .ok (final, results) at hEval
+              simp [EvmYul.Yul.evalTail] at hEval
+          | succ tailFuel =>
+              change
+                EvmYul.Yul.evalTail (Nat.succ tailFuel) args codeOverride
+                  (.ok (argState, argValue)) = .ok (final, results) at hEval
+              simp [EvmYul.Yul.evalTail] at hEval
+              cases hEvalArgs :
+                  EvmYul.Yul.evalArgs tailFuel args codeOverride argState with
+              | error err =>
+                  simp [hEvalArgs, EvmYul.Yul.cons'] at hEval
+              | ok argsResult =>
+                  rcases argsResult with ⟨argsState, values⟩
+                  simp [hEvalArgs, EvmYul.Yul.cons'] at hEval
+                  rcases hEval with ⟨hFinal, _⟩
+                  subst final
+                  exact hArgs tailFuel argState argsState values
+                    hArgLookup hEvalArgs
+
+theorem NativeExprPreservesWord_call_prim_of_evalArgs_primCall_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (prim : EvmYul.Yul.Ast.PrimOp)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hPrim :
+      ∀ fuel state values final rets,
+        state[name]! = expected →
+          EvmYul.Yul.primCall fuel state prim values = .ok (final, rets) →
+          final[name]! = expected) :
+    NativeExprPreservesWord name expected
+      (.Call (Sum.inl prim) args) codeOverride := by
+  intro fuel state final result hLookup hEval
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.eval] at hEval
+  | succ fuel' =>
+      simp [EvmYul.Yul.eval] at hEval
+      cases hEvalArgs :
+          EvmYul.Yul.evalArgs fuel' args.reverse codeOverride state with
+      | error err =>
+          rw [hEvalArgs] at hEval
+          simp [EvmYul.Yul.reverse', EvmYul.Yul.evalPrimCall] at hEval
+      | ok argResult =>
+          rcases argResult with ⟨argState, values⟩
+          have hArgLookup : argState[name]! = expected :=
+            hArgs fuel' state argState values hLookup hEvalArgs
+          rw [hEvalArgs] at hEval
+          simp [EvmYul.Yul.reverse', EvmYul.Yul.evalPrimCall] at hEval
+          cases hPrimCall :
+              EvmYul.Yul.primCall fuel' argState prim values.reverse with
+          | error err =>
+              simp [hPrimCall, EvmYul.Yul.head'] at hEval
+          | ok primResult =>
+              rcases primResult with ⟨primState, rets⟩
+              simp [hPrimCall, EvmYul.Yul.head'] at hEval
+              cases rets with
+              | nil =>
+                  rcases hEval with ⟨hFinal, _⟩
+                  subst final
+                  exact hPrim fuel' argState values.reverse primState []
+                    hArgLookup hPrimCall
+              | cons ret rest =>
+                  rcases hEval with ⟨hFinal, _⟩
+                  subst final
+                  exact hPrim fuel' argState values.reverse primState (ret :: rest)
+                    hArgLookup hPrimCall
 
 theorem state_getElem_overwrite?_left
     (state next : EvmYul.Yul.State)
