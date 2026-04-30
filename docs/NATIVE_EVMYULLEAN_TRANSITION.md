@@ -490,6 +490,7 @@ scope so the native path does not look more complete than it is:
    `exec_nativeSwitchTail_find_hit_fresh_fuel`,
    `exec_lowerNativeSwitchBlock_selector_find_hit_fresh_fuel`,
    `exec_lowerNativeSwitchBlock_selector_find_hit_fresh_store_fuel`,
+   `exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_fresh`,
    `exec_lowerNativeSwitchBlock_selector_find_none_with_default_nonempty_fuel`,
    and `exec_lowerNativeSwitchBlock_selector_find_none_without_default_fuel`
    for raw lowered switch-block execution from the native initial state,

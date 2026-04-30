@@ -220,6 +220,7 @@ def check_public_theorem_target(
         "theorem exec_lowerNativeSwitchBlock_storePrefix_tail_ok_fuel",
         "theorem exec_lowerNativeSwitchBlock_selector_find_hit_preserved_store_fuel",
         "theorem exec_lowerNativeSwitchBlock_selector_find_hit_fresh_store_fuel",
+        "theorem exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_fresh",
     ):
         if required_native_entrypoint not in normalized_native_harness:
             errors.append(
