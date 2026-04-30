@@ -270,6 +270,8 @@ def check_public_theorem_target(
         "theorem NativeStmtPreservesWord_exprStmtCall_user_of_evalArgs_call_preserves",
         "theorem NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves",
         "theorem NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves",
+        "theorem NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves",
+        "theorem NativeStmtPreservesWord_exprStmtCall_revert_of_evalArgs_preserves",
         "theorem NativeStmtPreservesWord_exprStmtCall_stop",
         "theorem nativeStmtWriteNames_not_mem_of_nativeStmtsWriteNames_not_mem",
         "theorem NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem",

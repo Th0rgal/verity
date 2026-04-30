@@ -395,6 +395,8 @@ scope so the native path does not look more complete than it is:
   `NativeStmtPreservesWord_exprStmtCall_user_of_evalArgs_call_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_revert_of_evalArgs_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_stop`,
   `nativeStmtWriteNames_not_mem_of_nativeStmtsWriteNames_not_mem`,
   `NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem`,
