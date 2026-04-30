@@ -5397,6 +5397,68 @@ theorem NativePrimCallPreservesWord_sstore
             Except.ok (final, rets) at hExec
         cases hExec
 
+theorem NativePrimCallPreservesWord_stop
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.STOP [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets _hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_stop_ok] at hExec
+      cases hExec
+
+theorem NativePrimCallPreservesWord_return
+    (name : EvmYul.Identifier)
+    (expected offset size : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.RETURN [offset, size] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets _hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_return_ok fuel' state offset size] at hExec
+      cases hReturn :
+          EvmYul.Yul.binaryMachineStateOp EvmYul.MachineState.evmReturn
+            state [offset, size] with
+      | error err =>
+          simp [hReturn] at hExec
+      | ok ret =>
+          rcases ret with ⟨returnState, value⟩
+          simp [hReturn] at hExec
+
+theorem NativePrimCallPreservesWord_revert
+    (name : EvmYul.Identifier)
+    (expected offset size : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.REVERT [offset, size] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets _hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_revert_ok fuel' state offset size] at hExec
+      cases hRevert :
+          EvmYul.Yul.binaryMachineStateOp EvmYul.MachineState.evmRevert
+            state [offset, size] with
+      | error err =>
+          simp [hRevert] at hExec
+      | ok ret =>
+          rcases ret with ⟨revertState, value⟩
+          simp [hRevert] at hExec
+
 theorem NativePrimCallPreservesWord_msize
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal) :
