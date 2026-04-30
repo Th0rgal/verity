@@ -6729,6 +6729,66 @@ theorem NativeStmtPreservesWord_let_lit_of_not_mem
       rw [state_getElem_insert_of_ne state name head literal hneq]
       exact hLookup
 
+theorem NativeStmtPreservesWord_let_lowerExprNative_lit_of_not_mem
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (vars : List EvmYul.Identifier)
+    (literal : Nat)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hvars : vars ≠ [])
+    (hnot : name ∉ vars) :
+    NativeStmtPreservesWord name expected
+      (.Let vars (some (Backends.lowerExprNative (.lit literal))))
+      codeOverride := by
+  simpa [Backends.lowerExprNative] using
+    NativeStmtPreservesWord_let_lit_of_not_mem name expected vars
+      (EvmYul.UInt256.ofNat literal) codeOverride hvars hnot
+
+theorem NativeStmtPreservesWord_let_lowerExprNative_hex_of_not_mem
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (vars : List EvmYul.Identifier)
+    (literal : Nat)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hvars : vars ≠ [])
+    (hnot : name ∉ vars) :
+    NativeStmtPreservesWord name expected
+      (.Let vars (some (Backends.lowerExprNative (.hex literal))))
+      codeOverride := by
+  simpa [Backends.lowerExprNative] using
+    NativeStmtPreservesWord_let_lit_of_not_mem name expected vars
+      (EvmYul.UInt256.ofNat literal) codeOverride hvars hnot
+
+theorem NativeStmtPreservesWord_let_lowerExprNative_str_of_not_mem
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (vars : List EvmYul.Identifier)
+    (identifier : EvmYul.Identifier)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hvars : vars ≠ [])
+    (hnot : name ∉ vars) :
+    NativeStmtPreservesWord name expected
+      (.Let vars (some (Backends.lowerExprNative (.str identifier))))
+      codeOverride := by
+  simpa [Backends.lowerExprNative] using
+    NativeStmtPreservesWord_let_var_of_not_mem name expected vars identifier
+      codeOverride hvars hnot
+
+theorem NativeStmtPreservesWord_let_lowerExprNative_ident_of_not_mem
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (vars : List EvmYul.Identifier)
+    (identifier : EvmYul.Identifier)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hvars : vars ≠ [])
+    (hnot : name ∉ vars) :
+    NativeStmtPreservesWord name expected
+      (.Let vars (some (Backends.lowerExprNative (.ident identifier))))
+      codeOverride := by
+  simpa [Backends.lowerExprNative] using
+    NativeStmtPreservesWord_let_var_of_not_mem name expected vars identifier
+      codeOverride hvars hnot
+
 theorem NativeStmtPreservesWord_let_prim_of_evalArgs_primCall_preserves
     (name : EvmYul.Identifier) (expected : EvmYul.Literal)
     (vars : List EvmYul.Identifier) (prim : EvmYul.Yul.Ast.PrimOp)
