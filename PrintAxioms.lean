@@ -3247,8 +3247,15 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lit
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeEvalArgsPreservesWord_nil
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeEvalArgsPreservesWord_cons
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeEvalArgsPreservesWord_map_lowerExprNative
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_lit
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_hex
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_str
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_ident
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_call_prim_of_evalArgs_primCall_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_call_user_of_evalArgs_call_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_call_userFunction_of_evalArgs_call_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_overwrite?_left
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_restoreCallFrame_of_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchDiscrTempName_ne_matchedTempName
@@ -3770,4 +3777,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3594 theorems/lemmas (2650 public, 944 private, 0 sorry'd)
+-- Total: 3601 theorems/lemmas (2657 public, 944 private, 0 sorry'd)
