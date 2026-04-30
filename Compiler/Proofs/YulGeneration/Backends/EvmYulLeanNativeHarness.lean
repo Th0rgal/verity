@@ -6883,6 +6883,64 @@ theorem NativeStmtPreservesWord_let_user_of_evalArgs_call_preserves
                   rw [state_getElem_multifill_of_not_mem callState name vars rets hnot]
                   exact hCallLookup
 
+theorem NativeStmtPreservesWord_let_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
+    (name func : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (vars : List EvmYul.Identifier)
+    (args : List YulExpr)
+    (op : EvmYul.Operation .Yul)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hnot : name ∉ vars)
+    (hOp : Backends.lookupRuntimePrimOp func = some op)
+    (hArgs :
+      ∀ fuel state argState values,
+        state[name]! = expected →
+          EvmYul.Yul.evalArgs fuel
+              ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+            .ok (argState, values) →
+          argState[name]! = expected)
+    (hPrim :
+      ∀ fuel state values primState rets,
+        state[name]! = expected →
+          EvmYul.Yul.primCall fuel state op values = .ok (primState, rets) →
+          primState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.Let vars (some (Backends.lowerExprNative (.call func args))))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp func args op hOp]
+  exact NativeStmtPreservesWord_let_prim_of_evalArgs_primCall_preserves
+    name expected vars op (args.map Backends.lowerExprNative) codeOverride
+    hnot hArgs hPrim
+
+theorem NativeStmtPreservesWord_let_lowerExprNative_call_userFunction_of_evalArgs_call_preserves
+    (name func : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (vars : List EvmYul.Identifier)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hnot : name ∉ vars)
+    (hOp : Backends.lookupRuntimePrimOp func = none)
+    (hArgs :
+      ∀ fuel state argState values,
+        state[name]! = expected →
+          EvmYul.Yul.evalArgs fuel
+              ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+            .ok (argState, values) →
+          argState[name]! = expected)
+    (hCall :
+      ∀ fuel state values callState rets,
+        state[name]! = expected →
+          EvmYul.Yul.call fuel values (some func) codeOverride state =
+            .ok (callState, rets) →
+          callState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.Let vars (some (Backends.lowerExprNative (.call func args))))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_userFunction func args hOp]
+  exact NativeStmtPreservesWord_let_user_of_evalArgs_call_preserves
+    name expected vars func (args.map Backends.lowerExprNative) codeOverride
+    hnot hArgs hCall
+
 theorem NativeStmtPreservesWord_lowerAssignNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
     (name target func : EvmYul.Identifier)
     (expected : EvmYul.Literal)
