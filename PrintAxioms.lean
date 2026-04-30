@@ -2995,6 +2995,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_mstore_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_sload_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_mload_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_keccak256_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_sstore_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_stop_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_return_ok
@@ -3038,6 +3039,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_mload_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_keccak256_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_stop_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_return_ok
@@ -3170,6 +3172,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_sload
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_calldataload
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_mload
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_keccak256
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_var
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lit
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeEvalArgsPreservesWord_nil
@@ -3690,4 +3693,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3514 theorems/lemmas (2569 public, 945 private, 0 sorry'd)
+-- Total: 3517 theorems/lemmas (2572 public, 945 private, 0 sorry'd)
