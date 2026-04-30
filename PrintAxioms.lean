@@ -2988,11 +2988,17 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_calldatasize_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_callvalue_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_address_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_balance_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_origin_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_caller_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_timestamp_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_number_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_chainid_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_blobbasefee_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_gasprice_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_coinbase_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_gaslimit_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_selfbalance_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_and_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_mstore_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_mstore8_ok
@@ -3012,6 +3018,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_returndatasize_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_calldatacopy_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_returndatacopy_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_pop_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_stop_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_return_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.step_revert_ok
@@ -3041,11 +3048,17 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldatasize_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_callvalue_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_address_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_balance_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_origin_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_caller_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_timestamp_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_number_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_chainid_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_blobbasefee_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_gasprice_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_coinbase_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_gaslimit_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_selfbalance_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_and_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_or_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_xor_ok
@@ -3071,6 +3084,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_returndatasize_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldatacopy_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_returndatacopy_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_pop_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_stop_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_return_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.primCall_revert_ok
@@ -3168,11 +3182,17 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_calldatasize
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_callvalue
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_address
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_balance
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_origin
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_caller
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_timestamp
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_number
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_chainid
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_blobbasefee
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_gasprice
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_coinbase
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_gaslimit
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_selfbalance
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_unary_same_state
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_binary_same_state
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_ternary_same_state
@@ -3217,6 +3237,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_returndatasize
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_calldatacopy
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_returndatacopy
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_pop
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_keccak256
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_log0
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_log1
@@ -3748,4 +3769,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3572 theorems/lemmas (2627 public, 945 private, 0 sorry'd)
+-- Total: 3593 theorems/lemmas (2648 public, 945 private, 0 sorry'd)
