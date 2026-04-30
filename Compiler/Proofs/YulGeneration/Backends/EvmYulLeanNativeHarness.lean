@@ -1577,6 +1577,27 @@ theorem lowerExprNative_selectorExpr :
       .ok (state, some (EvmYul.UInt256.shiftRight value shift)) := by
   rfl
 
+@[simp] theorem step_add_ok
+    (state : EvmYul.Yul.State)
+    (left right : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.ADD none state [left, right] =
+      .ok (state, some (EvmYul.UInt256.add left right)) := by
+  rfl
+
+@[simp] theorem step_sub_ok
+    (state : EvmYul.Yul.State)
+    (left right : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.SUB none state [left, right] =
+      .ok (state, some (EvmYul.UInt256.sub left right)) := by
+  rfl
+
+@[simp] theorem step_mul_ok
+    (state : EvmYul.Yul.State)
+    (left right : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.MUL none state [left, right] =
+      .ok (state, some (EvmYul.UInt256.mul left right)) := by
+  rfl
+
 @[simp] theorem step_eq_ok
     (state : EvmYul.Yul.State)
     (left right : EvmYul.UInt256) :
@@ -1610,6 +1631,30 @@ theorem lowerExprNative_selectorExpr :
       .ok (state, some state.executionEnv.weiValue) := by
   rfl
 
+@[simp] theorem step_address_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.ADDRESS none state [] =
+      .ok (state, some (EvmYul.UInt256.ofNat state.executionEnv.codeOwner.val)) := by
+  rfl
+
+@[simp] theorem step_caller_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.CALLER none state [] =
+      .ok (state, some (EvmYul.UInt256.ofNat state.executionEnv.source.val)) := by
+  rfl
+
+@[simp] theorem step_timestamp_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.TIMESTAMP none state [] =
+      .ok (state, some state.toState.timeStamp) := by
+  rfl
+
+@[simp] theorem step_number_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.NUMBER none state [] =
+      .ok (state, some state.toState.number) := by
+  rfl
+
 @[simp] theorem step_and_ok
     (state : EvmYul.Yul.State)
     (left right : EvmYul.UInt256) :
@@ -1632,6 +1677,14 @@ theorem lowerExprNative_selectorExpr :
       let (state', value) := state.toState.sload slot
       .ok (state.setSharedState { state.toSharedState with toState := state' },
         some value) := by
+  rfl
+
+@[simp] theorem step_mload_ok
+    (state : EvmYul.Yul.State)
+    (offset : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.MLOAD none state [offset] =
+      let (value, machineState') := state.toSharedState.toMachineState.mload offset
+      .ok (state.setMachineState machineState', some value) := by
   rfl
 
 @[simp] theorem step_sstore_ok
@@ -1764,6 +1817,33 @@ theorem primCall_calldataload4_initialState_ofIR_arg0_ok_withStore
       .ok (state, [EvmYul.UInt256.shiftRight value shift]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
+@[simp] theorem primCall_add_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (left right : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.ADD [left, right] =
+      .ok (state, [EvmYul.UInt256.add left right]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_sub_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (left right : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.SUB [left, right] =
+      .ok (state, [EvmYul.UInt256.sub left right]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_mul_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (left right : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.MUL [left, right] =
+      .ok (state, [EvmYul.UInt256.mul left right]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
 /-- Native primitive execution of the generated dispatcher selector core:
     `calldataload(0)` reads the ABI selector word and `shr(224, ...)` decodes
     the normalized 32-bit selector used by the lowered native switch. -/
@@ -1859,6 +1939,38 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
       .ok (state, [state.executionEnv.weiValue]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
+@[simp] theorem primCall_address_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.ADDRESS [] =
+      .ok (state, [EvmYul.UInt256.ofNat state.executionEnv.codeOwner.val]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_caller_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.CALLER [] =
+      .ok (state, [EvmYul.UInt256.ofNat state.executionEnv.source.val]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_timestamp_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.TIMESTAMP [] =
+      .ok (state, [state.toState.timeStamp]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_number_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.NUMBER [] =
+      .ok (state, [state.toState.number]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
 @[simp] theorem primCall_and_ok
     (fuel : Nat)
     (state : EvmYul.Yul.State)
@@ -1887,6 +1999,16 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
       let (state', value) := state.toState.sload slot
       .ok (state.setSharedState { state.toSharedState with toState := state' },
         [value]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_mload_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (offset : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.MLOAD [offset] =
+      let (value, machineState') := state.toSharedState.toMachineState.mload offset
+      .ok (state.setMachineState machineState', [value]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
 @[simp] theorem primCall_sstore_ok
@@ -4203,6 +4325,74 @@ theorem NativePrimCallPreservesWord_callvalue
       cases hExec
       exact hLookup
 
+theorem NativePrimCallPreservesWord_address
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.ADDRESS [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_address_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_caller
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.CALLER [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_caller_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_timestamp
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.TIMESTAMP [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_timestamp_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_number
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.NUMBER [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_number_ok] at hExec
+      cases hExec
+      exact hLookup
+
 theorem NativePrimCallPreservesWord_unary_same_state
     (op : EvmYul.Operation .Yul)
     (name : EvmYul.Identifier)
@@ -4269,6 +4459,42 @@ theorem NativePrimCallPreservesWord_shr
     name expected shift value (EvmYul.UInt256.shiftRight value shift)
     (by intro fuel state; exact primCall_shr_ok fuel state shift value)
 
+theorem NativePrimCallPreservesWord_add
+    (name : EvmYul.Identifier)
+    (expected left right : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.ADD [left, right] =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.ADD
+    name expected left right (EvmYul.UInt256.add left right)
+    (by intro fuel state; exact primCall_add_ok fuel state left right)
+
+theorem NativePrimCallPreservesWord_sub
+    (name : EvmYul.Identifier)
+    (expected left right : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.SUB [left, right] =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.SUB
+    name expected left right (EvmYul.UInt256.sub left right)
+    (by intro fuel state; exact primCall_sub_ok fuel state left right)
+
+theorem NativePrimCallPreservesWord_mul
+    (name : EvmYul.Identifier)
+    (expected left right : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.MUL [left, right] =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.MUL
+    name expected left right (EvmYul.UInt256.mul left right)
+    (by intro fuel state; exact primCall_mul_ok fuel state left right)
+
 theorem NativePrimCallPreservesWord_eq
     (name : EvmYul.Identifier)
     (expected left right : EvmYul.Literal) :
@@ -4325,6 +4551,54 @@ theorem NativePrimCallPreservesWord_sload
           cases hExec
           subst final
           rw [state_getElem_setSharedState]
+          exact hLookup
+
+theorem NativePrimCallPreservesWord_calldataload
+    (name : EvmYul.Identifier)
+    (expected offset : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.CALLDATALOAD [offset] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      cases state with
+      | Ok shared store =>
+          rw [primCall_calldataload_ok] at hExec
+          cases hExec
+          exact hLookup
+      | OutOfFuel =>
+          simp [EvmYul.Yul.primCall] at hExec
+          cases hExec
+          exact hLookup
+      | Checkpoint jump =>
+          cases jump <;> simp [EvmYul.Yul.primCall] at hExec <;>
+            cases hExec <;> exact hLookup
+
+theorem NativePrimCallPreservesWord_mload
+    (name : EvmYul.Identifier)
+    (expected offset : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.MLOAD [offset] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_mload_ok] at hExec
+      cases hMload : state.toSharedState.toMachineState.mload offset with
+      | mk value machineState' =>
+          simp [hMload] at hExec
+          cases hExec
+          subst final
+          rw [state_getElem_setMachineState]
           exact hLookup
 
 theorem NativeExprPreservesWord_var
@@ -4469,6 +4743,55 @@ theorem NativeExprPreservesWord_call_prim_of_evalArgs_primCall_preserves
                   subst final
                   exact hPrim fuel' argState values.reverse primState (ret :: rest)
                     hArgLookup hPrimCall
+
+theorem NativeExprPreservesWord_call_user_of_evalArgs_call_preserves
+    (name : EvmYul.Identifier) (expected : EvmYul.Literal)
+    (functionName : EvmYul.Yul.Ast.YulFunctionName) (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hCall :
+      ∀ fuel state values final rets, state[name]! = expected →
+        EvmYul.Yul.call fuel values (some functionName) codeOverride state =
+          .ok (final, rets) → final[name]! = expected) :
+    NativeExprPreservesWord name expected (.Call (Sum.inr functionName) args)
+      codeOverride := by
+  intro fuel state final result hLookup hEval
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.eval] at hEval
+  | succ fuel' =>
+      simp [EvmYul.Yul.eval] at hEval
+      cases hEvalArgs : EvmYul.Yul.evalArgs fuel' args.reverse codeOverride state with
+      | error err =>
+          rw [hEvalArgs] at hEval
+          cases fuel' <;>
+            simp [EvmYul.Yul.reverse', EvmYul.Yul.evalCall] at hEval
+      | ok argResult =>
+          rcases argResult with ⟨argState, values⟩
+          have hArgLookup : argState[name]! = expected :=
+            hArgs fuel' state argState values hLookup hEvalArgs
+          rw [hEvalArgs] at hEval
+          cases fuel' with
+          | zero => simp [EvmYul.Yul.reverse', EvmYul.Yul.evalCall] at hEval
+          | succ callFuel =>
+              simp [EvmYul.Yul.reverse', EvmYul.Yul.evalCall] at hEval
+              cases hUserCall :
+                  EvmYul.Yul.call callFuel values.reverse (some functionName)
+                    codeOverride argState with
+              | error err =>
+                  simp [hUserCall, EvmYul.Yul.head'] at hEval
+              | ok callResult =>
+                  rcases callResult with ⟨callState, rets⟩
+                  simp [hUserCall, EvmYul.Yul.head'] at hEval
+                  cases rets with
+                  | nil =>
+                      rcases hEval with ⟨rfl, _⟩
+                      exact hCall callFuel argState values.reverse callState []
+                        hArgLookup hUserCall
+                  | cons ret rest =>
+                      rcases hEval with ⟨rfl, _⟩
+                      exact hCall callFuel argState values.reverse callState
+                        (ret :: rest) hArgLookup hUserCall
 
 theorem state_getElem_overwrite?_left
     (state next : EvmYul.Yul.State)
