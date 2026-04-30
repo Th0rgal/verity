@@ -4335,6 +4335,43 @@ theorem NativeBlockPreservesWord_of_forall_stmt_write_not_mem
       intro stmt hmem
       exact hPreserves stmt hmem (hFresh stmt hmem))
 
+theorem nativeStmtWriteNames_not_mem_of_nativeStmtsWriteNames_not_mem
+    (name : EvmYul.Identifier)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (stmt : EvmYul.Yul.Ast.Stmt)
+    (hFresh : name ∉ Backends.nativeStmtsWriteNames body)
+    (hMem : stmt ∈ body) :
+    name ∉ Backends.nativeStmtWriteNames stmt := by
+  induction body with
+  | nil =>
+      simp at hMem
+  | cons head tail ih =>
+      simp [Backends.nativeStmtsWriteNames,
+        Backends.collectNativeStmtWriteNames] at hFresh hMem
+      rcases hMem with hEq | hTail
+      · subst stmt
+        exact hFresh.1
+      · exact ih hFresh.2 hTail
+
+theorem NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hFresh : name ∉ Backends.nativeStmtsWriteNames body)
+    (hPreserves :
+      ∀ stmt, stmt ∈ body →
+        name ∉ Backends.nativeStmtWriteNames stmt →
+          NativeStmtPreservesWord name value stmt codeOverride) :
+    NativeBlockPreservesWord name value body codeOverride :=
+  NativeBlockPreservesWord_of_forall_stmt_write_not_mem name value body
+    codeOverride
+    (by
+      intro stmt hMem
+      exact nativeStmtWriteNames_not_mem_of_nativeStmtsWriteNames_not_mem
+        name body stmt hFresh hMem)
+    hPreserves
+
 theorem NativeStmtPreservesWord_block
     (name : EvmYul.Identifier)
     (value : EvmYul.Literal)
