@@ -136,9 +136,11 @@ N8 public Layer 3 theorem flip
   composition from per-statement preservation, selected freshness
   projection lemmas, assignment constructors for literal/hex/identifier/string
   RHS forms, generated `let` constructors for omitted, variable, and literal
-  initializers, and empty-store plus store-parametric selector-hit freshness
-  switch execution exist; general preservation from `nativeStmtsWriteNames`
-  freshness is not complete for all generated statement families.
+  initializers, concrete generated expression-statement constructors for
+  `mstore` and `sstore` when argument evaluation preserves the tracked word,
+  and empty-store plus store-parametric selector-hit freshness switch execution
+  exist; general preservation from `nativeStmtsWriteNames` freshness is not
+  complete for all generated statement families.
 - **Definition of done**:
   - If a generated native body does not write a dispatcher temp, native
     execution preserves that temp.
