@@ -2041,9 +2041,13 @@ private partial def inferPureExprType
       requireWordLikeType key2 "structMember2 key" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals key2 visitingConstants)
       pure .uint256
   | _ =>
-      match ← resolveQualifiedFunctionApp? fields constDecls immutableDecls externalDecls params locals stx with
-      | some _ =>
-          pure .uint256
+      match qualifiedFunctionAppSyntax? stx with
+      | some (fnName, _) =>
+          if (nameComponents fnName).head? == some "Verity" then
+            throwErrorAt stx "unsupported expression in verity_contract body (see #1003 for planned macro support expansions)"
+          else
+            throwErrorAt stx
+              s!"qualified library helper call '{qualifiedFunctionDisplayName fnName}' is only supported as a monadic bind source; use `let x ← {qualifiedFunctionDisplayName fnName} ...` or tuple destructuring bind syntax"
       | none =>
           throwErrorAt stx "unsupported expression in verity_contract body (see #1003 for planned macro support expansions)"
 

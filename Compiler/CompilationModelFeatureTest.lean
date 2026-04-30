@@ -891,6 +891,18 @@ def qualifiedLibraryExecutableCallRuns : Bool :=
 
 example : qualifiedLibraryExecutableCallRuns = true := by native_decide
 
+/--
+error: qualified library helper call 'TermMaxCurve.buyXt' is only supported as a monadic bind source; use `let x ← TermMaxCurve.buyXt ...` or tuple destructuring bind syntax
+-/
+#guard_msgs in
+verity_contract QualifiedLibraryPureExprRejected where
+  storage
+
+  function badPureCall (nif : Uint256, daysToMaturity : Uint256,
+      oriXtReserve : Uint256, debtTokenAmtIn : Uint256) : Uint256 := do
+    let ignored := TermMaxCurve.buyXt nif daysToMaturity oriXtReserve debtTokenAmtIn
+    return nif
+
 end MacroQualifiedLibraryCallSmoke
 
 namespace MacroStatelessSmoke
