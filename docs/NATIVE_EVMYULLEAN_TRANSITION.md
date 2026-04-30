@@ -348,6 +348,8 @@ scope so the native path does not look more complete than it is:
   `NativeStmtPreservesWord_let_lowerExprNative_call_userFunction_of_evalArgs_call_preserves`,
   `NativeStmtPreservesWord_lowerAssignNative_call_runtimePrimOp_of_evalArgs_primCall_preserves`,
   `NativeStmtPreservesWord_lowerAssignNative_call_userFunction_of_evalArgs_call_preserves`,
+  `NativeStmtPreservesWord_lowerAssignNative_call_runtimePrimOp_of_nativeEvalArgs_primCall_preserves`,
+  `NativeStmtPreservesWord_lowerAssignNative_call_userFunction_of_nativeEvalArgs_call_preserves`,
   `NativePrimCallPreservesWord_calldatasize`,
   `NativePrimCallPreservesWord_callvalue`,
   `NativePrimCallPreservesWord_address`,
