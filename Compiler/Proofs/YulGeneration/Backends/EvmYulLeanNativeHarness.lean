@@ -1655,6 +1655,18 @@ theorem lowerExprNative_selectorExpr :
       .ok (state, some state.toState.number) := by
   rfl
 
+@[simp] theorem step_chainid_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.CHAINID none state [] =
+      .ok (state, some state.toState.chainId) := by
+  rfl
+
+@[simp] theorem step_blobbasefee_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.BLOBBASEFEE none state [] =
+      .ok (state, some state.executionEnv.getBlobGasprice) := by
+  rfl
+
 @[simp] theorem step_and_ok
     (state : EvmYul.Yul.State)
     (left right : EvmYul.UInt256) :
@@ -2123,6 +2135,22 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
     EvmYul.Yul.primCall (fuel + 1) state
         EvmYul.Operation.NUMBER [] =
       .ok (state, [state.toState.number]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_chainid_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.CHAINID [] =
+      .ok (state, [state.toState.chainId]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_blobbasefee_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.BLOBBASEFEE [] =
+      .ok (state, [state.executionEnv.getBlobGasprice]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
 @[simp] theorem primCall_and_ok
@@ -4652,6 +4680,40 @@ theorem NativePrimCallPreservesWord_number
       simp [EvmYul.Yul.primCall] at hExec
   | succ fuel' =>
       rw [primCall_number_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_chainid
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.CHAINID [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_chainid_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_blobbasefee
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.BLOBBASEFEE [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_blobbasefee_ok] at hExec
       cases hExec
       exact hLookup
 

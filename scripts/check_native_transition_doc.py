@@ -223,6 +223,8 @@ def check_public_theorem_target(
         "theorem NativePrimCallPreservesWord_caller",
         "theorem NativePrimCallPreservesWord_timestamp",
         "theorem NativePrimCallPreservesWord_number",
+        "theorem NativePrimCallPreservesWord_chainid",
+        "theorem NativePrimCallPreservesWord_blobbasefee",
         "theorem NativePrimCallPreservesWord_unary_same_state",
         "theorem NativePrimCallPreservesWord_binary_same_state",
         "theorem NativePrimCallPreservesWord_ternary_same_state",
