@@ -6362,6 +6362,21 @@ theorem NativeStmtPreservesWord_block
     NativeStmtPreservesWord name value (.Block body) codeOverride :=
   hBody
 
+theorem NativeStmtPreservesWord_block_of_nativeStmtsWriteNames_not_mem
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hFresh : name ∉ Backends.nativeStmtsWriteNames body)
+    (hPreserves :
+      ∀ stmt, stmt ∈ body →
+        name ∉ Backends.nativeStmtWriteNames stmt →
+          NativeStmtPreservesWord name value stmt codeOverride) :
+    NativeStmtPreservesWord name value (.Block body) codeOverride :=
+  NativeStmtPreservesWord_block name value body codeOverride
+    (NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+      name value body codeOverride hFresh hPreserves)
+
 theorem NativeStmtPreservesWord_if_of_eval_self
     (name : EvmYul.Identifier)
     (value : EvmYul.Literal)
@@ -6423,6 +6438,30 @@ theorem NativeStmtPreservesWord_if_of_eval_preserves
         simp [hCondZero] at hExec
         cases hExec
         exact hCondLookup
+
+theorem NativeStmtPreservesWord_if_of_eval_preserves_and_nativeStmtsWriteNames_not_mem
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (cond : EvmYul.Yul.Ast.Expr)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hCond :
+      ∀ fuel state,
+        state[name]! = value →
+          ∃ condState condValue,
+            EvmYul.Yul.eval fuel cond codeOverride state =
+              .ok (condState, condValue) ∧
+            condState[name]! = value)
+    (hFresh : name ∉ Backends.nativeStmtsWriteNames body)
+    (hPreserves :
+      ∀ stmt, stmt ∈ body →
+        name ∉ Backends.nativeStmtWriteNames stmt →
+          NativeStmtPreservesWord name value stmt codeOverride) :
+    NativeStmtPreservesWord name value (.If cond body) codeOverride :=
+  NativeStmtPreservesWord_if_of_eval_preserves name value cond body codeOverride
+    hCond
+    (NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+      name value body codeOverride hFresh hPreserves)
 
 theorem NativeStmtPreservesWord_lowerAssignNative_lit_of_ne
     (name target : EvmYul.Identifier)
