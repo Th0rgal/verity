@@ -1682,6 +1682,14 @@ theorem lowerExprNative_selectorExpr :
         none) := by
   rfl
 
+@[simp] theorem step_mstore8_ok
+    (state : EvmYul.Yul.State)
+    (offset value : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.MSTORE8 none state [offset, value] =
+      .ok (state.setMachineState (state.toMachineState.mstore8 offset value),
+        none) := by
+  rfl
+
 @[simp] theorem step_sload_ok
     (state : EvmYul.Yul.State)
     (slot : EvmYul.UInt256) :
@@ -1759,6 +1767,59 @@ theorem lowerExprNative_selectorExpr :
     (slot value : EvmYul.UInt256) :
     EvmYul.step (τ := .Yul) EvmYul.Operation.SSTORE none state [slot, value] =
       .ok (state.setState (state.toState.sstore slot value), none) := by
+  rfl
+
+@[simp] theorem step_tload_ok
+    (state : EvmYul.Yul.State)
+    (slot : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.TLOAD none state [slot] =
+      let (state', value) := state.toState.tload slot
+      .ok (state.setSharedState { state.toSharedState with toState := state' },
+        some value) := by
+  rfl
+
+@[simp] theorem step_tstore_ok
+    (state : EvmYul.Yul.State)
+    (slot value : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.TSTORE none state [slot, value] =
+      .ok (state.setState (state.toState.tstore slot value), none) := by
+  rfl
+
+@[simp] theorem step_msize_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.MSIZE none state [] =
+      .ok (state, some (state.toMachineState.msize)) := by
+  rfl
+
+@[simp] theorem step_gas_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.GAS none state [] =
+      .ok (state, some (state.toMachineState.gas)) := by
+  rfl
+
+@[simp] theorem step_returndatasize_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.RETURNDATASIZE none state [] =
+      .ok (state, some (state.toMachineState.returndatasize)) := by
+  rfl
+
+@[simp] theorem step_calldatacopy_ok
+    (state : EvmYul.Yul.State)
+    (mstart datastart size : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.CALLDATACOPY none state
+        [mstart, datastart, size] =
+      .ok (state.setSharedState
+        (state.toSharedState.calldatacopy mstart datastart size), none) := by
+  rfl
+
+@[simp] theorem step_returndatacopy_ok
+    (state : EvmYul.Yul.State)
+    (mstart rstart size : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.RETURNDATACOPY none state
+        [mstart, rstart, size] =
+      .ok (state.setMachineState
+        (state.toSharedState.toMachineState.returndatacopy mstart rstart size),
+        none) := by
   rfl
 
 @[simp] theorem step_stop_ok
@@ -2226,6 +2287,16 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
         []) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
+@[simp] theorem primCall_mstore8_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (offset value : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.MSTORE8 [offset, value] =
+      .ok (state.setMachineState (state.toMachineState.mstore8 offset value),
+        []) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
 @[simp] theorem primCall_sload_ok
     (fuel : Nat)
     (state : EvmYul.Yul.State)
@@ -2324,6 +2395,69 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
         EvmYul.Operation.SSTORE [slot, value] =
       .ok (state.setState (state.toState.sstore slot value), []) := by
   cases fuel <;> simp [EvmYul.Yul.primCall, hPerm]
+
+@[simp] theorem primCall_tload_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (slot : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.TLOAD [slot] =
+      let (state', value) := state.toState.tload slot
+      .ok (state.setSharedState { state.toSharedState with toState := state' },
+        [value]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_tstore_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (slot value : EvmYul.UInt256)
+    (hPerm : state.executionEnv.perm = true) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.TSTORE [slot, value] =
+      .ok (state.setState (state.toState.tstore slot value), []) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, hPerm]
+
+@[simp] theorem primCall_msize_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.MSIZE [] =
+      .ok (state, [state.toMachineState.msize]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_gas_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.GAS [] =
+      .ok (state, [state.toMachineState.gas]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_returndatasize_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.RETURNDATASIZE [] =
+      .ok (state, [state.toMachineState.returndatasize]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_calldatacopy_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (mstart datastart size : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.CALLDATACOPY [mstart, datastart, size] =
+      .ok (state.setSharedState
+        (state.toSharedState.calldatacopy mstart datastart size), []) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_returndatacopy_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (mstart rstart size : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.RETURNDATACOPY [mstart, rstart, size] =
+      .ok (state.setMachineState
+        (state.toSharedState.toMachineState.returndatacopy mstart rstart size),
+        []) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
 
 @[simp] theorem primCall_stop_ok
     (fuel : Nat)
@@ -5152,6 +5286,159 @@ theorem NativePrimCallPreservesWord_mload
           subst final
           rw [state_getElem_setMachineState]
           exact hLookup
+
+theorem NativePrimCallPreservesWord_mstore8
+    (name : EvmYul.Identifier)
+    (expected offset value : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.MSTORE8 [offset, value] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_mstore8_ok] at hExec
+      cases hExec
+      rw [state_getElem_setMachineState]
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_tload
+    (name : EvmYul.Identifier)
+    (expected slot : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.TLOAD [slot] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_tload_ok] at hExec
+      cases hTload : state.toState.tload slot with
+      | mk state' value =>
+          simp [hTload] at hExec
+          cases hExec
+          subst final
+          rw [state_getElem_setSharedState]
+          exact hLookup
+
+theorem NativePrimCallPreservesWord_tstore
+    (name : EvmYul.Identifier)
+    (expected slot value : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.TSTORE [slot, value] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      by_cases hPerm : state.executionEnv.perm = true
+      · rw [primCall_tstore_ok fuel' state slot value hPerm] at hExec
+        cases hExec
+        rw [state_getElem_setState]
+        exact hLookup
+      · simp [EvmYul.Yul.primCall, hPerm] at hExec
+        change
+          (Except.error EvmYul.Yul.Exception.StaticModeViolation :
+              Except EvmYul.Yul.Exception
+                (EvmYul.Yul.State × List EvmYul.Literal)) =
+            Except.ok (final, rets) at hExec
+        cases hExec
+
+theorem NativePrimCallPreservesWord_msize
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.MSIZE [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_msize_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_gas
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.GAS [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_gas_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_returndatasize
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.RETURNDATASIZE [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_returndatasize_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_calldatacopy
+    (name : EvmYul.Identifier)
+    (expected mstart datastart size : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.CALLDATACOPY
+          [mstart, datastart, size] = .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_calldatacopy_ok] at hExec
+      cases hExec
+      rw [state_getElem_setSharedState]
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_returndatacopy
+    (name : EvmYul.Identifier)
+    (expected mstart rstart size : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.RETURNDATACOPY
+          [mstart, rstart, size] = .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_returndatacopy_ok] at hExec
+      cases hExec
+      rw [state_getElem_setMachineState]
+      exact hLookup
 
 theorem NativePrimCallPreservesWord_keccak256
     (name : EvmYul.Identifier)
