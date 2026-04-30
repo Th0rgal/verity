@@ -59,6 +59,17 @@ def eventIsDynamicType := isDynamicParamType
 
 def eventHeadWordSize := paramHeadSize
 
+/-- Number of 32-byte words in the local head of an ABI value once its dynamic
+tail has been entered. Dynamic children occupy one offset word in that head. -/
+partial def paramLocalHeadWords : ParamType → Nat
+  | ParamType.uint256 | ParamType.int256 | ParamType.uint8 | ParamType.address
+  | ParamType.bool | ParamType.bytes32 | ParamType.string | ParamType.bytes
+  | ParamType.array _ => 1
+  | ParamType.fixedArray elemTy n => n * paramLocalHeadWords elemTy
+  | ParamType.tuple elemTys => elemTys.foldl (fun acc ty => acc + paramLocalHeadWords ty) 0
+  | ParamType.adt _ maxFields => 1 + maxFields
+  | ParamType.newtypeOf _ baseType => paramLocalHeadWords baseType
+
 /-- Whether a parameter type is ABI-encoded as exactly one 32-byte word without
 needing offset-based dynamic handling. -/
 def isSingleWordStaticParamType (ty : ParamType) : Bool :=

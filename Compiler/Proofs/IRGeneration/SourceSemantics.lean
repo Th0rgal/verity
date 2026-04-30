@@ -1346,6 +1346,14 @@ private theorem evalExpr_arrayElementWord
     (elementWords wordOffset : Nat) :
     evalExpr fields state (.arrayElementWord name index elementWords wordOffset) = none := rfl
 
+private theorem evalExpr_arrayElementDynamicWord
+    (fields : List Field)
+    (state : RuntimeState)
+    (name : String)
+    (index : Expr)
+    (wordOffset : Nat) :
+    evalExpr fields state (.arrayElementDynamicWord name index wordOffset) = none := rfl
+
 private theorem evalExpr_mappingWord
     (fields : List Field)
     (state : RuntimeState)
@@ -3671,6 +3679,8 @@ mutual
         simp [evalExprWithHelpers, evalExpr_arrayElement]
     | arrayElementWord _ b _ _ =>
         simp [evalExprWithHelpers, evalExpr_arrayElementWord]
+    | arrayElementDynamicWord _ b _ =>
+        simp [evalExprWithHelpers, evalExpr_arrayElementDynamicWord]
     | mappingWord _ b _ | mappingPackedWord _ b _ _ | structMember _ b _ =>
         simp only [exprTouchesUnsupportedHelperSurface] at hsurface
         have hb :=

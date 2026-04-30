@@ -1062,6 +1062,56 @@ def curveCutArrayExecutableReadsTupleElement : Bool :=
 
 example : curveCutArrayExecutableReadsTupleElement = true := by decide
 
+verity_contract DynamicStructArraySmoke where
+  storage
+    lastToken : Address := slot 0
+    lastAmount : Uint256 := slot 1
+
+  struct Note where
+    owner : Address,
+    amount : Uint256,
+    nullifier : Bytes32
+
+  struct Ciphertext where
+    data : Array Uint256,
+    nonce : Bytes32
+
+  struct Transaction where
+    proof : Array Uint256,
+    note : Note,
+    ciphertexts : Array Ciphertext,
+    token : Address,
+    fee : Uint256
+
+  function tokenOf (txs : Array Transaction, idx : Uint256) : Address := do
+    return (arrayElement txs idx).token
+
+  function feeOf (txs : Array Transaction, idx : Uint256) : Uint256 := do
+    return (arrayElement txs idx).fee
+
+  function storeTokenAndFee (txs : Array Transaction, idx : Uint256) : Unit := do
+    setStorageAddr lastToken (arrayElement txs idx).token
+    setStorage lastAmount (arrayElement txs idx).fee
+
+def dynamicStructArrayExecutableReadsStaticLeaves : Bool :=
+  let note : DynamicStructArraySmoke.Note := {
+    owner := 0x1234,
+    amount := 99,
+    nullifier := 7
+  }
+  let tx : DynamicStructArraySmoke.Transaction := {
+    proof := #[1, 2, 3],
+    note := note,
+    ciphertexts := #[],
+    token := 0xabcd,
+    fee := 5
+  }
+  match DynamicStructArraySmoke.feeOf #[tx] 0 Verity.defaultState with
+  | .success value _ => value == 5
+  | _ => false
+
+example : dynamicStructArrayExecutableReadsStaticLeaves = true := by decide
+
 verity_contract PackedStorageWriteSmoke where
   storage
     stateRoot : Uint256 := slot 0
@@ -1729,6 +1779,7 @@ end SpecGenSmoke
 #check_contract TupleSmoke
 #check_contract NamedStructParamSmoke
 #check_contract CurveCutArraySmoke
+#check_contract DynamicStructArraySmoke
 #check_contract PackedStorageWriteSmoke
 #check_contract DirectHelperCallSmoke
 #check_contract Uint8Smoke

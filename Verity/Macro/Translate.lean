@@ -1443,6 +1443,26 @@ private partial def staticAbiWordCount? : ValueType → Option Nat
   | .newtype _ baseType => staticAbiWordCount? baseType
   | _ => none
 
+private partial def abiLocalHeadWordCount? : ValueType → Option Nat
+  | .uint256 | .int256 | .uint8 | .address | .bytes32 | .bool
+  | .string | .bytes | .array _ => some 1
+  | .tuple elemTys =>
+      elemTys.foldl
+        (fun acc ty =>
+          match acc, abiLocalHeadWordCount? ty with
+          | some n, some m => some (n + m)
+          | _, _ => none)
+        (some 0)
+  | .struct _ fields =>
+      fields.foldl
+        (fun acc field =>
+          match acc, abiLocalHeadWordCount? field.snd with
+          | some n, some m => some (n + m)
+          | _, _ => none)
+        (some 0)
+  | .newtype _ baseType => abiLocalHeadWordCount? baseType
+  | .adt _ _ | .unit => none
+
 private partial def valueTypeUsesDynamicData : ValueType → Bool
   | .string | .bytes | .array _ => true
   | .tuple elemTys => elemTys.any valueTypeUsesDynamicData
@@ -1562,6 +1582,30 @@ private partial def structFieldPath?
               none
       | _ => none
 
+private partial def structFieldHeadOffset?
+    (ty : ValueType)
+    (path : List String)
+    (baseOffset : Nat := 0) : Option (ValueType × Nat) :=
+  match path with
+  | [] => none
+  | fieldName :: rest =>
+      match ty with
+      | .struct _ fields =>
+          let rec go (remaining : List (String × ValueType)) (curOffset : Nat) : Option (ValueType × Nat) :=
+            match remaining with
+            | [] => none
+            | (name, fieldTy) :: more =>
+                if name == fieldName then
+                  match rest with
+                  | [] => some (fieldTy, curOffset)
+                  | _ => structFieldHeadOffset? fieldTy rest curOffset
+                else
+                  match abiLocalHeadWordCount? fieldTy with
+                  | some n => go more (curOffset + n)
+                  | none => none
+          go fields baseOffset
+      | _ => none
+
 private def paramStructProjectionResolved?
     (params : Array ParamDecl)
     (stx : Term) : Option (String × ValueType × ValueType) := do
@@ -1590,6 +1634,33 @@ private def paramStructProjectionResolved?
       match stripParens root with
       | `(term| $id:ident) => resolve (toString id.getId) path
       | _ => none
+
+private def arrayElementStructProjectionResolved?
+    (params : Array ParamDecl)
+    (stx : Term) : Option (String × Term × ValueType × ValueType × Nat) := do
+  let (root, path) ← structProjectionPath? stx
+  match stripParens root with
+  | `(term| arrayElement $name:term $index:term) =>
+      let paramName ←
+        match stripParens name with
+        | `(term| $id:ident) => some (toString id.getId)
+        | _ => none
+      let param ← params.find? (fun p => p.name == paramName)
+      let elemTy ← match param.ty with
+        | .array elemTy => some elemTy
+        | _ => none
+      let (fieldTy, wordOffset) ← structFieldHeadOffset? elemTy path
+      some (paramName, index, fieldTy, elemTy, wordOffset)
+  | _ => none
+
+private def arrayElementStructProjection?
+    (params : Array ParamDecl)
+    (stx : Term) : Option (String × Term × ValueType × ValueType × Nat) := do
+  let resolved@(_, _, fieldTy, _, _) ← arrayElementStructProjectionResolved? params stx
+  if isSingleWordStaticValueType fieldTy then
+    some resolved
+  else
+    none
 
 private def paramStructProjection?
     (params : Array ParamDecl)
@@ -1659,6 +1730,13 @@ private def requireSupportedArrayElementTupleSourceType
     (context : String)
     (ty : ValueType) : CommandElabM ValueType := do
   match ty with
+  | .array elemTy@(.tuple _) =>
+      match staticAbiWordCount? elemTy, abiLocalHeadWordCount? elemTy with
+      | some _, _ => pure elemTy
+      | none, some _ => pure elemTy
+      | none, none =>
+          throwErrorAt stx
+            s!"{context} currently supports only arrays with ABI-decodable tuple elements, got {renderValueType ty}"
   | .array elemTy =>
       match staticAbiWordCount? elemTy with
       | some _ => pure elemTy
@@ -2048,6 +2126,10 @@ private partial def inferPureExprType
           if matchesBareName p.name name then some p.ty else none) with
     | some ty => pure ty
     | none => throwPureContextAccessorError stx name
+  if let some (_, index, fieldTy, _, _) := arrayElementStructProjection? params stx then
+    requireWordLikeType index "arrayElement index" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals index visitingConstants)
+    pure fieldTy
+  else
   if isParamStructDynamicRootProjection params stx then
     throwStructDynamicRootProjectionError stx
   else
@@ -2863,6 +2945,24 @@ partial def translatePureExprWithTypes
     (visitingConstants : List String := []) : CommandElabM Term := do
   let stx := stripParens stx
   let localNames := typedLocalNames locals
+  if let some (paramName, index, _fieldTy, elemTy, wordOffset) := arrayElementStructProjection? params stx then
+    let indexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index visitingConstants
+    if valueTypeUsesDynamicData elemTy then
+      `(Compiler.CompilationModel.Expr.arrayElementDynamicWord
+        $(strTerm paramName)
+        $indexExpr
+        $(natTerm wordOffset))
+    else
+      let elementWords ←
+        match staticAbiWordCount? elemTy with
+        | some n => pure n
+        | none => throwErrorAt stx "arrayElement struct projection requires a static or dynamic ABI-decodable element"
+      `(Compiler.CompilationModel.Expr.arrayElementWord
+        $(strTerm paramName)
+        $indexExpr
+        $(natTerm elementWords)
+        $(natTerm wordOffset))
+  else
   if isParamStructDynamicRootProjection params stx then
     throwStructDynamicRootProjectionError stx
   else
@@ -3292,12 +3392,6 @@ private def arrayElementTupleDestructureStmts?
       let paramName := ← expectStringOrIdent name
       match params.find? (fun p => p.name == paramName) with
       | some { ty := .array (.tuple elemTys), .. } =>
-          let elementWords ←
-            match staticAbiWordCount? (.tuple elemTys) with
-            | some n => pure n
-            | none =>
-                throwErrorAt rhs
-                  "arrayElement tuple destructuring requires a static ABI-word tuple element type"
           if names.size != elemTys.length then
             throwErrorAt rhs
               s!"tuple destructuring binds {names.size} names, but the source provides {elemTys.length} values"
@@ -3310,22 +3404,51 @@ private def arrayElementTupleDestructureStmts?
             `(Compiler.CompilationModel.Expr.localVar $(strTerm indexName))
           let mut offset := 0
           let mut valueExprs : Array Term := #[]
-          for elemTy in elemTys do
-            let elemWords ←
-              match staticAbiWordCount? elemTy with
-              | some n => pure n
-              | none =>
+          match staticAbiWordCount? (.tuple elemTys) with
+          | some elementWords =>
+              for elemTy in elemTys do
+                let elemWords ←
+                  match staticAbiWordCount? elemTy with
+                  | some n => pure n
+                  | none =>
+                      throwErrorAt rhs
+                        "arrayElement tuple destructuring requires static ABI-word tuple members"
+                if elemWords != 1 then
                   throwErrorAt rhs
-                    "arrayElement tuple destructuring requires static ABI-word tuple members"
-            if elemWords != 1 then
-              throwErrorAt rhs
-                "arrayElement tuple destructuring currently supports top-level single-word tuple members"
-            valueExprs := valueExprs.push (← `(Compiler.CompilationModel.Expr.arrayElementWord
-              $(strTerm paramName)
-              $indexLocal
-              $(natTerm elementWords)
-              $(natTerm offset)))
-            offset := offset + elemWords
+                    "arrayElement tuple destructuring currently supports top-level single-word tuple members"
+                valueExprs := valueExprs.push (← `(Compiler.CompilationModel.Expr.arrayElementWord
+                  $(strTerm paramName)
+                  $indexLocal
+                  $(natTerm elementWords)
+                  $(natTerm offset)))
+                offset := offset + elemWords
+          | none =>
+              let _ ←
+                match abiLocalHeadWordCount? (.tuple elemTys) with
+                | some n => pure n
+                | none =>
+                    throwErrorAt rhs
+                      "arrayElement tuple destructuring requires an ABI-decodable tuple element type"
+              for (elemTy, name?) in elemTys.zip names.toList do
+                if isSingleWordStaticValueType elemTy then
+                  valueExprs := valueExprs.push (← `(Compiler.CompilationModel.Expr.arrayElementDynamicWord
+                    $(strTerm paramName)
+                    $indexLocal
+                    $(natTerm offset)))
+                else
+                  match name? with
+                  | none =>
+                      valueExprs := valueExprs.push (← `(Compiler.CompilationModel.Expr.literal 0))
+                  | some boundName =>
+                      throwErrorAt rhs
+                        s!"arrayElement tuple destructuring cannot bind dynamic member '{boundName}' yet; use '_' for nested dynamic members"
+                let elemHeadWords ←
+                  match abiLocalHeadWordCount? elemTy with
+                  | some n => pure n
+                  | none =>
+                      throwErrorAt rhs
+                        "arrayElement tuple destructuring requires ABI-decodable tuple members"
+                offset := offset + elemHeadWords
           let boundPairs := (names.zip valueExprs).filterMap fun (name?, valueExpr) =>
             name?.map (fun name => (name, valueExpr))
           let boundStmts ← boundPairs.mapM fun (name, valueExpr) =>
@@ -5625,7 +5748,7 @@ def mkStructDefCommandPublic (decl : StructDecl) : CommandElabM Cmd := do
   let fieldTys ← decl.fields.mapM (fun field => contractValueTypeTerm field.ty)
   `(command| structure $structId where
       $[$fieldIds:ident : $fieldTys:term]*
-      deriving Repr)
+      deriving Repr, Inhabited)
 
 /-- Generate a `def storageNamespace : Nat := <keccak-value>` command for
     the current contract.  Uses the resolved namespace value from

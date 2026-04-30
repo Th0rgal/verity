@@ -26,6 +26,8 @@ def reservedExternalNames
     if arrayElementWordHelpersRequired then
       [ checkedArrayElementWordCalldataHelperName
       , checkedArrayElementWordMemoryHelperName
+      , checkedArrayElementDynamicWordCalldataHelperName
+      , checkedArrayElementDynamicWordMemoryHelperName
       ]
     else
       []
@@ -140,7 +142,8 @@ def validateInternalCallShapesInExpr
       validateInternalCallShapesInExpr functions callerName key
   | Expr.storageArrayElement _ index
   | Expr.arrayElement _ index
-  | Expr.arrayElementWord _ index _ _ =>
+  | Expr.arrayElementWord _ index _ _
+  | Expr.arrayElementDynamicWord _ index _ =>
       validateInternalCallShapesInExpr functions callerName index
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b | Expr.mod a b | Expr.smod a b |
     Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b |
@@ -372,7 +375,8 @@ def validateExternalCallTargetsInExpr
       validateExternalCallTargetsInExprList externals context args
   | Expr.storageArrayElement _ index
   | Expr.arrayElement _ index
-  | Expr.arrayElementWord _ index _ _ =>
+  | Expr.arrayElementWord _ index _ _
+  | Expr.arrayElementDynamicWord _ index _ =>
       validateExternalCallTargetsInExpr externals context index
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b | Expr.mod a b | Expr.smod a b |
     Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b |

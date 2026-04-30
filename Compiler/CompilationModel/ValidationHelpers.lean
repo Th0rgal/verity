@@ -77,7 +77,8 @@ def collectExprNames : Expr → List String
   | Expr.externalCall name args => name :: collectExprListNames args
   | Expr.internalCall name args => name :: collectExprListNames args
   | Expr.arrayLength name => [name]
-  | Expr.arrayElement name index | Expr.arrayElementWord name index _ _ =>
+  | Expr.arrayElement name index | Expr.arrayElementWord name index _ _
+  | Expr.arrayElementDynamicWord name index _ =>
       name :: collectExprNames index
   | Expr.storageArrayLength field => [field]
   | Expr.storageArrayElement field index => field :: collectExprNames index

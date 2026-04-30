@@ -26,6 +26,12 @@ def checkedArrayElementWordCalldataHelperName : String :=
 def checkedArrayElementWordMemoryHelperName : String :=
   "__verity_array_element_word_memory_checked"
 
+def checkedArrayElementDynamicWordCalldataHelperName : String :=
+  "__verity_array_element_dynamic_word_calldata_checked"
+
+def checkedArrayElementDynamicWordMemoryHelperName : String :=
+  "__verity_array_element_dynamic_word_memory_checked"
+
 def checkedStorageArrayElementHelperName : String :=
   "__verity_storage_array_element_checked"
 
@@ -82,6 +88,48 @@ def checkedArrayElementWordCalldataHelper : YulStmt :=
 
 def checkedArrayElementWordMemoryHelper : YulStmt :=
   checkedArrayElementWordHelper checkedArrayElementWordMemoryHelperName "mload"
+
+private def checkedArrayElementDynamicWordHelper (helperName loadOp : String) (sizeExpr? : Option YulExpr) : YulStmt :=
+  let offsetTableBytes := YulExpr.call "mul" [YulExpr.ident "length", YulExpr.lit 32]
+  let elementOffsetSlot := YulExpr.call "add" [
+    YulExpr.ident "data_offset",
+    YulExpr.call "mul" [YulExpr.ident "index", YulExpr.lit 32]
+  ]
+  let wordPos := YulExpr.call "add" [
+    YulExpr.call "add" [YulExpr.ident "data_offset", YulExpr.ident "__element_rel_offset"],
+    YulExpr.call "mul" [YulExpr.ident "word_offset", YulExpr.lit 32]
+  ]
+  let sizeCheck :=
+    match sizeExpr? with
+    | some sizeExpr =>
+        [YulStmt.if_ (YulExpr.call "gt" [
+          YulExpr.ident "__element_word_pos",
+          YulExpr.call "sub" [sizeExpr, YulExpr.lit 32]
+        ]) [
+          YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+        ]]
+    | none => []
+  YulStmt.funcDef helperName ["data_offset", "length", "index", "word_offset"] ["word"] (
+    [
+      YulStmt.if_ (YulExpr.call "iszero" [
+        YulExpr.call "lt" [YulExpr.ident "index", YulExpr.ident "length"]
+      ]) [
+        YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+      ],
+      YulStmt.let_ "__element_rel_offset" (YulExpr.call loadOp [elementOffsetSlot]),
+      YulStmt.if_ (YulExpr.call "lt" [YulExpr.ident "__element_rel_offset", offsetTableBytes]) [
+        YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+      ],
+      YulStmt.let_ "__element_word_pos" wordPos
+    ] ++ sizeCheck ++ [
+      YulStmt.assign "word" (YulExpr.call loadOp [YulExpr.ident "__element_word_pos"])
+    ])
+
+def checkedArrayElementDynamicWordCalldataHelper : YulStmt :=
+  checkedArrayElementDynamicWordHelper checkedArrayElementDynamicWordCalldataHelperName "calldataload" (some (YulExpr.call "calldatasize" []))
+
+def checkedArrayElementDynamicWordMemoryHelper : YulStmt :=
+  checkedArrayElementDynamicWordHelper checkedArrayElementDynamicWordMemoryHelperName "mload" none
 
 def checkedStorageArrayElementHelper : YulStmt :=
   YulStmt.funcDef checkedStorageArrayElementHelperName ["slot", "index"] ["word"] [

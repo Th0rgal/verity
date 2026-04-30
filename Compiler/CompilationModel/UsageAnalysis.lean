@@ -98,6 +98,9 @@ def exprUsesArrayElementKind (includePlain includeWord : Bool) : Expr → Bool
   | Expr.arrayElementWord _ index _ _ =>
       let nested := exprUsesArrayElementKind includePlain includeWord index
       if nested then true else includeWord
+  | Expr.arrayElementDynamicWord _ index _ =>
+      let nested := exprUsesArrayElementKind includePlain includeWord index
+      if nested then true else includeWord
   | Expr.mapping _ key => exprUsesArrayElementKind includePlain includeWord key
   | Expr.mappingWord _ key _ => exprUsesArrayElementKind includePlain includeWord key
   | Expr.mappingPackedWord _ key _ _ => exprUsesArrayElementKind includePlain includeWord key
@@ -289,7 +292,7 @@ attribute [simp] exprUsesArrayElementKind exprListUsesArrayElementKind
 
 mutual
 def exprUsesArrayElement : Expr → Bool
-  | Expr.arrayElement _ _ | Expr.arrayElementWord _ _ _ _ =>
+  | Expr.arrayElement _ _ | Expr.arrayElementWord _ _ _ _ | Expr.arrayElementDynamicWord _ _ _ =>
       true
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _
   | Expr.mappingUint _ key | Expr.structMember _ key _ =>
@@ -544,7 +547,7 @@ def exprUsesStorageArrayElement : Expr → Bool
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _
   | Expr.adtTag _ _ =>
       false
-  | Expr.arrayElement _ index | Expr.arrayElementWord _ index _ _ =>
+  | Expr.arrayElement _ index | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _ =>
       exprUsesStorageArrayElement index
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega
@@ -663,7 +666,7 @@ def exprUsesDynamicBytesEq : Expr → Bool
   | Expr.externalCall _ args | Expr.internalCall _ args =>
       exprListUsesDynamicBytesEq args
   | Expr.storageArrayElement _ index | Expr.arrayElement _ index
-  | Expr.arrayElementWord _ index _ _ => exprUsesDynamicBytesEq index
+  | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _ => exprUsesDynamicBytesEq index
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
   | Expr.mod a b | Expr.smod a b
   | Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b
