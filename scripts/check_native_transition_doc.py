@@ -205,6 +205,7 @@ def check_public_theorem_target(
         "theorem NativeBlockPreservesWord_of_forall_stmt_write_not_mem",
         "theorem NativeStmtPreservesWord_block",
         "theorem NativeStmtPreservesWord_if_of_eval_self",
+        "theorem NativeStmtPreservesWord_if_of_eval_preserves",
         "theorem NativeStmtPreservesWord_lowerAssignNative_lit_of_ne",
         "theorem NativeStmtPreservesWord_lowerAssignNative_hex_of_ne",
         "theorem NativeStmtPreservesWord_lowerAssignNative_ident_of_ne",
