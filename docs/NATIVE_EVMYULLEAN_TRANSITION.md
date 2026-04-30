@@ -338,6 +338,7 @@ scope so the native path does not look more complete than it is:
   `NativeStmtPreservesWord_let_none_of_not_mem`,
   `NativeStmtPreservesWord_let_var_of_not_mem`,
   `NativeStmtPreservesWord_let_lit_of_not_mem`,
+  `NativeStmtPreservesWord_exprStmtCall_prim_of_evalArgs_primCall_preserves`,
   `nativeStmtWriteNames_not_mem_of_nativeStmtsWriteNames_not_mem`,
   `NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem`,
   `nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem`, and

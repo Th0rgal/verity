@@ -4582,6 +4582,54 @@ theorem NativeStmtPreservesWord_let_lit_of_not_mem
       rw [state_getElem_insert_of_ne state name head literal hneq]
       exact hLookup
 
+theorem NativeStmtPreservesWord_exprStmtCall_prim_of_evalArgs_primCall_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (prim : EvmYul.Yul.Ast.PrimOp)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state argState values,
+        state[name]! = expected →
+          EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+            .ok (argState, values) →
+          argState[name]! = expected)
+    (hPrim :
+      ∀ fuel state values final rets,
+        state[name]! = expected →
+          EvmYul.Yul.primCall fuel state prim values = .ok (final, rets) →
+          final[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl prim) args)) codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      simp [EvmYul.Yul.exec] at hExec
+      cases hEvalArgs :
+          EvmYul.Yul.evalArgs fuel' args.reverse codeOverride state with
+      | error err =>
+          simp [hEvalArgs, EvmYul.Yul.reverse', EvmYul.Yul.execPrimCall] at hExec
+      | ok argResult =>
+          rcases argResult with ⟨argState, values⟩
+          have hArgLookup : argState[name]! = expected :=
+            hArgs fuel' state argState values hLookup hEvalArgs
+          simp [hEvalArgs, EvmYul.Yul.reverse', EvmYul.Yul.execPrimCall,
+            EvmYul.Yul.multifill'] at hExec
+          cases hPrimCall :
+              EvmYul.Yul.primCall fuel' argState prim values.reverse with
+          | error err =>
+              simp [hPrimCall] at hExec
+          | ok primResult =>
+              rcases primResult with ⟨primState, rets⟩
+              simp [hPrimCall, EvmYul.Yul.State.multifill] at hExec
+              cases hExec
+              have hPrimLookup : primState[name]! = expected :=
+                hPrim fuel' argState values.reverse primState rets hArgLookup
+                  hPrimCall
+              cases primState <;> simpa using hPrimLookup
+
 theorem nativeSwitchTempsFreshForNativeBodies_case_matched_not_mem
     (switchId tag : Nat)
     (body defaultBody : List EvmYul.Yul.Ast.Stmt)
