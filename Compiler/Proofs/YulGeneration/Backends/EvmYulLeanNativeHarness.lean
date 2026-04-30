@@ -6148,6 +6148,82 @@ theorem NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves
                 cases jump <;>
                   simpa [EvmYul.Yul.State.setState] using hArgLookup
 
+theorem NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.RETURN) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, offset, size, hEval, _hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ returnFuel =>
+          rw [primCall_return_ok returnFuel argState offset size] at hExec
+          cases hReturn :
+              EvmYul.Yul.binaryMachineStateOp EvmYul.MachineState.evmReturn
+                argState [offset, size] with
+          | error err =>
+              simp [hReturn] at hExec
+          | ok ret =>
+              rcases ret with ⟨returnState, value⟩
+              simp [hReturn] at hExec
+
+theorem NativeStmtPreservesWord_exprStmtCall_revert_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.REVERT) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, offset, size, hEval, _hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ revertFuel =>
+          rw [primCall_revert_ok revertFuel argState offset size] at hExec
+          cases hRevert :
+              EvmYul.Yul.binaryMachineStateOp EvmYul.MachineState.evmRevert
+                argState [offset, size] with
+          | error err =>
+              simp [hRevert] at hExec
+          | ok ret =>
+              rcases ret with ⟨revertState, value⟩
+              simp [hRevert] at hExec
+
 theorem NativeStmtPreservesWord_exprStmtCall_stop
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
