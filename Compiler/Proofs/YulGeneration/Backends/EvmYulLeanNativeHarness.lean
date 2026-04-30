@@ -4364,20 +4364,6 @@ theorem state_getElem_multifill_of_not_mem
           | Checkpoint jump =>
               rfl
 
-theorem state_getElem_multifill_nil
-    (state : EvmYul.Yul.State)
-    (name : EvmYul.Identifier) :
-    (EvmYul.Yul.State.multifill [] [] state)[name]! = state[name]! := by
-  cases state <;> rfl
-
-theorem state_getElem_ok_match_self
-    (state : EvmYul.Yul.State)
-    (name : EvmYul.Identifier) :
-    (match state with
-      | s@(.Ok _ _) => s
-      | s => s)[name]! = state[name]! := by
-  cases state <;> rfl
-
 theorem state_getElem_foldr_insert_zero_of_not_mem
     (state : EvmYul.Yul.State)
     (name : EvmYul.Identifier)
