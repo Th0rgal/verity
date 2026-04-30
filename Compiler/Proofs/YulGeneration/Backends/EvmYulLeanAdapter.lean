@@ -246,41 +246,56 @@ mutual
     stmts.foldl (fun acc stmt => acc ++ yulStmtIdentifierNames stmt) []
 end
 
-mutual
-  partial def yulStmtWriteNames : YulStmt → List String
-    | .comment _ | .expr _ | .leave => []
-    | .let_ name _ => [name]
-    | .letMany names _ => names
-    | .assign name _ => [name]
-    | .if_ _ body => yulStmtsWriteNames body
-    | .for_ init _ post body =>
-        yulStmtsWriteNames init ++
-          yulStmtsWriteNames post ++
-          yulStmtsWriteNames body
-    | .switch _ cases defaultBody =>
-        cases.foldl (fun acc (_, body) => acc ++ yulStmtsWriteNames body) [] ++
-          yulStmtsWriteNames (defaultBody.getD [])
-    | .block stmts => yulStmtsWriteNames stmts
-    | .funcDef _ params rets body => params ++ rets ++ yulStmtsWriteNames body
+def collectYulStmtWriteNames
+    (writeStmt : YulStmt → List String) : List YulStmt → List String
+  | [] => []
+  | stmt :: rest => writeStmt stmt ++ collectYulStmtWriteNames writeStmt rest
 
-  partial def yulStmtsWriteNames (stmts : List YulStmt) : List String :=
-    stmts.foldl (fun acc stmt => acc ++ yulStmtWriteNames stmt) []
-end
+partial def yulStmtWriteNames : YulStmt → List String
+  | .comment _ | .expr _ | .leave => []
+  | .let_ name _ => [name]
+  | .letMany names _ => names
+  | .assign name _ => [name]
+  | .if_ _ body => collectYulStmtWriteNames yulStmtWriteNames body
+  | .for_ init _ post body =>
+      collectYulStmtWriteNames yulStmtWriteNames init ++
+        collectYulStmtWriteNames yulStmtWriteNames post ++
+        collectYulStmtWriteNames yulStmtWriteNames body
+  | .switch _ cases defaultBody =>
+      cases.foldl
+          (fun acc (_, body) =>
+            acc ++ collectYulStmtWriteNames yulStmtWriteNames body) [] ++
+        collectYulStmtWriteNames yulStmtWriteNames (defaultBody.getD [])
+  | .block stmts => collectYulStmtWriteNames yulStmtWriteNames stmts
+  | .funcDef _ params rets body =>
+      params ++ rets ++ collectYulStmtWriteNames yulStmtWriteNames body
 
-mutual
-  partial def nativeStmtWriteNames : EvmYul.Yul.Ast.Stmt → List String
-    | .Block stmts => nativeStmtsWriteNames stmts
-    | .Let names _ => names
-    | .ExprStmtCall _ | .Continue | .Break | .Leave => []
-    | .Switch _ cases defaultBody =>
-        cases.foldl (fun acc (_, body) => acc ++ nativeStmtsWriteNames body) [] ++
-          nativeStmtsWriteNames defaultBody
-    | .For _ post body => nativeStmtsWriteNames post ++ nativeStmtsWriteNames body
-    | .If _ body => nativeStmtsWriteNames body
+def yulStmtsWriteNames (stmts : List YulStmt) : List String :=
+  collectYulStmtWriteNames yulStmtWriteNames stmts
 
-  partial def nativeStmtsWriteNames (stmts : List EvmYul.Yul.Ast.Stmt) : List String :=
-    stmts.foldl (fun acc stmt => acc ++ nativeStmtWriteNames stmt) []
-end
+def collectNativeStmtWriteNames
+    (writeStmt : EvmYul.Yul.Ast.Stmt → List String) :
+    List EvmYul.Yul.Ast.Stmt → List String
+  | [] => []
+  | stmt :: rest =>
+      writeStmt stmt ++ collectNativeStmtWriteNames writeStmt rest
+
+partial def nativeStmtWriteNames : EvmYul.Yul.Ast.Stmt → List String
+  | .Block stmts => collectNativeStmtWriteNames nativeStmtWriteNames stmts
+  | .Let names _ => names
+  | .ExprStmtCall _ | .Continue | .Break | .Leave => []
+  | .Switch _ cases defaultBody =>
+      cases.foldl
+          (fun acc (_, body) =>
+            acc ++ collectNativeStmtWriteNames nativeStmtWriteNames body) [] ++
+        collectNativeStmtWriteNames nativeStmtWriteNames defaultBody
+  | .For _ post body =>
+      collectNativeStmtWriteNames nativeStmtWriteNames post ++
+        collectNativeStmtWriteNames nativeStmtWriteNames body
+  | .If _ body => collectNativeStmtWriteNames nativeStmtWriteNames body
+
+def nativeStmtsWriteNames (stmts : List EvmYul.Yul.Ast.Stmt) : List String :=
+  collectNativeStmtWriteNames nativeStmtWriteNames stmts
 
 def nativeSwitchDiscrTempName (switchId : Nat) : String :=
   s!"__verity_native_switch_discr_{switchId}"
