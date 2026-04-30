@@ -3248,6 +3248,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeEvalArgsPreservesWord_nil
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeEvalArgsPreservesWord_cons
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeEvalArgsPreservesWord_map_lowerExprNative
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeEvalArgsPreservesWord_map_lowerExprNative_reverse
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_lit
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_hex
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_str
@@ -3779,4 +3780,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3603 theorems/lemmas (2659 public, 944 private, 0 sorry'd)
+-- Total: 3604 theorems/lemmas (2660 public, 944 private, 0 sorry'd)

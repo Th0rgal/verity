@@ -6040,6 +6040,24 @@ theorem NativeEvalArgsPreservesWord_map_lowerExprNative
           intro restArg hRest
           exact hArgs restArg (by simp [hRest])))
 
+theorem NativeEvalArgsPreservesWord_map_lowerExprNative_reverse
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ arg, arg ∈ args →
+        NativeExprPreservesWord name expected
+          (Backends.lowerExprNative arg) codeOverride) :
+    NativeEvalArgsPreservesWord name expected
+      ((args.map Backends.lowerExprNative).reverse) codeOverride := by
+  simpa [List.map_reverse] using
+    NativeEvalArgsPreservesWord_map_lowerExprNative name expected
+      args.reverse codeOverride
+      (by
+        intro arg hArg
+        exact hArgs arg (by simpa using hArg))
+
 theorem NativeExprPreservesWord_lowerExprNative_lit
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
