@@ -135,9 +135,10 @@ N8 public Layer 3 theorem flip
   including condition evaluations that preserve the tracked word, list-level
   composition from per-statement preservation, selected freshness
   projection lemmas, assignment constructors for literal/hex/identifier/string
-  RHS forms, and generated `let` constructors for omitted, variable, and literal
-  initializers exist; general preservation from `nativeStmtsWriteNames`
-  freshness is not complete.
+  RHS forms, generated `let` constructors for omitted, variable, and literal
+  initializers, and empty-store plus store-parametric selector-hit freshness
+  switch execution exist; general preservation from `nativeStmtsWriteNames`
+  freshness is not complete for all generated statement families.
 - **Definition of done**:
   - If a generated native body does not write a dispatcher temp, native
     execution preserves that temp.

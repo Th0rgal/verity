@@ -3174,6 +3174,9 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_storePrefix_tail_error_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPrefixStoreState_matched_eq
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPrefixStoreState_discr_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_storePrefix_tail_ok_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_preserved_store_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_fresh_store_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_error_store_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_error
@@ -3602,4 +3605,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3426 theorems/lemmas (2482 public, 944 private, 0 sorry'd)
+-- Total: 3429 theorems/lemmas (2485 public, 944 private, 0 sorry'd)

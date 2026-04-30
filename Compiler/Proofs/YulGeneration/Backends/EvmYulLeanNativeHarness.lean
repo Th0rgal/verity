@@ -6309,6 +6309,30 @@ theorem exec_lowerNativeSwitchBlock_storePrefix_tail_error_fuel
         fuel contract tx storage observableSlots store discrName matchedName
   · simpa [prefixState, initState] using hTail
 
+def nativeSwitchStoreInitialState
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore) : EvmYul.Yul.State :=
+  .Ok (initialState contract tx storage observableSlots).sharedState store
+
+def nativeSwitchStorePrefixStateForId
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
+    (switchId : Nat) (store : EvmYul.Yul.VarStore) : EvmYul.Yul.State :=
+  ((nativeSwitchStoreInitialState contract tx storage observableSlots store).insert
+      (Backends.nativeSwitchDiscrTempName switchId)
+      (EvmYul.UInt256.ofNat
+        (tx.functionSelector % Compiler.Constants.selectorModulus))).insert
+    (Backends.nativeSwitchMatchedTempName switchId) (EvmYul.UInt256.ofNat 0)
+
+def nativeSwitchStoreMarkedPrefixStateForId
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
+    (switchId : Nat) (store : EvmYul.Yul.VarStore) : EvmYul.Yul.State :=
+  (nativeSwitchStorePrefixStateForId contract tx storage observableSlots
+    switchId store).insert
+    (Backends.nativeSwitchMatchedTempName switchId) (EvmYul.UInt256.ofNat 1)
+
 /-- `matched := 0` lookup on the post-prefix state with arbitrary store. -/
 theorem nativeSwitchPrefixStoreState_matched_eq
     (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
@@ -6344,6 +6368,147 @@ theorem nativeSwitchPrefixStoreState_discr_eq
   rw [Finmap.lookup_insert_of_ne]
   · rw [Finmap.lookup_insert]; simp
   · exact hne
+
+/-- Store-parametric prefix-then-tail-ok glue for `lowerNativeSwitchBlock`.
+    This is the success dual of
+    `exec_lowerNativeSwitchBlock_storePrefix_tail_error_fuel`: it lifts switch
+    tail proofs to states already carrying additional bindings while preserving
+    the final state returned by the tail. -/
+theorem exec_lowerNativeSwitchBlock_storePrefix_tail_ok_fuel
+    (fuel switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (final : EvmYul.Yul.State)
+    (hTail :
+      EvmYul.Yul.exec (fuel + 10)
+        (.Block (nativeSwitchTailStmts switchId cases defaultBody))
+        (some contract)
+        (nativeSwitchStorePrefixStateForId contract tx storage observableSlots
+          switchId store) = .ok final) :
+    EvmYul.Yul.exec (fuel + 12)
+      (Backends.lowerNativeSwitchBlock
+        Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody)
+      (some contract)
+      (nativeSwitchStoreInitialState contract tx storage observableSlots store) =
+    .ok final := by
+  let discrName := Backends.nativeSwitchDiscrTempName switchId
+  let matchedName := Backends.nativeSwitchMatchedTempName switchId
+  let initState :=
+    nativeSwitchStoreInitialState contract tx storage observableSlots store
+  let prefixState :=
+    nativeSwitchStorePrefixStateForId contract tx storage observableSlots
+      switchId store
+  rw [lowerNativeSwitchBlock_selectorExpr_eq_nativeSwitchParts]
+  apply exec_block_append_ok (fuel + 10) 0
+    (nativeSwitchPrefixStmts discrName matchedName)
+    (nativeSwitchTailStmts switchId cases defaultBody)
+    (some contract) initState prefixState final
+  · simpa [nativeSwitchPrefixStmts, prefixState, initState, Nat.add_assoc,
+      Nat.add_comm, Nat.add_left_comm, nativeSwitchStorePrefixStateForId,
+      nativeSwitchStoreInitialState, discrName, matchedName] using
+      exec_nativeSwitchPrefix_selector_initialState_store_ok_fuel
+        fuel contract tx storage observableSlots store discrName matchedName
+  · simpa [prefixState, initState] using hTail
+
+/-- Store-parametric guarded selector-hit execution for the lowered switch
+    block. This is the success dual of
+    `exec_lowerNativeSwitchBlock_selector_find_hit_error_store_fuel`, retaining
+    the matched-flag preservation premise needed to skip the generated default
+    after a successful selected body. -/
+theorem exec_lowerNativeSwitchBlock_selector_find_hit_preserved_store_fuel
+    (fuel selector switchId tag : Nat) (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt) (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
+    (observableSlots : List Nat) (store : EvmYul.Yul.VarStore) (final : EvmYul.Yul.State)
+    (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange : ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body)
+        (some contract) (nativeSwitchStoreMarkedPrefixStateForId contract tx storage observableSlots switchId store) = .ok final)
+    (hPreservesMatched : ∀ pre suffix,
+      cases = pre ++ (tag, body) :: suffix →
+        NativeBlockPreservesWord (Backends.nativeSwitchMatchedTempName switchId) (EvmYul.UInt256.ofNat 1)
+          body (some contract)) :
+    EvmYul.Yul.exec (fuel + cases.length + 12)
+      (Backends.lowerNativeSwitchBlock Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody) (some contract)
+      (nativeSwitchStoreInitialState contract tx storage observableSlots store) =
+    .ok final := by
+  let discrName := Backends.nativeSwitchDiscrTempName switchId
+  let matchedName := Backends.nativeSwitchMatchedTempName switchId
+  have hne := nativeSwitchDiscrTempName_ne_matchedTempName switchId
+  have hCases :=
+    exec_nativeSwitchCaseIfs_find_hit_with_default_preserved_fuel
+      (fuel + 1) selector cases defaultBody tag body (some contract) _
+      final discrName matchedName hFind
+      (nativeSwitchPrefixStoreState_matched_eq contract tx storage
+        observableSlots store discrName matchedName _)
+      (nativeSwitchPrefixStoreState_discr_eq contract tx storage
+        observableSlots store discrName matchedName selector hne hSelector)
+      hSelectorRange hTagsRange
+      (by
+        simp [EvmYul.Yul.State.insert, GetElem?.getElem!,
+          decidableGetElem?, GetElem.getElem, EvmYul.Yul.State.store,
+          EvmYul.Yul.State.lookup!])
+      hBody
+      (by intro pre suffix hCases; simpa [matchedName] using
+        hPreservesMatched pre suffix hCases)
+  exact exec_lowerNativeSwitchBlock_storePrefix_tail_ok_fuel
+    (fuel + cases.length) switchId cases defaultBody contract tx storage
+    observableSlots store final (by
+      simpa [nativeSwitchTailStmts, discrName, matchedName, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm,
+        nativeSwitchStorePrefixStateForId, nativeSwitchStoreInitialState,
+        nativeSwitchStoreMarkedPrefixStateForId] using hCases)
+
+/-- Store-parametric selector-hit success derived from generated native switch
+    freshness. This removes the explicit matched-flag preservation premise for
+    selected bodies when the generated freshness predicate proves the body does
+    not write the matched temp. -/
+theorem exec_lowerNativeSwitchBlock_selector_find_hit_fresh_store_fuel
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (final : EvmYul.Yul.State)
+    (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hFresh :
+      Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody)
+    (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body)
+        (some contract) (nativeSwitchStoreMarkedPrefixStateForId contract tx
+          storage observableSlots switchId store) = .ok final)
+    (hStmtPreserves :
+      ∀ stmt, stmt ∈ body →
+        Backends.nativeSwitchMatchedTempName switchId ∉
+          Backends.nativeStmtWriteNames stmt →
+          NativeStmtPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
+            (EvmYul.UInt256.ofNat 1) stmt (some contract)) :
+    EvmYul.Yul.exec (fuel + cases.length + 12)
+      (Backends.lowerNativeSwitchBlock
+        Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody)
+      (some contract)
+      (nativeSwitchStoreInitialState contract tx storage observableSlots store) =
+    .ok final := by
+  apply exec_lowerNativeSwitchBlock_selector_find_hit_preserved_store_fuel
+    fuel selector switchId tag cases defaultBody body contract tx storage
+    observableSlots store final hSelector hFind hSelectorRange hTagsRange hBody
+  intro pre suffix _hCases
+  exact NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+    (Backends.nativeSwitchMatchedTempName switchId) (EvmYul.UInt256.ofNat 1)
+    body (some contract)
+    (nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem
+      switchId selector tag body defaultBody cases hFresh hFind)
+    hStmtPreserves
 
 /-- Store-parametric guarded selector-miss execution for the lowered switch
     block whose default is `revert(0, 0)`. Lifts the empty-store version to

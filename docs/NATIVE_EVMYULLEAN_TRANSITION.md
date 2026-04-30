@@ -315,6 +315,9 @@ scope so the native path does not look more complete than it is:
   `exec_lowerNativeSwitchBlock_selector_find_hit_preserved_fuel`,
   `exec_nativeSwitchTail_find_hit_fresh_fuel`,
   `exec_lowerNativeSwitchBlock_selector_find_hit_fresh_fuel`,
+  `exec_lowerNativeSwitchBlock_storePrefix_tail_ok_fuel`,
+  `exec_lowerNativeSwitchBlock_selector_find_hit_preserved_store_fuel`,
+  `exec_lowerNativeSwitchBlock_selector_find_hit_fresh_store_fuel`,
   `exec_lowerNativeSwitchBlock_selector_find_none_with_default_nonempty_fuel`,
   and `exec_lowerNativeSwitchBlock_selector_find_none_without_default_fuel`.
   The body preservation algebra now includes `state_lookup_insert_of_ne`,
@@ -344,7 +347,11 @@ scope so the native path does not look more complete than it is:
   switch-tail and lowered-switch hit paths can now consume generated
   `nativeSwitchTempsFreshForNativeBodies` freshness directly through
   `exec_nativeSwitchTail_find_hit_fresh_fuel` and
-  `exec_lowerNativeSwitchBlock_selector_find_hit_fresh_fuel`. The adapter now names
+  `exec_lowerNativeSwitchBlock_selector_find_hit_fresh_fuel`; the
+  store-parametric lowered-switch success path uses
+  `exec_lowerNativeSwitchBlock_selector_find_hit_fresh_store_fuel` to carry the
+  same freshness reasoning through states that already contain generated
+  dispatcher bindings such as `__has_selector`. The adapter now names
    the needed freshness surface with `yulStmtWriteNames`,
    `yulStmtsWriteNames`,
    `nativeStmtWriteNames`, `nativeStmtsWriteNames`,
@@ -482,6 +489,7 @@ scope so the native path does not look more complete than it is:
    `exec_lowerNativeSwitchBlock_selector_find_hit_preserved_fuel`,
    `exec_nativeSwitchTail_find_hit_fresh_fuel`,
    `exec_lowerNativeSwitchBlock_selector_find_hit_fresh_fuel`,
+   `exec_lowerNativeSwitchBlock_selector_find_hit_fresh_store_fuel`,
    `exec_lowerNativeSwitchBlock_selector_find_none_with_default_nonempty_fuel`,
    and `exec_lowerNativeSwitchBlock_selector_find_none_without_default_fuel`
    for raw lowered switch-block execution from the native initial state,
