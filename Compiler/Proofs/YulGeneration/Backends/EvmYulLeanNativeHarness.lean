@@ -4149,6 +4149,164 @@ theorem state_getElem_setStore_ok
   simp [EvmYul.Yul.State.setStore, GetElem?.getElem!, decidableGetElem?,
     GetElem.getElem, EvmYul.Yul.State.store, EvmYul.Yul.State.lookup!]
 
+theorem NativePrimCallPreservesWord_calldatasize
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.CALLDATASIZE [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_calldatasize_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_callvalue
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.CALLVALUE [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_callvalue_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_unary_same_state
+    (op : EvmYul.Operation .Yul)
+    (name : EvmYul.Identifier)
+    (expected value result : EvmYul.Literal)
+    (hStep :
+      ∀ fuel state,
+        EvmYul.Yul.primCall (fuel + 1) state op [value] =
+          .ok (state, [result])) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state op [value] = .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [hStep fuel' state] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_binary_same_state
+    (op : EvmYul.Operation .Yul)
+    (name : EvmYul.Identifier)
+    (expected left right result : EvmYul.Literal)
+    (hStep :
+      ∀ fuel state,
+        EvmYul.Yul.primCall (fuel + 1) state op [left, right] =
+          .ok (state, [result])) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state op [left, right] = .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [hStep fuel' state] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_iszero
+    (name : EvmYul.Identifier)
+    (expected value : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.ISZERO [value] =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_unary_same_state EvmYul.Operation.ISZERO
+    name expected value (EvmYul.UInt256.isZero value)
+    (by intro fuel state; exact primCall_iszero_ok fuel state value)
+
+theorem NativePrimCallPreservesWord_shr
+    (name : EvmYul.Identifier)
+    (expected shift value : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.SHR [shift, value] =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.SHR
+    name expected shift value (EvmYul.UInt256.shiftRight value shift)
+    (by intro fuel state; exact primCall_shr_ok fuel state shift value)
+
+theorem NativePrimCallPreservesWord_eq
+    (name : EvmYul.Identifier)
+    (expected left right : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.EQ [left, right] =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.EQ
+    name expected left right (EvmYul.UInt256.eq left right)
+    (by intro fuel state; exact primCall_eq_ok fuel state left right)
+
+theorem NativePrimCallPreservesWord_lt
+    (name : EvmYul.Identifier)
+    (expected left right : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.LT [left, right] =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.LT
+    name expected left right (EvmYul.UInt256.lt left right)
+    (by intro fuel state; exact primCall_lt_ok fuel state left right)
+
+theorem NativePrimCallPreservesWord_and
+    (name : EvmYul.Identifier)
+    (expected left right : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.AND [left, right] =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.AND
+    name expected left right (EvmYul.UInt256.land left right)
+    (by intro fuel state; exact primCall_and_ok fuel state left right)
+
+theorem NativePrimCallPreservesWord_sload
+    (name : EvmYul.Identifier)
+    (expected slot : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.SLOAD [slot] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_sload_ok] at hExec
+      cases hSload : state.toState.sload slot with
+      | mk state' value =>
+          simp [hSload] at hExec
+          cases hExec
+          subst final
+          rw [state_getElem_setSharedState]
+          exact hLookup
+
 theorem state_getElem_overwrite?_left
     (state next : EvmYul.Yul.State)
     (name : EvmYul.Identifier)

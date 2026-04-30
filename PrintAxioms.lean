@@ -3101,6 +3101,16 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_setState
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_setStore_ok_left
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_setStore_ok
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_calldatasize
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_callvalue
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_unary_same_state
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_binary_same_state
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_iszero
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_shr
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_lt
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_and
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_sload
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_overwrite?_left
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_restoreCallFrame_of_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchDiscrTempName_ne_matchedTempName
@@ -3613,4 +3623,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3437 theorems/lemmas (2493 public, 944 private, 0 sorry'd)
+-- Total: 3447 theorems/lemmas (2503 public, 944 private, 0 sorry'd)
