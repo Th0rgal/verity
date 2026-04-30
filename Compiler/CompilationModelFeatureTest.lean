@@ -852,6 +852,19 @@ verity_contract TermMaxOrderV2 where
   function TermMaxCurve_buyXt (value : Uint256) : Uint256 := do
     return value
 
+verity_contract QualifiedPrimitiveLibrary where
+  storage
+
+  function uintIsAccepted (value : Uint256) : Bool := do
+    return value == value
+
+verity_contract QualifiedPrimitiveCaller where
+  storage
+
+  function callBoolHelper (value : Uint256) : Bool := do
+    let result ← QualifiedPrimitiveLibrary.uintIsAccepted value
+    return result
+
 private def qualifiedBuyXtInternalName : String :=
   "internal_qualified_12_TermMaxCurve_5_buyXt"
 
@@ -891,6 +904,14 @@ def qualifiedLibraryExecutableCallRuns : Bool :=
 
 example : qualifiedLibraryExecutableCallRuns = true := by native_decide
 
+def qualifiedLibraryBoolBindRuns : Bool :=
+  match QualifiedPrimitiveCaller.callBoolHelper 7 Verity.defaultState with
+  | .success result state =>
+      result == true && state.sender == Verity.defaultState.sender
+  | .revert _ _ => false
+
+example : qualifiedLibraryBoolBindRuns = true := by native_decide
+
 /--
 error: qualified library helper call 'TermMaxCurve.buyXt' is only supported as a monadic bind source; use `let x ← TermMaxCurve.buyXt ...` or tuple destructuring bind syntax
 -/
@@ -913,6 +934,19 @@ verity_contract QualifiedLibraryTupleArityRejected where
   function badTupleBind (nif : Uint256, daysToMaturity : Uint256,
       oriXtReserve : Uint256, debtTokenAmtIn : Uint256) : Uint256 := do
     let (tokenAmtOut, deltaFt, extra) ←
+      TermMaxCurve.buyXt nif daysToMaturity oriXtReserve debtTokenAmtIn
+    return tokenAmtOut
+
+/--
+error: qualified helper 'TermMaxCurve.buyXt' returns multiple values; use tuple destructuring
+-/
+#guard_msgs in
+verity_contract QualifiedLibraryTupleSimpleBindRejected where
+  storage
+
+  function badSimpleBind (nif : Uint256, daysToMaturity : Uint256,
+      oriXtReserve : Uint256, debtTokenAmtIn : Uint256) : Uint256 := do
+    let tokenAmtOut ←
       TermMaxCurve.buyXt nif daysToMaturity oriXtReserve debtTokenAmtIn
     return tokenAmtOut
 

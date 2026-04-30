@@ -1789,6 +1789,20 @@ private unsafe def qualifiedTupleBindTypedLocals
   pure <| (names.zip valueTys).filterMap fun (name?, ty) =>
     name?.map (fun name => (name, ty))
 
+private unsafe def qualifiedSingleBindType
+    (stx : Syntax)
+    (fnName : Name) : CommandElabM ValueType := do
+  let valueTys ← unsafe qualifiedFunctionReturnTypes stx fnName
+  match valueTys.toList with
+  | [] =>
+      throwErrorAt stx
+        s!"qualified helper '{qualifiedFunctionDisplayName fnName}' returns Unit and cannot be bound"
+  | [retTy] =>
+      pure retTy
+  | _ =>
+      throwErrorAt stx
+        s!"qualified helper '{qualifiedFunctionDisplayName fnName}' returns multiple values; use tuple destructuring"
+
 private def customErrorRequiresDirectParamRef : ValueType → Bool
   | .uint256 | .int256 | .uint8 | .address | .bool | .bytes32 => false
   | .newtype _ baseType => customErrorRequiresDirectParamRef baseType
@@ -2320,8 +2334,8 @@ private partial def inferBindSourceType
               pure retTy
       | none =>
           match ← resolveQualifiedFunctionApp? fields constDecls immutableDecls externalDecls params locals rhs with
-          | some _ =>
-              pure .uint256
+          | some (qualifiedName, _) =>
+              unsafe qualifiedSingleBindType rhs.raw qualifiedName
           | none =>
               throwErrorAt rhs
                 "unsupported bind source; expected getStorage/getStorageAddr/getStorageArrayLength/getStorageArrayElement/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/getMappingN/structMember/structMember2/msgSender/msgValue/tload/ecrecover/ecmCall, a direct internal helper call, or a qualified library helper call"
