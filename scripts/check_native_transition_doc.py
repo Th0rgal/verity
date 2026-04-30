@@ -299,6 +299,8 @@ def check_public_theorem_target(
         "theorem NativeExprPreservesWord_lowerExprNative_call_userFunction_of_evalArgs_call_preserves",
         "theorem NativeStmtPreservesWord_exprStmtCall_prim_of_evalArgs_primCall_preserves",
         "theorem NativeStmtPreservesWord_exprStmtCall_user_of_evalArgs_call_preserves",
+        "theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves",
+        "theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_userFunction_of_evalArgs_call_preserves",
         "theorem NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves",
         "theorem NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves",
         "theorem NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves",
