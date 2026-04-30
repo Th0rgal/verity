@@ -5287,6 +5287,24 @@ theorem NativePrimCallPreservesWord_mload
           rw [state_getElem_setMachineState]
           exact hLookup
 
+theorem NativePrimCallPreservesWord_mstore
+    (name : EvmYul.Identifier)
+    (expected offset value : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.MSTORE [offset, value] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_mstore_ok] at hExec
+      cases hExec
+      rw [state_getElem_setMachineState]
+      exact hLookup
+
 theorem NativePrimCallPreservesWord_mstore8
     (name : EvmYul.Identifier)
     (expected offset value : EvmYul.Literal) :
@@ -5342,6 +5360,32 @@ theorem NativePrimCallPreservesWord_tstore
   | succ fuel' =>
       by_cases hPerm : state.executionEnv.perm = true
       · rw [primCall_tstore_ok fuel' state slot value hPerm] at hExec
+        cases hExec
+        rw [state_getElem_setState]
+        exact hLookup
+      · simp [EvmYul.Yul.primCall, hPerm] at hExec
+        change
+          (Except.error EvmYul.Yul.Exception.StaticModeViolation :
+              Except EvmYul.Yul.Exception
+                (EvmYul.Yul.State × List EvmYul.Literal)) =
+            Except.ok (final, rets) at hExec
+        cases hExec
+
+theorem NativePrimCallPreservesWord_sstore
+    (name : EvmYul.Identifier)
+    (expected slot value : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.SSTORE [slot, value] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      by_cases hPerm : state.executionEnv.perm = true
+      · rw [primCall_sstore_ok fuel' state slot value hPerm] at hExec
         cases hExec
         rw [state_getElem_setState]
         exact hLookup
