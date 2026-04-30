@@ -20,6 +20,12 @@ open Verity hiding pure bind
 open Verity.EVM.Uint256
 open Verity.Stdlib.Math
 
+def plusInt256Helper (a : Uint256) (b : Int256) : Uint256 :=
+  if b < 0 then sub a (toUint256 (-b)) else add a (toUint256 b)
+
+def eqWordHelper (a : Uint256) (b : Uint256) : Uint256 :=
+  if a = b then 1 else 0
+
 private def genericECMEffectDemoModule : Compiler.ECM.ExternalCallModule where
   name := "genericEffectDemo"
   numArgs := 2
@@ -1096,6 +1102,29 @@ def packedStorageExecutableUpdatesAddressMirror : Bool :=
   | _ => false
 
 example : packedStorageExecutableUpdatesAddressMirror = true := by decide
+
+verity_contract LeanDefHelperSmoke where
+  storage
+
+  function addOffset (x : Uint256, y : Int256) : Uint256 := do
+    return (plusInt256Helper x y)
+
+  function sameWord (x : Uint256, y : Uint256) : Uint256 := do
+    return (eqWordHelper x y)
+
+def leanDefHelperExecutableAddsPositiveOffset : Bool :=
+  match LeanDefHelperSmoke.addOffset 10 3 Verity.defaultState with
+  | .success value _ => value == 13
+  | _ => false
+
+example : leanDefHelperExecutableAddsPositiveOffset = true := by decide
+
+def leanDefHelperExecutableUsesEquality : Bool :=
+  match LeanDefHelperSmoke.sameWord 7 7 Verity.defaultState with
+  | .success value _ => value == 1
+  | _ => false
+
+example : leanDefHelperExecutableUsesEquality = true := by decide
 
 verity_contract DirectHelperCallSmoke where
   storage
