@@ -903,6 +903,19 @@ verity_contract QualifiedLibraryPureExprRejected where
     let ignored := TermMaxCurve.buyXt nif daysToMaturity oriXtReserve debtTokenAmtIn
     return nif
 
+/--
+error: tuple destructuring binds 3 names, but qualified helper 'TermMaxCurve.buyXt' returns 2 values
+-/
+#guard_msgs in
+verity_contract QualifiedLibraryTupleArityRejected where
+  storage
+
+  function badTupleBind (nif : Uint256, daysToMaturity : Uint256,
+      oriXtReserve : Uint256, debtTokenAmtIn : Uint256) : Uint256 := do
+    let (tokenAmtOut, deltaFt, extra) ←
+      TermMaxCurve.buyXt nif daysToMaturity oriXtReserve debtTokenAmtIn
+    return tokenAmtOut
+
 end MacroQualifiedLibraryCallSmoke
 
 namespace MacroStatelessSmoke
