@@ -215,6 +215,8 @@ def check_public_theorem_target(
         "theorem NativeStmtPreservesWord_let_lit_of_not_mem",
         "theorem nativeStmtWriteNames_not_mem_of_nativeStmtsWriteNames_not_mem",
         "theorem NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem",
+        "theorem exec_nativeSwitchTail_find_hit_fresh_fuel",
+        "theorem exec_lowerNativeSwitchBlock_selector_find_hit_fresh_fuel",
     ):
         if required_native_entrypoint not in normalized_native_harness:
             errors.append(

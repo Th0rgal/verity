@@ -3161,11 +3161,13 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_then_tail_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_then_tail_error_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_hit_preserved_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_hit_fresh_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_hit_error_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_none_with_default_nonempty_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_none_without_default_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_none_with_revert_default_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_preserved_fuel
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_fresh_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_error_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_with_default_nonempty_fuel
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_fuel
@@ -3600,4 +3602,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3424 theorems/lemmas (2480 public, 944 private, 0 sorry'd)
+-- Total: 3426 theorems/lemmas (2482 public, 944 private, 0 sorry'd)
