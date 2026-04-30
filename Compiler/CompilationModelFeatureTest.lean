@@ -824,6 +824,134 @@ example : storeHelperPairTailNameCollisionExecutablePreservesParam = true := by 
 
 end MacroTupleDestructuringSmoke
 
+namespace MacroQualifiedLibraryCallSmoke
+
+open Contracts
+open Verity hiding pure bind
+open Verity.EVM.Uint256
+
+verity_contract TermMaxCurve where
+  storage
+
+  function buyXt (nif : Uint256, daysToMaturity : Uint256,
+      oriXtReserve : Uint256, debtTokenAmtIn : Uint256) :
+      Tuple [Uint256, Uint256] := do
+    return (add nif daysToMaturity, add oriXtReserve debtTokenAmtIn)
+
+verity_contract TermMaxOrderV2 where
+  storage
+    sentinel : Uint256 := slot 0
+
+  function buyXtStep (nif : Uint256, daysToMaturity : Uint256,
+      oriXtReserve : Uint256, debtTokenAmtIn : Uint256) :
+      Tuple [Uint256, Uint256] := do
+    let (tokenAmtOut, deltaFt) ←
+      TermMaxCurve.buyXt nif daysToMaturity oriXtReserve debtTokenAmtIn
+    return (tokenAmtOut, deltaFt)
+
+  function TermMaxCurve_buyXt (value : Uint256) : Uint256 := do
+    return value
+
+verity_contract QualifiedPrimitiveLibrary where
+  storage
+
+  function uintIsAccepted (value : Uint256) : Bool := do
+    return value == value
+
+verity_contract QualifiedPrimitiveCaller where
+  storage
+
+  function callBoolHelper (value : Uint256) : Bool := do
+    let result ← QualifiedPrimitiveLibrary.uintIsAccepted value
+    return result
+
+private def qualifiedBuyXtInternalName : String :=
+  "internal_qualified_12_TermMaxCurve_5_buyXt"
+
+private def localUnderscoreInternalName : String := "internal_TermMaxCurve_buyXt"
+
+def buyXtStepModelUsesQualifiedInternalCall : Bool :=
+  match TermMaxOrderV2.buyXtStep_modelBody with
+  | [Stmt.internalCallAssign ["tokenAmtOut", "deltaFt"] helperName
+        [Expr.param "nif", Expr.param "daysToMaturity",
+         Expr.param "oriXtReserve", Expr.param "debtTokenAmtIn"],
+      Stmt.returnValues [Expr.localVar "tokenAmtOut", Expr.localVar "deltaFt"]] =>
+      helperName == qualifiedBuyXtInternalName
+  | _ => false
+
+example : buyXtStepModelUsesQualifiedInternalCall = true := by native_decide
+
+def callerSpecIncludesQualifiedLibraryModel : Bool :=
+  TermMaxOrderV2.spec.functions.any fun fn =>
+    fn.name == qualifiedBuyXtInternalName && fn.isInternal
+
+example : callerSpecIncludesQualifiedLibraryModel = true := by native_decide
+
+def qualifiedHelperAvoidsLocalUnderscoreCollision : Bool :=
+  qualifiedBuyXtInternalName != localUnderscoreInternalName &&
+    TermMaxOrderV2.spec.functions.any (fun fn =>
+      fn.name == qualifiedBuyXtInternalName && fn.isInternal) &&
+    TermMaxOrderV2.spec.functions.any (fun fn =>
+      fn.name == localUnderscoreInternalName && fn.isInternal)
+
+example : qualifiedHelperAvoidsLocalUnderscoreCollision = true := by native_decide
+
+def qualifiedLibraryExecutableCallRuns : Bool :=
+  match TermMaxOrderV2.buyXtStep 10 3 20 7 Verity.defaultState with
+  | .success (tokenAmtOut, deltaFt) state =>
+      tokenAmtOut == 13 && deltaFt == 27 && state.sender == Verity.defaultState.sender
+  | .revert _ _ => false
+
+example : qualifiedLibraryExecutableCallRuns = true := by native_decide
+
+def qualifiedLibraryBoolBindRuns : Bool :=
+  match QualifiedPrimitiveCaller.callBoolHelper 7 Verity.defaultState with
+  | .success result state =>
+      result == true && state.sender == Verity.defaultState.sender
+  | .revert _ _ => false
+
+example : qualifiedLibraryBoolBindRuns = true := by native_decide
+
+/--
+error: qualified library helper call 'TermMaxCurve.buyXt' is only supported as a monadic bind source; use `let x ← TermMaxCurve.buyXt ...` or tuple destructuring bind syntax
+-/
+#guard_msgs in
+verity_contract QualifiedLibraryPureExprRejected where
+  storage
+
+  function badPureCall (nif : Uint256, daysToMaturity : Uint256,
+      oriXtReserve : Uint256, debtTokenAmtIn : Uint256) : Uint256 := do
+    let ignored := TermMaxCurve.buyXt nif daysToMaturity oriXtReserve debtTokenAmtIn
+    return nif
+
+/--
+error: tuple destructuring binds 3 names, but qualified helper 'TermMaxCurve.buyXt' returns 2 values
+-/
+#guard_msgs in
+verity_contract QualifiedLibraryTupleArityRejected where
+  storage
+
+  function badTupleBind (nif : Uint256, daysToMaturity : Uint256,
+      oriXtReserve : Uint256, debtTokenAmtIn : Uint256) : Uint256 := do
+    let (tokenAmtOut, deltaFt, extra) ←
+      TermMaxCurve.buyXt nif daysToMaturity oriXtReserve debtTokenAmtIn
+    return tokenAmtOut
+
+/--
+error: qualified helper 'TermMaxCurve.buyXt' returns multiple values; use tuple destructuring
+-/
+#guard_msgs in
+verity_contract QualifiedLibraryTupleSimpleBindRejected where
+  storage
+
+  function badSimpleBind (nif : Uint256, daysToMaturity : Uint256,
+      oriXtReserve : Uint256, debtTokenAmtIn : Uint256) : Uint256 := do
+    let tokenAmtOut ←
+      TermMaxCurve.buyXt nif daysToMaturity oriXtReserve debtTokenAmtIn
+    return tokenAmtOut
+
+end MacroQualifiedLibraryCallSmoke
+
 namespace MacroStatelessSmoke
 
 open Contracts

@@ -206,6 +206,64 @@ private partial def valueTypeAbiSignatureComponent : ValueType → String
 private def functionAbiSignatureKey (fn : FunctionDecl) : String :=
   fn.name ++ "(" ++ String.intercalate "," (fn.params.toList.map (fun p => valueTypeAbiSignatureComponent p.ty)) ++ ")"
 
+private def nameComponents : Name → List String
+  | .anonymous => []
+  | .str parent part => nameComponents parent ++ [part]
+  | .num parent n => nameComponents parent ++ [toString n]
+
+private def mapNameLastComponent (f : String → String) : Name → Name
+  | .anonymous => .anonymous
+  | .str parent part => .str parent (f part)
+  | .num parent n => .str parent (f (toString n))
+
+private def isQualifiedFunctionName (name : Name) : Bool :=
+  (nameComponents name).length == 2
+
+private def qualifiedFunctionModelName (name : Name) : Name :=
+  mapNameLastComponent (fun part => part ++ "_model") name
+
+private def qualifiedFunctionDisplayName (name : Name) : String :=
+  String.intercalate "." (nameComponents name)
+
+private def internalHelperSpecNameFor (fn : FunctionDecl) : String :=
+  Compiler.CompilationModel.internalFunctionPrefix ++ toString fn.ident.getId
+
+private def qualifiedInternalHelperBaseName (name : Name) : String :=
+  let encodedComponents :=
+    nameComponents name |>.map fun component =>
+      s!"{component.length}_{component}"
+  Compiler.CompilationModel.internalFunctionPrefix ++
+    "qualified_" ++ String.intercalate "_" encodedComponents
+
+private def qualifiedInternalHelperName (functions : Array FunctionDecl) (name : Name) : String :=
+  Compiler.CompilationModel.pickFreshName
+    (qualifiedInternalHelperBaseName name)
+    ((functions.map internalHelperSpecNameFor).toList)
+
+private def qualifiedInternalHelperNameFromUsed
+    (usedNames : List String)
+    (name : Name) : String :=
+  Compiler.CompilationModel.pickFreshName (qualifiedInternalHelperBaseName name) usedNames
+
+private partial def qualifiedFunctionAppSyntax? (stx : Term) : Option (Name × Array Term) :=
+  match stx.raw with
+  | .node _ `Lean.Parser.Term.doExpr args =>
+      match args.getD 0 Syntax.missing with
+      | inner => qualifiedFunctionAppSyntax? ⟨inner⟩
+  | .node _ `Lean.Parser.Term.paren args =>
+      match args.getD 1 Syntax.missing with
+      | inner => qualifiedFunctionAppSyntax? ⟨inner⟩
+  | .node _ `Lean.Parser.Term.app args =>
+      match args.getD 0 Syntax.missing with
+      | .ident _ _ raw _ =>
+          if isQualifiedFunctionName raw then
+            let argTerms := (args.getD 1 Syntax.missing).getArgs.map (fun syn => ⟨syn⟩)
+            some (raw, argTerms)
+          else
+            none
+      | _ => none
+  | _ => none
+
 private def overloadedFunctionIdentName (fn : FunctionDecl) : String :=
   -- Length-prefix each component so the suffix encoding is injective.
   -- Component strings can contain `_` (e.g. `newtype_Foo_scalar_uint256`,
@@ -527,6 +585,53 @@ private partial def modelReturnsTerm (ty : ValueType) : CommandElabM Term :=
       `([Compiler.CompilationModel.ParamType.newtypeOf $(Lean.quote name) $baseTerm])
   | .adt name maxFields => do
       `([Compiler.CompilationModel.ParamType.adt $(Lean.quote name) $(Lean.quote maxFields)])
+
+private partial def valueTypeFromModelParamType? : Compiler.CompilationModel.ParamType → Option ValueType
+  | .uint256 => some .uint256
+  | .int256 => some .int256
+  | .uint8 => some .uint8
+  | .address => some .address
+  | .bool => some .bool
+  | .bytes32 => some .bytes32
+  | .string => some .string
+  | .bytes => some .bytes
+  | .array elemTy => do
+      let elem ← valueTypeFromModelParamType? elemTy
+      some (.array elem)
+  | .tuple elemTys => do
+      let elems ← elemTys.mapM valueTypeFromModelParamType?
+      some (.tuple elems)
+  | .newtypeOf name baseType => do
+      let base ← valueTypeFromModelParamType? baseType
+      some (.newtype name base)
+  | .adt name maxFields => some (.adt name maxFields)
+  | .fixedArray _ _ => none
+
+private unsafe def evalQualifiedFunctionSpec
+    (fnName : Name) : CommandElabM Compiler.CompilationModel.FunctionSpec := do
+  let modelTerm : Term := ⟨(mkIdent (qualifiedFunctionModelName fnName)).raw⟩
+  liftTermElabM do
+    let expectedType := mkConst ``Compiler.CompilationModel.FunctionSpec
+    let expr ← Lean.Elab.Term.elabTermEnsuringType modelTerm expectedType
+    Lean.Meta.evalExpr Compiler.CompilationModel.FunctionSpec expectedType expr .unsafe
+
+private unsafe def qualifiedFunctionReturnTypes
+    (stx : Syntax)
+    (fnName : Name) : CommandElabM (Array ValueType) := do
+  let spec ←
+    try
+      unsafe evalQualifiedFunctionSpec fnName
+    catch _ =>
+      throwErrorAt stx
+        s!"unable to inspect qualified helper '{qualifiedFunctionDisplayName fnName}'; expected generated model '{qualifiedFunctionModelName fnName}' to be in scope"
+  let mut result := #[]
+  for returnTy in spec.returns do
+    match valueTypeFromModelParamType? returnTy with
+    | some ty => result := result.push ty
+    | none =>
+        throwErrorAt stx
+          s!"qualified helper '{qualifiedFunctionDisplayName fnName}' returns unsupported value type {repr returnTy}"
+  pure result
 
 mutual
 private partial def mkTupleContractType (elemTys : List ValueType) : CommandElabM Term := do
@@ -1670,6 +1775,34 @@ private def requireSupportedLocalBindingType
     throwErrorAt stx
       s!"{context} currently cannot bind dynamic values ({renderValueType ty}) to local variables on the compilation-model path; use the parameter directly"
 
+private unsafe def qualifiedTupleBindTypedLocals
+    (stx : Syntax)
+    (fnName : Name)
+    (names : Array (Option String)) : CommandElabM (Array TypedLocal) := do
+  let valueTys ← unsafe qualifiedFunctionReturnTypes stx fnName
+  if names.size != valueTys.size then
+    throwErrorAt stx
+      s!"tuple destructuring binds {names.size} names, but qualified helper '{qualifiedFunctionDisplayName fnName}' returns {valueTys.size} values"
+  for (name?, ty) in names.zip valueTys do
+    if let some name := name? then
+      requireSupportedLocalBindingType stx s!"local binding '{name}'" ty
+  pure <| (names.zip valueTys).filterMap fun (name?, ty) =>
+    name?.map (fun name => (name, ty))
+
+private unsafe def qualifiedSingleBindType
+    (stx : Syntax)
+    (fnName : Name) : CommandElabM ValueType := do
+  let valueTys ← unsafe qualifiedFunctionReturnTypes stx fnName
+  match valueTys.toList with
+  | [] =>
+      throwErrorAt stx
+        s!"qualified helper '{qualifiedFunctionDisplayName fnName}' returns Unit and cannot be bound"
+  | [retTy] =>
+      pure retTy
+  | _ =>
+      throwErrorAt stx
+        s!"qualified helper '{qualifiedFunctionDisplayName fnName}' returns multiple values; use tuple destructuring"
+
 private def customErrorRequiresDirectParamRef : ValueType → Bool
   | .uint256 | .int256 | .uint8 | .address | .bool | .bytes32 => false
   | .newtype _ baseType => customErrorRequiresDirectParamRef baseType
@@ -1735,9 +1868,6 @@ private def internalHelperSpecName
   Compiler.CompilationModel.pickFreshName
     (Compiler.CompilationModel.internalFunctionPrefix ++ fnName)
     (functions.map (·.name)).toList
-
-private def internalHelperSpecNameFor (fn : FunctionDecl) : String :=
-  Compiler.CompilationModel.internalFunctionPrefix ++ toString fn.ident.getId
 
 private partial def hasDynamicInternalHelperType (ty : ValueType) : Bool :=
   match ty with
@@ -1985,7 +2115,16 @@ private partial def inferPureExprType
       requireWordLikeType key1 "structMember2 key" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals key1 visitingConstants)
       requireWordLikeType key2 "structMember2 key" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals key2 visitingConstants)
       pure .uint256
-  | _ => throwErrorAt stx "unsupported expression in verity_contract body (see #1003 for planned macro support expansions)"
+  | _ =>
+      match qualifiedFunctionAppSyntax? stx with
+      | some (fnName, _) =>
+          if (nameComponents fnName).head? == some "Verity" then
+            throwErrorAt stx "unsupported expression in verity_contract body (see #1003 for planned macro support expansions)"
+          else
+            throwErrorAt stx
+              s!"qualified library helper call '{qualifiedFunctionDisplayName fnName}' is only supported as a monadic bind source; use `let x ← {qualifiedFunctionDisplayName fnName} ...` or tuple destructuring bind syntax"
+      | none =>
+          throwErrorAt stx "unsupported expression in verity_contract body (see #1003 for planned macro support expansions)"
 
 private partial def lookupNamedValueType?
     (constDecls : Array ConstantDecl)
@@ -2194,8 +2333,12 @@ private partial def inferBindSourceType
           | retTy =>
               pure retTy
       | none =>
-          throwErrorAt rhs
-            "unsupported bind source; expected getStorage/getStorageAddr/getStorageArrayLength/getStorageArrayElement/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/getMappingN/structMember/structMember2/msgSender/msgValue/tload/ecrecover/ecmCall or a direct internal helper call"
+          match ← resolveQualifiedFunctionApp? fields constDecls immutableDecls externalDecls params locals rhs with
+          | some (qualifiedName, _) =>
+              unsafe qualifiedSingleBindType rhs.raw qualifiedName
+          | none =>
+              throwErrorAt rhs
+                "unsupported bind source; expected getStorage/getStorageAddr/getStorageArrayLength/getStorageArrayElement/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/getMappingN/structMember/structMember2/msgSender/msgValue/tload/ecrecover/ecmCall, a direct internal helper call, or a qualified library helper call"
 
 private partial def inferTupleSourceTypes?
     (fields : Array StorageFieldDecl)
@@ -2304,6 +2447,24 @@ private partial def resolveLocalFunctionApp?
     | _ =>
         throwErrorAt stx
           s!"ambiguous overload resolution for '{fnName}'"
+
+private partial def resolveQualifiedFunctionApp?
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (stx : Term) : CommandElabM (Option (Name × Array Term)) := do
+  let some (fnName, argTerms) := qualifiedFunctionAppSyntax? stx
+    | pure none
+  if (nameComponents fnName).head? == some "Verity" then
+    pure none
+  else
+    for arg in argTerms do
+      requireWordLikeType arg s!"qualified helper '{qualifiedFunctionDisplayName fnName}' argument"
+        (← inferPureExprType fields constDecls immutableDecls externalDecls params locals arg)
+    pure (some (fnName, argTerms))
 end
 
 mutual
@@ -3041,7 +3202,17 @@ private def tupleInternalCallAssignStmt?
         $(strTerm (internalHelperSpecNameFor fn))
         [ $[$argExprs],* ])))
   | none =>
-      pure none
+      match ← resolveQualifiedFunctionApp? fields constDecls immutableDecls externalDecls params locals rhs with
+      | some (qualifiedName, argTerms) =>
+          let _ ← unsafe qualifiedTupleBindTypedLocals rhs.raw qualifiedName names
+          let argExprs ← argTerms.mapM
+            (translatePureExprWithTypes fields constDecls immutableDecls params locals)
+          pure (some (← `(Compiler.CompilationModel.Stmt.internalCallAssign
+            [ $[$resultNameTerms],* ]
+            $(strTerm (qualifiedInternalHelperName functions qualifiedName))
+            [ $[$argExprs],* ])))
+      | none =>
+          pure none
 
 /-- Try to translate a tuple‐destructured `tryExternalCall "name" [args]` RHS into
     a `Stmt.tryExternalCallBind` term.  Returns `none` when the RHS is not a
@@ -3319,8 +3490,16 @@ private def translateBindSource
               $(strTerm (internalHelperSpecNameFor fn))
               [ $[$argExprs],* ])
       | none =>
-          throwErrorAt rhs
-            "unsupported bind source; expected getStorage/getStorageAddr/getStorageArrayLength/getStorageArrayElement/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/getMappingN/structMember/structMember2/msgSender/msgValue/tload/ecrecover or a direct internal helper call"
+          match ← resolveQualifiedFunctionApp? fields constDecls immutableDecls externalDecls params locals rhs with
+          | some (qualifiedName, argTerms) =>
+              let argExprs ← argTerms.mapM
+                (translatePureExprWithTypes fields constDecls immutableDecls params locals)
+              `(Compiler.CompilationModel.Expr.internalCall
+                  $(strTerm (qualifiedInternalHelperName functions qualifiedName))
+                  [ $[$argExprs],* ])
+          | none =>
+              throwErrorAt rhs
+                "unsupported bind source; expected getStorage/getStorageAddr/getStorageArrayLength/getStorageArrayElement/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/getMappingN/structMember/structMember2/msgSender/msgValue/tload/ecrecover, a direct internal helper call, or a qualified library helper call"
 
 private def translateSafeRequireBind
     (fields : Array StorageFieldDecl)
@@ -3417,32 +3596,44 @@ private partial def validateDoElemExprTypes
       match tupleBinderNames? patDecl[0] with
       | some names =>
           let rhs : Term := ⟨patDecl[4]⟩
-          match (← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs) with
-          | some valueTys =>
-              if names.size != valueTys.size then
-                throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueTys.size} values"
-              for (name?, ty) in names.zip valueTys do
-                if let some name := name? then
-                  requireSupportedLocalBindingType patDecl s!"local binding '{name}'" ty
-              let typedNames := (names.zip valueTys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+          match ← resolveQualifiedFunctionApp? fields constDecls immutableDecls externalDecls params locals rhs with
+          | some (qualifiedName, _) =>
+              let typedNames ← unsafe qualifiedTupleBindTypedLocals patDecl qualifiedName names
               pure (some (locals ++ typedNames))
-          | none => pure none
+          | none =>
+              match (← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs) with
+              | some valueTys =>
+                  if names.size != valueTys.size then
+                    throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueTys.size} values"
+                  for (name?, ty) in names.zip valueTys do
+                    if let some name := name? then
+                      requireSupportedLocalBindingType patDecl s!"local binding '{name}'" ty
+                  let typedNames := (names.zip valueTys).filterMap fun (name?, ty) =>
+                    name?.map (fun name => (name, ty))
+                  pure (some (locals ++ typedNames))
+              | none => pure none
       | none => pure none
     else if stx.getKind == `Lean.Parser.Term.doLetArrow then
       let patDecl := stx[2]
       match tupleBinderNames? patDecl[0] with
       | some names =>
           let rhs : Term := ⟨patDecl[2][0]⟩
-          match (← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs) with
-          | some valueTys =>
-              if names.size != valueTys.size then
-                throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueTys.size} values"
-              for (name?, ty) in names.zip valueTys do
-                if let some name := name? then
-                  requireSupportedLocalBindingType patDecl s!"local binding '{name}'" ty
-              let typedNames := (names.zip valueTys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+          match ← resolveQualifiedFunctionApp? fields constDecls immutableDecls externalDecls params locals rhs with
+          | some (qualifiedName, _) =>
+              let typedNames ← unsafe qualifiedTupleBindTypedLocals patDecl qualifiedName names
               pure (some (locals ++ typedNames))
-          | none => pure none
+          | none =>
+              match (← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs) with
+              | some valueTys =>
+                  if names.size != valueTys.size then
+                    throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueTys.size} values"
+                  for (name?, ty) in names.zip valueTys do
+                    if let some name := name? then
+                      requireSupportedLocalBindingType patDecl s!"local binding '{name}'" ty
+                  let typedNames := (names.zip valueTys).filterMap fun (name?, ty) =>
+                    name?.map (fun name => (name, ty))
+                  pure (some (locals ++ typedNames))
+              | none => pure none
       | none => pure none
     else
       pure none
@@ -4200,7 +4391,12 @@ private partial def translateDoElem
                       | some tys =>
                           let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
                           pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
-                      | none => throwErrorAt rhs "unable to infer tuple local types"
+                      | none =>
+                          match ← resolveQualifiedFunctionApp? fields constDecls immutableDecls externalDecls params locals rhs with
+                          | some (qualifiedName, _) =>
+                              let typedPairs ← unsafe qualifiedTupleBindTypedLocals patDecl qualifiedName names
+                              pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
+                          | none => throwErrorAt rhs "unable to infer tuple local types"
                   | none =>
                       match (← tryExternalCallBindStmt? fields constDecls immutableDecls externalDecls params locals rhs names) with
                       | some (stmt, tys) =>
@@ -4239,7 +4435,12 @@ private partial def translateDoElem
                           | some tys =>
                               let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
                               pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
-                          | none => throwErrorAt rhs "unable to infer tuple local types"
+                          | none =>
+                              match ← resolveQualifiedFunctionApp? fields constDecls immutableDecls externalDecls params locals rhs with
+                              | some (qualifiedName, _) =>
+                                  let typedPairs ← unsafe qualifiedTupleBindTypedLocals patDecl qualifiedName names
+                                  pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
+                              | none => throwErrorAt rhs "unable to infer tuple local types"
                       | none =>
                           match (← tryExternalCallBindStmt? fields constDecls immutableDecls externalDecls params locals rhs names) with
                           | some (stmt, tys) =>
@@ -4273,7 +4474,12 @@ private partial def translateDoElem
               | some tys =>
                   let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
                   pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
-              | none => throwErrorAt rhs "unable to infer tuple local types"
+              | none =>
+                  match ← resolveQualifiedFunctionApp? fields constDecls immutableDecls externalDecls params locals rhs with
+                  | some (qualifiedName, _) =>
+                      let typedPairs ← unsafe qualifiedTupleBindTypedLocals patDecl qualifiedName names
+                      pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
+                  | none => throwErrorAt rhs "unable to infer tuple local types"
           | none =>
               match (← tryExternalCallBindStmt? fields constDecls immutableDecls externalDecls params locals rhs names) with
               | some (stmt, tys) =>
@@ -4776,6 +4982,42 @@ private def mkAdtTypeDefTerm (adtDecl : AdtDecl) : CommandElabM Term := do
       $(strTerm adtDecl.name)
       [ $[$variantTerms],* ])
 
+private partial def collectQualifiedFunctionAppsFromSyntax (stx : Syntax) : Array Name :=
+  let fromChildren : Array Name :=
+    match stx with
+    | .node _ _ args =>
+        args.foldl (fun acc child => acc ++ collectQualifiedFunctionAppsFromSyntax child) #[]
+    | _ => #[]
+  match stx with
+  | .node _ `Lean.Parser.Term.app args =>
+      match args.getD 0 Syntax.missing with
+      | .ident _ _ raw _ =>
+          if isQualifiedFunctionName raw && (nameComponents raw).head? != some "Verity" then
+            fromChildren.push raw
+          else
+            fromChildren
+      | _ => fromChildren
+  | _ => fromChildren
+
+private def uniqueNames (names : Array Name) : Array Name :=
+  names.foldl
+    (fun acc name => if acc.any (· == name) then acc else acc.push name)
+    #[]
+
+private def collectQualifiedFunctionAppsFromFunction (fn : FunctionDecl) : Array Name :=
+  collectQualifiedFunctionAppsFromSyntax fn.body.raw
+
+private def collectQualifiedFunctionAppsFromConstructor (ctor : ConstructorDecl) : Array Name :=
+  collectQualifiedFunctionAppsFromSyntax ctor.body.raw
+
+private def mkQualifiedInternalFunctionTerm
+    (usedNames : List String)
+    (name : Name) : CommandElabM Term := do
+  let modelIdent : Ident := mkIdent (qualifiedFunctionModelName name)
+  `(({ $modelIdent with
+        name := $(strTerm (qualifiedInternalHelperNameFromUsed usedNames name))
+        isInternal := true } : Compiler.CompilationModel.FunctionSpec))
+
 private def mkSpecCommand
     (contractName : String)
     (fields : Array StorageFieldDecl)
@@ -4855,7 +5097,18 @@ private def mkSpecCommand
       } : Compiler.CompilationModel.FunctionSpec) ))
     else
       pure none
+  let qualifiedFunctionNames :=
+    uniqueNames <|
+      (functions.foldl (fun acc fn => acc ++ collectQualifiedFunctionAppsFromFunction fn) #[]) ++
+      (match ctor with
+      | some ctorDecl => collectQualifiedFunctionAppsFromConstructor ctorDecl
+      | none => #[])
+  let localInternalFunctionNames := (functions.map internalHelperSpecNameFor).toList
+  let qualifiedInternalFunctionTerms ←
+    qualifiedFunctionNames.mapM (mkQualifiedInternalFunctionTerm localInternalFunctionNames)
   let adtTypeTerms ← adtDecls.mapM mkAdtTypeDefTerm
+  let functionModelTerms : Array Term := functionModelIds.map fun id => ⟨id.raw⟩
+  let allFunctionTerms := functionModelTerms ++ internalFunctionTerms ++ qualifiedInternalFunctionTerms
   let namespaceTerm ← match storageNamespace with
     | some ns => `(some $(natTerm ns))
     | none => `(none)
@@ -4864,7 +5117,7 @@ private def mkSpecCommand
     fields := [ $[$fieldTerms],* ]
     «errors» := [ $[$errorTerms],* ]
     «constructor» := $constructorTerm
-    functions := [ $[$functionModelIds],*, $[$internalFunctionTerms],* ]
+    functions := [ $[$allFunctionTerms],* ]
     «externals» := [ $[$externalTerms],* ]
     adtTypes := [ $[$adtTypeTerms],* ]
     storageNamespace := $namespaceTerm
