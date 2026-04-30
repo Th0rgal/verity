@@ -338,6 +338,7 @@ scope so the native path does not look more complete than it is:
   `NativeStmtPreservesWord_let_none_of_not_mem`,
   `NativeStmtPreservesWord_let_var_of_not_mem`,
   `NativeStmtPreservesWord_let_lit_of_not_mem`,
+  `NativeStmtPreservesWord_let_prim_of_evalArgs_primCall_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_prim_of_evalArgs_primCall_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves`,
