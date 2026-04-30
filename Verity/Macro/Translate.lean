@@ -225,9 +225,25 @@ private def qualifiedFunctionModelName (name : Name) : Name :=
 private def qualifiedFunctionDisplayName (name : Name) : String :=
   String.intercalate "." (nameComponents name)
 
-private def qualifiedInternalHelperName (name : Name) : String :=
+private def internalHelperSpecNameFor (fn : FunctionDecl) : String :=
+  Compiler.CompilationModel.internalFunctionPrefix ++ toString fn.ident.getId
+
+private def qualifiedInternalHelperBaseName (name : Name) : String :=
+  let encodedComponents :=
+    nameComponents name |>.map fun component =>
+      s!"{component.length}_{component}"
   Compiler.CompilationModel.internalFunctionPrefix ++
-    String.intercalate "_" (nameComponents name)
+    "qualified_" ++ String.intercalate "_" encodedComponents
+
+private def qualifiedInternalHelperName (functions : Array FunctionDecl) (name : Name) : String :=
+  Compiler.CompilationModel.pickFreshName
+    (qualifiedInternalHelperBaseName name)
+    ((functions.map internalHelperSpecNameFor).toList)
+
+private def qualifiedInternalHelperNameFromUsed
+    (usedNames : List String)
+    (name : Name) : String :=
+  Compiler.CompilationModel.pickFreshName (qualifiedInternalHelperBaseName name) usedNames
 
 private partial def qualifiedFunctionAppSyntax? (stx : Term) : Option (Name × Array Term) :=
   match stx.raw with
@@ -1778,9 +1794,6 @@ private def internalHelperSpecName
     (Compiler.CompilationModel.internalFunctionPrefix ++ fnName)
     (functions.map (·.name)).toList
 
-private def internalHelperSpecNameFor (fn : FunctionDecl) : String :=
-  Compiler.CompilationModel.internalFunctionPrefix ++ toString fn.ident.getId
-
 private partial def hasDynamicInternalHelperType (ty : ValueType) : Bool :=
   match ty with
   | .string | .bytes | .array _ => true
@@ -3116,7 +3129,7 @@ private def tupleInternalCallAssignStmt?
             (translatePureExprWithTypes fields constDecls immutableDecls params locals)
           pure (some (← `(Compiler.CompilationModel.Stmt.internalCallAssign
             [ $[$resultNameTerms],* ]
-            $(strTerm (qualifiedInternalHelperName qualifiedName))
+            $(strTerm (qualifiedInternalHelperName functions qualifiedName))
             [ $[$argExprs],* ])))
       | none =>
           pure none
@@ -3402,7 +3415,7 @@ private def translateBindSource
               let argExprs ← argTerms.mapM
                 (translatePureExprWithTypes fields constDecls immutableDecls params locals)
               `(Compiler.CompilationModel.Expr.internalCall
-                  $(strTerm (qualifiedInternalHelperName qualifiedName))
+                  $(strTerm (qualifiedInternalHelperName functions qualifiedName))
                   [ $[$argExprs],* ])
           | none =>
               throwErrorAt rhs
@@ -4924,10 +4937,12 @@ private def collectQualifiedFunctionAppsFromFunction (fn : FunctionDecl) : Array
 private def collectQualifiedFunctionAppsFromConstructor (ctor : ConstructorDecl) : Array Name :=
   collectQualifiedFunctionAppsFromSyntax ctor.body.raw
 
-private def mkQualifiedInternalFunctionTerm (name : Name) : CommandElabM Term := do
+private def mkQualifiedInternalFunctionTerm
+    (usedNames : List String)
+    (name : Name) : CommandElabM Term := do
   let modelIdent : Ident := mkIdent (qualifiedFunctionModelName name)
   `(({ $modelIdent with
-        name := $(strTerm (qualifiedInternalHelperName name))
+        name := $(strTerm (qualifiedInternalHelperNameFromUsed usedNames name))
         isInternal := true } : Compiler.CompilationModel.FunctionSpec))
 
 private def mkSpecCommand
@@ -5015,8 +5030,9 @@ private def mkSpecCommand
       (match ctor with
       | some ctorDecl => collectQualifiedFunctionAppsFromConstructor ctorDecl
       | none => #[])
+  let localInternalFunctionNames := (functions.map internalHelperSpecNameFor).toList
   let qualifiedInternalFunctionTerms ←
-    qualifiedFunctionNames.mapM mkQualifiedInternalFunctionTerm
+    qualifiedFunctionNames.mapM (mkQualifiedInternalFunctionTerm localInternalFunctionNames)
   let adtTypeTerms ← adtDecls.mapM mkAdtTypeDefTerm
   let functionModelTerms : Array Term := functionModelIds.map fun id => ⟨id.raw⟩
   let allFunctionTerms := functionModelTerms ++ internalFunctionTerms ++ qualifiedInternalFunctionTerms

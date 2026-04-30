@@ -849,7 +849,13 @@ verity_contract TermMaxOrderV2 where
       TermMaxCurve.buyXt nif daysToMaturity oriXtReserve debtTokenAmtIn
     return (tokenAmtOut, deltaFt)
 
-private def qualifiedBuyXtInternalName : String := "internal_TermMaxCurve_buyXt"
+  function TermMaxCurve_buyXt (value : Uint256) : Uint256 := do
+    return value
+
+private def qualifiedBuyXtInternalName : String :=
+  "internal_qualified_12_TermMaxCurve_5_buyXt"
+
+private def localUnderscoreInternalName : String := "internal_TermMaxCurve_buyXt"
 
 def buyXtStepModelUsesQualifiedInternalCall : Bool :=
   match TermMaxOrderV2.buyXtStep_modelBody with
@@ -867,6 +873,15 @@ def callerSpecIncludesQualifiedLibraryModel : Bool :=
     fn.name == qualifiedBuyXtInternalName && fn.isInternal
 
 example : callerSpecIncludesQualifiedLibraryModel = true := by native_decide
+
+def qualifiedHelperAvoidsLocalUnderscoreCollision : Bool :=
+  qualifiedBuyXtInternalName != localUnderscoreInternalName &&
+    TermMaxOrderV2.spec.functions.any (fun fn =>
+      fn.name == qualifiedBuyXtInternalName && fn.isInternal) &&
+    TermMaxOrderV2.spec.functions.any (fun fn =>
+      fn.name == localUnderscoreInternalName && fn.isInternal)
+
+example : qualifiedHelperAvoidsLocalUnderscoreCollision = true := by native_decide
 
 def qualifiedLibraryExecutableCallRuns : Bool :=
   match TermMaxOrderV2.buyXtStep 10 3 20 7 Verity.defaultState with
