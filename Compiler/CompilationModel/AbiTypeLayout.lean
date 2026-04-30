@@ -59,16 +59,31 @@ def eventIsDynamicType := isDynamicParamType
 
 def eventHeadWordSize := paramHeadSize
 
-/-- Number of 32-byte words in the local head of an ABI value once its dynamic
-tail has been entered. Dynamic children occupy one offset word in that head. -/
-partial def paramLocalHeadWords : ParamType → Nat
-  | ParamType.uint256 | ParamType.int256 | ParamType.uint8 | ParamType.address
-  | ParamType.bool | ParamType.bytes32 | ParamType.string | ParamType.bytes
-  | ParamType.array _ => 1
-  | ParamType.fixedArray elemTy n => n * paramLocalHeadWords elemTy
-  | ParamType.tuple elemTys => elemTys.foldl (fun acc ty => acc + paramLocalHeadWords ty) 0
-  | ParamType.adt _ maxFields => 1 + maxFields
-  | ParamType.newtypeOf _ baseType => paramLocalHeadWords baseType
+mutual
+  /-- Number of 32-byte words an ABI value contributes to its parent's head.
+  Dynamic children occupy one offset word in the parent head. -/
+  partial def paramParentHeadWords : ParamType → Nat
+    | ParamType.string | ParamType.bytes | ParamType.array _ => 1
+    | ParamType.tuple elemTys =>
+        if isDynamicParamTypeList elemTys then 1 else paramLocalHeadWords (ParamType.tuple elemTys)
+    | ParamType.fixedArray elemTy n =>
+        if isDynamicParamType (ParamType.fixedArray elemTy n) then 1 else n * paramParentHeadWords elemTy
+    | ParamType.newtypeOf _ baseType => paramParentHeadWords baseType
+    | ParamType.uint256 | ParamType.int256 | ParamType.uint8 | ParamType.address
+    | ParamType.bool | ParamType.bytes32 => 1
+    | ParamType.adt _ maxFields => 1 + maxFields
+
+  /-- Number of 32-byte words in the local head of an ABI value once its dynamic
+  tail has been entered. Dynamic children occupy one offset word in that head. -/
+  partial def paramLocalHeadWords : ParamType → Nat
+    | ParamType.uint256 | ParamType.int256 | ParamType.uint8 | ParamType.address
+    | ParamType.bool | ParamType.bytes32 | ParamType.string | ParamType.bytes
+    | ParamType.array _ => 1
+    | ParamType.fixedArray elemTy n => n * paramParentHeadWords elemTy
+    | ParamType.tuple elemTys => elemTys.foldl (fun acc ty => acc + paramParentHeadWords ty) 0
+    | ParamType.adt _ maxFields => 1 + maxFields
+    | ParamType.newtypeOf _ baseType => paramLocalHeadWords baseType
+end
 
 /-- Whether a parameter type is ABI-encoded as exactly one 32-byte word without
 needing offset-based dynamic handling. -/

@@ -1471,6 +1471,18 @@ private partial def valueTypeUsesDynamicData : ValueType → Bool
   | .adt _ _ => false  -- ADTs are stored as tag + fixed-width slots, not dynamic
   | .uint256 | .int256 | .uint8 | .address | .bytes32 | .bool | .unit => false
 
+private partial def abiParentHeadWordCount? (ty : ValueType) : Option Nat :=
+  match ty with
+  | .string | .bytes | .array _ => some 1
+  | .tuple _ | .struct _ _ =>
+      if valueTypeUsesDynamicData ty then
+        some 1
+      else
+        abiLocalHeadWordCount? ty
+  | .newtype _ baseType => abiParentHeadWordCount? baseType
+  | .uint256 | .int256 | .uint8 | .address | .bytes32 | .bool => some 1
+  | .adt _ _ | .unit => none
+
 private def classifyWordArithmeticResultType
     (stx : Syntax)
     (context : String)
@@ -1598,9 +1610,13 @@ private partial def structFieldHeadOffset?
                 if name == fieldName then
                   match rest with
                   | [] => some (fieldTy, curOffset)
-                  | _ => structFieldHeadOffset? fieldTy rest curOffset
+                  | _ =>
+                      if valueTypeUsesDynamicData fieldTy then
+                        none
+                      else
+                        structFieldHeadOffset? fieldTy rest curOffset
                 else
-                  match abiLocalHeadWordCount? fieldTy with
+                  match abiParentHeadWordCount? fieldTy with
                   | some n => go more (curOffset + n)
                   | none => none
           go fields baseOffset

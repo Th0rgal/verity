@@ -429,6 +429,7 @@ private def expectedExternalSignatures : List (String × List String) :=
       "storeCut((uint256,uint256,int256)[],uint256)", "storeTwoCuts((uint256,uint256,int256)[],uint256,uint256)"])
   , ("DynamicStructArraySmoke", ["tokenOf((uint256[],(address,uint256,bytes32),(uint256[],bytes32)[],address,uint256)[],uint256)",
       "feeOf((uint256[],(address,uint256,bytes32),(uint256[],bytes32)[],address,uint256)[],uint256)",
+      "wrappedTokenOf(((uint256[],bytes32),address,uint256)[],uint256)",
       "storeTokenAndFee((uint256[],(address,uint256,bytes32),(uint256[],bytes32)[],address,uint256)[],uint256)"])
   , ("PackedStorageWriteSmoke", ["writeSlot0(bool,uint256)", "writeSlot1(uint256,uint256)"])
   , ("PackedAddressStorageWriteSmoke", ["writeOwnerWord(uint256)"])
@@ -537,7 +538,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("TupleSmoke", ["0x712ea680", "0xbdf391cc", "0x01b427d2"])
   , ("NamedStructParamSmoke", ["0xa01f780b", "0x38946c6d", "0x596635bb"])
   , ("CurveCutArraySmoke", ["0xefca8f0f", "0x6f413e6b", "0x0d7610a3", "0xbea7dfd2"])
-  , ("DynamicStructArraySmoke", ["0xcbe2b47b", "0x587d08b7", "0x1fae5c19"])
+  , ("DynamicStructArraySmoke", ["0xcbe2b47b", "0x587d08b7", "0x0b7d2799", "0x1fae5c19"])
   , ("PackedStorageWriteSmoke", ["0xa0522387", "0x233ab149"])
   , ("PackedAddressStorageWriteSmoke", ["0xd59c874d"])
   , ("Uint8Smoke", ["0xc233eaa7", "0x62fc458b"])
@@ -941,6 +942,11 @@ private def checkDynamicStructArraySmoke : IO Unit := do
     "DynamicStructArraySmoke: later static leaf in dynamic struct array uses flattened head offset"
     (match Contracts.Smoke.DynamicStructArraySmoke.feeOf_modelBody with
     | [Stmt.return (Expr.arrayElementDynamicWord "txs" (Expr.param "idx") 6)] => true
+    | _ => false)
+  expectTrue
+    "DynamicStructArraySmoke: dynamic child struct contributes one parent head word"
+    (match Contracts.Smoke.DynamicStructArraySmoke.wrappedTokenOf_modelBody with
+    | [Stmt.return (Expr.arrayElementDynamicWord "items" (Expr.param "idx") 1)] => true
     | _ => false)
 
 private def checkSpec (spec : CompilationModel) : IO Unit := do

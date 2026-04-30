@@ -1083,11 +1083,19 @@ verity_contract DynamicStructArraySmoke where
     token : Address,
     fee : Uint256
 
+  struct WrappedCiphertext where
+    ciphertext : Ciphertext,
+    token : Address,
+    fee : Uint256
+
   function tokenOf (txs : Array Transaction, idx : Uint256) : Address := do
     return (arrayElement txs idx).token
 
   function feeOf (txs : Array Transaction, idx : Uint256) : Uint256 := do
     return (arrayElement txs idx).fee
+
+  function wrappedTokenOf (items : Array WrappedCiphertext, idx : Uint256) : Address := do
+    return (arrayElement items idx).token
 
   function storeTokenAndFee (txs : Array Transaction, idx : Uint256) : Unit := do
     setStorageAddr lastToken (arrayElement txs idx).token
