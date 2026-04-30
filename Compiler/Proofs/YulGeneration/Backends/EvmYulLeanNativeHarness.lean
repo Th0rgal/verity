@@ -6333,6 +6333,26 @@ def nativeSwitchStoreMarkedPrefixStateForId
     switchId store).insert
     (Backends.nativeSwitchMatchedTempName switchId) (EvmYul.UInt256.ofNat 1)
 
+def nativeSwitchHasSelectorStore : EvmYul.Yul.VarStore :=
+  (∅ : EvmYul.Yul.VarStore).insert "__has_selector" (EvmYul.UInt256.ofNat 1)
+
+def nativeSwitchHasSelectorInitialState
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (observableSlots : List Nat) : EvmYul.Yul.State :=
+  nativeSwitchStoreInitialState contract tx storage observableSlots
+    nativeSwitchHasSelectorStore
+
+theorem nativeSwitchInitialOkState_insert_hasSelector_eq
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat) :
+    (nativeSwitchInitialOkState contract tx storage observableSlots).insert
+        "__has_selector" (EvmYul.UInt256.ofNat 1) =
+      nativeSwitchHasSelectorInitialState contract tx storage observableSlots := by
+  simp [nativeSwitchInitialOkState, nativeSwitchHasSelectorInitialState,
+    nativeSwitchStoreInitialState, nativeSwitchHasSelectorStore,
+    EvmYul.Yul.State.insert]
+
 /-- `matched := 0` lookup on the post-prefix state with arbitrary store. -/
 theorem nativeSwitchPrefixStoreState_matched_eq
     (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
@@ -6659,17 +6679,9 @@ theorem exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_err
     (hTagsRange : ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
     (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
       EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body)
-        (some contract)
-        ((((.Ok (initialState contract tx storage observableSlots).sharedState
-                ((∅ : EvmYul.Yul.VarStore).insert "__has_selector"
-                  (EvmYul.UInt256.ofNat 1)) : EvmYul.Yul.State).insert
-              (Backends.nativeSwitchDiscrTempName switchId)
-              (EvmYul.UInt256.ofNat
-                (tx.functionSelector % Compiler.Constants.selectorModulus))).insert
-            (Backends.nativeSwitchMatchedTempName switchId)
-            (EvmYul.UInt256.ofNat 0)).insert
-            (Backends.nativeSwitchMatchedTempName switchId)
-            (EvmYul.UInt256.ofNat 1)) = .error err) :
+        (some contract) (nativeSwitchStoreMarkedPrefixStateForId contract tx
+          storage observableSlots switchId nativeSwitchHasSelectorStore) =
+        .error err) :
     EvmYul.Yul.exec (fuel + cases.length + 13)
       (.Block [Backends.lowerNativeSwitchBlock
         Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody])
@@ -6679,19 +6691,63 @@ theorem exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_err
       .error err := by
   have hEndpoint := exec_lowerNativeSwitchBlock_selector_find_hit_error_store_fuel
     fuel selector switchId tag cases defaultBody body contract tx storage
-    observableSlots
-    ((∅ : EvmYul.Yul.VarStore).insert "__has_selector" (EvmYul.UInt256.ofNat 1))
-    err hSelector hFind hSelectorRange hTagsRange hBody
-  have hStateEq :
-      (nativeSwitchInitialOkState contract tx storage observableSlots).insert
-          "__has_selector" (EvmYul.UInt256.ofNat 1) =
-        .Ok (initialState contract tx storage observableSlots).sharedState
-          ((∅ : EvmYul.Yul.VarStore).insert "__has_selector"
-            (EvmYul.UInt256.ofNat 1)) := by
-    simp [nativeSwitchInitialOkState, EvmYul.Yul.State.insert]
+    observableSlots nativeSwitchHasSelectorStore err hSelector hFind
+    hSelectorRange hTagsRange (by
+      intro pre suffix hCases
+      simpa [nativeSwitchStoreMarkedPrefixStateForId,
+        nativeSwitchStorePrefixStateForId, nativeSwitchStoreInitialState,
+        nativeSwitchHasSelectorStore] using hBody pre suffix hCases)
   have hFuelEq : fuel + cases.length + 13 = (fuel + cases.length + 12).succ := by omega
-  rw [hStateEq, hFuelEq]
+  rw [nativeSwitchInitialOkState_insert_hasSelector_eq, hFuelEq]
   exact exec_block_cons_error (fuel + cases.length + 12) _ [] _ _ err hEndpoint
+
+/-- Bridge-shape selector-hit endpoint on the post-`__has_selector := 1`
+    state, yielding the selected body's successful final state. This is the
+    success dual of
+    `exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error`
+    and derives the default-skip preservation premise from generated native
+    switch freshness. -/
+theorem exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_fresh
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
+    (final : EvmYul.Yul.State)
+    (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange : ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hFresh :
+      Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody)
+    (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body)
+        (some contract)
+        (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+          observableSlots switchId nativeSwitchHasSelectorStore) = .ok final)
+    (hStmtPreserves :
+      ∀ stmt, stmt ∈ body →
+        Backends.nativeSwitchMatchedTempName switchId ∉
+          Backends.nativeStmtWriteNames stmt →
+          NativeStmtPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
+            (EvmYul.UInt256.ofNat 1) stmt (some contract)) :
+    EvmYul.Yul.exec (fuel + cases.length + 13)
+      (.Block [Backends.lowerNativeSwitchBlock
+        Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody])
+      (some contract)
+      ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+          "__has_selector" (EvmYul.UInt256.ofNat 1)) =
+      .ok final := by
+  have hEndpoint :=
+    exec_lowerNativeSwitchBlock_selector_find_hit_fresh_store_fuel
+      fuel selector switchId tag cases defaultBody body contract tx storage
+      observableSlots nativeSwitchHasSelectorStore final hSelector hFind
+      hSelectorRange hTagsRange hFresh hBody hStmtPreserves
+  have hFuelEq : fuel + cases.length + 13 = (fuel + cases.length + 12).succ := by
+    omega
+  rw [nativeSwitchInitialOkState_insert_hasSelector_eq, hFuelEq]
+  exact exec_block_cons_ok (fuel + cases.length + 12) _ [] _ _ final final
+    hEndpoint (by simp [EvmYul.Yul.exec])
 
 theorem exec_lowerNativeSwitchBlock_selector_find_none_without_default_fuel
     (fuel selector switchId : Nat)
