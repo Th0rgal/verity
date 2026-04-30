@@ -3126,8 +3126,6 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_lookup_insert_of_ne
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_insert_of_ne
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_multifill_of_not_mem
-#print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_multifill_nil
-#print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_ok_match_self
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_foldr_insert_zero_of_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_setSharedState
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_setMachineState
@@ -3691,4 +3689,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3515 theorems/lemmas (2571 public, 944 private, 0 sorry'd)
+-- Total: 3513 theorems/lemmas (2569 public, 944 private, 0 sorry'd)
