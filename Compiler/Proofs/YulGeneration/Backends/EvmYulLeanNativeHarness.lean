@@ -1844,6 +1844,24 @@ theorem primCall_calldataload4_initialState_ofIR_arg0_ok_withStore
       .ok (state, [EvmYul.UInt256.mul left right]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
+@[simp] theorem primCall_div_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (left right : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.DIV [left, right] =
+      .ok (state, [EvmYul.UInt256.div left right]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall] <;> rfl
+
+@[simp] theorem primCall_mod_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (left right : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.MOD [left, right] =
+      .ok (state, [EvmYul.UInt256.mod left right]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall] <;> rfl
+
 /-- Native primitive execution of the generated dispatcher selector core:
     `calldataload(0)` reads the ABI selector word and `shr(224, ...)` decodes
     the normalized 32-bit selector used by the lowered native switch. -/
@@ -1923,6 +1941,15 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
       .ok (state, [EvmYul.UInt256.lt left right]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
+@[simp] theorem primCall_gt_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (left right : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.GT [left, right] =
+      .ok (state, [EvmYul.UInt256.gt left right]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall] <;> rfl
+
 @[simp] theorem primCall_calldatasize_ok
     (fuel : Nat)
     (state : EvmYul.Yul.State) :
@@ -1979,6 +2006,42 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
         EvmYul.Operation.AND [left, right] =
       .ok (state, [EvmYul.UInt256.land left right]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_or_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (left right : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.OR [left, right] =
+      .ok (state, [EvmYul.UInt256.lor left right]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall] <;> rfl
+
+@[simp] theorem primCall_xor_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (left right : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.XOR [left, right] =
+      .ok (state, [EvmYul.UInt256.xor left right]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall] <;> rfl
+
+@[simp] theorem primCall_not_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (value : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.NOT [value] =
+      .ok (state, [EvmYul.UInt256.lnot value]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall] <;> rfl
+
+@[simp] theorem primCall_shl_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (shift value : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.SHL [shift, value] =
+      .ok (state, [EvmYul.UInt256.shiftLeft value shift]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall] <;> rfl
 
 @[simp] theorem primCall_mstore_ok
     (fuel : Nat)
@@ -4495,6 +4558,30 @@ theorem NativePrimCallPreservesWord_mul
     name expected left right (EvmYul.UInt256.mul left right)
     (by intro fuel state; exact primCall_mul_ok fuel state left right)
 
+theorem NativePrimCallPreservesWord_div
+    (name : EvmYul.Identifier)
+    (expected left right : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.DIV [left, right] =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.DIV
+    name expected left right (EvmYul.UInt256.div left right)
+    (by intro fuel state; exact primCall_div_ok fuel state left right)
+
+theorem NativePrimCallPreservesWord_mod
+    (name : EvmYul.Identifier)
+    (expected left right : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.MOD [left, right] =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.MOD
+    name expected left right (EvmYul.UInt256.mod left right)
+    (by intro fuel state; exact primCall_mod_ok fuel state left right)
+
 theorem NativePrimCallPreservesWord_eq
     (name : EvmYul.Identifier)
     (expected left right : EvmYul.Literal) :
@@ -4519,6 +4606,18 @@ theorem NativePrimCallPreservesWord_lt
     name expected left right (EvmYul.UInt256.lt left right)
     (by intro fuel state; exact primCall_lt_ok fuel state left right)
 
+theorem NativePrimCallPreservesWord_gt
+    (name : EvmYul.Identifier)
+    (expected left right : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.GT [left, right] =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.GT
+    name expected left right (EvmYul.UInt256.gt left right)
+    (by intro fuel state; exact primCall_gt_ok fuel state left right)
+
 theorem NativePrimCallPreservesWord_and
     (name : EvmYul.Identifier)
     (expected left right : EvmYul.Literal) :
@@ -4530,6 +4629,54 @@ theorem NativePrimCallPreservesWord_and
   NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.AND
     name expected left right (EvmYul.UInt256.land left right)
     (by intro fuel state; exact primCall_and_ok fuel state left right)
+
+theorem NativePrimCallPreservesWord_or
+    (name : EvmYul.Identifier)
+    (expected left right : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.OR [left, right] =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.OR
+    name expected left right (EvmYul.UInt256.lor left right)
+    (by intro fuel state; exact primCall_or_ok fuel state left right)
+
+theorem NativePrimCallPreservesWord_xor
+    (name : EvmYul.Identifier)
+    (expected left right : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.XOR [left, right] =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.XOR
+    name expected left right (EvmYul.UInt256.xor left right)
+    (by intro fuel state; exact primCall_xor_ok fuel state left right)
+
+theorem NativePrimCallPreservesWord_not
+    (name : EvmYul.Identifier)
+    (expected value : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.NOT [value] =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_unary_same_state EvmYul.Operation.NOT
+    name expected value (EvmYul.UInt256.lnot value)
+    (by intro fuel state; exact primCall_not_ok fuel state value)
+
+theorem NativePrimCallPreservesWord_shl
+    (name : EvmYul.Identifier)
+    (expected shift value : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.SHL [shift, value] =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.SHL
+    name expected shift value (EvmYul.UInt256.shiftLeft value shift)
+    (by intro fuel state; exact primCall_shl_ok fuel state shift value)
 
 theorem NativePrimCallPreservesWord_sload
     (name : EvmYul.Identifier)
