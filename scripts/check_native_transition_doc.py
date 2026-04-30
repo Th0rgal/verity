@@ -214,6 +214,8 @@ def check_public_theorem_target(
         "theorem NativeStmtPreservesWord_let_var_of_not_mem",
         "theorem NativeStmtPreservesWord_let_lit_of_not_mem",
         "theorem NativeStmtPreservesWord_exprStmtCall_prim_of_evalArgs_primCall_preserves",
+        "theorem NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves",
+        "theorem NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves",
         "theorem nativeStmtWriteNames_not_mem_of_nativeStmtsWriteNames_not_mem",
         "theorem NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem",
         "theorem exec_nativeSwitchTail_find_hit_fresh_fuel",

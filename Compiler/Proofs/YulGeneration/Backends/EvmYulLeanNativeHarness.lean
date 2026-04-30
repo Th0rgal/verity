@@ -4069,6 +4069,20 @@ theorem state_getElem_multifill_of_not_mem
           | Checkpoint jump =>
               rfl
 
+theorem state_getElem_multifill_nil
+    (state : EvmYul.Yul.State)
+    (name : EvmYul.Identifier) :
+    (EvmYul.Yul.State.multifill [] [] state)[name]! = state[name]! := by
+  cases state <;> rfl
+
+theorem state_getElem_ok_match_self
+    (state : EvmYul.Yul.State)
+    (name : EvmYul.Identifier) :
+    (match state with
+      | s@(.Ok _ _) => s
+      | s => s)[name]! = state[name]! := by
+  cases state <;> rfl
+
 theorem state_getElem_foldr_insert_zero_of_not_mem
     (state : EvmYul.Yul.State)
     (name : EvmYul.Identifier)
@@ -4629,6 +4643,90 @@ theorem NativeStmtPreservesWord_exprStmtCall_prim_of_evalArgs_primCall_preserves
                 hPrim fuel' argState values.reverse primState rets hArgLookup
                   hPrimCall
               cases primState <;> simpa using hPrimLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset value,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [value, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.MSTORE) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, offset, value, hEval, hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ primFuel =>
+          rw [primCall_mstore_ok] at hExec
+          simp [EvmYul.Yul.State.multifill] at hExec
+          cases hExec
+          cases argState with
+          | Ok shared store =>
+              simpa [EvmYul.Yul.State.setMachineState] using hArgLookup
+          | OutOfFuel =>
+              simpa [EvmYul.Yul.State.setMachineState] using hArgLookup
+          | Checkpoint jump =>
+              cases jump <;>
+                simpa [EvmYul.Yul.State.setMachineState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState slot value,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [value, slot]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.SSTORE) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, slot, value, hEval, hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ primFuel =>
+          cases hPerm : argState.executionEnv.perm
+          · simp [EvmYul.Yul.primCall, hPerm,
+              EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+          · rw [primCall_sstore_ok primFuel argState slot value hPerm] at hExec
+            simp [EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+            cases argState with
+            | Ok shared store =>
+                simpa [EvmYul.Yul.State.setState] using hArgLookup
+            | OutOfFuel =>
+                simpa [EvmYul.Yul.State.setState] using hArgLookup
+            | Checkpoint jump =>
+                cases jump <;>
+                  simpa [EvmYul.Yul.State.setState] using hArgLookup
 
 theorem nativeSwitchTempsFreshForNativeBodies_case_matched_not_mem
     (switchId tag : Nat)
