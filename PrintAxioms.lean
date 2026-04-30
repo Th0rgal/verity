@@ -3316,8 +3316,11 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_stop
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_stop
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_case_matched_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_case_discr_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_find_hit_discr_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_default_matched_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_default_discr_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchCaseIfs_nil
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchCaseIfs_cons
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.list_find?_eq_some_split_false  -- private
@@ -3799,4 +3802,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3623 theorems/lemmas (2677 public, 946 private, 0 sorry'd)
+-- Total: 3626 theorems/lemmas (2680 public, 946 private, 0 sorry'd)

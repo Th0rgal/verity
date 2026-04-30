@@ -7561,6 +7561,17 @@ theorem nativeSwitchTempsFreshForNativeBodies_case_matched_not_mem
       Backends.nativeStmtsWriteNames body :=
   (hFresh.1 tag body hMem).2
 
+theorem nativeSwitchTempsFreshForNativeBodies_case_discr_not_mem
+    (switchId tag : Nat)
+    (body defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (hFresh :
+      Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody)
+    (hMem : (tag, body) ∈ cases) :
+    Backends.nativeSwitchDiscrTempName switchId ∉
+      Backends.nativeStmtsWriteNames body :=
+  (hFresh.1 tag body hMem).1
+
 theorem nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem
     (switchId selector tag : Nat)
     (body defaultBody : List EvmYul.Yul.Ast.Stmt)
@@ -7585,6 +7596,30 @@ theorem nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem
   exact nativeSwitchTempsFreshForNativeBodies_case_matched_not_mem
     switchId tag body defaultBody cases hFresh hMem
 
+theorem nativeSwitchTempsFreshForNativeBodies_find_hit_discr_not_mem
+    (switchId selector tag : Nat)
+    (body defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (hFresh :
+      Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody)
+    (hFind : cases.find? (fun entry => entry.1 == selector) =
+      some (tag, body)) :
+    Backends.nativeSwitchDiscrTempName switchId ∉
+      Backends.nativeStmtsWriteNames body := by
+  have hMem : (tag, body) ∈ cases := by
+    clear hFresh
+    induction cases with
+    | nil =>
+        simp [List.find?] at hFind
+    | cons head rest ih =>
+        cases hHead : (head.1 == selector)
+        · simp [List.find?, hHead] at hFind
+          exact List.mem_cons_of_mem head (ih hFind)
+        · simp [List.find?, hHead] at hFind
+          simp [hFind]
+  exact nativeSwitchTempsFreshForNativeBodies_case_discr_not_mem
+    switchId tag body defaultBody cases hFresh hMem
+
 theorem nativeSwitchTempsFreshForNativeBodies_default_matched_not_mem
     (switchId : Nat)
     (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
@@ -7594,6 +7629,16 @@ theorem nativeSwitchTempsFreshForNativeBodies_default_matched_not_mem
     Backends.nativeSwitchMatchedTempName switchId ∉
       Backends.nativeStmtsWriteNames defaultBody :=
   hFresh.2.2
+
+theorem nativeSwitchTempsFreshForNativeBodies_default_discr_not_mem
+    (switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (hFresh :
+      Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody) :
+    Backends.nativeSwitchDiscrTempName switchId ∉
+      Backends.nativeStmtsWriteNames defaultBody :=
+  hFresh.2.1
 
 @[simp] theorem nativeSwitchCaseIfs_nil
     (discrName matchedName : EvmYul.Identifier) :
