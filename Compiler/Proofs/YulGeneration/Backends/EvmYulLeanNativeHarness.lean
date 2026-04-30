@@ -6148,6 +6148,27 @@ theorem NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves
                 cases jump <;>
                   simpa [EvmYul.Yul.State.setState] using hArgLookup
 
+theorem NativeStmtPreservesWord_exprStmtCall_stop
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.STOP) []))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.exec, EvmYul.Yul.execPrimCall,
+            EvmYul.Yul.evalArgs, EvmYul.Yul.reverse'] at hExec
+      | succ stopFuel =>
+          simp [EvmYul.Yul.exec, EvmYul.Yul.execPrimCall,
+            EvmYul.Yul.evalArgs, EvmYul.Yul.reverse'] at hExec
+          simp [EvmYul.Yul.multifill'] at hExec
+
 theorem nativeSwitchTempsFreshForNativeBodies_case_matched_not_mem
     (switchId tag : Nat)
     (body defaultBody : List EvmYul.Yul.Ast.Stmt)
