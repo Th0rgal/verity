@@ -213,6 +213,7 @@ def check_public_theorem_target(
         "theorem NativeStmtPreservesWord_let_none_of_not_mem",
         "theorem NativeStmtPreservesWord_let_var_of_not_mem",
         "theorem NativeStmtPreservesWord_let_lit_of_not_mem",
+        "theorem NativeStmtPreservesWord_let_prim_of_evalArgs_primCall_preserves",
         "theorem NativeStmtPreservesWord_exprStmtCall_prim_of_evalArgs_primCall_preserves",
         "theorem NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves",
         "theorem NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves",
