@@ -348,6 +348,8 @@ scope so the native path does not look more complete than it is:
   `NativePrimCallPreservesWord_caller`,
   `NativePrimCallPreservesWord_timestamp`,
   `NativePrimCallPreservesWord_number`,
+  `NativePrimCallPreservesWord_chainid`,
+  `NativePrimCallPreservesWord_blobbasefee`,
   `NativePrimCallPreservesWord_unary_same_state`,
   `NativePrimCallPreservesWord_binary_same_state`,
   `NativePrimCallPreservesWord_ternary_same_state`,
