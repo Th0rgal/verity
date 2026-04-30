@@ -137,13 +137,14 @@ N8 public Layer 3 theorem flip
   projection lemmas, assignment constructors for literal/hex/identifier/string
   RHS forms, generated `let` constructors for omitted, variable, and literal
   initializers, generated `let` primitive-call constructors when argument
-  evaluation and the primitive preserve the tracked word, read-only primitive
-  preservation wrappers for generated comparison, switch-guard, calldata-size,
-  callvalue, and `sload` RHS forms, expression/argument-list preservation
-  constructors for variables, literals, primitive calls, and argument-list
-  cons/nil composition, concrete generated
-  expression-statement constructors for `mstore` and `sstore` when argument
-  evaluation preserves the tracked word, and empty-store plus store-parametric
+  evaluation and the primitive preserve the tracked word, generated `let` and
+  expression-statement user-call wrappers when argument evaluation and the call
+  preserve the tracked word, read-only primitive preservation wrappers for
+  generated comparison, switch-guard, calldata-size, callvalue, and `sload` RHS
+  forms, expression/argument-list preservation constructors for variables,
+  literals, primitive calls, and argument-list cons/nil composition, concrete
+  generated expression-statement constructors for `mstore` and `sstore` when
+  argument evaluation preserves the tracked word, and empty-store plus store-parametric
   selector-hit freshness switch execution exist; general preservation from
   `nativeStmtsWriteNames` freshness is not complete for all generated statement
   families.
