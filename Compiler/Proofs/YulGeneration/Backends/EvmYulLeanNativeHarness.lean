@@ -1637,6 +1637,21 @@ theorem lowerExprNative_selectorExpr :
       .ok (state, some (EvmYul.UInt256.ofNat state.executionEnv.codeOwner.val)) := by
   rfl
 
+@[simp] theorem step_balance_ok
+    (state : EvmYul.Yul.State)
+    (account : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.BALANCE none state [account] =
+      let (state', value) := state.toState.balance account
+      .ok (state.setSharedState { state.toSharedState with toState := state' },
+        some value) := by
+  rfl
+
+@[simp] theorem step_origin_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.ORIGIN none state [] =
+      .ok (state, some (EvmYul.UInt256.ofNat state.executionEnv.sender.val)) := by
+  rfl
+
 @[simp] theorem step_caller_ok
     (state : EvmYul.Yul.State) :
     EvmYul.step (τ := .Yul) EvmYul.Operation.CALLER none state [] =
@@ -1665,6 +1680,30 @@ theorem lowerExprNative_selectorExpr :
     (state : EvmYul.Yul.State) :
     EvmYul.step (τ := .Yul) EvmYul.Operation.BLOBBASEFEE none state [] =
       .ok (state, some state.executionEnv.getBlobGasprice) := by
+  rfl
+
+@[simp] theorem step_gasprice_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.GASPRICE none state [] =
+      .ok (state, some (EvmYul.UInt256.ofNat state.executionEnv.gasPrice)) := by
+  rfl
+
+@[simp] theorem step_coinbase_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.COINBASE none state [] =
+      .ok (state, some (EvmYul.UInt256.ofNat state.toState.coinBase.val)) := by
+  rfl
+
+@[simp] theorem step_gaslimit_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.GASLIMIT none state [] =
+      .ok (state, some state.toState.gasLimit) := by
+  rfl
+
+@[simp] theorem step_selfbalance_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.SELFBALANCE none state [] =
+      .ok (state, some state.toState.selfbalance) := by
   rfl
 
 @[simp] theorem step_and_ok
@@ -1820,6 +1859,13 @@ theorem lowerExprNative_selectorExpr :
       .ok (state.setMachineState
         (state.toSharedState.toMachineState.returndatacopy mstart rstart size),
         none) := by
+  rfl
+
+@[simp] theorem step_pop_ok
+    (state : EvmYul.Yul.State)
+    (value : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.POP none state [value] =
+      .ok (state, none) := by
   rfl
 
 @[simp] theorem step_stop_ok
@@ -2174,6 +2220,25 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
       .ok (state, [EvmYul.UInt256.ofNat state.executionEnv.codeOwner.val]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
+@[simp] theorem primCall_balance_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (account : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.BALANCE [account] =
+      let (state', value) := state.toState.balance account
+      .ok (state.setSharedState { state.toSharedState with toState := state' },
+        [value]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_origin_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.ORIGIN [] =
+      .ok (state, [EvmYul.UInt256.ofNat state.executionEnv.sender.val]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
 @[simp] theorem primCall_caller_ok
     (fuel : Nat)
     (state : EvmYul.Yul.State) :
@@ -2212,6 +2277,38 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
     EvmYul.Yul.primCall (fuel + 1) state
         EvmYul.Operation.BLOBBASEFEE [] =
       .ok (state, [state.executionEnv.getBlobGasprice]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_gasprice_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.GASPRICE [] =
+      .ok (state, [EvmYul.UInt256.ofNat state.executionEnv.gasPrice]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_coinbase_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.COINBASE [] =
+      .ok (state, [EvmYul.UInt256.ofNat state.toState.coinBase.val]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_gaslimit_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.GASLIMIT [] =
+      .ok (state, [state.toState.gasLimit]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_selfbalance_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.SELFBALANCE [] =
+      .ok (state, [state.toState.selfbalance]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
 @[simp] theorem primCall_and_ok
@@ -2457,6 +2554,14 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
       .ok (state.setMachineState
         (state.toSharedState.toMachineState.returndatacopy mstart rstart size),
         []) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_pop_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (value : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.POP [value] =
+      .ok (state, []) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
 @[simp] theorem primCall_stop_ok
@@ -4766,6 +4871,47 @@ theorem NativePrimCallPreservesWord_address
       cases hExec
       exact hLookup
 
+theorem NativePrimCallPreservesWord_balance
+    (name : EvmYul.Identifier)
+    (expected account : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.BALANCE [account] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_balance_ok] at hExec
+      cases hExec
+      cases state with
+      | Ok shared store =>
+          simpa [EvmYul.Yul.State.setSharedState] using hLookup
+      | OutOfFuel =>
+          simpa [EvmYul.Yul.State.setSharedState] using hLookup
+      | Checkpoint jump =>
+          cases jump <;>
+            simpa [EvmYul.Yul.State.setSharedState] using hLookup
+
+theorem NativePrimCallPreservesWord_origin
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.ORIGIN [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_origin_ok] at hExec
+      cases hExec
+      exact hLookup
+
 theorem NativePrimCallPreservesWord_caller
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal) :
@@ -4848,6 +4994,74 @@ theorem NativePrimCallPreservesWord_blobbasefee
       simp [EvmYul.Yul.primCall] at hExec
   | succ fuel' =>
       rw [primCall_blobbasefee_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_gasprice
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.GASPRICE [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_gasprice_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_coinbase
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.COINBASE [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_coinbase_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_gaslimit
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.GASLIMIT [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_gaslimit_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_selfbalance
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.SELFBALANCE [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_selfbalance_ok] at hExec
       cases hExec
       exact hLookup
 
@@ -5544,6 +5758,23 @@ theorem NativePrimCallPreservesWord_returndatacopy
       rw [primCall_returndatacopy_ok] at hExec
       cases hExec
       rw [state_getElem_setMachineState]
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_pop
+    (name : EvmYul.Identifier)
+    (expected value : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.POP [value] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_pop_ok] at hExec
+      cases hExec
       exact hLookup
 
 theorem NativePrimCallPreservesWord_keccak256
