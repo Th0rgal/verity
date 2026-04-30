@@ -1894,6 +1894,143 @@ private def throwPureContextAccessorError (stx : Syntax) (name : String) : Comma
     s!"context accessor '{name}' is monadic; use `let x ← {name}` before using it in a pure expression"
 
 mutual
+private partial def leanExprAppFnArgs (expr : Expr) : Expr × Array Expr :=
+  let rec go (fn : Expr) (argsRev : Array Expr) : Expr × Array Expr :=
+    match fn.consumeMData with
+    | .app f arg => go f (argsRev.push arg)
+    | other => (other, argsRev.reverse)
+  go expr #[]
+
+private partial def leanConstName? (expr : Expr) : Option Name :=
+  match expr.consumeMData with
+  | .const name _ => some name
+  | _ => none
+
+private partial def leanConstNameMatches (expr : Expr) (names : List Name) : Bool :=
+  match leanConstName? expr with
+  | some name => names.contains name
+  | none => false
+
+private partial def leanConstNameMatchesStringOrSuffix
+    (expr : Expr)
+    (names : List String)
+    (suffixes : List String) : Bool :=
+  match leanConstName? expr with
+  | some name =>
+      let nameString := name.toString
+      names.contains nameString || suffixes.any (fun suffix => nameString.endsWith s!".{suffix}")
+  | none => false
+
+private partial def valueTypeFromLeanTypeExpr? (expr : Expr) : Option ValueType :=
+  match expr.consumeMData with
+  | .const name _ =>
+      let nameString := name.toString
+      if nameString == "Verity.Uint256" || nameString == "Verity.Core.Uint256" ||
+          nameString.endsWith ".Uint256" then
+        some .uint256
+      else if nameString == "Verity.Int256" || nameString == "Verity.Core.Int256" ||
+          nameString.endsWith ".Int256" then
+        some .int256
+      else if nameString == "Verity.Address" || nameString == "Verity.Core.Address" ||
+          nameString.endsWith ".Address" then
+        some .address
+      else if nameString == "Bool" then
+        some .bool
+      else if nameString == "String" then
+        some .string
+      else if nameString == "ByteArray" then
+        some .bytes
+      else
+        none
+  | _ => none
+
+private partial def peelForallTypes (type : Expr) : List Expr × Expr :=
+  let rec go (remaining : Expr) (acc : List Expr) : List Expr × Expr :=
+    match remaining.consumeMData with
+    | .forallE _ domain body _ => go body (domain :: acc)
+    | other => (acc.reverse, other)
+  go type []
+
+private partial def peelLambdaBody (value : Expr) (arity : Nat) : Option Expr :=
+  match arity with
+  | 0 => some value
+  | n + 1 =>
+      match value.consumeMData with
+      | .lam _ _ body _ => peelLambdaBody body n
+      | _ => none
+
+private partial def leanDefAppSyntax? (stx : Term) : Option (Syntax × String × Array Term) :=
+  let stx := stripParens stx
+  match stx.raw with
+  | .node _ `Lean.Parser.Term.app args =>
+      match args.getD 0 Syntax.missing with
+      | head@(.ident _ _ raw _) =>
+          if isQualifiedFunctionName raw then
+            none
+          else
+            let argTerms := (args.getD 1 Syntax.missing).getArgs.map (fun syn => ⟨syn⟩)
+            some (head, raw.toString, argTerms)
+      | _ => none
+  | _ => none
+
+private partial def resolveLeanDefName? (head : Syntax) : CommandElabM (Option Name) := do
+  try
+    pure (some (← liftCoreM <| Lean.Elab.realizeGlobalConstNoOverloadWithInfo head none))
+  catch _ =>
+    pure none
+
+private partial def leanDefInfo? (name : Name) : CommandElabM (Option DefinitionVal) := do
+  match (← getEnv).find? name with
+  | some (.defnInfo info) => pure (some info)
+  | _ => pure none
+
+private partial def checkLeanDefCallArgs
+    (stx : Syntax)
+    (fnDisplay : String)
+    (argTerms : Array Term)
+    (paramTypeExprs : List Expr)
+    (argTypes : Array ValueType) : CommandElabM Unit := do
+  unless argTerms.size == paramTypeExprs.length do
+    throwErrorAt stx
+      s!"Lean helper '{fnDisplay}' expects {paramTypeExprs.length} argument(s), got {argTerms.size}"
+  for ((argTerm, argTy), expectedExpr) in argTerms.zip argTypes |>.zip paramTypeExprs.toArray do
+    let expectedTy ←
+      match valueTypeFromLeanTypeExpr? expectedExpr with
+      | some ty => pure ty
+      | none =>
+          throwErrorAt stx
+            s!"Lean helper '{fnDisplay}' uses an unsupported parameter type; supported pure helper parameters are Uint256, Int256, Address, Bytes32/Uint256, Bool, String, and Bytes"
+    unless argTy == expectedTy || (isNatLiteralTerm argTerm && numericLiteralCompatibleValueType expectedTy) do
+      throwErrorAt argTerm
+        s!"Lean helper '{fnDisplay}' argument expects {renderValueType expectedTy}, got {renderValueType argTy}"
+
+private partial def inferLeanDefCallType?
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (stx : Term)
+    (visitingConstants : List String) : CommandElabM (Option ValueType) := do
+  let some (head, fnDisplay, argTerms) := leanDefAppSyntax? stx
+    | pure none
+  let some fnName ← resolveLeanDefName? head
+    | pure none
+  let some info ← leanDefInfo? fnName
+    | pure none
+  let (paramTypeExprs, resultTypeExpr) := peelForallTypes info.type
+  let argTypes ← argTerms.mapM
+    (inferPureExprType fields constDecls immutableDecls externalDecls params locals · visitingConstants)
+  checkLeanDefCallArgs stx.raw fnDisplay argTerms paramTypeExprs argTypes
+  match valueTypeFromLeanTypeExpr? resultTypeExpr with
+  | some ty =>
+      requireSupportedLocalBindingType stx.raw s!"Lean helper '{fnDisplay}' return" ty
+      pure (some ty)
+  | none =>
+      throwErrorAt stx
+        s!"Lean helper '{fnDisplay}' uses an unsupported return type; supported pure helper returns are Uint256, Int256, Address, Bytes32/Uint256, and Bool"
+
 private partial def inferPureExprType
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
@@ -2124,7 +2261,9 @@ private partial def inferPureExprType
             throwErrorAt stx
               s!"qualified library helper call '{qualifiedFunctionDisplayName fnName}' is only supported as a monadic bind source; use `let x ← {qualifiedFunctionDisplayName fnName} ...` or tuple destructuring bind syntax"
       | none =>
-          throwErrorAt stx "unsupported expression in verity_contract body (see #1003 for planned macro support expansions)"
+          match ← inferLeanDefCallType? fields constDecls immutableDecls externalDecls params locals stx visitingConstants with
+          | some ty => pure ty
+          | none => throwErrorAt stx "unsupported expression in verity_contract body (see #1003 for planned macro support expansions)"
 
 private partial def lookupNamedValueType?
     (constDecls : Array ConstantDecl)
@@ -2570,6 +2709,150 @@ private partial def translateConstantExpr
         throwError s!"constant '{name}' depends on itself recursively"
       translatePureExprWithTypes fields constDecls immutableDecls #[] #[] constant.body (name :: visiting)
 
+private partial def translateLeanExprFromDef
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (origin : Syntax)
+    (fnDisplay : String)
+    (argExprs : Array Term)
+    (expr : Expr) : CommandElabM Term := do
+  match expr.consumeMData with
+  | .bvar idx =>
+      if idx < argExprs.size then
+        let argIdx := argExprs.size - 1 - idx
+        match argExprs[argIdx]? with
+        | some arg => pure arg
+        | none => throwErrorAt origin s!"Lean helper '{fnDisplay}' body references an out-of-scope argument"
+      else
+        throwErrorAt origin s!"Lean helper '{fnDisplay}' body references an out-of-scope argument"
+  | .lit (.natVal n) =>
+      `(Compiler.CompilationModel.Expr.literal $(natTerm n))
+  | .const ``Bool.true _ =>
+      `(Compiler.CompilationModel.Expr.literal 1)
+  | .const ``Bool.false _ =>
+      `(Compiler.CompilationModel.Expr.literal 0)
+  | other =>
+      let (fn, args) := leanExprAppFnArgs other
+      if leanConstNameMatches fn [``OfNat.ofNat] then
+        match args.toList with
+        | [_ty, .lit (.natVal n), _inst] =>
+            `(Compiler.CompilationModel.Expr.literal $(natTerm n))
+        | _ =>
+            throwErrorAt origin s!"Lean helper '{fnDisplay}' contains an unsupported numeric literal form"
+      else if leanConstNameMatches fn [``ite] then
+        match args.toList with
+        | [_ty, cond, _dec, thenExpr, elseExpr] =>
+            `(Compiler.CompilationModel.Expr.ite
+                $(← translateLeanExprFromDef fields constDecls immutableDecls params locals origin fnDisplay argExprs cond)
+                $(← translateLeanExprFromDef fields constDecls immutableDecls params locals origin fnDisplay argExprs thenExpr)
+                $(← translateLeanExprFromDef fields constDecls immutableDecls params locals origin fnDisplay argExprs elseExpr))
+        | _ =>
+            throwErrorAt origin s!"Lean helper '{fnDisplay}' contains an unsupported if/ite form"
+      else if leanConstNameMatchesStringOrSuffix fn
+          ["Verity.toInt256", "Verity.toUint256", "Verity.wordToAddress", "Verity.addressToWord"]
+          ["toInt256", "toUint256", "wordToAddress", "addressToWord"] then
+        match args.toList with
+        | [arg] => translateLeanExprFromDef fields constDecls immutableDecls params locals origin fnDisplay argExprs arg
+        | _ => throwErrorAt origin s!"Lean helper '{fnDisplay}' contains an unsupported cast form"
+      else if leanConstNameMatches fn [``Neg.neg] then
+        match args.toList with
+        | [_ty, _inst, arg] =>
+            `(Compiler.CompilationModel.Expr.sub
+                (Compiler.CompilationModel.Expr.literal 0)
+                $(← translateLeanExprFromDef fields constDecls immutableDecls params locals origin fnDisplay argExprs arg))
+        | _ => throwErrorAt origin s!"Lean helper '{fnDisplay}' contains an unsupported negation form"
+      else if leanConstNameMatches fn [``Eq] then
+        match args.toList with
+        | [_tyExpr, lhs, rhs] =>
+            `(Compiler.CompilationModel.Expr.eq
+                $(← translateLeanExprFromDef fields constDecls immutableDecls params locals origin fnDisplay argExprs lhs)
+                $(← translateLeanExprFromDef fields constDecls immutableDecls params locals origin fnDisplay argExprs rhs))
+        | _ => throwErrorAt origin s!"Lean helper '{fnDisplay}' contains an unsupported equality form"
+      else if leanConstNameMatches fn [``LT.lt, ``LE.le] then
+        match args.toList with
+        | [tyExpr, _inst, lhs, rhs] =>
+            let lhsExpr ← translateLeanExprFromDef fields constDecls immutableDecls params locals origin fnDisplay argExprs lhs
+            let rhsExpr ← translateLeanExprFromDef fields constDecls immutableDecls params locals origin fnDisplay argExprs rhs
+            match leanConstName? fn with
+            | some ``LT.lt =>
+                if valueTypeFromLeanTypeExpr? tyExpr == some .int256 then
+                  `(Compiler.CompilationModel.Expr.slt $lhsExpr $rhsExpr)
+                else
+                  `(Compiler.CompilationModel.Expr.lt $lhsExpr $rhsExpr)
+            | _ =>
+                if valueTypeFromLeanTypeExpr? tyExpr == some .int256 then
+                  `(Compiler.CompilationModel.Expr.logicalNot
+                      (Compiler.CompilationModel.Expr.sgt $lhsExpr $rhsExpr))
+                else
+                  `(Compiler.CompilationModel.Expr.le $lhsExpr $rhsExpr)
+        | _ => throwErrorAt origin s!"Lean helper '{fnDisplay}' contains an unsupported comparison form"
+      else if leanConstNameMatchesStringOrSuffix fn
+          ["Verity.EVM.Uint256.add", "Verity.EVM.Int256.add",
+           "Verity.Core.Uint256.add", "Verity.Core.Int256.add"]
+          ["add"] then
+        match args.toList with
+        | [lhs, rhs] =>
+            `(Compiler.CompilationModel.Expr.add
+                $(← translateLeanExprFromDef fields constDecls immutableDecls params locals origin fnDisplay argExprs lhs)
+                $(← translateLeanExprFromDef fields constDecls immutableDecls params locals origin fnDisplay argExprs rhs))
+        | _ => throwErrorAt origin s!"Lean helper '{fnDisplay}' contains an unsupported add form"
+      else if leanConstNameMatchesStringOrSuffix fn
+          ["Verity.EVM.Uint256.sub", "Verity.EVM.Int256.sub",
+           "Verity.Core.Uint256.sub", "Verity.Core.Int256.sub"]
+          ["sub"] then
+        match args.toList with
+        | [lhs, rhs] =>
+            `(Compiler.CompilationModel.Expr.sub
+                $(← translateLeanExprFromDef fields constDecls immutableDecls params locals origin fnDisplay argExprs lhs)
+                $(← translateLeanExprFromDef fields constDecls immutableDecls params locals origin fnDisplay argExprs rhs))
+        | _ => throwErrorAt origin s!"Lean helper '{fnDisplay}' contains an unsupported sub form"
+      else if leanConstNameMatchesStringOrSuffix fn
+          ["Verity.EVM.Uint256.mul", "Verity.EVM.Int256.mul",
+           "Verity.Core.Uint256.mul", "Verity.Core.Int256.mul"]
+          ["mul"] then
+        match args.toList with
+        | [lhs, rhs] =>
+            `(Compiler.CompilationModel.Expr.mul
+                $(← translateLeanExprFromDef fields constDecls immutableDecls params locals origin fnDisplay argExprs lhs)
+                $(← translateLeanExprFromDef fields constDecls immutableDecls params locals origin fnDisplay argExprs rhs))
+        | _ => throwErrorAt origin s!"Lean helper '{fnDisplay}' contains an unsupported mul form"
+      else
+        throwErrorAt origin
+          s!"Lean helper '{fnDisplay}' body contains unsupported expression '{fn}'; inline it or rewrite the helper using supported pure Verity operations"
+
+private partial def translateLeanDefCall?
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (stx : Term)
+    (visitingConstants : List String) : CommandElabM (Option Term) := do
+  let some (head, fnDisplay, argTerms) := leanDefAppSyntax? stx
+    | pure none
+  let some fnName ← resolveLeanDefName? head
+    | pure none
+  let some info ← leanDefInfo? fnName
+    | pure none
+  let (paramTypeExprs, resultTypeExpr) := peelForallTypes info.type
+  let argTypes ← argTerms.mapM
+    (inferPureExprType fields constDecls immutableDecls externalDecls params locals · visitingConstants)
+  checkLeanDefCallArgs stx.raw fnDisplay argTerms paramTypeExprs argTypes
+  match valueTypeFromLeanTypeExpr? resultTypeExpr with
+  | some ty => requireSupportedLocalBindingType stx.raw s!"Lean helper '{fnDisplay}' return" ty
+  | none =>
+      throwErrorAt stx
+        s!"Lean helper '{fnDisplay}' uses an unsupported return type; supported pure helper returns are Uint256, Int256, Address, Bytes32/Uint256, and Bool"
+  let some body := peelLambdaBody info.value argTerms.size
+    | throwErrorAt stx s!"Lean helper '{fnDisplay}' body is not a transparent function definition"
+  let argExprs ← argTerms.mapM
+    (translatePureExprWithTypes fields constDecls immutableDecls params locals · visitingConstants)
+  pure (some (← translateLeanExprFromDef fields constDecls immutableDecls params locals stx.raw fnDisplay argExprs body))
+
 partial def translatePureExprWithTypes
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
@@ -2853,7 +3136,10 @@ partial def translatePureExprWithTypes
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals key1 visitingConstants)
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals key2 visitingConstants)
           $(strTerm memberName))
-  | _ => throwErrorAt stx "unsupported expression in verity_contract body (see #1003 for planned macro support expansions)"
+  | _ =>
+      match ← translateLeanDefCall? fields constDecls immutableDecls #[] params locals stx visitingConstants with
+      | some expr => pure expr
+      | none => throwErrorAt stx "unsupported expression in verity_contract body (see #1003 for planned macro support expansions)"
 end
 
 partial def translatePureExpr

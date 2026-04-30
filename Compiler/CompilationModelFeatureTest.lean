@@ -1116,6 +1116,34 @@ example : signedLiteralUsesInt256Overload = true := by native_decide
 
 end MacroNumericLiteralHelperSmoke
 
+namespace MacroLeanDefHelperSmoke
+
+open Contracts.Smoke
+
+def leanDefHelperLowersToPureExpr : Bool :=
+  match LeanDefHelperSmoke.addOffset_modelBody with
+  | [Stmt.return
+      (Expr.ite
+        (Expr.slt (Expr.param "y") (Expr.literal 0))
+        (Expr.sub (Expr.param "x") (Expr.sub (Expr.literal 0) (Expr.param "y")))
+        (Expr.add (Expr.param "x") (Expr.param "y")))] => true
+  | _ => false
+
+example : leanDefHelperLowersToPureExpr = true := by native_decide
+
+def leanDefHelperEqualityLowersToPureExpr : Bool :=
+  match LeanDefHelperSmoke.sameWord_modelBody with
+  | [Stmt.return
+      (Expr.ite
+        (Expr.eq (Expr.param "x") (Expr.param "y"))
+        (Expr.literal 1)
+        (Expr.literal 0))] => true
+  | _ => false
+
+example : leanDefHelperEqualityLowersToPureExpr = true := by native_decide
+
+end MacroLeanDefHelperSmoke
+
 namespace MacroPayableConstructorSmoke
 
 open Contracts
