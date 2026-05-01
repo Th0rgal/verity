@@ -1396,6 +1396,7 @@ private def declaredNameMatches (query declared : String) : Bool :=
 private def contextAccessorBareName? (name : String) : Option String :=
   if matchesBareName name "msgSender" then some "msgSender"
   else if matchesBareName name "msgValue" then some "msgValue"
+  else if matchesBareName name "selfBalance" then some "selfBalance"
   else if matchesBareName name "blockTimestamp" then some "blockTimestamp"
   else if matchesBareName name "blockNumber" then some "blockNumber"
   else if matchesBareName name "blobbasefee" then some "blobbasefee"
@@ -2165,6 +2166,8 @@ private partial def inferPureExprType
       throwPureContextAccessorError stx "msgSender"
   | `(term| Verity.msgValue) =>
       throwPureContextAccessorError stx "msgValue"
+  | `(term| Verity.selfBalance) =>
+      throwPureContextAccessorError stx "selfBalance"
   | `(term| Verity.blockTimestamp) =>
       throwPureContextAccessorError stx "blockTimestamp"
   | `(term| Verity.blockNumber) =>
@@ -2500,7 +2503,8 @@ private partial def inferBindSourceType
       pure .uint256
   | `(term| msgSender) | `(term| Verity.msgSender) =>
       pure .address
-  | `(term| msgValue) | `(term| Verity.msgValue) | `(term| blockTimestamp)
+  | `(term| msgValue) | `(term| Verity.msgValue) | `(term| selfBalance)
+    | `(term| Verity.selfBalance) | `(term| blockTimestamp)
     | `(term| Verity.blockTimestamp) | `(term| blockNumber) | `(term| Verity.blockNumber)
     | `(term| blobbasefee) | `(term| Verity.blobbasefee) | `(term| chainid)
     | `(term| Verity.chainid) =>
@@ -2575,7 +2579,7 @@ private partial def inferBindSourceType
               unsafe qualifiedSingleBindType rhs.raw qualifiedName
           | none =>
               throwErrorAt rhs
-                "unsupported bind source; expected getStorage/getStorageAddr/getStorageArrayLength/getStorageArrayElement/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/getMappingN/structMember/structMember2/msgSender/msgValue/tload/ecrecover/ecmCall, a direct internal helper call, or a qualified library helper call"
+                "unsupported bind source; expected getStorage/getStorageAddr/getStorageArrayLength/getStorageArrayElement/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/getMappingN/structMember/structMember2/msgSender/msgValue/selfBalance/tload/ecrecover/ecmCall, a direct internal helper call, or a qualified library helper call"
 
 private partial def inferTupleSourceTypes?
     (fields : Array StorageFieldDecl)
@@ -2715,6 +2719,7 @@ private partial def validateConstantBody
   | `(term| false) => pure ()
   | `(term| constructorArg $idx:num) => throwNonCompileTimeConstantError idx "constructorArg"
   | `(term| msgValue) => throwNonCompileTimeConstantError stx "msgValue"
+  | `(term| selfBalance) => throwNonCompileTimeConstantError stx "selfBalance"
   | `(term| blockTimestamp) => throwNonCompileTimeConstantError stx "blockTimestamp"
   | `(term| blockNumber) => throwNonCompileTimeConstantError stx "blockNumber"
   | `(term| blobbasefee) | `(term| Verity.blobbasefee) =>
@@ -2997,6 +3002,8 @@ partial def translatePureExprWithTypes
       throwPureContextAccessorError stx "msgSender"
   | `(term| Verity.msgValue) =>
       throwPureContextAccessorError stx "msgValue"
+  | `(term| Verity.selfBalance) =>
+      throwPureContextAccessorError stx "selfBalance"
   | `(term| Verity.blockTimestamp) =>
       throwPureContextAccessorError stx "blockTimestamp"
   | `(term| Verity.blockNumber) =>
@@ -3892,6 +3899,8 @@ private def translateBindSource
           $(strTerm memberName))
   | `(term| msgSender) | `(term| Verity.msgSender) => `(Compiler.CompilationModel.Expr.caller)
   | `(term| msgValue) | `(term| Verity.msgValue) => `(Compiler.CompilationModel.Expr.msgValue)
+  | `(term| selfBalance) | `(term| Verity.selfBalance) =>
+      `(Compiler.CompilationModel.Expr.selfBalance)
   | `(term| blockTimestamp) | `(term| Verity.blockTimestamp) =>
       `(Compiler.CompilationModel.Expr.blockTimestamp)
   | `(term| blockNumber) | `(term| Verity.blockNumber) =>
@@ -3924,7 +3933,7 @@ private def translateBindSource
                   [ $[$argExprs],* ])
           | none =>
               throwErrorAt rhs
-                "unsupported bind source; expected getStorage/getStorageAddr/getStorageArrayLength/getStorageArrayElement/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/getMappingN/structMember/structMember2/msgSender/msgValue/tload/ecrecover, a direct internal helper call, or a qualified library helper call"
+                "unsupported bind source; expected getStorage/getStorageAddr/getStorageArrayLength/getStorageArrayElement/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/getMappingN/structMember/structMember2/msgSender/msgValue/selfBalance/tload/ecrecover, a direct internal helper call, or a qualified library helper call"
 
 private def translateSafeRequireBind
     (fields : Array StorageFieldDecl)

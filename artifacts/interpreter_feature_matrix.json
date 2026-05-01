@@ -153,6 +153,15 @@
       "proof_status": "proved"
     },
     {
+      "feature": "selfBalance",
+      "constructor": "Expr.selfBalance",
+      "SpecInterpreter_basic": "supported",
+      "SpecInterpreter_fuel": "supported",
+      "IRInterpreter": "n/a",
+      "EVMYulLean_bridge": "n/a",
+      "proof_status": "partial"
+    },
+    {
       "feature": "blockTimestamp",
       "constructor": "Expr.blockTimestamp",
       "SpecInterpreter_basic": "supported",
@@ -830,7 +839,7 @@
   "proof_status_legend": {
     "proved": "Lean theorem with no sorry; covered by Layer 1-3 preservation chain",
     "assumed": "Covered by explicit axiom (e.g., external function behavior)",
-    "partial": "Single-word memory model only; full linear memory not modeled",
+    "partial": "Compiler/source support exists, but the generic proof interpreters do not fully model the feature yet",
     "not_modeled": "Feature is not in the proof-backed subset; compiler handles it correctly but proofs do not cover it"
   }
 }

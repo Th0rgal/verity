@@ -63,6 +63,7 @@ structure ContractState where
   sender : Address
   thisAddress : Address
   msgValue : Uint256
+  selfBalance : Uint256 := 0
   blockTimestamp : Uint256
   blockNumber : Uint256 := 0
   chainId : Uint256 := 0
@@ -86,6 +87,7 @@ def defaultState : ContractState where
   sender := 0
   thisAddress := 0
   msgValue := 0
+  selfBalance := 0
   blockTimestamp := 0
   blockNumber := 0
   chainId := 0
@@ -523,6 +525,9 @@ def contractAddress : Contract Address :=
 def msgValue : Contract Uint256 :=
   fun state => ContractResult.success state.msgValue state
 
+def selfBalance : Contract Uint256 :=
+  fun state => ContractResult.success state.selfBalance state
+
 def blockTimestamp : Contract Uint256 :=
   fun state => ContractResult.success state.blockTimestamp state
 
@@ -543,6 +548,9 @@ def chainid : Contract Uint256 :=
 
 @[simp] theorem msgValue_run (state : ContractState) :
   msgValue.run state = ContractResult.success state.msgValue state := rfl
+
+@[simp] theorem selfBalance_run (state : ContractState) :
+  selfBalance.run state = ContractResult.success state.selfBalance state := rfl
 
 @[simp] theorem blockTimestamp_run (state : ContractState) :
   blockTimestamp.run state = ContractResult.success state.blockTimestamp state := rfl

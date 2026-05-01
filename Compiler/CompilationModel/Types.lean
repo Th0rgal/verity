@@ -307,6 +307,7 @@ inductive Expr
   | contractAddress
   | chainid
   | msgValue
+  | selfBalance
   | blockTimestamp
   | blockNumber
   | blobbasefee

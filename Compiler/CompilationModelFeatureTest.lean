@@ -1922,9 +1922,9 @@ private def envRuntimeSmokeSpec : CompilationModel := {
     { name := "selfValueTimestampNumberAndChainId"
       params := []
       returnType := none
-      returns := [ParamType.address, ParamType.uint256, ParamType.uint256, ParamType.uint256, ParamType.uint256, ParamType.uint256]
+      returns := [ParamType.address, ParamType.uint256, ParamType.uint256, ParamType.uint256, ParamType.uint256, ParamType.uint256, ParamType.uint256]
       body := [
-        Stmt.returnValues [Expr.contractAddress, Expr.msgValue, Expr.blockTimestamp, Expr.blockNumber, Expr.chainid, Expr.blobbasefee]
+        Stmt.returnValues [Expr.contractAddress, Expr.msgValue, Expr.selfBalance, Expr.blockTimestamp, Expr.blockNumber, Expr.chainid, Expr.blobbasefee]
       ]
     }
   ]
@@ -3418,6 +3418,8 @@ set_option maxRecDepth 4096 in
     (contains envYul "address()")
   expectTrue "msg.value lowers to the Yul callvalue builtin"
     (contains envYul "callvalue()")
+  expectTrue "selfbalance lowers to the Yul selfbalance builtin"
+    (contains envYul "selfbalance()")
   expectTrue "block.timestamp lowers to the Yul timestamp builtin"
     (contains envYul "timestamp()")
   expectTrue "chainid lowers to the Yul chainid builtin"

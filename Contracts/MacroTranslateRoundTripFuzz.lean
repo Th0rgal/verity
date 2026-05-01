@@ -6,6 +6,7 @@ import Contracts.ProxyUpgradeabilityMacroSmoke
 import Contracts.ProxyUpgradeabilityLayoutCompatibleSmoke
 import Contracts.ProxyUpgradeabilityLayoutIncompatibleSmoke
 import Contracts.Smoke
+import Contracts.Smoke.SelfBalanceSmoke
 
 namespace Compiler.MacroTranslateRoundTripFuzz
 
@@ -81,6 +82,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.FunctionOverloadSmoke.spec
   , Contracts.Smoke.HelperExternalArgumentSmoke.spec
   , Contracts.Smoke.BlockTimestampSmoke.spec
+  , Contracts.Smoke.SelfBalanceSmoke.spec
   , Contracts.Smoke.StructMappingSmoke.spec
   , Contracts.Smoke.ExternalCallSmoke.spec
   , Contracts.Smoke.TryExternalCallSmoke.spec

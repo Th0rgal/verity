@@ -255,6 +255,7 @@ def exprReadsStateOrEnv : Expr → Bool
   | Expr.chainid => true
   | Expr.extcodesize _ => true
   | Expr.msgValue => true
+  | Expr.selfBalance => true
   | Expr.blockTimestamp => true
   | Expr.blockNumber => true
   | Expr.blobbasefee => true
@@ -1132,7 +1133,7 @@ def exprContainsAdtConstruct : Expr → Bool
       exprListContainsAdtConstruct args
   | Expr.dynamicBytesEq _ _ | Expr.literal _ | Expr.param _ | Expr.constructorArg _
   | Expr.storage _ | Expr.storageAddr _ | Expr.caller | Expr.contractAddress
-  | Expr.chainid | Expr.msgValue | Expr.blockTimestamp | Expr.blockNumber
+  | Expr.chainid | Expr.msgValue | Expr.selfBalance | Expr.blockTimestamp | Expr.blockNumber
   | Expr.blobbasefee | Expr.calldatasize | Expr.returndataSize
   | Expr.localVar _
   | Expr.arrayLength _ | Expr.storageArrayLength _

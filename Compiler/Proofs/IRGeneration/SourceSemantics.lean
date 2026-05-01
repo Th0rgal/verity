@@ -600,6 +600,7 @@ def evalExpr (fields : List Field) (state : RuntimeState) : Expr → Option Nat
   | .contractAddress => some state.world.thisAddress.val
   | .chainid => some state.world.chainId.val
   | .msgValue => some state.world.msgValue.val
+  | .selfBalance => some state.world.selfBalance.val
   | .blockTimestamp => some state.world.blockTimestamp.val
   | .blockNumber => some state.world.blockNumber.val
   | .blobbasefee => some state.world.blobBaseFee.val
@@ -895,6 +896,11 @@ private theorem evalExpr_msgValue
     (fields : List Field)
     (state : RuntimeState) :
     evalExpr fields state .msgValue = some state.world.msgValue.val := rfl
+
+private theorem evalExpr_selfBalance
+    (fields : List Field)
+    (state : RuntimeState) :
+    evalExpr fields state .selfBalance = some state.world.selfBalance.val := rfl
 
 private theorem evalExpr_blockTimestamp
     (fields : List Field)
@@ -2424,6 +2430,7 @@ mutual
     | .contractAddress => some state.world.thisAddress.val
     | .chainid => some state.world.chainId.val
     | .msgValue => some state.world.msgValue.val
+    | .selfBalance => some state.world.selfBalance.val
     | .blockTimestamp => some state.world.blockTimestamp.val
     | .blockNumber => some state.world.blockNumber.val
     | .blobbasefee => some state.world.blobBaseFee.val
@@ -3566,10 +3573,10 @@ mutual
         simpa [evalExprWithHelpers, evalExpr_param]
     | localVar _ =>
         simpa [evalExprWithHelpers, evalExpr_localVar]
-    | caller | contractAddress | chainid | msgValue | blockTimestamp | blockNumber | blobbasefee
+    | caller | contractAddress | chainid | msgValue | selfBalance | blockTimestamp | blockNumber | blobbasefee
     | calldatasize =>
         simp [evalExprWithHelpers, evalExpr_caller, evalExpr_contractAddress, evalExpr_chainid,
-          evalExpr_msgValue, evalExpr_blockTimestamp, evalExpr_blockNumber, evalExpr_blobbasefee,
+          evalExpr_msgValue, evalExpr_selfBalance, evalExpr_blockTimestamp, evalExpr_blockNumber, evalExpr_blobbasefee,
           evalExpr_calldatasize]
     | storage _ =>
         simpa [evalExprWithHelpers, evalExpr_storage]

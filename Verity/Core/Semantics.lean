@@ -12,6 +12,7 @@ structure Env where
   sender : Address
   thisAddress : Address
   msgValue : Uint256
+  selfBalance : Uint256 := 0
   blockTimestamp : Uint256
   blockNumber : Uint256 := 0
   chainId : Uint256 := 0
@@ -25,6 +26,7 @@ def Env.ofWorld (w : World) : Env where
   sender := w.sender
   thisAddress := w.thisAddress
   msgValue := w.msgValue
+  selfBalance := w.selfBalance
   blockTimestamp := w.blockTimestamp
   blockNumber := w.blockNumber
   chainId := w.chainId
@@ -34,6 +36,7 @@ def World.withEnv (w : World) (env : Env) : World :=
     sender := env.sender
     thisAddress := env.thisAddress
     msgValue := env.msgValue
+    selfBalance := env.selfBalance
     blockTimestamp := env.blockTimestamp
     blockNumber := env.blockNumber
     chainId := env.chainId

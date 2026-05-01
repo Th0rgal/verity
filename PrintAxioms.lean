@@ -1969,6 +1969,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_contractAddress  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_chainid  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_msgValue  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_selfBalance  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_blockTimestamp  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_blockNumber  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_storage  -- private
@@ -3798,4 +3799,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3622 theorems/lemmas (2677 public, 945 private, 0 sorry'd)
+-- Total: 3623 theorems/lemmas (2677 public, 946 private, 0 sorry'd)
