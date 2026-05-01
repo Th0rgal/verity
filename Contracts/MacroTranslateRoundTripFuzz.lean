@@ -64,6 +64,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.SpecialEntrypointSmoke.spec
   , Contracts.Smoke.LeanDefHelperSmoke.spec
   , Contracts.Smoke.DirectHelperCallSmoke.spec
+  , Contracts.Smoke.MultiReturnHelperSmoke.spec
   , Contracts.Smoke.InitializerSmoke.spec
   , Contracts.Smoke.ConstantSmoke.spec
   , Contracts.Smoke.ImmutableSmoke.spec

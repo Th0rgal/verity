@@ -304,6 +304,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.SpecialEntrypointSmoke.spec
   , Contracts.Smoke.LeanDefHelperSmoke.spec
   , Contracts.Smoke.DirectHelperCallSmoke.spec
+  , Contracts.Smoke.MultiReturnHelperSmoke.spec
   , Contracts.Smoke.InitializerSmoke.spec
   , Contracts.Smoke.ConstantSmoke.spec
   , Contracts.Smoke.ImmutableSmoke.spec
@@ -414,6 +415,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("LeanDefHelperSmoke", ["addOffset(uint256,int256)", "sameWord(uint256,uint256)"])
   , ("DirectHelperCallSmoke", ["addToTotal(uint256)", "readTotalPlus(uint256)", "pairWithTotal(uint256)",
       "runHelpers(uint256,uint256,uint256)", "snapshot()"])
+  , ("MultiReturnHelperSmoke", ["summarize(uint256)", "useSummary(uint256)"])
   , ("InitializerSmoke", ["initOwner(address)", "upgradeToV2()"])
   , ("ConstantSmoke", ["feeOn(uint256)", "treasuryAddr()"])
   , ("ImmutableSmoke", ["supplyCap()", "treasuryAddr()", "shadowed(uint256)"])
@@ -530,6 +532,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("SpecialEntrypointSmoke", ["0x931999fb", "0x74b204a4"])
   , ("LeanDefHelperSmoke", ["0x42dbad08", "0x9ca603a4"])
   , ("DirectHelperCallSmoke", ["0x623f577a", "0xe9696d56", "0xe176587e", "0xa392867e", "0x9711715a"])
+  , ("MultiReturnHelperSmoke", ["0x9c9c9cd5", "0xbe1e29cd"])
   , ("InitializerSmoke", ["0x0d009297", "0xcc01053e"])
   , ("ConstantSmoke", ["0x9c421eb5", "0x30d9a62a"])
   , ("ImmutableSmoke", ["0x8f770ad0", "0x30d9a62a", "0x655b96ec"])
