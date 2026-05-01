@@ -6646,6 +6646,29 @@ theorem NativeBlockPreservesWord_append_of_nativeStmtsWriteNames_not_mem
       · exact hLeft stmt hMem hFresh
       · exact hRight stmt hMem hFresh)
 
+theorem NativeBlockPreservesWord_append_of_nativeStmtsWriteNames_append_not_mem
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (left right : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hFresh : name ∉ Backends.nativeStmtsWriteNames (left ++ right))
+    (hLeft :
+      ∀ stmt, stmt ∈ left →
+        name ∉ Backends.nativeStmtWriteNames stmt →
+          NativeStmtPreservesWord name value stmt codeOverride)
+    (hRight :
+      ∀ stmt, stmt ∈ right →
+        name ∉ Backends.nativeStmtWriteNames stmt →
+          NativeStmtPreservesWord name value stmt codeOverride) :
+    NativeBlockPreservesWord name value (left ++ right) codeOverride :=
+  NativeBlockPreservesWord_append_of_nativeStmtsWriteNames_not_mem
+    name value left right codeOverride
+    (nativeStmtsWriteNames_left_not_mem_of_append_not_mem
+      name left right hFresh)
+    (nativeStmtsWriteNames_right_not_mem_of_append_not_mem
+      name left right hFresh)
+    hLeft hRight
+
 theorem NativeStmtPreservesWord_if_of_eval_self
     (name : EvmYul.Identifier)
     (value : EvmYul.Literal)
