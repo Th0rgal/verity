@@ -3278,6 +3278,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_eval_self
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_eval_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_eval_preserves_and_nativeStmtsWriteNames_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_cond_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_cond_preserves_and_nativeStmtsWriteNames_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_lit_of_ne
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_hex_of_ne
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_ident_of_ne
@@ -3820,4 +3822,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3644 theorems/lemmas (2698 public, 946 private, 0 sorry'd)
+-- Total: 3646 theorems/lemmas (2700 public, 946 private, 0 sorry'd)

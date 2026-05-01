@@ -6590,6 +6590,56 @@ theorem NativeStmtPreservesWord_if_of_eval_preserves_and_nativeStmtsWriteNames_n
     (NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
       name value body codeOverride hFresh hPreserves)
 
+theorem NativeStmtPreservesWord_if_of_cond_preserves
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (cond : EvmYul.Yul.Ast.Expr)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hCond : NativeExprPreservesWord name value cond codeOverride)
+    (hBody : NativeBlockPreservesWord name value body codeOverride) :
+    NativeStmtPreservesWord name value (.If cond body) codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      simp [EvmYul.Yul.exec] at hExec
+      cases hEval : EvmYul.Yul.eval fuel' cond codeOverride state with
+      | error err =>
+          simp [hEval] at hExec
+      | ok condResult =>
+          rcases condResult with ⟨condState, condValue⟩
+          have hCondLookup : condState[name]! = value :=
+            hCond fuel' state condState condValue hLookup hEval
+          simp [hEval] at hExec
+          by_cases hCondNonzero : condValue ≠ ⟨0⟩
+          · simp [hCondNonzero] at hExec
+            exact hBody fuel' condState final hCondLookup hExec
+          · have hCondZero : condValue = ⟨0⟩ :=
+              Decidable.not_not.mp hCondNonzero
+            simp [hCondZero] at hExec
+            cases hExec
+            exact hCondLookup
+
+theorem NativeStmtPreservesWord_if_of_cond_preserves_and_nativeStmtsWriteNames_not_mem
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (cond : EvmYul.Yul.Ast.Expr)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hCond : NativeExprPreservesWord name value cond codeOverride)
+    (hFresh : name ∉ Backends.nativeStmtsWriteNames body)
+    (hPreserves :
+      ∀ stmt, stmt ∈ body →
+        name ∉ Backends.nativeStmtWriteNames stmt →
+          NativeStmtPreservesWord name value stmt codeOverride) :
+    NativeStmtPreservesWord name value (.If cond body) codeOverride :=
+  NativeStmtPreservesWord_if_of_cond_preserves name value cond body codeOverride
+    hCond
+    (NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+      name value body codeOverride hFresh hPreserves)
+
 theorem NativeStmtPreservesWord_lowerAssignNative_lit_of_ne
     (name target : EvmYul.Identifier)
     (expected : EvmYul.Literal)
