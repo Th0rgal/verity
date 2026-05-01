@@ -6576,6 +6576,25 @@ theorem nativeStmtsWriteNames_singleton_not_mem_iff
     exact ⟨hFresh, by simp [Backends.nativeStmtsWriteNames,
       Backends.collectNativeStmtWriteNames]⟩
 
+theorem nativeStmtsWriteNames_pair_not_mem_iff
+    (name : EvmYul.Identifier)
+    (first second : EvmYul.Yul.Ast.Stmt) :
+    name ∉ Backends.nativeStmtsWriteNames [first, second] ↔
+      name ∉ Backends.nativeStmtWriteNames first ∧
+        name ∉ Backends.nativeStmtWriteNames second := by
+  rw [nativeStmtsWriteNames_cons_not_mem_iff,
+    nativeStmtsWriteNames_singleton_not_mem_iff]
+
+theorem nativeStmtsWriteNames_triple_not_mem_iff
+    (name : EvmYul.Identifier)
+    (first second third : EvmYul.Yul.Ast.Stmt) :
+    name ∉ Backends.nativeStmtsWriteNames [first, second, third] ↔
+      name ∉ Backends.nativeStmtWriteNames first ∧
+        name ∉ Backends.nativeStmtWriteNames second ∧
+          name ∉ Backends.nativeStmtWriteNames third := by
+  rw [nativeStmtsWriteNames_cons_not_mem_iff,
+    nativeStmtsWriteNames_pair_not_mem_iff]
+
 theorem NativeBlockPreservesWord_append_of_forall_stmt
     (name : EvmYul.Identifier)
     (value : EvmYul.Literal)
@@ -6651,6 +6670,54 @@ theorem NativeBlockPreservesWord_singleton_of_nativeStmtsWriteNames_not_mem
   NativeBlockPreservesWord_singleton name value stmt codeOverride
     (hStmt
       ((nativeStmtsWriteNames_singleton_not_mem_iff name stmt).mp hFresh))
+
+theorem NativeBlockPreservesWord_pair_of_nativeStmtsWriteNames_not_mem
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (first second : EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hFresh : name ∉ Backends.nativeStmtsWriteNames [first, second])
+    (hFirst :
+      name ∉ Backends.nativeStmtWriteNames first →
+        NativeStmtPreservesWord name value first codeOverride)
+    (hSecond :
+      name ∉ Backends.nativeStmtWriteNames second →
+        NativeStmtPreservesWord name value second codeOverride) :
+    NativeBlockPreservesWord name value [first, second] codeOverride := by
+  rcases (nativeStmtsWriteNames_pair_not_mem_iff name first second).mp hFresh with
+    ⟨hFirstFresh, hSecondFresh⟩
+  exact NativeBlockPreservesWord_cons_stmt name value first [second] codeOverride
+    (hFirst hFirstFresh)
+    (NativeBlockPreservesWord_singleton name value second codeOverride
+      (hSecond hSecondFresh))
+
+theorem NativeBlockPreservesWord_triple_of_nativeStmtsWriteNames_not_mem
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (first second third : EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hFresh : name ∉ Backends.nativeStmtsWriteNames [first, second, third])
+    (hFirst :
+      name ∉ Backends.nativeStmtWriteNames first →
+        NativeStmtPreservesWord name value first codeOverride)
+    (hSecond :
+      name ∉ Backends.nativeStmtWriteNames second →
+        NativeStmtPreservesWord name value second codeOverride)
+    (hThird :
+      name ∉ Backends.nativeStmtWriteNames third →
+        NativeStmtPreservesWord name value third codeOverride) :
+    NativeBlockPreservesWord name value [first, second, third] codeOverride := by
+  rcases (nativeStmtsWriteNames_triple_not_mem_iff
+    name first second third).mp hFresh with
+    ⟨hFirstFresh, hSecondFresh, hThirdFresh⟩
+  exact NativeBlockPreservesWord_cons_stmt name value first [second, third]
+    codeOverride
+    (hFirst hFirstFresh)
+    (NativeBlockPreservesWord_pair_of_nativeStmtsWriteNames_not_mem
+      name value second third codeOverride
+      ((nativeStmtsWriteNames_pair_not_mem_iff name second third).mpr
+        ⟨hSecondFresh, hThirdFresh⟩)
+      hSecond hThird)
 
 theorem NativeStmtPreservesWord_block
     (name : EvmYul.Identifier)
