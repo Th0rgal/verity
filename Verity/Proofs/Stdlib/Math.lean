@@ -26,6 +26,87 @@ private theorem lt_modulus_of_le_max {n : Nat} (h : n ≤ MAX_UINT256) :
     n < MAX_UINT256 + 1 := Nat.lt_succ_of_le h
     _ = Verity.Core.Uint256.modulus := by simp [modulus_eq_max_succ]
 
+/-! ## Full-precision mulDiv512 helpers -/
+
+/-- `mulDiv512Down?` returns the exact full-precision floor quotient when it fits. -/
+theorem mulDiv512Down?_some (a b c : Uint256)
+    (hC : (c : Nat) ≠ 0)
+    (hFit : ((a : Nat) * (b : Nat)) / (c : Nat) ≤ MAX_UINT256) :
+    mulDiv512Down? a b c =
+      some (Verity.Core.Uint256.ofNat (((a : Nat) * (b : Nat)) / (c : Nat))) := by
+  simp [Verity.Stdlib.Math.mulDiv512Down?, hC, Nat.not_lt.mpr hFit]
+
+/-- `mulDiv512Down?` rejects a zero divisor. -/
+theorem mulDiv512Down?_none_of_zero_divisor (a b c : Uint256)
+    (hC : (c : Nat) = 0) :
+    mulDiv512Down? a b c = none := by
+  simp [Verity.Stdlib.Math.mulDiv512Down?, hC]
+
+/-- `mulDiv512Down?` rejects a quotient that does not fit in `uint256`. -/
+theorem mulDiv512Down?_none_of_overflow (a b c : Uint256)
+    (hC : (c : Nat) ≠ 0)
+    (hOverflow : MAX_UINT256 < ((a : Nat) * (b : Nat)) / (c : Nat)) :
+    mulDiv512Down? a b c = none := by
+  simp [Verity.Stdlib.Math.mulDiv512Down?, hC, hOverflow]
+
+/-- The quotient returned by `mulDiv512Down?` is the full-precision natural quotient. -/
+theorem mulDiv512Down?_eq_some_iff (a b c out : Uint256) :
+    mulDiv512Down? a b c = some out ↔
+      (c : Nat) ≠ 0 ∧
+      ((a : Nat) * (b : Nat)) / (c : Nat) ≤ MAX_UINT256 ∧
+      Verity.Core.Uint256.ofNat (((a : Nat) * (b : Nat)) / (c : Nat)) = out := by
+  by_cases hC : (c : Nat) = 0
+  · simp [Verity.Stdlib.Math.mulDiv512Down?, hC]
+  · by_cases hOverflow : ((a : Nat) * (b : Nat)) / (c : Nat) > MAX_UINT256
+    · have hNotFit : ¬((a : Nat) * (b : Nat)) / (c : Nat) ≤ MAX_UINT256 := by
+        exact Nat.not_le_of_gt hOverflow
+      simp [Verity.Stdlib.Math.mulDiv512Down?, hC, hOverflow, hNotFit]
+    · have hFit : ((a : Nat) * (b : Nat)) / (c : Nat) ≤ MAX_UINT256 := Nat.le_of_not_gt hOverflow
+      simp [Verity.Stdlib.Math.mulDiv512Down?, hC, hOverflow, hFit]
+
+/-- `mulDiv512Up?` returns the exact full-precision ceil quotient when it fits. -/
+theorem mulDiv512Up?_some (a b c : Uint256)
+    (hC : (c : Nat) ≠ 0)
+    (hFit : (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) ≤ MAX_UINT256) :
+    mulDiv512Up? a b c =
+      some (Verity.Core.Uint256.ofNat ((((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat))) := by
+  simp [Verity.Stdlib.Math.mulDiv512Up?, hC, Nat.not_lt.mpr hFit]
+
+/-- `mulDiv512Up?` rejects a zero divisor. -/
+theorem mulDiv512Up?_none_of_zero_divisor (a b c : Uint256)
+    (hC : (c : Nat) = 0) :
+    mulDiv512Up? a b c = none := by
+  simp [Verity.Stdlib.Math.mulDiv512Up?, hC]
+
+/-- `mulDiv512Up?` rejects a rounded-up quotient that does not fit in `uint256`. -/
+theorem mulDiv512Up?_none_of_overflow (a b c : Uint256)
+    (hC : (c : Nat) ≠ 0)
+    (hOverflow : MAX_UINT256 <
+      (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat)) :
+    mulDiv512Up? a b c = none := by
+  simp [Verity.Stdlib.Math.mulDiv512Up?, hC, hOverflow]
+
+/-- The quotient returned by `mulDiv512Up?` is the full-precision rounded-up quotient. -/
+theorem mulDiv512Up?_eq_some_iff (a b c out : Uint256) :
+    mulDiv512Up? a b c = some out ↔
+      (c : Nat) ≠ 0 ∧
+      (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) ≤ MAX_UINT256 ∧
+      Verity.Core.Uint256.ofNat ((((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat)) = out := by
+  by_cases hC : (c : Nat) = 0
+  · simp [Verity.Stdlib.Math.mulDiv512Up?, hC]
+  · by_cases hOverflow :
+        (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) > MAX_UINT256
+    · have hNotFit :
+          ¬((((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) ≤ MAX_UINT256) := by
+        exact Nat.not_le_of_gt hOverflow
+      simp [Verity.Stdlib.Math.mulDiv512Up?, hC, hOverflow, hNotFit]
+    · have hFit :
+          (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) ≤ MAX_UINT256 :=
+        Nat.le_of_not_gt hOverflow
+      simp [Verity.Stdlib.Math.mulDiv512Up?, hC, hOverflow, hFit]
+
+/-! ## mulDiv / wad helpers -/
+
 /-- `mulDivDown` agrees with exact natural-number division when the numerator does not wrap. -/
 theorem mulDivDown_nat_eq (a b c : Uint256) (hMul : (a : Nat) * (b : Nat) ≤ MAX_UINT256) :
     (mulDivDown a b c : Nat) =

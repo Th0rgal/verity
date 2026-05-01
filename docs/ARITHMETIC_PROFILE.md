@@ -61,6 +61,11 @@ Beyond the 15 low-level builtins, the `ExprCompileCore` proven fragment includes
 
 These proofs are in `Compiler/Proofs/IRGeneration/FunctionBody.lean` and cover both IR compilation correctness and end-to-end evaluation semantics.
 
+The compiled `mulDivDown` / `mulDivUp` operators still use 256-bit EVM
+multiplication before division. They are suitable for fixed-point code whose
+product is known to fit in `uint256`, but they are not full-precision
+OpenZeppelin/Solmate `Math.mulDiv` replacements.
+
 ## Checked (Safe) Arithmetic
 
 For contracts that require overflow protection, the EDSL provides checked operations:
@@ -71,12 +76,19 @@ For contracts that require overflow protection, the EDSL provides checked operat
 | `safeSub a b` | `Option Uint256` | `none` if `b > a` |
 | `safeMul a b` | `Option Uint256` | `none` if `a * b > 2^256 - 1` |
 | `safeDiv a b` | `Option Uint256` | `none` if `b = 0` |
+| `mulDiv512Down? a b c` | `Option Uint256` | `none` if `c = 0` or `floor(a * b / c) > 2^256 - 1`; product is unbounded |
+| `mulDiv512Up? a b c` | `Option Uint256` | `none` if `c = 0` or `ceil(a * b / c) > 2^256 - 1`; product is unbounded |
 
-Checked operations are **EDSL-level constructs**. They are not compiler-enforced; the compiler always uses wrapping arithmetic. Contracts that need checked behavior must explicitly use `safeAdd`/`safeSub`/`safeMul` and handle the `Option` result (e.g., via `requireSomeUint` to revert on `none`).
+Checked operations are **EDSL-level constructs**. They are not compiler-enforced; the compiler always uses wrapping arithmetic. Contracts that need checked behavior must explicitly use `safeAdd`/`safeSub`/`safeMul` and handle the `Option` result (e.g., via `requireSomeUint` to revert on `none`). The `mulDiv512...?` helpers are proof/modeling helpers for full-precision Solidity `Math.mulDiv` semantics; compiled Yul lowering for a first-class 512-bit division primitive is still tracked by #1761.
 
 **Correctness proofs**: `Verity/Proofs/Stdlib/Math.lean` proves that checked operations return the correct result within bounds and `none` otherwise (e.g., `safeAdd_some`, `safeAdd_none`).
 
 `Stdlib.Math` also exposes fixed-point helpers `mulDivDown`, `mulDivUp`, `wMulDown`, and `wDivUp` (the `w` variants fix the divisor/multiplier to `WAD = 10^18`). All lemmas are in `Verity/Proofs/Stdlib/Math.lean` and are intentionally **preconditioned**: they assume the widened numerator stays within `MAX_UINT256`.
+
+For full-precision modeling, `mulDiv512Down?_some` and `mulDiv512Up?_some`
+state the exact natural-number quotient returned when the divisor is nonzero
+and the final quotient fits; the matching `_none_of_zero_divisor`,
+`_none_of_overflow`, and `_eq_some_iff` lemmas expose the failure boundary.
 
 | Lemma family | Generic helpers | Wad-specialized helpers |
 |--------------|----------------|------------------------|
