@@ -26,6 +26,10 @@ private theorem lt_modulus_of_le_max {n : Nat} (h : n ≤ MAX_UINT256) :
     n < MAX_UINT256 + 1 := Nat.lt_succ_of_le h
     _ = Verity.Core.Uint256.modulus := by simp [modulus_eq_max_succ]
 
+private theorem max_uint256_lt_modulus :
+    MAX_UINT256 < Verity.Core.Uint256.modulus :=
+  lt_modulus_of_le_max (Nat.le_refl MAX_UINT256)
+
 /-! ## Full-precision mulDiv512 helpers -/
 
 /-- `mulDiv512Down?` returns the exact full-precision floor quotient when it fits. -/
@@ -63,6 +67,25 @@ theorem mulDiv512Down?_eq_some_iff (a b c out : Uint256) :
       simp [Verity.Stdlib.Math.mulDiv512Down?, hC, hOverflow, hNotFit]
     · have hFit : ((a : Nat) * (b : Nat)) / (c : Nat) ≤ MAX_UINT256 := Nat.le_of_not_gt hOverflow
       simp [Verity.Stdlib.Math.mulDiv512Down?, hC, hOverflow, hFit]
+
+/-- Regression: full-precision floor `mulDiv512` permits a 256-bit-overflowing
+intermediate product when the final quotient fits. -/
+theorem mulDiv512Down?_wide_product_regression :
+    mulDiv512Down?
+        (Verity.Core.Uint256.ofNat MAX_UINT256)
+        (Verity.Core.Uint256.ofNat 2)
+        (Verity.Core.Uint256.ofNat 2) =
+      some (Verity.Core.Uint256.ofNat MAX_UINT256) := by
+  have hMaxMod :
+      MAX_UINT256 % Verity.Core.Uint256.modulus = MAX_UINT256 :=
+    Nat.mod_eq_of_lt max_uint256_lt_modulus
+  have hTwoMod : (2 : Nat) % Verity.Core.Uint256.modulus = 2 :=
+    Nat.mod_eq_of_lt (by
+      dsimp [Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS]
+      decide)
+  have hQuot : MAX_UINT256 * 2 / 2 = MAX_UINT256 := by
+    simp
+  simp [Verity.Stdlib.Math.mulDiv512Down?, hMaxMod, hTwoMod, hQuot]
 
 /-- `mulDiv512Up?` returns the exact full-precision ceil quotient when it fits. -/
 theorem mulDiv512Up?_some (a b c : Uint256)
@@ -104,6 +127,32 @@ theorem mulDiv512Up?_eq_some_iff (a b c out : Uint256) :
           (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) ≤ MAX_UINT256 :=
         Nat.le_of_not_gt hOverflow
       simp [Verity.Stdlib.Math.mulDiv512Up?, hC, hOverflow, hFit]
+
+/-- Regression: full-precision ceil `mulDiv512` permits a 256-bit-overflowing
+intermediate product when the rounded quotient fits. -/
+theorem mulDiv512Up?_wide_product_regression :
+    mulDiv512Up?
+        (Verity.Core.Uint256.ofNat MAX_UINT256)
+        (Verity.Core.Uint256.ofNat 2)
+        (Verity.Core.Uint256.ofNat 2) =
+      some (Verity.Core.Uint256.ofNat MAX_UINT256) := by
+  have hMaxMod :
+      MAX_UINT256 % Verity.Core.Uint256.modulus = MAX_UINT256 :=
+    Nat.mod_eq_of_lt max_uint256_lt_modulus
+  have hTwoMod : (2 : Nat) % Verity.Core.Uint256.modulus = 2 :=
+    Nat.mod_eq_of_lt (by
+      dsimp [Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS]
+      decide)
+  have hQuot : (MAX_UINT256 * 2 + (2 - 1)) / 2 = MAX_UINT256 := by
+    rw [show (2 : Nat) - 1 = 1 by omega]
+    calc
+      (MAX_UINT256 * 2 + 1) / 2 = (1 + 2 * MAX_UINT256) / 2 := by
+        rw [Nat.mul_comm MAX_UINT256 2, Nat.add_comm]
+      _ = 1 / 2 + MAX_UINT256 := Nat.add_mul_div_left 1 MAX_UINT256 (by decide : 0 < 2)
+      _ = MAX_UINT256 := by
+        rw [Nat.div_eq_of_lt (by decide : 1 < 2)]
+        rfl
+  simp [Verity.Stdlib.Math.mulDiv512Up?, hMaxMod, hTwoMod, hQuot]
 
 /-! ## mulDiv / wad helpers -/
 

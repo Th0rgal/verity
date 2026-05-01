@@ -572,14 +572,17 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Verity/Proofs/Stdlib/Math.lean
 -- #print axioms Verity.Proofs.Stdlib.Math.modulus_eq_max_succ  -- private
 -- #print axioms Verity.Proofs.Stdlib.Math.lt_modulus_of_le_max  -- private
+-- #print axioms Verity.Proofs.Stdlib.Math.max_uint256_lt_modulus  -- private
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_some
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_none_of_zero_divisor
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_none_of_overflow
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_eq_some_iff
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_wide_product_regression
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_some
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_none_of_zero_divisor
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_none_of_overflow
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_eq_some_iff
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_wide_product_regression
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_nat_eq
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_mul_le
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_pos
@@ -3807,4 +3810,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3631 theorems/lemmas (2685 public, 946 private, 0 sorry'd)
+-- Total: 3634 theorems/lemmas (2687 public, 947 private, 0 sorry'd)
