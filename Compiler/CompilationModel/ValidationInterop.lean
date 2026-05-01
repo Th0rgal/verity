@@ -22,7 +22,7 @@ def unsupportedInteropCallError (context : String) (name : String) : Except Stri
 
 mutual
 def validateInteropExpr (context : String) : Expr → Except String Unit
-  | Expr.msgValue =>
+  | Expr.msgValue | Expr.selfBalance =>
       pure ()
   | Expr.call gas target value inOffset inSize outOffset outSize => do
       validateInteropExpr context gas

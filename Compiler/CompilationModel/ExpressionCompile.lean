@@ -185,6 +185,7 @@ def compileExpr (fields : List Field)
   | Expr.extcodesize addr => do
       pure (YulExpr.call "extcodesize" [← compileExpr fields dynamicSource addr])
   | Expr.msgValue => pure (YulExpr.call "callvalue" [])
+  | Expr.selfBalance => pure (YulExpr.call "selfbalance" [])
   | Expr.blockTimestamp => pure (YulExpr.call "timestamp" [])
   | Expr.blockNumber => pure (YulExpr.call "number" [])
   | Expr.blobbasefee => pure (YulExpr.call "blobbasefee" [])

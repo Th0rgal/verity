@@ -13,11 +13,12 @@ namespace Verity.Specs
 open Verity
 open Verity.EVM.Uint256
 
-/-- Contract context (sender, address, msg value, timestamp, block number, chain id, blob base fee, calldata size) is unchanged. -/
+/-- Contract context (sender, address, msg value, self balance, timestamp, block number, chain id, blob base fee, calldata size) is unchanged. -/
 def sameContext (s s' : ContractState) : Prop :=
   s'.sender = s.sender ∧
   s'.thisAddress = s.thisAddress ∧
   s'.msgValue = s.msgValue ∧
+  s'.selfBalance = s.selfBalance ∧
   s'.blockTimestamp = s.blockTimestamp ∧
   s'.blockNumber = s.blockNumber ∧
   s'.chainId = s.chainId ∧
@@ -25,7 +26,7 @@ def sameContext (s s' : ContractState) : Prop :=
   s'.calldataSize = s.calldataSize
 
 @[simp] theorem sameContext_rfl (s : ContractState) : sameContext s s :=
-  ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
+  ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
 
 /-- Uint256 storage is unchanged. -/
 def sameStorage (s s' : ContractState) : Prop :=

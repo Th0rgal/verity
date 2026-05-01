@@ -1,6 +1,6 @@
 {
   "codebase": {
-    "core_lines": 641,
+    "core_lines": 649,
     "example_contracts": 14
   },
   "proofs": {
@@ -10,9 +10,9 @@
   "schema_version": 1,
   "tests": {
     "differential_total": 110000,
-    "foundry_functions": 520,
+    "foundry_functions": 522,
     "property_functions": 239,
-    "suites": 49
+    "suites": 50
   },
   "theorems": {
     "categories": 11,

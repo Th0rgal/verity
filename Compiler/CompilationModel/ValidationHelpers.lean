@@ -53,6 +53,7 @@ def collectExprNames : Expr → List String
   | Expr.chainid => []
   | Expr.extcodesize addr => collectExprNames addr
   | Expr.msgValue => []
+  | Expr.selfBalance => []
   | Expr.blockTimestamp => []
   | Expr.blockNumber => []
   | Expr.blobbasefee => []

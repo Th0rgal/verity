@@ -44,6 +44,7 @@ def builtinBaseCost (cfg : GasConfig) (name : String) : Nat :=
   else if name = "calldataload" then 3
   else if name = "calldatasize" then 2
   else if name = "callvalue" then 2
+  else if name = "selfbalance" then 5
   else if name = "caller" then 2
   else if name = "codesize" then 2
   else if name = "address" then 2
