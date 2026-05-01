@@ -6479,6 +6479,35 @@ theorem nativeStmtsWriteNames_append
       Backends.nativeStmtsWriteNames left ++ Backends.nativeStmtsWriteNames right := by
   simp [Backends.nativeStmtsWriteNames, collectNativeStmtWriteNames_append]
 
+theorem nativeStmtsWriteNames_cons
+    (stmt : EvmYul.Yul.Ast.Stmt)
+    (rest : List EvmYul.Yul.Ast.Stmt) :
+    Backends.nativeStmtsWriteNames (stmt :: rest) =
+      Backends.nativeStmtWriteNames stmt ++ Backends.nativeStmtsWriteNames rest := by
+  simp [Backends.nativeStmtsWriteNames, Backends.collectNativeStmtWriteNames]
+
+theorem nativeStmtsWriteNames_head_not_mem_of_cons_not_mem
+    (name : EvmYul.Identifier)
+    (stmt : EvmYul.Yul.Ast.Stmt)
+    (rest : List EvmYul.Yul.Ast.Stmt)
+    (hFresh : name ∉ Backends.nativeStmtsWriteNames (stmt :: rest)) :
+    name ∉ Backends.nativeStmtWriteNames stmt := by
+  intro hMem
+  apply hFresh
+  rw [nativeStmtsWriteNames_cons]
+  exact List.mem_append_left _ hMem
+
+theorem nativeStmtsWriteNames_tail_not_mem_of_cons_not_mem
+    (name : EvmYul.Identifier)
+    (stmt : EvmYul.Yul.Ast.Stmt)
+    (rest : List EvmYul.Yul.Ast.Stmt)
+    (hFresh : name ∉ Backends.nativeStmtsWriteNames (stmt :: rest)) :
+    name ∉ Backends.nativeStmtsWriteNames rest := by
+  intro hMem
+  apply hFresh
+  rw [nativeStmtsWriteNames_cons]
+  exact List.mem_append_right _ hMem
+
 theorem nativeStmtsWriteNames_left_not_mem_of_append_not_mem
     (name : EvmYul.Identifier)
     (left right : List EvmYul.Yul.Ast.Stmt)
