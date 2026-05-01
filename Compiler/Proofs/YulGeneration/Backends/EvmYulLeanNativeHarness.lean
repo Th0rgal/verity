@@ -7335,6 +7335,67 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore_of_evalArgs_
   exact NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves
     name expected (args.map Backends.lowerExprNative) codeOverride hArgs
 
+theorem NativeStmtPreservesWord_exprStmtCall_mstore8_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset value,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [value, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.MSTORE8) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, offset, value, hEval, hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ primFuel =>
+          rw [primCall_mstore8_ok] at hExec
+          simp [EvmYul.Yul.State.multifill] at hExec
+          cases hExec
+          cases argState with
+          | Ok shared store =>
+              simpa [EvmYul.Yul.State.setMachineState] using hArgLookup
+          | OutOfFuel =>
+              simpa [EvmYul.Yul.State.setMachineState] using hArgLookup
+          | Checkpoint jump =>
+              cases jump <;>
+                simpa [EvmYul.Yul.State.setMachineState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore8_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset value,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [value, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "mstore8" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "mstore8" args
+    EvmYul.Operation.MSTORE8 (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_mstore8_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
 theorem NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -7398,6 +7459,518 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_sstore_of_evalArgs_
   rw [Backends.lowerExprNative_call_runtimePrimOp "sstore" args
     EvmYul.Operation.SSTORE (by rfl)]
   exact NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_tstore_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState slot value,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [value, slot]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.TSTORE) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, slot, value, hEval, hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ primFuel =>
+          cases hPerm : argState.executionEnv.perm
+          · simp [EvmYul.Yul.primCall, hPerm,
+              EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+          · rw [primCall_tstore_ok primFuel argState slot value hPerm] at hExec
+            simp [EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+            cases argState with
+            | Ok shared store =>
+                simpa [EvmYul.Yul.State.setState] using hArgLookup
+            | OutOfFuel =>
+                simpa [EvmYul.Yul.State.setState] using hArgLookup
+            | Checkpoint jump =>
+                cases jump <;>
+                  simpa [EvmYul.Yul.State.setState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_tstore_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState slot value,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [value, slot]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "tstore" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "tstore" args
+    EvmYul.Operation.TSTORE (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_tstore_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState mstart datastart size,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [size, datastart, mstart]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.CALLDATACOPY) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, mstart, datastart, size, hEval, hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ primFuel =>
+          rw [primCall_calldatacopy_ok] at hExec
+          simp [EvmYul.Yul.State.multifill] at hExec
+          cases hExec
+          cases argState with
+          | Ok shared store =>
+              simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+          | OutOfFuel =>
+              simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+          | Checkpoint jump =>
+              cases jump <;>
+                simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_calldatacopy_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState mstart datastart size,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [size, datastart, mstart]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "calldatacopy" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "calldatacopy" args
+    EvmYul.Operation.CALLDATACOPY (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_returndatacopy_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState mstart rstart size,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [size, rstart, mstart]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.RETURNDATACOPY) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, mstart, rstart, size, hEval, hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ primFuel =>
+          rw [primCall_returndatacopy_ok] at hExec
+          simp [EvmYul.Yul.State.multifill] at hExec
+          cases hExec
+          cases argState with
+          | Ok shared store =>
+              simpa [EvmYul.Yul.State.setMachineState] using hArgLookup
+          | OutOfFuel =>
+              simpa [EvmYul.Yul.State.setMachineState] using hArgLookup
+          | Checkpoint jump =>
+              cases jump <;>
+                simpa [EvmYul.Yul.State.setMachineState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_returndatacopy_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState mstart rstart size,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [size, rstart, mstart]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "returndatacopy" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "returndatacopy" args
+    EvmYul.Operation.RETURNDATACOPY (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_returndatacopy_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_log0_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG0) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, offset, size, hEval, hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ primFuel =>
+          cases hPerm : argState.executionEnv.perm
+          · simp [EvmYul.Yul.primCall, hPerm,
+              EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+          · rw [primCall_log0_ok primFuel argState offset size hPerm] at hExec
+            simp [EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+            cases argState with
+            | Ok shared store =>
+                simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+            | OutOfFuel =>
+                simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+            | Checkpoint jump =>
+                cases jump <;>
+                  simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log0_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "log0" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "log0" args
+    EvmYul.Operation.LOG0 (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_log0_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_log1_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [topic0, size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG1) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, offset, size, topic0, hEval, hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ primFuel =>
+          cases hPerm : argState.executionEnv.perm
+          · simp [EvmYul.Yul.primCall, hPerm,
+              EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+          · rw [primCall_log1_ok primFuel argState offset size topic0 hPerm] at hExec
+            simp [EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+            cases argState with
+            | Ok shared store =>
+                simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+            | OutOfFuel =>
+                simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+            | Checkpoint jump =>
+                cases jump <;>
+                  simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log1_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [topic0, size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "log1" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "log1" args
+    EvmYul.Operation.LOG1 (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_log1_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_log2_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [topic1, topic0, size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG2) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, offset, size, topic0, topic1, hEval, hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ primFuel =>
+          cases hPerm : argState.executionEnv.perm
+          · simp [EvmYul.Yul.primCall, hPerm,
+              EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+          · rw [primCall_log2_ok primFuel argState offset size topic0 topic1 hPerm] at hExec
+            simp [EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+            cases argState with
+            | Ok shared store =>
+                simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+            | OutOfFuel =>
+                simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+            | Checkpoint jump =>
+                cases jump <;>
+                  simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log2_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [topic1, topic0, size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "log2" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "log2" args
+    EvmYul.Operation.LOG2 (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_log2_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_log3_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1 topic2,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [topic2, topic1, topic0, size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG3) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, offset, size, topic0, topic1, topic2, hEval, hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ primFuel =>
+          cases hPerm : argState.executionEnv.perm
+          · simp [EvmYul.Yul.primCall, hPerm,
+              EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+          · rw [primCall_log3_ok primFuel argState offset size topic0 topic1 topic2 hPerm] at hExec
+            simp [EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+            cases argState with
+            | Ok shared store =>
+                simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+            | OutOfFuel =>
+                simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+            | Checkpoint jump =>
+                cases jump <;>
+                  simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log3_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1 topic2,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [topic2, topic1, topic0, size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "log3" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "log3" args
+    EvmYul.Operation.LOG3 (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_log3_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_log4_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1 topic2 topic3,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [topic3, topic2, topic1, topic0, size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG4) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, offset, size, topic0, topic1, topic2, topic3, hEval, hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ primFuel =>
+          cases hPerm : argState.executionEnv.perm
+          · simp [EvmYul.Yul.primCall, hPerm,
+              EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+          · rw [primCall_log4_ok primFuel argState offset size topic0 topic1 topic2 topic3 hPerm] at hExec
+            simp [EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+            cases argState with
+            | Ok shared store =>
+                simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+            | OutOfFuel =>
+                simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+            | Checkpoint jump =>
+                cases jump <;>
+                  simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log4_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1 topic2 topic3,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [topic3, topic2, topic1, topic0, size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "log4" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "log4" args
+    EvmYul.Operation.LOG4 (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_log4_of_evalArgs_preserves
     name expected (args.map Backends.lowerExprNative) codeOverride hArgs
 
 theorem NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves
