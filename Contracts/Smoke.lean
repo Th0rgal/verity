@@ -1216,6 +1216,34 @@ verity_contract DirectHelperCallSmoke where
     let right ← getStorage lastRight
     return (current, left, right)
 
+verity_contract MultiReturnHelperSmoke where
+  storage
+    lastTotal : Uint256 := slot 0
+    lastHead : Uint256 := slot 1
+
+  function summarize (seed : Uint256) : Tuple [Uint256, Uint256] := do
+    let head := add seed 1
+    let tail := add seed 2
+    return (head, tail)
+
+  function useSummary (seed : Uint256) : Uint256 := do
+    let (head, tail) ← summarize seed
+    return (add head tail)
+
+/--
+error: `total` cannot be mutated, only variables declared using `let mut` can be mutated. If you did not intend to mutate but define `total`, consider using `let total` instead
+-/
+#guard_msgs in
+verity_contract ForEachMutableLocalMacroRejected where
+  storage
+
+  function sumValues (values : Array Uint256) : Uint256 := do
+    let mut total := 0
+    forEach "i" (arrayLength values) (do
+      let value := arrayElement values i
+      total := add total value)
+    return total
+
 /--
 error: helper call 'consumePayload' uses a parameter or return type that direct macro helper lowering does not support yet; only static non-fallback/non-receive helpers can be lowered to internal specs
 -/
@@ -1790,6 +1818,7 @@ end SpecGenSmoke
 #check_contract DynamicStructArraySmoke
 #check_contract PackedStorageWriteSmoke
 #check_contract DirectHelperCallSmoke
+#check_contract MultiReturnHelperSmoke
 #check_contract Uint8Smoke
 #check_contract AddressHelpersSmoke
 #check_contract ZeroAddressShadowSmoke

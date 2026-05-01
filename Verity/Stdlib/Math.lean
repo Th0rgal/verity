@@ -52,6 +52,14 @@ def safeDiv (a b : Uint256) : Option Uint256 :=
 /-- Fixed-point scaling factor used by `wMulDown` and `wDivUp`. -/
 def WAD : Uint256 := 1000000000000000000
 
+/-- BN254 scalar field modulus used by Groth16/BN254 circuit public inputs. -/
+def SNARK_SCALAR_FIELD : Uint256 :=
+  21888242871839275222246405745257275088548364400416034343698204186575808495617
+
+/-- Reduce a word modulo the BN254 scalar field. -/
+def modField (x : Uint256) : Uint256 :=
+  Verity.Core.Uint256.mod x SNARK_SCALAR_FIELD
+
 /-- `mulDivDown(a, b, c)` = `floor(a * b / c)` under the EVM's `div` semantics. -/
 def mulDivDown (a b c : Uint256) : Uint256 :=
   (a * b) / c
@@ -100,6 +108,14 @@ def requireSomeUint (opt : Option Uint256) (message : String) : Contract Uint256
 
 @[simp] theorem WAD_val : (WAD : Nat) = 1000000000000000000 := by
   rfl
+
+@[simp] theorem SNARK_SCALAR_FIELD_val :
+    (SNARK_SCALAR_FIELD : Nat) =
+      21888242871839275222246405745257275088548364400416034343698204186575808495617 := by
+  rfl
+
+@[simp] theorem modField_def (x : Uint256) :
+    modField x = Verity.Core.Uint256.mod x SNARK_SCALAR_FIELD := rfl
 
 theorem WAD_ne_zero : WAD ≠ 0 := by
   intro h

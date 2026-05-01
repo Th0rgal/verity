@@ -881,6 +881,15 @@ private def checkDirectHelperCallSmoke : IO Unit := do
     (contains (reprStr runHelpers.body) "Stmt.internalCallAssign" &&
       contains (reprStr runHelpers.body) "\"internal_pairWithTotal\"")
 
+private def checkMultiReturnHelperSmoke : IO Unit := do
+  expectTrue
+    "MultiReturnHelperSmoke: tuple-return helper binds lower to internalCallAssign"
+    (match Contracts.Smoke.MultiReturnHelperSmoke.useSummary_modelBody with
+    | [Stmt.internalCallAssign ["head", "tail"] helperName [Expr.param "seed"],
+        Stmt.return (Expr.add (Expr.localVar "head") (Expr.localVar "tail"))] =>
+        helperName == "internal_summarize"
+    | _ => false)
+
 private def checkNamedStructParamSmoke : IO Unit := do
   expectTrue
     "NamedStructParamSmoke: nested struct leaf projection uses recursive tuple binding"
@@ -1073,6 +1082,7 @@ private def checkSpec (spec : CompilationModel) : IO Unit := do
   checkLowLevelTryCatchSmoke
   checkSpecialEntrypointSmoke
   checkDirectHelperCallSmoke
+  checkMultiReturnHelperSmoke
   checkNamedStructParamSmoke
   checkCurveCutArraySmoke
   checkDynamicStructArraySmoke

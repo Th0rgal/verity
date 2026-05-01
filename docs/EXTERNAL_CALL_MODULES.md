@@ -73,11 +73,73 @@ Standard modules ship in `Compiler/Modules/`:
 | `ERC20.safeTransfer` | `transfer(to, amount)` | ERC-20 transfer with optional-bool-return handling | `erc20_transfer_interface` |
 | `ERC20.safeTransferFrom` | `transferFrom(from, to, amount)` | ERC-20 transferFrom with optional-bool-return handling | `erc20_transferFrom_interface` |
 | `ERC20.safeApprove` | `approve(spender, amount)` | ERC-20 approve with optional-bool-return handling | `erc20_approve_interface` |
+| `Hashing.abiEncodePackedWords` / `Hashing.abiEncodePacked` | Static-word packed Keccak | Writes 32-byte words contiguously and binds `keccak256(0, wordCount * 32)` | `keccak256_memory_slice_matches_evm`, `abi_packed_static_word_layout` |
+| `Hashing.sha256PackedWords` / `Hashing.sha256Packed` | Static-word packed SHA-256 | Writes 32-byte words contiguously, calls precompile 0x02, and binds digest word | `evm_sha256_precompile`, `abi_packed_static_word_layout` |
+| `Hashing.abiEncodePackedStaticSegments` | Static byte-width packed Keccak | Writes 1- to 32-byte static segments at byte-precise offsets and binds `keccak256(0, totalBytes)` | `keccak256_memory_slice_matches_evm`, `abi_packed_static_segment_layout` |
+| `Hashing.sha256PackedStaticSegments` | Static byte-width packed SHA-256 | Writes 1- to 32-byte static segments, calls precompile 0x02 over the exact byte length, and binds digest word | `evm_sha256_precompile`, `abi_packed_static_segment_layout` |
 | `Precompiles.ecrecover` | Precompile 0x01 | ECDSA recovery, binds result address | `evm_ecrecover_precompile` |
+| `Precompiles.sha256Memory` / `Precompiles.sha256` | Precompile 0x02 | SHA-256 over an existing memory slice, binds digest word | `evm_sha256_precompile` |
 | `Callbacks.callback` | Parameterized | ABI-encode selector + static args + bytes, call target | `callback_target_interface` |
 | `Calls.withReturn` | Parameterized | Generic call/staticcall with single uint256 return | `external_call_abi_interface` |
+| `Calls.bubblingValueCall` | `call{value: v}(data)` shape | Generic low-level value call over caller-provided memory slices; bubbles exact revert returndata on failure | `generic_low_level_value_call_interface` |
 
 See `Compiler/Modules/README.md` for the full checklist on adding new standard modules.
+
+### Generic Value Calls
+
+`Compiler.Modules.Calls.bubblingValueCall` is the standard Verity-core surface
+for Solidity-style arbitrary low-level calls:
+
+```lean
+Compiler.Modules.Calls.bubblingValueCall
+  (Expr.param "target")
+  (Expr.param "ethValue")
+  (Expr.param "inputOffset")
+  (Expr.param "inputSize")
+  (Expr.param "outputOffset")
+  (Expr.param "outputSize")
+```
+
+It lowers to `call(gas(), target, ethValue, inputOffset, inputSize,
+outputOffset, outputSize)`. On failure, it copies `returndatasize()` bytes from
+offset zero into memory offset zero and reverts with that exact payload. The
+module is marked state-writing and state-reading, so normal mutability and CEI
+checks still apply; in particular, it is rejected from `view` / `pure`
+entrypoints rather than being treated as a read-only interface.
+
+This module models only generic EVM call mechanics. The meaning of the calldata,
+the callee's behavior, and protocol-specific postconditions remain assumptions
+of the package that uses the call.
+
+### Packed Hashing Helpers
+
+`Compiler.Modules.Hashing.abiEncodePackedWords` and
+`Compiler.Modules.Hashing.sha256PackedWords` cover the audit-critical static
+word subset of packed preimage construction. The shorter
+`Compiler.Modules.Hashing.abiEncodePacked` and
+`Compiler.Modules.Hashing.sha256Packed` aliases expose the same semantics. They
+are intended for values that already occupy complete ABI words, such as
+`uint256`, `bytes32`, and address values after the model has chosen its
+word-level representation.
+
+The current helpers deliberately do not claim full Solidity
+`abi.encodePacked` parity for dynamic bytes/strings. For static mixed-width
+preimages, `Compiler.Modules.Hashing.abiEncodePackedStaticSegments` and
+`Compiler.Modules.Hashing.sha256PackedStaticSegments` accept explicit byte
+widths from 1 to 32:
+
+```lean
+Compiler.Modules.Hashing.abiEncodePackedStaticSegments
+  "digest"
+  [(Expr.param "who", 20), (Expr.param "amount", 32)]
+```
+
+Sub-word segments are left-aligned before `mstore`, then subsequent segments are
+placed at byte-precise offsets so later writes overwrite the unused tail bytes
+from earlier sub-word stores. These segment helpers expose
+`abi_packed_static_segment_layout` separately from the word-only layout
+assumption. Dynamic packed inputs should still be spelled out explicitly or
+added through a focused helper with its own tests and trust-report assumption.
 
 ## Writing Your Own ECM
 
@@ -195,5 +257,10 @@ For a machine-readable version, run `verity-compiler --trust-report <path>`. The
 - Standard modules in `Compiler/Modules/` are maintained and audited alongside
   the compiler.
 - Third-party modules are outside the Verity team's trust boundary.
+- Verity core owns generic Solidity/EVM mechanics such as low-level call
+  lowering, returndata bubbling, mutability flags, CEI tracking, and trust
+  reporting. Protocol-specific assumptions, including Unlink's Permit2,
+  Poseidon, Lazy-IMT, and Groth16 verifier boundaries, should live in the
+  dependent package as linked externals or package-local ECMs.
 
 See `TRUST_ASSUMPTIONS.md` section 7 and `AXIOMS.md` for details.

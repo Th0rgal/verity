@@ -4,9 +4,13 @@
   Standard ECM for ABI-encoded external calls with a single uint256 return:
   - `withReturn`: call/staticcall with selector + args, revert-forward on failure,
     validate return data, bind result variable
+  - `bubblingValueCall`: arbitrary low-level call with caller-provided ETH value,
+    caller-provided input/output memory slices, and exact revert-data bubbling
 
   Trust assumption: the target contract's function matches the declared
-  selector and ABI encoding.
+  selector and ABI encoding. For arbitrary low-level calls, the target contract
+  behavior and calldata ABI are deliberately outside Verity core and are surfaced
+  as an explicit ECM assumption.
 -/
 
 import Compiler.ECM
@@ -81,5 +85,62 @@ def withReturnModule (resultVar : String) (selector : Nat) (numArgs : Nat) (isSt
 def withReturn (resultVar : String) (target : Expr) (selector : Nat)
     (args : List Expr) (isStatic : Bool := false) : Stmt :=
   .ecm (withReturnModule resultVar selector args.length isStatic) ([target] ++ args)
+
+/-- Generic Solidity-style low-level value call with revert-data bubbling.
+
+    This models the common wrapper:
+
+    ```
+    let success := call(gas(), target, value, inputOffset, inputSize, outputOffset, outputSize)
+    if iszero(success) {
+      returndatacopy(0, 0, returndatasize())
+      revert(0, returndatasize())
+    }
+    ```
+
+    Arguments passed to compile:
+    `[target, value, inputOffset, inputSize, outputOffset, outputSize]`.
+
+    The module intentionally does not interpret the calldata or returndata
+    payload. Protocol-specific meaning belongs in packages that use this generic
+    Verity-core mechanism and document their own assumptions. -/
+def bubblingValueCallModule : ExternalCallModule where
+  name := "bubblingValueCall"
+  numArgs := 6
+  resultVars := []
+  writesState := true
+  readsState := true
+  axioms := ["generic_low_level_value_call_interface"]
+  compile := fun _ctx args => do
+    let (targetExpr, valueExpr, inputOffsetExpr, inputSizeExpr, outputOffsetExpr, outputSizeExpr) ←
+      match args with
+      | [target, value, inputOffset, inputSize, outputOffset, outputSize] =>
+          pure (target, value, inputOffset, inputSize, outputOffset, outputSize)
+      | _ =>
+          throw "bubblingValueCall expects 6 arguments (target, value, inputOffset, inputSize, outputOffset, outputSize)"
+    let callExpr := YulExpr.call "call" [
+      YulExpr.call "gas" [],
+      targetExpr,
+      valueExpr,
+      inputOffsetExpr,
+      inputSizeExpr,
+      outputOffsetExpr,
+      outputSizeExpr
+    ]
+    pure [YulStmt.block [
+      YulStmt.let_ "__bvc_success" callExpr,
+      YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__bvc_success"]) [
+        YulStmt.let_ "__bvc_rds" (YulExpr.call "returndatasize" []),
+        YulStmt.expr (YulExpr.call "returndatacopy" [
+          YulExpr.lit 0, YulExpr.lit 0, YulExpr.ident "__bvc_rds"
+        ]),
+        YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.ident "__bvc_rds"])
+      ]
+    ]]
+
+/-- Convenience constructor for `bubblingValueCallModule`. -/
+def bubblingValueCall
+    (target value inputOffset inputSize outputOffset outputSize : Expr) : Stmt :=
+  .ecm bubblingValueCallModule [target, value, inputOffset, inputSize, outputOffset, outputSize]
 
 end Compiler.Modules.Calls
