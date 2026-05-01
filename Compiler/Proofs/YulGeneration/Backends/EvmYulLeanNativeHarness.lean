@@ -6634,6 +6634,22 @@ theorem nativeStmtsWriteNames_sext_not_mem_iff
   rw [nativeStmtsWriteNames_cons_not_mem_iff,
     nativeStmtsWriteNames_quint_not_mem_iff]
 
+theorem nativeStmtsWriteNames_sept_not_mem_iff
+    (name : EvmYul.Identifier)
+    (first second third fourth fifth sixth seventh : EvmYul.Yul.Ast.Stmt) :
+    name ∉
+        Backends.nativeStmtsWriteNames
+          [first, second, third, fourth, fifth, sixth, seventh] ↔
+      name ∉ Backends.nativeStmtWriteNames first ∧
+        name ∉ Backends.nativeStmtWriteNames second ∧
+          name ∉ Backends.nativeStmtWriteNames third ∧
+            name ∉ Backends.nativeStmtWriteNames fourth ∧
+              name ∉ Backends.nativeStmtWriteNames fifth ∧
+                name ∉ Backends.nativeStmtWriteNames sixth ∧
+                  name ∉ Backends.nativeStmtWriteNames seventh := by
+  rw [nativeStmtsWriteNames_cons_not_mem_iff,
+    nativeStmtsWriteNames_sext_not_mem_iff]
+
 theorem NativeBlockPreservesWord_append_of_forall_stmt
     (name : EvmYul.Identifier)
     (value : EvmYul.Literal)
@@ -6871,6 +6887,54 @@ theorem NativeBlockPreservesWord_sext_of_nativeStmtsWriteNames_not_mem
         name second third fourth fifth sixth).mpr
         ⟨hSecondFresh, hThirdFresh, hFourthFresh, hFifthFresh, hSixthFresh⟩)
       hSecond hThird hFourth hFifth hSixth)
+
+theorem NativeBlockPreservesWord_sept_of_nativeStmtsWriteNames_not_mem
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (first second third fourth fifth sixth seventh : EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hFresh :
+      name ∉
+        Backends.nativeStmtsWriteNames
+          [first, second, third, fourth, fifth, sixth, seventh])
+    (hFirst :
+      name ∉ Backends.nativeStmtWriteNames first →
+        NativeStmtPreservesWord name value first codeOverride)
+    (hSecond :
+      name ∉ Backends.nativeStmtWriteNames second →
+        NativeStmtPreservesWord name value second codeOverride)
+    (hThird :
+      name ∉ Backends.nativeStmtWriteNames third →
+        NativeStmtPreservesWord name value third codeOverride)
+    (hFourth :
+      name ∉ Backends.nativeStmtWriteNames fourth →
+        NativeStmtPreservesWord name value fourth codeOverride)
+    (hFifth :
+      name ∉ Backends.nativeStmtWriteNames fifth →
+        NativeStmtPreservesWord name value fifth codeOverride)
+    (hSixth :
+      name ∉ Backends.nativeStmtWriteNames sixth →
+        NativeStmtPreservesWord name value sixth codeOverride)
+    (hSeventh :
+      name ∉ Backends.nativeStmtWriteNames seventh →
+        NativeStmtPreservesWord name value seventh codeOverride) :
+    NativeBlockPreservesWord name value
+      [first, second, third, fourth, fifth, sixth, seventh]
+      codeOverride := by
+  rcases (nativeStmtsWriteNames_sept_not_mem_iff
+    name first second third fourth fifth sixth seventh).mp hFresh with
+    ⟨hFirstFresh, hSecondFresh, hThirdFresh, hFourthFresh, hFifthFresh,
+      hSixthFresh, hSeventhFresh⟩
+  exact NativeBlockPreservesWord_cons_stmt name value first
+    [second, third, fourth, fifth, sixth, seventh] codeOverride
+    (hFirst hFirstFresh)
+    (NativeBlockPreservesWord_sext_of_nativeStmtsWriteNames_not_mem
+      name value second third fourth fifth sixth seventh codeOverride
+      ((nativeStmtsWriteNames_sext_not_mem_iff
+        name second third fourth fifth sixth seventh).mpr
+        ⟨hSecondFresh, hThirdFresh, hFourthFresh, hFifthFresh, hSixthFresh,
+          hSeventhFresh⟩)
+      hSecond hThird hFourth hFifth hSixth hSeventh)
 
 theorem NativeStmtPreservesWord_block
     (name : EvmYul.Identifier)
