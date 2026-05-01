@@ -8354,6 +8354,100 @@ theorem nativeSwitchTempsFreshForNativeBodies_default_discr_not_mem
       Backends.nativeStmtsWriteNames defaultBody :=
   hFresh.2.1
 
+theorem NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_matched
+    (switchId selector tag : Nat)
+    (body defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (expected : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hFresh :
+      Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody)
+    (hFind : cases.find? (fun entry => entry.1 == selector) =
+      some (tag, body))
+    (hStmtPreserves :
+      ∀ stmt, stmt ∈ body →
+        Backends.nativeSwitchMatchedTempName switchId ∉
+          Backends.nativeStmtWriteNames stmt →
+        NativeStmtPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
+          expected stmt codeOverride) :
+    NativeBlockPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
+      expected body codeOverride :=
+  NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+    (Backends.nativeSwitchMatchedTempName switchId) expected body codeOverride
+    (nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem
+      switchId selector tag body defaultBody cases hFresh hFind)
+    hStmtPreserves
+
+theorem NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_discr
+    (switchId selector tag : Nat)
+    (body defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (expected : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hFresh :
+      Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody)
+    (hFind : cases.find? (fun entry => entry.1 == selector) =
+      some (tag, body))
+    (hStmtPreserves :
+      ∀ stmt, stmt ∈ body →
+        Backends.nativeSwitchDiscrTempName switchId ∉
+          Backends.nativeStmtWriteNames stmt →
+        NativeStmtPreservesWord (Backends.nativeSwitchDiscrTempName switchId)
+          expected stmt codeOverride) :
+    NativeBlockPreservesWord (Backends.nativeSwitchDiscrTempName switchId)
+      expected body codeOverride :=
+  NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+    (Backends.nativeSwitchDiscrTempName switchId) expected body codeOverride
+    (nativeSwitchTempsFreshForNativeBodies_find_hit_discr_not_mem
+      switchId selector tag body defaultBody cases hFresh hFind)
+    hStmtPreserves
+
+theorem NativeBlockPreservesWord_of_nativeSwitchFresh_default_matched
+    (switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (expected : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hFresh :
+      Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody)
+    (hStmtPreserves :
+      ∀ stmt, stmt ∈ defaultBody →
+        Backends.nativeSwitchMatchedTempName switchId ∉
+          Backends.nativeStmtWriteNames stmt →
+        NativeStmtPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
+          expected stmt codeOverride) :
+    NativeBlockPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
+      expected defaultBody codeOverride :=
+  NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+    (Backends.nativeSwitchMatchedTempName switchId) expected defaultBody
+    codeOverride
+    (nativeSwitchTempsFreshForNativeBodies_default_matched_not_mem
+      switchId cases defaultBody hFresh)
+    hStmtPreserves
+
+theorem NativeBlockPreservesWord_of_nativeSwitchFresh_default_discr
+    (switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (expected : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hFresh :
+      Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody)
+    (hStmtPreserves :
+      ∀ stmt, stmt ∈ defaultBody →
+        Backends.nativeSwitchDiscrTempName switchId ∉
+          Backends.nativeStmtWriteNames stmt →
+        NativeStmtPreservesWord (Backends.nativeSwitchDiscrTempName switchId)
+          expected stmt codeOverride) :
+    NativeBlockPreservesWord (Backends.nativeSwitchDiscrTempName switchId)
+      expected defaultBody codeOverride :=
+  NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+    (Backends.nativeSwitchDiscrTempName switchId) expected defaultBody
+    codeOverride
+    (nativeSwitchTempsFreshForNativeBodies_default_discr_not_mem
+      switchId cases defaultBody hFresh)
+    hStmtPreserves
+
 @[simp] theorem nativeSwitchCaseIfs_nil
     (discrName matchedName : EvmYul.Identifier) :
     nativeSwitchCaseIfs discrName matchedName [] = [] := by
@@ -9614,12 +9708,9 @@ theorem exec_nativeSwitchTail_find_hit_fresh_fuel
     cases defaultBody body contract tx storage observableSlots final hSelector
     hFind hSelectorRange hTagsRange hBody
   intro pre suffix _hCases
-  exact NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
-    (Backends.nativeSwitchMatchedTempName switchId) (EvmYul.UInt256.ofNat 1)
-    body (some contract)
-    (nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem
-      switchId selector tag body defaultBody cases hFresh hFind)
-    hStmtPreserves
+  exact NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_matched
+    switchId selector tag body defaultBody cases (EvmYul.UInt256.ofNat 1)
+    (some contract) hFresh hFind hStmtPreserves
 
 theorem exec_nativeSwitchTail_find_hit_error_fuel
     (fuel selector switchId tag : Nat)
@@ -10250,12 +10341,9 @@ theorem exec_lowerNativeSwitchBlock_selector_find_hit_fresh_store_fuel
     fuel selector switchId tag cases defaultBody body contract tx storage
     observableSlots store final hSelector hFind hSelectorRange hTagsRange hBody
   intro pre suffix _hCases
-  exact NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
-    (Backends.nativeSwitchMatchedTempName switchId) (EvmYul.UInt256.ofNat 1)
-    body (some contract)
-    (nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem
-      switchId selector tag body defaultBody cases hFresh hFind)
-    hStmtPreserves
+  exact NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_matched
+    switchId selector tag body defaultBody cases (EvmYul.UInt256.ofNat 1)
+    (some contract) hFresh hFind hStmtPreserves
 
 /-- Store-parametric guarded selector-miss execution for the lowered switch
     block whose default is `revert(0, 0)`. Lifts the empty-store version to
