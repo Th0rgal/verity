@@ -3276,9 +3276,11 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_append
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_left_not_mem_of_append_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_right_not_mem_of_append_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_append_of_forall_stmt
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_block
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_block_of_nativeStmtsWriteNames_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_append_of_nativeStmtsWriteNames_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_eval_self
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_eval_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_eval_preserves_and_nativeStmtsWriteNames_not_mem
@@ -3826,4 +3828,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3650 theorems/lemmas (2704 public, 946 private, 0 sorry'd)
+-- Total: 3652 theorems/lemmas (2706 public, 946 private, 0 sorry'd)

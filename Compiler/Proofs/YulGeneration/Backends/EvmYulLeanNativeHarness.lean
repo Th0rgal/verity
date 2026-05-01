@@ -6499,6 +6499,27 @@ theorem nativeStmtsWriteNames_right_not_mem_of_append_not_mem
   rw [nativeStmtsWriteNames_append]
   exact List.mem_append_right _ hMem
 
+theorem NativeBlockPreservesWord_append_of_forall_stmt
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (left right : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hLeft :
+      ∀ stmt, stmt ∈ left →
+        NativeStmtPreservesWord name value stmt codeOverride)
+    (hRight :
+      ∀ stmt, stmt ∈ right →
+        NativeStmtPreservesWord name value stmt codeOverride) :
+    NativeBlockPreservesWord name value (left ++ right) codeOverride :=
+  NativeBlockPreservesWord_of_forall_stmt name value (left ++ right)
+    codeOverride
+    (by
+      intro stmt hMem
+      rw [List.mem_append] at hMem
+      rcases hMem with hMem | hMem
+      · exact hLeft stmt hMem
+      · exact hRight stmt hMem)
+
 theorem NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
     (name : EvmYul.Identifier)
     (value : EvmYul.Literal)
@@ -6541,6 +6562,38 @@ theorem NativeStmtPreservesWord_block_of_nativeStmtsWriteNames_not_mem
   NativeStmtPreservesWord_block name value body codeOverride
     (NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
       name value body codeOverride hFresh hPreserves)
+
+theorem NativeBlockPreservesWord_append_of_nativeStmtsWriteNames_not_mem
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (left right : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hLeftFresh : name ∉ Backends.nativeStmtsWriteNames left)
+    (hRightFresh : name ∉ Backends.nativeStmtsWriteNames right)
+    (hLeft :
+      ∀ stmt, stmt ∈ left →
+        name ∉ Backends.nativeStmtWriteNames stmt →
+          NativeStmtPreservesWord name value stmt codeOverride)
+    (hRight :
+      ∀ stmt, stmt ∈ right →
+        name ∉ Backends.nativeStmtWriteNames stmt →
+          NativeStmtPreservesWord name value stmt codeOverride) :
+    NativeBlockPreservesWord name value (left ++ right) codeOverride :=
+  NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem name value
+    (left ++ right) codeOverride
+    (by
+      rw [nativeStmtsWriteNames_append]
+      intro hMem
+      rw [List.mem_append] at hMem
+      rcases hMem with hMem | hMem
+      · exact hLeftFresh hMem
+      · exact hRightFresh hMem)
+    (by
+      intro stmt hMem hFresh
+      rw [List.mem_append] at hMem
+      rcases hMem with hMem | hMem
+      · exact hLeft stmt hMem hFresh
+      · exact hRight stmt hMem hFresh)
 
 theorem NativeStmtPreservesWord_if_of_eval_self
     (name : EvmYul.Identifier)
