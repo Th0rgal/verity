@@ -799,7 +799,10 @@ private def checkSignedBuiltinSmoke : IO Unit := do
   let loadSigned := loadSigned?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
   expectTrue "SignedBuiltinSmoke: Int256 storage is modeled as a word slot"
     (match Contracts.Smoke.SignedBuiltinSmoke.spec.fields with
-    | [{ name := "signedSlot", ty := FieldType.uint256, slot := some 0 }] => true
+    | [field] =>
+        field.name == "signedSlot" &&
+          field.ty == FieldType.uint256 &&
+          field.slot == some 0
     | _ => false)
   expectTrue "SignedBuiltinSmoke: signedDiv body uses Expr.sdiv"
     (bodyUsesSignedBuiltin signedDiv.body "Expr.sdiv")

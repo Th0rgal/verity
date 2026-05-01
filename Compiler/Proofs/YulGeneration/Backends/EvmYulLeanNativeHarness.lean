@@ -6709,6 +6709,28 @@ theorem nativeStmtsWriteNames_deca_not_mem_iff
   rw [nativeStmtsWriteNames_cons_not_mem_iff,
     nativeStmtsWriteNames_nona_not_mem_iff]
 
+theorem nativeStmtsWriteNames_undeca_not_mem_iff
+    (name : EvmYul.Identifier)
+    (first second third fourth fifth sixth seventh eighth ninth tenth
+      eleventh : EvmYul.Yul.Ast.Stmt) :
+    name ∉
+        Backends.nativeStmtsWriteNames
+          [first, second, third, fourth, fifth, sixth, seventh, eighth,
+            ninth, tenth, eleventh] ↔
+      name ∉ Backends.nativeStmtWriteNames first ∧
+        name ∉ Backends.nativeStmtWriteNames second ∧
+          name ∉ Backends.nativeStmtWriteNames third ∧
+            name ∉ Backends.nativeStmtWriteNames fourth ∧
+              name ∉ Backends.nativeStmtWriteNames fifth ∧
+                name ∉ Backends.nativeStmtWriteNames sixth ∧
+                  name ∉ Backends.nativeStmtWriteNames seventh ∧
+                    name ∉ Backends.nativeStmtWriteNames eighth ∧
+                      name ∉ Backends.nativeStmtWriteNames ninth ∧
+                        name ∉ Backends.nativeStmtWriteNames tenth ∧
+                          name ∉ Backends.nativeStmtWriteNames eleventh := by
+  rw [nativeStmtsWriteNames_cons_not_mem_iff,
+    nativeStmtsWriteNames_deca_not_mem_iff]
+
 theorem NativeBlockPreservesWord_append_of_forall_stmt
     (name : EvmYul.Identifier)
     (value : EvmYul.Literal)
@@ -7133,6 +7155,49 @@ theorem NativeBlockPreservesWord_deca_of_nativeStmtsWriteNames_not_mem
       name value second third fourth fifth sixth seventh eighth ninth tenth
         codeOverride hRestFresh hSecond hThird hFourth hFifth hSixth hSeventh
         hEighth hNinth hTenth)
+
+theorem NativeBlockPreservesWord_undeca_of_nativeStmtsWriteNames_not_mem
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (first second third fourth fifth sixth seventh eighth ninth tenth eleventh :
+      EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hFresh :
+      name ∉ Backends.nativeStmtsWriteNames
+          [first, second, third, fourth, fifth, sixth, seventh, eighth,
+            ninth, tenth, eleventh])
+    (hFirst : name ∉ Backends.nativeStmtWriteNames first →
+        NativeStmtPreservesWord name value first codeOverride)
+    (hSecond : name ∉ Backends.nativeStmtWriteNames second →
+        NativeStmtPreservesWord name value second codeOverride)
+    (hThird : name ∉ Backends.nativeStmtWriteNames third →
+        NativeStmtPreservesWord name value third codeOverride)
+    (hFourth : name ∉ Backends.nativeStmtWriteNames fourth →
+        NativeStmtPreservesWord name value fourth codeOverride)
+    (hFifth : name ∉ Backends.nativeStmtWriteNames fifth →
+        NativeStmtPreservesWord name value fifth codeOverride)
+    (hSixth : name ∉ Backends.nativeStmtWriteNames sixth →
+        NativeStmtPreservesWord name value sixth codeOverride)
+    (hSeventh : name ∉ Backends.nativeStmtWriteNames seventh →
+        NativeStmtPreservesWord name value seventh codeOverride)
+    (hEighth : name ∉ Backends.nativeStmtWriteNames eighth →
+        NativeStmtPreservesWord name value eighth codeOverride)
+    (hNinth : name ∉ Backends.nativeStmtWriteNames ninth →
+        NativeStmtPreservesWord name value ninth codeOverride)
+    (hTenth : name ∉ Backends.nativeStmtWriteNames tenth →
+        NativeStmtPreservesWord name value tenth codeOverride)
+    (hEleventh : name ∉ Backends.nativeStmtWriteNames eleventh →
+        NativeStmtPreservesWord name value eleventh codeOverride) :
+    NativeBlockPreservesWord name value [first, second, third, fourth, fifth,
+      sixth, seventh, eighth, ninth, tenth, eleventh] codeOverride := by
+  exact NativeBlockPreservesWord_cons_of_nativeStmtsWriteNames_not_mem
+    name value first [second, third, fourth, fifth, sixth, seventh, eighth,
+      ninth, tenth, eleventh] codeOverride hFresh hFirst
+    (fun hRestFresh =>
+      NativeBlockPreservesWord_deca_of_nativeStmtsWriteNames_not_mem
+      name value second third fourth fifth sixth seventh eighth ninth tenth
+        eleventh codeOverride hRestFresh hSecond hThird hFourth hFifth hSixth
+        hSeventh hEighth hNinth hTenth hEleventh)
 
 theorem NativeStmtPreservesWord_block
     (name : EvmYul.Identifier)
