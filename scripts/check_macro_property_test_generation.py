@@ -18,6 +18,12 @@ from property_utils import ROOT
 DEFAULT_SOURCE = ROOT / "Contracts" / "Counter" / "Counter.lean"
 DEFAULT_SOURCE_DIR = ROOT / "Contracts"
 DEFAULT_OUTPUT_DIR = ROOT / "artifacts" / "macro_property_tests"
+EXCLUDED_CONTRACTS = {
+    # The property generator does not yet synthesize Solidity examples for
+    # arrays of tuple/struct values with nested dynamic members. This smoke is
+    # covered by Lean macro invariant and round-trip tests instead.
+    "DynamicStructArraySmoke",
+}
 
 
 def _expected_rendered(
@@ -28,7 +34,7 @@ def _expected_rendered(
     if not contracts:
         raise SystemExit("no verity_contract declarations found")
 
-    names = selected_contracts or sorted(contracts.keys())
+    names = selected_contracts or sorted(name for name in contracts.keys() if name not in EXCLUDED_CONTRACTS)
     unknown = [name for name in names if name not in contracts]
     if unknown:
         known = ", ".join(sorted(contracts.keys()))

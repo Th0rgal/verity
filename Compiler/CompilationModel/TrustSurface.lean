@@ -59,7 +59,8 @@ private partial def collectLowLevelExprMechanics : Expr → List String
   | .mappingUint _ key
   | .storageArrayElement _ key
   | .arrayElement _ key
-  | .arrayElementWord _ key _ _ =>
+  | .arrayElementWord _ key _ _
+  | .arrayElementDynamicWord _ key _ =>
       collectLowLevelExprMechanics key
   | .mload key =>
       ["mload"] ++ collectLowLevelExprMechanics key
@@ -123,7 +124,8 @@ private partial def collectAxiomatizedExprPrimitives : Expr → List String
   | .mappingUint _ key
   | .storageArrayElement _ key
   | .arrayElement _ key
-  | .arrayElementWord _ key _ _ =>
+  | .arrayElementWord _ key _ _
+  | .arrayElementDynamicWord _ key _ =>
       collectAxiomatizedExprPrimitives key
   | .externalCall _ args
   | .internalCall _ args =>
@@ -452,7 +454,8 @@ private partial def collectEventEmissionExprMechanics : Expr → List String
       keys.flatMap collectEventEmissionExprMechanics
   | .mappingUint _ key
   | .arrayElement _ key
-  | .arrayElementWord _ key _ _ =>
+  | .arrayElementWord _ key _ _
+  | .arrayElementDynamicWord _ key _ =>
       collectEventEmissionExprMechanics key
   | .add a b | .sub a b | .mul a b | .div a b | .sdiv a b | .mod a b | .smod a b
   | .bitAnd a b | .bitOr a b | .bitXor a b | .shl a b | .shr a b | .sar a b | .signextend a b
@@ -613,7 +616,8 @@ private partial def collectRuntimeIntrospectionExprMechanics : Expr → List Str
       keys.flatMap collectRuntimeIntrospectionExprMechanics
   | .mappingUint _ key
   | .arrayElement _ key
-  | .arrayElementWord _ key _ _ =>
+  | .arrayElementWord _ key _ _
+  | .arrayElementDynamicWord _ key _ =>
       collectRuntimeIntrospectionExprMechanics key
   | .add a b | .sub a b | .mul a b | .div a b | .sdiv a b | .mod a b | .smod a b
   | .bitAnd a b | .bitOr a b | .bitXor a b | .shl a b | .shr a b | .sar a b | .signextend a b
@@ -762,7 +766,8 @@ private partial def collectExternalExprNames : Expr → List String
       keys.flatMap collectExternalExprNames
   | .mappingUint _ key
   | .arrayElement _ key
-  | .arrayElementWord _ key _ _ =>
+  | .arrayElementWord _ key _ _
+  | .arrayElementDynamicWord _ key _ =>
       collectExternalExprNames key
   | .internalCall _ args =>
       args.flatMap collectExternalExprNames

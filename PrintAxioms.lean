@@ -2023,6 +2023,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mappingUint  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElement  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElementWord  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElementDynamicWord  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mappingWord  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mappingPackedWord  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_structMember  -- private
@@ -3689,4 +3690,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3513 theorems/lemmas (2569 public, 944 private, 0 sorry'd)
+-- Total: 3514 theorems/lemmas (2569 public, 945 private, 0 sorry'd)

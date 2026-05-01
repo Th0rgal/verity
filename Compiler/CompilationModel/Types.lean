@@ -342,6 +342,11 @@ inductive Expr
       static ABI word width of one element and `wordOffset` is the word inside
       that element.  This supports arrays of static tuple/struct-like values. -/
   | arrayElementWord (name : String) (index : Expr) (elementWords wordOffset : Nat)
+  /-- Checked word access inside the head of a dynamically-sized array element.
+      This supports arrays of tuple/struct-like values whose element contains
+      nested dynamic members; `wordOffset` indexes the element head after the
+      ABI element offset has been resolved. -/
+  | arrayElementDynamicWord (name : String) (index : Expr) (wordOffset : Nat)
   | storageArrayLength (field : String)  -- Read the length word of a storage dynamic array (#1571)
   | storageArrayElement (field : String) (index : Expr)  -- Checked element access of a storage dynamic array (#1571)
   /-- Equality on direct `bytes` / `string` parameters loaded from calldata or memory.

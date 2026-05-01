@@ -331,6 +331,15 @@
       "IRInterpreter": "n/a",
       "EVMYulLean_bridge": "n/a",
       "proof_status": "proved"
+    },
+    {
+      "feature": "arrayElementDynamicWord",
+      "constructor": "Expr.arrayElementDynamicWord",
+      "SpecInterpreter_basic": "unsupported",
+      "SpecInterpreter_fuel": "unsupported",
+      "IRInterpreter": "n/a",
+      "EVMYulLean_bridge": "n/a",
+      "proof_status": "not_modeled"
     }
   ],
   "stmt_features": [

@@ -141,7 +141,7 @@ def validateScopedExprIdentifiers
           if isDynamicParamType elemTy then
             throw s!"Compilation error: {context} Expr.arrayElementWord '{name}' requires an array parameter with static ABI-word elements, got {repr ty}"
           else
-            let expectedWords := paramHeadSize elemTy / 32
+            let expectedWords := paramLocalHeadWords elemTy
             if elementWords == expectedWords then
               pure ()
             else
@@ -150,6 +150,22 @@ def validateScopedExprIdentifiers
           throw s!"Compilation error: {context} Expr.arrayElementWord '{name}' requires array parameter, got {repr ty}"
       | none =>
           throw s!"Compilation error: {context} references unknown parameter '{name}' in Expr.arrayElementWord"
+      validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount index
+  | Expr.arrayElementDynamicWord name index wordOffset => do
+      match findParamType params name with
+      | some ty@(ParamType.array elemTy) =>
+          if isDynamicParamType elemTy then
+            let expectedWords := paramLocalHeadWords elemTy
+            if wordOffset < expectedWords then
+              pure ()
+            else
+              throw s!"Compilation error: {context} Expr.arrayElementDynamicWord '{name}' wordOffset {wordOffset} is outside dynamic element head width {expectedWords} for {repr ty}"
+          else
+            throw s!"Compilation error: {context} Expr.arrayElementDynamicWord '{name}' requires an array parameter with dynamic ABI elements, got {repr ty}"
+      | some ty =>
+          throw s!"Compilation error: {context} Expr.arrayElementDynamicWord '{name}' requires array parameter, got {repr ty}"
+      | none =>
+          throw s!"Compilation error: {context} references unknown parameter '{name}' in Expr.arrayElementDynamicWord"
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount index
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _ | Expr.mappingUint _ key
   | Expr.structMember _ key _ =>

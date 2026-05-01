@@ -565,6 +565,7 @@ def exprTouchesUnsupportedConstructorRawCalldataSurface : Expr → Bool
   | .mapping _ a | .mappingWord _ a _ | .mappingPackedWord _ a _ _
   | .mappingUint _ a | .structMember _ a _ | .arrayElement _ a
   | .arrayElementWord _ a _ _
+  | .arrayElementDynamicWord _ a _
   | .storageArrayElement _ a =>
       exprTouchesUnsupportedConstructorRawCalldataSurface a
   | .add a b | .sub a b | .mul a b | .div a b | .mod a b
@@ -710,6 +711,7 @@ def exprTouchesUnsupportedCoreSurface : Expr → Bool
   | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
   | .arrayLength _ | .arrayElement _ _ | .arrayElementWord _ _ _ _
+  | .arrayElementDynamicWord _ _ _
   | .storageArrayLength _ | .storageArrayElement _ _
   | .dynamicBytesEq _ _
   | .adtConstruct _ _ _ | .adtTag _ _ | .adtField _ _ _ _ _ => true
@@ -747,6 +749,7 @@ def exprTouchesUnsupportedStateSurface : Expr → Bool
   | .calldatasize | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
   | .arrayLength _ | .arrayElement _ _ | .arrayElementWord _ _ _ _
+  | .arrayElementDynamicWord _ _ _
   | .dynamicBytesEq _ _ => false
   | .mload a | .tload a | .calldataload a => exprTouchesUnsupportedStateSurface a
   | .adtConstruct _ _ _ | .adtTag _ _ | .adtField _ _ _ _ _ => true
@@ -772,6 +775,7 @@ def exprTouchesUnsupportedCallSurface : Expr → Bool
   | .min a b | .max a b | .wMulDown a b | .wDivUp a b | .ceilDiv a b =>
       exprTouchesUnsupportedCallSurface a || exprTouchesUnsupportedCallSurface b
   | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .arrayElementWord _ b _ _
+  | .arrayElementDynamicWord _ b _
   | .storageArrayElement _ b =>
       exprTouchesUnsupportedCallSurface b
   | .mappingChain _ _ => true
@@ -813,6 +817,7 @@ def exprTouchesUnsupportedHelperSurface : Expr → Bool
   | .min a b | .max a b | .wMulDown a b | .wDivUp a b | .ceilDiv a b =>
       exprTouchesUnsupportedHelperSurface a || exprTouchesUnsupportedHelperSurface b
   | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .arrayElementWord _ b _ _
+  | .arrayElementDynamicWord _ b _
   | .storageArrayElement _ b =>
       exprTouchesUnsupportedHelperSurface b
   | .mappingChain _ _ => true
@@ -862,6 +867,7 @@ def exprTouchesInternalHelperSurface : Expr → Bool
   | .min a b | .max a b | .wMulDown a b | .wDivUp a b | .ceilDiv a b =>
       exprTouchesInternalHelperSurface a || exprTouchesInternalHelperSurface b
   | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .arrayElementWord _ b _ _
+  | .arrayElementDynamicWord _ b _
   | .storageArrayElement _ b =>
       exprTouchesInternalHelperSurface b
   | .mappingChain _ [] => false
@@ -905,6 +911,7 @@ def exprTouchesUnsupportedForeignSurface : Expr → Bool
   | .min a b | .max a b | .wMulDown a b | .wDivUp a b | .ceilDiv a b =>
       exprTouchesUnsupportedForeignSurface a || exprTouchesUnsupportedForeignSurface b
   | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .arrayElementWord _ b _ _
+  | .arrayElementDynamicWord _ b _
   | .storageArrayElement _ b =>
       exprTouchesUnsupportedForeignSurface b
   | .mappingChain _ _ => true
@@ -945,6 +952,7 @@ def exprTouchesUnsupportedLowLevelSurface : Expr → Bool
   | .min a b | .max a b | .wMulDown a b | .wDivUp a b | .ceilDiv a b =>
       exprTouchesUnsupportedLowLevelSurface a || exprTouchesUnsupportedLowLevelSurface b
   | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .arrayElementWord _ b _ _
+  | .arrayElementDynamicWord _ b _
   | .storageArrayElement _ b =>
       exprTouchesUnsupportedLowLevelSurface b
   | .mappingChain _ _ => true
@@ -1002,6 +1010,7 @@ def exprTouchesUnsupportedContractSurface (expr : Expr) : Bool :=
   | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
   | .arrayLength _ | .arrayElement _ _ | .arrayElementWord _ _ _ _
+  | .arrayElementDynamicWord _ _ _
   | .storageArrayLength _ | .storageArrayElement _ _
   | .dynamicBytesEq _ _
   | .adtConstruct _ _ _ | .adtTag _ _ | .adtField _ _ _ _ _ => true
@@ -1604,6 +1613,7 @@ mutual
     | .mapping _ key | .mappingWord _ key _ | .mappingPackedWord _ key _ _
     | .mappingUint _ key | .structMember _ key _ | .arrayElement _ key
     | .arrayElementWord _ key _ _
+    | .arrayElementDynamicWord _ key _
     | .storageArrayElement _ key | .mload key | .tload key | .calldataload key
     | .extcodesize key | .returndataOptionalBoolAt key =>
         exprInternalHelperCallNames key
@@ -3129,6 +3139,7 @@ mutual
         simp [exprTouchesInternalHelperSurface,
           exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed hsurface]
     | mapping _ b | mappingUint _ b | arrayElement _ b | arrayElementWord _ b _ _
+    | arrayElementDynamicWord _ b _
     | storageArrayElement _ b
     | mappingWord _ b _ | mappingPackedWord _ b _ _ | structMember _ b _ =>
         simp only [exprTouchesUnsupportedHelperSurface] at hsurface
@@ -3516,6 +3527,10 @@ private theorem exprTouchesUnsupportedCallSurface_eq_featureOr
       simp only [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedForeignSurface, exprTouchesUnsupportedLowLevelSurface]
       exact exprTouchesUnsupportedCallSurface_eq_featureOr b
+  | arrayElementDynamicWord _ b _ =>
+      simp only [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,
+        exprTouchesUnsupportedForeignSurface, exprTouchesUnsupportedLowLevelSurface]
+      exact exprTouchesUnsupportedCallSurface_eq_featureOr b
   | mappingWord _ a _ | mappingPackedWord _ a _ _
   | structMember _ a _ =>
       simp only [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,
@@ -3748,7 +3763,8 @@ private theorem exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed
   | mapping _ _ | mappingWord _ _ _ | mappingPackedWord _ _ _ _
   | mapping2 _ _ _ | mapping2Word _ _ _ _ | mappingUint _ _
   | mappingChain _ _ | structMember _ _ _ | structMember2 _ _ _ _
-  | arrayElement _ _ | arrayElementWord _ _ _ _ | storageArrayElement _ _
+  | arrayElement _ _ | arrayElementWord _ _ _ _ | arrayElementDynamicWord _ _ _
+  | storageArrayElement _ _
   | call _ _ _ _ _ _ _ | staticcall _ _ _ _ _ _ | delegatecall _ _ _ _ _ _
   | externalCall _ _ | internalCall _ _ =>
       cases hcore
@@ -4046,7 +4062,8 @@ theorem exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
   | mapping _ _ | mappingWord _ _ _ | mappingPackedWord _ _ _ _
   | mapping2 _ _ _ | mapping2Word _ _ _ _ | mappingUint _ _
   | structMember _ _ _ | structMember2 _ _ _ _
-  | arrayElement _ _ | arrayElementWord _ _ _ _ | storageArrayElement _ _
+  | arrayElement _ _ | arrayElementWord _ _ _ _ | arrayElementDynamicWord _ _ _
+  | storageArrayElement _ _
   | mappingChain _ _ =>
       simp [exprTouchesUnsupportedContractSurface] at hsurface
   | tload a | calldataload a | mload a =>

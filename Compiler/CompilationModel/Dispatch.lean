@@ -412,6 +412,8 @@ def compileValidatedCore (spec : CompilationModel) (selectors : List Nat) : Exce
     (if arrayElementWordHelpersRequired then
       [ checkedArrayElementWordCalldataHelper
       , checkedArrayElementWordMemoryHelper
+      , checkedArrayElementDynamicWordCalldataHelper
+      , checkedArrayElementDynamicWordMemoryHelper
       ]
     else
       [])

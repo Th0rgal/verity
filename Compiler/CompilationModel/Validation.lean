@@ -273,7 +273,7 @@ def exprReadsStateOrEnv : Expr → Bool
   | Expr.arrayLength _ => false
   | Expr.storageArrayLength _ => true
   | Expr.storageArrayElement _ index => true || exprReadsStateOrEnv index
-  | Expr.arrayElement _ index | Expr.arrayElementWord _ index _ _ => exprReadsStateOrEnv index
+  | Expr.arrayElement _ index | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _ => exprReadsStateOrEnv index
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
   | Expr.mod a b | Expr.smod a b |
     Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b
@@ -345,7 +345,7 @@ def exprWritesState : Expr → Bool
       false
   | Expr.storageArrayElement _ index =>
       exprWritesState index
-  | Expr.arrayElement _ index | Expr.arrayElementWord _ index _ _ =>
+  | Expr.arrayElement _ index | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _ =>
       exprWritesState index
   | _ =>
       false
@@ -487,6 +487,7 @@ def exprHasUntrackableWrites : Expr → Bool
       exprHasUntrackableWrites cond || exprHasUntrackableWrites thenVal || exprHasUntrackableWrites elseVal
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _ | Expr.mappingUint _ key
   | Expr.structMember _ key _ | Expr.arrayElement _ key | Expr.arrayElementWord _ key _ _
+  | Expr.arrayElementDynamicWord _ key _
   | Expr.storageArrayElement _ key =>
       exprHasUntrackableWrites key
   | Expr.mappingChain _ keys =>
@@ -608,6 +609,7 @@ def exprContainsExternalCall : Expr → Bool
       exprContainsExternalCall cond || exprContainsExternalCall thenVal || exprContainsExternalCall elseVal
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _ | Expr.mappingUint _ key
   | Expr.structMember _ key _ | Expr.arrayElement _ key | Expr.arrayElementWord _ key _ _
+  | Expr.arrayElementDynamicWord _ key _
   | Expr.storageArrayElement _ key =>
       exprContainsExternalCall key
   | Expr.mappingChain _ keys =>
@@ -662,6 +664,7 @@ def exprMayContainExternalCall : Expr → Bool
       exprMayContainExternalCall cond || exprMayContainExternalCall thenVal || exprMayContainExternalCall elseVal
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _ | Expr.mappingUint _ key
   | Expr.structMember _ key _ | Expr.arrayElement _ key | Expr.arrayElementWord _ key _ _
+  | Expr.arrayElementDynamicWord _ key _
   | Expr.storageArrayElement _ key =>
       exprMayContainExternalCall key
   | Expr.mappingChain _ keys =>
@@ -1096,7 +1099,8 @@ def exprContainsAdtConstruct : Expr → Bool
   | Expr.bitNot a | Expr.logicalNot a | Expr.extcodesize a
   | Expr.mload a | Expr.tload a | Expr.calldataload a
   | Expr.returndataOptionalBoolAt a
-  | Expr.storageArrayElement _ a | Expr.arrayElement _ a | Expr.arrayElementWord _ a _ _ =>
+  | Expr.storageArrayElement _ a | Expr.arrayElement _ a | Expr.arrayElementWord _ a _ _
+  | Expr.arrayElementDynamicWord _ a _ =>
       exprContainsAdtConstruct a
   | Expr.ite cond thenVal elseVal =>
       exprContainsAdtConstruct cond || exprContainsAdtConstruct thenVal ||
