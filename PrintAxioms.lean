@@ -3285,6 +3285,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_pair_not_mem_iff
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_triple_not_mem_iff
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_quad_not_mem_iff
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_quint_not_mem_iff
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_append_of_forall_stmt
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_cons_of_nativeStmtsWriteNames_not_mem
@@ -3292,6 +3293,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_pair_of_nativeStmtsWriteNames_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_triple_of_nativeStmtsWriteNames_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_quad_of_nativeStmtsWriteNames_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_quint_of_nativeStmtsWriteNames_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_block
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_block_of_nativeStmtsWriteNames_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_append_of_nativeStmtsWriteNames_not_mem
@@ -3847,4 +3849,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3671 theorems/lemmas (2725 public, 946 private, 0 sorry'd)
+-- Total: 3673 theorems/lemmas (2727 public, 946 private, 0 sorry'd)
