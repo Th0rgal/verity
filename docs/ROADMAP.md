@@ -77,6 +77,7 @@ Recent progress for storage layout controls (`#623`):
 - `CompilationModel.Field` now supports packed subfield placement (`packedBits := some { offset := o, width := w }`) so multiple fields can share a slot with disjoint bit ranges; codegen performs masked read-modify-write updates and masked reads directly from layout metadata.
 - `FieldType.mappingStruct` / `FieldType.mappingStruct2` plus `Expr.structMember` / `Stmt.setStructMember` now make struct-valued mappings and packed submembers first-class in the CompilationModel surface, and `verity_contract` now exposes matching `MappingStruct(...)` / `MappingStruct2(...)` storage declarations so Morpho-style layouts no longer require handwritten CompilationModel shims.
 - Migration-faithful packed-slot writes can now be expressed without unsafe raw Yul: build the packed word with first-class word operations and call `setPackedStorage root offset word`, which lowers through `Stmt.setStorageWord` to an explicit full-word write at `root.slot + offset`.
+- `verity_contract` now accepts scalar `Int256` storage fields as signed views over normal 256-bit storage words. The compiler-facing model stays word-level (`FieldType.uint256`), while macro typechecking preserves signed reads/writes at the DSL boundary.
 
 Recent progress for low-level calls + returndata handling (`#622`):
 - `CompilationModel.Expr` now supports first-class low-level call primitives (`call`, `staticcall`, `delegatecall`) with explicit gas/value/target/input/output operands and deterministic Yul lowering.
