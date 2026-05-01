@@ -263,16 +263,18 @@ emitEvent "Transfer" [amount] [fromAddr, toAddr]
 Verity.EVM.Uint256.add : Uint256 -> Uint256 -> Uint256
 Verity.EVM.Uint256.sub : Uint256 -> Uint256 -> Uint256
 Verity.EVM.Uint256.mul : Uint256 -> Uint256 -> Uint256
+Verity.EVM.Uint256.pow : Uint256 -> Uint256 -> Uint256
 Verity.EVM.Uint256.div : Uint256 -> Uint256 -> Uint256
 Verity.EVM.Uint256.mod : Uint256 -> Uint256 -> Uint256
 ```
 
-These model EVM modular arithmetic.
+These model EVM modular arithmetic. `pow a b` and `a ^ b` compile to Yul/EVM `exp(a, b)`.
 
 **Example**
 
 ```lean
 let z : Uint256 := add x y
+let scale : Uint256 := pow 10 decimals
 ```
 
 **Proof lemmas**

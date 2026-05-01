@@ -9,7 +9,9 @@ partial def exprContainsCallLike (expr : Expr) : Bool :=
   | Expr.call _ _ _ _ _ _ _ => true
   | Expr.staticcall _ _ _ _ _ _ => true
   | Expr.delegatecall _ _ _ _ _ _ => true
-  | Expr.externalCall _ _ | Expr.internalCall _ _ => true
+  | Expr.externalCall name args =>
+      if name == builtinExpName then exprListContainsCallLike args else true
+  | Expr.internalCall _ _ => true
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _ | Expr.mappingUint _ key
   | Expr.structMember _ key _ =>
       exprContainsCallLike key

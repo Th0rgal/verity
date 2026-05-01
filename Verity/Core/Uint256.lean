@@ -114,6 +114,9 @@ def sub (a b : Uint256) : Uint256 :=
 -- Modular multiplication (wraps at 2^256)
 def mul (a b : Uint256) : Uint256 := ofNat (a.val * b.val)
 
+/-- EVM EXP semantics: exponentiation modulo `2^256`. -/
+def pow (base exponent : Uint256) : Uint256 := ofNat (base.val ^ exponent.val)
+
 -- Division (returns 0 on division by zero, matching EVM)
 def div (a b : Uint256) : Uint256 :=
   if b.val = 0 then ofNat 0 else ofNat (a.val / b.val)
@@ -159,11 +162,13 @@ def willMulOverflow (a b : Uint256) : Bool :=
 instance : HAdd Uint256 Uint256 Uint256 := ⟨add⟩
 instance : HSub Uint256 Uint256 Uint256 := ⟨sub⟩
 instance : HMul Uint256 Uint256 Uint256 := ⟨mul⟩
+instance : HPow Uint256 Uint256 Uint256 := ⟨pow⟩
 instance : HDiv Uint256 Uint256 Uint256 := ⟨div⟩
 instance : HMod Uint256 Uint256 Uint256 := ⟨mod⟩
 instance : Add Uint256 := ⟨add⟩
 instance : Sub Uint256 := ⟨sub⟩
 instance : Mul Uint256 := ⟨mul⟩
+instance : Pow Uint256 Uint256 := ⟨pow⟩
 instance : Div Uint256 := ⟨div⟩
 instance : Mod Uint256 := ⟨mod⟩
 
@@ -177,6 +182,11 @@ theorem add_eq_of_lt {a b : Uint256} (h : a.val + b.val < modulus) :
 theorem mul_eq_of_lt {a b : Uint256} (h : a.val * b.val < modulus) :
   ((a * b : Uint256) : Nat) = a.val * b.val := by
   simp [HMul.hMul, mul, ofNat]
+  exact Nat.mod_eq_of_lt h
+
+theorem pow_eq_of_lt {a b : Uint256} (h : a.val ^ b.val < modulus) :
+  ((a ^ b : Uint256) : Nat) = a.val ^ b.val := by
+  simp [HPow.hPow, Pow.pow, pow, ofNat]
   exact Nat.mod_eq_of_lt h
 
 theorem sub_eq_of_le {a b : Uint256} (h : b.val ≤ a.val) :

@@ -35,6 +35,17 @@ private def genericECMEffectDemoModule : Compiler.ECM.ExternalCallModule where
   axioms := []
   compile := fun _ctx _args => pure []
 
+verity_contract Uint256PowSmoke where
+  storage
+
+  function scale (decimals : Uint256) : Uint256 := do
+    let exponent := sub 18 decimals
+    return (pow 10 exponent)
+
+  function scaleInfix (decimals : Uint256) : Uint256 := do
+    let exponent := sub 18 decimals
+    return (10 ^ exponent)
+
 verity_contract UintMapSmoke where
   storage
     values : Uint256 → Uint256 := slot 0
@@ -1773,6 +1784,7 @@ example (owner : Address) (value : Uint256) (s s' : ContractState) :
 end SpecGenSmoke
 
 #check_contract Contracts.Counter
+#check_contract Uint256PowSmoke
 #check_contract UintMapSmoke
 #check_contract Bytes32Smoke
 #check_contract StorageAddressArraySmoke

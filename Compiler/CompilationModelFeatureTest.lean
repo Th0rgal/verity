@@ -590,6 +590,43 @@ def feeOnModelInlinesContractConstants : Bool :=
 
 example : feeOnModelInlinesContractConstants = true := by native_decide
 
+def uint256PowSmokeLowersToBuiltinExp : Bool :=
+  match Contracts.Smoke.Uint256PowSmoke.scale_modelBody with
+  | [Stmt.letVar "exponent" (Expr.sub (Expr.literal 18) (Expr.param "decimals")),
+      Stmt.return (Expr.externalCall name [Expr.literal 10, Expr.localVar "exponent"])] =>
+      name == builtinExpName
+  | _ => false
+
+example : uint256PowSmokeLowersToBuiltinExp = true := by native_decide
+
+def uint256PowInfixLowersToBuiltinExp : Bool :=
+  match Contracts.Smoke.Uint256PowSmoke.scaleInfix_modelBody with
+  | [Stmt.letVar "exponent" (Expr.sub (Expr.literal 18) (Expr.param "decimals")),
+      Stmt.return (Expr.externalCall name [Expr.literal 10, Expr.localVar "exponent"])] =>
+      name == builtinExpName
+  | _ => false
+
+example : uint256PowInfixLowersToBuiltinExp = true := by native_decide
+
+def uint256PowBuiltinCompilesToYulExp : Bool :=
+  match compileExpr [] .calldata
+      (Expr.externalCall builtinExpName [Expr.param "base", Expr.param "exponent"]) with
+  | .ok (Compiler.Yul.YulExpr.call "exp"
+      [Compiler.Yul.YulExpr.ident "base", Compiler.Yul.YulExpr.ident "exponent"]) => true
+  | _ => false
+
+example : uint256PowBuiltinCompilesToYulExp = true := by native_decide
+
+def uint256PowBuiltinIsNotAnExternalInteraction : Bool :=
+  let expr := Expr.externalCall builtinExpName [Expr.literal 10, Expr.param "exponent"]
+  !exprReadsStateOrEnv expr &&
+    !exprWritesState expr &&
+    !exprContainsCallLike expr &&
+    !exprContainsExternalCall expr &&
+    !exprMayContainExternalCall expr
+
+example : uint256PowBuiltinIsNotAnExternalInteraction = true := by native_decide
+
 def treasuryAddrModelInlinesAddressConstant : Bool :=
   match MacroConstant.treasuryAddr_modelBody with
   | [Stmt.return (Expr.literal 42)] =>
@@ -2167,6 +2204,27 @@ private def effectOnlyExternalBindMismatchSpec : CompilationModel := {
   ]
 }
 
+private def reservedBuiltinExpExternalSpec : CompilationModel := {
+  name := "ReservedBuiltinExpExternal"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "scale"
+      params := [{ name := "exponent", ty := ParamType.uint256 }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.externalCall builtinExpName [Expr.literal 10, Expr.param "exponent"])]
+    }
+  ]
+  externals := [
+    { name := builtinExpName
+      params := [ParamType.uint256, ParamType.uint256]
+      returnType := some ParamType.uint256
+      returns := [ParamType.uint256]
+      axiomNames := ["malicious_shadow_exp"]
+    }
+  ]
+}
+
 private def rawLogTraceSmokeSpec : CompilationModel := {
   name := "RawLogTraceSmoke"
   fields := []
@@ -3144,6 +3202,10 @@ set_option maxRecDepth 4096 in
     effectOnlyExternalBindMismatchSpec
     "binds 0 values from external function 'echo', but it returns 1."
   expectCompileErrorContains
+    "reserved builtin exp name cannot be shadowed by externals"
+    reservedBuiltinExpExternalSpec
+    s!"external declaration '{builtinExpName}' collides with compiler-generated/reserved symbol '{builtinExpName}'"
+  expectCompileErrorContains
     "reserved compiler prefix is rejected in ECM result binders"
     reservedEcmResultVarSpec
     "local binder '__ecm_result' uses reserved compiler prefix '__'"
@@ -3656,6 +3718,9 @@ set_option maxRecDepth 4096 in
   expectTrue "macro externals surface in the trust report"
     (contains macroExternalTrustReport "\"linkedExternals\"" &&
       contains macroExternalTrustReport "\"echo\"")
+  let macroPowTrustReport := emitTrustReportJson [Contracts.Smoke.Uint256PowSmoke.spec]
+  expectTrue "macro pow builtin does not surface as a linked external"
+    (!contains macroPowTrustReport builtinExpName)
   expectTrue "macro constant expressions inline into model bodies"
     MacroConstantSmoke.feeOnModelInlinesContractConstants
   expectTrue "macro address constants inline through the executable and model paths"

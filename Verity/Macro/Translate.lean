@@ -2237,6 +2237,7 @@ private partial def inferPureExprType
       let lhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants
       let rhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals b visitingConstants
       classifyUnsignedWordArithmeticResultType stx "bitwise word arithmetic" lhsTy rhsTy
+  | `(term| pow $a $b) | `(term| $a ^ $b)
   | `(term| min $a $b) | `(term| max $a $b) | `(term| wMulDown $a $b) | `(term| wDivUp $a $b)
   | `(term| ceilDiv $a $b) => do
       let lhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants
@@ -3062,6 +3063,10 @@ partial def translatePureExprWithTypes
   | `(term| add $a $b) => `(Compiler.CompilationModel.Expr.add $(← translatePureExprWithTypes fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| sub $a $b) => `(Compiler.CompilationModel.Expr.sub $(← translatePureExprWithTypes fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| mul $a $b) => `(Compiler.CompilationModel.Expr.mul $(← translatePureExprWithTypes fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| pow $a $b) | `(term| $a ^ $b) =>
+      `(Compiler.CompilationModel.Expr.externalCall Compiler.CompilationModel.builtinExpName
+          [$(← translatePureExprWithTypes fields constDecls immutableDecls params locals a visitingConstants),
+           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals b visitingConstants)])
   | `(term| div $a $b) | `(term| $a / $b) => do
       let lhsTy ← inferPureExprType fields constDecls immutableDecls #[] params locals a visitingConstants
       let rhsTy ← inferPureExprType fields constDecls immutableDecls #[] params locals b visitingConstants

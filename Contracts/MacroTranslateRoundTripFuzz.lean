@@ -45,6 +45,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Vault.spec
   , Contracts.ERC20.spec
   , Contracts.ERC721.spec
+  , Contracts.Smoke.Uint256PowSmoke.spec
   , Contracts.Smoke.UintMapSmoke.spec
   , Contracts.Smoke.MappingChainSmoke.spec
   , Contracts.Smoke.MixedMappingChainSmoke.spec

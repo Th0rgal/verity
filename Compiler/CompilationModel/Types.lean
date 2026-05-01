@@ -35,6 +35,8 @@ export Compiler.Constants (errorStringSelectorWord addressMask selectorShift fre
 open Compiler
 open Compiler.Yul
 
+def builtinExpName : String := "__verity_builtin_exp"
+
 /-!
 ## Compilation Model DSL
 

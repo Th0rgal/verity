@@ -270,7 +270,9 @@ def exprReadsStateOrEnv : Expr → Bool
   | Expr.returndataOptionalBoolAt _ => true
   | Expr.dynamicBytesEq _ _ => false
   | Expr.localVar _ => false
-  | Expr.externalCall _ _ | Expr.internalCall _ _ => true
+  | Expr.externalCall name args =>
+      if name == builtinExpName then exprListReadsStateOrEnv args else true
+  | Expr.internalCall _ _ => true
   | Expr.arrayLength _ => false
   | Expr.storageArrayLength _ => true
   | Expr.storageArrayElement _ index => true || exprReadsStateOrEnv index
@@ -338,7 +340,9 @@ def exprWritesState : Expr → Bool
       exprWritesState outOffset
   | Expr.dynamicBytesEq _ _ =>
       false
-  | Expr.externalCall _ _ | Expr.internalCall _ _ => true
+  | Expr.externalCall name args =>
+      if name == builtinExpName then exprListWritesState args else true
+  | Expr.internalCall _ _ => true
   | Expr.adtConstruct _ _ args => exprListWritesState args
   | Expr.extcodesize addr =>
       exprWritesState addr
@@ -592,7 +596,9 @@ mutual
     or externalCall).  Used by `no_external_calls` validation (#1729, Axis 3 Step 1c). -/
 def exprContainsExternalCall : Expr → Bool
   | Expr.call _ _ _ _ _ _ _ | Expr.staticcall _ _ _ _ _ _
-  | Expr.delegatecall _ _ _ _ _ _ | Expr.externalCall _ _ => true
+  | Expr.delegatecall _ _ _ _ _ _ => true
+  | Expr.externalCall name args =>
+      if name == builtinExpName then exprListContainsExternalCall args else true
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
   | Expr.mod a b | Expr.smod a b
   | Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b | Expr.sar a b
@@ -647,7 +653,9 @@ mutual
 def exprMayContainExternalCall : Expr → Bool
   | Expr.internalCall _ _ => true
   | Expr.call _ _ _ _ _ _ _ | Expr.staticcall _ _ _ _ _ _
-  | Expr.delegatecall _ _ _ _ _ _ | Expr.externalCall _ _ => true
+  | Expr.delegatecall _ _ _ _ _ _ => true
+  | Expr.externalCall name args =>
+      if name == builtinExpName then exprListMayContainExternalCall args else true
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
   | Expr.mod a b | Expr.smod a b
   | Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b | Expr.sar a b

@@ -41,8 +41,9 @@ def reservedExternalNames
       [dynamicBytesEqCalldataHelperName, dynamicBytesEqMemoryHelperName]
     else
       []
+  let builtins := [builtinExpName]
   let entrypoints := ["fallback", "receive"]
-  (mappingHelpers ++ arrayHelpers ++ arrayElementWordHelpers ++ storageArrayHelpers ++ dynamicBytesEqHelpers ++ entrypoints).eraseDups
+  (mappingHelpers ++ arrayHelpers ++ arrayElementWordHelpers ++ storageArrayHelpers ++ dynamicBytesEqHelpers ++ builtins ++ entrypoints).eraseDups
 
 def firstReservedExternalCollision
     (spec : CompilationModel)
@@ -312,15 +313,19 @@ mutual
 def validateExternalCallTargetsInExpr
     (externals : List ExternalFunction) (context : String) : Expr → Except String Unit
   | Expr.externalCall name args => do
-      match externals.find? (fun ext => ext.name == name) with
-      | none =>
-          throw s!"Compilation error: {context} references unknown external call target '{name}' ({issue732Ref}). Declare it in spec.externals."
-      | some ext =>
-          if args.length != ext.params.length then
-            throw s!"Compilation error: {context} calls external '{name}' with {args.length} args, but spec.externals declares {ext.params.length} ({issue184Ref})."
-          let returns ← externalFunctionReturns ext
-          if returns.length != 1 then
-            throw s!"Compilation error: {context} uses Expr.externalCall '{name}' but spec.externals declares {returns.length} return values; Expr.externalCall requires exactly 1 ({issue184Ref})."
+      if name == builtinExpName then
+        if args.length != 2 then
+          throw s!"Compilation error: {context} calls builtin exp with {args.length} args, expected 2."
+      else
+        match externals.find? (fun ext => ext.name == name) with
+        | none =>
+            throw s!"Compilation error: {context} references unknown external call target '{name}' ({issue732Ref}). Declare it in spec.externals."
+        | some ext =>
+            if args.length != ext.params.length then
+              throw s!"Compilation error: {context} calls external '{name}' with {args.length} args, but spec.externals declares {ext.params.length} ({issue184Ref})."
+            let returns ← externalFunctionReturns ext
+            if returns.length != 1 then
+              throw s!"Compilation error: {context} uses Expr.externalCall '{name}' but spec.externals declares {returns.length} return values; Expr.externalCall requires exactly 1 ({issue184Ref})."
       validateExternalCallTargetsInExprList externals context args
   | Expr.call gas target value inOffset inSize outOffset outSize => do
       validateExternalCallTargetsInExpr externals context gas
