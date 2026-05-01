@@ -2558,11 +2558,12 @@ private partial def inferBindSourceType
       match stripParens optExpr with
       | `(term| safeAdd $a:term $b:term)
       | `(term| safeSub $a:term $b:term)
-      | `(term| safeMul $a:term $b:term) => do
+      | `(term| safeMul $a:term $b:term)
+      | `(term| safeDiv $a:term $b:term) => do
           requireWordLikeType a "safe uint helper" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals a)
           requireWordLikeType b "safe uint helper" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals b)
           pure .uint256
-      | _ => throwErrorAt rhs "unsupported requireSomeUint source; expected safeAdd, safeSub, or safeMul"
+      | _ => throwErrorAt rhs "unsupported requireSomeUint source; expected safeAdd, safeSub, safeMul, or safeDiv"
   | _ =>
       match ← resolveLocalFunctionApp? fields constDecls immutableDecls externalDecls functions params locals rhs with
       | some (fn, _argTerms) =>
@@ -3983,8 +3984,20 @@ private def translateSafeRequireBind
             (← `(Compiler.CompilationModel.Stmt.require $guardExpr $msgLit)),
             (← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $valueExpr))
           ])
+      | `(term| safeDiv $a:term $b:term) =>
+          let aExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals a
+          let bExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals b
+          let valueExpr : Term ← `(Compiler.CompilationModel.Expr.div $aExpr $bExpr)
+          let zeroExpr : Term ← `(Compiler.CompilationModel.Expr.literal 0)
+          let guardExpr : Term ←
+            `(Compiler.CompilationModel.Expr.logicalNot
+                (Compiler.CompilationModel.Expr.eq $bExpr $zeroExpr))
+          pure (some #[
+            (← `(Compiler.CompilationModel.Stmt.require $guardExpr $msgLit)),
+            (← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $valueExpr))
+          ])
       | _ =>
-          throwErrorAt rhs "unsupported requireSomeUint source; expected safeAdd, safeSub, or safeMul"
+          throwErrorAt rhs "unsupported requireSomeUint source; expected safeAdd, safeSub, safeMul, or safeDiv"
   | _ => pure none
 
 private def lookupFunctionByNameAndArity

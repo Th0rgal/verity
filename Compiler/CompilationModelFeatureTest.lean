@@ -1036,6 +1036,34 @@ end MacroStatelessSectionsSmoke
 
 namespace MacroSafeMulRequireSmoke
 
+def safeAddRequireLowersToOverflowGuard : Bool :=
+  match Contracts.SafeCounter.increment_modelBody with
+  | [ Stmt.letVar "current" (Expr.storage "count"),
+      Stmt.require
+        (Expr.ge
+          (Expr.add (Expr.localVar "current") (Expr.literal 1))
+          (Expr.localVar "current"))
+        "Overflow in increment",
+      Stmt.letVar "newCount" (Expr.add (Expr.localVar "current") (Expr.literal 1)),
+      Stmt.setStorage "count" (Expr.localVar "newCount"),
+      Stmt.stop ] => true
+  | _ => false
+
+example : safeAddRequireLowersToOverflowGuard = true := by native_decide
+
+def safeSubRequireLowersToUnderflowGuard : Bool :=
+  match Contracts.SafeCounter.decrement_modelBody with
+  | [ Stmt.letVar "current" (Expr.storage "count"),
+      Stmt.require
+        (Expr.ge (Expr.localVar "current") (Expr.literal 1))
+        "Underflow in decrement",
+      Stmt.letVar "newCount" (Expr.sub (Expr.localVar "current") (Expr.literal 1)),
+      Stmt.setStorage "count" (Expr.localVar "newCount"),
+      Stmt.stop ] => true
+  | _ => false
+
+example : safeSubRequireLowersToUnderflowGuard = true := by native_decide
+
 def safeMulRequireLowersToOverflowGuard : Bool :=
   match Contracts.Smoke.SafeMulRequireSmoke.multiplyStored_modelBody with
   | [ Stmt.letVar "current" (Expr.storage "product"),
@@ -1054,6 +1082,19 @@ def safeMulRequireLowersToOverflowGuard : Bool :=
   | _ => false
 
 example : safeMulRequireLowersToOverflowGuard = true := by native_decide
+
+def safeDivRequireLowersToZeroGuard : Bool :=
+  match Contracts.Smoke.SafeMulRequireSmoke.divideStored_modelBody with
+  | [ Stmt.letVar "current" (Expr.storage "product"),
+      Stmt.require
+        (Expr.logicalNot (Expr.eq (Expr.param "divisor") (Expr.literal 0)))
+        "Division by zero",
+      Stmt.letVar "next" (Expr.div (Expr.localVar "current") (Expr.param "divisor")),
+      Stmt.setStorage "product" (Expr.localVar "next"),
+      Stmt.return (Expr.localVar "next") ] => true
+  | _ => false
+
+example : safeDivRequireLowersToZeroGuard = true := by native_decide
 
 end MacroSafeMulRequireSmoke
 

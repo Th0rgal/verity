@@ -324,6 +324,12 @@ verity_contract SafeMulRequireSmoke where
     setStorage product next
     return next
 
+  function divideStored (divisor : Uint256) : Uint256 := do
+    let current ← getStorage product
+    let next ← requireSomeUint (safeDiv current divisor) "Division by zero"
+    setStorage product next
+    return next
+
 verity_contract SignedBuiltinSmoke where
   storage
     signedSlot : Int256 := slot 0

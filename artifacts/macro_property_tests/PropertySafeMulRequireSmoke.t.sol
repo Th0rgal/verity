@@ -26,4 +26,13 @@ contract PropertySafeMulRequireSmokeTest is YulTestBase {
         // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
         ret;
     }
+    // Property 2: TODO decode and assert `divideStored` result
+    function testTODO_DivideStored_DecodeAndAssert() public {
+        vm.prank(alice);
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("divideStored(uint256)", uint256(1)));
+        require(ok, "divideStored reverted unexpectedly");
+        assertEq(ret.length, 32, "divideStored ABI return length mismatch (expected 32 bytes)");
+        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
+        ret;
+    }
 }
