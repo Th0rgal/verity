@@ -6486,6 +6486,24 @@ theorem nativeStmtsWriteNames_cons
       Backends.nativeStmtWriteNames stmt ++ Backends.nativeStmtsWriteNames rest := by
   simp [Backends.nativeStmtsWriteNames, Backends.collectNativeStmtWriteNames]
 
+theorem nativeStmtsWriteNames_cons_not_mem_iff
+    (name : EvmYul.Identifier)
+    (stmt : EvmYul.Yul.Ast.Stmt)
+    (rest : List EvmYul.Yul.Ast.Stmt) :
+    name ∉ Backends.nativeStmtsWriteNames (stmt :: rest) ↔
+      name ∉ Backends.nativeStmtWriteNames stmt ∧
+        name ∉ Backends.nativeStmtsWriteNames rest := by
+  rw [nativeStmtsWriteNames_cons, List.mem_append]
+  constructor
+  · intro hFresh
+    exact ⟨fun hMem => hFresh (Or.inl hMem),
+      fun hMem => hFresh (Or.inr hMem)⟩
+  · intro hFresh hMem
+    rcases hFresh with ⟨hHead, hTail⟩
+    rcases hMem with hMem | hMem
+    · exact hHead hMem
+    · exact hTail hMem
+
 theorem nativeStmtsWriteNames_head_not_mem_of_cons_not_mem
     (name : EvmYul.Identifier)
     (stmt : EvmYul.Yul.Ast.Stmt)
@@ -6527,6 +6545,23 @@ theorem nativeStmtsWriteNames_right_not_mem_of_append_not_mem
   apply hFresh
   rw [nativeStmtsWriteNames_append]
   exact List.mem_append_right _ hMem
+
+theorem nativeStmtsWriteNames_append_not_mem_iff
+    (name : EvmYul.Identifier)
+    (left right : List EvmYul.Yul.Ast.Stmt) :
+    name ∉ Backends.nativeStmtsWriteNames (left ++ right) ↔
+      name ∉ Backends.nativeStmtsWriteNames left ∧
+        name ∉ Backends.nativeStmtsWriteNames right := by
+  rw [nativeStmtsWriteNames_append, List.mem_append]
+  constructor
+  · intro hFresh
+    exact ⟨fun hMem => hFresh (Or.inl hMem),
+      fun hMem => hFresh (Or.inr hMem)⟩
+  · intro hFresh hMem
+    rcases hFresh with ⟨hLeft, hRight⟩
+    rcases hMem with hMem | hMem
+    · exact hLeft hMem
+    · exact hRight hMem
 
 theorem NativeBlockPreservesWord_append_of_forall_stmt
     (name : EvmYul.Identifier)
