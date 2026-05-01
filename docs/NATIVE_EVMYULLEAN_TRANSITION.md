@@ -477,6 +477,7 @@ scope so the native path does not look more complete than it is:
   `nativeStmtsWriteNames_left_not_mem_of_append_not_mem`,
   `nativeStmtsWriteNames_right_not_mem_of_append_not_mem`,
   `NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem`,
+  `NativeBlockPreservesWord_cons_of_nativeStmtsWriteNames_not_mem`,
   `NativeBlockPreservesWord_append_of_forall_stmt`,
   `NativeBlockPreservesWord_append_of_nativeStmtsWriteNames_not_mem`,
   `NativeStmtPreservesWord_block_of_nativeStmtsWriteNames_not_mem`,

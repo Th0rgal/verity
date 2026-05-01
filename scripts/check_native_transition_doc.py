@@ -352,6 +352,7 @@ def check_public_theorem_target(
         "theorem nativeStmtsWriteNames_left_not_mem_of_append_not_mem",
         "theorem nativeStmtsWriteNames_right_not_mem_of_append_not_mem",
         "theorem NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem",
+        "theorem NativeBlockPreservesWord_cons_of_nativeStmtsWriteNames_not_mem",
         "theorem NativeBlockPreservesWord_append_of_forall_stmt",
         "theorem NativeBlockPreservesWord_append_of_nativeStmtsWriteNames_not_mem",
         "theorem NativeStmtPreservesWord_block_of_nativeStmtsWriteNames_not_mem",

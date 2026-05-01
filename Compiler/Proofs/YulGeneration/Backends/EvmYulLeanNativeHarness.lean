@@ -6568,6 +6568,28 @@ theorem NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
         name body stmt hFresh hMem)
     hPreserves
 
+theorem NativeBlockPreservesWord_cons_of_nativeStmtsWriteNames_not_mem
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (stmt : EvmYul.Yul.Ast.Stmt)
+    (rest : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hFresh : name ∉ Backends.nativeStmtsWriteNames (stmt :: rest))
+    (hHead :
+      name ∉ Backends.nativeStmtWriteNames stmt →
+        NativeStmtPreservesWord name value stmt codeOverride)
+    (hRest :
+      name ∉ Backends.nativeStmtsWriteNames rest →
+        NativeBlockPreservesWord name value rest codeOverride) :
+    NativeBlockPreservesWord name value (stmt :: rest) codeOverride :=
+  NativeBlockPreservesWord_cons_stmt name value stmt rest codeOverride
+    (hHead
+      (nativeStmtsWriteNames_head_not_mem_of_cons_not_mem
+        name stmt rest hFresh))
+    (hRest
+      (nativeStmtsWriteNames_tail_not_mem_of_cons_not_mem
+        name stmt rest hFresh))
+
 theorem NativeStmtPreservesWord_block
     (name : EvmYul.Identifier)
     (value : EvmYul.Literal)
